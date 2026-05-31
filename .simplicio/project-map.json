@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.project-map/v1",
   "version": 1,
-  "generated_at": "2026-05-31T21:18:58.937Z",
+  "generated_at": "2026-05-31T21:25:13.256Z",
   "update_mode": "incremental",
   "product": {
     "name": "simplicio-cli-e2e",
@@ -927,14 +927,14 @@
       "size_bytes": 33777,
       "last_modified": "2026-05-31T21:12:02.968Z",
       "file_hash": "80da61d109d19c16f8e3f5ef20406860a10b63b9fecca799f44ccc6d7784b09b",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [
         "names",
         "renames"
       ],
-      "importance": 0.4
+      "importance": 0.2
     },
     {
       "path": "CLAUDE.md",
@@ -4234,13 +4234,13 @@
       "size_bytes": 2734,
       "last_modified": "2026-05-31T21:11:56.472Z",
       "file_hash": "c54a393963840cc24414b0c353fe2f22f1422b858b61a39cad54465ac26f9bcf",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "config"
       ],
       "imports": [],
       "exports": [],
-      "importance": 0.52
+      "importance": 0.32
     },
     {
       "path": "rust/simplicio-core/Cargo.toml",
@@ -4493,11 +4493,11 @@
       "size_bytes": 23,
       "last_modified": "2026-05-31T21:11:59.099Z",
       "file_hash": "d6794f227b11cc36dc0cfbde677821489eafe8abde37d9fa8278feb705b80e42",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.12
     },
     {
       "path": "simplicio/_cache.py",
@@ -4695,7 +4695,7 @@
       "size_bytes": 6092,
       "last_modified": "2026-05-31T21:11:46.930Z",
       "file_hash": "436c9b3f365c2701c10ad03eb56ae92c0b7836cc5f38806ee2ea4b0a9dac3644",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [
         ".intent",
@@ -4713,7 +4713,7 @@
         "detect",
         "main"
       ],
-      "importance": 0.48
+      "importance": 0.28
     },
     {
       "path": "simplicio/doctor.py",
@@ -10150,7 +10150,7 @@
       "size_bytes": 3121,
       "last_modified": "2026-05-31T21:11:53.582Z",
       "file_hash": "5d791876c047bb34cb46f4d0a7e9aee882249fb88ceecafb7a14fb8ac0c5129a",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "test"
       ],
@@ -10172,7 +10172,7 @@
         "test_portuguese_playwright_local_api_evidence_is_code_task",
         "test_read_only_question_is_not_code_task"
       ],
-      "importance": 0.73
+      "importance": 0.53
     },
     {
       "path": "tests/python/test_init.py",
@@ -10391,9 +10391,9 @@
     {
       "path": "tests/python/test_package_metadata.py",
       "language": "python",
-      "size_bytes": 609,
-      "last_modified": "2026-05-31T20:40:21.128Z",
-      "file_hash": "d6f869670bb4895c6754b821fdc1f731e0ecf6e82bd742c86f94c5be1b09b0e0",
+      "size_bytes": 610,
+      "last_modified": "2026-05-31T21:21:21.816Z",
+      "file_hash": "9154d54e5296fcae6f27a6bcb4006b94d7762b798e8828af4a77138d90c661de",
       "git_status": "clean",
       "roles": [
         "test"
@@ -12368,32 +12368,12 @@
   },
   "recent_changes": [
     {
-      "path": "CHANGELOG.md",
-      "status": "M"
-    },
-    {
-      "path": "pyproject.toml",
-      "status": "M"
-    },
-    {
-      "path": "simplicio/__init__.py",
-      "status": "M"
-    },
-    {
-      "path": "simplicio/detect.py",
-      "status": "M"
-    },
-    {
-      "path": "tests/python/test_detect.py",
-      "status": "M"
+      "path": "tests/python/test_package_metadata.py",
+      "status": "modified"
     }
   ],
   "changed_files": [
-    "CHANGELOG.md",
-    "pyproject.toml",
-    "simplicio/__init__.py",
-    "simplicio/detect.py",
-    "tests/python/test_detect.py"
+    "tests/python/test_package_metadata.py"
   ],
   "integration": {
     "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",
