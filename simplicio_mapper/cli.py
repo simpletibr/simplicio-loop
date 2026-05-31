@@ -312,7 +312,7 @@ def _run_index(opts: dict) -> int:
             skipped_reason="already_fresh",
             counts=state.get("counts") if isinstance(state.get("counts"), dict) else None,
         ))
-        return 2
+        return 0
 
     run_result = _run_once({
         **opts,

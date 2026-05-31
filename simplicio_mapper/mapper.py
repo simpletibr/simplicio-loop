@@ -37,7 +37,8 @@ SKIP_DIRS = {
     ".git", "node_modules", "dist", "build", "out", "coverage",
     ".next", ".nuxt", "playwright-report", "test-results", ".turbo",
     ".venv", "venv", "__pycache__", ".idea", ".vscode", ".simplicio",
-    ".catalog", ".receipts",
+    ".catalog", ".receipts", ".angular", ".pytest_cache", ".mypy_cache",
+    ".ruff_cache", ".gradle", "obj", "target",
 }
 
 CONFIG_FILES = {
@@ -120,12 +121,24 @@ def _walk(root: str):
     except OSError:
         return
     for entry in entries:
-        if entry.name in SKIP_DIRS:
+        if _should_skip_dir(entry):
             continue
         if entry.is_dir(follow_symlinks=False):
             yield from _walk(entry.path)
         elif entry.is_file(follow_symlinks=False):
             yield entry.path
+
+
+def _should_skip_dir(entry: os.DirEntry[str]) -> bool:
+    if entry.name in SKIP_DIRS:
+        return True
+    if entry.name == "bin":
+        try:
+            parent = os.path.dirname(entry.path)
+            return any(name.endswith(".csproj") for name in os.listdir(parent))
+        except OSError:
+            return False
+    return False
 
 
 def _language_for(file: str) -> str:
@@ -214,8 +227,18 @@ def _parse_symbols(text: str) -> list[str]:
     for pattern in _SYMBOL_PATTERNS:
         for match in pattern.finditer(text):
             found.append(match.group(1))
+
+    # Enhanced C# / ASP.NET detection (added during EVT alignment work)
+    if "Controller" in text or "[Http" in text or "[ApiController" in text:
+        for m in re.finditer(r"\bclass\s+([A-Za-z0-9_]+Controller)\b", text):
+            found.append(m.group(1))
+        for m in re.finditer(r'\[Http(Get|Post|Put|Delete|Patch)\s*\(\s*"([^"]+)"', text):
+            found.append(f"[{m.group(1)}] {m.group(2)}")
+        for m in re.finditer(r'\[Route\s*\(\s*"([^"]+)"', text):
+            found.append(f"[Route] {m.group(1)}")
+
     uniq = list(dict.fromkeys(found))
-    return sorted(uniq[:30])
+    return sorted(uniq[:40])
 
 
 _RE_TEST_PATH = re.compile(r"(\b|/)(__tests__|tests?|specs?)(/|\b)", re.IGNORECASE)

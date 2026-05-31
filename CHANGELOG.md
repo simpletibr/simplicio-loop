@@ -6,6 +6,19 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-05-31
+
+### Changed
+- Python mapper skips generated dependency/cache directories from real
+  Angular/.NET/Python projects (`.angular`, `obj`, `.pytest_cache`,
+  `.mypy_cache`, `.ruff_cache`, `.gradle`, `target`) while preserving source
+  `bin/` folders outside .NET project roots.
+- `simplicio-mapper index` now returns exit code `0` for `already_fresh`
+  indexes, preserving the structured `status=skipped` payload without making
+  idempotent automation look failed.
+- C# / ASP.NET symbol extraction now records controller classes and route
+  attributes for endpoint-alignment work.
+
 ## [0.6.3] - 2026-05-31
 
 ### Changed
@@ -272,3 +285,12 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 [0.1.2]: https://github.com/wesleysimplicio/llm-project-mapper/releases/tag/v0.1.2
 [0.1.1]: https://github.com/wesleysimplicio/llm-project-mapper/releases/tag/v0.1.1
 [0.1.0]: https://github.com/wesleysimplicio/llm-project-mapper/releases/tag/v0.1.0
+
+## Unreleased / In Progress (EVT Alignment Work)
+
+### Improvements to mapper for real enterprise monorepos
+- Enhanced C# symbol extraction to detect ASP.NET controllers (`*Controller` classes) and HTTP attributes (`[HttpGet]`, `[HttpPost]`, `[Route]`, etc.).
+- This was driven by the need to map endpoints across `beyondlabs-maturity_matrix-api` (.NET), `-web` (Angular), and `-ai-agents`.
+- Better support for mixed-stack monorepos (Angular + .NET + Python agents).
+
+These changes make `simplicio-mapper` significantly more useful for reverse-engineering and contract alignment tasks on existing large codebases.

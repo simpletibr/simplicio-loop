@@ -110,6 +110,27 @@ class MapperArtifactsTest(unittest.TestCase):
             for item in precedent_index["items"]
         ))
 
+    def test_build_artifacts_ignores_generated_dependency_and_cache_dirs(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "generated-dirs-host"}))
+        _write(self.dir, "GeneratedDirsHost.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\" />\n")
+        _write(self.dir, "src/index.ts", "export const answer = 42;\n")
+        _write(self.dir, ".angular/cache/chunk.js", "export const cached = true;\n")
+        _write(self.dir, "bin/Debug/net9.0/app.dll", "binary-ish text\n")
+        _write(self.dir, "obj/project.assets.json", "{}\n")
+        _write(self.dir, ".pytest_cache/README.md", "# cache\n")
+
+        result = build_artifacts(
+            cwd=str(self.dir),
+            meta={"product_name": "Generated Dirs Host", "stack": "node-angular", "project_mode": "root"},
+        )
+
+        paths = {item["path"] for item in result["project_map"]["files"]}
+        self.assertIn("src/index.ts", paths)
+        self.assertNotIn(".angular/cache/chunk.js", paths)
+        self.assertNotIn("bin/Debug/net9.0/app.dll", paths)
+        self.assertNotIn("obj/project.assets.json", paths)
+        self.assertNotIn(".pytest_cache/README.md", paths)
+
     def test_write_mapping_artifacts_persists_files(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "write-host"}))
         _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
@@ -199,7 +220,7 @@ class CliTest(unittest.TestCase):
         with redirect_stdout(out):
             code = main(["index", str(self.dir), "--json"])
 
-        self.assertEqual(code, 2)
+        self.assertEqual(code, 0)
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["status"], "skipped")
         self.assertEqual(payload["skipped_reason"], "already_fresh")
@@ -207,7 +228,7 @@ class CliTest(unittest.TestCase):
         quiet_out = StringIO()
         with redirect_stdout(quiet_out):
             quiet_code = main(["index", str(self.dir)])
-        self.assertEqual(quiet_code, 2)
+        self.assertEqual(quiet_code, 0)
         self.assertEqual(quiet_out.getvalue(), "")
 
     def test_index_refreshes_after_file_change(self) -> None:

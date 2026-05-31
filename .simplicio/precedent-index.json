@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-05-30T20:28:55.569Z",
+  "generated_at": "2026-05-31T18:47:21.393Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -103,6 +103,21 @@
       ],
       "summary": "feature precedent in .github/workflows-templates/telemetry-worker.js",
       "snippet": "]);\n\nfunction sanitize(obj) {\n  const out = {};\n  for (const key of ALLOWED_FIELDS) {"
+    },
+    {
+      "id": "424095e2b4c2ee33",
+      "path": ".skills/UPSTREAM-LICENSE",
+      "line": 76,
+      "language": "text",
+      "change_type": "error-handling",
+      "tags": [
+        "text",
+        "skills",
+        "upstream",
+        "license"
+      ],
+      "summary": "error-handling precedent in .skills/UPSTREAM-LICENSE",
+      "snippet": "      this License, each Contributor hereby grants to You a perpetual,\n      worldwide, non-exclusive, no-charge, royalty-free, irrevocable\n      (except as stated in this section) patent license to make, have made,\n      use, offer to sell, sell, import, and otherwise transfer the Work,\n      where such license applies only to those patent claims licensable"
     },
     {
       "id": "d1034b9b05e70e2b",
@@ -232,6 +247,22 @@
       "snippet": "**If subagent fails task:**\n- Dispatch fix subagent with specific instructions\n- Don't try to fix manually (context pollution)\n\n## Integration"
     },
     {
+      "id": "53ee8b31b93dd412",
+      "path": ".skills/systematic-debugging/SKILL.md",
+      "line": 217,
+      "language": "markdown",
+      "change_type": "error-handling",
+      "tags": [
+        "markdown",
+        "skills",
+        "systematic",
+        "debugging",
+        "skill"
+      ],
+      "summary": "error-handling precedent in .skills/systematic-debugging/SKILL.md",
+      "snippet": "## Red Flags - STOP and Follow Process\n\nIf you catch yourself thinking:\n- \"Quick fix for now, investigate later\"\n- \"Just try changing X and see if it works\""
+    },
+    {
       "id": "4d61694d2e97140c",
       "path": ".skills/systematic-debugging/condition-based-waiting.md",
       "line": 62,
@@ -283,22 +314,6 @@
       ],
       "summary": "feature precedent in .skills/systematic-debugging/root-cause-tracing.md",
       "snippet": "```typescript\n// Before the problematic operation\nasync function gitInit(directory: string) {\n  const stack = new Error().stack;\n  console.error('DEBUG git init:', {"
-    },
-    {
-      "id": "53ee8b31b93dd412",
-      "path": ".skills/systematic-debugging/SKILL.md",
-      "line": 217,
-      "language": "markdown",
-      "change_type": "error-handling",
-      "tags": [
-        "markdown",
-        "skills",
-        "systematic",
-        "debugging",
-        "skill"
-      ],
-      "summary": "error-handling precedent in .skills/systematic-debugging/SKILL.md",
-      "snippet": "## Red Flags - STOP and Follow Process\n\nIf you catch yourself thinking:\n- \"Quick fix for now, investigate later\"\n- \"Just try changing X and see if it works\""
     },
     {
       "id": "d07cef8e7aa737b2",
@@ -382,21 +397,6 @@
       "snippet": "    });\n\n    function render(t) {\n      timeUniform[0] = t;\n      device.queue.writeBuffer(timeBuf, 0, timeUniform);"
     },
     {
-      "id": "424095e2b4c2ee33",
-      "path": ".skills/UPSTREAM-LICENSE",
-      "line": 76,
-      "language": "text",
-      "change_type": "error-handling",
-      "tags": [
-        "text",
-        "skills",
-        "upstream",
-        "license"
-      ],
-      "summary": "error-handling precedent in .skills/UPSTREAM-LICENSE",
-      "snippet": "      this License, each Contributor hereby grants to You a perpetual,\n      worldwide, non-exclusive, no-charge, royalty-free, irrevocable\n      (except as stated in this section) patent license to make, have made,\n      use, offer to sell, sell, import, and otherwise transfer the Work,\n      where such license applies only to those patent claims licensable"
-    },
-    {
       "id": "2e75328573b73328",
       "path": ".skills/writing-plans/SKILL.md",
       "line": 76,
@@ -427,6 +427,61 @@
       ],
       "summary": "test precedent in .specs/architecture/PATTERNS.md",
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
+    },
+    {
+      "id": "a3e8e47f38073b5c",
+      "path": "INSTALL.en.md",
+      "line": 65,
+      "language": "markdown",
+      "change_type": "error-handling",
+      "tags": [
+        "markdown",
+        "install"
+      ],
+      "summary": "error-handling precedent in INSTALL.en.md",
+      "snippet": "cd ~/code/my-front\n\n# copies everything from the starter except its .git, and NEVER overwrites host files\nrsync -av --ignore-existing --exclude='.git' /tmp/llm-project-mapper-src/ ./\n```"
+    },
+    {
+      "id": "dd5f761b862639f0",
+      "path": "PRIVACY.md",
+      "line": 48,
+      "language": "markdown",
+      "change_type": "error-handling",
+      "tags": [
+        "markdown",
+        "privacy"
+      ],
+      "summary": "error-handling precedent in PRIVACY.md",
+      "snippet": "- `CI=true` (or any truthy `CI` env var) — the starter never posts telemetry in CI.\n- `--dry-run` — never posts.\n- `LLM_PROJECT_MAPPER_TELEMETRY=0|off` — overrides everything except `CI`.\n- No `LLM_PROJECT_MAPPER_TELEMETRY_URL` configured — there is nowhere to post to, so nothing is sent.\n"
+    },
+    {
+      "id": "0ce3ca398f144636",
+      "path": "SIMPLICIO_INTEGRATION.md",
+      "line": 115,
+      "language": "markdown",
+      "change_type": "feature",
+      "tags": [
+        "markdown",
+        "simplicio",
+        "integration"
+      ],
+      "summary": "feature precedent in SIMPLICIO_INTEGRATION.md",
+      "snippet": "import json\n\ndef load_simplicio_context(root: str, target: str):\n    base = Path(root) / \".simplicio\"\n    project_map = json.loads((base / \"project-map.json\").read_text())"
+    },
+    {
+      "id": "8cb1cdd2cb680063",
+      "path": "YOOL_TUPLE_HAMT.md",
+      "line": 117,
+      "language": "markdown",
+      "change_type": "feature",
+      "tags": [
+        "markdown",
+        "yool",
+        "tuple",
+        "hamt"
+      ],
+      "summary": "feature precedent in YOOL_TUPLE_HAMT.md",
+      "snippet": "```\n\nA yool is **not** a function. A function might back a yool, but the yool itself is the **addressable symbol + contract**, decoupled from implementation.\n\n### 2.2 tuple"
     },
     {
       "id": "d43913f31dc7031f",
@@ -633,22 +688,6 @@
       "snippet": "cd ~/code/my-front\n\n# copies everything from the starter except its .git, and NEVER overwrites host files\nrsync -av --ignore-existing --exclude='.git' /tmp/llm-project-mapper-src/ ./\n```"
     },
     {
-      "id": "f4cb395d5ce595dc",
-      "path": "docs/api-examples/webhook.md",
-      "line": 39,
-      "language": "markdown",
-      "change_type": "feature",
-      "tags": [
-        "markdown",
-        "docs",
-        "api",
-        "examples",
-        "webhook"
-      ],
-      "summary": "feature precedent in docs/api-examples/webhook.md",
-      "snippet": "const crypto = require('node:crypto');\n\nfunction verify(rawBody, headerValue, secret) {\n  const parts = Object.fromEntries(\n    headerValue.split(',').map((kv) => kv.split('='))"
-    },
-    {
       "id": "45624a0a3c32bca0",
       "path": "docs/YOOL_TUPLE_HAMT.md",
       "line": 117,
@@ -665,30 +704,20 @@
       "snippet": "```\n\nA yool is **not** a function. A function might back a yool, but the yool itself is the **addressable symbol + contract**, decoupled from implementation.\n\n### 2.2 tuple"
     },
     {
-      "id": "a3e8e47f38073b5c",
-      "path": "INSTALL.en.md",
-      "line": 65,
+      "id": "f4cb395d5ce595dc",
+      "path": "docs/api-examples/webhook.md",
+      "line": 39,
       "language": "markdown",
-      "change_type": "error-handling",
+      "change_type": "feature",
       "tags": [
         "markdown",
-        "install"
+        "docs",
+        "api",
+        "examples",
+        "webhook"
       ],
-      "summary": "error-handling precedent in INSTALL.en.md",
-      "snippet": "cd ~/code/my-front\n\n# copies everything from the starter except its .git, and NEVER overwrites host files\nrsync -av --ignore-existing --exclude='.git' /tmp/llm-project-mapper-src/ ./\n```"
-    },
-    {
-      "id": "dd5f761b862639f0",
-      "path": "PRIVACY.md",
-      "line": 48,
-      "language": "markdown",
-      "change_type": "error-handling",
-      "tags": [
-        "markdown",
-        "privacy"
-      ],
-      "summary": "error-handling precedent in PRIVACY.md",
-      "snippet": "- `CI=true` (or any truthy `CI` env var) — the starter never posts telemetry in CI.\n- `--dry-run` — never posts.\n- `LLM_PROJECT_MAPPER_TELEMETRY=0|off` — overrides everything except `CI`.\n- No `LLM_PROJECT_MAPPER_TELEMETRY_URL` configured — there is nowhere to post to, so nothing is sent.\n"
+      "summary": "feature precedent in docs/api-examples/webhook.md",
+      "snippet": "const crypto = require('node:crypto');\n\nfunction verify(rawBody, headerValue, secret) {\n  const parts = Object.fromEntries(\n    headerValue.split(',').map((kv) => kv.split('='))"
     },
     {
       "id": "b994778812d3c8c2",
@@ -750,20 +779,6 @@
       ],
       "summary": "error-handling precedent in scripts/sync-docs-site.mjs",
       "snippet": "- MCP should stay at the edge for snapshot and dispatch, not become the inner loop.\n\n## Try it\n\n\\`\\`\\`bash"
-    },
-    {
-      "id": "0ce3ca398f144636",
-      "path": "SIMPLICIO_INTEGRATION.md",
-      "line": 115,
-      "language": "markdown",
-      "change_type": "feature",
-      "tags": [
-        "markdown",
-        "simplicio",
-        "integration"
-      ],
-      "summary": "feature precedent in SIMPLICIO_INTEGRATION.md",
-      "snippet": "import json\n\ndef load_simplicio_context(root: str, target: str):\n    base = Path(root) / \".simplicio\"\n    project_map = json.loads((base / \"project-map.json\").read_text())"
     },
     {
       "id": "825d59d8c8dce284",
@@ -1193,21 +1208,6 @@
       ],
       "summary": "error-handling precedent in vscode-extension/test/scan.test.js",
       "snippet": "// Easier: require the compiled JS if `out/scan.js` exists, otherwise skip.\nlet scan;\ntry {\n  scan = require('../out/scan.js');\n} catch {"
-    },
-    {
-      "id": "8cb1cdd2cb680063",
-      "path": "YOOL_TUPLE_HAMT.md",
-      "line": 117,
-      "language": "markdown",
-      "change_type": "feature",
-      "tags": [
-        "markdown",
-        "yool",
-        "tuple",
-        "hamt"
-      ],
-      "summary": "feature precedent in YOOL_TUPLE_HAMT.md",
-      "snippet": "```\n\nA yool is **not** a function. A function might back a yool, but the yool itself is the **addressable symbol + contract**, decoupled from implementation.\n\n### 2.2 tuple"
     }
   ]
 }
