@@ -66,8 +66,11 @@ def test_portuguese_endpoint_alignment_is_code_task():
 def test_portuguese_playwright_local_api_evidence_is_code_task():
     r = detect("vamos usar playwright para evidenciar as telas web conectando ao api com banco postgresql local")
     assert r.is_code_task is True
+    assert r.scope == "feature"
+    assert "feature-scale code work" in r.hint
     assert any(signal.startswith("verb:") for signal in r.signals)
     assert any(signal.startswith("noun:") for signal in r.signals)
+    assert "feature:real_stack_evidence" in r.signals
 
 
 def test_cli_detect_accepts_positional_prompt(monkeypatch, capsys):

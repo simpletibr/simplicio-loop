@@ -1,8 +1,8 @@
 {
   "schema": "simplicio.project-map/v1",
   "version": 1,
-  "generated_at": "2026-05-31T22:33:29.005Z",
-  "update_mode": "full",
+  "generated_at": "2026-05-31T22:40:16.022Z",
+  "update_mode": "incremental",
   "product": {
     "name": "simplicio-cli-e2e",
     "stack": "unknown",
@@ -924,9 +924,9 @@
     {
       "path": "CHANGELOG.md",
       "language": "markdown",
-      "size_bytes": 34032,
-      "last_modified": "2026-05-31T22:26:42.081Z",
-      "file_hash": "b6bd493f08098c26e6214f79c6b9a64c409945df85d4c7b565d5e66ec29350e8",
+      "size_bytes": 34273,
+      "last_modified": "2026-05-31T22:39:57.135Z",
+      "file_hash": "8cf97fb7aa7e9d80812bf37ca8feb658832fce7f908b19a074f7f60435dfe3d2",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -4232,8 +4232,8 @@
       "path": "pyproject.toml",
       "language": "toml",
       "size_bytes": 2734,
-      "last_modified": "2026-05-31T22:26:42.080Z",
-      "file_hash": "24f946f73c3a0759407647158a2f205c6181b81f711bab50e516d287391cc719",
+      "last_modified": "2026-05-31T22:39:57.132Z",
+      "file_hash": "cf1fdf24c95374fdc7f27e1500b7a6d7bb94d986f467818d0b72819db75d1fda",
       "git_status": "M",
       "roles": [
         "config"
@@ -4491,8 +4491,8 @@
       "path": "simplicio/__init__.py",
       "language": "python",
       "size_bytes": 23,
-      "last_modified": "2026-05-31T22:32:33.075Z",
-      "file_hash": "c457b3f5d510adcb99a99456b8422c09b32c92847e29ed7fb94679d4acadd6dc",
+      "last_modified": "2026-05-31T22:39:57.133Z",
+      "file_hash": "2f39cdce4ee70db242bfb355c423aef79f3ed6e4ff9c527bf7fdef26ded63c37",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -4692,10 +4692,10 @@
     {
       "path": "simplicio/detect.py",
       "language": "python",
-      "size_bytes": 6092,
-      "last_modified": "2026-05-31T21:11:46.930Z",
-      "file_hash": "436c9b3f365c2701c10ad03eb56ae92c0b7836cc5f38806ee2ea4b0a9dac3644",
-      "git_status": "clean",
+      "size_bytes": 6370,
+      "last_modified": "2026-05-31T22:39:57.131Z",
+      "file_hash": "fc2fd89042e8da190817ee0234161bc629bad84856e896ad612517a70dfa9601",
+      "git_status": "M",
       "roles": [],
       "imports": [
         ".intent",
@@ -4713,7 +4713,7 @@
         "detect",
         "main"
       ],
-      "importance": 0.28
+      "importance": 0.48
     },
     {
       "path": "simplicio/doctor.py",
@@ -4866,9 +4866,9 @@
     {
       "path": "simplicio/intent.py",
       "language": "python",
-      "size_bytes": 10663,
-      "last_modified": "2026-05-31T22:26:42.077Z",
-      "file_hash": "ab90bbedbf2a9cfb98cb286926e0badc25f2c6021fa488d505d3e12ef6f9637a",
+      "size_bytes": 11224,
+      "last_modified": "2026-05-31T22:39:57.130Z",
+      "file_hash": "493f73cad2c86286e179d020b908b7648d7aa1f0afc60a5e09e044adfdea0b74",
       "git_status": "M",
       "roles": [],
       "imports": [
@@ -4883,6 +4883,7 @@
         "_first_phrase",
         "_first_token",
         "_fold",
+        "_looks_like_real_stack_evidence",
         "classify_goal"
       ],
       "importance": 0.48
@@ -10147,9 +10148,9 @@
     {
       "path": "tests/python/test_detect.py",
       "language": "python",
-      "size_bytes": 3466,
-      "last_modified": "2026-05-31T22:26:42.080Z",
-      "file_hash": "99f725bd01860d665de18f1211d6b706901bc3f5a585d6f15923d01f3bce173f",
+      "size_bytes": 3599,
+      "last_modified": "2026-05-31T22:39:57.132Z",
+      "file_hash": "bd6623374885d937ff4cb62ccf878751285f5b676aa45dd204d113e6911a9492",
       "git_status": "M",
       "roles": [
         "test"
@@ -10202,9 +10203,9 @@
     {
       "path": "tests/python/test_intent.py",
       "language": "python",
-      "size_bytes": 3565,
-      "last_modified": "2026-05-31T22:26:42.079Z",
-      "file_hash": "37c872fecc65c51815d7b817f62e988e39ff4ea061ad3fb66da84d0e22dc4320",
+      "size_bytes": 3924,
+      "last_modified": "2026-05-31T22:39:57.131Z",
+      "file_hash": "af329024a3a3ac3747fef64d92b9c4bb0886f8312267fb0b296d88186b895210",
       "git_status": "M",
       "roles": [
         "test"
@@ -10221,6 +10222,7 @@
         "test_many_issue_refs_are_sprint",
         "test_multiple_files_becomes_feature_not_task",
         "test_new_endpoint_is_not_scratch",
+        "test_playwright_local_api_postgres_evidence_is_feature",
         "test_portuguese_task_goal",
         "test_read_only_goal_has_low_confidence",
         "test_remaining_endpoint_backlog_is_sprint",
@@ -10394,8 +10396,8 @@
       "path": "tests/python/test_package_metadata.py",
       "language": "python",
       "size_bytes": 610,
-      "last_modified": "2026-05-31T22:32:33.076Z",
-      "file_hash": "bb3764368e287e21b4d71c76c72bc24a3e07b03bdd881ad106618995d418d9a8",
+      "last_modified": "2026-05-31T22:39:57.134Z",
+      "file_hash": "fa4af01cb8d4becd08e91dd8edbf12f1a40acb8c6a90cb908b45b6df7f879729",
       "git_status": "M",
       "roles": [
         "test"
@@ -12245,7 +12247,7 @@
     },
     {
       "name": "stack",
-      "score": 115
+      "score": 117
     },
     {
       "name": "executor",
@@ -12256,12 +12258,12 @@
       "score": 102
     },
     {
-      "name": "parse",
-      "score": 98
+      "name": "local",
+      "score": 99
     },
     {
-      "name": "local",
-      "score": 97
+      "name": "parse",
+      "score": 98
     },
     {
       "name": "results",
@@ -12350,7 +12352,6 @@
       "django",
       "dotnet",
       "express",
-      "fastapi",
       "nestjs",
       "nextjs",
       "playwright",
@@ -12382,6 +12383,10 @@
       "status": "M"
     },
     {
+      "path": "simplicio/detect.py",
+      "status": "M"
+    },
+    {
       "path": "simplicio/intent.py",
       "status": "M"
     },
@@ -12402,6 +12407,7 @@
     "CHANGELOG.md",
     "pyproject.toml",
     "simplicio/__init__.py",
+    "simplicio/detect.py",
     "simplicio/intent.py",
     "tests/python/test_detect.py",
     "tests/python/test_intent.py",

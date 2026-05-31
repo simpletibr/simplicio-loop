@@ -100,10 +100,10 @@ def detect(prompt: str) -> DetectResult:
         signals.append("explicit_invocation")
 
     intent = classify_goal(prompt)
-    if intent.scope == "sprint" and intent.confidence >= 0.70:
+    if intent.scope in {"feature", "sprint"} and intent.confidence >= 0.70:
         score += 2
         for signal in intent.signals:
-            if signal.startswith("sprint:") and signal not in signals:
+            if signal.startswith(("feature:", "sprint:")) and signal not in signals:
                 signals.append(signal)
 
     is_code = score >= 3
@@ -118,6 +118,11 @@ def _render_hint(prompt: str, signals: list, scope: str = "task") -> str:
         scale_line = (
             "This prompt looks like sprint-scale code work. Use `simplicio run --scope sprint`\n"
             "or a local sprint plan before editing by hand, then verify each slice."
+        )
+    elif scope == "feature":
+        scale_line = (
+            "This prompt looks like feature-scale code work. Use `simplicio run --scope feature`\n"
+            "or a focused local plan before editing by hand, then verify the full flow."
         )
     else:
         scale_line = (

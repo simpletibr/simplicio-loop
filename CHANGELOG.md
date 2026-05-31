@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.12] — 2026-05-31
+
+### Changed
+- `simplicio detect` now classifies Playwright + web + API + PostgreSQL local
+  evidence prompts as feature-scale real-stack work and emits a feature-scope
+  hint for the full-flow verification path.
+
 ## [0.5.11] — 2026-05-31
 
 ### Changed

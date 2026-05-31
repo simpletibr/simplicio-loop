@@ -93,6 +93,16 @@ def test_remaining_endpoint_backlog_is_sprint():
     assert "sprint:remaining_endpoint_inventory" in result.signals
 
 
+def test_playwright_local_api_postgres_evidence_is_feature():
+    result = classify_goal(
+        "vamos usar playwright para evidenciar as telas web conectando ao api com banco postgresql local"
+    )
+
+    assert result.scope == "feature"
+    assert result.confidence >= AUTO_CONFIDENCE_THRESHOLD
+    assert "feature:real_stack_evidence" in result.signals
+
+
 def test_read_only_goal_has_low_confidence():
     result = classify_goal("explain how the verify loop works")
     assert result.scope == "task"

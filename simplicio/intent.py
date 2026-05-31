@@ -182,6 +182,12 @@ _BROAD_CUES = (
     "varios arquivos",
     "varios modulos",
 )
+_REAL_STACK_EVIDENCE_CUES = {
+    "browser": ("playwright", "e2e"),
+    "ui": ("web", "frontend", "telas", "screens", "interface", "browser"),
+    "api": ("api", "backend", "azure functions", ".net"),
+    "database": ("postgres", "postgresql", "database", "banco", "db"),
+}
 
 _SPRINT_CUES = (
     "sprint",
@@ -330,6 +336,10 @@ def classify_goal(text: str, explicit_scope: str | None = None) -> IntentResult:
         scores["feature"] += 2
         signals.append(f"broad:{broad}")
 
+    if _looks_like_real_stack_evidence(lower):
+        scores["feature"] += 5
+        signals.append("feature:real_stack_evidence")
+
     if not unique_files and (feature_verb or feature_noun):
         scores["feature"] += 1
         signals.append("feature:no_target_file")
@@ -452,3 +462,7 @@ def _first_token(text: str, words: tuple[str, ...]) -> str | None:
 
 def _first_phrase(text: str, phrases: tuple[str, ...]) -> str | None:
     return next((phrase for phrase in phrases if phrase in text), None)
+
+
+def _looks_like_real_stack_evidence(text: str) -> bool:
+    return all(any(cue in text for cue in cues) for cues in _REAL_STACK_EVIDENCE_CUES.values())
