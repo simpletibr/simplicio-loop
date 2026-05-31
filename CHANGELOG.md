@@ -6,6 +6,13 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-05-31
+
+### Changed
+- Python mapper now skips generated `output/` trees, including Playwright
+  HTML reports and trace result folders, so live evidence artifacts do not
+  pollute `.simplicio/project-map.json`.
+
 ## [0.6.4] - 2026-05-31
 
 ### Changed

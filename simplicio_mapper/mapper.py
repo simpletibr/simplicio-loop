@@ -34,7 +34,7 @@ TEXT_EXTS = {
 }
 
 SKIP_DIRS = {
-    ".git", "node_modules", "dist", "build", "out", "coverage",
+    ".git", "node_modules", "dist", "build", "out", "output", "coverage",
     ".next", ".nuxt", "playwright-report", "test-results", ".turbo",
     ".venv", "venv", "__pycache__", ".idea", ".vscode", ".simplicio",
     ".catalog", ".receipts", ".angular", ".pytest_cache", ".mypy_cache",

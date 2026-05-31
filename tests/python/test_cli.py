@@ -117,6 +117,8 @@ class MapperArtifactsTest(unittest.TestCase):
         _write(self.dir, ".angular/cache/chunk.js", "export const cached = true;\n")
         _write(self.dir, "bin/Debug/net9.0/app.dll", "binary-ish text\n")
         _write(self.dir, "obj/project.assets.json", "{}\n")
+        _write(self.dir, "output/playwright/report/index.html", "<html></html>\n")
+        _write(self.dir, "output/playwright/results/.last-run.json", "{}\n")
         _write(self.dir, ".pytest_cache/README.md", "# cache\n")
 
         result = build_artifacts(
@@ -129,6 +131,8 @@ class MapperArtifactsTest(unittest.TestCase):
         self.assertNotIn(".angular/cache/chunk.js", paths)
         self.assertNotIn("bin/Debug/net9.0/app.dll", paths)
         self.assertNotIn("obj/project.assets.json", paths)
+        self.assertNotIn("output/playwright/report/index.html", paths)
+        self.assertNotIn("output/playwright/results/.last-run.json", paths)
         self.assertNotIn(".pytest_cache/README.md", paths)
 
     def test_write_mapping_artifacts_persists_files(self) -> None:
