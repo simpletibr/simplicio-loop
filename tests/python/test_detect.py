@@ -56,8 +56,11 @@ def test_hint_includes_target_file_when_present():
 def test_portuguese_endpoint_alignment_is_code_task():
     r = detect("veja todas as telas e alinhe todos os endpoints com a API")
     assert r.is_code_task is True
+    assert r.scope == "sprint"
+    assert "sprint-scale code work" in r.hint
     assert any(signal.startswith("verb:") for signal in r.signals)
     assert any(signal.startswith("noun:") for signal in r.signals)
+    assert "sprint:full_inventory" in r.signals
 
 
 def test_portuguese_playwright_local_api_evidence_is_code_task():
@@ -83,3 +86,24 @@ def test_cli_detect_accepts_positional_prompt(monkeypatch, capsys):
 
     assert code == 0
     assert '"is_code_task": true' in capsys.readouterr().out
+
+
+def test_cli_detect_reports_sprint_scope_for_full_inventory(monkeypatch, capsys):
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+
+    code = cli.main([
+        "detect",
+        "veja",
+        "todas",
+        "as",
+        "telas",
+        "e",
+        "todos",
+        "os",
+        "endpoints",
+        "--json",
+        "--quiet",
+    ])
+
+    assert code == 0
+    assert '"scope": "sprint"' in capsys.readouterr().out

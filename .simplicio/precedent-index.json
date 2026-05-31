@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-05-31T20:43:57.288Z",
+  "generated_at": "2026-05-31T21:18:58.937Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -218,9 +218,9 @@
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
     },
     {
-      "id": "df17419ca6560b7a",
+      "id": "c06fe24775766f34",
       "path": "CHANGELOG.md",
-      "line": 193,
+      "line": 200,
       "language": "markdown",
       "change_type": "error-handling",
       "tags": [
@@ -1659,9 +1659,9 @@
       "snippet": "\n\ndef maybe_autoinstall(cmd: str | None) -> bool:\n    \"\"\"Install skill + hook on first run when Claude Code is detected.\"\"\"\n    if os.environ.get(\"SIMPLICIO_SKIP_AUTO_INIT\"):"
     },
     {
-      "id": "59805a9e668bdeac",
+      "id": "3fab7779433d65b7",
       "path": "simplicio/detect.py",
-      "line": 60,
+      "line": 62,
       "language": "python",
       "change_type": "feature",
       "tags": [

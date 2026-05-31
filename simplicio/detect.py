@@ -13,6 +13,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+from .intent import classify_goal
+
 _EDIT_VERBS = (
     # English
     "add", "remove", "delete", "rename", "refactor", "fix", "patch", "update",
@@ -62,6 +64,7 @@ class DetectResult:
     score: int
     signals: list
     hint: str
+    scope: str = "task"
 
 
 def detect(prompt: str) -> DetectResult:
@@ -96,21 +99,38 @@ def detect(prompt: str) -> DetectResult:
         score += 5
         signals.append("explicit_invocation")
 
+    intent = classify_goal(prompt)
+    if intent.scope == "sprint" and intent.confidence >= 0.70:
+        score += 2
+        for signal in intent.signals:
+            if signal.startswith("sprint:") and signal not in signals:
+                signals.append(signal)
+
     is_code = score >= 3
-    hint = _render_hint(prompt, signals) if is_code else ""
-    return DetectResult(is_code, score, signals, hint)
+    hint = _render_hint(prompt, signals, intent.scope) if is_code else ""
+    return DetectResult(is_code, score, signals, hint, intent.scope)
 
 
-def _render_hint(prompt: str, signals: list) -> str:
+def _render_hint(prompt: str, signals: list, scope: str = "task") -> str:
     target_hint = next((s.split(":", 1)[1] for s in signals if s.startswith("file:")), None)
     target_line = f"target = {target_hint}" if target_hint else "target = <ask user or infer via Explore>"
+    if scope == "sprint":
+        scale_line = (
+            "This prompt looks like sprint-scale code work. Use `simplicio run --scope sprint`\n"
+            "or a local sprint plan before editing by hand, then verify each slice."
+        )
+    else:
+        scale_line = (
+            "This prompt looks like a small/medium code edit. Before editing by hand,\n"
+            "invoke the simplicio-cli skill (it stacks precedent + skill-router + 6-layer\n"
+            "prompt + test + verify-loop and measurably boosts pass-rate)."
+        )
     return (
         "[SIMPLICIO_PROMPT_HINT]\n"
-        "This prompt looks like a small/medium code edit. Before editing by hand,\n"
-        "invoke the simplicio-cli skill (it stacks precedent + skill-router + 6-layer\n"
-        "prompt + test + verify-loop and measurably boosts pass-rate).\n"
+        f"{scale_line}\n"
         f"  goal = {prompt.strip()[:120]}\n"
         f"  {target_line}\n"
+        f"  scope = {scope}\n"
         f"  signals = {', '.join(signals)}\n"
         "[/SIMPLICIO_PROMPT_HINT]"
     )
@@ -133,6 +153,7 @@ def main(argv=None) -> int:
         print(json.dumps({
             "is_code_task": result.is_code_task,
             "score": result.score,
+            "scope": result.scope,
             "signals": result.signals,
         }))
 
