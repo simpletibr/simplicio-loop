@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.9] — 2026-05-31
+
+### Added
+- `simplicio env-export <file>` parses dotenv files without evaluating them as
+  shell code and prints shell-safe `export` lines, preserving semicolon-heavy
+  values such as PostgreSQL connection strings.
+
+## [0.5.8] — 2026-05-31
+
+### Changed
+- `simplicio index` now accepts a positional project root (`simplicio index
+  path/to/repo`) in addition to `--root`, matching the mapper invocation style
+  used during cross-repo endpoint alignment.
+
 ## [0.5.7] — 2026-05-31
 
 ### Changed

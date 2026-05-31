@@ -566,6 +566,7 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     pi = sub.add_parser("index", help="index/cache the repo (once, or after changes)")
+    pi.add_argument("root_arg", nargs="?", help="project root; same as --root")
     pi.add_argument("--root", default=".")
     pi.add_argument("--stack", default="angular")
 
@@ -607,12 +608,19 @@ def main(argv=None):
     p_status.add_argument("--root", default=".")
     p_status.add_argument("--json", action="store_true")
 
+    p_env_export = sub.add_parser(
+        "env-export",
+        help="print shell-safe exports from a dotenv file without sourcing it",
+    )
+    p_env_export.add_argument("env_file")
+    p_env_export.add_argument("--json", action="store_true")
+
     a = ap.parse_args(argv)
     maybe_autoinstall(a.cmd)
     if a.cmd == "index":
         from .precedent import index_repo
 
-        index_repo(a.root, a.stack)
+        index_repo(a.root_arg or a.root, a.stack)
     elif a.cmd == "smoke":
         from .providers import generate, info
 
@@ -669,6 +677,22 @@ def main(argv=None):
         return detect_main(detect_argv)
     elif a.cmd == "status":
         return _run_status_command(a)
+    elif a.cmd == "env-export":
+        from .runtime_env import parse_env_file, shell_export_lines
+
+        try:
+            values = parse_env_file(a.env_file)
+        except OSError as exc:
+            print(f"simplicio env-export: {exc}", file=sys.stderr)
+            return 2
+        except ValueError as exc:
+            print(f"simplicio env-export: {exc}", file=sys.stderr)
+            return 2
+        if a.json:
+            print(json.dumps(values, sort_keys=True))
+        else:
+            print("\n".join(shell_export_lines(values)))
+        return 0
     elif a.cmd == "task":
         return _run_task_command(a)
     elif a.cmd == "run":

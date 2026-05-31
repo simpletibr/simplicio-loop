@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 _NODE_COMMAND_RE = re.compile(r"(^|[;&|({]\s*)(corepack|ng|node|npm|npx|pnpm|yarn)\b")
+_DOTENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def wrap_project_command(root: str | os.PathLike[str], command: str) -> str:
@@ -29,3 +30,30 @@ def wrap_project_command(root: str | os.PathLike[str], command: str) -> str:
         return command
 
     return f". {shlex.quote(str(nvm_sh))} >/dev/null 2>&1 && nvm use >/dev/null && {command}"
+
+
+def parse_env_file(path: str | os.PathLike[str]) -> dict[str, str]:
+    """Parse KEY=VALUE dotenv files without evaluating them as shell code."""
+    env: dict[str, str] = {}
+    for line_number, raw_line in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), 1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export ") :].strip()
+        if "=" not in line:
+            raise ValueError(f"invalid env line {line_number}: missing '='")
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if not _DOTENV_KEY_RE.match(key):
+            raise ValueError(f"invalid env line {line_number}: invalid key {key!r}")
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        env[key] = value
+    return env
+
+
+def shell_export_lines(values: dict[str, str]) -> list[str]:
+    """Render dotenv values as shell-safe exports."""
+    return [f"export {key}={shlex.quote(value)}" for key, value in sorted(values.items())]

@@ -594,6 +594,11 @@ API key from any of the providers above (OpenRouter is the cheapest way to
 try multiple models behind one key), set `SIMPLICIO_API_KEY` +
 `SIMPLICIO_MODEL` + optional `SIMPLICIO_BASE_URL`, run `simplicio task ...`.
 
+**"How do I load `.env.local` safely before running a local API?"** Use
+`eval "$(simplicio env-export .env.local)"` instead of `source .env.local`.
+This preserves values with semicolons, such as PostgreSQL connection strings,
+without executing the dotenv file as shell code.
+
 **"I have Codex CLI / ChatGPT Plus and don't want to pay for an API key."**
 Not auto-wired yet. Workarounds: (a) get an OpenRouter key (~$2 covers
 thousands of tasks at small-model rates), (b) wait for the shell-out provider

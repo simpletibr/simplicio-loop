@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-05-31T20:21:47.901Z",
+  "generated_at": "2026-05-31T20:43:57.288Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -218,9 +218,9 @@
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
     },
     {
-      "id": "12321aeb789b5041",
+      "id": "df17419ca6560b7a",
       "path": "CHANGELOG.md",
-      "line": 179,
+      "line": 193,
       "language": "markdown",
       "change_type": "error-handling",
       "tags": [
@@ -1903,9 +1903,9 @@
       "snippet": "\n\ndef _cfg():\n    return {\n        \"model\": os.environ.get(\"SIMPLICIO_MODEL\"),"
     },
     {
-      "id": "d47ee682d972c747",
+      "id": "ddf0fb7929f439ad",
       "path": "simplicio/runtime_env.py",
-      "line": 14,
+      "line": 15,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -4102,9 +4102,9 @@
       "snippet": "\n\ndef _write(path, text):\n    path.parent.mkdir(parents=True, exist_ok=True)\n    path.write_text(text, encoding=\"utf-8\")"
     },
     {
-      "id": "3f7b5588b206029a",
+      "id": "afbb9de1db0bdabe",
       "path": "tests/python/test_runtime_env.py",
-      "line": 6,
+      "line": 8,
       "language": "python",
       "change_type": "test",
       "tags": [

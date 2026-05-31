@@ -59,6 +59,38 @@ def test_run_scope_task_preserves_task_json_contract(tmp_path, monkeypatch, caps
     assert "scope" not in payload
 
 
+def test_index_accepts_positional_root(tmp_path, monkeypatch):
+    seen = {}
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+
+    def fake_index_repo(root, stack):
+        seen["root"] = root
+        seen["stack"] = stack
+
+    monkeypatch.setattr("simplicio.precedent.index_repo", fake_index_repo)
+
+    code = cli.main(["index", str(tmp_path), "--stack", "python"])
+
+    assert code == 0
+    assert seen == {"root": str(tmp_path), "stack": "python"}
+
+
+def test_env_export_quotes_dotenv_values(tmp_path, monkeypatch, capsys):
+    env_file = tmp_path / ".env.local"
+    env_file.write_text(
+        "Database__ConnectionString=Host=localhost;Port=5432;Database=maturity_matrix;\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+
+    code = cli.main(["env-export", str(env_file)])
+
+    assert code == 0
+    assert capsys.readouterr().out.strip() == (
+        "export Database__ConnectionString='Host=localhost;Port=5432;Database=maturity_matrix;'"
+    )
+
+
 def test_run_auto_task_infers_target_from_goal(tmp_path, monkeypatch, capsys):
     _write(tmp_path / "src" / "auth.py", "old\n")
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
