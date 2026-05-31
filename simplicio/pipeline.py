@@ -6,6 +6,7 @@ from .observability import estimate_tokens, log_run
 from .pipeline_fixers import try_static_fixers
 from .prompt import build_prompt
 from .providers import generate
+from .runtime_env import wrap_project_command
 
 MAX_ATTEMPTS = 5
 
@@ -159,6 +160,7 @@ def _apply_and_test(output, root, bound_paths=None):
     if not applied:
         return False, apply_log
     cmd = os.environ.get("SIMPLICIO_TEST_CMD", "echo 'configure SIMPLICIO_TEST_CMD'")
+    cmd = wrap_project_command(root, cmd)
     p = subprocess.run(cmd, shell=True, cwd=root, capture_output=True, text=True)
     return p.returncode == 0, (p.stdout + p.stderr)[-2000:]
 

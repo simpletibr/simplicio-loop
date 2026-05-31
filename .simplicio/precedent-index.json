@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-05-31T19:43:40.244Z",
+  "generated_at": "2026-05-31T20:21:47.901Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -218,9 +218,9 @@
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
     },
     {
-      "id": "93b30e296cdfc20d",
+      "id": "12321aeb789b5041",
       "path": "CHANGELOG.md",
-      "line": 170,
+      "line": 179,
       "language": "markdown",
       "change_type": "error-handling",
       "tags": [
@@ -1832,9 +1832,9 @@
       "snippet": "\n\ndef _codegen_disabled() -> bool:\n    return os.environ.get(\"SIMPLICIO_DISABLE_CODEGEN\", \"\").lower() in {\n        \"1\","
     },
     {
-      "id": "ed78ad13a1aa05ad",
+      "id": "d95df2ed362cc739",
       "path": "simplicio/pipeline.py",
-      "line": 13,
+      "line": 14,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -1901,6 +1901,21 @@
       ],
       "summary": "feature precedent in simplicio/providers.py",
       "snippet": "\n\ndef _cfg():\n    return {\n        \"model\": os.environ.get(\"SIMPLICIO_MODEL\"),"
+    },
+    {
+      "id": "d47ee682d972c747",
+      "path": "simplicio/runtime_env.py",
+      "line": 14,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "runtime",
+        "env"
+      ],
+      "summary": "feature precedent in simplicio/runtime_env.py",
+      "snippet": "\n\ndef wrap_project_command(root: str | os.PathLike[str], command: str) -> str:\n    \"\"\"Prefix Node commands with the project-pinned nvm runtime when available.\"\"\"\n    if not command or not _NODE_COMMAND_RE.search(command):"
     },
     {
       "id": "08c3edd7ccaa9b1d",
@@ -4087,6 +4102,21 @@
       "snippet": "\n\ndef _write(path, text):\n    path.parent.mkdir(parents=True, exist_ok=True)\n    path.write_text(text, encoding=\"utf-8\")"
     },
     {
+      "id": "3f7b5588b206029a",
+      "path": "tests/python/test_runtime_env.py",
+      "line": 6,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "runtime",
+        "env"
+      ],
+      "summary": "test precedent in tests/python/test_runtime_env.py",
+      "snippet": "\n\ndef test_wrap_project_command_uses_project_nvmrc(tmp_path, monkeypatch):\n    nvm_dir = tmp_path / \"nvm\"\n    nvm_dir.mkdir()"
+    },
+    {
       "id": "9d75babd0c63cc36",
       "path": "tests/python/test_rust_prompt.py",
       "line": 19,
@@ -4209,38 +4239,6 @@
       ],
       "summary": "test precedent in tests/python/test_scratch_codegen_fastapi.py",
       "snippet": "\n\ndef _stack(tmp_path: Path) -> Stack:\n    return Stack(\n        slug=\"py-fastapi\","
-    },
-    {
-      "id": "f5a96ce9e7bd69fe",
-      "path": "tests/python/test_scratch_codegen_go_gin.py",
-      "line": 31,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "scratch",
-        "codegen",
-        "gin"
-      ],
-      "summary": "test precedent in tests/python/test_scratch_codegen_go_gin.py",
-      "snippet": "\n\ndef _go_binary() -> str | None:\n    return shutil.which(\"go\") or (str(_PORTABLE_GO) if _PORTABLE_GO.is_file() else None)\n"
-    },
-    {
-      "id": "65779c7c369949cd",
-      "path": "tests/python/test_scratch_codegen_markdown.py",
-      "line": 13,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "scratch",
-        "codegen",
-        "markdown"
-      ],
-      "summary": "test precedent in tests/python/test_scratch_codegen_markdown.py",
-      "snippet": "\n\ndef _stack(tmp_path: Path) -> Stack:\n    return Stack(\n        slug=\"php-vanilla\","
     }
   ]
 }

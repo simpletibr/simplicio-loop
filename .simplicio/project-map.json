@@ -1,8 +1,8 @@
 {
   "schema": "simplicio.project-map/v1",
   "version": 1,
-  "generated_at": "2026-05-31T19:43:40.244Z",
-  "update_mode": "full",
+  "generated_at": "2026-05-31T20:21:47.901Z",
+  "update_mode": "incremental",
   "product": {
     "name": "simplicio-cli-e2e",
     "stack": "unknown",
@@ -924,9 +924,9 @@
     {
       "path": "CHANGELOG.md",
       "language": "markdown",
-      "size_bytes": 32689,
-      "last_modified": "2026-05-31T19:42:19.859Z",
-      "file_hash": "50f49ff0f0ea1566929ab0d7c734d9aad73e3391f505aeb33f18475965ae265e",
+      "size_bytes": 33051,
+      "last_modified": "2026-05-31T20:21:39.910Z",
+      "file_hash": "343b9b669c44761afd08f6091b47ed7aaee80a55806ff36482f661c13f9a4c22",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -4232,8 +4232,8 @@
       "path": "pyproject.toml",
       "language": "toml",
       "size_bytes": 2733,
-      "last_modified": "2026-05-31T19:42:19.861Z",
-      "file_hash": "ff4db4ad9086ad52d4b91fad1ec349d102b0a5bd7d244b460c67bc0533c8fa8d",
+      "last_modified": "2026-05-31T20:21:39.907Z",
+      "file_hash": "22ede6b9b92427e095836831ad9523c0c091f338326dcc2dbc36f7a6d4ebf646",
       "git_status": "M",
       "roles": [
         "config"
@@ -4491,8 +4491,8 @@
       "path": "simplicio/__init__.py",
       "language": "python",
       "size_bytes": 22,
-      "last_modified": "2026-05-31T19:42:19.861Z",
-      "file_hash": "08c1f7e06b7502a3bbcff4ea463f785f0a211a85427fc69eb3476392a9b8e669",
+      "last_modified": "2026-05-31T20:13:40.469Z",
+      "file_hash": "2a2cb261bc847b43bce7c926896720d51766a86518b64fc9a9199cdff12fd90f",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -4569,15 +4569,16 @@
     {
       "path": "simplicio/bench.py",
       "language": "python",
-      "size_bytes": 3443,
-      "last_modified": "2026-05-27T19:27:28.804Z",
-      "file_hash": "a58c870f18f11cf4e663c48b961f1d5a0545beeae2f28175d812220a7316a1ce",
-      "git_status": "clean",
+      "size_bytes": 3541,
+      "last_modified": "2026-05-31T20:13:40.468Z",
+      "file_hash": "c7b89fcb64cfbb68cb5aef70b487af40ba0c07f33800a06be57070cc435d7d0e",
+      "git_status": "M",
       "roles": [],
       "imports": [
         ".observability",
         ".prompt",
         ".providers",
+        ".runtime_env",
         "os"
       ],
       "exports": [
@@ -4586,7 +4587,7 @@
         "_test",
         "run_bench"
       ],
-      "importance": 0.28
+      "importance": 0.48
     },
     {
       "path": "simplicio/cache.py",
@@ -4694,7 +4695,7 @@
       "size_bytes": 5331,
       "last_modified": "2026-05-31T19:42:19.854Z",
       "file_hash": "8f81ad04cd4e2619b42442e33c0beebeb6435f4b732cab4ca0193f16a80e065b",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [
         "__future__",
@@ -4711,7 +4712,7 @@
         "detect",
         "main"
       ],
-      "importance": 0.48
+      "importance": 0.28
     },
     {
       "path": "simplicio/doctor.py",
@@ -5045,16 +5046,17 @@
     {
       "path": "simplicio/pipeline.py",
       "language": "python",
-      "size_bytes": 10559,
-      "last_modified": "2026-05-31T11:59:59.283Z",
-      "file_hash": "1106d22790e0eeb1bf8f8735636c8627b625ac73ef65a476f4d021b65132e369",
-      "git_status": "clean",
+      "size_bytes": 10647,
+      "last_modified": "2026-05-31T20:13:40.468Z",
+      "file_hash": "c156a15ca4deb740b6e144be1d7dd0631a60274ad85ae4e86004add093f7086f",
+      "git_status": "M",
       "roles": [],
       "imports": [
         ".observability",
         ".pipeline_fixers",
         ".prompt",
         ".providers",
+        ".runtime_env",
         "dataclasses",
         "fnmatch",
         "os"
@@ -5077,7 +5079,7 @@
         "test_",
         "validate_generated_output"
       ],
-      "importance": 0.28
+      "importance": 0.48
     },
     {
       "path": "simplicio/pipeline_fixers.py",
@@ -5219,6 +5221,26 @@
         "planner_info"
       ],
       "importance": 0.28
+    },
+    {
+      "path": "simplicio/runtime_env.py",
+      "language": "python",
+      "size_bytes": 934,
+      "last_modified": "2026-05-31T20:13:40.467Z",
+      "file_hash": "328fe764c6126f85e6bcb9a95c1599c2b33605713b71818c6a92081e04813d4a",
+      "git_status": "??",
+      "roles": [],
+      "imports": [
+        "__future__",
+        "os",
+        "pathlib",
+        "re",
+        "shlex"
+      ],
+      "exports": [
+        "wrap_project_command"
+      ],
+      "importance": 0.48
     },
     {
       "path": "simplicio/scratch/__init__.py",
@@ -10125,7 +10147,7 @@
       "size_bytes": 2562,
       "last_modified": "2026-05-31T19:42:19.856Z",
       "file_hash": "5d7b598f9ec83171f6b4b17e03e01d2a209380025807f9aff9b2a33f912958cf",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "test"
       ],
@@ -10146,7 +10168,7 @@
         "test_portuguese_playwright_local_api_evidence_is_code_task",
         "test_read_only_question_is_not_code_task"
       ],
-      "importance": 0.73
+      "importance": 0.53
     },
     {
       "path": "tests/python/test_init.py",
@@ -10366,9 +10388,9 @@
       "path": "tests/python/test_package_metadata.py",
       "language": "python",
       "size_bytes": 609,
-      "last_modified": "2026-05-31T19:30:45.397Z",
-      "file_hash": "ea9bd2e628c434e664a003e43f33810448b78093fd2f0465622b227108aabeda",
-      "git_status": "clean",
+      "last_modified": "2026-05-31T20:21:39.909Z",
+      "file_hash": "06503c7ccd6b8a7c5578465d8d70d7b41fd53c42a7adb0a66564d4d44f75b3f1",
+      "git_status": "M",
       "roles": [
         "test"
       ],
@@ -10381,7 +10403,7 @@
         "test_package_version_matches_release_metadata",
         "test_simplicio_ecosystem_dependency_floors_are_current"
       ],
-      "importance": 0.53
+      "importance": 0.73
     },
     {
       "path": "tests/python/test_pipeline_fixers.py",
@@ -10644,6 +10666,27 @@
         "write_state"
       ],
       "importance": 0.53
+    },
+    {
+      "path": "tests/python/test_runtime_env.py",
+      "language": "python",
+      "size_bytes": 1170,
+      "last_modified": "2026-05-31T20:15:08.735Z",
+      "file_hash": "4cb084ae9564629f7fa774e4fdf65adaacb04aed042acaae06dbe077715ae8ff",
+      "git_status": "??",
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "pathlib",
+        "simplicio.runtime_env"
+      ],
+      "exports": [
+        "test_wrap_project_command_skips_non_node_commands",
+        "test_wrap_project_command_skips_when_nvm_already_selected",
+        "test_wrap_project_command_uses_project_nvmrc"
+      ],
+      "importance": 0.73
     },
     {
       "path": "tests/python/test_rust_prompt.py",
@@ -11775,6 +11818,7 @@
     "tests/python/test_qwen15b_quant_curve_report.py",
     "tests/python/test_recipes.py",
     "tests/python/test_run_cli.py",
+    "tests/python/test_runtime_env.py",
     "tests/python/test_rust_prompt.py",
     "tests/python/test_schema_smoke_summary.py",
     "tests/python/test_scratch.py",
@@ -12117,7 +12161,7 @@
         "test",
         "ui"
       ],
-      "file_count": 326
+      "file_count": 327
     },
     {
       "name": "simplicio_cli.egg-info",
@@ -12162,7 +12206,7 @@
         "test",
         "ui"
       ],
-      "file_count": 57
+      "file_count": 58
     }
   ],
   "entities": [
@@ -12325,20 +12369,35 @@
       "status": "M"
     },
     {
-      "path": "simplicio/detect.py",
+      "path": "simplicio/bench.py",
       "status": "M"
     },
     {
-      "path": "tests/python/test_detect.py",
+      "path": "simplicio/pipeline.py",
       "status": "M"
+    },
+    {
+      "path": "simplicio/runtime_env.py",
+      "status": "??"
+    },
+    {
+      "path": "tests/python/test_package_metadata.py",
+      "status": "M"
+    },
+    {
+      "path": "tests/python/test_runtime_env.py",
+      "status": "??"
     }
   ],
   "changed_files": [
     "CHANGELOG.md",
     "pyproject.toml",
     "simplicio/__init__.py",
-    "simplicio/detect.py",
-    "tests/python/test_detect.py"
+    "simplicio/bench.py",
+    "simplicio/pipeline.py",
+    "simplicio/runtime_env.py",
+    "tests/python/test_package_metadata.py",
+    "tests/python/test_runtime_env.py"
   ],
   "integration": {
     "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",

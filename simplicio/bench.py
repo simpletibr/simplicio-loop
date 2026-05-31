@@ -13,10 +13,12 @@ import os, json, time, subprocess
 from .observability import estimate_tokens, log_run
 from .prompt import build_prompt
 from .providers import generate
+from .runtime_env import wrap_project_command
 
 def _test(output, root, test_cmd):
     os.makedirs(os.path.join(root, ".simplicio"), exist_ok=True)
     open(os.path.join(root, ".simplicio/bench_out.txt"), "w").write(output or "")
+    test_cmd = wrap_project_command(root, test_cmd)
     p = subprocess.run(test_cmd, shell=True, cwd=root, capture_output=True, text=True)
     return p.returncode == 0
 

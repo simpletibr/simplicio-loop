@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.7] — 2026-05-31
+
+### Changed
+- Verify commands that invoke Node tooling now honor a project `.nvmrc` when
+  `nvm` is installed, preventing false failures when the ambient shell uses an
+  unsupported Node version.
+- The ecosystem dependency floor now requires `simplicio-mapper>=0.6.6`, which
+  preserves untracked-file Git status in mapper artifacts.
+
 ## [0.5.6] — 2026-05-31
 
 ### Changed
