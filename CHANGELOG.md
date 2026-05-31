@@ -6,6 +6,13 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+## [0.6.6] - 2026-05-31
+
+### Changed
+- Git status collection now uses `--untracked-files=all`, so files inside new
+  directories are marked as `??` in `files[].git_status`, `changed_files`, and
+  `recent_changes` instead of looking clean in mapper artifacts.
+
 ## [0.6.5] - 2026-05-31
 
 ### Changed

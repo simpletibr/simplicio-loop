@@ -97,6 +97,32 @@ test('map command updates artifacts and records incremental changed files', () =
   }
 });
 
+test('map command marks untracked files inside new directories', () => {
+  const dir = mkTmp();
+  try {
+    spawnSync('git', ['init'], { cwd: dir, encoding: 'utf8', timeout: 15000 });
+    writeFile(dir, 'package.json', JSON.stringify({ name: 'untracked-host' }));
+    writeFile(dir, 'src/new/index.js', 'export function run() { return 1; }\n');
+
+    const res = spawnSync(NODE, [CLI, 'map', '--root', dir, '--stack', 'node', '--product-name', 'Untracked Host', '--incremental'], {
+      encoding: 'utf8',
+      timeout: 15000,
+    });
+    assert.equal(res.status, 0, res.stderr);
+
+    const projectMap = readJson(dir, '.simplicio/project-map.json');
+    const entry = projectMap.files.find((file) => file.path === 'src/new/index.js');
+    assert.equal(entry.git_status, '??');
+    assert.ok(projectMap.changed_files.includes('src/new/index.js'));
+    assert.deepEqual(
+      projectMap.recent_changes.find((item) => item.path === 'src/new/index.js'),
+      { path: 'src/new/index.js', status: '??' },
+    );
+  } finally {
+    rmTmp(dir);
+  }
+});
+
 test('starter metadata includes the simplicio integration contract pointer', () => {
   const dir = mkTmp();
   try {

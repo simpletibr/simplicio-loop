@@ -155,7 +155,7 @@ def _git_status_map(cwd: str) -> dict[str, str]:
     out: dict[str, str] = {}
     try:
         result = subprocess.run(
-            ["git", "status", "--porcelain"],
+            ["git", "status", "--porcelain", "--untracked-files=all"],
             cwd=cwd,
             capture_output=True,
             text=True,

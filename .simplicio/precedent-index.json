@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-05-31T18:47:21.393Z",
+  "generated_at": "2026-05-31T20:19:46.098Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -827,9 +827,9 @@
       "snippet": "\n\ndef _read_json_safe(file: str) -> dict:\n    try:\n        with open(file, \"r\", encoding=\"utf-8\") as handle:"
     },
     {
-      "id": "9a8e979dd472d3ca",
+      "id": "cab7419086883d3b",
       "path": "simplicio_mapper/mapper.py",
-      "line": 79,
+      "line": 80,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -923,9 +923,9 @@
       "snippet": "const baseUrl = process.env.BASE_URL;\n\ntest.describe('downstream smoke (skipped without BASE_URL)', () => {\n  test.skip(!baseUrl, 'BASE_URL not set — skipping browser smoke');\n"
     },
     {
-      "id": "774e7d1f8f6f6e14",
+      "id": "072fad269338ae8f",
       "path": "tests/python/test_cli.py",
-      "line": 32,
+      "line": 33,
       "language": "python",
       "change_type": "test",
       "tags": [

@@ -108,7 +108,7 @@ function parseJsonSafe(file) {
 }
 
 function gitStatusMap(cwd) {
-  const result = spawnSync('git', ['status', '--porcelain'], {
+  const result = spawnSync('git', ['status', '--porcelain', '--untracked-files=all'], {
     cwd,
     encoding: 'utf8',
     timeout: 3000,

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -158,6 +159,22 @@ class MapperArtifactsTest(unittest.TestCase):
         project_map = result["project_map"]
         self.assertEqual(project_map["update_mode"], "incremental")
         self.assertIn("src/index.js", project_map["changed_files"])
+
+    def test_git_status_marks_untracked_files_inside_new_dirs(self) -> None:
+        subprocess.run(["git", "init"], cwd=self.dir, check=True, capture_output=True)
+        _write(self.dir, "package.json", json.dumps({"name": "untracked-host"}))
+        _write(self.dir, "src/new/index.js", "export function run() { return 1; }\n")
+
+        result = build_artifacts(cwd=str(self.dir), meta={"stack": "node"}, incremental=True)
+
+        project_map = result["project_map"]
+        file_entry = next(item for item in project_map["files"] if item["path"] == "src/new/index.js")
+        self.assertEqual(file_entry["git_status"], "??")
+        self.assertIn("src/new/index.js", project_map["changed_files"])
+        self.assertIn(
+            {"path": "src/new/index.js", "status": "??"},
+            project_map["recent_changes"],
+        )
 
 
 class CliTest(unittest.TestCase):
