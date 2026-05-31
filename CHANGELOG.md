@@ -6,6 +6,15 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+## [0.6.7] - 2026-05-31
+
+### Added
+- `simplicio-mapper endpoints <path> --against <server-root> --json` extracts
+  normalized client calls and server HTTP routes, then reports
+  `missing_from_server` using the stable
+  `simplicio.endpoint-inventory/v1` schema. This turns cross-repo endpoint
+  alignment checks into a reusable mapper workflow.
+
 ## [0.6.6] - 2026-05-31
 
 ### Changed

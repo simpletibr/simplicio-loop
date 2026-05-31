@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import hashlib
 import os
+import re
 import subprocess
 import sys
 import time
@@ -20,6 +21,7 @@ from .mapper import write_mapping_artifacts
 
 INDEX_RESULT_SCHEMA = "simplicio.mapper-index/v1"
 INDEX_STATE_SCHEMA = "simplicio.mapper-index-state/v1"
+ENDPOINT_INVENTORY_SCHEMA = "simplicio.endpoint-inventory/v1"
 
 HELP_TEXT = """simplicio-mapper map
 
@@ -27,11 +29,14 @@ Generate or update machine-readable mapper artifacts.
 
 USAGE
   simplicio-mapper index <path> [--json] [--verbose]
+  simplicio-mapper endpoints <path> [--against <server-root>] [--json]
   simplicio-mapper map [--root <dir>] [--incremental] [--watch]
   simplicio-mapper update [--root <dir>] [--watch]
 
 OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
+  endpoints <path>      Extract client/server HTTP endpoint inventory.
+  --against <dir>       Compare endpoint client calls against server routes.
   --json                Emit structured index output.
   --verbose             Show progress during index refreshes.
   --root <dir>          Project root to map. Defaults to cwd.
@@ -66,18 +71,22 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "json": False,
         "verbose": False,
         "command": "map",
+        "against": "",
     }
-    command = argv[0] if argv and argv[0] in ("index", "map", "update") else "map"
+    command = argv[0] if argv and argv[0] in ("index", "map", "update", "endpoints") else "map"
     opts["command"] = command
     if command == "index":
         opts["silent"] = True
     if command == "update":
         opts["incremental"] = True
-    i = 1 if argv and argv[0] in ("index", "map", "update") else 0
+    i = 1 if argv and argv[0] in ("index", "map", "update", "endpoints") else 0
     while i < len(argv):
         arg = argv[i]
-        if command == "index" and not arg.startswith("-"):
+        if command in ("index", "endpoints") and not arg.startswith("-"):
             opts["root"] = arg
+        elif arg == "--against":
+            i += 1
+            opts["against"] = argv[i]
         elif arg == "--root":
             i += 1
             opts["root"] = argv[i]
@@ -293,6 +302,176 @@ def _emit_index_json(opts: dict, payload: dict) -> None:
         print(json.dumps(payload, sort_keys=True))
 
 
+def _normalize_endpoint_path(path: str) -> str:
+    path = path.strip().split("?", 1)[0]
+    if not path.startswith("/"):
+        path = "/" + path
+    path = path.replace("//", "/")
+    path = re.sub(r"\$\{[^}]+\}", "{id}", path)
+    path = re.sub(r"\{[^}]+\}", "{id}", path)
+    return path.rstrip("/") or "/"
+
+
+def _endpoint_files(root: str):
+    skip = {".git", "node_modules", ".simplicio", "dist", "build", "obj", "bin", ".venv", "venv", "__pycache__"}
+    for current, dirs, files in os.walk(root):
+        dirs[:] = [d for d in dirs if d not in skip]
+        for name in files:
+            ext = os.path.splitext(name)[1].lower()
+            if ext in (".cs", ".py", ".ts", ".tsx", ".js", ".jsx"):
+                yield os.path.join(current, name)
+
+
+def _route_entry(method: str, path: str, file: str, root: str, kind: str) -> dict:
+    return {
+        "method": method.upper(),
+        "path": _normalize_endpoint_path(path),
+        "file": os.path.relpath(file, root).replace(os.sep, "/"),
+        "kind": kind,
+    }
+
+
+def _extract_csharp_server_routes(text: str, file: str, root: str) -> list[dict]:
+    routes: list[dict] = []
+    for match in re.finditer(r"HttpTrigger\((.*?)\)", text, re.S):
+        args = match.group(1)
+        route_match = re.search(r'Route\s*=\s*"([^"]+)"', args)
+        if not route_match:
+            continue
+        for method in re.findall(r'"(get|post|put|patch|delete)"', args, re.I):
+            routes.append(_route_entry(method, route_match.group(1), file, root, "server"))
+
+    class_route = ""
+    controller_kind = "contract" if "OpenApiContractControllerBase" in text else "server"
+    class_route_match = re.search(r'\[Route\("([^"]+)"\)\]', text)
+    if class_route_match:
+        class_route = class_route_match.group(1)
+    for match in re.finditer(r'\[Http(Get|Post|Put|Patch|Delete)(?:\("([^"]*)"\))?\]', text):
+        method = match.group(1)
+        suffix = match.group(2) or ""
+        if class_route or suffix:
+            routes.append(_route_entry(method, f"/{class_route}/{suffix}", file, root, controller_kind))
+    return routes
+
+
+def _extract_python_routes(text: str, file: str, root: str) -> tuple[list[dict], list[dict]]:
+    server: list[dict] = []
+    client: list[dict] = []
+    prefix = ""
+    prefix_match = re.search(r"APIRouter\([^)]*prefix\s*=\s*['\"]([^'\"]+)['\"]", text, re.S)
+    if prefix_match:
+        prefix = prefix_match.group(1)
+    for match in re.finditer(r"@router\.(get|post|put|patch|delete)\(\s*['\"]([^'\"]+)['\"]", text, re.I):
+        server.append(_route_entry(match.group(1), f"/api/v1{prefix}{match.group(2)}", file, root, "server"))
+    for owner in ("self", "self._client"):
+        for method in ("get", "post", "put", "patch", "delete"):
+            pattern = rf"{re.escape(owner)}\.{method}\(\s*f?['\"]([^'\"]+)['\"]"
+            for match in re.finditer(pattern, text):
+                path = match.group(1)
+                if path.startswith("/"):
+                    client.append(_route_entry(method, f"/api/v1{path}", file, root, "client"))
+    return server, client
+
+
+def _extract_text_client_calls(text: str, file: str, root: str) -> list[dict]:
+    calls: list[dict] = []
+    for method in ("get", "post", "put", "patch", "delete"):
+        pattern = rf"\.{method}(?:<[^>]+>)?\(\s*(?:`([^`]+)`|['\"]([^'\"]+)['\"])"
+        for match in re.finditer(pattern, text, re.I):
+            path = match.group(1) or match.group(2) or ""
+            if "/api/v1" in path:
+                path = path[path.index("/api/v1"):]
+                calls.append(_route_entry(method, path, file, root, "client"))
+    return calls
+
+
+def _endpoint_inventory_for(root: str) -> dict:
+    root = os.path.abspath(root)
+    server: list[dict] = []
+    client: list[dict] = []
+    seen_server: set[tuple[str, str, str]] = set()
+    seen_client: set[tuple[str, str, str]] = set()
+    for file in _endpoint_files(root):
+        try:
+            with open(file, "r", encoding="utf-8", errors="replace") as handle:
+                text = handle.read()
+        except OSError:
+            continue
+        ext = os.path.splitext(file)[1].lower()
+        if ext == ".cs":
+            server.extend(_extract_csharp_server_routes(text, file, root))
+        elif ext == ".py":
+            py_server, py_client = _extract_python_routes(text, file, root)
+            server.extend(py_server)
+            client.extend(py_client)
+        if ext in (".ts", ".tsx", ".js", ".jsx"):
+            client.extend(_extract_text_client_calls(text, file, root))
+
+    def unique(entries: list[dict], seen: set[tuple[str, str, str]]) -> list[dict]:
+        out: list[dict] = []
+        for item in entries:
+            key = (item["method"], item["path"], item["file"])
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append(item)
+        return sorted(out, key=lambda item: (item["method"], item["path"], item["file"]))
+
+    server = unique(server, seen_server)
+    client = unique(client, seen_client)
+    return {
+        "root": root.replace(os.sep, "/"),
+        "server_routes": server,
+        "client_calls": client,
+        "counts": {
+            "server_routes": len({(item["method"], item["path"]) for item in server}),
+            "runtime_server_routes": len({(item["method"], item["path"]) for item in server if item["kind"] == "server"}),
+            "contract_server_routes": len({(item["method"], item["path"]) for item in server if item["kind"] == "contract"}),
+            "client_calls": len({(item["method"], item["path"]) for item in client}),
+        },
+    }
+
+
+def _run_endpoints(opts: dict) -> int:
+    client_inventory = _endpoint_inventory_for(opts["root"])
+    server_inventory = _endpoint_inventory_for(opts["against"]) if opts["against"] else client_inventory
+    server_pairs = {
+        (item["method"], item["path"])
+        for item in server_inventory["server_routes"]
+        if item["kind"] == "server"
+    }
+    client_pairs = {(item["method"], item["path"]) for item in client_inventory["client_calls"]}
+    missing = [
+        {"method": method, "path": path}
+        for method, path in sorted(client_pairs - server_pairs)
+    ]
+    payload = {
+        "schema": ENDPOINT_INVENTORY_SCHEMA,
+        "client_root": client_inventory["root"],
+        "server_root": server_inventory["root"],
+        "counts": {
+            "client_calls": len(client_pairs),
+            "server_routes": len(server_pairs),
+            "contract_routes": server_inventory["counts"]["contract_server_routes"],
+            "missing_from_server": len(missing),
+        },
+        "client_calls": client_inventory["client_calls"],
+        "server_routes": server_inventory["server_routes"],
+        "missing_from_server": missing,
+    }
+    if opts["json"]:
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print(
+            f"client_calls={payload['counts']['client_calls']} "
+            f"server_routes={payload['counts']['server_routes']} "
+            f"missing_from_server={payload['counts']['missing_from_server']}"
+        )
+        for item in missing:
+            print(f"{item['method']} {item['path']}")
+    return 0
+
+
 def _run_index(opts: dict) -> int:
     root = os.path.abspath(opts["root"])
     out = opts["out"]
@@ -348,6 +527,8 @@ def _watch(opts: dict) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     opts = _parse_args(argv)
+    if opts["command"] == "endpoints":
+        return _run_endpoints(opts)
     if opts["command"] == "index":
         try:
             return _run_index(opts)

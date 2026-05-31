@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-05-31T20:19:46.098Z",
+  "generated_at": "2026-05-31T21:35:52.077Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -455,9 +455,9 @@
       "snippet": "- `CI=true` (or any truthy `CI` env var) — the starter never posts telemetry in CI.\n- `--dry-run` — never posts.\n- `LLM_PROJECT_MAPPER_TELEMETRY=0|off` — overrides everything except `CI`.\n- No `LLM_PROJECT_MAPPER_TELEMETRY_URL` configured — there is nowhere to post to, so nothing is sent.\n"
     },
     {
-      "id": "0ce3ca398f144636",
+      "id": "4a4928ad0fa6ec9d",
       "path": "SIMPLICIO_INTEGRATION.md",
-      "line": 115,
+      "line": 139,
       "language": "markdown",
       "change_type": "feature",
       "tags": [
@@ -811,9 +811,9 @@
       "snippet": "\n\nclass FileProcessingCache:\n    \"\"\"Disk-backed cache for parsed file metadata.\n"
     },
     {
-      "id": "ff976992258284af",
+      "id": "ae56f5922c3f2cd7",
       "path": "simplicio_mapper/cli.py",
-      "line": 49,
+      "line": 54,
       "language": "python",
       "change_type": "feature",
       "tags": [

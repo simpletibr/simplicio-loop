@@ -61,6 +61,7 @@ pip install simplicio-mapper
 simplicio-mapper map                 # write .simplicio/ artifacts
 simplicio-mapper update              # refresh and record changed files
 simplicio-mapper index . --json      # idempotent, scriptable SendSprint bootstrap
+simplicio-mapper endpoints . --against ../api --json
 simplicio-mapper map --watch         # re-map as files change locally
 ```
 
@@ -76,6 +77,12 @@ are useful.
 
 Use `--watch` during long agent sessions to keep the map fresh. The schema and
 Python consumption example live in [SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRATION.md).
+
+For cross-repo delivery, `simplicio-mapper endpoints <client-root> --against
+<server-root> --json` emits `simplicio.endpoint-inventory/v1`: normalized
+client HTTP calls, runtime server routes, contract-only route counts and
+`missing_from_server`. This is the fast path for web/API and AI-agents/API
+alignment work.
 
 ---
 

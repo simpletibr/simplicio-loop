@@ -23,6 +23,30 @@ npx @wesleysimplicio/llm-project-mapper update
 
 Use `--watch` for local live updates during longer agent sessions.
 
+## endpoint-inventory.json
+
+Endpoint inventory is emitted on demand, not written into `.simplicio/` by
+default:
+
+```bash
+simplicio-mapper endpoints ./web --against ./api --json
+```
+
+The command returns `simplicio.endpoint-inventory/v1` with:
+
+- `client_calls`: normalized HTTP calls found in frontend/API-client code.
+- `server_routes`: normalized runtime and contract route declarations.
+- `counts.runtime_server_routes`: routes mounted by runtime handlers such as
+  Azure Functions `HttpTrigger`.
+- `counts.contract_routes`: documentation-only declarations such as
+  `OpenApiContractControllerBase` controllers.
+- `missing_from_server`: client method+path pairs absent from runtime server
+  routes.
+
+Consumers should use `missing_from_server` for delivery planning and keep
+`contract_routes` as context only unless the target project uses controllers as
+runtime handlers.
+
 ## project-map.json
 
 Required top-level fields:

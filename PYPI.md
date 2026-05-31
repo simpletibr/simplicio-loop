@@ -35,6 +35,9 @@ simplicio-mapper update
 # Idempotent orchestration entry point for SendSprint and other runners
 simplicio-mapper index path/to/project --json
 
+# Compare frontend/API-client calls against runtime server routes
+simplicio-mapper endpoints path/to/web --against path/to/api --json
+
 # Map another project root, with hints when .starter-meta.json is absent
 simplicio-mapper map --root path/to/project --stack python --product-name "My App"
 
@@ -49,6 +52,8 @@ The `llm-project-mapper` console script is provided as an alias.
 | Option | Description |
 |---|---|
 | `index <path>` | Scriptable index command. Returns `0` when refreshed, `2` when already fresh, `1` on failure. Quiet by default. |
+| `endpoints <path>` | Extract normalized client calls and server routes. Use `--against <server-root>` to report `missing_from_server` with schema `simplicio.endpoint-inventory/v1`. |
+| `--against <dir>` | Server/API project root for endpoint comparison. |
 | `--json` | Emit stable `simplicio.mapper-index/v1` output for the `index` command. |
 | `--verbose` | Show progress during `index` refreshes. |
 | `--root <dir>` | Project root to map. Defaults to the current directory. |

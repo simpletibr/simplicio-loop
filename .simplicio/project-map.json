@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.project-map/v1",
   "version": 1,
-  "generated_at": "2026-05-31T20:19:46.098Z",
+  "generated_at": "2026-05-31T21:35:52.077Z",
   "update_mode": "incremental",
   "product": {
     "name": "@wesleysimplicio/llm-project-mapper",
@@ -1314,9 +1314,9 @@
     {
       "path": "CHANGELOG.md",
       "language": "markdown",
-      "size_bytes": 19303,
-      "last_modified": "2026-05-31T20:18:37.314Z",
-      "file_hash": "4071934d5e6c2e205310d86d583197de51a51a36033a6a78765c918e7ea4b9ae",
+      "size_bytes": 19648,
+      "last_modified": "2026-05-31T21:34:30.643Z",
+      "file_hash": "49b22233b4a9c81b78bd4b5d39339b36c63a8180b2b24785a6eab30d308b84f7",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -1458,14 +1458,14 @@
     {
       "path": "README.md",
       "language": "markdown",
-      "size_bytes": 20247,
-      "last_modified": "2026-05-30T20:09:50.354Z",
-      "file_hash": "fff55fa392697ccd6bab35a06b88fdd28bf8d1b61b36b0d8ee651836f124820a",
-      "git_status": "clean",
+      "size_bytes": 20616,
+      "last_modified": "2026-05-31T21:35:19.762Z",
+      "file_hash": "d3e90b707194101cf488f47f1a381056263c54929a912a1c7eb3632dd3bcc7e3",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.12
+      "importance": 0.32
     },
     {
       "path": "README.pt-BR.md",
@@ -1494,16 +1494,16 @@
     {
       "path": "SIMPLICIO_INTEGRATION.md",
       "language": "markdown",
-      "size_bytes": 3586,
-      "last_modified": "2026-05-27T19:22:28.374Z",
-      "file_hash": "d06a833ba948ba09eec7d5c84c0f63f318d929d151645b5499f1618e075f292d",
-      "git_status": "clean",
+      "size_bytes": 4461,
+      "last_modified": "2026-05-31T21:35:32.939Z",
+      "file_hash": "e6401b2efbe6df6ed881f5424ef0b5b3aa49866dffaa2750a04d05fab6a63f84",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [
         "load_simplicio_context"
       ],
-      "importance": 0.2
+      "importance": 0.4
     },
     {
       "path": "YOOL_TUPLE_HAMT.md",
@@ -1737,7 +1737,7 @@
       "size_bytes": 15468,
       "last_modified": "2026-05-31T20:18:37.305Z",
       "file_hash": "d51712ef221d152a394c88e15f3b6d37e186a15b17660c30cb2f662303ff6289",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [
         "node:child_process",
@@ -1772,7 +1772,7 @@
         "writeJsonStable",
         "writeMappingArtifacts"
       ],
-      "importance": 0.48
+      "importance": 0.28
     },
     {
       "path": "bin/skillopt.js",
@@ -2522,8 +2522,8 @@
       "path": "package-lock.json",
       "language": "json",
       "size_bytes": 2520,
-      "last_modified": "2026-05-31T20:18:49.984Z",
-      "file_hash": "14350779d18e5b390f4792077a3245e0002cd2df5e553bb58dfacecd702ab9a7",
+      "last_modified": "2026-05-31T21:34:35.158Z",
+      "file_hash": "8202927578b6f526346552079222b2a23f6b0d1b7e0c2244c79d87b3a843c9e0",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -2534,8 +2534,8 @@
       "path": "package.json",
       "language": "json",
       "size_bytes": 2548,
-      "last_modified": "2026-05-31T20:18:49.981Z",
-      "file_hash": "90b14291ea9974619a1861e34d5891ac69707460c80289d274183138233573a1",
+      "last_modified": "2026-05-31T21:34:18.037Z",
+      "file_hash": "5206f34bc7da442e57ab107993e8eec892510068c78071b9a7c6650eda4ed740",
       "git_status": "M",
       "roles": [
         "config"
@@ -2588,8 +2588,8 @@
       "path": "pyproject.toml",
       "language": "toml",
       "size_bytes": 1653,
-      "last_modified": "2026-05-31T20:18:37.310Z",
-      "file_hash": "f48bfad735d1bc36ea88d0b7fb343d3ea432a6c10484555cd7a901697e0b40fc",
+      "last_modified": "2026-05-31T21:34:22.774Z",
+      "file_hash": "4c31a4218a30f91fd0ded8617be90b3f52a2f77f12a42255eed3d13b9679c2c0",
       "git_status": "M",
       "roles": [
         "config"
@@ -2917,8 +2917,8 @@
       "path": "simplicio_mapper/__init__.py",
       "language": "python",
       "size_bytes": 140,
-      "last_modified": "2026-05-31T20:18:37.312Z",
-      "file_hash": "dc84872612fd1c589dfece52371254445b7b68a9b9088360e65936b08c5244fc",
+      "last_modified": "2026-05-31T21:34:25.670Z",
+      "file_hash": "b830fbb85b249ddeda278bbc40c556923bddf5a81212ce4717c86145410b842f",
       "git_status": "M",
       "roles": [],
       "imports": [
@@ -2974,10 +2974,10 @@
     {
       "path": "simplicio_mapper/cli.py",
       "language": "python",
-      "size_bytes": 11973,
-      "last_modified": "2026-05-31T19:07:22.514Z",
-      "file_hash": "19345a6e6969cffe39b035296c266377fc7374cba37543d6ca649beab5d95b60",
-      "git_status": "clean",
+      "size_bytes": 19675,
+      "last_modified": "2026-05-31T21:35:06.679Z",
+      "file_hash": "2e8f7597692a36f77a8e1c355b2ad2ca6ce9adc6f1dc943fe486a3659b76fad5",
+      "git_status": "M",
       "roles": [
         "entrypoint"
       ],
@@ -2988,6 +2988,7 @@
         "hashlib",
         "json",
         "os",
+        "re",
         "subprocess",
         "sys",
         "time",
@@ -2997,13 +2998,21 @@
         "_artifact_paths",
         "_artifacts_exist",
         "_emit_index_json",
+        "_endpoint_files",
+        "_endpoint_inventory_for",
+        "_extract_csharp_server_routes",
+        "_extract_python_routes",
+        "_extract_text_client_calls",
         "_freshness_signature",
         "_git_signature",
         "_hash_text",
         "_index_result",
+        "_normalize_endpoint_path",
         "_parse_args",
         "_read_index_state",
         "_read_json_safe",
+        "_route_entry",
+        "_run_endpoints",
         "_run_index",
         "_run_once",
         "_signature",
@@ -3011,9 +3020,10 @@
         "_tree_signature",
         "_watch",
         "_write_index_state",
-        "main"
+        "main",
+        "unique"
       ],
-      "importance": 0.73
+      "importance": 0.93
     },
     {
       "path": "simplicio_mapper/mapper.py",
@@ -3021,7 +3031,7 @@
       "size_bytes": 22140,
       "last_modified": "2026-05-31T20:18:37.303Z",
       "file_hash": "a9321437c8459f8c4507be884edc40a1f82588a08c4251c6e8bbcc4db357e560",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [
         ".",
@@ -3067,7 +3077,7 @@
         "build_artifacts",
         "write_mapping_artifacts"
       ],
-      "importance": 0.48
+      "importance": 0.28
     },
     {
       "path": "simplicio_mapper/models.py",
@@ -3204,9 +3214,9 @@
     {
       "path": "tests/python/test_cli.py",
       "language": "python",
-      "size_bytes": 11640,
-      "last_modified": "2026-05-31T20:18:37.306Z",
-      "file_hash": "b2c7f028a246ae5c5b47d30c4dc4e28f055fdaee9e696a2077fc59a3407a4ac5",
+      "size_bytes": 13045,
+      "last_modified": "2026-05-31T21:34:15.063Z",
+      "file_hash": "d1b06430510f4bf6b897275716ad86205562a7acbf38e5b81268166e175f8e0e",
       "git_status": "M",
       "roles": [
         "test"
@@ -3229,18 +3239,25 @@
         "unittest"
       ],
       "exports": [
+        "ApiClient",
         "CliTest",
         "FileProcessingCacheTest",
+        "GovernanceFunctions",
         "MapperArtifactsTest",
         "_write",
         "answer",
         "cached",
+        "create_snapshot",
+        "get",
+        "list_skills",
+        "post",
         "run",
         "setUp",
         "tearDown",
         "test_build_artifacts_emits_rich_project_map",
         "test_build_artifacts_ignores_generated_dependency_and_cache_dirs",
         "test_cache_hits_same_file_signature",
+        "test_endpoints_compares_client_calls_against_server_routes",
         "test_git_status_marks_untracked_files_inside_new_dirs",
         "test_help_exits_zero",
         "test_incremental_records_changed_files",
@@ -3416,7 +3433,7 @@
       "size_bytes": 5574,
       "last_modified": "2026-05-31T20:18:37.309Z",
       "file_hash": "097c155c617c35b5fda01e06cf2bf13bdf200980bfafbb508bd8a3fbf72a5b48",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "test"
       ],
@@ -3437,7 +3454,7 @@
         "run",
         "writeFile"
       ],
-      "importance": 0.73
+      "importance": 0.53
     },
     {
       "path": "tests/unit/overlay-docs.test.js",
@@ -4951,15 +4968,15 @@
       "score": 42
     },
     {
+      "name": "run",
+      "score": 40
+    },
+    {
       "name": "skill",
       "score": 39
     },
     {
       "name": "read",
-      "score": 38
-    },
-    {
-      "name": "run",
       "score": 38
     },
     {
@@ -4999,12 +5016,16 @@
       "score": 24
     },
     {
+      "name": "files",
+      "score": 24
+    },
+    {
       "name": "detect",
       "score": 22
     },
     {
-      "name": "files",
-      "score": 22
+      "name": "for",
+      "score": 20
     },
     {
       "name": "init",
@@ -5015,11 +5036,11 @@
       "score": 20
     },
     {
-      "name": "catalog",
-      "score": 18
+      "name": "list",
+      "score": 19
     },
     {
-      "name": "for",
+      "name": "catalog",
       "score": 18
     },
     {
@@ -5027,11 +5048,11 @@
       "score": 18
     },
     {
-      "name": "list",
+      "name": "readme",
       "score": 17
     },
     {
-      "name": "readme",
+      "name": "text",
       "score": 17
     },
     {
@@ -5040,10 +5061,6 @@
     },
     {
       "name": "agent",
-      "score": 15
-    },
-    {
-      "name": "text",
       "score": 15
     },
     {
@@ -5088,7 +5105,11 @@
       "status": "M"
     },
     {
-      "path": "bin/mapper-artifacts.js",
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "path": "SIMPLICIO_INTEGRATION.md",
       "status": "M"
     },
     {
@@ -5108,28 +5129,24 @@
       "status": "M"
     },
     {
-      "path": "simplicio_mapper/mapper.py",
+      "path": "simplicio_mapper/cli.py",
       "status": "M"
     },
     {
       "path": "tests/python/test_cli.py",
       "status": "M"
-    },
-    {
-      "path": "tests/unit/mapping-artifacts.test.js",
-      "status": "M"
     }
   ],
   "changed_files": [
     "CHANGELOG.md",
-    "bin/mapper-artifacts.js",
+    "README.md",
+    "SIMPLICIO_INTEGRATION.md",
     "package-lock.json",
     "package.json",
     "pyproject.toml",
     "simplicio_mapper/__init__.py",
-    "simplicio_mapper/mapper.py",
-    "tests/python/test_cli.py",
-    "tests/unit/mapping-artifacts.test.js"
+    "simplicio_mapper/cli.py",
+    "tests/python/test_cli.py"
   ],
   "integration": {
     "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",

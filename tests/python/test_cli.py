@@ -252,6 +252,41 @@ class CliTest(unittest.TestCase):
         self.assertEqual(quiet_code, 0)
         self.assertEqual(quiet_out.getvalue(), "")
 
+    def test_endpoints_compares_client_calls_against_server_routes(self) -> None:
+        client_dir = self.dir / "client"
+        server_dir = self.dir / "server"
+        _write(client_dir, "frontend/api_client.py", """
+class ApiClient:
+    def get(self, path): ...
+    def post(self, path, json=None): ...
+    def list_skills(self):
+        return self.get("/governance/skills")
+    def create_snapshot(self, project_id):
+        return self.post(f"/projects/{project_id}/snapshots", json={})
+""")
+        _write(server_dir, "Functions/GovernanceFunctions.cs", """
+public sealed class GovernanceFunctions
+{
+    [Function("ListSkills")]
+    public IActionResult ListSkills(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/v1/governance/skills")] HttpRequest req) => null!;
+}
+""")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["endpoints", str(client_dir), "--against", str(server_dir), "--json"])
+
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.endpoint-inventory/v1")
+        self.assertEqual(payload["counts"]["client_calls"], 2)
+        self.assertEqual(payload["counts"]["server_routes"], 1)
+        self.assertEqual(
+            payload["missing_from_server"],
+            [{"method": "POST", "path": "/api/v1/projects/{id}/snapshots"}],
+        )
+
     def test_index_refreshes_after_file_change(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "refresh-host"}))
         _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
