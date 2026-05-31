@@ -1,8 +1,8 @@
 {
   "schema": "simplicio.project-map/v1",
   "version": 1,
-  "generated_at": "2026-05-31T21:35:52.077Z",
-  "update_mode": "incremental",
+  "generated_at": "2026-05-31T21:52:29.251Z",
+  "update_mode": "full",
   "product": {
     "name": "@wesleysimplicio/llm-project-mapper",
     "stack": "commonjs",
@@ -1314,9 +1314,9 @@
     {
       "path": "CHANGELOG.md",
       "language": "markdown",
-      "size_bytes": 19648,
-      "last_modified": "2026-05-31T21:34:30.643Z",
-      "file_hash": "49b22233b4a9c81b78bd4b5d39339b36c63a8180b2b24785a6eab30d308b84f7",
+      "size_bytes": 20141,
+      "last_modified": "2026-05-31T21:51:15.612Z",
+      "file_hash": "c68bb37d436d25f75125c62711c4901dbbf31b8e0e3f3d9bafa29ff6a2016efc",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -1446,21 +1446,21 @@
     {
       "path": "PYPI.md",
       "language": "markdown",
-      "size_bytes": 2775,
-      "last_modified": "2026-05-29T17:58:35.674Z",
-      "file_hash": "81b9a1bcc51fc14d71dc3d96a235d62db04573f25d4e9e976618b5752c6fd26f",
-      "git_status": "clean",
+      "size_bytes": 3344,
+      "last_modified": "2026-05-31T21:51:46.853Z",
+      "file_hash": "d637e08698d7a51fbb4694744d0ae41fb54ab45ae551c7e07d754980cbdd9a5b",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.12
+      "importance": 0.32
     },
     {
       "path": "README.md",
       "language": "markdown",
-      "size_bytes": 20616,
-      "last_modified": "2026-05-31T21:35:19.762Z",
-      "file_hash": "d3e90b707194101cf488f47f1a381056263c54929a912a1c7eb3632dd3bcc7e3",
+      "size_bytes": 20869,
+      "last_modified": "2026-05-31T21:51:32.919Z",
+      "file_hash": "abfc0fb2ebeb8395726751eeab8ff34d2a00bef50d291ebc93bba03a4dddff69",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -1470,14 +1470,14 @@
     {
       "path": "README.pt-BR.md",
       "language": "markdown",
-      "size_bytes": 19739,
-      "last_modified": "2026-05-30T20:09:50.355Z",
-      "file_hash": "a4285ba450e076f52ddff6e6faf3e421db3f43aaad4f7249654e5500590461ff",
-      "git_status": "clean",
+      "size_bytes": 20276,
+      "last_modified": "2026-05-31T21:52:19.698Z",
+      "file_hash": "3809990131a1b83ce92814455e63bc5a4c3e13c338c4ae65e78b212360a99a86",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.12
+      "importance": 0.32
     },
     {
       "path": "SHOWCASE.md",
@@ -1494,9 +1494,9 @@
     {
       "path": "SIMPLICIO_INTEGRATION.md",
       "language": "markdown",
-      "size_bytes": 4461,
-      "last_modified": "2026-05-31T21:35:32.939Z",
-      "file_hash": "e6401b2efbe6df6ed881f5424ef0b5b3aa49866dffaa2750a04d05fab6a63f84",
+      "size_bytes": 4652,
+      "last_modified": "2026-05-31T21:51:51.337Z",
+      "file_hash": "37b5edaef940e167fc88ee421f6d2529db5a46d2107ace1a17c1c76e531f8356",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -2522,8 +2522,8 @@
       "path": "package-lock.json",
       "language": "json",
       "size_bytes": 2520,
-      "last_modified": "2026-05-31T21:34:35.158Z",
-      "file_hash": "8202927578b6f526346552079222b2a23f6b0d1b7e0c2244c79d87b3a843c9e0",
+      "last_modified": "2026-05-31T21:51:59.836Z",
+      "file_hash": "d450646a8ff57b68557babf37e352e7b9a4430a6ef8d522f1a6e3493923fb382",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -2534,8 +2534,8 @@
       "path": "package.json",
       "language": "json",
       "size_bytes": 2548,
-      "last_modified": "2026-05-31T21:34:18.037Z",
-      "file_hash": "5206f34bc7da442e57ab107993e8eec892510068c78071b9a7c6650eda4ed740",
+      "last_modified": "2026-05-31T21:51:53.941Z",
+      "file_hash": "24c8dc42816c8cd3fd086d0bf26a96fd3dca4071c05c96a80bce1c0a3c294945",
       "git_status": "M",
       "roles": [
         "config"
@@ -2588,8 +2588,8 @@
       "path": "pyproject.toml",
       "language": "toml",
       "size_bytes": 1653,
-      "last_modified": "2026-05-31T21:34:22.774Z",
-      "file_hash": "4c31a4218a30f91fd0ded8617be90b3f52a2f77f12a42255eed3d13b9679c2c0",
+      "last_modified": "2026-05-31T21:52:03.783Z",
+      "file_hash": "2b235e3a829e4dd07f4b76183086155cd1aff7eff7c0a3e36063d851cf670617",
       "git_status": "M",
       "roles": [
         "config"
@@ -2917,8 +2917,8 @@
       "path": "simplicio_mapper/__init__.py",
       "language": "python",
       "size_bytes": 140,
-      "last_modified": "2026-05-31T21:34:25.670Z",
-      "file_hash": "b830fbb85b249ddeda278bbc40c556923bddf5a81212ce4717c86145410b842f",
+      "last_modified": "2026-05-31T21:52:06.593Z",
+      "file_hash": "d342314fa534c3573156f2443690c5144d22f139dbfabc18006adf132b75b1cb",
       "git_status": "M",
       "roles": [],
       "imports": [
@@ -2974,9 +2974,9 @@
     {
       "path": "simplicio_mapper/cli.py",
       "language": "python",
-      "size_bytes": 19675,
-      "last_modified": "2026-05-31T21:35:06.679Z",
-      "file_hash": "2e8f7597692a36f77a8e1c355b2ad2ca6ce9adc6f1dc943fe486a3659b76fad5",
+      "size_bytes": 22010,
+      "last_modified": "2026-05-31T21:50:48.653Z",
+      "file_hash": "501110c83f879e5271c3d1c8711e23164a893e4fc25e9e9c9f3b94677615cf2a",
       "git_status": "M",
       "roles": [
         "entrypoint"
@@ -3003,6 +3003,7 @@
         "_extract_csharp_server_routes",
         "_extract_python_routes",
         "_extract_text_client_calls",
+        "_extract_text_constants",
         "_freshness_signature",
         "_git_signature",
         "_hash_text",
@@ -3011,12 +3012,15 @@
         "_parse_args",
         "_read_index_state",
         "_read_json_safe",
+        "_resolve_text_endpoint_expression",
+        "_resolve_text_endpoint_template",
         "_route_entry",
         "_run_endpoints",
         "_run_index",
         "_run_once",
         "_signature",
         "_state_path",
+        "_strip_ts_quote",
         "_tree_signature",
         "_watch",
         "_write_index_state",
@@ -3214,9 +3218,9 @@
     {
       "path": "tests/python/test_cli.py",
       "language": "python",
-      "size_bytes": 13045,
-      "last_modified": "2026-05-31T21:34:15.063Z",
-      "file_hash": "d1b06430510f4bf6b897275716ad86205562a7acbf38e5b81268166e175f8e0e",
+      "size_bytes": 16075,
+      "last_modified": "2026-05-31T21:50:33.096Z",
+      "file_hash": "b287836f99624e388fbf8c808b948b56b23d0ffbd31d86dd97e10866edc31381",
       "git_status": "M",
       "roles": [
         "test"
@@ -3244,6 +3248,8 @@
         "FileProcessingCacheTest",
         "GovernanceFunctions",
         "MapperArtifactsTest",
+        "UsersFunctions",
+        "UsersService",
         "_write",
         "answer",
         "cached",
@@ -3258,9 +3264,11 @@
         "test_build_artifacts_ignores_generated_dependency_and_cache_dirs",
         "test_cache_hits_same_file_signature",
         "test_endpoints_compares_client_calls_against_server_routes",
+        "test_endpoints_resolves_angular_service_base_urls",
         "test_git_status_marks_untracked_files_inside_new_dirs",
         "test_help_exits_zero",
         "test_incremental_records_changed_files",
+        "test_index_accepts_update_compatibility_flag",
         "test_index_refreshes_after_file_change",
         "test_index_skips_fresh_artifacts_quietly",
         "test_index_writes_json_contract",
@@ -5020,6 +5028,10 @@
       "score": 24
     },
     {
+      "name": "text",
+      "score": 23
+    },
+    {
       "name": "detect",
       "score": 22
     },
@@ -5052,10 +5064,6 @@
       "score": 17
     },
     {
-      "name": "text",
-      "score": 17
-    },
-    {
       "name": "status",
       "score": 16
     },
@@ -5068,15 +5076,15 @@
       "score": 15
     },
     {
+      "name": "extract",
+      "score": 14
+    },
+    {
       "name": "git",
       "score": 14
     },
     {
       "name": "infer",
-      "score": 14
-    },
-    {
-      "name": "walk",
       "score": 14
     }
   ],
@@ -5105,7 +5113,15 @@
       "status": "M"
     },
     {
+      "path": "PYPI.md",
+      "status": "M"
+    },
+    {
       "path": "README.md",
+      "status": "M"
+    },
+    {
+      "path": "README.pt-BR.md",
       "status": "M"
     },
     {
@@ -5139,7 +5155,9 @@
   ],
   "changed_files": [
     "CHANGELOG.md",
+    "PYPI.md",
     "README.md",
+    "README.pt-BR.md",
     "SIMPLICIO_INTEGRATION.md",
     "package-lock.json",
     "package.json",

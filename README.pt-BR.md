@@ -59,6 +59,9 @@ pip install simplicio-mapper
 
 simplicio-mapper map                 # escreve os artefatos em .simplicio/
 simplicio-mapper update              # atualiza e registra arquivos alterados
+simplicio-mapper index . --json      # bootstrap idempotente para orquestradores
+simplicio-mapper index --update . --json
+simplicio-mapper endpoints . --against ../api --json
 simplicio-mapper map --watch         # remapeia conforme arquivos mudam
 ```
 
@@ -68,6 +71,14 @@ saida Python e compativel com o schema do mapper Node.
 Use `--watch` durante sessoes longas de agentes para manter o mapa fresco. O
 schema e um exemplo de consumo em Python ficam em
 [SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRATION.md).
+
+Para entregas cross-repo, `simplicio-mapper endpoints <client-root> --against
+<server-root> --json` emite `simplicio.endpoint-inventory/v1` com chamadas HTTP
+normalizadas, rotas runtime do servidor e `missing_from_server`. O extrator
+entende clientes Python e servicos Angular HttpClient que compoem URLs com
+`baseUrl`, `environment.apiUrl` e template strings. Tambem captura chamadas
+Python diretas em paginas, como `api.patch(...)`, e ignora testes/decoradores
+de rota ao montar a demanda de cliente.
 
 ---
 

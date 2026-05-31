@@ -28,7 +28,7 @@ HELP_TEXT = """simplicio-mapper map
 Generate or update machine-readable mapper artifacts.
 
 USAGE
-  simplicio-mapper index <path> [--json] [--verbose]
+  simplicio-mapper index <path> [--json] [--verbose] [--update]
   simplicio-mapper endpoints <path> [--against <server-root>] [--json]
   simplicio-mapper map [--root <dir>] [--incremental] [--watch]
   simplicio-mapper update [--root <dir>] [--watch]
@@ -38,6 +38,7 @@ OPTIONS
   endpoints <path>      Extract client/server HTTP endpoint inventory.
   --against <dir>       Compare endpoint client calls against server routes.
   --json                Emit structured index output.
+  --update              Compatibility alias for index refresh workflows.
   --verbose             Show progress during index refreshes.
   --root <dir>          Project root to map. Defaults to cwd.
   --stack <name>        Stack hint when .starter-meta.json is absent.
@@ -100,6 +101,8 @@ def _parse_args(argv: Sequence[str]) -> dict:
             i += 1
             opts["product_name"] = argv[i]
         elif arg == "--incremental":
+            opts["incremental"] = True
+        elif arg == "--update":
             opts["incremental"] = True
         elif arg == "--watch":
             opts["watch"] = True
@@ -309,6 +312,12 @@ def _normalize_endpoint_path(path: str) -> str:
     path = path.replace("//", "/")
     path = re.sub(r"\$\{[^}]+\}", "{id}", path)
     path = re.sub(r"\{[^}]+\}", "{id}", path)
+    path = re.sub(r"/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?=/|$)", "/{id}", path)
+    path = re.sub(r"(/api/v1/(?:clients/)?projects/)(?!\{id\})([^/{}]+)(?=/|$)", r"\1{id}", path)
+    path = re.sub(r"(/api/v1/(?:areas|assessments|disciplines|enterprises|evidence|interviews|localities|opportunities|users)/)(?!\{id\})([^/{}]+)(?=/|$)", r"\1{id}", path)
+    path = re.sub(r"(/api/v1/governance/(?:skill-versions|skills)/)(?!\{id\})([^/{}]+)(?=/|$)", r"\1{id}", path)
+    path = re.sub(r"(/api/v1/knowledge-assessment/runs/)(?!\{id\})([^/{}]+)(?=/|$)", r"\1{id}", path)
+    path = re.sub(r"(/api/v1/llm-gateway/(?:runs|skills|traces)/)(?!\{id\})([^/{}]+)(?=/|$)", r"\1{id}", path)
     return path.rstrip("/") or "/"
 
 
@@ -363,26 +372,78 @@ def _extract_python_routes(text: str, file: str, root: str) -> tuple[list[dict],
         prefix = prefix_match.group(1)
     for match in re.finditer(r"@router\.(get|post|put|patch|delete)\(\s*['\"]([^'\"]+)['\"]", text, re.I):
         server.append(_route_entry(match.group(1), f"/api/v1{prefix}{match.group(2)}", file, root, "server"))
-    for owner in ("self", "self._client"):
-        for method in ("get", "post", "put", "patch", "delete"):
-            pattern = rf"{re.escape(owner)}\.{method}\(\s*f?['\"]([^'\"]+)['\"]"
-            for match in re.finditer(pattern, text):
-                path = match.group(1)
-                if path.startswith("/"):
-                    client.append(_route_entry(method, f"/api/v1{path}", file, root, "client"))
+    for method in ("get", "post", "put", "patch", "delete"):
+        pattern = rf"(?:^|[^\w])([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\.{method}\(\s*f?['\"]([^'\"]+)['\"]"
+        for match in re.finditer(pattern, text):
+            owner = match.group(1)
+            if owner in ("app", "router"):
+                continue
+            path = match.group(2)
+            if path.startswith("/"):
+                prefix = "" if path.startswith("/api/v1") else "/api/v1"
+                client.append(_route_entry(method, f"{prefix}{path}", file, root, "client"))
     return server, client
 
 
 def _extract_text_client_calls(text: str, file: str, root: str) -> list[dict]:
     calls: list[dict] = []
+    constants = _extract_text_constants(text)
     for method in ("get", "post", "put", "patch", "delete"):
-        pattern = rf"\.{method}(?:<[^>]+>)?\(\s*(?:`([^`]+)`|['\"]([^'\"]+)['\"])"
+        pattern = rf"\.{method}(?:<[^>]+>)?\(\s*(`[^`]+`|'[^']+'|\"[^\"]+\"|this\.[A-Za-z_]\w*|[A-Za-z_]\w*)"
         for match in re.finditer(pattern, text, re.I):
-            path = match.group(1) or match.group(2) or ""
+            path = _resolve_text_endpoint_expression(match.group(1), constants)
             if "/api/v1" in path:
                 path = path[path.index("/api/v1"):]
                 calls.append(_route_entry(method, path, file, root, "client"))
     return calls
+
+
+def _is_test_path(file: str, root: str) -> bool:
+    rel = os.path.relpath(file, root).replace(os.sep, "/")
+    name = os.path.basename(rel)
+    return (
+        rel.startswith("tests/")
+        or "/tests/" in rel
+        or name.endswith((".spec.ts", ".spec.tsx", ".test.ts", ".test.tsx", "_test.py"))
+        or name.startswith("test_")
+    )
+
+
+def _extract_text_constants(text: str) -> dict[str, str]:
+    constants: dict[str, str] = {
+        "environment.apiUrl": "/api/v1",
+        "apiUrl": "/api/v1",
+    }
+    pattern = r"(?:private\s+readonly|readonly|const|let|var)?\s*([A-Za-z_]\w*)\s*=\s*(`[^`]+`|'[^']+'|\"[^\"]+\")"
+    for match in re.finditer(pattern, text):
+        key = match.group(1)
+        value = _strip_ts_quote(match.group(2))
+        resolved = _resolve_text_endpoint_template(value, constants)
+        if "/api/v1" in resolved:
+            constants[key] = resolved
+            constants[f"this.{key}"] = resolved
+    return constants
+
+
+def _strip_ts_quote(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] in ("'", '"', "`") and value[-1] == value[0]:
+        return value[1:-1]
+    return value
+
+
+def _resolve_text_endpoint_expression(expr: str, constants: dict[str, str]) -> str:
+    expr = expr.strip()
+    if expr in constants:
+        return constants[expr]
+    return _resolve_text_endpoint_template(_strip_ts_quote(expr), constants)
+
+
+def _resolve_text_endpoint_template(value: str, constants: dict[str, str]) -> str:
+    for key in sorted(constants, key=len, reverse=True):
+        value = value.replace(f"${{{key}}}", constants[key])
+    value = value.replace("environment.apiUrl", "/api/v1")
+    return re.sub(r"\$\{[^}]+\}", "{id}", value)
 
 
 def _endpoint_inventory_for(root: str) -> dict:
@@ -398,13 +459,15 @@ def _endpoint_inventory_for(root: str) -> dict:
         except OSError:
             continue
         ext = os.path.splitext(file)[1].lower()
+        collect_client_calls = not _is_test_path(file, root)
         if ext == ".cs":
             server.extend(_extract_csharp_server_routes(text, file, root))
         elif ext == ".py":
             py_server, py_client = _extract_python_routes(text, file, root)
             server.extend(py_server)
-            client.extend(py_client)
-        if ext in (".ts", ".tsx", ".js", ".jsx"):
+            if collect_client_calls:
+                client.extend(py_client)
+        if collect_client_calls and ext in (".ts", ".tsx", ".js", ".jsx"):
             client.extend(_extract_text_client_calls(text, file, root))
 
     def unique(entries: list[dict], seen: set[tuple[str, str, str]]) -> list[dict]:

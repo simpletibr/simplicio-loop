@@ -19,6 +19,7 @@ Generate or refresh them with:
 npx @wesleysimplicio/llm-project-mapper map
 npx @wesleysimplicio/llm-project-mapper map --incremental
 npx @wesleysimplicio/llm-project-mapper update
+simplicio-mapper index --update . --json
 ```
 
 Use `--watch` for local live updates during longer agent sessions.
@@ -35,6 +36,10 @@ simplicio-mapper endpoints ./web --against ./api --json
 The command returns `simplicio.endpoint-inventory/v1` with:
 
 - `client_calls`: normalized HTTP calls found in frontend/API-client code.
+  Python API clients and Angular HttpClient services are supported, including
+  direct page calls (`api.patch(...)`, `api._client.put(...)`), `baseUrl`,
+  `environment.apiUrl`, and template-string path parameters. Test files and
+  route decorators are excluded from client demand.
 - `server_routes`: normalized runtime and contract route declarations.
 - `counts.runtime_server_routes`: routes mounted by runtime handlers such as
   Azure Functions `HttpTrigger`.

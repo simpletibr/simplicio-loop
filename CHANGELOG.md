@@ -6,6 +6,21 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+## [0.6.8] - 2026-05-31
+
+### Changed
+- `simplicio-mapper index` now accepts `--update` as a compatibility alias for
+  refresh workflows, so existing Simplicio scripts can call the Python indexer
+  without special branching.
+- Endpoint inventory now resolves Angular service `baseUrl` constants,
+  `environment.apiUrl`, and template-string path parameters. This lets
+  `simplicio-mapper endpoints ./web --against ./api` inventory real Angular
+  services instead of only literal URLs in tests.
+- Python endpoint inventory now captures direct page/client calls such as
+  `api.patch(...)` and `api._client.put(...)`, while ignoring test files and
+  FastAPI route decorators so AI-Agents runtime demand is not undercounted or
+  duplicated.
+
 ## [0.6.7] - 2026-05-31
 
 ### Added

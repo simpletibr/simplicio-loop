@@ -231,6 +231,19 @@ class CliTest(unittest.TestCase):
         self.assertGreaterEqual(payload["counts"]["files"], 2)
         self.assertGreaterEqual(payload["counts"]["precedents"], 1)
 
+    def test_index_accepts_update_compatibility_flag(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "index-update-host"}))
+        _write(self.dir, "src/index.js", "export function run() {}\n")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["index", "--update", str(self.dir), "--json"])
+
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.mapper-index/v1")
+        self.assertEqual(payload["status"], "updated")
+
     def test_index_skips_fresh_artifacts_quietly(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "fresh-host"}))
         _write(self.dir, "src/index.js", "export function run() {}\n")
@@ -286,6 +299,111 @@ public sealed class GovernanceFunctions
             payload["missing_from_server"],
             [{"method": "POST", "path": "/api/v1/projects/{id}/snapshots"}],
         )
+
+    def test_endpoints_resolves_angular_service_base_urls(self) -> None:
+        client_dir = self.dir / "angular-client"
+        server_dir = self.dir / "server"
+        _write(client_dir, "src/app/core/services/users.service.ts", """
+import { environment } from '../../../environments/environment';
+
+export class UsersService {
+    private readonly baseUrl = `${environment.apiUrl}/admin/users`;
+
+    list() {
+        return this.http.get<User[]>(this.baseUrl);
+    }
+    filters() {
+        return this.http.get(`${this.baseUrl}/filters`);
+    }
+    create(payload: unknown) {
+        return this.http.post(this.baseUrl, payload);
+    }
+    status(userId: string) {
+        return this.http.patch(`${this.baseUrl}/${userId}/status`, {});
+    }
+    demoEvidence() {
+        return this.http.get('/api/v1/projects/demo/evidence');
+    }
+}
+""")
+        _write(server_dir, "Functions/UsersFunctions.cs", """
+public sealed class UsersFunctions
+{
+    [Function("UsersList")]
+    public IActionResult List(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/v1/admin/users")] HttpRequest req) => null!;
+    [Function("UsersFilters")]
+    public IActionResult Filters(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/v1/admin/users/filters")] HttpRequest req) => null!;
+    [Function("UsersCreate")]
+    public IActionResult Create(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "api/v1/admin/users")] HttpRequest req) => null!;
+    [Function("UsersStatus")]
+    public IActionResult Status(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "api/v1/admin/users/{userId:guid}/status")] HttpRequest req) => null!;
+    [Function("EvidenceList")]
+    public IActionResult Evidence(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/v1/projects/{projectId}/evidence")] HttpRequest req) => null!;
+}
+""")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["endpoints", str(client_dir), "--against", str(server_dir), "--json"])
+
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["counts"]["client_calls"], 5)
+        self.assertEqual(payload["missing_from_server"], [])
+        self.assertIn(
+            {"method": "GET", "path": "/api/v1/projects/{id}/evidence"},
+            [{"method": item["method"], "path": item["path"]} for item in payload["client_calls"]],
+        )
+
+    def test_endpoints_captures_python_page_api_calls(self) -> None:
+        client_dir = self.dir / "streamlit-client"
+        server_dir = self.dir / "server"
+        _write(client_dir, "frontend/pages/admin_users.py", """
+@router.get("/should-not-count-as-client")
+def route_definition():
+    return {}
+
+@app.get("/also-not-a-client-call")
+def app_route_definition():
+    return {}
+
+def save(api, user_id, area_ids):
+    api.patch(f"/users/{user_id}", json={"full_name": "A"})
+    api._client.put(f"/users/{user_id}/areas", json={"area_ids": area_ids})
+    api.get("/api/v1/users")
+""")
+        _write(client_dir, "tests/unit/test_app.py", """
+def test_openapi(client):
+    client.get("/openapi.json")
+""")
+        _write(server_dir, "Functions/UsersFunctions.cs", """
+public sealed class UsersFunctions
+{
+    [Function("UsersPatch")]
+    public IActionResult PatchUser(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "patch", Route = "api/v1/users/{userId:guid}")] HttpRequest req) => null!;
+    [Function("UsersAreasPut")]
+    public IActionResult PutAreas(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "api/v1/users/{userId:guid}/areas")] HttpRequest req) => null!;
+    [Function("UsersList")]
+    public IActionResult List(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "api/v1/users")] HttpRequest req) => null!;
+}
+""")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["endpoints", str(client_dir), "--against", str(server_dir), "--json"])
+
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["counts"]["client_calls"], 3)
+        self.assertEqual(payload["missing_from_server"], [])
 
     def test_index_refreshes_after_file_change(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "refresh-host"}))
