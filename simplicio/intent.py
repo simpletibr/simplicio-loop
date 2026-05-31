@@ -206,6 +206,16 @@ _SPRINT_CUES = (
     "todos os endpoints",
     "todas as telas",
     "todos os projetos",
+    "remaining endpoints",
+    "remaining routes",
+    "missing endpoints",
+    "missing routes",
+    "endpoints restantes",
+    "rotas restantes",
+    "lacunas restantes",
+    "endpoints faltantes",
+    "rotas faltantes",
+    "lacunas faltantes",
 )
 _FINISH_CUES = ("finish", "close", "complete", "ship", "terminar", "fechar", "concluir", "finalizar")
 
@@ -343,6 +353,24 @@ def classify_goal(text: str, explicit_scope: str | None = None) -> IntentResult:
     ):
         scores["sprint"] += 2
         signals.append("sprint:full_inventory")
+
+    if any(
+        phrase in lower
+        for phrase in (
+            "remaining endpoints",
+            "remaining routes",
+            "missing endpoints",
+            "missing routes",
+            "endpoints restantes",
+            "rotas restantes",
+            "lacunas restantes",
+            "endpoints faltantes",
+            "rotas faltantes",
+            "lacunas faltantes",
+        )
+    ):
+        scores["sprint"] += 5
+        signals.append("sprint:remaining_endpoint_inventory")
 
     issue_refs = _ISSUE_RE.findall(text)
     if len(issue_refs) >= 3:

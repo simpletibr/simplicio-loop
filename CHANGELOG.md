@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.11] — 2026-05-31
+
+### Changed
+- `simplicio detect` now treats remaining/missing endpoint or route backlogs
+  (for example "32 rotas restantes") as sprint-scale work, so endpoint
+  alignment continuations stay in the planner/decomposition path.
+
 ## [0.5.10] — 2026-05-31
 
 ### Changed

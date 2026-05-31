@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-05-31T21:25:13.256Z",
+  "generated_at": "2026-05-31T22:33:29.005Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -218,9 +218,9 @@
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
     },
     {
-      "id": "c06fe24775766f34",
+      "id": "b0c2ebe1887f44b6",
       "path": "CHANGELOG.md",
-      "line": 200,
+      "line": 207,
       "language": "markdown",
       "change_type": "error-handling",
       "tags": [
@@ -1743,9 +1743,9 @@
       "snippet": "from .utils.serialization import dumps_str, loads\n\ntry:\n    from importlib.resources import files as _res_files\nexcept ImportError:  # pragma: no cover"
     },
     {
-      "id": "9af03bd0b741bf78",
+      "id": "f0dca496e7450162",
       "path": "simplicio/intent.py",
-      "line": 250,
+      "line": 260,
       "language": "python",
       "change_type": "feature",
       "tags": [

@@ -107,3 +107,12 @@ def test_cli_detect_reports_sprint_scope_for_full_inventory(monkeypatch, capsys)
 
     assert code == 0
     assert '"scope": "sprint"' in capsys.readouterr().out
+
+
+def test_detect_reports_sprint_scope_for_remaining_endpoint_backlog():
+    r = detect("alinhar as 32 rotas restantes do ai-agents contra api .NET com fontes do mapper")
+
+    assert r.is_code_task is True
+    assert r.scope == "sprint"
+    assert "sprint:remaining_endpoint_inventory" in r.signals
+    assert "sprint-scale code work" in r.hint

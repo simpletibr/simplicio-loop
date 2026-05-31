@@ -83,6 +83,16 @@ def test_cross_repo_endpoint_alignment_is_sprint():
     assert any(signal.startswith("sprint:") for signal in result.signals)
 
 
+def test_remaining_endpoint_backlog_is_sprint():
+    result = classify_goal(
+        "alinhar as 32 rotas restantes do ai-agents contra api .NET com fontes do mapper"
+    )
+
+    assert result.scope == "sprint"
+    assert result.confidence >= AUTO_CONFIDENCE_THRESHOLD
+    assert "sprint:remaining_endpoint_inventory" in result.signals
+
+
 def test_read_only_goal_has_low_confidence():
     result = classify_goal("explain how the verify loop works")
     assert result.scope == "task"
