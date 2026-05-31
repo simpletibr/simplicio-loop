@@ -6,6 +6,13 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+## [0.6.9] - 2026-05-31
+
+### Changed
+- Endpoint inventory JSON now includes `sources` on each
+  `missing_from_server` item, so cross-repo alignment work can jump straight
+  from a missing route to the screen or client file that requires it.
+
 ## [0.6.8] - 2026-05-31
 
 ### Changed

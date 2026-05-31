@@ -53,7 +53,7 @@ The `llm-project-mapper` console script is provided as an alias.
 | Option | Description |
 |---|---|
 | `index <path>` | Scriptable index command. Returns `0` when refreshed or already fresh, `1` on failure. Quiet by default. |
-| `endpoints <path>` | Extract normalized client calls and server routes, including Python API clients, direct page-level Python calls and Angular HttpClient services. Use `--against <server-root>` to report `missing_from_server` with schema `simplicio.endpoint-inventory/v1`. |
+| `endpoints <path>` | Extract normalized client calls and server routes, including Python API clients, direct page-level Python calls and Angular HttpClient services. Use `--against <server-root>` to report `missing_from_server` with source files using schema `simplicio.endpoint-inventory/v1`. |
 | `--against <dir>` | Server/API project root for endpoint comparison. |
 | `--json` | Emit stable `simplicio.mapper-index/v1` output for the `index` command. |
 | `--update` | Compatibility alias for index refresh workflows. |

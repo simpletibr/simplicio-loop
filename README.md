@@ -83,8 +83,9 @@ Python consumption example live in [SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRAT
 For cross-repo delivery, `simplicio-mapper endpoints <client-root> --against
 <server-root> --json` emits `simplicio.endpoint-inventory/v1`: normalized
 client HTTP calls, runtime server routes, contract-only route counts and
-`missing_from_server`. This is the fast path for web/API and AI-agents/API
-alignment work. The extractor understands Python API clients and Angular
+`missing_from_server` entries with their demanding source files. This is the
+fast path for web/API and AI-agents/API alignment work. The extractor
+understands Python API clients and Angular
 HttpClient services that compose URLs from `baseUrl`, `environment.apiUrl`, and
 template-string path parameters. It also captures direct page-level Python
 calls such as `api.patch(...)` and ignores test files/route decorators when

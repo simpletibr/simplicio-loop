@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-05-31T21:52:29.251Z",
+  "generated_at": "2026-05-31T22:11:49.536Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -455,9 +455,9 @@
       "snippet": "- `CI=true` (or any truthy `CI` env var) — the starter never posts telemetry in CI.\n- `--dry-run` — never posts.\n- `LLM_PROJECT_MAPPER_TELEMETRY=0|off` — overrides everything except `CI`.\n- No `LLM_PROJECT_MAPPER_TELEMETRY_URL` configured — there is nowhere to post to, so nothing is sent.\n"
     },
     {
-      "id": "0b6d97ff846864ef",
+      "id": "f1cdcf8f012526f2",
       "path": "SIMPLICIO_INTEGRATION.md",
-      "line": 142,
+      "line": 144,
       "language": "markdown",
       "change_type": "feature",
       "tags": [

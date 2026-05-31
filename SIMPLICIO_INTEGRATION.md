@@ -46,7 +46,7 @@ The command returns `simplicio.endpoint-inventory/v1` with:
 - `counts.contract_routes`: documentation-only declarations such as
   `OpenApiContractControllerBase` controllers.
 - `missing_from_server`: client method+path pairs absent from runtime server
-  routes.
+  routes, including `sources` with the client/page files that require them.
 
 Consumers should use `missing_from_server` for delivery planning and keep
 `contract_routes` as context only unless the target project uses controllers as

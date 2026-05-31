@@ -504,8 +504,14 @@ def _run_endpoints(opts: dict) -> int:
         if item["kind"] == "server"
     }
     client_pairs = {(item["method"], item["path"]) for item in client_inventory["client_calls"]}
+    client_sources: dict[tuple[str, str], list[str]] = {}
+    for item in client_inventory["client_calls"]:
+        key = (item["method"], item["path"])
+        client_sources.setdefault(key, [])
+        if item["file"] not in client_sources[key]:
+            client_sources[key].append(item["file"])
     missing = [
-        {"method": method, "path": path}
+        {"method": method, "path": path, "sources": sorted(client_sources.get((method, path), []))}
         for method, path in sorted(client_pairs - server_pairs)
     ]
     payload = {

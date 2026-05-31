@@ -74,8 +74,9 @@ schema e um exemplo de consumo em Python ficam em
 
 Para entregas cross-repo, `simplicio-mapper endpoints <client-root> --against
 <server-root> --json` emite `simplicio.endpoint-inventory/v1` com chamadas HTTP
-normalizadas, rotas runtime do servidor e `missing_from_server`. O extrator
-entende clientes Python e servicos Angular HttpClient que compoem URLs com
+normalizadas, rotas runtime do servidor e `missing_from_server` com arquivos de
+origem que exigem cada rota. O extrator entende clientes Python e servicos
+Angular HttpClient que compoem URLs com
 `baseUrl`, `environment.apiUrl` e template strings. Tambem captura chamadas
 Python diretas em paginas, como `api.patch(...)`, e ignora testes/decoradores
 de rota ao montar a demanda de cliente.

@@ -297,7 +297,11 @@ public sealed class GovernanceFunctions
         self.assertEqual(payload["counts"]["server_routes"], 1)
         self.assertEqual(
             payload["missing_from_server"],
-            [{"method": "POST", "path": "/api/v1/projects/{id}/snapshots"}],
+            [{
+                "method": "POST",
+                "path": "/api/v1/projects/{id}/snapshots",
+                "sources": ["frontend/api_client.py"],
+            }],
         )
 
     def test_endpoints_resolves_angular_service_base_urls(self) -> None:
@@ -404,6 +408,25 @@ public sealed class UsersFunctions
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["counts"]["client_calls"], 3)
         self.assertEqual(payload["missing_from_server"], [])
+
+    def test_endpoints_json_includes_sources_for_missing_routes(self) -> None:
+        client_dir = self.dir / "source-client"
+        server_dir = self.dir / "source-server"
+        _write(client_dir, "frontend/page.py", """
+def load(api):
+    return api.get("/widgets")
+""")
+        _write(server_dir, "backend/routes.py", "from fastapi import APIRouter\nrouter = APIRouter()\n")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["endpoints", str(client_dir), "--against", str(server_dir), "--json"])
+
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        missing = payload["missing_from_server"]
+        self.assertEqual(1, len(missing))
+        self.assertEqual(["frontend/page.py"], missing[0]["sources"])
 
     def test_index_refreshes_after_file_change(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "refresh-host"}))
