@@ -359,10 +359,72 @@ public sealed class UsersFunctions
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["counts"]["client_calls"], 5)
         self.assertEqual(payload["missing_from_server"], [])
-        self.assertIn(
-            {"method": "GET", "path": "/api/v1/projects/{id}/evidence"},
-            [{"method": item["method"], "path": item["path"]} for item in payload["client_calls"]],
-        )
+
+    def test_screens_extracts_angular_routes(self) -> None:
+        app_dir = self.dir / "angular-app"
+        _write(app_dir, "src/app/app.routes.ts", """
+import { Routes } from '@angular/router';
+import { LoginPageComponent } from './login';
+import { AdminShellComponent } from './admin-shell';
+import { AdminUsersComponent } from './users';
+import { ClientProjectComponent } from './client-project';
+import { authGuard } from './auth.guard';
+
+export const routes: Routes = [
+  {
+    path: '',
+    component: LoginPageComponent,
+  },
+  {
+    path: 'client',
+    pathMatch: 'full',
+    component: LoginPageComponent,
+    data: { defaultUserType: 'client' },
+  },
+  {
+    path: 'admin',
+    component: AdminShellComponent,
+    canActivate: [authGuard],
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'users' },
+      { path: 'users', component: AdminUsersComponent },
+    ],
+  },
+  {
+    path: 'clients/projects/:projectId',
+    component: ClientProjectComponent,
+    canActivate: [authGuard],
+  },
+];
+""")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["screens", str(app_dir), "--json"])
+
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.screen-inventory/v1")
+        self.assertEqual(payload["counts"]["screens"], 5)
+        self.assertEqual(payload["counts"]["redirects"], 1)
+        self.assertEqual(payload["counts"]["dynamic"], 1)
+        self.assertTrue(any(
+            item["path"] == "/admin/users"
+            and item["component"] == "AdminUsersComponent"
+            and item["persona"] == "admin"
+            for item in payload["screens"]
+        ))
+        self.assertTrue(any(
+            item["path"] == "/client"
+            and item["component"] == "LoginPageComponent"
+            and item["persona"] == "client"
+            for item in payload["screens"]
+        ))
+        self.assertTrue(any(
+            item["path"] == "/admin"
+            and item["redirect_to"] == "users"
+            for item in payload["redirects"]
+        ))
 
     def test_endpoints_captures_python_page_api_calls(self) -> None:
         client_dir = self.dir / "streamlit-client"

@@ -6,6 +6,14 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+## [0.6.10] - 2026-05-31
+
+### Added
+- `simplicio-mapper screens <path> --json` inventories Angular route screens,
+  redirects, personas, guarded routes and dynamic route parameters using the
+  stable `simplicio.screen-inventory/v1` schema. This supports full-screen
+  evidence runs such as EVT's web/API/PostgreSQL Playwright validation.
+
 ## [0.6.9] - 2026-05-31
 
 ### Changed
