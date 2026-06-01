@@ -128,7 +128,7 @@ def _force_local_if_requested(a: argparse.Namespace) -> None:
 
 
 def _run_task_command(a: argparse.Namespace) -> int:
-    from .pipeline import run, run_task
+    from .pipeline import run_task
 
     _force_local_if_requested(a)
     stack = a.stack or "angular"
