@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-06-01T01:06:43.045Z",
+  "generated_at": "2026-06-01T03:16:24.039Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -218,9 +218,9 @@
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
     },
     {
-      "id": "38df5ffc25ba7c2f",
+      "id": "5dda6065528c9fa5",
       "path": "CHANGELOG.md",
-      "line": 225,
+      "line": 240,
       "language": "markdown",
       "change_type": "error-handling",
       "tags": [
@@ -1413,22 +1413,6 @@
       "snippet": "# auto-detect stack\n# ---------------------------------------------------------------------------\nfunction Detect-Stack {\n  if (Test-Path \"package.json\") {\n    $pkg = Get-Content \"package.json\" -Raw"
     },
     {
-      "id": "2bc1bf807db65eef",
-      "path": "docs/LLM_USAGE_POLICY.md",
-      "line": 16,
-      "language": "markdown",
-      "change_type": "feature",
-      "tags": [
-        "markdown",
-        "docs",
-        "llm",
-        "usage",
-        "policy"
-      ],
-      "summary": "feature precedent in docs/LLM_USAGE_POLICY.md",
-      "snippet": "- Fallback local executors: **Qwen2.5-Coder-1.5B-Instruct-Q8_0.gguf**, then **Qwen2.5-Coder-1.5B-Instruct-Q6_K_L.gguf**\n\nThese GGUF files should be used via llama.cpp / llama-cpp-python (not the default Ollama tag) when maximum determinism and instruction following on the small-local class is required.\n\n## Project-Specific Rules"
-    },
-    {
       "id": "820b7f17676fc202",
       "path": "docs/adr/0001-qwen15b-schema-v1-quant-decision.md",
       "line": 64,
@@ -1757,9 +1741,9 @@
       "snippet": "\n@dataclass\nclass IntentResult:\n    scope: str\n    confidence: float"
     },
     {
-      "id": "f66648426abb8e9b",
+      "id": "5ac7393621c8b503",
       "path": "simplicio/local_models.py",
-      "line": 30,
+      "line": 29,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -1889,9 +1873,9 @@
       "snippet": "# below stays the source of truth and is what pip-installed users get\n# until a wheel ships.\ntry:\n    from simplicio_core import build_6layer_prompt as _rs_build\nexcept ImportError:  # pragma: no cover - exercised at import time"
     },
     {
-      "id": "7717114dd0af03e8",
+      "id": "3b6a48872b2c4fe6",
       "path": "simplicio/providers.py",
-      "line": 43,
+      "line": 48,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -3700,6 +3684,40 @@
       "snippet": "from typing import Any\n\ntry:  # optional fast path\n    import orjson as _oj\n    _HAS_ORJSON = True"
     },
     {
+      "id": "372796d73fdc9b67",
+      "path": "simplicio_cli.egg-info/PKG-INFO",
+      "line": 170,
+      "language": "text",
+      "change_type": "route",
+      "tags": [
+        "text",
+        "simplicio",
+        "cli",
+        "egg",
+        "info",
+        "pkg"
+      ],
+      "summary": "route precedent in simplicio_cli.egg-info/PKG-INFO",
+      "snippet": "\n> Reproduce the new default set:\n> `BENCH_BASE_URL=https://router.huggingface.co/v1 BENCH_API_KEY=<hf-token>\n> BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\"\n> python3 bench/run_offline.py`."
+    },
+    {
+      "id": "2cb77abf86cd4d7c",
+      "path": "simplicio_cli.egg-info/SOURCES.txt",
+      "line": 112,
+      "language": "txt",
+      "change_type": "route",
+      "tags": [
+        "txt",
+        "simplicio",
+        "cli",
+        "egg",
+        "info",
+        "sources"
+      ],
+      "summary": "route precedent in simplicio_cli.egg-info/SOURCES.txt",
+      "snippet": "simplicio/templates/stacks/elixir-phoenix/tree/lib/app/application.ex\nsimplicio/templates/stacks/elixir-phoenix/tree/lib/app_web/endpoint.ex\nsimplicio/templates/stacks/elixir-phoenix/tree/lib/app_web/router.ex\nsimplicio/templates/stacks/elixir-phoenix/tree/lib/app_web/controllers/health_controller.ex\nsimplicio/templates/stacks/elixir-phoenix/tree/test/health_controller_test.exs"
+    },
+    {
       "id": "a4948087d07ffe52",
       "path": "tests/e2e/README.md",
       "line": 54,
@@ -3900,9 +3918,9 @@
       "snippet": "\n\ndef _write_json(path, payload) -> None:\n    path.write_text(json.dumps(payload), encoding=\"utf-8\")\n"
     },
     {
-      "id": "33a7c0cf2deb6913",
+      "id": "1023af8a6c27c43d",
       "path": "tests/python/test_local_models.py",
-      "line": 34,
+      "line": 36,
       "language": "python",
       "change_type": "test",
       "tags": [
@@ -4221,22 +4239,6 @@
       ],
       "summary": "test precedent in tests/python/test_scratch_codegen_go_gin.py",
       "snippet": "\n\ndef _go_binary() -> str | None:\n    return shutil.which(\"go\") or (str(_PORTABLE_GO) if _PORTABLE_GO.is_file() else None)\n"
-    },
-    {
-      "id": "65779c7c369949cd",
-      "path": "tests/python/test_scratch_codegen_markdown.py",
-      "line": 13,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "scratch",
-        "codegen",
-        "markdown"
-      ],
-      "summary": "test precedent in tests/python/test_scratch_codegen_markdown.py",
-      "snippet": "\n\ndef _stack(tmp_path: Path) -> Stack:\n    return Stack(\n        slug=\"php-vanilla\","
     }
   ]
 }

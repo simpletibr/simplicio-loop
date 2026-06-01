@@ -91,8 +91,8 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
     p.add_argument(
         "--local",
         action="store_true",
-        help="force the in-process local model (Qwen3.5-2B Q6_K GGUF, "
-        "no API key); overrides SIMPLICIO_MODEL/SIMPLICIO_BASE_URL",
+        help="force local Ollama (openbmb/minicpm5:latest, no API key) "
+        "with Qwen3.5 GGUF fallback; overrides SIMPLICIO_MODEL/SIMPLICIO_BASE_URL",
     )
 
 
@@ -121,10 +121,11 @@ def _add_run_args(p: argparse.ArgumentParser) -> None:
 
 def _force_local_if_requested(a: argparse.Namespace) -> None:
     if getattr(a, "local", False):
-        # Force Path 4: pin the local model and drop any HTTP endpoint so the
-        # in-process llama backend wins regardless of the ambient config.
-        os.environ["SIMPLICIO_MODEL"] = "local-llama/default"
-        os.environ.pop("SIMPLICIO_BASE_URL", None)
+        # Force Path 4: local Ollama primary. The provider layer falls back to
+        # the local Qwen GGUF if the Ollama call fails.
+        os.environ["SIMPLICIO_MODEL"] = "openbmb/minicpm5:latest"
+        os.environ["SIMPLICIO_BASE_URL"] = "http://localhost:11434/v1"
+        os.environ.setdefault("SIMPLICIO_API_KEY", "ollama")
 
 
 def _run_task_command(a: argparse.Namespace) -> int:

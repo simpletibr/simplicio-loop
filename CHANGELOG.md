@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.14] — 2026-06-01
+
+### Changed
+- Default no-config local execution now uses Ollama
+  `openbmb/minicpm5:latest`.
+- `local-llama/default` is retained only as the fallback GGUF route and now
+  points to `Qwen_Qwen3.5-2B-Q6_K.gguf` from
+  `bartowski/Qwen_Qwen3.5-2B-GGUF`.
+- Removed the automatic Qwen2.5-Coder GGUF fallback chain from the local
+  provider defaults.
+- Python package metadata now reflects the current ecosystem floors:
+  `simplicio-mapper>=0.7.1` and `simplicio-prompt>=1.13.1`.
+- Added `docs/PYTHON_PACKAGE_INTERDEPENDENCE.md` to record the acyclic package
+  graph across mapper, prompt, cli, and sprint.
+
 ## [0.5.13] — 2026-06-01
 
 ### Changed

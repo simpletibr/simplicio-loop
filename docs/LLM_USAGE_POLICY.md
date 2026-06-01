@@ -10,21 +10,23 @@
 ## Default Configuration
 
 ### Execution (Local)
-- Primary local executor: **Qwen3.5-2B-Q6_K.gguf**
-- Fallback local executors: **Qwen2.5-Coder-1.5B-Instruct-Q8_0.gguf**, then **Qwen2.5-Coder-1.5B-Instruct-Q6_K_L.gguf**
+- Primary local executor: **`openbmb/minicpm5:latest`** via local Ollama
+- Fallback local executor: **`Qwen_Qwen3.5-2B-Q6_K.gguf`** from `bartowski/Qwen_Qwen3.5-2B-GGUF`
 
-These GGUF files should be used via llama.cpp / llama-cpp-python (not the default Ollama tag) when maximum determinism and instruction following on the small-local class is required.
+The GGUF fallback should be used via llama.cpp / llama-cpp-python only when
+Ollama is unavailable or the MiniCPM5 call fails.
 
 ## Project-Specific Rules
 
 ### simplicio-code (mandatory)
 - On project bootstrap / SessionStart / first run in a new workspace:
-  - The system **must** verify that the local Qwen3.5 Q6_K executor is present and keep the legacy Qwen2.5 executor files as fallbacks.
-  - If missing, it **must** download them before allowing agent execution.
+  - The system **must** verify that `openbmb/minicpm5:latest` is available in local Ollama.
+  - The system **must** verify that `Qwen_Qwen3.5-2B-Q6_K.gguf` is present as the fallback file.
+  - If either is missing, it **must** install it before allowing agent execution.
 - This is a hard requirement for the SimplicioCode product.
 
 ### simplicio-dev-cli and simplicio-sprint (recommended)
-- The above split (Qwen3.5-2B Q6_K for execution + legacy Qwen2.5 fallback files) is the **recommended** configuration for local development.
+- The above split (`openbmb/minicpm5:latest` primary + Qwen3.5 Q6_K GGUF fallback) is the **recommended** configuration for local development.
 - Not enforced at runtime, but all examples, benchmarks, and documentation use this setup.
 
 ## Rationale
@@ -37,10 +39,13 @@ From extensive benchmarking (see `simplicio-dev-cli` quant curves and live gates
 ## How to Configure
 
 ```bash
-# Execution (local, deterministic)
-export SIMPLICIO_MODEL=local-llama/default
-# equivalent explicit route:
-export SIMPLICIO_MODEL=local-llama/bartowski/Qwen_Qwen3.5-2B-GGUF::Qwen3.5-2B-Q6_K.gguf
+# Execution (local Ollama primary)
+export SIMPLICIO_MODEL=openbmb/minicpm5:latest
+export SIMPLICIO_BASE_URL=http://localhost:11434/v1
+export SIMPLICIO_API_KEY=ollama
+
+# fallback explicit route:
+export SIMPLICIO_MODEL=local-llama/bartowski/Qwen_Qwen3.5-2B-GGUF::Qwen_Qwen3.5-2B-Q6_K.gguf
 ```
 
 In SimplicioCode the equivalent is done via the Simplicio1 tier system + explicit GGUF routing for the executor role.

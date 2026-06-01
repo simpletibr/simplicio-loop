@@ -182,11 +182,15 @@ def test_no_model_with_base_raises_with_hint(monkeypatch):
     assert "local-llama" in msg
 
 
-def test_no_config_at_all_routes_to_local_default(monkeypatch):
-    # No model AND no base -> offline-first local default (Path 4), not a raise.
+def test_no_config_at_all_routes_to_ollama_default(monkeypatch):
+    # No model AND no base -> local Ollama primary (Path 4), not a raise.
     monkeypatch.delenv("SIMPLICIO_MODEL", raising=False)
     monkeypatch.delenv("SIMPLICIO_BASE_URL", raising=False)
     monkeypatch.setattr(
-        providers, "_local_generate", lambda p, f, m, mt: f"local:{m}"
+        providers,
+        "_openai_compatible_generate",
+        lambda model, base, key, p, f, mt: f"ollama:{model}@{base}",
     )
-    assert providers.generate("x") == "local:local-llama/default"
+    assert providers.generate("x") == (
+        "ollama:openbmb/minicpm5:latest@http://localhost:11434/v1"
+    )

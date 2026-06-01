@@ -1,12 +1,11 @@
 """local_models.py — hardware-tier → local model recommendation + Ollama plumbing.
 
-Encodes the hardware map documented in bench/SCRATCH_MODE_RFC.md:
+Encodes the local LLM standard:
 
-  cpu-tiny      → qwen2.5-coder:3b           (~2 GB Q4)
-  cpu-small     → qwen2.5-coder:7b           (~5 GB Q4)
-  gpu-mid       → qwen2.5-coder:14b          (~9 GB Q4)
-  gpu-large     → unsloth Qwen3-Coder-30B-A3B-Instruct Q4_K_M (~17 GB)
-  gpu-xlarge    → unsloth Qwen3-Coder-Next Q4 (~26 GB)
+  all tiers      → openbmb/minicpm5:latest via local Ollama (~0.7 GB)
+
+The GGUF fallback is handled by simplicio.providers as
+Qwen_Qwen3.5-2B-Q6_K.gguf when Ollama is unavailable.
 
 Hard rule (issue #32 follow-up):
 - NEVER auto-pull a model that does not fit the detected tier.
@@ -35,29 +34,25 @@ class ModelSpec:
     notes: str = ""
 
 
+DEFAULT_LOCAL_OLLAMA_ID = "openbmb/minicpm5:latest"
+DEFAULT_LOCAL_OLLAMA_LABEL = "MiniCPM5 local (Ollama)"
+DEFAULT_LOCAL_OLLAMA_SIZE_GB = 0.7
+DEFAULT_LOCAL_OLLAMA_NOTES = (
+    "canonical local primary; falls back to Qwen_Qwen3.5-2B-Q6_K.gguf in providers"
+)
+
+
 # Order matters: list is consulted in the rare case the user asks for the
 # next-step-up model. The default lookup is by exact tier.
 RECOMMENDATIONS: dict[str, ModelSpec] = {
-    "cpu-tiny":   ModelSpec("cpu-tiny",   "qwen2.5-coder:3b",   2.0,
-                            "Qwen2.5-Coder 3B (Q4)",
-                            "minimal but usable; 12-18 tok/s on CPU"),
-    "cpu-small":  ModelSpec("cpu-small",  "qwen2.5-coder:7b",   5.0,
-                            "Qwen2.5-Coder 7B (Q4)",
-                            "good balance; ~25 tok/s on M1/M2"),
-    "gpu-mid":    ModelSpec("gpu-mid",    "qwen2.5-coder:14b",  9.0,
-                            "Qwen2.5-Coder 14B (Q4)",
-                            "real-work proxy; 30-50 tok/s on 16 GB VRAM"),
-    "gpu-large":  ModelSpec("gpu-large",
-                            "hf.co/unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF:Q4_K_M",
-                            17.5, "Qwen3-Coder 30B A3B (Q4_K_M, unsloth)",
-                            "MoE 3B active params; matches our bench cloud results"),
-    "gpu-xlarge": ModelSpec("gpu-xlarge",
-                            "hf.co/unsloth/Qwen3-Coder-Next-GGUF:Q4_K_M",
-                            26.0, "Qwen3-Coder Next (Q4)",
-                            "best local coder 2026; needs 32+ GB unified or VRAM"),
-    "unknown":    ModelSpec("unknown",    "qwen2.5-coder:7b",   5.0,
-                            "Qwen2.5-Coder 7B (Q4) [fallback]",
-                            "safe default when detection inconclusive"),
+    tier: ModelSpec(
+        tier,
+        DEFAULT_LOCAL_OLLAMA_ID,
+        DEFAULT_LOCAL_OLLAMA_SIZE_GB,
+        DEFAULT_LOCAL_OLLAMA_LABEL,
+        DEFAULT_LOCAL_OLLAMA_NOTES,
+    )
+    for tier in ("cpu-tiny", "cpu-small", "gpu-mid", "gpu-large", "gpu-xlarge", "unknown")
 }
 
 
@@ -71,7 +66,7 @@ def ollama_present() -> bool:
 def ollama_list_installed() -> list[str]:
     """Return the list of Ollama models currently installed.
 
-    Each entry is the full tag the user can target (e.g. "qwen2.5-coder:7b").
+    Each entry is the full tag the user can target (e.g. "openbmb/minicpm5:latest").
     Empty list on failure — never raises.
     """
     if not ollama_present():
@@ -97,7 +92,7 @@ def ollama_list_installed() -> list[str]:
 
 
 def is_installed(ollama_id: str) -> bool:
-    """Looser match: handle `hf.co/...:Q4_K_M` vs `qwen2.5-coder:7b` styles."""
+    """Looser match hook kept for future aliases; currently exact tag match."""
     installed = ollama_list_installed()
     return ollama_id in installed
 

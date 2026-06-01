@@ -516,7 +516,7 @@ user prompt. UserPromptSubmit is the right pre-hook for routing decisions.
 | GLM (z.ai) | `glm-4.6` | `https://api.z.ai/api/paas/v4` |
 | DeepSeek | `deepseek-chat` | `https://api.deepseek.com` |
 | OpenAI | `gpt-4.1` | `https://api.openai.com/v1` |
-| Local (Ollama) | `llama3` | `http://localhost:11434/v1` |
+| Local (Ollama) | `openbmb/minicpm5:latest` | `http://localhost:11434/v1` |
 | Local (in-process) | `local-llama/default` | *(leave unset)* |
 | Anthropic native | `claude-opus-4-7` | *(leave unset)* |
 
@@ -528,32 +528,31 @@ your `base_url` — so **any** OpenAI-like provider works without code changes.
 simplicio smoke      # prints provider config + one test call
 ```
 
-### Path 4 — offline-first local model (zero key, zero HTTP)
+### Path 4 — local Ollama primary with GGUF fallback
 
-simplicio ships an **in-process** backend powered by
-[`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python). When **no
-provider is configured** (`SIMPLICIO_MODEL` *and* `SIMPLICIO_BASE_URL` both
-unset), it runs **Qwen3.5-2B Q6_K GGUF** directly. If that GGUF is not
-available yet, it falls back to the previous **Qwen2.5-Coder 1.5B Q8_0** and
-**Q6_K_L** executor files — small, code-specialized, fast on CPU, no API key,
-no Ollama, no HTTP overhead. The 6-layer contract is what keeps tiny local
-models usable for execution work.
+When **no provider is configured** (`SIMPLICIO_MODEL` and
+`SIMPLICIO_BASE_URL` both unset), simplicio uses local Ollama with
+`openbmb/minicpm5:latest`. If that call fails, it falls back to the in-process
+[`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python) backend with
+`Qwen_Qwen3.5-2B-Q6_K.gguf`.
 
 ```bash
 pip install 'simplicio-cli[local]'          # pulls llama-cpp-python + huggingface-hub
 
 simplicio task "add input validation to createUser" \
-  --target src/users.ts --local              # forces the local model
+  --target src/users.ts --local              # forces local Ollama primary
 
-# the GGUF is fetched once from the Hugging Face Hub, then cached + reused
+# the fallback GGUF is fetched once from the Hugging Face Hub, then reused
 ```
 
 Explicit routes (override the default model/weights):
 
 ```bash
-SIMPLICIO_MODEL=local-llama/default                                  # Qwen3.5-2B Q6_K primary, Qwen2.5 fallbacks
-SIMPLICIO_MODEL=local-llama/bartowski/Qwen_Qwen3.5-2B-GGUF::Qwen3.5-2B-Q6_K.gguf
-SIMPLICIO_MODEL=local-llama/bartowski/Qwen2.5-Coder-7B-Instruct-GGUF::Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf
+SIMPLICIO_MODEL=openbmb/minicpm5:latest
+SIMPLICIO_BASE_URL=http://localhost:11434/v1
+SIMPLICIO_API_KEY=ollama
+SIMPLICIO_MODEL=local-llama/default                                  # Qwen_Qwen3.5-2B-Q6_K.gguf fallback
+SIMPLICIO_MODEL=local-llama/bartowski/Qwen_Qwen3.5-2B-GGUF::Qwen_Qwen3.5-2B-Q6_K.gguf
 SIMPLICIO_MODEL=local-llama//models/my-model.gguf                    # direct local path
 SIMPLICIO_LOCAL_MODEL_PATH=/models/my-model.gguf                     # always wins
 ```

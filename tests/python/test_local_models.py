@@ -6,6 +6,8 @@ import pytest
 
 from simplicio.hardware import HardwareProfile, pick_tier
 from simplicio.local_models import (
+    DEFAULT_LOCAL_OLLAMA_ID,
+    ModelSpec,
     RECOMMENDATIONS,
     RecommendationResult,
     evaluate,
@@ -53,6 +55,7 @@ def test_evaluate_picks_correct_spec_per_tier() -> None:
         r = evaluate(prof)
         assert r.spec.tier == tier
         assert r.spec.ollama_id == RECOMMENDATIONS[tier].ollama_id
+        assert r.spec.ollama_id == DEFAULT_LOCAL_OLLAMA_ID
 
 
 def test_evaluate_refuses_to_run_oversized_model(
@@ -63,6 +66,11 @@ def test_evaluate_refuses_to_run_oversized_model(
     monkeypatch.setattr("simplicio.local_models.ollama_present", lambda: True)
     monkeypatch.setattr(
         "simplicio.local_models.is_installed", lambda _id: False)
+    monkeypatch.setitem(
+        RECOMMENDATIONS,
+        "gpu-large",
+        ModelSpec("gpu-large", "too-large:latest", 17.5, "Too Large"),
+    )
     # Force a mismatch: profile says cpu-small (small) but we set tier to
     # gpu-large to simulate a bad override
     prof = HardwareProfile(os_name="Linux", ram_gb=16, vram_gb=0,
@@ -80,7 +88,7 @@ def test_evaluate_marks_ollama_absent(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "ollama not installed" in r.reason
 
 
-def test_apple_silicon_profile_can_run_moe_at_24gb(
+def test_apple_silicon_profile_can_run_minicpm5_at_24gb(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("simplicio.local_models.ollama_present", lambda: True)
@@ -107,6 +115,11 @@ def test_ensure_recommended_does_not_pull_without_opt_in(
     monkeypatch.setattr("simplicio.local_models.ollama_present", lambda: True)
     monkeypatch.setattr(
         "simplicio.local_models.is_installed", lambda _id: False)
+    monkeypatch.setitem(
+        RECOMMENDATIONS,
+        "gpu-large",
+        ModelSpec("gpu-large", "too-large:latest", 17.5, "Too Large"),
+    )
     pulled = {"called": False}
 
     def fake_pull(_id, timeout=1800):
@@ -200,6 +213,11 @@ def test_ensure_recommended_refuses_pull_when_undersized(
     monkeypatch.setattr("simplicio.local_models.ollama_present", lambda: True)
     monkeypatch.setattr(
         "simplicio.local_models.is_installed", lambda _id: False)
+    monkeypatch.setitem(
+        RECOMMENDATIONS,
+        "gpu-large",
+        ModelSpec("gpu-large", "too-large:latest", 17.5, "Too Large"),
+    )
     pulled = {"called": False}
 
     def fake_pull(_id, timeout=1800):

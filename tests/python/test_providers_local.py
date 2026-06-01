@@ -2,7 +2,7 @@
 
 The llama-cpp-python and huggingface-hub libs are optional extras that are not
 installed in CI, so we test the routing/spec resolution directly and stub the
-heavy model load (`_local_llama`) when exercising generate().
+heavy model load (`_local_llama`) when exercising explicit GGUF fallback paths.
 """
 
 import os
@@ -54,9 +54,10 @@ def test_is_local_explicit_prefix():
     assert providers._is_local("local-llama/repo::a.gguf", "http://x") is True
 
 
-def test_is_local_auto_default_when_nothing_configured():
-    assert providers._is_local(None, None) is True
-    assert providers._is_local("", "") is True
+def test_empty_config_uses_ollama_default_not_in_process_local():
+    assert providers._is_default_ollama(None, None) is True
+    assert providers._is_default_ollama("", "") is True
+    assert providers._is_local(None, None) is False
 
 
 def test_is_local_false_when_base_set():
@@ -129,8 +130,8 @@ def test_provider_id_local():
 
 def test_info_local_auto_default():
     s = providers.info()
-    assert "local-llama" in s
-    assert "in-process" in s
+    assert "openbmb/minicpm5:latest" in s
+    assert "provider=ollama" in s
     assert "key=not-needed" in s
     assert providers.LOCAL_DEFAULT_FILE in s
 
@@ -188,18 +189,19 @@ def test_resolve_local_path_prefers_executor_dir(monkeypatch, tmp_path):
     fake.hf_hub_download.assert_not_called()
 
 
-def test_resolve_local_path_falls_back_to_legacy_qwen25(monkeypatch):
+def test_resolve_local_path_default_does_not_try_legacy_qwen25(monkeypatch, tmp_path):
     fake = types.ModuleType("huggingface_hub")
-    fake.hf_hub_download = MagicMock(
-        side_effect=[RuntimeError("qwen35 missing"), "/cache/qwen25-q8.gguf"]
-    )
+    fake.hf_hub_download = MagicMock(side_effect=RuntimeError("qwen35 missing"))
     monkeypatch.setitem(sys.modules, "huggingface_hub", fake)
+    monkeypatch.setenv("SIMPLICIO_LOCAL_MODEL_DIR", str(tmp_path / "empty-models"))
 
-    out = providers._resolve_local_path(
-        providers.LOCAL_DEFAULT_REPO, providers.LOCAL_DEFAULT_FILE, None
-    )
+    with pytest.raises(SystemExit) as exc:
+        providers._resolve_local_path(
+            providers.LOCAL_DEFAULT_REPO, providers.LOCAL_DEFAULT_FILE, None
+        )
 
-    assert out == "/cache/qwen25-q8.gguf"
+    assert "Qwen_Qwen3.5-2B-Q6_K.gguf" in str(exc.value)
+    assert len(fake.hf_hub_download.call_args_list) == 1
     assert (
         fake.hf_hub_download.call_args_list[0].kwargs["repo_id"]
         == providers.LOCAL_DEFAULT_REPO
@@ -207,14 +209,6 @@ def test_resolve_local_path_falls_back_to_legacy_qwen25(monkeypatch):
     assert (
         fake.hf_hub_download.call_args_list[0].kwargs["filename"]
         == providers.LOCAL_DEFAULT_FILE
-    )
-    assert (
-        fake.hf_hub_download.call_args_list[1].kwargs["repo_id"]
-        == providers.LOCAL_FALLBACK_REPO
-    )
-    assert (
-        fake.hf_hub_download.call_args_list[1].kwargs["filename"]
-        == providers.LOCAL_FALLBACK_FILE
     )
 
 
@@ -279,18 +273,35 @@ def test_local_llama_honours_ctx_threads_gpu(monkeypatch):
 # --------------------------------------------------------------------------- #
 
 
-def test_generate_routes_to_local_by_default(monkeypatch):
+def test_generate_routes_to_ollama_by_default(monkeypatch):
     calls = []
+
+    def fake_openai(model, base, key, prompt, feedback, max_tokens):
+        calls.append((prompt, model, max_tokens))
+        return "OLLAMA OK"
+
+    monkeypatch.setattr(providers, "_openai_compatible_generate", fake_openai)
+    out = providers.generate("do x", max_tokens=128)
+    assert out == "OLLAMA OK"
+    assert calls[0][1] == providers.DEFAULT_OLLAMA_MODEL
+    assert calls[0][2] == 128
+
+
+def test_generate_default_ollama_falls_back_to_qwen_gguf(monkeypatch):
+    calls = []
+
+    def fail_openai(*_args, **_kwargs):
+        raise RuntimeError("ollama down")
 
     def fake_local(prompt, feedback, model, max_tokens):
         calls.append((prompt, model, max_tokens))
-        return "LOCAL OK"
+        return "GGUF OK"
 
+    monkeypatch.setattr(providers, "_openai_compatible_generate", fail_openai)
     monkeypatch.setattr(providers, "_local_generate", fake_local)
     out = providers.generate("do x", max_tokens=128)
-    assert out == "LOCAL OK"
+    assert out == "GGUF OK"
     assert calls[0][1] == "local-llama/default"
-    assert calls[0][2] == 128
 
 
 def test_generate_local_explicit_prefix(monkeypatch):
@@ -313,6 +324,7 @@ def test_generate_local_uses_completion_cache(monkeypatch):
         n["calls"] += 1
         return "CACHED"
 
+    monkeypatch.setenv("SIMPLICIO_MODEL", "local-llama/default")
     monkeypatch.setattr(providers, "_local_generate", fake_local)
     assert providers.generate("same prompt") == "CACHED"
     assert providers.generate("same prompt") == "CACHED"
@@ -352,6 +364,7 @@ def test_generate_cache_key_includes_weights(monkeypatch):
         return f"out:{os.environ.get('SIMPLICIO_LOCAL_MODEL_PATH')}"
 
     monkeypatch.setenv("SIMPLICIO_CACHE", "1")
+    monkeypatch.setenv("SIMPLICIO_MODEL", "local-llama/default")
     monkeypatch.setattr(providers, "_local_generate", fake_local)
 
     monkeypatch.setenv("SIMPLICIO_LOCAL_MODEL_PATH", "/models/a.gguf")
