@@ -10,6 +10,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
@@ -626,6 +627,67 @@ def load(api):
         self.assertEqual(code, 0)
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["status"], "updated")
+
+    def test_index_skips_with_explicit_lock(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "locked-host"}))
+        lock = self.dir / ".simplicio" / "index.lock"
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        lock.write_text("123\n", encoding="utf-8")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["index", str(self.dir), "--json"])
+
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["status"], "skipped")
+        self.assertEqual(payload["skipped_reason"], "locked")
+
+    def test_background_index_reports_pid_and_log(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "background-host"}))
+        _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main([
+                "index",
+                str(self.dir),
+                "--background",
+                "--stack",
+                "python",
+                "--product-name",
+                "Background Host",
+                "--json",
+            ])
+
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.background-index/v1")
+        self.assertEqual(payload["status"], "started")
+        self.assertGreater(payload["pid"], 0)
+        self.assertTrue(payload["log"].endswith(".simplicio/background-index.log"))
+        project_map = self.dir / ".simplicio" / "project-map.json"
+        for _ in range(40):
+            if project_map.exists():
+                break
+            time.sleep(0.05)
+        self.assertTrue(project_map.exists())
+        mapped = json.loads(project_map.read_text())
+        self.assertEqual(mapped["product"]["name"], "Background Host")
+        self.assertEqual(mapped["product"]["stack"], "python")
+
+    def test_docs_only_renders_without_index_payload(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "docs-only-host"}))
+        _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["index", str(self.dir), "--docs-only", "--json"])
+
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.architecture-docs/v1")
+        self.assertTrue((self.dir / ".simplicio" / "docs" / "architecture.md").exists())
 
 
 if __name__ == "__main__":

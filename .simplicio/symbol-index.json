@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.symbol-index/v1",
   "version": 1,
-  "generated_at": "2026-06-01T01:26:48.982Z",
+  "generated_at": "2026-06-01T01:50:45.011Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-mapper",
   "symbols": [
     {
@@ -2542,10 +2542,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 75,
+      "line": 79,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 75
+        "line": 79
       }
     },
     {
@@ -2554,10 +2554,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 83,
+      "line": 87,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 83
+        "line": 87
       }
     },
     {
@@ -2566,10 +2566,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 160,
+      "line": 175,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 160
+        "line": 175
       }
     },
     {
@@ -2578,39 +2578,15 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 177,
+      "line": 192,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 177
+        "line": 192
       }
     },
     {
       "name": "_state_path",
       "qualified_name": "simplicio_mapper/cli.py::_state_path",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio_mapper/cli.py",
-      "line": 196,
-      "evidence": {
-        "file": "simplicio_mapper/cli.py",
-        "line": 196
-      }
-    },
-    {
-      "name": "_artifact_paths",
-      "qualified_name": "simplicio_mapper/cli.py::_artifact_paths",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio_mapper/cli.py",
-      "line": 200,
-      "evidence": {
-        "file": "simplicio_mapper/cli.py",
-        "line": 200
-      }
-    },
-    {
-      "name": "_hash_text",
-      "qualified_name": "simplicio_mapper/cli.py::_hash_text",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
@@ -2621,8 +2597,8 @@
       }
     },
     {
-      "name": "_git_signature",
-      "qualified_name": "simplicio_mapper/cli.py::_git_signature",
+      "name": "_lock_path",
+      "qualified_name": "simplicio_mapper/cli.py::_lock_path",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
@@ -2633,15 +2609,75 @@
       }
     },
     {
+      "name": "_acquire_index_lock",
+      "qualified_name": "simplicio_mapper/cli.py::_acquire_index_lock",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 219,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 219
+      }
+    },
+    {
+      "name": "_release_index_lock",
+      "qualified_name": "simplicio_mapper/cli.py::_release_index_lock",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 231,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 231
+      }
+    },
+    {
+      "name": "_artifact_paths",
+      "qualified_name": "simplicio_mapper/cli.py::_artifact_paths",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 240,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 240
+      }
+    },
+    {
+      "name": "_hash_text",
+      "qualified_name": "simplicio_mapper/cli.py::_hash_text",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 251,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 251
+      }
+    },
+    {
+      "name": "_git_signature",
+      "qualified_name": "simplicio_mapper/cli.py::_git_signature",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 255,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 255
+      }
+    },
+    {
       "name": "_tree_signature",
       "qualified_name": "simplicio_mapper/cli.py::_tree_signature",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 263,
+      "line": 303,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 263
+        "line": 303
       }
     },
     {
@@ -2650,10 +2686,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 283,
+      "line": 323,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 283
+        "line": 323
       }
     },
     {
@@ -2662,10 +2698,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 287,
+      "line": 327,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 287
+        "line": 327
       }
     },
     {
@@ -2674,10 +2710,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 291,
+      "line": 331,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 291
+        "line": 331
       }
     },
     {
@@ -2686,27 +2722,15 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 305,
+      "line": 345,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 305
+        "line": 345
       }
     },
     {
       "name": "_index_result",
       "qualified_name": "simplicio_mapper/cli.py::_index_result",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio_mapper/cli.py",
-      "line": 309,
-      "evidence": {
-        "file": "simplicio_mapper/cli.py",
-        "line": 309
-      }
-    },
-    {
-      "name": "_emit_index_json",
-      "qualified_name": "simplicio_mapper/cli.py::_emit_index_json",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
@@ -2717,44 +2741,8 @@
       }
     },
     {
-      "name": "_normalize_endpoint_path",
-      "qualified_name": "simplicio_mapper/cli.py::_normalize_endpoint_path",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio_mapper/cli.py",
-      "line": 354,
-      "evidence": {
-        "file": "simplicio_mapper/cli.py",
-        "line": 354
-      }
-    },
-    {
-      "name": "_endpoint_files",
-      "qualified_name": "simplicio_mapper/cli.py::_endpoint_files",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio_mapper/cli.py",
-      "line": 370,
-      "evidence": {
-        "file": "simplicio_mapper/cli.py",
-        "line": 370
-      }
-    },
-    {
-      "name": "_route_entry",
-      "qualified_name": "simplicio_mapper/cli.py::_route_entry",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio_mapper/cli.py",
-      "line": 380,
-      "evidence": {
-        "file": "simplicio_mapper/cli.py",
-        "line": 380
-      }
-    },
-    {
-      "name": "_extract_csharp_server_routes",
-      "qualified_name": "simplicio_mapper/cli.py::_extract_csharp_server_routes",
+      "name": "_emit_index_json",
+      "qualified_name": "simplicio_mapper/cli.py::_emit_index_json",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
@@ -2765,56 +2753,68 @@
       }
     },
     {
+      "name": "_normalize_endpoint_path",
+      "qualified_name": "simplicio_mapper/cli.py::_normalize_endpoint_path",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 394,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 394
+      }
+    },
+    {
+      "name": "_endpoint_files",
+      "qualified_name": "simplicio_mapper/cli.py::_endpoint_files",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 410,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 410
+      }
+    },
+    {
+      "name": "_route_entry",
+      "qualified_name": "simplicio_mapper/cli.py::_route_entry",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 420,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 420
+      }
+    },
+    {
+      "name": "_extract_csharp_server_routes",
+      "qualified_name": "simplicio_mapper/cli.py::_extract_csharp_server_routes",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 429,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 429
+      }
+    },
+    {
       "name": "_extract_python_routes",
       "qualified_name": "simplicio_mapper/cli.py::_extract_python_routes",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 412,
+      "line": 452,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 412
+        "line": 452
       }
     },
     {
       "name": "_extract_text_client_calls",
       "qualified_name": "simplicio_mapper/cli.py::_extract_text_client_calls",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio_mapper/cli.py",
-      "line": 434,
-      "evidence": {
-        "file": "simplicio_mapper/cli.py",
-        "line": 434
-      }
-    },
-    {
-      "name": "_is_test_path",
-      "qualified_name": "simplicio_mapper/cli.py::_is_test_path",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio_mapper/cli.py",
-      "line": 447,
-      "evidence": {
-        "file": "simplicio_mapper/cli.py",
-        "line": 447
-      }
-    },
-    {
-      "name": "_extract_text_constants",
-      "qualified_name": "simplicio_mapper/cli.py::_extract_text_constants",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio_mapper/cli.py",
-      "line": 458,
-      "evidence": {
-        "file": "simplicio_mapper/cli.py",
-        "line": 458
-      }
-    },
-    {
-      "name": "_strip_ts_quote",
-      "qualified_name": "simplicio_mapper/cli.py::_strip_ts_quote",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
@@ -2825,15 +2825,51 @@
       }
     },
     {
+      "name": "_is_test_path",
+      "qualified_name": "simplicio_mapper/cli.py::_is_test_path",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 487,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 487
+      }
+    },
+    {
+      "name": "_extract_text_constants",
+      "qualified_name": "simplicio_mapper/cli.py::_extract_text_constants",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 498,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 498
+      }
+    },
+    {
+      "name": "_strip_ts_quote",
+      "qualified_name": "simplicio_mapper/cli.py::_strip_ts_quote",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 514,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 514
+      }
+    },
+    {
       "name": "_resolve_text_endpoint_expression",
       "qualified_name": "simplicio_mapper/cli.py::_resolve_text_endpoint_expression",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 481,
+      "line": 521,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 481
+        "line": 521
       }
     },
     {
@@ -2842,10 +2878,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 488,
+      "line": 528,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 488
+        "line": 528
       }
     },
     {
@@ -2854,10 +2890,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 495,
+      "line": 535,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 495
+        "line": 535
       }
     },
     {
@@ -2866,10 +2902,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 520,
+      "line": 560,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 520
+        "line": 560
       }
     },
     {
@@ -2878,10 +2914,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 544,
+      "line": 584,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 544
+        "line": 584
       }
     },
     {
@@ -2890,10 +2926,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 590,
+      "line": 630,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 590
+        "line": 630
       }
     },
     {
@@ -2902,10 +2938,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 611,
+      "line": 651,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 611
+        "line": 651
       }
     },
     {
@@ -2914,10 +2950,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 631,
+      "line": 671,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 631
+        "line": 671
       }
     },
     {
@@ -2926,10 +2962,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 657,
+      "line": 697,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 657
+        "line": 697
       }
     },
     {
@@ -2938,10 +2974,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 676,
+      "line": 716,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 676
+        "line": 716
       }
     },
     {
@@ -2950,10 +2986,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 728,
+      "line": 768,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 728
+        "line": 768
       }
     },
     {
@@ -2962,10 +2998,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 735,
+      "line": 775,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 735
+        "line": 775
       }
     },
     {
@@ -2974,10 +3010,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 747,
+      "line": 787,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 747
+        "line": 787
       }
     },
     {
@@ -2986,10 +3022,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 754,
+      "line": 794,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 754
+        "line": 794
       }
     },
     {
@@ -2998,10 +3034,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 782,
+      "line": 822,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 782
+        "line": 822
       }
     },
     {
@@ -3010,10 +3046,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 795,
+      "line": 835,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 795
+        "line": 835
       }
     },
     {
@@ -3022,10 +3058,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 825,
+      "line": 865,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 825
+        "line": 865
       }
     },
     {
@@ -3034,10 +3070,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 844,
+      "line": 884,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 844
+        "line": 884
       }
     },
     {
@@ -3046,10 +3082,22 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 858,
+      "line": 898,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 858
+        "line": 898
+      }
+    },
+    {
+      "name": "_run_background",
+      "qualified_name": "simplicio_mapper/cli.py::_run_background",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 912,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 912
       }
     },
     {
@@ -3058,10 +3106,22 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 872,
+      "line": 955,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 872
+        "line": 955
+      }
+    },
+    {
+      "name": "_run_index_locked",
+      "qualified_name": "simplicio_mapper/cli.py::_run_index_locked",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 984,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 984
       }
     },
     {
@@ -3070,10 +3130,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 915,
+      "line": 1025,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 915
+        "line": 1025
       }
     },
     {
@@ -3082,10 +3142,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 933,
+      "line": 1043,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 933
+        "line": 1043
       }
     },
     {
@@ -4018,10 +4078,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 36,
+      "line": 37,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 36
+        "line": 37
       }
     },
     {
@@ -4030,10 +4090,10 @@
       "kind": "class",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 42,
+      "line": 43,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 42
+        "line": 43
       }
     },
     {
@@ -4042,10 +4102,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 45,
+      "line": 46,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 45
+        "line": 46
       }
     },
     {
@@ -4054,10 +4114,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 58,
+      "line": 59,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 58
+        "line": 59
       }
     },
     {
@@ -4066,10 +4126,10 @@
       "kind": "class",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 75,
+      "line": 76,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 75
+        "line": 76
       }
     },
     {
@@ -4078,10 +4138,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 78,
+      "line": 79,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 78
+        "line": 79
       }
     },
     {
@@ -4090,10 +4150,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 81,
+      "line": 82,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 81
+        "line": 82
       }
     },
     {
@@ -4102,10 +4162,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 84,
+      "line": 85,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 84
+        "line": 85
       }
     },
     {
@@ -4114,10 +4174,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 125,
+      "line": 126,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 125
+        "line": 126
       }
     },
     {
@@ -4126,10 +4186,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 150,
+      "line": 151,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 150
+        "line": 151
       }
     },
     {
@@ -4138,10 +4198,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 165,
+      "line": 166,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 165
+        "line": 166
       }
     },
     {
@@ -4150,10 +4210,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 201,
+      "line": 202,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 201
+        "line": 202
       }
     },
     {
@@ -4162,10 +4222,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 217,
+      "line": 218,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 217
+        "line": 218
       }
     },
     {
@@ -4174,10 +4234,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 229,
+      "line": 230,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 229
+        "line": 230
       }
     },
     {
@@ -4186,10 +4246,10 @@
       "kind": "class",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 245,
+      "line": 246,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 245
+        "line": 246
       }
     },
     {
@@ -4198,10 +4258,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 248,
+      "line": 249,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 248
+        "line": 249
       }
     },
     {
@@ -4210,10 +4270,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 251,
+      "line": 252,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 251
+        "line": 252
       }
     },
     {
@@ -4222,10 +4282,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 254,
+      "line": 255,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 254
+        "line": 255
       }
     },
     {
@@ -4234,10 +4294,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 266,
+      "line": 267,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 266
+        "line": 267
       }
     },
     {
@@ -4246,10 +4306,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 271,
+      "line": 272,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 271
+        "line": 272
       }
     },
     {
@@ -4258,10 +4318,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 276,
+      "line": 277,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 276
+        "line": 277
       }
     },
     {
@@ -4270,10 +4330,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 282,
+      "line": 283,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 282
+        "line": 283
       }
     },
     {
@@ -4282,10 +4342,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 300,
+      "line": 301,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 300
+        "line": 301
       }
     },
     {
@@ -4294,10 +4354,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 313,
+      "line": 314,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 313
+        "line": 314
       }
     },
     {
@@ -4306,28 +4366,16 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 334,
+      "line": 335,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 334
+        "line": 335
       }
     },
     {
       "name": "ApiClient",
       "qualified_name": "tests/python/test_cli.py::ApiClient",
       "kind": "class",
-      "language": "python",
-      "defined_in": "tests/python/test_cli.py",
-      "line": 339,
-      "evidence": {
-        "file": "tests/python/test_cli.py",
-        "line": 339
-      }
-    },
-    {
-      "name": "get",
-      "qualified_name": "tests/python/test_cli.py::get",
-      "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
       "line": 340,
@@ -4337,8 +4385,8 @@
       }
     },
     {
-      "name": "post",
-      "qualified_name": "tests/python/test_cli.py::post",
+      "name": "get",
+      "qualified_name": "tests/python/test_cli.py::get",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
@@ -4349,8 +4397,8 @@
       }
     },
     {
-      "name": "list_skills",
-      "qualified_name": "tests/python/test_cli.py::list_skills",
+      "name": "post",
+      "qualified_name": "tests/python/test_cli.py::post",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
@@ -4361,15 +4409,27 @@
       }
     },
     {
+      "name": "list_skills",
+      "qualified_name": "tests/python/test_cli.py::list_skills",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 343,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 343
+      }
+    },
+    {
       "name": "create_snapshot",
       "qualified_name": "tests/python/test_cli.py::create_snapshot",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 344,
+      "line": 345,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 344
+        "line": 345
       }
     },
     {
@@ -4378,10 +4438,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 373,
+      "line": 374,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 373
+        "line": 374
       }
     },
     {
@@ -4390,10 +4450,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 429,
+      "line": 430,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 429
+        "line": 430
       }
     },
     {
@@ -4402,10 +4462,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 495,
+      "line": 496,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 495
+        "line": 496
       }
     },
     {
@@ -4414,10 +4474,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 509,
+      "line": 510,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 509
+        "line": 510
       }
     },
     {
@@ -4426,10 +4486,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 524,
+      "line": 525,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 524
+        "line": 525
       }
     },
     {
@@ -4438,10 +4498,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 530,
+      "line": 531,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 530
+        "line": 531
       }
     },
     {
@@ -4450,10 +4510,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 534,
+      "line": 535,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 534
+        "line": 535
       }
     },
     {
@@ -4462,10 +4522,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 536,
+      "line": 537,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 536
+        "line": 537
       }
     },
     {
@@ -4474,10 +4534,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 543,
+      "line": 544,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 543
+        "line": 544
       }
     },
     {
@@ -4486,10 +4546,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 569,
+      "line": 570,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 569
+        "line": 570
       }
     },
     {
@@ -4498,10 +4558,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 574,
+      "line": 575,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 574
+        "line": 575
       }
     },
     {
@@ -4510,10 +4570,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 588,
+      "line": 589,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 588
+        "line": 589
       }
     },
     {
@@ -4522,10 +4582,46 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 605,
+      "line": 606,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 605
+        "line": 606
+      }
+    },
+    {
+      "name": "test_index_skips_with_explicit_lock",
+      "qualified_name": "tests/python/test_cli.py::test_index_skips_with_explicit_lock",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 630,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 630
+      }
+    },
+    {
+      "name": "test_background_index_reports_pid_and_log",
+      "qualified_name": "tests/python/test_cli.py::test_background_index_reports_pid_and_log",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 645,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 645
+      }
+    },
+    {
+      "name": "test_docs_only_renders_without_index_payload",
+      "qualified_name": "tests/python/test_cli.py::test_docs_only_renders_without_index_payload",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 678,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 678
       }
     },
     {
@@ -5310,7 +5406,7 @@
     }
   ],
   "counts": {
-    "symbols": 442,
+    "symbols": 450,
     "files": 36
   }
 }

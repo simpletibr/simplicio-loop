@@ -58,15 +58,15 @@ Groups 16 files across 2 detected layers.
 - `tearDown`
 - `test_architecture_docs_and_export_render_markdown`
 - `test_architecture_inventory_tracks_layers_symbols_and_relationships`
+- `test_background_index_reports_pid_and_log`
 - `test_build_artifacts_emits_rich_project_map`
 - `test_build_artifacts_ignores_generated_dependency_and_cache_dirs`
 - `test_build_artifacts_without_native`
 - `test_cache_hits_same_file_signature`
 - `test_docs_command_writes_markdown_json_contract`
+- `test_docs_only_renders_without_index_payload`
 - `test_endpoints_captures_python_page_api_calls`
 - `test_endpoints_compares_client_calls_against_server_routes`
 - `test_endpoints_json_includes_sources_for_missing_routes`
 - `test_endpoints_resolves_angular_service_base_urls`
 - `test_export_docs_command_copies_markdown`
-- `test_git_status_marks_untracked_files_inside_new_dirs`
-- `test_hash_and_imports_match_fallback`

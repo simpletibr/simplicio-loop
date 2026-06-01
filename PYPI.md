@@ -49,6 +49,7 @@ simplicio-mapper endpoints path/to/web --against path/to/api --json
 # Render architecture inventory markdown for wiki/docs review
 simplicio-mapper docs path/to/project --json
 simplicio-mapper export-docs path/to/project --target ./wiki-export --json
+simplicio-mapper index path/to/project --docs --background
 
 # Map another project root, with hints when .starter-meta.json is absent
 simplicio-mapper map --root path/to/project --stack python --product-name "My App"
@@ -71,6 +72,10 @@ The `llm-project-mapper` console script is provided as an alias.
 | `--target <dir>` | Local target directory for `export-docs`. |
 | `--docs` | Render Markdown docs after `map` or `index`. |
 | `--no-docs` | Keep `map`/`index` JSON-only. |
+| `--docs-only` | Render the Markdown docs without emitting the index JSON payload. |
+| `--json-only` | Compatibility alias for keeping `map`/`index` JSON-only. |
+| `--changed-only` | Compatibility alias for incremental refresh workflows. |
+| `--background` | Start a detached index refresh and write `.simplicio/background-index.log`. |
 | `--json` | Emit stable `simplicio.mapper-index/v1` output for the `index` command. |
 | `--update` | Compatibility alias for index refresh workflows. |
 | `--verbose` | Show progress during `index` refreshes. |

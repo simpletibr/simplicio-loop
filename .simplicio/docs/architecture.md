@@ -7,8 +7,8 @@ Generated from `.simplicio` machine-readable artifacts. Statements below are der
 - Files: 284
 - Modules: 17
 - Layers: 10
-- Symbols: 442
-- Relationships: 795
+- Symbols: 450
+- Relationships: 803
 - Tests: 38
 
 ## Modules

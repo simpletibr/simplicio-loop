@@ -65,6 +65,7 @@ simplicio-mapper index --update . --json
 simplicio-mapper endpoints . --against ../api --json
 simplicio-mapper docs . --json        # render .simplicio/docs markdown
 simplicio-mapper export-docs . --target ./wiki-export --json
+simplicio-mapper index . --docs --background
 simplicio-mapper map --watch         # re-map as files change locally
 ```
 
@@ -83,8 +84,10 @@ For architecture/wiki work, `simplicio-mapper map` now also writes
 `architecture-inventory.json`, `symbol-index.json`, and `call-graph.json`.
 Run `simplicio-mapper docs <path>` to render `.simplicio/docs/*.md`, or
 `simplicio-mapper index <path> --docs --json` to refresh JSON and Markdown in
-one deterministic pass. `export-docs` copies those Markdown files to a local
-target; remote wiki publication remains opt-in.
+one deterministic pass. Use `--background` when the refresh should continue in
+a detached process, and `--docs-only` when only the Markdown view needs to be
+regenerated. `export-docs` copies those Markdown files to a local target; remote
+wiki publication remains opt-in.
 
 Use `--watch` during long agent sessions to keep the map fresh. The schema and
 Python consumption example live in [SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRATION.md).
@@ -242,6 +245,24 @@ npx @wesleysimplicio/llm-project-mapper --dry-run --yes
 | `--silent` | Minimal output |
 | `-v, --version` | Print version |
 | `-h, --help` | Show help |
+
+#### Python mapper flags
+
+| Flag | Purpose |
+|---|---|
+| `index <path>` | Scriptable mapper refresh. Returns `0` when updated, already fresh, or locked/skipped; returns `1` on failure |
+| `docs <path>` | Render `.simplicio/docs/*.md` from the architecture inventory |
+| `export-docs <path> --target <dir>` | Copy rendered Markdown docs to a local docs/wiki target |
+| `--docs` | Render Markdown docs after `map` or `index` |
+| `--no-docs` | Keep `map` / `index` JSON-only |
+| `--docs-only` | Render Markdown docs without emitting the index JSON payload |
+| `--json-only` | Compatibility alias for JSON-only refresh workflows |
+| `--changed-only` | Compatibility alias for incremental refresh workflows |
+| `--background` | Start a detached index refresh and log to `.simplicio/background-index.log` |
+| `--json` | Emit stable JSON contracts such as `simplicio.mapper-index/v1` |
+| `--update` | Compatibility alias for index refresh workflows |
+| `--verbose` | Show index refresh progress |
+| `--out <dir>` | Artifact directory, defaulting to `.simplicio` |
 
 ### B. `bootstrap.sh` — Unix shells (macOS / Linux / Git Bash / WSL)
 

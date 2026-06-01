@@ -27,6 +27,7 @@ Groups 6 files across 4 detected layers.
 - `__enter__`
 - `__exit__`
 - `__init__`
+- `_acquire_index_lock`
 - `_artifact_paths`
 - `_artifacts_exist`
 - `_balanced_span`
@@ -59,4 +60,3 @@ Groups 6 files across 4 detected layers.
 - `_group_modules`
 - `_hash_text`
 - `_importance_for`
-- `_index_result`

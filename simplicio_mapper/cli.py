@@ -59,6 +59,10 @@ OPTIONS
   --target <dir>        Local target directory for export-docs.
   --docs                Render markdown docs after map/index.
   --no-docs             Keep map/index JSON-only.
+  --docs-only           Render markdown docs without refreshing JSON first.
+  --json-only           Compatibility alias for --no-docs.
+  --changed-only        Compatibility alias for incremental refresh workflows.
+  --background          Start an index refresh in a detached background process.
   --json                Emit structured index output.
   --update              Compatibility alias for index refresh workflows.
   --verbose             Show progress during index refreshes.
@@ -94,6 +98,8 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "json": False,
         "verbose": False,
         "docs": False,
+        "docs_only": False,
+        "background": False,
         "command": "map",
         "against": "",
         "target": "",
@@ -138,6 +144,15 @@ def _parse_args(argv: Sequence[str]) -> dict:
             opts["docs"] = True
         elif arg == "--no-docs":
             opts["docs"] = False
+        elif arg == "--json-only":
+            opts["docs"] = False
+        elif arg == "--docs-only":
+            opts["docs"] = True
+            opts["docs_only"] = True
+        elif arg == "--changed-only":
+            opts["incremental"] = True
+        elif arg == "--background":
+            opts["background"] = True
         elif arg == "--silent":
             opts["silent"] = True
         elif arg == "--json":
@@ -197,6 +212,31 @@ def _signature(root: str, out: str) -> tuple:
 
 def _state_path(root: str, out: str) -> str:
     return os.path.join(os.path.abspath(os.path.join(root, out)), "index-state.json")
+
+
+def _lock_path(root: str, out: str) -> str:
+    return os.path.join(os.path.abspath(os.path.join(root, out)), "index.lock")
+
+
+def _acquire_index_lock(root: str, out: str) -> str | None:
+    path = _lock_path(root, out)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    try:
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        return None
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(f"{os.getpid()}\n")
+    return path
+
+
+def _release_index_lock(path: str | None) -> None:
+    if not path:
+        return
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
 
 
 def _artifact_paths(root: str, out: str) -> dict[str, str]:
@@ -871,9 +911,79 @@ def _run_export_docs(opts: dict) -> int:
     return 0
 
 
+def _run_background(opts: dict) -> int:
+    root = os.path.abspath(opts["root"])
+    out = opts["out"]
+    abs_out = os.path.abspath(os.path.join(root, out))
+    os.makedirs(abs_out, exist_ok=True)
+    log_path = os.path.join(abs_out, "background-index.log")
+    args = [sys.executable, "-m", "simplicio_mapper.cli", "index", root, "--out", out]
+    if opts["stack"]:
+        args.extend(["--stack", opts["stack"]])
+    if opts["product_name"]:
+        args.extend(["--product-name", opts["product_name"]])
+    if opts["docs"]:
+        args.append("--docs")
+    if opts["incremental"]:
+        args.append("--update")
+    if opts["verbose"]:
+        args.append("--verbose")
+    env = os.environ.copy()
+    source_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    python_path = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = os.pathsep.join([source_root, python_path]) if python_path else source_root
+    with open(log_path, "ab") as log:
+        child = subprocess.Popen(  # noqa: S603 - self-invocation with fixed argv
+            args,
+            cwd=root,
+            env=env,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+    payload = {
+        "schema": "simplicio.background-index/v1",
+        "status": "started",
+        "pid": child.pid,
+        "log": log_path.replace(os.sep, "/"),
+    }
+    if opts["json"]:
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print(f"background index started pid={child.pid} log={log_path}")
+    return 0
+
+
 def _run_index(opts: dict) -> int:
     root = os.path.abspath(opts["root"])
     out = opts["out"]
+    lock = _acquire_index_lock(root, out)
+    if lock is None:
+        _emit_index_json(opts, _index_result(
+            root,
+            out,
+            status="skipped",
+            skipped_reason="locked",
+            counts={
+                "files": 0,
+                "precedents": 0,
+                "changed_files": 0,
+                "modules": 0,
+                "layers": 0,
+                "symbols": 0,
+                "relationships": 0,
+            },
+        ))
+        if not opts["json"]:
+            print(f"index skipped: lock already exists at {_lock_path(root, out)}")
+        return 0
+    try:
+        return _run_index_locked(opts, root, out)
+    finally:
+        _release_index_lock(lock)
+
+
+def _run_index_locked(opts: dict, root: str, out: str) -> int:
     paths = _artifact_paths(root, out)
     state = _read_index_state(root, out)
     current_signature = _freshness_signature(root, out)
@@ -935,6 +1045,10 @@ def _watch(opts: dict) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     opts = _parse_args(argv)
+    if opts["background"] and opts["command"] in ("index", "map", "update"):
+        return _run_background(opts)
+    if opts["docs_only"] and opts["command"] in ("index", "map", "update"):
+        return _run_docs(opts)
     if opts["command"] == "endpoints":
         return _run_endpoints(opts)
     if opts["command"] == "screens":

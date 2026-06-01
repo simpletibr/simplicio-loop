@@ -26,11 +26,16 @@ npx @wesleysimplicio/llm-project-mapper update
 simplicio-mapper index --update . --json
 simplicio-mapper docs . --json
 simplicio-mapper export-docs . --target ./wiki-export --json
+simplicio-mapper index . --docs --background
 ```
 
 Use `--watch` for local live updates during longer agent sessions.
 Use `--docs` with `map` or `index` when the markdown wiki view should be
-refreshed in the same run.
+refreshed in the same run. Use `--background` when the refresh should continue
+without blocking the foreground workflow; concurrent refreshes are guarded by
+`.simplicio/index.lock`. Use `--docs-only` for Markdown-only regeneration, and
+the compatibility aliases `--json-only` / `--changed-only` when orchestrators
+need those explicit modes.
 
 ## endpoint-inventory.json
 
@@ -194,6 +199,8 @@ Render human-readable docs from the JSON artifacts:
 ```bash
 simplicio-mapper docs . --json
 simplicio-mapper index . --docs --json
+simplicio-mapper index . --docs --background
+simplicio-mapper index . --docs-only --json
 simplicio-mapper export-docs . --target ./wiki-export --json
 ```
 

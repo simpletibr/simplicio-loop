@@ -17,3 +17,21 @@ sidebar_position: 1
 | `--silent` | Minimal output |
 | `-v, --version` | Print version |
 | `-h, --help` | Show help |
+
+#### Python mapper flags
+
+| Flag | Purpose |
+|---|---|
+| `index <path>` | Scriptable mapper refresh. Returns `0` when updated, already fresh, or locked/skipped; returns `1` on failure |
+| `docs <path>` | Render `.simplicio/docs/*.md` from the architecture inventory |
+| `export-docs <path> --target <dir>` | Copy rendered Markdown docs to a local docs/wiki target |
+| `--docs` | Render Markdown docs after `map` or `index` |
+| `--no-docs` | Keep `map` / `index` JSON-only |
+| `--docs-only` | Render Markdown docs without emitting the index JSON payload |
+| `--json-only` | Compatibility alias for JSON-only refresh workflows |
+| `--changed-only` | Compatibility alias for incremental refresh workflows |
+| `--background` | Start a detached index refresh and log to `.simplicio/background-index.log` |
+| `--json` | Emit stable JSON contracts such as `simplicio.mapper-index/v1` |
+| `--update` | Compatibility alias for index refresh workflows |
+| `--verbose` | Show index refresh progress |
+| `--out <dir>` | Artifact directory, defaulting to `.simplicio` |

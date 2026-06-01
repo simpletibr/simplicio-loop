@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.architecture-inventory/v1",
   "version": 1,
-  "generated_at": "2026-06-01T01:26:48.982Z",
+  "generated_at": "2026-06-01T01:50:45.011Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-mapper",
   "source_project_map": ".simplicio/project-map.json",
   "source_symbol_index": ".simplicio/symbol-index.json",
@@ -893,6 +893,7 @@
         "__enter__",
         "__exit__",
         "__init__",
+        "_acquire_index_lock",
         "_artifact_paths",
         "_artifacts_exist",
         "_balanced_span",
@@ -924,8 +925,7 @@
         "_git_status_map",
         "_group_modules",
         "_hash_text",
-        "_importance_for",
-        "_index_result"
+        "_importance_for"
       ],
       "evidence": [
         {
@@ -1022,18 +1022,18 @@
         "tearDown",
         "test_architecture_docs_and_export_render_markdown",
         "test_architecture_inventory_tracks_layers_symbols_and_relationships",
+        "test_background_index_reports_pid_and_log",
         "test_build_artifacts_emits_rich_project_map",
         "test_build_artifacts_ignores_generated_dependency_and_cache_dirs",
         "test_build_artifacts_without_native",
         "test_cache_hits_same_file_signature",
         "test_docs_command_writes_markdown_json_contract",
+        "test_docs_only_renders_without_index_payload",
         "test_endpoints_captures_python_page_api_calls",
         "test_endpoints_compares_client_calls_against_server_routes",
         "test_endpoints_json_includes_sources_for_missing_routes",
         "test_endpoints_resolves_angular_service_base_urls",
-        "test_export_docs_command_copies_markdown",
-        "test_git_status_marks_untracked_files_inside_new_dirs",
-        "test_hash_and_imports_match_fallback"
+        "test_export_docs_command_copies_markdown"
       ],
       "evidence": [
         {
@@ -5930,6 +5930,9 @@
         "_run_once",
         "_signature",
         "_state_path",
+        "_lock_path",
+        "_acquire_index_lock",
+        "_release_index_lock",
         "_artifact_paths",
         "_hash_text",
         "_git_signature",
@@ -5968,7 +5971,9 @@
         "_run_screens",
         "_run_docs",
         "_run_export_docs",
+        "_run_background",
         "_run_index",
+        "_run_index_locked",
         "_watch",
         "main"
       ],
@@ -6255,6 +6260,7 @@
         "subprocess",
         "sys",
         "tempfile",
+        "time",
         "unittest"
       ],
       "symbols": [
@@ -6300,7 +6306,10 @@
         "test_endpoints_json_includes_sources_for_missing_routes",
         "load",
         "test_index_refreshes_after_file_change",
-        "test_index_refreshes_when_dirty_file_changes_again"
+        "test_index_refreshes_when_dirty_file_changes_again",
+        "test_index_skips_with_explicit_lock",
+        "test_background_index_reports_pid_and_log",
+        "test_docs_only_renders_without_index_payload"
       ],
       "summary": "Verifies project behavior through automated tests.",
       "evidence": [
@@ -10068,8 +10077,8 @@
     "files": 284,
     "modules": 17,
     "layers": 10,
-    "symbols": 442,
-    "relationships": 795,
+    "symbols": 450,
+    "relationships": 803,
     "tests": 38
   },
   "notes": [

@@ -6,6 +6,22 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-06-01
+
+### Added
+- `simplicio-mapper index|map|update --background` starts a detached refresh
+  and writes `.simplicio/background-index.log`, so long-running inventory
+  updates can proceed without blocking the foreground workflow.
+- `simplicio-mapper index|map|update --docs-only` renders the Markdown wiki
+  view without emitting the index JSON payload, useful for docs-only refreshes.
+- Compatibility aliases `--json-only` and `--changed-only` for orchestration
+  scripts that distinguish JSON-only and changed-file refresh modes.
+
+### Changed
+- `simplicio-mapper index` now uses `.simplicio/index.lock` to avoid overlapping
+  foreground/background refreshes and returns a stable `status=skipped,
+  skipped_reason=locked` JSON contract when another refresh is active.
+
 ## [0.7.0] - 2026-06-01
 
 ### Added

@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-06-01T01:26:48.982Z",
+  "generated_at": "2026-06-01T01:50:45.011Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -455,9 +455,9 @@
       "snippet": "- `CI=true` (or any truthy `CI` env var) — the starter never posts telemetry in CI.\n- `--dry-run` — never posts.\n- `LLM_PROJECT_MAPPER_TELEMETRY=0|off` — overrides everything except `CI`.\n- No `LLM_PROJECT_MAPPER_TELEMETRY_URL` configured — there is nowhere to post to, so nothing is sent.\n"
     },
     {
-      "id": "52e2465b201ba8ef",
+      "id": "77d492b487f089e7",
       "path": "SIMPLICIO_INTEGRATION.md",
-      "line": 218,
+      "line": 225,
       "language": "markdown",
       "change_type": "feature",
       "tags": [
@@ -811,9 +811,9 @@
       "snippet": "\n\nclass FileProcessingCache:\n    \"\"\"Disk-backed cache for parsed file metadata.\n"
     },
     {
-      "id": "a9d109fa420b8ebf",
+      "id": "cad223f87fa1e76e",
       "path": "simplicio_mapper/cli.py",
-      "line": 77,
+      "line": 81,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -923,9 +923,9 @@
       "snippet": "const baseUrl = process.env.BASE_URL;\n\ntest.describe('downstream smoke (skipped without BASE_URL)', () => {\n  test.skip(!baseUrl, 'BASE_URL not set — skipping browser smoke');\n"
     },
     {
-      "id": "030ea6c9e0e0d9fd",
+      "id": "a0f9fb1a89875342",
       "path": "tests/python/test_cli.py",
-      "line": 38,
+      "line": 39,
       "language": "python",
       "change_type": "test",
       "tags": [

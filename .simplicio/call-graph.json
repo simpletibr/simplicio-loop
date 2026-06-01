@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.call-graph/v1",
   "version": 1,
-  "generated_at": "2026-06-01T01:26:48.982Z",
+  "generated_at": "2026-06-01T01:50:45.011Z",
   "source_symbol_index": ".simplicio/symbol-index.json",
   "edges": [
     {
@@ -2612,7 +2612,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_artifacts_exist",
       "target_file": "bin/auto-map.js",
       "target_symbol": "bin/auto-map.js::exists",
-      "line": 308,
+      "line": 348,
       "confidence": 0.58
     },
     {
@@ -2621,7 +2621,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_signature",
       "target_file": "bin/auto-map.js",
       "target_symbol": "bin/auto-map.js::walk",
-      "line": 182,
+      "line": 197,
       "confidence": 0.58
     },
     {
@@ -2630,7 +2630,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_artifacts_exist",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::exists",
-      "line": 308,
+      "line": 348,
       "confidence": 0.58
     },
     {
@@ -2639,7 +2639,7 @@
       "source_symbol": "simplicio_mapper/cli.py::main",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::main",
-      "line": 935,
+      "line": 1045,
       "confidence": 0.58
     },
     {
@@ -2648,7 +2648,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_endpoint_inventory_for",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::read",
-      "line": 506,
+      "line": 546,
       "confidence": 0.58
     },
     {
@@ -2657,7 +2657,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_signature",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::walk",
-      "line": 182,
+      "line": 197,
       "confidence": 0.58
     },
     {
@@ -2666,7 +2666,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_hash_text",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::sha256",
-      "line": 214,
+      "line": 254,
       "confidence": 0.58
     },
     {
@@ -2675,7 +2675,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_signature",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::walk",
-      "line": 182,
+      "line": 197,
       "confidence": 0.58
     },
     {
@@ -2684,7 +2684,7 @@
       "source_symbol": "simplicio_mapper/cli.py::main",
       "target_file": "bin/skillopt.js",
       "target_symbol": "bin/skillopt.js::main",
-      "line": 935,
+      "line": 1045,
       "confidence": 0.58
     },
     {
@@ -2693,7 +2693,7 @@
       "source_symbol": "simplicio_mapper/cli.py::main",
       "target_file": "scripts/build_hamt.py",
       "target_symbol": "scripts/build_hamt.py::main",
-      "line": 935,
+      "line": 1045,
       "confidence": 0.58
     },
     {
@@ -2706,10 +2706,19 @@
     {
       "type": "calls",
       "source_file": "simplicio_mapper/cli.py",
+      "source_symbol": "simplicio_mapper/cli.py::_acquire_index_lock",
+      "target_file": "simplicio_mapper/cli.py",
+      "target_symbol": "simplicio_mapper/cli.py::_acquire_index_lock",
+      "line": 221,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/cli.py",
       "source_symbol": "simplicio_mapper/cli.py::_artifact_paths",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_artifact_paths",
-      "line": 202,
+      "line": 242,
       "confidence": 0.58
     },
     {
@@ -2718,7 +2727,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_artifacts_exist",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_artifacts_exist",
-      "line": 307,
+      "line": 347,
       "confidence": 0.58
     },
     {
@@ -2727,7 +2736,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_balanced_span",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_balanced_span",
-      "line": 633,
+      "line": 673,
       "confidence": 0.58
     },
     {
@@ -2736,7 +2745,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_emit_index_json",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_emit_index_json",
-      "line": 351,
+      "line": 391,
       "confidence": 0.58
     },
     {
@@ -2745,7 +2754,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_endpoint_files",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_endpoint_files",
-      "line": 372,
+      "line": 412,
       "confidence": 0.58
     },
     {
@@ -2754,7 +2763,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_endpoint_inventory_for",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_endpoint_inventory_for",
-      "line": 497,
+      "line": 537,
       "confidence": 0.58
     },
     {
@@ -2763,7 +2772,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_angular_screen_entries",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_extract_angular_screen_entries",
-      "line": 784,
+      "line": 824,
       "confidence": 0.58
     },
     {
@@ -2772,7 +2781,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_csharp_server_routes",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_extract_csharp_server_routes",
-      "line": 391,
+      "line": 431,
       "confidence": 0.58
     },
     {
@@ -2781,7 +2790,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_python_routes",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_extract_python_routes",
-      "line": 414,
+      "line": 454,
       "confidence": 0.58
     },
     {
@@ -2790,7 +2799,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_route_screens_from_array",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_extract_route_screens_from_array",
-      "line": 756,
+      "line": 796,
       "confidence": 0.58
     },
     {
@@ -2799,7 +2808,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_text_client_calls",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_extract_text_client_calls",
-      "line": 436,
+      "line": 476,
       "confidence": 0.58
     },
     {
@@ -2808,7 +2817,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_text_client_calls",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_extract_text_constants",
-      "line": 438,
+      "line": 478,
       "confidence": 0.58
     },
     {
@@ -2817,7 +2826,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_freshness_signature",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_freshness_signature",
-      "line": 285,
+      "line": 325,
       "confidence": 0.58
     },
     {
@@ -2826,7 +2835,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_git_signature",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_git_signature",
-      "line": 217,
+      "line": 257,
       "confidence": 0.58
     },
     {
@@ -2835,7 +2844,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_hash_text",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_hash_text",
-      "line": 213,
+      "line": 253,
       "confidence": 0.58
     },
     {
@@ -2844,7 +2853,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_index_result",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_index_result",
-      "line": 311,
+      "line": 351,
       "confidence": 0.58
     },
     {
@@ -2853,7 +2862,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_is_test_path",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_is_test_path",
-      "line": 449,
+      "line": 489,
       "confidence": 0.58
     },
     {
@@ -2862,7 +2871,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_join_screen_path",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_join_screen_path",
-      "line": 737,
+      "line": 777,
       "confidence": 0.58
     },
     {
@@ -2871,7 +2880,16 @@
       "source_symbol": "simplicio_mapper/cli.py::_literal_value",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_literal_value",
-      "line": 730,
+      "line": 770,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/cli.py",
+      "source_symbol": "simplicio_mapper/cli.py::_lock_path",
+      "target_file": "simplicio_mapper/cli.py",
+      "target_symbol": "simplicio_mapper/cli.py::_lock_path",
+      "line": 217,
       "confidence": 0.58
     },
     {
@@ -2880,7 +2898,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_normalize_endpoint_path",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_normalize_endpoint_path",
-      "line": 356,
+      "line": 396,
       "confidence": 0.58
     },
     {
@@ -2889,7 +2907,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_parse_args",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_parse_args",
-      "line": 85,
+      "line": 89,
       "confidence": 0.58
     },
     {
@@ -2898,7 +2916,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_persona_for_path",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_persona_for_path",
-      "line": 749,
+      "line": 789,
       "confidence": 0.58
     },
     {
@@ -2907,7 +2925,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_read_index_state",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_read_index_state",
-      "line": 289,
+      "line": 329,
       "confidence": 0.58
     },
     {
@@ -2916,7 +2934,16 @@
       "source_symbol": "simplicio_mapper/cli.py::_read_json_safe",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_read_json_safe",
-      "line": 77,
+      "line": 81,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/cli.py",
+      "source_symbol": "simplicio_mapper/cli.py::_release_index_lock",
+      "target_file": "simplicio_mapper/cli.py",
+      "target_symbol": "simplicio_mapper/cli.py::_release_index_lock",
+      "line": 233,
       "confidence": 0.58
     },
     {
@@ -2925,7 +2952,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_text_client_calls",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_resolve_text_endpoint_expression",
-      "line": 442,
+      "line": 482,
       "confidence": 0.58
     },
     {
@@ -2934,7 +2961,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_text_constants",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_resolve_text_endpoint_template",
-      "line": 469,
+      "line": 509,
       "confidence": 0.58
     },
     {
@@ -2943,7 +2970,16 @@
       "source_symbol": "simplicio_mapper/cli.py::_route_entry",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_route_entry",
-      "line": 382,
+      "line": 422,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/cli.py",
+      "source_symbol": "simplicio_mapper/cli.py::_run_background",
+      "target_file": "simplicio_mapper/cli.py",
+      "target_symbol": "simplicio_mapper/cli.py::_run_background",
+      "line": 914,
       "confidence": 0.58
     },
     {
@@ -2952,7 +2988,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_docs",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_run_docs",
-      "line": 846,
+      "line": 886,
       "confidence": 0.58
     },
     {
@@ -2961,7 +2997,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_endpoints",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_run_endpoints",
-      "line": 546,
+      "line": 586,
       "confidence": 0.58
     },
     {
@@ -2970,7 +3006,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_export_docs",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_run_export_docs",
-      "line": 860,
+      "line": 900,
       "confidence": 0.58
     },
     {
@@ -2979,7 +3015,16 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_index",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_run_index",
-      "line": 874,
+      "line": 957,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/cli.py",
+      "source_symbol": "simplicio_mapper/cli.py::_run_index",
+      "target_file": "simplicio_mapper/cli.py",
+      "target_symbol": "simplicio_mapper/cli.py::_run_index_locked",
+      "line": 981,
       "confidence": 0.58
     },
     {
@@ -2988,7 +3033,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_once",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_run_once",
-      "line": 162,
+      "line": 177,
       "confidence": 0.58
     },
     {
@@ -2997,7 +3042,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_screens",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_run_screens",
-      "line": 827,
+      "line": 867,
       "confidence": 0.58
     },
     {
@@ -3006,7 +3051,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_scan_code",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_scan_code",
-      "line": 613,
+      "line": 653,
       "confidence": 0.58
     },
     {
@@ -3015,7 +3060,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_screen_files",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_screen_files",
-      "line": 592,
+      "line": 632,
       "confidence": 0.58
     },
     {
@@ -3024,7 +3069,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_screen_inventory_for",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_screen_inventory_for",
-      "line": 797,
+      "line": 837,
       "confidence": 0.58
     },
     {
@@ -3033,7 +3078,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_signature",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_signature",
-      "line": 179,
+      "line": 194,
       "confidence": 0.58
     },
     {
@@ -3042,7 +3087,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_state_path",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_state_path",
-      "line": 198,
+      "line": 213,
       "confidence": 0.58
     },
     {
@@ -3051,7 +3096,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_text_constants",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_strip_ts_quote",
-      "line": 468,
+      "line": 508,
       "confidence": 0.58
     },
     {
@@ -3060,7 +3105,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_top_level_route_objects",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_top_level_route_objects",
-      "line": 659,
+      "line": 699,
       "confidence": 0.58
     },
     {
@@ -3069,7 +3114,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_top_level_value",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_top_level_value",
-      "line": 678,
+      "line": 718,
       "confidence": 0.58
     },
     {
@@ -3078,7 +3123,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_git_signature",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_tree_signature",
-      "line": 256,
+      "line": 296,
       "confidence": 0.58
     },
     {
@@ -3087,7 +3132,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_watch",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_watch",
-      "line": 917,
+      "line": 1027,
       "confidence": 0.58
     },
     {
@@ -3096,7 +3141,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_write_index_state",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_write_index_state",
-      "line": 293,
+      "line": 333,
       "confidence": 0.58
     },
     {
@@ -3105,7 +3150,7 @@
       "source_symbol": "simplicio_mapper/cli.py::unique",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::unique",
-      "line": 521,
+      "line": 561,
       "confidence": 0.58
     },
     {
@@ -3114,7 +3159,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_export_docs",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::export_architecture_docs",
-      "line": 861,
+      "line": 901,
       "confidence": 0.58
     },
     {
@@ -3123,7 +3168,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_docs",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::write_architecture_docs",
-      "line": 847,
+      "line": 887,
       "confidence": 0.58
     },
     {
@@ -3132,7 +3177,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_once",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::write_mapping_artifacts",
-      "line": 170,
+      "line": 185,
       "confidence": 0.58
     },
     {
@@ -3141,7 +3186,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_git_signature",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
-      "line": 261,
+      "line": 301,
       "confidence": 0.58
     },
     {
@@ -3150,7 +3195,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_read_json_safe",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::load",
-      "line": 80,
+      "line": 84,
       "confidence": 0.58
     },
     {
@@ -3159,7 +3204,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_endpoint_inventory_for",
       "target_file": "tests/unit/docs-site.test.js",
       "target_symbol": "tests/unit/docs-site.test.js::read",
-      "line": 506,
+      "line": 546,
       "confidence": 0.58
     },
     {
@@ -3168,7 +3213,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_git_signature",
       "target_file": "video/scripts/generate-why-voiceover.mjs",
       "target_symbol": "video/scripts/generate-why-voiceover.mjs::run",
-      "line": 221,
+      "line": 261,
       "confidence": 0.58
     },
     {
@@ -4291,7 +4336,7 @@
       "source_symbol": "tests/python/test_cli.py::test_write_mapping_artifacts_persists_files",
       "target_file": "bin/auto-map.js",
       "target_symbol": "bin/auto-map.js::exists",
-      "line": 156,
+      "line": 157,
       "confidence": 0.58
     },
     {
@@ -4300,7 +4345,7 @@
       "source_symbol": "tests/python/test_cli.py::test_write_mapping_artifacts_persists_files",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::exists",
-      "line": 156,
+      "line": 157,
       "confidence": 0.58
     },
     {
@@ -4309,7 +4354,7 @@
       "source_symbol": "tests/python/test_cli.py::test_main_map_writes_artifacts",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::main",
-      "line": 259,
+      "line": 260,
       "confidence": 0.58
     },
     {
@@ -4318,7 +4363,7 @@
       "source_symbol": "tests/python/test_cli.py::test_main_map_writes_artifacts",
       "target_file": "bin/skillopt.js",
       "target_symbol": "bin/skillopt.js::main",
-      "line": 259,
+      "line": 260,
       "confidence": 0.58
     },
     {
@@ -4327,7 +4372,7 @@
       "source_symbol": "tests/python/test_cli.py::test_main_map_writes_artifacts",
       "target_file": "scripts/build_hamt.py",
       "target_symbol": "scripts/build_hamt.py::main",
-      "line": 259,
+      "line": 260,
       "confidence": 0.58
     },
     {
@@ -4343,7 +4388,7 @@
       "source_symbol": "tests/python/test_cli.py::test_cache_hits_same_file_signature",
       "target_file": "simplicio_mapper/cache.py",
       "target_symbol": "simplicio_mapper/cache.py::FileProcessingCache",
-      "line": 47,
+      "line": 48,
       "confidence": 0.58
     },
     {
@@ -4352,7 +4397,7 @@
       "source_symbol": "tests/python/test_cli.py::test_cache_hits_same_file_signature",
       "target_file": "simplicio_mapper/cache.py",
       "target_symbol": "simplicio_mapper/cache.py::close",
-      "line": 57,
+      "line": 58,
       "confidence": 0.58
     },
     {
@@ -4361,7 +4406,7 @@
       "source_symbol": "tests/python/test_cli.py::test_cache_hits_same_file_signature",
       "target_file": "simplicio_mapper/cache.py",
       "target_symbol": "simplicio_mapper/cache.py::get_processed_file",
-      "line": 52,
+      "line": 53,
       "confidence": 0.58
     },
     {
@@ -4370,7 +4415,7 @@
       "source_symbol": "tests/python/test_cli.py::test_cache_hits_same_file_signature",
       "target_file": "simplicio_mapper/cache.py",
       "target_symbol": "simplicio_mapper/cache.py::set_processed_file",
-      "line": 49,
+      "line": 50,
       "confidence": 0.58
     },
     {
@@ -4393,7 +4438,7 @@
       "source_symbol": "tests/python/test_cli.py::test_build_artifacts_emits_rich_project_map",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::build_artifacts",
-      "line": 96,
+      "line": 97,
       "confidence": 0.58
     },
     {
@@ -4402,7 +4447,7 @@
       "source_symbol": "tests/python/test_cli.py::test_architecture_docs_and_export_render_markdown",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::export_architecture_docs",
-      "line": 214,
+      "line": 215,
       "confidence": 0.58
     },
     {
@@ -4411,7 +4456,7 @@
       "source_symbol": "tests/python/test_cli.py::test_architecture_docs_and_export_render_markdown",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::write_architecture_docs",
-      "line": 207,
+      "line": 208,
       "confidence": 0.58
     },
     {
@@ -4420,7 +4465,7 @@
       "source_symbol": "tests/python/test_cli.py::test_write_mapping_artifacts_persists_files",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::write_mapping_artifacts",
-      "line": 155,
+      "line": 156,
       "confidence": 0.58
     },
     {
@@ -4436,7 +4481,7 @@
       "source_symbol": "tests/python/test_cli.py::test_primary_models_use_slots",
       "target_file": "simplicio_mapper/models.py",
       "target_symbol": "simplicio_mapper/models.py::CodeEntity",
-      "line": 71,
+      "line": 72,
       "confidence": 0.58
     },
     {
@@ -4445,7 +4490,7 @@
       "source_symbol": "tests/python/test_cli.py::test_primary_models_use_slots",
       "target_file": "simplicio_mapper/models.py",
       "target_symbol": "simplicio_mapper/models.py::ProjectFile",
-      "line": 60,
+      "line": 61,
       "confidence": 0.58
     },
     {
@@ -4461,7 +4506,7 @@
       "source_symbol": "tests/python/test_cli.py::CliTest",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::CliTest",
-      "line": 247,
+      "line": 248,
       "confidence": 0.58
     },
     {
@@ -4470,7 +4515,7 @@
       "source_symbol": "tests/python/test_cli.py::FileProcessingCacheTest",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::FileProcessingCacheTest",
-      "line": 44,
+      "line": 45,
       "confidence": 0.58
     },
     {
@@ -4479,7 +4524,7 @@
       "source_symbol": "tests/python/test_cli.py::MapperArtifactsTest",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::MapperArtifactsTest",
-      "line": 77,
+      "line": 78,
       "confidence": 0.58
     },
     {
@@ -4488,7 +4533,7 @@
       "source_symbol": "tests/python/test_cli.py::_write",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::_write",
-      "line": 38,
+      "line": 39,
       "confidence": 0.58
     },
     {
@@ -4497,7 +4542,7 @@
       "source_symbol": "tests/python/test_cli.py::list_skills",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
-      "line": 343,
+      "line": 344,
       "confidence": 0.58
     },
     {
@@ -4506,7 +4551,7 @@
       "source_symbol": "tests/python/test_cli.py::create_snapshot",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::post",
-      "line": 345,
+      "line": 346,
       "confidence": 0.58
     },
     {
@@ -4515,7 +4560,7 @@
       "source_symbol": "tests/python/test_cli.py::save",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::save",
-      "line": 537,
+      "line": 538,
       "confidence": 0.58
     },
     {
@@ -4524,7 +4569,7 @@
       "source_symbol": "tests/python/test_cli.py::setUp",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::setUp",
-      "line": 78,
+      "line": 79,
       "confidence": 0.58
     },
     {
@@ -4533,7 +4578,7 @@
       "source_symbol": "tests/python/test_cli.py::tearDown",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::tearDown",
-      "line": 82,
+      "line": 83,
       "confidence": 0.58
     },
     {
@@ -4542,7 +4587,7 @@
       "source_symbol": "tests/python/test_cli.py::test_architecture_docs_and_export_render_markdown",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_architecture_docs_and_export_render_markdown",
-      "line": 202,
+      "line": 203,
       "confidence": 0.58
     },
     {
@@ -4551,7 +4596,16 @@
       "source_symbol": "tests/python/test_cli.py::test_architecture_inventory_tracks_layers_symbols_and_relationships",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_architecture_inventory_tracks_layers_symbols_and_relationships",
-      "line": 166,
+      "line": 167,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::test_background_index_reports_pid_and_log",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::test_background_index_reports_pid_and_log",
+      "line": 646,
       "confidence": 0.58
     },
     {
@@ -4560,7 +4614,7 @@
       "source_symbol": "tests/python/test_cli.py::test_build_artifacts_emits_rich_project_map",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_build_artifacts_emits_rich_project_map",
-      "line": 85,
+      "line": 86,
       "confidence": 0.58
     },
     {
@@ -4569,7 +4623,7 @@
       "source_symbol": "tests/python/test_cli.py::test_build_artifacts_ignores_generated_dependency_and_cache_dirs",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_build_artifacts_ignores_generated_dependency_and_cache_dirs",
-      "line": 126,
+      "line": 127,
       "confidence": 0.58
     },
     {
@@ -4578,7 +4632,16 @@
       "source_symbol": "tests/python/test_cli.py::test_docs_command_writes_markdown_json_contract",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_docs_command_writes_markdown_json_contract",
-      "line": 496,
+      "line": 497,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::test_docs_only_renders_without_index_payload",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::test_docs_only_renders_without_index_payload",
+      "line": 679,
       "confidence": 0.58
     },
     {
@@ -4587,7 +4650,7 @@
       "source_symbol": "tests/python/test_cli.py::test_endpoints_captures_python_page_api_calls",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_endpoints_captures_python_page_api_calls",
-      "line": 525,
+      "line": 526,
       "confidence": 0.58
     },
     {
@@ -4596,7 +4659,7 @@
       "source_symbol": "tests/python/test_cli.py::test_endpoints_compares_client_calls_against_server_routes",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_endpoints_compares_client_calls_against_server_routes",
-      "line": 335,
+      "line": 336,
       "confidence": 0.58
     },
     {
@@ -4605,7 +4668,7 @@
       "source_symbol": "tests/python/test_cli.py::test_endpoints_json_includes_sources_for_missing_routes",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_endpoints_json_includes_sources_for_missing_routes",
-      "line": 570,
+      "line": 571,
       "confidence": 0.58
     },
     {
@@ -4614,7 +4677,7 @@
       "source_symbol": "tests/python/test_cli.py::test_endpoints_resolves_angular_service_base_urls",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_endpoints_resolves_angular_service_base_urls",
-      "line": 374,
+      "line": 375,
       "confidence": 0.58
     },
     {
@@ -4623,7 +4686,7 @@
       "source_symbol": "tests/python/test_cli.py::test_export_docs_command_copies_markdown",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_export_docs_command_copies_markdown",
-      "line": 510,
+      "line": 511,
       "confidence": 0.58
     },
     {
@@ -4632,7 +4695,7 @@
       "source_symbol": "tests/python/test_cli.py::test_git_status_marks_untracked_files_inside_new_dirs",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_git_status_marks_untracked_files_inside_new_dirs",
-      "line": 230,
+      "line": 231,
       "confidence": 0.58
     },
     {
@@ -4641,7 +4704,7 @@
       "source_symbol": "tests/python/test_cli.py::test_help_exits_zero",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_help_exits_zero",
-      "line": 272,
+      "line": 273,
       "confidence": 0.58
     },
     {
@@ -4650,7 +4713,7 @@
       "source_symbol": "tests/python/test_cli.py::test_incremental_records_changed_files",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_incremental_records_changed_files",
-      "line": 218,
+      "line": 219,
       "confidence": 0.58
     },
     {
@@ -4659,7 +4722,7 @@
       "source_symbol": "tests/python/test_cli.py::test_index_accepts_update_compatibility_flag",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_index_accepts_update_compatibility_flag",
-      "line": 301,
+      "line": 302,
       "confidence": 0.58
     },
     {
@@ -4668,7 +4731,7 @@
       "source_symbol": "tests/python/test_cli.py::test_index_refreshes_after_file_change",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_index_refreshes_after_file_change",
-      "line": 589,
+      "line": 590,
       "confidence": 0.58
     },
     {
@@ -4677,7 +4740,7 @@
       "source_symbol": "tests/python/test_cli.py::test_index_refreshes_when_dirty_file_changes_again",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_index_refreshes_when_dirty_file_changes_again",
-      "line": 606,
+      "line": 607,
       "confidence": 0.58
     },
     {
@@ -4686,7 +4749,16 @@
       "source_symbol": "tests/python/test_cli.py::test_index_skips_fresh_artifacts_quietly",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_index_skips_fresh_artifacts_quietly",
-      "line": 314,
+      "line": 315,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::test_index_skips_with_explicit_lock",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::test_index_skips_with_explicit_lock",
+      "line": 631,
       "confidence": 0.58
     },
     {
@@ -4695,7 +4767,7 @@
       "source_symbol": "tests/python/test_cli.py::test_index_writes_json_contract",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_index_writes_json_contract",
-      "line": 283,
+      "line": 284,
       "confidence": 0.58
     },
     {
@@ -4704,7 +4776,7 @@
       "source_symbol": "tests/python/test_cli.py::test_main_map_writes_artifacts",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_main_map_writes_artifacts",
-      "line": 255,
+      "line": 256,
       "confidence": 0.58
     },
     {
@@ -4713,7 +4785,7 @@
       "source_symbol": "tests/python/test_cli.py::test_primary_models_use_slots",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_primary_models_use_slots",
-      "line": 59,
+      "line": 60,
       "confidence": 0.58
     },
     {
@@ -4722,7 +4794,7 @@
       "source_symbol": "tests/python/test_cli.py::test_screens_extracts_angular_routes",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_screens_extracts_angular_routes",
-      "line": 430,
+      "line": 431,
       "confidence": 0.58
     },
     {
@@ -4731,7 +4803,7 @@
       "source_symbol": "tests/python/test_cli.py::test_unknown_option_exits_with_code_2",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_unknown_option_exits_with_code_2",
-      "line": 267,
+      "line": 268,
       "confidence": 0.58
     },
     {
@@ -4740,7 +4812,7 @@
       "source_symbol": "tests/python/test_cli.py::test_version_matches_package",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_version_matches_package",
-      "line": 277,
+      "line": 278,
       "confidence": 0.58
     },
     {
@@ -4749,7 +4821,7 @@
       "source_symbol": "tests/python/test_cli.py::test_write_mapping_artifacts_persists_files",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_write_mapping_artifacts_persists_files",
-      "line": 151,
+      "line": 152,
       "confidence": 0.58
     },
     {
@@ -4758,7 +4830,7 @@
       "source_symbol": "tests/python/test_cli.py::setUp",
       "target_file": "tests/python/test_native.py",
       "target_symbol": "tests/python/test_native.py::setUp",
-      "line": 78,
+      "line": 79,
       "confidence": 0.58
     },
     {
@@ -4767,7 +4839,7 @@
       "source_symbol": "tests/python/test_cli.py::test_write_mapping_artifacts_persists_files",
       "target_file": "video/scripts/generate-why-voiceover.mjs",
       "target_symbol": "video/scripts/generate-why-voiceover.mjs::run",
-      "line": 153,
+      "line": 154,
       "confidence": 0.58
     },
     {
@@ -6919,8 +6991,8 @@
     }
   ],
   "counts": {
-    "edges": 795,
+    "edges": 803,
     "imports": 121,
-    "calls": 674
+    "calls": 682
   }
 }
