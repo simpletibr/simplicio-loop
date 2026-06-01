@@ -10,7 +10,6 @@ from simplicio.local_models import (
     DEFAULT_LOCAL_MODEL_ID,
     ModelSpec,
     RECOMMENDATIONS,
-    RecommendationResult,
     evaluate,
 )
 

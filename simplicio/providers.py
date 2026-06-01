@@ -21,16 +21,14 @@ Four modes, picked by SIMPLICIO_MODEL prefix (or by absence of config):
      given SIMPLICIO_HOOK_GUARD=1 so the inner CLI does not re-trigger the
      simplicio UserPromptSubmit hook (recursion guard).
 
-4. Local Ollama default (offline-first, zero key)
+4. Local llama.cpp default (offline-first, zero key)
      SIMPLICIO_MODEL=(unset)
      SIMPLICIO_BASE_URL=(unset)
-     -> http://localhost:11434/v1 with openbmb/minicpm5:latest
-     If Ollama is unavailable or the default call fails, simplicio falls back
-     to Path 5.
+     -> local-llama/default, loaded in-process with llama-cpp-python
 
-5. In-process local inference via llama-cpp-python (GGUF fallback, zero key)
+5. Explicit in-process local inference via llama-cpp-python (zero key)
      SIMPLICIO_MODEL=local-llama/<repo>::<file.gguf>   -> explicit HF GGUF
-     SIMPLICIO_MODEL=local-llama/default               -> fallback Qwen GGUF
+     SIMPLICIO_MODEL=local-llama/default               -> default Qwen GGUF
      SIMPLICIO_MODEL=local-llama//abs/path/model.gguf  -> direct local path
      The
      GGUF is reused from ~/.simplicio/models/executor when present, otherwise
@@ -74,15 +72,12 @@ def _inline_feedback(prompt, feedback):
 
 
 # --------------------------------------------------------------------------- #
-# Path 4: local Ollama primary + Path 5: in-process GGUF fallback.
+# Path 4: local llama.cpp default + Path 5: explicit in-process GGUF.
 # --------------------------------------------------------------------------- #
 
-DEFAULT_OLLAMA_MODEL = "openbmb/minicpm5:latest"
-DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434/v1"
-DEFAULT_OLLAMA_API_KEY = "ollama"
-
-# Qwen3.5-2B Q6_K is the local GGUF fallback for machines where Ollama is not
-# reachable or the MiniCPM5 call fails.
+# Qwen3.5-2B Q6_K is the default local GGUF doer. It runs directly through
+# llama-cpp-python, so the no-config path does not depend on Ollama or any
+# HTTP server.
 LOCAL_DEFAULT_REPO = "bartowski/Qwen_Qwen3.5-2B-GGUF"
 LOCAL_DEFAULT_FILE = "Qwen_Qwen3.5-2B-Q6_K.gguf"
 LOCAL_EXECUTOR_DIR = "~/.simplicio/models/executor"
@@ -96,22 +91,19 @@ _LOCAL_LLAMA_CACHE = {}
 def _is_local(model, base):
     """True when generate() should route to the in-process llama backend.
 
-    Only explicit `local-llama/` models use the in-process backend. The empty
-    config default is the local Ollama primary and is handled separately.
+    Only explicit `local-llama/` models return true here. The empty config
+    default is handled separately so info/errors can describe the auto route.
     """
     if model and model.startswith(LOCAL_MODEL_PREFIX):
         return True
     return False
 
 
-def _is_default_ollama(model, base):
-    """True when the local default should use Ollama first."""
+def _is_default_local(model, base):
+    """True when empty config should use the in-process llama.cpp default."""
     if not model and not base:
         return True
-    return (
-        model == DEFAULT_OLLAMA_MODEL
-        and (not base or base.rstrip("/") == DEFAULT_OLLAMA_BASE_URL.rstrip("/"))
-    )
+    return False
 
 
 def _local_spec(model):
@@ -146,6 +138,15 @@ def _local_executor_dir() -> Path:
     return Path(os.environ.get("SIMPLICIO_LOCAL_MODEL_DIR", LOCAL_EXECUTOR_DIR)).expanduser()
 
 
+def _is_gguf_file(path) -> bool:
+    """Return true when path exists and starts with the GGUF magic header."""
+    try:
+        with Path(path).open("rb") as handle:
+            return handle.read(4) == b"GGUF"
+    except OSError:
+        return False
+
+
 def _local_candidates(repo, fname):
     """Return candidate (repo, GGUF filename) pairs in preference order."""
     return [(repo, fname)]
@@ -159,6 +160,11 @@ def _resolve_local_path(repo, fname, path):
                 f"simplicio: local model not found at {path}. Point "
                 "SIMPLICIO_LOCAL_MODEL_PATH at an existing .gguf file."
             )
+        if not _is_gguf_file(path):
+            raise SystemExit(
+                f"simplicio: local model at {path} is not a valid GGUF file. "
+                "Download a GGUF model or update SIMPLICIO_LOCAL_MODEL_PATH."
+            )
         return path
     try:
         from huggingface_hub import hf_hub_download
@@ -171,9 +177,14 @@ def _resolve_local_path(repo, fname, path):
     for candidate_repo, candidate_file in _local_candidates(repo, fname):
         local_file = _local_executor_dir() / candidate_file
         if local_file.is_file():
-            return str(local_file)
+            if _is_gguf_file(local_file):
+                return str(local_file)
+            errors.append(f"{local_file}: invalid GGUF header")
         try:
-            return hf_hub_download(repo_id=candidate_repo, filename=candidate_file)
+            downloaded = hf_hub_download(repo_id=candidate_repo, filename=candidate_file)
+            if _is_gguf_file(downloaded):
+                return downloaded
+            errors.append(f"{candidate_repo}/{candidate_file}: invalid GGUF header")
         except Exception as exc:  # noqa: BLE001 - fallback to the next local GGUF
             errors.append(f"{candidate_repo}/{candidate_file}: {exc}")
     detail = "; ".join(errors) if errors else f"{fname}: unavailable"
@@ -339,52 +350,6 @@ def _openai_compatible_generate(model, base, key, prompt, feedback, max_tokens):
     return r.choices[0].message.content
 
 
-def _generate_default_ollama_with_fallback(prompt, feedback, max_tokens, cache_full_prompt):
-    from ._cache import CacheEntry, cache, make_key
-
-    provider_id = f"openai-compatible:{DEFAULT_OLLAMA_BASE_URL}"
-    key = make_key(
-        provider_id,
-        DEFAULT_OLLAMA_MODEL,
-        prompt,
-        feedback=feedback,
-        max_tokens=max_tokens,
-    )
-    cached = cache().get(key)
-    if cached is not None:
-        return cached.completion
-    try:
-        out = _openai_compatible_generate(
-            DEFAULT_OLLAMA_MODEL,
-            DEFAULT_OLLAMA_BASE_URL,
-            DEFAULT_OLLAMA_API_KEY,
-            prompt,
-            feedback,
-            max_tokens,
-        )
-    except Exception as exc:  # noqa: BLE001 - default local path falls back to GGUF
-        try:
-            return _generate_local_cached(
-                prompt,
-                feedback,
-                LOCAL_MODEL_PREFIX + "default",
-                max_tokens,
-                cache_full_prompt,
-            )
-        except SystemExit as fallback_exc:
-            raise SystemExit(
-                "simplicio: default local Ollama model "
-                f"{DEFAULT_OLLAMA_MODEL} failed ({exc}); fallback GGUF "
-                f"{LOCAL_DEFAULT_FILE} also failed ({fallback_exc})"
-            )
-    _charge_if_budgeted(DEFAULT_OLLAMA_MODEL, cache_full_prompt, out)
-    cache().put(
-        key,
-        CacheEntry(out, provider_id=provider_id, model=DEFAULT_OLLAMA_MODEL),
-    )
-    return out
-
-
 def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
     # Cache lookup BEFORE provider config. Key uses just SIMPLICIO_MODEL
     # (no credential check) so a hit returns without requiring an API key
@@ -404,10 +369,14 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
     c = _cfg()
     model = c["model"]
 
-    # Path 4: no config means local Ollama first, then GGUF fallback.
-    if _is_default_ollama(model, c["base"]):
-        return _generate_default_ollama_with_fallback(
-            prompt, feedback, max_tokens, cache_full_prompt
+    # Path 4: no config means local llama.cpp GGUF, no Ollama/HTTP service.
+    if _is_default_local(model, c["base"]):
+        return _generate_local_cached(
+            prompt,
+            feedback,
+            LOCAL_MODEL_PREFIX + "default",
+            max_tokens,
+            cache_full_prompt,
         )
 
     # Path 5: in-process local inference via explicit `local-llama/` model.
@@ -417,7 +386,7 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
     if not model:
         raise SystemExit(
             "set SIMPLICIO_MODEL (e.g. anthropic/claude-opus-4, claude-cli/sonnet, "
-            "codex-cli/gpt-5, openbmb/minicpm5:latest, local-llama/default, "
+            "codex-cli/gpt-5, local-llama/default, "
             "glm-4.6, llama3, claude-opus-4-7)"
         )
     provider_id = _provider_id(model, c["base"])
@@ -479,10 +448,12 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
 
 def info():
     c = _cfg()
-    if _is_default_ollama(c["model"], c["base"]):
+    if _is_default_local(c["model"], c["base"]):
+        repo, fname, path = _local_spec(LOCAL_MODEL_PREFIX + "default")
+        target = path or f"{repo}/{fname}"
         return (
-            f"model={DEFAULT_OLLAMA_MODEL} provider=ollama "
-            f"base={DEFAULT_OLLAMA_BASE_URL} fallback={LOCAL_DEFAULT_FILE} "
+            "model=local-llama/default provider=local-llama "
+            f"(in-process, llama-cpp-python) target={target} "
             "key=not-needed"
         )
     if _is_local(c["model"], c["base"]):

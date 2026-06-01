@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-06-01T05:04:23.593Z",
+  "generated_at": "2026-06-01T21:57:57.150Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -218,9 +218,9 @@
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
     },
     {
-      "id": "166956a1bd091c6b",
+      "id": "4d1f5ffc82d15266",
       "path": "CHANGELOG.md",
-      "line": 254,
+      "line": 264,
       "language": "markdown",
       "change_type": "error-handling",
       "tags": [
@@ -256,6 +256,19 @@
         "readme"
       ],
       "summary": "route precedent in README.md",
+      "snippet": "\n> Reproduce the new default set:\n> `BENCH_BASE_URL=https://router.huggingface.co/v1 BENCH_API_KEY=<hf-token>\n> BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\"\n> python3 bench/run_offline.py`."
+    },
+    {
+      "id": "d3c9cccb8b4a7333",
+      "path": "README.pt-BR.md",
+      "line": 219,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "markdown",
+        "readme"
+      ],
+      "summary": "route precedent in README.pt-BR.md",
       "snippet": "\n> Reproduce the new default set:\n> `BENCH_BASE_URL=https://router.huggingface.co/v1 BENCH_API_KEY=<hf-token>\n> BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\"\n> python3 bench/run_offline.py`."
     },
     {
@@ -1657,9 +1670,9 @@
       "snippet": "\n@dataclass\nclass DetectResult:\n    is_code_task: bool\n    score: int"
     },
     {
-      "id": "7352f3281a9ad12f",
+      "id": "f607717260587f91",
       "path": "simplicio/doctor.py",
-      "line": 23,
+      "line": 21,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -1741,9 +1754,9 @@
       "snippet": "\n@dataclass\nclass IntentResult:\n    scope: str\n    confidence: float"
     },
     {
-      "id": "5ac7393621c8b503",
+      "id": "3552d415c23299fd",
       "path": "simplicio/local_models.py",
-      "line": 29,
+      "line": 40,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -1754,7 +1767,7 @@
         "models"
       ],
       "summary": "feature precedent in simplicio/local_models.py",
-      "snippet": "\n@dataclass\nclass ModelSpec:\n    tier: str\n    ollama_id: str"
+      "snippet": "\n@dataclass\nclass ModelSpec:\n    tier: str\n    model_id: str"
     },
     {
       "id": "a8b82053a7fe99ad",
@@ -1873,9 +1886,9 @@
       "snippet": "# below stays the source of truth and is what pip-installed users get\n# until a wheel ships.\ntry:\n    from simplicio_core import build_6layer_prompt as _rs_build\nexcept ImportError:  # pragma: no cover - exercised at import time"
     },
     {
-      "id": "3b6a48872b2c4fe6",
+      "id": "20890634d0753b48",
       "path": "simplicio/providers.py",
-      "line": 48,
+      "line": 46,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -3684,6 +3697,23 @@
       "snippet": "from typing import Any\n\ntry:  # optional fast path\n    import orjson as _oj\n    _HAS_ORJSON = True"
     },
     {
+      "id": "c7c06634143f64b7",
+      "path": "simplicio_cli.egg-info/PKG-INFO",
+      "line": 264,
+      "language": "text",
+      "change_type": "route",
+      "tags": [
+        "text",
+        "simplicio",
+        "cli",
+        "egg",
+        "info",
+        "pkg"
+      ],
+      "summary": "route precedent in simplicio_cli.egg-info/PKG-INFO",
+      "snippet": "\n> Reproduce the new default set:\n> `BENCH_BASE_URL=https://router.huggingface.co/v1 BENCH_API_KEY=<hf-token>\n> BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\"\n> python3 bench/run_offline.py`."
+    },
+    {
       "id": "2cb77abf86cd4d7c",
       "path": "simplicio_cli.egg-info/SOURCES.txt",
       "line": 112,
@@ -4206,38 +4236,6 @@
       ],
       "summary": "test precedent in tests/python/test_scratch_codegen_fastapi.py",
       "snippet": "\n\ndef _stack(tmp_path: Path) -> Stack:\n    return Stack(\n        slug=\"py-fastapi\","
-    },
-    {
-      "id": "f5a96ce9e7bd69fe",
-      "path": "tests/python/test_scratch_codegen_go_gin.py",
-      "line": 31,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "scratch",
-        "codegen",
-        "gin"
-      ],
-      "summary": "test precedent in tests/python/test_scratch_codegen_go_gin.py",
-      "snippet": "\n\ndef _go_binary() -> str | None:\n    return shutil.which(\"go\") or (str(_PORTABLE_GO) if _PORTABLE_GO.is_file() else None)\n"
-    },
-    {
-      "id": "65779c7c369949cd",
-      "path": "tests/python/test_scratch_codegen_markdown.py",
-      "line": 13,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "scratch",
-        "codegen",
-        "markdown"
-      ],
-      "summary": "test precedent in tests/python/test_scratch_codegen_markdown.py",
-      "snippet": "\n\ndef _stack(tmp_path: Path) -> Stack:\n    return Stack(\n        slug=\"php-vanilla\","
     }
   ]
 }

@@ -1,121 +1,129 @@
-"""local_models.py — hardware-tier → local model recommendation + Ollama plumbing.
+"""local_models.py - hardware-tier -> llama.cpp GGUF recommendation.
 
 Encodes the local LLM standard:
 
-  all tiers      → openbmb/minicpm5:latest via local Ollama (~0.7 GB)
+  all tiers -> local-llama/default
+               bartowski/Qwen_Qwen3.5-2B-GGUF::Qwen_Qwen3.5-2B-Q6_K.gguf
 
-The GGUF fallback is handled by simplicio.providers as
-Qwen_Qwen3.5-2B-Q6_K.gguf when Ollama is unavailable.
+The model runs in-process through llama-cpp-python. No Ollama daemon, pull, or
+HTTP endpoint is required for the default local path.
 
 Hard rule (issue #32 follow-up):
-- NEVER auto-pull a model that does not fit the detected tier.
-  ensure_recommended() refuses to pull if disk_gb < expected_size +
-  safety margin OR if the model size > hardware tier ceiling.
-- Pulls require explicit opt-in (SIMPLICIO_AUTO_PULL=1 or the user passes
-  --auto-pull through the CLI). We tell the user the command and stop.
+- NEVER auto-download a model that does not fit the detected tier.
+- Downloads require explicit opt-in (SIMPLICIO_AUTO_DOWNLOAD=1 or
+  `simplicio doctor --install`). We tell the user the command and stop.
 """
 from __future__ import annotations
 
 import os
-import shutil
-import subprocess
 from dataclasses import dataclass
-from typing import Optional
+from pathlib import Path
 
 from .hardware import HardwareProfile
+from .providers import (
+    LOCAL_DEFAULT_FILE as DEFAULT_LOCAL_FILE,
+    LOCAL_DEFAULT_REPO as DEFAULT_LOCAL_REPO,
+    LOCAL_EXECUTOR_DIR,
+    LOCAL_MODEL_PREFIX,
+)
+
+
+DEFAULT_LOCAL_MODEL_ID = f"{LOCAL_MODEL_PREFIX}default"
+DEFAULT_LOCAL_LABEL = "Qwen3.5 2B Q6_K GGUF (llama.cpp)"
+DEFAULT_LOCAL_SIZE_GB = 1.6
+DEFAULT_LOCAL_NOTES = (
+    "canonical local doer; runs in-process with llama-cpp-python, no Ollama service"
+)
 
 
 @dataclass
 class ModelSpec:
     tier: str
-    ollama_id: str
+    model_id: str
+    repo_id: str
+    filename: str
     size_gb_q4: float
     label: str
     notes: str = ""
 
-
-DEFAULT_LOCAL_OLLAMA_ID = "openbmb/minicpm5:latest"
-DEFAULT_LOCAL_OLLAMA_LABEL = "MiniCPM5 local (Ollama)"
-DEFAULT_LOCAL_OLLAMA_SIZE_GB = 0.7
-DEFAULT_LOCAL_OLLAMA_NOTES = (
-    "canonical local primary; falls back to Qwen_Qwen3.5-2B-Q6_K.gguf in providers"
-)
+    @property
+    def ollama_id(self) -> str:
+        """Backward-compatible read alias for older callers."""
+        return self.model_id
 
 
-# Order matters: list is consulted in the rare case the user asks for the
-# next-step-up model. The default lookup is by exact tier.
 RECOMMENDATIONS: dict[str, ModelSpec] = {
     tier: ModelSpec(
         tier,
-        DEFAULT_LOCAL_OLLAMA_ID,
-        DEFAULT_LOCAL_OLLAMA_SIZE_GB,
-        DEFAULT_LOCAL_OLLAMA_LABEL,
-        DEFAULT_LOCAL_OLLAMA_NOTES,
+        DEFAULT_LOCAL_MODEL_ID,
+        DEFAULT_LOCAL_REPO,
+        DEFAULT_LOCAL_FILE,
+        DEFAULT_LOCAL_SIZE_GB,
+        DEFAULT_LOCAL_LABEL,
+        DEFAULT_LOCAL_NOTES,
     )
     for tier in ("cpu-tiny", "cpu-small", "gpu-mid", "gpu-large", "gpu-xlarge", "unknown")
 }
 
 
-# ---- Ollama plumbing ---- #
+def local_model_dir() -> Path:
+    return Path(os.environ.get("SIMPLICIO_LOCAL_MODEL_DIR", LOCAL_EXECUTOR_DIR)).expanduser()
 
 
-def ollama_present() -> bool:
-    return shutil.which("ollama") is not None
+def model_file_path(spec: ModelSpec) -> Path:
+    override = os.environ.get("SIMPLICIO_LOCAL_MODEL_PATH")
+    if override:
+        return Path(override).expanduser()
+    return local_model_dir() / spec.filename
 
 
-def ollama_list_installed() -> list[str]:
-    """Return the list of Ollama models currently installed.
-
-    Each entry is the full tag the user can target (e.g. "openbmb/minicpm5:latest").
-    Empty list on failure — never raises.
-    """
-    if not ollama_present():
-        return []
+def _is_gguf_file(path: Path) -> bool:
     try:
-        out = subprocess.run(
-            ["ollama", "list"], capture_output=True, text=True, timeout=10,
-        )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return []
-    if out.returncode != 0:
-        return []
-    # `ollama list` first row is the header; subsequent rows have NAME first
-    rows = out.stdout.strip().splitlines()
-    if len(rows) <= 1:
-        return []
-    installed = []
-    for line in rows[1:]:
-        parts = line.split()
-        if parts:
-            installed.append(parts[0])
-    return installed
+        with path.open("rb") as handle:
+            return handle.read(4) == b"GGUF"
+    except OSError:
+        return False
 
 
-def is_installed(ollama_id: str) -> bool:
-    """Looser match hook kept for future aliases; currently exact tag match."""
-    installed = ollama_list_installed()
-    return ollama_id in installed
+def model_file_present(spec: ModelSpec) -> bool:
+    return _is_gguf_file(model_file_path(spec))
 
 
-def pull(ollama_id: str, timeout: int = 1800) -> tuple[bool, str]:
-    """Run `ollama pull <id>`. Returns (ok, last_lines).
+def is_installed(spec: ModelSpec | str) -> bool:
+    if isinstance(spec, ModelSpec):
+        return model_file_present(spec)
+    if spec.endswith(".gguf"):
+        return _is_gguf_file(local_model_dir() / spec)
+    if spec == DEFAULT_LOCAL_MODEL_ID:
+        return model_file_present(RECOMMENDATIONS["unknown"])
+    return False
 
-    Caller is responsible for tier / disk-space gating BEFORE calling this.
-    """
-    if not ollama_present():
-        return False, "ollama not on PATH"
+
+def download(spec: ModelSpec) -> tuple[bool, str]:
+    """Download the recommended GGUF into the executor model directory."""
     try:
-        out = subprocess.run(
-            ["ollama", "pull", ollama_id],
-            capture_output=True, text=True, timeout=timeout,
+        from huggingface_hub import hf_hub_download
+    except ImportError:
+        return (
+            False,
+            "huggingface-hub not installed. Install extras: pip install 'simplicio-cli[local]'",
         )
-    except subprocess.TimeoutExpired:
-        return False, f"ollama pull timed out after {timeout}s"
-    log = (out.stdout or "") + (out.stderr or "")
-    return out.returncode == 0, log[-2000:]
 
-
-# ---- The actual gate ---- #
+    target_dir = local_model_dir()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        path = Path(
+            hf_hub_download(
+                repo_id=spec.repo_id,
+                filename=spec.filename,
+                local_dir=str(target_dir),
+            )
+        )
+    except Exception as exc:  # noqa: BLE001 - rendered as CLI status
+        return False, str(exc)
+    if not _is_gguf_file(path):
+        return False, f"{path} is not a valid GGUF file"
+    return True, str(path)
 
 
 @dataclass
@@ -123,14 +131,22 @@ class RecommendationResult:
     spec: ModelSpec
     profile: HardwareProfile
     can_run: bool
-    can_pull: bool
+    can_download: bool
     installed: bool
     reason: str = ""
+
+    @property
+    def can_pull(self) -> bool:
+        """Backward-compatible read alias for older callers."""
+        return self.can_download
 
     def to_dict(self) -> dict:
         return {
             "tier": self.spec.tier,
-            "ollama_id": self.spec.ollama_id,
+            "model_id": self.spec.model_id,
+            "repo_id": self.spec.repo_id,
+            "filename": self.spec.filename,
+            "model_path": str(model_file_path(self.spec)),
             "label": self.spec.label,
             "size_gb_q4": self.spec.size_gb_q4,
             "notes": self.spec.notes,
@@ -139,25 +155,22 @@ class RecommendationResult:
             "gpu": self.profile.gpu_name,
             "apple_silicon": self.profile.apple_silicon,
             "can_run": self.can_run,
-            "can_pull": self.can_pull,
+            "can_download": self.can_download,
             "installed": self.installed,
             "reason": self.reason,
         }
 
 
-# Safety margin: refuse to pull if the detected resource isn't at least
-# (size + margin) — we don't want to brick a 16 GB laptop pulling a 17.5 GB
-# model and then OOM at runtime.
+# Safety margin: refuse to download if the detected resource is not at least
+# (size + margin). We do not want a local automation flow to fill disk/RAM with
+# a model it cannot actually run.
 _SAFETY_MARGIN_GB = 4.0
 
 
 def evaluate(profile: HardwareProfile) -> RecommendationResult:
-    """Pick the spec for this tier and decide whether the host can run/pull it."""
+    """Pick the local GGUF spec and decide whether the host can run/download it."""
     spec = RECOMMENDATIONS.get(profile.tier, RECOMMENDATIONS["unknown"])
 
-    # `can_run`: hardware has enough headroom to actually run the model.
-    # On Apple Silicon, RAM == VRAM. On Linux/Windows NVIDIA, VRAM dominates;
-    # we still check RAM as a backstop for CPU offload.
     if profile.apple_silicon:
         usable_gb = profile.ram_gb
     else:
@@ -165,49 +178,66 @@ def evaluate(profile: HardwareProfile) -> RecommendationResult:
     needed_gb = spec.size_gb_q4 + _SAFETY_MARGIN_GB
 
     can_run = usable_gb >= needed_gb
-    can_pull = ollama_present() and can_run
+    installed = is_installed(spec)
+    can_download = can_run and not installed
     reason = ""
-    if not ollama_present():
-        reason = "ollama not installed — see https://ollama.ai"
-    elif not can_run:
-        reason = (f"detected {usable_gb:.1f} GB usable < {needed_gb:.1f} GB "
-                  f"required for {spec.label} (size {spec.size_gb_q4:.1f} GB + "
-                  f"{_SAFETY_MARGIN_GB:.0f} GB safety margin)")
+    if not can_run:
+        reason = (
+            f"detected {usable_gb:.1f} GB usable < {needed_gb:.1f} GB "
+            f"required for {spec.label} (size {spec.size_gb_q4:.1f} GB + "
+            f"{_SAFETY_MARGIN_GB:.0f} GB safety margin)"
+        )
+    elif not installed:
+        reason = f"local GGUF not installed at {model_file_path(spec)}"
 
-    installed = is_installed(spec.ollama_id) if ollama_present() else False
     return RecommendationResult(
-        spec=spec, profile=profile,
-        can_run=can_run, can_pull=can_pull, installed=installed, reason=reason,
+        spec=spec,
+        profile=profile,
+        can_run=can_run,
+        can_download=can_download,
+        installed=installed,
+        reason=reason,
     )
 
 
-def ensure_recommended(profile: HardwareProfile, auto_pull: bool = False) -> RecommendationResult:
-    """High-level orchestrator. If the recommended model isn't installed, and
-    auto_pull is True AND can_pull is True, run `ollama pull`. Otherwise return
-    a result that the CLI can render so the user knows what to do.
+def ensure_recommended(
+    profile: HardwareProfile,
+    auto_download: bool = False,
+    *,
+    auto_pull: bool | None = None,
+) -> RecommendationResult:
+    """High-level orchestrator for the default local llama.cpp model.
 
-    Honours SIMPLICIO_AUTO_PULL=1 as an alias for auto_pull=True.
+    If the recommended GGUF is missing and auto_download is true, download it.
+    Otherwise return a result the CLI can render so the user knows what to do.
+    `auto_pull` remains as a keyword-only alias for older code paths, but still
+    performs a GGUF download rather than any Ollama action.
     """
+    if auto_pull is not None:
+        auto_download = auto_download or auto_pull
+
     result = evaluate(profile)
     if result.installed:
         return result
-    if not result.can_pull:
+    if not result.can_download:
         return result
 
-    do_pull = auto_pull or os.environ.get("SIMPLICIO_AUTO_PULL", "").strip() in (
-        "1", "true", "True", "yes",
-    )
-    if not do_pull:
-        result.reason = (f"model not installed — opt in to auto-pull with "
-                         f"`simplicio doctor --install` or "
-                         f"`SIMPLICIO_AUTO_PULL=1 ...` "
-                         f"(will fetch {result.spec.size_gb_q4:.1f} GB)")
+    do_download = auto_download or os.environ.get(
+        "SIMPLICIO_AUTO_DOWNLOAD", ""
+    ).strip() in ("1", "true", "True", "yes")
+    if not do_download:
+        result.reason = (
+            "model not installed - opt in to download with "
+            "`simplicio doctor --install` or `SIMPLICIO_AUTO_DOWNLOAD=1 ...` "
+            f"(will fetch ~{result.spec.size_gb_q4:.1f} GB)"
+        )
         return result
 
-    ok, log = pull(result.spec.ollama_id)
+    ok, log = download(result.spec)
     if ok:
         result.installed = True
-        result.reason = "pulled via ollama"
+        result.can_download = False
+        result.reason = f"downloaded GGUF to {log}"
     else:
-        result.reason = f"ollama pull failed: {log[-300:]}"
+        result.reason = f"GGUF download failed: {log[-300:]}"
     return result

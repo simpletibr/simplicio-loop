@@ -9,7 +9,7 @@ simplicio-prompt 1.13.3
 simplicio-mapper 0.7.3
   ^          ^
   |          |
-simplicio-cli 0.5.16
+simplicio-cli 0.5.17
   ^
   |
 simplicio-sprint 1.2.11
@@ -27,5 +27,7 @@ simplicio-sprint 1.2.11
 
 ## Local LLM Standard
 
-- Primary: `openbmb/minicpm5:latest` via local Ollama.
-- Fallback: `Qwen_Qwen3.5-2B-Q6_K.gguf` via `local-llama/default`.
+- Primary: `local-llama/default` via `llama.cpp` / `llama-cpp-python`.
+- Default GGUF: `Qwen_Qwen3.5-2B-Q6_K.gguf`.
+- Ollama is no longer part of the local default path; it remains an explicit
+  OpenAI-compatible provider option only when configured by the user.

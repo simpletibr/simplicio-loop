@@ -91,6 +91,22 @@ def test_env_export_quotes_dotenv_values(tmp_path, monkeypatch, capsys):
     )
 
 
+def test_doctor_command_delegates_to_local_model_preflight(monkeypatch):
+    seen = {}
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+
+    def fake_doctor_main(argv):
+        seen["argv"] = argv
+        return 0
+
+    monkeypatch.setattr("simplicio.doctor.main", fake_doctor_main)
+
+    code = cli.main(["doctor", "--json"])
+
+    assert code == 0
+    assert seen["argv"] == ["--json"]
+
+
 def test_run_auto_task_infers_target_from_goal(tmp_path, monkeypatch, capsys):
     _write(tmp_path / "src" / "auth.py", "old\n")
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")

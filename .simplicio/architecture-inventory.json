@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.architecture-inventory/v1",
   "version": 1,
-  "generated_at": "2026-06-01T05:04:23.593Z",
+  "generated_at": "2026-06-01T21:57:57.150Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
   "source_project_map": ".simplicio/project-map.json",
   "source_symbol_index": ".simplicio/symbol-index.json",
@@ -8730,6 +8730,7 @@
         "._cache",
         ".bench",
         ".detect",
+        ".doctor",
         ".dod",
         ".ecosystem",
         ".init",
@@ -8745,7 +8746,6 @@
         ".sprint_loader",
         "__future__",
         "argparse",
-        "json",
         "pathlib"
       ],
       "symbols": [
@@ -9020,20 +9020,24 @@
       ],
       "imports": [
         ".hardware",
+        ".providers",
         "__future__",
         "dataclasses",
+        "huggingface_hub",
         "os",
-        "shutil",
-        "subprocess",
-        "typing"
+        "pathlib"
       ],
       "symbols": [
         "ModelSpec",
-        "ollama_present",
-        "ollama_list_installed",
+        "ollama_id",
+        "local_model_dir",
+        "model_file_path",
+        "_is_gguf_file",
+        "model_file_present",
         "is_installed",
-        "pull",
+        "download",
         "RecommendationResult",
+        "can_pull",
         "to_dict",
         "evaluate",
         "ensure_recommended"
@@ -9374,9 +9378,10 @@
         "_msgs",
         "_inline_feedback",
         "_is_local",
-        "_is_default_ollama",
+        "_is_default_local",
         "_local_spec",
         "_local_executor_dir",
+        "_is_gguf_file",
         "_local_candidates",
         "_resolve_local_path",
         "_local_llama",
@@ -9389,7 +9394,6 @@
         "_charge_if_budgeted",
         "_generate_local_cached",
         "_openai_compatible_generate",
-        "_generate_default_ollama_with_fallback",
         "generate",
         "info",
         "planner_cfg",
@@ -9398,7 +9402,7 @@
         "planner_complete",
         "planner_info"
       ],
-      "summary": "Defines exported symbols: _cfg, _charge_if_budgeted, _cli_command, _generate_default_ollama_with_fallback, _generate_local_cached.",
+      "summary": "Defines exported symbols: _cfg, _charge_if_budgeted, _cli_command, _generate_local_cached, _inline_feedback.",
       "evidence": [
         {
           "file": "simplicio/providers.py"
@@ -15556,7 +15560,7 @@
       "roles": [],
       "imports": [],
       "symbols": [],
-      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "summary": "Defines exported symbols: do.",
       "evidence": [
         {
           "file": "simplicio_cli.egg-info/PKG-INFO"
@@ -16079,18 +16083,18 @@
         "_profile",
         "test_evaluate_picks_correct_spec_per_tier",
         "test_evaluate_refuses_to_run_oversized_model",
-        "test_evaluate_marks_ollama_absent",
-        "test_apple_silicon_profile_can_run_minicpm5_at_24gb",
-        "test_ensure_recommended_does_not_pull_without_opt_in",
-        "fake_pull",
-        "test_ensure_recommended_pulls_with_explicit_opt_in",
-        "fake_pull",
-        "test_ensure_recommended_pulls_via_env_var",
-        "fake_pull",
-        "test_ensure_recommended_skips_pull_when_already_installed",
-        "fake_pull",
-        "test_ensure_recommended_refuses_pull_when_undersized",
-        "fake_pull"
+        "test_evaluate_marks_gguf_absent",
+        "test_apple_silicon_profile_can_run_qwen_gguf_at_24gb",
+        "test_ensure_recommended_does_not_download_without_opt_in",
+        "fake_download",
+        "test_ensure_recommended_downloads_with_explicit_opt_in",
+        "fake_download",
+        "test_ensure_recommended_downloads_via_env_var",
+        "fake_download",
+        "test_ensure_recommended_skips_download_when_already_installed",
+        "fake_download",
+        "test_ensure_recommended_refuses_download_when_undersized",
+        "fake_download"
       ],
       "summary": "Defines domain, data or schema structures.",
       "evidence": [
@@ -16314,6 +16318,7 @@
       ],
       "imports": [
         "os",
+        "pathlib",
         "pytest",
         "simplicio",
         "simplicio._cache",
@@ -16325,7 +16330,7 @@
       "symbols": [
         "_clean",
         "test_is_local_explicit_prefix",
-        "test_empty_config_uses_ollama_default_not_in_process_local",
+        "test_empty_config_uses_in_process_local_default",
         "test_is_local_false_when_base_set",
         "test_is_local_false_when_other_model_set",
         "test_local_spec_default",
@@ -16342,15 +16347,16 @@
         "test_resolve_local_path_existing_file",
         "test_resolve_local_path_downloads_from_hf",
         "test_resolve_local_path_prefers_executor_dir",
+        "test_resolve_local_path_skips_corrupt_executor_file",
         "test_resolve_local_path_default_does_not_try_legacy_qwen25",
         "test_resolve_local_path_no_hf_lib_raises",
         "test_local_llama_missing_backend_raises",
         "test_local_llama_loads_and_caches",
         "test_local_llama_honours_ctx_threads_gpu",
-        "test_generate_routes_to_ollama_by_default",
+        "test_generate_routes_to_local_llama_by_default",
         "fake_openai",
-        "test_generate_default_ollama_falls_back_to_qwen_gguf",
-        "fail_openai",
+        "fake_local",
+        "test_generate_default_local_uses_qwen_gguf",
         "fake_local",
         "test_generate_local_explicit_prefix",
         "fake_local",
@@ -16399,7 +16405,7 @@
         "test_info_reports_shell_out_modes",
         "test_native_path_still_requires_key",
         "test_no_model_with_base_raises_with_hint",
-        "test_no_config_at_all_routes_to_ollama_default"
+        "test_no_config_at_all_routes_to_local_llama_default"
       ],
       "summary": "Verifies project behavior through automated tests.",
       "evidence": [
@@ -16507,6 +16513,8 @@
         "test_index_accepts_positional_root",
         "fake_index_repo",
         "test_env_export_quotes_dotenv_values",
+        "test_doctor_command_delegates_to_local_model_preflight",
+        "fake_doctor_main",
         "test_run_auto_task_infers_target_from_goal",
         "test_run_ambiguous_goal_requires_scope",
         "test_run_scope_scratch_forwards_to_scratch_cli",
@@ -20029,7 +20037,7 @@
     "files": 686,
     "modules": 16,
     "layers": 13,
-    "symbols": 1805,
+    "symbols": 1812,
     "relationships": 1000,
     "tests": 99
   },
