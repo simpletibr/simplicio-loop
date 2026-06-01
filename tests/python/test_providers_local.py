@@ -188,10 +188,10 @@ def test_resolve_local_path_prefers_executor_dir(monkeypatch, tmp_path):
     fake.hf_hub_download.assert_not_called()
 
 
-def test_resolve_local_path_falls_back_to_q6(monkeypatch):
+def test_resolve_local_path_falls_back_to_legacy_qwen25(monkeypatch):
     fake = types.ModuleType("huggingface_hub")
     fake.hf_hub_download = MagicMock(
-        side_effect=[RuntimeError("q8 missing"), "/cache/q6.gguf"]
+        side_effect=[RuntimeError("qwen35 missing"), "/cache/qwen25-q8.gguf"]
     )
     monkeypatch.setitem(sys.modules, "huggingface_hub", fake)
 
@@ -199,10 +199,18 @@ def test_resolve_local_path_falls_back_to_q6(monkeypatch):
         providers.LOCAL_DEFAULT_REPO, providers.LOCAL_DEFAULT_FILE, None
     )
 
-    assert out == "/cache/q6.gguf"
+    assert out == "/cache/qwen25-q8.gguf"
+    assert (
+        fake.hf_hub_download.call_args_list[0].kwargs["repo_id"]
+        == providers.LOCAL_DEFAULT_REPO
+    )
     assert (
         fake.hf_hub_download.call_args_list[0].kwargs["filename"]
         == providers.LOCAL_DEFAULT_FILE
+    )
+    assert (
+        fake.hf_hub_download.call_args_list[1].kwargs["repo_id"]
+        == providers.LOCAL_FALLBACK_REPO
     )
     assert (
         fake.hf_hub_download.call_args_list[1].kwargs["filename"]

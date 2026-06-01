@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-05-31T23:02:04.954Z",
+  "generated_at": "2026-06-01T00:50:54.462Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -3700,40 +3700,6 @@
       "snippet": "from typing import Any\n\ntry:  # optional fast path\n    import orjson as _oj\n    _HAS_ORJSON = True"
     },
     {
-      "id": "36d2ae1eaa416409",
-      "path": "simplicio_cli.egg-info/PKG-INFO",
-      "line": 171,
-      "language": "text",
-      "change_type": "route",
-      "tags": [
-        "text",
-        "simplicio",
-        "cli",
-        "egg",
-        "info",
-        "pkg"
-      ],
-      "summary": "route precedent in simplicio_cli.egg-info/PKG-INFO",
-      "snippet": "\n> Reproduce the new default set:\n> `BENCH_BASE_URL=https://router.huggingface.co/v1 BENCH_API_KEY=<hf-token>\n> BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\"\n> python3 bench/run_offline.py`."
-    },
-    {
-      "id": "ca7e9fb7114009d5",
-      "path": "simplicio_cli.egg-info/SOURCES.txt",
-      "line": 111,
-      "language": "txt",
-      "change_type": "route",
-      "tags": [
-        "txt",
-        "simplicio",
-        "cli",
-        "egg",
-        "info",
-        "sources"
-      ],
-      "summary": "route precedent in simplicio_cli.egg-info/SOURCES.txt",
-      "snippet": "simplicio/templates/stacks/elixir-phoenix/tree/lib/app/application.ex\nsimplicio/templates/stacks/elixir-phoenix/tree/lib/app_web/endpoint.ex\nsimplicio/templates/stacks/elixir-phoenix/tree/lib/app_web/router.ex\nsimplicio/templates/stacks/elixir-phoenix/tree/lib/app_web/controllers/health_controller.ex\nsimplicio/templates/stacks/elixir-phoenix/tree/test/health_controller_test.exs"
-    },
-    {
       "id": "a4948087d07ffe52",
       "path": "tests/e2e/README.md",
       "line": 54,
@@ -4239,6 +4205,38 @@
       ],
       "summary": "test precedent in tests/python/test_scratch_codegen_fastapi.py",
       "snippet": "\n\ndef _stack(tmp_path: Path) -> Stack:\n    return Stack(\n        slug=\"py-fastapi\","
+    },
+    {
+      "id": "f5a96ce9e7bd69fe",
+      "path": "tests/python/test_scratch_codegen_go_gin.py",
+      "line": 31,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "scratch",
+        "codegen",
+        "gin"
+      ],
+      "summary": "test precedent in tests/python/test_scratch_codegen_go_gin.py",
+      "snippet": "\n\ndef _go_binary() -> str | None:\n    return shutil.which(\"go\") or (str(_PORTABLE_GO) if _PORTABLE_GO.is_file() else None)\n"
+    },
+    {
+      "id": "65779c7c369949cd",
+      "path": "tests/python/test_scratch_codegen_markdown.py",
+      "line": 13,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "scratch",
+        "codegen",
+        "markdown"
+      ],
+      "summary": "test precedent in tests/python/test_scratch_codegen_markdown.py",
+      "snippet": "\n\ndef _stack(tmp_path: Path) -> Stack:\n    return Stack(\n        slug=\"php-vanilla\","
     }
   ]
 }

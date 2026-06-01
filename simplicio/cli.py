@@ -91,7 +91,7 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
     p.add_argument(
         "--local",
         action="store_true",
-        help="force the in-process local model (Qwen2.5-Coder-1.5B GGUF, "
+        help="force the in-process local model (Qwen3.5-2B Q6_K GGUF, "
         "no API key); overrides SIMPLICIO_MODEL/SIMPLICIO_BASE_URL",
     )
 

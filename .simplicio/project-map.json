@@ -1,8 +1,8 @@
 {
   "schema": "simplicio.project-map/v1",
   "version": 1,
-  "generated_at": "2026-05-31T23:02:04.954Z",
-  "update_mode": "incremental",
+  "generated_at": "2026-06-01T00:50:54.462Z",
+  "update_mode": "full",
   "product": {
     "name": "simplicio-cli-e2e",
     "stack": "unknown",
@@ -9873,80 +9873,6 @@
       "importance": 0.28
     },
     {
-      "path": "simplicio_cli.egg-info/PKG-INFO",
-      "language": "text",
-      "size_bytes": 40360,
-      "last_modified": "2026-05-31T16:25:48.233Z",
-      "file_hash": "4dc9543a4fea1ebc0005ec66ea4e5d5fd1defe3db509668702a9d49355a28f7b",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [
-        "do"
-      ],
-      "importance": 0.2
-    },
-    {
-      "path": "simplicio_cli.egg-info/SOURCES.txt",
-      "language": "txt",
-      "size_bytes": 19328,
-      "last_modified": "2026-05-31T16:25:48.278Z",
-      "file_hash": "4c83b61f86d3d87ae4bd18b9e0577d2b0a8b5c8f4ffefbefcfd685ade50fefce",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "simplicio_cli.egg-info/dependency_links.txt",
-      "language": "txt",
-      "size_bytes": 1,
-      "last_modified": "2026-05-31T16:25:48.234Z",
-      "file_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "simplicio_cli.egg-info/entry_points.txt",
-      "language": "txt",
-      "size_bytes": 49,
-      "last_modified": "2026-05-31T16:25:48.234Z",
-      "file_hash": "7be4073724468cc63cc0276611c5262a6cca5d9de8c530d3a144132a582142c1",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "simplicio_cli.egg-info/requires.txt",
-      "language": "txt",
-      "size_bytes": 264,
-      "last_modified": "2026-05-31T16:25:48.234Z",
-      "file_hash": "971b71bebd1ecb0ae4a633b85b4c069998da67c775ccb782cf26fd27f31aa440",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "simplicio_cli.egg-info/top_level.txt",
-      "language": "txt",
-      "size_bytes": 10,
-      "last_modified": "2026-05-31T16:25:48.234Z",
-      "file_hash": "a83097ab8f6c39ccf6f0a37bc47c132a186c5eea99197ae7278d1b8c0d8ecb57",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
       "path": "tests/e2e/README.md",
       "language": "markdown",
       "size_bytes": 2524,
@@ -12177,19 +12103,6 @@
         "ui"
       ],
       "file_count": 327
-    },
-    {
-      "name": "simplicio_cli.egg-info",
-      "files": [
-        "simplicio_cli.egg-info/PKG-INFO",
-        "simplicio_cli.egg-info/SOURCES.txt",
-        "simplicio_cli.egg-info/dependency_links.txt",
-        "simplicio_cli.egg-info/entry_points.txt",
-        "simplicio_cli.egg-info/requires.txt",
-        "simplicio_cli.egg-info/top_level.txt"
-      ],
-      "roles": [],
-      "file_count": 6
     },
     {
       "name": "tests",

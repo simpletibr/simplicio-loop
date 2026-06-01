@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.13] — 2026-06-01
+
+### Changed
+- Default local execution now prefers `Qwen3.5-2B-Q6_K.gguf` from
+  `bartowski/Qwen_Qwen3.5-2B-GGUF`.
+- The previous Qwen2.5-Coder 1.5B `Q8_0` and `Q6_K_L` GGUF files remain in the
+  automatic fallback chain for offline setups that have not downloaded the new
+  Qwen3.5 executor yet.
+- Python package metadata now reflects the current ecosystem floors:
+  `simplicio-mapper>=0.6.10` and `simplicio-prompt>=1.12.3`.
+
 ## [0.5.12] — 2026-05-31
 
 ### Changed

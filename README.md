@@ -533,11 +533,11 @@ simplicio smoke      # prints provider config + one test call
 simplicio ships an **in-process** backend powered by
 [`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python). When **no
 provider is configured** (`SIMPLICIO_MODEL` *and* `SIMPLICIO_BASE_URL` both
-unset), it runs **Qwen2.5-Coder-1.5B-Instruct Q8_0 GGUF** directly, falling
-back to **Q6_K_L** if the primary file is unavailable — small,
-code-specialized, fast on CPU, no API key, no Ollama, no HTTP overhead. The
-6-layer contract is what makes a 1.5B usable: it lifts the same model from ~34%
-to ~88% pass-rate on the local benchmark.
+unset), it runs **Qwen3.5-2B Q6_K GGUF** directly. If that GGUF is not
+available yet, it falls back to the previous **Qwen2.5-Coder 1.5B Q8_0** and
+**Q6_K_L** executor files — small, code-specialized, fast on CPU, no API key,
+no Ollama, no HTTP overhead. The 6-layer contract is what keeps tiny local
+models usable for execution work.
 
 ```bash
 pip install 'simplicio-cli[local]'          # pulls llama-cpp-python + huggingface-hub
@@ -551,7 +551,8 @@ simplicio task "add input validation to createUser" \
 Explicit routes (override the default model/weights):
 
 ```bash
-SIMPLICIO_MODEL=local-llama/default                                  # Q8_0 primary, Q6_K_L fallback
+SIMPLICIO_MODEL=local-llama/default                                  # Qwen3.5-2B Q6_K primary, Qwen2.5 fallbacks
+SIMPLICIO_MODEL=local-llama/bartowski/Qwen_Qwen3.5-2B-GGUF::Qwen3.5-2B-Q6_K.gguf
 SIMPLICIO_MODEL=local-llama/bartowski/Qwen2.5-Coder-7B-Instruct-GGUF::Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf
 SIMPLICIO_MODEL=local-llama//models/my-model.gguf                    # direct local path
 SIMPLICIO_LOCAL_MODEL_PATH=/models/my-model.gguf                     # always wins

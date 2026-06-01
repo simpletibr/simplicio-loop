@@ -20,6 +20,7 @@ rust/*/target/
 # every bench run; we keep results JSON/MD/PDF artifacts under bench/ but
 # not the per-case scratchpads.
 .simplicio/bench_runs/
+.simplicio/cache/
 # local GGUF model blobs (kept out of git; see bench/RESULTS_LOCAL_GGUF.md)
 models/*.gguf
 models/.cache/

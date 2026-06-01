@@ -26,10 +26,10 @@ Four modes, picked by SIMPLICIO_MODEL prefix (or by absence of config):
      SIMPLICIO_MODEL=local-llama/default               -> bundled default
      SIMPLICIO_MODEL=local-llama//abs/path/model.gguf  -> direct local path
      This is also the DEFAULT when neither SIMPLICIO_MODEL nor
-     SIMPLICIO_BASE_URL is set: simplicio runs Qwen2.5-Coder-1.5B-Instruct
-     (Q8_0 GGUF, with Q6_K_L fallback) on CPU with no HTTP overhead. The GGUF is
-     reused from ~/.simplicio/models/executor when present, otherwise fetched
-     once from the Hugging Face Hub. Requires the `local` extra:
+     SIMPLICIO_BASE_URL is set: simplicio runs Qwen3.5-2B Q6_K GGUF on CPU with
+     no HTTP overhead. Legacy Qwen2.5-Coder GGUFs remain fallback executors. The
+     GGUF is reused from ~/.simplicio/models/executor when present, otherwise
+     fetched once from the Hugging Face Hub. Requires the `local` extra:
      pip install 'simplicio-cli[local]'.
 """
 
@@ -72,12 +72,18 @@ def _inline_feedback(prompt, feedback):
 # Path 4: in-process local inference (llama-cpp-python). Offline-first default.
 # --------------------------------------------------------------------------- #
 
-# bartowski/Qwen2.5-Coder-1.5B-Instruct-GGUF is a small, code-specialized model
-# that runs fast on CPU. Q8_0 is the preferred local executor; Q6_K_L is the
-# lower-memory fallback.
-LOCAL_DEFAULT_REPO = "bartowski/Qwen2.5-Coder-1.5B-Instruct-GGUF"
-LOCAL_DEFAULT_FILE = "Qwen2.5-Coder-1.5B-Instruct-Q8_0.gguf"
-LOCAL_FALLBACK_FILE = "Qwen2.5-Coder-1.5B-Instruct-Q6_K_L.gguf"
+# Qwen3.5-2B Q6_K is the preferred local executor. The previous Qwen2.5-Coder
+# files stay in the automatic fallback chain so existing offline setups keep
+# working if the new GGUF is not present yet.
+LOCAL_DEFAULT_REPO = "bartowski/Qwen_Qwen3.5-2B-GGUF"
+LOCAL_DEFAULT_FILE = "Qwen3.5-2B-Q6_K.gguf"
+LOCAL_FALLBACK_REPO = "bartowski/Qwen2.5-Coder-1.5B-Instruct-GGUF"
+LOCAL_FALLBACK_FILE = "Qwen2.5-Coder-1.5B-Instruct-Q8_0.gguf"
+LOCAL_SECONDARY_FALLBACK_FILE = "Qwen2.5-Coder-1.5B-Instruct-Q6_K_L.gguf"
+LOCAL_FALLBACK_SPECS = (
+    (LOCAL_FALLBACK_REPO, LOCAL_FALLBACK_FILE),
+    (LOCAL_FALLBACK_REPO, LOCAL_SECONDARY_FALLBACK_FILE),
+)
 LOCAL_EXECUTOR_DIR = "~/.simplicio/models/executor"
 LOCAL_MODEL_PREFIX = "local-llama/"
 
@@ -101,7 +107,7 @@ def _local_spec(model):
     """Resolve (repo, file, path) for a local-llama model id.
 
     Forms after the `local-llama/` prefix:
-      "" / "default" / "auto"   -> bundled Qwen2.5-Coder-1.5B Q8_0 default
+      "" / "default" / "auto"   -> bundled Qwen3.5-2B Q6_K default
       "<repo>::<file.gguf>"     -> explicit HF repo + filename
       "/abs/path/model.gguf"    -> direct local path (no download)
       "<repo>"                  -> HF repo + default/SIMPLICIO_LOCAL_MODEL_FILE
@@ -129,13 +135,13 @@ def _local_executor_dir() -> Path:
     return Path(os.environ.get("SIMPLICIO_LOCAL_MODEL_DIR", LOCAL_EXECUTOR_DIR)).expanduser()
 
 
-def _local_filenames(fname):
-    """Return candidate GGUF filenames in preference order."""
+def _local_candidates(repo, fname):
+    """Return candidate (repo, GGUF filename) pairs in preference order."""
     if os.environ.get("SIMPLICIO_LOCAL_MODEL_FILE"):
-        return [fname]
-    if fname == LOCAL_DEFAULT_FILE:
-        return [LOCAL_DEFAULT_FILE, LOCAL_FALLBACK_FILE]
-    return [fname]
+        return [(repo, fname)]
+    if repo == LOCAL_DEFAULT_REPO and fname == LOCAL_DEFAULT_FILE:
+        return [(repo, fname), *LOCAL_FALLBACK_SPECS]
+    return [(repo, fname)]
 
 
 def _resolve_local_path(repo, fname, path):
@@ -155,14 +161,14 @@ def _resolve_local_path(repo, fname, path):
             "Install extras: pip install 'simplicio-cli[local]'"
         )
     errors = []
-    for candidate in _local_filenames(fname):
-        local_file = _local_executor_dir() / candidate
+    for candidate_repo, candidate_file in _local_candidates(repo, fname):
+        local_file = _local_executor_dir() / candidate_file
         if local_file.is_file():
             return str(local_file)
         try:
-            return hf_hub_download(repo_id=repo, filename=candidate)
+            return hf_hub_download(repo_id=candidate_repo, filename=candidate_file)
         except Exception as exc:  # noqa: BLE001 - fallback to the next local GGUF
-            errors.append(f"{candidate}: {exc}")
+            errors.append(f"{candidate_repo}/{candidate_file}: {exc}")
     detail = "; ".join(errors) if errors else f"{fname}: unavailable"
     raise SystemExit(f"simplicio: local model download failed ({detail})")
 
