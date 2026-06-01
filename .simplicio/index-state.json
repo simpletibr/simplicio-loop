@@ -1,14 +1,19 @@
 {
   "counts": {
-    "changed_files": 13,
-    "files": 670,
-    "precedents": 250
+    "changed_files": 23,
+    "files": 686,
+    "layers": 13,
+    "modules": 16,
+    "precedents": 250,
+    "relationships": 1000,
+    "symbols": 1805
   },
   "schema": "simplicio.mapper-index-state/v1",
   "signature": {
-    "head": "93c421a95e8644a5653e031395347d05e1564b45",
+    "head": "9fb4f8f5802dc3b4d414e5cdbb9bd78bf6fc4b6b",
     "kind": "git",
-    "status_hash": "2f3ede683a09a1431bc01b67115abc445c2a49c1df3380a9a765563b1e9ea335"
+    "status_hash": "63a277cabbab071f441d2b52c42a10f8ebb51067c70cde5e37653db57915ea3e",
+    "tree_hash": "420010ce53b4ebd29e5f8ea400ba898a2fdd63d21750e0a73204dde6af249136"
   },
-  "updated_at": "2026-06-01T03:16:24Z"
+  "updated_at": "2026-06-01T04:44:24Z"
 }

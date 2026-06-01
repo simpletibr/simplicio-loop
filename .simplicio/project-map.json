@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.project-map/v1",
   "version": 1,
-  "generated_at": "2026-06-01T03:16:24.039Z",
+  "generated_at": "2026-06-01T04:44:23.310Z",
   "update_mode": "incremental",
   "product": {
     "name": "simplicio-cli-e2e",
@@ -924,9 +924,9 @@
     {
       "path": "CHANGELOG.md",
       "language": "markdown",
-      "size_bytes": 35357,
-      "last_modified": "2026-06-01T03:10:21.049Z",
-      "file_hash": "131716c18b86abc3492d25c7e2af7c82843d4c9e9b495677ee89fc5cb9ebb01f",
+      "size_bytes": 35869,
+      "last_modified": "2026-06-01T04:41:41.234Z",
+      "file_hash": "5fce0c1810698ca7217beb7e2a4c9311c63ae6b72f1e4cc64dc52754ed192e7c",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -1001,28 +1001,206 @@
     {
       "path": "README.md",
       "language": "markdown",
-      "size_bytes": 38299,
-      "last_modified": "2026-06-01T03:02:59.595Z",
-      "file_hash": "bb86fe4ab4a2f4389ad3008075a3b5606464b8e432d1da25109ea1b75c60fb52",
+      "size_bytes": 4688,
+      "last_modified": "2026-06-01T04:42:25.427Z",
+      "file_hash": "695c55dda38ea230e87209add23ab1a059eea9c2b7547585a0d9c58ba3fd668d",
       "git_status": "M",
       "roles": [],
       "imports": [],
-      "exports": [
-        "do"
-      ],
-      "importance": 0.4
+      "exports": [],
+      "importance": 0.32
     },
     {
       "path": "README.pt-BR.md",
       "language": "markdown",
-      "size_bytes": 17940,
-      "last_modified": "2026-05-27T19:05:30.472Z",
-      "file_hash": "4fafacab1486c741ac940ed28557eb2b099167a0a6c97db65fcfaa5507ce69a4",
-      "git_status": "clean",
+      "size_bytes": 4773,
+      "last_modified": "2026-06-01T04:42:25.427Z",
+      "file_hash": "b43c4b585813be98c65bffccc5165df8afb6f48ab45f124bfc26b0aa26e9a4fd",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.12
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.ar-SA.md",
+      "language": "markdown",
+      "size_bytes": 4848,
+      "last_modified": "2026-06-01T04:42:25.429Z",
+      "file_hash": "02725201de0c8f170aea53919627cf12aa11ce2c20fa8c9961ff16a942e33f85",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.en.md",
+      "language": "markdown",
+      "size_bytes": 4594,
+      "last_modified": "2026-06-01T04:42:25.428Z",
+      "file_hash": "e178bdc96a852e4ed4cc2b6ebccfc303f08c3b4ac68aa6c5499856af261be0ae",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.es-ES.md",
+      "language": "markdown",
+      "size_bytes": 4638,
+      "last_modified": "2026-06-01T04:42:25.428Z",
+      "file_hash": "0477a294ae51b112b8f1752a45243d19fe287f08ae9bec6745c333a4a3e96f3d",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.fr-FR.md",
+      "language": "markdown",
+      "size_bytes": 4688,
+      "last_modified": "2026-06-01T04:42:25.429Z",
+      "file_hash": "0d9e9644761318012ebf61e02ab6add8df86b8d118a2133b4a0dd687e23f0bb3",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.he-IL.md",
+      "language": "markdown",
+      "size_bytes": 4849,
+      "last_modified": "2026-06-01T04:42:25.430Z",
+      "file_hash": "3a894125e2001fabb24915f388b3192f92e6cd34fd81d7080c52c2e14dce2635",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.hi-IN.md",
+      "language": "markdown",
+      "size_bytes": 5130,
+      "last_modified": "2026-06-01T04:42:25.429Z",
+      "file_hash": "ed8911a53bc7b8054bd49c93e63f06f42478472a7debf495abc5f3724a9c53ad",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.id-ID.md",
+      "language": "markdown",
+      "size_bytes": 4633,
+      "last_modified": "2026-06-01T04:42:25.430Z",
+      "file_hash": "f8b9b1fb1fa8f6e1d00e2669a54c8f7f255478168f07a614dd8ae6ba562a1cb8",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.it-IT.md",
+      "language": "markdown",
+      "size_bytes": 4632,
+      "last_modified": "2026-06-01T04:42:25.429Z",
+      "file_hash": "611f2b1b629d66c1a1b74c0ff12122d6bdbf465bcb8c06beb52fc489836b48e9",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.ja-JP.md",
+      "language": "markdown",
+      "size_bytes": 4731,
+      "last_modified": "2026-06-01T04:42:25.428Z",
+      "file_hash": "ba73bced588b7eb9409d89ebd83cb2e99a6f52128a8d118a50d3788a9f58915c",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.ko-KR.md",
+      "language": "markdown",
+      "size_bytes": 4671,
+      "last_modified": "2026-06-01T04:42:25.428Z",
+      "file_hash": "5ad671f6d8bc71a87d2e1a10e57ea055fa28fd7ba1c7cbf2844c060afe1b2b2e",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.ms-MY.md",
+      "language": "markdown",
+      "size_bytes": 4636,
+      "last_modified": "2026-06-01T04:42:25.430Z",
+      "file_hash": "27ad3003ed33b343be45b8e1ba55074bde105541a16457742f0be077b5356398",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.pl-PL.md",
+      "language": "markdown",
+      "size_bytes": 4590,
+      "last_modified": "2026-06-01T04:42:25.429Z",
+      "file_hash": "586d31d49b3cc97d2c2f06d2bdecbad0daa2afe5dc14faa2685963c295356b00",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.pt-BR.md",
+      "language": "markdown",
+      "size_bytes": 4679,
+      "last_modified": "2026-06-01T04:42:25.428Z",
+      "file_hash": "65710666a44112315d04791b62c6b63e6d76c39691bff5241f0ccb2c4e298e89",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.ru-RU.md",
+      "language": "markdown",
+      "size_bytes": 5111,
+      "last_modified": "2026-06-01T04:42:25.429Z",
+      "file_hash": "04f2be4bbf43e1669233886cf7e557bc892e9f131a2e1d2a5aa8e7f978f3b294",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.zh-CN.md",
+      "language": "markdown",
+      "size_bytes": 4533,
+      "last_modified": "2026-06-01T04:42:25.428Z",
+      "file_hash": "cf9343833717b4dcc439c33e74fd9862f917f255d6c4d1b88b6d5ffe093140f7",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
     },
     {
       "path": "RELATORIO_CONSOLIDADO_E_RECOMENDACAO.md",
@@ -3928,19 +4106,19 @@
       "size_bytes": 3130,
       "last_modified": "2026-06-01T03:02:46.242Z",
       "file_hash": "3ec02b411c440e8b4614d660afcfaef79a805622b4be6a7aaa01b0ef84b7f673",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.12
     },
     {
       "path": "docs/PYTHON_PACKAGE_INTERDEPENDENCE.md",
       "language": "markdown",
-      "size_bytes": 793,
-      "last_modified": "2026-06-01T03:10:16.426Z",
-      "file_hash": "9a7750bc1c749ae4e556dbc09b54db1a33bafa8df61fd7fb223ca9d7d4196472",
-      "git_status": "??",
+      "size_bytes": 794,
+      "last_modified": "2026-06-01T04:41:41.233Z",
+      "file_hash": "5c7c30ae654e275bc3ae1d1a13e245d3d3cd90ef4b456d576f28ebda34ded1db",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -4143,6 +4321,18 @@
       "importance": 0.12
     },
     {
+      "path": "docs/readme-globalization-standard.md",
+      "language": "markdown",
+      "size_bytes": 3104,
+      "last_modified": "2026-06-01T04:41:41.209Z",
+      "file_hash": "f0e08cc5af8d5a98d62cbe89d0d99435e13cc9f8e81eaf02f919012228b01de9",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
       "path": "docs/sessionstart-hook.md",
       "language": "markdown",
       "size_bytes": 3889,
@@ -4244,8 +4434,8 @@
       "path": "pyproject.toml",
       "language": "toml",
       "size_bytes": 2676,
-      "last_modified": "2026-06-01T03:02:18.177Z",
-      "file_hash": "c230cac8f57cb13fce94727eb265ae0c56c43ce4d90191cd39cac661e62ec817",
+      "last_modified": "2026-06-01T04:41:41.232Z",
+      "file_hash": "7890ab17e7bc15840ec5d7a4fb2be78eb5e7371ecc7bf984ed56513988c19140",
       "git_status": "M",
       "roles": [
         "config"
@@ -4503,8 +4693,8 @@
       "path": "simplicio/__init__.py",
       "language": "python",
       "size_bytes": 23,
-      "last_modified": "2026-06-01T03:08:38.649Z",
-      "file_hash": "7990af1925b39a102e5f7dda92702674ebfed05e851388e8a398a08df89ee502",
+      "last_modified": "2026-06-01T04:41:41.232Z",
+      "file_hash": "2fa2e828c949c7e9faf0081acf5ed2e0fc9d0fb4b96789705b7a3bf5dcb79757",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -4654,7 +4844,7 @@
       "size_bytes": 24593,
       "last_modified": "2026-06-01T03:01:23.428Z",
       "file_hash": "9cc1a24515c6861b83341f057d2556a55ca5f3053f8a81fa087e2419a83ecb68",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "entrypoint"
       ],
@@ -4699,7 +4889,7 @@
         "main",
         "maybe_autoinstall"
       ],
-      "importance": 0.93
+      "importance": 0.73
     },
     {
       "path": "simplicio/detect.py",
@@ -4906,7 +5096,7 @@
       "size_bytes": 6985,
       "last_modified": "2026-06-01T03:08:48.790Z",
       "file_hash": "5c46866d57b2605061bbca2687b7dbedb3ad2fada517b09c751d0385b5ea0e21",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "domain"
       ],
@@ -4930,7 +5120,7 @@
         "pull",
         "to_dict"
       ],
-      "importance": 0.68
+      "importance": 0.48
     },
     {
       "path": "simplicio/mapper.py",
@@ -5195,7 +5385,7 @@
       "size_bytes": 26202,
       "last_modified": "2026-06-01T03:06:33.643Z",
       "file_hash": "92c7d1f0829c1ec3691758902a2316558d3d3bed4b7b1b27a6f00f4f66c3fa7d",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [
         "._cache",
@@ -5238,7 +5428,7 @@
         "planner_complete",
         "planner_info"
       ],
-      "importance": 0.48
+      "importance": 0.28
     },
     {
       "path": "simplicio/runtime_env.py",
@@ -9891,9 +10081,9 @@
     {
       "path": "simplicio_cli.egg-info/PKG-INFO",
       "language": "text",
-      "size_bytes": 40681,
-      "last_modified": "2026-06-01T01:13:21.365Z",
-      "file_hash": "8bd78968c4db787552ff7f797b9004c82b4f2b703da7c7464b17ca350f950b9f",
+      "size_bytes": 40462,
+      "last_modified": "2026-06-01T03:18:57.874Z",
+      "file_hash": "2e2eb62ed785f307724e64c567d09c01e4dc7c53b1daa9be909f080c0bb4f00c",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -9905,9 +10095,9 @@
     {
       "path": "simplicio_cli.egg-info/SOURCES.txt",
       "language": "txt",
-      "size_bytes": 19353,
-      "last_modified": "2026-06-01T01:13:21.432Z",
-      "file_hash": "aed764732e6516fa3be791fa9d8905c377681abf70c6ef95df0c460517893bd4",
+      "size_bytes": 20836,
+      "last_modified": "2026-06-01T03:18:57.933Z",
+      "file_hash": "028b1ca42b2f238cd38cf0b66343fa4a84fbca03126fc922be0fdc1eebaac292",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -9918,7 +10108,7 @@
       "path": "simplicio_cli.egg-info/dependency_links.txt",
       "language": "txt",
       "size_bytes": 1,
-      "last_modified": "2026-06-01T01:13:21.366Z",
+      "last_modified": "2026-06-01T03:18:57.875Z",
       "file_hash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
       "git_status": "clean",
       "roles": [],
@@ -9930,7 +10120,7 @@
       "path": "simplicio_cli.egg-info/entry_points.txt",
       "language": "txt",
       "size_bytes": 49,
-      "last_modified": "2026-06-01T01:13:21.366Z",
+      "last_modified": "2026-06-01T03:18:57.875Z",
       "file_hash": "7be4073724468cc63cc0276611c5262a6cca5d9de8c530d3a144132a582142c1",
       "git_status": "clean",
       "roles": [],
@@ -9941,9 +10131,9 @@
     {
       "path": "simplicio_cli.egg-info/requires.txt",
       "language": "txt",
-      "size_bytes": 265,
-      "last_modified": "2026-06-01T01:13:21.367Z",
-      "file_hash": "ab4f7a9592702e0f36b035a31f9e69fe07d348e4800b003cb05929a655060d61",
+      "size_bytes": 264,
+      "last_modified": "2026-06-01T03:18:57.875Z",
+      "file_hash": "9fc393da00adaf2eb58fb4a25090a33f06cf62c1a869c6c57bbe86af2abf5cac",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -9954,7 +10144,7 @@
       "path": "simplicio_cli.egg-info/top_level.txt",
       "language": "txt",
       "size_bytes": 10,
-      "last_modified": "2026-06-01T01:13:21.367Z",
+      "last_modified": "2026-06-01T03:18:57.875Z",
       "file_hash": "a83097ab8f6c39ccf6f0a37bc47c132a186c5eea99197ae7278d1b8c0d8ecb57",
       "git_status": "clean",
       "roles": [],
@@ -10303,7 +10493,7 @@
       "size_bytes": 8288,
       "last_modified": "2026-06-01T03:12:14.831Z",
       "file_hash": "39aec44b202f3b0cae64c8951b72b3224edc807c4793f46e2643ce34cc97bbc7",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "domain",
         "test"
@@ -10328,7 +10518,7 @@
         "test_evaluate_refuses_to_run_oversized_model",
         "test_pick_tier_threshold_table"
       ],
-      "importance": 0.93
+      "importance": 0.73
     },
     {
       "path": "tests/python/test_mapping_retry_flow.py",
@@ -10412,8 +10602,8 @@
       "path": "tests/python/test_package_metadata.py",
       "language": "python",
       "size_bytes": 660,
-      "last_modified": "2026-06-01T03:08:43.632Z",
-      "file_hash": "abcf1e7f015359aefc5fe4368ab2ce0097117783adc393bb27e4965056acfac6",
+      "last_modified": "2026-06-01T04:41:41.232Z",
+      "file_hash": "229a73228b9f98114923ab5bfca2ddc5d9687b2d40ec6f9c505761d95c777da5",
       "git_status": "M",
       "roles": [
         "test"
@@ -10495,7 +10685,7 @@
       "size_bytes": 13645,
       "last_modified": "2026-06-01T03:11:50.226Z",
       "file_hash": "dd6710d790904c4610b7bc9463317c3b61ff6ddd1761024ff64bc6c9b506d642",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "test"
       ],
@@ -10546,7 +10736,7 @@
         "test_resolve_local_path_no_hf_lib_raises",
         "test_resolve_local_path_prefers_executor_dir"
       ],
-      "importance": 0.73
+      "importance": 0.53
     },
     {
       "path": "tests/python/test_providers_shellout.py",
@@ -10554,7 +10744,7 @@
       "size_bytes": 6694,
       "last_modified": "2026-06-01T03:01:57.347Z",
       "file_hash": "a5673480e6da7c68b9955a5214ef044fd9abc42557a2717e50ad98163cd03b91",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "test"
       ],
@@ -10580,7 +10770,7 @@
         "test_shell_out_nonzero_exit_raises_with_stderr",
         "test_shell_out_timeout_raises_friendly"
       ],
-      "importance": 0.73
+      "importance": 0.53
     },
     {
       "path": "tests/python/test_qwen15b_quant_curve_report.py",
@@ -12060,6 +12250,28 @@
       "file_count": 18
     },
     {
+      "name": "READMEs",
+      "files": [
+        "READMEs/README.ar-SA.md",
+        "READMEs/README.en.md",
+        "READMEs/README.es-ES.md",
+        "READMEs/README.fr-FR.md",
+        "READMEs/README.he-IL.md",
+        "READMEs/README.hi-IN.md",
+        "READMEs/README.id-ID.md",
+        "READMEs/README.it-IT.md",
+        "READMEs/README.ja-JP.md",
+        "READMEs/README.ko-KR.md",
+        "READMEs/README.ms-MY.md",
+        "READMEs/README.pl-PL.md",
+        "READMEs/README.pt-BR.md",
+        "READMEs/README.ru-RU.md",
+        "READMEs/README.zh-CN.md"
+      ],
+      "roles": [],
+      "file_count": 15
+    },
+    {
       "name": "bench",
       "files": [
         "bench/CASE_fullstack_add_field_sindico.md",
@@ -12110,14 +12322,14 @@
         "docs/features/login.md",
         "docs/local-setup.md",
         "docs/placeholders.md",
-        "docs/sessionstart-hook.md",
-        "docs/specs/STRUCTURED_OUTPUT_v1.md"
+        "docs/readme-globalization-standard.md",
+        "docs/sessionstart-hook.md"
       ],
       "roles": [
         "entrypoint",
         "test"
       ],
-      "file_count": 21
+      "file_count": 22
     },
     {
       "name": "models",
@@ -12293,6 +12505,10 @@
       "score": 96
     },
     {
+      "name": "readme",
+      "score": 88
+    },
+    {
       "name": "llm",
       "score": 85
     },
@@ -12334,10 +12550,6 @@
     },
     {
       "name": "path",
-      "score": 72
-    },
-    {
-      "name": "readme",
       "score": 72
     },
     {
@@ -12398,11 +12610,75 @@
       "status": "M"
     },
     {
-      "path": "docs/LLM_USAGE_POLICY.md",
+      "path": "README.pt-BR.md",
       "status": "M"
     },
     {
+      "path": "READMEs/README.ar-SA.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.en.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.es-ES.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.fr-FR.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.he-IL.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.hi-IN.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.id-ID.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.it-IT.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.ja-JP.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.ko-KR.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.ms-MY.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.pl-PL.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.pt-BR.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.ru-RU.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.zh-CN.md",
+      "status": "??"
+    },
+    {
       "path": "docs/PYTHON_PACKAGE_INTERDEPENDENCE.md",
+      "status": "M"
+    },
+    {
+      "path": "docs/readme-globalization-standard.md",
       "status": "??"
     },
     {
@@ -12414,48 +12690,34 @@
       "status": "M"
     },
     {
-      "path": "simplicio/cli.py",
-      "status": "M"
-    },
-    {
-      "path": "simplicio/local_models.py",
-      "status": "M"
-    },
-    {
-      "path": "simplicio/providers.py",
-      "status": "M"
-    },
-    {
-      "path": "tests/python/test_local_models.py",
-      "status": "M"
-    },
-    {
       "path": "tests/python/test_package_metadata.py",
-      "status": "M"
-    },
-    {
-      "path": "tests/python/test_providers_local.py",
-      "status": "M"
-    },
-    {
-      "path": "tests/python/test_providers_shellout.py",
       "status": "M"
     }
   ],
   "changed_files": [
     "CHANGELOG.md",
     "README.md",
-    "docs/LLM_USAGE_POLICY.md",
+    "README.pt-BR.md",
+    "READMEs/README.ar-SA.md",
+    "READMEs/README.en.md",
+    "READMEs/README.es-ES.md",
+    "READMEs/README.fr-FR.md",
+    "READMEs/README.he-IL.md",
+    "READMEs/README.hi-IN.md",
+    "READMEs/README.id-ID.md",
+    "READMEs/README.it-IT.md",
+    "READMEs/README.ja-JP.md",
+    "READMEs/README.ko-KR.md",
+    "READMEs/README.ms-MY.md",
+    "READMEs/README.pl-PL.md",
+    "READMEs/README.pt-BR.md",
+    "READMEs/README.ru-RU.md",
+    "READMEs/README.zh-CN.md",
     "docs/PYTHON_PACKAGE_INTERDEPENDENCE.md",
+    "docs/readme-globalization-standard.md",
     "pyproject.toml",
     "simplicio/__init__.py",
-    "simplicio/cli.py",
-    "simplicio/local_models.py",
-    "simplicio/providers.py",
-    "tests/python/test_local_models.py",
-    "tests/python/test_package_metadata.py",
-    "tests/python/test_providers_local.py",
-    "tests/python/test_providers_shellout.py"
+    "tests/python/test_package_metadata.py"
   ],
   "integration": {
     "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",

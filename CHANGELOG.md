@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.15] — 2026-06-01
+
+### Changed
+- Rebuilt the README as a multilingual, benchmark-informed landing page with Star History, ecosystem graph, proof-first ordering, and the Simplicio globalization standard.
+- Added canonical translations under `READMEs/` for English, Portuguese, Spanish, Japanese, Korean, Simplified Chinese, Italian, French, Russian, Polish, Hindi, Arabic, Hebrew, Malay, and Indonesian.
+- Updated ecosystem dependency floors to `simplicio-mapper>=0.7.2` and `simplicio-prompt>=1.13.2`.
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),

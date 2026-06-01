@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-06-01T03:16:24.039Z",
+  "generated_at": "2026-06-01T04:44:23.310Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -218,9 +218,9 @@
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
     },
     {
-      "id": "5dda6065528c9fa5",
+      "id": "6c211230764e5076",
       "path": "CHANGELOG.md",
-      "line": 240,
+      "line": 247,
       "language": "markdown",
       "change_type": "error-handling",
       "tags": [
@@ -244,19 +244,6 @@
       ],
       "summary": "error-handling precedent in README.backup-2026-05-27.md",
       "snippet": "**\"I want to run it in CI / a script / outside Claude Code.\"** Path 2. Get an\nAPI key from any of the providers above (OpenRouter is the cheapest way to\ntry multiple models behind one key), set `SIMPLICIO_API_KEY` +\n`SIMPLICIO_MODEL` + optional `SIMPLICIO_BASE_URL`, run `simplicio task ...`.\n"
-    },
-    {
-      "id": "fc4dbdec0cc31702",
-      "path": "README.md",
-      "line": 125,
-      "language": "markdown",
-      "change_type": "route",
-      "tags": [
-        "markdown",
-        "readme"
-      ],
-      "summary": "route precedent in README.md",
-      "snippet": "\n> Reproduce the new default set:\n> `BENCH_BASE_URL=https://router.huggingface.co/v1 BENCH_API_KEY=<hf-token>\n> BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\"\n> python3 bench/run_offline.py`."
     },
     {
       "id": "98533d8a1a7fd947",
@@ -4239,6 +4226,22 @@
       ],
       "summary": "test precedent in tests/python/test_scratch_codegen_go_gin.py",
       "snippet": "\n\ndef _go_binary() -> str | None:\n    return shutil.which(\"go\") or (str(_PORTABLE_GO) if _PORTABLE_GO.is_file() else None)\n"
+    },
+    {
+      "id": "65779c7c369949cd",
+      "path": "tests/python/test_scratch_codegen_markdown.py",
+      "line": 13,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "scratch",
+        "codegen",
+        "markdown"
+      ],
+      "summary": "test precedent in tests/python/test_scratch_codegen_markdown.py",
+      "snippet": "\n\ndef _stack(tmp_path: Path) -> Stack:\n    return Stack(\n        slug=\"php-vanilla\","
     }
   ]
 }

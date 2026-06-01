@@ -1,32 +1,32 @@
 <h1 align="center">simplicio-cli</h1>
 
 <p align="center">
-  <strong>Turn a one-line task into a verified code change: mapper context, six-layer contract, diff, test, and evidence.</strong><br />
-  <em>Commands stay in English so they can be copied exactly.</em>
+  <strong>Trasforma un task di una riga in una modifica verificata: contesto mapper, contratto a sei livelli, diff, test ed evidenza.</strong><br />
+  <em>I comandi restano in inglese per copiarli esattamente.</em>
 </p>
 
 <p align="center">
 <a href="https://github.com/wesleysimplicio/simplicio-dev-cli/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/wesleysimplicio/simplicio-dev-cli?style=flat-square" /></a>
 <a href="https://pypi.org/project/simplicio-cli/"><img alt="PyPI" src="https://img.shields.io/pypi/v/simplicio-cli.svg?style=flat-square" /></a>
 <a href="https://pypi.org/project/simplicio-cli/"><img alt="Python versions" src="https://img.shields.io/pypi/pyversions/simplicio-cli.svg?style=flat-square" /></a>
-<a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-yellow?style=flat-square" /></a>
+<a href="../LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-yellow?style=flat-square" /></a>
 </p>
 
 <p align="center">
-<a href="README.md">English</a> | <a href="READMEs/README.pt-BR.md">Português</a> | <a href="READMEs/README.es-ES.md">Español</a> | <a href="READMEs/README.ja-JP.md">日本語</a> | <a href="READMEs/README.ko-KR.md">한국어</a> | <a href="READMEs/README.zh-CN.md">简体中文</a> | <a href="READMEs/README.it-IT.md">Italiano</a> | <a href="READMEs/README.fr-FR.md">Français</a> | <a href="READMEs/README.ru-RU.md">Русский</a> | <a href="READMEs/README.pl-PL.md">Polski</a> | <a href="READMEs/README.hi-IN.md">हिन्दी</a> | <a href="READMEs/README.ar-SA.md">العربية</a> | <a href="READMEs/README.he-IL.md">עברית</a> | <a href="READMEs/README.ms-MY.md">Bahasa Melayu</a> | <a href="READMEs/README.id-ID.md">Bahasa Indonesia</a>
+<a href="../README.md">English</a> | <a href="README.pt-BR.md">Português</a> | <a href="README.es-ES.md">Español</a> | <a href="README.ja-JP.md">日本語</a> | <a href="README.ko-KR.md">한국어</a> | <a href="README.zh-CN.md">简体中文</a> | <a href="README.it-IT.md">Italiano</a> | <a href="README.fr-FR.md">Français</a> | <a href="README.ru-RU.md">Русский</a> | <a href="README.pl-PL.md">Polski</a> | <a href="README.hi-IN.md">हिन्दी</a> | <a href="README.ar-SA.md">العربية</a> | <a href="README.he-IL.md">עברית</a> | <a href="README.ms-MY.md">Bahasa Melayu</a> | <a href="README.id-ID.md">Bahasa Indonesia</a>
 </p>
 
 <p align="center">
-  <img src="output/imagegen/simplicio-cli-readme-hero-web.png" alt="simplicio-cli preview" width="860" />
+  <img src="../output/imagegen/simplicio-cli-readme-hero-web.png" alt="simplicio-cli preview" width="860" />
 </p>
 
 ---
 
-## The short version
+## Sintesi breve
 
-Turn a one-line task into a verified code change: mapper context, six-layer contract, diff, test, and evidence.
+Trasforma un task di una riga in una modifica verificata: contesto mapper, contratto a sei livelli, diff, test ed evidenza.
 
-## Quick Start
+## Avvio rapido
 
 ```bash
 pip install -U simplicio-cli
@@ -34,23 +34,23 @@ simplicio detect "hide the Delete button for non-admins"
 simplicio task "hide the Delete button for non-admins"
 ```
 
-## What it does
+## Cosa fa
 
 - Classifies the task before execution so small fixes stay small and sprint-scale work becomes a plan.
 - Loads simplicio-mapper artifacts before asking an LLM to edit.
 - Keeps a verification loop around generated diffs instead of trusting the first answer.
 - Works with local Simplicio1, OpenRouter, OpenAI, Anthropic, DeepSeek, Hermes, Codex and Claude-style hosts.
 
-## Why this README is built to earn attention
+## Perché questo README è pensato per attirare attenzione
 
-- clear first-screen promise
-- language links before installation
-- badges and a visual hero for fast trust
-- copy-ready quick start
-- proof before long reference material
-- star history for social proof
+- promessa chiara nella prima schermata
+- lingue prima dell’installazione
+- badge e hero per fiducia immediata
+- quick start copiabile
+- prove prima dei dettagli lunghi
+- grafico stelle come social proof
 
-## How it works
+## Come funziona
 
 ```mermaid
 flowchart LR
@@ -65,26 +65,26 @@ tests, docs, screenshots"]
 delivery loop"]
 ```
 
-## Proof and validation
+## Prove e validazione
 
 - Benchmark docs compare plain prompting vs the Simplicio contract on real code tasks.
 - Package metadata tests pin ecosystem dependency floors.
 - The CLI is the executor layer used by SendSprint and SimplicioCode flows.
 
-## Simplicio ecosystem
+## Ecosistema Simplicio
 
 - [simplicio-mapper](https://github.com/wesleysimplicio/simplicio-mapper) supplies repo context before interpretation.
 - [simplicio-cli](https://github.com/wesleysimplicio/simplicio-dev-cli) executes focused code tasks with verification.
 - [simplicio-prompt](https://github.com/wesleysimplicio/simplicio-prompt) provides fan-out and consensus runtime patterns.
 - [simplicio-sprint](https://github.com/wesleysimplicio/simplicio-sprint) turns cards into draft PR delivery loops.
 
-## Documentation standard
+## Standard di documentazione
 
-- [docs/PYTHON_PACKAGE_INTERDEPENDENCE.md](docs/PYTHON_PACKAGE_INTERDEPENDENCE.md)
-- [docs/LLM_USAGE_POLICY.md](docs/LLM_USAGE_POLICY.md)
-- [docs/readme-globalization-standard.md](docs/readme-globalization-standard.md)
+- [docs/PYTHON_PACKAGE_INTERDEPENDENCE.md](../docs/PYTHON_PACKAGE_INTERDEPENDENCE.md)
+- [docs/LLM_USAGE_POLICY.md](../docs/LLM_USAGE_POLICY.md)
+- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 
-## Star History
+## Storico stelle
 
 <a href="https://www.star-history.com/#wesleysimplicio/simplicio-dev-cli&Date">
   <picture>
@@ -94,6 +94,6 @@ delivery loop"]
   </picture>
 </a>
 
-## License
+## Licenza
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](../LICENSE).
