@@ -30,6 +30,13 @@
 
 Преобразует любой репозиторий в AI-readable контекст: project map, precedent index, архитектурный инвентарь, symbol index, call graph и docs.
 
+## ДНК проекта
+
+Эта локализованная страница сохраняет быстрый путь. Полное восстановленное техническое руководство находится в корневом README, чтобы сохранить исходный голос и рабочие детали проекта.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-mapper is the map before the plan. Its value is not only the artifact names; it is the habit it teaches agents: read the repository, preserve shared context, expose architecture, and make future work cheaper. The original guide explained that operational philosophy in detail, so this refresh restores it under the sharper global landing page.
+
 ## Быстрый старт
 
 ```bash
@@ -86,7 +93,6 @@ delivery loop"]
 ## Стандарт документации
 
 - [SIMPLICIO_INTEGRATION.md](../SIMPLICIO_INTEGRATION.md)
-- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 - [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 
 ## История звезд

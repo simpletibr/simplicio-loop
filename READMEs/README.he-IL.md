@@ -30,6 +30,13 @@
 
 ממפה כל ריפוזיטורי להקשר קריא ל-AI: project map, precedent index, מלאי ארכיטקטורה, אינדקס סמלים, call graph ותיעוד.
 
+## DNA הפרויקט
+
+העמוד המקומי שומר על הדרך המהירה. המדריך הטכני המשוחזר נמצא ב-README הראשי כדי לשמור על הקול המקורי ופרטי ההפעלה של הפרויקט.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-mapper is the map before the plan. Its value is not only the artifact names; it is the habit it teaches agents: read the repository, preserve shared context, expose architecture, and make future work cheaper. The original guide explained that operational philosophy in detail, so this refresh restores it under the sharper global landing page.
+
 ## התחלה מהירה
 
 ```bash
@@ -86,7 +93,6 @@ delivery loop"]
 ## תקן התיעוד
 
 - [SIMPLICIO_INTEGRATION.md](../SIMPLICIO_INTEGRATION.md)
-- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 - [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 
 ## היסטוריית כוכבים

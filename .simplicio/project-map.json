@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.project-map/v1",
   "version": 1,
-  "generated_at": "2026-06-01T04:44:25.621Z",
+  "generated_at": "2026-06-01T05:04:21.538Z",
   "update_mode": "incremental",
   "product": {
     "name": "@wesleysimplicio/llm-project-mapper",
@@ -1314,9 +1314,9 @@
     {
       "path": "CHANGELOG.md",
       "language": "markdown",
-      "size_bytes": 23107,
-      "last_modified": "2026-06-01T04:41:41.237Z",
-      "file_hash": "004827c15546d92ff9bb27b69c4ff87bf09838809ca88e8acddc33bd2d293a4c",
+      "size_bytes": 23606,
+      "last_modified": "2026-06-01T05:04:04.192Z",
+      "file_hash": "f2ded81a0d065467fee3c4327f931c721d86550440ab6a3d10790129930a73cd",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -1449,18 +1449,18 @@
       "size_bytes": 5063,
       "last_modified": "2026-06-01T04:41:41.238Z",
       "file_hash": "4421bcfcd02460070422020765474b85927108120ad6ae14789d62f738800fae",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.12
     },
     {
       "path": "README.md",
       "language": "markdown",
-      "size_bytes": 4728,
-      "last_modified": "2026-06-01T04:42:25.430Z",
-      "file_hash": "b8df1141c52d95a5e9f7cb901f1a80c34ccfc9e9d414706e95d4493c9b2abcfa",
+      "size_bytes": 28592,
+      "last_modified": "2026-06-01T05:02:57.176Z",
+      "file_hash": "398828f80b8ede6a538b0d1bdf19a11541604447c55cfde2423377ca59043c88",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -1470,9 +1470,9 @@
     {
       "path": "README.pt-BR.md",
       "language": "markdown",
-      "size_bytes": 4793,
-      "last_modified": "2026-06-01T04:42:25.431Z",
-      "file_hash": "83845ec6d2944e04c9207c8148b4a13c544349cd8f26b64de4215ab6dafec19b",
+      "size_bytes": 27003,
+      "last_modified": "2026-06-01T05:02:57.187Z",
+      "file_hash": "68523e7ad759cce715bab48d31aeed7aea3a93489fdb2ef28a058678c6ab8d58",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -1482,10 +1482,10 @@
     {
       "path": "READMEs/README.ar-SA.md",
       "language": "markdown",
-      "size_bytes": 4956,
-      "last_modified": "2026-06-01T04:42:25.434Z",
-      "file_hash": "6d8a0018eb7f600a060436af3226d9e511106ed1a2bd0dbb56834509d8679900",
-      "git_status": "??",
+      "size_bytes": 5693,
+      "last_modified": "2026-06-01T05:02:02.245Z",
+      "file_hash": "cfddab81362f9200fcf88b3405cf126d992ba83010721301fd86596d0c2ac9a8",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -1494,10 +1494,10 @@
     {
       "path": "READMEs/README.en.md",
       "language": "markdown",
-      "size_bytes": 4634,
-      "last_modified": "2026-06-01T04:42:25.431Z",
-      "file_hash": "f214f15c43582c7c873904049f00e136a89ab59ceeb25680a5342be12a71451d",
-      "git_status": "??",
+      "size_bytes": 5402,
+      "last_modified": "2026-06-01T05:02:02.246Z",
+      "file_hash": "2cb1633e1ddccb7087cf98247ac50ff4bde0fa42b2238e595537a5cd058691e2",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -1506,10 +1506,10 @@
     {
       "path": "READMEs/README.es-ES.md",
       "language": "markdown",
-      "size_bytes": 4660,
-      "last_modified": "2026-06-01T04:42:25.431Z",
-      "file_hash": "8d0132e58f5afd5631ce096b93e58b606a8126a05589814448d5b19cf1a1ea0b",
-      "git_status": "??",
+      "size_bytes": 5316,
+      "last_modified": "2026-06-01T05:02:02.246Z",
+      "file_hash": "475b717d41eceabf84bc3bea12ca46f6568604c933ee373f40b94f5b59f527e0",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -1518,10 +1518,10 @@
     {
       "path": "READMEs/README.fr-FR.md",
       "language": "markdown",
-      "size_bytes": 4742,
-      "last_modified": "2026-06-01T04:42:25.432Z",
-      "file_hash": "ccc7c3eadab07abe89e3ee4a2cdb241fe7cb54fda662d38222cb0e8d383e5a88",
-      "git_status": "??",
+      "size_bytes": 5400,
+      "last_modified": "2026-06-01T05:02:02.246Z",
+      "file_hash": "819478ea1d5053eaa218e3a1f0814602cbc36939581cd550961d740f1938c98d",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -1530,10 +1530,10 @@
     {
       "path": "READMEs/README.he-IL.md",
       "language": "markdown",
-      "size_bytes": 4901,
-      "last_modified": "2026-06-01T04:42:25.434Z",
-      "file_hash": "373a0492d994144ab850df09eb9adea98c09076091fed001b9cd8ec9cefdfa04",
-      "git_status": "??",
+      "size_bytes": 5603,
+      "last_modified": "2026-06-01T05:02:02.247Z",
+      "file_hash": "46ae0bc8825d5967bb117db9baf5b60c0f4bcc9f28bf11e62f8c08af6ea533e0",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -1542,10 +1542,10 @@
     {
       "path": "READMEs/README.hi-IN.md",
       "language": "markdown",
-      "size_bytes": 5178,
-      "last_modified": "2026-06-01T04:42:25.433Z",
-      "file_hash": "bda3602f7a7512cde273ff0bca24c05049f8ea05eaa84f657de09e8875341033",
-      "git_status": "??",
+      "size_bytes": 5890,
+      "last_modified": "2026-06-01T05:02:02.247Z",
+      "file_hash": "889fd818dab21474723842121d7500058b7aee5ad9a53e81a5a4608d2142e1c2",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -1554,10 +1554,10 @@
     {
       "path": "READMEs/README.id-ID.md",
       "language": "markdown",
-      "size_bytes": 4681,
-      "last_modified": "2026-06-01T04:42:25.434Z",
-      "file_hash": "a1882c3c53311e6023e817cc1965f19b5890a21c739e0104e1ed32d9a9317056",
-      "git_status": "??",
+      "size_bytes": 5319,
+      "last_modified": "2026-06-01T05:02:02.247Z",
+      "file_hash": "7121a01c376761d395d7c2520ce786ffd9ae505f654fedb5056c367d7e0e6c15",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -1566,10 +1566,10 @@
     {
       "path": "READMEs/README.it-IT.md",
       "language": "markdown",
-      "size_bytes": 4668,
-      "last_modified": "2026-06-01T04:42:25.432Z",
-      "file_hash": "8c1e4e774776036257c12a085dad112cbd166fa7dd746da0739dc19d50e4e6a6",
-      "git_status": "??",
+      "size_bytes": 5331,
+      "last_modified": "2026-06-01T05:02:02.248Z",
+      "file_hash": "d10ad593a30e2f8c28ccd7dda8c26df875bd47540643b1d1c3e701bb57a328d2",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -1578,10 +1578,10 @@
     {
       "path": "READMEs/README.ja-JP.md",
       "language": "markdown",
-      "size_bytes": 4811,
-      "last_modified": "2026-06-01T04:42:25.432Z",
-      "file_hash": "d40f9d40e1cab4b7a8c2472ec0f0eb0f741be68553764342eedade1937930dda",
-      "git_status": "??",
+      "size_bytes": 5485,
+      "last_modified": "2026-06-01T05:02:02.248Z",
+      "file_hash": "a5fa256b8d8638713bb6c95f8d58f75a472caeeec478dc2d5536188e8eaee8e4",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -1590,10 +1590,10 @@
     {
       "path": "READMEs/README.ko-KR.md",
       "language": "markdown",
-      "size_bytes": 4739,
-      "last_modified": "2026-06-01T04:42:25.432Z",
-      "file_hash": "48826e3932912fa38fc4f560f7288bc0381a74e80b3f2a1dae76a0d40cea8d84",
-      "git_status": "??",
+      "size_bytes": 5422,
+      "last_modified": "2026-06-01T05:02:02.248Z",
+      "file_hash": "42ef75850158888ba2463c39afbc6726f32d062c00a835fb36cd980143a854e9",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -1602,10 +1602,10 @@
     {
       "path": "READMEs/README.ms-MY.md",
       "language": "markdown",
-      "size_bytes": 4684,
-      "last_modified": "2026-06-01T04:42:25.434Z",
-      "file_hash": "d74d1f8085e1edb558486e2552b60fbdf7342ec8d0427f2fcf06f7802fc0c471",
-      "git_status": "??",
+      "size_bytes": 5329,
+      "last_modified": "2026-06-01T05:02:02.248Z",
+      "file_hash": "59363c12f90df17a0b099dd8e784e8234cb97bca1ec7d10a25cba81ec15ca5a6",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -1614,10 +1614,10 @@
     {
       "path": "READMEs/README.pl-PL.md",
       "language": "markdown",
-      "size_bytes": 4636,
-      "last_modified": "2026-06-01T04:42:25.433Z",
-      "file_hash": "7c33f655e84e476d1f7a7c93a6ffeb4632d27fcf3d9aa9a3acf127684d321f73",
-      "git_status": "??",
+      "size_bytes": 5293,
+      "last_modified": "2026-06-01T05:02:02.248Z",
+      "file_hash": "b7a2d4fd1431fcc745a7655258e34459761a3cb7454a2ac1f83e6af422d39407",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -1626,10 +1626,10 @@
     {
       "path": "READMEs/README.pt-BR.md",
       "language": "markdown",
-      "size_bytes": 4699,
-      "last_modified": "2026-06-01T04:42:25.431Z",
-      "file_hash": "1a5226f3e099d06a96f73091909f6aed4b645b9003221c5ba18e45dedf13a872",
-      "git_status": "??",
+      "size_bytes": 5491,
+      "last_modified": "2026-06-01T05:02:02.249Z",
+      "file_hash": "8384752c12ec17edcfa572802a7eacdb3a1a5d0184b75e97c36d6101cf69698a",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -1638,10 +1638,10 @@
     {
       "path": "READMEs/README.ru-RU.md",
       "language": "markdown",
-      "size_bytes": 5077,
-      "last_modified": "2026-06-01T04:42:25.433Z",
-      "file_hash": "5782dcaedb6cb112e963a0a0a99c00ce8ca08aee9f0267274b2d80a526f6f74b",
-      "git_status": "??",
+      "size_bytes": 5901,
+      "last_modified": "2026-06-01T05:02:02.249Z",
+      "file_hash": "c635d38bd1d54c98deb31f40cbdccf334de36e6c3ca3f8a05ccd735689816a0c",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -1650,10 +1650,10 @@
     {
       "path": "READMEs/README.zh-CN.md",
       "language": "markdown",
-      "size_bytes": 4565,
-      "last_modified": "2026-06-01T04:42:25.432Z",
-      "file_hash": "f61dcfb97320f8d4833f5b2f623ed9a780804aab672ce18b586187239361e9f8",
-      "git_status": "??",
+      "size_bytes": 5183,
+      "last_modified": "2026-06-01T05:02:02.249Z",
+      "file_hash": "fc3f5849c6c1ef8bf767b98fc6136e68bf7c3aa8a76caeed305ef7f324be49d5",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
@@ -2689,14 +2689,14 @@
     {
       "path": "docs/readme-globalization-standard.md",
       "language": "markdown",
-      "size_bytes": 3143,
-      "last_modified": "2026-06-01T04:41:41.215Z",
-      "file_hash": "1b4a28160eb2e53cd1395ff3aad6c05bd92b912e5acab86a2eeb7672249dc217",
-      "git_status": "clean",
+      "size_bytes": 3782,
+      "last_modified": "2026-06-01T05:02:02.250Z",
+      "file_hash": "44f72c147d4c95a57c2292a453e59632fc44929113d16471b5cab4cc83c50410",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.12
+      "importance": 0.32
     },
     {
       "path": "docs/sessionstart-hook.md",
@@ -2726,8 +2726,8 @@
       "path": "package-lock.json",
       "language": "json",
       "size_bytes": 2520,
-      "last_modified": "2026-06-01T04:41:41.235Z",
-      "file_hash": "0693bbfa59f0f3396b03fcdfb0b580603f46f36bc10918163585c53786871bde",
+      "last_modified": "2026-06-01T05:04:04.191Z",
+      "file_hash": "f53cc8555234b97fd72562831f0c8784bf9034f6539b88fdeedbc2fa25a2e1d3",
       "git_status": "M",
       "roles": [],
       "imports": [],
@@ -2738,8 +2738,8 @@
       "path": "package.json",
       "language": "json",
       "size_bytes": 2605,
-      "last_modified": "2026-06-01T04:41:41.236Z",
-      "file_hash": "6d1697b011db1af3da167548589bcfa32f97cd606f5300d542f5a4280a81854b",
+      "last_modified": "2026-06-01T05:04:04.191Z",
+      "file_hash": "34acff82ef7118d4a583504e88352070ad20b05dfa1befe3b1e37abd0799c592",
       "git_status": "M",
       "roles": [
         "config"
@@ -2792,8 +2792,8 @@
       "path": "pyproject.toml",
       "language": "toml",
       "size_bytes": 1721,
-      "last_modified": "2026-06-01T04:41:41.236Z",
-      "file_hash": "5ad47edc1128f205ec51f817119f9931a97b3e90844d63b342e148ee0717adf3",
+      "last_modified": "2026-06-01T05:04:04.190Z",
+      "file_hash": "8ac33389d818824c2f7508463b431f10d101b1a3b690b2a1d016a7ee33b59b1e",
       "git_status": "M",
       "roles": [
         "config"
@@ -3121,8 +3121,8 @@
       "path": "simplicio_mapper/__init__.py",
       "language": "python",
       "size_bytes": 140,
-      "last_modified": "2026-06-01T04:41:41.234Z",
-      "file_hash": "d14476468c98fcf291c0e5a3aba3fa890c5b4ea625b60648994acbe64d73643c",
+      "last_modified": "2026-06-01T05:04:04.190Z",
+      "file_hash": "5a9a5ed626d16742efb9a014ba10500620138f3901c3b82fb4feb71574bd2074",
       "git_status": "M",
       "roles": [],
       "imports": [
@@ -5370,10 +5370,6 @@
       "status": "M"
     },
     {
-      "path": "PYPI.md",
-      "status": "M"
-    },
-    {
       "path": "README.md",
       "status": "M"
     },
@@ -5383,67 +5379,67 @@
     },
     {
       "path": "READMEs/README.ar-SA.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "READMEs/README.en.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "READMEs/README.es-ES.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "READMEs/README.fr-FR.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "READMEs/README.he-IL.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "READMEs/README.hi-IN.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "READMEs/README.id-ID.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "READMEs/README.it-IT.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "READMEs/README.ja-JP.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "READMEs/README.ko-KR.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "READMEs/README.ms-MY.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "READMEs/README.pl-PL.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "READMEs/README.pt-BR.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "READMEs/README.ru-RU.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "READMEs/README.zh-CN.md",
-      "status": "??"
+      "status": "M"
     },
     {
       "path": "docs/readme-globalization-standard.md",
-      "status": "modified"
+      "status": "M"
     },
     {
       "path": "package-lock.json",
@@ -5464,7 +5460,6 @@
   ],
   "changed_files": [
     "CHANGELOG.md",
-    "PYPI.md",
     "README.md",
     "README.pt-BR.md",
     "READMEs/README.ar-SA.md",

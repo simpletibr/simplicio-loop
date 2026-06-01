@@ -30,6 +30,13 @@
 
 모든 저장소를 AI가 읽을 수 있는 컨텍스트로 매핑합니다: project map, precedent index, architecture inventory, symbol index, call graph, docs.
 
+## 프로젝트 DNA
+
+이 현지화 문서는 빠른 진입 경로를 유지합니다. 복원된 전체 기술 가이드는 루트 README에 있어 프로젝트의 원래 목소리와 운영 세부 정보를 보존합니다.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-mapper is the map before the plan. Its value is not only the artifact names; it is the habit it teaches agents: read the repository, preserve shared context, expose architecture, and make future work cheaper. The original guide explained that operational philosophy in detail, so this refresh restores it under the sharper global landing page.
+
 ## 빠른 시작
 
 ```bash
@@ -86,7 +93,6 @@ delivery loop"]
 ## 문서 표준
 
 - [SIMPLICIO_INTEGRATION.md](../SIMPLICIO_INTEGRATION.md)
-- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 - [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 
 ## 스타 히스토리

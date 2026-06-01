@@ -31,6 +31,13 @@
 
 Map any repository into AI-readable context: project map, precedent index, architecture inventory, symbol index, call graph, and docs.
 
+## Project DNA
+
+The localized page keeps the fast path. The full restored technical guide lives in the root README so the project keeps its original voice and operating detail.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-mapper is the map before the plan. Its value is not only the artifact names; it is the habit it teaches agents: read the repository, preserve shared context, expose architecture, and make future work cheaper. The original guide explained that operational philosophy in detail, so this refresh restores it under the sharper global landing page.
+
 ## Quick Start
 
 ```bash
@@ -87,7 +94,6 @@ delivery loop"]
 ## Documentation standard
 
 - [SIMPLICIO_INTEGRATION.md](../SIMPLICIO_INTEGRATION.md)
-- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 - [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 
 ## Star History

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3] - 2026-06-01
+
+### Changed
+- Restored the original operational README guide under the new growth-oriented landing page, preserving setup, architecture, video, mapper flags, and endpoint inventory details.
+- Added Project DNA notes across localized READMEs and updated the globalization standard to require additive README refreshes rather than replacing repo-specific substance.
+- Included the richer README in the Python and npm package metadata for the refreshed documentation release.
+
 ## [0.7.2] - 2026-06-01
 
 ### Changed

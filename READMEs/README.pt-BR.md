@@ -88,7 +88,6 @@ delivery loop"]
 
 - [SIMPLICIO_INTEGRATION.md](../SIMPLICIO_INTEGRATION.md)
 - [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
-- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 
 ## Histórico de estrelas
 
@@ -103,3 +102,10 @@ delivery loop"]
 ## Licença
 
 MIT. See [LICENSE](../LICENSE).
+
+## DNA do projeto
+
+Esta pagina localizada preserva o caminho rapido. O guia tecnico restaurado fica no README principal para manter a voz original e os detalhes operacionais do projeto.
+
+- Full restored guide: [../README.pt-BR.md](../README.pt-BR.md)
+- Local project note: simplicio-mapper is the map before the plan. Its value is not only the artifact names; it is the habit it teaches agents: read the repository, preserve shared context, expose architecture, and make future work cheaper. The original guide explained that operational philosophy in detail, so this refresh restores it under the sharper global landing page.

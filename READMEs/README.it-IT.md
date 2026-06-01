@@ -30,6 +30,13 @@
 
 Mappa ogni repository in contesto leggibile dall’AI: project map, precedent index, inventario architetturale, symbol index, call graph e docs.
 
+## DNA del progetto
+
+Questa pagina localizzata mantiene il percorso rapido. La guida tecnica completa restaurata vive nel README principale, cosi il progetto conserva voce e dettagli operativi originali.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-mapper is the map before the plan. Its value is not only the artifact names; it is the habit it teaches agents: read the repository, preserve shared context, expose architecture, and make future work cheaper. The original guide explained that operational philosophy in detail, so this refresh restores it under the sharper global landing page.
+
 ## Avvio rapido
 
 ```bash
@@ -86,7 +93,6 @@ delivery loop"]
 ## Standard di documentazione
 
 - [SIMPLICIO_INTEGRATION.md](../SIMPLICIO_INTEGRATION.md)
-- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 - [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 
 ## Storico stelle

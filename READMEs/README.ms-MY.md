@@ -87,7 +87,6 @@ delivery loop"]
 
 - [SIMPLICIO_INTEGRATION.md](../SIMPLICIO_INTEGRATION.md)
 - [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
-- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 
 ## Sejarah bintang
 
@@ -102,3 +101,10 @@ delivery loop"]
 ## Lesen
 
 MIT. See [LICENSE](../LICENSE).
+
+## DNA projek
+
+Halaman setempat ini mengekalkan laluan pantas. Panduan teknikal penuh yang dipulihkan berada dalam README utama supaya suara asal dan butiran operasi projek kekal hidup.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-mapper is the map before the plan. Its value is not only the artifact names; it is the habit it teaches agents: read the repository, preserve shared context, expose architecture, and make future work cheaper. The original guide explained that operational philosophy in detail, so this refresh restores it under the sharper global landing page.

@@ -30,6 +30,13 @@
 
 Memetakan repo apa pun menjadi konteks yang bisa dibaca AI: project map, precedent index, inventaris arsitektur, indeks simbol, call graph, dan docs.
 
+## DNA proyek
+
+Halaman lokal ini mempertahankan jalur cepat. Panduan teknis lengkap yang dipulihkan ada di README utama agar suara asli dan detail operasional proyek tetap hidup.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-mapper is the map before the plan. Its value is not only the artifact names; it is the habit it teaches agents: read the repository, preserve shared context, expose architecture, and make future work cheaper. The original guide explained that operational philosophy in detail, so this refresh restores it under the sharper global landing page.
+
 ## Mulai cepat
 
 ```bash
@@ -86,7 +93,6 @@ delivery loop"]
 ## Standar dokumentasi
 
 - [SIMPLICIO_INTEGRATION.md](../SIMPLICIO_INTEGRATION.md)
-- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 - [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 
 ## Riwayat bintang

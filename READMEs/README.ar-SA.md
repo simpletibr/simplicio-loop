@@ -30,6 +30,13 @@
 
 يحوّل أي مستودع إلى سياق قابل للقراءة من قبل الذكاء الاصطناعي: project map وprecedent index وجرد معماري وفهرس رموز وcall graph ووثائق.
 
+## DNA المشروع
+
+تحافظ هذه الصفحة المترجمة على المسار السريع. الدليل التقني الكامل المستعاد موجود في README الرئيسي للحفاظ على صوت المشروع وتفاصيله التشغيلية.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-mapper is the map before the plan. Its value is not only the artifact names; it is the habit it teaches agents: read the repository, preserve shared context, expose architecture, and make future work cheaper. The original guide explained that operational philosophy in detail, so this refresh restores it under the sharper global landing page.
+
 ## البدء السريع
 
 ```bash
@@ -86,7 +93,6 @@ delivery loop"]
 ## معيار التوثيق
 
 - [SIMPLICIO_INTEGRATION.md](../SIMPLICIO_INTEGRATION.md)
-- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 - [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 
 ## تاريخ النجوم

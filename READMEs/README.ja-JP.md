@@ -30,6 +30,13 @@
 
 あらゆるリポジトリを AI が読める文脈へ変換します: project map、precedent index、設計インベントリ、symbol index、call graph、docs。
 
+## プロジェクトのDNA
+
+このローカライズ版は最短導線を保ちます。復元された詳細ガイドはルート README にあり、プロジェクト本来の声と運用情報を残します。
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-mapper is the map before the plan. Its value is not only the artifact names; it is the habit it teaches agents: read the repository, preserve shared context, expose architecture, and make future work cheaper. The original guide explained that operational philosophy in detail, so this refresh restores it under the sharper global landing page.
+
 ## クイックスタート
 
 ```bash
@@ -86,7 +93,6 @@ delivery loop"]
 ## ドキュメント標準
 
 - [SIMPLICIO_INTEGRATION.md](../SIMPLICIO_INTEGRATION.md)
-- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 - [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 
 ## スター履歴

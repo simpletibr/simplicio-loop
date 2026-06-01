@@ -30,6 +30,13 @@
 
 किसी भी repository को AI-readable context में map करता है: project map, precedent index, architecture inventory, symbol index, call graph और docs.
 
+## प्रोजेक्ट DNA
+
+यह localized पेज fast path रखता है। पूरा restored technical guide root README में है ताकि project की original voice और operating detail बनी रहे।
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-mapper is the map before the plan. Its value is not only the artifact names; it is the habit it teaches agents: read the repository, preserve shared context, expose architecture, and make future work cheaper. The original guide explained that operational philosophy in detail, so this refresh restores it under the sharper global landing page.
+
 ## त्वरित शुरुआत
 
 ```bash
@@ -86,7 +93,6 @@ delivery loop"]
 ## दस्तावेज़ मानक
 
 - [SIMPLICIO_INTEGRATION.md](../SIMPLICIO_INTEGRATION.md)
-- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 - [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 
 ## स्टार इतिहास
