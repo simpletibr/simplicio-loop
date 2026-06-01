@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.project-map/v1",
   "version": 1,
-  "generated_at": "2026-06-01T02:58:02.912Z",
+  "generated_at": "2026-06-01T04:44:25.621Z",
   "update_mode": "incremental",
   "product": {
     "name": "@wesleysimplicio/llm-project-mapper",
@@ -1314,14 +1314,14 @@
     {
       "path": "CHANGELOG.md",
       "language": "markdown",
-      "size_bytes": 22730,
-      "last_modified": "2026-06-01T01:45:51.517Z",
-      "file_hash": "dfac1a8509e07098ff54a210712e5cb76e9555df43d9d5ffe2feabf1151c47b0",
-      "git_status": "clean",
+      "size_bytes": 23107,
+      "last_modified": "2026-06-01T04:41:41.237Z",
+      "file_hash": "004827c15546d92ff9bb27b69c4ff87bf09838809ca88e8acddc33bd2d293a4c",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.12
+      "importance": 0.32
     },
     {
       "path": "CLAUDE.md",
@@ -1446,38 +1446,218 @@
     {
       "path": "PYPI.md",
       "language": "markdown",
-      "size_bytes": 4835,
-      "last_modified": "2026-06-01T01:46:14.748Z",
-      "file_hash": "08bdbe872c39f382e74ce7d7216e36ff818ebb3b48cae67dda160c52b096d131",
-      "git_status": "clean",
+      "size_bytes": 5063,
+      "last_modified": "2026-06-01T04:41:41.238Z",
+      "file_hash": "4421bcfcd02460070422020765474b85927108120ad6ae14789d62f738800fae",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.12
+      "importance": 0.32
     },
     {
       "path": "README.md",
       "language": "markdown",
-      "size_bytes": 22853,
-      "last_modified": "2026-06-01T01:48:05.949Z",
-      "file_hash": "1a3f4bd42d268008a339df1bef19442f56aa2c1802f46194fdd1f17a1111b978",
-      "git_status": "clean",
+      "size_bytes": 4728,
+      "last_modified": "2026-06-01T04:42:25.430Z",
+      "file_hash": "b8df1141c52d95a5e9f7cb901f1a80c34ccfc9e9d414706e95d4493c9b2abcfa",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.12
+      "importance": 0.32
     },
     {
       "path": "README.pt-BR.md",
       "language": "markdown",
-      "size_bytes": 21212,
-      "last_modified": "2026-06-01T01:46:14.747Z",
-      "file_hash": "35d9ff4c4e9361f4c30e17a29ba37a66301172e056b7fc23304e9c4e2393da66",
-      "git_status": "clean",
+      "size_bytes": 4793,
+      "last_modified": "2026-06-01T04:42:25.431Z",
+      "file_hash": "83845ec6d2944e04c9207c8148b4a13c544349cd8f26b64de4215ab6dafec19b",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.12
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.ar-SA.md",
+      "language": "markdown",
+      "size_bytes": 4956,
+      "last_modified": "2026-06-01T04:42:25.434Z",
+      "file_hash": "6d8a0018eb7f600a060436af3226d9e511106ed1a2bd0dbb56834509d8679900",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.en.md",
+      "language": "markdown",
+      "size_bytes": 4634,
+      "last_modified": "2026-06-01T04:42:25.431Z",
+      "file_hash": "f214f15c43582c7c873904049f00e136a89ab59ceeb25680a5342be12a71451d",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.es-ES.md",
+      "language": "markdown",
+      "size_bytes": 4660,
+      "last_modified": "2026-06-01T04:42:25.431Z",
+      "file_hash": "8d0132e58f5afd5631ce096b93e58b606a8126a05589814448d5b19cf1a1ea0b",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.fr-FR.md",
+      "language": "markdown",
+      "size_bytes": 4742,
+      "last_modified": "2026-06-01T04:42:25.432Z",
+      "file_hash": "ccc7c3eadab07abe89e3ee4a2cdb241fe7cb54fda662d38222cb0e8d383e5a88",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.he-IL.md",
+      "language": "markdown",
+      "size_bytes": 4901,
+      "last_modified": "2026-06-01T04:42:25.434Z",
+      "file_hash": "373a0492d994144ab850df09eb9adea98c09076091fed001b9cd8ec9cefdfa04",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.hi-IN.md",
+      "language": "markdown",
+      "size_bytes": 5178,
+      "last_modified": "2026-06-01T04:42:25.433Z",
+      "file_hash": "bda3602f7a7512cde273ff0bca24c05049f8ea05eaa84f657de09e8875341033",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.id-ID.md",
+      "language": "markdown",
+      "size_bytes": 4681,
+      "last_modified": "2026-06-01T04:42:25.434Z",
+      "file_hash": "a1882c3c53311e6023e817cc1965f19b5890a21c739e0104e1ed32d9a9317056",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.it-IT.md",
+      "language": "markdown",
+      "size_bytes": 4668,
+      "last_modified": "2026-06-01T04:42:25.432Z",
+      "file_hash": "8c1e4e774776036257c12a085dad112cbd166fa7dd746da0739dc19d50e4e6a6",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.ja-JP.md",
+      "language": "markdown",
+      "size_bytes": 4811,
+      "last_modified": "2026-06-01T04:42:25.432Z",
+      "file_hash": "d40f9d40e1cab4b7a8c2472ec0f0eb0f741be68553764342eedade1937930dda",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.ko-KR.md",
+      "language": "markdown",
+      "size_bytes": 4739,
+      "last_modified": "2026-06-01T04:42:25.432Z",
+      "file_hash": "48826e3932912fa38fc4f560f7288bc0381a74e80b3f2a1dae76a0d40cea8d84",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.ms-MY.md",
+      "language": "markdown",
+      "size_bytes": 4684,
+      "last_modified": "2026-06-01T04:42:25.434Z",
+      "file_hash": "d74d1f8085e1edb558486e2552b60fbdf7342ec8d0427f2fcf06f7802fc0c471",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.pl-PL.md",
+      "language": "markdown",
+      "size_bytes": 4636,
+      "last_modified": "2026-06-01T04:42:25.433Z",
+      "file_hash": "7c33f655e84e476d1f7a7c93a6ffeb4632d27fcf3d9aa9a3acf127684d321f73",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.pt-BR.md",
+      "language": "markdown",
+      "size_bytes": 4699,
+      "last_modified": "2026-06-01T04:42:25.431Z",
+      "file_hash": "1a5226f3e099d06a96f73091909f6aed4b645b9003221c5ba18e45dedf13a872",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.ru-RU.md",
+      "language": "markdown",
+      "size_bytes": 5077,
+      "last_modified": "2026-06-01T04:42:25.433Z",
+      "file_hash": "5782dcaedb6cb112e963a0a0a99c00ce8ca08aee9f0267274b2d80a526f6f74b",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
+    },
+    {
+      "path": "READMEs/README.zh-CN.md",
+      "language": "markdown",
+      "size_bytes": 4565,
+      "last_modified": "2026-06-01T04:42:25.432Z",
+      "file_hash": "f61dcfb97320f8d4833f5b2f623ed9a780804aab672ce18b586187239361e9f8",
+      "git_status": "??",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.32
     },
     {
       "path": "SHOWCASE.md",
@@ -1853,589 +2033,6 @@
         "snapshot"
       ],
       "importance": 0.2
-    },
-    {
-      "path": "docs-site/.docusaurus/@easyops-cn/docusaurus-search-local/default/__plugin.json",
-      "language": "json",
-      "size_bytes": 70,
-      "last_modified": "2026-06-01T01:50:31.367Z",
-      "file_hash": "877b725b95a81c8448eccef33d7f80f123600bc4c1047d0ee4f4ac9335c92d75",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/@easyops-cn/docusaurus-search-local/default/generated-constants.js",
-      "language": "javascript",
-      "size_bytes": 330,
-      "last_modified": "2026-06-01T01:50:31.352Z",
-      "file_hash": "fa6e7c56b3cabbc363a4552c4f3a66d0f63e6ae99e5207f1bff312b13bf7d4eb",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [
-        "/Users/wesleysimplicio/Projetos/ai/simplicio-mapper/docs-site/node_modules/lunr/lunr.js"
-      ],
-      "exports": [
-        "fuzzyMatchingDistance",
-        "language",
-        "removeDefaultStopWordFilter",
-        "searchIndexUrl",
-        "searchResultLimits"
-      ],
-      "importance": 0.28
-    },
-    {
-      "path": "docs-site/.docusaurus/@easyops-cn/docusaurus-search-local/default/generated.js",
-      "language": "javascript",
-      "size_bytes": 603,
-      "last_modified": "2026-06-01T01:50:31.351Z",
-      "file_hash": "831ef74c9f57ba2f8e759a3a3aab36b82a97f329d3f36bb4ff278cad931c816b",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [
-        "Mark",
-        "askAi",
-        "docsPluginIdForPreferredVersion",
-        "explicitSearchResultPath",
-        "hideSearchBarWithNoSearchContext",
-        "indexDocs",
-        "removeDefaultStemmer",
-        "searchBarPosition",
-        "searchBarShortcut",
-        "searchBarShortcutHint",
-        "searchBarShortcutKeymap",
-        "searchContextByPaths",
-        "searchResultContextMaxLength",
-        "useAllContextsWithNoSearchContext"
-      ],
-      "importance": 0.2
-    },
-    {
-      "path": "docs-site/.docusaurus/DONT-EDIT-THIS-FOLDER",
-      "language": "text",
-      "size_bytes": 260,
-      "last_modified": "2026-06-01T01:50:31.556Z",
-      "file_hash": "d06e93133c9a3abf2e331df2886028788a5639258b38348d6d31c27e19a3cf44",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/client-manifest.json",
-      "language": "json",
-      "size_bytes": 26548,
-      "last_modified": "2026-06-01T01:50:34.651Z",
-      "file_hash": "64d4a9885292a7c6016fe42390727ce4293b40852e0262f9478dae316c537bfc",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/client-modules.js",
-      "language": "javascript",
-      "size_bytes": 512,
-      "last_modified": "2026-06-01T01:50:31.556Z",
-      "file_hash": "ec9bb2737a373197a2a1aa96a4752ef062d7b24d1b05891af3d842e6cf4182d8",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [
-        "/Users/wesleysimplicio/Projetos/ai/simplicio-mapper/docs-site/node_modules/@docusaurus/theme-classic/lib/nprogress",
-        "/Users/wesleysimplicio/Projetos/ai/simplicio-mapper/docs-site/node_modules/@docusaurus/theme-classic/lib/prism-include-languages",
-        "/Users/wesleysimplicio/Projetos/ai/simplicio-mapper/docs-site/node_modules/infima/dist/css/default/default.css",
-        "/Users/wesleysimplicio/Projetos/ai/simplicio-mapper/docs-site/src/css/custom.css"
-      ],
-      "exports": [],
-      "importance": 0.2
-    },
-    {
-      "path": "docs-site/.docusaurus/codeTranslations.json",
-      "language": "json",
-      "size_bytes": 2,
-      "last_modified": "2026-06-01T01:50:31.556Z",
-      "file_hash": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/__mdx-loader-dependency.json",
-      "language": "json",
-      "size_bytes": 1966,
-      "last_modified": "2026-06-01T01:50:31.354Z",
-      "file_hash": "0d8c4a006de62aad8dfad9d24e26e3ea965a3a5b22b4b1aab8bb1c1057524e2d",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/__plugin.json",
-      "language": "json",
-      "size_bytes": 65,
-      "last_modified": "2026-06-01T01:50:31.544Z",
-      "file_hash": "e6d1041296db2ea13370464a727710c96a189e8d69f6a095e93947c1a3fbd1f3",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/p/llm-project-mapper-510.json",
-      "language": "json",
-      "size_bytes": 4281,
-      "last_modified": "2026-06-01T01:50:31.556Z",
-      "file_hash": "75de2b5cf13c00deee68cc2122c6d72c72af5a5b497fd4401bedf55142a84ca8",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/p/llm-project-mapper-next-c8b.json",
-      "language": "json",
-      "size_bytes": 4690,
-      "last_modified": "2026-06-01T01:50:31.556Z",
-      "file_hash": "db0157f169716c228fb049dd86016cfeef4e2a4a4092c0c2215b36729fc9dd9d",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-community-contributing-md-61c.json",
-      "language": "json",
-      "size_bytes": 867,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "db605f5a06662991227369f6a28ef6630751998781764d3568944070aa2ab86f",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-community-showcase-md-961.json",
-      "language": "json",
-      "size_bytes": 875,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "bb71208a9545aa200a235f967d757a94b13838284bcf4d12886a3bc16709d836",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-architecture-map-md-ef4.json",
-      "language": "json",
-      "size_bytes": 962,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "3900e58aaf4c72c839e3fa750e51ee5160ca82a4a55d0d728b667baca1740dea",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-domain-map-md-567.json",
-      "language": "json",
-      "size_bytes": 917,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "f283107484e055a995149feade334a0639bb35ceaffd553e473afd3adc39644a",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-skills-and-agents-md-bc6.json",
-      "language": "json",
-      "size_bytes": 981,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "2287b2ae96ac93be2f601cec232ef6b9c8c343f2f7d6407e86ea08cd4a92b323",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-yool-tuple-hamt-md-87c.json",
-      "language": "json",
-      "size_bytes": 933,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "a328241d690c1cde030a92da7daa49a28c3dea72726688735fa61ba5c8b35a71",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-guide-private-overlay-md-cf2.json",
-      "language": "json",
-      "size_bytes": 966,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "c5f66756f8b31ffc155a9300288bf5292aeaf9459d1d42cd7f8c59db7e31371a",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-intro-md-0e3.json",
-      "language": "json",
-      "size_bytes": 617,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "a55b13bd99b12ee4ac675d3dc7eea4d2f373c492ba55d751e07a02c88ddd6724",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-quickstart-get-going-md-c36.json",
-      "language": "json",
-      "size_bytes": 802,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "5a1af7049e2c6cfa959f5ee46496305a86265ca1c351da101713d9c3fbb09fb1",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-reference-cli-flags-md-028.json",
-      "language": "json",
-      "size_bytes": 869,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "3f3231ca82f1da9d006e6b4563de5b9b7c4eb9e3fe9903d802c23528012cc77a",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-reference-init-handoff-md-b54.json",
-      "language": "json",
-      "size_bytes": 915,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "ba17097f147b21784c7b085c52b25680a7b612142c75d62c52eba12e623b56e6",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-reference-session-start-hook-md-8e9.json",
-      "language": "json",
-      "size_bytes": 935,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "b75e5a7c02835466db02c4d3c061e7675e79705d9eddae6565a4498f70e3511b",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-community-contributing-md-eca.json",
-      "language": "json",
-      "size_bytes": 879,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "cf0b4e2a4295f7936478f29bcb5eea6d2b3ecf564a44816413d69b0338cc4d9a",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-community-showcase-md-e96.json",
-      "language": "json",
-      "size_bytes": 882,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "607e966030942e1e241ad2df2cf13b41a0a26df56fb354aafb7cb19cbf607104",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-concepts-architecture-map-md-fb1.json",
-      "language": "json",
-      "size_bytes": 969,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "c504fe80224e4c6cea41b6f41fb7d5013ebdb138a6fe258d6e4c4e3bd062a683",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-concepts-domain-map-md-82a.json",
-      "language": "json",
-      "size_bytes": 918,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "e60c93282dbd545875d636565eb914eaeadd934d72b6b3537fbc33939fcd37de",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-concepts-skills-and-agents-md-638.json",
-      "language": "json",
-      "size_bytes": 988,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "1d566cc17979fd84a8b4e9bb588425ffff0887adc19ab3467674dbfe2c8bf6e3",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-guide-private-overlay-md-098.json",
-      "language": "json",
-      "size_bytes": 973,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "d32104b0446a4327d6d6e6dee9e995b0024b930b4ce8c2dec70e1cb5c61e8a72",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-intro-md-b75.json",
-      "language": "json",
-      "size_bytes": 622,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "b898518abe95644b34dd0524586f7b09b64a0c7e269d1398ab56cc6f5dbdec8c",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-quickstart-get-going-md-44b.json",
-      "language": "json",
-      "size_bytes": 814,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "f7420d3948f45d2bbd2f74db4f09856f116847f78276437b40174cb3107d8e60",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-reference-cli-flags-md-575.json",
-      "language": "json",
-      "size_bytes": 880,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "23d1bdbc5907f7c3c8e3ab2a29c313a254f96992cef8dd378afb05224e0b1375",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-reference-init-handoff-md-69b.json",
-      "language": "json",
-      "size_bytes": 922,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "7eff8b6ee4a81a48069e1b00ee8b93030f8e2d5119927fabcf9118fd9eff7deb",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-reference-session-start-hook-md-40c.json",
-      "language": "json",
-      "size_bytes": 942,
-      "last_modified": "2026-06-01T01:50:31.549Z",
-      "file_hash": "5d1e8766fd7b1eb7ad13d570f950a49ef95e67f388f206ae4f90e838deeca4ee",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-pages/default/__plugin.json",
-      "language": "json",
-      "size_bytes": 66,
-      "last_modified": "2026-06-01T01:50:31.428Z",
-      "file_hash": "03245f8af45eab1cc97fc58af245b493622af2f2691b1ccf6746dd37c4abc836",
-      "git_status": "clean",
-      "roles": [
-        "route"
-      ],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-pages/default/site-src-pages-index-mdx-e7c.json",
-      "language": "json",
-      "size_bytes": 393,
-      "last_modified": "2026-06-01T01:50:31.526Z",
-      "file_hash": "69ae3a953936d9a177cd42a7c5da9a78147e3697474dcf0f333f26a7d95c998a",
-      "git_status": "clean",
-      "roles": [
-        "route"
-      ],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-pages/default/site-src-pages-yool-tuple-hamt-mdx-158.json",
-      "language": "json",
-      "size_bytes": 358,
-      "last_modified": "2026-06-01T01:50:31.526Z",
-      "file_hash": "b92cc37131d7a9b3cb4fdbd3948bb4e641aba3be0067df7e5d0c74210372a6e8",
-      "git_status": "clean",
-      "roles": [
-        "route"
-      ],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus.config.mjs",
-      "language": "javascript",
-      "size_bytes": 9423,
-      "last_modified": "2026-06-01T01:50:31.556Z",
-      "file_hash": "4a25316972f9623de2956f8edeeaeaabd47cf853747a8b2adc321ec006203709",
-      "git_status": "clean",
-      "roles": [
-        "config"
-      ],
-      "imports": [],
-      "exports": [],
-      "importance": 0.32
-    },
-    {
-      "path": "docs-site/.docusaurus/globalData.json",
-      "language": "json",
-      "size_bytes": 5292,
-      "last_modified": "2026-06-01T01:50:31.556Z",
-      "file_hash": "5a7934ebe6d16b1722db0a87d5505301246aa137575073b9242b0fa3cef47945",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/i18n.json",
-      "language": "json",
-      "size_bytes": 384,
-      "last_modified": "2026-06-01T01:50:31.556Z",
-      "file_hash": "a7f5c83fa9e4b1c11c1c5c2d84650105b6f60b6d33441c327fbe970f0bdbfbc0",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/registry.js",
-      "language": "javascript",
-      "size_bytes": 8266,
-      "last_modified": "2026-06-01T01:50:31.559Z",
-      "file_hash": "b3412f7e327745da771d6969bfc5ff845e757736d5a3efb7e5cb68482bc638b9",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/routes.js",
-      "language": "javascript",
-      "size_bytes": 7539,
-      "last_modified": "2026-06-01T01:50:31.559Z",
-      "file_hash": "681c5a71ec782336afdafda19c8096472fc07d39d17317315dd21822de9a25f1",
-      "git_status": "clean",
-      "roles": [
-        "route"
-      ],
-      "imports": [
-        "@docusaurus/ComponentCreator",
-        "react"
-      ],
-      "exports": [],
-      "importance": 0.2
-    },
-    {
-      "path": "docs-site/.docusaurus/routesChunkNames.json",
-      "language": "json",
-      "size_bytes": 3413,
-      "last_modified": "2026-06-01T01:50:31.559Z",
-      "file_hash": "d941369f8e21b7582c7fb81fe6b372ff36f69e70d7e036f8d7b491fee16325b0",
-      "git_status": "clean",
-      "roles": [
-        "route"
-      ],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/site-metadata.json",
-      "language": "json",
-      "size_bytes": 1077,
-      "last_modified": "2026-06-01T01:50:31.556Z",
-      "file_hash": "5db203714211eab0aa83ff1d8bbcffa9a99b9c5afaf248470d7e7bdc1ea00b56",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
-    },
-    {
-      "path": "docs-site/.docusaurus/site-storage.json",
-      "language": "json",
-      "size_bytes": 47,
-      "last_modified": "2026-06-01T01:50:31.556Z",
-      "file_hash": "77db76c27c52f49198304453b9aebc2d349be06e34ea9948e22a2cc896b10ba8",
-      "git_status": "clean",
-      "roles": [],
-      "imports": [],
-      "exports": [],
-      "importance": 0.12
     },
     {
       "path": "docs-site/README.md",
@@ -3090,6 +2687,18 @@
       "importance": 0.12
     },
     {
+      "path": "docs/readme-globalization-standard.md",
+      "language": "markdown",
+      "size_bytes": 3143,
+      "last_modified": "2026-06-01T04:41:41.215Z",
+      "file_hash": "1b4a28160eb2e53cd1395ff3aad6c05bd92b912e5acab86a2eeb7672249dc217",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
       "path": "docs/sessionstart-hook.md",
       "language": "markdown",
       "size_bytes": 3889,
@@ -3117,27 +2726,27 @@
       "path": "package-lock.json",
       "language": "json",
       "size_bytes": 2520,
-      "last_modified": "2026-06-01T01:45:22.308Z",
-      "file_hash": "10d67434a558dfd4417affa9263dc659d5bf4e3c507f657bff9f09fee1a815ab",
-      "git_status": "clean",
+      "last_modified": "2026-06-01T04:41:41.235Z",
+      "file_hash": "0693bbfa59f0f3396b03fcdfb0b580603f46f36bc10918163585c53786871bde",
+      "git_status": "M",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.12
+      "importance": 0.32
     },
     {
       "path": "package.json",
       "language": "json",
-      "size_bytes": 2589,
-      "last_modified": "2026-06-01T01:45:22.307Z",
-      "file_hash": "a121f3e991787324bd9a7a5d3374fa0fdef71699809ec8ecbe7f8e5b00a034b4",
-      "git_status": "clean",
+      "size_bytes": 2605,
+      "last_modified": "2026-06-01T04:41:41.236Z",
+      "file_hash": "6d1697b011db1af3da167548589bcfa32f97cd606f5300d542f5a4280a81854b",
+      "git_status": "M",
       "roles": [
         "config"
       ],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.52
     },
     {
       "path": "playwright.config.ts",
@@ -3182,16 +2791,16 @@
     {
       "path": "pyproject.toml",
       "language": "toml",
-      "size_bytes": 1665,
-      "last_modified": "2026-06-01T01:45:51.516Z",
-      "file_hash": "0957620987fce844fc3d566d6ef8e5d3383f54c63d63648835b552c7183f2276",
-      "git_status": "clean",
+      "size_bytes": 1721,
+      "last_modified": "2026-06-01T04:41:41.236Z",
+      "file_hash": "5ad47edc1128f205ec51f817119f9931a97b3e90844d63b342e148ee0717adf3",
+      "git_status": "M",
       "roles": [
         "config"
       ],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.52
     },
     {
       "path": "rust/Cargo.toml",
@@ -3512,15 +3121,15 @@
       "path": "simplicio_mapper/__init__.py",
       "language": "python",
       "size_bytes": 140,
-      "last_modified": "2026-06-01T01:45:51.516Z",
-      "file_hash": "5ae57045295feef1abd8611ed2b141d79ee30185c15c5c261e98dee3537515ca",
-      "git_status": "clean",
+      "last_modified": "2026-06-01T04:41:41.234Z",
+      "file_hash": "d14476468c98fcf291c0e5a3aba3fa890c5b4ea625b60648994acbe64d73643c",
+      "git_status": "M",
       "roles": [],
       "imports": [
         "__future__"
       ],
       "exports": [],
-      "importance": 0.2
+      "importance": 0.4
     },
     {
       "path": "simplicio_mapper/_native.py",
@@ -5216,7 +4825,6 @@
   ],
   "config_files": [
     ".codex/config.toml",
-    "docs-site/.docusaurus/docusaurus.config.mjs",
     "docs-site/docusaurus.config.cjs",
     "docs-site/package.json",
     "package.json",
@@ -5386,6 +4994,28 @@
       "file_count": 16
     },
     {
+      "name": "READMEs",
+      "files": [
+        "READMEs/README.ar-SA.md",
+        "READMEs/README.en.md",
+        "READMEs/README.es-ES.md",
+        "READMEs/README.fr-FR.md",
+        "READMEs/README.he-IL.md",
+        "READMEs/README.hi-IN.md",
+        "READMEs/README.id-ID.md",
+        "READMEs/README.it-IT.md",
+        "READMEs/README.ja-JP.md",
+        "READMEs/README.ko-KR.md",
+        "READMEs/README.ms-MY.md",
+        "READMEs/README.pl-PL.md",
+        "READMEs/README.pt-BR.md",
+        "READMEs/README.ru-RU.md",
+        "READMEs/README.zh-CN.md"
+      ],
+      "roles": [],
+      "file_count": 15
+    },
+    {
       "name": "bin",
       "files": [
         "bin/auto-map.js",
@@ -5417,43 +5047,43 @@
         "docs/features/login.md",
         "docs/local-setup.md",
         "docs/placeholders.md",
+        "docs/readme-globalization-standard.md",
         "docs/sessionstart-hook.md",
         "docs/troubleshooting.md"
       ],
       "roles": [
         "entrypoint"
       ],
-      "file_count": 15
+      "file_count": 16
     },
     {
       "name": "docs-site",
       "files": [
-        "docs-site/.docusaurus/@easyops-cn/docusaurus-search-local/default/__plugin.json",
-        "docs-site/.docusaurus/@easyops-cn/docusaurus-search-local/default/generated-constants.js",
-        "docs-site/.docusaurus/@easyops-cn/docusaurus-search-local/default/generated.js",
-        "docs-site/.docusaurus/DONT-EDIT-THIS-FOLDER",
-        "docs-site/.docusaurus/client-manifest.json",
-        "docs-site/.docusaurus/client-modules.js",
-        "docs-site/.docusaurus/codeTranslations.json",
-        "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/__mdx-loader-dependency.json",
-        "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/__plugin.json",
-        "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/p/llm-project-mapper-510.json",
-        "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/p/llm-project-mapper-next-c8b.json",
-        "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-community-contributing-md-61c.json",
-        "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-community-showcase-md-961.json",
-        "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-architecture-map-md-ef4.json",
-        "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-domain-map-md-567.json",
-        "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-skills-and-agents-md-bc6.json",
-        "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-yool-tuple-hamt-md-87c.json",
-        "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-guide-private-overlay-md-cf2.json",
-        "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-intro-md-0e3.json",
-        "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-quickstart-get-going-md-c36.json"
+        "docs-site/README.md",
+        "docs-site/docs/community/_category_.json",
+        "docs-site/docs/community/contributing.md",
+        "docs-site/docs/community/showcase.md",
+        "docs-site/docs/concepts/_category_.json",
+        "docs-site/docs/concepts/architecture-map.md",
+        "docs-site/docs/concepts/domain-map.md",
+        "docs-site/docs/concepts/skills-and-agents.md",
+        "docs-site/docs/concepts/yool-tuple-hamt.md",
+        "docs-site/docs/guide/_category_.json",
+        "docs-site/docs/guide/private-overlay.md",
+        "docs-site/docs/intro.md",
+        "docs-site/docs/quickstart/_category_.json",
+        "docs-site/docs/quickstart/get-going.md",
+        "docs-site/docs/reference/_category_.json",
+        "docs-site/docs/reference/cli-flags.md",
+        "docs-site/docs/reference/init-handoff.md",
+        "docs-site/docs/reference/session-start-hook.md",
+        "docs-site/docusaurus.config.cjs",
+        "docs-site/package.json"
       ],
       "roles": [
-        "config",
-        "route"
+        "config"
       ],
-      "file_count": 84
+      "file_count": 39
     },
     {
       "name": "presentation",
@@ -5603,12 +5233,12 @@
       "score": 44
     },
     {
-      "name": "for",
-      "score": 40
-    },
-    {
       "name": "skill",
       "score": 39
+    },
+    {
+      "name": "for",
+      "score": 38
     },
     {
       "name": "read",
@@ -5631,27 +5261,19 @@
       "score": 36
     },
     {
-      "name": "docs",
+      "name": "readme",
       "score": 33
-    },
-    {
-      "name": "cli",
-      "score": 30
-    },
-    {
-      "name": "map",
-      "score": 30
     },
     {
       "name": "parse",
       "score": 30
     },
     {
-      "name": "site",
-      "score": 30
+      "name": "artifacts",
+      "score": 28
     },
     {
-      "name": "artifacts",
+      "name": "cli",
       "score": 28
     },
     {
@@ -5663,19 +5285,15 @@
       "score": 26
     },
     {
+      "name": "map",
+      "score": 26
+    },
+    {
       "name": "list",
       "score": 25
     },
     {
       "name": "collect",
-      "score": 24
-    },
-    {
-      "name": "path",
-      "score": 24
-    },
-    {
-      "name": "search",
       "score": 24
     },
     {
@@ -5687,16 +5305,16 @@
       "score": 22
     },
     {
-      "name": "init",
+      "name": "path",
       "score": 22
+    },
+    {
+      "name": "init",
+      "score": 20
     },
     {
       "name": "safe",
       "score": 20
-    },
-    {
-      "name": "architecture",
-      "score": 19
     },
     {
       "name": "catalog",
@@ -5707,12 +5325,24 @@
       "score": 18
     },
     {
-      "name": "readme",
+      "name": "architecture",
       "score": 17
     },
     {
-      "name": "get",
+      "name": "status",
       "score": 16
+    },
+    {
+      "name": "agent",
+      "score": 15
+    },
+    {
+      "name": "why",
+      "score": 15
+    },
+    {
+      "name": "extract",
+      "score": 14
     }
   ],
   "architecture": {
@@ -5736,232 +5366,127 @@
   },
   "recent_changes": [
     {
-      "path": "docs-site/.docusaurus/@easyops-cn/docusaurus-search-local/default/__plugin.json",
+      "path": "CHANGELOG.md",
+      "status": "M"
+    },
+    {
+      "path": "PYPI.md",
+      "status": "M"
+    },
+    {
+      "path": "README.md",
+      "status": "M"
+    },
+    {
+      "path": "README.pt-BR.md",
+      "status": "M"
+    },
+    {
+      "path": "READMEs/README.ar-SA.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.en.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.es-ES.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.fr-FR.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.he-IL.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.hi-IN.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.id-ID.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.it-IT.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.ja-JP.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.ko-KR.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.ms-MY.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.pl-PL.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.pt-BR.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.ru-RU.md",
+      "status": "??"
+    },
+    {
+      "path": "READMEs/README.zh-CN.md",
+      "status": "??"
+    },
+    {
+      "path": "docs/readme-globalization-standard.md",
       "status": "modified"
     },
     {
-      "path": "docs-site/.docusaurus/@easyops-cn/docusaurus-search-local/default/generated-constants.js",
-      "status": "modified"
+      "path": "package-lock.json",
+      "status": "M"
     },
     {
-      "path": "docs-site/.docusaurus/@easyops-cn/docusaurus-search-local/default/generated.js",
-      "status": "modified"
+      "path": "package.json",
+      "status": "M"
     },
     {
-      "path": "docs-site/.docusaurus/DONT-EDIT-THIS-FOLDER",
-      "status": "modified"
+      "path": "pyproject.toml",
+      "status": "M"
     },
     {
-      "path": "docs-site/.docusaurus/client-manifest.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/client-modules.js",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/codeTranslations.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/__mdx-loader-dependency.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/__plugin.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/p/llm-project-mapper-510.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/p/llm-project-mapper-next-c8b.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-community-contributing-md-61c.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-community-showcase-md-961.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-architecture-map-md-ef4.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-domain-map-md-567.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-skills-and-agents-md-bc6.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-yool-tuple-hamt-md-87c.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-guide-private-overlay-md-cf2.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-intro-md-0e3.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-quickstart-get-going-md-c36.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-reference-cli-flags-md-028.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-reference-init-handoff-md-b54.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-reference-session-start-hook-md-8e9.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-community-contributing-md-eca.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-community-showcase-md-e96.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-concepts-architecture-map-md-fb1.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-concepts-domain-map-md-82a.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-concepts-skills-and-agents-md-638.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-guide-private-overlay-md-098.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-intro-md-b75.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-quickstart-get-going-md-44b.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-reference-cli-flags-md-575.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-reference-init-handoff-md-69b.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-reference-session-start-hook-md-40c.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-pages/default/__plugin.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-pages/default/site-src-pages-index-mdx-e7c.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus-plugin-content-pages/default/site-src-pages-yool-tuple-hamt-mdx-158.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/docusaurus.config.mjs",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/globalData.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/i18n.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/registry.js",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/routes.js",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/routesChunkNames.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/site-metadata.json",
-      "status": "modified"
-    },
-    {
-      "path": "docs-site/.docusaurus/site-storage.json",
-      "status": "modified"
+      "path": "simplicio_mapper/__init__.py",
+      "status": "M"
     }
   ],
   "changed_files": [
-    "docs-site/.docusaurus/@easyops-cn/docusaurus-search-local/default/__plugin.json",
-    "docs-site/.docusaurus/@easyops-cn/docusaurus-search-local/default/generated-constants.js",
-    "docs-site/.docusaurus/@easyops-cn/docusaurus-search-local/default/generated.js",
-    "docs-site/.docusaurus/DONT-EDIT-THIS-FOLDER",
-    "docs-site/.docusaurus/client-manifest.json",
-    "docs-site/.docusaurus/client-modules.js",
-    "docs-site/.docusaurus/codeTranslations.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/__mdx-loader-dependency.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/__plugin.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/p/llm-project-mapper-510.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/p/llm-project-mapper-next-c8b.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-community-contributing-md-61c.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-community-showcase-md-961.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-architecture-map-md-ef4.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-domain-map-md-567.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-skills-and-agents-md-bc6.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-concepts-yool-tuple-hamt-md-87c.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-guide-private-overlay-md-cf2.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-intro-md-0e3.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-quickstart-get-going-md-c36.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-reference-cli-flags-md-028.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-reference-init-handoff-md-b54.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-docs-reference-session-start-hook-md-8e9.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-community-contributing-md-eca.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-community-showcase-md-e96.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-concepts-architecture-map-md-fb1.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-concepts-domain-map-md-82a.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-concepts-skills-and-agents-md-638.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-guide-private-overlay-md-098.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-intro-md-b75.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-quickstart-get-going-md-44b.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-reference-cli-flags-md-575.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-reference-init-handoff-md-69b.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-docs/default/site-versioned-docs-version-0-2-0-reference-session-start-hook-md-40c.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-pages/default/__plugin.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-pages/default/site-src-pages-index-mdx-e7c.json",
-    "docs-site/.docusaurus/docusaurus-plugin-content-pages/default/site-src-pages-yool-tuple-hamt-mdx-158.json",
-    "docs-site/.docusaurus/docusaurus.config.mjs",
-    "docs-site/.docusaurus/globalData.json",
-    "docs-site/.docusaurus/i18n.json",
-    "docs-site/.docusaurus/registry.js",
-    "docs-site/.docusaurus/routes.js",
-    "docs-site/.docusaurus/routesChunkNames.json",
-    "docs-site/.docusaurus/site-metadata.json",
-    "docs-site/.docusaurus/site-storage.json"
+    "CHANGELOG.md",
+    "PYPI.md",
+    "README.md",
+    "README.pt-BR.md",
+    "READMEs/README.ar-SA.md",
+    "READMEs/README.en.md",
+    "READMEs/README.es-ES.md",
+    "READMEs/README.fr-FR.md",
+    "READMEs/README.he-IL.md",
+    "READMEs/README.hi-IN.md",
+    "READMEs/README.id-ID.md",
+    "READMEs/README.it-IT.md",
+    "READMEs/README.ja-JP.md",
+    "READMEs/README.ko-KR.md",
+    "READMEs/README.ms-MY.md",
+    "READMEs/README.pl-PL.md",
+    "READMEs/README.pt-BR.md",
+    "READMEs/README.ru-RU.md",
+    "READMEs/README.zh-CN.md",
+    "docs/readme-globalization-standard.md",
+    "package-lock.json",
+    "package.json",
+    "pyproject.toml",
+    "simplicio_mapper/__init__.py"
   ],
   "integration": {
     "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",

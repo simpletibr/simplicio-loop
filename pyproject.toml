@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "simplicio-mapper"
-version = "0.7.1"
+version = "0.7.2"
 description = "Python-first project mapper that emits .simplicio/project-map.json and precedent-index.json for the Simplicio ecosystem."
 readme = "PYPI.md"
 requires-python = ">=3.10"
@@ -47,6 +47,8 @@ include = [
   "PYPI.md",
   "README.md",
   "README.pt-BR.md",
+  "READMEs",
+  "docs/readme-globalization-standard.md",
   "SIMPLICIO_INTEGRATION.md",
   "CHANGELOG.md",
   "LICENSE",

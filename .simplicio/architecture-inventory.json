@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.architecture-inventory/v1",
   "version": 1,
-  "generated_at": "2026-06-01T01:50:45.011Z",
+  "generated_at": "2026-06-01T04:44:25.621Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-mapper",
   "source_project_map": ".simplicio/project-map.json",
   "source_symbol_index": ".simplicio/symbol-index.json",
@@ -463,6 +463,66 @@
       ]
     },
     {
+      "name": "READMEs",
+      "summary": "Groups 15 files across 1 detected layers.",
+      "file_count": 15,
+      "files": [
+        "READMEs/README.ar-SA.md",
+        "READMEs/README.en.md",
+        "READMEs/README.es-ES.md",
+        "READMEs/README.fr-FR.md",
+        "READMEs/README.he-IL.md",
+        "READMEs/README.hi-IN.md",
+        "READMEs/README.id-ID.md",
+        "READMEs/README.it-IT.md",
+        "READMEs/README.ja-JP.md",
+        "READMEs/README.ko-KR.md",
+        "READMEs/README.ms-MY.md",
+        "READMEs/README.pl-PL.md",
+        "READMEs/README.pt-BR.md",
+        "READMEs/README.ru-RU.md",
+        "READMEs/README.zh-CN.md"
+      ],
+      "layers": [
+        "documentation"
+      ],
+      "entry_points": [],
+      "tests": [],
+      "public_symbols": [],
+      "evidence": [
+        {
+          "file": "READMEs/README.ar-SA.md"
+        },
+        {
+          "file": "READMEs/README.en.md"
+        },
+        {
+          "file": "READMEs/README.es-ES.md"
+        },
+        {
+          "file": "READMEs/README.fr-FR.md"
+        },
+        {
+          "file": "READMEs/README.he-IL.md"
+        },
+        {
+          "file": "READMEs/README.hi-IN.md"
+        },
+        {
+          "file": "READMEs/README.id-ID.md"
+        },
+        {
+          "file": "READMEs/README.it-IT.md"
+        },
+        {
+          "file": "READMEs/README.ja-JP.md"
+        },
+        {
+          "file": "READMEs/README.ko-KR.md"
+        }
+      ]
+    },
+    {
       "name": "bin",
       "summary": "Groups 7 files across 2 detected layers.",
       "file_count": 7,
@@ -553,8 +613,8 @@
     },
     {
       "name": "docs",
-      "summary": "Groups 15 files across 2 detected layers.",
-      "file_count": 15,
+      "summary": "Groups 16 files across 2 detected layers.",
+      "file_count": 16,
       "files": [
         "docs/YOOL_TUPLE_HAMT.md",
         "docs/api-examples/README.md",
@@ -569,6 +629,7 @@
         "docs/features/login.md",
         "docs/local-setup.md",
         "docs/placeholders.md",
+        "docs/readme-globalization-standard.md",
         "docs/sessionstart-hook.md",
         "docs/troubleshooting.md"
       ],
@@ -1505,7 +1566,7 @@
     },
     {
       "name": "documentation",
-      "file_count": 140,
+      "file_count": 156,
       "files": [
         ".agents/README.md",
         ".agents/_template.agent.md",
@@ -1596,17 +1657,17 @@
         "PYPI.md",
         "README.md",
         "README.pt-BR.md",
-        "SHOWCASE.md",
-        "SIMPLICIO_INTEGRATION.md",
-        "YOOL_TUPLE_HAMT.md",
-        "_BOOTSTRAP.md",
-        "docs-site/README.md",
-        "docs-site/docs/community/contributing.md",
-        "docs-site/docs/community/showcase.md",
-        "docs-site/docs/concepts/architecture-map.md",
-        "docs-site/docs/concepts/domain-map.md",
-        "docs-site/docs/concepts/skills-and-agents.md",
-        "docs-site/docs/concepts/yool-tuple-hamt.md"
+        "READMEs/README.ar-SA.md",
+        "READMEs/README.en.md",
+        "READMEs/README.es-ES.md",
+        "READMEs/README.fr-FR.md",
+        "READMEs/README.he-IL.md",
+        "READMEs/README.hi-IN.md",
+        "READMEs/README.id-ID.md",
+        "READMEs/README.it-IT.md",
+        "READMEs/README.ja-JP.md",
+        "READMEs/README.ko-KR.md",
+        "READMEs/README.ms-MY.md"
       ],
       "modules": [
         ".",
@@ -1614,6 +1675,7 @@
         ".github",
         ".skills",
         ".specs",
+        "READMEs",
         "docs",
         "docs-site",
         "presentation",
@@ -3965,6 +4027,261 @@
       ]
     },
     {
+      "path": "READMEs/README.ar-SA.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.ar-SA.md"
+        }
+      ]
+    },
+    {
+      "path": "READMEs/README.en.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.en.md"
+        }
+      ]
+    },
+    {
+      "path": "READMEs/README.es-ES.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.es-ES.md"
+        }
+      ]
+    },
+    {
+      "path": "READMEs/README.fr-FR.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.fr-FR.md"
+        }
+      ]
+    },
+    {
+      "path": "READMEs/README.he-IL.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.he-IL.md"
+        }
+      ]
+    },
+    {
+      "path": "READMEs/README.hi-IN.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.hi-IN.md"
+        }
+      ]
+    },
+    {
+      "path": "READMEs/README.id-ID.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.id-ID.md"
+        }
+      ]
+    },
+    {
+      "path": "READMEs/README.it-IT.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.it-IT.md"
+        }
+      ]
+    },
+    {
+      "path": "READMEs/README.ja-JP.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.ja-JP.md"
+        }
+      ]
+    },
+    {
+      "path": "READMEs/README.ko-KR.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.ko-KR.md"
+        }
+      ]
+    },
+    {
+      "path": "READMEs/README.ms-MY.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.ms-MY.md"
+        }
+      ]
+    },
+    {
+      "path": "READMEs/README.pl-PL.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.pl-PL.md"
+        }
+      ]
+    },
+    {
+      "path": "READMEs/README.pt-BR.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.pt-BR.md"
+        }
+      ]
+    },
+    {
+      "path": "READMEs/README.ru-RU.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.ru-RU.md"
+        }
+      ]
+    },
+    {
+      "path": "READMEs/README.zh-CN.md",
+      "language": "markdown",
+      "module": "READMEs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "READMEs/README.zh-CN.md"
+        }
+      ]
+    },
+    {
       "path": "SHOWCASE.md",
       "language": "markdown",
       "module": ".",
@@ -5266,6 +5583,23 @@
       "evidence": [
         {
           "file": "docs/placeholders.md"
+        }
+      ]
+    },
+    {
+      "path": "docs/readme-globalization-standard.md",
+      "language": "markdown",
+      "module": "docs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs/readme-globalization-standard.md"
         }
       ]
     },
@@ -10074,8 +10408,8 @@
     }
   ],
   "coverage": {
-    "files": 284,
-    "modules": 17,
+    "files": 300,
+    "modules": 18,
     "layers": 10,
     "symbols": 450,
     "relationships": 803,

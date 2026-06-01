@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-06-01T02:58:02.912Z",
+  "generated_at": "2026-06-01T04:44:25.621Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -615,23 +615,6 @@
       ],
       "summary": "feature precedent in bootstrap.sh",
       "snippet": "const catalogPath = path.resolve(process.cwd(), \".catalog\", \"agents.json\");\n\nasync function readCatalog() {\n  const raw = await readFile(catalogPath, \"utf8\");\n  return JSON.parse(raw);"
-    },
-    {
-      "id": "b0029b21a70ff4ea",
-      "path": "docs-site/.docusaurus/docusaurus.config.mjs",
-      "line": 14,
-      "language": "javascript",
-      "change_type": "error-handling",
-      "tags": [
-        "config",
-        "javascript",
-        "docs",
-        "site",
-        "docusaurus",
-        "mjs"
-      ],
-      "summary": "error-handling precedent in docs-site/.docusaurus/docusaurus.config.mjs",
-      "snippet": "  \"projectName\": \"llm-project-mapper\",\n  \"trailingSlash\": false,\n  \"onBrokenLinks\": \"throw\",\n  \"onBrokenAnchors\": \"warn\",\n  \"markdown\": {"
     },
     {
       "id": "851799c9c0d9ecf6",

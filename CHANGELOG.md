@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2] - 2026-06-01
+
+### Changed
+- Rebuilt the README as a multilingual growth page inspired by Understand Anything and 50k+ star repository patterns.
+- Added canonical translations under `READMEs/` for the full Simplicio language set and documented the new README globalization standard.
+- Included the translations and globalization standard in package source metadata.
+
 All notable changes to **LLM Project Mapper** are documented in this file.
 
 Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).

@@ -1,37 +1,36 @@
 <h1 align="center">simplicio-mapper</h1>
 
 <p align="center">
-  <strong>Map any repository into AI-readable context: project map, precedent index, architecture inventory, symbol index, call graph, and docs.</strong><br />
-  <em>Commands stay in English so they can be copied exactly.</em><br />
-  <a href="https://wesleysimplicio.github.io/llm-project-mapper/">Live docs: wesleysimplicio.github.io/llm-project-mapper</a>
+  <strong>किसी भी repository को AI-readable context में map करता है: project map, precedent index, architecture inventory, symbol index, call graph और docs.</strong><br />
+  <em>कमांड अंग्रेज़ी में रखे गए हैं ताकि उन्हें ठीक से कॉपी किया जा सके।</em>
 </p>
 
 <p align="center">
 <a href="https://github.com/wesleysimplicio/simplicio-mapper/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/wesleysimplicio/simplicio-mapper?style=flat-square" /></a>
 <a href="https://pypi.org/project/simplicio-mapper/"><img alt="PyPI" src="https://img.shields.io/pypi/v/simplicio-mapper.svg?style=flat-square" /></a>
 <a href="https://www.npmjs.com/package/@wesleysimplicio/llm-project-mapper"><img alt="npm" src="https://img.shields.io/npm/v/%40wesleysimplicio%2Fllm-project-mapper.svg?style=flat-square" /></a>
-<a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-yellow?style=flat-square" /></a>
+<a href="../LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-yellow?style=flat-square" /></a>
 </p>
 
 <p align="center">
-<a href="README.md">English</a> | <a href="READMEs/README.pt-BR.md">Português</a> | <a href="READMEs/README.es-ES.md">Español</a> | <a href="READMEs/README.ja-JP.md">日本語</a> | <a href="READMEs/README.ko-KR.md">한국어</a> | <a href="READMEs/README.zh-CN.md">简体中文</a> | <a href="READMEs/README.it-IT.md">Italiano</a> | <a href="READMEs/README.fr-FR.md">Français</a> | <a href="READMEs/README.ru-RU.md">Русский</a> | <a href="READMEs/README.pl-PL.md">Polski</a> | <a href="READMEs/README.hi-IN.md">हिन्दी</a> | <a href="READMEs/README.ar-SA.md">العربية</a> | <a href="READMEs/README.he-IL.md">עברית</a> | <a href="READMEs/README.ms-MY.md">Bahasa Melayu</a> | <a href="READMEs/README.id-ID.md">Bahasa Indonesia</a>
+<a href="../README.md">English</a> | <a href="README.pt-BR.md">Português</a> | <a href="README.es-ES.md">Español</a> | <a href="README.ja-JP.md">日本語</a> | <a href="README.ko-KR.md">한국어</a> | <a href="README.zh-CN.md">简体中文</a> | <a href="README.it-IT.md">Italiano</a> | <a href="README.fr-FR.md">Français</a> | <a href="README.ru-RU.md">Русский</a> | <a href="README.pl-PL.md">Polski</a> | <a href="README.hi-IN.md">हिन्दी</a> | <a href="README.ar-SA.md">العربية</a> | <a href="README.he-IL.md">עברית</a> | <a href="README.ms-MY.md">Bahasa Melayu</a> | <a href="README.id-ID.md">Bahasa Indonesia</a>
 </p>
 
 <p align="center">
-  <img src="assets/llm-project-mapper-hero.png" alt="simplicio-mapper preview" width="860" />
+  <img src="../assets/llm-project-mapper-hero.png" alt="simplicio-mapper preview" width="860" />
 </p>
 
 <p align="center">
-  <img src="assets/overlay-install.svg" alt="Overlay install flow" width="860" />
+  <img src="../assets/overlay-install.svg" alt="Overlay install flow" width="860" />
 </p>
 
 ---
 
-## The short version
+## संक्षेप में
 
-Map any repository into AI-readable context: project map, precedent index, architecture inventory, symbol index, call graph, and docs.
+किसी भी repository को AI-readable context में map करता है: project map, precedent index, architecture inventory, symbol index, call graph और docs.
 
-## Quick Start
+## त्वरित शुरुआत
 
 ```bash
 pip install -U simplicio-mapper
@@ -40,23 +39,23 @@ simplicio-mapper docs . --json
 simplicio-mapper endpoints ./web --against ./api --json
 ```
 
-## What it does
+## यह क्या करता है
 
 - Generates versioned .simplicio artifacts agents can read before planning.
 - Works as both Python CLI and npm starter package.
 - Builds architecture, symbol and call graph artifacts without forcing a framework.
 - Exports markdown docs for wiki/review workflows while keeping remote publishing opt-in.
 
-## Why this README is built to earn attention
+## यह README ध्यान खींचने के लिए क्यों बनाया गया है
 
-- clear first-screen promise
-- language links before installation
-- badges and a visual hero for fast trust
+- पहली स्क्रीन पर साफ़ promise
+- install से पहले language links
+- badges और hero से trust
 - copy-ready quick start
-- proof before long reference material
-- star history for social proof
+- लंबे details से पहले proof
+- star history से social proof
 
-## How it works
+## यह कैसे काम करता है
 
 ```mermaid
 flowchart LR
@@ -71,26 +70,26 @@ tests, docs, screenshots"]
 delivery loop"]
 ```
 
-## Proof and validation
+## प्रमाण और सत्यापन
 
 - Current local mapper version is 0.7.x with background indexing and docs-only modes.
 - This repo is the canonical standard for visible, versioned .simplicio artifacts.
 - It now carries the README globalization standard used across this workspace.
 
-## Simplicio ecosystem
+## Simplicio इकोसिस्टम
 
 - [simplicio-mapper](https://github.com/wesleysimplicio/simplicio-mapper) supplies repo context before interpretation.
 - [simplicio-cli](https://github.com/wesleysimplicio/simplicio-dev-cli) executes focused code tasks with verification.
 - [simplicio-prompt](https://github.com/wesleysimplicio/simplicio-prompt) provides fan-out and consensus runtime patterns.
 - [simplicio-sprint](https://github.com/wesleysimplicio/simplicio-sprint) turns cards into draft PR delivery loops.
 
-## Documentation standard
+## दस्तावेज़ मानक
 
-- [SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRATION.md)
-- [docs/readme-globalization-standard.md](docs/readme-globalization-standard.md)
-- [docs/readme-globalization-standard.md](docs/readme-globalization-standard.md)
+- [SIMPLICIO_INTEGRATION.md](../SIMPLICIO_INTEGRATION.md)
+- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
+- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
 
-## Star History
+## स्टार इतिहास
 
 <a href="https://www.star-history.com/#wesleysimplicio/simplicio-mapper&Date">
   <picture>
@@ -100,6 +99,6 @@ delivery loop"]
   </picture>
 </a>
 
-## License
+## लाइसेंस
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](../LICENSE).

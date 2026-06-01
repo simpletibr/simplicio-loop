@@ -1,5 +1,8 @@
 # simplicio-mapper
 
+> README globalization release: the GitHub README now ships with 15 language entry points, Star History, ecosystem graph, and a proof-first structure. The package contract below remains the canonical PyPI technical reference.
+
+
 Python-first project mapper for the Simplicio ecosystem. It scans a repository
 and emits machine-readable artifacts that agents and tooling can consume
 without parsing the human-readable markdown docs:
