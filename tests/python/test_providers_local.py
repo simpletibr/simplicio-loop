@@ -1,4 +1,4 @@
-"""Tests for Path 4: in-process local inference (llama-cpp-python).
+"""Tests for the default in-process local inference path (llama-cpp-python).
 
 The llama-cpp-python and huggingface-hub libs are optional extras that are not
 installed in CI, so we test the routing/spec resolution directly and stub the
@@ -45,7 +45,7 @@ def _clean(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# _is_local
+# _is_local / default routing
 # --------------------------------------------------------------------------- #
 
 
@@ -54,9 +54,9 @@ def test_is_local_explicit_prefix():
     assert providers._is_local("local-llama/repo::a.gguf", "http://x") is True
 
 
-def test_empty_config_uses_ollama_default_not_in_process_local():
-    assert providers._is_default_ollama(None, None) is True
-    assert providers._is_default_ollama("", "") is True
+def test_empty_config_uses_in_process_local_default():
+    assert providers._is_default_local(None, None) is True
+    assert providers._is_default_local("", "") is True
     assert providers._is_local(None, None) is False
 
 
@@ -130,8 +130,8 @@ def test_provider_id_local():
 
 def test_info_local_auto_default():
     s = providers.info()
-    assert "openbmb/minicpm5:latest" in s
-    assert "provider=ollama" in s
+    assert "local-llama/default" in s
+    assert "provider=local-llama" in s
     assert "key=not-needed" in s
     assert providers.LOCAL_DEFAULT_FILE in s
 
@@ -156,16 +156,22 @@ def test_resolve_local_path_missing_file_raises():
 
 def test_resolve_local_path_existing_file(tmp_path):
     f = tmp_path / "m.gguf"
-    f.write_bytes(b"x")
+    f.write_bytes(b"GGUF")
     assert providers._resolve_local_path(None, None, str(f)) == str(f)
 
 
 def test_resolve_local_path_downloads_from_hf(monkeypatch):
+    from pathlib import Path
+    import tempfile
+
+    downloaded_path = Path(tempfile.mkdtemp()) / "weights.gguf"
+    downloaded_path.write_bytes(b"GGUF")
+    downloaded = str(downloaded_path)
     fake = types.ModuleType("huggingface_hub")
-    fake.hf_hub_download = MagicMock(return_value="/cache/weights.gguf")
+    fake.hf_hub_download = MagicMock(return_value=downloaded)
     monkeypatch.setitem(sys.modules, "huggingface_hub", fake)
     out = providers._resolve_local_path("owner/repo", "weights.gguf", None)
-    assert out == "/cache/weights.gguf"
+    assert out == downloaded
     fake.hf_hub_download.assert_called_once_with(
         repo_id="owner/repo", filename="weights.gguf"
     )
@@ -175,7 +181,7 @@ def test_resolve_local_path_prefers_executor_dir(monkeypatch, tmp_path):
     model_dir = tmp_path / "models"
     model_dir.mkdir()
     primary = model_dir / providers.LOCAL_DEFAULT_FILE
-    primary.write_bytes(b"x")
+    primary.write_bytes(b"GGUF")
     fake = types.ModuleType("huggingface_hub")
     fake.hf_hub_download = MagicMock()
     monkeypatch.setitem(sys.modules, "huggingface_hub", fake)
@@ -187,6 +193,27 @@ def test_resolve_local_path_prefers_executor_dir(monkeypatch, tmp_path):
 
     assert out == str(primary)
     fake.hf_hub_download.assert_not_called()
+
+
+def test_resolve_local_path_skips_corrupt_executor_file(monkeypatch, tmp_path):
+    model_dir = tmp_path / "models"
+    model_dir.mkdir()
+    corrupt = model_dir / providers.LOCAL_DEFAULT_FILE
+    corrupt.write_bytes(b"not-a-gguf")
+    downloaded = tmp_path / "cache" / providers.LOCAL_DEFAULT_FILE
+    downloaded.parent.mkdir()
+    downloaded.write_bytes(b"GGUF")
+    fake = types.ModuleType("huggingface_hub")
+    fake.hf_hub_download = MagicMock(return_value=str(downloaded))
+    monkeypatch.setitem(sys.modules, "huggingface_hub", fake)
+    monkeypatch.setenv("SIMPLICIO_LOCAL_MODEL_DIR", str(model_dir))
+
+    out = providers._resolve_local_path(
+        providers.LOCAL_DEFAULT_REPO, providers.LOCAL_DEFAULT_FILE, None
+    )
+
+    assert out == str(downloaded)
+    fake.hf_hub_download.assert_called_once()
 
 
 def test_resolve_local_path_default_does_not_try_legacy_qwen25(monkeypatch, tmp_path):
@@ -273,31 +300,31 @@ def test_local_llama_honours_ctx_threads_gpu(monkeypatch):
 # --------------------------------------------------------------------------- #
 
 
-def test_generate_routes_to_ollama_by_default(monkeypatch):
+def test_generate_routes_to_local_llama_by_default(monkeypatch):
     calls = []
 
-    def fake_openai(model, base, key, prompt, feedback, max_tokens):
-        calls.append((prompt, model, max_tokens))
-        return "OLLAMA OK"
-
-    monkeypatch.setattr(providers, "_openai_compatible_generate", fake_openai)
-    out = providers.generate("do x", max_tokens=128)
-    assert out == "OLLAMA OK"
-    assert calls[0][1] == providers.DEFAULT_OLLAMA_MODEL
-    assert calls[0][2] == 128
-
-
-def test_generate_default_ollama_falls_back_to_qwen_gguf(monkeypatch):
-    calls = []
-
-    def fail_openai(*_args, **_kwargs):
-        raise RuntimeError("ollama down")
+    def fake_openai(*_args, **_kwargs):
+        raise AssertionError("Ollama/OpenAI-compatible endpoint must not be used")
 
     def fake_local(prompt, feedback, model, max_tokens):
         calls.append((prompt, model, max_tokens))
         return "GGUF OK"
 
-    monkeypatch.setattr(providers, "_openai_compatible_generate", fail_openai)
+    monkeypatch.setattr(providers, "_openai_compatible_generate", fake_openai)
+    monkeypatch.setattr(providers, "_local_generate", fake_local)
+    out = providers.generate("do x", max_tokens=128)
+    assert out == "GGUF OK"
+    assert calls[0][1] == "local-llama/default"
+    assert calls[0][2] == 128
+
+
+def test_generate_default_local_uses_qwen_gguf(monkeypatch):
+    calls = []
+
+    def fake_local(prompt, feedback, model, max_tokens):
+        calls.append((prompt, model, max_tokens))
+        return "GGUF OK"
+
     monkeypatch.setattr(providers, "_local_generate", fake_local)
     out = providers.generate("do x", max_tokens=128)
     assert out == "GGUF OK"
@@ -384,5 +411,6 @@ def _touch(monkeypatch):
     fd, path = tempfile.mkstemp(suffix=".gguf")
     import os as _os
 
-    _os.close(fd)
+    with _os.fdopen(fd, "wb") as handle:
+        handle.write(b"GGUF")
     return path

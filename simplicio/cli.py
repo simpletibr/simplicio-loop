@@ -91,8 +91,8 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
     p.add_argument(
         "--local",
         action="store_true",
-        help="force local Ollama (openbmb/minicpm5:latest, no API key) "
-        "with Qwen3.5 GGUF fallback; overrides SIMPLICIO_MODEL/SIMPLICIO_BASE_URL",
+        help="force local llama.cpp with Qwen3.5 GGUF; overrides "
+        "SIMPLICIO_MODEL/SIMPLICIO_BASE_URL",
     )
 
 
@@ -121,11 +121,11 @@ def _add_run_args(p: argparse.ArgumentParser) -> None:
 
 def _force_local_if_requested(a: argparse.Namespace) -> None:
     if getattr(a, "local", False):
-        # Force Path 4: local Ollama primary. The provider layer falls back to
-        # the local Qwen GGUF if the Ollama call fails.
-        os.environ["SIMPLICIO_MODEL"] = "openbmb/minicpm5:latest"
-        os.environ["SIMPLICIO_BASE_URL"] = "http://localhost:11434/v1"
-        os.environ.setdefault("SIMPLICIO_API_KEY", "ollama")
+        # Force Path 4: local in-process llama.cpp. This keeps local execution
+        # independent from Ollama or any HTTP service.
+        os.environ["SIMPLICIO_MODEL"] = "local-llama/default"
+        os.environ.pop("SIMPLICIO_BASE_URL", None)
+        os.environ.pop("SIMPLICIO_API_KEY", None)
 
 
 def _run_task_command(a: argparse.Namespace) -> int:
@@ -609,6 +609,11 @@ def main(argv=None):
     p_status.add_argument("--root", default=".")
     p_status.add_argument("--json", action="store_true")
 
+    p_doctor = sub.add_parser("doctor", help="check local llama.cpp readiness")
+    p_doctor.add_argument("--install", action="store_true")
+    p_doctor.add_argument("--json", action="store_true")
+    p_doctor.add_argument("--list-tiers", action="store_true")
+
     p_env_export = sub.add_parser(
         "env-export",
         help="print shell-safe exports from a dotenv file without sourcing it",
@@ -678,6 +683,17 @@ def main(argv=None):
         return detect_main(detect_argv)
     elif a.cmd == "status":
         return _run_status_command(a)
+    elif a.cmd == "doctor":
+        from .doctor import main as doctor_main
+
+        doctor_argv = []
+        if a.install:
+            doctor_argv.append("--install")
+        if a.json:
+            doctor_argv.append("--json")
+        if a.list_tiers:
+            doctor_argv.append("--list-tiers")
+        return doctor_main(doctor_argv)
     elif a.cmd == "env-export":
         from .runtime_env import parse_env_file, shell_export_lines
 

@@ -610,8 +610,7 @@ user prompt. UserPromptSubmit is the right pre-hook for routing decisions.
 | GLM (z.ai) | `glm-4.6` | `https://api.z.ai/api/paas/v4` |
 | DeepSeek | `deepseek-chat` | `https://api.deepseek.com` |
 | OpenAI | `gpt-4.1` | `https://api.openai.com/v1` |
-| Local (Ollama) | `openbmb/minicpm5:latest` | `http://localhost:11434/v1` |
-| Local (in-process) | `local-llama/default` | *(leave unset)* |
+| Local (llama.cpp) | `local-llama/default` | *(leave unset)* |
 | Anthropic native | `claude-opus-4-7` | *(leave unset)* |
 
 If `SIMPLICIO_BASE_URL` is unset and the key is `ANTHROPIC_API_KEY`, it uses the
@@ -622,30 +621,28 @@ your `base_url` — so **any** OpenAI-like provider works without code changes.
 simplicio smoke      # prints provider config + one test call
 ```
 
-#### Path 4 — local Ollama primary with GGUF fallback
+#### Path 4 — local llama.cpp GGUF default
 
 When **no provider is configured** (`SIMPLICIO_MODEL` and
-`SIMPLICIO_BASE_URL` both unset), simplicio uses local Ollama with
-`openbmb/minicpm5:latest`. If that call fails, it falls back to the in-process
+`SIMPLICIO_BASE_URL` both unset), simplicio runs the in-process
 [`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python) backend with
-`Qwen_Qwen3.5-2B-Q6_K.gguf`.
+`local-llama/default`, currently
+`bartowski/Qwen_Qwen3.5-2B-GGUF::Qwen_Qwen3.5-2B-Q6_K.gguf`.
 
 ```bash
 pip install 'simplicio-cli[local]'          # pulls llama-cpp-python + huggingface-hub
+simplicio doctor --install                  # downloads/validates the default GGUF
 
 simplicio task "add input validation to createUser" \
-  --target src/users.ts --local              # forces local Ollama primary
+  --target src/users.ts --local              # forces local llama.cpp
 
-# the fallback GGUF is fetched once from the Hugging Face Hub, then reused
+# the GGUF is fetched once from the Hugging Face Hub, then reused
 ```
 
 Explicit routes (override the default model/weights):
 
 ```bash
-SIMPLICIO_MODEL=openbmb/minicpm5:latest
-SIMPLICIO_BASE_URL=http://localhost:11434/v1
-SIMPLICIO_API_KEY=ollama
-SIMPLICIO_MODEL=local-llama/default                                  # Qwen_Qwen3.5-2B-Q6_K.gguf fallback
+SIMPLICIO_MODEL=local-llama/default                                  # Qwen_Qwen3.5-2B-Q6_K.gguf default
 SIMPLICIO_MODEL=local-llama/bartowski/Qwen_Qwen3.5-2B-GGUF::Qwen_Qwen3.5-2B-Q6_K.gguf
 SIMPLICIO_MODEL=local-llama//models/my-model.gguf                    # direct local path
 SIMPLICIO_LOCAL_MODEL_PATH=/models/my-model.gguf                     # always wins

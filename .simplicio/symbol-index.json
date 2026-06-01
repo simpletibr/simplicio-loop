@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.symbol-index/v1",
   "version": 1,
-  "generated_at": "2026-06-01T05:04:23.593Z",
+  "generated_at": "2026-06-01T21:57:57.150Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
   "symbols": [
     {
@@ -7354,10 +7354,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/doctor.py",
-      "line": 21,
+      "line": 19,
       "evidence": {
         "file": "simplicio/doctor.py",
-        "line": 21
+        "line": 19
       }
     },
     {
@@ -7366,10 +7366,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/doctor.py",
-      "line": 71,
+      "line": 64,
       "evidence": {
         "file": "simplicio/doctor.py",
-        "line": 71
+        "line": 64
       }
     },
     {
@@ -7906,34 +7906,70 @@
       "kind": "class",
       "language": "python",
       "defined_in": "simplicio/local_models.py",
-      "line": 29,
+      "line": 40,
       "evidence": {
         "file": "simplicio/local_models.py",
-        "line": 29
+        "line": 40
       }
     },
     {
-      "name": "ollama_present",
-      "qualified_name": "simplicio/local_models.py::ollama_present",
+      "name": "ollama_id",
+      "qualified_name": "simplicio/local_models.py::ollama_id",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/local_models.py",
-      "line": 60,
+      "line": 50,
       "evidence": {
         "file": "simplicio/local_models.py",
-        "line": 60
+        "line": 50
       }
     },
     {
-      "name": "ollama_list_installed",
-      "qualified_name": "simplicio/local_models.py::ollama_list_installed",
+      "name": "local_model_dir",
+      "qualified_name": "simplicio/local_models.py::local_model_dir",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/local_models.py",
-      "line": 64,
+      "line": 67,
       "evidence": {
         "file": "simplicio/local_models.py",
-        "line": 64
+        "line": 67
+      }
+    },
+    {
+      "name": "model_file_path",
+      "qualified_name": "simplicio/local_models.py::model_file_path",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/local_models.py",
+      "line": 71,
+      "evidence": {
+        "file": "simplicio/local_models.py",
+        "line": 71
+      }
+    },
+    {
+      "name": "_is_gguf_file",
+      "qualified_name": "simplicio/local_models.py::_is_gguf_file",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/local_models.py",
+      "line": 78,
+      "evidence": {
+        "file": "simplicio/local_models.py",
+        "line": 78
+      }
+    },
+    {
+      "name": "model_file_present",
+      "qualified_name": "simplicio/local_models.py::model_file_present",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/local_models.py",
+      "line": 86,
+      "evidence": {
+        "file": "simplicio/local_models.py",
+        "line": 86
       }
     },
     {
@@ -7942,22 +7978,22 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/local_models.py",
-      "line": 92,
+      "line": 90,
       "evidence": {
         "file": "simplicio/local_models.py",
-        "line": 92
+        "line": 90
       }
     },
     {
-      "name": "pull",
-      "qualified_name": "simplicio/local_models.py::pull",
+      "name": "download",
+      "qualified_name": "simplicio/local_models.py::download",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/local_models.py",
-      "line": 98,
+      "line": 100,
       "evidence": {
         "file": "simplicio/local_models.py",
-        "line": 98
+        "line": 100
       }
     },
     {
@@ -7966,10 +8002,22 @@
       "kind": "class",
       "language": "python",
       "defined_in": "simplicio/local_models.py",
-      "line": 122,
+      "line": 130,
       "evidence": {
         "file": "simplicio/local_models.py",
-        "line": 122
+        "line": 130
+      }
+    },
+    {
+      "name": "can_pull",
+      "qualified_name": "simplicio/local_models.py::can_pull",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/local_models.py",
+      "line": 139,
+      "evidence": {
+        "file": "simplicio/local_models.py",
+        "line": 139
       }
     },
     {
@@ -7978,10 +8026,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/local_models.py",
-      "line": 129,
+      "line": 142,
       "evidence": {
         "file": "simplicio/local_models.py",
-        "line": 129
+        "line": 142
       }
     },
     {
@@ -7990,10 +8038,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/local_models.py",
-      "line": 152,
+      "line": 168,
       "evidence": {
         "file": "simplicio/local_models.py",
-        "line": 152
+        "line": 168
       }
     },
     {
@@ -8002,10 +8050,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/local_models.py",
-      "line": 182,
+      "line": 201,
       "evidence": {
         "file": "simplicio/local_models.py",
-        "line": 182
+        "line": 201
       }
     },
     {
@@ -8914,10 +8962,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 46,
+      "line": 44,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 46
+        "line": 44
       }
     },
     {
@@ -8926,10 +8974,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 56,
+      "line": 54,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 56
+        "line": 54
       }
     },
     {
@@ -8938,10 +8986,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 68,
+      "line": 66,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 68
+        "line": 66
       }
     },
     {
@@ -8950,22 +8998,22 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 94,
+      "line": 89,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 94
+        "line": 89
       }
     },
     {
-      "name": "_is_default_ollama",
-      "qualified_name": "simplicio/providers.py::_is_default_ollama",
+      "name": "_is_default_local",
+      "qualified_name": "simplicio/providers.py::_is_default_local",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 105,
+      "line": 100,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 105
+        "line": 100
       }
     },
     {
@@ -8974,10 +9022,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 115,
+      "line": 107,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 115
+        "line": 107
       }
     },
     {
@@ -8986,10 +9034,22 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 143,
+      "line": 135,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 143
+        "line": 135
+      }
+    },
+    {
+      "name": "_is_gguf_file",
+      "qualified_name": "simplicio/providers.py::_is_gguf_file",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/providers.py",
+      "line": 139,
+      "evidence": {
+        "file": "simplicio/providers.py",
+        "line": 139
       }
     },
     {
@@ -8998,10 +9058,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 147,
+      "line": 148,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 147
+        "line": 148
       }
     },
     {
@@ -9010,10 +9070,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 152,
+      "line": 153,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 152
+        "line": 153
       }
     },
     {
@@ -9022,10 +9082,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 181,
+      "line": 192,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 181
+        "line": 192
       }
     },
     {
@@ -9034,10 +9094,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 210,
+      "line": 221,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 210
+        "line": 221
       }
     },
     {
@@ -9046,10 +9106,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 224,
+      "line": 235,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 224
+        "line": 235
       }
     },
     {
@@ -9058,10 +9118,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 236,
+      "line": 247,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 236
+        "line": 247
       }
     },
     {
@@ -9070,10 +9130,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 273,
+      "line": 284,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 273
+        "line": 284
       }
     },
     {
@@ -9082,10 +9142,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 282,
+      "line": 293,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 282
+        "line": 293
       }
     },
     {
@@ -9094,10 +9154,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 289,
+      "line": 300,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 289
+        "line": 300
       }
     },
     {
@@ -9106,10 +9166,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 298,
+      "line": 309,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 298
+        "line": 309
       }
     },
     {
@@ -9118,10 +9178,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 304,
+      "line": 315,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 304
+        "line": 315
       }
     },
     {
@@ -9130,22 +9190,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 330,
+      "line": 341,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 330
-      }
-    },
-    {
-      "name": "_generate_default_ollama_with_fallback",
-      "qualified_name": "simplicio/providers.py::_generate_default_ollama_with_fallback",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio/providers.py",
-      "line": 340,
-      "evidence": {
-        "file": "simplicio/providers.py",
-        "line": 340
+        "line": 341
       }
     },
     {
@@ -9154,10 +9202,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 386,
+      "line": 351,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 386
+        "line": 351
       }
     },
     {
@@ -9166,10 +9214,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 478,
+      "line": 447,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 478
+        "line": 447
       }
     },
     {
@@ -9178,10 +9226,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 544,
+      "line": 515,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 544
+        "line": 515
       }
     },
     {
@@ -9190,10 +9238,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 605,
+      "line": 576,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 605
+        "line": 576
       }
     },
     {
@@ -9202,10 +9250,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 620,
+      "line": 591,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 620
+        "line": 591
       }
     },
     {
@@ -9214,10 +9262,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 631,
+      "line": 602,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 631
+        "line": 602
       }
     },
     {
@@ -9226,10 +9274,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 713,
+      "line": 684,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 713
+        "line": 684
       }
     },
     {
@@ -15178,154 +15226,154 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_local_models.py",
-      "line": 59,
+      "line": 60,
       "evidence": {
         "file": "tests/python/test_local_models.py",
-        "line": 59
+        "line": 60
       }
     },
     {
-      "name": "test_evaluate_marks_ollama_absent",
-      "qualified_name": "tests/python/test_local_models.py::test_evaluate_marks_ollama_absent",
+      "name": "test_evaluate_marks_gguf_absent",
+      "qualified_name": "tests/python/test_local_models.py::test_evaluate_marks_gguf_absent",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_local_models.py",
-      "line": 81,
+      "line": 82,
       "evidence": {
         "file": "tests/python/test_local_models.py",
-        "line": 81
+        "line": 82
       }
     },
     {
-      "name": "test_apple_silicon_profile_can_run_minicpm5_at_24gb",
-      "qualified_name": "tests/python/test_local_models.py::test_apple_silicon_profile_can_run_minicpm5_at_24gb",
+      "name": "test_apple_silicon_profile_can_run_qwen_gguf_at_24gb",
+      "qualified_name": "tests/python/test_local_models.py::test_apple_silicon_profile_can_run_qwen_gguf_at_24gb",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_local_models.py",
-      "line": 89,
+      "line": 90,
       "evidence": {
         "file": "tests/python/test_local_models.py",
-        "line": 89
+        "line": 90
       }
     },
     {
-      "name": "test_ensure_recommended_does_not_pull_without_opt_in",
-      "qualified_name": "tests/python/test_local_models.py::test_ensure_recommended_does_not_pull_without_opt_in",
+      "name": "test_ensure_recommended_does_not_download_without_opt_in",
+      "qualified_name": "tests/python/test_local_models.py::test_ensure_recommended_does_not_download_without_opt_in",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_local_models.py",
-      "line": 106,
+      "line": 107,
       "evidence": {
         "file": "tests/python/test_local_models.py",
-        "line": 106
+        "line": 107
       }
     },
     {
-      "name": "fake_pull",
-      "qualified_name": "tests/python/test_local_models.py::fake_pull",
+      "name": "fake_download",
+      "qualified_name": "tests/python/test_local_models.py::fake_download",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_local_models.py",
-      "line": 124,
+      "line": 126,
       "evidence": {
         "file": "tests/python/test_local_models.py",
-        "line": 124
+        "line": 126
       }
     },
     {
-      "name": "test_ensure_recommended_pulls_with_explicit_opt_in",
-      "qualified_name": "tests/python/test_local_models.py::test_ensure_recommended_pulls_with_explicit_opt_in",
+      "name": "test_ensure_recommended_downloads_with_explicit_opt_in",
+      "qualified_name": "tests/python/test_local_models.py::test_ensure_recommended_downloads_with_explicit_opt_in",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_local_models.py",
-      "line": 138,
+      "line": 140,
       "evidence": {
         "file": "tests/python/test_local_models.py",
-        "line": 138
+        "line": 140
       }
     },
     {
-      "name": "fake_pull",
-      "qualified_name": "tests/python/test_local_models.py::fake_pull",
+      "name": "fake_download",
+      "qualified_name": "tests/python/test_local_models.py::fake_download",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_local_models.py",
-      "line": 147,
+      "line": 149,
       "evidence": {
         "file": "tests/python/test_local_models.py",
-        "line": 147
+        "line": 149
       }
     },
     {
-      "name": "test_ensure_recommended_pulls_via_env_var",
-      "qualified_name": "tests/python/test_local_models.py::test_ensure_recommended_pulls_via_env_var",
+      "name": "test_ensure_recommended_downloads_via_env_var",
+      "qualified_name": "tests/python/test_local_models.py::test_ensure_recommended_downloads_via_env_var",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_local_models.py",
-      "line": 162,
+      "line": 164,
       "evidence": {
         "file": "tests/python/test_local_models.py",
-        "line": 162
+        "line": 164
       }
     },
     {
-      "name": "fake_pull",
-      "qualified_name": "tests/python/test_local_models.py::fake_pull",
+      "name": "fake_download",
+      "qualified_name": "tests/python/test_local_models.py::fake_download",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_local_models.py",
-      "line": 172,
+      "line": 174,
       "evidence": {
         "file": "tests/python/test_local_models.py",
-        "line": 172
+        "line": 174
       }
     },
     {
-      "name": "test_ensure_recommended_skips_pull_when_already_installed",
-      "qualified_name": "tests/python/test_local_models.py::test_ensure_recommended_skips_pull_when_already_installed",
+      "name": "test_ensure_recommended_skips_download_when_already_installed",
+      "qualified_name": "tests/python/test_local_models.py::test_ensure_recommended_skips_download_when_already_installed",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_local_models.py",
-      "line": 184,
+      "line": 186,
       "evidence": {
         "file": "tests/python/test_local_models.py",
-        "line": 184
+        "line": 186
       }
     },
     {
-      "name": "fake_pull",
-      "qualified_name": "tests/python/test_local_models.py::fake_pull",
+      "name": "fake_download",
+      "qualified_name": "tests/python/test_local_models.py::fake_download",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_local_models.py",
-      "line": 193,
+      "line": 194,
       "evidence": {
         "file": "tests/python/test_local_models.py",
-        "line": 193
+        "line": 194
       }
     },
     {
-      "name": "test_ensure_recommended_refuses_pull_when_undersized",
-      "qualified_name": "tests/python/test_local_models.py::test_ensure_recommended_refuses_pull_when_undersized",
+      "name": "test_ensure_recommended_refuses_download_when_undersized",
+      "qualified_name": "tests/python/test_local_models.py::test_ensure_recommended_refuses_download_when_undersized",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_local_models.py",
-      "line": 206,
+      "line": 207,
       "evidence": {
         "file": "tests/python/test_local_models.py",
-        "line": 206
+        "line": 207
       }
     },
     {
-      "name": "fake_pull",
-      "qualified_name": "tests/python/test_local_models.py::fake_pull",
+      "name": "fake_download",
+      "qualified_name": "tests/python/test_local_models.py::fake_download",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_local_models.py",
-      "line": 222,
+      "line": 223,
       "evidence": {
         "file": "tests/python/test_local_models.py",
-        "line": 222
+        "line": 223
       }
     },
     {
@@ -16313,8 +16361,8 @@
       }
     },
     {
-      "name": "test_empty_config_uses_ollama_default_not_in_process_local",
-      "qualified_name": "tests/python/test_providers_local.py::test_empty_config_uses_ollama_default_not_in_process_local",
+      "name": "test_empty_config_uses_in_process_local_default",
+      "qualified_name": "tests/python/test_providers_local.py::test_empty_config_uses_in_process_local_default",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
@@ -16510,10 +16558,22 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 172,
+      "line": 178,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 172
+        "line": 178
+      }
+    },
+    {
+      "name": "test_resolve_local_path_skips_corrupt_executor_file",
+      "qualified_name": "tests/python/test_providers_local.py::test_resolve_local_path_skips_corrupt_executor_file",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_providers_local.py",
+      "line": 196,
+      "evidence": {
+        "file": "tests/python/test_providers_local.py",
+        "line": 196
       }
     },
     {
@@ -16522,10 +16582,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 190,
+      "line": 217,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 190
+        "line": 217
       }
     },
     {
@@ -16534,10 +16594,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 213,
+      "line": 240,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 213
+        "line": 240
       }
     },
     {
@@ -16546,10 +16606,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 226,
+      "line": 253,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 226
+        "line": 253
       }
     },
     {
@@ -16558,10 +16618,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 234,
+      "line": 261,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 234
+        "line": 261
       }
     },
     {
@@ -16570,75 +16630,27 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 252,
+      "line": 279,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 252
+        "line": 279
       }
     },
     {
-      "name": "test_generate_routes_to_ollama_by_default",
-      "qualified_name": "tests/python/test_providers_local.py::test_generate_routes_to_ollama_by_default",
+      "name": "test_generate_routes_to_local_llama_by_default",
+      "qualified_name": "tests/python/test_providers_local.py::test_generate_routes_to_local_llama_by_default",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 274,
+      "line": 301,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 274
+        "line": 301
       }
     },
     {
       "name": "fake_openai",
       "qualified_name": "tests/python/test_providers_local.py::fake_openai",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_providers_local.py",
-      "line": 278,
-      "evidence": {
-        "file": "tests/python/test_providers_local.py",
-        "line": 278
-      }
-    },
-    {
-      "name": "test_generate_default_ollama_falls_back_to_qwen_gguf",
-      "qualified_name": "tests/python/test_providers_local.py::test_generate_default_ollama_falls_back_to_qwen_gguf",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_providers_local.py",
-      "line": 288,
-      "evidence": {
-        "file": "tests/python/test_providers_local.py",
-        "line": 288
-      }
-    },
-    {
-      "name": "fail_openai",
-      "qualified_name": "tests/python/test_providers_local.py::fail_openai",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_providers_local.py",
-      "line": 292,
-      "evidence": {
-        "file": "tests/python/test_providers_local.py",
-        "line": 292
-      }
-    },
-    {
-      "name": "fake_local",
-      "qualified_name": "tests/python/test_providers_local.py::fake_local",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_providers_local.py",
-      "line": 295,
-      "evidence": {
-        "file": "tests/python/test_providers_local.py",
-        "line": 295
-      }
-    },
-    {
-      "name": "test_generate_local_explicit_prefix",
-      "qualified_name": "tests/python/test_providers_local.py::test_generate_local_explicit_prefix",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
@@ -16654,22 +16666,22 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 309,
+      "line": 308,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 309
+        "line": 308
       }
     },
     {
-      "name": "test_generate_local_uses_completion_cache",
-      "qualified_name": "tests/python/test_providers_local.py::test_generate_local_uses_completion_cache",
+      "name": "test_generate_default_local_uses_qwen_gguf",
+      "qualified_name": "tests/python/test_providers_local.py::test_generate_default_local_uses_qwen_gguf",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 318,
+      "line": 319,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 318
+        "line": 319
       }
     },
     {
@@ -16678,15 +16690,15 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 322,
+      "line": 323,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 322
+        "line": 323
       }
     },
     {
-      "name": "test_generate_no_model_with_base_still_raises",
-      "qualified_name": "tests/python/test_providers_local.py::test_generate_no_model_with_base_still_raises",
+      "name": "test_generate_local_explicit_prefix",
+      "qualified_name": "tests/python/test_providers_local.py::test_generate_local_explicit_prefix",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
@@ -16697,27 +16709,27 @@
       }
     },
     {
-      "name": "test_local_generate_caps_tokens_and_temp",
-      "qualified_name": "tests/python/test_providers_local.py::test_local_generate_caps_tokens_and_temp",
+      "name": "fake_local",
+      "qualified_name": "tests/python/test_providers_local.py::fake_local",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 340,
+      "line": 336,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 340
+        "line": 336
       }
     },
     {
-      "name": "test_generate_cache_key_includes_weights",
-      "qualified_name": "tests/python/test_providers_local.py::test_generate_cache_key_includes_weights",
+      "name": "test_generate_local_uses_completion_cache",
+      "qualified_name": "tests/python/test_providers_local.py::test_generate_local_uses_completion_cache",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 356,
+      "line": 345,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 356
+        "line": 345
       }
     },
     {
@@ -16726,10 +16738,58 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 361,
+      "line": 349,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 361
+        "line": 349
+      }
+    },
+    {
+      "name": "test_generate_no_model_with_base_still_raises",
+      "qualified_name": "tests/python/test_providers_local.py::test_generate_no_model_with_base_still_raises",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_providers_local.py",
+      "line": 359,
+      "evidence": {
+        "file": "tests/python/test_providers_local.py",
+        "line": 359
+      }
+    },
+    {
+      "name": "test_local_generate_caps_tokens_and_temp",
+      "qualified_name": "tests/python/test_providers_local.py::test_local_generate_caps_tokens_and_temp",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_providers_local.py",
+      "line": 367,
+      "evidence": {
+        "file": "tests/python/test_providers_local.py",
+        "line": 367
+      }
+    },
+    {
+      "name": "test_generate_cache_key_includes_weights",
+      "qualified_name": "tests/python/test_providers_local.py::test_generate_cache_key_includes_weights",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_providers_local.py",
+      "line": 383,
+      "evidence": {
+        "file": "tests/python/test_providers_local.py",
+        "line": 383
+      }
+    },
+    {
+      "name": "fake_local",
+      "qualified_name": "tests/python/test_providers_local.py::fake_local",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_providers_local.py",
+      "line": 388,
+      "evidence": {
+        "file": "tests/python/test_providers_local.py",
+        "line": 388
       }
     },
     {
@@ -16738,10 +16798,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 378,
+      "line": 405,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 378
+        "line": 405
       }
     },
     {
@@ -16889,8 +16949,8 @@
       }
     },
     {
-      "name": "test_no_config_at_all_routes_to_ollama_default",
-      "qualified_name": "tests/python/test_providers_shellout.py::test_no_config_at_all_routes_to_ollama_default",
+      "name": "test_no_config_at_all_routes_to_local_llama_default",
+      "qualified_name": "tests/python/test_providers_shellout.py::test_no_config_at_all_routes_to_local_llama_default",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_shellout.py",
@@ -17249,8 +17309,8 @@
       }
     },
     {
-      "name": "test_run_auto_task_infers_target_from_goal",
-      "qualified_name": "tests/python/test_run_cli.py::test_run_auto_task_infers_target_from_goal",
+      "name": "test_doctor_command_delegates_to_local_model_preflight",
+      "qualified_name": "tests/python/test_run_cli.py::test_doctor_command_delegates_to_local_model_preflight",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
@@ -17261,15 +17321,39 @@
       }
     },
     {
+      "name": "fake_doctor_main",
+      "qualified_name": "tests/python/test_run_cli.py::fake_doctor_main",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_run_cli.py",
+      "line": 97,
+      "evidence": {
+        "file": "tests/python/test_run_cli.py",
+        "line": 97
+      }
+    },
+    {
+      "name": "test_run_auto_task_infers_target_from_goal",
+      "qualified_name": "tests/python/test_run_cli.py::test_run_auto_task_infers_target_from_goal",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_run_cli.py",
+      "line": 108,
+      "evidence": {
+        "file": "tests/python/test_run_cli.py",
+        "line": 108
+      }
+    },
+    {
       "name": "test_run_ambiguous_goal_requires_scope",
       "qualified_name": "tests/python/test_run_cli.py::test_run_ambiguous_goal_requires_scope",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 113,
+      "line": 129,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 113
+        "line": 129
       }
     },
     {
@@ -17278,10 +17362,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 122,
+      "line": 138,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 122
+        "line": 138
       }
     },
     {
@@ -17290,10 +17374,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 127,
+      "line": 143,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 127
+        "line": 143
       }
     },
     {
@@ -17302,10 +17386,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 159,
+      "line": 175,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 159
+        "line": 175
       }
     },
     {
@@ -17314,10 +17398,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 164,
+      "line": 180,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 164
+        "line": 180
       }
     },
     {
@@ -17326,10 +17410,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 192,
+      "line": 208,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 192
+        "line": 208
       }
     },
     {
@@ -17338,10 +17422,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 196,
+      "line": 212,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 196
+        "line": 212
       }
     },
     {
@@ -17350,10 +17434,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 227,
+      "line": 243,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 227
+        "line": 243
       }
     },
     {
@@ -17362,10 +17446,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 239,
+      "line": 255,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 239
+        "line": 255
       }
     },
     {
@@ -17374,10 +17458,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 286,
+      "line": 302,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 286
+        "line": 302
       }
     },
     {
@@ -17386,10 +17470,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 309,
+      "line": 325,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 309
+        "line": 325
       }
     },
     {
@@ -17398,10 +17482,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 332,
+      "line": 348,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 332
+        "line": 348
       }
     },
     {
@@ -17410,10 +17494,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 350,
+      "line": 366,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 350
+        "line": 366
       }
     },
     {
@@ -17422,10 +17506,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 378,
+      "line": 394,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 378
+        "line": 394
       }
     },
     {
@@ -17434,10 +17518,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 409,
+      "line": 425,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 409
+        "line": 425
       }
     },
     {
@@ -17446,10 +17530,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 422,
+      "line": 438,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 422
+        "line": 438
       }
     },
     {
@@ -17458,39 +17542,15 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 466,
+      "line": 482,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 466
+        "line": 482
       }
     },
     {
       "name": "test_status_json_reports_invalid_state_file",
       "qualified_name": "tests/python/test_run_cli.py::test_status_json_reports_invalid_state_file",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_run_cli.py",
-      "line": 475,
-      "evidence": {
-        "file": "tests/python/test_run_cli.py",
-        "line": 475
-      }
-    },
-    {
-      "name": "test_status_text_reports_state_and_cost",
-      "qualified_name": "tests/python/test_run_cli.py::test_status_text_reports_state_and_cost",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_run_cli.py",
-      "line": 487,
-      "evidence": {
-        "file": "tests/python/test_run_cli.py",
-        "line": 487
-      }
-    },
-    {
-      "name": "write_state",
-      "qualified_name": "tests/python/test_run_cli.py::write_state",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
@@ -17501,15 +17561,39 @@
       }
     },
     {
+      "name": "test_status_text_reports_state_and_cost",
+      "qualified_name": "tests/python/test_run_cli.py::test_status_text_reports_state_and_cost",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_run_cli.py",
+      "line": 503,
+      "evidence": {
+        "file": "tests/python/test_run_cli.py",
+        "line": 503
+      }
+    },
+    {
+      "name": "write_state",
+      "qualified_name": "tests/python/test_run_cli.py::write_state",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_run_cli.py",
+      "line": 507,
+      "evidence": {
+        "file": "tests/python/test_run_cli.py",
+        "line": 507
+      }
+    },
+    {
       "name": "test_run_scope_sprint_rejects_empty_sprint",
       "qualified_name": "tests/python/test_run_cli.py::test_run_scope_sprint_rejects_empty_sprint",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 524,
+      "line": 540,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 524
+        "line": 540
       }
     },
     {
@@ -17518,10 +17602,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 556,
+      "line": 572,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 556
+        "line": 572
       }
     },
     {
@@ -17530,10 +17614,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 585,
+      "line": 601,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 585
+        "line": 601
       }
     },
     {
@@ -17542,10 +17626,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 626,
+      "line": 642,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 626
+        "line": 642
       }
     },
     {
@@ -17554,10 +17638,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 662,
+      "line": 678,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 662
+        "line": 678
       }
     },
     {
@@ -17566,10 +17650,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 707,
+      "line": 723,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 707
+        "line": 723
       }
     },
     {
@@ -17578,10 +17662,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 746,
+      "line": 762,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 746
+        "line": 762
       }
     },
     {
@@ -17590,10 +17674,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_run_cli.py",
-      "line": 757,
+      "line": 773,
       "evidence": {
         "file": "tests/python/test_run_cli.py",
-        "line": 757
+        "line": 773
       }
     },
     {
@@ -21666,7 +21750,7 @@
     }
   ],
   "counts": {
-    "symbols": 1805,
+    "symbols": 1812,
     "files": 185
   }
 }

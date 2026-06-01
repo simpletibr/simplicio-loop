@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.17] — 2026-06-01
+
+### Changed
+- Changed the no-config and `--local` execution default to `local-llama/default`
+  via `llama-cpp-python`, removing Ollama from the local default path.
+- Updated `simplicio doctor` to validate/download the default
+  `Qwen_Qwen3.5-2B-Q6_K.gguf` GGUF model instead of checking/pulling Ollama.
+- Added GGUF header validation so corrupt local model files are not silently
+  reused.
+
 ## [0.5.16] — 2026-06-01
 
 ### Changed

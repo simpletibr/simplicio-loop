@@ -78,7 +78,7 @@ ADR-002 documenta a decisão completa, com alternativas avaliadas e critério de
 ┌─────────────────────────────────────────────────────────────┐
 │  CAMADA 4 — Provedores LLM                                  │
 │  ──────────────────────────────────────────────────────────  │
-│  Anthropic  OpenAI  OpenRouter  modelos locais (ollama)     │
+│  Anthropic  OpenAI  OpenRouter  modelos locais (llama.cpp)  │
 └─────────────────────────────────────────────────────────────┘
 ```
 

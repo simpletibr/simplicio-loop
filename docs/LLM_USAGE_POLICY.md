@@ -10,24 +10,29 @@
 ## Default Configuration
 
 ### Execution (Local)
-- Primary local executor: **`openbmb/minicpm5:latest`** via local Ollama
-- Fallback local executor: **`Qwen_Qwen3.5-2B-Q6_K.gguf`** from `bartowski/Qwen_Qwen3.5-2B-GGUF`
+- Primary local executor: **`local-llama/default`** via `llama.cpp` /
+  `llama-cpp-python`
+- Default GGUF: **`Qwen_Qwen3.5-2B-Q6_K.gguf`** from
+  `bartowski/Qwen_Qwen3.5-2B-GGUF`
 
-The GGUF fallback should be used via llama.cpp / llama-cpp-python only when
-Ollama is unavailable or the MiniCPM5 call fails.
+The local default must not require Ollama or any HTTP service. Remote or
+OpenAI-compatible endpoints remain explicit opt-ins via `SIMPLICIO_MODEL`,
+`SIMPLICIO_BASE_URL`, and credentials.
 
 ## Project-Specific Rules
 
 ### simplicio-code (mandatory)
 - On project bootstrap / SessionStart / first run in a new workspace:
-  - The system **must** verify that `openbmb/minicpm5:latest` is available in local Ollama.
-  - The system **must** verify that `Qwen_Qwen3.5-2B-Q6_K.gguf` is present as the fallback file.
-  - If either is missing, it **must** install it before allowing agent execution.
+  - The system **must** verify that `Qwen_Qwen3.5-2B-Q6_K.gguf` is present and
+    has a valid `GGUF` header.
+  - If it is missing, it **must** download/prepare it before allowing local
+    agent execution.
 - This is a hard requirement for the SimplicioCode product.
 
 ### simplicio-dev-cli and simplicio-sprint (recommended)
-- The above split (`openbmb/minicpm5:latest` primary + Qwen3.5 Q6_K GGUF fallback) is the **recommended** configuration for local development.
-- Not enforced at runtime, but all examples, benchmarks, and documentation use this setup.
+- The above `local-llama/default` Qwen3.5 Q6_K GGUF setup is the
+  **recommended** configuration for local development.
+- `simplicio doctor` validates this setup at runtime.
 
 ## Rationale
 
@@ -39,12 +44,11 @@ From extensive benchmarking (see `simplicio-dev-cli` quant curves and live gates
 ## How to Configure
 
 ```bash
-# Execution (local Ollama primary)
-export SIMPLICIO_MODEL=openbmb/minicpm5:latest
-export SIMPLICIO_BASE_URL=http://localhost:11434/v1
-export SIMPLICIO_API_KEY=ollama
+# Execution (local llama.cpp default)
+unset SIMPLICIO_MODEL SIMPLICIO_BASE_URL SIMPLICIO_API_KEY
+simplicio doctor --install
 
-# fallback explicit route:
+# Explicit route:
 export SIMPLICIO_MODEL=local-llama/bartowski/Qwen_Qwen3.5-2B-GGUF::Qwen_Qwen3.5-2B-Q6_K.gguf
 ```
 
@@ -66,3 +70,19 @@ simplicio-dev-cli + simplicio-prompt + agents
 This combination is the **recommended and documented default** when using `simplicio-dev-cli`. All new examples, benchmarks, and onboarding materials assume this full stack.
 
 When starting a new project with the Simplicio starter, the bootstrap configures the environment to use this trio by default.
+
+## Native Packaged Runtime Direction
+
+The goal is not to rewrite Simplicio in C++ or Rust. The practical direction is
+to package the existing Python implementation as a faster, reproducible native
+runtime:
+
+- a single launcher/binary that bootstraps the pinned Python package, extras,
+  `llama.cpp` bindings, GGUF path, cache, and mapper state;
+- optional Rust/C++ hot-path helpers for process spawning, file locks, task
+  queues, diff/apply operations, and local-agent scheduling;
+- configurable local worker pools, so a `20 agents` request can be accepted by
+  the interface while the runtime governs safe concurrency for RAM/CPU.
+
+This keeps the current Python feature velocity while making the mechanical
+execution path feel like a program instead of a pile of setup commands.
