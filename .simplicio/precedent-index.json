@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-06-01T00:50:54.462Z",
+  "generated_at": "2026-06-01T01:06:43.045Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -218,9 +218,9 @@
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
     },
     {
-      "id": "cf605d2237ab50f7",
+      "id": "38df5ffc25ba7c2f",
       "path": "CHANGELOG.md",
-      "line": 214,
+      "line": 225,
       "language": "markdown",
       "change_type": "error-handling",
       "tags": [
@@ -1413,9 +1413,9 @@
       "snippet": "# auto-detect stack\n# ---------------------------------------------------------------------------\nfunction Detect-Stack {\n  if (Test-Path \"package.json\") {\n    $pkg = Get-Content \"package.json\" -Raw"
     },
     {
-      "id": "3084217738b3fa75",
+      "id": "2bc1bf807db65eef",
       "path": "docs/LLM_USAGE_POLICY.md",
-      "line": 20,
+      "line": 16,
       "language": "markdown",
       "change_type": "feature",
       "tags": [
@@ -1426,7 +1426,7 @@
         "policy"
       ],
       "summary": "feature precedent in docs/LLM_USAGE_POLICY.md",
-      "snippet": "- Fallback local executor: **Qwen2.5-Coder-1.5B-Instruct-Q6_K_L.gguf**\n\nThese GGUF files should be used via llama.cpp / llama-cpp-python (not the default Ollama tag) when maximum determinism and instruction following on the 1.5B class is required.\n\n## Project-Specific Rules"
+      "snippet": "- Fallback local executors: **Qwen2.5-Coder-1.5B-Instruct-Q8_0.gguf**, then **Qwen2.5-Coder-1.5B-Instruct-Q6_K_L.gguf**\n\nThese GGUF files should be used via llama.cpp / llama-cpp-python (not the default Ollama tag) when maximum determinism and instruction following on the small-local class is required.\n\n## Project-Specific Rules"
     },
     {
       "id": "820b7f17676fc202",
