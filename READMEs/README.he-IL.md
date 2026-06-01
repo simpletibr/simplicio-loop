@@ -26,6 +26,13 @@
 
 הופך משימה בשורה אחת לשינוי קוד מאומת: הקשר mapper, חוזה שש שכבות, diff, בדיקה והוכחה.
 
+## DNA הפרויקט
+
+העמוד המקומי שומר על הדרך המהירה. המדריך הטכני המשוחזר נמצא ב-README הראשי כדי לשמור על הקול המקורי ופרטי ההפעלה של הפרויקט.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.
+
 ## התחלה מהירה
 
 ```bash

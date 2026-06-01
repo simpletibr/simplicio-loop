@@ -26,6 +26,13 @@
 
 Zamienia jednozdaniowe zadanie w zweryfikowaną zmianę: mapper, kontrakt sześciu warstw, diff, testy i dowody.
 
+## DNA projektu
+
+Ta zlokalizowana strona zachowuje szybka sciezke. Pelny odtworzony przewodnik techniczny znajduje sie w glownym README, aby zachowac pierwotny glos i szczegoly operacyjne projektu.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.
+
 ## Szybki start
 
 ```bash

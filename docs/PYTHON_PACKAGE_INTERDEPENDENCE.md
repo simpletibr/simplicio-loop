@@ -5,14 +5,14 @@ Status: 2026-06-01
 ## Current Graph
 
 ```text
-simplicio-prompt 1.13.2
-simplicio-mapper 0.7.2
+simplicio-prompt 1.13.3
+simplicio-mapper 0.7.3
   ^          ^
   |          |
-simplicio-cli 0.5.15
+simplicio-cli 0.5.16
   ^
   |
-simplicio-sprint 1.2.10
+simplicio-sprint 1.2.11
 ```
 
 ## Rules

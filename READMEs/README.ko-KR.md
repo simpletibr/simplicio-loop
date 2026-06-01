@@ -26,6 +26,13 @@
 
 한 줄 작업을 mapper 컨텍스트, 6계층 계약, diff, 테스트, 증거가 있는 검증된 변경으로 바꿉니다.
 
+## 프로젝트 DNA
+
+이 현지화 문서는 빠른 진입 경로를 유지합니다. 복원된 전체 기술 가이드는 루트 README에 있어 프로젝트의 원래 목소리와 운영 세부 정보를 보존합니다.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.
+
 ## 빠른 시작
 
 ```bash

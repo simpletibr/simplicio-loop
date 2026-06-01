@@ -26,6 +26,13 @@
 
 把一行任务变成经过验证的代码变更：mapper 上下文、六层契约、diff、测试和证据。
 
+## 项目 DNA
+
+此本地化页面保留快速路径。恢复后的完整技术指南位于根 README 中，用来保留项目原本的表达和运行细节。
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.
+
 ## 快速开始
 
 ```bash

@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.architecture-inventory/v1",
   "version": 1,
-  "generated_at": "2026-06-01T04:44:23.310Z",
+  "generated_at": "2026-06-01T05:04:23.593Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
   "source_project_map": ".simplicio/project-map.json",
   "source_symbol_index": ".simplicio/symbol-index.json",
@@ -15556,7 +15556,7 @@
       "roles": [],
       "imports": [],
       "symbols": [],
-      "summary": "Defines exported symbols: do.",
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
       "evidence": [
         {
           "file": "simplicio_cli.egg-info/PKG-INFO"

@@ -26,6 +26,13 @@
 
 Turn a one-line task into a verified code change: mapper context, six-layer contract, diff, test, and evidence.
 
+## Project DNA
+
+The localized page keeps the fast path. The full restored technical guide lives in the root README so the project keeps its original voice and operating detail.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.
+
 ## Quick Start
 
 ```bash

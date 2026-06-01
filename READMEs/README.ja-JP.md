@@ -26,6 +26,13 @@
 
 1 行のタスクを、mapper 文脈、6 層契約、diff、テスト、証拠つきの検証済み変更に変えます。
 
+## プロジェクトのDNA
+
+このローカライズ版は最短導線を保ちます。復元された詳細ガイドはルート README にあり、プロジェクト本来の声と運用情報を残します。
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.
+
 ## クイックスタート
 
 ```bash

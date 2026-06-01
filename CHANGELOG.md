@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.16] — 2026-06-01
+
+### Changed
+- Restored the original benchmark-heavy README guide under the new multilingual landing page so evidence, model comparisons, and operating policy remain visible.
+- Added Project DNA notes to the localized README set and updated the globalization standard to require additive documentation refreshes.
+- Updated ecosystem dependency floors to `simplicio-mapper>=0.7.3` and `simplicio-prompt>=1.13.3`.
+
 ## [0.5.15] — 2026-06-01
 
 ### Changed

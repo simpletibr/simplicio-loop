@@ -97,3 +97,10 @@ delivery loop"]
 ## Lesen
 
 MIT. See [LICENSE](../LICENSE).
+
+## DNA projek
+
+Halaman setempat ini mengekalkan laluan pantas. Panduan teknikal penuh yang dipulihkan berada dalam README utama supaya suara asal dan butiran operasi projek kekal hidup.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.

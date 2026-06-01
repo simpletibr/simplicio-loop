@@ -26,6 +26,13 @@
 
 Mengubah tugas satu baris menjadi perubahan kode terverifikasi: konteks mapper, kontrak enam lapis, diff, test, dan bukti.
 
+## DNA proyek
+
+Halaman lokal ini mempertahankan jalur cepat. Panduan teknis lengkap yang dipulihkan ada di README utama agar suara asli dan detail operasional proyek tetap hidup.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.
+
 ## Mulai cepat
 
 ```bash

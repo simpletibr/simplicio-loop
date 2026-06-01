@@ -26,6 +26,13 @@
 
 Trasforma un task di una riga in una modifica verificata: contesto mapper, contratto a sei livelli, diff, test ed evidenza.
 
+## DNA del progetto
+
+Questa pagina localizzata mantiene il percorso rapido. La guida tecnica completa restaurata vive nel README principale, cosi il progetto conserva voce e dettagli operativi originali.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.
+
 ## Avvio rapido
 
 ```bash

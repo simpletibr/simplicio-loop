@@ -26,6 +26,13 @@
 
 يحوّل مهمة من سطر واحد إلى تغيير كود موثق: سياق mapper، عقد من ست طبقات، diff، اختبار ودليل.
 
+## DNA المشروع
+
+تحافظ هذه الصفحة المترجمة على المسار السريع. الدليل التقني الكامل المستعاد موجود في README الرئيسي للحفاظ على صوت المشروع وتفاصيله التشغيلية.
+
+- Full restored guide: [../README.md](../README.md)
+- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.
+
 ## البدء السريع
 
 ```bash

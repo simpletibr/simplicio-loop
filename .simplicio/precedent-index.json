@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-06-01T04:44:23.310Z",
+  "generated_at": "2026-06-01T05:04:23.593Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -218,9 +218,9 @@
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
     },
     {
-      "id": "6c211230764e5076",
+      "id": "166956a1bd091c6b",
       "path": "CHANGELOG.md",
-      "line": 247,
+      "line": 254,
       "language": "markdown",
       "change_type": "error-handling",
       "tags": [
@@ -244,6 +244,19 @@
       ],
       "summary": "error-handling precedent in README.backup-2026-05-27.md",
       "snippet": "**\"I want to run it in CI / a script / outside Claude Code.\"** Path 2. Get an\nAPI key from any of the providers above (OpenRouter is the cheapest way to\ntry multiple models behind one key), set `SIMPLICIO_API_KEY` +\n`SIMPLICIO_MODEL` + optional `SIMPLICIO_BASE_URL`, run `simplicio task ...`.\n"
+    },
+    {
+      "id": "2becc4b8e9f56811",
+      "path": "README.md",
+      "line": 219,
+      "language": "markdown",
+      "change_type": "route",
+      "tags": [
+        "markdown",
+        "readme"
+      ],
+      "summary": "route precedent in README.md",
+      "snippet": "\n> Reproduce the new default set:\n> `BENCH_BASE_URL=https://router.huggingface.co/v1 BENCH_API_KEY=<hf-token>\n> BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\"\n> python3 bench/run_offline.py`."
     },
     {
       "id": "98533d8a1a7fd947",
@@ -3669,23 +3682,6 @@
       ],
       "summary": "error-handling precedent in simplicio/utils/serialization.py",
       "snippet": "from typing import Any\n\ntry:  # optional fast path\n    import orjson as _oj\n    _HAS_ORJSON = True"
-    },
-    {
-      "id": "372796d73fdc9b67",
-      "path": "simplicio_cli.egg-info/PKG-INFO",
-      "line": 170,
-      "language": "text",
-      "change_type": "route",
-      "tags": [
-        "text",
-        "simplicio",
-        "cli",
-        "egg",
-        "info",
-        "pkg"
-      ],
-      "summary": "route precedent in simplicio_cli.egg-info/PKG-INFO",
-      "snippet": "\n> Reproduce the new default set:\n> `BENCH_BASE_URL=https://router.huggingface.co/v1 BENCH_API_KEY=<hf-token>\n> BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\"\n> python3 bench/run_offline.py`."
     },
     {
       "id": "2cb77abf86cd4d7c",
