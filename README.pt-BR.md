@@ -62,11 +62,20 @@ simplicio-mapper update              # atualiza e registra arquivos alterados
 simplicio-mapper index . --json      # bootstrap idempotente para orquestradores
 simplicio-mapper index --update . --json
 simplicio-mapper endpoints . --against ../api --json
+simplicio-mapper docs . --json        # gera markdown em .simplicio/docs
+simplicio-mapper export-docs . --target ./wiki-export --json
 simplicio-mapper map --watch         # remapeia conforme arquivos mudam
 ```
 
 Os console scripts `simplicio-mapper` e `llm-project-mapper` sao instalados, e a
 saida Python e compativel com o schema do mapper Node.
+
+Para arquitetura/wiki, `simplicio-mapper map` agora tambem escreve
+`architecture-inventory.json`, `symbol-index.json` e `call-graph.json`.
+Rode `simplicio-mapper docs <path>` para gerar `.simplicio/docs/*.md`, ou
+`simplicio-mapper index <path> --docs --json` para atualizar JSON e Markdown
+na mesma passada deterministica. `export-docs` copia esses Markdown para um
+alvo local; publicacao remota de wiki continua opt-in.
 
 Use `--watch` durante sessoes longas de agentes para manter o mapa fresco. O
 schema e um exemplo de consumo em Python ficam em

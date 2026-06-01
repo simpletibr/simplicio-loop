@@ -22,9 +22,14 @@ from simplicio_mapper import __version__  # noqa: E402
 from simplicio_mapper.cache import FileProcessingCache  # noqa: E402
 from simplicio_mapper.cli import main  # noqa: E402
 from simplicio_mapper.mapper import (  # noqa: E402
+    ARCHITECTURE_INVENTORY_SCHEMA,
     ARTIFACT_SCHEMA,
+    CALL_GRAPH_SCHEMA,
     PRECEDENT_SCHEMA,
+    SYMBOL_INDEX_SCHEMA,
     build_artifacts,
+    export_architecture_docs,
+    write_architecture_docs,
     write_mapping_artifacts,
 )
 from simplicio_mapper.models import CodeEntity, ProjectFile  # noqa: E402
@@ -110,6 +115,13 @@ class MapperArtifactsTest(unittest.TestCase):
             item["path"] == "tests/server.test.js" and item["change_type"] == "test"
             for item in precedent_index["items"]
         ))
+        self.assertEqual(result["architecture_inventory"]["schema"], ARCHITECTURE_INVENTORY_SCHEMA)
+        self.assertEqual(result["symbol_index"]["schema"], SYMBOL_INDEX_SCHEMA)
+        self.assertEqual(result["call_graph"]["schema"], CALL_GRAPH_SCHEMA)
+        self.assertTrue(any(
+            module["name"] == "src" and "entrypoint" in module["layers"]
+            for module in result["architecture_inventory"]["modules"]
+        ))
 
     def test_build_artifacts_ignores_generated_dependency_and_cache_dirs(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "generated-dirs-host"}))
@@ -143,10 +155,65 @@ class MapperArtifactsTest(unittest.TestCase):
         out = write_mapping_artifacts(cwd=str(self.dir), meta={"stack": "node"})
         self.assertTrue(os.path.exists(out["project_map_path"]))
         self.assertTrue(os.path.exists(out["precedent_path"]))
+        self.assertTrue(os.path.exists(out["architecture_inventory_path"]))
+        self.assertTrue(os.path.exists(out["symbol_index_path"]))
+        self.assertTrue(os.path.exists(out["call_graph_path"]))
         self.assertTrue((self.dir / ".simplicio" / "cache").exists())
 
         on_disk = json.loads(Path(out["project_map_path"]).read_text())
         self.assertEqual(on_disk["update_mode"], "full")
+
+    def test_architecture_inventory_tracks_layers_symbols_and_relationships(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "inventory-host"}))
+        _write(self.dir, "src/controllers/user.controller.js", """
+const { listUsers } = require('../services/user.service');
+function getUsers() {
+  return listUsers();
+}
+module.exports = { getUsers };
+""")
+        _write(self.dir, "src/services/user.service.js", """
+const { findUsers } = require('../repositories/user.repository');
+function listUsers() {
+  return findUsers();
+}
+module.exports = { listUsers };
+""")
+        _write(self.dir, "src/repositories/user.repository.js", """
+function findUsers() {
+  return [];
+}
+module.exports = { findUsers };
+""")
+        _write(self.dir, "tests/user.test.js", "test('users', () => {});\n")
+
+        result = build_artifacts(cwd=str(self.dir), meta={"stack": "node"})
+
+        inventory = result["architecture_inventory"]
+        symbols = result["symbol_index"]["symbols"]
+        edges = result["call_graph"]["edges"]
+        self.assertEqual(inventory["schema"], ARCHITECTURE_INVENTORY_SCHEMA)
+        self.assertTrue(any(layer["name"] == "controller" for layer in inventory["layers"]))
+        self.assertTrue(any(layer["name"] == "service" for layer in inventory["layers"]))
+        self.assertTrue(any(layer["name"] == "repository" for layer in inventory["layers"]))
+        self.assertTrue(any(symbol["name"] == "listUsers" for symbol in symbols))
+        self.assertTrue(any(edge["type"] == "imports" for edge in edges))
+
+    def test_architecture_docs_and_export_render_markdown(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "docs-host"}))
+        _write(self.dir, "src/services/user.service.py", "def list_users():\n    return []\n")
+        write_mapping_artifacts(cwd=str(self.dir), meta={"stack": "python"})
+
+        docs = write_architecture_docs(str(self.dir))
+        architecture_doc = self.dir / ".simplicio" / "docs" / "architecture.md"
+        self.assertTrue(architecture_doc.exists())
+        self.assertIn("Architecture Inventory", architecture_doc.read_text())
+        self.assertGreaterEqual(docs["counts"]["files"], 4)
+
+        target = self.dir / "wiki"
+        exported = export_architecture_docs(str(self.dir), str(target))
+        self.assertTrue((target / "architecture.md").exists())
+        self.assertEqual(exported["counts"]["files"], docs["counts"]["files"])
 
     def test_incremental_records_changed_files(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "incremental-host"}))
@@ -426,6 +493,35 @@ export const routes: Routes = [
             for item in payload["redirects"]
         ))
 
+    def test_docs_command_writes_markdown_json_contract(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "cli-docs-host"}))
+        _write(self.dir, "src/services/user.service.py", "def list_users():\n    return []\n")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["docs", str(self.dir), "--json"])
+
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.architecture-docs/v1")
+        self.assertTrue((self.dir / ".simplicio" / "docs" / "architecture.md").exists())
+        self.assertGreaterEqual(payload["counts"]["files"], 4)
+
+    def test_export_docs_command_copies_markdown(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "cli-export-host"}))
+        _write(self.dir, "src/repositories/user.repository.py", "def find_users():\n    return []\n")
+        target = self.dir / "exported-wiki"
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["export-docs", str(self.dir), "--target", str(target), "--json"])
+
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.docs-export/v1")
+        self.assertTrue((target / "architecture.md").exists())
+        self.assertGreaterEqual(payload["counts"]["files"], 4)
+
     def test_endpoints_captures_python_page_api_calls(self) -> None:
         client_dir = self.dir / "streamlit-client"
         server_dir = self.dir / "server"
@@ -506,6 +602,30 @@ def load(api):
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["status"], "updated")
         self.assertIn("src/index.js", payload["changed_files"])
+
+    def test_index_refreshes_when_dirty_file_changes_again(self) -> None:
+        subprocess.run(["git", "init"], cwd=self.dir, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.dir, check=True)
+        subprocess.run(["git", "config", "user.name", "Test User"], cwd=self.dir, check=True)
+        _write(self.dir, "package.json", json.dumps({"name": "dirty-refresh-host"}))
+        _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
+        subprocess.run(["git", "add", "."], cwd=self.dir, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "init"], cwd=self.dir, check=True, capture_output=True)
+
+        with redirect_stdout(StringIO()):
+            self.assertEqual(main(["index", str(self.dir), "--json"]), 0)
+        _write(self.dir, "src/index.js", "export function run() { return 2; }\n")
+        with redirect_stdout(StringIO()):
+            self.assertEqual(main(["index", str(self.dir), "--json"]), 0)
+        _write(self.dir, "src/index.js", "export function run() { return 3; }\n")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["index", str(self.dir), "--json"])
+
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["status"], "updated")
 
 
 if __name__ == "__main__":

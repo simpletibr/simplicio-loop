@@ -63,6 +63,8 @@ simplicio-mapper update              # refresh and record changed files
 simplicio-mapper index . --json      # idempotent, scriptable SendSprint bootstrap
 simplicio-mapper index --update . --json
 simplicio-mapper endpoints . --against ../api --json
+simplicio-mapper docs . --json        # render .simplicio/docs markdown
+simplicio-mapper export-docs . --target ./wiki-export --json
 simplicio-mapper map --watch         # re-map as files change locally
 ```
 
@@ -76,6 +78,13 @@ Add `--json` for a stable
 `simplicio.mapper-index/v1` payload containing artifact paths, item counts,
 changed files and the skipped reason. Add `--verbose` only when progress logs
 are useful.
+
+For architecture/wiki work, `simplicio-mapper map` now also writes
+`architecture-inventory.json`, `symbol-index.json`, and `call-graph.json`.
+Run `simplicio-mapper docs <path>` to render `.simplicio/docs/*.md`, or
+`simplicio-mapper index <path> --docs --json` to refresh JSON and Markdown in
+one deterministic pass. `export-docs` copies those Markdown files to a local
+target; remote wiki publication remains opt-in.
 
 Use `--watch` during long agent sessions to keep the map fresh. The schema and
 Python consumption example live in [SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRATION.md).

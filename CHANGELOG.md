@@ -6,6 +6,27 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-01
+
+### Added
+- Living architecture inventory artifacts:
+  `.simplicio/architecture-inventory.json`,
+  `.simplicio/symbol-index.json`, and `.simplicio/call-graph.json`, with
+  module/layer evidence, symbol file+line metadata, import edges and heuristic
+  caller/callee relationships.
+- `simplicio-mapper docs <path>` renders `.simplicio/docs/*.md` from the JSON
+  inventory for wiki/review workflows.
+- `simplicio-mapper export-docs <path> --target <dir>` copies rendered Markdown
+  to an explicit local docs target without publishing remotely.
+- `--docs` support for map/index refreshes when JSON and Markdown should be
+  updated in one pass.
+
+### Changed
+- Mapper artifact writes now use temp-file + atomic rename semantics to reduce
+  risk of partially written JSON during live/background refreshes.
+- Python builds pin Hatchling to the current Metadata-Version 2.4-compatible
+  line so `twine check` and the PyPI publish workflow stay reproducible.
+
 ## [0.6.10] - 2026-05-31
 
 ### Added

@@ -17,12 +17,24 @@ import time
 from typing import Sequence
 
 from . import __version__
-from .mapper import write_mapping_artifacts
+from .mapper import export_architecture_docs, write_architecture_docs, write_mapping_artifacts
 
 INDEX_RESULT_SCHEMA = "simplicio.mapper-index/v1"
 INDEX_STATE_SCHEMA = "simplicio.mapper-index-state/v1"
 ENDPOINT_INVENTORY_SCHEMA = "simplicio.endpoint-inventory/v1"
 SCREEN_INVENTORY_SCHEMA = "simplicio.screen-inventory/v1"
+FRESHNESS_SKIP_DIRS = {
+    ".git",
+    "node_modules",
+    ".docusaurus",
+    "build",
+    "dist",
+    "coverage",
+    "playwright-report",
+    "test-results",
+    "__pycache__",
+    ".pytest_cache",
+}
 
 HELP_TEXT = """simplicio-mapper map
 
@@ -32,6 +44,8 @@ USAGE
   simplicio-mapper index <path> [--json] [--verbose] [--update]
   simplicio-mapper endpoints <path> [--against <server-root>] [--json]
   simplicio-mapper screens <path> [--json]
+  simplicio-mapper docs <path> [--json]
+  simplicio-mapper export-docs <path> --target <dir> [--json]
   simplicio-mapper map [--root <dir>] [--incremental] [--watch]
   simplicio-mapper update [--root <dir>] [--watch]
 
@@ -39,7 +53,12 @@ OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
   endpoints <path>      Extract client/server HTTP endpoint inventory.
   screens <path>        Extract frontend route/screen inventory.
+  docs <path>           Render architecture inventory markdown under .simplicio/docs.
+  export-docs <path>    Copy rendered markdown docs to a local target directory.
   --against <dir>       Compare endpoint client calls against server routes.
+  --target <dir>        Local target directory for export-docs.
+  --docs                Render markdown docs after map/index.
+  --no-docs             Keep map/index JSON-only.
   --json                Emit structured index output.
   --update              Compatibility alias for index refresh workflows.
   --verbose             Show progress during index refreshes.
@@ -74,23 +93,29 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "silent": False,
         "json": False,
         "verbose": False,
+        "docs": False,
         "command": "map",
         "against": "",
+        "target": "",
     }
-    command = argv[0] if argv and argv[0] in ("index", "map", "update", "endpoints", "screens") else "map"
+    commands = ("index", "map", "update", "endpoints", "screens", "docs", "export-docs")
+    command = argv[0] if argv and argv[0] in commands else "map"
     opts["command"] = command
     if command == "index":
         opts["silent"] = True
     if command == "update":
         opts["incremental"] = True
-    i = 1 if argv and argv[0] in ("index", "map", "update", "endpoints", "screens") else 0
+    i = 1 if argv and argv[0] in commands else 0
     while i < len(argv):
         arg = argv[i]
-        if command in ("index", "endpoints", "screens") and not arg.startswith("-"):
+        if command in ("index", "endpoints", "screens", "docs", "export-docs") and not arg.startswith("-"):
             opts["root"] = arg
         elif arg == "--against":
             i += 1
             opts["against"] = argv[i]
+        elif arg == "--target":
+            i += 1
+            opts["target"] = argv[i]
         elif arg == "--root":
             i += 1
             opts["root"] = argv[i]
@@ -109,6 +134,10 @@ def _parse_args(argv: Sequence[str]) -> dict:
             opts["incremental"] = True
         elif arg == "--watch":
             opts["watch"] = True
+        elif arg == "--docs":
+            opts["docs"] = True
+        elif arg == "--no-docs":
+            opts["docs"] = False
         elif arg == "--silent":
             opts["silent"] = True
         elif arg == "--json":
@@ -151,7 +180,11 @@ def _signature(root: str, out: str) -> tuple:
     abs_out = os.path.abspath(os.path.join(root, out))
     entries = []
     for current, dirs, files in os.walk(root):
-        dirs[:] = [d for d in dirs if d not in (".git", "node_modules") and os.path.abspath(os.path.join(current, d)) != abs_out]
+        dirs[:] = [
+            d for d in dirs
+            if d not in FRESHNESS_SKIP_DIRS
+            and os.path.abspath(os.path.join(current, d)) != abs_out
+        ]
         for name in files:
             path = os.path.join(current, name)
             try:
@@ -171,6 +204,9 @@ def _artifact_paths(root: str, out: str) -> dict[str, str]:
     return {
         "project_map": os.path.join(abs_out, "project-map.json"),
         "precedent_index": os.path.join(abs_out, "precedent-index.json"),
+        "architecture_inventory": os.path.join(abs_out, "architecture-inventory.json"),
+        "symbol_index": os.path.join(abs_out, "symbol-index.json"),
+        "call_graph": os.path.join(abs_out, "call-graph.json"),
     }
 
 
@@ -217,10 +253,12 @@ def _git_signature(root: str, out: str) -> dict | None:
         return None
     if head.returncode != 0 or status.returncode != 0:
         return None
+    tree = _tree_signature(root, out)
     return {
         "kind": "git",
         "head": head.stdout.strip(),
         "status_hash": _hash_text(status.stdout),
+        "tree_hash": tree.get("hash"),
     }
 
 
@@ -230,7 +268,7 @@ def _tree_signature(root: str, out: str) -> dict:
     for current, dirs, files in os.walk(root):
         dirs[:] = [
             d for d in dirs
-            if d not in (".git", "node_modules")
+            if d not in FRESHNESS_SKIP_DIRS
             and os.path.abspath(os.path.join(current, d)) != abs_out
         ]
         for name in sorted(files):
@@ -283,11 +321,18 @@ def _index_result(
     paths = _artifact_paths(root, out)
     project_map = run_result.get("project_map", {}) if run_result else {}
     precedent_index = run_result.get("precedent_index", {}) if run_result else {}
+    architecture_inventory = run_result.get("architecture_inventory", {}) if run_result else {}
+    symbol_index = run_result.get("symbol_index", {}) if run_result else {}
+    call_graph = run_result.get("call_graph", {}) if run_result else {}
     changed_files = list(project_map.get("changed_files") or [])
     counts = counts or {
         "files": len(project_map.get("files", []) or []),
         "precedents": len(precedent_index.get("items", []) or []),
         "changed_files": len(changed_files),
+        "modules": len(architecture_inventory.get("modules", []) or []),
+        "layers": len(architecture_inventory.get("layers", []) or []),
+        "symbols": len(symbol_index.get("symbols", []) or []),
+        "relationships": len(call_graph.get("edges", []) or []),
     }
     return {
         "schema": INDEX_RESULT_SCHEMA,
@@ -798,6 +843,34 @@ def _run_screens(opts: dict) -> int:
     return 0
 
 
+def _run_docs(opts: dict) -> int:
+    payload = write_architecture_docs(opts["root"], output_dir=opts["out"])
+    if opts["json"]:
+        print(json.dumps({
+            "schema": "simplicio.architecture-docs/v1",
+            "docs_root": payload["docs_root"].replace(os.sep, "/"),
+            "paths": [path.replace(os.sep, "/") for path in payload["paths"]],
+            "counts": payload["counts"],
+        }, sort_keys=True))
+    else:
+        print(f"docs={payload['counts']['files']} root={payload['docs_root']}")
+    return 0
+
+
+def _run_export_docs(opts: dict) -> int:
+    payload = export_architecture_docs(opts["root"], opts["target"], output_dir=opts["out"])
+    if opts["json"]:
+        print(json.dumps({
+            "schema": "simplicio.docs-export/v1",
+            "target": payload["target"].replace(os.sep, "/"),
+            "paths": [path.replace(os.sep, "/") for path in payload["paths"]],
+            "counts": payload["counts"],
+        }, sort_keys=True))
+    else:
+        print(f"exported={payload['counts']['files']} target={payload['target']}")
+    return 0
+
+
 def _run_index(opts: dict) -> int:
     root = os.path.abspath(opts["root"])
     out = opts["out"]
@@ -810,13 +883,18 @@ def _run_index(opts: dict) -> int:
         and state.get("signature") == current_signature
         and _artifacts_exist(paths)
     ):
-        _emit_index_json(opts, _index_result(
+        payload = _index_result(
             root,
             out,
             status="skipped",
             skipped_reason="already_fresh",
             counts=state.get("counts") if isinstance(state.get("counts"), dict) else None,
-        ))
+        )
+        if opts["docs"]:
+            docs_payload = write_architecture_docs(root, output_dir=out)
+            payload["paths"]["docs_root"] = docs_payload["docs_root"].replace(os.sep, "/")
+            payload["counts"]["docs"] = docs_payload["counts"]["files"]
+        _emit_index_json(opts, payload)
         return 0
 
     run_result = _run_once({
@@ -827,6 +905,10 @@ def _run_index(opts: dict) -> int:
     })
     refreshed_signature = _freshness_signature(root, out)
     payload = _index_result(root, out, status="updated", run_result=run_result)
+    if opts["docs"]:
+        docs_payload = write_architecture_docs(root, output_dir=out)
+        payload["paths"]["docs_root"] = docs_payload["docs_root"].replace(os.sep, "/")
+        payload["counts"]["docs"] = docs_payload["counts"]["files"]
     _write_index_state(root, out, refreshed_signature, payload["counts"])
     _emit_index_json(opts, payload)
     return 0
@@ -857,6 +939,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_endpoints(opts)
     if opts["command"] == "screens":
         return _run_screens(opts)
+    if opts["command"] == "docs":
+        return _run_docs(opts)
+    if opts["command"] == "export-docs":
+        return _run_export_docs(opts)
     if opts["command"] == "index":
         try:
             return _run_index(opts)
@@ -873,6 +959,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(f"index failed: {error}", file=sys.stderr)
             return 1
     _run_once(opts)
+    if opts["docs"]:
+        write_architecture_docs(opts["root"], output_dir=opts["out"])
     if opts["watch"]:
         _watch(opts)
     return 0

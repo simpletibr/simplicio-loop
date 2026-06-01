@@ -7,6 +7,9 @@ const { spawnSync } = require('node:child_process');
 
 const ARTIFACT_SCHEMA = 'simplicio.project-map/v1';
 const PRECEDENT_SCHEMA = 'simplicio.precedent-index/v1';
+const ARCHITECTURE_INVENTORY_SCHEMA = 'simplicio.architecture-inventory/v1';
+const SYMBOL_INDEX_SCHEMA = 'simplicio.symbol-index/v1';
+const CALL_GRAPH_SCHEMA = 'simplicio.call-graph/v1';
 const ARTIFACT_VERSION = 1;
 
 const TEXT_EXTS = new Set([
@@ -20,7 +23,7 @@ const SKIP_DIRS = new Set([
   '.git', 'node_modules', 'dist', 'build', 'out', 'coverage',
   '.next', '.nuxt', 'playwright-report', 'test-results', '.turbo',
   '.venv', 'venv', '__pycache__', '.idea', '.vscode', '.simplicio',
-  '.catalog', '.receipts',
+  '.catalog', '.receipts', '.docusaurus',
 ]);
 
 const CONFIG_FILES = new Set([
@@ -360,6 +363,320 @@ function buildPrecedentItems(cwd, files) {
   return items.sort((a, b) => a.path.localeCompare(b.path) || a.line - b.line).slice(0, 250);
 }
 
+function lineNumber(text, index) {
+  return text.slice(0, index).split(/\r?\n/).length;
+}
+
+function symbolDefinitionsForFile(file, text) {
+  const patterns = [];
+  if (file.language === 'python') {
+    patterns.push([/^\s*class\s+([A-Za-z_]\w*)/gm, 'class']);
+    patterns.push([/^\s*def\s+([A-Za-z_]\w*)/gm, 'function']);
+  } else if (file.language === 'javascript' || file.language === 'typescript') {
+    patterns.push([/^\s*(?:export\s+)?class\s+([A-Za-z_]\w*)/gm, 'class']);
+    patterns.push([/^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_]\w*)/gm, 'function']);
+    patterns.push([
+      /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_]\w*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_]\w*)\s*=>/gm,
+      'function',
+    ]);
+  } else if (file.language === 'csharp' || file.language === 'razor') {
+    patterns.push([/^\s*(?:public\s+|private\s+|protected\s+|internal\s+)?(?:sealed\s+|static\s+|partial\s+)?class\s+([A-Za-z_]\w*)/gm, 'class']);
+    patterns.push([
+      /^\s*(?:public|private|protected|internal)\s+(?:static\s+)?(?:async\s+)?[A-Za-z0-9_<>,[\]\s?.]+\s+([A-Za-z_]\w*)\s*\(/gm,
+      'method',
+    ]);
+  } else if (['go', 'rust', 'java', 'kotlin', 'php', 'ruby'].includes(file.language)) {
+    patterns.push([/\bclass\s+([A-Za-z_]\w*)/g, 'class']);
+    patterns.push([/\bfunction\s+([A-Za-z_]\w*)/g, 'function']);
+    patterns.push([/\bdef\s+([A-Za-z_]\w*)/g, 'function']);
+  } else {
+    return [];
+  }
+
+  const symbols = [];
+  const seen = new Set();
+  for (const [pattern, kind] of patterns) {
+    for (const match of text.matchAll(pattern)) {
+      const name = match[1];
+      const line = lineNumber(text, match.index || 0);
+      const key = `${name}:${line}:${kind}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      symbols.push({
+        name,
+        qualified_name: `${file.path}::${name}`,
+        kind,
+        language: file.language,
+        defined_in: file.path,
+        line,
+        evidence: { file: file.path, line },
+      });
+    }
+  }
+  return symbols.sort((a, b) => a.defined_in.localeCompare(b.defined_in) || a.line - b.line || a.name.localeCompare(b.name));
+}
+
+function layersForFile(file) {
+  const rel = file.path.toLowerCase();
+  const base = path.basename(rel);
+  const layers = new Set(file.roles || []);
+  if (rel.includes('controller')) layers.add('controller');
+  if (rel.includes('service')) layers.add('service');
+  if (rel.includes('repository') || rel.includes('repositories') || base.includes('repo')) layers.add('repository');
+  if (rel.includes('model') || rel.includes('entity') || rel.includes('schema')) layers.add('model');
+  if (rel.includes('route') || rel.includes('router')) layers.add('route');
+  if (rel.startsWith('scripts/')) layers.add('script');
+  if (rel.startsWith('docs/') || file.language === 'markdown') layers.add('documentation');
+  if (!layers.size) {
+    layers.add(['python', 'javascript', 'typescript', 'csharp', 'go', 'rust'].includes(file.language) ? 'code' : 'asset');
+  }
+  return [...layers].sort();
+}
+
+function responsibilityForFile(file, layers) {
+  if (layers.includes('controller') || layers.includes('route')) return 'Defines inbound request or routing behavior.';
+  if (layers.includes('service')) return 'Holds application/service orchestration logic.';
+  if (layers.includes('repository')) return 'Encapsulates persistence or data access behavior.';
+  if (layers.includes('model')) return 'Defines domain, data or schema structures.';
+  if (layers.includes('test')) return 'Verifies project behavior through automated tests.';
+  if (layers.includes('entrypoint')) return 'Starts a CLI, runtime or package entrypoint.';
+  if (layers.includes('config')) return 'Configures tooling, build, runtime or packaging behavior.';
+  if (layers.includes('documentation')) return 'Documents product, architecture, operation or contributor workflow.';
+  if (file.exports && file.exports.length) return `Defines exported symbols: ${file.exports.slice(0, 5).join(', ')}.`;
+  return 'Participates in the project implementation; inspect imports and symbols for exact usage.';
+}
+
+function moduleNameForPath(rel) {
+  return rel.includes('/') ? rel.split('/')[0] : '.';
+}
+
+function buildSymbolIndex(cwd, files, generatedAt) {
+  const symbols = [];
+  for (const file of files) {
+    symbols.push(...symbolDefinitionsForFile(file, readSafe(path.join(cwd, file.path))));
+  }
+  return {
+    schema: SYMBOL_INDEX_SCHEMA,
+    version: ARTIFACT_VERSION,
+    generated_at: generatedAt,
+    root: cwd.split(path.sep).join('/'),
+    symbols,
+    counts: {
+      symbols: symbols.length,
+      files: new Set(symbols.map((item) => item.defined_in)).size,
+    },
+  };
+}
+
+function stripKnownExt(rel) {
+  const ext = path.posix.extname(rel);
+  return ext ? rel.slice(0, -ext.length) : rel;
+}
+
+function candidateImportTargets(importName, sourceFile, knownPaths) {
+  if (!importName || importName.startsWith('@')) return [];
+  let base = importName;
+  if (importName.startsWith('.')) {
+    base = path.posix.normalize(path.posix.join(path.posix.dirname(sourceFile), importName));
+  } else if (importName.includes('.')) {
+    base = importName.replace(/\./g, '/');
+  }
+  base = base.replace(/^\/+/, '');
+  const candidates = [base];
+  for (const ext of ['.py', '.js', '.jsx', '.ts', '.tsx', '.cs', '.go', '.rs']) candidates.push(`${base}${ext}`);
+  for (const ext of ['.py', '.js', '.ts', '.tsx']) candidates.push(`${base}/index${ext}`);
+  candidates.push(`${base}/__init__.py`);
+  const direct = candidates.filter((candidate) => knownPaths.has(candidate));
+  if (direct.length) return direct;
+  const normalized = stripKnownExt(base);
+  return [...knownPaths].filter((known) => {
+    const knownBase = stripKnownExt(known);
+    return knownBase === normalized || knownBase.endsWith(`/${normalized}`);
+  }).sort();
+}
+
+const CALL_SKIP_NAMES = new Set([
+  'if', 'for', 'while', 'switch', 'catch', 'return', 'function', 'class', 'def',
+  'print', 'len', 'str', 'int', 'float', 'bool', 'list', 'dict', 'set', 'tuple',
+]);
+const CALL_GRAPH_LANGUAGES = new Set([
+  'python', 'javascript', 'typescript', 'csharp', 'razor', 'go', 'rust', 'java', 'kotlin', 'php', 'ruby',
+]);
+
+function callExpressions(text) {
+  const calls = [];
+  for (const match of text.matchAll(/\b([A-Za-z_]\w*)\s*\(/g)) {
+    if (CALL_SKIP_NAMES.has(match[1])) continue;
+    calls.push({ name: match[1], line: lineNumber(text, match.index || 0) });
+  }
+  return calls;
+}
+
+function nearestSymbol(symbols, file, line) {
+  return symbols
+    .filter((item) => item.defined_in === file && item.line <= line)
+    .sort((a, b) => a.line - b.line)
+    .pop() || null;
+}
+
+function buildCallGraph(cwd, files, symbolIndex, generatedAt) {
+  const knownPaths = new Set(files.map((file) => file.path));
+  const symbols = symbolIndex.symbols || [];
+  const symbolsByName = new Map();
+  for (const symbol of symbols) {
+    if (!symbolsByName.has(symbol.name)) symbolsByName.set(symbol.name, []);
+    symbolsByName.get(symbol.name).push(symbol);
+  }
+  const edges = [];
+  const seen = new Set();
+  const addEdge = (edge) => {
+    const key = `${edge.type}:${edge.source_file}:${edge.target_file}:${edge.target_symbol || edge.import || ''}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    edges.push(edge);
+  };
+
+  for (const file of files) {
+    for (const imported of file.imports || []) {
+      for (const target of candidateImportTargets(imported, file.path, knownPaths).slice(0, 3)) {
+        if (target === file.path) continue;
+        addEdge({
+          type: 'imports',
+          source_file: file.path,
+          target_file: target,
+          import: imported,
+          confidence: imported.startsWith('.') ? 0.82 : 0.65,
+        });
+      }
+    }
+    if (CALL_GRAPH_LANGUAGES.has(file.language)) {
+      const text = readSafe(path.join(cwd, file.path));
+      for (const call of callExpressions(text)) {
+        for (const target of (symbolsByName.get(call.name) || []).slice(0, 3)) {
+          if (target.defined_in === file.path && target.line === call.line) continue;
+          const caller = nearestSymbol(symbols, file.path, call.line);
+          addEdge({
+            type: 'calls',
+            source_file: file.path,
+            source_symbol: caller ? caller.qualified_name : null,
+            target_file: target.defined_in,
+            target_symbol: target.qualified_name,
+            line: call.line,
+            confidence: caller ? 0.58 : 0.48,
+          });
+        }
+      }
+    }
+  }
+
+  const sortedEdges = edges.sort((a, b) => (
+    (a.source_file || '').localeCompare(b.source_file || '')
+    || (a.target_file || '').localeCompare(b.target_file || '')
+    || (a.type || '').localeCompare(b.type || '')
+    || (a.target_symbol || a.import || '').localeCompare(b.target_symbol || b.import || '')
+  ));
+  return {
+    schema: CALL_GRAPH_SCHEMA,
+    version: ARTIFACT_VERSION,
+    generated_at: generatedAt,
+    source_symbol_index: '.simplicio/symbol-index.json',
+    edges: sortedEdges.slice(0, 1000),
+    counts: {
+      edges: edges.length,
+      imports: edges.filter((item) => item.type === 'imports').length,
+      calls: edges.filter((item) => item.type === 'calls').length,
+    },
+  };
+}
+
+function buildArchitectureInventory(cwd, projectMap, files, symbolIndex, callGraph, generatedAt) {
+  const symbolsByFile = new Map();
+  for (const symbol of symbolIndex.symbols || []) {
+    if (!symbolsByFile.has(symbol.defined_in)) symbolsByFile.set(symbol.defined_in, []);
+    symbolsByFile.get(symbol.defined_in).push(symbol);
+  }
+  const modules = new Map();
+  const layers = new Map();
+  const inventoryFiles = [];
+
+  for (const file of files) {
+    const fileLayers = layersForFile(file);
+    const fileSymbols = symbolsByFile.get(file.path) || [];
+    const moduleName = moduleNameForPath(file.path);
+    inventoryFiles.push({
+      path: file.path,
+      language: file.language,
+      module: moduleName,
+      layers: fileLayers,
+      roles: file.roles,
+      imports: file.imports,
+      symbols: fileSymbols.map((item) => item.name),
+      summary: responsibilityForFile(file, fileLayers),
+      evidence: [{ file: file.path }],
+    });
+    if (!modules.has(moduleName)) {
+      modules.set(moduleName, { name: moduleName, files: [], layers: new Set(), entryPoints: [], tests: [], publicSymbols: [] });
+    }
+    const module = modules.get(moduleName);
+    module.files.push(file.path);
+    fileLayers.forEach((layer) => module.layers.add(layer));
+    if (fileLayers.includes('entrypoint')) module.entryPoints.push(file.path);
+    if (fileLayers.includes('test')) module.tests.push(file.path);
+    module.publicSymbols.push(...fileSymbols.map((item) => item.name));
+    for (const layerName of fileLayers) {
+      if (!layers.has(layerName)) layers.set(layerName, { name: layerName, files: [], modules: new Set() });
+      layers.get(layerName).files.push(file.path);
+      layers.get(layerName).modules.add(moduleName);
+    }
+  }
+
+  const moduleEntries = [...modules.values()].sort((a, b) => a.name.localeCompare(b.name)).map((module) => ({
+    name: module.name,
+    summary: `Groups ${module.files.length} files across ${module.layers.size} detected layers.`,
+    file_count: module.files.length,
+    files: module.files.slice(0, 80),
+    layers: [...module.layers].sort(),
+    entry_points: module.entryPoints.sort(),
+    tests: module.tests.sort(),
+    public_symbols: [...new Set(module.publicSymbols)].sort().slice(0, 40),
+    evidence: module.files.slice(0, 10).map((file) => ({ file })),
+  }));
+  const layerEntries = [...layers.values()].sort((a, b) => a.name.localeCompare(b.name)).map((layer) => ({
+    name: layer.name,
+    file_count: layer.files.length,
+    files: layer.files.sort().slice(0, 100),
+    modules: [...layer.modules].sort(),
+    evidence: layer.files.sort().slice(0, 10).map((file) => ({ file })),
+  }));
+  return {
+    schema: ARCHITECTURE_INVENTORY_SCHEMA,
+    version: ARTIFACT_VERSION,
+    generated_at: generatedAt,
+    root: cwd.split(path.sep).join('/'),
+    source_project_map: '.simplicio/project-map.json',
+    source_symbol_index: '.simplicio/symbol-index.json',
+    source_call_graph: '.simplicio/call-graph.json',
+    product: projectMap.product,
+    architecture: projectMap.architecture,
+    modules: moduleEntries,
+    layers: layerEntries,
+    files: inventoryFiles.sort((a, b) => a.path.localeCompare(b.path)),
+    relationships: (callGraph.edges || []).slice(0, 250),
+    coverage: {
+      files: files.length,
+      modules: moduleEntries.length,
+      layers: layerEntries.length,
+      symbols: (symbolIndex.symbols || []).length,
+      relationships: (callGraph.edges || []).length,
+      tests: (projectMap.test_files || []).length,
+    },
+    notes: [
+      'Generated from deterministic repository inspection.',
+      'Relationship confidence below 1.0 means the edge is heuristic and should be reviewed before making broad claims.',
+    ],
+  };
+}
+
 function buildArtifacts({ cwd, meta = {}, incremental = false, outputDir = '.simplicio' }) {
   const absCwd = path.resolve(cwd || process.cwd());
   const absOut = path.resolve(absCwd, outputDir);
@@ -415,30 +732,72 @@ function buildArtifacts({ cwd, meta = {}, incremental = false, outputDir = '.sim
     items: buildPrecedentItems(absCwd, files),
   };
 
-  return { projectMap, precedentIndex };
+  const symbolIndex = buildSymbolIndex(absCwd, files, projectMap.generated_at);
+  const callGraph = buildCallGraph(absCwd, files, symbolIndex, projectMap.generated_at);
+  const architectureInventory = buildArchitectureInventory(
+    absCwd,
+    projectMap,
+    files,
+    symbolIndex,
+    callGraph,
+    projectMap.generated_at,
+  );
+
+  return { projectMap, precedentIndex, architectureInventory, symbolIndex, callGraph };
 }
 
 function writeJsonStable(file, data) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
+  const tmp = `${file}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n');
+  fs.renameSync(tmp, file);
 }
 
 function writeMappingArtifacts({ cwd, meta = {}, incremental = false, outputDir = '.simplicio', log = () => {} }) {
   const absCwd = path.resolve(cwd || process.cwd());
   const absOut = path.resolve(absCwd, outputDir);
-  const { projectMap, precedentIndex } = buildArtifacts({ cwd: absCwd, meta, incremental, outputDir });
+  const {
+    projectMap,
+    precedentIndex,
+    architectureInventory,
+    symbolIndex,
+    callGraph,
+  } = buildArtifacts({ cwd: absCwd, meta, incremental, outputDir });
   const projectMapPath = path.join(absOut, 'project-map.json');
   const precedentPath = path.join(absOut, 'precedent-index.json');
+  const architectureInventoryPath = path.join(absOut, 'architecture-inventory.json');
+  const symbolIndexPath = path.join(absOut, 'symbol-index.json');
+  const callGraphPath = path.join(absOut, 'call-graph.json');
   writeJsonStable(projectMapPath, projectMap);
   writeJsonStable(precedentPath, precedentIndex);
+  writeJsonStable(architectureInventoryPath, architectureInventory);
+  writeJsonStable(symbolIndexPath, symbolIndex);
+  writeJsonStable(callGraphPath, callGraph);
   log(`→ wrote ${path.relative(absCwd, projectMapPath)} (${projectMap.files.length} files, ${projectMap.changed_files.length} changed)`);
   log(`→ wrote ${path.relative(absCwd, precedentPath)} (${precedentIndex.items.length} precedents)`);
-  return { projectMapPath, precedentPath, projectMap, precedentIndex };
+  log(`→ wrote ${path.relative(absCwd, architectureInventoryPath)} (${architectureInventory.coverage.modules} modules, ${architectureInventory.coverage.layers} layers)`);
+  log(`→ wrote ${path.relative(absCwd, symbolIndexPath)} (${symbolIndex.counts.symbols} symbols)`);
+  log(`→ wrote ${path.relative(absCwd, callGraphPath)} (${callGraph.counts.edges} relationships)`);
+  return {
+    projectMapPath,
+    precedentPath,
+    architectureInventoryPath,
+    symbolIndexPath,
+    callGraphPath,
+    projectMap,
+    precedentIndex,
+    architectureInventory,
+    symbolIndex,
+    callGraph,
+  };
 }
 
 module.exports = {
   ARTIFACT_SCHEMA,
   PRECEDENT_SCHEMA,
+  ARCHITECTURE_INVENTORY_SCHEMA,
+  SYMBOL_INDEX_SCHEMA,
+  CALL_GRAPH_SCHEMA,
   buildArtifacts,
   writeMappingArtifacts,
 };

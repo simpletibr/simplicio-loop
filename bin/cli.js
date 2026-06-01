@@ -1063,8 +1063,13 @@ function writeMeta(productName, stack, projectMode, projectsList, existingInstru
     simplicio: {
       project_map: '.simplicio/project-map.json',
       precedent_index: '.simplicio/precedent-index.json',
+      architecture_inventory: '.simplicio/architecture-inventory.json',
+      symbol_index: '.simplicio/symbol-index.json',
+      call_graph: '.simplicio/call-graph.json',
+      architecture_docs: '.simplicio/docs/',
       integration_contract: 'SIMPLICIO_INTEGRATION.md',
       update_command: 'npx @wesleysimplicio/llm-project-mapper map --incremental',
+      docs_command: 'simplicio-mapper docs .',
     },
     mcp_edge_enabled: opts.mcpEdge,
     preset: opts.preset || null,

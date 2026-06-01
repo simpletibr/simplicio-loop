@@ -39,6 +39,7 @@ test('autoMapProject emits rich project-map and precedent-index artifacts', () =
       dependencies: { express: '^4.0.0' },
     }));
     writeFile(dir, 'src/server.js', "const express = require('express');\nfunction startServer() {}\nmodule.exports = { startServer };\n");
+    writeFile(dir, 'src/services/user.service.js', "function listUsers() { return []; }\nmodule.exports = { listUsers };\n");
     writeFile(dir, 'tests/server.test.js', "const { test } = require('node:test');\ntest('starts server', () => {});\n");
     writeFile(dir, '.starter-meta.json', JSON.stringify({
       product_name: 'Artifact Host',
@@ -54,6 +55,9 @@ test('autoMapProject emits rich project-map and precedent-index artifacts', () =
 
     const projectMap = readJson(dir, '.simplicio/project-map.json');
     const precedentIndex = readJson(dir, '.simplicio/precedent-index.json');
+    const architectureInventory = readJson(dir, '.simplicio/architecture-inventory.json');
+    const symbolIndex = readJson(dir, '.simplicio/symbol-index.json');
+    const callGraph = readJson(dir, '.simplicio/call-graph.json');
 
     assert.equal(projectMap.schema, 'simplicio.project-map/v1');
     assert.equal(projectMap.product.name, 'Artifact Host');
@@ -64,6 +68,11 @@ test('autoMapProject emits rich project-map and precedent-index artifacts', () =
     assert.ok(projectMap.entities.some((entity) => entity.name === 'server'));
     assert.equal(precedentIndex.schema, 'simplicio.precedent-index/v1');
     assert.ok(precedentIndex.items.some((item) => item.path === 'tests/server.test.js' && item.change_type === 'test'));
+    assert.equal(architectureInventory.schema, 'simplicio.architecture-inventory/v1');
+    assert.equal(symbolIndex.schema, 'simplicio.symbol-index/v1');
+    assert.equal(callGraph.schema, 'simplicio.call-graph/v1');
+    assert.ok(architectureInventory.layers.some((layer) => layer.name === 'service'));
+    assert.ok(symbolIndex.symbols.some((symbol) => symbol.name === 'listUsers'));
   } finally {
     rmTmp(dir);
   }
@@ -136,7 +145,12 @@ test('starter metadata includes the simplicio integration contract pointer', () 
     const meta = readJson(dir, '.starter-meta.json');
     assert.equal(meta.simplicio.project_map, '.simplicio/project-map.json');
     assert.equal(meta.simplicio.precedent_index, '.simplicio/precedent-index.json');
+    assert.equal(meta.simplicio.architecture_inventory, '.simplicio/architecture-inventory.json');
+    assert.equal(meta.simplicio.symbol_index, '.simplicio/symbol-index.json');
+    assert.equal(meta.simplicio.call_graph, '.simplicio/call-graph.json');
+    assert.equal(meta.simplicio.architecture_docs, '.simplicio/docs/');
     assert.equal(meta.simplicio.integration_contract, 'SIMPLICIO_INTEGRATION.md');
+    assert.equal(meta.simplicio.docs_command, 'simplicio-mapper docs .');
   } finally {
     rmTmp(dir);
   }

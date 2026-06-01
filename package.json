@@ -1,6 +1,6 @@
 {
   "name": "@wesleysimplicio/llm-project-mapper",
-  "version": "0.6.10",
+  "version": "0.7.0",
   "description": "AI-friendly project scaffold with AGENTS.md ecosystem (Claude Code, Codex, Copilot, Cursor, Aider, Hermes, OpenClaw). Specs as code, atomic tasks, automated Definition of Done, reusable skills, multi-agent ready.",
   "type": "commonjs",
   "bin": {
@@ -37,7 +37,9 @@
     "bootstrap.sh",
     "bootstrap.ps1",
     "playwright.config.ts",
-    "tests/"
+    "tests/",
+    "!**/__pycache__/",
+    "!**/*.pyc"
   ],
   "engines": {
     "node": ">=16.7.0"

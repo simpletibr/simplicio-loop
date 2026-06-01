@@ -1,0 +1,5316 @@
+{
+  "schema": "simplicio.symbol-index/v1",
+  "version": 1,
+  "generated_at": "2026-06-01T01:26:48.982Z",
+  "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-mapper",
+  "symbols": [
+    {
+      "name": "sanitize",
+      "qualified_name": ".github/workflows-templates/telemetry-worker.js::sanitize",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": ".github/workflows-templates/telemetry-worker.js",
+      "line": 30,
+      "evidence": {
+        "file": ".github/workflows-templates/telemetry-worker.js",
+        "line": 30
+      }
+    },
+    {
+      "name": "readSafe",
+      "qualified_name": "bin/auto-map.js::readSafe",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 22,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 22
+      }
+    },
+    {
+      "name": "exists",
+      "qualified_name": "bin/auto-map.js::exists",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 30,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 30
+      }
+    },
+    {
+      "name": "slugify",
+      "qualified_name": "bin/auto-map.js::slugify",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 34,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 34
+      }
+    },
+    {
+      "name": "humanizeName",
+      "qualified_name": "bin/auto-map.js::humanizeName",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 42,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 42
+      }
+    },
+    {
+      "name": "safeTitle",
+      "qualified_name": "bin/auto-map.js::safeTitle",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 51,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 51
+      }
+    },
+    {
+      "name": "commandExists",
+      "qualified_name": "bin/auto-map.js::commandExists",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 56,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 56
+      }
+    },
+    {
+      "name": "walk",
+      "qualified_name": "bin/auto-map.js::walk",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 63,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 63
+      }
+    },
+    {
+      "name": "collectTextFiles",
+      "qualified_name": "bin/auto-map.js::collectTextFiles",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 84,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 84
+      }
+    },
+    {
+      "name": "parsePackageJson",
+      "qualified_name": "bin/auto-map.js::parsePackageJson",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 94,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 94
+      }
+    },
+    {
+      "name": "detectPackageManager",
+      "qualified_name": "bin/auto-map.js::detectPackageManager",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 102,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 102
+      }
+    },
+    {
+      "name": "detectUrls",
+      "qualified_name": "bin/auto-map.js::detectUrls",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 109,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 109
+      }
+    },
+    {
+      "name": "firstDefined",
+      "qualified_name": "bin/auto-map.js::firstDefined",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 154,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 154
+      }
+    },
+    {
+      "name": "inferInstallCommand",
+      "qualified_name": "bin/auto-map.js::inferInstallCommand",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 161,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 161
+      }
+    },
+    {
+      "name": "inferCommands",
+      "qualified_name": "bin/auto-map.js::inferCommands",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 172,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 172
+      }
+    },
+    {
+      "name": "quote",
+      "qualified_name": "bin/auto-map.js::quote",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 175,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 175
+      }
+    },
+    {
+      "name": "inferDatabase",
+      "qualified_name": "bin/auto-map.js::inferDatabase",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 235,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 235
+      }
+    },
+    {
+      "name": "inferAuthFlow",
+      "qualified_name": "bin/auto-map.js::inferAuthFlow",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 245,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 245
+      }
+    },
+    {
+      "name": "inferTeam",
+      "qualified_name": "bin/auto-map.js::inferTeam",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 256,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 256
+      }
+    },
+    {
+      "name": "inferDomain",
+      "qualified_name": "bin/auto-map.js::inferDomain",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 272,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 272
+      }
+    },
+    {
+      "name": "getGitRemote",
+      "qualified_name": "bin/auto-map.js::getGitRemote",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 284,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 284
+      }
+    },
+    {
+      "name": "collectTopDirectories",
+      "qualified_name": "bin/auto-map.js::collectTopDirectories",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 298,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 298
+      }
+    },
+    {
+      "name": "collectEntities",
+      "qualified_name": "bin/auto-map.js::collectEntities",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 309,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 309
+      }
+    },
+    {
+      "name": "collectFeatures",
+      "qualified_name": "bin/auto-map.js::collectFeatures",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 333,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 333
+      }
+    },
+    {
+      "name": "collectTodos",
+      "qualified_name": "bin/auto-map.js::collectTodos",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 350,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 350
+      }
+    },
+    {
+      "name": "collectIntegrations",
+      "qualified_name": "bin/auto-map.js::collectIntegrations",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 366,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 366
+      }
+    },
+    {
+      "name": "inferSystemType",
+      "qualified_name": "bin/auto-map.js::inferSystemType",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 387,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 387
+      }
+    },
+    {
+      "name": "renderVision",
+      "qualified_name": "bin/auto-map.js::renderVision",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 394,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 394
+      }
+    },
+    {
+      "name": "renderDomain",
+      "qualified_name": "bin/auto-map.js::renderDomain",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 450,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 450
+      }
+    },
+    {
+      "name": "renderPersonas",
+      "qualified_name": "bin/auto-map.js::renderPersonas",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 519,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 519
+      }
+    },
+    {
+      "name": "renderDesign",
+      "qualified_name": "bin/auto-map.js::renderDesign",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 556,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 556
+      }
+    },
+    {
+      "name": "renderPatterns",
+      "qualified_name": "bin/auto-map.js::renderPatterns",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 619,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 619
+      }
+    },
+    {
+      "name": "renderBacklog",
+      "qualified_name": "bin/auto-map.js::renderBacklog",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 652,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 652
+      }
+    },
+    {
+      "name": "renderSprint",
+      "qualified_name": "bin/auto-map.js::renderSprint",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 668,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 668
+      }
+    },
+    {
+      "name": "renderSprintTask",
+      "qualified_name": "bin/auto-map.js::renderSprintTask",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 702,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 702
+      }
+    },
+    {
+      "name": "renderLocalSetup",
+      "qualified_name": "bin/auto-map.js::renderLocalSetup",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 730,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 730
+      }
+    },
+    {
+      "name": "renderArchitectureMap",
+      "qualified_name": "bin/auto-map.js::renderArchitectureMap",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 792,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 792
+      }
+    },
+    {
+      "name": "renderDomainMap",
+      "qualified_name": "bin/auto-map.js::renderDomainMap",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 853,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 853
+      }
+    },
+    {
+      "name": "renderFeatureNotes",
+      "qualified_name": "bin/auto-map.js::renderFeatureNotes",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 898,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 898
+      }
+    },
+    {
+      "name": "renderEvidenceReadme",
+      "qualified_name": "bin/auto-map.js::renderEvidenceReadme",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 922,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 922
+      }
+    },
+    {
+      "name": "renderTroubleshooting",
+      "qualified_name": "bin/auto-map.js::renderTroubleshooting",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 951,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 951
+      }
+    },
+    {
+      "name": "renderInspection",
+      "qualified_name": "bin/auto-map.js::renderInspection",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 991,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 991
+      }
+    },
+    {
+      "name": "renderStartScript",
+      "qualified_name": "bin/auto-map.js::renderStartScript",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 1028,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 1028
+      }
+    },
+    {
+      "name": "renderTestScript",
+      "qualified_name": "bin/auto-map.js::renderTestScript",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 1067,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 1067
+      }
+    },
+    {
+      "name": "renderE2EReadme",
+      "qualified_name": "bin/auto-map.js::renderE2EReadme",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 1093,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 1093
+      }
+    },
+    {
+      "name": "defaultPersonas",
+      "qualified_name": "bin/auto-map.js::defaultPersonas",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 1108,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 1108
+      }
+    },
+    {
+      "name": "looksStarterManaged",
+      "qualified_name": "bin/auto-map.js::looksStarterManaged",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 1147,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 1147
+      }
+    },
+    {
+      "name": "writeIfSafe",
+      "qualified_name": "bin/auto-map.js::writeIfSafe",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 1151,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 1151
+      }
+    },
+    {
+      "name": "substituteTokensInFile",
+      "qualified_name": "bin/auto-map.js::substituteTokensInFile",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 1160,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 1160
+      }
+    },
+    {
+      "name": "collectCorpus",
+      "qualified_name": "bin/auto-map.js::collectCorpus",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 1172,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 1172
+      }
+    },
+    {
+      "name": "buildProfile",
+      "qualified_name": "bin/auto-map.js::buildProfile",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 1179,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 1179
+      }
+    },
+    {
+      "name": "autoMapProject",
+      "qualified_name": "bin/auto-map.js::autoMapProject",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/auto-map.js",
+      "line": 1239,
+      "evidence": {
+        "file": "bin/auto-map.js",
+        "line": 1239
+      }
+    },
+    {
+      "name": "printHelp",
+      "qualified_name": "bin/cli.js::printHelp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 367,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 367
+      }
+    },
+    {
+      "name": "log",
+      "qualified_name": "bin/cli.js::log",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 421,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 421
+      }
+    },
+    {
+      "name": "err",
+      "qualified_name": "bin/cli.js::err",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 423,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 423
+      }
+    },
+    {
+      "name": "maybeNotifyUpdate",
+      "qualified_name": "bin/cli.js::maybeNotifyUpdate",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 424,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 424
+      }
+    },
+    {
+      "name": "telemetryEnabled",
+      "qualified_name": "bin/cli.js::telemetryEnabled",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 460,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 460
+      }
+    },
+    {
+      "name": "persistTelemetryChoice",
+      "qualified_name": "bin/cli.js::persistTelemetryChoice",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 476,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 476
+      }
+    },
+    {
+      "name": "maybeSendTelemetry",
+      "qualified_name": "bin/cli.js::maybeSendTelemetry",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 487,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 487
+      }
+    },
+    {
+      "name": "readSafe",
+      "qualified_name": "bin/cli.js::readSafe",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 541,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 541
+      }
+    },
+    {
+      "name": "existsHere",
+      "qualified_name": "bin/cli.js::existsHere",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 543,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 543
+      }
+    },
+    {
+      "name": "listCwd",
+      "qualified_name": "bin/cli.js::listCwd",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 544,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 544
+      }
+    },
+    {
+      "name": "commandExists",
+      "qualified_name": "bin/cli.js::commandExists",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 545,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 545
+      }
+    },
+    {
+      "name": "detectStack",
+      "qualified_name": "bin/cli.js::detectStack",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 551,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 551
+      }
+    },
+    {
+      "name": "hasWorkspaceSignal",
+      "qualified_name": "bin/cli.js::hasWorkspaceSignal",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 590,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 590
+      }
+    },
+    {
+      "name": "detectStackIn",
+      "qualified_name": "bin/cli.js::detectStackIn",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 602,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 602
+      }
+    },
+    {
+      "name": "exists",
+      "qualified_name": "bin/cli.js::exists",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 604,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 604
+      }
+    },
+    {
+      "name": "read",
+      "qualified_name": "bin/cli.js::read",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 605,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 605
+      }
+    },
+    {
+      "name": "detectProductNameIn",
+      "qualified_name": "bin/cli.js::detectProductNameIn",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 631,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 631
+      }
+    },
+    {
+      "name": "exists",
+      "qualified_name": "bin/cli.js::exists",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 633,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 633
+      }
+    },
+    {
+      "name": "read",
+      "qualified_name": "bin/cli.js::read",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 634,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 634
+      }
+    },
+    {
+      "name": "listMonorepoDirs",
+      "qualified_name": "bin/cli.js::listMonorepoDirs",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 653,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 653
+      }
+    },
+    {
+      "name": "detectProjectMode",
+      "qualified_name": "bin/cli.js::detectProjectMode",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 675,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 675
+      }
+    },
+    {
+      "name": "buildProjectsList",
+      "qualified_name": "bin/cli.js::buildProjectsList",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 681,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 681
+      }
+    },
+    {
+      "name": "detectExistingInstructionFiles",
+      "qualified_name": "bin/cli.js::detectExistingInstructionFiles",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 692,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 692
+      }
+    },
+    {
+      "name": "looksStarterManagedContent",
+      "qualified_name": "bin/cli.js::looksStarterManagedContent",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 704,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 704
+      }
+    },
+    {
+      "name": "readExistingMeta",
+      "qualified_name": "bin/cli.js::readExistingMeta",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 708,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 708
+      }
+    },
+    {
+      "name": "detectPreservedUserFiles",
+      "qualified_name": "bin/cli.js::detectPreservedUserFiles",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 716,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 716
+      }
+    },
+    {
+      "name": "copyTemplate",
+      "qualified_name": "bin/cli.js::copyTemplate",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 740,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 740
+      }
+    },
+    {
+      "name": "handleGitignore",
+      "qualified_name": "bin/cli.js::handleGitignore",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 778,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 778
+      }
+    },
+    {
+      "name": "upsertGitignore",
+      "qualified_name": "bin/cli.js::upsertGitignore",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 836,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 836
+      }
+    },
+    {
+      "name": "writeFileIfMissing",
+      "qualified_name": "bin/cli.js::writeFileIfMissing",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 857,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 857
+      }
+    },
+    {
+      "name": "handleRuntimeScaffold",
+      "qualified_name": "bin/cli.js::handleRuntimeScaffold",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 872,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 872
+      }
+    },
+    {
+      "name": "readCatalog",
+      "qualified_name": "bin/cli.js::readCatalog",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 893,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 893
+      }
+    },
+    {
+      "name": "snapshot",
+      "qualified_name": "bin/cli.js::snapshot",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 898,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 898
+      }
+    },
+    {
+      "name": "dispatch",
+      "qualified_name": "bin/cli.js::dispatch",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 906,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 906
+      }
+    },
+    {
+      "name": "looksBinary",
+      "qualified_name": "bin/cli.js::looksBinary",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 985,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 985
+      }
+    },
+    {
+      "name": "substituteInFile",
+      "qualified_name": "bin/cli.js::substituteInFile",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 990,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 990
+      }
+    },
+    {
+      "name": "walk",
+      "qualified_name": "bin/cli.js::walk",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 1010,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 1010
+      }
+    },
+    {
+      "name": "substitute",
+      "qualified_name": "bin/cli.js::substitute",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 1022,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 1022
+      }
+    },
+    {
+      "name": "stamp",
+      "qualified_name": "bin/cli.js::stamp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 1025,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 1025
+      }
+    },
+    {
+      "name": "writeMeta",
+      "qualified_name": "bin/cli.js::writeMeta",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 1052,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 1052
+      }
+    },
+    {
+      "name": "ask",
+      "qualified_name": "bin/cli.js::ask",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 1097,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 1097
+      }
+    },
+    {
+      "name": "chooseCli",
+      "qualified_name": "bin/cli.js::chooseCli",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 1103,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 1103
+      }
+    },
+    {
+      "name": "copyToClipboard",
+      "qualified_name": "bin/cli.js::copyToClipboard",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 1121,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 1121
+      }
+    },
+    {
+      "name": "execHandoff",
+      "qualified_name": "bin/cli.js::execHandoff",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 1136,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 1136
+      }
+    },
+    {
+      "name": "requireCmd",
+      "qualified_name": "bin/cli.js::requireCmd",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 1145,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 1145
+      }
+    },
+    {
+      "name": "handoff",
+      "qualified_name": "bin/cli.js::handoff",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 1152,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 1152
+      }
+    },
+    {
+      "name": "main",
+      "qualified_name": "bin/cli.js::main",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/cli.js",
+      "line": 1224,
+      "evidence": {
+        "file": "bin/cli.js",
+        "line": 1224
+      }
+    },
+    {
+      "name": "runHook",
+      "qualified_name": "bin/hook-runner.js::runHook",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/hook-runner.js",
+      "line": 16,
+      "evidence": {
+        "file": "bin/hook-runner.js",
+        "line": 16
+      }
+    },
+    {
+      "name": "readJsonSafe",
+      "qualified_name": "bin/map.js::readJsonSafe",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/map.js",
+      "line": 7,
+      "evidence": {
+        "file": "bin/map.js",
+        "line": 7
+      }
+    },
+    {
+      "name": "printHelp",
+      "qualified_name": "bin/map.js::printHelp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/map.js",
+      "line": 15,
+      "evidence": {
+        "file": "bin/map.js",
+        "line": 15
+      }
+    },
+    {
+      "name": "parseArgs",
+      "qualified_name": "bin/map.js::parseArgs",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/map.js",
+      "line": 36,
+      "evidence": {
+        "file": "bin/map.js",
+        "line": 36
+      }
+    },
+    {
+      "name": "runOnce",
+      "qualified_name": "bin/map.js::runOnce",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/map.js",
+      "line": 72,
+      "evidence": {
+        "file": "bin/map.js",
+        "line": 72
+      }
+    },
+    {
+      "name": "runMapCli",
+      "qualified_name": "bin/map.js::runMapCli",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/map.js",
+      "line": 90,
+      "evidence": {
+        "file": "bin/map.js",
+        "line": 90
+      }
+    },
+    {
+      "name": "normalizeRel",
+      "qualified_name": "bin/mapper-artifacts.js::normalizeRel",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 34,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 34
+      }
+    },
+    {
+      "name": "readSafe",
+      "qualified_name": "bin/mapper-artifacts.js::readSafe",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 38,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 38
+      }
+    },
+    {
+      "name": "exists",
+      "qualified_name": "bin/mapper-artifacts.js::exists",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 46,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 46
+      }
+    },
+    {
+      "name": "sha256",
+      "qualified_name": "bin/mapper-artifacts.js::sha256",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 50,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 50
+      }
+    },
+    {
+      "name": "walk",
+      "qualified_name": "bin/mapper-artifacts.js::walk",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 54,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 54
+      }
+    },
+    {
+      "name": "languageFor",
+      "qualified_name": "bin/mapper-artifacts.js::languageFor",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 73,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 73
+      }
+    },
+    {
+      "name": "parseJsonSafe",
+      "qualified_name": "bin/mapper-artifacts.js::parseJsonSafe",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 104,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 104
+      }
+    },
+    {
+      "name": "gitStatusMap",
+      "qualified_name": "bin/mapper-artifacts.js::gitStatusMap",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 112,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 112
+      }
+    },
+    {
+      "name": "collectTextFiles",
+      "qualified_name": "bin/mapper-artifacts.js::collectTextFiles",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 130,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 130
+      }
+    },
+    {
+      "name": "parseImports",
+      "qualified_name": "bin/mapper-artifacts.js::parseImports",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 145,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 145
+      }
+    },
+    {
+      "name": "parseSymbols",
+      "qualified_name": "bin/mapper-artifacts.js::parseSymbols",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 163,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 163
+      }
+    },
+    {
+      "name": "rolesFor",
+      "qualified_name": "bin/mapper-artifacts.js::rolesFor",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 179,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 179
+      }
+    },
+    {
+      "name": "importanceFor",
+      "qualified_name": "bin/mapper-artifacts.js::importanceFor",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 200,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 200
+      }
+    },
+    {
+      "name": "tokenWords",
+      "qualified_name": "bin/mapper-artifacts.js::tokenWords",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 212,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 212
+      }
+    },
+    {
+      "name": "collectEntities",
+      "qualified_name": "bin/mapper-artifacts.js::collectEntities",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 220,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 220
+      }
+    },
+    {
+      "name": "collectArchitectureSignals",
+      "qualified_name": "bin/mapper-artifacts.js::collectArchitectureSignals",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 236,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 236
+      }
+    },
+    {
+      "name": "groupModules",
+      "qualified_name": "bin/mapper-artifacts.js::groupModules",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 257,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 257
+      }
+    },
+    {
+      "name": "detectChangedFiles",
+      "qualified_name": "bin/mapper-artifacts.js::detectChangedFiles",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 276,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 276
+      }
+    },
+    {
+      "name": "loadPreviousMap",
+      "qualified_name": "bin/mapper-artifacts.js::loadPreviousMap",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 290,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 290
+      }
+    },
+    {
+      "name": "buildFileInventory",
+      "qualified_name": "bin/mapper-artifacts.js::buildFileInventory",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 299,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 299
+      }
+    },
+    {
+      "name": "extractSnippet",
+      "qualified_name": "bin/mapper-artifacts.js::extractSnippet",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 324,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 324
+      }
+    },
+    {
+      "name": "buildPrecedentItems",
+      "qualified_name": "bin/mapper-artifacts.js::buildPrecedentItems",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 331,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 331
+      }
+    },
+    {
+      "name": "lineNumber",
+      "qualified_name": "bin/mapper-artifacts.js::lineNumber",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 365,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 365
+      }
+    },
+    {
+      "name": "symbolDefinitionsForFile",
+      "qualified_name": "bin/mapper-artifacts.js::symbolDefinitionsForFile",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 369,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 369
+      }
+    },
+    {
+      "name": "layersForFile",
+      "qualified_name": "bin/mapper-artifacts.js::layersForFile",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 418,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 418
+      }
+    },
+    {
+      "name": "responsibilityForFile",
+      "qualified_name": "bin/mapper-artifacts.js::responsibilityForFile",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 435,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 435
+      }
+    },
+    {
+      "name": "moduleNameForPath",
+      "qualified_name": "bin/mapper-artifacts.js::moduleNameForPath",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 448,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 448
+      }
+    },
+    {
+      "name": "buildSymbolIndex",
+      "qualified_name": "bin/mapper-artifacts.js::buildSymbolIndex",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 452,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 452
+      }
+    },
+    {
+      "name": "stripKnownExt",
+      "qualified_name": "bin/mapper-artifacts.js::stripKnownExt",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 470,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 470
+      }
+    },
+    {
+      "name": "candidateImportTargets",
+      "qualified_name": "bin/mapper-artifacts.js::candidateImportTargets",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 475,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 475
+      }
+    },
+    {
+      "name": "callExpressions",
+      "qualified_name": "bin/mapper-artifacts.js::callExpressions",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 505,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 505
+      }
+    },
+    {
+      "name": "nearestSymbol",
+      "qualified_name": "bin/mapper-artifacts.js::nearestSymbol",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 514,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 514
+      }
+    },
+    {
+      "name": "buildCallGraph",
+      "qualified_name": "bin/mapper-artifacts.js::buildCallGraph",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 521,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 521
+      }
+    },
+    {
+      "name": "addEdge",
+      "qualified_name": "bin/mapper-artifacts.js::addEdge",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 532,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 532
+      }
+    },
+    {
+      "name": "buildArchitectureInventory",
+      "qualified_name": "bin/mapper-artifacts.js::buildArchitectureInventory",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 591,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 591
+      }
+    },
+    {
+      "name": "buildArtifacts",
+      "qualified_name": "bin/mapper-artifacts.js::buildArtifacts",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 679,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 679
+      }
+    },
+    {
+      "name": "writeJsonStable",
+      "qualified_name": "bin/mapper-artifacts.js::writeJsonStable",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 748,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 748
+      }
+    },
+    {
+      "name": "writeMappingArtifacts",
+      "qualified_name": "bin/mapper-artifacts.js::writeMappingArtifacts",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/mapper-artifacts.js",
+      "line": 755,
+      "evidence": {
+        "file": "bin/mapper-artifacts.js",
+        "line": 755
+      }
+    },
+    {
+      "name": "printHelp",
+      "qualified_name": "bin/skillopt.js::printHelp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/skillopt.js",
+      "line": 20,
+      "evidence": {
+        "file": "bin/skillopt.js",
+        "line": 20
+      }
+    },
+    {
+      "name": "parseArgs",
+      "qualified_name": "bin/skillopt.js::parseArgs",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/skillopt.js",
+      "line": 51,
+      "evidence": {
+        "file": "bin/skillopt.js",
+        "line": 51
+      }
+    },
+    {
+      "name": "readJson",
+      "qualified_name": "bin/skillopt.js::readJson",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/skillopt.js",
+      "line": 77,
+      "evidence": {
+        "file": "bin/skillopt.js",
+        "line": 77
+      }
+    },
+    {
+      "name": "countAcceptedEdits",
+      "qualified_name": "bin/skillopt.js::countAcceptedEdits",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/skillopt.js",
+      "line": 81,
+      "evidence": {
+        "file": "bin/skillopt.js",
+        "line": 81
+      }
+    },
+    {
+      "name": "writeReceipt",
+      "qualified_name": "bin/skillopt.js::writeReceipt",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/skillopt.js",
+      "line": 87,
+      "evidence": {
+        "file": "bin/skillopt.js",
+        "line": 87
+      }
+    },
+    {
+      "name": "main",
+      "qualified_name": "bin/skillopt.js::main",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/skillopt.js",
+      "line": 108,
+      "evidence": {
+        "file": "bin/skillopt.js",
+        "line": 108
+      }
+    },
+    {
+      "name": "Leaf",
+      "qualified_name": "scripts/build_hamt.py::Leaf",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 29,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 29
+      }
+    },
+    {
+      "name": "yool_hash",
+      "qualified_name": "scripts/build_hamt.py::yool_hash",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 33,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 33
+      }
+    },
+    {
+      "name": "hash_hex",
+      "qualified_name": "scripts/build_hamt.py::hash_hex",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 38,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 38
+      }
+    },
+    {
+      "name": "slot_path",
+      "qualified_name": "scripts/build_hamt.py::slot_path",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 42,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 42
+      }
+    },
+    {
+      "name": "canonical_json",
+      "qualified_name": "scripts/build_hamt.py::canonical_json",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 50,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 50
+      }
+    },
+    {
+      "name": "parse_scalar",
+      "qualified_name": "scripts/build_hamt.py::parse_scalar",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 54,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 54
+      }
+    },
+    {
+      "name": "heading_anchor",
+      "qualified_name": "scripts/build_hamt.py::heading_anchor",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 77,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 77
+      }
+    },
+    {
+      "name": "parse_agent_terms",
+      "qualified_name": "scripts/build_hamt.py::parse_agent_terms",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 82,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 82
+      }
+    },
+    {
+      "name": "parse_agents",
+      "qualified_name": "scripts/build_hamt.py::parse_agents",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 102,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 102
+      }
+    },
+    {
+      "name": "finalize",
+      "qualified_name": "scripts/build_hamt.py::finalize",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 112,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 112
+      }
+    },
+    {
+      "name": "blank_node",
+      "qualified_name": "scripts/build_hamt.py::blank_node",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 158,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 158
+      }
+    },
+    {
+      "name": "insert_leaf",
+      "qualified_name": "scripts/build_hamt.py::insert_leaf",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 162,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 162
+      }
+    },
+    {
+      "name": "build_catalog",
+      "qualified_name": "scripts/build_hamt.py::build_catalog",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 212,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 212
+      }
+    },
+    {
+      "name": "parse_args",
+      "qualified_name": "scripts/build_hamt.py::parse_args",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 251,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 251
+      }
+    },
+    {
+      "name": "main",
+      "qualified_name": "scripts/build_hamt.py::main",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "scripts/build_hamt.py",
+      "line": 259,
+      "evidence": {
+        "file": "scripts/build_hamt.py",
+        "line": 259
+      }
+    },
+    {
+      "name": "metric",
+      "qualified_name": "scripts/coverage.js::metric",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/coverage.js",
+      "line": 50,
+      "evidence": {
+        "file": "scripts/coverage.js",
+        "line": 50
+      }
+    },
+    {
+      "name": "log",
+      "qualified_name": "scripts/lint.js::log",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/lint.js",
+      "line": 39,
+      "evidence": {
+        "file": "scripts/lint.js",
+        "line": 39
+      }
+    },
+    {
+      "name": "walk",
+      "qualified_name": "scripts/lint.js::walk",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/lint.js",
+      "line": 49,
+      "evidence": {
+        "file": "scripts/lint.js",
+        "line": 49
+      }
+    },
+    {
+      "name": "lintJavaScript",
+      "qualified_name": "scripts/lint.js::lintJavaScript",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/lint.js",
+      "line": 60,
+      "evidence": {
+        "file": "scripts/lint.js",
+        "line": 60
+      }
+    },
+    {
+      "name": "lintJson",
+      "qualified_name": "scripts/lint.js::lintJson",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/lint.js",
+      "line": 77,
+      "evidence": {
+        "file": "scripts/lint.js",
+        "line": 77
+      }
+    },
+    {
+      "name": "lintShell",
+      "qualified_name": "scripts/lint.js::lintShell",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/lint.js",
+      "line": 93,
+      "evidence": {
+        "file": "scripts/lint.js",
+        "line": 93
+      }
+    },
+    {
+      "name": "lintPowerShell",
+      "qualified_name": "scripts/lint.js::lintPowerShell",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/lint.js",
+      "line": 117,
+      "evidence": {
+        "file": "scripts/lint.js",
+        "line": 117
+      }
+    },
+    {
+      "name": "lintMarkdown",
+      "qualified_name": "scripts/lint.js::lintMarkdown",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/lint.js",
+      "line": 144,
+      "evidence": {
+        "file": "scripts/lint.js",
+        "line": 144
+      }
+    },
+    {
+      "name": "main",
+      "qualified_name": "scripts/lint.js::main",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/lint.js",
+      "line": 167,
+      "evidence": {
+        "file": "scripts/lint.js",
+        "line": 167
+      }
+    },
+    {
+      "name": "normalize",
+      "qualified_name": "scripts/skillopt/engine.js::normalize",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/skillopt/engine.js",
+      "line": 25,
+      "evidence": {
+        "file": "scripts/skillopt/engine.js",
+        "line": 25
+      }
+    },
+    {
+      "name": "toLines",
+      "qualified_name": "scripts/skillopt/engine.js::toLines",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/skillopt/engine.js",
+      "line": 29,
+      "evidence": {
+        "file": "scripts/skillopt/engine.js",
+        "line": 29
+      }
+    },
+    {
+      "name": "skillText",
+      "qualified_name": "scripts/skillopt/engine.js::skillText",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/skillopt/engine.js",
+      "line": 34,
+      "evidence": {
+        "file": "scripts/skillopt/engine.js",
+        "line": 34
+      }
+    },
+    {
+      "name": "containsDirective",
+      "qualified_name": "scripts/skillopt/engine.js::containsDirective",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/skillopt/engine.js",
+      "line": 38,
+      "evidence": {
+        "file": "scripts/skillopt/engine.js",
+        "line": 38
+      }
+    },
+    {
+      "name": "scoreTask",
+      "qualified_name": "scripts/skillopt/engine.js::scoreTask",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/skillopt/engine.js",
+      "line": 49,
+      "evidence": {
+        "file": "scripts/skillopt/engine.js",
+        "line": 49
+      }
+    },
+    {
+      "name": "evaluateSplit",
+      "qualified_name": "scripts/skillopt/engine.js::evaluateSplit",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/skillopt/engine.js",
+      "line": 59,
+      "evidence": {
+        "file": "scripts/skillopt/engine.js",
+        "line": 59
+      }
+    },
+    {
+      "name": "editSignature",
+      "qualified_name": "scripts/skillopt/engine.js::editSignature",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/skillopt/engine.js",
+      "line": 70,
+      "evidence": {
+        "file": "scripts/skillopt/engine.js",
+        "line": 70
+      }
+    },
+    {
+      "name": "reflect",
+      "qualified_name": "scripts/skillopt/engine.js::reflect",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/skillopt/engine.js",
+      "line": 82,
+      "evidence": {
+        "file": "scripts/skillopt/engine.js",
+        "line": 82
+      }
+    },
+    {
+      "name": "applyEdit",
+      "qualified_name": "scripts/skillopt/engine.js::applyEdit",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/skillopt/engine.js",
+      "line": 107,
+      "evidence": {
+        "file": "scripts/skillopt/engine.js",
+        "line": 107
+      }
+    },
+    {
+      "name": "escapeRegExp",
+      "qualified_name": "scripts/skillopt/engine.js::escapeRegExp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/skillopt/engine.js",
+      "line": 132,
+      "evidence": {
+        "file": "scripts/skillopt/engine.js",
+        "line": 132
+      }
+    },
+    {
+      "name": "applyEdits",
+      "qualified_name": "scripts/skillopt/engine.js::applyEdits",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/skillopt/engine.js",
+      "line": 136,
+      "evidence": {
+        "file": "scripts/skillopt/engine.js",
+        "line": 136
+      }
+    },
+    {
+      "name": "splitTasks",
+      "qualified_name": "scripts/skillopt/engine.js::splitTasks",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/skillopt/engine.js",
+      "line": 140,
+      "evidence": {
+        "file": "scripts/skillopt/engine.js",
+        "line": 140
+      }
+    },
+    {
+      "name": "optimize",
+      "qualified_name": "scripts/skillopt/engine.js::optimize",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/skillopt/engine.js",
+      "line": 157,
+      "evidence": {
+        "file": "scripts/skillopt/engine.js",
+        "line": 157
+      }
+    },
+    {
+      "name": "round6",
+      "qualified_name": "scripts/skillopt/engine.js::round6",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/skillopt/engine.js",
+      "line": 241,
+      "evidence": {
+        "file": "scripts/skillopt/engine.js",
+        "line": 241
+      }
+    },
+    {
+      "name": "ensureDir",
+      "qualified_name": "scripts/sync-docs-site.mjs::ensureDir",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 236,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 236
+      }
+    },
+    {
+      "name": "removeDir",
+      "qualified_name": "scripts/sync-docs-site.mjs::removeDir",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 240,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 240
+      }
+    },
+    {
+      "name": "toPosix",
+      "qualified_name": "scripts/sync-docs-site.mjs::toPosix",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 244,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 244
+      }
+    },
+    {
+      "name": "stripFirstTitle",
+      "qualified_name": "scripts/sync-docs-site.mjs::stripFirstTitle",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 248,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 248
+      }
+    },
+    {
+      "name": "extractRange",
+      "qualified_name": "scripts/sync-docs-site.mjs::extractRange",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 252,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 252
+      }
+    },
+    {
+      "name": "stripVideoSection",
+      "qualified_name": "scripts/sync-docs-site.mjs::stripVideoSection",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 271,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 271
+      }
+    },
+    {
+      "name": "resolveRelativePath",
+      "qualified_name": "scripts/sync-docs-site.mjs::resolveRelativePath",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 278,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 278
+      }
+    },
+    {
+      "name": "withHash",
+      "qualified_name": "scripts/sync-docs-site.mjs::withHash",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 283,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 283
+      }
+    },
+    {
+      "name": "rewriteUrl",
+      "qualified_name": "scripts/sync-docs-site.mjs::rewriteUrl",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 287,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 287
+      }
+    },
+    {
+      "name": "rewriteMarkdown",
+      "qualified_name": "scripts/sync-docs-site.mjs::rewriteMarkdown",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 319,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 319
+      }
+    },
+    {
+      "name": "toFrontMatter",
+      "qualified_name": "scripts/sync-docs-site.mjs::toFrontMatter",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 335,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 335
+      }
+    },
+    {
+      "name": "writeDoc",
+      "qualified_name": "scripts/sync-docs-site.mjs::writeDoc",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 344,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 344
+      }
+    },
+    {
+      "name": "writeCategories",
+      "qualified_name": "scripts/sync-docs-site.mjs::writeCategories",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 370,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 370
+      }
+    },
+    {
+      "name": "copyAssets",
+      "qualified_name": "scripts/sync-docs-site.mjs::copyAssets",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 390,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 390
+      }
+    },
+    {
+      "name": "main",
+      "qualified_name": "scripts/sync-docs-site.mjs::main",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/sync-docs-site.mjs",
+      "line": 398,
+      "evidence": {
+        "file": "scripts/sync-docs-site.mjs",
+        "line": 398
+      }
+    },
+    {
+      "name": "FileProcessingCache",
+      "qualified_name": "simplicio_mapper/cache.py::FileProcessingCache",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cache.py",
+      "line": 10,
+      "evidence": {
+        "file": "simplicio_mapper/cache.py",
+        "line": 10
+      }
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "simplicio_mapper/cache.py::__init__",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cache.py",
+      "line": 23,
+      "evidence": {
+        "file": "simplicio_mapper/cache.py",
+        "line": 23
+      }
+    },
+    {
+      "name": "__enter__",
+      "qualified_name": "simplicio_mapper/cache.py::__enter__",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cache.py",
+      "line": 26,
+      "evidence": {
+        "file": "simplicio_mapper/cache.py",
+        "line": 26
+      }
+    },
+    {
+      "name": "__exit__",
+      "qualified_name": "simplicio_mapper/cache.py::__exit__",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cache.py",
+      "line": 29,
+      "evidence": {
+        "file": "simplicio_mapper/cache.py",
+        "line": 29
+      }
+    },
+    {
+      "name": "close",
+      "qualified_name": "simplicio_mapper/cache.py::close",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cache.py",
+      "line": 32,
+      "evidence": {
+        "file": "simplicio_mapper/cache.py",
+        "line": 32
+      }
+    },
+    {
+      "name": "clear",
+      "qualified_name": "simplicio_mapper/cache.py::clear",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cache.py",
+      "line": 35,
+      "evidence": {
+        "file": "simplicio_mapper/cache.py",
+        "line": 35
+      }
+    },
+    {
+      "name": "make_file_key",
+      "qualified_name": "simplicio_mapper/cache.py::make_file_key",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cache.py",
+      "line": 38,
+      "evidence": {
+        "file": "simplicio_mapper/cache.py",
+        "line": 38
+      }
+    },
+    {
+      "name": "get_processed_file",
+      "qualified_name": "simplicio_mapper/cache.py::get_processed_file",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cache.py",
+      "line": 44,
+      "evidence": {
+        "file": "simplicio_mapper/cache.py",
+        "line": 44
+      }
+    },
+    {
+      "name": "set_processed_file",
+      "qualified_name": "simplicio_mapper/cache.py::set_processed_file",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cache.py",
+      "line": 48,
+      "evidence": {
+        "file": "simplicio_mapper/cache.py",
+        "line": 48
+      }
+    },
+    {
+      "name": "_read_json_safe",
+      "qualified_name": "simplicio_mapper/cli.py::_read_json_safe",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 75,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 75
+      }
+    },
+    {
+      "name": "_parse_args",
+      "qualified_name": "simplicio_mapper/cli.py::_parse_args",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 83,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 83
+      }
+    },
+    {
+      "name": "_run_once",
+      "qualified_name": "simplicio_mapper/cli.py::_run_once",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 160,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 160
+      }
+    },
+    {
+      "name": "_signature",
+      "qualified_name": "simplicio_mapper/cli.py::_signature",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 177,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 177
+      }
+    },
+    {
+      "name": "_state_path",
+      "qualified_name": "simplicio_mapper/cli.py::_state_path",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 196,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 196
+      }
+    },
+    {
+      "name": "_artifact_paths",
+      "qualified_name": "simplicio_mapper/cli.py::_artifact_paths",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 200,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 200
+      }
+    },
+    {
+      "name": "_hash_text",
+      "qualified_name": "simplicio_mapper/cli.py::_hash_text",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 211,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 211
+      }
+    },
+    {
+      "name": "_git_signature",
+      "qualified_name": "simplicio_mapper/cli.py::_git_signature",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 215,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 215
+      }
+    },
+    {
+      "name": "_tree_signature",
+      "qualified_name": "simplicio_mapper/cli.py::_tree_signature",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 263,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 263
+      }
+    },
+    {
+      "name": "_freshness_signature",
+      "qualified_name": "simplicio_mapper/cli.py::_freshness_signature",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 283,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 283
+      }
+    },
+    {
+      "name": "_read_index_state",
+      "qualified_name": "simplicio_mapper/cli.py::_read_index_state",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 287,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 287
+      }
+    },
+    {
+      "name": "_write_index_state",
+      "qualified_name": "simplicio_mapper/cli.py::_write_index_state",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 291,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 291
+      }
+    },
+    {
+      "name": "_artifacts_exist",
+      "qualified_name": "simplicio_mapper/cli.py::_artifacts_exist",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 305,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 305
+      }
+    },
+    {
+      "name": "_index_result",
+      "qualified_name": "simplicio_mapper/cli.py::_index_result",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 309,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 309
+      }
+    },
+    {
+      "name": "_emit_index_json",
+      "qualified_name": "simplicio_mapper/cli.py::_emit_index_json",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 349,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 349
+      }
+    },
+    {
+      "name": "_normalize_endpoint_path",
+      "qualified_name": "simplicio_mapper/cli.py::_normalize_endpoint_path",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 354,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 354
+      }
+    },
+    {
+      "name": "_endpoint_files",
+      "qualified_name": "simplicio_mapper/cli.py::_endpoint_files",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 370,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 370
+      }
+    },
+    {
+      "name": "_route_entry",
+      "qualified_name": "simplicio_mapper/cli.py::_route_entry",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 380,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 380
+      }
+    },
+    {
+      "name": "_extract_csharp_server_routes",
+      "qualified_name": "simplicio_mapper/cli.py::_extract_csharp_server_routes",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 389,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 389
+      }
+    },
+    {
+      "name": "_extract_python_routes",
+      "qualified_name": "simplicio_mapper/cli.py::_extract_python_routes",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 412,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 412
+      }
+    },
+    {
+      "name": "_extract_text_client_calls",
+      "qualified_name": "simplicio_mapper/cli.py::_extract_text_client_calls",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 434,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 434
+      }
+    },
+    {
+      "name": "_is_test_path",
+      "qualified_name": "simplicio_mapper/cli.py::_is_test_path",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 447,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 447
+      }
+    },
+    {
+      "name": "_extract_text_constants",
+      "qualified_name": "simplicio_mapper/cli.py::_extract_text_constants",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 458,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 458
+      }
+    },
+    {
+      "name": "_strip_ts_quote",
+      "qualified_name": "simplicio_mapper/cli.py::_strip_ts_quote",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 474,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 474
+      }
+    },
+    {
+      "name": "_resolve_text_endpoint_expression",
+      "qualified_name": "simplicio_mapper/cli.py::_resolve_text_endpoint_expression",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 481,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 481
+      }
+    },
+    {
+      "name": "_resolve_text_endpoint_template",
+      "qualified_name": "simplicio_mapper/cli.py::_resolve_text_endpoint_template",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 488,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 488
+      }
+    },
+    {
+      "name": "_endpoint_inventory_for",
+      "qualified_name": "simplicio_mapper/cli.py::_endpoint_inventory_for",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 495,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 495
+      }
+    },
+    {
+      "name": "unique",
+      "qualified_name": "simplicio_mapper/cli.py::unique",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 520,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 520
+      }
+    },
+    {
+      "name": "_run_endpoints",
+      "qualified_name": "simplicio_mapper/cli.py::_run_endpoints",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 544,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 544
+      }
+    },
+    {
+      "name": "_screen_files",
+      "qualified_name": "simplicio_mapper/cli.py::_screen_files",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 590,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 590
+      }
+    },
+    {
+      "name": "_scan_code",
+      "qualified_name": "simplicio_mapper/cli.py::_scan_code",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 611,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 611
+      }
+    },
+    {
+      "name": "_balanced_span",
+      "qualified_name": "simplicio_mapper/cli.py::_balanced_span",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 631,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 631
+      }
+    },
+    {
+      "name": "_top_level_route_objects",
+      "qualified_name": "simplicio_mapper/cli.py::_top_level_route_objects",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 657,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 657
+      }
+    },
+    {
+      "name": "_top_level_value",
+      "qualified_name": "simplicio_mapper/cli.py::_top_level_value",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 676,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 676
+      }
+    },
+    {
+      "name": "_literal_value",
+      "qualified_name": "simplicio_mapper/cli.py::_literal_value",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 728,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 728
+      }
+    },
+    {
+      "name": "_join_screen_path",
+      "qualified_name": "simplicio_mapper/cli.py::_join_screen_path",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 735,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 735
+      }
+    },
+    {
+      "name": "_persona_for_path",
+      "qualified_name": "simplicio_mapper/cli.py::_persona_for_path",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 747,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 747
+      }
+    },
+    {
+      "name": "_extract_route_screens_from_array",
+      "qualified_name": "simplicio_mapper/cli.py::_extract_route_screens_from_array",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 754,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 754
+      }
+    },
+    {
+      "name": "_extract_angular_screen_entries",
+      "qualified_name": "simplicio_mapper/cli.py::_extract_angular_screen_entries",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 782,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 782
+      }
+    },
+    {
+      "name": "_screen_inventory_for",
+      "qualified_name": "simplicio_mapper/cli.py::_screen_inventory_for",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 795,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 795
+      }
+    },
+    {
+      "name": "_run_screens",
+      "qualified_name": "simplicio_mapper/cli.py::_run_screens",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 825,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 825
+      }
+    },
+    {
+      "name": "_run_docs",
+      "qualified_name": "simplicio_mapper/cli.py::_run_docs",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 844,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 844
+      }
+    },
+    {
+      "name": "_run_export_docs",
+      "qualified_name": "simplicio_mapper/cli.py::_run_export_docs",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 858,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 858
+      }
+    },
+    {
+      "name": "_run_index",
+      "qualified_name": "simplicio_mapper/cli.py::_run_index",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 872,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 872
+      }
+    },
+    {
+      "name": "_watch",
+      "qualified_name": "simplicio_mapper/cli.py::_watch",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 915,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 915
+      }
+    },
+    {
+      "name": "main",
+      "qualified_name": "simplicio_mapper/cli.py::main",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 933,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 933
+      }
+    },
+    {
+      "name": "_iso",
+      "qualified_name": "simplicio_mapper/mapper.py::_iso",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 83,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 83
+      }
+    },
+    {
+      "name": "_now_iso",
+      "qualified_name": "simplicio_mapper/mapper.py::_now_iso",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 87,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 87
+      }
+    },
+    {
+      "name": "_normalize_rel",
+      "qualified_name": "simplicio_mapper/mapper.py::_normalize_rel",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 91,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 91
+      }
+    },
+    {
+      "name": "_read_safe",
+      "qualified_name": "simplicio_mapper/mapper.py::_read_safe",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 95,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 95
+      }
+    },
+    {
+      "name": "_sha256",
+      "qualified_name": "simplicio_mapper/mapper.py::_sha256",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 103,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 103
+      }
+    },
+    {
+      "name": "_json_text",
+      "qualified_name": "simplicio_mapper/mapper.py::_json_text",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 109,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 109
+      }
+    },
+    {
+      "name": "_parse_json_safe",
+      "qualified_name": "simplicio_mapper/mapper.py::_parse_json_safe",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 113,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 113
+      }
+    },
+    {
+      "name": "_walk",
+      "qualified_name": "simplicio_mapper/mapper.py::_walk",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 121,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 121
+      }
+    },
+    {
+      "name": "_should_skip_dir",
+      "qualified_name": "simplicio_mapper/mapper.py::_should_skip_dir",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 135,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 135
+      }
+    },
+    {
+      "name": "_language_for",
+      "qualified_name": "simplicio_mapper/mapper.py::_language_for",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 147,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 147
+      }
+    },
+    {
+      "name": "_git_status_map",
+      "qualified_name": "simplicio_mapper/mapper.py::_git_status_map",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 157,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 157
+      }
+    },
+    {
+      "name": "_collect_text_files",
+      "qualified_name": "simplicio_mapper/mapper.py::_collect_text_files",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 181,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 181
+      }
+    },
+    {
+      "name": "_parse_imports",
+      "qualified_name": "simplicio_mapper/mapper.py::_parse_imports",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 196,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 196
+      }
+    },
+    {
+      "name": "_parse_symbols",
+      "qualified_name": "simplicio_mapper/mapper.py::_parse_symbols",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 228,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 228
+      }
+    },
+    {
+      "name": "_roles_for",
+      "qualified_name": "simplicio_mapper/mapper.py::_roles_for",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 255,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 255
+      }
+    },
+    {
+      "name": "_importance_for",
+      "qualified_name": "simplicio_mapper/mapper.py::_importance_for",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 282,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 282
+      }
+    },
+    {
+      "name": "_token_words",
+      "qualified_name": "simplicio_mapper/mapper.py::_token_words",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 305,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 305
+      }
+    },
+    {
+      "name": "_collect_entities",
+      "qualified_name": "simplicio_mapper/mapper.py::_collect_entities",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 315,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 315
+      }
+    },
+    {
+      "name": "_collect_architecture_signals",
+      "qualified_name": "simplicio_mapper/mapper.py::_collect_architecture_signals",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 349,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 349
+      }
+    },
+    {
+      "name": "_group_modules",
+      "qualified_name": "simplicio_mapper/mapper.py::_group_modules",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 354,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 354
+      }
+    },
+    {
+      "name": "_detect_changed_files",
+      "qualified_name": "simplicio_mapper/mapper.py::_detect_changed_files",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 372,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 372
+      }
+    },
+    {
+      "name": "_load_previous_map",
+      "qualified_name": "simplicio_mapper/mapper.py::_load_previous_map",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 384,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 384
+      }
+    },
+    {
+      "name": "_cached_parse_file",
+      "qualified_name": "simplicio_mapper/mapper.py::_cached_parse_file",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 393,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 393
+      }
+    },
+    {
+      "name": "_build_file_inventory",
+      "qualified_name": "simplicio_mapper/mapper.py::_build_file_inventory",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 412,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 412
+      }
+    },
+    {
+      "name": "_extract_snippet",
+      "qualified_name": "simplicio_mapper/mapper.py::_extract_snippet",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 456,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 456
+      }
+    },
+    {
+      "name": "_build_precedent_items",
+      "qualified_name": "simplicio_mapper/mapper.py::_build_precedent_items",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 462,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 462
+      }
+    },
+    {
+      "name": "_line_number",
+      "qualified_name": "simplicio_mapper/mapper.py::_line_number",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 499,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 499
+      }
+    },
+    {
+      "name": "_symbol_definitions_for_file",
+      "qualified_name": "simplicio_mapper/mapper.py::_symbol_definitions_for_file",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 503,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 503
+      }
+    },
+    {
+      "name": "_layers_for_file",
+      "qualified_name": "simplicio_mapper/mapper.py::_layers_for_file",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 564,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 564
+      }
+    },
+    {
+      "name": "_responsibility_for_file",
+      "qualified_name": "simplicio_mapper/mapper.py::_responsibility_for_file",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 587,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 587
+      }
+    },
+    {
+      "name": "_module_name_for_path",
+      "qualified_name": "simplicio_mapper/mapper.py::_module_name_for_path",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 609,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 609
+      }
+    },
+    {
+      "name": "_build_symbol_index",
+      "qualified_name": "simplicio_mapper/mapper.py::_build_symbol_index",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 615,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 615
+      }
+    },
+    {
+      "name": "_strip_known_ext",
+      "qualified_name": "simplicio_mapper/mapper.py::_strip_known_ext",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 633,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 633
+      }
+    },
+    {
+      "name": "_candidate_import_targets",
+      "qualified_name": "simplicio_mapper/mapper.py::_candidate_import_targets",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 638,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 638
+      }
+    },
+    {
+      "name": "_call_expressions",
+      "qualified_name": "simplicio_mapper/mapper.py::_call_expressions",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 681,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 681
+      }
+    },
+    {
+      "name": "_nearest_symbol",
+      "qualified_name": "simplicio_mapper/mapper.py::_nearest_symbol",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 691,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 691
+      }
+    },
+    {
+      "name": "_build_call_graph",
+      "qualified_name": "simplicio_mapper/mapper.py::_build_call_graph",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 698,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 698
+      }
+    },
+    {
+      "name": "add_edge",
+      "qualified_name": "simplicio_mapper/mapper.py::add_edge",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 709,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 709
+      }
+    },
+    {
+      "name": "_build_architecture_inventory",
+      "qualified_name": "simplicio_mapper/mapper.py::_build_architecture_inventory",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 770,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 770
+      }
+    },
+    {
+      "name": "build_artifacts",
+      "qualified_name": "simplicio_mapper/mapper.py::build_artifacts",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 876,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 876
+      }
+    },
+    {
+      "name": "_write_json_stable",
+      "qualified_name": "simplicio_mapper/mapper.py::_write_json_stable",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 972,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 972
+      }
+    },
+    {
+      "name": "write_mapping_artifacts",
+      "qualified_name": "simplicio_mapper/mapper.py::write_mapping_artifacts",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 982,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 982
+      }
+    },
+    {
+      "name": "_slugify",
+      "qualified_name": "simplicio_mapper/mapper.py::_slugify",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 1028,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 1028
+      }
+    },
+    {
+      "name": "_write_text_stable",
+      "qualified_name": "simplicio_mapper/mapper.py::_write_text_stable",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 1035,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 1035
+      }
+    },
+    {
+      "name": "_file_ref",
+      "qualified_name": "simplicio_mapper/mapper.py::_file_ref",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 1043,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 1043
+      }
+    },
+    {
+      "name": "_render_architecture_overview",
+      "qualified_name": "simplicio_mapper/mapper.py::_render_architecture_overview",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 1048,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 1048
+      }
+    },
+    {
+      "name": "_render_layers_doc",
+      "qualified_name": "simplicio_mapper/mapper.py::_render_layers_doc",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 1101,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 1101
+      }
+    },
+    {
+      "name": "_render_call_graph_doc",
+      "qualified_name": "simplicio_mapper/mapper.py::_render_call_graph_doc",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 1117,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 1117
+      }
+    },
+    {
+      "name": "_render_module_doc",
+      "qualified_name": "simplicio_mapper/mapper.py::_render_module_doc",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 1142,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 1142
+      }
+    },
+    {
+      "name": "write_architecture_docs",
+      "qualified_name": "simplicio_mapper/mapper.py::write_architecture_docs",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 1171,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 1171
+      }
+    },
+    {
+      "name": "export_architecture_docs",
+      "qualified_name": "simplicio_mapper/mapper.py::export_architecture_docs",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mapper.py",
+      "line": 1212,
+      "evidence": {
+        "file": "simplicio_mapper/mapper.py",
+        "line": 1212
+      }
+    },
+    {
+      "name": "ProjectFile",
+      "qualified_name": "simplicio_mapper/models.py::ProjectFile",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "simplicio_mapper/models.py",
+      "line": 4,
+      "evidence": {
+        "file": "simplicio_mapper/models.py",
+        "line": 4
+      }
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "simplicio_mapper/models.py::__init__",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/models.py",
+      "line": 26,
+      "evidence": {
+        "file": "simplicio_mapper/models.py",
+        "line": 26
+      }
+    },
+    {
+      "name": "to_dict",
+      "qualified_name": "simplicio_mapper/models.py::to_dict",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/models.py",
+      "line": 52,
+      "evidence": {
+        "file": "simplicio_mapper/models.py",
+        "line": 52
+      }
+    },
+    {
+      "name": "CodeEntity",
+      "qualified_name": "simplicio_mapper/models.py::CodeEntity",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "simplicio_mapper/models.py",
+      "line": 66,
+      "evidence": {
+        "file": "simplicio_mapper/models.py",
+        "line": 66
+      }
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "simplicio_mapper/models.py::__init__",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/models.py",
+      "line": 72,
+      "evidence": {
+        "file": "simplicio_mapper/models.py",
+        "line": 72
+      }
+    },
+    {
+      "name": "to_dict",
+      "qualified_name": "simplicio_mapper/models.py::to_dict",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/models.py",
+      "line": 76,
+      "evidence": {
+        "file": "simplicio_mapper/models.py",
+        "line": 76
+      }
+    },
+    {
+      "name": "PrecedentItem",
+      "qualified_name": "simplicio_mapper/models.py::PrecedentItem",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "simplicio_mapper/models.py",
+      "line": 79,
+      "evidence": {
+        "file": "simplicio_mapper/models.py",
+        "line": 79
+      }
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "simplicio_mapper/models.py::__init__",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/models.py",
+      "line": 94,
+      "evidence": {
+        "file": "simplicio_mapper/models.py",
+        "line": 94
+      }
+    },
+    {
+      "name": "to_dict",
+      "qualified_name": "simplicio_mapper/models.py::to_dict",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/models.py",
+      "line": 114,
+      "evidence": {
+        "file": "simplicio_mapper/models.py",
+        "line": 114
+      }
+    },
+    {
+      "name": "mkTmp",
+      "qualified_name": "tests/e2e/build-hamt-catalog.spec.ts::mkTmp",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/build-hamt-catalog.spec.ts",
+      "line": 9,
+      "evidence": {
+        "file": "tests/e2e/build-hamt-catalog.spec.ts",
+        "line": 9
+      }
+    },
+    {
+      "name": "rmTmp",
+      "qualified_name": "tests/e2e/build-hamt-catalog.spec.ts::rmTmp",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/build-hamt-catalog.spec.ts",
+      "line": 13,
+      "evidence": {
+        "file": "tests/e2e/build-hamt-catalog.spec.ts",
+        "line": 13
+      }
+    },
+    {
+      "name": "writeFile",
+      "qualified_name": "tests/e2e/build-hamt-catalog.spec.ts::writeFile",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/build-hamt-catalog.spec.ts",
+      "line": 21,
+      "evidence": {
+        "file": "tests/e2e/build-hamt-catalog.spec.ts",
+        "line": 21
+      }
+    },
+    {
+      "name": "runCli",
+      "qualified_name": "tests/e2e/build-hamt-catalog.spec.ts::runCli",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/build-hamt-catalog.spec.ts",
+      "line": 27,
+      "evidence": {
+        "file": "tests/e2e/build-hamt-catalog.spec.ts",
+        "line": 27
+      }
+    },
+    {
+      "name": "attachEvidence",
+      "qualified_name": "tests/e2e/build-hamt-catalog.spec.ts::attachEvidence",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/build-hamt-catalog.spec.ts",
+      "line": 35,
+      "evidence": {
+        "file": "tests/e2e/build-hamt-catalog.spec.ts",
+        "line": 35
+      }
+    },
+    {
+      "name": "mkTmp",
+      "qualified_name": "tests/e2e/cli.spec.ts::mkTmp",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/cli.spec.ts",
+      "line": 19,
+      "evidence": {
+        "file": "tests/e2e/cli.spec.ts",
+        "line": 19
+      }
+    },
+    {
+      "name": "rmTmp",
+      "qualified_name": "tests/e2e/cli.spec.ts::rmTmp",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/cli.spec.ts",
+      "line": 23,
+      "evidence": {
+        "file": "tests/e2e/cli.spec.ts",
+        "line": 23
+      }
+    },
+    {
+      "name": "writeFile",
+      "qualified_name": "tests/e2e/cli.spec.ts::writeFile",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/cli.spec.ts",
+      "line": 31,
+      "evidence": {
+        "file": "tests/e2e/cli.spec.ts",
+        "line": 31
+      }
+    },
+    {
+      "name": "runCli",
+      "qualified_name": "tests/e2e/cli.spec.ts::runCli",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/cli.spec.ts",
+      "line": 37,
+      "evidence": {
+        "file": "tests/e2e/cli.spec.ts",
+        "line": 37
+      }
+    },
+    {
+      "name": "listUnresolvedPlaceholders",
+      "qualified_name": "tests/e2e/cli.spec.ts::listUnresolvedPlaceholders",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/cli.spec.ts",
+      "line": 45,
+      "evidence": {
+        "file": "tests/e2e/cli.spec.ts",
+        "line": 45
+      }
+    },
+    {
+      "name": "walk",
+      "qualified_name": "tests/e2e/cli.spec.ts::walk",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/cli.spec.ts",
+      "line": 49,
+      "evidence": {
+        "file": "tests/e2e/cli.spec.ts",
+        "line": 49
+      }
+    },
+    {
+      "name": "attachEvidence",
+      "qualified_name": "tests/e2e/cli.spec.ts::attachEvidence",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/cli.spec.ts",
+      "line": 70,
+      "evidence": {
+        "file": "tests/e2e/cli.spec.ts",
+        "line": 70
+      }
+    },
+    {
+      "name": "mkTmp",
+      "qualified_name": "tests/e2e/skillopt.spec.ts::mkTmp",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/skillopt.spec.ts",
+      "line": 9,
+      "evidence": {
+        "file": "tests/e2e/skillopt.spec.ts",
+        "line": 9
+      }
+    },
+    {
+      "name": "rmTmp",
+      "qualified_name": "tests/e2e/skillopt.spec.ts::rmTmp",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/skillopt.spec.ts",
+      "line": 13,
+      "evidence": {
+        "file": "tests/e2e/skillopt.spec.ts",
+        "line": 13
+      }
+    },
+    {
+      "name": "writeFile",
+      "qualified_name": "tests/e2e/skillopt.spec.ts::writeFile",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/skillopt.spec.ts",
+      "line": 21,
+      "evidence": {
+        "file": "tests/e2e/skillopt.spec.ts",
+        "line": 21
+      }
+    },
+    {
+      "name": "runCli",
+      "qualified_name": "tests/e2e/skillopt.spec.ts::runCli",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/skillopt.spec.ts",
+      "line": 27,
+      "evidence": {
+        "file": "tests/e2e/skillopt.spec.ts",
+        "line": 27
+      }
+    },
+    {
+      "name": "attachEvidence",
+      "qualified_name": "tests/e2e/skillopt.spec.ts::attachEvidence",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/e2e/skillopt.spec.ts",
+      "line": 31,
+      "evidence": {
+        "file": "tests/e2e/skillopt.spec.ts",
+        "line": 31
+      }
+    },
+    {
+      "name": "_write",
+      "qualified_name": "tests/python/test_cli.py::_write",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 36,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 36
+      }
+    },
+    {
+      "name": "FileProcessingCacheTest",
+      "qualified_name": "tests/python/test_cli.py::FileProcessingCacheTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 42,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 42
+      }
+    },
+    {
+      "name": "test_cache_hits_same_file_signature",
+      "qualified_name": "tests/python/test_cli.py::test_cache_hits_same_file_signature",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 45,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 45
+      }
+    },
+    {
+      "name": "test_primary_models_use_slots",
+      "qualified_name": "tests/python/test_cli.py::test_primary_models_use_slots",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 58,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 58
+      }
+    },
+    {
+      "name": "MapperArtifactsTest",
+      "qualified_name": "tests/python/test_cli.py::MapperArtifactsTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 75,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 75
+      }
+    },
+    {
+      "name": "setUp",
+      "qualified_name": "tests/python/test_cli.py::setUp",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 78,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 78
+      }
+    },
+    {
+      "name": "tearDown",
+      "qualified_name": "tests/python/test_cli.py::tearDown",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 81,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 81
+      }
+    },
+    {
+      "name": "test_build_artifacts_emits_rich_project_map",
+      "qualified_name": "tests/python/test_cli.py::test_build_artifacts_emits_rich_project_map",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 84,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 84
+      }
+    },
+    {
+      "name": "test_build_artifacts_ignores_generated_dependency_and_cache_dirs",
+      "qualified_name": "tests/python/test_cli.py::test_build_artifacts_ignores_generated_dependency_and_cache_dirs",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 125,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 125
+      }
+    },
+    {
+      "name": "test_write_mapping_artifacts_persists_files",
+      "qualified_name": "tests/python/test_cli.py::test_write_mapping_artifacts_persists_files",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 150,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 150
+      }
+    },
+    {
+      "name": "test_architecture_inventory_tracks_layers_symbols_and_relationships",
+      "qualified_name": "tests/python/test_cli.py::test_architecture_inventory_tracks_layers_symbols_and_relationships",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 165,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 165
+      }
+    },
+    {
+      "name": "test_architecture_docs_and_export_render_markdown",
+      "qualified_name": "tests/python/test_cli.py::test_architecture_docs_and_export_render_markdown",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 201,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 201
+      }
+    },
+    {
+      "name": "test_incremental_records_changed_files",
+      "qualified_name": "tests/python/test_cli.py::test_incremental_records_changed_files",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 217,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 217
+      }
+    },
+    {
+      "name": "test_git_status_marks_untracked_files_inside_new_dirs",
+      "qualified_name": "tests/python/test_cli.py::test_git_status_marks_untracked_files_inside_new_dirs",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 229,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 229
+      }
+    },
+    {
+      "name": "CliTest",
+      "qualified_name": "tests/python/test_cli.py::CliTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 245,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 245
+      }
+    },
+    {
+      "name": "setUp",
+      "qualified_name": "tests/python/test_cli.py::setUp",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 248,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 248
+      }
+    },
+    {
+      "name": "tearDown",
+      "qualified_name": "tests/python/test_cli.py::tearDown",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 251,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 251
+      }
+    },
+    {
+      "name": "test_main_map_writes_artifacts",
+      "qualified_name": "tests/python/test_cli.py::test_main_map_writes_artifacts",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 254,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 254
+      }
+    },
+    {
+      "name": "test_unknown_option_exits_with_code_2",
+      "qualified_name": "tests/python/test_cli.py::test_unknown_option_exits_with_code_2",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 266,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 266
+      }
+    },
+    {
+      "name": "test_help_exits_zero",
+      "qualified_name": "tests/python/test_cli.py::test_help_exits_zero",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 271,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 271
+      }
+    },
+    {
+      "name": "test_version_matches_package",
+      "qualified_name": "tests/python/test_cli.py::test_version_matches_package",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 276,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 276
+      }
+    },
+    {
+      "name": "test_index_writes_json_contract",
+      "qualified_name": "tests/python/test_cli.py::test_index_writes_json_contract",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 282,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 282
+      }
+    },
+    {
+      "name": "test_index_accepts_update_compatibility_flag",
+      "qualified_name": "tests/python/test_cli.py::test_index_accepts_update_compatibility_flag",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 300,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 300
+      }
+    },
+    {
+      "name": "test_index_skips_fresh_artifacts_quietly",
+      "qualified_name": "tests/python/test_cli.py::test_index_skips_fresh_artifacts_quietly",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 313,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 313
+      }
+    },
+    {
+      "name": "test_endpoints_compares_client_calls_against_server_routes",
+      "qualified_name": "tests/python/test_cli.py::test_endpoints_compares_client_calls_against_server_routes",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 334,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 334
+      }
+    },
+    {
+      "name": "ApiClient",
+      "qualified_name": "tests/python/test_cli.py::ApiClient",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 339,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 339
+      }
+    },
+    {
+      "name": "get",
+      "qualified_name": "tests/python/test_cli.py::get",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 340,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 340
+      }
+    },
+    {
+      "name": "post",
+      "qualified_name": "tests/python/test_cli.py::post",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 341,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 341
+      }
+    },
+    {
+      "name": "list_skills",
+      "qualified_name": "tests/python/test_cli.py::list_skills",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 342,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 342
+      }
+    },
+    {
+      "name": "create_snapshot",
+      "qualified_name": "tests/python/test_cli.py::create_snapshot",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 344,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 344
+      }
+    },
+    {
+      "name": "test_endpoints_resolves_angular_service_base_urls",
+      "qualified_name": "tests/python/test_cli.py::test_endpoints_resolves_angular_service_base_urls",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 373,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 373
+      }
+    },
+    {
+      "name": "test_screens_extracts_angular_routes",
+      "qualified_name": "tests/python/test_cli.py::test_screens_extracts_angular_routes",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 429,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 429
+      }
+    },
+    {
+      "name": "test_docs_command_writes_markdown_json_contract",
+      "qualified_name": "tests/python/test_cli.py::test_docs_command_writes_markdown_json_contract",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 495,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 495
+      }
+    },
+    {
+      "name": "test_export_docs_command_copies_markdown",
+      "qualified_name": "tests/python/test_cli.py::test_export_docs_command_copies_markdown",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 509,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 509
+      }
+    },
+    {
+      "name": "test_endpoints_captures_python_page_api_calls",
+      "qualified_name": "tests/python/test_cli.py::test_endpoints_captures_python_page_api_calls",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 524,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 524
+      }
+    },
+    {
+      "name": "route_definition",
+      "qualified_name": "tests/python/test_cli.py::route_definition",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 530,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 530
+      }
+    },
+    {
+      "name": "app_route_definition",
+      "qualified_name": "tests/python/test_cli.py::app_route_definition",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 534,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 534
+      }
+    },
+    {
+      "name": "save",
+      "qualified_name": "tests/python/test_cli.py::save",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 536,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 536
+      }
+    },
+    {
+      "name": "test_openapi",
+      "qualified_name": "tests/python/test_cli.py::test_openapi",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 543,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 543
+      }
+    },
+    {
+      "name": "test_endpoints_json_includes_sources_for_missing_routes",
+      "qualified_name": "tests/python/test_cli.py::test_endpoints_json_includes_sources_for_missing_routes",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 569,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 569
+      }
+    },
+    {
+      "name": "load",
+      "qualified_name": "tests/python/test_cli.py::load",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 574,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 574
+      }
+    },
+    {
+      "name": "test_index_refreshes_after_file_change",
+      "qualified_name": "tests/python/test_cli.py::test_index_refreshes_after_file_change",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 588,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 588
+      }
+    },
+    {
+      "name": "test_index_refreshes_when_dirty_file_changes_again",
+      "qualified_name": "tests/python/test_cli.py::test_index_refreshes_when_dirty_file_changes_again",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 605,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 605
+      }
+    },
+    {
+      "name": "_reload_with_native",
+      "qualified_name": "tests/python/test_native.py::_reload_with_native",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_native.py",
+      "line": 18,
+      "evidence": {
+        "file": "tests/python/test_native.py",
+        "line": 18
+      }
+    },
+    {
+      "name": "NativeShimTest",
+      "qualified_name": "tests/python/test_native.py::NativeShimTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_native.py",
+      "line": 37,
+      "evidence": {
+        "file": "tests/python/test_native.py",
+        "line": 37
+      }
+    },
+    {
+      "name": "test_shim_reports_availability",
+      "qualified_name": "tests/python/test_native.py::test_shim_reports_availability",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_native.py",
+      "line": 40,
+      "evidence": {
+        "file": "tests/python/test_native.py",
+        "line": 40
+      }
+    },
+    {
+      "name": "FallbackEqualsNativeTest",
+      "qualified_name": "tests/python/test_native.py::FallbackEqualsNativeTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_native.py",
+      "line": 59,
+      "evidence": {
+        "file": "tests/python/test_native.py",
+        "line": 59
+      }
+    },
+    {
+      "name": "setUp",
+      "qualified_name": "tests/python/test_native.py::setUp",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_native.py",
+      "line": 63,
+      "evidence": {
+        "file": "tests/python/test_native.py",
+        "line": 63
+      }
+    },
+    {
+      "name": "test_hash_and_imports_match_fallback",
+      "qualified_name": "tests/python/test_native.py::test_hash_and_imports_match_fallback",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_native.py",
+      "line": 69,
+      "evidence": {
+        "file": "tests/python/test_native.py",
+        "line": 69
+      }
+    },
+    {
+      "name": "MapperRunsWithoutNativeTest",
+      "qualified_name": "tests/python/test_native.py::MapperRunsWithoutNativeTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_native.py",
+      "line": 92,
+      "evidence": {
+        "file": "tests/python/test_native.py",
+        "line": 92
+      }
+    },
+    {
+      "name": "test_build_artifacts_without_native",
+      "qualified_name": "tests/python/test_native.py::test_build_artifacts_without_native",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_native.py",
+      "line": 96,
+      "evidence": {
+        "file": "tests/python/test_native.py",
+        "line": 96
+      }
+    },
+    {
+      "name": "mkTmp",
+      "qualified_name": "tests/unit/build-hamt-catalog.test.js::mkTmp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/build-hamt-catalog.test.js",
+      "line": 13,
+      "evidence": {
+        "file": "tests/unit/build-hamt-catalog.test.js",
+        "line": 13
+      }
+    },
+    {
+      "name": "rmTmp",
+      "qualified_name": "tests/unit/build-hamt-catalog.test.js::rmTmp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/build-hamt-catalog.test.js",
+      "line": 17,
+      "evidence": {
+        "file": "tests/unit/build-hamt-catalog.test.js",
+        "line": 17
+      }
+    },
+    {
+      "name": "writeFile",
+      "qualified_name": "tests/unit/build-hamt-catalog.test.js::writeFile",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/build-hamt-catalog.test.js",
+      "line": 25,
+      "evidence": {
+        "file": "tests/unit/build-hamt-catalog.test.js",
+        "line": 25
+      }
+    },
+    {
+      "name": "runCli",
+      "qualified_name": "tests/unit/cli-args.test.js::runCli",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/cli-args.test.js",
+      "line": 18,
+      "evidence": {
+        "file": "tests/unit/cli-args.test.js",
+        "line": 18
+      }
+    },
+    {
+      "name": "mkTmp",
+      "qualified_name": "tests/unit/cli-install.test.js::mkTmp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/cli-install.test.js",
+      "line": 17,
+      "evidence": {
+        "file": "tests/unit/cli-install.test.js",
+        "line": 17
+      }
+    },
+    {
+      "name": "rmTmp",
+      "qualified_name": "tests/unit/cli-install.test.js::rmTmp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/cli-install.test.js",
+      "line": 21,
+      "evidence": {
+        "file": "tests/unit/cli-install.test.js",
+        "line": 21
+      }
+    },
+    {
+      "name": "writeFile",
+      "qualified_name": "tests/unit/cli-install.test.js::writeFile",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/cli-install.test.js",
+      "line": 25,
+      "evidence": {
+        "file": "tests/unit/cli-install.test.js",
+        "line": 25
+      }
+    },
+    {
+      "name": "runCli",
+      "qualified_name": "tests/unit/cli-install.test.js::runCli",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/cli-install.test.js",
+      "line": 31,
+      "evidence": {
+        "file": "tests/unit/cli-install.test.js",
+        "line": 31
+      }
+    },
+    {
+      "name": "listUnresolvedPlaceholders",
+      "qualified_name": "tests/unit/cli-install.test.js::listUnresolvedPlaceholders",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/cli-install.test.js",
+      "line": 39,
+      "evidence": {
+        "file": "tests/unit/cli-install.test.js",
+        "line": 39
+      }
+    },
+    {
+      "name": "walk",
+      "qualified_name": "tests/unit/cli-install.test.js::walk",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/cli-install.test.js",
+      "line": 43,
+      "evidence": {
+        "file": "tests/unit/cli-install.test.js",
+        "line": 43
+      }
+    },
+    {
+      "name": "mkTmp",
+      "qualified_name": "tests/unit/cli-telemetry.test.js::mkTmp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/cli-telemetry.test.js",
+      "line": 20,
+      "evidence": {
+        "file": "tests/unit/cli-telemetry.test.js",
+        "line": 20
+      }
+    },
+    {
+      "name": "rmTmp",
+      "qualified_name": "tests/unit/cli-telemetry.test.js::rmTmp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/cli-telemetry.test.js",
+      "line": 24,
+      "evidence": {
+        "file": "tests/unit/cli-telemetry.test.js",
+        "line": 24
+      }
+    },
+    {
+      "name": "writeFile",
+      "qualified_name": "tests/unit/cli-telemetry.test.js::writeFile",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/cli-telemetry.test.js",
+      "line": 28,
+      "evidence": {
+        "file": "tests/unit/cli-telemetry.test.js",
+        "line": 28
+      }
+    },
+    {
+      "name": "runCli",
+      "qualified_name": "tests/unit/cli-telemetry.test.js::runCli",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/cli-telemetry.test.js",
+      "line": 34,
+      "evidence": {
+        "file": "tests/unit/cli-telemetry.test.js",
+        "line": 34
+      }
+    },
+    {
+      "name": "read",
+      "qualified_name": "tests/unit/docs-site.test.js::read",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/docs-site.test.js",
+      "line": 9,
+      "evidence": {
+        "file": "tests/unit/docs-site.test.js",
+        "line": 9
+      }
+    },
+    {
+      "name": "mkTmp",
+      "qualified_name": "tests/unit/mapping-artifacts.test.js::mkTmp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/mapping-artifacts.test.js",
+      "line": 14,
+      "evidence": {
+        "file": "tests/unit/mapping-artifacts.test.js",
+        "line": 14
+      }
+    },
+    {
+      "name": "rmTmp",
+      "qualified_name": "tests/unit/mapping-artifacts.test.js::rmTmp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/mapping-artifacts.test.js",
+      "line": 18,
+      "evidence": {
+        "file": "tests/unit/mapping-artifacts.test.js",
+        "line": 18
+      }
+    },
+    {
+      "name": "writeFile",
+      "qualified_name": "tests/unit/mapping-artifacts.test.js::writeFile",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/mapping-artifacts.test.js",
+      "line": 22,
+      "evidence": {
+        "file": "tests/unit/mapping-artifacts.test.js",
+        "line": 22
+      }
+    },
+    {
+      "name": "readJson",
+      "qualified_name": "tests/unit/mapping-artifacts.test.js::readJson",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/mapping-artifacts.test.js",
+      "line": 28,
+      "evidence": {
+        "file": "tests/unit/mapping-artifacts.test.js",
+        "line": 28
+      }
+    },
+    {
+      "name": "mkTmp",
+      "qualified_name": "tests/unit/skillopt.test.js::mkTmp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/skillopt.test.js",
+      "line": 15,
+      "evidence": {
+        "file": "tests/unit/skillopt.test.js",
+        "line": 15
+      }
+    },
+    {
+      "name": "rmTmp",
+      "qualified_name": "tests/unit/skillopt.test.js::rmTmp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/skillopt.test.js",
+      "line": 19,
+      "evidence": {
+        "file": "tests/unit/skillopt.test.js",
+        "line": 19
+      }
+    },
+    {
+      "name": "run",
+      "qualified_name": "video/scripts/generate-why-voiceover.mjs::run",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "video/scripts/generate-why-voiceover.mjs",
+      "line": 13,
+      "evidence": {
+        "file": "video/scripts/generate-why-voiceover.mjs",
+        "line": 13
+      }
+    },
+    {
+      "name": "ensureCommand",
+      "qualified_name": "video/scripts/generate-why-voiceover.mjs::ensureCommand",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "video/scripts/generate-why-voiceover.mjs",
+      "line": 31,
+      "evidence": {
+        "file": "video/scripts/generate-why-voiceover.mjs",
+        "line": 31
+      }
+    },
+    {
+      "name": "selectLanguages",
+      "qualified_name": "video/scripts/generate-why-voiceover.mjs::selectLanguages",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "video/scripts/generate-why-voiceover.mjs",
+      "line": 41,
+      "evidence": {
+        "file": "video/scripts/generate-why-voiceover.mjs",
+        "line": 41
+      }
+    },
+    {
+      "name": "totalDurationSeconds",
+      "qualified_name": "video/scripts/generate-why-voiceover.mjs::totalDurationSeconds",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "video/scripts/generate-why-voiceover.mjs",
+      "line": 46,
+      "evidence": {
+        "file": "video/scripts/generate-why-voiceover.mjs",
+        "line": 46
+      }
+    },
+    {
+      "name": "voiceFor",
+      "qualified_name": "video/scripts/generate-why-voiceover.mjs::voiceFor",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "video/scripts/generate-why-voiceover.mjs",
+      "line": 51,
+      "evidence": {
+        "file": "video/scripts/generate-why-voiceover.mjs",
+        "line": 51
+      }
+    },
+    {
+      "name": "buildCaptions",
+      "qualified_name": "video/scripts/generate-why-voiceover.mjs::buildCaptions",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "video/scripts/generate-why-voiceover.mjs",
+      "line": 57,
+      "evidence": {
+        "file": "video/scripts/generate-why-voiceover.mjs",
+        "line": 57
+      }
+    },
+    {
+      "name": "cueAudioPath",
+      "qualified_name": "video/scripts/generate-why-voiceover.mjs::cueAudioPath",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "video/scripts/generate-why-voiceover.mjs",
+      "line": 68,
+      "evidence": {
+        "file": "video/scripts/generate-why-voiceover.mjs",
+        "line": 68
+      }
+    },
+    {
+      "name": "renderCueFiles",
+      "qualified_name": "video/scripts/generate-why-voiceover.mjs::renderCueFiles",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "video/scripts/generate-why-voiceover.mjs",
+      "line": 72,
+      "evidence": {
+        "file": "video/scripts/generate-why-voiceover.mjs",
+        "line": 72
+      }
+    },
+    {
+      "name": "buildTrack",
+      "qualified_name": "video/scripts/generate-why-voiceover.mjs::buildTrack",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "video/scripts/generate-why-voiceover.mjs",
+      "line": 97,
+      "evidence": {
+        "file": "video/scripts/generate-why-voiceover.mjs",
+        "line": 97
+      }
+    },
+    {
+      "name": "writeCaptions",
+      "qualified_name": "video/scripts/generate-why-voiceover.mjs::writeCaptions",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "video/scripts/generate-why-voiceover.mjs",
+      "line": 140,
+      "evidence": {
+        "file": "video/scripts/generate-why-voiceover.mjs",
+        "line": 140
+      }
+    },
+    {
+      "name": "main",
+      "qualified_name": "video/scripts/generate-why-voiceover.mjs::main",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "video/scripts/generate-why-voiceover.mjs",
+      "line": 150,
+      "evidence": {
+        "file": "video/scripts/generate-why-voiceover.mjs",
+        "line": 150
+      }
+    },
+    {
+      "name": "main",
+      "qualified_name": "video/scripts/regression.mjs::main",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "video/scripts/regression.mjs",
+      "line": 30,
+      "evidence": {
+        "file": "video/scripts/regression.mjs",
+        "line": 30
+      }
+    },
+    {
+      "name": "useT",
+      "qualified_name": "video/src/LangContext.tsx::useT",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "video/src/LangContext.tsx",
+      "line": 14,
+      "evidence": {
+        "file": "video/src/LangContext.tsx",
+        "line": 14
+      }
+    },
+    {
+      "name": "useWhyT",
+      "qualified_name": "video/src/why/LangContext.tsx::useWhyT",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "video/src/why/LangContext.tsx",
+      "line": 14,
+      "evidence": {
+        "file": "video/src/why/LangContext.tsx",
+        "line": 14
+      }
+    },
+    {
+      "name": "buildCaptionPages",
+      "qualified_name": "video/src/why/WhyLlmProjectMapper.tsx::buildCaptionPages",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "video/src/why/WhyLlmProjectMapper.tsx",
+      "line": 68,
+      "evidence": {
+        "file": "video/src/why/WhyLlmProjectMapper.tsx",
+        "line": 68
+      }
+    },
+    {
+      "name": "SprintsProvider",
+      "qualified_name": "vscode-extension/src/extension.ts::SprintsProvider",
+      "kind": "class",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/extension.ts",
+      "line": 10,
+      "evidence": {
+        "file": "vscode-extension/src/extension.ts",
+        "line": 10
+      }
+    },
+    {
+      "name": "SprintNode",
+      "qualified_name": "vscode-extension/src/extension.ts::SprintNode",
+      "kind": "class",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/extension.ts",
+      "line": 32,
+      "evidence": {
+        "file": "vscode-extension/src/extension.ts",
+        "line": 32
+      }
+    },
+    {
+      "name": "TaskNode",
+      "qualified_name": "vscode-extension/src/extension.ts::TaskNode",
+      "kind": "class",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/extension.ts",
+      "line": 42,
+      "evidence": {
+        "file": "vscode-extension/src/extension.ts",
+        "line": 42
+      }
+    },
+    {
+      "name": "iconForStatus",
+      "qualified_name": "vscode-extension/src/extension.ts::iconForStatus",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/extension.ts",
+      "line": 59,
+      "evidence": {
+        "file": "vscode-extension/src/extension.ts",
+        "line": 59
+      }
+    },
+    {
+      "name": "getSpecsRoot",
+      "qualified_name": "vscode-extension/src/extension.ts::getSpecsRoot",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/extension.ts",
+      "line": 65,
+      "evidence": {
+        "file": "vscode-extension/src/extension.ts",
+        "line": 65
+      }
+    },
+    {
+      "name": "getWorkspaceRoot",
+      "qualified_name": "vscode-extension/src/extension.ts::getWorkspaceRoot",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/extension.ts",
+      "line": 69,
+      "evidence": {
+        "file": "vscode-extension/src/extension.ts",
+        "line": 69
+      }
+    },
+    {
+      "name": "activate",
+      "qualified_name": "vscode-extension/src/extension.ts::activate",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/extension.ts",
+      "line": 73,
+      "evidence": {
+        "file": "vscode-extension/src/extension.ts",
+        "line": 73
+      }
+    },
+    {
+      "name": "deactivate",
+      "qualified_name": "vscode-extension/src/extension.ts::deactivate",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/extension.ts",
+      "line": 98,
+      "evidence": {
+        "file": "vscode-extension/src/extension.ts",
+        "line": 98
+      }
+    },
+    {
+      "name": "refreshStatusBar",
+      "qualified_name": "vscode-extension/src/extension.ts::refreshStatusBar",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/extension.ts",
+      "line": 100,
+      "evidence": {
+        "file": "vscode-extension/src/extension.ts",
+        "line": 100
+      }
+    },
+    {
+      "name": "openCurrentTask",
+      "qualified_name": "vscode-extension/src/extension.ts::openCurrentTask",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/extension.ts",
+      "line": 118,
+      "evidence": {
+        "file": "vscode-extension/src/extension.ts",
+        "line": 118
+      }
+    },
+    {
+      "name": "createAdr",
+      "qualified_name": "vscode-extension/src/extension.ts::createAdr",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/extension.ts",
+      "line": 134,
+      "evidence": {
+        "file": "vscode-extension/src/extension.ts",
+        "line": 134
+      }
+    },
+    {
+      "name": "runInitHandoff",
+      "qualified_name": "vscode-extension/src/extension.ts::runInitHandoff",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/extension.ts",
+      "line": 159,
+      "evidence": {
+        "file": "vscode-extension/src/extension.ts",
+        "line": 159
+      }
+    },
+    {
+      "name": "readFirstHeading",
+      "qualified_name": "vscode-extension/src/scan.ts::readFirstHeading",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/scan.ts",
+      "line": 27,
+      "evidence": {
+        "file": "vscode-extension/src/scan.ts",
+        "line": 27
+      }
+    },
+    {
+      "name": "readStatus",
+      "qualified_name": "vscode-extension/src/scan.ts::readStatus",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/scan.ts",
+      "line": 36,
+      "evidence": {
+        "file": "vscode-extension/src/scan.ts",
+        "line": 36
+      }
+    },
+    {
+      "name": "listSprints",
+      "qualified_name": "vscode-extension/src/scan.ts::listSprints",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/scan.ts",
+      "line": 45,
+      "evidence": {
+        "file": "vscode-extension/src/scan.ts",
+        "line": 45
+      }
+    },
+    {
+      "name": "statusIcon",
+      "qualified_name": "vscode-extension/src/scan.ts::statusIcon",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/scan.ts",
+      "line": 76,
+      "evidence": {
+        "file": "vscode-extension/src/scan.ts",
+        "line": 76
+      }
+    },
+    {
+      "name": "statusLabel",
+      "qualified_name": "vscode-extension/src/scan.ts::statusLabel",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/scan.ts",
+      "line": 84,
+      "evidence": {
+        "file": "vscode-extension/src/scan.ts",
+        "line": 84
+      }
+    },
+    {
+      "name": "safeRead",
+      "qualified_name": "vscode-extension/src/scan.ts::safeRead",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "vscode-extension/src/scan.ts",
+      "line": 92,
+      "evidence": {
+        "file": "vscode-extension/src/scan.ts",
+        "line": 92
+      }
+    },
+    {
+      "name": "mkTmp",
+      "qualified_name": "vscode-extension/test/scan.test.js::mkTmp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "vscode-extension/test/scan.test.js",
+      "line": 26,
+      "evidence": {
+        "file": "vscode-extension/test/scan.test.js",
+        "line": 26
+      }
+    },
+    {
+      "name": "rmTmp",
+      "qualified_name": "vscode-extension/test/scan.test.js::rmTmp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "vscode-extension/test/scan.test.js",
+      "line": 30,
+      "evidence": {
+        "file": "vscode-extension/test/scan.test.js",
+        "line": 30
+      }
+    },
+    {
+      "name": "writeFile",
+      "qualified_name": "vscode-extension/test/scan.test.js::writeFile",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "vscode-extension/test/scan.test.js",
+      "line": 34,
+      "evidence": {
+        "file": "vscode-extension/test/scan.test.js",
+        "line": 34
+      }
+    }
+  ],
+  "counts": {
+    "symbols": 442,
+    "files": 36
+  }
+}

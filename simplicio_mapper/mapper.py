@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import hashlib
 import os
+import posixpath
 import re
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from typing import Any, Callable
@@ -23,6 +25,9 @@ from .models import CodeEntity, PrecedentItem, ProjectFile
 
 ARTIFACT_SCHEMA = "simplicio.project-map/v1"
 PRECEDENT_SCHEMA = "simplicio.precedent-index/v1"
+ARCHITECTURE_INVENTORY_SCHEMA = "simplicio.architecture-inventory/v1"
+SYMBOL_INDEX_SCHEMA = "simplicio.symbol-index/v1"
+CALL_GRAPH_SCHEMA = "simplicio.call-graph/v1"
 ARTIFACT_VERSION = 1
 _JSON_WRITE_OPTIONS = orjson.OPT_INDENT_2 | orjson.OPT_APPEND_NEWLINE
 
@@ -37,7 +42,7 @@ SKIP_DIRS = {
     ".git", "node_modules", "dist", "build", "out", "output", "coverage",
     ".next", ".nuxt", "playwright-report", "test-results", ".turbo",
     ".venv", "venv", "__pycache__", ".idea", ".vscode", ".simplicio",
-    ".catalog", ".receipts", ".angular", ".pytest_cache", ".mypy_cache",
+    ".catalog", ".receipts", ".angular", ".docusaurus", ".pytest_cache", ".mypy_cache",
     ".ruff_cache", ".gradle", "obj", "target",
 }
 
@@ -493,6 +498,383 @@ def _build_precedent_items(cwd: str, files: list[ProjectFile]) -> list[dict]:
     return [item.to_dict() for item in items[:250]]
 
 
+def _line_number(text: str, index: int) -> int:
+    return text.count("\n", 0, index) + 1
+
+
+def _symbol_definitions_for_file(file: ProjectFile, text: str) -> list[dict]:
+    patterns: list[tuple[re.Pattern[str], str]] = []
+    if file.language == "python":
+        patterns = [
+            (re.compile(r"^\s*class\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
+            (re.compile(r"^\s*def\s+([A-Za-z_]\w*)", re.MULTILINE), "function"),
+        ]
+    elif file.language in ("javascript", "typescript"):
+        patterns = [
+            (re.compile(r"^\s*(?:export\s+)?class\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
+            (re.compile(r"^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_]\w*)", re.MULTILINE), "function"),
+            (
+                re.compile(
+                    r"^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_]\w*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_]\w*)\s*=>",
+                    re.MULTILINE,
+                ),
+                "function",
+            ),
+        ]
+    elif file.language in ("csharp", "razor"):
+        patterns = [
+            (re.compile(r"^\s*(?:public\s+|private\s+|protected\s+|internal\s+)?(?:sealed\s+|static\s+|partial\s+)?class\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
+            (
+                re.compile(
+                    r"^\s*(?:public|private|protected|internal)\s+(?:static\s+)?(?:async\s+)?[A-Za-z0-9_<>,\[\]\s?.]+\s+([A-Za-z_]\w*)\s*\(",
+                    re.MULTILINE,
+                ),
+                "method",
+            ),
+        ]
+    elif file.language in {"go", "rust", "java", "kotlin", "php", "ruby"}:
+        patterns = [
+            (re.compile(r"\bclass\s+([A-Za-z_]\w*)"), "class"),
+            (re.compile(r"\bfunction\s+([A-Za-z_]\w*)"), "function"),
+            (re.compile(r"\bdef\s+([A-Za-z_]\w*)"), "function"),
+        ]
+    else:
+        return []
+
+    symbols = []
+    seen: set[tuple[str, int, str]] = set()
+    for pattern, kind in patterns:
+        for match in pattern.finditer(text):
+            name = match.group(1)
+            line = _line_number(text, match.start())
+            key = (name, line, kind)
+            if key in seen:
+                continue
+            seen.add(key)
+            symbols.append({
+                "name": name,
+                "qualified_name": f"{file.path}::{name}",
+                "kind": kind,
+                "language": file.language,
+                "defined_in": file.path,
+                "line": line,
+                "evidence": {"file": file.path, "line": line},
+            })
+    return sorted(symbols, key=lambda item: (item["defined_in"], item["line"], item["name"]))
+
+
+def _layers_for_file(file: ProjectFile) -> list[str]:
+    rel = file.path.lower()
+    base = os.path.basename(rel)
+    layers = set(file.roles)
+    if "controller" in rel:
+        layers.add("controller")
+    if "service" in rel:
+        layers.add("service")
+    if "repository" in rel or "repositories" in rel or "repo" in base:
+        layers.add("repository")
+    if "model" in rel or "entity" in rel or "schema" in rel:
+        layers.add("model")
+    if "route" in rel or "router" in rel:
+        layers.add("route")
+    if rel.startswith("scripts/"):
+        layers.add("script")
+    if rel.startswith("docs/") or file.language == "markdown":
+        layers.add("documentation")
+    if not layers:
+        layers.add("code" if file.language in {"python", "javascript", "typescript", "csharp", "go", "rust"} else "asset")
+    return sorted(layers)
+
+
+def _responsibility_for_file(file: ProjectFile, layers: list[str]) -> str:
+    if "controller" in layers or "route" in layers:
+        return "Defines inbound request or routing behavior."
+    if "service" in layers:
+        return "Holds application/service orchestration logic."
+    if "repository" in layers:
+        return "Encapsulates persistence or data access behavior."
+    if "model" in layers:
+        return "Defines domain, data or schema structures."
+    if "test" in layers:
+        return "Verifies project behavior through automated tests."
+    if "entrypoint" in layers:
+        return "Starts a CLI, runtime or package entrypoint."
+    if "config" in layers:
+        return "Configures tooling, build, runtime or packaging behavior."
+    if "documentation" in layers:
+        return "Documents product, architecture, operation or contributor workflow."
+    if file.exports:
+        return f"Defines exported symbols: {', '.join(file.exports[:5])}."
+    return "Participates in the project implementation; inspect imports and symbols for exact usage."
+
+
+def _module_name_for_path(rel: str) -> str:
+    if "/" not in rel:
+        return "."
+    return rel.split("/", 1)[0]
+
+
+def _build_symbol_index(cwd: str, files: list[ProjectFile], generated_at: str) -> dict:
+    symbols = []
+    for file in files:
+        text = _read_safe(os.path.join(cwd, file.path))
+        symbols.extend(_symbol_definitions_for_file(file, text))
+    return {
+        "schema": SYMBOL_INDEX_SCHEMA,
+        "version": ARTIFACT_VERSION,
+        "generated_at": generated_at,
+        "root": cwd.replace(os.sep, "/"),
+        "symbols": symbols,
+        "counts": {
+            "symbols": len(symbols),
+            "files": len({item["defined_in"] for item in symbols}),
+        },
+    }
+
+
+def _strip_known_ext(rel: str) -> str:
+    root, ext = posixpath.splitext(rel)
+    return root if ext else rel
+
+
+def _candidate_import_targets(import_name: str, source_file: str, known_paths: set[str]) -> list[str]:
+    if not import_name or import_name.startswith("@"):
+        return []
+    if import_name.startswith("."):
+        base = posixpath.normpath(posixpath.join(posixpath.dirname(source_file), import_name))
+    elif "/" in import_name and not import_name.startswith("/"):
+        base = import_name
+    elif "." in import_name:
+        base = import_name.replace(".", "/")
+    else:
+        base = import_name
+
+    bases = [base.lstrip("/")]
+    if base.endswith("/index"):
+        bases.append(base[:-6])
+    candidates = []
+    for item in bases:
+        candidates.append(item)
+        for ext in (".py", ".js", ".jsx", ".ts", ".tsx", ".cs", ".go", ".rs"):
+            candidates.append(f"{item}{ext}")
+        for ext in (".py", ".js", ".ts", ".tsx"):
+            candidates.append(f"{item}/index{ext}")
+        candidates.append(f"{item}/__init__.py")
+    direct = [candidate for candidate in candidates if candidate in known_paths]
+    if direct:
+        return direct
+
+    suffix_matches = []
+    normalized = _strip_known_ext(base).lstrip("/")
+    for known in known_paths:
+        known_base = _strip_known_ext(known)
+        if known_base.endswith(f"/{normalized}") or known_base == normalized:
+            suffix_matches.append(known)
+    return sorted(suffix_matches)
+
+
+_CALL_SKIP_NAMES = {
+    "if", "for", "while", "switch", "catch", "return", "function", "class", "def",
+    "print", "len", "str", "int", "float", "bool", "list", "dict", "set", "tuple",
+}
+_CALL_GRAPH_LANGUAGES = {"python", "javascript", "typescript", "csharp", "razor", "go", "rust", "java", "kotlin", "php", "ruby"}
+
+
+def _call_expressions(text: str) -> list[tuple[str, int]]:
+    calls = []
+    for match in re.finditer(r"\b([A-Za-z_]\w*)\s*\(", text):
+        name = match.group(1)
+        if name in _CALL_SKIP_NAMES:
+            continue
+        calls.append((name, _line_number(text, match.start())))
+    return calls
+
+
+def _nearest_symbol(symbols: list[dict], file: str, line: int) -> dict | None:
+    previous = [item for item in symbols if item["defined_in"] == file and item["line"] <= line]
+    if not previous:
+        return None
+    return sorted(previous, key=lambda item: item["line"])[-1]
+
+
+def _build_call_graph(cwd: str, files: list[ProjectFile], symbol_index: dict, generated_at: str) -> dict:
+    known_paths = {file.path for file in files}
+    symbols = list(symbol_index.get("symbols") or [])
+    symbols_by_name: dict[str, list[dict]] = {}
+    for symbol in symbols:
+        symbols_by_name.setdefault(symbol["name"], []).append(symbol)
+
+    edges = []
+    seen: set[tuple[str, str, str, str]] = set()
+
+    def add_edge(edge: dict) -> None:
+        key = (
+            str(edge.get("type")),
+            str(edge.get("source_file")),
+            str(edge.get("target_file")),
+            str(edge.get("target_symbol") or edge.get("import")),
+        )
+        if key in seen:
+            return
+        seen.add(key)
+        edges.append(edge)
+
+    for file in files:
+        for imported in file.imports:
+            targets = _candidate_import_targets(imported, file.path, known_paths)
+            for target in targets[:3]:
+                if target == file.path:
+                    continue
+                add_edge({
+                    "type": "imports",
+                    "source_file": file.path,
+                    "target_file": target,
+                    "import": imported,
+                    "confidence": 0.82 if imported.startswith(".") else 0.65,
+                })
+
+        if file.language in _CALL_GRAPH_LANGUAGES:
+            text = _read_safe(os.path.join(cwd, file.path))
+            for name, line in _call_expressions(text):
+                for target in symbols_by_name.get(name, [])[:3]:
+                    if target["defined_in"] == file.path and target["line"] == line:
+                        continue
+                    caller = _nearest_symbol(symbols, file.path, line)
+                    add_edge({
+                        "type": "calls",
+                        "source_file": file.path,
+                        "source_symbol": caller["qualified_name"] if caller else None,
+                        "target_file": target["defined_in"],
+                        "target_symbol": target["qualified_name"],
+                        "line": line,
+                        "confidence": 0.58 if caller else 0.48,
+                    })
+
+    return {
+        "schema": CALL_GRAPH_SCHEMA,
+        "version": ARTIFACT_VERSION,
+        "generated_at": generated_at,
+        "source_symbol_index": ".simplicio/symbol-index.json",
+        "edges": sorted(edges, key=lambda item: (
+            item.get("source_file") or "",
+            item.get("target_file") or "",
+            item.get("type") or "",
+            item.get("target_symbol") or item.get("import") or "",
+        ))[:1000],
+        "counts": {
+            "edges": len(edges),
+            "imports": len([item for item in edges if item["type"] == "imports"]),
+            "calls": len([item for item in edges if item["type"] == "calls"]),
+        },
+    }
+
+
+def _build_architecture_inventory(
+    cwd: str,
+    project_map: dict,
+    files: list[ProjectFile],
+    symbol_index: dict,
+    call_graph: dict,
+    generated_at: str,
+) -> dict:
+    symbols_by_file: dict[str, list[dict]] = {}
+    for symbol in symbol_index.get("symbols", []):
+        symbols_by_file.setdefault(symbol["defined_in"], []).append(symbol)
+
+    inventory_files = []
+    modules: dict[str, dict] = {}
+    layers: dict[str, dict] = {}
+
+    for file in files:
+        file_layers = _layers_for_file(file)
+        file_symbols = symbols_by_file.get(file.path, [])
+        file_entry = {
+            "path": file.path,
+            "language": file.language,
+            "module": _module_name_for_path(file.path),
+            "layers": file_layers,
+            "roles": file.roles,
+            "imports": file.imports,
+            "symbols": [item["name"] for item in file_symbols],
+            "summary": _responsibility_for_file(file, file_layers),
+            "evidence": [{"file": file.path}],
+        }
+        inventory_files.append(file_entry)
+
+        module = modules.setdefault(file_entry["module"], {
+            "name": file_entry["module"],
+            "files": [],
+            "layers": set(),
+            "entry_points": [],
+            "tests": [],
+            "public_symbols": [],
+        })
+        module["files"].append(file.path)
+        module["layers"].update(file_layers)
+        if "entrypoint" in file_layers:
+            module["entry_points"].append(file.path)
+        if "test" in file_layers:
+            module["tests"].append(file.path)
+        module["public_symbols"].extend(file_entry["symbols"])
+
+        for layer_name in file_layers:
+            layer = layers.setdefault(layer_name, {"name": layer_name, "files": [], "modules": set()})
+            layer["files"].append(file.path)
+            layer["modules"].add(file_entry["module"])
+
+    module_entries = []
+    for module in sorted(modules.values(), key=lambda item: item["name"]):
+        module_entries.append({
+            "name": module["name"],
+            "summary": f"Groups {len(module['files'])} files across {len(module['layers'])} detected layers.",
+            "file_count": len(module["files"]),
+            "files": module["files"][:80],
+            "layers": sorted(module["layers"]),
+            "entry_points": sorted(module["entry_points"]),
+            "tests": sorted(module["tests"]),
+            "public_symbols": sorted(set(module["public_symbols"]))[:40],
+            "evidence": [{"file": path} for path in module["files"][:10]],
+        })
+
+    layer_entries = []
+    for layer in sorted(layers.values(), key=lambda item: item["name"]):
+        layer_entries.append({
+            "name": layer["name"],
+            "file_count": len(layer["files"]),
+            "files": sorted(layer["files"])[:100],
+            "modules": sorted(layer["modules"]),
+            "evidence": [{"file": path} for path in sorted(layer["files"])[:10]],
+        })
+
+    return {
+        "schema": ARCHITECTURE_INVENTORY_SCHEMA,
+        "version": ARTIFACT_VERSION,
+        "generated_at": generated_at,
+        "root": cwd.replace(os.sep, "/"),
+        "source_project_map": ".simplicio/project-map.json",
+        "source_symbol_index": ".simplicio/symbol-index.json",
+        "source_call_graph": ".simplicio/call-graph.json",
+        "product": project_map.get("product", {}),
+        "architecture": project_map.get("architecture", {}),
+        "modules": module_entries,
+        "layers": layer_entries,
+        "files": sorted(inventory_files, key=lambda item: item["path"]),
+        "relationships": list(call_graph.get("edges") or [])[:250],
+        "coverage": {
+            "files": len(files),
+            "modules": len(module_entries),
+            "layers": len(layer_entries),
+            "symbols": len(symbol_index.get("symbols", []) or []),
+            "relationships": len(call_graph.get("edges", []) or []),
+            "tests": len(project_map.get("test_files", []) or []),
+        },
+        "notes": [
+            "Generated from deterministic repository inspection.",
+            "Relationship confidence below 1.0 means the edge is heuristic and should be reviewed before making broad claims.",
+        ],
+    }
+
+
 def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = False,
                     output_dir: str = ".simplicio") -> dict:
     meta = meta or {}
@@ -569,15 +951,34 @@ def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = Fals
         "items": _build_precedent_items(abs_cwd, files),
     }
 
-    return {"project_map": project_map, "precedent_index": precedent_index}
+    symbol_index = _build_symbol_index(abs_cwd, files, generated_at)
+    call_graph = _build_call_graph(abs_cwd, files, symbol_index, generated_at)
+    architecture_inventory = _build_architecture_inventory(
+        abs_cwd,
+        project_map,
+        files,
+        symbol_index,
+        call_graph,
+        generated_at,
+    )
+
+    return {
+        "project_map": project_map,
+        "precedent_index": precedent_index,
+        "architecture_inventory": architecture_inventory,
+        "symbol_index": symbol_index,
+        "call_graph": call_graph,
+    }
 
 
 def _write_json_stable(file: str, data: Any) -> None:
     directory = os.path.dirname(file)
     if directory:
         os.makedirs(directory, exist_ok=True)
-    with open(file, "wb") as handle:
+    tmp = f"{file}.tmp"
+    with open(tmp, "wb") as handle:
         handle.write(orjson.dumps(data, option=_JSON_WRITE_OPTIONS))
+    os.replace(tmp, file)
 
 
 def write_mapping_artifacts(cwd: str, meta: dict | None = None, incremental: bool = False,
@@ -589,17 +990,249 @@ def write_mapping_artifacts(cwd: str, meta: dict | None = None, incremental: boo
     artifacts = build_artifacts(abs_cwd, meta, incremental, output_dir)
     project_map = artifacts["project_map"]
     precedent_index = artifacts["precedent_index"]
+    architecture_inventory = artifacts["architecture_inventory"]
+    symbol_index = artifacts["symbol_index"]
+    call_graph = artifacts["call_graph"]
     project_map_path = os.path.join(abs_out, "project-map.json")
     precedent_path = os.path.join(abs_out, "precedent-index.json")
+    architecture_inventory_path = os.path.join(abs_out, "architecture-inventory.json")
+    symbol_index_path = os.path.join(abs_out, "symbol-index.json")
+    call_graph_path = os.path.join(abs_out, "call-graph.json")
     _write_json_stable(project_map_path, project_map)
     _write_json_stable(precedent_path, precedent_index)
+    _write_json_stable(architecture_inventory_path, architecture_inventory)
+    _write_json_stable(symbol_index_path, symbol_index)
+    _write_json_stable(call_graph_path, call_graph)
     log(f"-> wrote {os.path.relpath(project_map_path, abs_cwd)} "
         f"({len(project_map['files'])} files, {len(project_map['changed_files'])} changed)")
     log(f"-> wrote {os.path.relpath(precedent_path, abs_cwd)} "
         f"({len(precedent_index['items'])} precedents)")
+    log(f"-> wrote {os.path.relpath(architecture_inventory_path, abs_cwd)} "
+        f"({architecture_inventory['coverage']['modules']} modules, {architecture_inventory['coverage']['layers']} layers)")
+    log(f"-> wrote {os.path.relpath(symbol_index_path, abs_cwd)} "
+        f"({symbol_index['counts']['symbols']} symbols)")
+    log(f"-> wrote {os.path.relpath(call_graph_path, abs_cwd)} "
+        f"({call_graph['counts']['edges']} relationships)")
     return {
         "project_map_path": project_map_path,
         "precedent_path": precedent_path,
+        "architecture_inventory_path": architecture_inventory_path,
+        "symbol_index_path": symbol_index_path,
+        "call_graph_path": call_graph_path,
         "project_map": project_map,
         "precedent_index": precedent_index,
+        "architecture_inventory": architecture_inventory,
+        "symbol_index": symbol_index,
+        "call_graph": call_graph,
+    }
+
+
+def _slugify(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    if str(value).startswith(".") and slug:
+        return f"dot-{slug}"
+    return slug or "root"
+
+
+def _write_text_stable(file: str, text: str) -> None:
+    os.makedirs(os.path.dirname(file), exist_ok=True)
+    tmp = f"{file}.tmp"
+    with open(tmp, "w", encoding="utf-8") as handle:
+        handle.write(text.rstrip() + "\n")
+    os.replace(tmp, file)
+
+
+def _file_ref(path: str, line: int | None = None) -> str:
+    suffix = f":{line}" if line else ""
+    return f"`{path}{suffix}`"
+
+
+def _render_architecture_overview(inventory: dict, symbol_index: dict, call_graph: dict) -> str:
+    product = inventory.get("product", {})
+    coverage = inventory.get("coverage", {})
+    modules = inventory.get("modules", [])
+    layers = inventory.get("layers", [])
+    lines = [
+        f"# {product.get('name') or 'Project'} Architecture Inventory",
+        "",
+        "Generated from `.simplicio` machine-readable artifacts. Statements below are derived from repository structure, imports, symbols and deterministic heuristics.",
+        "",
+        "## Coverage",
+        "",
+        f"- Files: {coverage.get('files', 0)}",
+        f"- Modules: {coverage.get('modules', 0)}",
+        f"- Layers: {coverage.get('layers', 0)}",
+        f"- Symbols: {coverage.get('symbols', 0)}",
+        f"- Relationships: {coverage.get('relationships', 0)}",
+        f"- Tests: {coverage.get('tests', 0)}",
+        "",
+        "## Modules",
+        "",
+    ]
+    for module in modules[:40]:
+        lines.append(
+            f"- `{module['name']}`: {module['file_count']} files; layers: "
+            f"{', '.join(module.get('layers') or ['none'])}"
+        )
+    lines.extend(["", "## Layers", ""])
+    for layer in layers:
+        lines.append(f"- `{layer['name']}`: {layer['file_count']} files across {len(layer.get('modules', []))} modules")
+
+    graph_edges = [
+        edge for edge in call_graph.get("edges", [])
+        if edge.get("type") == "imports" and edge.get("source_file") and edge.get("target_file")
+    ][:20]
+    if graph_edges:
+        lines.extend(["", "## Dependency Sketch", "", "```mermaid", "graph LR"])
+        for edge in graph_edges:
+            source = _slugify(edge["source_file"])
+            target = _slugify(edge["target_file"])
+            lines.append(f'  {source}["{edge["source_file"]}"] --> {target}["{edge["target_file"]}"]')
+        lines.append("```")
+
+    if symbol_index.get("symbols"):
+        lines.extend(["", "## Top Symbols", ""])
+        for symbol in symbol_index["symbols"][:40]:
+            lines.append(
+                f"- `{symbol['name']}` ({symbol['kind']}) in "
+                f"{_file_ref(symbol['defined_in'], symbol.get('line'))}"
+            )
+    return "\n".join(lines)
+
+
+def _render_layers_doc(inventory: dict) -> str:
+    lines = ["# Architecture Layers", ""]
+    for layer in inventory.get("layers", []):
+        lines.extend([
+            f"## {layer['name']}",
+            "",
+            f"- Files: {layer['file_count']}",
+            f"- Modules: {', '.join(layer.get('modules') or ['none'])}",
+            "",
+        ])
+        for file in layer.get("files", [])[:60]:
+            lines.append(f"- {_file_ref(file)}")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def _render_call_graph_doc(call_graph: dict) -> str:
+    lines = [
+        "# Call Graph",
+        "",
+        "Edges are deterministic or heuristic. Review `confidence` before using a relationship as proof.",
+        "",
+        "## Relationships",
+        "",
+    ]
+    for edge in call_graph.get("edges", [])[:300]:
+        if edge.get("type") == "imports":
+            lines.append(
+                f"- imports: {_file_ref(edge['source_file'])} -> {_file_ref(edge['target_file'])} "
+                f"(confidence {edge['confidence']})"
+            )
+        else:
+            target = edge.get("target_symbol") or edge.get("target_file")
+            line = edge.get("line")
+            lines.append(
+                f"- calls: {_file_ref(edge['source_file'], line)} -> `{target}` "
+                f"(confidence {edge['confidence']})"
+            )
+    return "\n".join(lines)
+
+
+def _render_module_doc(module: dict, inventory: dict) -> str:
+    files_by_path = {item["path"]: item for item in inventory.get("files", [])}
+    lines = [
+        f"# Module: {module['name']}",
+        "",
+        module.get("summary") or "Module summary unavailable.",
+        "",
+        "## Structure",
+        "",
+        f"- Files: {module['file_count']}",
+        f"- Layers: {', '.join(module.get('layers') or ['none'])}",
+        f"- Entry points: {', '.join(_file_ref(path) for path in module.get('entry_points', [])) or 'none detected'}",
+        f"- Tests: {', '.join(_file_ref(path) for path in module.get('tests', [])) or 'none detected'}",
+        "",
+        "## Files",
+        "",
+    ]
+    for path in module.get("files", [])[:120]:
+        file_entry = files_by_path.get(path, {})
+        summary = file_entry.get("summary", "No summary available.")
+        layers = ", ".join(file_entry.get("layers") or [])
+        lines.append(f"- {_file_ref(path)}: {summary} Layers: {layers or 'none'}")
+    if module.get("public_symbols"):
+        lines.extend(["", "## Public Symbols", ""])
+        for symbol in module["public_symbols"][:80]:
+            lines.append(f"- `{symbol}`")
+    return "\n".join(lines)
+
+
+def write_architecture_docs(cwd: str, output_dir: str = ".simplicio",
+                            docs_dir: str | None = None) -> dict:
+    abs_cwd = os.path.abspath(cwd or os.getcwd())
+    abs_out = os.path.abspath(os.path.join(abs_cwd, output_dir))
+    inventory_path = os.path.join(abs_out, "architecture-inventory.json")
+    if not os.path.exists(inventory_path):
+        write_mapping_artifacts(abs_cwd, output_dir=output_dir)
+
+    inventory = _parse_json_safe(inventory_path)
+    symbol_index = _parse_json_safe(os.path.join(abs_out, "symbol-index.json"))
+    call_graph = _parse_json_safe(os.path.join(abs_out, "call-graph.json"))
+    root = os.path.abspath(docs_dir or os.path.join(abs_out, "docs"))
+    modules_dir = os.path.join(root, "modules")
+    paths = []
+
+    docs = {
+        os.path.join(root, "architecture.md"): _render_architecture_overview(inventory, symbol_index, call_graph),
+        os.path.join(root, "layers.md"): _render_layers_doc(inventory),
+        os.path.join(root, "call-graph.md"): _render_call_graph_doc(call_graph),
+    }
+    module_index = ["# Modules", ""]
+    for module in inventory.get("modules", []):
+        module_file = os.path.join(modules_dir, f"{_slugify(module['name'])}.md")
+        docs[module_file] = _render_module_doc(module, inventory)
+        module_index.append(f"- [{module['name']}](modules/{_slugify(module['name'])}.md)")
+    docs[os.path.join(root, "modules.md")] = "\n".join(module_index)
+
+    for file, text in docs.items():
+        _write_text_stable(file, text)
+        paths.append(file)
+
+    return {
+        "docs_root": root,
+        "paths": sorted(paths),
+        "counts": {
+            "files": len(paths),
+            "modules": len(inventory.get("modules", []) or []),
+        },
+    }
+
+
+def export_architecture_docs(cwd: str, target_dir: str, output_dir: str = ".simplicio") -> dict:
+    if not target_dir:
+        raise ValueError("--target is required for export-docs")
+    docs = write_architecture_docs(cwd, output_dir=output_dir)
+    source = docs["docs_root"]
+    target = os.path.abspath(target_dir)
+    os.makedirs(target, exist_ok=True)
+    copied = []
+    for current, _dirs, files in os.walk(source):
+        for name in files:
+            if not name.endswith(".md"):
+                continue
+            src = os.path.join(current, name)
+            rel = os.path.relpath(src, source)
+            dst = os.path.join(target, rel)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            tmp = f"{dst}.tmp"
+            shutil.copyfile(src, tmp)
+            os.replace(tmp, dst)
+            copied.append(dst)
+    return {
+        "target": target,
+        "paths": sorted(copied),
+        "counts": {"files": len(copied)},
     }

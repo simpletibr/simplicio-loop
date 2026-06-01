@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27,<1.28"]
 build-backend = "hatchling.build"
 
 [project]
 name = "simplicio-mapper"
-version = "0.6.10"
+version = "0.7.0"
 description = "Python-first project mapper that emits .simplicio/project-map.json and precedent-index.json for the Simplicio ecosystem."
 readme = "PYPI.md"
 requires-python = ">=3.10"

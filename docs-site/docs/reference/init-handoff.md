@@ -54,6 +54,7 @@ Only these paths are "starter-managed". Anything outside is the human's territor
 .github/workflows/ci.yml
 .github/workflows/dod.yml
 AGENTS.md          CLAUDE.md          README.md          README.pt-BR.md
+SIMPLICIO_INTEGRATION.md
 playwright.config.ts (only if missing or still our template)
 ```
 
@@ -94,6 +95,7 @@ Spawn `@inspector` (sub-agent `Explore` or `general-purpose`):
 - Detect real scripts/commands: `package.json` `scripts`, `Makefile`, `composer.json` `scripts`, `pyproject.toml` `[tool.poetry.scripts]`, `*.csproj` targets.
 - TODO/FIXME/HACK in production code (exclude `node_modules`/`vendor`/`dist`/`build`).
 - Open issues via `gh issue list --limit 50` if `gh` is authenticated.
+- Validate `.simplicio/project-map.json` and `.simplicio/precedent-index.json`; if missing, run `npx @wesleysimplicio/llm-project-mapper map --incremental`.
 
 **Inspector output** — markdown report saved at `.specs/journal/inspection-<YYYY-MM-DD>.md` with sections:
 `Real stack`, `Folder structure`, `Detected entities`, `Useful commands`, `Integrations`, `TODOs found`, `Open issues`.
@@ -124,9 +126,10 @@ For **each path** in `init_must_merge`:
 ### Phase 5 — Update real commands and validate
 
 1. **`@instruction-updater`** — updates `AGENTS.md`/`CLAUDE.md`/`.github/copilot-instructions.md`:
-   - Replace the `## Important commands` section with **real** commands extracted by the inspector (no placeholders).
-   - Add links to docs filled in `.specs/`.
-   - Add `## Available skills/agents` listing what exists in `.skills/` and `.agents/`.
+  - Replace the `## Important commands` section with **real** commands extracted by the inspector (no placeholders).
+  - Add links to docs filled in `.specs/`.
+  - Add `## Available skills/agents` listing what exists in `.skills/` and `.agents/`.
+   - Confirm `.starter-meta.json.simplicio` points to `project-map.json`, `precedent-index.json`, and `SIMPLICIO_INTEGRATION.md`.
 
 2. **DoD checks**:
    - Every tree file exists (`AGENTS.md`, `CLAUDE.md`, `.specs/{product,architecture,workflow,sprints}/...`).
@@ -181,6 +184,7 @@ Keep `.starter-meta.json` (future reference).
 - [ ] `.starter-meta.json` read and updated with the human's answers.
 - [ ] `init_must_ask` asked **once**, in a single message.
 - [ ] Inspector ran and produced a report with real entities/commands/integrations.
+- [ ] `.simplicio/project-map.json` and `.simplicio/precedent-index.json` exist and were updated after inspection.
 - [ ] 6 docs in `.specs/` filled with real info (not placeholders).
 - [ ] `init_must_merge` merged with the essence preserved.
 - [ ] `AGENTS.md` ↔ `CLAUDE.md` ↔ `.github/copilot-instructions.md` aligned.

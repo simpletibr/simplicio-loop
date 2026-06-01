@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-05-31T23:02:34.291Z",
+  "generated_at": "2026-06-01T01:26:48.982Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -455,9 +455,9 @@
       "snippet": "- `CI=true` (or any truthy `CI` env var) — the starter never posts telemetry in CI.\n- `--dry-run` — never posts.\n- `LLM_PROJECT_MAPPER_TELEMETRY=0|off` — overrides everything except `CI`.\n- No `LLM_PROJECT_MAPPER_TELEMETRY_URL` configured — there is nowhere to post to, so nothing is sent.\n"
     },
     {
-      "id": "f1cdcf8f012526f2",
+      "id": "52e2465b201ba8ef",
       "path": "SIMPLICIO_INTEGRATION.md",
-      "line": 144,
+      "line": 218,
       "language": "markdown",
       "change_type": "feature",
       "tags": [
@@ -560,9 +560,9 @@
       "snippet": "const { writeMappingArtifacts } = require('./mapper-artifacts');\n\nfunction readJsonSafe(file) {\n  try {\n    return JSON.parse(fs.readFileSync(file, 'utf8'));"
     },
     {
-      "id": "f50fddc104af1144",
+      "id": "8bae3dfb07ac6797",
       "path": "bin/mapper-artifacts.js",
-      "line": 32,
+      "line": 35,
       "language": "javascript",
       "change_type": "feature",
       "tags": [
@@ -811,9 +811,9 @@
       "snippet": "\n\nclass FileProcessingCache:\n    \"\"\"Disk-backed cache for parsed file metadata.\n"
     },
     {
-      "id": "45406b8fb37fa637",
+      "id": "a9d109fa420b8ebf",
       "path": "simplicio_mapper/cli.py",
-      "line": 55,
+      "line": 77,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -827,9 +827,9 @@
       "snippet": "\n\ndef _read_json_safe(file: str) -> dict:\n    try:\n        with open(file, \"r\", encoding=\"utf-8\") as handle:"
     },
     {
-      "id": "cab7419086883d3b",
+      "id": "eae87cab9d3792ff",
       "path": "simplicio_mapper/mapper.py",
-      "line": 80,
+      "line": 85,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -923,9 +923,9 @@
       "snippet": "const baseUrl = process.env.BASE_URL;\n\ntest.describe('downstream smoke (skipped without BASE_URL)', () => {\n  test.skip(!baseUrl, 'BASE_URL not set — skipping browser smoke');\n"
     },
     {
-      "id": "072fad269338ae8f",
+      "id": "030ea6c9e0e0d9fd",
       "path": "tests/python/test_cli.py",
-      "line": 33,
+      "line": 38,
       "language": "python",
       "change_type": "test",
       "tags": [

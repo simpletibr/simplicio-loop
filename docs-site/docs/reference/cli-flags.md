@@ -9,7 +9,7 @@ sidebar_position: 1
 |---|---|
 | `-y, --yes` | Non-interactive (defaults: no `.gitignore` append, skip CLI handoff) |
 | `-f, --force` | Overwrite starter template files. **Never** touches user instruction files (`AGENTS.md`, `CLAUDE.md`, `INIT.md`, `.github/copilot-instructions.md`, `.gitignore`) |
-| `--update` | Safe update mode for an existing overlay: force starter files, update `.gitignore`, skip handoff |
+| `--update` | Safe update mode for an existing overlay: force starter files, leave `.gitignore` untouched, skip handoff |
 | `--dry-run` | Print actions without writing |
 | `--cli <key>` | Pick CLI for `INIT.md` handoff: `claude`, `codex`, `copilot`, `cursor`, `deepseek`, `kimi`, `minimax`, `glm`, `hermes`, `openclaw`, `aider`, `other`, `skip` |
 | `--append-gitignore <yes\|no>` | Append recommended ignores to `.gitignore` |

@@ -64,6 +64,11 @@ Thumbs.db
 .stylelintcache
 .parcel-cache
 
+# Simplicio mapper runtime state (shared artifacts stay tracked)
+.simplicio/cache/
+.simplicio/index-state.json
+.simplicio/index.lock
+
 # Claude / Codex (estado local, não vai pro repo)
 .codex/local
 .codex/history
