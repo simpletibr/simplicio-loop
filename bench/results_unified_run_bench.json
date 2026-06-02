@@ -37,7 +37,7 @@
     {
       "cost_visibility": "per atomic task",
       "decomposition_owner": "human",
-      "entrypoint": "simplicio task",
+      "entrypoint": "simplicio-py task",
       "label": "cli+ag task loop",
       "mode_id": "cli_ag",
       "observable": true,
@@ -46,7 +46,7 @@
     {
       "cost_visibility": "cost governor",
       "decomposition_owner": "planner",
-      "entrypoint": "simplicio run --scope feature",
+      "entrypoint": "simplicio-py run --scope feature",
       "label": "unified run feature",
       "mode_id": "unified_feature",
       "observable": true,
@@ -55,7 +55,7 @@
     {
       "cost_visibility": "required cost governor",
       "decomposition_owner": "sprint loader and planner",
-      "entrypoint": "simplicio run --scope sprint --max-cost <usd>",
+      "entrypoint": "simplicio-py run --scope sprint --max-cost <usd>",
       "label": "unified run sprint",
       "mode_id": "unified_sprint",
       "observable": true,
@@ -97,7 +97,7 @@
       "manual_decomposition_required": false,
       "mode_id": "cli_ag",
       "notes": [
-        "Executed real simplicio run --scope task commands against a disposable fixture with an isolated pre-seeded completion cache."
+        "Executed real simplicio-py run --scope task commands against a disposable fixture with an isolated pre-seeded completion cache."
       ],
       "outcome": "live_success",
       "planner_calls": 0,
@@ -131,7 +131,7 @@
       "manual_decomposition_required": false,
       "mode_id": "unified_feature",
       "notes": [
-        "Executed real simplicio run --scope feature against a disposable fixture with isolated pre-seeded planner/doer cache and --max-cost 0."
+        "Executed real simplicio-py run --scope feature against a disposable fixture with isolated pre-seeded planner/doer cache and --max-cost 0."
       ],
       "outcome": "live_success",
       "planner_calls": 0,
@@ -171,7 +171,7 @@
       "manual_decomposition_required": false,
       "mode_id": "unified_sprint",
       "notes": [
-        "Executed real simplicio run --scope sprint against a disposable fixture with isolated pre-seeded planner/doer cache, --max-cost 0, and captured sprint state/DoD evidence."
+        "Executed real simplicio-py run --scope sprint against a disposable fixture with isolated pre-seeded planner/doer cache, --max-cost 0, and captured sprint state/DoD evidence."
       ],
       "outcome": "live_success",
       "planner_calls": 0,
@@ -240,7 +240,7 @@
       "manual_decomposition_required": true,
       "mode_id": "cli_ag",
       "notes": [
-        "Executed real simplicio run --scope task commands against a disposable fixture with an isolated pre-seeded completion cache."
+        "Executed real simplicio-py run --scope task commands against a disposable fixture with an isolated pre-seeded completion cache."
       ],
       "outcome": "live_success",
       "planner_calls": 0,
@@ -274,7 +274,7 @@
       "manual_decomposition_required": false,
       "mode_id": "unified_feature",
       "notes": [
-        "Executed real simplicio run command against a disposable fixture with isolated pre-seeded recipe/doer cache, fixture-local pytest shim, and --max-cost 0."
+        "Executed real simplicio-py run command against a disposable fixture with isolated pre-seeded recipe/doer cache, fixture-local pytest shim, and --max-cost 0."
       ],
       "outcome": "live_success",
       "planner_calls": 1,
@@ -314,7 +314,7 @@
       "manual_decomposition_required": false,
       "mode_id": "unified_sprint",
       "notes": [
-        "Executed real simplicio run command against a disposable fixture with isolated pre-seeded recipe/doer cache, fixture-local pytest shim, and --max-cost 0."
+        "Executed real simplicio-py run command against a disposable fixture with isolated pre-seeded recipe/doer cache, fixture-local pytest shim, and --max-cost 0."
       ],
       "outcome": "live_success",
       "planner_calls": 0,
@@ -383,7 +383,7 @@
       "manual_decomposition_required": true,
       "mode_id": "cli_ag",
       "notes": [
-        "Executed real simplicio run --scope task commands against a disposable fixture with an isolated pre-seeded completion cache."
+        "Executed real simplicio-py run --scope task commands against a disposable fixture with an isolated pre-seeded completion cache."
       ],
       "outcome": "live_success",
       "planner_calls": 0,
@@ -417,7 +417,7 @@
       "manual_decomposition_required": true,
       "mode_id": "unified_feature",
       "notes": [
-        "Executed real simplicio run --scope feature against a disposable fixture with isolated pre-seeded planner/doer cache and --max-cost 0."
+        "Executed real simplicio-py run --scope feature against a disposable fixture with isolated pre-seeded planner/doer cache and --max-cost 0."
       ],
       "outcome": "live_success",
       "planner_calls": 2,
@@ -457,7 +457,7 @@
       "manual_decomposition_required": false,
       "mode_id": "unified_sprint",
       "notes": [
-        "Executed real simplicio run --scope sprint against a disposable fixture with isolated pre-seeded planner/doer cache, --max-cost 0, and captured sprint state/DoD evidence."
+        "Executed real simplicio-py run --scope sprint against a disposable fixture with isolated pre-seeded planner/doer cache, --max-cost 0, and captured sprint state/DoD evidence."
       ],
       "outcome": "live_success",
       "planner_calls": 2,

@@ -499,7 +499,7 @@ def test_status_json_reports_invalid_state_file(tmp_path, monkeypatch, capsys):
     captured = capsys.readouterr()
     assert code == 2
     assert captured.out == ""
-    assert "simplicio status: invalid state file:" in captured.err
+    assert "simplicio-py status: invalid state file:" in captured.err
 
 
 def test_status_text_reports_state_and_cost(tmp_path, monkeypatch, capsys):

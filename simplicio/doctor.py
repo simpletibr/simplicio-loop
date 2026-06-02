@@ -1,4 +1,4 @@
-"""doctor.py — `simplicio doctor` subcommand.
+"""doctor.py - `simplicio-py doctor` subcommand.
 
 Prints detected hardware tier + recommended local model + install status.
 With --install, opt-in to downloading the recommended GGUF. Without
@@ -19,7 +19,7 @@ from .local_models import (
 
 
 def _render_human(result, profile) -> None:
-    print("simplicio doctor", file=sys.stderr)
+    print("simplicio-py doctor", file=sys.stderr)
     print(f"  os            {profile.os_name}")
     if profile.apple_silicon:
         print(f"  chip          {profile.gpu_name} (Apple Silicon, unified memory)")
@@ -52,7 +52,7 @@ def _render_human(result, profile) -> None:
         print("  unset SIMPLICIO_BASE_URL SIMPLICIO_API_KEY")
     elif result.can_download:
         print("-> to install:")
-        print("  simplicio doctor --install")
+        print("  simplicio-py doctor --install")
         print(
             f"  (or manually download {result.spec.repo_id}/{result.spec.filename} "
             f"to {model_file_path(result.spec)})"
@@ -64,7 +64,7 @@ def _render_human(result, profile) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="simplicio doctor")
+    p = argparse.ArgumentParser(prog="simplicio-py doctor")
     p.add_argument("--install", action="store_true",
                    help="opt-in: download the recommended GGUF if not present")
     p.add_argument("--json", action="store_true",

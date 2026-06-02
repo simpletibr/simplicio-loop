@@ -25,7 +25,7 @@ def doctor_contract(root: str | Path = ".") -> dict[str, Any]:
         )
     }
     packages = {
-        name: {"version": _package_version(name)}
+        name: {"version": __version__ if name == "simplicio-cli" else _package_version(name)}
         for name in (
             "simplicio-cli",
             "simplicio-mapper",

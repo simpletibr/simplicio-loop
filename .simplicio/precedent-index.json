@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-06-02T16:01:43.363Z",
+  "generated_at": "2026-06-02T20:50:09.345Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -218,9 +218,9 @@
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
     },
     {
-      "id": "7128edd0fb09dab1",
+      "id": "51de35e0bef089cd",
       "path": "CHANGELOG.md",
-      "line": 299,
+      "line": 307,
       "language": "markdown",
       "change_type": "error-handling",
       "tags": [
@@ -1609,7 +1609,7 @@
         "bench"
       ],
       "summary": "error-handling precedent in simplicio/bench.py",
-      "snippet": "  WITHOUT: sends only the raw goal to the LLM (baseline).\n  WITH:    full pipeline (precedent + skill + layers + verify).\nMeasures: did it pass the test on the first try? how many attempts?\n\nUsage: simplicio bench --cases bench/cases.json --stack angular"
+      "snippet": "  WITHOUT: sends only the raw goal to the LLM (baseline).\n  WITH:    full pipeline (precedent + skill + layers + verify).\nMeasures: did it pass the test on the first try? how many attempts?\n\nUsage: simplicio-py bench --cases bench/cases.json --stack angular"
     },
     {
       "id": "aa96ca37769228bf",
@@ -1641,9 +1641,9 @@
       "snippet": "\n\ndef _cmd_stats(args: argparse.Namespace) -> int:\n    s = cache().stats()\n    if args.json:"
     },
     {
-      "id": "6e2af08fb25e200a",
+      "id": "6a7b549ab3353a31",
       "path": "simplicio/cli.py",
-      "line": 14,
+      "line": 16,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -1681,7 +1681,7 @@
         "doctor"
       ],
       "summary": "feature precedent in simplicio/doctor.py",
-      "snippet": "\n\ndef _render_human(result, profile) -> None:\n    print(\"simplicio doctor\", file=sys.stderr)\n    print(f\"  os            {profile.os_name}\")"
+      "snippet": "\n\ndef _render_human(result, profile) -> None:\n    print(\"simplicio-py doctor\", file=sys.stderr)\n    print(f\"  os            {profile.os_name}\")"
     },
     {
       "id": "a97530fdf4628ff8",

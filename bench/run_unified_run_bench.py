@@ -1,4 +1,4 @@
-"""Fixture-backed F5 report for the unified ``simplicio run`` bench.
+"""Fixture-backed F5 report for the unified ``simplicio-py run`` bench.
 
 Issue #41 asks for a head-to-head bench comparing the existing cli+ag task loop,
 the unified feature/sprint orchestrator, and Codex ``/goal`` on a controlled
@@ -58,7 +58,7 @@ MODES: list[dict[str, Any]] = [
     {
         "mode_id": "cli_ag",
         "label": "cli+ag task loop",
-        "entrypoint": "simplicio task",
+        "entrypoint": "simplicio-py task",
         "decomposition_owner": "human",
         "replan_scope": "none",
         "cost_visibility": "per atomic task",
@@ -67,7 +67,7 @@ MODES: list[dict[str, Any]] = [
     {
         "mode_id": "unified_feature",
         "label": "unified run feature",
-        "entrypoint": "simplicio run --scope feature",
+        "entrypoint": "simplicio-py run --scope feature",
         "decomposition_owner": "planner",
         "replan_scope": "remaining feature tasks",
         "cost_visibility": "cost governor",
@@ -76,7 +76,7 @@ MODES: list[dict[str, Any]] = [
     {
         "mode_id": "unified_sprint",
         "label": "unified run sprint",
-        "entrypoint": "simplicio run --scope sprint --max-cost <usd>",
+        "entrypoint": "simplicio-py run --scope sprint --max-cost <usd>",
         "decomposition_owner": "sprint loader and planner",
         "replan_scope": "feature tasks inside sprint",
         "cost_visibility": "required cost governor",

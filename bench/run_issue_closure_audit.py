@@ -184,7 +184,7 @@ def _audit_issue_41(inputs: dict[str, dict[str, Any]]) -> dict[str, Any]:
         if isinstance(item, str) and item not in blockers
     )
     return _issue_result(
-        title="unified simplicio run orchestrator",
+        title="unified simplicio-py run orchestrator",
         checks=checks,
         blockers=blockers,
     )

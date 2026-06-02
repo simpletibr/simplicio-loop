@@ -2,8 +2,8 @@
 
 Documento técnico cobrindo os **dois caminhos principais** do CLI atual:
 
-- **`simplicio task`** — modo edit, herdado do produto v0.4 (existente)
-- **`simplicio scratch`** — modo from-scratch, novo (issue #32)
+- **`simplicio-py task`** — modo edit, herdado do produto v0.4 (existente)
+- **`simplicio-py scratch`** — modo from-scratch, novo (issue #32)
 
 Plus os auxiliares `doctor`, `skill new`, `index`, `detect`.
 
@@ -125,13 +125,13 @@ caller passa (prompt, feedback)
 
 ---
 
-## 3. Fluxo **`simplicio task "<goal>" --target <file>`** (modo edit)
+## 3. Fluxo **`simplicio-py task "<goal>" --target <file>`** (modo edit)
 
 Arquivos: [`simplicio/cli.py`](../simplicio/cli.py), [`simplicio/pipeline.py`](../simplicio/pipeline.py)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ user: simplicio task "add foo() to PasswordPolicy"              │
+│ user: simplicio-py task "add foo() to PasswordPolicy"              │
 │                  --target src/Core/PasswordPolicy.php            │
 │                  --criteria "..." --constraints "..."            │
 └──────────────────────────┬──────────────────────────────────────┘
@@ -206,7 +206,7 @@ Arquivos: [`simplicio/cli.py`](../simplicio/cli.py), [`simplicio/pipeline.py`](.
 
 ---
 
-## 4. Fluxo **`simplicio scratch "<goal>"`** (modo from-scratch)
+## 4. Fluxo **`simplicio-py scratch "<goal>"`** (modo from-scratch)
 
 Arquivos: [`simplicio/scratch/cli.py`](../simplicio/scratch/cli.py), [`simplicio/scratch/planner.py`](../simplicio/scratch/planner.py), [`simplicio/scratch/executor.py`](../simplicio/scratch/executor.py), [`simplicio/scratch/_pipeline_adapter.py`](../simplicio/scratch/_pipeline_adapter.py)
 
@@ -215,7 +215,7 @@ onde executor delega cada task ao pipeline existente do modo task.
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│ user: simplicio scratch "CRUD API for condo units" [--stack X] │
+│ user: simplicio-py scratch "CRUD API for condo units" [--stack X] │
 └────────────────────────────┬───────────────────────────────────┘
                              ▼
    ┌──────────────────────────────────────────┐
@@ -363,13 +363,13 @@ Para N=12 tasks: 1 + 36 = 37 calls. Custo dominado pelo doer (Coder-Next ~$0/cal
 
 ---
 
-## 5. Fluxo `simplicio doctor` (auxiliar — sem LLM)
+## 5. Fluxo `simplicio-py doctor` (auxiliar — sem LLM)
 
 Arquivos: [`simplicio/doctor.py`](../simplicio/doctor.py), [`simplicio/hardware.py`](../simplicio/hardware.py), [`simplicio/local_models.py`](../simplicio/local_models.py)
 
 ```
 ┌──────────────────────────────────────────────────┐
-│ user: simplicio doctor [--install] [--json]      │
+│ user: simplicio-py doctor [--install] [--json]      │
 └────────────────────────┬─────────────────────────┘
                          ▼
    ┌─────────────────────────────────────────┐
@@ -595,7 +595,7 @@ SIMPLICIO_HOOK_GUARD=1             # interno: previne recursão em shell-out
 SIMPLICIO_SKIP_AUTO_INIT=1         # desliga auto-bootstrap em ~/.claude
 ```
 
-### Cache layer (`simplicio cache`, issue #34)
+### Cache layer (`simplicio-py cache`, issue #34)
 
 O cache vive em `simplicio/_cache.py` e é content-addressed por SHA256 de
 `(provider_id, model, prompt, kwargs)`. Hookado em `providers.generate` e
@@ -607,9 +607,9 @@ credenciais. Isso significa que num dev loop você pode ter `SIMPLICIO_API_KEY`
 unset e ainda assim re-rodar scratches do cache.
 
 ```bash
-simplicio cache stats         # quantas entries, MB, idade da mais antiga
-simplicio cache stats --json  # machine-readable
-simplicio cache clear --force # remove tudo (requer --force explícito)
+simplicio-py cache stats         # quantas entries, MB, idade da mais antiga
+simplicio-py cache stats --json  # machine-readable
+simplicio-py cache clear --force # remove tudo (requer --force explícito)
 ```
 
 **Invariantes testados** em `tests/python/test_cache.py` (12 cenários,

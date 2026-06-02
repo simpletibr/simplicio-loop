@@ -1,6 +1,6 @@
 """skill_opt.py — generate a new .skills/<slug>/SKILL.md from a description.
 
-Used both standalone (`simplicio skill new "<desc>"`) and inline from
+Used both standalone (`simplicio-py skill new "<desc>"`) and inline from
 executor.py when a plan task needs a capability not yet represented in
 `.skills/`. Always writes the generated skill with `review_required: true`
 in the frontmatter, so a human gate-keeps before it becomes a default.
@@ -189,7 +189,7 @@ def install_skill_from_description(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="simplicio skill new")
+    parser = argparse.ArgumentParser(prog="simplicio-py skill new")
     parser.add_argument(
         "description", help="what the skill should do (one or two sentences)"
     )

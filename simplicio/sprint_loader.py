@@ -1,4 +1,4 @@
-"""Load sprint task specs for ``simplicio run --scope sprint``."""
+"""Load sprint task specs for ``simplicio-py run --scope sprint``."""
 
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.symbol-index/v1",
   "version": 1,
-  "generated_at": "2026-06-02T16:01:43.363Z",
+  "generated_at": "2026-06-02T20:50:09.345Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
   "symbols": [
     {
@@ -7102,10 +7102,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 12,
+      "line": 14,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 12
+        "line": 14
       }
     },
     {
@@ -7114,10 +7114,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 47,
+      "line": 49,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 47
+        "line": 49
       }
     },
     {
@@ -7126,10 +7126,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 68,
+      "line": 70,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 68
+        "line": 70
       }
     },
     {
@@ -7138,10 +7138,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 97,
+      "line": 99,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 97
+        "line": 99
       }
     },
     {
@@ -7150,10 +7150,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 120,
+      "line": 122,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 120
+        "line": 122
       }
     },
     {
@@ -7162,10 +7162,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 131,
+      "line": 133,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 131
+        "line": 133
       }
     },
     {
@@ -7174,10 +7174,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 172,
+      "line": 174,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 172
+        "line": 174
       }
     },
     {
@@ -7186,10 +7186,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 179,
+      "line": 181,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 179
+        "line": 181
       }
     },
     {
@@ -7198,10 +7198,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 204,
+      "line": 206,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 204
+        "line": 206
       }
     },
     {
@@ -7210,10 +7210,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 236,
+      "line": 238,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 236
+        "line": 238
       }
     },
     {
@@ -7222,10 +7222,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 243,
+      "line": 245,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 243
+        "line": 245
       }
     },
     {
@@ -7234,10 +7234,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 404,
+      "line": 406,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 404
+        "line": 406
       }
     },
     {
@@ -7246,10 +7246,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 432,
+      "line": 434,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 432
+        "line": 434
       }
     },
     {
@@ -7258,10 +7258,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 439,
+      "line": 441,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 439
+        "line": 441
       }
     },
     {
@@ -7270,10 +7270,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 478,
+      "line": 480,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 478
+        "line": 480
       }
     },
     {
@@ -7282,10 +7282,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 519,
+      "line": 521,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 519
+        "line": 521
       }
     },
     {
@@ -7294,10 +7294,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 525,
+      "line": 527,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 525
+        "line": 527
       }
     },
     {
@@ -7306,10 +7306,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 545,
+      "line": 547,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 545
+        "line": 547
       }
     },
     {
@@ -7318,10 +7318,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 594,
+      "line": 596,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 594
+        "line": 596
       }
     },
     {
@@ -7330,10 +7330,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 611,
+      "line": 613,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 611
+        "line": 613
       }
     },
     {
@@ -7342,10 +7342,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 641,
+      "line": 643,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 641
+        "line": 643
       }
     },
     {

@@ -37,8 +37,8 @@ Ta zlokalizowana strona zachowuje szybka sciezke. Pelny odtworzony przewodnik te
 
 ```bash
 pip install -U simplicio-cli
-simplicio detect "hide the Delete button for non-admins"
-simplicio task "hide the Delete button for non-admins"
+simplicio-py detect "hide the Delete button for non-admins"
+simplicio-py task "hide the Delete button for non-admins"
 ```
 
 ## Co robi

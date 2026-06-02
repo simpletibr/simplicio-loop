@@ -1,4 +1,4 @@
-"""Tests for the simplicio run intent classifier."""
+"""Tests for the simplicio-py run intent classifier."""
 
 import pytest
 

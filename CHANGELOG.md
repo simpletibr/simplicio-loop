@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.20] — 2026-06-02
+
+### Changed
+- Renamed the Python CLI entrypoint from `simplicio` to `simplicio-py`.
+  The canonical `simplicio` command now belongs to the compiled Rust
+  `simplicio-runtime`; `simplicio-dev-cli` remains available as the explicit
+  adapter command.
+
 ## [0.5.19] — 2026-06-02
 
 ### Added

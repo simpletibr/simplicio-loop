@@ -9,11 +9,11 @@
         {
           "kind": "dod-evidence",
           "path": "bench/run_unified_run_bench.py",
-          "sha256": "68c85d58620ea9b1652008abe7dddfbc54fd2527131274e67553422a04557e20"
+          "sha256": "2751b50b798fa2fa981606a6b0de548406c17a3827ea17b79ebcc1cad4cee165"
         }
       ],
       "case_id": "sprint-checkout-hardening",
-      "command": "simplicio run --scope sprint --max-cost 5 bench/fixtures/unified-run-example",
+      "command": "simplicio-py run --scope sprint --max-cost 5 bench/fixtures/unified-run-example",
       "cost_usd": 0.0,
       "duration_s": 1.0,
       "exit_code": 0,

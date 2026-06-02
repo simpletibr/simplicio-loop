@@ -1,4 +1,4 @@
-"""Feature-scope orchestration for ``simplicio run``.
+"""Feature-scope orchestration for ``simplicio-py run``.
 
 This is the first Ralph-style layer above the atomic task primitive: the
 planner decomposes a goal into ordered tasks, each task runs through the
@@ -96,7 +96,7 @@ def run_feature(
     stack = reg.get(stack_slug)
     if stack is None:
         raise ValueError(
-            f"unknown stack '{stack_slug}'. Run `simplicio scratch --list-stacks`."
+            f"unknown stack '{stack_slug}'. Run `simplicio-py scratch --list-stacks`."
         )
 
     project_name = slugify_project(goal)

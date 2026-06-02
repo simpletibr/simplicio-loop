@@ -12,7 +12,7 @@
 
 ## 1. Problema — o gap entre task e do-zero
 
-O `simplicio task` de hoje assume:
+O `simplicio-py task` de hoje assume:
 
 - Projeto **existe** (repo iniciado, dependências instaladas)
 - Arquivo-alvo **existe** (a tarefa edita ele)
@@ -38,13 +38,13 @@ Sp + cli viram **duas entradas para o mesmo pipeline de verify-loop**:
 
 | Modo | Comando | Premissa | Template-driver |
 |---|---|---|---|
-| **task** (existente) | `simplicio task "<goal>"` | repo existe, edit incremental | cli 6-layer |
-| **scratch** (novo) | `simplicio scratch "<goal>"` | repo vazio ou inexistente, build inicial | cli 6-layer **+** stack template **+** plan |
+| **task** (existente) | `simplicio-py task "<goal>"` | repo existe, edit incremental | cli 6-layer |
+| **scratch** (novo) | `simplicio-py scratch "<goal>"` | repo vazio ou inexistente, build inicial | cli 6-layer **+** stack template **+** plan |
 
 Diferença-chave: **scratch tem fase de plan ANTES da geração**. O planner
 recebe o goal, escolhe stack a partir dos 30 templates, propõe estrutura
 de arquivos, lista as N tasks de implementação. Cada task vira um
-`simplicio task` interno. Verify-loop final usa o test runner do template.
+`simplicio-py task` interno. Verify-loop final usa o test runner do template.
 
 ---
 
@@ -54,12 +54,12 @@ de arquivos, lista as N tasks de implementação. Cada task vira um
 
 ```bash
 # do zero — pede stack se ambíguo, escreve árvore, gera plan, executa tasks
-simplicio scratch "<one-line goal>" [--stack <slug>] [--planner <provider>]
+simplicio-py scratch "<one-line goal>" [--stack <slug>] [--planner <provider>]
 
 # auxiliares
-simplicio scratch --list-stacks         # 30 templates registrados
-simplicio scratch --show-stack <slug>   # readme + arquivos do template
-simplicio scratch --plan-only "<goal>"  # gera só o plan, não executa
+simplicio-py scratch --list-stacks         # 30 templates registrados
+simplicio-py scratch --show-stack <slug>   # readme + arquivos do template
+simplicio-py scratch --plan-only "<goal>"  # gera só o plan, não executa
 ```
 
 ### 3.2 Módulos novos em `simplicio/`
@@ -68,7 +68,7 @@ simplicio scratch --plan-only "<goal>"  # gera só o plan, não executa
 simplicio/
 ├── scratch/
 │   ├── __init__.py
-│   ├── cli.py              # subcomando `simplicio scratch`
+│   ├── cli.py              # subcomando `simplicio-py scratch`
 │   ├── stack_registry.py   # carrega templates locais + remotos
 │   ├── planner.py          # roda planner LLM (DeepSeek por default)
 │   ├── plan_schema.py      # contrato {stack, files, tasks, deps, tests}
@@ -105,7 +105,7 @@ simplicio/
    ┌──────────────────┐    4. scaffold from template
    │ executor         │       + write package manifests + install deps
    │  ↓ for each task │    5. for each task in plan.tasks:
-   │  → pipeline.run  │           simplicio task internally (cli + verify-loop)
+   │  → pipeline.run  │           simplicio-py task internally (cli + verify-loop)
    └────────┬─────────┘
             ▼
    ┌──────────────────┐    6. final report (passed tasks, evidence)
@@ -200,10 +200,10 @@ não basta; framework precisa ser escolhido).
 ### 4.3 Versionamento
 
 - Cada `stack.json` carrega `template_version: "0.1.0"`
-- `simplicio scratch --list-stacks` mostra versões
+- `simplicio-py scratch --list-stacks` mostra versões
 - Atualização de stack vira PR no `simplicio-dev-cli` (não no
   `simplicio-prompt` — templates de scaffold são responsabilidade do cli)
-- Templates remotos (futuro): `simplicio scratch --stack-source github:org/repo`
+- Templates remotos (futuro): `simplicio-py scratch --stack-source github:org/repo`
 
 ---
 
@@ -378,19 +378,19 @@ Mesmo modelo do roadmap do sp — cada fase tem métrica-âncora.
 
 - Estrutura `simplicio/templates/stacks/` com schema
 - Implementa 5 templates (`ts-nextjs`, `py-fastapi`, `rust-axum`, `go-gin`, `php-laravel`) — cobrem os arquétipos principais
-- CLI: `simplicio scratch --list-stacks` + `--show-stack`
+- CLI: `simplicio-py scratch --list-stacks` + `--show-stack`
 - Métrica: cada template scaffolds clean (npm/pip/cargo install passa, test runner verde no projeto vazio)
 
 ### Fase 2 — Planner + plan schema (1-2 semanas)
 
 - `simplicio/scratch/planner.py` chama DeepSeek com goal + template README + practices
 - `plan_schema.py` valida saída (jsonschema strict)
-- CLI: `simplicio scratch --plan-only "<goal>"` retorna plan validado
+- CLI: `simplicio-py scratch --plan-only "<goal>"` retorna plan validado
 - Métrica: 20 goals reais (5 por stack) — DeepSeek retorna plan-schema-válido em ≥18/20 (90%)
 
 ### Fase 3 — Executor + integração com pipeline.run (2 semanas)
 
-- `executor.py` itera tasks do plan, cada uma vira `simplicio task` interno
+- `executor.py` itera tasks do plan, cada uma vira `simplicio-py task` interno
 - Scaffolding inicial: copia tree/, roda package manager install, cria git init
 - Loop verify por task (já existe via `pipeline.run`)
 - Métrica: scratch end-to-end em 5 stacks com goal "CRUD básico" — projeto compila + roda + tests passam em ≥4/5
@@ -434,7 +434,7 @@ Mesmo modelo do roadmap do sp — cada fase tem métrica-âncora.
 
 ## 9. Open questions
 
-1. **Stack inference**: `simplicio scratch "build me a condo app"` precisa
+1. **Stack inference**: `simplicio-py scratch "build me a condo app"` precisa
    inferir stack ou exigir `--stack`? Proposta: **inferir** via DeepSeek com
    fallback "ts-nextjs" pra web não-especificado; sempre IMPRIMIR a stack
    escolhida antes de executar (interrompível com Ctrl+C).
@@ -450,9 +450,9 @@ Mesmo modelo do roadmap do sp — cada fase tem métrica-âncora.
    (`stacks/ts-nextjs/hooks.py`) com `pre_scaffold`, `post_scaffold` etc.?
    Proposta: começar declarativo, adicionar hooks só se demanda concreta
    aparecer.
-5. **Compatibilidade com `simplicio init`**: o init atual instala skill +
+5. **Compatibilidade com `simplicio-py init`**: o init atual instala skill +
    hook. Scratch é um terceiro modo. Renomear pro alinhamento? `simplicio
-   install` (hook), `simplicio scratch` (do zero), `simplicio task`
+   install` (hook), `simplicio-py scratch` (do zero), `simplicio-py task`
    (modify)?
 6. **Telemetria**: scratch é caro (planner + N tasks). Vale logar
    stack-scolhida, # tasks, % passados, tempo total pra alimentar a
@@ -463,7 +463,7 @@ Mesmo modelo do roadmap do sp — cada fase tem métrica-âncora.
 
 ## 10. Critério de release v0.5
 
-`simplicio scratch` pode chamar de release quando o bench (novo —
+`simplicio-py scratch` pode chamar de release quando o bench (novo —
 não existe ainda) mostrar:
 
 - **15 goals reais × 5 stacks pilot** (Fase 1): planner válido em ≥90%,

@@ -244,7 +244,7 @@ def build_pdf(exec_rows, regex_rows, exec_raw):
         ]))
         return t
 
-    story.append(Paragraph("simplicio bench v13 — 5-side comparison (baseline / cli / cli+sp / cli+ag / cli+sp+ag)", h1))
+    story.append(Paragraph("simplicio-py bench v13 — 5-side comparison (baseline / cli / cli+sp / cli+ag / cli+sp+ag)", h1))
     story.append(Paragraph(f"Date: <b>{time.strftime('%Y-%m-%d')}</b>", body))
     story.append(Spacer(1, 3*mm))
 

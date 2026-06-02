@@ -150,7 +150,7 @@ def build_md(exec_s: dict, regex_s: dict, fanout_s: dict) -> str:
         "| `cli + ag` | up to **3** sequential attempts | Same contract; on "
         "failure the harness classifies the PHPUnit tail (or missed regex "
         "patterns) and re-prompts with retry feedback. Mirrors "
-        "`simplicio task --verify` / `simplicio.pipeline.run()`. |",
+        "`simplicio-py task --verify` / `simplicio.pipeline.run()`. |",
         "| `cli (fan-out)` | **N=200** parallel subagents | "
         "Single-call cli contract repeated 200x in parallel through "
         "`kernel.subagent_runtime.SubagentRuntime` (LaneWorkerPool, "

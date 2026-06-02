@@ -10,7 +10,7 @@ Documento de visão única. Para a decisão arquitetural por trás disto, ver [`
 
 - `simplicio-cli` = **gerador de código** com prompt afiado (precedent + skill_router). Não é agent end-to-end.
 - `ralph-loop` = **padrão de orquestração** autônoma (read → plan → execute → gates → fix → loop).
-- `.agents/simplicio-ralph.agent.md` = **spec da composição**: ralph orquestra, `simplicio task` é uma das ferramentas no passo `execute`.
+- `.agents/simplicio-ralph.agent.md` = **spec da composição**: ralph orquestra, `simplicio-py task` é uma das ferramentas no passo `execute`.
 - Cobertura ampla (review, refactor amplo, debug, análise, arquitetura) vem do orquestrador externo (Claude Code, Codex CLI, Copilot, Cursor, Aider) **rotear** para ferramenta certa por tipo de task — não de inchar o CLI.
 
 ---
@@ -50,7 +50,7 @@ ADR-002 documenta a decisão completa, com alternativas avaliadas e critério de
 ┌─────────────────────────────────────────────────────────────┐
 │  CAMADA 2 — Roteamento por tipo de task                    │
 │  ──────────────────────────────────────────────────────────  │
-│  type=code-gen        ───►  simplicio task --target ...     │
+│  type=code-gen        ───►  simplicio-py task --target ...     │
 │  type=refactor amplo  ───►  edit direto (multi-file)        │
 │  type=analise         ───►  search/read tools               │
 │  type=review          ───►  .agents/reviewer.agent.md       │
@@ -97,7 +97,7 @@ ADR-002 documenta a decisão completa, com alternativas avaliadas e critério de
    └─ roteia para simplicio (Camada 2)
         │
         ▼
-3. Orquestrador chama: simplicio task "<goal>" --target <path>
+3. Orquestrador chama: simplicio-py task "<goal>" --target <path>
         │
         ▼
 4. simplicio-cli (Camada 3)
@@ -129,7 +129,7 @@ ADR-002 documenta a decisão completa, com alternativas avaliadas e critério de
 
 | Sintoma da task | Tipo | Tool no execute | Por quê |
 |---|---|---|---|
-| "implementar form validation em foo.component.ts" | code-gen 1-file | `simplicio task` | Target claro + precedent ajuda |
+| "implementar form validation em foo.component.ts" | code-gen 1-file | `simplicio-py task` | Target claro + precedent ajuda |
 | "renomear `User` para `Account` em 20 arquivos" | refactor amplo | edit direto / sed | Multi-file, mecânico |
 | "por que o test X tá flaky?" | análise | search/read + debug | Sem código novo, só leitura |
 | "revisar este PR" | review | `reviewer.agent.md` | Read-only, opina |
@@ -160,14 +160,14 @@ claude -p "agent=simplicio-ralph; task=T-042" \
 
 # Copilot CLI
 copilot --autopilot --max-autopilot-continues 20 \
-  -p "execute T-042 via simplicio task; loop DoD"
+  -p "execute T-042 via simplicio-py task; loop DoD"
 
 # Cursor ≥ 3.0
 # UI: Background Agent → prompt referenciando .agents/simplicio-ralph.agent.md
 
 # Aider (wrapper)
 while ! grep -q "EXIT_SIGNAL: true" .ralph/state; do
-  simplicio task "..." --target ...
+  simplicio-py task "..." --target ...
   npm run lint && npm test && npx playwright test || continue
   echo "EXIT_SIGNAL: true" > .ralph/state
 done
@@ -177,7 +177,7 @@ Pré-requisito comum em todas:
 
 ```bash
 # 1ª vez ou após mudança grande no repo
-simplicio index --root . --stack <stack>
+simplicio-py index --root . --stack <stack>
 
 # vars de ambiente do simplicio
 export SIMPLICIO_PROVIDER=claude
@@ -211,7 +211,7 @@ Estes limites são **intencionais**: cada camada faz uma coisa. ADR-002 detalha 
 - **Provedores LLM** — sem novos adapters.
 - **Comandos do CLI** — `index`, `task`, `bench`, `smoke` continuam exatamente como estão.
 
-Risco zero pra quem hoje usa só `simplicio task` standalone.
+Risco zero pra quem hoje usa só `simplicio-py task` standalone.
 
 ---
 

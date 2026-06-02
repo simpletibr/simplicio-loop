@@ -116,12 +116,12 @@ def _render_hint(prompt: str, signals: list, scope: str = "task") -> str:
     target_line = f"target = {target_hint}" if target_hint else "target = <ask user or infer via Explore>"
     if scope == "sprint":
         scale_line = (
-            "This prompt looks like sprint-scale code work. Use `simplicio run --scope sprint`\n"
+            "This prompt looks like sprint-scale code work. Use `simplicio-py run --scope sprint`\n"
             "or a local sprint plan before editing by hand, then verify each slice."
         )
     elif scope == "feature":
         scale_line = (
-            "This prompt looks like feature-scale code work. Use `simplicio run --scope feature`\n"
+            "This prompt looks like feature-scale code work. Use `simplicio-py run --scope feature`\n"
             "or a focused local plan before editing by hand, then verify the full flow."
         )
     else:
@@ -144,7 +144,7 @@ def _render_hint(prompt: str, signals: list, scope: str = "task") -> str:
 def main(argv=None) -> int:
     import argparse
 
-    ap = argparse.ArgumentParser(prog="simplicio detect")
+    ap = argparse.ArgumentParser(prog="simplicio-py detect")
     ap.add_argument("--prompt", help="prompt text (default: read from stdin)")
     ap.add_argument("--quiet", action="store_true", help="suppress hint on stderr")
     ap.add_argument("--json", action="store_true", help="emit JSON result on stdout")

@@ -1,4 +1,4 @@
-"""CLI entrypoint for simplicio."""
+"""CLI entrypoint for the Python Simplicio adapter."""
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ import re
 import sys
 import time
 from pathlib import Path
+
+CLI_PROG = "simplicio-py"
 
 
 def maybe_autoinstall(cmd: str | None) -> bool:
@@ -29,7 +31,7 @@ def maybe_autoinstall(cmd: str | None) -> bool:
 
         report = install(claude_home=claude_home, dry_run=False)
     except Exception as e:
-        print(f"simplicio: auto-activation skipped ({e})", file=sys.stderr)
+        print(f"{CLI_PROG}: auto-activation skipped ({e})", file=sys.stderr)
         return False
     if (
         report.skill_installed
@@ -37,7 +39,7 @@ def maybe_autoinstall(cmd: str | None) -> bool:
         or report.settings_updated
     ):
         print(
-            "simplicio: auto-activation installed in Claude Code "
+            f"{CLI_PROG}: auto-activation installed in Claude Code "
             "(skill + UserPromptSubmit hook). "
             "Disable next time with SIMPLICIO_SKIP_AUTO_INIT=1.",
             file=sys.stderr,
@@ -57,7 +59,7 @@ def _dispatch_nested(argv: list[str]) -> int | None:
         args = argv[1:]
         if not args or args[0] != "new":
             print(
-                'usage: simplicio skill new "<description>" [--planner ...] [--dry-run]',
+                f'usage: {CLI_PROG} skill new "<description>" [--planner ...] [--dry-run]',
                 file=sys.stderr,
             )
             return 2
@@ -205,7 +207,7 @@ def _run_scratch_command(a: argparse.Namespace) -> int:
 
 def _run_feature_command(a: argparse.Namespace) -> int:
     if not a.stack:
-        print("simplicio run --scope feature requires --stack <slug>", file=sys.stderr)
+        print(f"{CLI_PROG} run --scope feature requires --stack <slug>", file=sys.stderr)
         return 2
     from .orchestrator import run_feature
 
@@ -220,7 +222,7 @@ def _run_feature_command(a: argparse.Namespace) -> int:
             quiet=a.json,
         )
     except ValueError as exc:
-        print(f"simplicio run: {exc}", file=sys.stderr)
+        print(f"{CLI_PROG} run: {exc}", file=sys.stderr)
         return 2
     if a.json:
         print(json.dumps(result, sort_keys=True))
@@ -244,10 +246,10 @@ def _infer_sprint_name(goal: str) -> str | None:
 
 def _run_sprint_command(a: argparse.Namespace) -> int:
     if not a.max_cost:
-        print("simplicio run --scope sprint requires --max-cost", file=sys.stderr)
+        print(f"{CLI_PROG} run --scope sprint requires --max-cost", file=sys.stderr)
         return 2
     if not a.stack:
-        print("simplicio run --scope sprint requires --stack <slug>", file=sys.stderr)
+        print(f"{CLI_PROG} run --scope sprint requires --stack <slug>", file=sys.stderr)
         return 2
     from .dod import load_dod, load_sprint_dod, run_dod_gates
     from .orchestrator import run_feature
@@ -256,19 +258,19 @@ def _run_sprint_command(a: argparse.Namespace) -> int:
 
     sprint_name = a.sprint or _infer_sprint_name(a.goal)
     if not sprint_name:
-        print("simplicio run --scope sprint requires --sprint sprint-XX", file=sys.stderr)
+        print(f"{CLI_PROG} run --scope sprint requires --sprint sprint-XX", file=sys.stderr)
         return 2
 
     try:
         sprint = load_sprint(a.root, sprint_name)
     except FileNotFoundError as exc:
-        print(f"simplicio run: {exc}", file=sys.stderr)
+        print(f"{CLI_PROG} run: {exc}", file=sys.stderr)
         return 2
 
     try:
         CostGovernor.from_value(a.max_cost)
     except ValueError as exc:
-        print(f"simplicio run: {exc}", file=sys.stderr)
+        print(f"{CLI_PROG} run: {exc}", file=sys.stderr)
         return 2
 
     state_dir = Path(a.root) / ".simplicio"
@@ -286,7 +288,7 @@ def _run_sprint_command(a: argparse.Namespace) -> int:
             complete=False,
             cost=None,
         )
-        print(f"simplicio run: sprint has no task specs: {sprint.root}", file=sys.stderr)
+        print(f"{CLI_PROG} run: sprint has no task specs: {sprint.root}", file=sys.stderr)
         return 2
 
     results = _load_resumable_sprint_results(state_path, sprint_name, a.stack)
@@ -348,7 +350,7 @@ def _run_sprint_command(a: argparse.Namespace) -> int:
                     complete=False,
                     cost=cost,
                 )
-                print(f"simplicio run: {exc}", file=sys.stderr)
+                print(f"{CLI_PROG} run: {exc}", file=sys.stderr)
                 return 2
             governor.refresh_from_env()
             results.append({"task": task.title, "task_id": task_id, "result": result})
@@ -489,7 +491,7 @@ def _run_status_command(a: argparse.Namespace) -> int:
     try:
         payload = json.loads(state_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
-        print(f"simplicio status: invalid state file: {exc}", file=sys.stderr)
+        print(f"{CLI_PROG} status: invalid state file: {exc}", file=sys.stderr)
         return 2
     if a.json:
         print(json.dumps(payload, sort_keys=True))
@@ -530,7 +532,7 @@ def _run_mechanical_edit_command(a: argparse.Namespace) -> int:
     try:
         plan_text = _read_text_source(a.plan)
     except OSError as exc:
-        print(f"simplicio mechanical-edit: {exc}", file=sys.stderr)
+        print(f"{CLI_PROG} mechanical-edit: {exc}", file=sys.stderr)
         return 2
     result = execute_plan_json(plan_text, root=a.root, apply=a.apply)
     if a.json:
@@ -584,10 +586,10 @@ def _run_token_command(a: argparse.Namespace) -> int:
             else:
                 payload = cache.invalidate(a.key)
         else:
-            print("simplicio token: unsupported command", file=sys.stderr)
+            print(f"{CLI_PROG} token: unsupported command", file=sys.stderr)
             return 2
     except (OSError, json.JSONDecodeError, ValueError) as exc:
-        print(f"simplicio token {a.token_cmd}: {exc}", file=sys.stderr)
+        print(f"{CLI_PROG} token {a.token_cmd}: {exc}", file=sys.stderr)
         return 2
     print(json.dumps(payload, sort_keys=True))
     return 0
@@ -601,12 +603,12 @@ def _run_runtime_command(a: argparse.Namespace) -> int:
         if a.json:
             print(json.dumps(payload, sort_keys=True))
         else:
-            print(f"simplicio runtime doctor: {payload['package']['version']}")
+            print(f"{CLI_PROG} runtime doctor: {payload['package']['version']}")
             for name, status in payload["tools"].items():
                 state = "ok" if status["available"] else "missing"
                 print(f"  {name}: {state}")
         return 0
-    print("simplicio runtime: unsupported command", file=sys.stderr)
+    print(f"{CLI_PROG} runtime: unsupported command", file=sys.stderr)
     return 2
 
 
@@ -616,7 +618,7 @@ def _run_run_command(a: argparse.Namespace) -> int:
     result = classify_goal(a.goal, explicit_scope=a.scope)
     if result.confidence < AUTO_CONFIDENCE_THRESHOLD:
         print(
-            "simplicio run: goal is ambiguous; pass --scope task|feature|sprint|scratch",
+            f"{CLI_PROG} run: goal is ambiguous; pass --scope task|feature|sprint|scratch",
             file=sys.stderr,
         )
         return 2
@@ -627,7 +629,7 @@ def _run_run_command(a: argparse.Namespace) -> int:
         if not a.target and a.scope != "auto":
             a.target = _first_file_signal(classify_goal(a.goal).signals)
         if not a.target:
-            print("simplicio run --scope task requires --target or a file in goal", file=sys.stderr)
+            print(f"{CLI_PROG} run --scope task requires --target or a file in goal", file=sys.stderr)
             return 2
         return _run_task_command(a)
     if result.scope == "scratch":
@@ -636,7 +638,7 @@ def _run_run_command(a: argparse.Namespace) -> int:
         return _run_feature_command(a)
     if result.scope == "sprint":
         return _run_sprint_command(a)
-    print(f"simplicio run: unsupported scope {result.scope!r}", file=sys.stderr)
+    print(f"{CLI_PROG} run: unsupported scope {result.scope!r}", file=sys.stderr)
     return 2
 
 
@@ -651,13 +653,13 @@ def main(argv=None):
         maybe_run_session_start()
     except Exception as e:
         # Never let the freshness check break the CLI.
-        print(f"simplicio: ecosystem check skipped ({e})", file=sys.stderr)
+        print(f"{CLI_PROG}: ecosystem check skipped ({e})", file=sys.stderr)
 
     nested = _dispatch_nested(argv)
     if nested is not None:
         return nested
 
-    ap = argparse.ArgumentParser(prog="simplicio")
+    ap = argparse.ArgumentParser(prog=CLI_PROG)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     pi = sub.add_parser("index", help="index/cache the repo (once, or after changes)")
@@ -701,7 +703,7 @@ def main(argv=None):
     p_det.add_argument("--quiet", action="store_true")
     p_det.add_argument("--json", action="store_true")
 
-    p_status = sub.add_parser("status", help="show current simplicio run state")
+    p_status = sub.add_parser("status", help="show current simplicio-py run state")
     p_status.add_argument("--root", default=".")
     p_status.add_argument("--json", action="store_true")
 
@@ -800,7 +802,7 @@ def main(argv=None):
             return 0
         if a.cache_cmd == "clear":
             if not a.force:
-                print("simplicio cache clear requires --force", file=sys.stderr)
+                print(f"{CLI_PROG} cache clear requires --force", file=sys.stderr)
                 return 2
             removed = c.clear()
             print(f"cleared {removed} cached completion(s)")
@@ -847,10 +849,10 @@ def main(argv=None):
         try:
             values = parse_env_file(a.env_file)
         except OSError as exc:
-            print(f"simplicio env-export: {exc}", file=sys.stderr)
+            print(f"{CLI_PROG} env-export: {exc}", file=sys.stderr)
             return 2
         except ValueError as exc:
-            print(f"simplicio env-export: {exc}", file=sys.stderr)
+            print(f"{CLI_PROG} env-export: {exc}", file=sys.stderr)
             return 2
         if a.json:
             print(json.dumps(values, sort_keys=True))

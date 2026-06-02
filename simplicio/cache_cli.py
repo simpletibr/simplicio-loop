@@ -1,11 +1,11 @@
-"""cache_cli.py — `simplicio cache` subcommand (stats / clear).
+"""cache_cli.py - `simplicio-py cache` subcommand (stats / clear).
 
 Lightweight management surface for the content-addressed completion cache
 landed by issue #34.
 
-  simplicio cache stats            print hit/miss/size/oldest
-  simplicio cache clear            wipe cache directory
-  simplicio cache stats --json     machine-readable
+  simplicio-py cache stats         print hit/miss/size/oldest
+  simplicio-py cache clear         wipe cache directory
+  simplicio-py cache stats --json  machine-readable
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def _cmd_stats(args: argparse.Namespace) -> int:
             "root": s.root,
         }, indent=2))
         return 0
-    print(f"simplicio cache stats")
+    print("simplicio-py cache stats")
     print(f"  root              {s.root}")
     print(f"  enabled           {'yes' if s.enabled else 'no (SIMPLICIO_CACHE=0)'}")
     print(f"  bust active       {'YES (SIMPLICIO_BUST_CACHE=1)' if s.bust_active else 'no'}")
@@ -50,7 +50,7 @@ def _cmd_clear(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="simplicio cache")
+    p = argparse.ArgumentParser(prog="simplicio-py cache")
     sub = p.add_subparsers(dest="verb", required=True)
 
     ps = sub.add_parser("stats", help="show cache size/age/state")

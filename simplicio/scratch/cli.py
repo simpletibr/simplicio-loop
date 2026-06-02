@@ -1,12 +1,12 @@
-"""cli.py — argparse handler for `simplicio scratch ...`.
+"""cli.py — argparse handler for `simplicio-py scratch ...`.
 
 Wired into simplicio.cli.main; this module never expects to be invoked
 directly. Top-level surface:
 
-    simplicio scratch "<goal>" [--stack <slug>] [--planner <provider>]
-    simplicio scratch --list-stacks
-    simplicio scratch --show-stack <slug>
-    simplicio scratch --plan-only "<goal>" --stack <slug>
+    simplicio-py scratch "<goal>" [--stack <slug>] [--planner <provider>]
+    simplicio-py scratch --list-stacks
+    simplicio-py scratch --show-stack <slug>
+    simplicio-py scratch --plan-only "<goal>" --stack <slug>
 """
 
 from __future__ import annotations
@@ -428,7 +428,7 @@ def _cmd_scratch(args: argparse.Namespace, reg: StackRegistry) -> int:
     goal = args.goal
     if not goal:
         print(
-            'error: provide a goal, e.g. simplicio scratch "CRUD for condo units"',
+            'error: provide a goal, e.g. simplicio-py scratch "CRUD for condo units"',
             file=sys.stderr,
         )
         return 2
@@ -437,7 +437,7 @@ def _cmd_scratch(args: argparse.Namespace, reg: StackRegistry) -> int:
     if not stack_slug:
         print(
             "error: could not infer stack from goal; pass --stack <slug>. "
-            "List available with `simplicio scratch --list-stacks`.",
+            "List available with `simplicio-py scratch --list-stacks`.",
             file=sys.stderr,
         )
         return 2
@@ -445,7 +445,7 @@ def _cmd_scratch(args: argparse.Namespace, reg: StackRegistry) -> int:
     if stack is None:
         print(
             f"error: unknown stack '{stack_slug}'. Run "
-            f"`simplicio scratch --list-stacks`.",
+            f"`simplicio-py scratch --list-stacks`.",
             file=sys.stderr,
         )
         return 2
@@ -550,7 +550,7 @@ def _cmd_scratch(args: argparse.Namespace, reg: StackRegistry) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="simplicio scratch")
+    parser = argparse.ArgumentParser(prog="simplicio-py scratch")
     _add_scratch_args(parser)
     args = parser.parse_args(argv)
 

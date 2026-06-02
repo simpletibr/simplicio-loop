@@ -142,7 +142,7 @@ def main(argv=None) -> int:
     import argparse
 
     ap = argparse.ArgumentParser(
-        prog="simplicio init",
+        prog="simplicio-py init",
         description="Install simplicio-cli skill + UserPromptSubmit hook into ~/.claude/",
     )
     ap.add_argument("--claude-home", help="override ~/.claude (for tests)")

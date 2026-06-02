@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.architecture-inventory/v1",
   "version": 1,
-  "generated_at": "2026-06-02T16:01:43.363Z",
+  "generated_at": "2026-06-02T20:50:09.345Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
   "source_project_map": ".simplicio/project-map.json",
   "source_symbol_index": ".simplicio/symbol-index.json",
@@ -795,8 +795,8 @@
     },
     {
       "name": "scripts",
-      "summary": "Groups 13 files across 3 detected layers.",
-      "file_count": 13,
+      "summary": "Groups 14 files across 3 detected layers.",
+      "file_count": 14,
       "files": [
         "scripts/README.md",
         "scripts/check-placeholders.sh",
@@ -804,6 +804,7 @@
         "scripts/evidence.ps1",
         "scripts/evidence.sh",
         "scripts/lint.js",
+        "scripts/simplicio-py.sh",
         "scripts/start.ps1",
         "scripts/start.sh",
         "scripts/sync-docs-site.mjs",
@@ -868,6 +869,9 @@
           "file": "scripts/lint.js"
         },
         {
+          "file": "scripts/simplicio-py.sh"
+        },
+        {
           "file": "scripts/start.ps1"
         },
         {
@@ -875,9 +879,6 @@
         },
         {
           "file": "scripts/sync-docs-site.mjs"
-        },
-        {
-          "file": "scripts/test.ps1"
         }
       ]
     },
@@ -2197,7 +2198,7 @@
     },
     {
       "name": "script",
-      "file_count": 13,
+      "file_count": 14,
       "files": [
         "scripts/README.md",
         "scripts/check-placeholders.sh",
@@ -2205,6 +2206,7 @@
         "scripts/evidence.ps1",
         "scripts/evidence.sh",
         "scripts/lint.js",
+        "scripts/simplicio-py.sh",
         "scripts/start.ps1",
         "scripts/start.sh",
         "scripts/sync-docs-site.mjs",
@@ -2236,6 +2238,9 @@
           "file": "scripts/lint.js"
         },
         {
+          "file": "scripts/simplicio-py.sh"
+        },
+        {
           "file": "scripts/start.ps1"
         },
         {
@@ -2243,9 +2248,6 @@
         },
         {
           "file": "scripts/sync-docs-site.mjs"
-        },
-        {
-          "file": "scripts/test.ps1"
         }
       ]
     },
@@ -8403,6 +8405,23 @@
       "evidence": [
         {
           "file": "scripts/lint.js"
+        }
+      ]
+    },
+    {
+      "path": "scripts/simplicio-py.sh",
+      "language": "shell",
+      "module": "scripts",
+      "layers": [
+        "script"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "scripts/simplicio-py.sh"
         }
       ]
     },
@@ -20532,7 +20551,7 @@
     }
   ],
   "coverage": {
-    "files": 704,
+    "files": 705,
     "modules": 16,
     "layers": 13,
     "symbols": 1927,

@@ -109,7 +109,7 @@ def test_unified_run_bench_ingests_partial_live_results() -> None:
             {
                 "case_id": "single-file-task",
                 "mode_id": "cli_ag",
-                "command": "simplicio task fix src/app.py",
+                "command": "simplicio-py task fix src/app.py",
                 "exit_code": 0,
                 "success": True,
                 "duration_s": 1.2,
@@ -239,7 +239,7 @@ def test_unified_run_bench_rejects_duplicate_live_rows() -> None:
             {
                 "case_id": "single-file-task",
                 "mode_id": "cli_ag",
-                "command": "simplicio task fix src/app.py",
+                "command": "simplicio-py task fix src/app.py",
                 "exit_code": 0,
                 "success": True,
                 "duration_s": 1.2,
@@ -247,7 +247,7 @@ def test_unified_run_bench_rejects_duplicate_live_rows() -> None:
             {
                 "case_id": "single-file-task",
                 "mode_id": "cli_ag",
-                "command": "simplicio task fix src/app.py",
+                "command": "simplicio-py task fix src/app.py",
                 "exit_code": 0,
                 "success": True,
                 "duration_s": 1.3,
@@ -268,7 +268,7 @@ def test_unified_run_bench_rejects_inconsistent_live_success() -> None:
             {
                 "case_id": "single-file-task",
                 "mode_id": "cli_ag",
-                "command": "simplicio task fix src/app.py",
+                "command": "simplicio-py task fix src/app.py",
                 "exit_code": 1,
                 "success": True,
                 "duration_s": 1.2,
@@ -288,7 +288,7 @@ def test_unified_run_bench_rejects_invalid_live_timing_and_cost() -> None:
             {
                 "case_id": "single-file-task",
                 "mode_id": "cli_ag",
-                "command": "simplicio task fix src/app.py",
+                "command": "simplicio-py task fix src/app.py",
                 "exit_code": 0,
                 "success": True,
                 "duration_s": -1,
@@ -296,7 +296,7 @@ def test_unified_run_bench_rejects_invalid_live_timing_and_cost() -> None:
             {
                 "case_id": "feature-auth-flow",
                 "mode_id": "unified_feature",
-                "command": "simplicio run --scope feature",
+                "command": "simplicio-py run --scope feature",
                 "exit_code": 0,
                 "success": True,
                 "duration_s": 1.0,
@@ -322,7 +322,7 @@ def test_unified_run_bench_rejects_unverified_artifact_objects(tmp_path) -> None
             {
                 "case_id": "single-file-task",
                 "mode_id": "cli_ag",
-                "command": "simplicio task fix src/app.py",
+                "command": "simplicio-py task fix src/app.py",
                 "exit_code": 0,
                 "success": True,
                 "duration_s": 1.2,
@@ -337,7 +337,7 @@ def test_unified_run_bench_rejects_unverified_artifact_objects(tmp_path) -> None
             {
                 "case_id": "feature-auth-flow",
                 "mode_id": "unified_feature",
-                "command": "simplicio run --scope feature",
+                "command": "simplicio-py run --scope feature",
                 "exit_code": 0,
                 "success": True,
                 "duration_s": 1.0,
@@ -435,7 +435,7 @@ def test_unified_run_bench_main_accepts_live_results(tmp_path) -> None:
                     {
                         "case_id": "single-file-task",
                         "mode_id": "cli_ag",
-                        "command": "simplicio task fix src/app.py",
+                        "command": "simplicio-py task fix src/app.py",
                         "exit_code": 0,
                         "success": True,
                         "duration_s": 1.0,

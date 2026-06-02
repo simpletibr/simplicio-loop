@@ -32,7 +32,7 @@ export SIMPLICIO_MODEL="anthropic/claude-..."   # id do modelo do seu provider
 export SIMPLICIO_API_KEY="..."                   # ou OPENROUTER_/ANTHROPIC_API_KEY
 export SIMPLICIO_TEST_CMD="npx playwright test --project=chromium"
 
-simplicio task "Mostrar 12 tarefas concluídas no dashboard" \
+simplicio-py task "Mostrar 12 tarefas concluídas no dashboard" \
   --target src/pages/Dashboard.tsx \
   --criteria "- dashboard mostra '12 tarefas concluídas'" \
   --constraints "- playwright verify passa"

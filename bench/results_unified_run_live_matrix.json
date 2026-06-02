@@ -4,7 +4,7 @@
   "fixture_root": "C:\\Users\\wesley.simplicio\\Pictures\\m\\tmp\\simplicio-run-f5-live-fixture",
   "issue": "#41",
   "notes": [
-    "Internal cli_ag/unified rows execute real simplicio CLI/orchestrator commands against a disposable fixture.",
+    "Internal cli_ag/unified rows execute real simplicio-py CLI/orchestrator commands against a disposable fixture.",
     "Internal rows use an isolated pre-seeded completion cache to avoid external credentials and keep the run deterministic; Codex /goal rows are real external Codex transcripts."
   ],
   "release_evidence": true,
@@ -15,7 +15,7 @@
         {
           "kind": "live-transcript",
           "path": "bench/artifacts/unified-live-matrix/single-file-task-cli_ag.json",
-          "sha256": "f5e1ed1e1812198b1c48acec6011e2ba4e6a93d112417f34842ac371b66b1d24"
+          "sha256": "dcb1543cd21eea42c7bc4dbb963349e952642d90b183cc0aebe1af58f72f7561"
         }
       ],
       "case_id": "single-file-task",
@@ -27,7 +27,7 @@
       "llm_invoked": false,
       "mode_id": "cli_ag",
       "notes": [
-        "Executed real simplicio run --scope task commands against a disposable fixture with an isolated pre-seeded completion cache."
+        "Executed real simplicio-py run --scope task commands against a disposable fixture with an isolated pre-seeded completion cache."
       ],
       "success": true
     },
@@ -36,7 +36,7 @@
         {
           "kind": "live-transcript",
           "path": "bench/artifacts/unified-live-matrix/single-file-task-unified_feature.json",
-          "sha256": "404ab1bc695d7157f70b5950e3819aad112680eabb611c206b78259b6d1177a8"
+          "sha256": "631cccea62d165d8d8ea3e04dc5e067d85e46a8bd57b2766c1635854f4f519f1"
         }
       ],
       "case_id": "single-file-task",
@@ -48,7 +48,7 @@
       "llm_invoked": false,
       "mode_id": "unified_feature",
       "notes": [
-        "Executed real simplicio run --scope feature against a disposable fixture with isolated pre-seeded planner/doer cache and --max-cost 0."
+        "Executed real simplicio-py run --scope feature against a disposable fixture with isolated pre-seeded planner/doer cache and --max-cost 0."
       ],
       "success": true
     },
@@ -57,12 +57,12 @@
         {
           "kind": "live-transcript",
           "path": "bench/artifacts/unified-live-matrix/single-file-task-unified_sprint.json",
-          "sha256": "04dbb09c6498ffd38c34c2a36f9ebd9ede499a161b3fd14bcc0c41377ed370b7"
+          "sha256": "7eb99eb442f9c6b3bbc6014c09800c9a4212c9437366cd97fa09299f24c42f17"
         },
         {
           "kind": "sprint-state",
           "path": "bench/artifacts/unified-live-matrix/single-file-task-unified_sprint-state.json",
-          "sha256": "60a3c2121c4db8282a9e67a0742ffe837a80504096394a9ddfb5a1c902c781b1"
+          "sha256": "fad7658d78aea1c19d775fcaf28c632f796bce03112a5c780a1a8fb329b64ee2"
         }
       ],
       "case_id": "single-file-task",
@@ -74,7 +74,7 @@
       "llm_invoked": false,
       "mode_id": "unified_sprint",
       "notes": [
-        "Executed real simplicio run --scope sprint against a disposable fixture with isolated pre-seeded planner/doer cache, --max-cost 0, and captured sprint state/DoD evidence."
+        "Executed real simplicio-py run --scope sprint against a disposable fixture with isolated pre-seeded planner/doer cache, --max-cost 0, and captured sprint state/DoD evidence."
       ],
       "success": true
     },
@@ -83,7 +83,7 @@
         {
           "kind": "codex-transcript",
           "path": "bench/artifacts/codex-goal-single-file-task.jsonl",
-          "sha256": "a277ece0678ac65ad56325a6c40f96a322b65ebca43691a0b23850bd6ea88dc8"
+          "sha256": "3fbeba89df92d004887928b57011007138b4b7b492b582e30a5c18b90a478c7e"
         }
       ],
       "case_id": "single-file-task",
@@ -98,14 +98,14 @@
         "The transcript records Windows sandbox command-exec failures, so this is partial-live diagnostic evidence only."
       ],
       "success": true,
-      "transcript_sha256": "a277ece0678ac65ad56325a6c40f96a322b65ebca43691a0b23850bd6ea88dc8"
+      "transcript_sha256": "3fbeba89df92d004887928b57011007138b4b7b492b582e30a5c18b90a478c7e"
     },
     {
       "artifacts": [
         {
           "kind": "live-transcript",
           "path": "bench/artifacts/unified-live-matrix/feature-auth-flow-cli_ag.json",
-          "sha256": "9b0453a735491333f255d8af27e3fe6fd4348ee5054a515a89b701fa337127e2"
+          "sha256": "091f69aed93c73531f5db9c43d49779bc0ca524844e587e9108f05c389d57ab5"
         }
       ],
       "case_id": "feature-auth-flow",
@@ -117,7 +117,7 @@
       "llm_invoked": false,
       "mode_id": "cli_ag",
       "notes": [
-        "Executed real simplicio run --scope task commands against a disposable fixture with an isolated pre-seeded completion cache."
+        "Executed real simplicio-py run --scope task commands against a disposable fixture with an isolated pre-seeded completion cache."
       ],
       "success": true
     },
@@ -126,7 +126,7 @@
         {
           "kind": "live-transcript",
           "path": "bench/artifacts/unified-live-matrix/feature-auth-flow-unified_feature.json",
-          "sha256": "d753a690227672b46351370372ef406cab4951ad65657abe7ed78c7eb7be3090"
+          "sha256": "4ad8f775ec40d5ea65b707ab6c3e7ffbc1e9b240ed9096f0ad89cd1a69d0e720"
         }
       ],
       "case_id": "feature-auth-flow",
@@ -138,7 +138,7 @@
       "llm_invoked": false,
       "mode_id": "unified_feature",
       "notes": [
-        "Executed real simplicio run command against a disposable fixture with isolated pre-seeded recipe/doer cache, fixture-local pytest shim, and --max-cost 0."
+        "Executed real simplicio-py run command against a disposable fixture with isolated pre-seeded recipe/doer cache, fixture-local pytest shim, and --max-cost 0."
       ],
       "success": true
     },
@@ -147,12 +147,12 @@
         {
           "kind": "live-transcript",
           "path": "bench/artifacts/unified-live-matrix/feature-auth-flow-unified_sprint.json",
-          "sha256": "d259e9c715bfacd664eb3942d46c1f5a263a354195038de8e8fa08d9a74f24d4"
+          "sha256": "de0195662ca4957918be2d570ae1f8ddcc293ad2a67b93192c15bb7882b2cc01"
         },
         {
           "kind": "sprint-state",
           "path": "bench/artifacts/unified-live-matrix/feature-auth-flow-unified_sprint-state.json",
-          "sha256": "6701441bc2cf8af4ea01086005d01a53ccc5ca376377dab47ad5acb2fccdd3fd"
+          "sha256": "9b63e5a3d13356582fe53b29f3289dfcbeca141185288ad6a2dc278a5d622538"
         }
       ],
       "case_id": "feature-auth-flow",
@@ -164,7 +164,7 @@
       "llm_invoked": false,
       "mode_id": "unified_sprint",
       "notes": [
-        "Executed real simplicio run command against a disposable fixture with isolated pre-seeded recipe/doer cache, fixture-local pytest shim, and --max-cost 0."
+        "Executed real simplicio-py run command against a disposable fixture with isolated pre-seeded recipe/doer cache, fixture-local pytest shim, and --max-cost 0."
       ],
       "success": true
     },
@@ -173,7 +173,7 @@
         {
           "kind": "codex-transcript",
           "path": "bench/artifacts/codex-goal-feature-auth-flow.jsonl",
-          "sha256": "845cce30999a65d1f8516b8c3a76e64133ab78cf0c24aa48592addd83105020d"
+          "sha256": "36b4fd995c01b3bc894ec68d639a38a708d2033b087675542f5fc2118acf445c"
         }
       ],
       "case_id": "feature-auth-flow",
@@ -188,14 +188,14 @@
         "The transcript records Windows sandbox command-exec failures, so this remains partial-live diagnostic evidence only."
       ],
       "success": true,
-      "transcript_sha256": "845cce30999a65d1f8516b8c3a76e64133ab78cf0c24aa48592addd83105020d"
+      "transcript_sha256": "36b4fd995c01b3bc894ec68d639a38a708d2033b087675542f5fc2118acf445c"
     },
     {
       "artifacts": [
         {
           "kind": "live-transcript",
           "path": "bench/artifacts/unified-live-matrix/sprint-checkout-hardening-cli_ag.json",
-          "sha256": "40f56c6ad9f8688a2d564e523037a450fb2d4b9f012bfa8cbc9f3ca01a9068f0"
+          "sha256": "bfbd59b41a090647f0bb94135dd47f6c80fe4913a2fe423d713d5dddc14c30cd"
         }
       ],
       "case_id": "sprint-checkout-hardening",
@@ -207,7 +207,7 @@
       "llm_invoked": false,
       "mode_id": "cli_ag",
       "notes": [
-        "Executed real simplicio run --scope task commands against a disposable fixture with an isolated pre-seeded completion cache."
+        "Executed real simplicio-py run --scope task commands against a disposable fixture with an isolated pre-seeded completion cache."
       ],
       "success": true
     },
@@ -216,7 +216,7 @@
         {
           "kind": "live-transcript",
           "path": "bench/artifacts/unified-live-matrix/sprint-checkout-hardening-unified_feature.json",
-          "sha256": "0b75cb8367b9e8061783b870a61a9e39498066b5f512e01003a0dad2b0c2bfc2"
+          "sha256": "54fb86365c941b1041e209a2c2215cc15974caea6d8072573b4cfa0969850c47"
         }
       ],
       "case_id": "sprint-checkout-hardening",
@@ -228,7 +228,7 @@
       "llm_invoked": false,
       "mode_id": "unified_feature",
       "notes": [
-        "Executed real simplicio run --scope feature against a disposable fixture with isolated pre-seeded planner/doer cache and --max-cost 0."
+        "Executed real simplicio-py run --scope feature against a disposable fixture with isolated pre-seeded planner/doer cache and --max-cost 0."
       ],
       "success": true
     },
@@ -237,12 +237,12 @@
         {
           "kind": "live-transcript",
           "path": "bench/artifacts/unified-live-matrix/sprint-checkout-hardening-unified_sprint.json",
-          "sha256": "508b785d6879ae72596d084eb3643e9c9560a37abc44dec24b63bc319593cde6"
+          "sha256": "8154f7daefff05f25916b4b1be30c709ac67a87aafbf3923189b10f265585d33"
         },
         {
           "kind": "sprint-state",
           "path": "bench/artifacts/unified-live-matrix/sprint-checkout-hardening-unified_sprint-state.json",
-          "sha256": "09590d48b68accbeed63ecd794f863718e60630a9ad348eb01bd223ad59f319b"
+          "sha256": "6225e73cf2347dc71939cffb0288ba050a46de00c886493272470d3c3f7f37fa"
         }
       ],
       "case_id": "sprint-checkout-hardening",
@@ -254,7 +254,7 @@
       "llm_invoked": false,
       "mode_id": "unified_sprint",
       "notes": [
-        "Executed real simplicio run --scope sprint against a disposable fixture with isolated pre-seeded planner/doer cache, --max-cost 0, and captured sprint state/DoD evidence."
+        "Executed real simplicio-py run --scope sprint against a disposable fixture with isolated pre-seeded planner/doer cache, --max-cost 0, and captured sprint state/DoD evidence."
       ],
       "success": true
     },
@@ -263,7 +263,7 @@
         {
           "kind": "codex-transcript",
           "path": "bench/artifacts/codex-goal-sprint-checkout-hardening.jsonl",
-          "sha256": "f70e4a25ed1170e1b9b1e7a17a621f17447ca2c65fa84f86872e1012f4c25f2b"
+          "sha256": "c846ff7d76fdfd8a5899e000376a4b13f8cbf9e36b5b3f06885c4853adf105ab"
         }
       ],
       "case_id": "sprint-checkout-hardening",
@@ -279,7 +279,7 @@
         "The transcript records Windows sandbox command-exec failures, so this remains partial-live diagnostic evidence only."
       ],
       "success": true,
-      "transcript_sha256": "f70e4a25ed1170e1b9b1e7a17a621f17447ca2c65fa84f86872e1012f4c25f2b"
+      "transcript_sha256": "c846ff7d76fdfd8a5899e000376a4b13f8cbf9e36b5b3f06885c4853adf105ab"
     }
   ]
 }

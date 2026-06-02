@@ -37,8 +37,8 @@ Esta pagina localizada mantiene el camino rapido. La guia tecnica restaurada viv
 
 ```bash
 pip install -U simplicio-cli
-simplicio detect "hide the Delete button for non-admins"
-simplicio task "hide the Delete button for non-admins"
+simplicio-py detect "hide the Delete button for non-admins"
+simplicio-py task "hide the Delete button for non-admins"
 ```
 
 ## Qué hace

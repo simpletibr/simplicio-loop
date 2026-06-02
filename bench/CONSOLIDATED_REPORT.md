@@ -44,7 +44,7 @@ Os relatórios usam os rótulos `sem`/`com`/`sp`/`ag`/`spag`:
 | `sem` | **baseline** | goal cru de uma linha + conteúdo do arquivo. Sem simplicio. |
 | `com` | **cli** (cli alone) | contrato 6-layer do simplicio-cli (role/stack, goal, target, criteria como estados testáveis, constraints, output shape). |
 | `sp` | **cli + sp** | mesmo contrato embutido como user-input-X dentro do runtime simplicio-prompt v1.9 (Tuple-Space + Yool, ~3.907 chars de preâmbulo). Composição. |
-| `ag` | **cli + ag** | mesmo contrato como semente de um verify-loop: em falha, a harness classifica o tail do PHPUnit (ou padrões regex faltando) e re-prompta, **até 3 tentativas**. Espelha `simplicio task --verify` / `simplicio.pipeline.run()`. |
+| `ag` | **cli + ag** | mesmo contrato como semente de um verify-loop: em falha, a harness classifica o tail do PHPUnit (ou padrões regex faltando) e re-prompta, **até 3 tentativas**. Espelha `simplicio-py task --verify` / `simplicio.pipeline.run()`. |
 | `spag` | **cli + sp + ag** | full stack: cli embrulhado em sp como semente do verify-loop. Composição + retry. |
 
 Lado adicional: **`cli (fan-out)`** — contrato cli repetido **N=200** subagents em paralelo via `kernel.subagent_runtime.SubagentRuntime` (temperature=0.7, `use_cache=False`). Pass = (a) taxa por tentativa, (b) modal-vote (output normalizado mais comum). Fonte: `bench/results_fanout.md`.
@@ -566,7 +566,7 @@ Total bench/: 133 arquivos rastreados.
 | Arquivo | Tipo | Conteúdo |
 |---|---|---|
 | `bench/SIMPLICIO_FLOW_GUIDE.md` | md | Fluxo task/scratch/doctor/skill; providers; o que cada lado injeta |
-| `bench/UNIFIED_RUN_ARCHITECTURE.md` | md | RFC do `simplicio run` (task/feature/sprint); sides; backends |
+| `bench/UNIFIED_RUN_ARCHITECTURE.md` | md | RFC do `simplicio-py run` (task/feature/sprint); sides; backends |
 | `bench/SCRATCH_MODE_RFC.md` | md | RFC do modo scratch |
 | `bench/LLM_REDUCTION_ROADMAP.md` | md | Roadmap de redução de chamadas (issue #33) |
 | `bench/SIMPLICIO_PROMPT_ADJUSTMENTS.md` / `SIMPLICIO_PROMPT_ROADMAP.md` | md | Ajustes / roadmap de prompt |

@@ -36,8 +36,8 @@ A primeira tela nova e a porta de entrada; o guia restaurado abaixo e a oficina.
 
 ```bash
 pip install -U simplicio-cli
-simplicio detect "hide the Delete button for non-admins"
-simplicio task "hide the Delete button for non-admins"
+simplicio-py detect "hide the Delete button for non-admins"
+simplicio-py task "hide the Delete button for non-admins"
 ```
 
 ## O que faz
@@ -437,18 +437,18 @@ simplicio-cli has **three distinct entry points**. Same engine, three front door
 | You have | Path | LLM call goes through | Need API key? |
 |---|---|---|---|
 | **Claude Code** (Pro / Max / Team / API) | Skill + hook auto-installed in `~/.claude/` | Claude Code itself, using your logged-in session | **No** |
-| **Claude Code OAuth or Codex CLI / ChatGPT Plus** | `simplicio task` with `SIMPLICIO_MODEL=claude-cli/<m>` or `codex-cli/<m>` | Shell-out to `claude -p` / `codex exec` (subprocess uses your existing login) | **No** |
-| **API key** for any provider (Anthropic, OpenAI, OpenRouter, GLM, DeepSeek, Ollama…) | `simplicio task` standalone CLI | The provider SDK directly | **Yes** — set `SIMPLICIO_API_KEY` |
+| **Claude Code OAuth or Codex CLI / ChatGPT Plus** | `simplicio-py task` with `SIMPLICIO_MODEL=claude-cli/<m>` or `codex-cli/<m>` | Shell-out to `claude -p` / `codex exec` (subprocess uses your existing login) | **No** |
+| **API key** for any provider (Anthropic, OpenAI, OpenRouter, GLM, DeepSeek, Ollama…) | `simplicio-py task` standalone CLI | The provider SDK directly | **Yes** — set `SIMPLICIO_API_KEY` |
 
-**Most users land on Path 1.** `pip install simplicio-cli` puts the binary on PATH; the first invocation auto-installs the skill + hook in `~/.claude/` (idempotent, opt-out via `SIMPLICIO_SKIP_AUTO_INIT=1`). From that moment, every code-edit prompt you type **inside Claude Code** is silently routed through simplicio's 6-layer contract — no extra config, no key, no cost beyond your existing Claude subscription.
+**Most users land on Path 1.** `pip install simplicio-cli` puts `simplicio-py` on PATH; the first invocation auto-installs the skill + hook in `~/.claude/` (idempotent, opt-out via `SIMPLICIO_SKIP_AUTO_INIT=1`). From that moment, every code-edit prompt you type **inside Claude Code** is silently routed through simplicio's 6-layer contract — no extra config, no key, no cost beyond your existing Claude subscription.
 
-**Path 2 — subscription shell-out (zero key).** If you have a Claude Pro/Max session (`claude login`) or a ChatGPT Plus + Codex CLI session (`codex login`) and want to drive simplicio from CI, scripts, or any context **outside** Claude Code, set `SIMPLICIO_MODEL=claude-cli/<model>` or `codex-cli/<model>`. simplicio spawns the CLI as a subprocess; the call rides your existing OAuth session — no API key required. A recursion guard (`SIMPLICIO_HOOK_GUARD=1`) is injected so the inner CLI does not re-fire simplicio's own hook.
+**Path 2 — subscription shell-out (zero key).** If you have a Claude Pro/Max session (`claude login`) or a ChatGPT Plus + Codex CLI session (`codex login`) and want to drive simplicio from CI, scripts, or any context **outside** Claude Code, set `SIMPLICIO_MODEL=claude-cli/<model>` or `codex-cli/<model>`. `simplicio-py` spawns the CLI as a subprocess; the call rides your existing OAuth session — no API key required. A recursion guard (`SIMPLICIO_HOOK_GUARD=1`) is injected so the inner CLI does not re-fire the hook.
 
-**Path 3 is for environments without any logged-in CLI** — a remote server, a build runner, a notebook, a different LLM provider. You bring an API key (Anthropic, OpenRouter, OpenAI, GLM, DeepSeek, Ollama…), simplicio calls the provider directly.
+**Path 3 is for environments without any logged-in CLI** — a remote server, a build runner, a notebook, a different LLM provider. You bring an API key (Anthropic, OpenRouter, OpenAI, GLM, DeepSeek, Ollama…), `simplicio-py` calls the provider directly.
 
 #### Path 1 example — inside Claude Code
 
-After `pip install simplicio-cli && simplicio smoke` (which triggers auto-bootstrap), just type your task in Claude Code:
+After `pip install simplicio-cli && simplicio-py smoke` (which triggers auto-bootstrap), just type your task in Claude Code:
 
 ```
 hide the Delete button for non-admins in src/app/screen/screen.component.html
@@ -466,27 +466,27 @@ piggybacks on that login — no extra bill, no key to manage.
 export SIMPLICIO_MODEL=claude-cli/sonnet     # or claude-cli/opus, claude-cli/default
 unset  SIMPLICIO_API_KEY                     # explicitly: no key needed
 
-simplicio task "hide Delete button for non-admins" --stack angular \
+simplicio-py task "hide Delete button for non-admins" --stack angular \
   --target src/app/screen/screen.component.html
 
 # Option B — Codex CLI subscription (run `codex login` once)
 export SIMPLICIO_MODEL=codex-cli/gpt-5       # or codex-cli/default
-simplicio task "..." --stack angular --target ...
+simplicio-py task "..." --stack angular --target ...
 ```
 
-How it works: simplicio shells out to `claude -p "<prompt>"` (or `codex exec "<prompt>"`) as a subprocess, captures stdout, runs the test loop. The inner CLI authenticates via your existing OAuth session in `~/.claude/` or `~/.codex/`. simplicio sets `SIMPLICIO_HOOK_GUARD=1` in the subprocess env so the inner Claude Code session does **not** re-fire simplicio's own UserPromptSubmit hook (no infinite recursion).
+How it works: `simplicio-py` shells out to `claude -p "<prompt>"` (or `codex exec "<prompt>"`) as a subprocess, captures stdout, runs the test loop. The inner CLI authenticates via your existing OAuth session in `~/.claude/` or `~/.codex/`. `simplicio-py` sets `SIMPLICIO_HOOK_GUARD=1` in the subprocess env so the inner Claude Code session does **not** re-fire its own UserPromptSubmit hook (no infinite recursion).
 
-For orchestrators such as SendSprint, `simplicio task` also has a structured
+For orchestrators such as SendSprint, `simplicio-py task` also has a structured
 contract:
 
 ```bash
-simplicio task "hide Delete button for non-admins" \
+simplicio-py task "hide Delete button for non-admins" \
   --stack angular \
   --target src/app/screen/screen.component.html \
   --dry-run-task \
   --json
 
-simplicio task "front-only task" \
+simplicio-py task "front-only task" \
   --stack angular \
   --target src/app/screen/screen.component.html \
   --bound-paths "src/app/**" \
@@ -506,8 +506,8 @@ export SIMPLICIO_API_KEY=sk-or-v1-…                      # OpenRouter key
 export SIMPLICIO_MODEL=anthropic/claude-opus-4
 export SIMPLICIO_BASE_URL=https://openrouter.ai/api/v1
 
-simplicio index --stack angular                           # one-time, builds embedding cache
-simplicio task "hide Delete button for non-admins" \
+simplicio-py index --stack angular                           # one-time, builds embedding cache
+simplicio-py task "hide Delete button for non-admins" \
   --stack angular \
   --target src/app/screen/screen.component.html \
   --criteria "- no admin perm: button absent from DOM
@@ -522,20 +522,20 @@ Provider-agnostic — see [Configure](#configure--any-llm-nothing-hardcoded) for
 
 #### Path 1 deep-dive — auto-activation in Claude Code
 
-`pip install` puts `simplicio` on your PATH. To make Claude Code
+`pip install` puts `simplicio-py` on your PATH. To make Claude Code
 **automatically** route code-edit tasks through simplicio, a skill + hook
 need to land in `~/.claude/`.
 
-**Zero-step path (recommended).** The first time you run *any* `simplicio`
+**Zero-step path (recommended).** The first time you run *any* `simplicio-py`
 command after install, if Claude Code is present (`~/.claude/` exists) and
-the hook is missing, simplicio installs both for you and prints one stderr
+the hook is missing, `simplicio-py` installs both for you and prints one stderr
 line. PEP 517 wheels can't execute code on `pip install`, so this is the
 closest equivalent that works on every machine.
 
 ```bash
 pip install simplicio-cli
-simplicio smoke         # ← first call also installs skill + hook (idempotent)
-# stderr: "simplicio: auto-activation installed in Claude Code …"
+simplicio-py smoke         # ← first call also installs skill + hook (idempotent)
+# stderr: "simplicio-py: auto-activation installed in Claude Code …"
 ```
 
 Opt out before the first call:
@@ -547,9 +547,9 @@ export SIMPLICIO_SKIP_AUTO_INIT=1
 **Explicit path.** Same effect, no auto-magic:
 
 ```bash
-simplicio init                 # idempotent
-simplicio init --dry-run       # preview only
-simplicio init --claude-home <path>   # override target dir
+simplicio-py init                 # idempotent
+simplicio-py init --dry-run       # preview only
+simplicio-py init --claude-home <path>   # override target dir
 ```
 
 Either way, two files land in `~/.claude/`:
@@ -557,7 +557,7 @@ Either way, two files land in `~/.claude/`:
 | File | Purpose |
 |---|---|
 | `~/.claude/skills/simplicio-cli/SKILL.md` | Skill the agent matches by description when your prompt looks like a code edit |
-| `~/.claude/hooks/simplicio-userpromptsubmit.sh` + entry in `~/.claude/settings.json` | UserPromptSubmit hook that runs `simplicio detect` on every prompt and injects a hint when the heuristic catches a code-edit task the skill could miss |
+| `~/.claude/hooks/simplicio-userpromptsubmit.sh` + entry in `~/.claude/settings.json` | UserPromptSubmit hook that runs `simplicio-py detect` on every prompt and injects a hint when the heuristic catches a code-edit task the skill could miss |
 
 A backup of your previous `settings.json` is written to `settings.json.bak`
 before any merge.
@@ -568,13 +568,13 @@ After install, every prompt you type in Claude Code flows through two layers:
 
 1. **Skill layer (semantic).** Claude reads the SKILL.md description. When
    your prompt looks like a programming task ("add X to Y.tsx", "fix the auth
-   bug in middleware.py"), Claude considers using `simplicio task` instead of
+   bug in middleware.py"), Claude considers using `simplicio-py task` instead of
    writing code directly.
-2. **Hook layer (deterministic).** Every prompt fires `simplicio detect` via
+2. **Hook layer (deterministic).** Every prompt fires `simplicio-py detect` via
    the UserPromptSubmit hook. The classifier scores the prompt (verbs + file
    extensions + code nouns − read-only cues). Score ≥ 3 → it emits a
    `[SIMPLICIO_PROMPT_HINT]` block on stderr. Claude sees the hint alongside
-   your prompt — a hard nudge toward `simplicio task <prompt> <repo>`.
+   your prompt — a hard nudge toward `simplicio-py task <prompt> <repo>`.
 
 The layers are complementary. Skill = "Claude *might* pick simplicio". Hook
 = "Claude *sees* the hint regardless".
@@ -590,11 +590,11 @@ user prompt. UserPromptSubmit is the right pre-hook for routing decisions.
 
 | Goal | How |
 |---|---|
-| Block the auto-bootstrap | `export SIMPLICIO_SKIP_AUTO_INIT=1` before the first `simplicio` call |
+| Block the auto-bootstrap | `export SIMPLICIO_SKIP_AUTO_INIT=1` before the first `simplicio-py` call |
 | Disable hook permanently | Delete `~/.claude/hooks/simplicio-userpromptsubmit.sh` and its entry in `~/.claude/settings.json` |
-| Re-install / repair | `simplicio init` (idempotent — won't double-write) |
-| Preview without writing | `simplicio init --dry-run` |
-| Skill-only (no hook) | Copy `.skills/simplicio-cli/SKILL.md` to `~/.claude/skills/simplicio-cli/SKILL.md` manually, skip `simplicio init` |
+| Re-install / repair | `simplicio-py init` (idempotent — won't double-write) |
+| Preview without writing | `simplicio-py init --dry-run` |
+| Skill-only (no hook) | Copy `.skills/simplicio-cli/SKILL.md` to `~/.claude/skills/simplicio-cli/SKILL.md` manually, skip `simplicio-py init` |
 
 ---
 
@@ -618,7 +618,7 @@ native Anthropic SDK. Otherwise it uses an OpenAI-compatible client pointed at
 your `base_url` — so **any** OpenAI-like provider works without code changes.
 
 ```bash
-simplicio smoke      # prints provider config + one test call
+simplicio-py smoke      # prints provider config + one test call
 ```
 
 #### Path 4 — local llama.cpp GGUF default
@@ -631,9 +631,9 @@ When **no provider is configured** (`SIMPLICIO_MODEL` and
 
 ```bash
 pip install 'simplicio-cli[local]'          # pulls llama-cpp-python + huggingface-hub
-simplicio doctor --install                  # downloads/validates the default GGUF
+simplicio-py doctor --install                  # downloads/validates the default GGUF
 
-simplicio task "add input validation to createUser" \
+simplicio-py task "add input validation to createUser" \
   --target src/users.ts --local              # forces local llama.cpp
 
 # the GGUF is fetched once from the Hugging Face Hub, then reused
@@ -690,10 +690,10 @@ prompt. No key needed.
 **"I want to run it in CI / a script / outside Claude Code."** Path 2. Get an
 API key from any of the providers above (OpenRouter is the cheapest way to
 try multiple models behind one key), set `SIMPLICIO_API_KEY` +
-`SIMPLICIO_MODEL` + optional `SIMPLICIO_BASE_URL`, run `simplicio task ...`.
+`SIMPLICIO_MODEL` + optional `SIMPLICIO_BASE_URL`, run `simplicio-py task ...`.
 
 **"How do I load `.env.local` safely before running a local API?"** Use
-`eval "$(simplicio env-export .env.local)"` instead of `source .env.local`.
+`eval "$(simplicio-py env-export .env.local)"` instead of `source .env.local`.
 This preserves values with semicolons, such as PostgreSQL connection strings,
 without executing the dotenv file as shell code.
 
@@ -705,7 +705,7 @@ tracked, not shipped.
 
 **"Will Claude Code use simplicio for *every* prompt now?"** No. The skill
 only triggers on prompts that look like code edits (the description is
-specific). The hook fires `simplicio detect` on every prompt but only emits
+specific). The hook fires `simplicio-py detect` on every prompt but only emits
 a hint when the deterministic classifier scores ≥ 3 (verbs + file extensions
 + code nouns − read-only cues). "What does this function do?" gets no
 nudge. "Add a delete confirmation to UserList.tsx" does.
@@ -745,7 +745,7 @@ block, TEST block, contract-state words. Full numbers in [`bench/results.md`](be
 #### Full harness (your real project, your real tests)
 
 ```bash
-simplicio bench --cases bench/cases.json --stack angular
+simplicio-py bench --cases bench/cases.json --stack angular
 ```
 
 Runs each case two ways and runs **your real test command** (e.g. `ng test
@@ -859,7 +859,7 @@ bench/
   run_offline.py  # stdlib-only multi-model benchmark
   cases.json      # your benchmark tasks
   cases_offline.json
-  results.md      # filled by `simplicio bench` / `run_offline.py`
+  results.md      # filled by `simplicio-py bench` / `run_offline.py`
   charts/         # SVG: overall, delta, by_case, by_stack
 ```
 

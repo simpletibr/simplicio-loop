@@ -283,7 +283,7 @@ def build_pdf(exec_state, regex_state):
         ]))
         return t
 
-    story.append(Paragraph("simplicio bench v13 — INTERIM (5 sides, batch em andamento)", h1))
+    story.append(Paragraph("simplicio-py bench v13 — INTERIM (5 sides, batch em andamento)", h1))
     story.append(Paragraph(f"Captura: <b>{time.strftime('%Y-%m-%d %H:%M:%S')}</b>", body))
     story.append(Spacer(1, 3*mm))
     story.append(Paragraph(

@@ -37,8 +37,8 @@ The localized page keeps the fast path. The full restored technical guide lives 
 
 ```bash
 pip install -U simplicio-cli
-simplicio detect "hide the Delete button for non-admins"
-simplicio task "hide the Delete button for non-admins"
+simplicio-py detect "hide the Delete button for non-admins"
+simplicio-py task "hide the Delete button for non-admins"
 ```
 
 ## What it does

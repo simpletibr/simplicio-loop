@@ -1,6 +1,6 @@
 """Run the live scratch v0.5 gate matrix in resumable slices.
 
-Unlike the preflight, this runner invokes the real `simplicio scratch` command.
+Unlike the preflight, this runner invokes the real `simplicio-py scratch` command.
 It can run a bounded slice with `--max-runs` so the 15 x 5 matrix can be
 collected incrementally without redefining partial evidence as release-ready.
 """

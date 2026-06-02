@@ -1,7 +1,7 @@
 ---
 name: skill-opt
 description: Generates new .skills/<slug>/SKILL.md entries on demand from a one-line description, guarded by a review gate so unreviewed skills do not become defaults.
-trigger: User invokes `simplicio skill new "<description>"`, OR the scratch executor encounters a plan task that requires a capability not yet covered by any installed skill.
+trigger: User invokes `simplicio-py skill new "<description>"`, OR the scratch executor encounters a plan task that requires a capability not yet covered by any installed skill.
 auto_generated:
   by: human
   date: 2026-05-29
@@ -13,11 +13,11 @@ auto_generated:
 # skill-opt
 
 A meta-skill: generates other skills. Lives at `.skills/skill-opt/` and is
-invoked via the `simplicio skill new` CLI command (`simplicio.scratch.skill_opt`).
+invoked via the `simplicio-py skill new` CLI command (`simplicio.scratch.skill_opt`).
 
 ## When to use
 
-- The user explicitly asks: `simplicio skill new "what the skill does"`
+- The user explicitly asks: `simplicio-py skill new "what the skill does"`
 - The scratch executor processes a plan task that references a capability
   with no matching skill in `.skills/` — it calls `generate_skill_doc()` +
   `install_skill()` inline before continuing the plan

@@ -37,8 +37,8 @@ Halaman lokal ini mempertahankan jalur cepat. Panduan teknis lengkap yang dipuli
 
 ```bash
 pip install -U simplicio-cli
-simplicio detect "hide the Delete button for non-admins"
-simplicio task "hide the Delete button for non-admins"
+simplicio-py detect "hide the Delete button for non-admins"
+simplicio-py task "hide the Delete button for non-admins"
 ```
 
 ## Apa yang dilakukan

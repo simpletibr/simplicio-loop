@@ -23,7 +23,7 @@ def test_install_fresh_claude_home(tmp_path):
         mode = report.hook_script_path.stat().st_mode
         assert mode & 0o111
     hook_text = report.hook_script_path.read_text(encoding="utf-8")
-    assert "simplicio detect" in hook_text
+    assert "simplicio-py detect" in hook_text
     assert "CLAUDE_USER_PROMPT" in hook_text
 
     settings = json.loads(report.settings_path.read_text(encoding="utf-8"))

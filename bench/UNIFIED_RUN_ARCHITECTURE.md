@@ -1,4 +1,4 @@
-# `simplicio run` — unified orchestrator (task / feature / sprint)
+# `simplicio-py run` — unified orchestrator (task / feature / sprint)
 
 > **Status:** design proposal. Não implementado.
 > **Owner:** simplicio-dev-cli, tracking issue #TBD.
@@ -12,20 +12,20 @@ Hoje temos 3 níveis de abstração espalhados por 3 entry-points distintos:
 
 | nível | entry point hoje | escopo | re-plan? | exit gate |
 |---|---|---|---|---|
-| atomic task | `simplicio task` | 1 file, 1 test | não | test_command exit 0 |
-| from-scratch project | `simplicio scratch` | repo novo, N tasks | parcial | scaffold + N tasks verde |
+| atomic task | `simplicio-py task` | 1 file, 1 test | não | test_command exit 0 |
+| from-scratch project | `simplicio-py scratch` | repo novo, N tasks | parcial | scaffold + N tasks verde |
 | existing repo, vague | **falta** | N files, multi-step | n/a | n/a |
 
 A lacuna é o último — quando o user diz "consertar todos os testes falhando do PR", "implementar módulo de auth", "fechar sprint 12", **não temos onde meter**. Ele acaba indo pra Claude Code, Cursor BG, Codex `/goal`, Ralph loop manual — soluções de fora.
 
-A direção: **un único `simplicio run`** que classifica a vagueza do goal e despacha pra primitivo apropriado, mantendo nosso cli+ag como spine atômica.
+A direção: **un único `simplicio-py run`** que classifica a vagueza do goal e despacha pra primitivo apropriado, mantendo nosso cli+ag como spine atômica.
 
 ---
 
 ## 2. Os 3 modos sob um teto
 
 ```
-simplicio run "<goal>" [--scope auto|task|feature|sprint]
+simplicio-py run "<goal>" [--scope auto|task|feature|sprint]
                        [--max-cost $X] [--max-iter N]
                        [--existing|--scratch]
 ```
@@ -43,7 +43,7 @@ Override explícito via `--scope`.
 
 ### O que cada scope faz
 
-#### scope=task (já existe — `simplicio task`)
+#### scope=task (já existe — `simplicio-py task`)
 
 ```
 goal → cli 6-layer → cli+ag verify-loop (max 3-5 attempts) → exit
@@ -61,7 +61,7 @@ goal
 plan: 3-8 tasks ordenadas (depends_on)
   ↓ orchestrator Ralph-style:
     for task in plan:
-        result = simplicio task (cli+ag)
+        result = simplicio-py task (cli+ag)
         if result.passed: continue
         else: replan_remaining(failure_context) → continue
   ↓ exit when all tasks green OR max_iter reached
@@ -89,7 +89,7 @@ goal (vago) → de-vague step:
 - Estado salvo a cada task em `.simplicio/sprint_state.json` (resumível)
 - Wall-clock pode passar horas — mensagem clara: "isso vai rodar X tempo, custar ~$Y, OK pressionar Enter?"
 
-#### scope=scratch (já existe — `simplicio scratch`)
+#### scope=scratch (já existe — `simplicio-py scratch`)
 
 Mantém como está. `run` redireciona quando detecta que o repo não existe.
 
@@ -99,7 +99,7 @@ Mantém como está. `run` redireciona quando detecta que o repo não existe.
 
 ```
                        ┌────────────────────────┐
-                       │   simplicio run        │
+                       │   simplicio-py run        │
                        │   intent classifier    │
                        └──────────┬─────────────┘
                                   │
@@ -143,7 +143,7 @@ Mantém como está. `run` redireciona quando detecta que o repo não existe.
 ### Componentes a renomear/refatorar
 
 - `simplicio.scratch.executor` → `simplicio.orchestrator.executor` (não é mais só pra scratch)
-- `simplicio task` → fica como atalho pra `simplicio run --scope task`
+- `simplicio-py task` → fica como atalho pra `simplicio-py run --scope task`
 
 ---
 
@@ -231,14 +231,14 @@ Cada gate vira função executável; sprint só fecha quando todas marcam ok.
 
 | fase | escopo | esforço | depende de |
 |---|---|---|---|
-| **F0 — wire-up** | `simplicio run` argparse + intent classifier (regex-only) + route pra task/scratch existente | 2 dias | nada |
+| **F0 — wire-up** | `simplicio-py run` argparse + intent classifier (regex-only) + route pra task/scratch existente | 2 dias | nada |
 | **F1 — feature mode** | orchestrator com Ralph-replan simples; reusa scratch.planner.generate_plan | 1 semana | F0 |
 | **F2 — cost governor** | CostGovernor + hooks em providers.* + --max-cost flag | 3 dias | F0 |
 | **F3 — sprint mode** | sprint_loader + scope=sprint orchestration; reusa F1 | 1 semana | F1 + F2 |
 | **F4 — DoD gates** | .specs/workflow/DOD.md parser + multi-gate exit | 4 dias | F3 |
 | **F5 — bench** | head-to-head bench: cli+ag puro vs Ralph composto vs Codex `/goal` num sprint controlado | 1 semana | F3 |
 
-Total: ~5 semanas pra v0.5 do `simplicio run`.
+Total: ~5 semanas pra v0.5 do `simplicio-py run`.
 
 ---
 
@@ -246,7 +246,7 @@ Total: ~5 semanas pra v0.5 do `simplicio run`.
 
 1. **Intent classifier**: regex-only ou LLM-assisted? Regex é mais determinístico e barato; LLM-assisted pega mais nuance mas adiciona 1 call. **Proposta**: regex primeiro, LLM fallback se ambíguo (`confidence < 0.7`).
 2. **Replan via planner ou via doer?** Planner é frontier (DeepSeek-V4), doer é barato (Coder-Next). Replan exige raciocínio sobre arquitetura → **planner**.
-3. **Sprint mode rodando em background ou foreground?** Pra sprint de 6h, foreground é insano. **Proposta**: sprint mode roda como daemon (`simplicio run --detach`), state salvo, `simplicio status` mostra progresso, log streamável.
+3. **Sprint mode rodando em background ou foreground?** Pra sprint de 6h, foreground é insano. **Proposta**: sprint mode roda como daemon (`simplicio-py run --detach`), state salvo, `simplicio-py status` mostra progresso, log streamável.
 4. **Como sprint mode lida com tasks que precisam de input humano** (ex: "decida entre opção A ou B")? **Proposta**: task pode declarar `requires_human: true` no plan; orchestrator pausa, salva state, pinga via webhook se configurado.
 5. **Composição com .agents/ existente** (ralph-loop, tdd, reviewer, architect)? Eles são pre-existentes. **Proposta**: cada scope pode invocar agents via skill router — `--use-agents reviewer,tdd` agnóstico do scope.
 
@@ -266,7 +266,7 @@ Total: ~5 semanas pra v0.5 do `simplicio run`.
 
 | pitch antes | pitch depois |
 |---|---|
-| "simplicio task — verify-loop pra editar 1 arquivo" | "simplicio run — task / feature / sprint, mesmo CLI, cost-bounded" |
+| "simplicio-py task — verify-loop pra editar 1 arquivo" | "simplicio-py run — task / feature / sprint, mesmo CLI, cost-bounded" |
 | "compete com Codex CLI, Claude Code" | "stack que vai do primitivo atômico ao orchestrator de sprint, escolhendo escala automaticamente" |
 | "use simplicio quando souber o que quer editar" | "use simplicio quando souber o objetivo — ele descobre o escopo" |
 

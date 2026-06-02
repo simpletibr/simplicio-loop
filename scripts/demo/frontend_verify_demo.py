@@ -15,7 +15,7 @@ Everything else is real: the attempt loop, SIMPLICIO_TEST_CMD execution, the
 returncode -> pass/fail decision, the failure feedback, and MAX_ATTEMPTS.
 
 For the TRUE end-to-end loop, set SIMPLICIO_MODEL + a provider key and run:
-    SIMPLICIO_TEST_CMD="npx playwright test ..." simplicio task "<goal>" --target <file>
+    SIMPLICIO_TEST_CMD="npx playwright test ..." simplicio-py task "<goal>" --target <file>
 """
 import os
 import shutil

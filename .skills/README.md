@@ -86,7 +86,7 @@ Por isso, **o `description` é a coisa mais importante do frontmatter**. Escreva
 | [`ralph-loop/`](./ralph-loop/SKILL.md) | **Always-on.** Loop autônomo read→plan→execute→lint→unit→e2e→fix→repeat até DoD verde |
 | [`caveman/`](./caveman/SKILL.md) | **Always-on.** Modo terse de resposta para economizar tokens (~65% saída) |
 | [`everything-claude-code/`](./everything-claude-code/SKILL.md) | **Always-on.** Catálogo + protocolo de uso da suite ECC (60 agents, 221 skills) em paralelo |
-| [`simplicio-cli/`](./simplicio-cli/SKILL.md) | Empacota uma task num contrato de 6 camadas (mapper + precedent + skill-router + prompt + test + verify-loop) via `simplicio task`. Dispara em edit pequena/média num arquivo conhecido (+51 pts pass-rate medido em 14 modelos). |
+| [`simplicio-cli/`](./simplicio-cli/SKILL.md) | Empacota uma task num contrato de 6 camadas (mapper + precedent + skill-router + prompt + test + verify-loop) via `simplicio-py task`. Dispara em edit pequena/média num arquivo conhecido (+51 pts pass-rate medido em 14 modelos). |
 | [`llm-verification/`](./llm-verification/SKILL.md) | Passada de verificação independente/adversarial **depois** do DoD verde, antes de declarar "feito". Dispara ao fechar task técnica ou quando perguntam "deu ok?" / "verifica de novo". Verde no DoD ≠ concluído. |
 
 ### Skills always-on (padrão do projeto)

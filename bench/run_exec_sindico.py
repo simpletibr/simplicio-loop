@@ -163,7 +163,7 @@ SP_PROMPT = """{sp_runtime}
 # on fail, classify the failure + feed the tail back as feedback → regenerate.
 # Up to AGENTS_MAX_ATTEMPTS iterations. The retry template mirrors
 # simplicio.pipeline.build_retry_feedback() so this measures the same loop
-# that ships in `simplicio task --verify`.
+# that ships in `simplicio-py task --verify`.
 AGENTS_RETRY_PROMPT = """Retry feedback for attempt {attempt}:
 failure_class={failure_class}
 {guidance}
@@ -521,7 +521,7 @@ def write_reports(by_model: dict) -> None:
                         "the PHPUnit tail back as classified retry feedback "
                         "(syntax/assertion/runtime/etc.) and re-prompts up "
                         f"to {AGENTS_MAX_ATTEMPTS} attempts — the exact loop "
-                        "shipped in `simplicio task --verify` "
+                        "shipped in `simplicio-py task --verify` "
                         "(`simplicio/pipeline.py`).")
     md = [
         "# Execution benchmark — real project, real tasks, real test suite",

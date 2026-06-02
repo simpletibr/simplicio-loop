@@ -144,7 +144,7 @@ def main() -> int:
         "- `cli + ag` — same contract, but on failure the harness classifies "
         "the failure (syntax/assertion/runtime/etc.), feeds the PHPUnit tail "
         "(or list of missed regex patterns) back as retry feedback, re-prompts. "
-        "Up to 3 attempts. Mirrors `simplicio task --verify`.",
+        "Up to 3 attempts. Mirrors `simplicio-py task --verify`.",
         "",
         "**Metrics**:",
         "",
@@ -366,7 +366,7 @@ def _write_pdf(exec_data: dict, regex_data: dict,
         "the simplicio-prompt v1.9 Tuple-Space + Yool runtime template.<br/>"
         "<b>cli + ag</b> &mdash; same contract, with classified failure feedback "
         "(PHPUnit tail or missed regex patterns) fed back over up to 3 attempts. "
-        "Mirrors <font face='Courier'>simplicio task --verify</font>.",
+        "Mirrors <font face='Courier'>simplicio-py task --verify</font>.",
         body))
     story.append(Spacer(1, 3*mm))
 

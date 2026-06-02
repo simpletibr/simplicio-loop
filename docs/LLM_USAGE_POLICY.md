@@ -36,7 +36,7 @@ OpenAI-compatible endpoints remain explicit opt-ins via `SIMPLICIO_MODEL`,
 ### simplicio-dev-cli and simplicio-sprint (recommended)
 - The above `openbmb/minicpm5:latest` MiniCPM5 Q4_K_M GGUF setup is the
   **recommended** configuration for local development.
-- `simplicio doctor` validates this setup at runtime.
+- `simplicio-py doctor` validates this setup at runtime.
 
 ## Rationale
 
@@ -50,7 +50,7 @@ From extensive benchmarking (see `simplicio-dev-cli` quant curves and live gates
 ```bash
 # Execution (local llama.cpp default)
 unset SIMPLICIO_MODEL SIMPLICIO_BASE_URL SIMPLICIO_API_KEY
-simplicio doctor --install
+simplicio-py doctor --install
 
 # Explicit route:
 export SIMPLICIO_MODEL=openbmb/minicpm5:latest

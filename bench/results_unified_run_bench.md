@@ -19,9 +19,9 @@ planned fixture comparison for cli+ag, unified feature/sprint, and Codex /goal; 
 
 | mode | entrypoint | decomposition | replan | cost visibility |
 | --- | --- | --- | --- | --- |
-| cli+ag task loop | `simplicio task` | human | none | per atomic task |
-| unified run feature | `simplicio run --scope feature` | planner | remaining feature tasks | cost governor |
-| unified run sprint | `simplicio run --scope sprint --max-cost <usd>` | sprint loader and planner | feature tasks inside sprint | required cost governor |
+| cli+ag task loop | `simplicio-py task` | human | none | per atomic task |
+| unified run feature | `simplicio-py run --scope feature` | planner | remaining feature tasks | cost governor |
+| unified run sprint | `simplicio-py run --scope sprint --max-cost <usd>` | sprint loader and planner | feature tasks inside sprint | required cost governor |
 | Codex /goal | `codex /goal` | external agent | opaque | opaque in this repo bench |
 
 ## Fixture Matrix

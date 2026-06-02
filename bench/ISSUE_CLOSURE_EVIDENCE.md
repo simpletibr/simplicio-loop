@@ -25,7 +25,7 @@ Scope of this artifact:
 | issue | title | local closure posture |
 | --- | --- | --- |
 | `#33` | reduce LLM dependency across simplicio flow | keep open until remaining release evidence is complete |
-| `#41` | unified `simplicio run` orchestrator | close-ready; F0/F1/F2/F3/F4 foundation plus F5 live matrix are present |
+| `#41` | unified `simplicio-py run` orchestrator | close-ready; F0/F1/F2/F3/F4 foundation plus F5 live matrix are present |
 
 ## Recently Closed Issues
 
@@ -195,17 +195,17 @@ Repo-local evidence:
   scratch forwarding flags.
 - `simplicio/intent.py` now implements a regex-only classifier with explicit
   scope override and confidence threshold.
-- `simplicio run --scope task` reuses the existing task primitive and preserves
-  the stable JSON payload from `simplicio task`.
+- `simplicio-py run --scope task` reuses the existing task primitive and preserves
+  the stable JSON payload from `simplicio-py task`.
 - `simplicio/orchestrator/feature.py` now runs feature plans through existing
   task execution and performs bounded replan on failed tasks.
 - `simplicio/orchestrator/cost_governor.py` now provides a budget guard;
   `simplicio/providers.py` charges estimated non-cached provider calls when
-  `SIMPLICIO_MAX_COST` is configured; and `simplicio run --max-cost` now
+  `SIMPLICIO_MAX_COST` is configured; and `simplicio-py run --max-cost` now
   exposes that budget to nested provider calls instead of requiring a manually
   pre-set environment variable.
 - `simplicio/sprint_loader.py` and `simplicio/dod.py` provide the first sprint
-  task loader and DoD command-gate primitives, while `simplicio status` reads
+  task loader and DoD command-gate primitives, while `simplicio-py status` reads
   the sprint state file written during sprint runs.
 - Sprint execution now rejects empty sprints and invalid stacks, resumes from
   previously green feature rows, preserves full task specs when `## Goal` is
@@ -219,7 +219,7 @@ Repo-local evidence:
 - Non-decimal/non-finite `--max-cost` values are rejected as usage errors;
   feature plans with duplicate task IDs fail before executing; and sprint
   resume avoids ambiguous old state when task titles are duplicated.
-- `simplicio status --json` now has regression coverage for invalid state files
+- `simplicio-py status --json` now has regression coverage for invalid state files
   returning code `2` with a clear stderr diagnostic and no stdout.
 - `bench/run_unified_run_bench.py` plus
   `bench/results_unified_run_bench.{json,md}` provide a fixture-backed F5
@@ -250,12 +250,12 @@ Repo-local evidence:
   transcript hashes are verified by the F5 runner.
 - `bench/results_unified_run_live_matrix.json` plus
   `bench/artifacts/unified-live-matrix/*.json` record the full 12-row F5 live
-  matrix. The internal cli+ag/unified rows execute real `simplicio run`
+  matrix. The internal cli+ag/unified rows execute real `simplicio-py run`
   commands against a disposable fixture with an isolated pre-seeded completion
   cache; the Codex rows are external Codex `/goal` transcripts. The regenerated
   F5 report now has `evidence_level=live`, `live_row_count=12`,
   `release_ready=true`, and no release blockers.
-- `simplicio run --scope feature --json` and nested sprint feature execution
+- `simplicio-py run --scope feature --json` and nested sprint feature execution
   now suppress pipeline progress logs so stdout remains parseable JSON.
 - Validation in this worktree: `python -m pytest tests/python -q` -> `489
   passed, 3 skipped`.
@@ -263,7 +263,7 @@ Repo-local evidence:
 Suggested closure comment:
 
 ```text
-The first `simplicio run` slice is now implemented locally: argparse wire-up,
+The first `simplicio-py run` slice is now implemented locally: argparse wire-up,
 regex-only intent classification, task/scratch dispatch, a feature-scope
 planner/runner with bounded replan, `--max-cost` propagation into provider
 calls, sprint loading/state/status, sprint resume for already-green features,

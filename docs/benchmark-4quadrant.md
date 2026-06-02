@@ -96,7 +96,7 @@ score(output, checks)
 ```
 
 This is the `.agents/simplicio-ralph.agent.md` composition pattern
-(ralph-loop + simplicio task) measured end-to-end.
+(ralph-loop + simplicio-py task) measured end-to-end.
 
 ---
 

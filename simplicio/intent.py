@@ -1,7 +1,7 @@
-"""Regex-only goal scope classifier for ``simplicio run``.
+"""Regex-only goal scope classifier for ``simplicio-py run``.
 
 The classifier is intentionally small and deterministic.  It gives the future
-``simplicio run --scope auto`` entrypoint enough structure to decide whether a
+``simplicio-py run --scope auto`` entrypoint enough structure to decide whether a
 goal should use the existing task pipeline, scratch scaffolder, or a higher
 level orchestrator once feature and sprint modes are wired.
 """
@@ -270,7 +270,7 @@ class IntentResult:
 
 
 def classify_goal(text: str, explicit_scope: str | None = None) -> IntentResult:
-    """Classify a user goal into a ``simplicio run`` execution scope."""
+    """Classify a user goal into a ``simplicio-py run`` execution scope."""
 
     scope = (explicit_scope or "auto").strip().lower()
     if scope != "auto":

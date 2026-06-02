@@ -20,7 +20,7 @@
 
 ## 1. Mapa atual — onde o LLM é chamado e por quê
 
-Por execução de `simplicio scratch "<goal>"` típica (12 tasks):
+Por execução de `simplicio-py scratch "<goal>"` típica (12 tasks):
 
 | Etapa | LLM calls | % do custo | Pode virar determinístico? |
 |---|---|---|---|

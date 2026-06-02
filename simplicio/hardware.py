@@ -5,7 +5,7 @@ the numbers + a `tier` string (`cpu-tiny` / `cpu-small` / `gpu-mid` /
 `gpu-large` / `gpu-xlarge`) that maps deterministically to a model.
 
 The detection routines all fail soft — if a probe fails we mark that
-resource as unknown rather than crash. simplicio doctor surfaces the
+resource as unknown rather than crash. simplicio-py doctor surfaces the
 unknown fields so the user can override.
 """
 from __future__ import annotations

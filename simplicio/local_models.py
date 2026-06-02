@@ -11,7 +11,7 @@ HTTP endpoint is required for the default local path.
 Hard rule (issue #32 follow-up):
 - NEVER auto-download a model that does not fit the detected tier.
 - Downloads require explicit opt-in (SIMPLICIO_AUTO_DOWNLOAD=1 or
-  `simplicio doctor --install`). We tell the user the command and stop.
+  `simplicio-py doctor --install`). We tell the user the command and stop.
 """
 from __future__ import annotations
 
@@ -228,7 +228,7 @@ def ensure_recommended(
     if not do_download:
         result.reason = (
             "model not installed - opt in to download with "
-            "`simplicio doctor --install` or `SIMPLICIO_AUTO_DOWNLOAD=1 ...` "
+            "`simplicio-py doctor --install` or `SIMPLICIO_AUTO_DOWNLOAD=1 ...` "
             f"(will fetch ~{result.spec.size_gb_q4:.1f} GB)"
         )
         return result

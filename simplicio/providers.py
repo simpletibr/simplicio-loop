@@ -567,7 +567,7 @@ def info():
 
 
 # --------------------------------------------------------------------------- #
-# Planner-grade provider (used by `simplicio scratch`).
+# Planner-grade provider (used by `simplicio-py scratch`).
 #
 # Kept SEPARATE from generate() so:
 #   - users keep their cheap doer (SIMPLICIO_MODEL = Coder-Next, etc.)

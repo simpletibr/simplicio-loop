@@ -1,6 +1,6 @@
 ---
 name: simplicio-cli
-description: Use simplicio-cli to turn a one-line task into a verified code change (diff + test + verify loop). Trigger ALWAYS when the user asks for a small/medium code edit in a known file — "hide X for non-admins", "add validation to Y", "fix the empty-state on Z", "rename the prop in <file>" — even if they do not mention the word "simplicio". Especially trigger when the active model is small/local (Ollama, Gemma, Llama 3 sub-8B, Phi, Qwen 7B), or the user mentions "task-to-code", "diff+test", "verify loop", "6-layer contract", "pass-rate", "precedent + skill router", or any of the benchmark numbers (+39 pts, +51 pts, +58 pts, 99% pass-rate). Use this skill BEFORE writing the edit by hand — simplicio-cli measurably boosts pass-rate on the same model from ~41% to ~99% on frontier and ~35% to ~74% on sub-4B by stacking mapper + precedent + skill-router + 6-layer prompt + test + verify-loop. Also trigger on explicit invocations: `$simplicio`, `/simplicio`, "use simplicio", "rode o simplicio".
+description: Use simplicio-cli to turn a one-line task into a verified code change (diff + test + verify loop). Trigger ALWAYS when the user asks for a small/medium code edit in a known file — "hide X for non-admins", "add validation to Y", "fix the empty-state on Z", "rename the prop in <file>" — even if they do not mention the word "simplicio". Especially trigger when the active model is small/local (Ollama, Gemma, Llama 3 sub-8B, Phi, Qwen 7B), or the user mentions "task-to-code", "diff+test", "verify loop", "6-layer contract", "pass-rate", "precedent + skill router", or any of the benchmark numbers (+39 pts, +51 pts, +58 pts, 99% pass-rate). Use this skill BEFORE writing the edit by hand — simplicio-cli measurably boosts pass-rate on the same model from ~41% to ~99% on frontier and ~35% to ~74% on sub-4B by stacking mapper + precedent + skill-router + 6-layer prompt + test + verify-loop. Also trigger on explicit Python invocations: `$simplicio-py`, `/simplicio-py`, "use simplicio-py", "rode o simplicio-py", "via simplicio-cli".
 ---
 
 # Skill: `simplicio-cli`
@@ -22,7 +22,7 @@ Wrap a code task in simplicio-cli's 6-layer contract instead of asking the LLM t
 **Also trigger** on:
 
 - Small/local model active (Ollama, Gemma sub-8B, Llama 3 sub-8B, Phi, Qwen 7B) — simplicio adds the biggest absolute gain there (+39 pts to +58 pts).
-- User explicitly says: `$simplicio`, `/simplicio`, "use simplicio", "rode o simplicio", "via simplicio-cli".
+- User explicitly says: `$simplicio-py`, `/simplicio-py`, "use simplicio-py", "rode o simplicio-py", "via simplicio-cli".
 - User mentions verify-loop, 6-layer prompt, precedent injection, pass-rate, skill router, content-hash cache.
 
 **Do NOT trigger** on:
@@ -39,13 +39,13 @@ Wrap a code task in simplicio-cli's 6-layer contract instead of asking the LLM t
 ### 1. Verify install + config
 
 ```bash
-# is simplicio on PATH?
-command -v simplicio \
+# is simplicio-py on PATH?
+command -v simplicio-py \
   || pip install --user simplicio-cli \
   || pip install -e .            # fallback: editable install from repo root (locked venv / no PyPI)
 
 # config check (one-shot, costs 1 LLM call)
-simplicio smoke
+simplicio-py smoke
 ```
 
 If `smoke` fails: set the env vars and retry. Read `~/.config/simplicio/.env` or current shell env. Required:
@@ -66,7 +66,7 @@ If `smoke` fails: set the env vars and retry. Read `~/.config/simplicio/.env` or
 First run on the repo (or after large changes): index once. Re-runs reuse embeddings keyed by content hash — unchanged blocks cost zero.
 
 ```bash
-simplicio index --stack <stack>     # e.g. angular | react | django | dotnet | generic
+simplicio-py index --stack <stack>     # e.g. angular | react | django | dotnet | generic
 ```
 
 Skip if `.simplicio/` already exists and the affected files were not modified since last index (`ls .simplicio/ 2>/dev/null` non-empty → cache warm).
@@ -86,7 +86,7 @@ Map the user's natural-language goal into the four flags:
 ### 4. Run the task
 
 ```bash
-simplicio task "<one-line goal>" \
+simplicio-py task "<one-line goal>" \
   --stack <stack> \
   --target <path/to/file> \
   --criteria "- <check 1>
@@ -143,7 +143,7 @@ If it's a UI change, also run Playwright (`npx playwright test --reporter=list,h
 
 ## Anti-patterns
 
-- Running `simplicio task` without `--target` on an ambiguous goal → mapper guesses, often wrong on big repos.
+- Running `simplicio-py task` without `--target` on an ambiguous goal → mapper guesses, often wrong on big repos.
 - Passing `--criteria "make it work"` → no signal for the verify loop. Pass-rate collapses.
 - Using simplicio inside a Ralph loop AND wrapping each Ralph step in simplicio → double-loop, confused state. Pick one: either Ralph drives and simplicio runs the `execute` step (use `.agents/simplicio-ralph.agent.md` composition), or simplicio runs standalone.
 - Indexing `node_modules` / `.venv` / `target/` — bloats cache, slows precedent. Use `.simplicioignore` (same syntax as `.gitignore`).
@@ -152,8 +152,8 @@ If it's a UI change, also run Playwright (`npx playwright test --reporter=list,h
 
 ## Definition of Done
 
-- [ ] `simplicio smoke` returned a clean provider config print + one successful test call.
-- [ ] `simplicio task ...` ran with `--stack` + `--target` + `--criteria` + `--constraints` all set.
+- [ ] `simplicio-py smoke` returned a clean provider config print + one successful test call.
+- [ ] `simplicio-py task ...` ran with `--stack` + `--target` + `--criteria` + `--constraints` all set.
 - [ ] `VERIFY: pass` in the output, OR a clear "fail after 3 retries — escalate" message.
 - [ ] Diff applied (`git diff` shows the change) and project's normal validation (lint + test) is green.
 - [ ] If UI change: Playwright run with trace + screenshot + video saved to `playwright-report/`.
@@ -163,7 +163,7 @@ If it's a UI change, also run Playwright (`npx playwright test --reporter=list,h
 
 ## Notes
 
-- **Composition with Ralph Loop**: see `.agents/simplicio-ralph.agent.md` — Ralph drives the outer `read → plan → execute → lint → unit → e2e → fix` loop, delegates the `execute` step to `simplicio task` instead of editing by hand. Best for tasks where Ralph's autonomy + simplicio's per-call precision compound.
-- **Bench reproduction**: `python3 bench/run_offline.py` (no API key needed for the offline scoring), or `simplicio bench --cases bench/cases.json --stack <s>` for real-test pass-rate.
+- **Composition with Ralph Loop**: see `.agents/simplicio-ralph.agent.md` — Ralph drives the outer `read → plan → execute → lint → unit → e2e → fix` loop, delegates the `execute` step to `simplicio-py task` instead of editing by hand. Best for tasks where Ralph's autonomy + simplicio's per-call precision compound.
+- **Bench reproduction**: `python3 bench/run_offline.py` (no API key needed for the offline scoring), or `simplicio-py bench --cases bench/cases.json --stack <s>` for real-test pass-rate.
 - **4-quadrant matrix**: `python3 bench/run_4quadrant.py` decomposes prompt-effect vs. loop-effect vs. composition. Q4 (simplicio + loop) wins on pass-rate AND stays close to Q2 on cost.
 - **Plug points** if extending: `prompt.py::_mapper` (real mapper), `pipeline.py::_aplicar_e_testar` (real diff/test), `skill_router.py` (your skills dir via `SIMPLICIO_SKILLS_DIR`).
