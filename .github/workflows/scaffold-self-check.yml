@@ -246,3 +246,19 @@ jobs:
 
       - name: Run lint
         run: node scripts/lint.js
+
+  version-sync:
+    name: Version sync (package.json / pyproject.toml / __init__.py)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check version alignment
+        run: node scripts/check-version-sync.js
