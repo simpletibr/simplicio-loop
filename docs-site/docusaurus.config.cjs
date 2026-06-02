@@ -1,10 +1,10 @@
 const config = {
-  title: 'LLM Project Mapper Docs',
+  title: 'Simplicio Mapper Docs',
   tagline: 'The docs hub for the scaffold, workflows, and agent operating model.',
   url: 'https://wesleysimplicio.github.io',
-  baseUrl: '/llm-project-mapper/',
+  baseUrl: '/simplicio-mapper/',
   organizationName: 'wesleysimplicio',
-  projectName: 'llm-project-mapper',
+  projectName: 'simplicio-mapper',
   trailingSlash: false,
   onBrokenLinks: 'throw',
   onBrokenAnchors: 'warn',
@@ -69,7 +69,7 @@ const config = {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'LLM Project Mapper',
+      title: 'Simplicio Mapper',
       items: [
         {to: '/', label: 'Docs Home', position: 'left'},
         {to: '/quickstart/get-going', label: 'Quickstart', position: 'left'},
@@ -78,7 +78,7 @@ const config = {
         {to: '/reference/cli-flags', label: 'Reference', position: 'left'},
         {type: 'docsVersionDropdown', position: 'right'},
         {
-          href: 'https://github.com/wesleysimplicio/llm-project-mapper',
+          href: 'https://github.com/wesleysimplicio/simplicio-mapper',
           label: 'GitHub',
           position: 'right',
         },
@@ -111,7 +111,7 @@ const config = {
             {label: 'Contributing', to: '/community/contributing'},
             {
               label: 'Source Repo',
-              href: 'https://github.com/wesleysimplicio/llm-project-mapper',
+              href: 'https://github.com/wesleysimplicio/simplicio-mapper',
             },
           ],
         },
