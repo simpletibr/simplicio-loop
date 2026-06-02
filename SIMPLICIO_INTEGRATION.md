@@ -350,6 +350,102 @@ text languages (`sample.ts`, `sample.py`, `sample.json`, `sample.md`) plus
 a binary file (`binary.bin`) used by the refusal test. Producers in
 downstream repositories can copy these as ready-made parity inputs.
 
+## Context Packs and Hash-Based Cache (issue #115)
+
+Schemas: `simplicio.context-pack/v1` and `simplicio.context-cache/v1`.
+The canonical contracts live in
+[`simplicio-runtime#70`](https://github.com/wesleysimplicio/simplicio-runtime/issues/70);
+this repository implements the producer half so the mapper, not the LLM,
+decides what compact context goes into a prompt.
+
+### Context pack
+
+```python
+from simplicio_mapper.context_pack import build_context_pack
+
+pack = build_context_pack(
+    root=".",
+    targets=[
+        {"path": "simplicio_mapper/cli.py", "ranges": [(900, 950)]},
+        {"path": "simplicio_mapper/mapper.py", "ranges": [(160, 200)]},
+    ],
+)
+```
+
+The returned envelope:
+
+```json
+{
+  "schema": "simplicio.context-pack/v1",
+  "repo": {
+    "mapper_schema": "simplicio.mapper-index/v1",
+    "root_hash": "<sha256 of the absolute root path>"
+  },
+  "pack_hash": "<sha256 over all snapshot+range hashes>",
+  "files": [
+    {
+      "path": "...",
+      "language": "python",
+      "snapshot_hash": "<sha256 of the whole file>",
+      "line_count": 1234,
+      "compact": false,
+      "ranges": [
+        {
+          "start_line": 900,
+          "end_line": 950,
+          "range_hash": "<sha256 of the slice>",
+          "snippet": ["first line", "last line"]
+        }
+      ],
+      "symbols": [{"name": "...", "kind": "...", "line": 0, "hash": "..."}],
+      "callers": ["a/file.py"],
+      "imports": ["b/file.py"],
+      "tests": ["tests/test_file.py"]
+    }
+  ],
+  "dependencies": { "package_manager": "...", "manifest": "..." },
+  "recent_changes": [ "..." ],
+  "needs_broader_context": false,
+  "needs_broader_context_reason": ""
+}
+```
+
+`build_context_pack` accepts pre-loaded `project_map`, `symbol_index`, and
+`call_graph` dicts; otherwise it reads them from `.simplicio/`. When any
+of the three is absent — or a target is missing / unreadable, or a range
+is out-of-bounds — the function still returns a pack but sets
+`needs_broader_context=True` and lists the concrete reasons. **The mapper
+does not pretend compact context is enough when anchors, hashes, or
+symbol coverage are missing.**
+
+### Context cache
+
+```python
+from simplicio_mapper.context_cache import ContextCache
+
+cache = ContextCache(".simplicio/context-cache.json")
+hit = cache.get(file_or_pack_hash)
+if hit is None:
+    summary = summarize_via_llm(...)  # caller-supplied
+    cache.set(file_or_pack_hash, summary)
+```
+
+Stored on disk as a single JSON document with shape
+`{"schema": "simplicio.context-cache/v1", "entries": {...}}`. Entries are
+keyed by any opaque hash string the caller chooses — typically
+`snapshot_hash`, `range_hash`, or the overall `pack_hash` — so a change in
+the underlying file invalidates the cached summary naturally. Writes are
+persisted immediately; multiple processes pick up the latest value on
+their next load.
+
+### Fixtures
+
+`tests/fixtures/ctx-pack-host/` ships four small multi-language fixtures
+(`sample.ts`, `sample.py`, `sample.json`, `sample.md`) used by the test
+suite to verify language detection and snippet emission. Large-file
+behavior is exercised in a temp-dir generated test (`huge.py` with more
+than `COMPACT_LINE_THRESHOLD` lines).
+
 ## Native Runtime Contract (issue #95)
 
 The unified native Simplicio runtime — coordinating

@@ -1,0 +1,249 @@
+"""simplicio.context-pack/v1 — compact LLM context bundles (issue #115).
+
+The mapper is the canonical producer of compact context for LLM planners.
+A context pack collects, for a given set of target files:
+
+- repo metadata (mapper schema, root hash);
+- per-file snapshot hashes, language, symbols defined inside, callers /
+  imports derived from the call graph, and related test files;
+- optional selected line ranges with per-range hashes and a short snippet
+  (omitted in compact mode for files above the line threshold);
+- dependency hints carried forward from `project-map.json`;
+- recent changed files when available;
+- an explicit `needs_broader_context` flag with a `reason` when compact
+  context is unsafe (target missing, unreadable, unstable range, or any of
+  the upstream mapper artifacts is absent).
+
+The canonical schema lives in simplicio-runtime issue #70; this module
+must not introduce a repo-local variation.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from collections.abc import Iterable
+from typing import Any
+
+CONTEXT_PACK_SCHEMA = "simplicio.context-pack/v1"
+MAPPER_INDEX_SCHEMA = "simplicio.mapper-index/v1"
+
+COMPACT_LINE_THRESHOLD = 2000
+_SNIPPET_PREFIX_CHARS = 120
+
+_LANGUAGE_BY_EXT = {
+    ".ts": "typescript",
+    ".tsx": "typescript",
+    ".js": "javascript",
+    ".jsx": "javascript",
+    ".mjs": "javascript",
+    ".cjs": "javascript",
+    ".py": "python",
+    ".md": "markdown",
+    ".json": "json",
+    ".yaml": "yaml",
+    ".yml": "yaml",
+    ".toml": "toml",
+    ".go": "go",
+    ".rs": "rust",
+    ".cs": "csharp",
+}
+
+
+def _sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _read_safe(path: str) -> str | None:
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            return handle.read()
+    except OSError:
+        return None
+
+
+def _load_json(path: str) -> dict | None:
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return json.load(handle)
+    except (OSError, ValueError):
+        return None
+
+
+def _language_for(path: str) -> str:
+    base = os.path.basename(path)
+    if base == "Dockerfile":
+        return "dockerfile"
+    ext = os.path.splitext(path)[1].lower()
+    return _LANGUAGE_BY_EXT.get(ext, ext[1:] if ext else "text")
+
+
+def _range_snippet(text: str, start: int, end: int, compact: bool) -> list[str]:
+    if compact:
+        return []
+    lines = text.splitlines()
+    out: list[str] = []
+    if 1 <= start <= len(lines):
+        out.append(lines[start - 1].strip()[:_SNIPPET_PREFIX_CHARS])
+    if start != end and 1 <= end <= len(lines):
+        out.append(lines[end - 1].strip()[:_SNIPPET_PREFIX_CHARS])
+    return [piece for piece in out if piece]
+
+
+def _file_symbols(symbols: list[dict], path: str) -> list[dict]:
+    found: list[dict] = []
+    for symbol in symbols:
+        if symbol.get("defined_in") != path:
+            continue
+        identity = symbol.get("qualified_name") or symbol.get("name") or ""
+        found.append({
+            "name": symbol.get("name"),
+            "kind": symbol.get("kind"),
+            "line": symbol.get("line"),
+            "hash": hashlib.sha256(f"{identity}|{path}".encode()).hexdigest()[:16],
+        })
+    return sorted(found, key=lambda entry: (entry.get("line") or 0, entry.get("name") or ""))
+
+
+def _related_tests(project_files: dict, path: str) -> list[str]:
+    base = os.path.splitext(os.path.basename(path))[0]
+    if not base:
+        return []
+    matches: set[str] = set()
+    for candidate, meta in project_files.items():
+        roles = meta.get("roles", [])
+        if "test" in roles and base in candidate:
+            matches.add(candidate)
+    return sorted(matches)
+
+
+def _call_graph_edges(call_graph: dict) -> list[dict]:
+    """Return a flat list of edges from either `edges`, `imports`, or `calls`."""
+    edges: list[dict] = []
+    for key in ("edges", "imports", "calls"):
+        for edge in call_graph.get(key, []):
+            if isinstance(edge, dict) and edge.get("from") and edge.get("to"):
+                edges.append(edge)
+    return edges
+
+
+def build_context_pack(
+    root: str,
+    targets: Iterable[dict],
+    *,
+    project_map: dict | None = None,
+    symbol_index: dict | None = None,
+    call_graph: dict | None = None,
+) -> dict[str, Any]:
+    """Build a `simplicio.context-pack/v1` envelope.
+
+    `targets` is an iterable of `{"path": str, "ranges": [(start, end), ...]}`
+    dicts. Pre-built `project_map` / `symbol_index` / `call_graph` payloads
+    can be passed in; otherwise the function looks under `.simplicio/` and
+    emits `needs_broader_context=True` when any of them is missing.
+    """
+    abs_root = os.path.abspath(root)
+    base = os.path.join(abs_root, ".simplicio")
+    project_map = project_map if project_map is not None else _load_json(os.path.join(base, "project-map.json"))
+    symbol_index = symbol_index if symbol_index is not None else _load_json(os.path.join(base, "symbol-index.json"))
+    call_graph = call_graph if call_graph is not None else _load_json(os.path.join(base, "call-graph.json"))
+
+    reasons: list[str] = []
+    if not project_map:
+        reasons.append("project-map.json absent")
+        project_map = {}
+    if not symbol_index:
+        reasons.append("symbol-index.json absent")
+        symbol_index = {}
+    if not call_graph:
+        reasons.append("call-graph.json absent")
+        call_graph = {}
+
+    pm_files = {entry["path"]: entry for entry in project_map.get("files", [])}
+    si_symbols = symbol_index.get("symbols", [])
+    cg_edges = _call_graph_edges(call_graph)
+
+    files_out: list[dict] = []
+    for target in targets:
+        path = target["path"]
+        ranges = list(target.get("ranges", []))
+        abs_path = os.path.join(abs_root, path) if not os.path.isabs(path) else path
+        if not os.path.exists(abs_path):
+            reasons.append(f"target missing: {path}")
+            continue
+        text = _read_safe(abs_path)
+        if text is None:
+            reasons.append(f"unreadable: {path}")
+            continue
+        line_count = len(text.splitlines())
+        compact = line_count > COMPACT_LINE_THRESHOLD
+        selected_ranges: list[dict] = []
+        for start, end in ranges:
+            if start < 1 or end < start or end > line_count:
+                reasons.append(f"unstable range {start}-{end} in {path}")
+                continue
+            chunk = "\n".join(text.splitlines()[start - 1 : end])
+            selected_ranges.append({
+                "start_line": start,
+                "end_line": end,
+                "range_hash": _sha256_text(chunk),
+                "snippet": _range_snippet(text, start, end, compact),
+            })
+        callers = sorted({
+            edge["from"] for edge in cg_edges
+            if edge.get("to") == path and edge.get("from") != path
+        })
+        imports = sorted({
+            edge["to"] for edge in cg_edges
+            if edge.get("from") == path and edge.get("to") != path
+        })
+        files_out.append({
+            "path": path.replace(os.sep, "/"),
+            "language": _language_for(abs_path),
+            "snapshot_hash": _sha256_text(text),
+            "line_count": line_count,
+            "compact": compact,
+            "ranges": selected_ranges,
+            "symbols": _file_symbols(si_symbols, path),
+            "callers": callers,
+            "imports": imports,
+            "tests": _related_tests(pm_files, path),
+        })
+
+    needs_broader = bool(reasons)
+    files_out.sort(key=lambda entry: entry["path"])
+
+    digest = hashlib.sha256()
+    root_hash = _sha256_text(abs_root)
+    digest.update(root_hash.encode("utf-8"))
+    for entry in files_out:
+        digest.update(entry["snapshot_hash"].encode("utf-8"))
+        for selected in entry["ranges"]:
+            digest.update(selected["range_hash"].encode("utf-8"))
+
+    return {
+        "schema": CONTEXT_PACK_SCHEMA,
+        "repo": {
+            "mapper_schema": MAPPER_INDEX_SCHEMA,
+            "root_hash": root_hash,
+        },
+        "pack_hash": digest.hexdigest(),
+        "files": files_out,
+        "dependencies": project_map.get("dependencies", {}),
+        "recent_changes": (
+            project_map.get("recent_changes")
+            or project_map.get("changed_files")
+            or []
+        ),
+        "needs_broader_context": needs_broader,
+        "needs_broader_context_reason": "; ".join(reasons) if reasons else "",
+    }
+
+
+__all__ = [
+    "COMPACT_LINE_THRESHOLD",
+    "CONTEXT_PACK_SCHEMA",
+    "MAPPER_INDEX_SCHEMA",
+    "build_context_pack",
+]
