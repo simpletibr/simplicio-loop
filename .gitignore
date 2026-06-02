@@ -106,6 +106,8 @@ _BOOTSTRAP.md
 !.specs/architecture/ADR-*.md
 docs/**
 !docs/YOOL_TUPLE_HAMT.md
+!docs/apply-edits.md
+!docs/apply-edits.example.json
 scripts/**
 !scripts/build_hamt.py
 !scripts/coverage.js
