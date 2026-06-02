@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+- Made the runtime doctor contract use installed package metadata when available
+  and report explicit Python adapter entrypoints without treating the reserved
+  `simplicio` runtime command as a dev-cli tool.
+
 ## [0.5.20] — 2026-06-02
 
 ### Changed
