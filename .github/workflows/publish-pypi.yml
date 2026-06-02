@@ -70,6 +70,21 @@ jobs:
         run: |
           echo "::notice::Versão ${{ steps.meta.outputs.local }} já publicada no PyPI. Skipping."
 
+      - name: Configure Git identity (for fixture commits)
+        if: steps.meta.outputs.should_publish == 'true'
+        run: |
+          git config --global user.email "ci@simplicio.dev"
+          git config --global user.name "Simplicio CI"
+          git config --global commit.gpgsign false
+
+      - name: Install package and dev deps
+        if: steps.meta.outputs.should_publish == 'true'
+        run: python -m pip install -e ".[dev]"
+
+      - name: Run pytest before publishing
+        if: steps.meta.outputs.should_publish == 'true'
+        run: python -m pytest tests/python -q
+
       - name: Build distributions
         if: steps.meta.outputs.should_publish == 'true'
         run: python -m build

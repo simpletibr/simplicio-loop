@@ -1,0 +1,90 @@
+# Python + Rust CI — pytest matrix for the Python package + cargo test
+# (and a maturin build smoke check) for the optional Rust acceleration crate.
+# Complements scaffold-self-check.yml (Node) and python-lint.yml (ruff).
+
+name: Python + Rust CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: python-rust-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python-tests:
+    name: pytest (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Git identity (for fixture commits)
+        run: |
+          git config --global user.email "ci@simplicio.dev"
+          git config --global user.name "Simplicio CI"
+          git config --global commit.gpgsign false
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package and dev deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run pytest
+        run: python -m pytest tests/python -q
+
+  rust-tests:
+    name: cargo test (PyO3 crate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            rust/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('rust/Cargo.toml') }}
+
+      - name: cargo test
+        run: cargo test --manifest-path rust/Cargo.toml --release
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: maturin develop + native parity test
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install maturin
+          python -m pip install -e ".[dev]"
+          (cd rust && maturin develop --release)
+          python -m pytest tests/python/test_native.py -q
