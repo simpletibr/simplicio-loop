@@ -6,6 +6,7 @@
   "bin": {
     "llm-project-mapper": "bin/cli.js",
     "build-hamt-catalog": "bin/build-hamt-catalog",
+    "apply-edits": "bin/apply-edits.js",
     "skillopt": "bin/skillopt.js"
   },
   "files": [
