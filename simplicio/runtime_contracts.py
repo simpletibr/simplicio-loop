@@ -10,6 +10,11 @@ from typing import Any
 from . import __version__
 from .providers import LOCAL_DEFAULT_MODEL
 
+DEV_CLI_PACKAGE = "simplicio-cli"
+PRIMARY_ADAPTER_COMMAND = "simplicio-dev-cli"
+PYTHON_ADAPTER_COMMAND = "simplicio-py"
+RUNTIME_COMMAND = "simplicio"
+
 
 def doctor_contract(root: str | Path = ".") -> dict[str, Any]:
     root_path = Path(root)
@@ -17,17 +22,17 @@ def doctor_contract(root: str | Path = ".") -> dict[str, Any]:
         name: _tool_status(name)
         for name in (
             "simplicio-mapper",
-            "simplicio-dev-cli",
-            "simplicio",
+            PRIMARY_ADAPTER_COMMAND,
+            PYTHON_ADAPTER_COMMAND,
             "simplicio-prompt",
             "simplicio-sprint",
             "llama-server",
         )
     }
     packages = {
-        name: {"version": __version__ if name == "simplicio-cli" else _package_version(name)}
+        name: {"version": _installed_or_local_package_version(name)}
         for name in (
-            "simplicio-cli",
+            DEV_CLI_PACKAGE,
             "simplicio-mapper",
             "simplicio-prompt",
             "simplicio-sprint",
@@ -36,7 +41,15 @@ def doctor_contract(root: str | Path = ".") -> dict[str, Any]:
     return {
         "schema": "simplicio.dev-cli.doctor/v1",
         "root": str(root_path),
-        "package": {"name": "simplicio-cli", "version": __version__},
+        "package": {
+            "name": DEV_CLI_PACKAGE,
+            "version": packages[DEV_CLI_PACKAGE]["version"],
+        },
+        "entrypoints": {
+            "adapter": PRIMARY_ADAPTER_COMMAND,
+            "python_adapter": PYTHON_ADAPTER_COMMAND,
+            "reserved_runtime": RUNTIME_COMMAND,
+        },
         "tools": tools,
         "packages": packages,
         "runtime": {
@@ -76,6 +89,15 @@ def run_contract(run_result: dict[str, Any], *, root: str | Path = ".") -> dict[
         "applied": bool(run_result.get("applied")),
         "result": run_result,
     }
+
+
+def _installed_or_local_package_version(name: str) -> str | None:
+    version = _package_version(name)
+    if version is not None:
+        return version
+    if name == DEV_CLI_PACKAGE:
+        return __version__
+    return None
 
 
 def _tool_status(name: str) -> dict[str, Any]:
