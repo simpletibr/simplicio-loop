@@ -70,7 +70,7 @@ def test_evaluate_refuses_to_run_oversized_model(
     monkeypatch.setitem(
         RECOMMENDATIONS,
         "gpu-large",
-        ModelSpec("gpu-large", "local-llama/default", "repo/too-large", "too-large.gguf", 17.5, "Too Large"),
+        ModelSpec("gpu-large", DEFAULT_LOCAL_MODEL_ID, "repo/too-large", "too-large.gguf", 17.5, "Too Large"),
     )
     # Force a mismatch: profile says cpu-small (small) but we set tier to
     # gpu-large to simulate a bad override
@@ -89,7 +89,7 @@ def test_evaluate_marks_gguf_absent(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "local GGUF not installed" in r.reason
 
 
-def test_apple_silicon_profile_can_run_qwen_gguf_at_24gb(
+def test_apple_silicon_profile_can_run_minicpm_gguf_at_24gb(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("simplicio.local_models.model_file_present", lambda _s: False)
@@ -120,7 +120,7 @@ def test_ensure_recommended_does_not_download_without_opt_in(
     monkeypatch.setitem(
         RECOMMENDATIONS,
         "gpu-large",
-        ModelSpec("gpu-large", "local-llama/default", "repo/weights", "weights.gguf", 1.6, "Qwen GGUF"),
+        ModelSpec("gpu-large", DEFAULT_LOCAL_MODEL_ID, "repo/weights", "weights.gguf", 1.6, "MiniCPM GGUF"),
     )
     downloaded = {"called": False}
 
@@ -217,7 +217,7 @@ def test_ensure_recommended_refuses_download_when_undersized(
     monkeypatch.setitem(
         RECOMMENDATIONS,
         "gpu-large",
-        ModelSpec("gpu-large", "local-llama/default", "repo/too-large", "too-large.gguf", 17.5, "Too Large"),
+        ModelSpec("gpu-large", DEFAULT_LOCAL_MODEL_ID, "repo/too-large", "too-large.gguf", 17.5, "Too Large"),
     )
     downloaded = {"called": False}
 

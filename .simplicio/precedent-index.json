@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-06-02T12:51:28.123Z",
+  "generated_at": "2026-06-02T15:00:04.800Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -218,9 +218,9 @@
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
     },
     {
-      "id": "907fcb3c0277a914",
+      "id": "7128edd0fb09dab1",
       "path": "CHANGELOG.md",
-      "line": 272,
+      "line": 299,
       "language": "markdown",
       "change_type": "error-handling",
       "tags": [
@@ -1784,6 +1784,21 @@
       "snippet": "\n\ndef _safe_json(path: Path) -> dict[str, Any] | None:\n    try:\n        data = loads(path.read_bytes())"
     },
     {
+      "id": "16bc18fa8316e06d",
+      "path": "simplicio/mechanical_edit.py",
+      "line": 30,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "mechanical",
+        "edit"
+      ],
+      "summary": "feature precedent in simplicio/mechanical_edit.py",
+      "snippet": "\n\ndef execute_plan_json(\n    plan_text: str,\n    *,"
+    },
+    {
       "id": "74b68b6757d8e47f",
       "path": "simplicio/observability.py",
       "line": 12,
@@ -1898,6 +1913,21 @@
       ],
       "summary": "feature precedent in simplicio/providers.py",
       "snippet": "\n\ndef _cfg():\n    return {\n        \"model\": os.environ.get(\"SIMPLICIO_MODEL\"),"
+    },
+    {
+      "id": "c2e623d8a4b3ffe1",
+      "path": "simplicio/runtime_contracts.py",
+      "line": 14,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "runtime",
+        "contracts"
+      ],
+      "summary": "feature precedent in simplicio/runtime_contracts.py",
+      "snippet": "\n\ndef doctor_contract(root: str | Path = \".\") -> dict[str, Any]:\n    root_path = Path(root)\n    tools = {"
     },
     {
       "id": "ddf0fb7929f439ad",
@@ -2302,6 +2332,24 @@
       "snippet": "**Do NOT trigger** on:\n\n- Pure read-only ask (\"what does this function do?\") — answer directly.\n- Architectural decision / refactor amplo cross-file — that goes to `architect` agent + ADR.\n- One-off shell command, lookup, install task."
     },
     {
+      "id": "55a60db1fd54cb29",
+      "path": "simplicio/templates/recipes/go-gin/admin-crud.yaml",
+      "line": 18,
+      "language": "yaml",
+      "change_type": "route",
+      "tags": [
+        "yaml",
+        "simplicio",
+        "templates",
+        "recipes",
+        "gin",
+        "admin",
+        "crud"
+      ],
+      "summary": "route precedent in simplicio/templates/recipes/go-gin/admin-crud.yaml",
+      "snippet": "  \"rationale\": \"Use the go-gin admin CRUD recipe for {entity}: admin middleware and route handlers are deterministic.\",\n  \"files_to_create\": [\n    {\"path\": \"internal/http/router.go\", \"purpose\": \"Gin admin router and CRUD handlers for {entity}\"}\n  ],\n  \"tasks\": ["
+    },
+    {
       "id": "c4cff6584ab9afd6",
       "path": "simplicio/templates/recipes/go-gin/crud-resource.yaml",
       "line": 17,
@@ -2336,6 +2384,24 @@
       ],
       "summary": "feature precedent in simplicio/templates/recipes/py-fastapi/crud-resource.yaml",
       "snippet": "      \"goal\": \"Define the {entity} SQLAlchemy model.\",\n      \"target\": \"src/db/{entity_lower}.py\",\n      \"criteria\": \"- {entity} class exists with id, name, and created_at fields\\\\n- table name is {entity_plural}\",\n      \"constraints\": \"- use SQLAlchemy 2.0 declarative style\",\n      \"verify\": \"pytest tests/db/test_{entity_lower}.py -q\""
+    },
+    {
+      "id": "60e969c8baaffaf7",
+      "path": "simplicio/templates/recipes/py-fastapi/scheduled-job.yaml",
+      "line": 25,
+      "language": "yaml",
+      "change_type": "feature",
+      "tags": [
+        "yaml",
+        "simplicio",
+        "templates",
+        "recipes",
+        "fastapi",
+        "scheduled",
+        "job"
+      ],
+      "summary": "feature precedent in simplicio/templates/recipes/py-fastapi/scheduled-job.yaml",
+      "snippet": "      \"goal\": \"Define the {job} scheduled job handler.\",\n      \"target\": \"src/services/scheduled_jobs.py\",\n      \"criteria\": \"- job function is idempotent\\\\n- next-run metadata is explicit\\\\n- handler reports success/failure\",\n      \"constraints\": \"- keep scheduler adapter replaceable\",\n      \"verify\": \"pytest tests/services/test_scheduled_jobs.py -q\""
     },
     {
       "id": "beca602b74415eec",
@@ -3651,6 +3717,21 @@
       "snippet": "import { json } from \"@remix-run/node\";\n\nexport function loader() {\n  return json({ ok: true });\n}"
     },
     {
+      "id": "635dc0a9976b718a",
+      "path": "simplicio/token_primitives.py",
+      "line": 21,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "token",
+        "primitives"
+      ],
+      "summary": "feature precedent in simplicio/token_primitives.py",
+      "snippet": "\n\ndef sha256_text(text: str | bytes) -> str:\n    if isinstance(text, str):\n        text = text.encode(\"utf-8\")"
+    },
+    {
       "id": "f1f96537b208c741",
       "path": "simplicio/utils/cache.py",
       "line": 6,
@@ -3714,9 +3795,9 @@
       "snippet": "\n> Reproduce the new default set:\n> `BENCH_BASE_URL=https://router.huggingface.co/v1 BENCH_API_KEY=<hf-token>\n> BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\"\n> python3 bench/run_offline.py`."
     },
     {
-      "id": "db39bcb7767d065b",
+      "id": "2192c806b968cfed",
       "path": "simplicio_cli.egg-info/SOURCES.txt",
-      "line": 115,
+      "line": 126,
       "language": "txt",
       "change_type": "route",
       "tags": [
@@ -3963,6 +4044,21 @@
       "snippet": "\n\ndef write_json(path, payload):\n    path.parent.mkdir(parents=True, exist_ok=True)\n    path.write_text(json.dumps(payload), encoding=\"utf-8\")"
     },
     {
+      "id": "9dbef5bd8236cffe",
+      "path": "tests/python/test_mechanical_edit.py",
+      "line": 10,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "mechanical",
+        "edit"
+      ],
+      "summary": "test precedent in tests/python/test_mechanical_edit.py",
+      "snippet": "\n\ndef _write(path, text: str | bytes):\n    path.parent.mkdir(parents=True, exist_ok=True)\n    if isinstance(text, bytes):"
+    },
+    {
       "id": "fd15fddd88f6eb15",
       "path": "tests/python/test_orchestrator_feature.py",
       "line": 8,
@@ -4070,9 +4166,24 @@
       "snippet": "\n\ndef _write_manifest(tmp_path: Path) -> Path:\n    manifest = tmp_path / \"manifest.json\"\n    manifest.write_text("
     },
     {
-      "id": "52e15a46a5c7c491",
+      "id": "d910ec9e5fc5269c",
+      "path": "tests/python/test_recipe_expansion.py",
+      "line": 18,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "recipe",
+        "expansion"
+      ],
+      "summary": "test precedent in tests/python/test_recipe_expansion.py",
+      "snippet": "    ],\n)\ndef test_new_llm_reduction_recipe_types_match_for_fastapi(\n    stack_slug: str,\n    goal: str,"
+    },
+    {
+      "id": "80b52a50295345f5",
       "path": "tests/python/test_recipes.py",
-      "line": 83,
+      "line": 82,
       "language": "python",
       "change_type": "test",
       "tags": [
@@ -4099,6 +4210,21 @@
       "snippet": "\n\ndef _write(path, text):\n    path.parent.mkdir(parents=True, exist_ok=True)\n    path.write_text(text, encoding=\"utf-8\")"
     },
     {
+      "id": "352d8926d2f47df6",
+      "path": "tests/python/test_runtime_contracts.py",
+      "line": 9,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "runtime",
+        "contracts"
+      ],
+      "summary": "test precedent in tests/python/test_runtime_contracts.py",
+      "snippet": "\n\ndef test_doctor_contract_reports_ecosystem_tool_status(tmp_path, monkeypatch):\n    def fake_which(name: str):\n        return f\"/bin/{name}\" if name in {\"simplicio-mapper\", \"simplicio\"} else None"
+    },
+    {
       "id": "afbb9de1db0bdabe",
       "path": "tests/python/test_runtime_env.py",
       "line": 8,
@@ -4112,130 +4238,6 @@
       ],
       "summary": "test precedent in tests/python/test_runtime_env.py",
       "snippet": "\n\ndef test_wrap_project_command_uses_project_nvmrc(tmp_path, monkeypatch):\n    nvm_dir = tmp_path / \"nvm\"\n    nvm_dir.mkdir()"
-    },
-    {
-      "id": "9d75babd0c63cc36",
-      "path": "tests/python/test_rust_prompt.py",
-      "line": 19,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "rust",
-        "prompt"
-      ],
-      "summary": "test precedent in tests/python/test_rust_prompt.py",
-      "snippet": "\n\ndef _template_path() -> str:\n    import simplicio\n    return os.path.join(os.path.dirname(simplicio.__file__), \"templates\", \"simplicio_prompt.md\")"
-    },
-    {
-      "id": "8c272cf40a579752",
-      "path": "tests/python/test_schema_smoke_summary.py",
-      "line": 15,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "schema",
-        "smoke",
-        "summary"
-      ],
-      "summary": "test precedent in tests/python/test_schema_smoke_summary.py",
-      "snippet": "\n\ndef test_schema_smoke_summary_normalizes_supported_formats(tmp_path):\n    schema_v1 = tmp_path / \"results_v14_qwen15b_q8_0_smoke_schema_v1.json\"\n    schema_v1.write_text("
-    },
-    {
-      "id": "68d7824ac1449ba9",
-      "path": "tests/python/test_scratch.py",
-      "line": 24,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "scratch"
-      ],
-      "summary": "test precedent in tests/python/test_scratch.py",
-      "snippet": "\n\ndef test_example_plan_validates() -> None:\n    plan = validate_plan(\n        {"
-    },
-    {
-      "id": "70ffaadedf3dbac3",
-      "path": "tests/python/test_scratch_cache_gate.py",
-      "line": 20,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "scratch",
-        "cache",
-        "gate"
-      ],
-      "summary": "test precedent in tests/python/test_scratch_cache_gate.py",
-      "snippet": "\n\ndef _planner_json() -> str:\n    payload = dict(EXAMPLE_PLAN)\n    payload[\"project_name\"] = \"cache-plan\""
-    },
-    {
-      "id": "5fb31f127d48b8ad",
-      "path": "tests/python/test_scratch_cli_recipes.py",
-      "line": 12,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "scratch",
-        "cli",
-        "recipes"
-      ],
-      "summary": "test precedent in tests/python/test_scratch_cli_recipes.py",
-      "snippet": "\n\ndef _plan(stack_slug: str, project_name: str):\n    raw = {**EXAMPLE_PLAN, \"stack\": stack_slug, \"project_name\": project_name}\n    return validate_plan(raw)"
-    },
-    {
-      "id": "1ab31f03f5a85143",
-      "path": "tests/python/test_scratch_codegen.py",
-      "line": 14,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "scratch",
-        "codegen"
-      ],
-      "summary": "test precedent in tests/python/test_scratch_codegen.py",
-      "snippet": "\n\ndef _task() -> Task:\n    return Task(\n        id=\"T01-codegen\","
-    },
-    {
-      "id": "2f8c91b5fee1229f",
-      "path": "tests/python/test_scratch_codegen_bench.py",
-      "line": 19,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "scratch",
-        "codegen",
-        "bench"
-      ],
-      "summary": "test precedent in tests/python/test_scratch_codegen_bench.py",
-      "snippet": "\n\ndef test_scratch_codegen_bench_cases_cover_python_executors() -> None:\n    cases = build_cases(include_typescript=False)\n"
-    },
-    {
-      "id": "f0095089c5488591",
-      "path": "tests/python/test_scratch_codegen_fastapi.py",
-      "line": 14,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "scratch",
-        "codegen",
-        "fastapi"
-      ],
-      "summary": "test precedent in tests/python/test_scratch_codegen_fastapi.py",
-      "snippet": "\n\ndef _stack(tmp_path: Path) -> Stack:\n    return Stack(\n        slug=\"py-fastapi\","
     }
   ]
 }

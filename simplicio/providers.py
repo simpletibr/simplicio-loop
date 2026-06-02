@@ -24,11 +24,11 @@ Four modes, picked by SIMPLICIO_MODEL prefix (or by absence of config):
 4. Local llama.cpp default (offline-first, zero key)
      SIMPLICIO_MODEL=(unset)
      SIMPLICIO_BASE_URL=(unset)
-     -> local-llama/default, loaded in-process with llama-cpp-python
+     -> openbmb/minicpm5:latest, loaded in-process with llama-cpp-python
 
 5. Explicit in-process local inference via llama-cpp-python (zero key)
      SIMPLICIO_MODEL=local-llama/<repo>::<file.gguf>   -> explicit HF GGUF
-     SIMPLICIO_MODEL=local-llama/default               -> default Qwen GGUF
+     SIMPLICIO_MODEL=openbmb/minicpm5:latest           -> default MiniCPM5 GGUF
      SIMPLICIO_MODEL=local-llama//abs/path/model.gguf  -> direct local path
      The
      GGUF is reused from ~/.simplicio/models/executor when present, otherwise
@@ -75,15 +75,26 @@ def _inline_feedback(prompt, feedback):
 # Path 4: local llama.cpp default + Path 5: explicit in-process GGUF.
 # --------------------------------------------------------------------------- #
 
-# Qwen3.5-2B Q6_K is the default local GGUF doer. It runs directly through
-# llama-cpp-python, so the no-config path does not depend on Ollama or any
-# HTTP server.
-LOCAL_DEFAULT_REPO = "bartowski/Qwen_Qwen3.5-2B-GGUF"
-LOCAL_DEFAULT_FILE = "Qwen_Qwen3.5-2B-Q6_K.gguf"
+# MiniCPM5 is the ecosystem default local doer. The public model id mirrors the
+# runtime policy, while the GGUF repo/file are the llama.cpp backing weights.
+LOCAL_DEFAULT_MODEL = "openbmb/minicpm5:latest"
+LOCAL_DEFAULT_REPO = "openbmb/MiniCPM5-1B-GGUF"
+LOCAL_DEFAULT_FILE = "MiniCPM5-1B-Q4_K_M.gguf"
 LOCAL_EXECUTOR_DIR = "~/.simplicio/models/executor"
 LOCAL_MODEL_PREFIX = "local-llama/"
+LOCAL_DEFAULT_CTX = 2048
+LOCAL_MAX_CTX = 4096
+LOCAL_DEFAULT_THREADS = min(os.cpu_count() or 1, 4)
+LOCAL_MAX_THREADS = 4
+LOCAL_DEFAULT_MAX_TOKENS = 512
+LOCAL_MAX_OUTPUT_TOKENS = 2048
+LOCAL_DEFAULT_BATCH = 128
+LOCAL_MAX_BATCH = 128
+LOCAL_DEFAULT_UBATCH = 32
+LOCAL_MAX_UBATCH = 32
+LOCAL_MAX_GPU_LAYERS = 0
 
-# Loaded Llama instances, keyed by (gguf_path, n_ctx, n_threads, n_gpu_layers).
+# Loaded Llama instances, keyed by memory-relevant llama.cpp settings.
 # A model load is expensive (weights -> RAM), so we keep it for the process.
 _LOCAL_LLAMA_CACHE = {}
 
@@ -94,14 +105,14 @@ def _is_local(model, base):
     Only explicit `local-llama/` models return true here. The empty config
     default is handled separately so info/errors can describe the auto route.
     """
-    if model and model.startswith(LOCAL_MODEL_PREFIX):
+    if model and (model.startswith(LOCAL_MODEL_PREFIX) or model == LOCAL_DEFAULT_MODEL):
         return True
     return False
 
 
 def _is_default_local(model, base):
     """True when empty config should use the in-process llama.cpp default."""
-    if not model and not base:
+    if (not model and not base) or (model == LOCAL_DEFAULT_MODEL and not base):
         return True
     return False
 
@@ -110,10 +121,11 @@ def _local_spec(model):
     """Resolve (repo, file, path) for a local-llama model id.
 
     Forms after the `local-llama/` prefix:
-      "" / "default" / "auto"   -> Qwen3.5-2B Q6_K GGUF fallback
+      "" / "default" / "auto"   -> MiniCPM5 Q4_K_M GGUF fallback
       "<repo>::<file.gguf>"     -> explicit HF repo + filename
       "/abs/path/model.gguf"    -> direct local path (no download)
       "<repo>"                  -> HF repo + default/SIMPLICIO_LOCAL_MODEL_FILE
+    The ecosystem id `openbmb/minicpm5:latest` resolves to the same default.
     SIMPLICIO_LOCAL_MODEL_PATH always wins when set.
     """
     path = os.environ.get("SIMPLICIO_LOCAL_MODEL_PATH")
@@ -121,7 +133,9 @@ def _local_spec(model):
         return None, None, path
     file_env = os.environ.get("SIMPLICIO_LOCAL_MODEL_FILE", LOCAL_DEFAULT_FILE)
     spec = ""
-    if model and model.startswith(LOCAL_MODEL_PREFIX):
+    if model == LOCAL_DEFAULT_MODEL:
+        spec = "default"
+    elif model and model.startswith(LOCAL_MODEL_PREFIX):
         spec = model[len(LOCAL_MODEL_PREFIX) :].strip()
     if spec and spec not in ("default", "auto"):
         if "::" in spec:
@@ -191,6 +205,79 @@ def _resolve_local_path(repo, fname, path):
     raise SystemExit(f"simplicio: local model download failed ({detail})")
 
 
+def _bounded_int(name, default, *, minimum=1, maximum=None):
+    """Read a positive int env knob and clamp it to the safe local policy."""
+    raw = os.environ.get(name)
+    if raw is None or raw == "":
+        value = default
+    else:
+        try:
+            value = int(raw)
+        except ValueError:
+            raise SystemExit(f"simplicio: {name} must be a positive integer")
+    value = max(minimum, value)
+    if maximum is not None:
+        value = min(value, maximum)
+    return value
+
+
+def _safe_local_ctx():
+    maximum = min(_bounded_int("SIMPLICIO_LOCAL_CTX_MAX", LOCAL_MAX_CTX), LOCAL_MAX_CTX)
+    return _bounded_int("SIMPLICIO_LOCAL_CTX", LOCAL_DEFAULT_CTX, maximum=maximum)
+
+
+def _safe_local_threads():
+    maximum = min(
+        _bounded_int("SIMPLICIO_LOCAL_THREADS_MAX", LOCAL_MAX_THREADS),
+        LOCAL_MAX_THREADS,
+    )
+    return _bounded_int(
+        "SIMPLICIO_LOCAL_THREADS", LOCAL_DEFAULT_THREADS, maximum=maximum
+    )
+
+
+def _safe_local_batch():
+    maximum = min(
+        _bounded_int("SIMPLICIO_LOCAL_BATCH_MAX", LOCAL_MAX_BATCH),
+        LOCAL_MAX_BATCH,
+    )
+    return _bounded_int("SIMPLICIO_LOCAL_BATCH", LOCAL_DEFAULT_BATCH, minimum=32, maximum=maximum)
+
+
+def _safe_local_ubatch():
+    maximum = min(
+        _bounded_int("SIMPLICIO_LOCAL_UBATCH_MAX", LOCAL_MAX_UBATCH),
+        LOCAL_MAX_UBATCH,
+    )
+    return _bounded_int(
+        "SIMPLICIO_LOCAL_UBATCH", LOCAL_DEFAULT_UBATCH, minimum=16, maximum=maximum
+    )
+
+
+def _safe_local_gpu_layers():
+    return min(
+        _bounded_int(
+            "SIMPLICIO_LOCAL_GPU_LAYERS",
+            LOCAL_MAX_GPU_LAYERS,
+            minimum=0,
+            maximum=LOCAL_MAX_GPU_LAYERS,
+        ),
+        LOCAL_MAX_GPU_LAYERS,
+    )
+
+
+def _safe_local_max_tokens(requested):
+    maximum = min(
+        _bounded_int("SIMPLICIO_LOCAL_MAX_TOKENS_CAP", LOCAL_MAX_OUTPUT_TOKENS),
+        LOCAL_MAX_OUTPUT_TOKENS,
+    )
+    configured = os.environ.get("SIMPLICIO_LOCAL_MAX_TOKENS")
+    default = min(requested, LOCAL_DEFAULT_MAX_TOKENS)
+    if configured is None or configured == "":
+        return min(default, maximum)
+    return _bounded_int("SIMPLICIO_LOCAL_MAX_TOKENS", default, maximum=maximum)
+
+
 def _local_llama(model):
     """Load (or reuse) the Llama instance for the given local model id."""
     try:
@@ -202,18 +289,23 @@ def _local_llama(model):
         )
     repo, fname, path = _local_spec(model)
     gguf = _resolve_local_path(repo, fname, path)
-    n_ctx = int(os.environ.get("SIMPLICIO_LOCAL_CTX", "8192"))
-    threads = os.environ.get("SIMPLICIO_LOCAL_THREADS")
-    n_threads = int(threads) if threads else None
-    n_gpu_layers = int(os.environ.get("SIMPLICIO_LOCAL_GPU_LAYERS", "0"))
-    cache_key = (gguf, n_ctx, n_threads, n_gpu_layers)
+    n_ctx = _safe_local_ctx()
+    n_threads = _safe_local_threads()
+    n_batch = _safe_local_batch()
+    n_ubatch = _safe_local_ubatch()
+    n_gpu_layers = _safe_local_gpu_layers()
+    cache_key = (gguf, n_ctx, n_threads, n_batch, n_ubatch, n_gpu_layers)
     llm = _LOCAL_LLAMA_CACHE.get(cache_key)
     if llm is None:
         llm = Llama(
             model_path=gguf,
             n_ctx=n_ctx,
             n_threads=n_threads,
+            n_batch=n_batch,
+            n_ubatch=n_ubatch,
             n_gpu_layers=n_gpu_layers,
+            use_mmap=True,
+            use_mlock=False,
             verbose=False,
         )
         _LOCAL_LLAMA_CACHE[cache_key] = llm
@@ -223,8 +315,7 @@ def _local_llama(model):
 def _local_generate(prompt, feedback, model, max_tokens):
     """Generate a completion in-process via llama-cpp-python."""
     llm = _local_llama(model)
-    cap = os.environ.get("SIMPLICIO_LOCAL_MAX_TOKENS")
-    out_tokens = int(cap) if cap else max_tokens
+    out_tokens = _safe_local_max_tokens(max_tokens)
     temperature = float(os.environ.get("SIMPLICIO_LOCAL_TEMP", "0.1"))
     r = llm.create_chat_completion(
         messages=_msgs(prompt, feedback),
@@ -235,7 +326,7 @@ def _local_generate(prompt, feedback, model, max_tokens):
 
 
 def _provider_id(model, base):
-    if model and model.startswith(LOCAL_MODEL_PREFIX):
+    if model and (model.startswith(LOCAL_MODEL_PREFIX) or model == LOCAL_DEFAULT_MODEL):
         return "local-llama"
     if model.startswith("claude-cli/"):
         return "claude-cli"
@@ -319,7 +410,7 @@ def _generate_local_cached(prompt, feedback, model, max_tokens, cache_full_promp
 
     eff_model = model or (LOCAL_MODEL_PREFIX + "default")
     # Fold the resolved weights into the cache key: two different GGUFs can
-    # both route as `local-llama/default` (via SIMPLICIO_LOCAL_MODEL_PATH /
+    # both route as the default model (via SIMPLICIO_LOCAL_MODEL_PATH /
     # _REPO / _FILE), and must NOT share cached completions.
     repo, fname, path = _local_spec(eff_model)
     weights = path or f"{repo}/{fname}"
@@ -374,7 +465,7 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
         return _generate_local_cached(
             prompt,
             feedback,
-            LOCAL_MODEL_PREFIX + "default",
+            LOCAL_DEFAULT_MODEL,
             max_tokens,
             cache_full_prompt,
         )
@@ -386,7 +477,7 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
     if not model:
         raise SystemExit(
             "set SIMPLICIO_MODEL (e.g. anthropic/claude-opus-4, claude-cli/sonnet, "
-            "codex-cli/gpt-5, local-llama/default, "
+            f"codex-cli/gpt-5, {LOCAL_DEFAULT_MODEL}, "
             "glm-4.6, llama3, claude-opus-4-7)"
         )
     provider_id = _provider_id(model, c["base"])
@@ -449,10 +540,10 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
 def info():
     c = _cfg()
     if _is_default_local(c["model"], c["base"]):
-        repo, fname, path = _local_spec(LOCAL_MODEL_PREFIX + "default")
+        repo, fname, path = _local_spec(LOCAL_DEFAULT_MODEL)
         target = path or f"{repo}/{fname}"
         return (
-            "model=local-llama/default provider=local-llama "
+            f"model={LOCAL_DEFAULT_MODEL} provider=local-llama "
             f"(in-process, llama-cpp-python) target={target} "
             "key=not-needed"
         )

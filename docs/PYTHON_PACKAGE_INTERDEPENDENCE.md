@@ -5,14 +5,14 @@ Status: 2026-06-02
 ## Current Graph
 
 ```text
-simplicio-prompt 1.13.3
-simplicio-mapper 0.7.3
+simplicio-prompt 1.14.0
+simplicio-mapper 0.8.0
   ^          ^
   |          |
-simplicio-cli 0.5.18
+simplicio-cli 0.5.19
   ^
   |
-simplicio-sprint 1.2.12
+simplicio-sprint 1.2.13
 ```
 
 ## Rules
@@ -27,7 +27,7 @@ simplicio-sprint 1.2.12
 
 ## Local LLM Standard
 
-- Primary: `local-llama/default` via `llama.cpp` / `llama-cpp-python`.
-- Default GGUF: `Qwen_Qwen3.5-2B-Q6_K.gguf`.
+- Primary: `openbmb/minicpm5:latest` via `llama.cpp` / `llama-cpp-python`.
+- Default GGUF: `MiniCPM5-1B-Q4_K_M.gguf` from `openbmb/MiniCPM5-1B-GGUF`.
 - Ollama is no longer part of the local default path; it remains an explicit
   OpenAI-compatible provider option only when configured by the user.

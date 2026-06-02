@@ -610,7 +610,7 @@ user prompt. UserPromptSubmit is the right pre-hook for routing decisions.
 | GLM (z.ai) | `glm-4.6` | `https://api.z.ai/api/paas/v4` |
 | DeepSeek | `deepseek-chat` | `https://api.deepseek.com` |
 | OpenAI | `gpt-4.1` | `https://api.openai.com/v1` |
-| Local (llama.cpp) | `local-llama/default` | *(leave unset)* |
+| Local (llama.cpp) | `openbmb/minicpm5:latest` | *(leave unset)* |
 | Anthropic native | `claude-opus-4-7` | *(leave unset)* |
 
 If `SIMPLICIO_BASE_URL` is unset and the key is `ANTHROPIC_API_KEY`, it uses the
@@ -626,8 +626,8 @@ simplicio smoke      # prints provider config + one test call
 When **no provider is configured** (`SIMPLICIO_MODEL` and
 `SIMPLICIO_BASE_URL` both unset), simplicio runs the in-process
 [`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python) backend with
-`local-llama/default`, currently
-`bartowski/Qwen_Qwen3.5-2B-GGUF::Qwen_Qwen3.5-2B-Q6_K.gguf`.
+`openbmb/minicpm5:latest`, backed by
+`openbmb/MiniCPM5-1B-GGUF::MiniCPM5-1B-Q4_K_M.gguf`.
 
 ```bash
 pip install 'simplicio-cli[local]'          # pulls llama-cpp-python + huggingface-hub
@@ -642,17 +642,24 @@ simplicio task "add input validation to createUser" \
 Explicit routes (override the default model/weights):
 
 ```bash
-SIMPLICIO_MODEL=local-llama/default                                  # Qwen_Qwen3.5-2B-Q6_K.gguf default
-SIMPLICIO_MODEL=local-llama/bartowski/Qwen_Qwen3.5-2B-GGUF::Qwen_Qwen3.5-2B-Q6_K.gguf
+SIMPLICIO_MODEL=openbmb/minicpm5:latest                              # MiniCPM5-1B-Q4_K_M.gguf default
+SIMPLICIO_MODEL=local-llama/default                                  # backward-compatible alias
+SIMPLICIO_MODEL=local-llama/openbmb/MiniCPM5-1B-GGUF::MiniCPM5-1B-Q4_K_M.gguf
 SIMPLICIO_MODEL=local-llama//models/my-model.gguf                    # direct local path
 SIMPLICIO_LOCAL_MODEL_PATH=/models/my-model.gguf                     # always wins
 ```
 
 Tuning knobs (all optional): `SIMPLICIO_LOCAL_CTX` (context window, default
-`8192`), `SIMPLICIO_LOCAL_THREADS`, `SIMPLICIO_LOCAL_GPU_LAYERS` (offload to GPU,
-default `0`), `SIMPLICIO_LOCAL_MAX_TOKENS` (generation cap),
-`SIMPLICIO_LOCAL_TEMP` (default `0.1`), `SIMPLICIO_LOCAL_MODEL_REPO` /
-`SIMPLICIO_LOCAL_MODEL_FILE`.
+`2048`, clamped by `SIMPLICIO_LOCAL_CTX_MAX`, default `4096`),
+`SIMPLICIO_LOCAL_THREADS` (default and cap `4` via
+`SIMPLICIO_LOCAL_THREADS_MAX`), `SIMPLICIO_LOCAL_GPU_LAYERS` (offload to GPU,
+default `0`), `SIMPLICIO_LOCAL_BATCH` (default/cap `128`),
+`SIMPLICIO_LOCAL_UBATCH` (default/cap `32`), `SIMPLICIO_LOCAL_MAX_TOKENS`
+(generation cap, default `512`, clamped by `SIMPLICIO_LOCAL_MAX_TOKENS_CAP`,
+default `2048`), `SIMPLICIO_LOCAL_TEMP` (default `0.1`),
+`SIMPLICIO_LOCAL_MODEL_REPO` / `SIMPLICIO_LOCAL_MODEL_FILE`. The runtime keeps
+`mmap` enabled and `mlock` disabled so `llama.cpp` does not accidentally
+over-allocate RAM.
 
 #### The pipeline (both paths)
 

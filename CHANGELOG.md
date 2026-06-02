@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.5.19] — 2026-06-02
+
+### Added
+- Standardized the local llama.cpp default on `openbmb/minicpm5:latest`, backed
+  by `openbmb/MiniCPM5-1B-GGUF::MiniCPM5-1B-Q4_K_M.gguf`, while keeping
+  `local-llama/default` as a backward-compatible alias.
+- Added `simplicio.mechanical-edit/v1` dry-run/apply execution with compact
+  result evidence, hash preconditions, allowlist checks, rollback on validation
+  failure, and a `simplicio mechanical-edit` CLI.
+- Added token-efficient primitives for log summaries, diff review, context
+  cache, postconditions, structured retry payloads, codemod plans, and
+  model-routing policy decisions.
+- Added runtime-facing JSON contracts and a `simplicio-dev-cli` console
+  entrypoint so `simplicio-runtime` can resolve the package as a first-party
+  adapter.
+- Expanded scratch recipes with FastAPI file upload, websocket, background
+  worker, scheduled job, OAuth integration, and admin CRUD parity for Laravel,
+  Gin, and Axum.
+
+### Changed
+- Updated ecosystem dependency floors to `simplicio-mapper>=0.8.0` and
+  `simplicio-prompt>=1.14.0`.
+- Clamped local `llama.cpp` execution defaults to avoid accidental memory
+  spikes: context `2048`/max `4096`, threads max `4`, and output cap
+  `512`/max `2048`, batch `128`, micro-batch `32`, GPU layers `0`,
+  `mmap=true`, and `mlock=false`.
+
 ## [0.5.18] — 2026-06-02
 
 ### Changed

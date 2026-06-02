@@ -44,7 +44,7 @@ def test_admin_crud_parity_for_remaining_web_stacks(
     stack_slug: str,
     target: str,
 ) -> None:
-    plan = plan_from_recipe(f"admin CRUD for Invoice", stack_slug, "demo-app")
+    plan = plan_from_recipe("admin CRUD for Invoice", stack_slug, "demo-app")
 
     assert plan is not None
     assert plan.stack == stack_slug

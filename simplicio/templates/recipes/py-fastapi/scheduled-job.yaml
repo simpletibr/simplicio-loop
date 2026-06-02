@@ -1,0 +1,52 @@
+{
+  "name": "scheduled-job",
+  "description": "FastAPI scheduled job service with manual trigger and tests.",
+  "applies_to": ["py-fastapi"],
+  "matches": [
+    "(?i)\\bscheduled\\s+job\\b",
+    "(?i)\\b(?:nightly|daily|hourly)\\s+(?:cleanup|sync|job|task)\\b",
+    "(?i)\\b(?:add|build|implement|create)\\s+(?:a\\s+)?scheduled\\s+(?:job|task)\\b"
+  ],
+  "slots": {
+    "job": {"default": "nightly_cleanup", "transform": "lower_snake_case"}
+  },
+  "rationale": "Use the py-fastapi scheduled job recipe: schedule registration, manual trigger, and clock-safe tests are deterministic.",
+  "files_to_create": [
+    {"path": "src/services/scheduled_jobs.py", "purpose": "Scheduled job definitions"},
+    {"path": "src/api/routes/admin_jobs.py", "purpose": "Manual admin trigger route"},
+    {"path": "tests/services/test_scheduled_jobs.py", "purpose": "Scheduled job tests"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-job-service",
+      "depends_on": [],
+      "goal": "Define the {job} scheduled job handler.",
+      "target": "src/services/scheduled_jobs.py",
+      "criteria": "- job function is idempotent\\n- next-run metadata is explicit\\n- handler reports success/failure",
+      "constraints": "- keep scheduler adapter replaceable",
+      "verify": "pytest tests/services/test_scheduled_jobs.py -q"
+    },
+    {
+      "id": "T02-manual-trigger",
+      "depends_on": ["T01-job-service"],
+      "goal": "Expose an authenticated manual trigger route for scheduled jobs.",
+      "target": "src/api/routes/admin_jobs.py",
+      "criteria": "- route triggers {job}\\n- result body includes job id and status\\n- invalid job returns 404",
+      "constraints": "- require admin-only access when auth exists",
+      "verify": "pytest tests/services/test_scheduled_jobs.py -q"
+    },
+    {
+      "id": "T03-schedule-tests",
+      "depends_on": ["T02-manual-trigger"],
+      "goal": "Cover scheduled job registration and execution.",
+      "target": "tests/services/test_scheduled_jobs.py",
+      "criteria": "- job can run manually\\n- schedule metadata is asserted\\n- failure path is observable",
+      "constraints": "- freeze time or inject clock for deterministic tests",
+      "verify": "pytest tests/services/test_scheduled_jobs.py -q"
+    }
+  ],
+  "deps_to_install": [],
+  "deps_dev": ["pytest>=9.0.3", "httpx>=0.28.1"],
+  "test_command": "pytest -q",
+  "lint_command": "ruff check src tests"
+}

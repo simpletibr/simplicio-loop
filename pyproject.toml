@@ -1,6 +1,6 @@
 [project]
 name = "simplicio-cli"
-version = "0.5.18"
+version = "0.5.19"
 description = "Portable task-to-code pipeline that works with any LLM. Turn a one-line task into a verified code change — diff + test + verify loop. +55 pts on a 156-check benchmark, 21% faster, ~same tokens."
 readme = "README.md"
 license = { text = "MIT" }
@@ -44,8 +44,8 @@ dependencies = [
   "numpy>=2.2.6",
   "anthropic>=0.105.2",
   "openai>=2.40.0",
-  "simplicio-mapper>=0.7.3",
-  "simplicio-prompt>=1.13.3",
+  "simplicio-mapper>=0.8.0",
+  "simplicio-prompt>=1.14.0",
   "httpx>=0.28.1",
   "orjson>=3.11.9",
   "diskcache>=5.6.3",
@@ -55,7 +55,7 @@ dependencies = [
 [project.optional-dependencies]
 bench = ["fpdf2>=2.8.7"]
 # Offline fallback in-process inference. Pulls the llama.cpp Python bindings
-# plus huggingface-hub to fetch Qwen_Qwen3.5-2B-Q6_K.gguf.
+# plus huggingface-hub to fetch MiniCPM5-1B-Q4_K_M.gguf.
 local = ["llama-cpp-python>=0.3.25", "huggingface-hub>=1.17.0"]
 
 [project.urls]
@@ -66,6 +66,7 @@ Changelog = "https://github.com/wesleysimplicio/simplicio-cli/releases"
 
 [project.scripts]
 simplicio = "simplicio.cli:main"
+simplicio-dev-cli = "simplicio.cli:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]

@@ -47,7 +47,7 @@ def test_dry_run_and_apply_replace_range_contract(tmp_path):
     assert dry["schema"] == "simplicio.mechanical-edit-result/v1"
     assert dry["status"] == "ok"
     assert dry["applied"] is False
-    assert dry["planned_diff"].count("@@") == 1
+    assert sum(1 for line in dry["planned_diff"].splitlines() if line.startswith("@@ ")) == 1
     assert "-old" in dry["planned_diff"]
     assert "+new" in dry["planned_diff"]
     assert target.read_text(encoding="utf-8") == "old\nkeep\n"

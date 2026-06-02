@@ -2,8 +2,8 @@
 
 Encodes the local LLM standard:
 
-  all tiers -> local-llama/default
-               bartowski/Qwen_Qwen3.5-2B-GGUF::Qwen_Qwen3.5-2B-Q6_K.gguf
+  all tiers -> openbmb/minicpm5:latest
+               openbmb/MiniCPM5-1B-GGUF::MiniCPM5-1B-Q4_K_M.gguf
 
 The model runs in-process through llama-cpp-python. No Ollama daemon, pull, or
 HTTP endpoint is required for the default local path.
@@ -22,17 +22,17 @@ from pathlib import Path
 from .hardware import HardwareProfile
 from .providers import (
     LOCAL_DEFAULT_FILE as DEFAULT_LOCAL_FILE,
+    LOCAL_DEFAULT_MODEL,
     LOCAL_DEFAULT_REPO as DEFAULT_LOCAL_REPO,
     LOCAL_EXECUTOR_DIR,
-    LOCAL_MODEL_PREFIX,
 )
 
 
-DEFAULT_LOCAL_MODEL_ID = f"{LOCAL_MODEL_PREFIX}default"
-DEFAULT_LOCAL_LABEL = "Qwen3.5 2B Q6_K GGUF (llama.cpp)"
-DEFAULT_LOCAL_SIZE_GB = 1.6
+DEFAULT_LOCAL_MODEL_ID = LOCAL_DEFAULT_MODEL
+DEFAULT_LOCAL_LABEL = "MiniCPM5 1B Q4_K_M GGUF (llama.cpp)"
+DEFAULT_LOCAL_SIZE_GB = 0.8
 DEFAULT_LOCAL_NOTES = (
-    "canonical local doer; runs in-process with llama-cpp-python, no Ollama service"
+    "canonical local doer; openbmb/minicpm5:latest via llama.cpp"
 )
 
 

@@ -91,7 +91,7 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
     p.add_argument(
         "--local",
         action="store_true",
-        help="force local llama.cpp with Qwen3.5 GGUF; overrides "
+        help="force local llama.cpp with MiniCPM5; overrides "
         "SIMPLICIO_MODEL/SIMPLICIO_BASE_URL",
     )
 
@@ -123,7 +123,9 @@ def _force_local_if_requested(a: argparse.Namespace) -> None:
     if getattr(a, "local", False):
         # Force Path 4: local in-process llama.cpp. This keeps local execution
         # independent from Ollama or any HTTP service.
-        os.environ["SIMPLICIO_MODEL"] = "local-llama/default"
+        from .providers import LOCAL_DEFAULT_MODEL
+
+        os.environ["SIMPLICIO_MODEL"] = LOCAL_DEFAULT_MODEL
         os.environ.pop("SIMPLICIO_BASE_URL", None)
         os.environ.pop("SIMPLICIO_API_KEY", None)
 
@@ -516,6 +518,98 @@ def _run_status_command(a: argparse.Namespace) -> int:
     return 0
 
 
+def _read_text_source(path: str) -> str:
+    if path == "-":
+        return sys.stdin.read()
+    return Path(path).read_text(encoding="utf-8")
+
+
+def _run_mechanical_edit_command(a: argparse.Namespace) -> int:
+    from .mechanical_edit import execute_plan_json
+
+    try:
+        plan_text = _read_text_source(a.plan)
+    except OSError as exc:
+        print(f"simplicio mechanical-edit: {exc}", file=sys.stderr)
+        return 2
+    result = execute_plan_json(plan_text, root=a.root, apply=a.apply)
+    if a.json:
+        print(json.dumps(result, sort_keys=True))
+    else:
+        print(f"{result['status']}: applied={result['applied']} noop={result['noop']}")
+        if result.get("planned_diff"):
+            print(result["planned_diff"])
+        for error in result.get("errors", []):
+            print(f"error: {error.get('code')}: {error.get('message')}", file=sys.stderr)
+    return 0 if result["status"] == "ok" else 1
+
+
+def _run_token_command(a: argparse.Namespace) -> int:
+    from .token_primitives import (
+        ContextCache,
+        build_retry_payload,
+        evaluate_postconditions,
+        git_diff_review,
+        model_routing_decision,
+        summarize_log,
+    )
+
+    try:
+        if a.token_cmd == "log-summary":
+            payload = summarize_log(_read_text_source(a.file), max_chars=a.max_chars)
+        elif a.token_cmd == "diff-review":
+            payload = git_diff_review(a.root, max_patch_chars=a.max_patch_chars)
+        elif a.token_cmd == "postconditions":
+            checks = json.loads(_read_text_source(a.file))
+            payload = evaluate_postconditions(checks, root=a.root)
+        elif a.token_cmd == "retry":
+            log = _read_text_source(a.log_file) if a.log_file else ""
+            failure = json.loads(a.failure_json) if a.failure_json else {}
+            payload = build_retry_payload(
+                reason=a.reason,
+                failure=failure,
+                log=log,
+                max_log_chars=a.max_log_chars,
+            )
+        elif a.token_cmd == "model-routing":
+            payload = model_routing_decision(json.loads(_read_text_source(a.file)))
+        elif a.token_cmd == "context-cache":
+            cache = ContextCache(a.root)
+            content = _read_text_source(a.content_file) if a.content_file else ""
+            if a.cache_cmd == "get":
+                payload = cache.get(a.key, content)
+            elif a.cache_cmd == "put":
+                summary = json.loads(_read_text_source(a.summary_file))
+                payload = cache.put(a.key, content, summary)
+            else:
+                payload = cache.invalidate(a.key)
+        else:
+            print("simplicio token: unsupported command", file=sys.stderr)
+            return 2
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        print(f"simplicio token {a.token_cmd}: {exc}", file=sys.stderr)
+        return 2
+    print(json.dumps(payload, sort_keys=True))
+    return 0
+
+
+def _run_runtime_command(a: argparse.Namespace) -> int:
+    from .runtime_contracts import doctor_contract
+
+    if a.runtime_cmd == "doctor":
+        payload = doctor_contract(a.root)
+        if a.json:
+            print(json.dumps(payload, sort_keys=True))
+        else:
+            print(f"simplicio runtime doctor: {payload['package']['version']}")
+            for name, status in payload["tools"].items():
+                state = "ok" if status["available"] else "missing"
+                print(f"  {name}: {state}")
+        return 0
+    print("simplicio runtime: unsupported command", file=sys.stderr)
+    return 2
+
+
 def _run_run_command(a: argparse.Namespace) -> int:
     from .intent import AUTO_CONFIDENCE_THRESHOLD, classify_goal
 
@@ -589,9 +683,11 @@ def main(argv=None):
     pc_clear = pc_sub.add_parser("clear", help="clear completion cache")
     pc_clear.add_argument("--force", action="store_true", help="required to clear")
 
-    sub.add_parser(
+    p_smoke = sub.add_parser(
         "smoke", help="one proof call: connect+generate (needs SIMPLICIO_MODEL+KEY)"
     )
+    p_smoke.add_argument("--json", action="store_true")
+    p_smoke.add_argument("--root", default=".")
 
     p_init = sub.add_parser(
         "init", help="install skill + UserPromptSubmit hook into ~/.claude/"
@@ -621,6 +717,52 @@ def main(argv=None):
     p_env_export.add_argument("env_file")
     p_env_export.add_argument("--json", action="store_true")
 
+    p_mechanical = sub.add_parser(
+        "mechanical-edit",
+        help="execute simplicio.mechanical-edit/v1 dry-run or apply",
+    )
+    p_mechanical.add_argument("--root", default=".")
+    p_mechanical.add_argument("--plan", default="-", help="plan JSON path, or - for stdin")
+    p_mechanical.add_argument("--apply", action="store_true")
+    p_mechanical.add_argument("--dry-run", action="store_true")
+    p_mechanical.add_argument("--json", action="store_true")
+
+    p_token = sub.add_parser("token", help="token-efficient execution primitives")
+    token_sub = p_token.add_subparsers(dest="token_cmd", required=True)
+    p_log = token_sub.add_parser("log-summary")
+    p_log.add_argument("--file", default="-")
+    p_log.add_argument("--max-chars", type=int, default=1200)
+    p_diff = token_sub.add_parser("diff-review")
+    p_diff.add_argument("--root", default=".")
+    p_diff.add_argument("--max-patch-chars", type=int, default=4000)
+    p_post = token_sub.add_parser("postconditions")
+    p_post.add_argument("--file", default="-")
+    p_post.add_argument("--root", default=".")
+    p_retry = token_sub.add_parser("retry")
+    p_retry.add_argument("--reason", required=True)
+    p_retry.add_argument("--failure-json", default="{}")
+    p_retry.add_argument("--log-file")
+    p_retry.add_argument("--max-log-chars", type=int, default=1000)
+    p_route = token_sub.add_parser("model-routing")
+    p_route.add_argument("--file", default="-")
+    p_cache = token_sub.add_parser("context-cache")
+    cache_sub = p_cache.add_subparsers(dest="cache_cmd", required=True)
+    for p_cache_action in (
+        cache_sub.add_parser("get"),
+        cache_sub.add_parser("put"),
+        cache_sub.add_parser("invalidate"),
+    ):
+        p_cache_action.add_argument("--root", default=".")
+        p_cache_action.add_argument("--key")
+        p_cache_action.add_argument("--content-file")
+    cache_sub.choices["put"].add_argument("--summary-file", required=True)
+
+    p_runtime = sub.add_parser("runtime", help="runtime-facing dev-cli contracts")
+    runtime_sub = p_runtime.add_subparsers(dest="runtime_cmd", required=True)
+    p_runtime_doctor = runtime_sub.add_parser("doctor")
+    p_runtime_doctor.add_argument("--root", default=".")
+    p_runtime_doctor.add_argument("--json", action="store_true")
+
     a = ap.parse_args(argv)
     maybe_autoinstall(a.cmd)
     if a.cmd == "index":
@@ -629,10 +771,15 @@ def main(argv=None):
         index_repo(a.root_arg or a.root, a.stack)
     elif a.cmd == "smoke":
         from .providers import generate, info
+        from .runtime_contracts import smoke_contract
 
-        print("provider:", info())
+        provider = info()
         out = generate("Reply exactly: OK simplicio connected.")
-        print("model reply:", out.strip()[:200])
+        if a.json:
+            print(json.dumps(smoke_contract(provider=provider, reply=out, root=a.root), sort_keys=True))
+        else:
+            print("provider:", provider)
+            print("model reply:", out.strip()[:200])
     elif a.cmd == "bench":
         from .bench import run_bench
 
@@ -710,6 +857,12 @@ def main(argv=None):
         else:
             print("\n".join(shell_export_lines(values)))
         return 0
+    elif a.cmd == "mechanical-edit":
+        return _run_mechanical_edit_command(a)
+    elif a.cmd == "token":
+        return _run_token_command(a)
+    elif a.cmd == "runtime":
+        return _run_runtime_command(a)
     elif a.cmd == "task":
         return _run_task_command(a)
     elif a.cmd == "run":

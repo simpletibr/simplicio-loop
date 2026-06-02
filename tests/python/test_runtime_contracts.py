@@ -23,6 +23,7 @@ def test_doctor_contract_reports_ecosystem_tool_status(tmp_path, monkeypatch):
     assert result["tools"]["simplicio-mapper"]["available"] is True
     assert result["tools"]["simplicio-sprint"]["available"] is False
     assert result["packages"]["simplicio-cli"]["version"] == "1.2.3"
+    assert result["runtime"]["model"] == "openbmb/minicpm5:latest"
 
 
 def test_task_contract_wraps_existing_task_result_for_runtime_handoff(tmp_path):

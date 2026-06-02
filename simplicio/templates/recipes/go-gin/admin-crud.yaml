@@ -1,0 +1,35 @@
+{
+  "name": "admin-crud",
+  "description": "Gin admin-only JSON CRUD routes for one resource.",
+  "applies_to": ["go-gin"],
+  "matches": [
+    "(?i)\\badmin\\s+(?:panel|dashboard)\\s+(?:for|to\\s+manage)\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\badmin\\s+CRUD\\s+(?:for\\s+)?(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\badmin\\s+for\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b",
+    "(?i)\\bbackoffice\\s+(?:for|to\\s+manage)\\s+(?P<entity>[A-Za-z][A-Za-z0-9_-]*)\\b"
+  ],
+  "slots": {
+    "entity": {"required": true, "transform": "pascal_case"},
+    "entity_lower": {"derived_from": "entity", "transform": "lower_snake_case"},
+    "entity_plural": {"derived_from": "entity", "transform": "plural_lower"}
+  },
+  "rationale": "Use the go-gin admin CRUD recipe for {entity}: admin middleware and route handlers are deterministic.",
+  "files_to_create": [
+    {"path": "internal/http/router.go", "purpose": "Gin admin router and CRUD handlers for {entity}"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-gin-admin-crud",
+      "depends_on": [],
+      "goal": "Implement admin-only Gin CRUD routes for {entity}.",
+      "target": "internal/http/router.go",
+      "criteria": "- route group is /admin/{entity_plural}\\n- admin middleware protects every route\\n- list, create, update, and delete handlers are present",
+      "constraints": "- keep the service self-contained and typed",
+      "verify": "go test ./..."
+    }
+  ],
+  "deps_to_install": [],
+  "deps_dev": [],
+  "test_command": "go test ./...",
+  "lint_command": "go vet ./..."
+}

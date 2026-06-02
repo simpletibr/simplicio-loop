@@ -29,9 +29,16 @@ def _clean(tmp_path, monkeypatch):
         "SIMPLICIO_LOCAL_MODEL_FILE",
         "SIMPLICIO_LOCAL_MODEL_DIR",
         "SIMPLICIO_LOCAL_CTX",
+        "SIMPLICIO_LOCAL_CTX_MAX",
         "SIMPLICIO_LOCAL_THREADS",
+        "SIMPLICIO_LOCAL_THREADS_MAX",
         "SIMPLICIO_LOCAL_GPU_LAYERS",
+        "SIMPLICIO_LOCAL_BATCH",
+        "SIMPLICIO_LOCAL_BATCH_MAX",
+        "SIMPLICIO_LOCAL_UBATCH",
+        "SIMPLICIO_LOCAL_UBATCH_MAX",
         "SIMPLICIO_LOCAL_MAX_TOKENS",
+        "SIMPLICIO_LOCAL_MAX_TOKENS_CAP",
         "SIMPLICIO_LOCAL_TEMP",
     ):
         monkeypatch.delenv(v, raising=False)
@@ -51,6 +58,7 @@ def _clean(tmp_path, monkeypatch):
 
 def test_is_local_explicit_prefix():
     assert providers._is_local("local-llama/default", None) is True
+    assert providers._is_local("openbmb/minicpm5:latest", None) is True
     assert providers._is_local("local-llama/repo::a.gguf", "http://x") is True
 
 
@@ -130,7 +138,7 @@ def test_provider_id_local():
 
 def test_info_local_auto_default():
     s = providers.info()
-    assert "local-llama/default" in s
+    assert "openbmb/minicpm5:latest" in s
     assert "provider=local-llama" in s
     assert "key=not-needed" in s
     assert providers.LOCAL_DEFAULT_FILE in s
@@ -227,7 +235,7 @@ def test_resolve_local_path_default_does_not_try_legacy_qwen25(monkeypatch, tmp_
             providers.LOCAL_DEFAULT_REPO, providers.LOCAL_DEFAULT_FILE, None
         )
 
-    assert "Qwen_Qwen3.5-2B-Q6_K.gguf" in str(exc.value)
+    assert providers.LOCAL_DEFAULT_FILE in str(exc.value)
     assert len(fake.hf_hub_download.call_args_list) == 1
     assert (
         fake.hf_hub_download.call_args_list[0].kwargs["repo_id"]
@@ -273,26 +281,52 @@ def test_local_llama_loads_and_caches(monkeypatch):
     assert a is f and b is f
     Llama.assert_called_once()  # second call reused the cached instance
     kwargs = Llama.call_args[1]
-    assert kwargs["n_ctx"] == 8192
+    assert kwargs["n_ctx"] == providers.LOCAL_DEFAULT_CTX
+    assert kwargs["n_threads"] == providers.LOCAL_DEFAULT_THREADS
+    assert kwargs["n_batch"] == providers.LOCAL_DEFAULT_BATCH
+    assert kwargs["n_ubatch"] == providers.LOCAL_DEFAULT_UBATCH
     assert kwargs["n_gpu_layers"] == 0
+    assert kwargs["use_mmap"] is True
+    assert kwargs["use_mlock"] is False
     assert kwargs["verbose"] is False
 
 
-def test_local_llama_honours_ctx_threads_gpu(monkeypatch):
+def test_local_llama_clamps_ctx_threads_gpu_and_batch(monkeypatch):
     Llama = MagicMock(return_value=MagicMock())
     fake = types.ModuleType("llama_cpp")
     fake.Llama = Llama
     monkeypatch.setitem(sys.modules, "llama_cpp", fake)
     monkeypatch.setenv("SIMPLICIO_LOCAL_MODEL_PATH", _touch(monkeypatch))
     monkeypatch.setenv("SIMPLICIO_LOCAL_CTX", "16384")
+    monkeypatch.setenv("SIMPLICIO_LOCAL_CTX_MAX", "20000")
     monkeypatch.setenv("SIMPLICIO_LOCAL_THREADS", "6")
+    monkeypatch.setenv("SIMPLICIO_LOCAL_THREADS_MAX", "8")
     monkeypatch.setenv("SIMPLICIO_LOCAL_GPU_LAYERS", "20")
+    monkeypatch.setenv("SIMPLICIO_LOCAL_BATCH", "999")
+    monkeypatch.setenv("SIMPLICIO_LOCAL_UBATCH", "999")
 
     providers._local_llama("local-llama/default")
     kwargs = Llama.call_args[1]
-    assert kwargs["n_ctx"] == 16384
-    assert kwargs["n_threads"] == 6
-    assert kwargs["n_gpu_layers"] == 20
+    assert kwargs["n_ctx"] == providers.LOCAL_MAX_CTX
+    assert kwargs["n_threads"] == providers.LOCAL_MAX_THREADS
+    assert kwargs["n_gpu_layers"] == 0
+    assert kwargs["n_batch"] == providers.LOCAL_MAX_BATCH
+    assert kwargs["n_ubatch"] == providers.LOCAL_MAX_UBATCH
+
+
+def test_local_llama_clamps_unsafe_ctx_and_threads(monkeypatch):
+    Llama = MagicMock(return_value=MagicMock())
+    fake = types.ModuleType("llama_cpp")
+    fake.Llama = Llama
+    monkeypatch.setitem(sys.modules, "llama_cpp", fake)
+    monkeypatch.setenv("SIMPLICIO_LOCAL_MODEL_PATH", _touch(monkeypatch))
+    monkeypatch.setenv("SIMPLICIO_LOCAL_CTX", "999999")
+    monkeypatch.setenv("SIMPLICIO_LOCAL_THREADS", "999")
+
+    providers._local_llama("local-llama/default")
+    kwargs = Llama.call_args[1]
+    assert kwargs["n_ctx"] == providers.LOCAL_MAX_CTX
+    assert kwargs["n_threads"] == providers.LOCAL_MAX_THREADS
 
 
 # --------------------------------------------------------------------------- #
@@ -314,11 +348,11 @@ def test_generate_routes_to_local_llama_by_default(monkeypatch):
     monkeypatch.setattr(providers, "_local_generate", fake_local)
     out = providers.generate("do x", max_tokens=128)
     assert out == "GGUF OK"
-    assert calls[0][1] == "local-llama/default"
+    assert calls[0][1] == providers.LOCAL_DEFAULT_MODEL
     assert calls[0][2] == 128
 
 
-def test_generate_default_local_uses_qwen_gguf(monkeypatch):
+def test_generate_default_local_uses_minicpm_gguf(monkeypatch):
     calls = []
 
     def fake_local(prompt, feedback, model, max_tokens):
@@ -328,7 +362,7 @@ def test_generate_default_local_uses_qwen_gguf(monkeypatch):
     monkeypatch.setattr(providers, "_local_generate", fake_local)
     out = providers.generate("do x", max_tokens=128)
     assert out == "GGUF OK"
-    assert calls[0][1] == "local-llama/default"
+    assert calls[0][1] == providers.LOCAL_DEFAULT_MODEL
 
 
 def test_generate_local_explicit_prefix(monkeypatch):
@@ -363,7 +397,7 @@ def test_generate_no_model_with_base_still_raises(monkeypatch):
     with pytest.raises(SystemExit) as exc:
         providers.generate("x")
     assert "SIMPLICIO_MODEL" in str(exc.value)
-    assert "local-llama" in str(exc.value)
+    assert "openbmb/minicpm5:latest" in str(exc.value)
 
 
 def test_local_generate_caps_tokens_and_temp(monkeypatch):
@@ -380,6 +414,19 @@ def test_local_generate_caps_tokens_and_temp(monkeypatch):
     kwargs = llm.create_chat_completion.call_args[1]
     assert kwargs["max_tokens"] == 256  # cap overrides the 4000 arg
     assert kwargs["temperature"] == 0.4
+
+
+def test_local_generate_clamps_unsafe_token_cap(monkeypatch):
+    llm = MagicMock()
+    llm.create_chat_completion.return_value = {
+        "choices": [{"message": {"content": "hi"}}]
+    }
+    monkeypatch.setattr(providers, "_local_llama", lambda model: llm)
+    monkeypatch.setenv("SIMPLICIO_LOCAL_MAX_TOKENS", "999999")
+
+    providers._local_generate("p", None, "local-llama/default", 4000)
+    kwargs = llm.create_chat_completion.call_args[1]
+    assert kwargs["max_tokens"] == providers.LOCAL_MAX_OUTPUT_TOKENS
 
 
 def test_generate_cache_key_includes_weights(monkeypatch):

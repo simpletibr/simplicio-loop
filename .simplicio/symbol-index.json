@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.symbol-index/v1",
   "version": 1,
-  "generated_at": "2026-06-02T12:51:28.123Z",
+  "generated_at": "2026-06-02T15:00:04.800Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
   "symbols": [
     {
@@ -7162,10 +7162,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 129,
+      "line": 131,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 129
+        "line": 131
       }
     },
     {
@@ -7174,10 +7174,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 170,
+      "line": 172,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 170
+        "line": 172
       }
     },
     {
@@ -7186,10 +7186,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 177,
+      "line": 179,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 177
+        "line": 179
       }
     },
     {
@@ -7198,10 +7198,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 202,
+      "line": 204,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 202
+        "line": 204
       }
     },
     {
@@ -7210,10 +7210,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 234,
+      "line": 236,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 234
+        "line": 236
       }
     },
     {
@@ -7222,10 +7222,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 241,
+      "line": 243,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 241
+        "line": 243
       }
     },
     {
@@ -7234,10 +7234,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 402,
+      "line": 404,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 402
+        "line": 404
       }
     },
     {
@@ -7246,10 +7246,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 430,
+      "line": 432,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 430
+        "line": 432
       }
     },
     {
@@ -7258,10 +7258,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 437,
+      "line": 439,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 437
+        "line": 439
       }
     },
     {
@@ -7270,10 +7270,58 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 476,
+      "line": 478,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 476
+        "line": 478
+      }
+    },
+    {
+      "name": "_read_text_source",
+      "qualified_name": "simplicio/cli.py::_read_text_source",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/cli.py",
+      "line": 519,
+      "evidence": {
+        "file": "simplicio/cli.py",
+        "line": 519
+      }
+    },
+    {
+      "name": "_run_mechanical_edit_command",
+      "qualified_name": "simplicio/cli.py::_run_mechanical_edit_command",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/cli.py",
+      "line": 525,
+      "evidence": {
+        "file": "simplicio/cli.py",
+        "line": 525
+      }
+    },
+    {
+      "name": "_run_token_command",
+      "qualified_name": "simplicio/cli.py::_run_token_command",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/cli.py",
+      "line": 545,
+      "evidence": {
+        "file": "simplicio/cli.py",
+        "line": 545
+      }
+    },
+    {
+      "name": "_run_runtime_command",
+      "qualified_name": "simplicio/cli.py::_run_runtime_command",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/cli.py",
+      "line": 594,
+      "evidence": {
+        "file": "simplicio/cli.py",
+        "line": 594
       }
     },
     {
@@ -7282,10 +7330,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 517,
+      "line": 611,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 517
+        "line": 611
       }
     },
     {
@@ -7294,10 +7342,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/cli.py",
-      "line": 547,
+      "line": 641,
       "evidence": {
         "file": "simplicio/cli.py",
-        "line": 547
+        "line": 641
       }
     },
     {
@@ -8201,6 +8249,366 @@
       }
     },
     {
+      "name": "execute_plan_json",
+      "qualified_name": "simplicio/mechanical_edit.py::execute_plan_json",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 28,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 28
+      }
+    },
+    {
+      "name": "execute_plan",
+      "qualified_name": "simplicio/mechanical_edit.py::execute_plan",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 56,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 56
+      }
+    },
+    {
+      "name": "MechanicalEditError",
+      "qualified_name": "simplicio/mechanical_edit.py::MechanicalEditError",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 124,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 124
+      }
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "simplicio/mechanical_edit.py::__init__",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 127,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 127
+      }
+    },
+    {
+      "name": "to_dict",
+      "qualified_name": "simplicio/mechanical_edit.py::to_dict",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 132,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 132
+      }
+    },
+    {
+      "name": "_validate_shape",
+      "qualified_name": "simplicio/mechanical_edit.py::_validate_shape",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 135,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 135
+      }
+    },
+    {
+      "name": "_declared_touched_files",
+      "qualified_name": "simplicio/mechanical_edit.py::_declared_touched_files",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 170,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 170
+      }
+    },
+    {
+      "name": "_validate_paths",
+      "qualified_name": "simplicio/mechanical_edit.py::_validate_paths",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 186,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 186
+      }
+    },
+    {
+      "name": "_validate_overlaps",
+      "qualified_name": "simplicio/mechanical_edit.py::_validate_overlaps",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 224,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 224
+      }
+    },
+    {
+      "name": "_snapshot",
+      "qualified_name": "simplicio/mechanical_edit.py::_snapshot",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 251,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 251
+      }
+    },
+    {
+      "name": "_apply_operations_to_snapshot",
+      "qualified_name": "simplicio/mechanical_edit.py::_apply_operations_to_snapshot",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 265,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 265
+      }
+    },
+    {
+      "name": "_operation_order",
+      "qualified_name": "simplicio/mechanical_edit.py::_operation_order",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 302,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 302
+      }
+    },
+    {
+      "name": "_check_text_preconditions",
+      "qualified_name": "simplicio/mechanical_edit.py::_check_text_preconditions",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 314,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 314
+      }
+    },
+    {
+      "name": "_check_file_hash",
+      "qualified_name": "simplicio/mechanical_edit.py::_check_file_hash",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 345,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 345
+      }
+    },
+    {
+      "name": "_apply_text_operation",
+      "qualified_name": "simplicio/mechanical_edit.py::_apply_text_operation",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 362,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 362
+      }
+    },
+    {
+      "name": "_apply_json_patch",
+      "qualified_name": "simplicio/mechanical_edit.py::_apply_json_patch",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 385,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 385
+      }
+    },
+    {
+      "name": "_apply_json_patch_row",
+      "qualified_name": "simplicio/mechanical_edit.py::_apply_json_patch_row",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 403,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 403
+      }
+    },
+    {
+      "name": "_json_pointer_parent",
+      "qualified_name": "simplicio/mechanical_edit.py::_json_pointer_parent",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 424,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 424
+      }
+    },
+    {
+      "name": "_apply_ast_patch",
+      "qualified_name": "simplicio/mechanical_edit.py::_apply_ast_patch",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 434,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 434
+      }
+    },
+    {
+      "name": "_selected_range",
+      "qualified_name": "simplicio/mechanical_edit.py::_selected_range",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 461,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 461
+      }
+    },
+    {
+      "name": "_build_diff",
+      "qualified_name": "simplicio/mechanical_edit.py::_build_diff",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 468,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 468
+      }
+    },
+    {
+      "name": "_decode_for_diff",
+      "qualified_name": "simplicio/mechanical_edit.py::_decode_for_diff",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 486,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 486
+      }
+    },
+    {
+      "name": "_backup_existing",
+      "qualified_name": "simplicio/mechanical_edit.py::_backup_existing",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 495,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 495
+      }
+    },
+    {
+      "name": "_write_snapshot",
+      "qualified_name": "simplicio/mechanical_edit.py::_write_snapshot",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 503,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 503
+      }
+    },
+    {
+      "name": "_restore",
+      "qualified_name": "simplicio/mechanical_edit.py::_restore",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 514,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 514
+      }
+    },
+    {
+      "name": "_run_validation",
+      "qualified_name": "simplicio/mechanical_edit.py::_run_validation",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 525,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 525
+      }
+    },
+    {
+      "name": "_file_hash_rows",
+      "qualified_name": "simplicio/mechanical_edit.py::_file_hash_rows",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 578,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 578
+      }
+    },
+    {
+      "name": "_safe_path",
+      "qualified_name": "simplicio/mechanical_edit.py::_safe_path",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 598,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 598
+      }
+    },
+    {
+      "name": "_base_result",
+      "qualified_name": "simplicio/mechanical_edit.py::_base_result",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 609,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 609
+      }
+    },
+    {
+      "name": "_refused",
+      "qualified_name": "simplicio/mechanical_edit.py::_refused",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 613,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 613
+      }
+    },
+    {
       "name": "estimate_tokens",
       "qualified_name": "simplicio/observability.py::estimate_tokens",
       "kind": "function",
@@ -9070,10 +9478,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 89,
+      "line": 100,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 89
+        "line": 100
       }
     },
     {
@@ -9082,10 +9490,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 100,
+      "line": 111,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 100
+        "line": 111
       }
     },
     {
@@ -9094,10 +9502,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 107,
+      "line": 118,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 107
+        "line": 118
       }
     },
     {
@@ -9106,39 +9514,15 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 135,
+      "line": 149,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 135
+        "line": 149
       }
     },
     {
       "name": "_is_gguf_file",
       "qualified_name": "simplicio/providers.py::_is_gguf_file",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio/providers.py",
-      "line": 139,
-      "evidence": {
-        "file": "simplicio/providers.py",
-        "line": 139
-      }
-    },
-    {
-      "name": "_local_candidates",
-      "qualified_name": "simplicio/providers.py::_local_candidates",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio/providers.py",
-      "line": 148,
-      "evidence": {
-        "file": "simplicio/providers.py",
-        "line": 148
-      }
-    },
-    {
-      "name": "_resolve_local_path",
-      "qualified_name": "simplicio/providers.py::_resolve_local_path",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
@@ -9149,15 +9533,123 @@
       }
     },
     {
+      "name": "_local_candidates",
+      "qualified_name": "simplicio/providers.py::_local_candidates",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/providers.py",
+      "line": 162,
+      "evidence": {
+        "file": "simplicio/providers.py",
+        "line": 162
+      }
+    },
+    {
+      "name": "_resolve_local_path",
+      "qualified_name": "simplicio/providers.py::_resolve_local_path",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/providers.py",
+      "line": 167,
+      "evidence": {
+        "file": "simplicio/providers.py",
+        "line": 167
+      }
+    },
+    {
+      "name": "_bounded_int",
+      "qualified_name": "simplicio/providers.py::_bounded_int",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/providers.py",
+      "line": 206,
+      "evidence": {
+        "file": "simplicio/providers.py",
+        "line": 206
+      }
+    },
+    {
+      "name": "_safe_local_ctx",
+      "qualified_name": "simplicio/providers.py::_safe_local_ctx",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/providers.py",
+      "line": 222,
+      "evidence": {
+        "file": "simplicio/providers.py",
+        "line": 222
+      }
+    },
+    {
+      "name": "_safe_local_threads",
+      "qualified_name": "simplicio/providers.py::_safe_local_threads",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/providers.py",
+      "line": 227,
+      "evidence": {
+        "file": "simplicio/providers.py",
+        "line": 227
+      }
+    },
+    {
+      "name": "_safe_local_batch",
+      "qualified_name": "simplicio/providers.py::_safe_local_batch",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/providers.py",
+      "line": 237,
+      "evidence": {
+        "file": "simplicio/providers.py",
+        "line": 237
+      }
+    },
+    {
+      "name": "_safe_local_ubatch",
+      "qualified_name": "simplicio/providers.py::_safe_local_ubatch",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/providers.py",
+      "line": 245,
+      "evidence": {
+        "file": "simplicio/providers.py",
+        "line": 245
+      }
+    },
+    {
+      "name": "_safe_local_gpu_layers",
+      "qualified_name": "simplicio/providers.py::_safe_local_gpu_layers",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/providers.py",
+      "line": 255,
+      "evidence": {
+        "file": "simplicio/providers.py",
+        "line": 255
+      }
+    },
+    {
+      "name": "_safe_local_max_tokens",
+      "qualified_name": "simplicio/providers.py::_safe_local_max_tokens",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/providers.py",
+      "line": 267,
+      "evidence": {
+        "file": "simplicio/providers.py",
+        "line": 267
+      }
+    },
+    {
       "name": "_local_llama",
       "qualified_name": "simplicio/providers.py::_local_llama",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 192,
+      "line": 279,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 192
+        "line": 279
       }
     },
     {
@@ -9166,10 +9658,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 221,
+      "line": 313,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 221
+        "line": 313
       }
     },
     {
@@ -9178,10 +9670,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 235,
+      "line": 326,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 235
+        "line": 326
       }
     },
     {
@@ -9190,10 +9682,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 247,
+      "line": 338,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 247
+        "line": 338
       }
     },
     {
@@ -9202,10 +9694,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 284,
+      "line": 375,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 284
+        "line": 375
       }
     },
     {
@@ -9214,10 +9706,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 293,
+      "line": 384,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 293
+        "line": 384
       }
     },
     {
@@ -9226,10 +9718,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 300,
+      "line": 391,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 300
+        "line": 391
       }
     },
     {
@@ -9238,10 +9730,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 309,
+      "line": 400,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 309
+        "line": 400
       }
     },
     {
@@ -9250,10 +9742,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 315,
+      "line": 406,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 315
+        "line": 406
       }
     },
     {
@@ -9262,10 +9754,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 341,
+      "line": 432,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 341
+        "line": 432
       }
     },
     {
@@ -9274,10 +9766,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 351,
+      "line": 442,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 351
+        "line": 442
       }
     },
     {
@@ -9286,10 +9778,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 447,
+      "line": 538,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 447
+        "line": 538
       }
     },
     {
@@ -9298,10 +9790,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 515,
+      "line": 606,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 515
+        "line": 606
       }
     },
     {
@@ -9310,10 +9802,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 576,
+      "line": 667,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 576
+        "line": 667
       }
     },
     {
@@ -9322,10 +9814,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 591,
+      "line": 682,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 591
+        "line": 682
       }
     },
     {
@@ -9334,10 +9826,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 602,
+      "line": 693,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 602
+        "line": 693
       }
     },
     {
@@ -9346,10 +9838,82 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/providers.py",
-      "line": 684,
+      "line": 775,
       "evidence": {
         "file": "simplicio/providers.py",
-        "line": 684
+        "line": 775
+      }
+    },
+    {
+      "name": "doctor_contract",
+      "qualified_name": "simplicio/runtime_contracts.py::doctor_contract",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/runtime_contracts.py",
+      "line": 12,
+      "evidence": {
+        "file": "simplicio/runtime_contracts.py",
+        "line": 12
+      }
+    },
+    {
+      "name": "task_contract",
+      "qualified_name": "simplicio/runtime_contracts.py::task_contract",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/runtime_contracts.py",
+      "line": 48,
+      "evidence": {
+        "file": "simplicio/runtime_contracts.py",
+        "line": 48
+      }
+    },
+    {
+      "name": "smoke_contract",
+      "qualified_name": "simplicio/runtime_contracts.py::smoke_contract",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/runtime_contracts.py",
+      "line": 59,
+      "evidence": {
+        "file": "simplicio/runtime_contracts.py",
+        "line": 59
+      }
+    },
+    {
+      "name": "run_contract",
+      "qualified_name": "simplicio/runtime_contracts.py::run_contract",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/runtime_contracts.py",
+      "line": 69,
+      "evidence": {
+        "file": "simplicio/runtime_contracts.py",
+        "line": 69
+      }
+    },
+    {
+      "name": "_tool_status",
+      "qualified_name": "simplicio/runtime_contracts.py::_tool_status",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/runtime_contracts.py",
+      "line": 79,
+      "evidence": {
+        "file": "simplicio/runtime_contracts.py",
+        "line": 79
+      }
+    },
+    {
+      "name": "_package_version",
+      "qualified_name": "simplicio/runtime_contracts.py::_package_version",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/runtime_contracts.py",
+      "line": 84,
+      "evidence": {
+        "file": "simplicio/runtime_contracts.py",
+        "line": 84
       }
     },
     {
@@ -14153,6 +14717,210 @@
       }
     },
     {
+      "name": "sha256_text",
+      "qualified_name": "simplicio/token_primitives.py::sha256_text",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 19,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 19
+      }
+    },
+    {
+      "name": "summarize_log",
+      "qualified_name": "simplicio/token_primitives.py::summarize_log",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 25,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 25
+      }
+    },
+    {
+      "name": "git_diff_review",
+      "qualified_name": "simplicio/token_primitives.py::git_diff_review",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 71,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 71
+      }
+    },
+    {
+      "name": "ContextCache",
+      "qualified_name": "simplicio/token_primitives.py::ContextCache",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 100,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 100
+      }
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "simplicio/token_primitives.py::__init__",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 104,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 104
+      }
+    },
+    {
+      "name": "get",
+      "qualified_name": "simplicio/token_primitives.py::get",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 108,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 108
+      }
+    },
+    {
+      "name": "put",
+      "qualified_name": "simplicio/token_primitives.py::put",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 136,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 136
+      }
+    },
+    {
+      "name": "invalidate",
+      "qualified_name": "simplicio/token_primitives.py::invalidate",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 151,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 151
+      }
+    },
+    {
+      "name": "_read",
+      "qualified_name": "simplicio/token_primitives.py::_read",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 163,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 163
+      }
+    },
+    {
+      "name": "evaluate_postconditions",
+      "qualified_name": "simplicio/token_primitives.py::evaluate_postconditions",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 172,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 172
+      }
+    },
+    {
+      "name": "build_retry_payload",
+      "qualified_name": "simplicio/token_primitives.py::build_retry_payload",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 183,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 183
+      }
+    },
+    {
+      "name": "model_routing_decision",
+      "qualified_name": "simplicio/token_primitives.py::model_routing_decision",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 203,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 203
+      }
+    },
+    {
+      "name": "codemod_plan",
+      "qualified_name": "simplicio/token_primitives.py::codemod_plan",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 233,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 233
+      }
+    },
+    {
+      "name": "_evaluate_one_postcondition",
+      "qualified_name": "simplicio/token_primitives.py::_evaluate_one_postcondition",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 251,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 251
+      }
+    },
+    {
+      "name": "_compact_text",
+      "qualified_name": "simplicio/token_primitives.py::_compact_text",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 295,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 295
+      }
+    },
+    {
+      "name": "_run_git",
+      "qualified_name": "simplicio/token_primitives.py::_run_git",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 306,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 306
+      }
+    },
+    {
+      "name": "_numstat_int",
+      "qualified_name": "simplicio/token_primitives.py::_numstat_int",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/token_primitives.py",
+      "line": 316,
+      "evidence": {
+        "file": "simplicio/token_primitives.py",
+        "line": 316
+      }
+    },
+    {
       "name": "load_project_map",
       "qualified_name": "simplicio/utils/cache.py::load_project_map",
       "kind": "function",
@@ -15317,8 +16085,8 @@
       }
     },
     {
-      "name": "test_apple_silicon_profile_can_run_qwen_gguf_at_24gb",
-      "qualified_name": "tests/python/test_local_models.py::test_apple_silicon_profile_can_run_qwen_gguf_at_24gb",
+      "name": "test_apple_silicon_profile_can_run_minicpm_gguf_at_24gb",
+      "qualified_name": "tests/python/test_local_models.py::test_apple_silicon_profile_can_run_minicpm_gguf_at_24gb",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_local_models.py",
@@ -15761,6 +16529,150 @@
       }
     },
     {
+      "name": "_write",
+      "qualified_name": "tests/python/test_mechanical_edit.py::_write",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 8,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 8
+      }
+    },
+    {
+      "name": "_sha",
+      "qualified_name": "tests/python/test_mechanical_edit.py::_sha",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 16,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 16
+      }
+    },
+    {
+      "name": "_plan",
+      "qualified_name": "tests/python/test_mechanical_edit.py::_plan",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 22,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 22
+      }
+    },
+    {
+      "name": "test_dry_run_and_apply_replace_range_contract",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_dry_run_and_apply_replace_range_contract",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 30,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 30
+      }
+    },
+    {
+      "name": "test_strict_json_refuses_prose_wrapped_plan",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_strict_json_refuses_prose_wrapped_plan",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 61,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 61
+      }
+    },
+    {
+      "name": "test_refuses_file_hash_mismatch",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_refuses_file_hash_mismatch",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 71,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 71
+      }
+    },
+    {
+      "name": "test_refuses_edit_outside_declared_allowlist",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_refuses_edit_outside_declared_allowlist",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 90,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 90
+      }
+    },
+    {
+      "name": "test_refuses_overlapping_operations_without_order",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_refuses_overlapping_operations_without_order",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 112,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 112
+      }
+    },
+    {
+      "name": "test_refuses_text_operation_on_binary_file",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_refuses_text_operation_on_binary_file",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 140,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 140
+      }
+    },
+    {
+      "name": "test_validation_failure_rolls_back_and_returns_compact_evidence",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_validation_failure_rolls_back_and_returns_compact_evidence",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 157,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 157
+      }
+    },
+    {
+      "name": "test_noop_result_is_machine_readable_and_compact",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_noop_result_is_machine_readable_and_compact",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 190,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 190
+      }
+    },
+    {
+      "name": "test_cli_json_contract_for_dry_run",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_cli_json_contract_for_dry_run",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 208,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 208
+      }
+    },
+    {
       "name": "_plan",
       "qualified_name": "tests/python/test_orchestrator_feature.py::_plan",
       "kind": "function",
@@ -16130,6 +17042,18 @@
       "evidence": {
         "file": "tests/python/test_package_metadata.py",
         "line": 13
+      }
+    },
+    {
+      "name": "test_dev_cli_entrypoint_is_available_for_runtime_adapter",
+      "qualified_name": "tests/python/test_package_metadata.py::test_dev_cli_entrypoint_is_available_for_runtime_adapter",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_package_metadata.py",
+      "line": 20,
+      "evidence": {
+        "file": "tests/python/test_package_metadata.py",
+        "line": 20
       }
     },
     {
@@ -16546,10 +17470,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 50,
+      "line": 57,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 50
+        "line": 57
       }
     },
     {
@@ -16558,10 +17482,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 55,
+      "line": 63,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 55
+        "line": 63
       }
     },
     {
@@ -16570,10 +17494,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 61,
+      "line": 69,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 61
+        "line": 69
       }
     },
     {
@@ -16582,10 +17506,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 65,
+      "line": 73,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 65
+        "line": 73
       }
     },
     {
@@ -16594,10 +17518,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 75,
+      "line": 83,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 75
+        "line": 83
       }
     },
     {
@@ -16606,10 +17530,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 82,
+      "line": 90,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 82
+        "line": 90
       }
     },
     {
@@ -16618,10 +17542,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 88,
+      "line": 96,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 88
+        "line": 96
       }
     },
     {
@@ -16630,10 +17554,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 95,
+      "line": 103,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 95
+        "line": 103
       }
     },
     {
@@ -16642,10 +17566,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 101,
+      "line": 109,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 101
+        "line": 109
       }
     },
     {
@@ -16654,10 +17578,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 108,
+      "line": 116,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 108
+        "line": 116
       }
     },
     {
@@ -16666,10 +17590,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 114,
+      "line": 122,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 114
+        "line": 122
       }
     },
     {
@@ -16678,27 +17602,15 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 125,
+      "line": 133,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 125
+        "line": 133
       }
     },
     {
       "name": "test_info_local_auto_default",
       "qualified_name": "tests/python/test_providers_local.py::test_info_local_auto_default",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_providers_local.py",
-      "line": 129,
-      "evidence": {
-        "file": "tests/python/test_providers_local.py",
-        "line": 129
-      }
-    },
-    {
-      "name": "test_info_local_explicit",
-      "qualified_name": "tests/python/test_providers_local.py::test_info_local_explicit",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
@@ -16709,15 +17621,27 @@
       }
     },
     {
+      "name": "test_info_local_explicit",
+      "qualified_name": "tests/python/test_providers_local.py::test_info_local_explicit",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_providers_local.py",
+      "line": 145,
+      "evidence": {
+        "file": "tests/python/test_providers_local.py",
+        "line": 145
+      }
+    },
+    {
       "name": "test_resolve_local_path_missing_file_raises",
       "qualified_name": "tests/python/test_providers_local.py::test_resolve_local_path_missing_file_raises",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 149,
+      "line": 157,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 149
+        "line": 157
       }
     },
     {
@@ -16726,10 +17650,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 155,
+      "line": 163,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 155
+        "line": 163
       }
     },
     {
@@ -16738,10 +17662,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 161,
+      "line": 169,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 161
+        "line": 169
       }
     },
     {
@@ -16750,10 +17674,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 178,
+      "line": 186,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 178
+        "line": 186
       }
     },
     {
@@ -16762,10 +17686,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 196,
+      "line": 204,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 196
+        "line": 204
       }
     },
     {
@@ -16774,10 +17698,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 217,
+      "line": 225,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 217
+        "line": 225
       }
     },
     {
@@ -16786,27 +17710,15 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 240,
+      "line": 248,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 240
+        "line": 248
       }
     },
     {
       "name": "test_local_llama_missing_backend_raises",
       "qualified_name": "tests/python/test_providers_local.py::test_local_llama_missing_backend_raises",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_providers_local.py",
-      "line": 253,
-      "evidence": {
-        "file": "tests/python/test_providers_local.py",
-        "line": 253
-      }
-    },
-    {
-      "name": "test_local_llama_loads_and_caches",
-      "qualified_name": "tests/python/test_providers_local.py::test_local_llama_loads_and_caches",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
@@ -16817,15 +17729,39 @@
       }
     },
     {
-      "name": "test_local_llama_honours_ctx_threads_gpu",
-      "qualified_name": "tests/python/test_providers_local.py::test_local_llama_honours_ctx_threads_gpu",
+      "name": "test_local_llama_loads_and_caches",
+      "qualified_name": "tests/python/test_providers_local.py::test_local_llama_loads_and_caches",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 279,
+      "line": 269,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 279
+        "line": 269
+      }
+    },
+    {
+      "name": "test_local_llama_clamps_ctx_threads_gpu_and_batch",
+      "qualified_name": "tests/python/test_providers_local.py::test_local_llama_clamps_ctx_threads_gpu_and_batch",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_providers_local.py",
+      "line": 292,
+      "evidence": {
+        "file": "tests/python/test_providers_local.py",
+        "line": 292
+      }
+    },
+    {
+      "name": "test_local_llama_clamps_unsafe_ctx_and_threads",
+      "qualified_name": "tests/python/test_providers_local.py::test_local_llama_clamps_unsafe_ctx_and_threads",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_providers_local.py",
+      "line": 315,
+      "evidence": {
+        "file": "tests/python/test_providers_local.py",
+        "line": 315
       }
     },
     {
@@ -16834,10 +17770,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 301,
+      "line": 335,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 301
+        "line": 335
       }
     },
     {
@@ -16846,10 +17782,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 305,
+      "line": 339,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 305
+        "line": 339
       }
     },
     {
@@ -16858,22 +17794,22 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 308,
+      "line": 342,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 308
+        "line": 342
       }
     },
     {
-      "name": "test_generate_default_local_uses_qwen_gguf",
-      "qualified_name": "tests/python/test_providers_local.py::test_generate_default_local_uses_qwen_gguf",
+      "name": "test_generate_default_local_uses_minicpm_gguf",
+      "qualified_name": "tests/python/test_providers_local.py::test_generate_default_local_uses_minicpm_gguf",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 319,
+      "line": 353,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 319
+        "line": 353
       }
     },
     {
@@ -16882,10 +17818,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 323,
+      "line": 357,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 323
+        "line": 357
       }
     },
     {
@@ -16894,10 +17830,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 332,
+      "line": 366,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 332
+        "line": 366
       }
     },
     {
@@ -16906,10 +17842,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 336,
+      "line": 370,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 336
+        "line": 370
       }
     },
     {
@@ -16918,51 +17854,15 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 345,
+      "line": 379,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 345
+        "line": 379
       }
     },
     {
       "name": "fake_local",
       "qualified_name": "tests/python/test_providers_local.py::fake_local",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_providers_local.py",
-      "line": 349,
-      "evidence": {
-        "file": "tests/python/test_providers_local.py",
-        "line": 349
-      }
-    },
-    {
-      "name": "test_generate_no_model_with_base_still_raises",
-      "qualified_name": "tests/python/test_providers_local.py::test_generate_no_model_with_base_still_raises",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_providers_local.py",
-      "line": 359,
-      "evidence": {
-        "file": "tests/python/test_providers_local.py",
-        "line": 359
-      }
-    },
-    {
-      "name": "test_local_generate_caps_tokens_and_temp",
-      "qualified_name": "tests/python/test_providers_local.py::test_local_generate_caps_tokens_and_temp",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_providers_local.py",
-      "line": 367,
-      "evidence": {
-        "file": "tests/python/test_providers_local.py",
-        "line": 367
-      }
-    },
-    {
-      "name": "test_generate_cache_key_includes_weights",
-      "qualified_name": "tests/python/test_providers_local.py::test_generate_cache_key_includes_weights",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
@@ -16973,15 +17873,63 @@
       }
     },
     {
+      "name": "test_generate_no_model_with_base_still_raises",
+      "qualified_name": "tests/python/test_providers_local.py::test_generate_no_model_with_base_still_raises",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_providers_local.py",
+      "line": 393,
+      "evidence": {
+        "file": "tests/python/test_providers_local.py",
+        "line": 393
+      }
+    },
+    {
+      "name": "test_local_generate_caps_tokens_and_temp",
+      "qualified_name": "tests/python/test_providers_local.py::test_local_generate_caps_tokens_and_temp",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_providers_local.py",
+      "line": 401,
+      "evidence": {
+        "file": "tests/python/test_providers_local.py",
+        "line": 401
+      }
+    },
+    {
+      "name": "test_local_generate_clamps_unsafe_token_cap",
+      "qualified_name": "tests/python/test_providers_local.py::test_local_generate_clamps_unsafe_token_cap",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_providers_local.py",
+      "line": 417,
+      "evidence": {
+        "file": "tests/python/test_providers_local.py",
+        "line": 417
+      }
+    },
+    {
+      "name": "test_generate_cache_key_includes_weights",
+      "qualified_name": "tests/python/test_providers_local.py::test_generate_cache_key_includes_weights",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_providers_local.py",
+      "line": 430,
+      "evidence": {
+        "file": "tests/python/test_providers_local.py",
+        "line": 430
+      }
+    },
+    {
       "name": "fake_local",
       "qualified_name": "tests/python/test_providers_local.py::fake_local",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 388,
+      "line": 435,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 388
+        "line": 435
       }
     },
     {
@@ -16990,10 +17938,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_providers_local.py",
-      "line": 405,
+      "line": 452,
       "evidence": {
         "file": "tests/python/test_providers_local.py",
-        "line": 405
+        "line": 452
       }
     },
     {
@@ -17273,15 +18221,39 @@
       }
     },
     {
+      "name": "test_new_llm_reduction_recipe_types_match_for_fastapi",
+      "qualified_name": "tests/python/test_recipe_expansion.py::test_new_llm_reduction_recipe_types_match_for_fastapi",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_recipe_expansion.py",
+      "line": 18,
+      "evidence": {
+        "file": "tests/python/test_recipe_expansion.py",
+        "line": 18
+      }
+    },
+    {
+      "name": "test_admin_crud_parity_for_remaining_web_stacks",
+      "qualified_name": "tests/python/test_recipe_expansion.py::test_admin_crud_parity_for_remaining_web_stacks",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_recipe_expansion.py",
+      "line": 43,
+      "evidence": {
+        "file": "tests/python/test_recipe_expansion.py",
+        "line": 43
+      }
+    },
+    {
       "name": "test_registry_loads_three_pilot_recipes_for_each_stack",
       "qualified_name": "tests/python/test_recipes.py::test_registry_loads_three_pilot_recipes_for_each_stack",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 81,
+      "line": 80,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 81
+        "line": 80
       }
     },
     {
@@ -17290,10 +18262,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 101,
+      "line": 100,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 101
+        "line": 100
       }
     },
     {
@@ -17302,10 +18274,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 119,
+      "line": 118,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 119
+        "line": 118
       }
     },
     {
@@ -17314,10 +18286,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 133,
+      "line": 132,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 133
+        "line": 132
       }
     },
     {
@@ -17326,10 +18298,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 154,
+      "line": 153,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 154
+        "line": 153
       }
     },
     {
@@ -17338,10 +18310,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 162,
+      "line": 161,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 162
+        "line": 161
       }
     },
     {
@@ -17350,10 +18322,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 175,
+      "line": 174,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 175
+        "line": 174
       }
     },
     {
@@ -17362,10 +18334,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 191,
+      "line": 190,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 191
+        "line": 190
       }
     },
     {
@@ -17374,10 +18346,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 211,
+      "line": 210,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 211
+        "line": 210
       }
     },
     {
@@ -17386,10 +18358,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 228,
+      "line": 227,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 228
+        "line": 227
       }
     },
     {
@@ -17398,10 +18370,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 245,
+      "line": 244,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 245
+        "line": 244
       }
     },
     {
@@ -17410,10 +18382,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 262,
+      "line": 261,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 262
+        "line": 261
       }
     },
     {
@@ -17422,10 +18394,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 300,
+      "line": 299,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 300
+        "line": 299
       }
     },
     {
@@ -17434,10 +18406,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 313,
+      "line": 312,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 313
+        "line": 312
       }
     },
     {
@@ -17894,6 +18866,66 @@
       "evidence": {
         "file": "tests/python/test_run_cli.py",
         "line": 773
+      }
+    },
+    {
+      "name": "test_doctor_contract_reports_ecosystem_tool_status",
+      "qualified_name": "tests/python/test_runtime_contracts.py::test_doctor_contract_reports_ecosystem_tool_status",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_runtime_contracts.py",
+      "line": 7,
+      "evidence": {
+        "file": "tests/python/test_runtime_contracts.py",
+        "line": 7
+      }
+    },
+    {
+      "name": "fake_which",
+      "qualified_name": "tests/python/test_runtime_contracts.py::fake_which",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_runtime_contracts.py",
+      "line": 10,
+      "evidence": {
+        "file": "tests/python/test_runtime_contracts.py",
+        "line": 10
+      }
+    },
+    {
+      "name": "test_task_contract_wraps_existing_task_result_for_runtime_handoff",
+      "qualified_name": "tests/python/test_runtime_contracts.py::test_task_contract_wraps_existing_task_result_for_runtime_handoff",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_runtime_contracts.py",
+      "line": 27,
+      "evidence": {
+        "file": "tests/python/test_runtime_contracts.py",
+        "line": 27
+      }
+    },
+    {
+      "name": "test_runtime_doctor_cli_outputs_json_contract",
+      "qualified_name": "tests/python/test_runtime_contracts.py::test_runtime_doctor_cli_outputs_json_contract",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_runtime_contracts.py",
+      "line": 44,
+      "evidence": {
+        "file": "tests/python/test_runtime_contracts.py",
+        "line": 44
+      }
+    },
+    {
+      "name": "test_smoke_cli_can_emit_stable_json",
+      "qualified_name": "tests/python/test_runtime_contracts.py::test_smoke_cli_can_emit_stable_json",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_runtime_contracts.py",
+      "line": 56,
+      "evidence": {
+        "file": "tests/python/test_runtime_contracts.py",
+        "line": 56
       }
     },
     {
@@ -21581,6 +22613,78 @@
       }
     },
     {
+      "name": "test_log_summary_keeps_errors_and_compacts_repetitive_output",
+      "qualified_name": "tests/python/test_token_primitives.py::test_log_summary_keeps_errors_and_compacts_repetitive_output",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_token_primitives.py",
+      "line": 15,
+      "evidence": {
+        "file": "tests/python/test_token_primitives.py",
+        "line": 15
+      }
+    },
+    {
+      "name": "test_context_cache_hits_and_misses_by_content_hash",
+      "qualified_name": "tests/python/test_token_primitives.py::test_context_cache_hits_and_misses_by_content_hash",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_token_primitives.py",
+      "line": 29,
+      "evidence": {
+        "file": "tests/python/test_token_primitives.py",
+        "line": 29
+      }
+    },
+    {
+      "name": "test_postconditions_evaluate_files_text_and_commands",
+      "qualified_name": "tests/python/test_token_primitives.py::test_postconditions_evaluate_files_text_and_commands",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_token_primitives.py",
+      "line": 43,
+      "evidence": {
+        "file": "tests/python/test_token_primitives.py",
+        "line": 43
+      }
+    },
+    {
+      "name": "test_retry_payload_uses_compact_failure_evidence",
+      "qualified_name": "tests/python/test_token_primitives.py::test_retry_payload_uses_compact_failure_evidence",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_token_primitives.py",
+      "line": 61,
+      "evidence": {
+        "file": "tests/python/test_token_primitives.py",
+        "line": 61
+      }
+    },
+    {
+      "name": "test_model_routing_policy_selects_cheapest_sufficient_profile",
+      "qualified_name": "tests/python/test_token_primitives.py::test_model_routing_policy_selects_cheapest_sufficient_profile",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_token_primitives.py",
+      "line": 76,
+      "evidence": {
+        "file": "tests/python/test_token_primitives.py",
+        "line": 76
+      }
+    },
+    {
+      "name": "test_git_diff_review_returns_compact_machine_readable_evidence",
+      "qualified_name": "tests/python/test_token_primitives.py::test_git_diff_review_returns_compact_machine_readable_evidence",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_token_primitives.py",
+      "line": 99,
+      "evidence": {
+        "file": "tests/python/test_token_primitives.py",
+        "line": 99
+      }
+    },
+    {
       "name": "_artifact_sha256",
       "qualified_name": "tests/python/test_unified_run_bench.py::_artifact_sha256",
       "kind": "function",
@@ -21966,7 +23070,7 @@
     }
   ],
   "counts": {
-    "symbols": 1830,
-    "files": 185
+    "symbols": 1922,
+    "files": 192
   }
 }

@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.architecture-inventory/v1",
   "version": 1,
-  "generated_at": "2026-06-02T12:51:28.123Z",
+  "generated_at": "2026-06-02T15:00:04.800Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
   "source_project_map": ".simplicio/project-map.json",
   "source_symbol_index": ".simplicio/symbol-index.json",
@@ -18,6 +18,7 @@
       "dotnet",
       "express",
       "fastapi",
+      "go",
       "nestjs",
       "nextjs",
       "playwright",
@@ -882,8 +883,8 @@
     },
     {
       "name": "simplicio",
-      "summary": "Groups 330 files across 11 detected layers.",
-      "file_count": 330,
+      "summary": "Groups 341 files across 11 detected layers.",
+      "file_count": 341,
       "files": [
         "simplicio/__init__.py",
         "simplicio/_cache.py",
@@ -901,6 +902,7 @@
         "simplicio/intent.py",
         "simplicio/local_models.py",
         "simplicio/mapper.py",
+        "simplicio/mechanical_edit.py",
         "simplicio/observability.py",
         "simplicio/orchestrator/__init__.py",
         "simplicio/orchestrator/cost_governor.py",
@@ -910,6 +912,7 @@
         "simplicio/precedent.py",
         "simplicio/prompt.py",
         "simplicio/providers.py",
+        "simplicio/runtime_contracts.py",
         "simplicio/runtime_env.py",
         "simplicio/scratch/__init__.py",
         "simplicio/scratch/_pipeline_adapter.py",
@@ -937,14 +940,22 @@
         "simplicio/skill_router.py",
         "simplicio/sprint_loader.py",
         "simplicio/templates/SKILL.md",
+        "simplicio/templates/recipes/go-gin/admin-crud.yaml",
         "simplicio/templates/recipes/go-gin/auth-jwt.yaml",
         "simplicio/templates/recipes/go-gin/crud-resource.yaml",
+        "simplicio/templates/recipes/php-laravel/admin-crud.yaml",
         "simplicio/templates/recipes/php-laravel/auth-jwt.yaml",
         "simplicio/templates/recipes/php-laravel/crud-resource.yaml",
         "simplicio/templates/recipes/php-vanilla/docs-marker.yaml",
         "simplicio/templates/recipes/py-fastapi/admin-crud.yaml",
         "simplicio/templates/recipes/py-fastapi/auth-jwt.yaml",
+        "simplicio/templates/recipes/py-fastapi/background-worker.yaml",
         "simplicio/templates/recipes/py-fastapi/crud-resource.yaml",
+        "simplicio/templates/recipes/py-fastapi/file-upload.yaml",
+        "simplicio/templates/recipes/py-fastapi/oauth-integration.yaml",
+        "simplicio/templates/recipes/py-fastapi/scheduled-job.yaml",
+        "simplicio/templates/recipes/py-fastapi/websocket.yaml",
+        "simplicio/templates/recipes/rust-axum/admin-crud.yaml",
         "simplicio/templates/recipes/rust-axum/auth-jwt.yaml",
         "simplicio/templates/recipes/rust-axum/crud-resource.yaml",
         "simplicio/templates/recipes/ts-nextjs/admin-crud.yaml",
@@ -954,17 +965,7 @@
         "simplicio/templates/stacks/bash-cli/README.md",
         "simplicio/templates/stacks/bash-cli/practices.md",
         "simplicio/templates/stacks/bash-cli/stack.json",
-        "simplicio/templates/stacks/bash-cli/tree/README.md",
-        "simplicio/templates/stacks/bash-cli/tree/bin/app.sh",
-        "simplicio/templates/stacks/bash-cli/verify.json",
-        "simplicio/templates/stacks/csharp-aspnet/README.md",
-        "simplicio/templates/stacks/csharp-aspnet/practices.md",
-        "simplicio/templates/stacks/csharp-aspnet/stack.json",
-        "simplicio/templates/stacks/csharp-aspnet/tree/README.md",
-        "simplicio/templates/stacks/csharp-aspnet/tree/src/App.Api/Program.cs",
-        "simplicio/templates/stacks/csharp-aspnet/tree/tests/App.Tests/HealthTests.cs",
-        "simplicio/templates/stacks/csharp-aspnet/verify.json",
-        "simplicio/templates/stacks/csharp-blazor/README.md"
+        "simplicio/templates/stacks/bash-cli/tree/README.md"
       ],
       "layers": [
         "asset",
@@ -1036,6 +1037,7 @@
         "ClassAppender",
         "CodegenResult",
         "CompletionCache",
+        "ContextCache",
         "CostGovernor",
         "DepStatus",
         "DetectResult",
@@ -1058,13 +1060,12 @@
         "LibCSTUnavailable",
         "MainActivity",
         "MarkdownDocumentExecutor",
+        "MechanicalEditError",
         "MissingCargoCrateFixer",
         "MissingGoModuleFixer",
         "MissingNpmPackageFixer",
         "MissingPipPackageFixer",
-        "ModelSpec",
-        "PhpLaravelCrudRoutesExecutor",
-        "Plan"
+        "ModelSpec"
       ],
       "evidence": [
         {
@@ -1140,8 +1141,8 @@
     },
     {
       "name": "tests",
-      "summary": "Groups 58 files across 7 detected layers.",
-      "file_count": 58,
+      "summary": "Groups 62 files across 7 detected layers.",
+      "file_count": 62,
       "files": [
         "tests/e2e/README.md",
         "tests/e2e/cli.spec.ts",
@@ -1159,6 +1160,7 @@
         "tests/python/test_llm_reduction_summary.py",
         "tests/python/test_local_models.py",
         "tests/python/test_mapping_retry_flow.py",
+        "tests/python/test_mechanical_edit.py",
         "tests/python/test_orchestrator_feature.py",
         "tests/python/test_package_metadata.py",
         "tests/python/test_pipeline_fixers.py",
@@ -1166,8 +1168,10 @@
         "tests/python/test_providers_local.py",
         "tests/python/test_providers_shellout.py",
         "tests/python/test_qwen15b_quant_curve_report.py",
+        "tests/python/test_recipe_expansion.py",
         "tests/python/test_recipes.py",
         "tests/python/test_run_cli.py",
+        "tests/python/test_runtime_contracts.py",
         "tests/python/test_runtime_env.py",
         "tests/python/test_rust_prompt.py",
         "tests/python/test_schema_smoke_summary.py",
@@ -1194,6 +1198,7 @@
         "tests/python/test_sprint_loader_dod.py",
         "tests/python/test_static_fixers_bench.py",
         "tests/python/test_task_json_contract.py",
+        "tests/python/test_token_primitives.py",
         "tests/python/test_unified_run_bench.py",
         "tests/unit/cli-args.test.js",
         "tests/unit/cli-install.test.js",
@@ -1229,6 +1234,7 @@
         "tests/python/test_llm_reduction_summary.py",
         "tests/python/test_local_models.py",
         "tests/python/test_mapping_retry_flow.py",
+        "tests/python/test_mechanical_edit.py",
         "tests/python/test_orchestrator_feature.py",
         "tests/python/test_package_metadata.py",
         "tests/python/test_pipeline_fixers.py",
@@ -1236,8 +1242,10 @@
         "tests/python/test_providers_local.py",
         "tests/python/test_providers_shellout.py",
         "tests/python/test_qwen15b_quant_curve_report.py",
+        "tests/python/test_recipe_expansion.py",
         "tests/python/test_recipes.py",
         "tests/python/test_run_cli.py",
+        "tests/python/test_runtime_contracts.py",
         "tests/python/test_runtime_env.py",
         "tests/python/test_rust_prompt.py",
         "tests/python/test_schema_smoke_summary.py",
@@ -1264,6 +1272,7 @@
         "tests/python/test_sprint_loader_dod.py",
         "tests/python/test_static_fixers_bench.py",
         "tests/python/test_task_json_contract.py",
+        "tests/python/test_token_primitives.py",
         "tests/python/test_unified_run_bench.py",
         "tests/unit/cli-args.test.js",
         "tests/unit/cli-install.test.js",
@@ -1295,6 +1304,7 @@
         "_plan",
         "_planner_json",
         "_profile",
+        "_sha",
         "_skillopt_review_row",
         "_stack",
         "_task",
@@ -1311,8 +1321,7 @@
         "_write_pyproject",
         "_write_route",
         "_write_skill",
-        "_write_smoke",
-        "_write_source"
+        "_write_smoke"
       ],
       "evidence": [
         {
@@ -1351,7 +1360,7 @@
   "layers": [
     {
       "name": "asset",
-      "file_count": 179,
+      "file_count": 187,
       "files": [
         ".claude/hooks/post-edit.ps1",
         ".claude/hooks/post-edit.sh",
@@ -1431,28 +1440,28 @@
         "bootstrap.ps1",
         "bootstrap.sh",
         "package-lock.json",
+        "simplicio/templates/recipes/go-gin/admin-crud.yaml",
         "simplicio/templates/recipes/go-gin/auth-jwt.yaml",
         "simplicio/templates/recipes/go-gin/crud-resource.yaml",
+        "simplicio/templates/recipes/php-laravel/admin-crud.yaml",
         "simplicio/templates/recipes/php-laravel/auth-jwt.yaml",
         "simplicio/templates/recipes/php-laravel/crud-resource.yaml",
         "simplicio/templates/recipes/php-vanilla/docs-marker.yaml",
         "simplicio/templates/recipes/py-fastapi/admin-crud.yaml",
         "simplicio/templates/recipes/py-fastapi/auth-jwt.yaml",
+        "simplicio/templates/recipes/py-fastapi/background-worker.yaml",
         "simplicio/templates/recipes/py-fastapi/crud-resource.yaml",
+        "simplicio/templates/recipes/py-fastapi/file-upload.yaml",
+        "simplicio/templates/recipes/py-fastapi/oauth-integration.yaml",
+        "simplicio/templates/recipes/py-fastapi/scheduled-job.yaml",
+        "simplicio/templates/recipes/py-fastapi/websocket.yaml",
+        "simplicio/templates/recipes/rust-axum/admin-crud.yaml",
         "simplicio/templates/recipes/rust-axum/auth-jwt.yaml",
         "simplicio/templates/recipes/rust-axum/crud-resource.yaml",
         "simplicio/templates/recipes/ts-nextjs/admin-crud.yaml",
         "simplicio/templates/recipes/ts-nextjs/auth-jwt.yaml",
         "simplicio/templates/recipes/ts-nextjs/crud-resource.yaml",
-        "simplicio/templates/stacks/bash-cli/stack.json",
-        "simplicio/templates/stacks/bash-cli/verify.json",
-        "simplicio/templates/stacks/csharp-aspnet/stack.json",
-        "simplicio/templates/stacks/csharp-aspnet/verify.json",
-        "simplicio/templates/stacks/csharp-blazor/stack.json",
-        "simplicio/templates/stacks/csharp-blazor/verify.json",
-        "simplicio/templates/stacks/dart-flutter/stack.json",
-        "simplicio/templates/stacks/dart-flutter/tree/pubspec.yaml",
-        "simplicio/templates/stacks/dart-flutter/verify.json"
+        "simplicio/templates/stacks/bash-cli/stack.json"
       ],
       "modules": [
         ".",
@@ -1498,7 +1507,7 @@
     },
     {
       "name": "code",
-      "file_count": 79,
+      "file_count": 82,
       "files": [
         ".github/workflows-templates/telemetry-worker.js",
         "bench/compare_sp.py",
@@ -1535,6 +1544,7 @@
         "simplicio/init.py",
         "simplicio/intent.py",
         "simplicio/mapper.py",
+        "simplicio/mechanical_edit.py",
         "simplicio/observability.py",
         "simplicio/orchestrator/__init__.py",
         "simplicio/orchestrator/cost_governor.py",
@@ -1544,6 +1554,7 @@
         "simplicio/precedent.py",
         "simplicio/prompt.py",
         "simplicio/providers.py",
+        "simplicio/runtime_contracts.py",
         "simplicio/runtime_env.py",
         "simplicio/scratch/__init__.py",
         "simplicio/scratch/_pipeline_adapter.py",
@@ -1575,6 +1586,7 @@
         "simplicio/templates/stacks/py-django/tree/manage.py",
         "simplicio/templates/stacks/py-fastapi/tree/src/api/__init__.py",
         "simplicio/templates/stacks/ts-nestjs/tree/src/app.module.ts",
+        "simplicio/token_primitives.py",
         "simplicio/utils/__init__.py",
         "simplicio/utils/cache.py",
         "simplicio/utils/http_client.py",
@@ -2239,7 +2251,7 @@
     },
     {
       "name": "test",
-      "file_count": 99,
+      "file_count": 103,
       "files": [
         ".specs/README.md",
         ".specs/architecture/ADR-001-example.md",
@@ -2298,6 +2310,7 @@
         "tests/python/test_llm_reduction_summary.py",
         "tests/python/test_local_models.py",
         "tests/python/test_mapping_retry_flow.py",
+        "tests/python/test_mechanical_edit.py",
         "tests/python/test_orchestrator_feature.py",
         "tests/python/test_package_metadata.py",
         "tests/python/test_pipeline_fixers.py",
@@ -2305,8 +2318,10 @@
         "tests/python/test_providers_local.py",
         "tests/python/test_providers_shellout.py",
         "tests/python/test_qwen15b_quant_curve_report.py",
+        "tests/python/test_recipe_expansion.py",
         "tests/python/test_recipes.py",
         "tests/python/test_run_cli.py",
+        "tests/python/test_runtime_contracts.py",
         "tests/python/test_runtime_env.py",
         "tests/python/test_rust_prompt.py",
         "tests/python/test_schema_smoke_summary.py",
@@ -2333,13 +2348,11 @@
         "tests/python/test_sprint_loader_dod.py",
         "tests/python/test_static_fixers_bench.py",
         "tests/python/test_task_json_contract.py",
+        "tests/python/test_token_primitives.py",
         "tests/python/test_unified_run_bench.py",
         "tests/unit/cli-args.test.js",
         "tests/unit/cli-install.test.js",
-        "tests/unit/cli-telemetry.test.js",
-        "tests/unit/docs-site.test.js",
-        "tests/unit/overlay-docs.test.js",
-        "tests/unit/why-video-narration.test.js"
+        "tests/unit/cli-telemetry.test.js"
       ],
       "modules": [
         ".specs",
@@ -8731,22 +8744,22 @@
         "._cache",
         ".bench",
         ".detect",
-        ".doctor",
         ".dod",
         ".ecosystem",
         ".init",
         ".intent",
+        ".mechanical_edit",
         ".orchestrator",
         ".orchestrator.cost_governor",
         ".pipeline",
         ".precedent",
         ".providers",
-        ".runtime_env",
+        ".runtime_contracts",
         ".scratch.cli",
         ".scratch.skill_opt",
         ".sprint_loader",
+        ".token_primitives",
         "__future__",
-        "argparse",
         "pathlib"
       ],
       "symbols": [
@@ -8765,6 +8778,10 @@
         "_sprint_task_id",
         "_write_sprint_state",
         "_run_status_command",
+        "_read_text_source",
+        "_run_mechanical_edit_command",
+        "_run_token_command",
+        "_run_runtime_command",
         "_run_run_command",
         "main"
       ],
@@ -9088,6 +9105,65 @@
       ]
     },
     {
+      "path": "simplicio/mechanical_edit.py",
+      "language": "python",
+      "module": "simplicio",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        ".token_primitives",
+        "__future__",
+        "copy",
+        "difflib",
+        "io",
+        "json",
+        "pathlib",
+        "subprocess",
+        "tokenize",
+        "typing"
+      ],
+      "symbols": [
+        "execute_plan_json",
+        "execute_plan",
+        "MechanicalEditError",
+        "__init__",
+        "to_dict",
+        "_validate_shape",
+        "_declared_touched_files",
+        "_validate_paths",
+        "_validate_overlaps",
+        "_snapshot",
+        "_apply_operations_to_snapshot",
+        "_operation_order",
+        "_check_text_preconditions",
+        "_check_file_hash",
+        "_apply_text_operation",
+        "_apply_json_patch",
+        "_apply_json_patch_row",
+        "_json_pointer_parent",
+        "_apply_ast_patch",
+        "_selected_range",
+        "_build_diff",
+        "_decode_for_diff",
+        "_backup_existing",
+        "_write_snapshot",
+        "_restore",
+        "_run_validation",
+        "_file_hash_rows",
+        "_safe_path",
+        "_base_result",
+        "_refused"
+      ],
+      "summary": "Defines exported symbols: MechanicalEditError, __init__, _apply_ast_patch, _apply_json_patch, _apply_json_patch_row.",
+      "evidence": [
+        {
+          "file": "simplicio/mechanical_edit.py"
+        }
+      ]
+    },
+    {
       "path": "simplicio/observability.py",
       "language": "python",
       "module": "simplicio",
@@ -9391,6 +9467,13 @@
         "_is_gguf_file",
         "_local_candidates",
         "_resolve_local_path",
+        "_bounded_int",
+        "_safe_local_ctx",
+        "_safe_local_threads",
+        "_safe_local_batch",
+        "_safe_local_ubatch",
+        "_safe_local_gpu_layers",
+        "_safe_local_max_tokens",
         "_local_llama",
         "_local_generate",
         "_provider_id",
@@ -9409,10 +9492,42 @@
         "planner_complete",
         "planner_info"
       ],
-      "summary": "Defines exported symbols: _cfg, _charge_if_budgeted, _cli_command, _generate_local_cached, _inline_feedback.",
+      "summary": "Defines exported symbols: _bounded_int, _cfg, _charge_if_budgeted, _cli_command, _generate_local_cached.",
       "evidence": [
         {
           "file": "simplicio/providers.py"
+        }
+      ]
+    },
+    {
+      "path": "simplicio/runtime_contracts.py",
+      "language": "python",
+      "module": "simplicio",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        ".",
+        ".providers",
+        "__future__",
+        "importlib",
+        "pathlib",
+        "shutil",
+        "typing"
+      ],
+      "symbols": [
+        "doctor_contract",
+        "task_contract",
+        "smoke_contract",
+        "run_contract",
+        "_tool_status",
+        "_package_version"
+      ],
+      "summary": "Defines exported symbols: _package_version, _tool_status, doctor_contract, run_contract, smoke_contract.",
+      "evidence": [
+        {
+          "file": "simplicio/runtime_contracts.py"
         }
       ]
     },
@@ -10493,6 +10608,23 @@
       ]
     },
     {
+      "path": "simplicio/templates/recipes/go-gin/admin-crud.yaml",
+      "language": "yaml",
+      "module": "simplicio",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "simplicio/templates/recipes/go-gin/admin-crud.yaml"
+        }
+      ]
+    },
+    {
       "path": "simplicio/templates/recipes/go-gin/auth-jwt.yaml",
       "language": "yaml",
       "module": "simplicio",
@@ -10523,6 +10655,23 @@
       "evidence": [
         {
           "file": "simplicio/templates/recipes/go-gin/crud-resource.yaml"
+        }
+      ]
+    },
+    {
+      "path": "simplicio/templates/recipes/php-laravel/admin-crud.yaml",
+      "language": "yaml",
+      "module": "simplicio",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "simplicio/templates/recipes/php-laravel/admin-crud.yaml"
         }
       ]
     },
@@ -10612,6 +10761,23 @@
       ]
     },
     {
+      "path": "simplicio/templates/recipes/py-fastapi/background-worker.yaml",
+      "language": "yaml",
+      "module": "simplicio",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "simplicio/templates/recipes/py-fastapi/background-worker.yaml"
+        }
+      ]
+    },
+    {
       "path": "simplicio/templates/recipes/py-fastapi/crud-resource.yaml",
       "language": "yaml",
       "module": "simplicio",
@@ -10625,6 +10791,91 @@
       "evidence": [
         {
           "file": "simplicio/templates/recipes/py-fastapi/crud-resource.yaml"
+        }
+      ]
+    },
+    {
+      "path": "simplicio/templates/recipes/py-fastapi/file-upload.yaml",
+      "language": "yaml",
+      "module": "simplicio",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "simplicio/templates/recipes/py-fastapi/file-upload.yaml"
+        }
+      ]
+    },
+    {
+      "path": "simplicio/templates/recipes/py-fastapi/oauth-integration.yaml",
+      "language": "yaml",
+      "module": "simplicio",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "simplicio/templates/recipes/py-fastapi/oauth-integration.yaml"
+        }
+      ]
+    },
+    {
+      "path": "simplicio/templates/recipes/py-fastapi/scheduled-job.yaml",
+      "language": "yaml",
+      "module": "simplicio",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Defines exported symbols: is.",
+      "evidence": [
+        {
+          "file": "simplicio/templates/recipes/py-fastapi/scheduled-job.yaml"
+        }
+      ]
+    },
+    {
+      "path": "simplicio/templates/recipes/py-fastapi/websocket.yaml",
+      "language": "yaml",
+      "module": "simplicio",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "simplicio/templates/recipes/py-fastapi/websocket.yaml"
+        }
+      ]
+    },
+    {
+      "path": "simplicio/templates/recipes/rust-axum/admin-crud.yaml",
+      "language": "yaml",
+      "module": "simplicio",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "simplicio/templates/recipes/rust-axum/admin-crud.yaml"
         }
       ]
     },
@@ -15503,6 +15754,48 @@
       ]
     },
     {
+      "path": "simplicio/token_primitives.py",
+      "language": "python",
+      "module": "simplicio",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        "__future__",
+        "hashlib",
+        "json",
+        "pathlib",
+        "subprocess",
+        "typing"
+      ],
+      "symbols": [
+        "sha256_text",
+        "summarize_log",
+        "git_diff_review",
+        "ContextCache",
+        "__init__",
+        "get",
+        "put",
+        "invalidate",
+        "_read",
+        "evaluate_postconditions",
+        "build_retry_payload",
+        "model_routing_decision",
+        "codemod_plan",
+        "_evaluate_one_postcondition",
+        "_compact_text",
+        "_run_git",
+        "_numstat_int"
+      ],
+      "summary": "Defines exported symbols: ContextCache, __init__, _compact_text, _evaluate_one_postcondition, _numstat_int.",
+      "evidence": [
+        {
+          "file": "simplicio/token_primitives.py"
+        }
+      ]
+    },
+    {
       "path": "simplicio/utils/__init__.py",
       "language": "python",
       "module": "simplicio",
@@ -16142,7 +16435,7 @@
         "test_evaluate_picks_correct_spec_per_tier",
         "test_evaluate_refuses_to_run_oversized_model",
         "test_evaluate_marks_gguf_absent",
-        "test_apple_silicon_profile_can_run_qwen_gguf_at_24gb",
+        "test_apple_silicon_profile_can_run_minicpm_gguf_at_24gb",
         "test_ensure_recommended_does_not_download_without_opt_in",
         "fake_download",
         "test_ensure_recommended_downloads_with_explicit_opt_in",
@@ -16209,6 +16502,45 @@
       "evidence": [
         {
           "file": "tests/python/test_mapping_retry_flow.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/python/test_mechanical_edit.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "hashlib",
+        "json",
+        "simplicio",
+        "simplicio.mechanical_edit",
+        "sys"
+      ],
+      "symbols": [
+        "_write",
+        "_sha",
+        "_plan",
+        "test_dry_run_and_apply_replace_range_contract",
+        "test_strict_json_refuses_prose_wrapped_plan",
+        "test_refuses_file_hash_mismatch",
+        "test_refuses_edit_outside_declared_allowlist",
+        "test_refuses_overlapping_operations_without_order",
+        "test_refuses_text_operation_on_binary_file",
+        "test_validation_failure_rolls_back_and_returns_compact_evidence",
+        "test_noop_result_is_machine_readable_and_compact",
+        "test_cli_json_contract_for_dry_run"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_mechanical_edit.py"
         }
       ]
     },
@@ -16283,7 +16615,8 @@
       ],
       "symbols": [
         "test_package_version_matches_release_metadata",
-        "test_simplicio_ecosystem_dependency_floors_are_current"
+        "test_simplicio_ecosystem_dependency_floors_are_current",
+        "test_dev_cli_entrypoint_is_available_for_runtime_adapter"
       ],
       "summary": "Verifies project behavior through automated tests.",
       "evidence": [
@@ -16420,11 +16753,12 @@
         "test_resolve_local_path_no_hf_lib_raises",
         "test_local_llama_missing_backend_raises",
         "test_local_llama_loads_and_caches",
-        "test_local_llama_honours_ctx_threads_gpu",
+        "test_local_llama_clamps_ctx_threads_gpu_and_batch",
+        "test_local_llama_clamps_unsafe_ctx_and_threads",
         "test_generate_routes_to_local_llama_by_default",
         "fake_openai",
         "fake_local",
-        "test_generate_default_local_uses_qwen_gguf",
+        "test_generate_default_local_uses_minicpm_gguf",
         "fake_local",
         "test_generate_local_explicit_prefix",
         "fake_local",
@@ -16432,6 +16766,7 @@
         "fake_local",
         "test_generate_no_model_with_base_still_raises",
         "test_local_generate_caps_tokens_and_temp",
+        "test_local_generate_clamps_unsafe_token_cap",
         "test_generate_cache_key_includes_weights",
         "fake_local",
         "_touch"
@@ -16515,6 +16850,32 @@
       "evidence": [
         {
           "file": "tests/python/test_qwen15b_quant_curve_report.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/python/test_recipe_expansion.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "pytest",
+        "simplicio.scratch.recipes"
+      ],
+      "symbols": [
+        "test_new_llm_reduction_recipe_types_match_for_fastapi",
+        "test_admin_crud_parity_for_remaining_web_stacks"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_recipe_expansion.py"
         }
       ]
     },
@@ -16619,6 +16980,36 @@
       "evidence": [
         {
           "file": "tests/python/test_run_cli.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/python/test_runtime_contracts.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "json",
+        "simplicio",
+        "simplicio.runtime_contracts"
+      ],
+      "symbols": [
+        "test_doctor_contract_reports_ecosystem_tool_status",
+        "fake_which",
+        "test_task_contract_wraps_existing_task_result_for_runtime_handoff",
+        "test_runtime_doctor_cli_outputs_json_contract",
+        "test_smoke_cli_can_emit_stable_json"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_runtime_contracts.py"
         }
       ]
     },
@@ -17645,6 +18036,38 @@
       ]
     },
     {
+      "path": "tests/python/test_token_primitives.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "json",
+        "simplicio.token_primitives",
+        "subprocess",
+        "sys"
+      ],
+      "symbols": [
+        "test_log_summary_keeps_errors_and_compacts_repetitive_output",
+        "test_context_cache_hits_and_misses_by_content_hash",
+        "test_postconditions_evaluate_files_text_and_commands",
+        "test_retry_payload_uses_compact_failure_evidence",
+        "test_model_routing_policy_selects_cheapest_sufficient_profile",
+        "test_git_diff_review_returns_compact_machine_readable_evidence"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_token_primitives.py"
+        }
+      ]
+    },
+    {
       "path": "tests/python/test_unified_run_bench.py",
       "language": "python",
       "module": "tests",
@@ -17899,6 +18322,15 @@
       "target_file": "simplicio/scratch/stack_registry.py",
       "target_symbol": "simplicio/scratch/stack_registry.py::get",
       "line": 58,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": ".github/workflows-templates/telemetry-worker.js",
+      "source_symbol": ".github/workflows-templates/telemetry-worker.js::sanitize",
+      "target_file": "simplicio/token_primitives.py",
+      "target_symbol": "simplicio/token_primitives.py::put",
+      "line": 79,
       "confidence": 0.58
     },
     {
@@ -20092,24 +20524,15 @@
       "target_symbol": "bench/run_exec.py::write_reports",
       "line": 121,
       "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "bench/run_exec.py",
-      "source_symbol": "bench/run_exec.py::write_reports",
-      "target_file": "bench/run_exec_sindico.py",
-      "target_symbol": "bench/run_exec_sindico.py::_pdf",
-      "line": 181,
-      "confidence": 0.58
     }
   ],
   "coverage": {
-    "files": 689,
+    "files": 704,
     "modules": 16,
     "layers": 13,
-    "symbols": 1830,
+    "symbols": 1922,
     "relationships": 1000,
-    "tests": 99
+    "tests": 103
   },
   "notes": [
     "Generated from deterministic repository inspection.",

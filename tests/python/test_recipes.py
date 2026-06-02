@@ -72,7 +72,6 @@ MISS_CASES = [
     ("ts-nextjs", "Create a marketing landing page"),
     ("py-fastapi", "Analyze CSV exports overnight"),
     ("ts-nextjs", "Render a public docs site"),
-    ("py-fastapi", "Create websocket chat rooms"),
     ("ts-nextjs", "Add image optimization pipeline"),
     ("py-fastapi", "Generate a billing report"),
     ("ts-nextjs", "Design a pricing comparison table"),

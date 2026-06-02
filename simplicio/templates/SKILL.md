@@ -56,7 +56,7 @@ If `smoke` fails: set the env vars and retry. Read `~/.config/simplicio/.env` or
 | GLM (z.ai) | `glm-4.6` | `https://api.z.ai/api/paas/v4` | `OPENAI_API_KEY` |
 | DeepSeek | `deepseek-chat` | `https://api.deepseek.com` | `OPENAI_API_KEY` |
 | OpenAI | `gpt-4.1` | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
-| Ollama local | `llama3` (or any) | `http://localhost:11434/v1` | `OPENAI_API_KEY=dummy` |
+| llama.cpp local | `openbmb/minicpm5:latest` | `http://127.0.0.1:8080/v1` | none |
 | Anthropic native | `claude-opus-4-7` | *(unset)* | `ANTHROPIC_API_KEY` |
 
 `base_url` unset + `ANTHROPIC_API_KEY` present → native Anthropic SDK. Else OpenAI-compatible client.

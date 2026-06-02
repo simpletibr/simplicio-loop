@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.call-graph/v1",
   "version": 1,
-  "generated_at": "2026-06-02T12:51:28.123Z",
+  "generated_at": "2026-06-02T15:00:04.800Z",
   "source_symbol_index": ".simplicio/symbol-index.json",
   "edges": [
     {
@@ -47,6 +47,15 @@
       "target_file": "simplicio/scratch/stack_registry.py",
       "target_symbol": "simplicio/scratch/stack_registry.py::get",
       "line": 58,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": ".github/workflows-templates/telemetry-worker.js",
+      "source_symbol": ".github/workflows-templates/telemetry-worker.js::sanitize",
+      "target_file": "simplicio/token_primitives.py",
+      "target_symbol": "simplicio/token_primitives.py::put",
+      "line": 79,
       "confidence": 0.58
     },
     {
@@ -5995,6 +6004,15 @@
     {
       "type": "calls",
       "source_file": "bench/run_scratch_codegen.py",
+      "source_symbol": "bench/run_scratch_codegen.py::_run_case",
+      "target_file": "simplicio/mechanical_edit.py",
+      "target_symbol": "simplicio/mechanical_edit.py::execute_plan",
+      "line": 428,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bench/run_scratch_codegen.py",
       "source_symbol": "bench/run_scratch_codegen.py::_run_llm_baseline_case",
       "target_file": "simplicio/providers.py",
       "target_symbol": "simplicio/providers.py::generate",
@@ -8929,29 +8947,11 @@
       "target_symbol": "tests/python/test_unified_run_bench.py::_verified_artifact",
       "line": 347,
       "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "bench/sindico_cases.py",
-      "source_symbol": null,
-      "target_file": "bench/sindico_hidden/_seed_PasswordPolicy_bug.php",
-      "target_symbol": "bench/sindico_hidden/_seed_PasswordPolicy_bug.php::describe",
-      "line": 33,
-      "confidence": 0.48
-    },
-    {
-      "type": "calls",
-      "source_file": "bench/sindico_cases.py",
-      "source_symbol": null,
-      "target_file": "bench/sindico_hidden/_seed_PasswordPolicy_bug.php",
-      "target_symbol": "bench/sindico_hidden/_seed_PasswordPolicy_bug.php::isValid",
-      "line": 33,
-      "confidence": 0.48
     }
   ],
   "counts": {
-    "edges": 3747,
-    "imports": 150,
-    "calls": 3597
+    "edges": 3934,
+    "imports": 157,
+    "calls": 3777
   }
 }

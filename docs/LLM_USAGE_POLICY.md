@@ -1,6 +1,6 @@
 # Official LLM Usage Policy — Simplicio Ecosystem
 
-**Status:** Official default (2026-06-01)
+**Status:** Official default (2026-06-02)
 
 ## Core Principle
 
@@ -10,10 +10,14 @@
 ## Default Configuration
 
 ### Execution (Local)
-- Primary local executor: **`local-llama/default`** via `llama.cpp` /
+- Primary local executor: **`openbmb/minicpm5:latest`** via `llama.cpp` /
   `llama-cpp-python`
-- Default GGUF: **`Qwen_Qwen3.5-2B-Q6_K.gguf`** from
-  `bartowski/Qwen_Qwen3.5-2B-GGUF`
+- Default GGUF: **`MiniCPM5-1B-Q4_K_M.gguf`** from
+  `openbmb/MiniCPM5-1B-GGUF`
+- Safe local limits: context defaults to `2048` and is clamped to `4096`;
+  threads default to/cap at `4`; generation defaults to `512` tokens and is
+  capped at `2048`; batch defaults to `128`, micro-batch to `32`, GPU layers to
+  `0`, `mmap` stays enabled, and `mlock` stays disabled.
 
 The local default must not require Ollama or any HTTP service. Remote or
 OpenAI-compatible endpoints remain explicit opt-ins via `SIMPLICIO_MODEL`,
@@ -23,14 +27,14 @@ OpenAI-compatible endpoints remain explicit opt-ins via `SIMPLICIO_MODEL`,
 
 ### simplicio-code (mandatory)
 - On project bootstrap / SessionStart / first run in a new workspace:
-  - The system **must** verify that `Qwen_Qwen3.5-2B-Q6_K.gguf` is present and
+  - The system **must** verify that `MiniCPM5-1B-Q4_K_M.gguf` is present and
     has a valid `GGUF` header.
   - If it is missing, it **must** download/prepare it before allowing local
     agent execution.
 - This is a hard requirement for the SimplicioCode product.
 
 ### simplicio-dev-cli and simplicio-sprint (recommended)
-- The above `local-llama/default` Qwen3.5 Q6_K GGUF setup is the
+- The above `openbmb/minicpm5:latest` MiniCPM5 Q4_K_M GGUF setup is the
   **recommended** configuration for local development.
 - `simplicio doctor` validates this setup at runtime.
 
@@ -49,7 +53,9 @@ unset SIMPLICIO_MODEL SIMPLICIO_BASE_URL SIMPLICIO_API_KEY
 simplicio doctor --install
 
 # Explicit route:
-export SIMPLICIO_MODEL=local-llama/bartowski/Qwen_Qwen3.5-2B-GGUF::Qwen_Qwen3.5-2B-Q6_K.gguf
+export SIMPLICIO_MODEL=openbmb/minicpm5:latest
+# Backing weights when an explicit GGUF route is needed:
+export SIMPLICIO_MODEL=local-llama/openbmb/MiniCPM5-1B-GGUF::MiniCPM5-1B-Q4_K_M.gguf
 ```
 
 In SimplicioCode the equivalent is done via the Simplicio1 tier system + explicit GGUF routing for the executor role.
