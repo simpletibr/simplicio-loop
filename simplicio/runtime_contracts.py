@@ -25,7 +25,7 @@ def doctor_contract(root: str | Path = ".") -> dict[str, Any]:
         )
     }
     packages = {
-        name: {"version": __version__ if name == "simplicio-cli" else _package_version(name)}
+        name: {"version": _package_version_with_source_fallback(name)}
         for name in (
             "simplicio-cli",
             "simplicio-mapper",
@@ -33,10 +33,11 @@ def doctor_contract(root: str | Path = ".") -> dict[str, Any]:
             "simplicio-sprint",
         )
     }
+    dev_cli_version = _package_version_with_source_fallback("simplicio-cli")
     return {
         "schema": "simplicio.dev-cli.doctor/v1",
         "root": str(root_path),
-        "package": {"name": "simplicio-cli", "version": __version__},
+        "package": {"name": "simplicio-cli", "version": dev_cli_version},
         "tools": tools,
         "packages": packages,
         "runtime": {
@@ -81,6 +82,13 @@ def run_contract(run_result: dict[str, Any], *, root: str | Path = ".") -> dict[
 def _tool_status(name: str) -> dict[str, Any]:
     path = shutil.which(name)
     return {"available": path is not None, "path": path}
+
+
+def _package_version_with_source_fallback(name: str) -> str | None:
+    version = _package_version(name)
+    if version is None and name == "simplicio-cli":
+        return __version__
+    return version
 
 
 def _package_version(name: str) -> str | None:

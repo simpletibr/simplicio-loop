@@ -22,8 +22,21 @@ def test_doctor_contract_reports_ecosystem_tool_status(tmp_path, monkeypatch):
     assert result["root"] == str(tmp_path)
     assert result["tools"]["simplicio-mapper"]["available"] is True
     assert result["tools"]["simplicio-sprint"]["available"] is False
+    assert result["package"]["version"] == "1.2.3"
     assert result["packages"]["simplicio-cli"]["version"] == "1.2.3"
     assert result["runtime"]["model"] == "openbmb/minicpm5:latest"
+
+
+def test_doctor_contract_falls_back_to_source_version_when_package_metadata_is_missing(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: None)
+    monkeypatch.setattr("simplicio.runtime_contracts._package_version", lambda name: None)
+
+    result = doctor_contract(tmp_path)
+
+    assert result["package"]["version"] is not None
+    assert result["packages"]["simplicio-cli"]["version"] == result["package"]["version"]
 
 
 def test_task_contract_wraps_existing_task_result_for_runtime_handoff(tmp_path):
