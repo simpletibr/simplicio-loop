@@ -2,6 +2,8 @@ import subprocess
 import sys
 
 from simplicio.pipeline_fixers import (
+    MissingCargoCrateFixer,
+    MissingGoModuleFixer,
     MissingNpmPackageFixer,
     MissingPipPackageFixer,
     RuffFormatFixer,
@@ -99,6 +101,101 @@ def test_ruff_format_fixer_runs_format_and_fix_on_python_target(tmp_path):
         ["ruff", "check", "--fix", "src/bad.py"],
     ]
     assert "    print" in target.read_text(encoding="utf-8")
+
+
+def test_missing_go_module_fixer_runs_go_get(tmp_path):
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return _ok(argv)
+
+    result = MissingGoModuleFixer().try_fix(
+        "main.go:5:2: no required module provides package "
+        "github.com/gin-gonic/gin; to add it:",
+        tmp_path,
+        runner=fake_run,
+    )
+
+    assert result.applied is True
+    assert result.fixer == "missing-go-module"
+    assert calls[0][0] == ["go", "get", "github.com/gin-gonic/gin"]
+
+
+def test_missing_go_module_fixer_rejects_stdlib_and_unsafe(tmp_path):
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append(argv)
+        return _ok(argv)
+
+    result = MissingGoModuleFixer().try_fix(
+        'cannot find package "../secret"',
+        tmp_path,
+        runner=fake_run,
+    )
+
+    assert result.applied is False
+    assert calls == []
+
+
+def test_missing_cargo_crate_fixer_runs_cargo_add(tmp_path):
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return _ok(argv)
+
+    result = MissingCargoCrateFixer().try_fix(
+        "error[E0433]: failed to resolve: use of undeclared crate or module `serde_json`",
+        tmp_path,
+        runner=fake_run,
+    )
+
+    assert result.applied is True
+    assert result.fixer == "missing-cargo-crate"
+    assert calls[0][0] == ["cargo", "add", "serde_json"]
+
+
+def test_missing_cargo_crate_fixer_rejects_std_module(tmp_path):
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append(argv)
+        return _ok(argv)
+
+    result = MissingCargoCrateFixer().try_fix(
+        "error[E0433]: failed to resolve: use of undeclared crate or module `std`",
+        tmp_path,
+        runner=fake_run,
+    )
+
+    assert result.applied is False
+    assert calls == []
+
+
+def test_try_static_fixers_dispatches_go_and_cargo(tmp_path):
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append(argv)
+        return _ok(argv)
+
+    go_result = try_static_fixers(
+        "no required module provides package github.com/google/uuid",
+        tmp_path,
+        runner=fake_run,
+    )
+    cargo_result = try_static_fixers(
+        "use of undeclared crate or module `tokio`",
+        tmp_path,
+        runner=fake_run,
+    )
+
+    assert go_result.fixer == "missing-go-module"
+    assert cargo_result.fixer == "missing-cargo-crate"
+    assert ["go", "get", "github.com/google/uuid"] in calls
+    assert ["cargo", "add", "tokio"] in calls
 
 
 def test_try_static_fixers_returns_clear_no_match(tmp_path):
