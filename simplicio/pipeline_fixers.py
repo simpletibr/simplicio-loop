@@ -69,6 +69,32 @@ def _safe_node_package(raw: str) -> str | None:
     return None
 
 
+def _safe_go_module(raw: str) -> str | None:
+    spec = raw.strip().strip('"').strip("'")
+    if not spec or spec.startswith((".", "/", "\\")):
+        return None
+    # Go import paths look like host/owner/repo; require a dot or slash so a
+    # bare standard-library name (already shipped with the toolchain) is never
+    # passed to `go get`.
+    if "." not in spec.split("/", 1)[0] and "/" not in spec:
+        return None
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._~/-]*", spec):
+        return spec
+    return None
+
+
+_RUST_STD_MODULES = {"crate", "self", "super", "std", "core", "alloc"}
+
+
+def _safe_cargo_crate(raw: str) -> str | None:
+    candidate = raw.strip().strip("`")
+    if not candidate or candidate in _RUST_STD_MODULES:
+        return None
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", candidate):
+        return candidate
+    return None
+
+
 def _dependency_name(spec: str) -> str:
     name = re.split(r"\s*(?:[<>=!~]=?|;|\[)", spec.strip(), maxsplit=1)[0]
     return name.replace("_", "-").lower()
@@ -220,6 +246,53 @@ def _package_install_command(package_manager: str, package: str) -> list[str]:
     return [package_manager, "add", package]
 
 
+class MissingGoModuleFixer(StaticFixer):
+    name = "missing-go-module"
+    pattern = re.compile(
+        r"(?:no required module provides package|cannot find package)\s+[\"']?"
+        r"([A-Za-z0-9][A-Za-z0-9._~/-]*)",
+        re.I,
+    )
+
+    def try_fix(self, log: str, project_dir: Path, runner: Runner | None = None) -> FixerResult:
+        match = self.pattern.search(log or "")
+        module = _safe_go_module(match.group(1)) if match else None
+        if not module:
+            return FixerResult(self.name, False, "no safe Go module found")
+
+        try:
+            result = _run(["go", "get", module], project_dir, runner)
+        except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+            return FixerResult(self.name, False, f"go get failed: {exc}")
+        if not _ok(result):
+            tail = ((result.stdout or "") + (result.stderr or ""))[-400:]
+            return FixerResult(self.name, False, f"go get {module} failed: {tail}")
+        return FixerResult(self.name, True, f"go get {module} (go.mod updated)")
+
+
+class MissingCargoCrateFixer(StaticFixer):
+    name = "missing-cargo-crate"
+    pattern = re.compile(
+        r"(?:use of undeclared crate or module|maybe a missing crate)\s+`([A-Za-z0-9_][A-Za-z0-9_-]*)`",
+        re.I,
+    )
+
+    def try_fix(self, log: str, project_dir: Path, runner: Runner | None = None) -> FixerResult:
+        match = self.pattern.search(log or "")
+        crate = _safe_cargo_crate(match.group(1)) if match else None
+        if not crate:
+            return FixerResult(self.name, False, "no safe Cargo crate found")
+
+        try:
+            result = _run(["cargo", "add", crate], project_dir, runner)
+        except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
+            return FixerResult(self.name, False, f"cargo add failed: {exc}")
+        if not _ok(result):
+            tail = ((result.stdout or "") + (result.stderr or ""))[-400:]
+            return FixerResult(self.name, False, f"cargo add {crate} failed: {tail}")
+        return FixerResult(self.name, True, f"cargo add {crate} (Cargo.toml updated)")
+
+
 class RuffFormatFixer(StaticFixer):
     name = "ruff-format"
     pattern = re.compile(r"\b(?:SyntaxError|IndentationError)\b", re.I)
@@ -271,6 +344,8 @@ def _python_error_target(log: str, project_dir: Path) -> Path | None:
 STATIC_FIXERS: list[StaticFixer] = [
     MissingPipPackageFixer(),
     MissingNpmPackageFixer(),
+    MissingGoModuleFixer(),
+    MissingCargoCrateFixer(),
     RuffFormatFixer(),
 ]
 
