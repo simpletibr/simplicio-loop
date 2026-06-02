@@ -45,6 +45,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Setup Node.js (parity tests run both runtimes)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Install package and pytest
         run: |
           python -m pip install --upgrade pip

@@ -1,0 +1,12 @@
+{
+  "name": "parity-host",
+  "version": "1.0.0",
+  "description": "Deterministic fixture for the Node ↔ Python mapper parity test (issue #98).",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "express": "^4.0.0"
+  }
+}
