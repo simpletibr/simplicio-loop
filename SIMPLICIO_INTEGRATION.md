@@ -266,12 +266,19 @@ markdown or file-inspection behavior.
 
 ## Mechanical Edit Contract (issue #110)
 
-Schema: `simplicio.mechanical-edit/v1` (envelope) and
-`simplicio.mechanical-edit-result/v1` (executor result). The canonical
-contract lives in
+Schema: `simplicio.mechanical-edit/v1` (mapper context envelope). The
+contract was originally tracked through
 [`simplicio-runtime#69`](https://github.com/wesleysimplicio/simplicio-runtime/issues/69);
 this repository implements the **producer half** so an LLM planner can
 plan compact JSON edits without rewriting whole files.
+
+Runtime compatibility note: current `simplicio-runtime` executor inputs
+are `simplicio.edit-plan/v1`, and executor results are
+`simplicio.edit-result/v1`. The mapper envelope below is an anchor/context
+producer, not a replacement executor schema. Runtime adapters must compile
+the selected file, optional `expect_sha256`, and operations into the
+standard edit plan before calling `simplicio edit`; this repository must
+not fork the runtime edit schemas.
 
 ### What the mapper produces
 
@@ -454,6 +461,13 @@ The unified native Simplicio runtime — coordinating
 program — depends on this repository for the **fast context layer**.
 Everything in this section is a stable contract: a breaking change requires a
 schema bump and an ADR.
+
+When the runtime itself runs `simplicio map`, it wraps adapter execution as
+`simplicio.map-result/v1` with artifact paths and fallback status. The
+mapper still emits its own adapter payloads (`simplicio.mapper-index/v1`,
+`simplicio.project-map/v1`, and related artifact schemas); those are input
+artifacts for the runtime wrapper, not replacements for
+`simplicio.map-result/v1`.
 
 ### Commands and `--json` payloads
 
