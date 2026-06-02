@@ -263,3 +263,125 @@ The JSON artifacts are additive. Existing markdown docs in `.specs/`, `docs/`,
 and agent instruction files remain the human-readable source for project
 operation. If `.simplicio/` is absent, consumers should fall back to the current
 markdown or file-inspection behavior.
+
+## Native Runtime Contract (issue #95)
+
+The unified native Simplicio runtime — coordinating
+`simplicio-mapper` + `simplicio-dev-cli` + `simplicio-prompt` +
+`simplicio-sprint` + a local LLM (`llama.cpp` / GGUF) as a single local
+program — depends on this repository for the **fast context layer**.
+Everything in this section is a stable contract: a breaking change requires a
+schema bump and an ADR.
+
+### Commands and `--json` payloads
+
+| Command | Path | JSON schema | Stable fields |
+|---|---|---|---|
+| `simplicio-mapper index <path> --json` | stdout | `simplicio.mapper-index/v1` | `status`, `fingerprint`, `project_map_path`, `precedent_path`, `file_count`, `precedent_count`, `duration_ms`, `error?`, `skipped_reason?` |
+| `simplicio-mapper map [--root <dir>] [--json]` | stdout when `--json` | mirrors the index payload above | same — emit the same shape so orchestrators do not branch on command name |
+| `simplicio-mapper update [--root <dir>] [--json]` | stdout when `--json` | mirrors the index payload above | same |
+| `simplicio-mapper endpoints <path> --against <root> --json` | stdout | `simplicio.endpoint-inventory/v1` | `schema`, `counts.client_calls`, `counts.server_routes`, `client_calls[]`, `server_routes[]`, `missing_from_server[]` |
+| `simplicio-mapper screens <path> --json` | stdout | `simplicio.screen-inventory/v1` | `schema`, `routes[]`, `personas[]`, `guards[]` |
+| `simplicio-mapper docs <path> --json` | stdout | `simplicio.architecture-docs/v1` envelope | `docs_root`, `counts.files`, `files[].path`, `files[].kind` |
+| `simplicio-mapper export-docs <path> --target <dir> --json` | stdout | same envelope as `docs` plus `target` | `target`, `docs_root`, `counts.files` |
+| `simplicio-mapper docs <path>` (no `--json`) | `.simplicio/docs/*.md` | `simplicio.architecture-docs/v1` markdown | `architecture.md`, `layers.md`, `call-graph.md`, `modules.md`, `modules/<module>.md` |
+| `simplicio-mapper index|map|update --docs-only` | `.simplicio/docs/*.md` | same markdown set | renders without rewriting JSON; useful for refresh-only-docs flows |
+| `simplicio-mapper index|map|update --background` | `.simplicio/background-index.log` | best-effort log | detached refresh; lock-guarded against the foreground |
+
+All `--json` outputs are single-line JSON (no trailing newline beyond the
+final `\n` from `print`). The native runtime should consume them with
+`json.loads(stdout.strip())`.
+
+### Exit codes (orchestration contract)
+
+| Code | Meaning |
+|---|---|
+| `0` | Wrote or refreshed artifacts, or an `index` run found state already-fresh and reused it (per CHANGELOG `0.6.4`). |
+| `1` | Failure. JSON `status="failed"` and a non-empty `error` string are emitted when `--json` is set. |
+| `2` | Skipped: fingerprint matched and artifacts were present, no work needed. The native runtime should treat exit 2 as a successful no-op, not an error. |
+
+### Lock and cache behavior for concurrent agents
+
+The native runtime fans out many local logical agents that may all want to
+read the same `.simplicio/` artifacts. The mapper guarantees:
+
+- **Foreground vs background refresh exclusion.** `simplicio-mapper index`
+  (and its `map` / `update` aliases) takes an exclusive lock at
+  `.simplicio/index.lock` for the duration of a refresh. When another refresh
+  is already running, the call returns immediately with exit `0`,
+  `status="skipped"`, and `skipped_reason="locked"` (CHANGELOG `0.7.1`).
+  Consumers should retry after observing the locked status rather than block.
+- **Atomic artifact writes.** All JSON artifacts are written via
+  temp-file + atomic rename (CHANGELOG `0.7.0`), so concurrent readers always
+  see a consistent file — never a partially written JSON.
+- **Per-file cache.** Heavy per-file work (hashing, role detection, import
+  parsing) is memoized in `.simplicio/cache/` via `diskcache`. The cache key
+  combines `path`, `size_bytes`, and `mtime_ns`, so external edits
+  invalidate naturally.
+- **Cross-process safety.** `diskcache` uses SQLite under the hood; the
+  mapper does not add a second lock. Multiple readers of the JSON artifacts
+  are safe with no coordination.
+
+### Changed-file incremental refresh
+
+Two equivalent invocation styles exist for the same code path:
+
+```bash
+simplicio-mapper map --incremental    # canonical
+simplicio-mapper map --changed-only   # orchestrator-facing alias
+simplicio-mapper update               # legacy alias, equivalent to --incremental
+```
+
+The incremental refresh only re-emits `files[]` and `precedents[]` entries
+whose `(path, size, mtime)` triple changed; the rest of the artifact is
+preserved from the previous run. The schema, ordering, and importance scoring
+remain identical to a full refresh — only the cost changes.
+
+### Timing and cache stats
+
+The `index` command emits `duration_ms` in every JSON payload (wrote /
+skipped / failed). The native runtime can use it to:
+
+- detect cold-start regressions on a per-repo basis (compare `duration_ms`
+  for `status="wrote"` against rolling baselines);
+- attribute token / time savings against a baseline that doesn't use the
+  mapper at all;
+- decide whether to fan out to background refresh based on observed
+  foreground cost.
+
+Per-artifact write counts are exposed under `counts.*` for the
+`endpoints` / `screens` / `docs` commands. The `index` payload's
+`file_count` and `precedent_count` provide an equivalent dimension for the
+main mapping pipeline.
+
+### Stability guarantees
+
+- All schemas (`simplicio.project-map/v1`, `simplicio.precedent-index/v1`,
+  `simplicio.architecture-inventory/v1`, `simplicio.symbol-index/v1`,
+  `simplicio.call-graph/v1`, `simplicio.endpoint-inventory/v1`,
+  `simplicio.screen-inventory/v1`, `simplicio.mapper-index/v1`,
+  `simplicio.mapper-index-state/v1`) are SemVer-locked: additive fields are
+  allowed inside `v1`; renames and removals require `v2` plus an ADR.
+- `simplicio-mapper --version` is sourced from `package.json`,
+  `pyproject.toml`, and `simplicio_mapper.__version__` simultaneously and
+  verified in CI by `scripts/check-version-sync.js`.
+- The Node mapper at `bin/cli.js` and the Python mapper at
+  `simplicio_mapper.mapper` are kept in parity by
+  `tests/python/test_parity.py` (issue #98). Any heuristic divergence is a
+  bug.
+
+### Native runtime adoption checklist
+
+When integrating from the unified runtime:
+
+1. Call `simplicio-mapper index <repo> --json` before each agent
+   dispatch; treat exit `2` as a successful no-op.
+2. Parse the JSON payload and follow `project_map_path` /
+   `precedent_path` for the actual artifacts.
+3. Read JSON artifacts with `json.loads`. Never tail or partially parse —
+   atomic writes guarantee whole-file consistency.
+4. Observe `skipped_reason="locked"`; back off and retry rather than
+   block.
+5. Track `duration_ms` in your telemetry to attribute speedups.
+6. Cache `fingerprint` per-agent; only re-read artifacts when the
+   fingerprint changes.
