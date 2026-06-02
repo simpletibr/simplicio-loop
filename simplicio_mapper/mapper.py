@@ -14,8 +14,9 @@ import posixpath
 import re
 import shutil
 import subprocess
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Any, Callable
+from typing import Any
 
 import orjson
 
@@ -96,7 +97,7 @@ def _normalize_rel(file: str) -> str:
 
 def _read_safe(file: str) -> str:
     try:
-        with open(file, "r", encoding="utf-8", errors="replace") as handle:
+        with open(file, encoding="utf-8", errors="replace") as handle:
             return handle.read()
     except OSError:
         return ""

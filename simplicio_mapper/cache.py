@@ -24,7 +24,7 @@ class FileProcessingCache:
     def __init__(self, cache_dir: str | Path) -> None:
         self._cache = Cache(str(cache_dir))
 
-    def __enter__(self) -> "FileProcessingCache":
+    def __enter__(self) -> FileProcessingCache:
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
@@ -38,7 +38,7 @@ class FileProcessingCache:
 
     def make_file_key(self, path: str | Path, size_bytes: int, mtime_ns: int) -> str:
         normalized = Path(path).as_posix()
-        raw = f"{self.VERSION}:{normalized}:{size_bytes}:{mtime_ns}".encode("utf-8")
+        raw = f"{self.VERSION}:{normalized}:{size_bytes}:{mtime_ns}".encode()
         digest = hashlib.blake2b(raw, digest_size=24).hexdigest()
         return f"file:{digest}"
 
