@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.project-map/v1",
   "version": 1,
-  "generated_at": "2026-06-02T15:00:04.800Z",
+  "generated_at": "2026-06-02T16:01:43.363Z",
   "update_mode": "incremental",
   "product": {
     "name": "simplicio-cli-e2e",
@@ -927,14 +927,14 @@
       "size_bytes": 38322,
       "last_modified": "2026-06-02T14:56:18.674Z",
       "file_hash": "7fac02c3b4af1496a039fc4d5dc64b99768fc733c92858147971b6814a6f6f84",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [
         "names",
         "renames"
       ],
-      "importance": 0.4
+      "importance": 0.2
     },
     {
       "path": "CLAUDE.md",
@@ -1004,13 +1004,13 @@
       "size_bytes": 44159,
       "last_modified": "2026-06-02T14:53:44.270Z",
       "file_hash": "cff0e82d595a008f40519d301cd60efd8b284f1ca1a37838f70d153c462758fe",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [
         "do"
       ],
-      "importance": 0.4
+      "importance": 0.2
     },
     {
       "path": "README.pt-BR.md",
@@ -1018,13 +1018,13 @@
       "size_bytes": 44263,
       "last_modified": "2026-06-02T14:54:07.185Z",
       "file_hash": "8fedd2e49d8a037f9fb613603f9253da7e681cf73104fe411562fefd7d5a4b26",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [
         "do"
       ],
-      "importance": 0.4
+      "importance": 0.2
     },
     {
       "path": "READMEs/README.ar-SA.md",
@@ -2278,9 +2278,9 @@
     {
       "path": "bench/results_scratch_recipes.json",
       "language": "json",
-      "size_bytes": 67234,
-      "last_modified": "2026-05-30T20:30:58.448Z",
-      "file_hash": "99c7dab579af6d8a9427231c5873b179bc4f900c5355f7df44d4fb960d7fc9fb",
+      "size_bytes": 67311,
+      "last_modified": "2026-06-02T16:00:43.553Z",
+      "file_hash": "66befcdb52dbe76237f16a875102be5240c46dff50cc4251ca1e505f68408495",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -2290,9 +2290,9 @@
     {
       "path": "bench/results_scratch_recipes.md",
       "language": "markdown",
-      "size_bytes": 4634,
-      "last_modified": "2026-05-30T20:30:58.450Z",
-      "file_hash": "2ae2c509f86c76390b56134a7ddf53a5df274b2e524d55079ed013b9ea555ff4",
+      "size_bytes": 4805,
+      "last_modified": "2026-06-02T16:00:43.554Z",
+      "file_hash": "31336baa6ee38e83884f64deadc87ae4116dbba32f8731957ae46d2cc0b248b5",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -3323,9 +3323,9 @@
     {
       "path": "bench/run_scratch_recipes.py",
       "language": "python",
-      "size_bytes": 25953,
-      "last_modified": "2026-05-30T20:30:58.452Z",
-      "file_hash": "14eef9985e4a47e714996b9c2112a4a75ae5385b99d9941bac8ec3c4d4c67440",
+      "size_bytes": 26158,
+      "last_modified": "2026-06-02T16:00:43.555Z",
+      "file_hash": "690e7975e9c859d1776a84c5a10296f18236b41a3340993d738af176442d304e",
       "git_status": "clean",
       "roles": [],
       "imports": [
@@ -4110,11 +4110,11 @@
       "size_bytes": 4191,
       "last_modified": "2026-06-02T14:53:32.528Z",
       "file_hash": "bc465efc425806fceeee002087b44d3bdcac661bd1510ee1ee703cbc81ba2313",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.12
     },
     {
       "path": "docs/PYTHON_PACKAGE_INTERDEPENDENCE.md",
@@ -4122,11 +4122,11 @@
       "size_bytes": 969,
       "last_modified": "2026-06-02T14:35:49.395Z",
       "file_hash": "45048f928692d809a77b62c47e050dd085d5e22dc71413715e2bcaa274439fbd",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.12
     },
     {
       "path": "docs/adr/0001-qwen15b-schema-v1-quant-decision.md",
@@ -4440,13 +4440,13 @@
       "size_bytes": 2716,
       "last_modified": "2026-06-02T14:35:49.378Z",
       "file_hash": "6cc7597513f627c99a0804de552b37113692a9849b3818f8bf1b5864343cb9ee",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "config"
       ],
       "imports": [],
       "exports": [],
-      "importance": 0.52
+      "importance": 0.32
     },
     {
       "path": "rust/simplicio-core/Cargo.toml",
@@ -4699,11 +4699,11 @@
       "size_bytes": 23,
       "last_modified": "2026-06-02T14:18:38.747Z",
       "file_hash": "227ac525a0546ff70b8bbd27fdb06319190c3805b11948050c800e6c08c1e3f3",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.12
     },
     {
       "path": "simplicio/_cache.py",
@@ -4848,7 +4848,7 @@
       "size_bytes": 31593,
       "last_modified": "2026-06-02T14:21:26.584Z",
       "file_hash": "5994da5c3b74d1926e26b83f7525bc304773e7e4b6a5fbfa58226a0d4614438d",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "entrypoint"
       ],
@@ -4897,7 +4897,7 @@
         "main",
         "maybe_autoinstall"
       ],
-      "importance": 0.93
+      "importance": 0.73
     },
     {
       "path": "simplicio/detect.py",
@@ -5104,7 +5104,7 @@
       "size_bytes": 7402,
       "last_modified": "2026-06-02T14:21:26.583Z",
       "file_hash": "08642e22911c2fffdc386e21154320978fc7cbbf21d70a903a4686a167f72f5c",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "domain"
       ],
@@ -5132,7 +5132,7 @@
         "ollama_id",
         "to_dict"
       ],
-      "importance": 0.68
+      "importance": 0.48
     },
     {
       "path": "simplicio/mapper.py",
@@ -5169,10 +5169,10 @@
     {
       "path": "simplicio/mechanical_edit.py",
       "language": "python",
-      "size_bytes": 21613,
-      "last_modified": "2026-06-02T14:38:13.864Z",
-      "file_hash": "b273679c368ee386aa7122bbe55b5963f196df765e3d7c168b231a5c92a618d8",
-      "git_status": "??",
+      "size_bytes": 22462,
+      "last_modified": "2026-06-02T16:00:43.555Z",
+      "file_hash": "4442c35d564d66db16534fe0dfc613dde442b45e028e0863ec5af9dc9c7b8ad2",
+      "git_status": "clean",
       "roles": [],
       "imports": [
         ".token_primitives",
@@ -5199,10 +5199,13 @@
         "_build_diff",
         "_check_file_hash",
         "_check_text_preconditions",
+        "_contract_hash",
         "_declared_touched_files",
         "_decode_for_diff",
         "_file_hash_rows",
         "_json_pointer_parent",
+        "_normalize_line_endings",
+        "_normalize_patch_text",
         "_operation_order",
         "_refused",
         "_restore",
@@ -5218,7 +5221,7 @@
         "execute_plan_json",
         "to_dict"
       ],
-      "importance": 0.48
+      "importance": 0.28
     },
     {
       "path": "simplicio/observability.py",
@@ -5455,7 +5458,7 @@
       "size_bytes": 28115,
       "last_modified": "2026-06-02T14:52:53.700Z",
       "file_hash": "1fe7e495688202c72a92fc82acffe791fff909db4e76d39de547878de829344a",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [
         "._cache",
@@ -5505,7 +5508,7 @@
         "planner_complete",
         "planner_info"
       ],
-      "importance": 0.48
+      "importance": 0.28
     },
     {
       "path": "simplicio/runtime_contracts.py",
@@ -5513,7 +5516,7 @@
       "size_bytes": 2553,
       "last_modified": "2026-06-02T14:21:26.584Z",
       "file_hash": "fe2bbef9c1a1ebee54603edcc0913bde37ebc62a4210c61ff5b1c1c13f529ea2",
-      "git_status": "??",
+      "git_status": "clean",
       "roles": [],
       "imports": [
         ".",
@@ -5532,7 +5535,7 @@
         "smoke_contract",
         "task_contract"
       ],
-      "importance": 0.48
+      "importance": 0.28
     },
     {
       "path": "simplicio/runtime_env.py",
@@ -6471,13 +6474,13 @@
       "size_bytes": 9988,
       "last_modified": "2026-06-02T14:28:04.440Z",
       "file_hash": "e8f8ceb94fe748cd7f4408488dba446ec360034671e204ffd0ccf95b6506ac48",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [
         "do"
       ],
-      "importance": 0.4
+      "importance": 0.2
     },
     {
       "path": "simplicio/templates/recipes/go-gin/admin-crud.yaml",
@@ -6485,11 +6488,11 @@
       "size_bytes": 1551,
       "last_modified": "2026-06-02T14:35:10.120Z",
       "file_hash": "6a4f18544bcb99799b4e1c7e8de7af1f2f5d024dbfdc1ef188e3560ba52085fa",
-      "git_status": "??",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.12
     },
     {
       "path": "simplicio/templates/recipes/go-gin/auth-jwt.yaml",
@@ -6521,11 +6524,11 @@
       "size_bytes": 1673,
       "last_modified": "2026-06-02T14:35:10.119Z",
       "file_hash": "4ff044cdd35f99976132acba765524f0240d396e50c99f8e5948fabee7413b86",
-      "git_status": "??",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.12
     },
     {
       "path": "simplicio/templates/recipes/php-laravel/auth-jwt.yaml",
@@ -6593,11 +6596,11 @@
       "size_bytes": 2379,
       "last_modified": "2026-06-02T14:28:21.429Z",
       "file_hash": "fdf82aae8f28d4c9e449e07373df7829e476168159de86b0ed7f4d0e954b69ab",
-      "git_status": "??",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.12
     },
     {
       "path": "simplicio/templates/recipes/py-fastapi/crud-resource.yaml",
@@ -6617,11 +6620,11 @@
       "size_bytes": 2314,
       "last_modified": "2026-06-02T14:28:21.427Z",
       "file_hash": "431057441b4df770453981232b211a57e2c1b1d7d457b2e1a3f21bf1aa28062d",
-      "git_status": "??",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.12
     },
     {
       "path": "simplicio/templates/recipes/py-fastapi/oauth-integration.yaml",
@@ -6629,11 +6632,11 @@
       "size_bytes": 2530,
       "last_modified": "2026-06-02T14:28:21.432Z",
       "file_hash": "112dba913aa9c06b13a48ddec5f9784be53d4b04897a0e50c6198990825f9e1f",
-      "git_status": "??",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.12
     },
     {
       "path": "simplicio/templates/recipes/py-fastapi/scheduled-job.yaml",
@@ -6641,25 +6644,25 @@
       "size_bytes": 2397,
       "last_modified": "2026-06-02T14:28:21.430Z",
       "file_hash": "b894ee9aeeb9808ab0bb657ca96e6790b2b673031610bb06e775b449e3e0f0af",
-      "git_status": "??",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [
         "is"
       ],
-      "importance": 0.4
+      "importance": 0.2
     },
     {
       "path": "simplicio/templates/recipes/py-fastapi/websocket.yaml",
       "language": "yaml",
-      "size_bytes": 2262,
-      "last_modified": "2026-06-02T14:28:21.429Z",
-      "file_hash": "8cc2650bcca7a64640b1d6e97c1fb0550ada24f754931562437d5132559a2480",
-      "git_status": "??",
+      "size_bytes": 2329,
+      "last_modified": "2026-06-02T16:00:43.556Z",
+      "file_hash": "dbe550dcea0310a9336cf22f86fdbf8ec80bc7a13ef42dd3efbf24b774ae28b8",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.12
     },
     {
       "path": "simplicio/templates/recipes/rust-axum/admin-crud.yaml",
@@ -6667,11 +6670,11 @@
       "size_bytes": 1574,
       "last_modified": "2026-06-02T14:35:10.120Z",
       "file_hash": "83e7f038e0207fc35e909189153fac9d4c5c83876852ea495fda698e8c0ad4dd",
-      "git_status": "??",
+      "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [],
-      "importance": 0.32
+      "importance": 0.12
     },
     {
       "path": "simplicio/templates/recipes/rust-axum/auth-jwt.yaml",
@@ -10235,7 +10238,7 @@
       "size_bytes": 10568,
       "last_modified": "2026-06-02T14:38:13.865Z",
       "file_hash": "61845584f71c0a16800f4be104475b2f278ffbf239718b16e7c4c57a5fe649b8",
-      "git_status": "??",
+      "git_status": "clean",
       "roles": [],
       "imports": [
         "__future__",
@@ -10264,7 +10267,7 @@
         "sha256_text",
         "summarize_log"
       ],
-      "importance": 0.48
+      "importance": 0.28
     },
     {
       "path": "simplicio/utils/__init__.py",
@@ -10768,7 +10771,7 @@
       "size_bytes": 8639,
       "last_modified": "2026-06-02T14:21:47.903Z",
       "file_hash": "9adca970097cafa78352114173895b40db146d3ce7b1170ea6514e0d26fa97fd",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "domain",
         "test"
@@ -10793,7 +10796,7 @@
         "test_evaluate_refuses_to_run_oversized_model",
         "test_pick_tier_threshold_table"
       ],
-      "importance": 0.93
+      "importance": 0.73
     },
     {
       "path": "tests/python/test_mapping_retry_flow.py",
@@ -10842,10 +10845,10 @@
     {
       "path": "tests/python/test_mechanical_edit.py",
       "language": "python",
-      "size_bytes": 7268,
-      "last_modified": "2026-06-02T14:36:04.378Z",
-      "file_hash": "8ae1253a1cc0d68de8e18e5bb657c563a7643093502bd004c311e318585aa444",
-      "git_status": "M",
+      "size_bytes": 8013,
+      "last_modified": "2026-06-02T16:00:43.556Z",
+      "file_hash": "903d6eb1e892af63aacb77f729fc911bf9ed6ba348e81c6f9d786a7e7cfe26fd",
+      "git_status": "clean",
       "roles": [
         "test"
       ],
@@ -10863,6 +10866,7 @@
         "_write",
         "test_cli_json_contract_for_dry_run",
         "test_dry_run_and_apply_replace_range_contract",
+        "test_hash_contract_accepts_lf_hashes_for_crlf_text_files",
         "test_noop_result_is_machine_readable_and_compact",
         "test_refuses_edit_outside_declared_allowlist",
         "test_refuses_file_hash_mismatch",
@@ -10871,7 +10875,7 @@
         "test_strict_json_refuses_prose_wrapped_plan",
         "test_validation_failure_rolls_back_and_returns_compact_evidence"
       ],
-      "importance": 0.73
+      "importance": 0.53
     },
     {
       "path": "tests/python/test_orchestrator_feature.py",
@@ -10913,7 +10917,7 @@
       "size_bytes": 968,
       "last_modified": "2026-06-02T14:35:49.394Z",
       "file_hash": "4d97e037adc45413ea5956abc7f2160aed8ae82ebf7db7ea33c04ac729cc2f97",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "test"
       ],
@@ -10927,7 +10931,7 @@
         "test_package_version_matches_release_metadata",
         "test_simplicio_ecosystem_dependency_floors_are_current"
       ],
-      "importance": 0.73
+      "importance": 0.53
     },
     {
       "path": "tests/python/test_pipeline_fixers.py",
@@ -11000,7 +11004,7 @@
       "size_bytes": 16898,
       "last_modified": "2026-06-02T14:52:59.717Z",
       "file_hash": "c6f9612820bd49eb4e577de59d67bd79cc142c39930a5d07e3b16cb2526d5bd7",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "test"
       ],
@@ -11054,7 +11058,7 @@
         "test_resolve_local_path_prefers_executor_dir",
         "test_resolve_local_path_skips_corrupt_executor_file"
       ],
-      "importance": 0.73
+      "importance": 0.53
     },
     {
       "path": "tests/python/test_providers_shellout.py",
@@ -11062,7 +11066,7 @@
       "size_bytes": 6631,
       "last_modified": "2026-06-02T14:36:04.381Z",
       "file_hash": "a8b971bfbbe01e1dcad88243ef3954a7a23b6919a17cb027fc401e08838c02b1",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "test"
       ],
@@ -11088,7 +11092,7 @@
         "test_shell_out_nonzero_exit_raises_with_stderr",
         "test_shell_out_timeout_raises_friendly"
       ],
-      "importance": 0.73
+      "importance": 0.53
     },
     {
       "path": "tests/python/test_qwen15b_quant_curve_report.py",
@@ -11123,10 +11127,10 @@
     {
       "path": "tests/python/test_recipe_expansion.py",
       "language": "python",
-      "size_bytes": 1550,
-      "last_modified": "2026-06-02T14:38:13.865Z",
-      "file_hash": "e61e0a6619a165172c59035a87a776d570e5e6366488521f363d3cb362c446da",
-      "git_status": "M",
+      "size_bytes": 2081,
+      "last_modified": "2026-06-02T16:00:43.556Z",
+      "file_hash": "4dc040eedef71753966b71b98c19533ffb58223d1a8f06c8288bc020d5215527",
+      "git_status": "clean",
       "roles": [
         "test"
       ],
@@ -11137,9 +11141,10 @@
       ],
       "exports": [
         "test_admin_crud_parity_for_remaining_web_stacks",
+        "test_auth_jwt_parity_for_remaining_web_stacks",
         "test_new_llm_reduction_recipe_types_match_for_fastapi"
       ],
-      "importance": 0.73
+      "importance": 0.53
     },
     {
       "path": "tests/python/test_recipes.py",
@@ -11147,7 +11152,7 @@
       "size_bytes": 9735,
       "last_modified": "2026-06-02T14:36:04.379Z",
       "file_hash": "e8cd96adada765d6a328e118f696299de78e721bf603752c53a1ddbb42f89c4a",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "test"
       ],
@@ -11174,7 +11179,7 @@
         "test_same_recipe_name_renders_stack_specific_plan",
         "test_ts_nextjs_crud_recipe_renders_multi_word_entity"
       ],
-      "importance": 0.73
+      "importance": 0.53
     },
     {
       "path": "tests/python/test_run_cli.py",
@@ -11236,7 +11241,7 @@
       "size_bytes": 2526,
       "last_modified": "2026-06-02T14:21:47.901Z",
       "file_hash": "bb2c1d19bdbbaea7ba2f22844bff785ffdb20fbf217307430566f8a7b5fc5228",
-      "git_status": "M",
+      "git_status": "clean",
       "roles": [
         "test"
       ],
@@ -11253,7 +11258,7 @@
         "test_smoke_cli_can_emit_stable_json",
         "test_task_contract_wraps_existing_task_result_for_runtime_handoff"
       ],
-      "importance": 0.73
+      "importance": 0.53
     },
     {
       "path": "tests/python/test_runtime_env.py",
@@ -11927,9 +11932,9 @@
     {
       "path": "tests/python/test_scratch_recipes_bench.py",
       "language": "python",
-      "size_bytes": 5457,
-      "last_modified": "2026-05-30T20:30:58.459Z",
-      "file_hash": "eb25b85d66f55b6dd83bdcce2aa43a13332db0289a18070e6419de82fd126942",
+      "size_bytes": 5547,
+      "last_modified": "2026-06-02T16:00:43.556Z",
+      "file_hash": "194ff99a3b4d4dc6c4fe385264b6d6c95f6488e96c2fe0e9ccebf541b4503075",
       "git_status": "clean",
       "roles": [
         "test"
@@ -12932,6 +12937,10 @@
       "score": 82
     },
     {
+      "name": "for",
+      "score": 80
+    },
+    {
       "name": "load",
       "score": 80
     },
@@ -12945,10 +12954,6 @@
     },
     {
       "name": "crud",
-      "score": 76
-    },
-    {
-      "name": "for",
       "score": 76
     },
     {
@@ -12972,8 +12977,8 @@
       "score": 74
     },
     {
-      "name": "json",
-      "score": 73
+      "name": "text",
+      "score": 74
     }
   ],
   "architecture": {
@@ -13003,157 +13008,47 @@
   },
   "recent_changes": [
     {
-      "path": "CHANGELOG.md",
-      "status": "M"
+      "path": "bench/results_scratch_recipes.json",
+      "status": "modified"
     },
     {
-      "path": "README.md",
-      "status": "M"
+      "path": "bench/results_scratch_recipes.md",
+      "status": "modified"
     },
     {
-      "path": "README.pt-BR.md",
-      "status": "M"
-    },
-    {
-      "path": "docs/LLM_USAGE_POLICY.md",
-      "status": "M"
-    },
-    {
-      "path": "docs/PYTHON_PACKAGE_INTERDEPENDENCE.md",
-      "status": "M"
-    },
-    {
-      "path": "pyproject.toml",
-      "status": "M"
-    },
-    {
-      "path": "simplicio/__init__.py",
-      "status": "M"
-    },
-    {
-      "path": "simplicio/cli.py",
-      "status": "M"
-    },
-    {
-      "path": "simplicio/local_models.py",
-      "status": "M"
+      "path": "bench/run_scratch_recipes.py",
+      "status": "modified"
     },
     {
       "path": "simplicio/mechanical_edit.py",
-      "status": "??"
-    },
-    {
-      "path": "simplicio/providers.py",
-      "status": "M"
-    },
-    {
-      "path": "simplicio/runtime_contracts.py",
-      "status": "??"
-    },
-    {
-      "path": "simplicio/templates/SKILL.md",
-      "status": "M"
-    },
-    {
-      "path": "simplicio/templates/recipes/go-gin/admin-crud.yaml",
-      "status": "??"
-    },
-    {
-      "path": "simplicio/templates/recipes/php-laravel/admin-crud.yaml",
-      "status": "??"
-    },
-    {
-      "path": "simplicio/templates/recipes/py-fastapi/background-worker.yaml",
-      "status": "??"
-    },
-    {
-      "path": "simplicio/templates/recipes/py-fastapi/file-upload.yaml",
-      "status": "??"
-    },
-    {
-      "path": "simplicio/templates/recipes/py-fastapi/oauth-integration.yaml",
-      "status": "??"
-    },
-    {
-      "path": "simplicio/templates/recipes/py-fastapi/scheduled-job.yaml",
-      "status": "??"
+      "status": "modified"
     },
     {
       "path": "simplicio/templates/recipes/py-fastapi/websocket.yaml",
-      "status": "??"
-    },
-    {
-      "path": "simplicio/templates/recipes/rust-axum/admin-crud.yaml",
-      "status": "??"
-    },
-    {
-      "path": "simplicio/token_primitives.py",
-      "status": "??"
-    },
-    {
-      "path": "tests/python/test_local_models.py",
-      "status": "M"
+      "status": "modified"
     },
     {
       "path": "tests/python/test_mechanical_edit.py",
-      "status": "M"
-    },
-    {
-      "path": "tests/python/test_package_metadata.py",
-      "status": "M"
-    },
-    {
-      "path": "tests/python/test_providers_local.py",
-      "status": "M"
-    },
-    {
-      "path": "tests/python/test_providers_shellout.py",
-      "status": "M"
+      "status": "modified"
     },
     {
       "path": "tests/python/test_recipe_expansion.py",
-      "status": "M"
+      "status": "modified"
     },
     {
-      "path": "tests/python/test_recipes.py",
-      "status": "M"
-    },
-    {
-      "path": "tests/python/test_runtime_contracts.py",
-      "status": "M"
+      "path": "tests/python/test_scratch_recipes_bench.py",
+      "status": "modified"
     }
   ],
   "changed_files": [
-    "CHANGELOG.md",
-    "README.md",
-    "README.pt-BR.md",
-    "docs/LLM_USAGE_POLICY.md",
-    "docs/PYTHON_PACKAGE_INTERDEPENDENCE.md",
-    "pyproject.toml",
-    "simplicio/__init__.py",
-    "simplicio/cli.py",
-    "simplicio/local_models.py",
+    "bench/results_scratch_recipes.json",
+    "bench/results_scratch_recipes.md",
+    "bench/run_scratch_recipes.py",
     "simplicio/mechanical_edit.py",
-    "simplicio/providers.py",
-    "simplicio/runtime_contracts.py",
-    "simplicio/templates/SKILL.md",
-    "simplicio/templates/recipes/go-gin/admin-crud.yaml",
-    "simplicio/templates/recipes/php-laravel/admin-crud.yaml",
-    "simplicio/templates/recipes/py-fastapi/background-worker.yaml",
-    "simplicio/templates/recipes/py-fastapi/file-upload.yaml",
-    "simplicio/templates/recipes/py-fastapi/oauth-integration.yaml",
-    "simplicio/templates/recipes/py-fastapi/scheduled-job.yaml",
     "simplicio/templates/recipes/py-fastapi/websocket.yaml",
-    "simplicio/templates/recipes/rust-axum/admin-crud.yaml",
-    "simplicio/token_primitives.py",
-    "tests/python/test_local_models.py",
     "tests/python/test_mechanical_edit.py",
-    "tests/python/test_package_metadata.py",
-    "tests/python/test_providers_local.py",
-    "tests/python/test_providers_shellout.py",
     "tests/python/test_recipe_expansion.py",
-    "tests/python/test_recipes.py",
-    "tests/python/test_runtime_contracts.py"
+    "tests/python/test_scratch_recipes_bench.py"
   ],
   "integration": {
     "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",

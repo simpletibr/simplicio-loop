@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.symbol-index/v1",
   "version": 1,
-  "generated_at": "2026-06-02T15:00:04.800Z",
+  "generated_at": "2026-06-02T16:01:43.363Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
   "symbols": [
     {
@@ -4114,10 +4114,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "bench/run_scratch_recipes.py",
-      "line": 602,
+      "line": 606,
       "evidence": {
         "file": "bench/run_scratch_recipes.py",
-        "line": 602
+        "line": 606
       }
     },
     {
@@ -4126,10 +4126,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "bench/run_scratch_recipes.py",
-      "line": 632,
+      "line": 636,
       "evidence": {
         "file": "bench/run_scratch_recipes.py",
-        "line": 632
+        "line": 636
       }
     },
     {
@@ -8434,10 +8434,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 385,
+      "line": 387,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 385
+        "line": 387
       }
     },
     {
@@ -8446,10 +8446,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 403,
+      "line": 405,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 403
+        "line": 405
       }
     },
     {
@@ -8458,10 +8458,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 424,
+      "line": 426,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 424
+        "line": 426
       }
     },
     {
@@ -8470,10 +8470,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 434,
+      "line": 436,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 434
+        "line": 436
       }
     },
     {
@@ -8482,10 +8482,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 461,
+      "line": 463,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 461
+        "line": 463
       }
     },
     {
@@ -8494,10 +8494,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 468,
+      "line": 470,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 468
+        "line": 470
       }
     },
     {
@@ -8506,10 +8506,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 486,
+      "line": 488,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 486
+        "line": 488
       }
     },
     {
@@ -8518,10 +8518,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 495,
+      "line": 497,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 495
+        "line": 497
       }
     },
     {
@@ -8530,10 +8530,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 503,
+      "line": 505,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 503
+        "line": 505
       }
     },
     {
@@ -8542,10 +8542,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 514,
+      "line": 516,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 514
+        "line": 516
       }
     },
     {
@@ -8554,10 +8554,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 525,
+      "line": 527,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 525
+        "line": 527
       }
     },
     {
@@ -8566,10 +8566,46 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 578,
+      "line": 580,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 578
+        "line": 580
+      }
+    },
+    {
+      "name": "_contract_hash",
+      "qualified_name": "simplicio/mechanical_edit.py::_contract_hash",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 600,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 600
+      }
+    },
+    {
+      "name": "_normalize_line_endings",
+      "qualified_name": "simplicio/mechanical_edit.py::_normalize_line_endings",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 610,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 610
+      }
+    },
+    {
+      "name": "_normalize_patch_text",
+      "qualified_name": "simplicio/mechanical_edit.py::_normalize_patch_text",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/mechanical_edit.py",
+      "line": 614,
+      "evidence": {
+        "file": "simplicio/mechanical_edit.py",
+        "line": 614
       }
     },
     {
@@ -8578,10 +8614,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 598,
+      "line": 622,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 598
+        "line": 622
       }
     },
     {
@@ -8590,10 +8626,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 609,
+      "line": 633,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 609
+        "line": 633
       }
     },
     {
@@ -8602,10 +8638,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/mechanical_edit.py",
-      "line": 613,
+      "line": 637,
       "evidence": {
         "file": "simplicio/mechanical_edit.py",
-        "line": 613
+        "line": 637
       }
     },
     {
@@ -16577,8 +16613,8 @@
       }
     },
     {
-      "name": "test_strict_json_refuses_prose_wrapped_plan",
-      "qualified_name": "tests/python/test_mechanical_edit.py::test_strict_json_refuses_prose_wrapped_plan",
+      "name": "test_hash_contract_accepts_lf_hashes_for_crlf_text_files",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_hash_contract_accepts_lf_hashes_for_crlf_text_files",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_mechanical_edit.py",
@@ -16589,32 +16625,32 @@
       }
     },
     {
+      "name": "test_strict_json_refuses_prose_wrapped_plan",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_strict_json_refuses_prose_wrapped_plan",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 83,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 83
+      }
+    },
+    {
       "name": "test_refuses_file_hash_mismatch",
       "qualified_name": "tests/python/test_mechanical_edit.py::test_refuses_file_hash_mismatch",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_mechanical_edit.py",
-      "line": 71,
+      "line": 93,
       "evidence": {
         "file": "tests/python/test_mechanical_edit.py",
-        "line": 71
+        "line": 93
       }
     },
     {
       "name": "test_refuses_edit_outside_declared_allowlist",
       "qualified_name": "tests/python/test_mechanical_edit.py::test_refuses_edit_outside_declared_allowlist",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_mechanical_edit.py",
-      "line": 90,
-      "evidence": {
-        "file": "tests/python/test_mechanical_edit.py",
-        "line": 90
-      }
-    },
-    {
-      "name": "test_refuses_overlapping_operations_without_order",
-      "qualified_name": "tests/python/test_mechanical_edit.py::test_refuses_overlapping_operations_without_order",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_mechanical_edit.py",
@@ -16625,15 +16661,27 @@
       }
     },
     {
+      "name": "test_refuses_overlapping_operations_without_order",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_refuses_overlapping_operations_without_order",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 134,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 134
+      }
+    },
+    {
       "name": "test_refuses_text_operation_on_binary_file",
       "qualified_name": "tests/python/test_mechanical_edit.py::test_refuses_text_operation_on_binary_file",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_mechanical_edit.py",
-      "line": 140,
+      "line": 162,
       "evidence": {
         "file": "tests/python/test_mechanical_edit.py",
-        "line": 140
+        "line": 162
       }
     },
     {
@@ -16642,10 +16690,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_mechanical_edit.py",
-      "line": 157,
+      "line": 179,
       "evidence": {
         "file": "tests/python/test_mechanical_edit.py",
-        "line": 157
+        "line": 179
       }
     },
     {
@@ -16654,10 +16702,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_mechanical_edit.py",
-      "line": 190,
+      "line": 212,
       "evidence": {
         "file": "tests/python/test_mechanical_edit.py",
-        "line": 190
+        "line": 212
       }
     },
     {
@@ -16666,10 +16714,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_mechanical_edit.py",
-      "line": 208,
+      "line": 230,
       "evidence": {
         "file": "tests/python/test_mechanical_edit.py",
-        "line": 208
+        "line": 230
       }
     },
     {
@@ -18242,6 +18290,18 @@
       "evidence": {
         "file": "tests/python/test_recipe_expansion.py",
         "line": 43
+      }
+    },
+    {
+      "name": "test_auth_jwt_parity_for_remaining_web_stacks",
+      "qualified_name": "tests/python/test_recipe_expansion.py::test_auth_jwt_parity_for_remaining_web_stacks",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_recipe_expansion.py",
+      "line": 63,
+      "evidence": {
+        "file": "tests/python/test_recipe_expansion.py",
+        "line": 63
       }
     },
     {
@@ -21718,10 +21778,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_scratch_recipes_bench.py",
-      "line": 44,
+      "line": 45,
       "evidence": {
         "file": "tests/python/test_scratch_recipes_bench.py",
-        "line": 44
+        "line": 45
       }
     },
     {
@@ -21730,10 +21790,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_scratch_recipes_bench.py",
-      "line": 57,
+      "line": 58,
       "evidence": {
         "file": "tests/python/test_scratch_recipes_bench.py",
-        "line": 57
+        "line": 58
       }
     },
     {
@@ -21742,10 +21802,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_scratch_recipes_bench.py",
-      "line": 80,
+      "line": 81,
       "evidence": {
         "file": "tests/python/test_scratch_recipes_bench.py",
-        "line": 80
+        "line": 81
       }
     },
     {
@@ -21754,10 +21814,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_scratch_recipes_bench.py",
-      "line": 121,
+      "line": 122,
       "evidence": {
         "file": "tests/python/test_scratch_recipes_bench.py",
-        "line": 121
+        "line": 122
       }
     },
     {
@@ -21766,10 +21826,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_scratch_recipes_bench.py",
-      "line": 130,
+      "line": 131,
       "evidence": {
         "file": "tests/python/test_scratch_recipes_bench.py",
-        "line": 130
+        "line": 131
       }
     },
     {
@@ -23070,7 +23130,7 @@
     }
   ],
   "counts": {
-    "symbols": 1922,
+    "symbols": 1927,
     "files": 192
   }
 }

@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.architecture-inventory/v1",
   "version": 1,
-  "generated_at": "2026-06-02T15:00:04.800Z",
+  "generated_at": "2026-06-02T16:01:43.363Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
   "source_project_map": ".simplicio/project-map.json",
   "source_symbol_index": ".simplicio/symbol-index.json",
@@ -9152,6 +9152,9 @@
         "_restore",
         "_run_validation",
         "_file_hash_rows",
+        "_contract_hash",
+        "_normalize_line_endings",
+        "_normalize_patch_text",
         "_safe_path",
         "_base_result",
         "_refused"
@@ -16528,6 +16531,7 @@
         "_sha",
         "_plan",
         "test_dry_run_and_apply_replace_range_contract",
+        "test_hash_contract_accepts_lf_hashes_for_crlf_text_files",
         "test_strict_json_refuses_prose_wrapped_plan",
         "test_refuses_file_hash_mismatch",
         "test_refuses_edit_outside_declared_allowlist",
@@ -16870,7 +16874,8 @@
       ],
       "symbols": [
         "test_new_llm_reduction_recipe_types_match_for_fastapi",
-        "test_admin_crud_parity_for_remaining_web_stacks"
+        "test_admin_crud_parity_for_remaining_web_stacks",
+        "test_auth_jwt_parity_for_remaining_web_stacks"
       ],
       "summary": "Verifies project behavior through automated tests.",
       "evidence": [
@@ -20530,7 +20535,7 @@
     "files": 704,
     "modules": 16,
     "layers": 13,
-    "symbols": 1922,
+    "symbols": 1927,
     "relationships": 1000,
     "tests": 103
   },

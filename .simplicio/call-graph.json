@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.call-graph/v1",
   "version": 1,
-  "generated_at": "2026-06-02T15:00:04.800Z",
+  "generated_at": "2026-06-02T16:01:43.363Z",
   "source_symbol_index": ".simplicio/symbol-index.json",
   "edges": [
     {
@@ -6812,7 +6812,7 @@
       "source_symbol": "bench/run_scratch_recipes.py::main",
       "target_file": "bench/compare_sp.py",
       "target_symbol": "bench/compare_sp.py::main",
-      "line": 634,
+      "line": 638,
       "confidence": 0.58
     },
     {
@@ -6821,7 +6821,7 @@
       "source_symbol": "bench/run_scratch_recipes.py::main",
       "target_file": "bench/compare_versions.py",
       "target_symbol": "bench/compare_versions.py::main",
-      "line": 634,
+      "line": 638,
       "confidence": 0.58
     },
     {
@@ -6830,7 +6830,7 @@
       "source_symbol": "bench/run_scratch_recipes.py::main",
       "target_file": "bench/consolidate_4side_report.py",
       "target_symbol": "bench/consolidate_4side_report.py::main",
-      "line": 634,
+      "line": 638,
       "confidence": 0.58
     },
     {
@@ -6902,7 +6902,7 @@
       "source_symbol": "bench/run_scratch_recipes.py::parse_args",
       "target_file": "bench/run_issue_closure_audit.py",
       "target_symbol": "bench/run_issue_closure_audit.py::parse_args",
-      "line": 604,
+      "line": 608,
       "confidence": 0.58
     },
     {
@@ -6920,7 +6920,7 @@
       "source_symbol": "bench/run_scratch_recipes.py::parse_args",
       "target_file": "bench/run_llm_reduction_summary.py",
       "target_symbol": "bench/run_llm_reduction_summary.py::parse_args",
-      "line": 604,
+      "line": 608,
       "confidence": 0.58
     },
     {
@@ -6938,7 +6938,7 @@
       "source_symbol": "bench/run_scratch_recipes.py::parse_args",
       "target_file": "bench/run_qwen15b_quant_curve_report.py",
       "target_symbol": "bench/run_qwen15b_quant_curve_report.py::parse_args",
-      "line": 604,
+      "line": 608,
       "confidence": 0.58
     },
     {
@@ -8950,8 +8950,8 @@
     }
   ],
   "counts": {
-    "edges": 3934,
+    "edges": 3938,
     "imports": 157,
-    "calls": 3777
+    "calls": 3781
   }
 }
