@@ -332,7 +332,7 @@ def _check_text_preconditions(
     expected = operation.get("range_sha256")
     if expected:
         selected = _selected_range(text, operation)
-        actual = sha256_text(selected)
+        actual = _contract_hash(selected)
         if actual != expected:
             raise MechanicalEditError(
                 "range_hash_mismatch",
@@ -350,7 +350,7 @@ def _check_file_hash(snapshot: dict[str, bytes | None], operation: dict[str, Any
         return
     rel = operation["path"]
     raw = snapshot.get(rel)
-    actual = None if raw is None else sha256_text(raw)
+    actual = None if raw is None else _contract_hash(raw)
     if actual != expected:
         raise MechanicalEditError(
             "file_hash_mismatch",
@@ -365,8 +365,10 @@ def _apply_text_operation(snapshot: dict[str, bytes | None], operation: dict[str
     rel = operation["path"]
     raw = snapshot[rel]
     assert raw is not None
-    lines = raw.decode("utf-8").splitlines(keepends=True)
-    text_lines = str(operation.get("text", "")).splitlines(keepends=True)
+    source_text = raw.decode("utf-8")
+    lines = source_text.splitlines(keepends=True)
+    text = _normalize_patch_text(str(operation.get("text", "")), source_text)
+    text_lines = text.splitlines(keepends=True)
     name = operation["op"]
     start = int(operation.get("start_line", operation.get("line", 1)))
     end = int(operation.get("end_line", start))
@@ -590,11 +592,33 @@ def _file_hash_rows(
         rows.append(
             {
                 "path": rel,
-                "before_sha256": None if old is None else sha256_text(old),
-                "after_sha256": None if new is None else sha256_text(new),
+                "before_sha256": None if old is None else _contract_hash(old),
+                "after_sha256": None if new is None else _contract_hash(new),
             }
         )
     return rows
+
+
+def _contract_hash(value: str | bytes) -> str:
+    """Hash text with normalized line endings; keep binary hashes byte-exact."""
+    if isinstance(value, bytes):
+        try:
+            value = value.decode("utf-8")
+        except UnicodeDecodeError:
+            return sha256_text(value)
+    return sha256_text(_normalize_line_endings(value))
+
+
+def _normalize_line_endings(text: str) -> str:
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def _normalize_patch_text(patch_text: str, source_text: str) -> str:
+    """Apply text operations using the file's dominant newline convention."""
+    normalized = _normalize_line_endings(patch_text)
+    if "\r\n" in source_text:
+        return normalized.replace("\n", "\r\n")
+    return normalized
 
 
 def _safe_path(root: Path, rel: str) -> Path:

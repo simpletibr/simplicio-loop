@@ -50,3 +50,23 @@ def test_admin_crud_parity_for_remaining_web_stacks(
     assert plan.stack == stack_slug
     assert plan.tasks[0].target == target
     assert "admin" in plan.rationale.lower()
+
+
+@pytest.mark.parametrize(
+    ("stack_slug", "target"),
+    [
+        ("php-laravel", "app/Services/JwtService.php"),
+        ("go-gin", "internal/auth/jwt.go"),
+        ("rust-axum", "src/auth.rs"),
+    ],
+)
+def test_auth_jwt_parity_for_remaining_web_stacks(
+    stack_slug: str,
+    target: str,
+) -> None:
+    plan = plan_from_recipe("login with JWT", stack_slug, "demo-app")
+
+    assert plan is not None
+    assert plan.stack == stack_slug
+    assert plan.tasks[0].target == target
+    assert "jwt" in plan.rationale.lower()

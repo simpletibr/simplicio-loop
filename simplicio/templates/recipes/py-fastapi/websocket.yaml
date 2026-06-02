@@ -3,8 +3,8 @@
   "description": "FastAPI websocket endpoint with connection manager and tests.",
   "applies_to": ["py-fastapi"],
   "matches": [
-    "(?i)\\b(?:create|add|build|implement)\\s+websocket\\b",
-    "(?i)\\bwebsocket\\s+(?:chat|rooms?|endpoint|service)\\b",
+    "(?i)\\b(?:create|add|build|implement)\\s+(?:a\\s+)?websocket(?:\\s+(?:chat|rooms?|endpoint|service|gateway))?\\b",
+    "(?i)\\bwebsocket\\s+(?:chat|rooms?|endpoint|service|gateway)\\b",
     "(?i)\\brealtime\\s+(?:chat|updates?)\\b"
   ],
   "slots": {

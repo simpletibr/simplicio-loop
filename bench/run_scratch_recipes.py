@@ -56,6 +56,7 @@ def build_cases() -> list[RecipeCase]:
         ("py-fastapi", "add JWT auth", "auth-jwt"),
         ("py-fastapi", "login with JWT", "auth-jwt"),
         ("py-fastapi", "authentication with JWT", "auth-jwt"),
+        ("py-fastapi", "Create websocket chat rooms", "websocket"),
         ("py-fastapi", "REST API for ParkingSpace", "crud-resource"),
         ("py-fastapi", "CRUD API for PackageDelivery", "crud-resource"),
         ("py-fastapi", "admin panel for Announcement", "admin-crud"),
@@ -79,7 +80,6 @@ def build_cases() -> list[RecipeCase]:
     misses = [
         ("py-fastapi", "Build a recommendation engine for movies"),
         ("py-fastapi", "Analyze CSV exports overnight"),
-        ("py-fastapi", "Create websocket chat rooms"),
         ("py-fastapi", "Generate a billing report"),
         ("py-fastapi", "Import legacy XML data"),
         ("py-fastapi", "Build a workflow scheduler"),
@@ -546,6 +546,10 @@ def _to_markdown(result: dict[str, Any]) -> str:
     ]
     for gate, value in summary["release_gates"].items():
         lines.append(f"- {gate}: {value}")
+    missing = summary.get("missing_release_evidence") or []
+    if missing:
+        lines.extend(["", "## Missing Release Evidence", ""])
+        lines.extend(f"- {item}" for item in missing)
     baseline = summary.get("llm_baseline")
     if baseline:
         lines.extend(

@@ -5,11 +5,11 @@ synthetic declarative recipe benchmark; validates match-before-planner coverage 
 ## Summary
 
 - cases: 50
-- matched: 30
-- match rate: 60.00%
-- valid recipe plans: 30
+- matched: 31
+- match rate: 62.00%
+- valid recipe plans: 31
 - recipe plan pass-rate: 100.00%
-- planner calls saved: 30
+- planner calls saved: 31
 
 ## Release Gate Status
 
@@ -22,8 +22,13 @@ synthetic declarative recipe benchmark; validates match-before-planner coverage 
 - real_recipe_plans_valid: True
 - real_e2e_green_ge_80: True
 - llm_pass_rate_baseline_present: True
-- llm_baseline_covers_matched_cases: True
+- llm_baseline_covers_matched_cases: False
 - recipe_plan_pass_rate_ge_llm: True
+
+## Missing Release Evidence
+
+- aggregate call-reduction proof across cache, recipes, fixers, and executors
+- LLM recipe baseline covering all matched recipe cases
 
 ## LLM Baseline
 
@@ -60,6 +65,7 @@ synthetic declarative recipe benchmark; validates match-before-planner coverage 
 | py-fastapi | add JWT auth | auth-jwt | True | True |
 | py-fastapi | login with JWT | auth-jwt | True | True |
 | py-fastapi | authentication with JWT | auth-jwt | True | True |
+| py-fastapi | Create websocket chat rooms | websocket | True | True |
 | py-fastapi | REST API for ParkingSpace | crud-resource | True | True |
 | py-fastapi | CRUD API for PackageDelivery | crud-resource | True | True |
 | py-fastapi | admin panel for Announcement | admin-crud | True | True |
@@ -81,7 +87,6 @@ synthetic declarative recipe benchmark; validates match-before-planner coverage 
 | ts-nextjs | Manage AccessDevice with CRUD | crud-resource | True | True |
 | py-fastapi | Build a recommendation engine for movies | - | False | False |
 | py-fastapi | Analyze CSV exports overnight | - | False | False |
-| py-fastapi | Create websocket chat rooms | - | False | False |
 | py-fastapi | Generate a billing report | - | False | False |
 | py-fastapi | Import legacy XML data | - | False | False |
 | py-fastapi | Build a workflow scheduler | - | False | False |

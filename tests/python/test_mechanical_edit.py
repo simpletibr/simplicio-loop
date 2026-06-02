@@ -12,7 +12,7 @@ def _write(path, text: str | bytes):
     if isinstance(text, bytes):
         path.write_bytes(text)
     else:
-        path.write_text(text, encoding="utf-8")
+        path.write_text(text, encoding="utf-8", newline="\n")
 
 
 def _sha(text: str | bytes) -> str:
@@ -58,6 +58,28 @@ def test_dry_run_and_apply_replace_range_contract(tmp_path):
     assert applied["applied"] is True
     assert applied["files"][0]["after_sha256"] == _sha("new\nkeep\n")
     assert target.read_text(encoding="utf-8") == "new\nkeep\n"
+
+
+def test_hash_contract_accepts_lf_hashes_for_crlf_text_files(tmp_path):
+    target = tmp_path / "app.py"
+    _write(target, b"old\r\nkeep\r\n")
+    operation = {
+        "op": "replace_range",
+        "path": "app.py",
+        "start_line": 1,
+        "end_line": 1,
+        "text": "new\n",
+        "file_sha256": _sha("old\nkeep\n"),
+        "range_sha256": _sha("old\n"),
+    }
+
+    result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
+
+    assert result["status"] == "ok"
+    assert result["applied"] is True
+    assert result["files"][0]["before_sha256"] == _sha("old\nkeep\n")
+    assert result["files"][0]["after_sha256"] == _sha("new\nkeep\n")
+    assert target.read_bytes() == b"new\r\nkeep\r\n"
 
 
 def test_strict_json_refuses_prose_wrapped_plan(tmp_path):

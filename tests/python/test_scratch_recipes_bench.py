@@ -20,7 +20,7 @@ def test_scratch_recipe_bench_defines_fifty_goal_corpus() -> None:
     cases = build_cases()
 
     assert len(cases) == 50
-    assert sum(1 for case in cases if case.expected_match) == 30
+    assert sum(1 for case in cases if case.expected_match) == 31
     assert {case.stack for case in cases} == {"py-fastapi", "ts-nextjs"}
 
 
@@ -28,16 +28,17 @@ def test_scratch_recipe_bench_measures_match_rate() -> None:
     result = run_benchmark(
         [
             RecipeCase("py-fastapi", "CRUD API for Unit", True, "crud-resource"),
-            RecipeCase("py-fastapi", "Build a websocket gateway", False),
+            RecipeCase("py-fastapi", "Build a websocket gateway", True, "websocket"),
+            RecipeCase("py-fastapi", "Build a recommendation engine", False),
             RecipeCase("ts-nextjs", "authentication with JWT", True, "auth-jwt"),
         ]
     )
 
     summary = result["summary"]
-    assert summary["total_cases"] == 3
-    assert summary["matched_cases"] == 2
-    assert summary["valid_recipe_plans"] == 2
-    assert summary["planner_calls_saved"] == 2
+    assert summary["total_cases"] == 4
+    assert summary["matched_cases"] == 3
+    assert summary["valid_recipe_plans"] == 3
+    assert summary["planner_calls_saved"] == 3
     assert summary["recipe_plan_pass_rate"] == 1.0
     assert summary["release_gates"]["matched_plans_valid"] is True
     assert summary["release_gates"]["recipe_match_ge_40"] is True

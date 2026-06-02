@@ -3,7 +3,7 @@
   "cases": [
     {
       "actual_recipe": "crud-resource",
-      "duration_ms": 1,
+      "duration_ms": 10,
       "error": "",
       "expected_match": true,
       "expected_match_correct": true,
@@ -160,6 +160,21 @@
       "expected_recipe": "auth-jwt",
       "expected_recipe_correct": true,
       "goal": "authentication with JWT",
+      "matched": true,
+      "plan_valid": true,
+      "planner_calls_saved": 1,
+      "stack": "py-fastapi",
+      "task_count": 3
+    },
+    {
+      "actual_recipe": "websocket",
+      "duration_ms": 0,
+      "error": "",
+      "expected_match": true,
+      "expected_match_correct": true,
+      "expected_recipe": "websocket",
+      "expected_recipe_correct": true,
+      "goal": "Create websocket chat rooms",
       "matched": true,
       "plan_valid": true,
       "planner_calls_saved": 1,
@@ -489,21 +504,6 @@
       "expected_match_correct": true,
       "expected_recipe": null,
       "expected_recipe_correct": true,
-      "goal": "Create websocket chat rooms",
-      "matched": false,
-      "plan_valid": false,
-      "planner_calls_saved": 0,
-      "stack": "py-fastapi",
-      "task_count": 0
-    },
-    {
-      "actual_recipe": null,
-      "duration_ms": 0,
-      "error": "",
-      "expected_match": false,
-      "expected_match_correct": true,
-      "expected_recipe": null,
-      "expected_recipe_correct": true,
       "goal": "Generate a billing report",
       "matched": false,
       "plan_valid": false,
@@ -752,10 +752,10 @@
       "task_count": 0
     }
   ],
-  "date": "2026-05-30",
+  "date": "2026-06-02",
   "environment": {
-    "platform": "Windows-11-10.0.22631-SP0",
-    "python": "3.14.3"
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5"
   },
   "live_corpus": {
     "cases": [
@@ -1535,7 +1535,7 @@
   },
   "scope": "synthetic declarative recipe benchmark; validates match-before-planner coverage and plan schema integrity; optional live-gate input proves recipe coverage on the real scratch release corpus",
   "summary": {
-    "elapsed_s": 0.004,
+    "elapsed_s": 0.011,
     "expected_match_accuracy": 1.0,
     "expected_recipe_accuracy": 1.0,
     "live_corpus": {
@@ -2314,19 +2314,20 @@
       "source": "captured by bench/run_scratch_recipes.py --capture-llm-baseline-json",
       "total_cases": 30
     },
-    "match_rate": 0.6,
-    "matched_cases": 30,
-    "missed_cases": 20,
+    "match_rate": 0.62,
+    "matched_cases": 31,
+    "missed_cases": 19,
     "missing_release_evidence": [
-      "aggregate call-reduction proof across cache, recipes, fixers, and executors"
+      "aggregate call-reduction proof across cache, recipes, fixers, and executors",
+      "LLM recipe baseline covering all matched recipe cases"
     ],
-    "planner_calls_saved": 30,
+    "planner_calls_saved": 31,
     "recipe_plan_pass_rate": 1.0,
     "recipe_plan_pass_rate_ge_llm": true,
     "release_gates": {
       "expected_match_accuracy_100": true,
       "fifty_goal_corpus": true,
-      "llm_baseline_covers_matched_cases": true,
+      "llm_baseline_covers_matched_cases": false,
       "llm_pass_rate_baseline_present": true,
       "matched_plans_valid": true,
       "real_e2e_green_ge_80": true,
@@ -2337,6 +2338,6 @@
       "recipe_plan_pass_rate_ge_llm": true
     },
     "total_cases": 50,
-    "valid_recipe_plans": 30
+    "valid_recipe_plans": 31
   }
 }
