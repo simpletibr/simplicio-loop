@@ -13,7 +13,7 @@ function read(rel) {
 
 test('README advertises the docs site near the top', () => {
   const lines = read('README.md').split('\n').slice(0, 8).join('\n');
-  assert.match(lines, /wesleysimplicio\.github\.io\/llm-project-mapper/);
+  assert.match(lines, /wesleysimplicio\.github\.io\/simplicio-mapper/);
 });
 
 test('docs site config enables mermaid, local search, and root docs routing', () => {
