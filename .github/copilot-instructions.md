@@ -12,16 +12,17 @@
 
 ## Stack
 
-`<STACK>` (placeholder — substitui pela stack real do projeto, ex: `Node.js 20 + TypeScript + Next.js 14 + Playwright + Vitest`).
+**Python 3.10+ (`orjson`, `diskcache`) + Node.js CLI + optional Rust/PyO3 crate + Playwright E2E.**
 
-- Linguagem principal: `<STACK>`
-- Framework web/API: `<STACK>`
-- Banco de dados: `<STACK>`
-- Test runner unit: `<STACK>` (Vitest, Jest, pytest, xUnit)
-- Test runner E2E: **Playwright** (config em `playwright.config.ts`)
-- Linter/formatter: `<STACK>` (ESLint + Prettier, Ruff, dotnet format)
-- CI/CD: GitHub Actions (`.github/workflows/`)
-- Deploy: `<STACK>` (ver `.specs/workflow/RELEASE.md`)
+- Linguagem principal: **Python 3.10+** (PyPI `simplicio-mapper`); espelho Node 18+ em `bin/cli.js` + `bin/mapper-artifacts.js` mantido em paridade.
+- Framework web/API: n/a — projeto é CLI/library.
+- Banco de dados: n/a — cache opcional em disco via `diskcache` em `.simplicio/cache/`.
+- Test runner unit: **`python -m unittest discover -s tests/python`** (também via `pytest tests/python -q`) e **`node --test tests/unit`**.
+- Test runner E2E: **Playwright** (config em `playwright.config.ts`).
+- Linter/formatter: **`ruff`** (ver `[tool.ruff]` em `pyproject.toml`) e `node scripts/lint.js` (shell + JS).
+- CI/CD: GitHub Actions (`.github/workflows/`). DoD em `dod.yml`. Publish em `publish-pypi.yml` (PyPI-only desde 0.7.x).
+- Distribuição: PyPI canonical; npm `@wesleysimplicio/llm-project-mapper` mantido só para versões antigas, sem releases novos.
+- Opt-in: crate Rust em `rust/` via `maturin develop --release` (ADR-002).
 
 > Antes de adicionar dependência nova: pergunta ao humano. Sem exceção.
 
@@ -30,28 +31,33 @@
 ## Comandos importantes
 
 ```bash
-# desenvolvimento
-npm run dev
-npm run build
+# desenvolvimento / smoke local
+node bin/cli.js --help
+python -m simplicio_mapper.cli --help
+python -m build
 
 # qualidade
 npm run lint
-npm run lint:fix
+ruff check simplicio_mapper tests/python
+node scripts/check-version-sync.js
+python -m unittest discover -s tests/python
+node --test tests/unit
 npm test
-npm test -- --coverage
 
 # E2E
 npx playwright install
 npx playwright test
 npx playwright show-report
 
+# Rust opt-in
+(cd rust && maturin develop --release)
+python -m pytest tests/python/test_native.py
+
 # git/PR
 git checkout -b feat/<task-id>-<slug>
 gh pr create --fill
 gh run watch
 ```
-
-Adapta pra `pnpm`, `yarn`, `bun`, `dotnet`, `python`, `go` conforme stack real.
 
 ---
 

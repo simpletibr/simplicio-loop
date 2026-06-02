@@ -26,12 +26,14 @@ Before changing code, agents should check the project-specific operational docs:
 
 Key placeholders to replace in real projects:
 
-- `<APP_NAME>`
-- `<FRONTEND_URL>`
-- `<BACKEND_URL>`
-- `<DATABASE_REQUIREMENT>`
-- `<AUTH_FLOW>`
-- `<EVIDENCE_COMMAND>`
+| Slot | Value here |
+|---|---|
+| App name | `simplicio-mapper` (npm `@wesleysimplicio/llm-project-mapper`) |
+| Frontend URL | n/a — CLI tool, no UI runtime |
+| Backend URL | n/a — local mapper, no service endpoint |
+| Database | n/a — file-system only, optional `diskcache` on disk |
+| Auth flow | n/a — no user auth; PyPI/npm tokens via repo secrets only |
+| Evidence command | `npx playwright test --reporter=list,html` (writes to `playwright-report/` + `test-results/`) |
 
 Agent checklist:
 
@@ -67,18 +69,19 @@ Antes de qualquer análise, o agent **DEVE** ler `.starter-meta.json` e respeita
 
 ## Stack
 
-`<STACK>` (placeholder — substitui pela stack real do projeto, ex: `Node.js 20 + TypeScript + Next.js 14 + Playwright + Vitest`).
+**Python 3.10+ (`orjson`, `diskcache`) + Node.js CLI + optional Rust/PyO3 acceleration crate + Playwright E2E.**
 
-Detalhes completos:
+Detalhes:
 
-- Linguagem principal: `<STACK>`
-- Framework web/API: `<STACK>`
-- Banco de dados: `<STACK>`
-- Test runner unit: `<STACK>` (sugestão: Vitest, Jest, pytest, xUnit)
-- Test runner E2E: **Playwright** (config em `playwright.config.ts`)
-- Linter/formatter: `<STACK>` (sugestão: ESLint + Prettier, Ruff, dotnet format)
-- CI/CD: GitHub Actions (ver `.github/workflows/`)
-- Deploy: `<STACK>` (Vercel/Netlify/Docker/Azure/AWS — ver `.specs/workflow/RELEASE.md`)
+- Linguagem principal: **Python 3.10+** (canonical PyPI package `simplicio-mapper`); um espelho Node 18+ vive em `bin/cli.js` + `bin/mapper-artifacts.js` mantido em paridade.
+- Framework web/API: n/a — projeto é um CLI/library.
+- Banco de dados: n/a — cache opcional em disco via `diskcache` (`.simplicio/cache/`).
+- Test runner unit: **`python -m unittest discover -s tests/python`** (também roda via `pytest tests/python -q`) e **`node --test tests/unit`**.
+- Test runner E2E: **Playwright** (config em `playwright.config.ts`).
+- Linter/formatter: **`ruff`** (Python, ver `[tool.ruff]` em `pyproject.toml`) e `node scripts/lint.js` (shell + JS).
+- CI/CD: GitHub Actions (ver `.github/workflows/`). DoD gate em `dod.yml`. Publish em `publish-pypi.yml` (PyPI-only desde 0.7.x).
+- Distribuição: **PyPI** `simplicio-mapper` é o canal oficial; versões anteriores do pacote npm `@wesleysimplicio/llm-project-mapper` permanecem no registry mas não recebem novos releases.
+- Opt-in: crate Rust em `rust/` build via `maturin develop --release` (ADR-002).
 
 > Antes de adicionar dependência nova: **pergunta ao usuário**. Sem exceção.
 
@@ -87,26 +90,33 @@ Detalhes completos:
 ## Comandos importantes
 
 ```bash
-# desenvolvimento
-npm run dev                  # sobe app local
-npm run build                # build de producao
+# desenvolvimento / smoke local
+node bin/cli.js --help                       # CLI Node
+python -m simplicio_mapper.cli --help        # CLI Python (canonical)
+python -m build                              # gera dist/*.whl + .tar.gz
 
 # qualidade
-npm run lint                 # lint + format check
-npm run lint:fix             # lint + format auto-fix
-npm test                     # unit tests
-npm test -- --coverage       # unit + coverage report (gate >= 80%)
+npm run lint                                 # JS + shell lint (scripts/lint.js)
+ruff check simplicio_mapper tests/python     # Python lint
+node scripts/check-version-sync.js           # versões alinhadas (package/pyproject/__init__)
+python -m unittest discover -s tests/python  # Python unit
+node --test tests/unit                       # Node unit
+npm test                                     # cross alias (chama node --test)
 
 # E2E
-npx playwright install       # instala browsers (1a vez)
-npx playwright test          # roda suite E2E
-npx playwright test --ui     # modo interativo
-npx playwright show-report   # abre relatorio ultimo run
+npx playwright install                       # instala browsers (1a vez)
+npx playwright test                          # roda suite E2E
+npx playwright test --ui                     # modo interativo
+npx playwright show-report                   # abre relatorio ultimo run
+
+# Rust opt-in
+(cd rust && maturin develop --release)       # builda extensão nativa no venv
+python -m pytest tests/python/test_native.py # cobre o caminho nativo
 
 # git/PR
 git checkout -b feat/<task-id>-<slug>
-gh pr create --fill          # usa template de PR
-gh run watch                 # acompanha CI do branch atual
+gh pr create --fill                          # usa template de PR
+gh run watch                                 # acompanha CI do branch atual
 ```
 
 Adapta os comandos pra stack real (`pnpm`, `yarn`, `bun`, `dotnet`, `python`, `go`).
