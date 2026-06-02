@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.architecture-inventory/v1",
   "version": 1,
-  "generated_at": "2026-06-02T14:24:42.455Z",
+  "generated_at": "2026-06-02T16:01:45.075Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-mapper",
   "source_project_map": ".simplicio/project-map.json",
   "source_symbol_index": ".simplicio/symbol-index.json",
