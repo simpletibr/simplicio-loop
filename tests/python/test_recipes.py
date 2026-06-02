@@ -89,7 +89,7 @@ def test_registry_loads_three_pilot_recipes_for_each_stack() -> None:
 
     for stack_slug in ("rust-axum", "go-gin", "php-laravel"):
         names = {recipe.name for recipe in registry.list(stack_slug)}
-        assert names == {"crud-resource", "auth-jwt"}
+        assert {"crud-resource", "auth-jwt", "admin-crud"} <= names
 
     assert {recipe.name for recipe in registry.list("php-vanilla")} == {"docs-marker"}
 
