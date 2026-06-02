@@ -37,6 +37,9 @@ MATCH_CASES = [
     ("py-fastapi", "admin panel for Booking", "admin-crud", "Booking"),
     ("ts-nextjs", "admin CRUD for Tenant", "admin-crud", "Tenant"),
     ("ts-nextjs", "backoffice to manage Subscription", "admin-crud", "Subscription"),
+    ("go-gin", "add JWT auth", "auth-jwt", None),
+    ("php-laravel", "authentication with JWT", "auth-jwt", None),
+    ("rust-axum", "login with JWT", "auth-jwt", None),
     (
         "rust-axum",
         "CRUD app for condo units with owner contact search",
@@ -84,9 +87,10 @@ def test_registry_loads_three_pilot_recipes_for_each_stack() -> None:
         names = {recipe.name for recipe in registry.list(stack_slug)}
         assert {"crud-resource", "auth-jwt", "admin-crud"} <= names
 
-    assert {recipe.name for recipe in registry.list("rust-axum")} == {"crud-resource"}
-    assert {recipe.name for recipe in registry.list("go-gin")} == {"crud-resource"}
-    assert {recipe.name for recipe in registry.list("php-laravel")} == {"crud-resource"}
+    for stack_slug in ("rust-axum", "go-gin", "php-laravel"):
+        names = {recipe.name for recipe in registry.list(stack_slug)}
+        assert names == {"crud-resource", "auth-jwt"}
+
     assert {recipe.name for recipe in registry.list("php-vanilla")} == {"docs-marker"}
 
 
@@ -272,3 +276,45 @@ def test_php_laravel_crud_recipe_renders_multi_word_entity() -> None:
 
     assert plan.tasks[0].target == "routes/api.php"
     assert "route prefix is /condo_units" in plan.tasks[0].criteria
+
+
+AUTH_JWT_TARGETS = {
+    "go-gin": [
+        "internal/auth/jwt.go",
+        "internal/http/auth_routes.go",
+        "internal/http/auth_test.go",
+    ],
+    "php-laravel": [
+        "app/Services/JwtService.php",
+        "app/Http/Controllers/AuthController.php",
+        "tests/Feature/AuthJwtTest.php",
+    ],
+    "rust-axum": [
+        "src/auth.rs",
+        "src/main.rs",
+    ],
+}
+
+
+@pytest.mark.parametrize(("stack_slug", "targets"), list(AUTH_JWT_TARGETS.items()))
+def test_auth_jwt_recipe_renders_stack_specific_targets(
+    stack_slug: str,
+    targets: list[str],
+) -> None:
+    registry = RecipeRegistry()
+    match = registry.match("add JWT auth", stack_slug)
+    assert match is not None
+    assert match.recipe_name == "auth-jwt"
+
+    plan = registry.get("auth-jwt", stack_slug).instantiate(match, "demo-app")
+
+    assert [task.target for task in plan.tasks] == targets
+    assert plan.estimated_total_tasks == len(plan.tasks)
+
+
+def test_auth_jwt_default_subject_does_not_require_slot() -> None:
+    for stack_slug in AUTH_JWT_TARGETS:
+        plan = plan_from_recipe("authentication with JWT", stack_slug, "demo-app")
+        assert plan is not None
+        assert plan.stack == stack_slug
+        assert plan.tasks

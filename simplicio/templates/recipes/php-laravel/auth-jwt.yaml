@@ -1,0 +1,54 @@
+{
+  "name": "auth-jwt",
+  "description": "JWT login, token verification, and protected-route plumbing for Laravel.",
+  "applies_to": ["php-laravel"],
+  "matches": [
+    "(?i)\\b(?:add|build|implement)\\s+JWT\\s+auth(?:entication)?\\b",
+    "(?i)\\bauth(?:entication)?\\s+with\\s+JWT\\b",
+    "(?i)\\blogin\\s+with\\s+JWT\\b",
+    "(?i)\\bJWT\\s+login\\b"
+  ],
+  "slots": {
+    "subject": {"default": "user", "transform": "lower_snake_case"},
+    "subject_pascal": {"derived_from": "subject", "transform": "pascal_case"}
+  },
+  "rationale": "Use the php-laravel JWT recipe because token issuing, verification, and protected-route tests are repeatable for this stack.",
+  "files_to_create": [
+    {"path": "app/Services/JwtService.php", "purpose": "JWT encode and decode helpers"},
+    {"path": "app/Http/Controllers/AuthController.php", "purpose": "Login and current-{subject} actions"},
+    {"path": "tests/Feature/AuthJwtTest.php", "purpose": "JWT auth route tests"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-token-service",
+      "depends_on": [],
+      "goal": "Create JWT helpers for {subject} identity tokens.",
+      "target": "app/Services/JwtService.php",
+      "criteria": "- encode signs subject claims\\n- decode validates signature and expiry",
+      "constraints": "- read secret and expiry from config defaults",
+      "verify": "php vendor/bin/phpunit --configuration phpunit.xml"
+    },
+    {
+      "id": "T02-auth-routes",
+      "depends_on": ["T01-token-service"],
+      "goal": "Implement login and current-{subject} routes.",
+      "target": "app/Http/Controllers/AuthController.php",
+      "criteria": "- POST /auth/login returns an access token\\n- GET /auth/me requires a bearer token",
+      "constraints": "- keep persistence behind a small lookup function",
+      "verify": "php vendor/bin/phpunit --configuration phpunit.xml"
+    },
+    {
+      "id": "T03-auth-tests",
+      "depends_on": ["T02-auth-routes"],
+      "goal": "Cover JWT login and protected route behavior.",
+      "target": "tests/Feature/AuthJwtTest.php",
+      "criteria": "- valid credentials receive a token\\n- missing or invalid tokens return 401",
+      "constraints": "- avoid live network calls",
+      "verify": "php vendor/bin/phpunit --configuration phpunit.xml"
+    }
+  ],
+  "deps_to_install": [],
+  "deps_dev": [],
+  "test_command": "php vendor/bin/phpunit --configuration phpunit.xml",
+  "lint_command": "php vendor/bin/pint --test"
+}
