@@ -264,6 +264,92 @@ and agent instruction files remain the human-readable source for project
 operation. If `.simplicio/` is absent, consumers should fall back to the current
 markdown or file-inspection behavior.
 
+## Mechanical Edit Contract (issue #110)
+
+Schema: `simplicio.mechanical-edit/v1` (envelope) and
+`simplicio.mechanical-edit-result/v1` (executor result). The canonical
+contract lives in
+[`simplicio-runtime#69`](https://github.com/wesleysimplicio/simplicio-runtime/issues/69);
+this repository implements the **producer half** so an LLM planner can
+plan compact JSON edits without rewriting whole files.
+
+### What the mapper produces
+
+Use `simplicio_mapper.mechanical_edit.build_context(root, selections)` to
+build a context envelope:
+
+```python
+from simplicio_mapper.mechanical_edit import build_context
+
+envelope = build_context(
+    root=".",
+    selections=[
+        ("simplicio_mapper/mapper.py", 99, 102),
+        ("simplicio_mapper/mapper.py", 180, 199),
+        ("simplicio_mapper/cli.py", 1, 20),
+    ],
+)
+```
+
+The returned dict matches:
+
+```json
+{
+  "schema": "simplicio.mechanical-edit/v1",
+  "context": {
+    "mapper_schema": "simplicio.mapper-index/v1",
+    "context_hash": "<sha256 of all per-file snapshot+range hashes>",
+    "files": [
+      {
+        "path": "simplicio_mapper/cli.py",
+        "language": "python",
+        "snapshot_hash": "<sha256 of the whole file>",
+        "selected_ranges": [
+          {
+            "start_line": 1,
+            "end_line": 20,
+            "before_hash": "<sha256 of the 1..20 slice>",
+            "must_contain": [
+              "\"\"\"Command-line entry point for simplicio-mapper.",
+              "from .mapper import write_mapping_artifacts"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Guarantees
+
+- **Stable.** Identical `(path, start, end)` selections on an unchanged tree
+  always produce the same `snapshot_hash`, `before_hash`, and overall
+  `context_hash`. The test suite enforces this across repeated runs.
+- **Drift-detecting.** A consumer that captured a `before_hash` will see a
+  different value if the file changes underneath; the executor rejects the
+  edit when the anchor no longer matches.
+- **Refuses unsafe inputs.** Missing files raise `FileNotFoundError`;
+  binary files (NUL byte in the first 8 KiB or non-UTF-8 decode) raise
+  `ValueError`. The mapper never silently emits an ambiguous anchor — the
+  caller must either widen the snapshot or hand off a different file.
+- **Compact above threshold.** Files longer than
+  `COMPACT_LINE_THRESHOLD` (2000 lines by default) omit `must_contain`
+  snippets so the envelope stays small; the `before_hash` is still
+  emitted, which is enough for the executor to anchor.
+- **Language-aware.** `language` follows the same detection used by
+  `project-map.json` (`typescript`, `python`, `json`, `markdown`, etc.).
+- **Canonical schema only.** This module must not introduce a repo-local
+  variation. The contract is owned by
+  [`simplicio-runtime#69`](https://github.com/wesleysimplicio/simplicio-runtime/issues/69).
+
+### Fixtures
+
+`tests/fixtures/mech-edit-host/` ships small deterministic files in four
+text languages (`sample.ts`, `sample.py`, `sample.json`, `sample.md`) plus
+a binary file (`binary.bin`) used by the refusal test. Producers in
+downstream repositories can copy these as ready-made parity inputs.
+
 ## Native Runtime Contract (issue #95)
 
 The unified native Simplicio runtime — coordinating
