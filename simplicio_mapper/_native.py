@@ -9,7 +9,7 @@ this module simply exposes whether the native fast path is available.
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 HAS_NATIVE: bool = False
 sha256_hex: Callable[[str], str] | None = None
@@ -18,6 +18,8 @@ parse_imports: Callable[[str, str], list[str]] | None = None
 try:
     from simplicio_mapper_rs import (  # type: ignore[import-not-found]
         parse_imports as _native_parse_imports,
+    )
+    from simplicio_mapper_rs import (
         sha256_hex as _native_sha256_hex,
     )
 except ImportError:

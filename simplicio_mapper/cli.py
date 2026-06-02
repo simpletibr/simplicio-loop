@@ -7,14 +7,14 @@ artifacts under ``.simplicio/``. Exposed as the ``simplicio-mapper`` and
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 import os
 import re
 import subprocess
 import sys
 import time
-from typing import Sequence
+from collections.abc import Sequence
 
 from . import __version__
 from .mapper import export_architecture_docs, write_architecture_docs, write_mapping_artifacts
@@ -80,7 +80,7 @@ OPTIONS
 
 def _read_json_safe(file: str) -> dict:
     try:
-        with open(file, "r", encoding="utf-8") as handle:
+        with open(file, encoding="utf-8") as handle:
             return json.load(handle)
     except (OSError, ValueError):
         return {}
@@ -318,7 +318,7 @@ def _tree_signature(root: str, out: str) -> dict:
             except OSError:
                 continue
             rel = os.path.relpath(path, root).replace(os.sep, "/")
-            digest.update(f"{rel}\0{stat.st_size}\0{stat.st_mtime_ns}\n".encode("utf-8"))
+            digest.update(f"{rel}\0{stat.st_size}\0{stat.st_mtime_ns}\n".encode())
     return {"kind": "tree", "hash": digest.hexdigest()}
 
 
@@ -542,7 +542,7 @@ def _endpoint_inventory_for(root: str) -> dict:
     seen_client: set[tuple[str, str, str]] = set()
     for file in _endpoint_files(root):
         try:
-            with open(file, "r", encoding="utf-8", errors="replace") as handle:
+            with open(file, encoding="utf-8", errors="replace") as handle:
                 text = handle.read()
         except OSError:
             continue
@@ -839,7 +839,7 @@ def _screen_inventory_for(root: str) -> dict:
     entries: list[dict] = []
     for file in _screen_files(root):
         try:
-            with open(file, "r", encoding="utf-8", errors="replace") as handle:
+            with open(file, encoding="utf-8", errors="replace") as handle:
                 text = handle.read()
         except OSError:
             continue

@@ -29,6 +29,12 @@ dependencies = [
   "diskcache>=5.6.3,<6",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.15,<0.17",
+  "pytest>=8,<9",
+]
+
 [project.scripts]
 simplicio-mapper = "simplicio_mapper.cli:main"
 llm-project-mapper = "simplicio_mapper.cli:main"
@@ -40,6 +46,51 @@ Issues = "https://github.com/wesleysimplicio/simplicio-mapper/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["simplicio_mapper"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+extend-exclude = [
+  ".simplicio",
+  ".specs",
+  "dist",
+  "build",
+  "rust/target",
+  "docs-site",
+  "vscode-extension",
+]
+
+[tool.ruff.lint]
+# Rule set is chosen to match the `# noqa` codes already used in the
+# codebase (S = bandit-style security checks, BLE = blind exception)
+# plus standard hygiene families that do not require sweeping rewrites.
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "W",   # pycodestyle warnings
+  "I",   # import sorting
+  "B",   # flake8-bugbear
+  "BLE", # flake8-blind-except
+  "S",   # flake8-bandit
+  "UP",  # pyupgrade
+]
+ignore = [
+  "E501",   # line length handled by formatter / project style
+  "S101",   # pytest uses assert
+  "S311",   # non-crypto randomness is fine in mapper heuristics
+  "S603",   # subprocess calls only run fixed argv with project-controlled inputs
+  "S607",   # `git` is intentionally resolved from PATH on host
+  "UP007",  # keep `Optional[...]` style optional for stdlib 3.10 compat
+  "UP045",  # keep `Optional[...]` style optional for stdlib 3.10 compat
+  "B008",   # default mutable factories are intentional in CLI signatures
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "BLE", "B"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
 [tool.hatch.build.targets.sdist]
 include = [
