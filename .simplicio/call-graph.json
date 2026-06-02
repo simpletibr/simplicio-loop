@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.call-graph/v1",
   "version": 1,
-  "generated_at": "2026-06-01T21:57:57.150Z",
+  "generated_at": "2026-06-02T12:51:28.123Z",
   "source_symbol_index": ".simplicio/symbol-index.json",
   "edges": [
     {
@@ -8950,8 +8950,8 @@
     }
   ],
   "counts": {
-    "edges": 3735,
+    "edges": 3747,
     "imports": 150,
-    "calls": 3585
+    "calls": 3597
   }
 }

@@ -18,7 +18,7 @@ def _ok(argv):
 def test_missing_pip_package_fixer_updates_pyproject_and_installs(tmp_path):
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(
-        '[project]\nname = "demo"\ndependencies = [\n  "httpx>=0.27",\n]\n',
+        '[project]\nname = "demo"\ndependencies = [\n  "httpx>=0.28.1",\n]\n',
         encoding="utf-8",
     )
     calls = []

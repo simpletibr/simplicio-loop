@@ -7,7 +7,7 @@
   "package_manager": "pip",
   "test_runner": "pytest",
   "linter": "ruff",
-  "deps_required": ["typer>=0.12", "rich>=13"],
-  "deps_dev": ["pytest>=8", "ruff>=0.6"],
+  "deps_required": ["typer>=0.26.5", "rich>=15.0.0"],
+  "deps_dev": ["pytest>=9.0.3", "ruff>=0.15.15"],
   "tags": ["cli", "python", "terminal", "automation"]
 }

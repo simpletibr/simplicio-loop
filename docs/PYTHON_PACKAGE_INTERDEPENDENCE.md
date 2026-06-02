@@ -1,6 +1,6 @@
 # Python Package Interdependence
 
-Status: 2026-06-01
+Status: 2026-06-02
 
 ## Current Graph
 
@@ -9,10 +9,10 @@ simplicio-prompt 1.13.3
 simplicio-mapper 0.7.3
   ^          ^
   |          |
-simplicio-cli 0.5.17
+simplicio-cli 0.5.18
   ^
   |
-simplicio-sprint 1.2.11
+simplicio-sprint 1.2.12
 ```
 
 ## Rules

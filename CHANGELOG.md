@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.18] — 2026-06-02
+
+### Changed
+- Updated Python package dependency floors to the latest PyPI-compatible
+  releases for the supported Python 3.10 runtime.
+- Refreshed Python project templates and FastAPI recipes with current PyPI
+  floors for generated projects.
+
 ## [0.5.17] — 2026-06-01
 
 ### Changed

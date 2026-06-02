@@ -47,8 +47,8 @@
       "verify": "pytest tests/api/test_auth_jwt.py -q"
     }
   ],
-  "deps_to_install": ["python-jose[cryptography]>=3.3", "passlib[bcrypt]>=1.7"],
-  "deps_dev": ["pytest>=8", "httpx>=0.27"],
+  "deps_to_install": ["python-jose[cryptography]>=3.5.0", "passlib[bcrypt]>=1.7.4"],
+  "deps_dev": ["pytest>=9.0.3", "httpx>=0.28.1"],
   "test_command": "pytest -q",
   "lint_command": "ruff check src tests"
 }

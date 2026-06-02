@@ -7,7 +7,7 @@
   "package_manager": "pip",
   "test_runner": "pytest",
   "linter": "ruff",
-  "deps_required": ["fastapi>=0.115", "uvicorn[standard]>=0.30"],
-  "deps_dev": ["pytest>=8", "httpx>=0.27", "ruff>=0.6"],
+  "deps_required": ["fastapi>=0.136.3", "uvicorn[standard]>=0.48.0"],
+  "deps_dev": ["pytest>=9.0.3", "httpx>=0.28.1", "ruff>=0.15.15"],
   "tags": ["web", "api", "python", "rest", "async"]
 }

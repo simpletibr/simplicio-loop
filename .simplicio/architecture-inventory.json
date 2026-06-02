@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.architecture-inventory/v1",
   "version": 1,
-  "generated_at": "2026-06-01T21:57:57.150Z",
+  "generated_at": "2026-06-02T12:51:28.123Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
   "source_project_map": ".simplicio/project-map.json",
   "source_symbol_index": ".simplicio/symbol-index.json",
@@ -17,6 +17,7 @@
       "django",
       "dotnet",
       "express",
+      "fastapi",
       "nestjs",
       "nextjs",
       "playwright",
@@ -881,8 +882,8 @@
     },
     {
       "name": "simplicio",
-      "summary": "Groups 327 files across 11 detected layers.",
-      "file_count": 327,
+      "summary": "Groups 330 files across 11 detected layers.",
+      "file_count": 330,
       "files": [
         "simplicio/__init__.py",
         "simplicio/_cache.py",
@@ -936,12 +937,15 @@
         "simplicio/skill_router.py",
         "simplicio/sprint_loader.py",
         "simplicio/templates/SKILL.md",
+        "simplicio/templates/recipes/go-gin/auth-jwt.yaml",
         "simplicio/templates/recipes/go-gin/crud-resource.yaml",
+        "simplicio/templates/recipes/php-laravel/auth-jwt.yaml",
         "simplicio/templates/recipes/php-laravel/crud-resource.yaml",
         "simplicio/templates/recipes/php-vanilla/docs-marker.yaml",
         "simplicio/templates/recipes/py-fastapi/admin-crud.yaml",
         "simplicio/templates/recipes/py-fastapi/auth-jwt.yaml",
         "simplicio/templates/recipes/py-fastapi/crud-resource.yaml",
+        "simplicio/templates/recipes/rust-axum/auth-jwt.yaml",
         "simplicio/templates/recipes/rust-axum/crud-resource.yaml",
         "simplicio/templates/recipes/ts-nextjs/admin-crud.yaml",
         "simplicio/templates/recipes/ts-nextjs/auth-jwt.yaml",
@@ -960,10 +964,7 @@
         "simplicio/templates/stacks/csharp-aspnet/tree/src/App.Api/Program.cs",
         "simplicio/templates/stacks/csharp-aspnet/tree/tests/App.Tests/HealthTests.cs",
         "simplicio/templates/stacks/csharp-aspnet/verify.json",
-        "simplicio/templates/stacks/csharp-blazor/README.md",
-        "simplicio/templates/stacks/csharp-blazor/practices.md",
-        "simplicio/templates/stacks/csharp-blazor/stack.json",
-        "simplicio/templates/stacks/csharp-blazor/tree/README.md"
+        "simplicio/templates/stacks/csharp-blazor/README.md"
       ],
       "layers": [
         "asset",
@@ -1057,13 +1058,13 @@
         "LibCSTUnavailable",
         "MainActivity",
         "MarkdownDocumentExecutor",
+        "MissingCargoCrateFixer",
+        "MissingGoModuleFixer",
         "MissingNpmPackageFixer",
         "MissingPipPackageFixer",
         "ModelSpec",
         "PhpLaravelCrudRoutesExecutor",
-        "Plan",
-        "PlanValidationError",
-        "PlannerError"
+        "Plan"
       ],
       "evidence": [
         {
@@ -1350,7 +1351,7 @@
   "layers": [
     {
       "name": "asset",
-      "file_count": 176,
+      "file_count": 179,
       "files": [
         ".claude/hooks/post-edit.ps1",
         ".claude/hooks/post-edit.sh",
@@ -1430,12 +1431,15 @@
         "bootstrap.ps1",
         "bootstrap.sh",
         "package-lock.json",
+        "simplicio/templates/recipes/go-gin/auth-jwt.yaml",
         "simplicio/templates/recipes/go-gin/crud-resource.yaml",
+        "simplicio/templates/recipes/php-laravel/auth-jwt.yaml",
         "simplicio/templates/recipes/php-laravel/crud-resource.yaml",
         "simplicio/templates/recipes/php-vanilla/docs-marker.yaml",
         "simplicio/templates/recipes/py-fastapi/admin-crud.yaml",
         "simplicio/templates/recipes/py-fastapi/auth-jwt.yaml",
         "simplicio/templates/recipes/py-fastapi/crud-resource.yaml",
+        "simplicio/templates/recipes/rust-axum/auth-jwt.yaml",
         "simplicio/templates/recipes/rust-axum/crud-resource.yaml",
         "simplicio/templates/recipes/ts-nextjs/admin-crud.yaml",
         "simplicio/templates/recipes/ts-nextjs/auth-jwt.yaml",
@@ -1448,10 +1452,7 @@
         "simplicio/templates/stacks/csharp-blazor/verify.json",
         "simplicio/templates/stacks/dart-flutter/stack.json",
         "simplicio/templates/stacks/dart-flutter/tree/pubspec.yaml",
-        "simplicio/templates/stacks/dart-flutter/verify.json",
-        "simplicio/templates/stacks/elixir-phoenix/stack.json",
-        "simplicio/templates/stacks/elixir-phoenix/verify.json",
-        "simplicio/templates/stacks/go-cli/stack.json"
+        "simplicio/templates/stacks/dart-flutter/verify.json"
       ],
       "modules": [
         ".",
@@ -9268,6 +9269,8 @@
         "_ok",
         "_safe_python_package",
         "_safe_node_package",
+        "_safe_go_module",
+        "_safe_cargo_crate",
         "_dependency_name",
         "_declares_dependency",
         "_find_project_section",
@@ -9278,12 +9281,16 @@
         "try_fix",
         "_detect_package_manager",
         "_package_install_command",
+        "MissingGoModuleFixer",
+        "try_fix",
+        "MissingCargoCrateFixer",
+        "try_fix",
         "RuffFormatFixer",
         "try_fix",
         "_python_error_target",
         "try_static_fixers"
       ],
-      "summary": "Defines exported symbols: FixerResult, MissingNpmPackageFixer, MissingPipPackageFixer, RuffFormatFixer, StaticFixer.",
+      "summary": "Defines exported symbols: FixerResult, MissingCargoCrateFixer, MissingGoModuleFixer, MissingNpmPackageFixer, MissingPipPackageFixer.",
       "evidence": [
         {
           "file": "simplicio/pipeline_fixers.py"
@@ -10486,6 +10493,23 @@
       ]
     },
     {
+      "path": "simplicio/templates/recipes/go-gin/auth-jwt.yaml",
+      "language": "yaml",
+      "module": "simplicio",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "simplicio/templates/recipes/go-gin/auth-jwt.yaml"
+        }
+      ]
+    },
+    {
       "path": "simplicio/templates/recipes/go-gin/crud-resource.yaml",
       "language": "yaml",
       "module": "simplicio",
@@ -10499,6 +10523,23 @@
       "evidence": [
         {
           "file": "simplicio/templates/recipes/go-gin/crud-resource.yaml"
+        }
+      ]
+    },
+    {
+      "path": "simplicio/templates/recipes/php-laravel/auth-jwt.yaml",
+      "language": "yaml",
+      "module": "simplicio",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "simplicio/templates/recipes/php-laravel/auth-jwt.yaml"
         }
       ]
     },
@@ -10584,6 +10625,23 @@
       "evidence": [
         {
           "file": "simplicio/templates/recipes/py-fastapi/crud-resource.yaml"
+        }
+      ]
+    },
+    {
+      "path": "simplicio/templates/recipes/rust-axum/auth-jwt.yaml",
+      "language": "yaml",
+      "module": "simplicio",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "simplicio/templates/recipes/rust-axum/auth-jwt.yaml"
         }
       ]
     },
@@ -16259,6 +16317,16 @@
         "fake_run",
         "test_ruff_format_fixer_runs_format_and_fix_on_python_target",
         "fake_run",
+        "test_missing_go_module_fixer_runs_go_get",
+        "fake_run",
+        "test_missing_go_module_fixer_rejects_stdlib_and_unsafe",
+        "fake_run",
+        "test_missing_cargo_crate_fixer_runs_cargo_add",
+        "fake_run",
+        "test_missing_cargo_crate_fixer_rejects_std_module",
+        "fake_run",
+        "test_try_static_fixers_dispatches_go_and_cargo",
+        "fake_run",
         "test_try_static_fixers_returns_clear_no_match"
       ],
       "summary": "Verifies project behavior through automated tests.",
@@ -16479,7 +16547,9 @@
         "test_ts_nextjs_crud_recipe_renders_multi_word_entity",
         "test_rust_axum_crud_recipe_renders_multi_word_entity",
         "test_go_gin_crud_recipe_renders_multi_word_entity",
-        "test_php_laravel_crud_recipe_renders_multi_word_entity"
+        "test_php_laravel_crud_recipe_renders_multi_word_entity",
+        "test_auth_jwt_recipe_renders_stack_specific_targets",
+        "test_auth_jwt_default_subject_does_not_require_slot"
       ],
       "summary": "Verifies project behavior through automated tests.",
       "evidence": [
@@ -20034,10 +20104,10 @@
     }
   ],
   "coverage": {
-    "files": 686,
+    "files": 689,
     "modules": 16,
     "layers": 13,
-    "symbols": 1812,
+    "symbols": 1830,
     "relationships": 1000,
     "tests": 99
   },

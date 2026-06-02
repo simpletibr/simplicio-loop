@@ -3,13 +3,13 @@ name = "{project_name}"
 version = "0.1.0"
 description = "{goal}"
 requires-python = ">=3.12"
-dependencies = ["typer>=0.12", "rich>=13"]
+dependencies = ["typer>=0.26.5", "rich>=15.0.0"]
 
 [project.scripts]
 app = "app.cli:main"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["pytest>=9.0.3", "ruff>=0.15.15"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-06-01T21:57:57.150Z",
+  "generated_at": "2026-06-02T12:51:28.123Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -218,9 +218,9 @@
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
     },
     {
-      "id": "4d1f5ffc82d15266",
+      "id": "907fcb3c0277a914",
       "path": "CHANGELOG.md",
-      "line": 264,
+      "line": 272,
       "language": "markdown",
       "change_type": "error-handling",
       "tags": [
@@ -3714,9 +3714,9 @@
       "snippet": "\n> Reproduce the new default set:\n> `BENCH_BASE_URL=https://router.huggingface.co/v1 BENCH_API_KEY=<hf-token>\n> BENCH_MODELS=\"Qwen/Qwen3-Coder-30B-A3B-Instruct,Qwen/Qwen3-Coder-Next\"\n> python3 bench/run_offline.py`."
     },
     {
-      "id": "2cb77abf86cd4d7c",
+      "id": "db39bcb7767d065b",
       "path": "simplicio_cli.egg-info/SOURCES.txt",
-      "line": 112,
+      "line": 115,
       "language": "txt",
       "change_type": "route",
       "tags": [
@@ -3993,9 +3993,9 @@
       "snippet": "\n\ndef test_package_version_matches_release_metadata() -> None:\n    project = tomllib.loads(Path(\"pyproject.toml\").read_text(encoding=\"utf-8\"))[\"project\"]\n"
     },
     {
-      "id": "6845eb722123464c",
+      "id": "f231b21b9de1a24b",
       "path": "tests/python/test_pipeline_fixers.py",
-      "line": 12,
+      "line": 14,
       "language": "python",
       "change_type": "test",
       "tags": [
@@ -4070,9 +4070,9 @@
       "snippet": "\n\ndef _write_manifest(tmp_path: Path) -> Path:\n    manifest = tmp_path / \"manifest.json\"\n    manifest.write_text("
     },
     {
-      "id": "11b406360726b2b2",
+      "id": "52e15a46a5c7c491",
       "path": "tests/python/test_recipes.py",
-      "line": 80,
+      "line": 83,
       "language": "python",
       "change_type": "test",
       "tags": [

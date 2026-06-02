@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.symbol-index/v1",
   "version": 1,
-  "generated_at": "2026-06-01T21:57:57.150Z",
+  "generated_at": "2026-06-02T12:51:28.123Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-dev-cli",
   "symbols": [
     {
@@ -8669,8 +8669,8 @@
       }
     },
     {
-      "name": "_dependency_name",
-      "qualified_name": "simplicio/pipeline_fixers.py::_dependency_name",
+      "name": "_safe_go_module",
+      "qualified_name": "simplicio/pipeline_fixers.py::_safe_go_module",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/pipeline_fixers.py",
@@ -8681,15 +8681,39 @@
       }
     },
     {
+      "name": "_safe_cargo_crate",
+      "qualified_name": "simplicio/pipeline_fixers.py::_safe_cargo_crate",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/pipeline_fixers.py",
+      "line": 87,
+      "evidence": {
+        "file": "simplicio/pipeline_fixers.py",
+        "line": 87
+      }
+    },
+    {
+      "name": "_dependency_name",
+      "qualified_name": "simplicio/pipeline_fixers.py::_dependency_name",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/pipeline_fixers.py",
+      "line": 96,
+      "evidence": {
+        "file": "simplicio/pipeline_fixers.py",
+        "line": 96
+      }
+    },
+    {
       "name": "_declares_dependency",
       "qualified_name": "simplicio/pipeline_fixers.py::_declares_dependency",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/pipeline_fixers.py",
-      "line": 75,
+      "line": 101,
       "evidence": {
         "file": "simplicio/pipeline_fixers.py",
-        "line": 75
+        "line": 101
       }
     },
     {
@@ -8698,10 +8722,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/pipeline_fixers.py",
-      "line": 85,
+      "line": 111,
       "evidence": {
         "file": "simplicio/pipeline_fixers.py",
-        "line": 85
+        "line": 111
       }
     },
     {
@@ -8710,10 +8734,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/pipeline_fixers.py",
-      "line": 102,
+      "line": 128,
       "evidence": {
         "file": "simplicio/pipeline_fixers.py",
-        "line": 102
+        "line": 128
       }
     },
     {
@@ -8722,34 +8746,10 @@
       "kind": "class",
       "language": "python",
       "defined_in": "simplicio/pipeline_fixers.py",
-      "line": 159,
+      "line": 185,
       "evidence": {
         "file": "simplicio/pipeline_fixers.py",
-        "line": 159
-      }
-    },
-    {
-      "name": "try_fix",
-      "qualified_name": "simplicio/pipeline_fixers.py::try_fix",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio/pipeline_fixers.py",
-      "line": 164,
-      "evidence": {
-        "file": "simplicio/pipeline_fixers.py",
-        "line": 164
-      }
-    },
-    {
-      "name": "MissingNpmPackageFixer",
-      "qualified_name": "simplicio/pipeline_fixers.py::MissingNpmPackageFixer",
-      "kind": "class",
-      "language": "python",
-      "defined_in": "simplicio/pipeline_fixers.py",
-      "line": 182,
-      "evidence": {
-        "file": "simplicio/pipeline_fixers.py",
-        "line": 182
+        "line": 185
       }
     },
     {
@@ -8765,39 +8765,15 @@
       }
     },
     {
-      "name": "_detect_package_manager",
-      "qualified_name": "simplicio/pipeline_fixers.py::_detect_package_manager",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio/pipeline_fixers.py",
-      "line": 207,
-      "evidence": {
-        "file": "simplicio/pipeline_fixers.py",
-        "line": 207
-      }
-    },
-    {
-      "name": "_package_install_command",
-      "qualified_name": "simplicio/pipeline_fixers.py::_package_install_command",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio/pipeline_fixers.py",
-      "line": 215,
-      "evidence": {
-        "file": "simplicio/pipeline_fixers.py",
-        "line": 215
-      }
-    },
-    {
-      "name": "RuffFormatFixer",
-      "qualified_name": "simplicio/pipeline_fixers.py::RuffFormatFixer",
+      "name": "MissingNpmPackageFixer",
+      "qualified_name": "simplicio/pipeline_fixers.py::MissingNpmPackageFixer",
       "kind": "class",
       "language": "python",
       "defined_in": "simplicio/pipeline_fixers.py",
-      "line": 221,
+      "line": 208,
       "evidence": {
         "file": "simplicio/pipeline_fixers.py",
-        "line": 221
+        "line": 208
       }
     },
     {
@@ -8806,10 +8782,106 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/pipeline_fixers.py",
-      "line": 226,
+      "line": 216,
       "evidence": {
         "file": "simplicio/pipeline_fixers.py",
-        "line": 226
+        "line": 216
+      }
+    },
+    {
+      "name": "_detect_package_manager",
+      "qualified_name": "simplicio/pipeline_fixers.py::_detect_package_manager",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/pipeline_fixers.py",
+      "line": 233,
+      "evidence": {
+        "file": "simplicio/pipeline_fixers.py",
+        "line": 233
+      }
+    },
+    {
+      "name": "_package_install_command",
+      "qualified_name": "simplicio/pipeline_fixers.py::_package_install_command",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/pipeline_fixers.py",
+      "line": 241,
+      "evidence": {
+        "file": "simplicio/pipeline_fixers.py",
+        "line": 241
+      }
+    },
+    {
+      "name": "MissingGoModuleFixer",
+      "qualified_name": "simplicio/pipeline_fixers.py::MissingGoModuleFixer",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "simplicio/pipeline_fixers.py",
+      "line": 247,
+      "evidence": {
+        "file": "simplicio/pipeline_fixers.py",
+        "line": 247
+      }
+    },
+    {
+      "name": "try_fix",
+      "qualified_name": "simplicio/pipeline_fixers.py::try_fix",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/pipeline_fixers.py",
+      "line": 256,
+      "evidence": {
+        "file": "simplicio/pipeline_fixers.py",
+        "line": 256
+      }
+    },
+    {
+      "name": "MissingCargoCrateFixer",
+      "qualified_name": "simplicio/pipeline_fixers.py::MissingCargoCrateFixer",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "simplicio/pipeline_fixers.py",
+      "line": 271,
+      "evidence": {
+        "file": "simplicio/pipeline_fixers.py",
+        "line": 271
+      }
+    },
+    {
+      "name": "try_fix",
+      "qualified_name": "simplicio/pipeline_fixers.py::try_fix",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/pipeline_fixers.py",
+      "line": 279,
+      "evidence": {
+        "file": "simplicio/pipeline_fixers.py",
+        "line": 279
+      }
+    },
+    {
+      "name": "RuffFormatFixer",
+      "qualified_name": "simplicio/pipeline_fixers.py::RuffFormatFixer",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "simplicio/pipeline_fixers.py",
+      "line": 294,
+      "evidence": {
+        "file": "simplicio/pipeline_fixers.py",
+        "line": 294
+      }
+    },
+    {
+      "name": "try_fix",
+      "qualified_name": "simplicio/pipeline_fixers.py::try_fix",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio/pipeline_fixers.py",
+      "line": 299,
+      "evidence": {
+        "file": "simplicio/pipeline_fixers.py",
+        "line": 299
       }
     },
     {
@@ -8818,10 +8890,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/pipeline_fixers.py",
-      "line": 249,
+      "line": 322,
       "evidence": {
         "file": "simplicio/pipeline_fixers.py",
-        "line": 249
+        "line": 322
       }
     },
     {
@@ -8830,10 +8902,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio/pipeline_fixers.py",
-      "line": 276,
+      "line": 351,
       "evidence": {
         "file": "simplicio/pipeline_fixers.py",
-        "line": 276
+        "line": 351
       }
     },
     {
@@ -16066,10 +16138,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_pipeline_fixers.py",
-      "line": 10,
+      "line": 12,
       "evidence": {
         "file": "tests/python/test_pipeline_fixers.py",
-        "line": 10
+        "line": 12
       }
     },
     {
@@ -16078,10 +16150,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_pipeline_fixers.py",
-      "line": 14,
+      "line": 16,
       "evidence": {
         "file": "tests/python/test_pipeline_fixers.py",
-        "line": 14
+        "line": 16
       }
     },
     {
@@ -16090,10 +16162,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_pipeline_fixers.py",
-      "line": 23,
+      "line": 25,
       "evidence": {
         "file": "tests/python/test_pipeline_fixers.py",
-        "line": 23
+        "line": 25
       }
     },
     {
@@ -16102,10 +16174,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_pipeline_fixers.py",
-      "line": 38,
+      "line": 40,
       "evidence": {
         "file": "tests/python/test_pipeline_fixers.py",
-        "line": 38
+        "line": 40
       }
     },
     {
@@ -16114,10 +16186,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_pipeline_fixers.py",
-      "line": 42,
+      "line": 44,
       "evidence": {
         "file": "tests/python/test_pipeline_fixers.py",
-        "line": 42
+        "line": 44
       }
     },
     {
@@ -16126,10 +16198,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_pipeline_fixers.py",
-      "line": 55,
+      "line": 57,
       "evidence": {
         "file": "tests/python/test_pipeline_fixers.py",
-        "line": 55
+        "line": 57
       }
     },
     {
@@ -16138,10 +16210,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_pipeline_fixers.py",
-      "line": 61,
+      "line": 63,
       "evidence": {
         "file": "tests/python/test_pipeline_fixers.py",
-        "line": 61
+        "line": 63
       }
     },
     {
@@ -16150,10 +16222,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_pipeline_fixers.py",
-      "line": 75,
+      "line": 77,
       "evidence": {
         "file": "tests/python/test_pipeline_fixers.py",
-        "line": 75
+        "line": 77
       }
     },
     {
@@ -16162,10 +16234,130 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_pipeline_fixers.py",
-      "line": 82,
+      "line": 84,
       "evidence": {
         "file": "tests/python/test_pipeline_fixers.py",
-        "line": 82
+        "line": 84
+      }
+    },
+    {
+      "name": "test_missing_go_module_fixer_runs_go_get",
+      "qualified_name": "tests/python/test_pipeline_fixers.py::test_missing_go_module_fixer_runs_go_get",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_pipeline_fixers.py",
+      "line": 104,
+      "evidence": {
+        "file": "tests/python/test_pipeline_fixers.py",
+        "line": 104
+      }
+    },
+    {
+      "name": "fake_run",
+      "qualified_name": "tests/python/test_pipeline_fixers.py::fake_run",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_pipeline_fixers.py",
+      "line": 108,
+      "evidence": {
+        "file": "tests/python/test_pipeline_fixers.py",
+        "line": 108
+      }
+    },
+    {
+      "name": "test_missing_go_module_fixer_rejects_stdlib_and_unsafe",
+      "qualified_name": "tests/python/test_pipeline_fixers.py::test_missing_go_module_fixer_rejects_stdlib_and_unsafe",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_pipeline_fixers.py",
+      "line": 123,
+      "evidence": {
+        "file": "tests/python/test_pipeline_fixers.py",
+        "line": 123
+      }
+    },
+    {
+      "name": "fake_run",
+      "qualified_name": "tests/python/test_pipeline_fixers.py::fake_run",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_pipeline_fixers.py",
+      "line": 127,
+      "evidence": {
+        "file": "tests/python/test_pipeline_fixers.py",
+        "line": 127
+      }
+    },
+    {
+      "name": "test_missing_cargo_crate_fixer_runs_cargo_add",
+      "qualified_name": "tests/python/test_pipeline_fixers.py::test_missing_cargo_crate_fixer_runs_cargo_add",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_pipeline_fixers.py",
+      "line": 140,
+      "evidence": {
+        "file": "tests/python/test_pipeline_fixers.py",
+        "line": 140
+      }
+    },
+    {
+      "name": "fake_run",
+      "qualified_name": "tests/python/test_pipeline_fixers.py::fake_run",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_pipeline_fixers.py",
+      "line": 144,
+      "evidence": {
+        "file": "tests/python/test_pipeline_fixers.py",
+        "line": 144
+      }
+    },
+    {
+      "name": "test_missing_cargo_crate_fixer_rejects_std_module",
+      "qualified_name": "tests/python/test_pipeline_fixers.py::test_missing_cargo_crate_fixer_rejects_std_module",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_pipeline_fixers.py",
+      "line": 158,
+      "evidence": {
+        "file": "tests/python/test_pipeline_fixers.py",
+        "line": 158
+      }
+    },
+    {
+      "name": "fake_run",
+      "qualified_name": "tests/python/test_pipeline_fixers.py::fake_run",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_pipeline_fixers.py",
+      "line": 162,
+      "evidence": {
+        "file": "tests/python/test_pipeline_fixers.py",
+        "line": 162
+      }
+    },
+    {
+      "name": "test_try_static_fixers_dispatches_go_and_cargo",
+      "qualified_name": "tests/python/test_pipeline_fixers.py::test_try_static_fixers_dispatches_go_and_cargo",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_pipeline_fixers.py",
+      "line": 175,
+      "evidence": {
+        "file": "tests/python/test_pipeline_fixers.py",
+        "line": 175
+      }
+    },
+    {
+      "name": "fake_run",
+      "qualified_name": "tests/python/test_pipeline_fixers.py::fake_run",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_pipeline_fixers.py",
+      "line": 179,
+      "evidence": {
+        "file": "tests/python/test_pipeline_fixers.py",
+        "line": 179
       }
     },
     {
@@ -16174,10 +16366,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_pipeline_fixers.py",
-      "line": 102,
+      "line": 199,
       "evidence": {
         "file": "tests/python/test_pipeline_fixers.py",
-        "line": 102
+        "line": 199
       }
     },
     {
@@ -17086,10 +17278,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 78,
+      "line": 81,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 78
+        "line": 81
       }
     },
     {
@@ -17098,10 +17290,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 97,
+      "line": 101,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 97
+        "line": 101
       }
     },
     {
@@ -17110,10 +17302,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 115,
+      "line": 119,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 115
+        "line": 119
       }
     },
     {
@@ -17122,10 +17314,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 129,
+      "line": 133,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 129
+        "line": 133
       }
     },
     {
@@ -17134,10 +17326,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 150,
+      "line": 154,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 150
+        "line": 154
       }
     },
     {
@@ -17146,10 +17338,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 158,
+      "line": 162,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 158
+        "line": 162
       }
     },
     {
@@ -17158,10 +17350,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 171,
+      "line": 175,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 171
+        "line": 175
       }
     },
     {
@@ -17170,10 +17362,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 187,
+      "line": 191,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 187
+        "line": 191
       }
     },
     {
@@ -17182,10 +17374,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 207,
+      "line": 211,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 207
+        "line": 211
       }
     },
     {
@@ -17194,10 +17386,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 224,
+      "line": 228,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 224
+        "line": 228
       }
     },
     {
@@ -17206,10 +17398,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 241,
+      "line": 245,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 241
+        "line": 245
       }
     },
     {
@@ -17218,10 +17410,34 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_recipes.py",
-      "line": 258,
+      "line": 262,
       "evidence": {
         "file": "tests/python/test_recipes.py",
-        "line": 258
+        "line": 262
+      }
+    },
+    {
+      "name": "test_auth_jwt_recipe_renders_stack_specific_targets",
+      "qualified_name": "tests/python/test_recipes.py::test_auth_jwt_recipe_renders_stack_specific_targets",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_recipes.py",
+      "line": 300,
+      "evidence": {
+        "file": "tests/python/test_recipes.py",
+        "line": 300
+      }
+    },
+    {
+      "name": "test_auth_jwt_default_subject_does_not_require_slot",
+      "qualified_name": "tests/python/test_recipes.py::test_auth_jwt_default_subject_does_not_require_slot",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_recipes.py",
+      "line": 313,
+      "evidence": {
+        "file": "tests/python/test_recipes.py",
+        "line": 313
       }
     },
     {
@@ -21750,7 +21966,7 @@
     }
   ],
   "counts": {
-    "symbols": 1812,
+    "symbols": 1830,
     "files": 185
   }
 }
