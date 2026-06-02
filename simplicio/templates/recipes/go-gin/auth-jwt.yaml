@@ -1,0 +1,54 @@
+{
+  "name": "auth-jwt",
+  "description": "JWT login, token verification, and protected-route plumbing for Gin.",
+  "applies_to": ["go-gin"],
+  "matches": [
+    "(?i)\\b(?:add|build|implement)\\s+JWT\\s+auth(?:entication)?\\b",
+    "(?i)\\bauth(?:entication)?\\s+with\\s+JWT\\b",
+    "(?i)\\blogin\\s+with\\s+JWT\\b",
+    "(?i)\\bJWT\\s+login\\b"
+  ],
+  "slots": {
+    "subject": {"default": "user", "transform": "lower_snake_case"},
+    "subject_pascal": {"derived_from": "subject", "transform": "pascal_case"}
+  },
+  "rationale": "Use the go-gin JWT recipe because token signing, verification, and protected-route handlers are repeatable for this stack.",
+  "files_to_create": [
+    {"path": "internal/auth/jwt.go", "purpose": "JWT sign and parse helpers"},
+    {"path": "internal/http/auth_routes.go", "purpose": "Login and protected {subject} routes"},
+    {"path": "internal/http/auth_test.go", "purpose": "JWT auth route tests"}
+  ],
+  "tasks": [
+    {
+      "id": "T01-token-service",
+      "depends_on": [],
+      "goal": "Create JWT helpers for {subject} identity tokens.",
+      "target": "internal/auth/jwt.go",
+      "criteria": "- CreateToken signs subject claims\\n- ParseToken validates signature and expiry",
+      "constraints": "- read secret and expiry from environment defaults",
+      "verify": "go test ./..."
+    },
+    {
+      "id": "T02-auth-routes",
+      "depends_on": ["T01-token-service"],
+      "goal": "Implement login and current-{subject} routes.",
+      "target": "internal/http/auth_routes.go",
+      "criteria": "- POST /auth/login returns an access token\\n- GET /auth/me requires a bearer token",
+      "constraints": "- keep persistence behind a small lookup function",
+      "verify": "go test ./..."
+    },
+    {
+      "id": "T03-auth-tests",
+      "depends_on": ["T02-auth-routes"],
+      "goal": "Cover JWT login and protected route behavior.",
+      "target": "internal/http/auth_test.go",
+      "criteria": "- valid credentials receive a token\\n- missing or invalid tokens return 401",
+      "constraints": "- avoid live network calls",
+      "verify": "go test ./..."
+    }
+  ],
+  "deps_to_install": [],
+  "deps_dev": [],
+  "test_command": "go test ./...",
+  "lint_command": "go vet ./..."
+}
