@@ -1,0 +1,9 @@
+{
+  "name": "mech-edit-host",
+  "version": "0.0.1",
+  "audiences": [
+    "world",
+    "team",
+    "everyone"
+  ]
+}
