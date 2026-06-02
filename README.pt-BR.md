@@ -3,7 +3,7 @@
 <p align="center">
   <strong>Mapeie qualquer repositório em contexto legível por IA: project map, precedent index, inventário arquitetural, símbolos, call graph e docs.</strong><br />
   <em>Os comandos ficam em inglês para poder copiar exatamente.</em><br />
-  <a href="https://wesleysimplicio.github.io/llm-project-mapper/">Docs ao vivo: wesleysimplicio.github.io/llm-project-mapper</a>
+  <a href="https://wesleysimplicio.github.io/simplicio-mapper/">Docs ao vivo: wesleysimplicio.github.io/simplicio-mapper</a>
 </p>
 
 <p align="center">

@@ -3,7 +3,7 @@
 <p align="center">
   <strong>Map any repository into AI-readable context: project map, precedent index, architecture inventory, symbol index, call graph, and docs.</strong><br />
   <em>Commands stay in English so they can be copied exactly.</em><br />
-  <a href="https://wesleysimplicio.github.io/llm-project-mapper/">Live docs: wesleysimplicio.github.io/llm-project-mapper</a>
+  <a href="https://wesleysimplicio.github.io/simplicio-mapper/">Live docs: wesleysimplicio.github.io/simplicio-mapper</a>
 </p>
 
 <p align="center">
@@ -100,7 +100,9 @@ delivery loop"]
 The section below restores the project-specific README material that existed before the globalization pass. Keep this substance when refreshing the top-level narrative: add polish, do not erase operational memory.
 
 > 🇺🇸 English. Leia em português: [README.pt-BR.md](README.pt-BR.md).
-> Live docs site: [wesleysimplicio.github.io/llm-project-mapper](https://wesleysimplicio.github.io/llm-project-mapper/)
+> Live docs site: [wesleysimplicio.github.io/simplicio-mapper](https://wesleysimplicio.github.io/simplicio-mapper/)
+>
+> The npm package name `@wesleysimplicio/llm-project-mapper` is intentionally retained for historical npm consumers; new releases ship as `simplicio-mapper` on PyPI only (see #87).
 
 AI-friendly, stack-neutral repository scaffold. Drop it into **any** project — new or existing — and any agent CLI (Claude Code, Codex, Cursor, GitHub Copilot, Aider with Deepseek/Kimi/MiniMax/GLM, Hermes, OpenClaw) gets the context it needs to ship work the same day.
 
