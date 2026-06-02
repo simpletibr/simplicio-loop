@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.symbol-index/v1",
   "version": 1,
-  "generated_at": "2026-06-02T12:41:21.792Z",
+  "generated_at": "2026-06-02T14:24:42.455Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-mapper",
   "symbols": [
     {
@@ -14,6 +14,138 @@
       "evidence": {
         "file": ".github/workflows-templates/telemetry-worker.js",
         "line": 30
+      }
+    },
+    {
+      "name": "EditError",
+      "qualified_name": "bin/apply-edits.js::EditError",
+      "kind": "class",
+      "language": "javascript",
+      "defined_in": "bin/apply-edits.js",
+      "line": 50,
+      "evidence": {
+        "file": "bin/apply-edits.js",
+        "line": 50
+      }
+    },
+    {
+      "name": "resolveSafe",
+      "qualified_name": "bin/apply-edits.js::resolveSafe",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/apply-edits.js",
+      "line": 56,
+      "evidence": {
+        "file": "bin/apply-edits.js",
+        "line": 56
+      }
+    },
+    {
+      "name": "readIfExists",
+      "qualified_name": "bin/apply-edits.js::readIfExists",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/apply-edits.js",
+      "line": 71,
+      "evidence": {
+        "file": "bin/apply-edits.js",
+        "line": 71
+      }
+    },
+    {
+      "name": "requireString",
+      "qualified_name": "bin/apply-edits.js::requireString",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/apply-edits.js",
+      "line": 80,
+      "evidence": {
+        "file": "bin/apply-edits.js",
+        "line": 80
+      }
+    },
+    {
+      "name": "planEdit",
+      "qualified_name": "bin/apply-edits.js::planEdit",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/apply-edits.js",
+      "line": 92,
+      "evidence": {
+        "file": "bin/apply-edits.js",
+        "line": 92
+      }
+    },
+    {
+      "name": "computePlan",
+      "qualified_name": "bin/apply-edits.js::computePlan",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/apply-edits.js",
+      "line": 103,
+      "evidence": {
+        "file": "bin/apply-edits.js",
+        "line": 103
+      }
+    },
+    {
+      "name": "countOccurrences",
+      "qualified_name": "bin/apply-edits.js::countOccurrences",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/apply-edits.js",
+      "line": 214,
+      "evidence": {
+        "file": "bin/apply-edits.js",
+        "line": 214
+      }
+    },
+    {
+      "name": "replaceN",
+      "qualified_name": "bin/apply-edits.js::replaceN",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/apply-edits.js",
+      "line": 226,
+      "evidence": {
+        "file": "bin/apply-edits.js",
+        "line": 226
+      }
+    },
+    {
+      "name": "applyEdits",
+      "qualified_name": "bin/apply-edits.js::applyEdits",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/apply-edits.js",
+      "line": 252,
+      "evidence": {
+        "file": "bin/apply-edits.js",
+        "line": 252
+      }
+    },
+    {
+      "name": "parseArgs",
+      "qualified_name": "bin/apply-edits.js::parseArgs",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/apply-edits.js",
+      "line": 308,
+      "evidence": {
+        "file": "bin/apply-edits.js",
+        "line": 308
+      }
+    },
+    {
+      "name": "main",
+      "qualified_name": "bin/apply-edits.js::main",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "bin/apply-edits.js",
+      "line": 338,
+      "evidence": {
+        "file": "bin/apply-edits.js",
+        "line": 338
       }
     },
     {
@@ -1973,6 +2105,54 @@
       }
     },
     {
+      "name": "readPackageVersion",
+      "qualified_name": "scripts/check-version-sync.js::readPackageVersion",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/check-version-sync.js",
+      "line": 18,
+      "evidence": {
+        "file": "scripts/check-version-sync.js",
+        "line": 18
+      }
+    },
+    {
+      "name": "readPyprojectVersion",
+      "qualified_name": "scripts/check-version-sync.js::readPyprojectVersion",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/check-version-sync.js",
+      "line": 23,
+      "evidence": {
+        "file": "scripts/check-version-sync.js",
+        "line": 23
+      }
+    },
+    {
+      "name": "readInitVersion",
+      "qualified_name": "scripts/check-version-sync.js::readInitVersion",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/check-version-sync.js",
+      "line": 32,
+      "evidence": {
+        "file": "scripts/check-version-sync.js",
+        "line": 32
+      }
+    },
+    {
+      "name": "main",
+      "qualified_name": "scripts/check-version-sync.js::main",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "scripts/check-version-sync.js",
+      "line": 41,
+      "evidence": {
+        "file": "scripts/check-version-sync.js",
+        "line": 41
+      }
+    },
+    {
       "name": "metric",
       "qualified_name": "scripts/coverage.js::metric",
       "kind": "function",
@@ -2758,10 +2938,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 394,
+      "line": 400,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 394
+        "line": 400
       }
     },
     {
@@ -2770,10 +2950,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 410,
+      "line": 421,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 410
+        "line": 421
       }
     },
     {
@@ -2782,10 +2962,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 420,
+      "line": 431,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 420
+        "line": 431
       }
     },
     {
@@ -2794,10 +2974,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 429,
+      "line": 440,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 429
+        "line": 440
       }
     },
     {
@@ -2806,10 +2986,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 452,
+      "line": 463,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 452
+        "line": 463
       }
     },
     {
@@ -2818,27 +2998,15 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 474,
+      "line": 485,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 474
+        "line": 485
       }
     },
     {
       "name": "_is_test_path",
       "qualified_name": "simplicio_mapper/cli.py::_is_test_path",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "simplicio_mapper/cli.py",
-      "line": 487,
-      "evidence": {
-        "file": "simplicio_mapper/cli.py",
-        "line": 487
-      }
-    },
-    {
-      "name": "_extract_text_constants",
-      "qualified_name": "simplicio_mapper/cli.py::_extract_text_constants",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
@@ -2849,15 +3017,27 @@
       }
     },
     {
+      "name": "_extract_text_constants",
+      "qualified_name": "simplicio_mapper/cli.py::_extract_text_constants",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/cli.py",
+      "line": 509,
+      "evidence": {
+        "file": "simplicio_mapper/cli.py",
+        "line": 509
+      }
+    },
+    {
       "name": "_strip_ts_quote",
       "qualified_name": "simplicio_mapper/cli.py::_strip_ts_quote",
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 514,
+      "line": 525,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 514
+        "line": 525
       }
     },
     {
@@ -2866,10 +3046,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 521,
+      "line": 532,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 521
+        "line": 532
       }
     },
     {
@@ -2878,10 +3058,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 528,
+      "line": 539,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 528
+        "line": 539
       }
     },
     {
@@ -2890,10 +3070,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 535,
+      "line": 546,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 535
+        "line": 546
       }
     },
     {
@@ -2902,10 +3082,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 560,
+      "line": 571,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 560
+        "line": 571
       }
     },
     {
@@ -2914,10 +3094,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 584,
+      "line": 595,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 584
+        "line": 595
       }
     },
     {
@@ -2926,10 +3106,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 630,
+      "line": 641,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 630
+        "line": 641
       }
     },
     {
@@ -2938,10 +3118,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 651,
+      "line": 662,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 651
+        "line": 662
       }
     },
     {
@@ -2950,10 +3130,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 671,
+      "line": 682,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 671
+        "line": 682
       }
     },
     {
@@ -2962,10 +3142,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 697,
+      "line": 708,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 697
+        "line": 708
       }
     },
     {
@@ -2974,10 +3154,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 716,
+      "line": 727,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 716
+        "line": 727
       }
     },
     {
@@ -2986,10 +3166,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 768,
+      "line": 779,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 768
+        "line": 779
       }
     },
     {
@@ -2998,10 +3178,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 775,
+      "line": 786,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 775
+        "line": 786
       }
     },
     {
@@ -3010,10 +3190,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 787,
+      "line": 798,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 787
+        "line": 798
       }
     },
     {
@@ -3022,10 +3202,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 794,
+      "line": 805,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 794
+        "line": 805
       }
     },
     {
@@ -3034,10 +3214,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 822,
+      "line": 833,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 822
+        "line": 833
       }
     },
     {
@@ -3046,10 +3226,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 835,
+      "line": 846,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 835
+        "line": 846
       }
     },
     {
@@ -3058,10 +3238,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 865,
+      "line": 876,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 865
+        "line": 876
       }
     },
     {
@@ -3070,10 +3250,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 884,
+      "line": 895,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 884
+        "line": 895
       }
     },
     {
@@ -3082,10 +3262,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 898,
+      "line": 909,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 898
+        "line": 909
       }
     },
     {
@@ -3094,10 +3274,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 912,
+      "line": 923,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 912
+        "line": 923
       }
     },
     {
@@ -3106,10 +3286,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 955,
+      "line": 966,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 955
+        "line": 966
       }
     },
     {
@@ -3118,10 +3298,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 984,
+      "line": 995,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 984
+        "line": 995
       }
     },
     {
@@ -3130,10 +3310,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 1025,
+      "line": 1036,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 1025
+        "line": 1036
       }
     },
     {
@@ -3142,10 +3322,226 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/cli.py",
-      "line": 1043,
+      "line": 1054,
       "evidence": {
         "file": "simplicio_mapper/cli.py",
-        "line": 1043
+        "line": 1054
+      }
+    },
+    {
+      "name": "ContextCache",
+      "qualified_name": "simplicio_mapper/context_cache.py::ContextCache",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_cache.py",
+      "line": 22,
+      "evidence": {
+        "file": "simplicio_mapper/context_cache.py",
+        "line": 22
+      }
+    },
+    {
+      "name": "__init__",
+      "qualified_name": "simplicio_mapper/context_cache.py::__init__",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_cache.py",
+      "line": 32,
+      "evidence": {
+        "file": "simplicio_mapper/context_cache.py",
+        "line": 32
+      }
+    },
+    {
+      "name": "_load",
+      "qualified_name": "simplicio_mapper/context_cache.py::_load",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_cache.py",
+      "line": 36,
+      "evidence": {
+        "file": "simplicio_mapper/context_cache.py",
+        "line": 36
+      }
+    },
+    {
+      "name": "get",
+      "qualified_name": "simplicio_mapper/context_cache.py::get",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_cache.py",
+      "line": 49,
+      "evidence": {
+        "file": "simplicio_mapper/context_cache.py",
+        "line": 49
+      }
+    },
+    {
+      "name": "set",
+      "qualified_name": "simplicio_mapper/context_cache.py::set",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_cache.py",
+      "line": 52,
+      "evidence": {
+        "file": "simplicio_mapper/context_cache.py",
+        "line": 52
+      }
+    },
+    {
+      "name": "clear",
+      "qualified_name": "simplicio_mapper/context_cache.py::clear",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_cache.py",
+      "line": 56,
+      "evidence": {
+        "file": "simplicio_mapper/context_cache.py",
+        "line": 56
+      }
+    },
+    {
+      "name": "__contains__",
+      "qualified_name": "simplicio_mapper/context_cache.py::__contains__",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_cache.py",
+      "line": 60,
+      "evidence": {
+        "file": "simplicio_mapper/context_cache.py",
+        "line": 60
+      }
+    },
+    {
+      "name": "__len__",
+      "qualified_name": "simplicio_mapper/context_cache.py::__len__",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_cache.py",
+      "line": 63,
+      "evidence": {
+        "file": "simplicio_mapper/context_cache.py",
+        "line": 63
+      }
+    },
+    {
+      "name": "_persist",
+      "qualified_name": "simplicio_mapper/context_cache.py::_persist",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_cache.py",
+      "line": 66,
+      "evidence": {
+        "file": "simplicio_mapper/context_cache.py",
+        "line": 66
+      }
+    },
+    {
+      "name": "_sha256_text",
+      "qualified_name": "simplicio_mapper/context_pack.py::_sha256_text",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_pack.py",
+      "line": 52,
+      "evidence": {
+        "file": "simplicio_mapper/context_pack.py",
+        "line": 52
+      }
+    },
+    {
+      "name": "_read_safe",
+      "qualified_name": "simplicio_mapper/context_pack.py::_read_safe",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_pack.py",
+      "line": 56,
+      "evidence": {
+        "file": "simplicio_mapper/context_pack.py",
+        "line": 56
+      }
+    },
+    {
+      "name": "_load_json",
+      "qualified_name": "simplicio_mapper/context_pack.py::_load_json",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_pack.py",
+      "line": 64,
+      "evidence": {
+        "file": "simplicio_mapper/context_pack.py",
+        "line": 64
+      }
+    },
+    {
+      "name": "_language_for",
+      "qualified_name": "simplicio_mapper/context_pack.py::_language_for",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_pack.py",
+      "line": 72,
+      "evidence": {
+        "file": "simplicio_mapper/context_pack.py",
+        "line": 72
+      }
+    },
+    {
+      "name": "_range_snippet",
+      "qualified_name": "simplicio_mapper/context_pack.py::_range_snippet",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_pack.py",
+      "line": 80,
+      "evidence": {
+        "file": "simplicio_mapper/context_pack.py",
+        "line": 80
+      }
+    },
+    {
+      "name": "_file_symbols",
+      "qualified_name": "simplicio_mapper/context_pack.py::_file_symbols",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_pack.py",
+      "line": 92,
+      "evidence": {
+        "file": "simplicio_mapper/context_pack.py",
+        "line": 92
+      }
+    },
+    {
+      "name": "_related_tests",
+      "qualified_name": "simplicio_mapper/context_pack.py::_related_tests",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_pack.py",
+      "line": 107,
+      "evidence": {
+        "file": "simplicio_mapper/context_pack.py",
+        "line": 107
+      }
+    },
+    {
+      "name": "_call_graph_edges",
+      "qualified_name": "simplicio_mapper/context_pack.py::_call_graph_edges",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_pack.py",
+      "line": 119,
+      "evidence": {
+        "file": "simplicio_mapper/context_pack.py",
+        "line": 119
+      }
+    },
+    {
+      "name": "build_context_pack",
+      "qualified_name": "simplicio_mapper/context_pack.py::build_context_pack",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/context_pack.py",
+      "line": 129,
+      "evidence": {
+        "file": "simplicio_mapper/context_pack.py",
+        "line": 129
       }
     },
     {
@@ -3154,10 +3550,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 83,
+      "line": 84,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 83
+        "line": 84
       }
     },
     {
@@ -3166,10 +3562,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 87,
+      "line": 88,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 87
+        "line": 88
       }
     },
     {
@@ -3178,10 +3574,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 91,
+      "line": 92,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 91
+        "line": 92
       }
     },
     {
@@ -3190,10 +3586,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 95,
+      "line": 96,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 95
+        "line": 96
       }
     },
     {
@@ -3202,10 +3598,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 103,
+      "line": 104,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 103
+        "line": 104
       }
     },
     {
@@ -3214,10 +3610,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 109,
+      "line": 110,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 109
+        "line": 110
       }
     },
     {
@@ -3226,10 +3622,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 113,
+      "line": 114,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 113
+        "line": 114
       }
     },
     {
@@ -3238,10 +3634,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 121,
+      "line": 122,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 121
+        "line": 122
       }
     },
     {
@@ -3250,10 +3646,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 135,
+      "line": 136,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 135
+        "line": 136
       }
     },
     {
@@ -3262,10 +3658,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 147,
+      "line": 148,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 147
+        "line": 148
       }
     },
     {
@@ -3274,10 +3670,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 157,
+      "line": 158,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 157
+        "line": 158
       }
     },
     {
@@ -3286,10 +3682,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 181,
+      "line": 182,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 181
+        "line": 182
       }
     },
     {
@@ -3298,10 +3694,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 196,
+      "line": 197,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 196
+        "line": 197
       }
     },
     {
@@ -3310,10 +3706,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 228,
+      "line": 229,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 228
+        "line": 229
       }
     },
     {
@@ -3322,10 +3718,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 255,
+      "line": 256,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 255
+        "line": 256
       }
     },
     {
@@ -3334,10 +3730,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 282,
+      "line": 283,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 282
+        "line": 283
       }
     },
     {
@@ -3346,10 +3742,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 305,
+      "line": 306,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 305
+        "line": 306
       }
     },
     {
@@ -3358,10 +3754,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 315,
+      "line": 316,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 315
+        "line": 316
       }
     },
     {
@@ -3370,10 +3766,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 349,
+      "line": 350,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 349
+        "line": 350
       }
     },
     {
@@ -3382,10 +3778,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 354,
+      "line": 355,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 354
+        "line": 355
       }
     },
     {
@@ -3394,10 +3790,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 372,
+      "line": 373,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 372
+        "line": 373
       }
     },
     {
@@ -3406,10 +3802,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 384,
+      "line": 385,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 384
+        "line": 385
       }
     },
     {
@@ -3418,10 +3814,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 393,
+      "line": 394,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 393
+        "line": 394
       }
     },
     {
@@ -3430,10 +3826,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 412,
+      "line": 413,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 412
+        "line": 413
       }
     },
     {
@@ -3442,10 +3838,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 456,
+      "line": 457,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 456
+        "line": 457
       }
     },
     {
@@ -3454,10 +3850,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 462,
+      "line": 463,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 462
+        "line": 463
       }
     },
     {
@@ -3466,10 +3862,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 499,
+      "line": 500,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 499
+        "line": 500
       }
     },
     {
@@ -3478,10 +3874,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 503,
+      "line": 504,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 503
+        "line": 504
       }
     },
     {
@@ -3490,10 +3886,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 564,
+      "line": 565,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 564
+        "line": 565
       }
     },
     {
@@ -3502,10 +3898,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 587,
+      "line": 588,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 587
+        "line": 588
       }
     },
     {
@@ -3514,10 +3910,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 609,
+      "line": 610,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 609
+        "line": 610
       }
     },
     {
@@ -3526,10 +3922,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 615,
+      "line": 616,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 615
+        "line": 616
       }
     },
     {
@@ -3538,10 +3934,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 633,
+      "line": 634,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 633
+        "line": 634
       }
     },
     {
@@ -3550,10 +3946,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 638,
+      "line": 639,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 638
+        "line": 639
       }
     },
     {
@@ -3562,10 +3958,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 681,
+      "line": 682,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 681
+        "line": 682
       }
     },
     {
@@ -3574,10 +3970,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 691,
+      "line": 692,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 691
+        "line": 692
       }
     },
     {
@@ -3586,10 +3982,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 698,
+      "line": 699,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 698
+        "line": 699
       }
     },
     {
@@ -3598,10 +3994,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 709,
+      "line": 710,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 709
+        "line": 710
       }
     },
     {
@@ -3610,10 +4006,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 770,
+      "line": 771,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 770
+        "line": 771
       }
     },
     {
@@ -3622,10 +4018,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 876,
+      "line": 877,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 876
+        "line": 877
       }
     },
     {
@@ -3634,10 +4030,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 972,
+      "line": 973,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 972
+        "line": 973
       }
     },
     {
@@ -3646,10 +4042,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 982,
+      "line": 983,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 982
+        "line": 983
       }
     },
     {
@@ -3658,10 +4054,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 1028,
+      "line": 1029,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 1028
+        "line": 1029
       }
     },
     {
@@ -3670,10 +4066,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 1035,
+      "line": 1036,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 1035
+        "line": 1036
       }
     },
     {
@@ -3682,10 +4078,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 1043,
+      "line": 1044,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 1043
+        "line": 1044
       }
     },
     {
@@ -3694,10 +4090,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 1048,
+      "line": 1049,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 1048
+        "line": 1049
       }
     },
     {
@@ -3706,10 +4102,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 1101,
+      "line": 1102,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 1101
+        "line": 1102
       }
     },
     {
@@ -3718,10 +4114,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 1117,
+      "line": 1118,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 1117
+        "line": 1118
       }
     },
     {
@@ -3730,10 +4126,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 1142,
+      "line": 1143,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 1142
+        "line": 1143
       }
     },
     {
@@ -3742,10 +4138,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 1171,
+      "line": 1172,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 1171
+        "line": 1172
       }
     },
     {
@@ -3754,10 +4150,118 @@
       "kind": "function",
       "language": "python",
       "defined_in": "simplicio_mapper/mapper.py",
-      "line": 1212,
+      "line": 1213,
       "evidence": {
         "file": "simplicio_mapper/mapper.py",
-        "line": 1212
+        "line": 1213
+      }
+    },
+    {
+      "name": "_sha256_text",
+      "qualified_name": "simplicio_mapper/mechanical_edit.py::_sha256_text",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mechanical_edit.py",
+      "line": 36,
+      "evidence": {
+        "file": "simplicio_mapper/mechanical_edit.py",
+        "line": 36
+      }
+    },
+    {
+      "name": "_read_bytes_sample",
+      "qualified_name": "simplicio_mapper/mechanical_edit.py::_read_bytes_sample",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mechanical_edit.py",
+      "line": 40,
+      "evidence": {
+        "file": "simplicio_mapper/mechanical_edit.py",
+        "line": 40
+      }
+    },
+    {
+      "name": "is_binary",
+      "qualified_name": "simplicio_mapper/mechanical_edit.py::is_binary",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mechanical_edit.py",
+      "line": 48,
+      "evidence": {
+        "file": "simplicio_mapper/mechanical_edit.py",
+        "line": 48
+      }
+    },
+    {
+      "name": "snapshot_hash",
+      "qualified_name": "simplicio_mapper/mechanical_edit.py::snapshot_hash",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mechanical_edit.py",
+      "line": 67,
+      "evidence": {
+        "file": "simplicio_mapper/mechanical_edit.py",
+        "line": 67
+      }
+    },
+    {
+      "name": "range_hash",
+      "qualified_name": "simplicio_mapper/mechanical_edit.py::range_hash",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mechanical_edit.py",
+      "line": 72,
+      "evidence": {
+        "file": "simplicio_mapper/mechanical_edit.py",
+        "line": 72
+      }
+    },
+    {
+      "name": "_must_contain",
+      "qualified_name": "simplicio_mapper/mechanical_edit.py::_must_contain",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mechanical_edit.py",
+      "line": 85,
+      "evidence": {
+        "file": "simplicio_mapper/mechanical_edit.py",
+        "line": 85
+      }
+    },
+    {
+      "name": "_absolute",
+      "qualified_name": "simplicio_mapper/mechanical_edit.py::_absolute",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mechanical_edit.py",
+      "line": 97,
+      "evidence": {
+        "file": "simplicio_mapper/mechanical_edit.py",
+        "line": 97
+      }
+    },
+    {
+      "name": "extract_file_entry",
+      "qualified_name": "simplicio_mapper/mechanical_edit.py::extract_file_entry",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mechanical_edit.py",
+      "line": 101,
+      "evidence": {
+        "file": "simplicio_mapper/mechanical_edit.py",
+        "line": 101
+      }
+    },
+    {
+      "name": "build_context",
+      "qualified_name": "simplicio_mapper/mechanical_edit.py::build_context",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "simplicio_mapper/mechanical_edit.py",
+      "line": 126,
+      "evidence": {
+        "file": "simplicio_mapper/mechanical_edit.py",
+        "line": 126
       }
     },
     {
@@ -4073,6 +4577,102 @@
       }
     },
     {
+      "name": "load_user",
+      "qualified_name": "tests/fixtures/ctx-pack-host/sample.py::load_user",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/fixtures/ctx-pack-host/sample.py",
+      "line": 2,
+      "evidence": {
+        "file": "tests/fixtures/ctx-pack-host/sample.py",
+        "line": 2
+      }
+    },
+    {
+      "name": "loadUser",
+      "qualified_name": "tests/fixtures/ctx-pack-host/sample.ts::loadUser",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/fixtures/ctx-pack-host/sample.ts",
+      "line": 5,
+      "evidence": {
+        "file": "tests/fixtures/ctx-pack-host/sample.ts",
+        "line": 5
+      }
+    },
+    {
+      "name": "greet",
+      "qualified_name": "tests/fixtures/mech-edit-host/sample.py::greet",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/fixtures/mech-edit-host/sample.py",
+      "line": 2,
+      "evidence": {
+        "file": "tests/fixtures/mech-edit-host/sample.py",
+        "line": 2
+      }
+    },
+    {
+      "name": "farewell",
+      "qualified_name": "tests/fixtures/mech-edit-host/sample.py::farewell",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/fixtures/mech-edit-host/sample.py",
+      "line": 6,
+      "evidence": {
+        "file": "tests/fixtures/mech-edit-host/sample.py",
+        "line": 6
+      }
+    },
+    {
+      "name": "greet",
+      "qualified_name": "tests/fixtures/mech-edit-host/sample.ts::greet",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/fixtures/mech-edit-host/sample.ts",
+      "line": 5,
+      "evidence": {
+        "file": "tests/fixtures/mech-edit-host/sample.ts",
+        "line": 5
+      }
+    },
+    {
+      "name": "farewell",
+      "qualified_name": "tests/fixtures/mech-edit-host/sample.ts::farewell",
+      "kind": "function",
+      "language": "typescript",
+      "defined_in": "tests/fixtures/mech-edit-host/sample.ts",
+      "line": 9,
+      "evidence": {
+        "file": "tests/fixtures/mech-edit-host/sample.ts",
+        "line": 9
+      }
+    },
+    {
+      "name": "greet",
+      "qualified_name": "tests/fixtures/parity-host/src/greet.js::greet",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/fixtures/parity-host/src/greet.js",
+      "line": 1,
+      "evidence": {
+        "file": "tests/fixtures/parity-host/src/greet.js",
+        "line": 1
+      }
+    },
+    {
+      "name": "startServer",
+      "qualified_name": "tests/fixtures/parity-host/src/index.js::startServer",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/fixtures/parity-host/src/index.js",
+      "line": 3,
+      "evidence": {
+        "file": "tests/fixtures/parity-host/src/index.js",
+        "line": 3
+      }
+    },
+    {
       "name": "_write",
       "qualified_name": "tests/python/test_cli.py::_write",
       "kind": "function",
@@ -4241,8 +4841,8 @@
       }
     },
     {
-      "name": "CliTest",
-      "qualified_name": "tests/python/test_cli.py::CliTest",
+      "name": "EndpointNormalizationTest",
+      "qualified_name": "tests/python/test_cli.py::EndpointNormalizationTest",
       "kind": "class",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
@@ -4253,92 +4853,80 @@
       }
     },
     {
+      "name": "test_placeholders_collapse_to_id",
+      "qualified_name": "tests/python/test_cli.py::test_placeholders_collapse_to_id",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 250,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 250
+      }
+    },
+    {
+      "name": "test_uuid_segments_collapse_to_id",
+      "qualified_name": "tests/python/test_cli.py::test_uuid_segments_collapse_to_id",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 260,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 260
+      }
+    },
+    {
+      "name": "test_numeric_segments_collapse_to_id",
+      "qualified_name": "tests/python/test_cli.py::test_numeric_segments_collapse_to_id",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 268,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 268
+      }
+    },
+    {
+      "name": "test_unknown_slug_segments_stay_literal",
+      "qualified_name": "tests/python/test_cli.py::test_unknown_slug_segments_stay_literal",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 278,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 278
+      }
+    },
+    {
+      "name": "test_query_string_and_leading_slash_normalization",
+      "qualified_name": "tests/python/test_cli.py::test_query_string_and_leading_slash_normalization",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 292,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 292
+      }
+    },
+    {
+      "name": "CliTest",
+      "qualified_name": "tests/python/test_cli.py::CliTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 298,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 298
+      }
+    },
+    {
       "name": "setUp",
       "qualified_name": "tests/python/test_cli.py::setUp",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_cli.py",
-      "line": 249,
-      "evidence": {
-        "file": "tests/python/test_cli.py",
-        "line": 249
-      }
-    },
-    {
-      "name": "tearDown",
-      "qualified_name": "tests/python/test_cli.py::tearDown",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_cli.py",
-      "line": 252,
-      "evidence": {
-        "file": "tests/python/test_cli.py",
-        "line": 252
-      }
-    },
-    {
-      "name": "test_main_map_writes_artifacts",
-      "qualified_name": "tests/python/test_cli.py::test_main_map_writes_artifacts",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_cli.py",
-      "line": 255,
-      "evidence": {
-        "file": "tests/python/test_cli.py",
-        "line": 255
-      }
-    },
-    {
-      "name": "test_unknown_option_exits_with_code_2",
-      "qualified_name": "tests/python/test_cli.py::test_unknown_option_exits_with_code_2",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_cli.py",
-      "line": 267,
-      "evidence": {
-        "file": "tests/python/test_cli.py",
-        "line": 267
-      }
-    },
-    {
-      "name": "test_help_exits_zero",
-      "qualified_name": "tests/python/test_cli.py::test_help_exits_zero",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_cli.py",
-      "line": 272,
-      "evidence": {
-        "file": "tests/python/test_cli.py",
-        "line": 272
-      }
-    },
-    {
-      "name": "test_version_matches_package",
-      "qualified_name": "tests/python/test_cli.py::test_version_matches_package",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_cli.py",
-      "line": 277,
-      "evidence": {
-        "file": "tests/python/test_cli.py",
-        "line": 277
-      }
-    },
-    {
-      "name": "test_index_writes_json_contract",
-      "qualified_name": "tests/python/test_cli.py::test_index_writes_json_contract",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_cli.py",
-      "line": 283,
-      "evidence": {
-        "file": "tests/python/test_cli.py",
-        "line": 283
-      }
-    },
-    {
-      "name": "test_index_accepts_update_compatibility_flag",
-      "qualified_name": "tests/python/test_cli.py::test_index_accepts_update_compatibility_flag",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
@@ -4349,20 +4937,68 @@
       }
     },
     {
-      "name": "test_index_skips_fresh_artifacts_quietly",
-      "qualified_name": "tests/python/test_cli.py::test_index_skips_fresh_artifacts_quietly",
+      "name": "tearDown",
+      "qualified_name": "tests/python/test_cli.py::tearDown",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 314,
+      "line": 304,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 314
+        "line": 304
       }
     },
     {
-      "name": "test_endpoints_compares_client_calls_against_server_routes",
-      "qualified_name": "tests/python/test_cli.py::test_endpoints_compares_client_calls_against_server_routes",
+      "name": "test_main_map_writes_artifacts",
+      "qualified_name": "tests/python/test_cli.py::test_main_map_writes_artifacts",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 307,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 307
+      }
+    },
+    {
+      "name": "test_unknown_option_exits_with_code_2",
+      "qualified_name": "tests/python/test_cli.py::test_unknown_option_exits_with_code_2",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 319,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 319
+      }
+    },
+    {
+      "name": "test_help_exits_zero",
+      "qualified_name": "tests/python/test_cli.py::test_help_exits_zero",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 324,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 324
+      }
+    },
+    {
+      "name": "test_version_matches_package",
+      "qualified_name": "tests/python/test_cli.py::test_version_matches_package",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 329,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 329
+      }
+    },
+    {
+      "name": "test_index_writes_json_contract",
+      "qualified_name": "tests/python/test_cli.py::test_index_writes_json_contract",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
@@ -4373,15 +5009,51 @@
       }
     },
     {
+      "name": "test_index_accepts_update_compatibility_flag",
+      "qualified_name": "tests/python/test_cli.py::test_index_accepts_update_compatibility_flag",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 353,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 353
+      }
+    },
+    {
+      "name": "test_index_skips_fresh_artifacts_quietly",
+      "qualified_name": "tests/python/test_cli.py::test_index_skips_fresh_artifacts_quietly",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 366,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 366
+      }
+    },
+    {
+      "name": "test_endpoints_compares_client_calls_against_server_routes",
+      "qualified_name": "tests/python/test_cli.py::test_endpoints_compares_client_calls_against_server_routes",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 387,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 387
+      }
+    },
+    {
       "name": "ApiClient",
       "qualified_name": "tests/python/test_cli.py::ApiClient",
       "kind": "class",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 340,
+      "line": 392,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 340
+        "line": 392
       }
     },
     {
@@ -4390,10 +5062,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 341,
+      "line": 393,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 341
+        "line": 393
       }
     },
     {
@@ -4402,10 +5074,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 342,
+      "line": 394,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 342
+        "line": 394
       }
     },
     {
@@ -4414,10 +5086,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 343,
+      "line": 395,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 343
+        "line": 395
       }
     },
     {
@@ -4426,10 +5098,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 345,
+      "line": 397,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 345
+        "line": 397
       }
     },
     {
@@ -4438,10 +5110,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 374,
+      "line": 426,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 374
+        "line": 426
       }
     },
     {
@@ -4450,10 +5122,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 430,
+      "line": 482,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 430
+        "line": 482
       }
     },
     {
@@ -4462,10 +5134,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 496,
+      "line": 548,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 496
+        "line": 548
       }
     },
     {
@@ -4474,10 +5146,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 510,
+      "line": 562,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 510
+        "line": 562
       }
     },
     {
@@ -4486,10 +5158,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 525,
+      "line": 577,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 525
+        "line": 577
       }
     },
     {
@@ -4498,10 +5170,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 531,
+      "line": 583,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 531
+        "line": 583
       }
     },
     {
@@ -4510,63 +5182,15 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 535,
+      "line": 587,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 535
+        "line": 587
       }
     },
     {
       "name": "save",
       "qualified_name": "tests/python/test_cli.py::save",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_cli.py",
-      "line": 537,
-      "evidence": {
-        "file": "tests/python/test_cli.py",
-        "line": 537
-      }
-    },
-    {
-      "name": "test_openapi",
-      "qualified_name": "tests/python/test_cli.py::test_openapi",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_cli.py",
-      "line": 544,
-      "evidence": {
-        "file": "tests/python/test_cli.py",
-        "line": 544
-      }
-    },
-    {
-      "name": "test_endpoints_json_includes_sources_for_missing_routes",
-      "qualified_name": "tests/python/test_cli.py::test_endpoints_json_includes_sources_for_missing_routes",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_cli.py",
-      "line": 570,
-      "evidence": {
-        "file": "tests/python/test_cli.py",
-        "line": 570
-      }
-    },
-    {
-      "name": "load",
-      "qualified_name": "tests/python/test_cli.py::load",
-      "kind": "function",
-      "language": "python",
-      "defined_in": "tests/python/test_cli.py",
-      "line": 575,
-      "evidence": {
-        "file": "tests/python/test_cli.py",
-        "line": 575
-      }
-    },
-    {
-      "name": "test_index_refreshes_after_file_change",
-      "qualified_name": "tests/python/test_cli.py::test_index_refreshes_after_file_change",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
@@ -4577,15 +5201,63 @@
       }
     },
     {
+      "name": "test_openapi",
+      "qualified_name": "tests/python/test_cli.py::test_openapi",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 596,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 596
+      }
+    },
+    {
+      "name": "test_endpoints_json_includes_sources_for_missing_routes",
+      "qualified_name": "tests/python/test_cli.py::test_endpoints_json_includes_sources_for_missing_routes",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 622,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 622
+      }
+    },
+    {
+      "name": "load",
+      "qualified_name": "tests/python/test_cli.py::load",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 627,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 627
+      }
+    },
+    {
+      "name": "test_index_refreshes_after_file_change",
+      "qualified_name": "tests/python/test_cli.py::test_index_refreshes_after_file_change",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli.py",
+      "line": 641,
+      "evidence": {
+        "file": "tests/python/test_cli.py",
+        "line": 641
+      }
+    },
+    {
       "name": "test_index_refreshes_when_dirty_file_changes_again",
       "qualified_name": "tests/python/test_cli.py::test_index_refreshes_when_dirty_file_changes_again",
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 606,
+      "line": 658,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 606
+        "line": 658
       }
     },
     {
@@ -4594,10 +5266,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 630,
+      "line": 682,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 630
+        "line": 682
       }
     },
     {
@@ -4606,10 +5278,10 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 645,
+      "line": 697,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 645
+        "line": 697
       }
     },
     {
@@ -4618,10 +5290,778 @@
       "kind": "function",
       "language": "python",
       "defined_in": "tests/python/test_cli.py",
-      "line": 678,
+      "line": 730,
       "evidence": {
         "file": "tests/python/test_cli.py",
-        "line": 678
+        "line": 730
+      }
+    },
+    {
+      "name": "_write",
+      "qualified_name": "tests/python/test_cli_coverage.py::_write",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 31,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 31
+      }
+    },
+    {
+      "name": "_run",
+      "qualified_name": "tests/python/test_cli_coverage.py::_run",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 37,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 37
+      }
+    },
+    {
+      "name": "StackAndProductHintInjectionTest",
+      "qualified_name": "tests/python/test_cli_coverage.py::StackAndProductHintInjectionTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 45,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 45
+      }
+    },
+    {
+      "name": "setUp",
+      "qualified_name": "tests/python/test_cli_coverage.py::setUp",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 48,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 48
+      }
+    },
+    {
+      "name": "tearDown",
+      "qualified_name": "tests/python/test_cli_coverage.py::tearDown",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 53,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 53
+      }
+    },
+    {
+      "name": "test_stack_and_product_name_flow_into_project_map",
+      "qualified_name": "tests/python/test_cli_coverage.py::test_stack_and_product_name_flow_into_project_map",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 56,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 56
+      }
+    },
+    {
+      "name": "JsonOnlyAndChangedOnlyAliasesTest",
+      "qualified_name": "tests/python/test_cli_coverage.py::JsonOnlyAndChangedOnlyAliasesTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 71,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 71
+      }
+    },
+    {
+      "name": "setUp",
+      "qualified_name": "tests/python/test_cli_coverage.py::setUp",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 74,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 74
+      }
+    },
+    {
+      "name": "tearDown",
+      "qualified_name": "tests/python/test_cli_coverage.py::tearDown",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 79,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 79
+      }
+    },
+    {
+      "name": "test_json_only_keeps_docs_disabled",
+      "qualified_name": "tests/python/test_cli_coverage.py::test_json_only_keeps_docs_disabled",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 82,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 82
+      }
+    },
+    {
+      "name": "test_changed_only_triggers_incremental_refresh",
+      "qualified_name": "tests/python/test_cli_coverage.py::test_changed_only_triggers_incremental_refresh",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 90,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 90
+      }
+    },
+    {
+      "name": "DocsOnlyShortCircuitTest",
+      "qualified_name": "tests/python/test_cli_coverage.py::DocsOnlyShortCircuitTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 103,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 103
+      }
+    },
+    {
+      "name": "setUp",
+      "qualified_name": "tests/python/test_cli_coverage.py::setUp",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 106,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 106
+      }
+    },
+    {
+      "name": "tearDown",
+      "qualified_name": "tests/python/test_cli_coverage.py::tearDown",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 113,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 113
+      }
+    },
+    {
+      "name": "test_docs_only_on_index_renders_docs_without_rewriting_json",
+      "qualified_name": "tests/python/test_cli_coverage.py::test_docs_only_on_index_renders_docs_without_rewriting_json",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 116,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 116
+      }
+    },
+    {
+      "name": "IndexFailureBoundaryTest",
+      "qualified_name": "tests/python/test_cli_coverage.py::IndexFailureBoundaryTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 131,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 131
+      }
+    },
+    {
+      "name": "test_index_failure_returns_exit_1_with_failed_status_json",
+      "qualified_name": "tests/python/test_cli_coverage.py::test_index_failure_returns_exit_1_with_failed_status_json",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 134,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 134
+      }
+    },
+    {
+      "name": "WatchLoopExitsOnInterruptTest",
+      "qualified_name": "tests/python/test_cli_coverage.py::WatchLoopExitsOnInterruptTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 149,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 149
+      }
+    },
+    {
+      "name": "test_watch_loop_handles_keyboard_interrupt_cleanly",
+      "qualified_name": "tests/python/test_cli_coverage.py::test_watch_loop_handles_keyboard_interrupt_cleanly",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_cli_coverage.py",
+      "line": 152,
+      "evidence": {
+        "file": "tests/python/test_cli_coverage.py",
+        "line": 152
+      }
+    },
+    {
+      "name": "_pack",
+      "qualified_name": "tests/python/test_context_pack.py::_pack",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 36,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 36
+      }
+    },
+    {
+      "name": "ContextPackBasicTest",
+      "qualified_name": "tests/python/test_context_pack.py::ContextPackBasicTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 42,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 42
+      }
+    },
+    {
+      "name": "test_envelope_shape_and_pack_hash",
+      "qualified_name": "tests/python/test_context_pack.py::test_envelope_shape_and_pack_hash",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 45,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 45
+      }
+    },
+    {
+      "name": "test_multi_language_fixtures",
+      "qualified_name": "tests/python/test_context_pack.py::test_multi_language_fixtures",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 52,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 52
+      }
+    },
+    {
+      "name": "RangeExtractionTest",
+      "qualified_name": "tests/python/test_context_pack.py::RangeExtractionTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 67,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 67
+      }
+    },
+    {
+      "name": "test_range_hash_emitted_with_snippet",
+      "qualified_name": "tests/python/test_context_pack.py::test_range_hash_emitted_with_snippet",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 70,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 70
+      }
+    },
+    {
+      "name": "test_unstable_range_marks_needs_broader_context",
+      "qualified_name": "tests/python/test_context_pack.py::test_unstable_range_marks_needs_broader_context",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 76,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 76
+      }
+    },
+    {
+      "name": "CallGraphAndDependencyTest",
+      "qualified_name": "tests/python/test_context_pack.py::CallGraphAndDependencyTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 81,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 81
+      }
+    },
+    {
+      "name": "test_callers_and_imports_resolved",
+      "qualified_name": "tests/python/test_context_pack.py::test_callers_and_imports_resolved",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 84,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 84
+      }
+    },
+    {
+      "name": "test_tests_resolved_from_project_map",
+      "qualified_name": "tests/python/test_context_pack.py::test_tests_resolved_from_project_map",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 97,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 97
+      }
+    },
+    {
+      "name": "NeedsBroaderContextTest",
+      "qualified_name": "tests/python/test_context_pack.py::NeedsBroaderContextTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 109,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 109
+      }
+    },
+    {
+      "name": "test_missing_target_marked",
+      "qualified_name": "tests/python/test_context_pack.py::test_missing_target_marked",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 112,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 112
+      }
+    },
+    {
+      "name": "test_missing_upstream_artifacts_loaded_implicitly",
+      "qualified_name": "tests/python/test_context_pack.py::test_missing_upstream_artifacts_loaded_implicitly",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 116,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 116
+      }
+    },
+    {
+      "name": "DeterminismTest",
+      "qualified_name": "tests/python/test_context_pack.py::DeterminismTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 123,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 123
+      }
+    },
+    {
+      "name": "test_same_inputs_same_pack",
+      "qualified_name": "tests/python/test_context_pack.py::test_same_inputs_same_pack",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 126,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 126
+      }
+    },
+    {
+      "name": "LargeFileCompactModeTest",
+      "qualified_name": "tests/python/test_context_pack.py::LargeFileCompactModeTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 135,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 135
+      }
+    },
+    {
+      "name": "test_compact_mode_omits_snippets_above_threshold",
+      "qualified_name": "tests/python/test_context_pack.py::test_compact_mode_omits_snippets_above_threshold",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 138,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 138
+      }
+    },
+    {
+      "name": "ContextCacheTest",
+      "qualified_name": "tests/python/test_context_pack.py::ContextCacheTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 146,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 146
+      }
+    },
+    {
+      "name": "setUp",
+      "qualified_name": "tests/python/test_context_pack.py::setUp",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 149,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 149
+      }
+    },
+    {
+      "name": "tearDown",
+      "qualified_name": "tests/python/test_context_pack.py::tearDown",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 152,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 152
+      }
+    },
+    {
+      "name": "test_hit_returns_stored_summary",
+      "qualified_name": "tests/python/test_context_pack.py::test_hit_returns_stored_summary",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 155,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 155
+      }
+    },
+    {
+      "name": "test_miss_returns_none",
+      "qualified_name": "tests/python/test_context_pack.py::test_miss_returns_none",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 162,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 162
+      }
+    },
+    {
+      "name": "test_invalidation_when_key_changes",
+      "qualified_name": "tests/python/test_context_pack.py::test_invalidation_when_key_changes",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 166,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 166
+      }
+    },
+    {
+      "name": "test_persistence_across_instances",
+      "qualified_name": "tests/python/test_context_pack.py::test_persistence_across_instances",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 171,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 171
+      }
+    },
+    {
+      "name": "test_clear_empties_cache",
+      "qualified_name": "tests/python/test_context_pack.py::test_clear_empties_cache",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 177,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 177
+      }
+    },
+    {
+      "name": "test_persisted_payload_uses_schema",
+      "qualified_name": "tests/python/test_context_pack.py::test_persisted_payload_uses_schema",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_context_pack.py",
+      "line": 185,
+      "evidence": {
+        "file": "tests/python/test_context_pack.py",
+        "line": 185
+      }
+    },
+    {
+      "name": "StableRangeHashingTest",
+      "qualified_name": "tests/python/test_mechanical_edit.py::StableRangeHashingTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 35,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 35
+      }
+    },
+    {
+      "name": "test_same_text_same_range_yields_same_hash",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_same_text_same_range_yields_same_hash",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 38,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 38
+      }
+    },
+    {
+      "name": "test_different_ranges_yield_different_hashes",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_different_ranges_yield_different_hashes",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 43,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 43
+      }
+    },
+    {
+      "name": "test_range_out_of_bounds_raises",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_range_out_of_bounds_raises",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 47,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 47
+      }
+    },
+    {
+      "name": "SnapshotHashTest",
+      "qualified_name": "tests/python/test_mechanical_edit.py::SnapshotHashTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 56,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 56
+      }
+    },
+    {
+      "name": "test_snapshot_hash_changes_when_content_changes",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_snapshot_hash_changes_when_content_changes",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 59,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 59
+      }
+    },
+    {
+      "name": "AnchorDriftDetectionTest",
+      "qualified_name": "tests/python/test_mechanical_edit.py::AnchorDriftDetectionTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 63,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 63
+      }
+    },
+    {
+      "name": "test_drift_changes_before_hash",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_drift_changes_before_hash",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 66,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 66
+      }
+    },
+    {
+      "name": "MissingFileAndBinaryRefusalTest",
+      "qualified_name": "tests/python/test_mechanical_edit.py::MissingFileAndBinaryRefusalTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 72,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 72
+      }
+    },
+    {
+      "name": "test_missing_file_raises",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_missing_file_raises",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 75,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 75
+      }
+    },
+    {
+      "name": "test_binary_file_refused",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_binary_file_refused",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 79,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 79
+      }
+    },
+    {
+      "name": "LargeFileCompactModeTest",
+      "qualified_name": "tests/python/test_mechanical_edit.py::LargeFileCompactModeTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 84,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 84
+      }
+    },
+    {
+      "name": "test_must_contain_omitted_above_threshold",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_must_contain_omitted_above_threshold",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 87,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 87
+      }
+    },
+    {
+      "name": "test_must_contain_emitted_below_threshold",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_must_contain_emitted_below_threshold",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 94,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 94
+      }
+    },
+    {
+      "name": "MultiLanguageFixtureTest",
+      "qualified_name": "tests/python/test_mechanical_edit.py::MultiLanguageFixtureTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 98,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 98
+      }
+    },
+    {
+      "name": "test_typescript_python_json_markdown_languages",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_typescript_python_json_markdown_languages",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 101,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 101
+      }
+    },
+    {
+      "name": "DeterministicContextHashTest",
+      "qualified_name": "tests/python/test_mechanical_edit.py::DeterministicContextHashTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 120,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 120
+      }
+    },
+    {
+      "name": "test_same_selections_yield_same_context_hash",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_same_selections_yield_same_context_hash",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 123,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 123
+      }
+    },
+    {
+      "name": "test_changed_selection_changes_context_hash",
+      "qualified_name": "tests/python/test_mechanical_edit.py::test_changed_selection_changes_context_hash",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_mechanical_edit.py",
+      "line": 131,
+      "evidence": {
+        "file": "tests/python/test_mechanical_edit.py",
+        "line": 131
       }
     },
     {
@@ -4718,6 +6158,222 @@
       "evidence": {
         "file": "tests/python/test_native.py",
         "line": 96
+      }
+    },
+    {
+      "name": "_have_node",
+      "qualified_name": "tests/python/test_parity.py::_have_node",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_parity.py",
+      "line": 26,
+      "evidence": {
+        "file": "tests/python/test_parity.py",
+        "line": 26
+      }
+    },
+    {
+      "name": "_normalize",
+      "qualified_name": "tests/python/test_parity.py::_normalize",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_parity.py",
+      "line": 30,
+      "evidence": {
+        "file": "tests/python/test_parity.py",
+        "line": 30
+      }
+    },
+    {
+      "name": "NodePythonParityTest",
+      "qualified_name": "tests/python/test_parity.py::NodePythonParityTest",
+      "kind": "class",
+      "language": "python",
+      "defined_in": "tests/python/test_parity.py",
+      "line": 43,
+      "evidence": {
+        "file": "tests/python/test_parity.py",
+        "line": 43
+      }
+    },
+    {
+      "name": "setUp",
+      "qualified_name": "tests/python/test_parity.py::setUp",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_parity.py",
+      "line": 44,
+      "evidence": {
+        "file": "tests/python/test_parity.py",
+        "line": 44
+      }
+    },
+    {
+      "name": "tearDown",
+      "qualified_name": "tests/python/test_parity.py::tearDown",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_parity.py",
+      "line": 51,
+      "evidence": {
+        "file": "tests/python/test_parity.py",
+        "line": 51
+      }
+    },
+    {
+      "name": "_node_map",
+      "qualified_name": "tests/python/test_parity.py::_node_map",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_parity.py",
+      "line": 54,
+      "evidence": {
+        "file": "tests/python/test_parity.py",
+        "line": 54
+      }
+    },
+    {
+      "name": "_python_map",
+      "qualified_name": "tests/python/test_parity.py::_python_map",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_parity.py",
+      "line": 65,
+      "evidence": {
+        "file": "tests/python/test_parity.py",
+        "line": 65
+      }
+    },
+    {
+      "name": "test_schemas_match",
+      "qualified_name": "tests/python/test_parity.py::test_schemas_match",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_parity.py",
+      "line": 69,
+      "evidence": {
+        "file": "tests/python/test_parity.py",
+        "line": 69
+      }
+    },
+    {
+      "name": "test_file_inventory_matches",
+      "qualified_name": "tests/python/test_parity.py::test_file_inventory_matches",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_parity.py",
+      "line": 75,
+      "evidence": {
+        "file": "tests/python/test_parity.py",
+        "line": 75
+      }
+    },
+    {
+      "name": "test_entry_points_match",
+      "qualified_name": "tests/python/test_parity.py::test_entry_points_match",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_parity.py",
+      "line": 82,
+      "evidence": {
+        "file": "tests/python/test_parity.py",
+        "line": 82
+      }
+    },
+    {
+      "name": "test_test_files_match",
+      "qualified_name": "tests/python/test_parity.py::test_test_files_match",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_parity.py",
+      "line": 87,
+      "evidence": {
+        "file": "tests/python/test_parity.py",
+        "line": 87
+      }
+    },
+    {
+      "name": "test_architecture_signals_match",
+      "qualified_name": "tests/python/test_parity.py::test_architecture_signals_match",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_parity.py",
+      "line": 92,
+      "evidence": {
+        "file": "tests/python/test_parity.py",
+        "line": 92
+      }
+    },
+    {
+      "name": "test_file_roles_match_per_path",
+      "qualified_name": "tests/python/test_parity.py::test_file_roles_match_per_path",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_parity.py",
+      "line": 100,
+      "evidence": {
+        "file": "tests/python/test_parity.py",
+        "line": 100
+      }
+    },
+    {
+      "name": "test_normalization_strips_volatile_fields",
+      "qualified_name": "tests/python/test_parity.py::test_normalization_strips_volatile_fields",
+      "kind": "function",
+      "language": "python",
+      "defined_in": "tests/python/test_parity.py",
+      "line": 107,
+      "evidence": {
+        "file": "tests/python/test_parity.py",
+        "line": 107
+      }
+    },
+    {
+      "name": "mkTmp",
+      "qualified_name": "tests/unit/apply-edits.test.js::mkTmp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/apply-edits.test.js",
+      "line": 10,
+      "evidence": {
+        "file": "tests/unit/apply-edits.test.js",
+        "line": 10
+      }
+    },
+    {
+      "name": "rmTmp",
+      "qualified_name": "tests/unit/apply-edits.test.js::rmTmp",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/apply-edits.test.js",
+      "line": 14,
+      "evidence": {
+        "file": "tests/unit/apply-edits.test.js",
+        "line": 14
+      }
+    },
+    {
+      "name": "write",
+      "qualified_name": "tests/unit/apply-edits.test.js::write",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/apply-edits.test.js",
+      "line": 22,
+      "evidence": {
+        "file": "tests/unit/apply-edits.test.js",
+        "line": 22
+      }
+    },
+    {
+      "name": "read",
+      "qualified_name": "tests/unit/apply-edits.test.js::read",
+      "kind": "function",
+      "language": "javascript",
+      "defined_in": "tests/unit/apply-edits.test.js",
+      "line": 28,
+      "evidence": {
+        "file": "tests/unit/apply-edits.test.js",
+        "line": 28
       }
     },
     {
@@ -5406,7 +7062,7 @@
     }
   ],
   "counts": {
-    "symbols": 450,
-    "files": 36
+    "symbols": 588,
+    "files": 52
   }
 }

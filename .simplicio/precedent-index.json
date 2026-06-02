@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-06-02T12:41:21.792Z",
+  "generated_at": "2026-06-02T14:24:42.455Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -103,6 +103,22 @@
       ],
       "summary": "feature precedent in .github/workflows-templates/telemetry-worker.js",
       "snippet": "]);\n\nfunction sanitize(obj) {\n  const out = {};\n  for (const key of ALLOWED_FIELDS) {"
+    },
+    {
+      "id": "07569e1509b831fd",
+      "path": ".github/workflows/python-ci.yml",
+      "line": 63,
+      "language": "yaml",
+      "change_type": "test",
+      "tags": [
+        "yaml",
+        "github",
+        "workflows",
+        "python",
+        "yml"
+      ],
+      "summary": "test precedent in .github/workflows/python-ci.yml",
+      "snippet": "\n  rust-tests:\n    name: cargo test (PyO3 crate)\n    runs-on: ubuntu-latest\n    timeout-minutes: 15"
     },
     {
       "id": "424095e2b4c2ee33",
@@ -429,6 +445,19 @@
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
     },
     {
+      "id": "7ea8e47c20347e71",
+      "path": "CHANGELOG.md",
+      "line": 27,
+      "language": "markdown",
+      "change_type": "test",
+      "tags": [
+        "markdown",
+        "changelog"
+      ],
+      "summary": "test precedent in CHANGELOG.md",
+      "snippet": "  (closes #97); `publish-pypi.yml` now gates on `pytest` passing before\n  building distributions.\n- Node ↔ Python mapper parity test (`tests/python/test_parity.py`) with\n  a deterministic fixture under `tests/fixtures/parity-host/`\n  (closes #98)."
+    },
+    {
       "id": "a3e8e47f38073b5c",
       "path": "INSTALL.en.md",
       "line": 65,
@@ -455,9 +484,9 @@
       "snippet": "- `CI=true` (or any truthy `CI` env var) — the starter never posts telemetry in CI.\n- `--dry-run` — never posts.\n- `LLM_PROJECT_MAPPER_TELEMETRY=0|off` — overrides everything except `CI`.\n- No `LLM_PROJECT_MAPPER_TELEMETRY_URL` configured — there is nowhere to post to, so nothing is sent.\n"
     },
     {
-      "id": "77d492b487f089e7",
+      "id": "a95bec7f24b2fdf7",
       "path": "SIMPLICIO_INTEGRATION.md",
-      "line": 225,
+      "line": 242,
       "language": "markdown",
       "change_type": "feature",
       "tags": [
@@ -482,6 +511,22 @@
       ],
       "summary": "feature precedent in YOOL_TUPLE_HAMT.md",
       "snippet": "```\n\nA yool is **not** a function. A function might back a yool, but the yool itself is the **addressable symbol + contract**, decoupled from implementation.\n\n### 2.2 tuple"
+    },
+    {
+      "id": "186a0057663db1e5",
+      "path": "bin/apply-edits.js",
+      "line": 51,
+      "language": "javascript",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "javascript",
+        "bin",
+        "apply",
+        "edits"
+      ],
+      "summary": "feature precedent in bin/apply-edits.js",
+      "snippet": "]);\n\nclass EditError extends Error {}\n\n/**"
     },
     {
       "id": "d43913f31dc7031f",
@@ -666,7 +711,7 @@
         "cjs"
       ],
       "summary": "error-handling precedent in docs-site/docusaurus.config.cjs",
-      "snippet": "  projectName: 'llm-project-mapper',\n  trailingSlash: false,\n  onBrokenLinks: 'throw',\n  onBrokenAnchors: 'warn',\n  markdown: {"
+      "snippet": "  projectName: 'simplicio-mapper',\n  trailingSlash: false,\n  onBrokenLinks: 'throw',\n  onBrokenAnchors: 'warn',\n  markdown: {"
     },
     {
       "id": "d3e63563bc234ead",
@@ -685,6 +730,45 @@
         "overlay"
       ],
       "summary": "error-handling precedent in docs-site/versioned_docs/version-0.2.0/guide/private-overlay.md",
+      "snippet": "cd ~/code/my-front\n\n# copies everything from the starter except its .git, and NEVER overwrites host files\nrsync -av --ignore-existing --exclude='.git' /tmp/llm-project-mapper-src/ ./\n```"
+    },
+    {
+      "id": "5a57f9173910b662",
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/yool-tuple-hamt.md",
+      "line": 18,
+      "language": "markdown",
+      "change_type": "error-handling",
+      "tags": [
+        "markdown",
+        "docs",
+        "site",
+        "versioned",
+        "version",
+        "concepts",
+        "yool",
+        "tuple",
+        "hamt"
+      ],
+      "summary": "error-handling precedent in docs-site/versioned_docs/version-0.7.3/concepts/yool-tuple-hamt.md",
+      "snippet": "- MCP should stay at the edge for snapshot and dispatch, not become the inner loop.\n\n## Try it\n\n```bash"
+    },
+    {
+      "id": "ed2c67504a1e4303",
+      "path": "docs-site/versioned_docs/version-0.7.3/guide/private-overlay.md",
+      "line": 68,
+      "language": "markdown",
+      "change_type": "error-handling",
+      "tags": [
+        "markdown",
+        "docs",
+        "site",
+        "versioned",
+        "version",
+        "guide",
+        "private",
+        "overlay"
+      ],
+      "summary": "error-handling precedent in docs-site/versioned_docs/version-0.7.3/guide/private-overlay.md",
       "snippet": "cd ~/code/my-front\n\n# copies everything from the starter except its .git, and NEVER overwrites host files\nrsync -av --ignore-existing --exclude='.git' /tmp/llm-project-mapper-src/ ./\n```"
     },
     {
@@ -720,6 +804,20 @@
       "snippet": "const crypto = require('node:crypto');\n\nfunction verify(rawBody, headerValue, secret) {\n  const parts = Object.fromEntries(\n    headerValue.split(',').map((kv) => kv.split('='))"
     },
     {
+      "id": "f9e614680c5eda98",
+      "path": "pyproject.toml",
+      "line": 73,
+      "language": "toml",
+      "change_type": "error-handling",
+      "tags": [
+        "config",
+        "toml",
+        "pyproject"
+      ],
+      "summary": "error-handling precedent in pyproject.toml",
+      "snippet": "  \"I\",   # import sorting\n  \"B\",   # flake8-bugbear\n  \"BLE\", # flake8-blind-except\n  \"S\",   # flake8-bandit\n  \"UP\",  # pyupgrade"
+    },
+    {
       "id": "b994778812d3c8c2",
       "path": "scripts/build_hamt.py",
       "line": 29,
@@ -733,6 +831,22 @@
       ],
       "summary": "feature precedent in scripts/build_hamt.py",
       "snippet": "\n@dataclass\nclass Leaf:\n    key: str\n    value: dict[str, Any]"
+    },
+    {
+      "id": "db573ff77de9da8d",
+      "path": "scripts/check-version-sync.js",
+      "line": 19,
+      "language": "javascript",
+      "change_type": "feature",
+      "tags": [
+        "javascript",
+        "scripts",
+        "check",
+        "version",
+        "sync"
+      ],
+      "summary": "feature precedent in scripts/check-version-sync.js",
+      "snippet": "const ROOT = path.resolve(__dirname, \"..\");\n\nfunction readPackageVersion() {\n  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, \"package.json\"), \"utf8\"));\n  return pkg.version;"
     },
     {
       "id": "47e5a810e03efdb1",
@@ -824,12 +938,44 @@
         "cli"
       ],
       "summary": "feature precedent in simplicio_mapper/cli.py",
-      "snippet": "\n\ndef _read_json_safe(file: str) -> dict:\n    try:\n        with open(file, \"r\", encoding=\"utf-8\") as handle:"
+      "snippet": "\n\ndef _read_json_safe(file: str) -> dict:\n    try:\n        with open(file, encoding=\"utf-8\") as handle:"
     },
     {
-      "id": "eae87cab9d3792ff",
+      "id": "23389e9e0168f6c4",
+      "path": "simplicio_mapper/context_cache.py",
+      "line": 24,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "mapper",
+        "context",
+        "cache"
+      ],
+      "summary": "feature precedent in simplicio_mapper/context_cache.py",
+      "snippet": "\n\nclass ContextCache:\n    \"\"\"Hash-keyed cache for LLM summaries.\n"
+    },
+    {
+      "id": "7bcc7f5da4f84908",
+      "path": "simplicio_mapper/context_pack.py",
+      "line": 54,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "mapper",
+        "context",
+        "pack"
+      ],
+      "summary": "feature precedent in simplicio_mapper/context_pack.py",
+      "snippet": "\n\ndef _sha256_text(text: str) -> str:\n    return hashlib.sha256(text.encode(\"utf-8\")).hexdigest()\n"
+    },
+    {
+      "id": "ad02f5aa04c7f432",
       "path": "simplicio_mapper/mapper.py",
-      "line": 85,
+      "line": 86,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -839,6 +985,22 @@
       ],
       "summary": "feature precedent in simplicio_mapper/mapper.py",
       "snippet": "\n\ndef _iso(dt: datetime) -> str:\n    return dt.astimezone(timezone.utc).isoformat(timespec=\"milliseconds\").replace(\"+00:00\", \"Z\")\n"
+    },
+    {
+      "id": "9d246be84e50d506",
+      "path": "simplicio_mapper/mechanical_edit.py",
+      "line": 38,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "mapper",
+        "mechanical",
+        "edit"
+      ],
+      "summary": "feature precedent in simplicio_mapper/mechanical_edit.py",
+      "snippet": "\n\ndef _sha256_text(text: str) -> str:\n    return hashlib.sha256(text.encode(\"utf-8\")).hexdigest()\n"
     },
     {
       "id": "71f37f128d88f6ba",
@@ -923,6 +1085,148 @@
       "snippet": "const baseUrl = process.env.BASE_URL;\n\ntest.describe('downstream smoke (skipped without BASE_URL)', () => {\n  test.skip(!baseUrl, 'BASE_URL not set — skipping browser smoke');\n"
     },
     {
+      "id": "bde8bdff48404818",
+      "path": "tests/fixtures/ctx-pack-host/sample.py",
+      "line": 4,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "fixtures",
+        "ctx",
+        "pack",
+        "host",
+        "sample"
+      ],
+      "summary": "test precedent in tests/fixtures/ctx-pack-host/sample.py",
+      "snippet": "\n\ndef load_user(user_id: int) -> dict:\n    return {\"id\": user_id, \"name\": f\"user-{user_id}\"}\n"
+    },
+    {
+      "id": "53e8b418113d1376",
+      "path": "tests/fixtures/ctx-pack-host/sample.ts",
+      "line": 6,
+      "language": "typescript",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "typescript",
+        "fixtures",
+        "ctx",
+        "pack",
+        "host",
+        "sample"
+      ],
+      "summary": "test precedent in tests/fixtures/ctx-pack-host/sample.ts",
+      "snippet": "}\n\nexport function loadUser(id: number): User {\n  return { id, name: `user-${id}` };\n}"
+    },
+    {
+      "id": "e83862c574ccf313",
+      "path": "tests/fixtures/mech-edit-host/sample.py",
+      "line": 4,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "fixtures",
+        "mech",
+        "edit",
+        "host",
+        "sample"
+      ],
+      "summary": "test precedent in tests/fixtures/mech-edit-host/sample.py",
+      "snippet": "\n\ndef greet(audience: str) -> str:\n    return f\"hello, {audience}\"\n"
+    },
+    {
+      "id": "17b8bc7dfcc52f5d",
+      "path": "tests/fixtures/mech-edit-host/sample.ts",
+      "line": 6,
+      "language": "typescript",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "typescript",
+        "fixtures",
+        "mech",
+        "edit",
+        "host",
+        "sample"
+      ],
+      "summary": "test precedent in tests/fixtures/mech-edit-host/sample.ts",
+      "snippet": "}\n\nexport function greet(audience: string): Greeting {\n  return { audience, message: `hello, ${audience}` };\n}"
+    },
+    {
+      "id": "b324a8ec72bd7991",
+      "path": "tests/fixtures/parity-host/package.json",
+      "line": 4,
+      "language": "json",
+      "change_type": "test",
+      "tags": [
+        "config",
+        "test",
+        "json",
+        "fixtures",
+        "parity",
+        "host",
+        "package"
+      ],
+      "summary": "test precedent in tests/fixtures/parity-host/package.json",
+      "snippet": "  \"name\": \"parity-host\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Deterministic fixture for the Node ↔ Python mapper parity test (issue #98).\",\n  \"main\": \"src/index.js\",\n  \"scripts\": {"
+    },
+    {
+      "id": "79c6f680306cbdd3",
+      "path": "tests/fixtures/parity-host/src/greet.js",
+      "line": 1,
+      "language": "javascript",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "javascript",
+        "fixtures",
+        "parity",
+        "host",
+        "greet"
+      ],
+      "summary": "test precedent in tests/fixtures/parity-host/src/greet.js",
+      "snippet": "function greet(name) {\n  return `hello, ${name}`;\n}"
+    },
+    {
+      "id": "5af327e3b87209e7",
+      "path": "tests/fixtures/parity-host/src/index.js",
+      "line": 4,
+      "language": "javascript",
+      "change_type": "test",
+      "tags": [
+        "entrypoint",
+        "test",
+        "javascript",
+        "fixtures",
+        "parity",
+        "host"
+      ],
+      "summary": "test precedent in tests/fixtures/parity-host/src/index.js",
+      "snippet": "const { greet } = require('./greet');\n\nfunction startServer() {\n  const app = express();\n  app.get('/', (req, res) => res.send(greet('parity')));"
+    },
+    {
+      "id": "8b2efdffdbbf8ea2",
+      "path": "tests/fixtures/parity-host/tests/server-fixture.js",
+      "line": 5,
+      "language": "javascript",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "javascript",
+        "fixtures",
+        "parity",
+        "host",
+        "server",
+        "fixture"
+      ],
+      "summary": "test precedent in tests/fixtures/parity-host/tests/server-fixture.js",
+      "snippet": "const { startServer } = require('../src/index');\n\ntest('starts the server', () => {\n  const app = startServer();\n  assert.ok(app);"
+    },
+    {
       "id": "a0f9fb1a89875342",
       "path": "tests/python/test_cli.py",
       "line": 39,
@@ -937,6 +1241,51 @@
       "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
     },
     {
+      "id": "24a6450bde7b4069",
+      "path": "tests/python/test_cli_coverage.py",
+      "line": 33,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "cli",
+        "coverage"
+      ],
+      "summary": "test precedent in tests/python/test_cli_coverage.py",
+      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
+    },
+    {
+      "id": "d3d523cafcfb315e",
+      "path": "tests/python/test_context_pack.py",
+      "line": 38,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "context",
+        "pack"
+      ],
+      "summary": "test precedent in tests/python/test_context_pack.py",
+      "snippet": "\n\ndef _pack(root, targets, **kwargs):\n    defaults = {\"project_map\": {}, \"symbol_index\": {}, \"call_graph\": {}}\n    defaults.update(kwargs)"
+    },
+    {
+      "id": "df670c63e7a05eed",
+      "path": "tests/python/test_mechanical_edit.py",
+      "line": 37,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "mechanical",
+        "edit"
+      ],
+      "summary": "test precedent in tests/python/test_mechanical_edit.py",
+      "snippet": "\n\nclass StableRangeHashingTest(unittest.TestCase):\n    def test_same_text_same_range_yields_same_hash(self) -> None:\n        text = \"alpha\\nbeta\\ngamma\\ndelta\\n\""
+    },
+    {
       "id": "fc60b39af42861dd",
       "path": "tests/python/test_native.py",
       "line": 20,
@@ -949,6 +1298,36 @@
       ],
       "summary": "test precedent in tests/python/test_native.py",
       "snippet": "\n\ndef _reload_with_native(enabled: bool):\n    \"\"\"Reload _native and mapper with the rust module hidden when needed.\"\"\"\n    import simplicio_mapper._native as native_module"
+    },
+    {
+      "id": "54a3e2ed626266fd",
+      "path": "tests/python/test_parity.py",
+      "line": 28,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "parity"
+      ],
+      "summary": "test precedent in tests/python/test_parity.py",
+      "snippet": "\n\ndef _have_node() -> bool:\n    return shutil.which(\"node\") is not None\n"
+    },
+    {
+      "id": "3c63098f1d5f6333",
+      "path": "tests/unit/apply-edits.test.js",
+      "line": 11,
+      "language": "javascript",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "javascript",
+        "unit",
+        "apply",
+        "edits"
+      ],
+      "summary": "test precedent in tests/unit/apply-edits.test.js",
+      "snippet": "const { applyEdits, EditError } = require('../../bin/apply-edits');\n\nfunction mkTmp() {\n  return fs.mkdtempSync(path.join(os.tmpdir(), 'lpm-apply-edits-'));\n}"
     },
     {
       "id": "489a022a6c8d961a",

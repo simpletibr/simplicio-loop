@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.project-map/v1",
   "version": 1,
-  "generated_at": "2026-06-02T12:41:21.792Z",
+  "generated_at": "2026-06-02T14:24:42.455Z",
   "update_mode": "incremental",
   "product": {
     "name": "@wesleysimplicio/llm-project-mapper",
@@ -292,9 +292,9 @@
     {
       "path": ".github/copilot-instructions.md",
       "language": "markdown",
-      "size_bytes": 10156,
-      "last_modified": "2026-05-27T19:13:27.968Z",
-      "file_hash": "07f2d7ee68700def02a6692a40404483b571afa4728a438772eaa79b0dd26fa0",
+      "size_bytes": 10856,
+      "last_modified": "2026-06-02T13:48:24.192Z",
+      "file_hash": "1a2e530ea370e9f7ca8c9279a3dbad9d2abcb5852d4d05b1a50eeb48b8e26022",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -440,9 +440,33 @@
     {
       "path": ".github/workflows/publish-pypi.yml",
       "language": "yaml",
-      "size_bytes": 4401,
-      "last_modified": "2026-05-29T16:58:56.510Z",
-      "file_hash": "0b8c9d6f4b4f47f86fbfeb41a208288e3126fe3c43a5c44396e7a4aca30c48e1",
+      "size_bytes": 5033,
+      "last_modified": "2026-06-02T13:48:24.192Z",
+      "file_hash": "fbae6d8ce0503a2682f29406aa1ecd18aeb315702b9c7edb8f46db621de5daaa",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": ".github/workflows/python-ci.yml",
+      "language": "yaml",
+      "size_bytes": 2633,
+      "last_modified": "2026-06-02T13:48:24.192Z",
+      "file_hash": "b0b90b1b363ef1cfdfbc9d5a992c16407967169bd6b786033c3463e006f83274",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": ".github/workflows/python-lint.yml",
+      "language": "yaml",
+      "size_bytes": 910,
+      "last_modified": "2026-06-02T13:48:24.192Z",
+      "file_hash": "6dd31c469773df03eb08256ec1165ef3ecc5d4b4fa6b66992f03cb26d78286b5",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -452,9 +476,9 @@
     {
       "path": ".github/workflows/scaffold-self-check.yml",
       "language": "yaml",
-      "size_bytes": 7443,
-      "last_modified": "2026-05-27T19:13:27.971Z",
-      "file_hash": "a8d4d071fe012c2466c858d7b296c5239cf03d4f3952bdcfbcd479436d9a1ee1",
+      "size_bytes": 7840,
+      "last_modified": "2026-06-02T13:48:24.193Z",
+      "file_hash": "dcf5dc30d7060704b0beba2afcf76172dd1377fe84d34bf5322c3137f64fdc55",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -464,9 +488,9 @@
     {
       "path": ".gitignore",
       "language": "text",
-      "size_bytes": 1683,
-      "last_modified": "2026-06-01T01:19:27.948Z",
-      "file_hash": "abeaf83a08a45f7a0b3745ba071b168808d18f97857dcdbfda7d039b0059bcaf",
+      "size_bytes": 1771,
+      "last_modified": "2026-06-02T13:48:24.193Z",
+      "file_hash": "834e5ecb8a4482e416eb1e4727482f4127d6f97939b607d814362459a0c3f866",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -1162,9 +1186,9 @@
     {
       "path": ".specs/product/DOMAIN.md",
       "language": "markdown",
-      "size_bytes": 3224,
-      "last_modified": "2026-05-27T19:13:27.979Z",
-      "file_hash": "16cfc75ef947e091a65822f55996ba7d8b79d13e9e74a70da213a368fb0d930d",
+      "size_bytes": 4249,
+      "last_modified": "2026-06-02T13:48:24.194Z",
+      "file_hash": "47e733cc4c694cdc8e0687abfc487b0787e11bc638088aff9f1708728a18bd15",
       "git_status": "clean",
       "roles": [
         "test"
@@ -1176,9 +1200,9 @@
     {
       "path": ".specs/product/PERSONAS.md",
       "language": "markdown",
-      "size_bytes": 4732,
-      "last_modified": "2026-05-27T19:13:27.979Z",
-      "file_hash": "07584ad25fdc020c7b13810ac3f0bc2ed0d43dfe626792a8d7f02cecb5ad3b27",
+      "size_bytes": 3519,
+      "last_modified": "2026-06-02T13:48:24.194Z",
+      "file_hash": "4c772e39711a33450c2d66cfe6117a33f163e7715d440e7193967758f5b66ab7",
       "git_status": "clean",
       "roles": [
         "test"
@@ -1190,9 +1214,9 @@
     {
       "path": ".specs/product/VISION.md",
       "language": "markdown",
-      "size_bytes": 2623,
-      "last_modified": "2026-05-27T19:13:27.979Z",
-      "file_hash": "e09ab6a721b160359ff791cd27daead86a595b42aef017a7f71363cde5b6f3f5",
+      "size_bytes": 2897,
+      "last_modified": "2026-06-02T13:48:24.194Z",
+      "file_hash": "da69f0df90405030d51eab9e7419b710cc807399f39d54492b43aff1449de962",
       "git_status": "clean",
       "roles": [
         "test"
@@ -1302,9 +1326,9 @@
     {
       "path": "AGENTS.md",
       "language": "markdown",
-      "size_bytes": 20731,
-      "last_modified": "2026-05-27T19:13:27.980Z",
-      "file_hash": "94223309e7caec7c41be53b3dbca32d00c07725b55f65958d5b9b391e8b63ed3",
+      "size_bytes": 22286,
+      "last_modified": "2026-06-02T13:48:24.195Z",
+      "file_hash": "2292c3b5e0ce853769d9a802cdfc327f36a7dad5546a7242222ae267adac89c9",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -1314,9 +1338,9 @@
     {
       "path": "CHANGELOG.md",
       "language": "markdown",
-      "size_bytes": 23606,
-      "last_modified": "2026-06-01T05:04:04.192Z",
-      "file_hash": "f2ded81a0d065467fee3c4327f931c721d86550440ab6a3d10790129930a73cd",
+      "size_bytes": 26920,
+      "last_modified": "2026-06-02T14:10:37.042Z",
+      "file_hash": "39455c3cb914e8ff45e94532c6f007d45a4ea605d21c96845051454b955812ba",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -1326,9 +1350,9 @@
     {
       "path": "CLAUDE.md",
       "language": "markdown",
-      "size_bytes": 20147,
-      "last_modified": "2026-05-27T19:13:27.981Z",
-      "file_hash": "40af28a15f9da243cfbf1abce85c908bfd3fee320337e5770d23d9f9d6ca0eff",
+      "size_bytes": 21680,
+      "last_modified": "2026-06-02T13:48:24.196Z",
+      "file_hash": "be796bf51157157d0c45b74ef593eeec1e1e79aabdb167a2681b83a213ae6b50",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -1458,9 +1482,9 @@
     {
       "path": "README.md",
       "language": "markdown",
-      "size_bytes": 28592,
-      "last_modified": "2026-06-01T05:02:57.176Z",
-      "file_hash": "398828f80b8ede6a538b0d1bdf19a11541604447c55cfde2423377ca59043c88",
+      "size_bytes": 28767,
+      "last_modified": "2026-06-02T13:48:24.196Z",
+      "file_hash": "13a8e507fd3d57cd70950e260d26cf94550e813c72c74d55c7ff59d4712e122b",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -1470,9 +1494,9 @@
     {
       "path": "README.pt-BR.md",
       "language": "markdown",
-      "size_bytes": 27003,
-      "last_modified": "2026-06-01T05:02:57.187Z",
-      "file_hash": "68523e7ad759cce715bab48d31aeed7aea3a93489fdb2ef28a058678c6ab8d58",
+      "size_bytes": 26999,
+      "last_modified": "2026-06-02T13:48:24.197Z",
+      "file_hash": "0beda73b618ffa0367be2b5d7e2c14559f996541a2ad4b50e4c22e0a649d6098",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -1674,14 +1698,15 @@
     {
       "path": "SIMPLICIO_INTEGRATION.md",
       "language": "markdown",
-      "size_bytes": 7794,
-      "last_modified": "2026-06-01T01:46:14.749Z",
-      "file_hash": "2367b030b989717d5173b973393479091009721c6f782147f22c43c19ca1faab",
+      "size_bytes": 21840,
+      "last_modified": "2026-06-02T14:10:37.043Z",
+      "file_hash": "ce3f06ea487d38e1aa7d25c15776492e7acd5aee189538f9f1734f7c9855ab6d",
       "git_status": "clean",
       "roles": [],
       "imports": [],
       "exports": [
-        "load_simplicio_context"
+        "load_simplicio_context",
+        "still"
       ],
       "importance": 0.2
     },
@@ -1728,6 +1753,35 @@
       "imports": [],
       "exports": [],
       "importance": 0.12
+    },
+    {
+      "path": "bin/apply-edits.js",
+      "language": "javascript",
+      "size_bytes": 12879,
+      "last_modified": "2026-06-02T12:42:10.002Z",
+      "file_hash": "9242c040d16976e98e9604034c79525f204b945976f1af2a1991dd131a573158",
+      "git_status": "clean",
+      "roles": [
+        "entrypoint"
+      ],
+      "imports": [
+        "node:fs",
+        "node:path"
+      ],
+      "exports": [
+        "EditError",
+        "applyEdits",
+        "computePlan",
+        "countOccurrences",
+        "main",
+        "parseArgs",
+        "planEdit",
+        "readIfExists",
+        "replaceN",
+        "requireString",
+        "resolveSafe"
+      ],
+      "importance": 0.73
     },
     {
       "path": "bin/auto-map.js",
@@ -2253,9 +2307,9 @@
     {
       "path": "docs-site/docusaurus.config.cjs",
       "language": "javascript",
-      "size_bytes": 3586,
-      "last_modified": "2026-05-27T19:13:28.023Z",
-      "file_hash": "e39d5381bfd259f5d5a8e8025f211ea8680b4a254b144f0c6b1ebafd6cb865e0",
+      "size_bytes": 3574,
+      "last_modified": "2026-06-02T13:48:24.198Z",
+      "file_hash": "35995e902e61297da7893c15f4728d793a8ad819925ab2f88b4086974c0e4643",
       "git_status": "clean",
       "roles": [
         "config"
@@ -2483,6 +2537,210 @@
       "importance": 0.12
     },
     {
+      "path": "docs-site/versioned_docs/version-0.7.3/community/_category_.json",
+      "language": "json",
+      "size_bytes": 90,
+      "last_modified": "2026-06-02T13:48:24.198Z",
+      "file_hash": "ca783ca133de207118ce272e06cfc2efac3c95e3bacad3324ad6b106b77685a9",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/community/contributing.md",
+      "language": "markdown",
+      "size_bytes": 6863,
+      "last_modified": "2026-06-02T13:48:24.198Z",
+      "file_hash": "ae7519cc742d9bc5c3b51615a7fd8d0f4452ff3ce9eadc4b673cc94f38e05b7f",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/community/showcase.md",
+      "language": "markdown",
+      "size_bytes": 1240,
+      "last_modified": "2026-06-02T13:48:24.199Z",
+      "file_hash": "1ea7c9b93197a831af0ccc9d8851f36cc1c1340a4daa03eefb86daf1d5257792",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/_category_.json",
+      "language": "json",
+      "size_bytes": 89,
+      "last_modified": "2026-06-02T13:48:24.199Z",
+      "file_hash": "ea1c9c8fced797b2d266a8e93ac161f809a24999b4d7a67023d8fee6415a5a3b",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/architecture-map.md",
+      "language": "markdown",
+      "size_bytes": 4172,
+      "last_modified": "2026-06-02T13:48:24.199Z",
+      "file_hash": "84c970434fe609a55b4a7ffaa30d052e4f5491960d935c25efae4ee1bd941028",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/domain-map.md",
+      "language": "markdown",
+      "size_bytes": 5059,
+      "last_modified": "2026-06-02T13:48:24.199Z",
+      "file_hash": "335f63e938f58555d4fe7d1cdeee5e3c47330ae9c35d77de18e5b0592527b17e",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/skills-and-agents.md",
+      "language": "markdown",
+      "size_bytes": 1328,
+      "last_modified": "2026-06-02T13:48:24.199Z",
+      "file_hash": "50debfc2eacf963d837ab17153a451617df379242cb54f8c5a8ee7d0c16d9c66",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/yool-tuple-hamt.md",
+      "language": "markdown",
+      "size_bytes": 1733,
+      "last_modified": "2026-06-02T13:48:24.199Z",
+      "file_hash": "b99e45bccd8670c25c056e1b5c34ed24925cb96ac37447fac4f01dc42453b8c8",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/guide/_category_.json",
+      "language": "json",
+      "size_bytes": 86,
+      "last_modified": "2026-06-02T13:48:24.200Z",
+      "file_hash": "6046e2f89e3b7bd8dfa98d2ee14a44a168e642e877b467dd5360197523cefbce",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/guide/private-overlay.md",
+      "language": "markdown",
+      "size_bytes": 10230,
+      "last_modified": "2026-06-02T13:48:24.200Z",
+      "file_hash": "4ca55a367172689fa2f8e3d7f69176f002dc8e34d18c1206669fbd8cf1e63e9c",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/intro.md",
+      "language": "markdown",
+      "size_bytes": 1756,
+      "last_modified": "2026-06-02T13:48:24.200Z",
+      "file_hash": "fc899cfebace944b87ad7b08e90f223c6462a169a880a15a4ee36b6910fe573b",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/quickstart/_category_.json",
+      "language": "json",
+      "size_bytes": 91,
+      "last_modified": "2026-06-02T13:48:24.200Z",
+      "file_hash": "f9b2ebb2aa45a5ab43f00651ffcd94a4c84c071daaba113a6f8174332f03c82c",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/quickstart/get-going.md",
+      "language": "markdown",
+      "size_bytes": 773,
+      "last_modified": "2026-06-02T13:48:24.200Z",
+      "file_hash": "023d8f60d2612a6e370f42e582a72535dcb58b3937d5208570e7bd7d2920f289",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/reference/_category_.json",
+      "language": "json",
+      "size_bytes": 90,
+      "last_modified": "2026-06-02T13:48:24.200Z",
+      "file_hash": "fe6a2a279d1ff4c81a0d05bf3b4d37b887973acb982c169b2849a8150d16b1f1",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/reference/cli-flags.md",
+      "language": "markdown",
+      "size_bytes": 2071,
+      "last_modified": "2026-06-02T13:48:24.201Z",
+      "file_hash": "07f103581c1ca66fe439203b4da2fcb89739a041805f6271127cdefea5759d08",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/reference/init-handoff.md",
+      "language": "markdown",
+      "size_bytes": 10691,
+      "last_modified": "2026-06-02T13:48:24.201Z",
+      "file_hash": "c4f01b2336addc44e844eab59aea0efc20119d307a720f1389674be0252a30c5",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/reference/session-start-hook.md",
+      "language": "markdown",
+      "size_bytes": 3972,
+      "last_modified": "2026-06-02T13:48:24.201Z",
+      "file_hash": "92c96f40e3a8e585eadfda8acb82cf291c9d93e5411a19c3649ec573ad567eaa",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
       "path": "docs-site/versioned_sidebars/version-0.2.0-sidebars.json",
       "language": "json",
       "size_bytes": 91,
@@ -2495,11 +2753,23 @@
       "importance": 0.12
     },
     {
+      "path": "docs-site/versioned_sidebars/version-0.7.3-sidebars.json",
+      "language": "json",
+      "size_bytes": 91,
+      "last_modified": "2026-06-02T13:48:24.201Z",
+      "file_hash": "2446d3f019e57660c8ecd9ba0a893cec4d2da9e59c0d39450427d496d2dda408",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
       "path": "docs-site/versions.json",
       "language": "json",
-      "size_bytes": 14,
-      "last_modified": "2026-05-27T19:13:28.045Z",
-      "file_hash": "e9d8a7188b8aebb164ff7c0523b1857816a9369d50ff9cc51bac8e78f68a13d3",
+      "size_bytes": 25,
+      "last_modified": "2026-06-02T13:48:24.202Z",
+      "file_hash": "92193beed8cda8f81769e913fd8428d8f1898afdc609579bf10b41a2a05e47c7",
       "git_status": "clean",
       "roles": [],
       "imports": [],
@@ -2601,6 +2871,30 @@
         "verify"
       ],
       "importance": 0.2
+    },
+    {
+      "path": "docs/apply-edits.example.json",
+      "language": "json",
+      "size_bytes": 829,
+      "last_modified": "2026-06-02T12:42:10.002Z",
+      "file_hash": "070b4fec2876c3d6dab1c7f92da6cdb251de70c6eeaaa82b1a298b29d489e3ae",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
+    },
+    {
+      "path": "docs/apply-edits.md",
+      "language": "markdown",
+      "size_bytes": 2810,
+      "last_modified": "2026-06-02T12:42:10.002Z",
+      "file_hash": "988429e34aeee3549c3983d5bb0989f96819d46488571d4a701933e0fb30f8e9",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [],
+      "exports": [],
+      "importance": 0.12
     },
     {
       "path": "docs/architecture-map.md",
@@ -2737,9 +3031,9 @@
     {
       "path": "package.json",
       "language": "json",
-      "size_bytes": 2605,
-      "last_modified": "2026-06-01T05:04:04.191Z",
-      "file_hash": "34acff82ef7118d4a583504e88352070ad20b05dfa1befe3b1e37abd0799c592",
+      "size_bytes": 2646,
+      "last_modified": "2026-06-02T14:10:37.044Z",
+      "file_hash": "b858d27c6a1bb540b695451f967bbab65333dcdf19c6931bd23b03aa2ed132d0",
       "git_status": "clean",
       "roles": [
         "config"
@@ -2791,9 +3085,9 @@
     {
       "path": "pyproject.toml",
       "language": "toml",
-      "size_bytes": 1721,
-      "last_modified": "2026-06-01T05:04:04.190Z",
-      "file_hash": "8ac33389d818824c2f7508463b431f10d101b1a3b690b2a1d016a7ee33b59b1e",
+      "size_bytes": 3108,
+      "last_modified": "2026-06-02T14:10:37.044Z",
+      "file_hash": "0545a83cf58198e71a0c51ffabe2c1fa32e8ba37e875298030a4be8519ea35b0",
       "git_status": "clean",
       "roles": [
         "config"
@@ -2916,6 +3210,26 @@
       "imports": [],
       "exports": [],
       "importance": 0.12
+    },
+    {
+      "path": "scripts/check-version-sync.js",
+      "language": "javascript",
+      "size_bytes": 2154,
+      "last_modified": "2026-06-02T13:48:24.202Z",
+      "file_hash": "efa25f4ddf2fb71f012ff55f90cc8176172a200b21e37eb2ab60253b37cfd73e",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [
+        "node:fs",
+        "node:path"
+      ],
+      "exports": [
+        "main",
+        "readInitVersion",
+        "readPackageVersion",
+        "readPyprojectVersion"
+      ],
+      "importance": 0.28
     },
     {
       "path": "scripts/coverage.js",
@@ -3121,8 +3435,8 @@
       "path": "simplicio_mapper/__init__.py",
       "language": "python",
       "size_bytes": 140,
-      "last_modified": "2026-06-01T05:04:04.190Z",
-      "file_hash": "5a9a5ed626d16742efb9a014ba10500620138f3901c3b82fb4feb71574bd2074",
+      "last_modified": "2026-06-02T14:10:37.045Z",
+      "file_hash": "2b568c83c91302b07c028b20a8776ec35913fd0bc0d5352c27ccf4ffc9df4a4f",
       "git_status": "clean",
       "roles": [],
       "imports": [
@@ -3134,15 +3448,15 @@
     {
       "path": "simplicio_mapper/_native.py",
       "language": "python",
-      "size_bytes": 982,
-      "last_modified": "2026-05-29T16:58:56.512Z",
-      "file_hash": "c2c6e0013e4bd1483710b0376102ebe681fdb6671ec0dce5c4ed66247e12d911",
+      "size_bytes": 1035,
+      "last_modified": "2026-06-02T13:48:24.202Z",
+      "file_hash": "9ecc7a96de2e2cda0577197e2da49cddad3d90da67e705aa627db6d7c8606939",
       "git_status": "clean",
       "roles": [],
       "imports": [
         "__future__",
-        "simplicio_mapper_rs",
-        "typing"
+        "collections.abc",
+        "simplicio_mapper_rs"
       ],
       "exports": [],
       "importance": 0.2
@@ -3150,9 +3464,9 @@
     {
       "path": "simplicio_mapper/cache.py",
       "language": "python",
-      "size_bytes": 1752,
-      "last_modified": "2026-05-29T16:58:56.512Z",
-      "file_hash": "67933746202bb58984abb157b32ed8d39686d3c81ffa79c3fa9f170e43f2ccbb",
+      "size_bytes": 1743,
+      "last_modified": "2026-06-02T13:48:24.203Z",
+      "file_hash": "a4e9ca560dc04ddd1b182ff2f9fb63a830fe6174fe9ebd0923be6f6e63022e1b",
       "git_status": "clean",
       "roles": [],
       "imports": [
@@ -3178,9 +3492,9 @@
     {
       "path": "simplicio_mapper/cli.py",
       "language": "python",
-      "size_bytes": 39673,
-      "last_modified": "2026-06-01T01:49:57.930Z",
-      "file_hash": "d344e40db7beb766550af52133639f05c4be1c8ad48f4d14f7b1f2c4fb65e958",
+      "size_bytes": 39629,
+      "last_modified": "2026-06-02T13:48:24.203Z",
+      "file_hash": "aacea3b8839ca618f46636eadad3556f10787862156d7b70212fc68cbfea2b2c",
       "git_status": "clean",
       "roles": [
         "entrypoint"
@@ -3189,14 +3503,14 @@
         ".",
         ".mapper",
         "__future__",
+        "collections.abc",
         "hashlib",
         "json",
         "os",
         "re",
         "subprocess",
         "sys",
-        "time",
-        "typing"
+        "time"
       ],
       "exports": [
         "_acquire_index_lock",
@@ -3243,11 +3557,68 @@
       "importance": 0.73
     },
     {
+      "path": "simplicio_mapper/context_cache.py",
+      "language": "python",
+      "size_bytes": 2624,
+      "last_modified": "2026-06-02T14:10:37.045Z",
+      "file_hash": "c742abdb9836b1ced9ebf68b5e72ac63285d7e0e88a9b25774dda4b873b6f1dc",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "typing"
+      ],
+      "exports": [
+        "ContextCache",
+        "__contains__",
+        "__init__",
+        "__len__",
+        "_load",
+        "_persist",
+        "clear",
+        "get",
+        "set"
+      ],
+      "importance": 0.28
+    },
+    {
+      "path": "simplicio_mapper/context_pack.py",
+      "language": "python",
+      "size_bytes": 8602,
+      "last_modified": "2026-06-02T14:10:37.045Z",
+      "file_hash": "fc5052aeb95a7c2ae8dc5964a6c5453fb93c2473bf8a703c5a1f19cc1d19b80a",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [
+        "__future__",
+        "collections.abc",
+        "hashlib",
+        "json",
+        "os",
+        "typing"
+      ],
+      "exports": [
+        "_call_graph_edges",
+        "_file_symbols",
+        "_language_for",
+        "_load_json",
+        "_range_snippet",
+        "_read_safe",
+        "_related_tests",
+        "_sha256_text",
+        "build_context_pack",
+        "looks"
+      ],
+      "importance": 0.28
+    },
+    {
       "path": "simplicio_mapper/mapper.py",
       "language": "python",
-      "size_bytes": 47150,
-      "last_modified": "2026-06-01T01:26:33.645Z",
-      "file_hash": "ac3d706e73227d7adaff5dd14115e17931bfe84018b8b55b25d3c8c277d07c7f",
+      "size_bytes": 47172,
+      "last_modified": "2026-06-02T13:48:24.204Z",
+      "file_hash": "abfb638017c3318c9aabb069feb7d3b9d80b030fd55e10874c8b4a9073d8e9b0",
       "git_status": "clean",
       "roles": [],
       "imports": [
@@ -3255,6 +3626,7 @@
         ".cache",
         ".models",
         "__future__",
+        "collections.abc",
         "datetime",
         "hashlib",
         "orjson",
@@ -3306,6 +3678,34 @@
         "_walk",
         "add_edge",
         "build_artifacts"
+      ],
+      "importance": 0.28
+    },
+    {
+      "path": "simplicio_mapper/mechanical_edit.py",
+      "language": "python",
+      "size_bytes": 5766,
+      "last_modified": "2026-06-02T14:10:37.045Z",
+      "file_hash": "d3df3076934755ab500bbc61b683240998868953aa073de3d67ba86c5d7c2b6d",
+      "git_status": "clean",
+      "roles": [],
+      "imports": [
+        ".mapper",
+        "__future__",
+        "collections.abc",
+        "hashlib",
+        "os"
+      ],
+      "exports": [
+        "_absolute",
+        "_must_contain",
+        "_read_bytes_sample",
+        "_sha256_text",
+        "build_context",
+        "extract_file_entry",
+        "is_binary",
+        "range_hash",
+        "snapshot_hash"
       ],
       "importance": 0.28
     },
@@ -3442,11 +3842,202 @@
       "importance": 0.45
     },
     {
+      "path": "tests/fixtures/ctx-pack-host/sample.json",
+      "language": "json",
+      "size_bytes": 114,
+      "last_modified": "2026-06-02T14:10:37.046Z",
+      "file_hash": "d7ac80c5144738475b43ad6bb5584ba6369755f00646c8bd7ca4aaa26cc14ff7",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "exports": [],
+      "importance": 0.37
+    },
+    {
+      "path": "tests/fixtures/ctx-pack-host/sample.md",
+      "language": "markdown",
+      "size_bytes": 266,
+      "last_modified": "2026-06-02T14:10:37.046Z",
+      "file_hash": "27d1160758cb9f854f317f11fdadfca30ad85465cf43479c241927356a8e73c5",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "exports": [],
+      "importance": 0.37
+    },
+    {
+      "path": "tests/fixtures/ctx-pack-host/sample.py",
+      "language": "python",
+      "size_bytes": 147,
+      "last_modified": "2026-06-02T14:10:37.046Z",
+      "file_hash": "f772adb3916af6e3295e141195954f199e802316e1b7642106d4d0a2c5713e72",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "exports": [
+        "load_user"
+      ],
+      "importance": 0.45
+    },
+    {
+      "path": "tests/fixtures/ctx-pack-host/sample.ts",
+      "language": "typescript",
+      "size_bytes": 141,
+      "last_modified": "2026-06-02T14:10:37.046Z",
+      "file_hash": "0654785c856e51d963d83ed0ddcf4c81ee8ef8a3846b0f0bc22ceb413756b9eb",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "exports": [
+        "loadUser"
+      ],
+      "importance": 0.45
+    },
+    {
+      "path": "tests/fixtures/mech-edit-host/sample.json",
+      "language": "json",
+      "size_bytes": 115,
+      "last_modified": "2026-06-02T14:10:37.046Z",
+      "file_hash": "7edc83d64af12a68bafb81cdce8e1747764f1da2553e175d63b3a8ad37b6edc7",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "exports": [],
+      "importance": 0.37
+    },
+    {
+      "path": "tests/fixtures/mech-edit-host/sample.md",
+      "language": "markdown",
+      "size_bytes": 328,
+      "last_modified": "2026-06-02T14:10:37.046Z",
+      "file_hash": "33d0dbe16b2b1bc3a98f2aad4361917d2f011818a99dc83e4788e6d83d09c6b7",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "exports": [],
+      "importance": 0.37
+    },
+    {
+      "path": "tests/fixtures/mech-edit-host/sample.py",
+      "language": "python",
+      "size_bytes": 195,
+      "last_modified": "2026-06-02T14:10:37.047Z",
+      "file_hash": "78105aa92a769d1489f30eb74d519de0ad9e8cfdee886112c7f5248cae1ebdb6",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "exports": [
+        "farewell",
+        "greet"
+      ],
+      "importance": 0.45
+    },
+    {
+      "path": "tests/fixtures/mech-edit-host/sample.ts",
+      "language": "typescript",
+      "size_bytes": 288,
+      "last_modified": "2026-06-02T14:10:37.047Z",
+      "file_hash": "b2828cf01fdf75a7d82853e1cd6d198c6421b3938f937fbb078ab5e9e1f3783c",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "exports": [
+        "farewell",
+        "greet"
+      ],
+      "importance": 0.45
+    },
+    {
+      "path": "tests/fixtures/parity-host/package.json",
+      "language": "json",
+      "size_bytes": 276,
+      "last_modified": "2026-06-02T13:48:24.204Z",
+      "file_hash": "c7375758e37d1269d73c6c5308730f0d12724a305b9e20bc0948d7cc25ce67b2",
+      "git_status": "clean",
+      "roles": [
+        "config",
+        "test"
+      ],
+      "imports": [],
+      "exports": [],
+      "importance": 0.57
+    },
+    {
+      "path": "tests/fixtures/parity-host/src/greet.js",
+      "language": "javascript",
+      "size_bytes": 81,
+      "last_modified": "2026-06-02T13:48:24.204Z",
+      "file_hash": "69403ecfb8be353d3774622003146cc83014bd5f559d7c05e9e1bf097a3ba350",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "exports": [
+        "greet"
+      ],
+      "importance": 0.45
+    },
+    {
+      "path": "tests/fixtures/parity-host/src/index.js",
+      "language": "javascript",
+      "size_bytes": 233,
+      "last_modified": "2026-06-02T13:48:24.204Z",
+      "file_hash": "9700db0bf6d3dc429e14ae1e1aedb6b271434f7bd4dd53cb572d55c9edb1dc69",
+      "git_status": "clean",
+      "roles": [
+        "entrypoint",
+        "test"
+      ],
+      "imports": [
+        "./greet",
+        "express"
+      ],
+      "exports": [
+        "startServer"
+      ],
+      "importance": 0.98
+    },
+    {
+      "path": "tests/fixtures/parity-host/tests/server-fixture.js",
+      "language": "javascript",
+      "size_bytes": 220,
+      "last_modified": "2026-06-02T13:48:24.204Z",
+      "file_hash": "d1c465f44ca78afba041cbb9cd47ec9f3147cce1ad817b46a39b50ddd8dd5613",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "../src/index",
+        "node:assert/strict",
+        "node:test"
+      ],
+      "exports": [],
+      "importance": 0.45
+    },
+    {
       "path": "tests/python/test_cli.py",
       "language": "python",
-      "size_bytes": 29162,
-      "last_modified": "2026-06-01T01:50:04.919Z",
-      "file_hash": "1b1951f522eed0ce3733512aa02fb9d459bf51fe77213c97715b9c3269187943",
+      "size_bytes": 31130,
+      "last_modified": "2026-06-02T13:48:24.205Z",
+      "file_hash": "6adf2730893afba045704d65a6972a9496cadd3d6b827b67d69a01ab15aa3401",
       "git_status": "clean",
       "roles": [
         "test"
@@ -3472,6 +4063,7 @@
       "exports": [
         "ApiClient",
         "CliTest",
+        "EndpointNormalizationTest",
         "FileProcessingCacheTest",
         "GovernanceFunctions",
         "MapperArtifactsTest",
@@ -3480,14 +4072,10 @@
         "_write",
         "answer",
         "cached",
-        "create_snapshot",
         "findUsers",
-        "get",
         "getUsers",
         "listUsers",
-        "list_skills",
         "list_users",
-        "post",
         "routes",
         "run",
         "setUp",
@@ -3497,8 +4085,6 @@
         "test_build_artifacts_emits_rich_project_map",
         "test_build_artifacts_ignores_generated_dependency_and_cache_dirs",
         "test_cache_hits_same_file_signature",
-        "test_endpoints_compares_client_calls_against_server_routes",
-        "test_endpoints_resolves_angular_service_base_urls",
         "test_git_status_marks_untracked_files_inside_new_dirs",
         "test_help_exits_zero",
         "test_incremental_records_changed_files",
@@ -3506,10 +4092,148 @@
         "test_index_skips_fresh_artifacts_quietly",
         "test_index_writes_json_contract",
         "test_main_map_writes_artifacts",
+        "test_numeric_segments_collapse_to_id",
+        "test_placeholders_collapse_to_id",
         "test_primary_models_use_slots",
+        "test_query_string_and_leading_slash_normalization",
         "test_unknown_option_exits_with_code_2",
+        "test_unknown_slug_segments_stay_literal",
+        "test_uuid_segments_collapse_to_id",
         "test_version_matches_package",
         "test_write_mapping_artifacts_persists_files"
+      ],
+      "importance": 0.53
+    },
+    {
+      "path": "tests/python/test_cli_coverage.py",
+      "language": "python",
+      "size_bytes": 6952,
+      "last_modified": "2026-06-02T13:48:24.205Z",
+      "file_hash": "b9d452df5f9ebd54a2c743fd6d9e9c5a990f5069978bf5881b4ea3e83e10bd5d",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "contextlib",
+        "io",
+        "json",
+        "pathlib",
+        "simplicio_mapper",
+        "simplicio_mapper.cli",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "exports": [
+        "DocsOnlyShortCircuitTest",
+        "IndexFailureBoundaryTest",
+        "JsonOnlyAndChangedOnlyAliasesTest",
+        "StackAndProductHintInjectionTest",
+        "WatchLoopExitsOnInterruptTest",
+        "_run",
+        "_write",
+        "run",
+        "setUp",
+        "tearDown",
+        "test_changed_only_triggers_incremental_refresh",
+        "test_docs_only_on_index_renders_docs_without_rewriting_json",
+        "test_index_failure_returns_exit_1_with_failed_status_json",
+        "test_json_only_keeps_docs_disabled",
+        "test_stack_and_product_name_flow_into_project_map",
+        "test_watch_loop_handles_keyboard_interrupt_cleanly"
+      ],
+      "importance": 0.53
+    },
+    {
+      "path": "tests/python/test_context_pack.py",
+      "language": "python",
+      "size_bytes": 7763,
+      "last_modified": "2026-06-02T14:10:37.047Z",
+      "file_hash": "44b073c8be533477e5181d8f0cf9d6319efc6e755136c51468b95550fb6fa559",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "json",
+        "pathlib",
+        "simplicio_mapper.context_cache",
+        "simplicio_mapper.context_pack",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "exports": [
+        "CallGraphAndDependencyTest",
+        "ContextCacheTest",
+        "ContextPackBasicTest",
+        "DeterminismTest",
+        "LargeFileCompactModeTest",
+        "NeedsBroaderContextTest",
+        "RangeExtractionTest",
+        "_pack",
+        "setUp",
+        "tearDown",
+        "test_callers_and_imports_resolved",
+        "test_clear_empties_cache",
+        "test_compact_mode_omits_snippets_above_threshold",
+        "test_envelope_shape_and_pack_hash",
+        "test_hit_returns_stored_summary",
+        "test_invalidation_when_key_changes",
+        "test_miss_returns_none",
+        "test_missing_target_marked",
+        "test_missing_upstream_artifacts_loaded_implicitly",
+        "test_multi_language_fixtures",
+        "test_persisted_payload_uses_schema",
+        "test_persistence_across_instances",
+        "test_range_hash_emitted_with_snippet",
+        "test_same_inputs_same_pack",
+        "test_tests_resolved_from_project_map",
+        "test_unstable_range_marks_needs_broader_context"
+      ],
+      "importance": 0.53
+    },
+    {
+      "path": "tests/python/test_mechanical_edit.py",
+      "language": "python",
+      "size_bytes": 5377,
+      "last_modified": "2026-06-02T14:10:37.047Z",
+      "file_hash": "b2389f5c4448b9dcb2dacbafca23e2dfb170e660611e484361098e1017f10753",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "pathlib",
+        "simplicio_mapper.mechanical_edit",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "exports": [
+        "AnchorDriftDetectionTest",
+        "DeterministicContextHashTest",
+        "LargeFileCompactModeTest",
+        "MissingFileAndBinaryRefusalTest",
+        "MultiLanguageFixtureTest",
+        "SnapshotHashTest",
+        "StableRangeHashingTest",
+        "test_binary_file_refused",
+        "test_changed_selection_changes_context_hash",
+        "test_different_ranges_yield_different_hashes",
+        "test_drift_changes_before_hash",
+        "test_missing_file_raises",
+        "test_must_contain_emitted_below_threshold",
+        "test_must_contain_omitted_above_threshold",
+        "test_range_out_of_bounds_raises",
+        "test_same_selections_yield_same_context_hash",
+        "test_same_text_same_range_yields_same_hash",
+        "test_snapshot_hash_changes_when_content_changes",
+        "test_typescript_python_json_markdown_languages"
       ],
       "importance": 0.53
     },
@@ -3544,6 +4268,71 @@
         "test_build_artifacts_without_native",
         "test_hash_and_imports_match_fallback",
         "test_shim_reports_availability"
+      ],
+      "importance": 0.53
+    },
+    {
+      "path": "tests/python/test_parity.py",
+      "language": "python",
+      "size_bytes": 4244,
+      "last_modified": "2026-06-02T13:48:24.205Z",
+      "file_hash": "577bfe2942aebd07a9267a4ff6eb163444142ac3399d78af210015c81498186c",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "json",
+        "pathlib",
+        "shutil",
+        "simplicio_mapper.mapper",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "exports": [
+        "NodePythonParityTest",
+        "_have_node",
+        "_node_map",
+        "_normalize",
+        "_python_map",
+        "setUp",
+        "tearDown",
+        "test_architecture_signals_match",
+        "test_entry_points_match",
+        "test_file_inventory_matches",
+        "test_file_roles_match_per_path",
+        "test_normalization_strips_volatile_fields",
+        "test_schemas_match",
+        "test_test_files_match"
+      ],
+      "importance": 0.53
+    },
+    {
+      "path": "tests/unit/apply-edits.test.js",
+      "language": "javascript",
+      "size_bytes": 7199,
+      "last_modified": "2026-06-02T12:42:10.003Z",
+      "file_hash": "ac5192b82bac8ca8313e85bb9edf099f7f6c5260c340f425f0f1fb1da2fbddcd",
+      "git_status": "clean",
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "../../bin/apply-edits",
+        "node:assert/strict",
+        "node:fs",
+        "node:os",
+        "node:path",
+        "node:test"
+      ],
+      "exports": [
+        "mkTmp",
+        "read",
+        "rmTmp",
+        "write"
       ],
       "importance": 0.53
     },
@@ -3650,9 +4439,9 @@
     {
       "path": "tests/unit/docs-site.test.js",
       "language": "javascript",
-      "size_bytes": 2916,
-      "last_modified": "2026-05-27T19:13:28.091Z",
-      "file_hash": "b8ca67d54882875aa769aa1ac62e3e5169ba18f48a57a8ca1815d7308fafaa4b",
+      "size_bytes": 2914,
+      "last_modified": "2026-06-02T13:48:24.205Z",
+      "file_hash": "66460d036c9c85a3693c666fea86dafe3d41c1dfe909f8f9eda32bff445abacf",
       "git_status": "clean",
       "roles": [
         "test"
@@ -4776,11 +5565,13 @@
     }
   ],
   "entry_points": [
+    "bin/apply-edits.js",
     "bin/build-hamt-catalog",
     "bin/cli.js",
     "bin/skillopt.js",
     "docs/api-examples/cli.md",
     "simplicio_mapper/cli.py",
+    "tests/fixtures/parity-host/src/index.js",
     "video/src/index.ts"
   ],
   "test_files": [
@@ -4810,8 +5601,25 @@
     "tests/e2e/cli.spec.ts",
     "tests/e2e/skillopt.spec.ts",
     "tests/e2e/smoke.spec.ts",
+    "tests/fixtures/ctx-pack-host/sample.json",
+    "tests/fixtures/ctx-pack-host/sample.md",
+    "tests/fixtures/ctx-pack-host/sample.py",
+    "tests/fixtures/ctx-pack-host/sample.ts",
+    "tests/fixtures/mech-edit-host/sample.json",
+    "tests/fixtures/mech-edit-host/sample.md",
+    "tests/fixtures/mech-edit-host/sample.py",
+    "tests/fixtures/mech-edit-host/sample.ts",
+    "tests/fixtures/parity-host/package.json",
+    "tests/fixtures/parity-host/src/greet.js",
+    "tests/fixtures/parity-host/src/index.js",
+    "tests/fixtures/parity-host/tests/server-fixture.js",
     "tests/python/test_cli.py",
+    "tests/python/test_cli_coverage.py",
+    "tests/python/test_context_pack.py",
+    "tests/python/test_mechanical_edit.py",
     "tests/python/test_native.py",
+    "tests/python/test_parity.py",
+    "tests/unit/apply-edits.test.js",
     "tests/unit/build-hamt-catalog.test.js",
     "tests/unit/cli-args.test.js",
     "tests/unit/cli-install.test.js",
@@ -4832,6 +5640,7 @@
     "pyproject.toml",
     "rust/Cargo.toml",
     "rust/pyproject.toml",
+    "tests/fixtures/parity-host/package.json",
     "video/package.json",
     "video/remotion.config.ts",
     "video/tsconfig.json",
@@ -4931,12 +5740,14 @@
         ".github/workflows/docs-site.yml",
         ".github/workflows/dod.yml",
         ".github/workflows/publish-pypi.yml",
+        ".github/workflows/python-ci.yml",
+        ".github/workflows/python-lint.yml",
         ".github/workflows/scaffold-self-check.yml"
       ],
       "roles": [
         "ui"
       ],
-      "file_count": 18
+      "file_count": 20
     },
     {
       "name": ".skills",
@@ -5018,6 +5829,7 @@
     {
       "name": "bin",
       "files": [
+        "bin/apply-edits.js",
         "bin/auto-map.js",
         "bin/build-hamt-catalog",
         "bin/cli.js",
@@ -5029,7 +5841,7 @@
       "roles": [
         "entrypoint"
       ],
-      "file_count": 7
+      "file_count": 8
     },
     {
       "name": "docs",
@@ -5040,6 +5852,8 @@
         "docs/api-examples/graphql.md",
         "docs/api-examples/rest.md",
         "docs/api-examples/webhook.md",
+        "docs/apply-edits.example.json",
+        "docs/apply-edits.md",
         "docs/architecture-map.md",
         "docs/domain-map.md",
         "docs/evidence/README.md",
@@ -5054,7 +5868,7 @@
       "roles": [
         "entrypoint"
       ],
-      "file_count": 16
+      "file_count": 18
     },
     {
       "name": "docs-site",
@@ -5083,7 +5897,7 @@
       "roles": [
         "config"
       ],
-      "file_count": 39
+      "file_count": 57
     },
     {
       "name": "presentation",
@@ -5113,6 +5927,7 @@
         "scripts/README.md",
         "scripts/build_hamt.py",
         "scripts/check-placeholders.sh",
+        "scripts/check-version-sync.js",
         "scripts/coverage.js",
         "scripts/evidence.ps1",
         "scripts/evidence.sh",
@@ -5129,7 +5944,7 @@
       "roles": [
         "test"
       ],
-      "file_count": 15
+      "file_count": 16
     },
     {
       "name": "simplicio_mapper",
@@ -5138,14 +5953,17 @@
         "simplicio_mapper/_native.py",
         "simplicio_mapper/cache.py",
         "simplicio_mapper/cli.py",
+        "simplicio_mapper/context_cache.py",
+        "simplicio_mapper/context_pack.py",
         "simplicio_mapper/mapper.py",
+        "simplicio_mapper/mechanical_edit.py",
         "simplicio_mapper/models.py"
       ],
       "roles": [
         "domain",
         "entrypoint"
       ],
-      "file_count": 6
+      "file_count": 9
     },
     {
       "name": "tests",
@@ -5155,22 +5973,28 @@
         "tests/e2e/cli.spec.ts",
         "tests/e2e/skillopt.spec.ts",
         "tests/e2e/smoke.spec.ts",
+        "tests/fixtures/ctx-pack-host/sample.json",
+        "tests/fixtures/ctx-pack-host/sample.md",
+        "tests/fixtures/ctx-pack-host/sample.py",
+        "tests/fixtures/ctx-pack-host/sample.ts",
+        "tests/fixtures/mech-edit-host/sample.json",
+        "tests/fixtures/mech-edit-host/sample.md",
+        "tests/fixtures/mech-edit-host/sample.py",
+        "tests/fixtures/mech-edit-host/sample.ts",
+        "tests/fixtures/parity-host/package.json",
+        "tests/fixtures/parity-host/src/greet.js",
+        "tests/fixtures/parity-host/src/index.js",
+        "tests/fixtures/parity-host/tests/server-fixture.js",
         "tests/python/test_cli.py",
-        "tests/python/test_native.py",
-        "tests/unit/build-hamt-catalog.test.js",
-        "tests/unit/cli-args.test.js",
-        "tests/unit/cli-install.test.js",
-        "tests/unit/cli-telemetry.test.js",
-        "tests/unit/docs-site.test.js",
-        "tests/unit/mapping-artifacts.test.js",
-        "tests/unit/overlay-docs.test.js",
-        "tests/unit/skillopt.test.js",
-        "tests/unit/why-video-narration.test.js"
+        "tests/python/test_cli_coverage.py",
+        "tests/python/test_context_pack.py"
       ],
       "roles": [
+        "config",
+        "entrypoint",
         "test"
       ],
-      "file_count": 16
+      "file_count": 33
     },
     {
       "name": "video",
@@ -5226,22 +6050,42 @@
   "entities": [
     {
       "name": "file",
+      "score": 70
+    },
+    {
+      "name": "read",
       "score": 52
     },
     {
       "name": "build",
-      "score": 44
+      "score": 48
+    },
+    {
+      "name": "run",
+      "score": 42
+    },
+    {
+      "name": "write",
+      "score": 42
+    },
+    {
+      "name": "for",
+      "score": 40
+    },
+    {
+      "name": "hash",
+      "score": 40
+    },
+    {
+      "name": "tmp",
+      "score": 40
     },
     {
       "name": "skill",
       "score": 39
     },
     {
-      "name": "for",
-      "score": 38
-    },
-    {
-      "name": "read",
+      "name": "json",
       "score": 38
     },
     {
@@ -5249,15 +6093,7 @@
       "score": 38
     },
     {
-      "name": "run",
-      "score": 38
-    },
-    {
-      "name": "write",
-      "score": 38
-    },
-    {
-      "name": "tmp",
+      "name": "map",
       "score": 36
     },
     {
@@ -5266,30 +6102,34 @@
     },
     {
       "name": "parse",
-      "score": 30
+      "score": 32
     },
     {
       "name": "artifacts",
-      "score": 28
+      "score": 30
     },
     {
       "name": "cli",
-      "score": 28
+      "score": 30
+    },
+    {
+      "name": "text",
+      "score": 29
     },
     {
       "name": "files",
-      "score": 26
+      "score": 28
     },
     {
-      "name": "json",
-      "score": 26
+      "name": "and",
+      "score": 27
     },
     {
-      "name": "map",
-      "score": 26
+      "name": "context",
+      "score": 27
     },
     {
-      "name": "list",
+      "name": "init",
       "score": 25
     },
     {
@@ -5297,7 +6137,15 @@
       "score": 24
     },
     {
-      "name": "text",
+      "name": "path",
+      "score": 24
+    },
+    {
+      "name": "safe",
+      "score": 24
+    },
+    {
+      "name": "list",
       "score": 23
     },
     {
@@ -5305,15 +6153,7 @@
       "score": 22
     },
     {
-      "name": "path",
-      "score": 22
-    },
-    {
-      "name": "init",
-      "score": 20
-    },
-    {
-      "name": "safe",
+      "name": "architecture",
       "score": 20
     },
     {
@@ -5321,28 +6161,12 @@
       "score": 18
     },
     {
-      "name": "hash",
+      "name": "range",
       "score": 18
     },
     {
-      "name": "architecture",
-      "score": 17
-    },
-    {
       "name": "status",
-      "score": 16
-    },
-    {
-      "name": "agent",
-      "score": 15
-    },
-    {
-      "name": "why",
-      "score": 15
-    },
-    {
-      "name": "extract",
-      "score": 14
+      "score": 18
     }
   ],
   "architecture": {
@@ -5352,6 +6176,7 @@
       "nextjs",
       "playwright",
       "react",
+      "rust",
       "vue"
     ],
     "system_type": "web"
@@ -5364,8 +6189,350 @@
       "@playwright/test"
     ]
   },
-  "recent_changes": [],
-  "changed_files": [],
+  "recent_changes": [
+    {
+      "path": ".github/copilot-instructions.md",
+      "status": "modified"
+    },
+    {
+      "path": ".github/workflows/publish-pypi.yml",
+      "status": "modified"
+    },
+    {
+      "path": ".github/workflows/python-ci.yml",
+      "status": "modified"
+    },
+    {
+      "path": ".github/workflows/python-lint.yml",
+      "status": "modified"
+    },
+    {
+      "path": ".github/workflows/scaffold-self-check.yml",
+      "status": "modified"
+    },
+    {
+      "path": ".gitignore",
+      "status": "modified"
+    },
+    {
+      "path": ".specs/product/DOMAIN.md",
+      "status": "modified"
+    },
+    {
+      "path": ".specs/product/PERSONAS.md",
+      "status": "modified"
+    },
+    {
+      "path": ".specs/product/VISION.md",
+      "status": "modified"
+    },
+    {
+      "path": "AGENTS.md",
+      "status": "modified"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "status": "modified"
+    },
+    {
+      "path": "CLAUDE.md",
+      "status": "modified"
+    },
+    {
+      "path": "README.md",
+      "status": "modified"
+    },
+    {
+      "path": "README.pt-BR.md",
+      "status": "modified"
+    },
+    {
+      "path": "SIMPLICIO_INTEGRATION.md",
+      "status": "modified"
+    },
+    {
+      "path": "bin/apply-edits.js",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/docusaurus.config.cjs",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/community/_category_.json",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/community/contributing.md",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/community/showcase.md",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/_category_.json",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/architecture-map.md",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/domain-map.md",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/skills-and-agents.md",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/yool-tuple-hamt.md",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/guide/_category_.json",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/guide/private-overlay.md",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/intro.md",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/quickstart/_category_.json",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/quickstart/get-going.md",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/reference/_category_.json",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/reference/cli-flags.md",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/reference/init-handoff.md",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/reference/session-start-hook.md",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versioned_sidebars/version-0.7.3-sidebars.json",
+      "status": "modified"
+    },
+    {
+      "path": "docs-site/versions.json",
+      "status": "modified"
+    },
+    {
+      "path": "docs/apply-edits.example.json",
+      "status": "modified"
+    },
+    {
+      "path": "docs/apply-edits.md",
+      "status": "modified"
+    },
+    {
+      "path": "package.json",
+      "status": "modified"
+    },
+    {
+      "path": "pyproject.toml",
+      "status": "modified"
+    },
+    {
+      "path": "scripts/check-version-sync.js",
+      "status": "modified"
+    },
+    {
+      "path": "simplicio_mapper/__init__.py",
+      "status": "modified"
+    },
+    {
+      "path": "simplicio_mapper/_native.py",
+      "status": "modified"
+    },
+    {
+      "path": "simplicio_mapper/cache.py",
+      "status": "modified"
+    },
+    {
+      "path": "simplicio_mapper/cli.py",
+      "status": "modified"
+    },
+    {
+      "path": "simplicio_mapper/context_cache.py",
+      "status": "modified"
+    },
+    {
+      "path": "simplicio_mapper/context_pack.py",
+      "status": "modified"
+    },
+    {
+      "path": "simplicio_mapper/mapper.py",
+      "status": "modified"
+    },
+    {
+      "path": "simplicio_mapper/mechanical_edit.py",
+      "status": "modified"
+    },
+    {
+      "path": "tests/fixtures/ctx-pack-host/sample.json",
+      "status": "modified"
+    },
+    {
+      "path": "tests/fixtures/ctx-pack-host/sample.md",
+      "status": "modified"
+    },
+    {
+      "path": "tests/fixtures/ctx-pack-host/sample.py",
+      "status": "modified"
+    },
+    {
+      "path": "tests/fixtures/ctx-pack-host/sample.ts",
+      "status": "modified"
+    },
+    {
+      "path": "tests/fixtures/mech-edit-host/sample.json",
+      "status": "modified"
+    },
+    {
+      "path": "tests/fixtures/mech-edit-host/sample.md",
+      "status": "modified"
+    },
+    {
+      "path": "tests/fixtures/mech-edit-host/sample.py",
+      "status": "modified"
+    },
+    {
+      "path": "tests/fixtures/mech-edit-host/sample.ts",
+      "status": "modified"
+    },
+    {
+      "path": "tests/fixtures/parity-host/package.json",
+      "status": "modified"
+    },
+    {
+      "path": "tests/fixtures/parity-host/src/greet.js",
+      "status": "modified"
+    },
+    {
+      "path": "tests/fixtures/parity-host/src/index.js",
+      "status": "modified"
+    },
+    {
+      "path": "tests/fixtures/parity-host/tests/server-fixture.js",
+      "status": "modified"
+    },
+    {
+      "path": "tests/python/test_cli.py",
+      "status": "modified"
+    },
+    {
+      "path": "tests/python/test_cli_coverage.py",
+      "status": "modified"
+    },
+    {
+      "path": "tests/python/test_context_pack.py",
+      "status": "modified"
+    },
+    {
+      "path": "tests/python/test_mechanical_edit.py",
+      "status": "modified"
+    },
+    {
+      "path": "tests/python/test_parity.py",
+      "status": "modified"
+    },
+    {
+      "path": "tests/unit/apply-edits.test.js",
+      "status": "modified"
+    },
+    {
+      "path": "tests/unit/docs-site.test.js",
+      "status": "modified"
+    }
+  ],
+  "changed_files": [
+    ".github/copilot-instructions.md",
+    ".github/workflows/publish-pypi.yml",
+    ".github/workflows/python-ci.yml",
+    ".github/workflows/python-lint.yml",
+    ".github/workflows/scaffold-self-check.yml",
+    ".gitignore",
+    ".specs/product/DOMAIN.md",
+    ".specs/product/PERSONAS.md",
+    ".specs/product/VISION.md",
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "CLAUDE.md",
+    "README.md",
+    "README.pt-BR.md",
+    "SIMPLICIO_INTEGRATION.md",
+    "bin/apply-edits.js",
+    "docs-site/docusaurus.config.cjs",
+    "docs-site/versioned_docs/version-0.7.3/community/_category_.json",
+    "docs-site/versioned_docs/version-0.7.3/community/contributing.md",
+    "docs-site/versioned_docs/version-0.7.3/community/showcase.md",
+    "docs-site/versioned_docs/version-0.7.3/concepts/_category_.json",
+    "docs-site/versioned_docs/version-0.7.3/concepts/architecture-map.md",
+    "docs-site/versioned_docs/version-0.7.3/concepts/domain-map.md",
+    "docs-site/versioned_docs/version-0.7.3/concepts/skills-and-agents.md",
+    "docs-site/versioned_docs/version-0.7.3/concepts/yool-tuple-hamt.md",
+    "docs-site/versioned_docs/version-0.7.3/guide/_category_.json",
+    "docs-site/versioned_docs/version-0.7.3/guide/private-overlay.md",
+    "docs-site/versioned_docs/version-0.7.3/intro.md",
+    "docs-site/versioned_docs/version-0.7.3/quickstart/_category_.json",
+    "docs-site/versioned_docs/version-0.7.3/quickstart/get-going.md",
+    "docs-site/versioned_docs/version-0.7.3/reference/_category_.json",
+    "docs-site/versioned_docs/version-0.7.3/reference/cli-flags.md",
+    "docs-site/versioned_docs/version-0.7.3/reference/init-handoff.md",
+    "docs-site/versioned_docs/version-0.7.3/reference/session-start-hook.md",
+    "docs-site/versioned_sidebars/version-0.7.3-sidebars.json",
+    "docs-site/versions.json",
+    "docs/apply-edits.example.json",
+    "docs/apply-edits.md",
+    "package.json",
+    "pyproject.toml",
+    "scripts/check-version-sync.js",
+    "simplicio_mapper/__init__.py",
+    "simplicio_mapper/_native.py",
+    "simplicio_mapper/cache.py",
+    "simplicio_mapper/cli.py",
+    "simplicio_mapper/context_cache.py",
+    "simplicio_mapper/context_pack.py",
+    "simplicio_mapper/mapper.py",
+    "simplicio_mapper/mechanical_edit.py",
+    "tests/fixtures/ctx-pack-host/sample.json",
+    "tests/fixtures/ctx-pack-host/sample.md",
+    "tests/fixtures/ctx-pack-host/sample.py",
+    "tests/fixtures/ctx-pack-host/sample.ts",
+    "tests/fixtures/mech-edit-host/sample.json",
+    "tests/fixtures/mech-edit-host/sample.md",
+    "tests/fixtures/mech-edit-host/sample.py",
+    "tests/fixtures/mech-edit-host/sample.ts",
+    "tests/fixtures/parity-host/package.json",
+    "tests/fixtures/parity-host/src/greet.js",
+    "tests/fixtures/parity-host/src/index.js",
+    "tests/fixtures/parity-host/tests/server-fixture.js",
+    "tests/python/test_cli.py",
+    "tests/python/test_cli_coverage.py",
+    "tests/python/test_context_pack.py",
+    "tests/python/test_mechanical_edit.py",
+    "tests/python/test_parity.py",
+    "tests/unit/apply-edits.test.js",
+    "tests/unit/docs-site.test.js"
+  ],
   "integration": {
     "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",
     "contract": "SIMPLICIO_INTEGRATION.md"

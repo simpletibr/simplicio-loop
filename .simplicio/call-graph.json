@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.call-graph/v1",
   "version": 1,
-  "generated_at": "2026-06-02T12:41:21.792Z",
+  "generated_at": "2026-06-02T14:24:42.455Z",
   "source_symbol_index": ".simplicio/symbol-index.json",
   "edges": [
     {
@@ -17,9 +17,198 @@
       "type": "calls",
       "source_file": ".github/workflows-templates/telemetry-worker.js",
       "source_symbol": ".github/workflows-templates/telemetry-worker.js::sanitize",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 58,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": ".github/workflows-templates/telemetry-worker.js",
+      "source_symbol": ".github/workflows-templates/telemetry-worker.js::sanitize",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 58,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::resolveSafe",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::EditError",
+      "line": 58,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::applyEdits",
+      "line": 362,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::planEdit",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::computePlan",
+      "line": 95,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::computePlan",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::countOccurrences",
+      "line": 156,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 339,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::parseArgs",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::parseArgs",
+      "line": 309,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::readIfExists",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::readIfExists",
+      "line": 72,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::computePlan",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::replaceN",
+      "line": 168,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::requireString",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::requireString",
+      "line": 81,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::planEdit",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::resolveSafe",
+      "line": 93,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::computePlan",
+      "target_file": "bin/auto-map.js",
+      "target_symbol": "bin/auto-map.js::exists",
+      "line": 119,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::computePlan",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::exists",
+      "line": 119,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::main",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::main",
+      "line": 339,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::parseArgs",
+      "target_file": "bin/map.js",
+      "target_symbol": "bin/map.js::parseArgs",
+      "line": 309,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::main",
+      "target_file": "bin/skillopt.js",
+      "target_symbol": "bin/skillopt.js::main",
+      "line": 339,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::parseArgs",
+      "target_file": "bin/skillopt.js",
+      "target_symbol": "bin/skillopt.js::parseArgs",
+      "line": 309,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::applyEdits",
+      "target_file": "scripts/skillopt/engine.js",
+      "target_symbol": "scripts/skillopt/engine.js::applyEdits",
+      "line": 252,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::applyEdits",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 272,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::applyEdits",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::get",
+      "line": 272,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::main",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::write",
+      "line": 342,
       "confidence": 0.58
     },
     {
@@ -591,9 +780,27 @@
       "type": "calls",
       "source_file": "bin/auto-map.js",
       "source_symbol": "bin/auto-map.js::collectEntities",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 321,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/auto-map.js",
+      "source_symbol": "bin/auto-map.js::collectEntities",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 321,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/cli.js",
+      "source_symbol": "bin/cli.js::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 1225,
       "confidence": 0.58
     },
     {
@@ -1101,15 +1308,6 @@
     {
       "type": "calls",
       "source_file": "bin/cli.js",
-      "source_symbol": "bin/cli.js::main",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::main",
-      "line": 1225,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "bin/cli.js",
       "source_symbol": null,
       "target_file": "scripts/lint.js",
       "target_symbol": "scripts/lint.js::log",
@@ -1129,6 +1327,15 @@
       "type": "calls",
       "source_file": "bin/cli.js",
       "source_symbol": "bin/cli.js::maybeNotifyUpdate",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 443,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/cli.js",
+      "source_symbol": "bin/cli.js::maybeNotifyUpdate",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 443,
@@ -1138,9 +1345,18 @@
       "type": "calls",
       "source_file": "bin/cli.js",
       "source_symbol": "bin/cli.js::read",
-      "target_file": "tests/unit/docs-site.test.js",
-      "target_symbol": "tests/unit/docs-site.test.js::read",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::read",
       "line": 607,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/cli.js",
+      "source_symbol": "bin/cli.js::maybeSendTelemetry",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::write",
+      "line": 538,
       "confidence": 0.58
     },
     {
@@ -1150,6 +1366,15 @@
       "target_file": "bin/hook-runner.js",
       "target_symbol": "bin/hook-runner.js::runHook",
       "line": 17,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/map.js",
+      "source_symbol": "bin/map.js::parseArgs",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::parseArgs",
+      "line": 37,
       "confidence": 0.58
     },
     {
@@ -1694,9 +1919,36 @@
       "type": "calls",
       "source_file": "bin/mapper-artifacts.js",
       "source_symbol": "bin/mapper-artifacts.js::collectEntities",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 225,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/mapper-artifacts.js",
+      "source_symbol": "bin/mapper-artifacts.js::collectEntities",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 225,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/skillopt.js",
+      "source_symbol": "bin/skillopt.js::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 109,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/skillopt.js",
+      "source_symbol": "bin/skillopt.js::parseArgs",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::parseArgs",
+      "line": 52,
       "confidence": 0.58
     },
     {
@@ -1801,15 +2053,6 @@
     {
       "type": "calls",
       "source_file": "bin/skillopt.js",
-      "source_symbol": "bin/skillopt.js::main",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::main",
-      "line": 109,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "bin/skillopt.js",
       "source_symbol": "bin/skillopt.js::printHelp",
       "target_file": "scripts/lint.js",
       "target_symbol": "scripts/lint.js::log",
@@ -1863,10 +2106,28 @@
       "type": "calls",
       "source_file": "rust/src/lib.rs",
       "source_symbol": null,
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 41,
+      "confidence": 0.48
+    },
+    {
+      "type": "calls",
+      "source_file": "rust/src/lib.rs",
+      "source_symbol": null,
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 41,
       "confidence": 0.48
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/build_hamt.py",
+      "source_symbol": "scripts/build_hamt.py::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 261,
+      "confidence": 0.58
     },
     {
       "type": "calls",
@@ -1988,15 +2249,6 @@
     {
       "type": "calls",
       "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::main",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::main",
-      "line": 261,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/build_hamt.py",
       "source_symbol": "scripts/build_hamt.py::parse_agent_terms",
       "target_file": "scripts/build_hamt.py",
       "target_symbol": "scripts/build_hamt.py::parse_agent_terms",
@@ -2052,9 +2304,90 @@
       "type": "calls",
       "source_file": "scripts/build_hamt.py",
       "source_symbol": "scripts/build_hamt.py::finalize",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 118,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/build_hamt.py",
+      "source_symbol": "scripts/build_hamt.py::finalize",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 118,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/check-version-sync.js",
+      "source_symbol": "scripts/check-version-sync.js::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 42,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/check-version-sync.js",
+      "source_symbol": "scripts/check-version-sync.js::main",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::log",
+      "line": 51,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/check-version-sync.js",
+      "source_symbol": "scripts/check-version-sync.js::main",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::main",
+      "line": 42,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/check-version-sync.js",
+      "source_symbol": "scripts/check-version-sync.js::main",
+      "target_file": "bin/skillopt.js",
+      "target_symbol": "bin/skillopt.js::main",
+      "line": 42,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/check-version-sync.js",
+      "source_symbol": "scripts/check-version-sync.js::readInitVersion",
+      "target_file": "scripts/check-version-sync.js",
+      "target_symbol": "scripts/check-version-sync.js::readInitVersion",
+      "line": 33,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/check-version-sync.js",
+      "source_symbol": "scripts/check-version-sync.js::readPackageVersion",
+      "target_file": "scripts/check-version-sync.js",
+      "target_symbol": "scripts/check-version-sync.js::readPackageVersion",
+      "line": 19,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/check-version-sync.js",
+      "source_symbol": "scripts/check-version-sync.js::readPyprojectVersion",
+      "target_file": "scripts/check-version-sync.js",
+      "target_symbol": "scripts/check-version-sync.js::readPyprojectVersion",
+      "line": 24,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/check-version-sync.js",
+      "source_symbol": "scripts/check-version-sync.js::main",
+      "target_file": "scripts/lint.js",
+      "target_symbol": "scripts/lint.js::log",
+      "line": 51,
       "confidence": 0.58
     },
     {
@@ -2082,6 +2415,24 @@
       "target_file": "scripts/lint.js",
       "target_symbol": "scripts/lint.js::log",
       "line": 62,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/coverage.js",
+      "source_symbol": null,
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::write",
+      "line": 34,
+      "confidence": 0.48
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/lint.js",
+      "source_symbol": "scripts/lint.js::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 168,
       "confidence": 0.58
     },
     {
@@ -2141,15 +2492,6 @@
     {
       "type": "calls",
       "source_file": "scripts/lint.js",
-      "source_symbol": "scripts/lint.js::main",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::main",
-      "line": 168,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/lint.js",
       "source_symbol": "scripts/lint.js::lintJavaScript",
       "target_file": "scripts/lint.js",
       "target_symbol": "scripts/lint.js::lintJavaScript",
@@ -2199,6 +2541,24 @@
       "target_file": "scripts/lint.js",
       "target_symbol": "scripts/lint.js::log",
       "line": 40,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/lint.js",
+      "source_symbol": "scripts/lint.js::log",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::write",
+      "line": 45,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/skillopt/engine.js",
+      "source_symbol": "scripts/skillopt/engine.js::applyEdits",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::applyEdits",
+      "line": 137,
       "confidence": 0.58
     },
     {
@@ -2313,9 +2673,27 @@
       "type": "calls",
       "source_file": "scripts/skillopt/engine.js",
       "source_symbol": "scripts/skillopt/engine.js::reflect",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 87,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/skillopt/engine.js",
+      "source_symbol": "scripts/skillopt/engine.js::reflect",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 87,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/sync-docs-site.mjs",
+      "source_symbol": "scripts/sync-docs-site.mjs::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 399,
       "confidence": 0.58
     },
     {
@@ -2333,15 +2711,6 @@
       "source_symbol": "scripts/sync-docs-site.mjs::main",
       "target_file": "bin/skillopt.js",
       "target_symbol": "bin/skillopt.js::main",
-      "line": 399,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/sync-docs-site.mjs",
-      "source_symbol": "scripts/sync-docs-site.mjs::main",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::main",
       "line": 399,
       "confidence": 0.58
     },
@@ -2483,6 +2852,15 @@
     {
       "type": "calls",
       "source_file": "scripts/sync-docs-site.mjs",
+      "source_symbol": "scripts/sync-docs-site.mjs::rewriteUrl",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 298,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/sync-docs-site.mjs",
       "source_symbol": "scripts/sync-docs-site.mjs::writeDoc",
       "target_file": "tests/e2e/build-hamt-catalog.spec.ts",
       "target_symbol": "tests/e2e/build-hamt-catalog.spec.ts::writeFile",
@@ -2514,6 +2892,15 @@
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 298,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/sync-docs-site.mjs",
+      "source_symbol": "scripts/sync-docs-site.mjs::main",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::write",
+      "line": 409,
       "confidence": 0.58
     },
     {
@@ -2592,6 +2979,33 @@
       "type": "calls",
       "source_file": "simplicio_mapper/cache.py",
       "source_symbol": "simplicio_mapper/cache.py::__init__",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::__init__",
+      "line": 24,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/cache.py",
+      "source_symbol": "simplicio_mapper/cache.py::clear",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::clear",
+      "line": 36,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/cache.py",
+      "source_symbol": "simplicio_mapper/cache.py::get_processed_file",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 46,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/cache.py",
+      "source_symbol": "simplicio_mapper/cache.py::__init__",
       "target_file": "simplicio_mapper/models.py",
       "target_symbol": "simplicio_mapper/models.py::__init__",
       "line": 24,
@@ -2604,6 +3018,15 @@
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 46,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/cli.py",
+      "source_symbol": "simplicio_mapper/cli.py::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 1056,
       "confidence": 0.58
     },
     {
@@ -2639,7 +3062,7 @@
       "source_symbol": "simplicio_mapper/cli.py::main",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::main",
-      "line": 1045,
+      "line": 1056,
       "confidence": 0.58
     },
     {
@@ -2648,7 +3071,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_endpoint_inventory_for",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::read",
-      "line": 546,
+      "line": 557,
       "confidence": 0.58
     },
     {
@@ -2684,16 +3107,7 @@
       "source_symbol": "simplicio_mapper/cli.py::main",
       "target_file": "bin/skillopt.js",
       "target_symbol": "bin/skillopt.js::main",
-      "line": 1045,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "simplicio_mapper/cli.py",
-      "source_symbol": "simplicio_mapper/cli.py::main",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::main",
-      "line": 1045,
+      "line": 1056,
       "confidence": 0.58
     },
     {
@@ -2736,7 +3150,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_balanced_span",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_balanced_span",
-      "line": 673,
+      "line": 684,
       "confidence": 0.58
     },
     {
@@ -2754,7 +3168,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_endpoint_files",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_endpoint_files",
-      "line": 412,
+      "line": 423,
       "confidence": 0.58
     },
     {
@@ -2763,7 +3177,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_endpoint_inventory_for",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_endpoint_inventory_for",
-      "line": 537,
+      "line": 548,
       "confidence": 0.58
     },
     {
@@ -2772,7 +3186,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_angular_screen_entries",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_extract_angular_screen_entries",
-      "line": 824,
+      "line": 835,
       "confidence": 0.58
     },
     {
@@ -2781,7 +3195,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_csharp_server_routes",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_extract_csharp_server_routes",
-      "line": 431,
+      "line": 442,
       "confidence": 0.58
     },
     {
@@ -2790,7 +3204,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_python_routes",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_extract_python_routes",
-      "line": 454,
+      "line": 465,
       "confidence": 0.58
     },
     {
@@ -2799,7 +3213,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_route_screens_from_array",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_extract_route_screens_from_array",
-      "line": 796,
+      "line": 807,
       "confidence": 0.58
     },
     {
@@ -2808,7 +3222,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_text_client_calls",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_extract_text_client_calls",
-      "line": 476,
+      "line": 487,
       "confidence": 0.58
     },
     {
@@ -2817,7 +3231,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_text_client_calls",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_extract_text_constants",
-      "line": 478,
+      "line": 489,
       "confidence": 0.58
     },
     {
@@ -2862,7 +3276,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_is_test_path",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_is_test_path",
-      "line": 489,
+      "line": 500,
       "confidence": 0.58
     },
     {
@@ -2871,7 +3285,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_join_screen_path",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_join_screen_path",
-      "line": 777,
+      "line": 788,
       "confidence": 0.58
     },
     {
@@ -2880,7 +3294,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_literal_value",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_literal_value",
-      "line": 770,
+      "line": 781,
       "confidence": 0.58
     },
     {
@@ -2898,7 +3312,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_normalize_endpoint_path",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_normalize_endpoint_path",
-      "line": 396,
+      "line": 402,
       "confidence": 0.58
     },
     {
@@ -2916,7 +3330,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_persona_for_path",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_persona_for_path",
-      "line": 789,
+      "line": 800,
       "confidence": 0.58
     },
     {
@@ -2952,7 +3366,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_text_client_calls",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_resolve_text_endpoint_expression",
-      "line": 482,
+      "line": 493,
       "confidence": 0.58
     },
     {
@@ -2961,7 +3375,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_text_constants",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_resolve_text_endpoint_template",
-      "line": 509,
+      "line": 520,
       "confidence": 0.58
     },
     {
@@ -2970,7 +3384,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_route_entry",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_route_entry",
-      "line": 422,
+      "line": 433,
       "confidence": 0.58
     },
     {
@@ -2979,7 +3393,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_background",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_run_background",
-      "line": 914,
+      "line": 925,
       "confidence": 0.58
     },
     {
@@ -2988,7 +3402,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_docs",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_run_docs",
-      "line": 886,
+      "line": 897,
       "confidence": 0.58
     },
     {
@@ -2997,7 +3411,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_endpoints",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_run_endpoints",
-      "line": 586,
+      "line": 597,
       "confidence": 0.58
     },
     {
@@ -3006,7 +3420,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_export_docs",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_run_export_docs",
-      "line": 900,
+      "line": 911,
       "confidence": 0.58
     },
     {
@@ -3015,7 +3429,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_index",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_run_index",
-      "line": 957,
+      "line": 968,
       "confidence": 0.58
     },
     {
@@ -3024,7 +3438,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_index",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_run_index_locked",
-      "line": 981,
+      "line": 992,
       "confidence": 0.58
     },
     {
@@ -3042,7 +3456,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_screens",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_run_screens",
-      "line": 867,
+      "line": 878,
       "confidence": 0.58
     },
     {
@@ -3051,7 +3465,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_scan_code",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_scan_code",
-      "line": 653,
+      "line": 664,
       "confidence": 0.58
     },
     {
@@ -3060,7 +3474,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_screen_files",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_screen_files",
-      "line": 632,
+      "line": 643,
       "confidence": 0.58
     },
     {
@@ -3069,7 +3483,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_screen_inventory_for",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_screen_inventory_for",
-      "line": 837,
+      "line": 848,
       "confidence": 0.58
     },
     {
@@ -3096,7 +3510,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_extract_text_constants",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_strip_ts_quote",
-      "line": 508,
+      "line": 519,
       "confidence": 0.58
     },
     {
@@ -3105,7 +3519,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_top_level_route_objects",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_top_level_route_objects",
-      "line": 699,
+      "line": 710,
       "confidence": 0.58
     },
     {
@@ -3114,7 +3528,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_top_level_value",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_top_level_value",
-      "line": 718,
+      "line": 729,
       "confidence": 0.58
     },
     {
@@ -3132,7 +3546,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_watch",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::_watch",
-      "line": 1027,
+      "line": 1038,
       "confidence": 0.58
     },
     {
@@ -3150,7 +3564,16 @@
       "source_symbol": "simplicio_mapper/cli.py::unique",
       "target_file": "simplicio_mapper/cli.py",
       "target_symbol": "simplicio_mapper/cli.py::unique",
-      "line": 561,
+      "line": 572,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/cli.py",
+      "source_symbol": "simplicio_mapper/cli.py::_git_signature",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 301,
       "confidence": 0.58
     },
     {
@@ -3159,7 +3582,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_export_docs",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::export_architecture_docs",
-      "line": 901,
+      "line": 912,
       "confidence": 0.58
     },
     {
@@ -3168,7 +3591,7 @@
       "source_symbol": "simplicio_mapper/cli.py::_run_docs",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::write_architecture_docs",
-      "line": 887,
+      "line": 898,
       "confidence": 0.58
     },
     {
@@ -3202,9 +3625,18 @@
       "type": "calls",
       "source_file": "simplicio_mapper/cli.py",
       "source_symbol": "simplicio_mapper/cli.py::_endpoint_inventory_for",
-      "target_file": "tests/unit/docs-site.test.js",
-      "target_symbol": "tests/unit/docs-site.test.js::read",
-      "line": 546,
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::read",
+      "line": 557,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/cli.py",
+      "source_symbol": "simplicio_mapper/cli.py::_acquire_index_lock",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::write",
+      "line": 229,
       "confidence": 0.58
     },
     {
@@ -3218,11 +3650,308 @@
     },
     {
       "type": "calls",
+      "source_file": "simplicio_mapper/context_cache.py",
+      "source_symbol": "simplicio_mapper/context_cache.py::__init__",
+      "target_file": "simplicio_mapper/cache.py",
+      "target_symbol": "simplicio_mapper/cache.py::__init__",
+      "line": 33,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_cache.py",
+      "source_symbol": "simplicio_mapper/context_cache.py::clear",
+      "target_file": "simplicio_mapper/cache.py",
+      "target_symbol": "simplicio_mapper/cache.py::clear",
+      "line": 57,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_cache.py",
+      "source_symbol": "simplicio_mapper/context_cache.py::__contains__",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::__contains__",
+      "line": 61,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_cache.py",
+      "source_symbol": "simplicio_mapper/context_cache.py::__init__",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::__init__",
+      "line": 33,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_cache.py",
+      "source_symbol": "simplicio_mapper/context_cache.py::__len__",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::__len__",
+      "line": 64,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_cache.py",
+      "source_symbol": "simplicio_mapper/context_cache.py::__init__",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::_load",
+      "line": 35,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_cache.py",
+      "source_symbol": "simplicio_mapper/context_cache.py::set",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::_persist",
+      "line": 55,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_cache.py",
+      "source_symbol": "simplicio_mapper/context_cache.py::clear",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::clear",
+      "line": 57,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_cache.py",
+      "source_symbol": "simplicio_mapper/context_cache.py::_load",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 45,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_cache.py",
+      "source_symbol": "simplicio_mapper/context_cache.py::__init__",
+      "target_file": "simplicio_mapper/models.py",
+      "target_symbol": "simplicio_mapper/models.py::__init__",
+      "line": 33,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_cache.py",
+      "source_symbol": "simplicio_mapper/context_cache.py::_load",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::get",
+      "line": 45,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_cache.py",
+      "source_symbol": "simplicio_mapper/context_cache.py::_load",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::load",
+      "line": 40,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_cache.py",
+      "source_symbol": "simplicio_mapper/context_cache.py::_persist",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::write",
+      "line": 77,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::build_context_pack",
+      "target_file": "bin/auto-map.js",
+      "target_symbol": "bin/auto-map.js::exists",
+      "line": 172,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::build_context_pack",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::exists",
+      "line": 172,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_read_safe",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::read",
+      "line": 61,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_sha256_text",
+      "target_file": "bin/mapper-artifacts.js",
+      "target_symbol": "bin/mapper-artifacts.js::sha256",
+      "line": 55,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_language_for",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 79,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_call_graph_edges",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::_call_graph_edges",
+      "line": 121,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_file_symbols",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::_file_symbols",
+      "line": 94,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_language_for",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::_language_for",
+      "line": 74,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_load_json",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::_load_json",
+      "line": 66,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_range_snippet",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::_range_snippet",
+      "line": 82,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_read_safe",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::_read_safe",
+      "line": 58,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_related_tests",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::_related_tests",
+      "line": 109,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_sha256_text",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::_sha256_text",
+      "line": 54,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::build_context_pack",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::build_context_pack",
+      "line": 131,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_language_for",
+      "target_file": "simplicio_mapper/mapper.py",
+      "target_symbol": "simplicio_mapper/mapper.py::_language_for",
+      "line": 74,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_read_safe",
+      "target_file": "simplicio_mapper/mapper.py",
+      "target_symbol": "simplicio_mapper/mapper.py::_read_safe",
+      "line": 58,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_sha256_text",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::_sha256_text",
+      "line": 54,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_language_for",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::get",
+      "line": 79,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_load_json",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::load",
+      "line": 69,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/context_pack.py",
+      "source_symbol": "simplicio_mapper/context_pack.py::_read_safe",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::read",
+      "line": 61,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
       "source_file": "simplicio_mapper/mapper.py",
       "source_symbol": "simplicio_mapper/mapper.py::build_artifacts",
       "target_file": "bin/auto-map.js",
       "target_symbol": "bin/auto-map.js::exists",
-      "line": 897,
+      "line": 898,
       "confidence": 0.58
     },
     {
@@ -3231,7 +3960,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::export_architecture_docs",
       "target_file": "bin/auto-map.js",
       "target_symbol": "bin/auto-map.js::walk",
-      "line": 1222,
+      "line": 1223,
       "confidence": 0.58
     },
     {
@@ -3240,7 +3969,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::build_artifacts",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::exists",
-      "line": 897,
+      "line": 898,
       "confidence": 0.58
     },
     {
@@ -3249,7 +3978,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::write_mapping_artifacts",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::log",
-      "line": 1006,
+      "line": 1007,
       "confidence": 0.58
     },
     {
@@ -3258,7 +3987,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_read_safe",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::read",
-      "line": 100,
+      "line": 101,
       "confidence": 0.58
     },
     {
@@ -3267,7 +3996,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::export_architecture_docs",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::walk",
-      "line": 1222,
+      "line": 1223,
       "confidence": 0.58
     },
     {
@@ -3276,7 +4005,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_sha256",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::sha256",
-      "line": 108,
+      "line": 109,
       "confidence": 0.58
     },
     {
@@ -3285,7 +4014,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::export_architecture_docs",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::walk",
-      "line": 1222,
+      "line": 1223,
       "confidence": 0.58
     },
     {
@@ -3294,7 +4023,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::write_mapping_artifacts",
       "target_file": "scripts/lint.js",
       "target_symbol": "scripts/lint.js::log",
-      "line": 1006,
+      "line": 1007,
       "confidence": 0.58
     },
     {
@@ -3310,7 +4039,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::build_artifacts",
       "target_file": "simplicio_mapper/cache.py",
       "target_symbol": "simplicio_mapper/cache.py::FileProcessingCache",
-      "line": 887,
+      "line": 888,
       "confidence": 0.58
     },
     {
@@ -3319,7 +4048,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_cached_parse_file",
       "target_file": "simplicio_mapper/cache.py",
       "target_symbol": "simplicio_mapper/cache.py::get_processed_file",
-      "line": 396,
+      "line": 397,
       "confidence": 0.58
     },
     {
@@ -3328,7 +4057,34 @@
       "source_symbol": "simplicio_mapper/mapper.py::_cached_parse_file",
       "target_file": "simplicio_mapper/cache.py",
       "target_symbol": "simplicio_mapper/cache.py::set_processed_file",
-      "line": 410,
+      "line": 411,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mapper.py",
+      "source_symbol": "simplicio_mapper/mapper.py::_roles_for",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 266,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mapper.py",
+      "source_symbol": "simplicio_mapper/mapper.py::_language_for",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::_language_for",
+      "line": 150,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mapper.py",
+      "source_symbol": "simplicio_mapper/mapper.py::_read_safe",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::_read_safe",
+      "line": 98,
       "confidence": 0.58
     },
     {
@@ -3337,7 +4093,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_build_architecture_inventory",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_build_architecture_inventory",
-      "line": 772,
+      "line": 773,
       "confidence": 0.58
     },
     {
@@ -3346,7 +4102,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_build_call_graph",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_build_call_graph",
-      "line": 700,
+      "line": 701,
       "confidence": 0.58
     },
     {
@@ -3355,7 +4111,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_build_file_inventory",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_build_file_inventory",
-      "line": 414,
+      "line": 415,
       "confidence": 0.58
     },
     {
@@ -3364,7 +4120,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_build_precedent_items",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_build_precedent_items",
-      "line": 464,
+      "line": 465,
       "confidence": 0.58
     },
     {
@@ -3373,7 +4129,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_build_symbol_index",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_build_symbol_index",
-      "line": 617,
+      "line": 618,
       "confidence": 0.58
     },
     {
@@ -3382,7 +4138,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_cached_parse_file",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_cached_parse_file",
-      "line": 395,
+      "line": 396,
       "confidence": 0.58
     },
     {
@@ -3391,7 +4147,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_call_expressions",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_call_expressions",
-      "line": 683,
+      "line": 684,
       "confidence": 0.58
     },
     {
@@ -3400,7 +4156,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_candidate_import_targets",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_candidate_import_targets",
-      "line": 640,
+      "line": 641,
       "confidence": 0.58
     },
     {
@@ -3409,7 +4165,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_collect_architecture_signals",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_collect_architecture_signals",
-      "line": 351,
+      "line": 352,
       "confidence": 0.58
     },
     {
@@ -3418,7 +4174,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_collect_entities",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_collect_entities",
-      "line": 317,
+      "line": 318,
       "confidence": 0.58
     },
     {
@@ -3427,7 +4183,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_collect_text_files",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_collect_text_files",
-      "line": 183,
+      "line": 184,
       "confidence": 0.58
     },
     {
@@ -3436,7 +4192,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_detect_changed_files",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_detect_changed_files",
-      "line": 374,
+      "line": 375,
       "confidence": 0.58
     },
     {
@@ -3445,7 +4201,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_extract_snippet",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_extract_snippet",
-      "line": 458,
+      "line": 459,
       "confidence": 0.58
     },
     {
@@ -3454,7 +4210,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_file_ref",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_file_ref",
-      "line": 1045,
+      "line": 1046,
       "confidence": 0.58
     },
     {
@@ -3463,7 +4219,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_git_status_map",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_git_status_map",
-      "line": 159,
+      "line": 160,
       "confidence": 0.58
     },
     {
@@ -3472,7 +4228,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_group_modules",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_group_modules",
-      "line": 356,
+      "line": 357,
       "confidence": 0.58
     },
     {
@@ -3481,7 +4237,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_importance_for",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_importance_for",
-      "line": 284,
+      "line": 285,
       "confidence": 0.58
     },
     {
@@ -3490,7 +4246,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_iso",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_iso",
-      "line": 85,
+      "line": 86,
       "confidence": 0.58
     },
     {
@@ -3499,7 +4255,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_json_text",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_json_text",
-      "line": 111,
+      "line": 112,
       "confidence": 0.58
     },
     {
@@ -3508,7 +4264,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_language_for",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_language_for",
-      "line": 149,
+      "line": 150,
       "confidence": 0.58
     },
     {
@@ -3517,7 +4273,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_layers_for_file",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_layers_for_file",
-      "line": 566,
+      "line": 567,
       "confidence": 0.58
     },
     {
@@ -3526,7 +4282,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_line_number",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_line_number",
-      "line": 501,
+      "line": 502,
       "confidence": 0.58
     },
     {
@@ -3535,7 +4291,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_load_previous_map",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_load_previous_map",
-      "line": 386,
+      "line": 387,
       "confidence": 0.58
     },
     {
@@ -3544,7 +4300,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_module_name_for_path",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_module_name_for_path",
-      "line": 611,
+      "line": 612,
       "confidence": 0.58
     },
     {
@@ -3553,7 +4309,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_nearest_symbol",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_nearest_symbol",
-      "line": 693,
+      "line": 694,
       "confidence": 0.58
     },
     {
@@ -3562,7 +4318,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_normalize_rel",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_normalize_rel",
-      "line": 93,
+      "line": 94,
       "confidence": 0.58
     },
     {
@@ -3571,7 +4327,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_now_iso",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_now_iso",
-      "line": 89,
+      "line": 90,
       "confidence": 0.58
     },
     {
@@ -3580,7 +4336,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_parse_imports",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_parse_imports",
-      "line": 198,
+      "line": 199,
       "confidence": 0.58
     },
     {
@@ -3589,7 +4345,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_parse_json_safe",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_parse_json_safe",
-      "line": 115,
+      "line": 116,
       "confidence": 0.58
     },
     {
@@ -3598,7 +4354,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_parse_symbols",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_parse_symbols",
-      "line": 230,
+      "line": 231,
       "confidence": 0.58
     },
     {
@@ -3607,7 +4363,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_read_safe",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_read_safe",
-      "line": 97,
+      "line": 98,
       "confidence": 0.58
     },
     {
@@ -3616,7 +4372,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_render_architecture_overview",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_render_architecture_overview",
-      "line": 1050,
+      "line": 1051,
       "confidence": 0.58
     },
     {
@@ -3625,7 +4381,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_render_call_graph_doc",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_render_call_graph_doc",
-      "line": 1119,
+      "line": 1120,
       "confidence": 0.58
     },
     {
@@ -3634,7 +4390,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_render_layers_doc",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_render_layers_doc",
-      "line": 1103,
+      "line": 1104,
       "confidence": 0.58
     },
     {
@@ -3643,7 +4399,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_render_module_doc",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_render_module_doc",
-      "line": 1144,
+      "line": 1145,
       "confidence": 0.58
     },
     {
@@ -3652,7 +4408,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_responsibility_for_file",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_responsibility_for_file",
-      "line": 589,
+      "line": 590,
       "confidence": 0.58
     },
     {
@@ -3661,7 +4417,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_roles_for",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_roles_for",
-      "line": 257,
+      "line": 258,
       "confidence": 0.58
     },
     {
@@ -3670,7 +4426,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_sha256",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_sha256",
-      "line": 105,
+      "line": 106,
       "confidence": 0.58
     },
     {
@@ -3679,7 +4435,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_walk",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_should_skip_dir",
-      "line": 129,
+      "line": 130,
       "confidence": 0.58
     },
     {
@@ -3688,7 +4444,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_slugify",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_slugify",
-      "line": 1030,
+      "line": 1031,
       "confidence": 0.58
     },
     {
@@ -3697,7 +4453,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_strip_known_ext",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_strip_known_ext",
-      "line": 635,
+      "line": 636,
       "confidence": 0.58
     },
     {
@@ -3706,7 +4462,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_symbol_definitions_for_file",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_symbol_definitions_for_file",
-      "line": 505,
+      "line": 506,
       "confidence": 0.58
     },
     {
@@ -3715,7 +4471,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_token_words",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_token_words",
-      "line": 307,
+      "line": 308,
       "confidence": 0.58
     },
     {
@@ -3724,7 +4480,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_walk",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_walk",
-      "line": 123,
+      "line": 124,
       "confidence": 0.58
     },
     {
@@ -3733,7 +4489,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_write_json_stable",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_write_json_stable",
-      "line": 974,
+      "line": 975,
       "confidence": 0.58
     },
     {
@@ -3742,7 +4498,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_write_text_stable",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::_write_text_stable",
-      "line": 1037,
+      "line": 1038,
       "confidence": 0.58
     },
     {
@@ -3751,7 +4507,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::add_edge",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::add_edge",
-      "line": 710,
+      "line": 711,
       "confidence": 0.58
     },
     {
@@ -3760,7 +4516,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::build_artifacts",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::build_artifacts",
-      "line": 878,
+      "line": 879,
       "confidence": 0.58
     },
     {
@@ -3769,7 +4525,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::export_architecture_docs",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::export_architecture_docs",
-      "line": 1214,
+      "line": 1215,
       "confidence": 0.58
     },
     {
@@ -3778,7 +4534,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::write_architecture_docs",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::write_architecture_docs",
-      "line": 1173,
+      "line": 1174,
       "confidence": 0.58
     },
     {
@@ -3787,7 +4543,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::write_mapping_artifacts",
       "target_file": "simplicio_mapper/mapper.py",
       "target_symbol": "simplicio_mapper/mapper.py::write_mapping_artifacts",
-      "line": 984,
+      "line": 985,
       "confidence": 0.58
     },
     {
@@ -3796,7 +4552,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_collect_entities",
       "target_file": "simplicio_mapper/models.py",
       "target_symbol": "simplicio_mapper/models.py::CodeEntity",
-      "line": 330,
+      "line": 331,
       "confidence": 0.58
     },
     {
@@ -3805,7 +4561,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_build_precedent_items",
       "target_file": "simplicio_mapper/models.py",
       "target_symbol": "simplicio_mapper/models.py::PrecedentItem",
-      "line": 486,
+      "line": 487,
       "confidence": 0.58
     },
     {
@@ -3814,7 +4570,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_build_file_inventory",
       "target_file": "simplicio_mapper/models.py",
       "target_symbol": "simplicio_mapper/models.py::ProjectFile",
-      "line": 432,
+      "line": 433,
       "confidence": 0.58
     },
     {
@@ -3823,7 +4579,7 @@
       "source_symbol": "simplicio_mapper/mapper.py::_collect_entities",
       "target_file": "simplicio_mapper/models.py",
       "target_symbol": "simplicio_mapper/models.py::to_dict",
-      "line": 330,
+      "line": 331,
       "confidence": 0.58
     },
     {
@@ -3832,16 +4588,25 @@
       "source_symbol": "simplicio_mapper/mapper.py::_roles_for",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
-      "line": 265,
+      "line": 266,
       "confidence": 0.58
     },
     {
       "type": "calls",
       "source_file": "simplicio_mapper/mapper.py",
       "source_symbol": "simplicio_mapper/mapper.py::_read_safe",
-      "target_file": "tests/unit/docs-site.test.js",
-      "target_symbol": "tests/unit/docs-site.test.js::read",
-      "line": 100,
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::read",
+      "line": 101,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mapper.py",
+      "source_symbol": "simplicio_mapper/mapper.py::_write_json_stable",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::write",
+      "line": 981,
       "confidence": 0.58
     },
     {
@@ -3850,7 +4615,178 @@
       "source_symbol": "simplicio_mapper/mapper.py::_git_status_map",
       "target_file": "video/scripts/generate-why-voiceover.mjs",
       "target_symbol": "video/scripts/generate-why-voiceover.mjs::run",
-      "line": 162,
+      "line": 163,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::extract_file_entry",
+      "target_file": "bin/auto-map.js",
+      "target_symbol": "bin/auto-map.js::exists",
+      "line": 106,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::extract_file_entry",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::exists",
+      "line": 106,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::_read_bytes_sample",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::read",
+      "line": 45,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::_sha256_text",
+      "target_file": "bin/mapper-artifacts.js",
+      "target_symbol": "bin/mapper-artifacts.js::sha256",
+      "line": 39,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::extract_file_entry",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::_language_for",
+      "line": 122,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::extract_file_entry",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::_read_safe",
+      "line": 110,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::_sha256_text",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::_sha256_text",
+      "line": 38,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::extract_file_entry",
+      "target_file": "simplicio_mapper/mapper.py",
+      "target_symbol": "simplicio_mapper/mapper.py::_language_for",
+      "line": 122,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::extract_file_entry",
+      "target_file": "simplicio_mapper/mapper.py",
+      "target_symbol": "simplicio_mapper/mapper.py::_read_safe",
+      "line": 110,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::_absolute",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::_absolute",
+      "line": 99,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::_must_contain",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::_must_contain",
+      "line": 87,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::_read_bytes_sample",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::_read_bytes_sample",
+      "line": 42,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::_sha256_text",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::_sha256_text",
+      "line": 38,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::build_context",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::build_context",
+      "line": 128,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::extract_file_entry",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::extract_file_entry",
+      "line": 103,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::is_binary",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::is_binary",
+      "line": 50,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::range_hash",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::range_hash",
+      "line": 74,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::snapshot_hash",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::snapshot_hash",
+      "line": 69,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/mechanical_edit.py",
+      "source_symbol": "simplicio_mapper/mechanical_edit.py::_read_bytes_sample",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::read",
+      "line": 45,
       "confidence": 0.58
     },
     {
@@ -3859,6 +4795,15 @@
       "source_symbol": "simplicio_mapper/models.py::__init__",
       "target_file": "simplicio_mapper/cache.py",
       "target_symbol": "simplicio_mapper/cache.py::__init__",
+      "line": 27,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "simplicio_mapper/models.py",
+      "source_symbol": "simplicio_mapper/models.py::__init__",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::__init__",
       "line": 27,
       "confidence": 0.58
     },
@@ -4332,6 +5277,218 @@
     },
     {
       "type": "calls",
+      "source_file": "tests/fixtures/ctx-pack-host/sample.py",
+      "source_symbol": "tests/fixtures/ctx-pack-host/sample.py::load_user",
+      "target_file": "tests/fixtures/ctx-pack-host/sample.py",
+      "target_symbol": "tests/fixtures/ctx-pack-host/sample.py::load_user",
+      "line": 4,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/ctx-pack-host/sample.ts",
+      "source_symbol": "tests/fixtures/ctx-pack-host/sample.ts::loadUser",
+      "target_file": "tests/fixtures/ctx-pack-host/sample.ts",
+      "target_symbol": "tests/fixtures/ctx-pack-host/sample.ts::loadUser",
+      "line": 6,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/mech-edit-host/sample.py",
+      "source_symbol": "tests/fixtures/mech-edit-host/sample.py::farewell",
+      "target_file": "tests/fixtures/mech-edit-host/sample.py",
+      "target_symbol": "tests/fixtures/mech-edit-host/sample.py::farewell",
+      "line": 8,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/mech-edit-host/sample.py",
+      "source_symbol": "tests/fixtures/mech-edit-host/sample.py::greet",
+      "target_file": "tests/fixtures/mech-edit-host/sample.py",
+      "target_symbol": "tests/fixtures/mech-edit-host/sample.py::greet",
+      "line": 4,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/mech-edit-host/sample.py",
+      "source_symbol": "tests/fixtures/mech-edit-host/sample.py::farewell",
+      "target_file": "tests/fixtures/mech-edit-host/sample.ts",
+      "target_symbol": "tests/fixtures/mech-edit-host/sample.ts::farewell",
+      "line": 8,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/mech-edit-host/sample.py",
+      "source_symbol": "tests/fixtures/mech-edit-host/sample.py::greet",
+      "target_file": "tests/fixtures/mech-edit-host/sample.ts",
+      "target_symbol": "tests/fixtures/mech-edit-host/sample.ts::greet",
+      "line": 4,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/mech-edit-host/sample.py",
+      "source_symbol": "tests/fixtures/mech-edit-host/sample.py::greet",
+      "target_file": "tests/fixtures/parity-host/src/greet.js",
+      "target_symbol": "tests/fixtures/parity-host/src/greet.js::greet",
+      "line": 4,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/mech-edit-host/sample.ts",
+      "source_symbol": "tests/fixtures/mech-edit-host/sample.ts::farewell",
+      "target_file": "tests/fixtures/mech-edit-host/sample.py",
+      "target_symbol": "tests/fixtures/mech-edit-host/sample.py::farewell",
+      "line": 10,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/mech-edit-host/sample.ts",
+      "source_symbol": "tests/fixtures/mech-edit-host/sample.ts::greet",
+      "target_file": "tests/fixtures/mech-edit-host/sample.py",
+      "target_symbol": "tests/fixtures/mech-edit-host/sample.py::greet",
+      "line": 6,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/mech-edit-host/sample.ts",
+      "source_symbol": "tests/fixtures/mech-edit-host/sample.ts::farewell",
+      "target_file": "tests/fixtures/mech-edit-host/sample.ts",
+      "target_symbol": "tests/fixtures/mech-edit-host/sample.ts::farewell",
+      "line": 10,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/mech-edit-host/sample.ts",
+      "source_symbol": "tests/fixtures/mech-edit-host/sample.ts::greet",
+      "target_file": "tests/fixtures/mech-edit-host/sample.ts",
+      "target_symbol": "tests/fixtures/mech-edit-host/sample.ts::greet",
+      "line": 6,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/mech-edit-host/sample.ts",
+      "source_symbol": "tests/fixtures/mech-edit-host/sample.ts::greet",
+      "target_file": "tests/fixtures/parity-host/src/greet.js",
+      "target_symbol": "tests/fixtures/parity-host/src/greet.js::greet",
+      "line": 6,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/parity-host/src/greet.js",
+      "source_symbol": "tests/fixtures/parity-host/src/greet.js::greet",
+      "target_file": "tests/fixtures/mech-edit-host/sample.py",
+      "target_symbol": "tests/fixtures/mech-edit-host/sample.py::greet",
+      "line": 1,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/parity-host/src/greet.js",
+      "source_symbol": "tests/fixtures/parity-host/src/greet.js::greet",
+      "target_file": "tests/fixtures/mech-edit-host/sample.ts",
+      "target_symbol": "tests/fixtures/mech-edit-host/sample.ts::greet",
+      "line": 1,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/parity-host/src/index.js",
+      "source_symbol": "tests/fixtures/parity-host/src/index.js::startServer",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 6,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/parity-host/src/index.js",
+      "source_symbol": "tests/fixtures/parity-host/src/index.js::startServer",
+      "target_file": "tests/fixtures/mech-edit-host/sample.py",
+      "target_symbol": "tests/fixtures/mech-edit-host/sample.py::greet",
+      "line": 6,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/parity-host/src/index.js",
+      "source_symbol": "tests/fixtures/parity-host/src/index.js::startServer",
+      "target_file": "tests/fixtures/mech-edit-host/sample.ts",
+      "target_symbol": "tests/fixtures/mech-edit-host/sample.ts::greet",
+      "line": 6,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/parity-host/src/index.js",
+      "source_symbol": "tests/fixtures/parity-host/src/index.js::startServer",
+      "target_file": "tests/fixtures/parity-host/src/greet.js",
+      "target_symbol": "tests/fixtures/parity-host/src/greet.js::greet",
+      "line": 6,
+      "confidence": 0.58
+    },
+    {
+      "type": "imports",
+      "source_file": "tests/fixtures/parity-host/src/index.js",
+      "target_file": "tests/fixtures/parity-host/src/greet.js",
+      "import": "./greet",
+      "confidence": 0.82
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/parity-host/src/index.js",
+      "source_symbol": "tests/fixtures/parity-host/src/index.js::startServer",
+      "target_file": "tests/fixtures/parity-host/src/index.js",
+      "target_symbol": "tests/fixtures/parity-host/src/index.js::startServer",
+      "line": 4,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/parity-host/src/index.js",
+      "source_symbol": "tests/fixtures/parity-host/src/index.js::startServer",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::get",
+      "line": 6,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/fixtures/parity-host/tests/server-fixture.js",
+      "source_symbol": null,
+      "target_file": "tests/fixtures/parity-host/src/index.js",
+      "target_symbol": "tests/fixtures/parity-host/src/index.js::startServer",
+      "line": 6,
+      "confidence": 0.48
+    },
+    {
+      "type": "imports",
+      "source_file": "tests/fixtures/parity-host/tests/server-fixture.js",
+      "target_file": "tests/fixtures/parity-host/src/index.js",
+      "import": "../src/index",
+      "confidence": 0.82
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::test_main_map_writes_artifacts",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 312,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
       "source_file": "tests/python/test_cli.py",
       "source_symbol": "tests/python/test_cli.py::test_write_mapping_artifacts_persists_files",
       "target_file": "bin/auto-map.js",
@@ -4354,7 +5511,7 @@
       "source_symbol": "tests/python/test_cli.py::test_main_map_writes_artifacts",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::main",
-      "line": 260,
+      "line": 312,
       "confidence": 0.58
     },
     {
@@ -4363,16 +5520,7 @@
       "source_symbol": "tests/python/test_cli.py::test_main_map_writes_artifacts",
       "target_file": "bin/skillopt.js",
       "target_symbol": "bin/skillopt.js::main",
-      "line": 260,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "tests/python/test_cli.py",
-      "source_symbol": "tests/python/test_cli.py::test_main_map_writes_artifacts",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::main",
-      "line": 260,
+      "line": 312,
       "confidence": 0.58
     },
     {
@@ -4426,11 +5574,29 @@
       "confidence": 0.65
     },
     {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::test_placeholders_collapse_to_id",
+      "target_file": "simplicio_mapper/cli.py",
+      "target_symbol": "simplicio_mapper/cli.py::_normalize_endpoint_path",
+      "line": 253,
+      "confidence": 0.58
+    },
+    {
       "type": "imports",
       "source_file": "tests/python/test_cli.py",
       "target_file": "simplicio_mapper/cli.py",
       "import": "simplicio_mapper.cli",
       "confidence": 0.65
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::get",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 393,
+      "confidence": 0.58
     },
     {
       "type": "calls",
@@ -4503,9 +5669,27 @@
     {
       "type": "calls",
       "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::test_build_artifacts_emits_rich_project_map",
+      "target_file": "tests/fixtures/parity-host/src/index.js",
+      "target_symbol": "tests/fixtures/parity-host/src/index.js::startServer",
+      "line": 93,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
       "source_symbol": "tests/python/test_cli.py::CliTest",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::CliTest",
+      "line": 300,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::EndpointNormalizationTest",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::EndpointNormalizationTest",
       "line": 248,
       "confidence": 0.58
     },
@@ -4542,7 +5726,7 @@
       "source_symbol": "tests/python/test_cli.py::list_skills",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
-      "line": 344,
+      "line": 396,
       "confidence": 0.58
     },
     {
@@ -4551,7 +5735,7 @@
       "source_symbol": "tests/python/test_cli.py::create_snapshot",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::post",
-      "line": 346,
+      "line": 398,
       "confidence": 0.58
     },
     {
@@ -4560,7 +5744,7 @@
       "source_symbol": "tests/python/test_cli.py::save",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::save",
-      "line": 538,
+      "line": 590,
       "confidence": 0.58
     },
     {
@@ -4605,7 +5789,7 @@
       "source_symbol": "tests/python/test_cli.py::test_background_index_reports_pid_and_log",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_background_index_reports_pid_and_log",
-      "line": 646,
+      "line": 698,
       "confidence": 0.58
     },
     {
@@ -4632,7 +5816,7 @@
       "source_symbol": "tests/python/test_cli.py::test_docs_command_writes_markdown_json_contract",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_docs_command_writes_markdown_json_contract",
-      "line": 497,
+      "line": 549,
       "confidence": 0.58
     },
     {
@@ -4641,7 +5825,7 @@
       "source_symbol": "tests/python/test_cli.py::test_docs_only_renders_without_index_payload",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_docs_only_renders_without_index_payload",
-      "line": 679,
+      "line": 731,
       "confidence": 0.58
     },
     {
@@ -4650,7 +5834,7 @@
       "source_symbol": "tests/python/test_cli.py::test_endpoints_captures_python_page_api_calls",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_endpoints_captures_python_page_api_calls",
-      "line": 526,
+      "line": 578,
       "confidence": 0.58
     },
     {
@@ -4659,7 +5843,7 @@
       "source_symbol": "tests/python/test_cli.py::test_endpoints_compares_client_calls_against_server_routes",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_endpoints_compares_client_calls_against_server_routes",
-      "line": 336,
+      "line": 388,
       "confidence": 0.58
     },
     {
@@ -4668,7 +5852,7 @@
       "source_symbol": "tests/python/test_cli.py::test_endpoints_json_includes_sources_for_missing_routes",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_endpoints_json_includes_sources_for_missing_routes",
-      "line": 571,
+      "line": 623,
       "confidence": 0.58
     },
     {
@@ -4677,7 +5861,7 @@
       "source_symbol": "tests/python/test_cli.py::test_endpoints_resolves_angular_service_base_urls",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_endpoints_resolves_angular_service_base_urls",
-      "line": 375,
+      "line": 427,
       "confidence": 0.58
     },
     {
@@ -4686,7 +5870,7 @@
       "source_symbol": "tests/python/test_cli.py::test_export_docs_command_copies_markdown",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_export_docs_command_copies_markdown",
-      "line": 511,
+      "line": 563,
       "confidence": 0.58
     },
     {
@@ -4704,7 +5888,7 @@
       "source_symbol": "tests/python/test_cli.py::test_help_exits_zero",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_help_exits_zero",
-      "line": 273,
+      "line": 325,
       "confidence": 0.58
     },
     {
@@ -4722,7 +5906,7 @@
       "source_symbol": "tests/python/test_cli.py::test_index_accepts_update_compatibility_flag",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_index_accepts_update_compatibility_flag",
-      "line": 302,
+      "line": 354,
       "confidence": 0.58
     },
     {
@@ -4731,7 +5915,7 @@
       "source_symbol": "tests/python/test_cli.py::test_index_refreshes_after_file_change",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_index_refreshes_after_file_change",
-      "line": 590,
+      "line": 642,
       "confidence": 0.58
     },
     {
@@ -4740,7 +5924,7 @@
       "source_symbol": "tests/python/test_cli.py::test_index_refreshes_when_dirty_file_changes_again",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_index_refreshes_when_dirty_file_changes_again",
-      "line": 607,
+      "line": 659,
       "confidence": 0.58
     },
     {
@@ -4749,7 +5933,7 @@
       "source_symbol": "tests/python/test_cli.py::test_index_skips_fresh_artifacts_quietly",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_index_skips_fresh_artifacts_quietly",
-      "line": 315,
+      "line": 367,
       "confidence": 0.58
     },
     {
@@ -4758,7 +5942,7 @@
       "source_symbol": "tests/python/test_cli.py::test_index_skips_with_explicit_lock",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_index_skips_with_explicit_lock",
-      "line": 631,
+      "line": 683,
       "confidence": 0.58
     },
     {
@@ -4767,7 +5951,7 @@
       "source_symbol": "tests/python/test_cli.py::test_index_writes_json_contract",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_index_writes_json_contract",
-      "line": 284,
+      "line": 336,
       "confidence": 0.58
     },
     {
@@ -4776,7 +5960,25 @@
       "source_symbol": "tests/python/test_cli.py::test_main_map_writes_artifacts",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_main_map_writes_artifacts",
-      "line": 256,
+      "line": 308,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::test_numeric_segments_collapse_to_id",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::test_numeric_segments_collapse_to_id",
+      "line": 269,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::test_placeholders_collapse_to_id",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::test_placeholders_collapse_to_id",
+      "line": 251,
       "confidence": 0.58
     },
     {
@@ -4791,10 +5993,19 @@
     {
       "type": "calls",
       "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::test_query_string_and_leading_slash_normalization",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::test_query_string_and_leading_slash_normalization",
+      "line": 293,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
       "source_symbol": "tests/python/test_cli.py::test_screens_extracts_angular_routes",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_screens_extracts_angular_routes",
-      "line": 431,
+      "line": 483,
       "confidence": 0.58
     },
     {
@@ -4803,7 +6014,25 @@
       "source_symbol": "tests/python/test_cli.py::test_unknown_option_exits_with_code_2",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_unknown_option_exits_with_code_2",
-      "line": 268,
+      "line": 320,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::test_unknown_slug_segments_stay_literal",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::test_unknown_slug_segments_stay_literal",
+      "line": 279,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::test_uuid_segments_collapse_to_id",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::test_uuid_segments_collapse_to_id",
+      "line": 261,
       "confidence": 0.58
     },
     {
@@ -4812,7 +6041,7 @@
       "source_symbol": "tests/python/test_cli.py::test_version_matches_package",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::test_version_matches_package",
-      "line": 278,
+      "line": 330,
       "confidence": 0.58
     },
     {
@@ -4827,10 +6056,28 @@
     {
       "type": "calls",
       "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::_write",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::_write",
+      "line": 39,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
       "source_symbol": "tests/python/test_cli.py::setUp",
-      "target_file": "tests/python/test_native.py",
-      "target_symbol": "tests/python/test_native.py::setUp",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::setUp",
       "line": 79,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli.py",
+      "source_symbol": "tests/python/test_cli.py::tearDown",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::tearDown",
+      "line": 83,
       "confidence": 0.58
     },
     {
@@ -4840,6 +6087,752 @@
       "target_file": "video/scripts/generate-why-voiceover.mjs",
       "target_symbol": "video/scripts/generate-why-voiceover.mjs::run",
       "line": 154,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::_run",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 43,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::test_json_only_keeps_docs_disabled",
+      "target_file": "bin/auto-map.js",
+      "target_symbol": "bin/auto-map.js::exists",
+      "line": 89,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::test_json_only_keeps_docs_disabled",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::exists",
+      "line": 89,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::_run",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::main",
+      "line": 43,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::_run",
+      "target_file": "bin/skillopt.js",
+      "target_symbol": "bin/skillopt.js::main",
+      "line": 43,
+      "confidence": 0.58
+    },
+    {
+      "type": "imports",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "target_file": "simplicio_mapper/__init__.py",
+      "import": "simplicio_mapper",
+      "confidence": 0.65
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::test_watch_loop_handles_keyboard_interrupt_cleanly",
+      "target_file": "simplicio_mapper/cli.py",
+      "target_symbol": "simplicio_mapper/cli.py::_watch",
+      "line": 182,
+      "confidence": 0.58
+    },
+    {
+      "type": "imports",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "target_file": "simplicio_mapper/cli.py",
+      "import": "simplicio_mapper.cli",
+      "confidence": 0.65
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::test_index_failure_returns_exit_1_with_failed_status_json",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 148,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::_write",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::_write",
+      "line": 33,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::test_index_failure_returns_exit_1_with_failed_status_json",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::get",
+      "line": 148,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::setUp",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::setUp",
+      "line": 48,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::tearDown",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::tearDown",
+      "line": 54,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::DocsOnlyShortCircuitTest",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::DocsOnlyShortCircuitTest",
+      "line": 105,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::IndexFailureBoundaryTest",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::IndexFailureBoundaryTest",
+      "line": 133,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::JsonOnlyAndChangedOnlyAliasesTest",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::JsonOnlyAndChangedOnlyAliasesTest",
+      "line": 73,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::StackAndProductHintInjectionTest",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::StackAndProductHintInjectionTest",
+      "line": 47,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::WatchLoopExitsOnInterruptTest",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::WatchLoopExitsOnInterruptTest",
+      "line": 151,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::_run",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::_run",
+      "line": 39,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::_write",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::_write",
+      "line": 33,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::setUp",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::setUp",
+      "line": 74,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::tearDown",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::tearDown",
+      "line": 54,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::test_changed_only_triggers_incremental_refresh",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::test_changed_only_triggers_incremental_refresh",
+      "line": 91,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::test_docs_only_on_index_renders_docs_without_rewriting_json",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::test_docs_only_on_index_renders_docs_without_rewriting_json",
+      "line": 117,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::test_json_only_keeps_docs_disabled",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::test_json_only_keeps_docs_disabled",
+      "line": 83,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::test_stack_and_product_name_flow_into_project_map",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::test_stack_and_product_name_flow_into_project_map",
+      "line": 57,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_cli_coverage.py",
+      "source_symbol": "tests/python/test_cli_coverage.py::setUp",
+      "target_file": "video/scripts/generate-why-voiceover.mjs",
+      "target_symbol": "video/scripts/generate-why-voiceover.mjs::run",
+      "line": 52,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_persisted_payload_uses_schema",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 196,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_persisted_payload_uses_schema",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::main",
+      "line": 196,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_persisted_payload_uses_schema",
+      "target_file": "bin/skillopt.js",
+      "target_symbol": "bin/skillopt.js::main",
+      "line": 196,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_clear_empties_cache",
+      "target_file": "simplicio_mapper/cache.py",
+      "target_symbol": "simplicio_mapper/cache.py::clear",
+      "line": 181,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_hit_returns_stored_summary",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::ContextCache",
+      "line": 157,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_clear_empties_cache",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::clear",
+      "line": 181,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_hit_returns_stored_summary",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 159,
+      "confidence": 0.58
+    },
+    {
+      "type": "imports",
+      "source_file": "tests/python/test_context_pack.py",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "import": "simplicio_mapper.context_cache",
+      "confidence": 0.65
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::_pack",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "target_symbol": "simplicio_mapper/context_pack.py::build_context_pack",
+      "line": 41,
+      "confidence": 0.58
+    },
+    {
+      "type": "imports",
+      "source_file": "tests/python/test_context_pack.py",
+      "target_file": "simplicio_mapper/context_pack.py",
+      "import": "simplicio_mapper.context_pack",
+      "confidence": 0.65
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_hit_returns_stored_summary",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::get",
+      "line": 159,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::setUp",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::setUp",
+      "line": 149,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::tearDown",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::tearDown",
+      "line": 153,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::setUp",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::setUp",
+      "line": 149,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::tearDown",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::tearDown",
+      "line": 153,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::CallGraphAndDependencyTest",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::CallGraphAndDependencyTest",
+      "line": 83,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::ContextCacheTest",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::ContextCacheTest",
+      "line": 148,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::ContextPackBasicTest",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::ContextPackBasicTest",
+      "line": 44,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::DeterminismTest",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::DeterminismTest",
+      "line": 125,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::LargeFileCompactModeTest",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::LargeFileCompactModeTest",
+      "line": 137,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::NeedsBroaderContextTest",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::NeedsBroaderContextTest",
+      "line": 111,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::RangeExtractionTest",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::RangeExtractionTest",
+      "line": 69,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::_pack",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::_pack",
+      "line": 38,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_clear_empties_cache",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::test_clear_empties_cache",
+      "line": 178,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_hit_returns_stored_summary",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::test_hit_returns_stored_summary",
+      "line": 156,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_invalidation_when_key_changes",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::test_invalidation_when_key_changes",
+      "line": 167,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_miss_returns_none",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::test_miss_returns_none",
+      "line": 163,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_missing_upstream_artifacts_loaded_implicitly",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::test_missing_upstream_artifacts_loaded_implicitly",
+      "line": 117,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_multi_language_fixtures",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::test_multi_language_fixtures",
+      "line": 53,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_persisted_payload_uses_schema",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::test_persisted_payload_uses_schema",
+      "line": 186,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_persistence_across_instances",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::test_persistence_across_instances",
+      "line": 172,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_tests_resolved_from_project_map",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::test_tests_resolved_from_project_map",
+      "line": 98,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::test_unstable_range_marks_needs_broader_context",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::test_unstable_range_marks_needs_broader_context",
+      "line": 77,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_context_pack.py",
+      "source_symbol": "tests/python/test_context_pack.py::LargeFileCompactModeTest",
+      "target_file": "tests/python/test_mechanical_edit.py",
+      "target_symbol": "tests/python/test_mechanical_edit.py::LargeFileCompactModeTest",
+      "line": 137,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::test_changed_selection_changes_context_hash",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 142,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::test_changed_selection_changes_context_hash",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::main",
+      "line": 142,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::test_changed_selection_changes_context_hash",
+      "target_file": "bin/skillopt.js",
+      "target_symbol": "bin/skillopt.js::main",
+      "line": 142,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::test_typescript_python_json_markdown_languages",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::build_context",
+      "line": 102,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::test_missing_file_raises",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::extract_file_entry",
+      "line": 78,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::test_binary_file_refused",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::is_binary",
+      "line": 81,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::test_same_text_same_range_yields_same_hash",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::range_hash",
+      "line": 40,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::test_snapshot_hash_changes_when_content_changes",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "target_symbol": "simplicio_mapper/mechanical_edit.py::snapshot_hash",
+      "line": 60,
+      "confidence": 0.58
+    },
+    {
+      "type": "imports",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "target_file": "simplicio_mapper/mechanical_edit.py",
+      "import": "simplicio_mapper.mechanical_edit",
+      "confidence": 0.65
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::LargeFileCompactModeTest",
+      "target_file": "tests/python/test_context_pack.py",
+      "target_symbol": "tests/python/test_context_pack.py::LargeFileCompactModeTest",
+      "line": 86,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::AnchorDriftDetectionTest",
+      "target_file": "tests/python/test_mechanical_edit.py",
+      "target_symbol": "tests/python/test_mechanical_edit.py::AnchorDriftDetectionTest",
+      "line": 65,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::DeterministicContextHashTest",
+      "target_file": "tests/python/test_mechanical_edit.py",
+      "target_symbol": "tests/python/test_mechanical_edit.py::DeterministicContextHashTest",
+      "line": 122,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::LargeFileCompactModeTest",
+      "target_file": "tests/python/test_mechanical_edit.py",
+      "target_symbol": "tests/python/test_mechanical_edit.py::LargeFileCompactModeTest",
+      "line": 86,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::MissingFileAndBinaryRefusalTest",
+      "target_file": "tests/python/test_mechanical_edit.py",
+      "target_symbol": "tests/python/test_mechanical_edit.py::MissingFileAndBinaryRefusalTest",
+      "line": 74,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::MultiLanguageFixtureTest",
+      "target_file": "tests/python/test_mechanical_edit.py",
+      "target_symbol": "tests/python/test_mechanical_edit.py::MultiLanguageFixtureTest",
+      "line": 100,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::SnapshotHashTest",
+      "target_file": "tests/python/test_mechanical_edit.py",
+      "target_symbol": "tests/python/test_mechanical_edit.py::SnapshotHashTest",
+      "line": 58,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::StableRangeHashingTest",
+      "target_file": "tests/python/test_mechanical_edit.py",
+      "target_symbol": "tests/python/test_mechanical_edit.py::StableRangeHashingTest",
+      "line": 37,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::test_binary_file_refused",
+      "target_file": "tests/python/test_mechanical_edit.py",
+      "target_symbol": "tests/python/test_mechanical_edit.py::test_binary_file_refused",
+      "line": 80,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::test_changed_selection_changes_context_hash",
+      "target_file": "tests/python/test_mechanical_edit.py",
+      "target_symbol": "tests/python/test_mechanical_edit.py::test_changed_selection_changes_context_hash",
+      "line": 132,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::test_different_ranges_yield_different_hashes",
+      "target_file": "tests/python/test_mechanical_edit.py",
+      "target_symbol": "tests/python/test_mechanical_edit.py::test_different_ranges_yield_different_hashes",
+      "line": 44,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::test_must_contain_emitted_below_threshold",
+      "target_file": "tests/python/test_mechanical_edit.py",
+      "target_symbol": "tests/python/test_mechanical_edit.py::test_must_contain_emitted_below_threshold",
+      "line": 95,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_mechanical_edit.py",
+      "source_symbol": "tests/python/test_mechanical_edit.py::test_range_out_of_bounds_raises",
+      "target_file": "tests/python/test_mechanical_edit.py",
+      "target_symbol": "tests/python/test_mechanical_edit.py::test_range_out_of_bounds_raises",
+      "line": 48,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_native.py",
+      "source_symbol": "tests/python/test_native.py::test_build_artifacts_without_native",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 116,
       "confidence": 0.58
     },
     {
@@ -4861,15 +6854,6 @@
       "confidence": 0.58
     },
     {
-      "type": "calls",
-      "source_file": "tests/python/test_native.py",
-      "source_symbol": "tests/python/test_native.py::test_build_artifacts_without_native",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::main",
-      "line": 116,
-      "confidence": 0.58
-    },
-    {
       "type": "imports",
       "source_file": "tests/python/test_native.py",
       "target_file": "simplicio_mapper/__init__.py",
@@ -4882,6 +6866,15 @@
       "target_file": "simplicio_mapper/_native.py",
       "import": "simplicio_mapper._native",
       "confidence": 0.65
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_native.py",
+      "source_symbol": "tests/python/test_native.py::_reload_with_native",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 25,
+      "confidence": 0.58
     },
     {
       "type": "calls",
@@ -4938,6 +6931,15 @@
     {
       "type": "calls",
       "source_file": "tests/python/test_native.py",
+      "source_symbol": "tests/python/test_native.py::setUp",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::setUp",
+      "line": 64,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_native.py",
       "source_symbol": "tests/python/test_native.py::FallbackEqualsNativeTest",
       "target_file": "tests/python/test_native.py",
       "target_symbol": "tests/python/test_native.py::FallbackEqualsNativeTest",
@@ -4974,15 +6976,6 @@
     {
       "type": "calls",
       "source_file": "tests/python/test_native.py",
-      "source_symbol": "tests/python/test_native.py::setUp",
-      "target_file": "tests/python/test_native.py",
-      "target_symbol": "tests/python/test_native.py::setUp",
-      "line": 64,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "tests/python/test_native.py",
       "source_symbol": "tests/python/test_native.py::test_build_artifacts_without_native",
       "target_file": "tests/python/test_native.py",
       "target_symbol": "tests/python/test_native.py::test_build_artifacts_without_native",
@@ -4996,6 +6989,317 @@
       "target_file": "tests/python/test_native.py",
       "target_symbol": "tests/python/test_native.py::test_hash_and_imports_match_fallback",
       "line": 70,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::test_normalization_strips_volatile_fields",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 119,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::test_normalization_strips_volatile_fields",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::main",
+      "line": 119,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::test_normalization_strips_volatile_fields",
+      "target_file": "bin/skillopt.js",
+      "target_symbol": "bin/skillopt.js::main",
+      "line": 119,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::_normalize",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 36,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::_python_map",
+      "target_file": "simplicio_mapper/mapper.py",
+      "target_symbol": "simplicio_mapper/mapper.py::write_mapping_artifacts",
+      "line": 67,
+      "confidence": 0.58
+    },
+    {
+      "type": "imports",
+      "source_file": "tests/python/test_parity.py",
+      "target_file": "simplicio_mapper/mapper.py",
+      "import": "simplicio_mapper.mapper",
+      "confidence": 0.65
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::_normalize",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::get",
+      "line": 36,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::setUp",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::setUp",
+      "line": 44,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::tearDown",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::tearDown",
+      "line": 52,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::setUp",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::setUp",
+      "line": 44,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::tearDown",
+      "target_file": "tests/python/test_cli_coverage.py",
+      "target_symbol": "tests/python/test_cli_coverage.py::tearDown",
+      "line": 52,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::_have_node",
+      "target_file": "tests/python/test_parity.py",
+      "target_symbol": "tests/python/test_parity.py::_have_node",
+      "line": 28,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::_node_map",
+      "target_file": "tests/python/test_parity.py",
+      "target_symbol": "tests/python/test_parity.py::_node_map",
+      "line": 55,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::_normalize",
+      "target_file": "tests/python/test_parity.py",
+      "target_symbol": "tests/python/test_parity.py::_normalize",
+      "line": 32,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::_python_map",
+      "target_file": "tests/python/test_parity.py",
+      "target_symbol": "tests/python/test_parity.py::_python_map",
+      "line": 66,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::test_architecture_signals_match",
+      "target_file": "tests/python/test_parity.py",
+      "target_symbol": "tests/python/test_parity.py::test_architecture_signals_match",
+      "line": 93,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::test_entry_points_match",
+      "target_file": "tests/python/test_parity.py",
+      "target_symbol": "tests/python/test_parity.py::test_entry_points_match",
+      "line": 83,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::test_file_inventory_matches",
+      "target_file": "tests/python/test_parity.py",
+      "target_symbol": "tests/python/test_parity.py::test_file_inventory_matches",
+      "line": 76,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::test_file_roles_match_per_path",
+      "target_file": "tests/python/test_parity.py",
+      "target_symbol": "tests/python/test_parity.py::test_file_roles_match_per_path",
+      "line": 101,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::test_normalization_strips_volatile_fields",
+      "target_file": "tests/python/test_parity.py",
+      "target_symbol": "tests/python/test_parity.py::test_normalization_strips_volatile_fields",
+      "line": 108,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::test_schemas_match",
+      "target_file": "tests/python/test_parity.py",
+      "target_symbol": "tests/python/test_parity.py::test_schemas_match",
+      "line": 70,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::test_test_files_match",
+      "target_file": "tests/python/test_parity.py",
+      "target_symbol": "tests/python/test_parity.py::test_test_files_match",
+      "line": 88,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/python/test_parity.py",
+      "source_symbol": "tests/python/test_parity.py::_node_map",
+      "target_file": "video/scripts/generate-why-voiceover.mjs",
+      "target_symbol": "video/scripts/generate-why-voiceover.mjs::run",
+      "line": 56,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/unit/apply-edits.test.js",
+      "source_symbol": "tests/unit/apply-edits.test.js::read",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::applyEdits",
+      "line": 37,
+      "confidence": 0.58
+    },
+    {
+      "type": "imports",
+      "source_file": "tests/unit/apply-edits.test.js",
+      "target_file": "bin/apply-edits.js",
+      "import": "../../bin/apply-edits",
+      "confidence": 0.82
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/unit/apply-edits.test.js",
+      "source_symbol": "tests/unit/apply-edits.test.js::read",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::read",
+      "line": 29,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/unit/apply-edits.test.js",
+      "source_symbol": "tests/unit/apply-edits.test.js::read",
+      "target_file": "scripts/skillopt/engine.js",
+      "target_symbol": "scripts/skillopt/engine.js::applyEdits",
+      "line": 37,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/unit/apply-edits.test.js",
+      "source_symbol": "tests/unit/apply-edits.test.js::mkTmp",
+      "target_file": "tests/e2e/build-hamt-catalog.spec.ts",
+      "target_symbol": "tests/e2e/build-hamt-catalog.spec.ts::mkTmp",
+      "line": 11,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/unit/apply-edits.test.js",
+      "source_symbol": "tests/unit/apply-edits.test.js::rmTmp",
+      "target_file": "tests/e2e/build-hamt-catalog.spec.ts",
+      "target_symbol": "tests/e2e/build-hamt-catalog.spec.ts::rmTmp",
+      "line": 15,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/unit/apply-edits.test.js",
+      "source_symbol": "tests/unit/apply-edits.test.js::mkTmp",
+      "target_file": "tests/e2e/cli.spec.ts",
+      "target_symbol": "tests/e2e/cli.spec.ts::mkTmp",
+      "line": 11,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/unit/apply-edits.test.js",
+      "source_symbol": "tests/unit/apply-edits.test.js::rmTmp",
+      "target_file": "tests/e2e/cli.spec.ts",
+      "target_symbol": "tests/e2e/cli.spec.ts::rmTmp",
+      "line": 15,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/unit/apply-edits.test.js",
+      "source_symbol": "tests/unit/apply-edits.test.js::mkTmp",
+      "target_file": "tests/e2e/skillopt.spec.ts",
+      "target_symbol": "tests/e2e/skillopt.spec.ts::mkTmp",
+      "line": 11,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/unit/apply-edits.test.js",
+      "source_symbol": "tests/unit/apply-edits.test.js::rmTmp",
+      "target_file": "tests/e2e/skillopt.spec.ts",
+      "target_symbol": "tests/e2e/skillopt.spec.ts::rmTmp",
+      "line": 15,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/unit/apply-edits.test.js",
+      "source_symbol": "tests/unit/apply-edits.test.js::read",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::read",
+      "line": 29,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/unit/apply-edits.test.js",
+      "source_symbol": "tests/unit/apply-edits.test.js::write",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::write",
+      "line": 23,
       "confidence": 0.58
     },
     {
@@ -5380,8 +7684,8 @@
       "type": "calls",
       "source_file": "tests/unit/docs-site.test.js",
       "source_symbol": "tests/unit/docs-site.test.js::read",
-      "target_file": "tests/unit/docs-site.test.js",
-      "target_symbol": "tests/unit/docs-site.test.js::read",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::read",
       "line": 10,
       "confidence": 0.58
     },
@@ -5489,6 +7793,15 @@
       "target_file": "tests/e2e/skillopt.spec.ts",
       "target_symbol": "tests/e2e/skillopt.spec.ts::writeFile",
       "line": 23,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "tests/unit/mapping-artifacts.test.js",
+      "source_symbol": "tests/unit/mapping-artifacts.test.js::readJson",
+      "target_file": "tests/fixtures/parity-host/src/index.js",
+      "target_symbol": "tests/fixtures/parity-host/src/index.js::startServer",
+      "line": 41,
       "confidence": 0.58
     },
     {
@@ -5619,6 +7932,15 @@
       "type": "calls",
       "source_file": "video/scripts/generate-why-voiceover.mjs",
       "source_symbol": "video/scripts/generate-why-voiceover.mjs::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 151,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "video/scripts/generate-why-voiceover.mjs",
+      "source_symbol": "video/scripts/generate-why-voiceover.mjs::main",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::main",
       "line": 151,
@@ -5637,9 +7959,9 @@
       "type": "calls",
       "source_file": "video/scripts/generate-why-voiceover.mjs",
       "source_symbol": "video/scripts/generate-why-voiceover.mjs::main",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::main",
-      "line": 151,
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::write",
+      "line": 163,
       "confidence": 0.58
     },
     {
@@ -5743,6 +8065,15 @@
       "type": "calls",
       "source_file": "video/scripts/regression.mjs",
       "source_symbol": "video/scripts/regression.mjs::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 87,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "video/scripts/regression.mjs",
+      "source_symbol": "video/scripts/regression.mjs::main",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::log",
       "line": 37,
@@ -5763,15 +8094,6 @@
       "source_symbol": "video/scripts/regression.mjs::main",
       "target_file": "bin/skillopt.js",
       "target_symbol": "bin/skillopt.js::main",
-      "line": 87,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "video/scripts/regression.mjs",
-      "source_symbol": "video/scripts/regression.mjs::main",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::main",
       "line": 87,
       "confidence": 0.58
     },
@@ -6467,532 +8789,11 @@
       "target_file": "video/src/components/BackgroundFX.tsx",
       "import": "../../components/BackgroundFX",
       "confidence": 0.82
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/CTA.tsx",
-      "target_file": "video/src/theme.ts",
-      "import": "../../theme",
-      "confidence": 0.82
-    },
-    {
-      "type": "calls",
-      "source_file": "video/src/why/scenes/CTA.tsx",
-      "source_symbol": null,
-      "target_file": "video/src/why/LangContext.tsx",
-      "target_symbol": "video/src/why/LangContext.tsx::useWhyT",
-      "line": 16,
-      "confidence": 0.48
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/CTA.tsx",
-      "target_file": "video/src/why/LangContext.tsx",
-      "import": "../LangContext",
-      "confidence": 0.82
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/Hook.tsx",
-      "target_file": "video/src/theme.ts",
-      "import": "../../theme",
-      "confidence": 0.82
-    },
-    {
-      "type": "calls",
-      "source_file": "video/src/why/scenes/Hook.tsx",
-      "source_symbol": null,
-      "target_file": "video/src/why/LangContext.tsx",
-      "target_symbol": "video/src/why/LangContext.tsx::useWhyT",
-      "line": 15,
-      "confidence": 0.48
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/Hook.tsx",
-      "target_file": "video/src/why/LangContext.tsx",
-      "import": "../LangContext",
-      "confidence": 0.82
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/MultiAgent.tsx",
-      "target_file": "video/src/components/BackgroundFX.tsx",
-      "import": "../../components/BackgroundFX",
-      "confidence": 0.82
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/MultiAgent.tsx",
-      "target_file": "video/src/theme.ts",
-      "import": "../../theme",
-      "confidence": 0.82
-    },
-    {
-      "type": "calls",
-      "source_file": "video/src/why/scenes/MultiAgent.tsx",
-      "source_symbol": null,
-      "target_file": "video/src/why/LangContext.tsx",
-      "target_symbol": "video/src/why/LangContext.tsx::useWhyT",
-      "line": 25,
-      "confidence": 0.48
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/MultiAgent.tsx",
-      "target_file": "video/src/why/LangContext.tsx",
-      "import": "../LangContext",
-      "confidence": 0.82
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/PainList.tsx",
-      "target_file": "video/src/components/BackgroundFX.tsx",
-      "import": "../../components/BackgroundFX",
-      "confidence": 0.82
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/PainList.tsx",
-      "target_file": "video/src/theme.ts",
-      "import": "../../theme",
-      "confidence": 0.82
-    },
-    {
-      "type": "calls",
-      "source_file": "video/src/why/scenes/PainList.tsx",
-      "source_symbol": null,
-      "target_file": "video/src/why/LangContext.tsx",
-      "target_symbol": "video/src/why/LangContext.tsx::useWhyT",
-      "line": 16,
-      "confidence": 0.48
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/PainList.tsx",
-      "target_file": "video/src/why/LangContext.tsx",
-      "import": "../LangContext",
-      "confidence": 0.82
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/PainTyping.tsx",
-      "target_file": "video/src/components/BackgroundFX.tsx",
-      "import": "../../components/BackgroundFX",
-      "confidence": 0.82
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/PainTyping.tsx",
-      "target_file": "video/src/theme.ts",
-      "import": "../../theme",
-      "confidence": 0.82
-    },
-    {
-      "type": "calls",
-      "source_file": "video/src/why/scenes/PainTyping.tsx",
-      "source_symbol": null,
-      "target_file": "video/src/why/LangContext.tsx",
-      "target_symbol": "video/src/why/LangContext.tsx::useWhyT",
-      "line": 23,
-      "confidence": 0.48
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/PainTyping.tsx",
-      "target_file": "video/src/why/LangContext.tsx",
-      "import": "../LangContext",
-      "confidence": 0.82
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/Productivity.tsx",
-      "target_file": "video/src/components/BackgroundFX.tsx",
-      "import": "../../components/BackgroundFX",
-      "confidence": 0.82
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/Productivity.tsx",
-      "target_file": "video/src/theme.ts",
-      "import": "../../theme",
-      "confidence": 0.82
-    },
-    {
-      "type": "calls",
-      "source_file": "video/src/why/scenes/Productivity.tsx",
-      "source_symbol": null,
-      "target_file": "video/src/why/LangContext.tsx",
-      "target_symbol": "video/src/why/LangContext.tsx::useWhyT",
-      "line": 16,
-      "confidence": 0.48
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/Productivity.tsx",
-      "target_file": "video/src/why/LangContext.tsx",
-      "import": "../LangContext",
-      "confidence": 0.82
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/Reveal.tsx",
-      "target_file": "video/src/components/BackgroundFX.tsx",
-      "import": "../../components/BackgroundFX",
-      "confidence": 0.82
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/Reveal.tsx",
-      "target_file": "video/src/theme.ts",
-      "import": "../../theme",
-      "confidence": 0.82
-    },
-    {
-      "type": "calls",
-      "source_file": "video/src/why/scenes/Reveal.tsx",
-      "source_symbol": null,
-      "target_file": "video/src/why/LangContext.tsx",
-      "target_symbol": "video/src/why/LangContext.tsx::useWhyT",
-      "line": 16,
-      "confidence": 0.48
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/Reveal.tsx",
-      "target_file": "video/src/why/LangContext.tsx",
-      "import": "../LangContext",
-      "confidence": 0.82
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/SideBySide.tsx",
-      "target_file": "video/src/components/BackgroundFX.tsx",
-      "import": "../../components/BackgroundFX",
-      "confidence": 0.82
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/SideBySide.tsx",
-      "target_file": "video/src/theme.ts",
-      "import": "../../theme",
-      "confidence": 0.82
-    },
-    {
-      "type": "calls",
-      "source_file": "video/src/why/scenes/SideBySide.tsx",
-      "source_symbol": null,
-      "target_file": "video/src/why/LangContext.tsx",
-      "target_symbol": "video/src/why/LangContext.tsx::useWhyT",
-      "line": 16,
-      "confidence": 0.48
-    },
-    {
-      "type": "imports",
-      "source_file": "video/src/why/scenes/SideBySide.tsx",
-      "target_file": "video/src/why/LangContext.tsx",
-      "import": "../LangContext",
-      "confidence": 0.82
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/extension.ts",
-      "source_symbol": "vscode-extension/src/extension.ts::SprintsProvider",
-      "target_file": "vscode-extension/src/extension.ts",
-      "target_symbol": "vscode-extension/src/extension.ts::SprintNode",
-      "line": 24,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/extension.ts",
-      "source_symbol": "vscode-extension/src/extension.ts::activate",
-      "target_file": "vscode-extension/src/extension.ts",
-      "target_symbol": "vscode-extension/src/extension.ts::SprintsProvider",
-      "line": 78,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/extension.ts",
-      "source_symbol": "vscode-extension/src/extension.ts::SprintsProvider",
-      "target_file": "vscode-extension/src/extension.ts",
-      "target_symbol": "vscode-extension/src/extension.ts::TaskNode",
-      "line": 27,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/extension.ts",
-      "source_symbol": "vscode-extension/src/extension.ts::activate",
-      "target_file": "vscode-extension/src/extension.ts",
-      "target_symbol": "vscode-extension/src/extension.ts::activate",
-      "line": 74,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/extension.ts",
-      "source_symbol": "vscode-extension/src/extension.ts::activate",
-      "target_file": "vscode-extension/src/extension.ts",
-      "target_symbol": "vscode-extension/src/extension.ts::createAdr",
-      "line": 83,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/extension.ts",
-      "source_symbol": "vscode-extension/src/extension.ts::deactivate",
-      "target_file": "vscode-extension/src/extension.ts",
-      "target_symbol": "vscode-extension/src/extension.ts::deactivate",
-      "line": 99,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/extension.ts",
-      "source_symbol": "vscode-extension/src/extension.ts::SprintsProvider",
-      "target_file": "vscode-extension/src/extension.ts",
-      "target_symbol": "vscode-extension/src/extension.ts::getSpecsRoot",
-      "line": 22,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/extension.ts",
-      "source_symbol": "vscode-extension/src/extension.ts::getWorkspaceRoot",
-      "target_file": "vscode-extension/src/extension.ts",
-      "target_symbol": "vscode-extension/src/extension.ts::getWorkspaceRoot",
-      "line": 70,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/extension.ts",
-      "source_symbol": "vscode-extension/src/extension.ts::TaskNode",
-      "target_file": "vscode-extension/src/extension.ts",
-      "target_symbol": "vscode-extension/src/extension.ts::iconForStatus",
-      "line": 47,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/extension.ts",
-      "source_symbol": "vscode-extension/src/extension.ts::activate",
-      "target_file": "vscode-extension/src/extension.ts",
-      "target_symbol": "vscode-extension/src/extension.ts::openCurrentTask",
-      "line": 82,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/extension.ts",
-      "source_symbol": "vscode-extension/src/extension.ts::activate",
-      "target_file": "vscode-extension/src/extension.ts",
-      "target_symbol": "vscode-extension/src/extension.ts::refreshStatusBar",
-      "line": 88,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/extension.ts",
-      "source_symbol": "vscode-extension/src/extension.ts::activate",
-      "target_file": "vscode-extension/src/extension.ts",
-      "target_symbol": "vscode-extension/src/extension.ts::runInitHandoff",
-      "line": 84,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/extension.ts",
-      "source_symbol": "vscode-extension/src/extension.ts::SprintsProvider",
-      "target_file": "vscode-extension/src/scan.ts",
-      "target_symbol": "vscode-extension/src/scan.ts::listSprints",
-      "line": 24,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/extension.ts",
-      "source_symbol": "vscode-extension/src/extension.ts::SprintNode",
-      "target_file": "vscode-extension/src/scan.ts",
-      "target_symbol": "vscode-extension/src/scan.ts::statusLabel",
-      "line": 36,
-      "confidence": 0.58
-    },
-    {
-      "type": "imports",
-      "source_file": "vscode-extension/src/extension.ts",
-      "target_file": "vscode-extension/src/scan.ts",
-      "import": "./scan",
-      "confidence": 0.82
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/scan.ts",
-      "source_symbol": "vscode-extension/src/scan.ts::listSprints",
-      "target_file": "vscode-extension/src/scan.ts",
-      "target_symbol": "vscode-extension/src/scan.ts::listSprints",
-      "line": 46,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/scan.ts",
-      "source_symbol": "vscode-extension/src/scan.ts::readFirstHeading",
-      "target_file": "vscode-extension/src/scan.ts",
-      "target_symbol": "vscode-extension/src/scan.ts::readFirstHeading",
-      "line": 28,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/scan.ts",
-      "source_symbol": "vscode-extension/src/scan.ts::readStatus",
-      "target_file": "vscode-extension/src/scan.ts",
-      "target_symbol": "vscode-extension/src/scan.ts::readStatus",
-      "line": 37,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/scan.ts",
-      "source_symbol": "vscode-extension/src/scan.ts::listSprints",
-      "target_file": "vscode-extension/src/scan.ts",
-      "target_symbol": "vscode-extension/src/scan.ts::safeRead",
-      "line": 56,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/scan.ts",
-      "source_symbol": "vscode-extension/src/scan.ts::statusIcon",
-      "target_file": "vscode-extension/src/scan.ts",
-      "target_symbol": "vscode-extension/src/scan.ts::statusIcon",
-      "line": 77,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/src/scan.ts",
-      "source_symbol": "vscode-extension/src/scan.ts::statusLabel",
-      "target_file": "vscode-extension/src/scan.ts",
-      "target_symbol": "vscode-extension/src/scan.ts::statusLabel",
-      "line": 85,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/test/scan.test.js",
-      "source_symbol": "vscode-extension/test/scan.test.js::mkTmp",
-      "target_file": "tests/e2e/build-hamt-catalog.spec.ts",
-      "target_symbol": "tests/e2e/build-hamt-catalog.spec.ts::mkTmp",
-      "line": 27,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/test/scan.test.js",
-      "source_symbol": "vscode-extension/test/scan.test.js::rmTmp",
-      "target_file": "tests/e2e/build-hamt-catalog.spec.ts",
-      "target_symbol": "tests/e2e/build-hamt-catalog.spec.ts::rmTmp",
-      "line": 31,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/test/scan.test.js",
-      "source_symbol": "vscode-extension/test/scan.test.js::writeFile",
-      "target_file": "tests/e2e/build-hamt-catalog.spec.ts",
-      "target_symbol": "tests/e2e/build-hamt-catalog.spec.ts::writeFile",
-      "line": 35,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/test/scan.test.js",
-      "source_symbol": "vscode-extension/test/scan.test.js::mkTmp",
-      "target_file": "tests/e2e/cli.spec.ts",
-      "target_symbol": "tests/e2e/cli.spec.ts::mkTmp",
-      "line": 27,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/test/scan.test.js",
-      "source_symbol": "vscode-extension/test/scan.test.js::rmTmp",
-      "target_file": "tests/e2e/cli.spec.ts",
-      "target_symbol": "tests/e2e/cli.spec.ts::rmTmp",
-      "line": 31,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/test/scan.test.js",
-      "source_symbol": "vscode-extension/test/scan.test.js::writeFile",
-      "target_file": "tests/e2e/cli.spec.ts",
-      "target_symbol": "tests/e2e/cli.spec.ts::writeFile",
-      "line": 35,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/test/scan.test.js",
-      "source_symbol": "vscode-extension/test/scan.test.js::mkTmp",
-      "target_file": "tests/e2e/skillopt.spec.ts",
-      "target_symbol": "tests/e2e/skillopt.spec.ts::mkTmp",
-      "line": 27,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/test/scan.test.js",
-      "source_symbol": "vscode-extension/test/scan.test.js::rmTmp",
-      "target_file": "tests/e2e/skillopt.spec.ts",
-      "target_symbol": "tests/e2e/skillopt.spec.ts::rmTmp",
-      "line": 31,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/test/scan.test.js",
-      "source_symbol": "vscode-extension/test/scan.test.js::writeFile",
-      "target_file": "tests/e2e/skillopt.spec.ts",
-      "target_symbol": "tests/e2e/skillopt.spec.ts::writeFile",
-      "line": 35,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/test/scan.test.js",
-      "source_symbol": "vscode-extension/test/scan.test.js::writeFile",
-      "target_file": "vscode-extension/src/scan.ts",
-      "target_symbol": "vscode-extension/src/scan.ts::listSprints",
-      "line": 68,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/test/scan.test.js",
-      "source_symbol": "vscode-extension/test/scan.test.js::writeFile",
-      "target_file": "vscode-extension/src/scan.ts",
-      "target_symbol": "vscode-extension/src/scan.ts::readFirstHeading",
-      "line": 49,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "vscode-extension/test/scan.test.js",
-      "source_symbol": "vscode-extension/test/scan.test.js::writeFile",
-      "target_file": "vscode-extension/src/scan.ts",
-      "target_symbol": "vscode-extension/src/scan.ts::readStatus",
-      "line": 55,
-      "confidence": 0.58
     }
   ],
   "counts": {
-    "edges": 803,
-    "imports": 121,
-    "calls": 682
+    "edges": 1063,
+    "imports": 130,
+    "calls": 933
   }
 }

@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.architecture-inventory/v1",
   "version": 1,
-  "generated_at": "2026-06-02T12:41:21.792Z",
+  "generated_at": "2026-06-02T14:24:42.455Z",
   "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-mapper",
   "source_project_map": ".simplicio/project-map.json",
   "source_symbol_index": ".simplicio/symbol-index.json",
@@ -18,6 +18,7 @@
       "nextjs",
       "playwright",
       "react",
+      "rust",
       "vue"
     ],
     "system_type": "web"
@@ -219,8 +220,8 @@
     },
     {
       "name": ".github",
-      "summary": "Groups 18 files across 4 detected layers.",
-      "file_count": 18,
+      "summary": "Groups 20 files across 4 detected layers.",
+      "file_count": 20,
       "files": [
         ".github/CODEOWNERS",
         ".github/ISSUE_TEMPLATE/bug.md",
@@ -239,6 +240,8 @@
         ".github/workflows/docs-site.yml",
         ".github/workflows/dod.yml",
         ".github/workflows/publish-pypi.yml",
+        ".github/workflows/python-ci.yml",
+        ".github/workflows/python-lint.yml",
         ".github/workflows/scaffold-self-check.yml"
       ],
       "layers": [
@@ -524,9 +527,10 @@
     },
     {
       "name": "bin",
-      "summary": "Groups 7 files across 2 detected layers.",
-      "file_count": 7,
+      "summary": "Groups 8 files across 2 detected layers.",
+      "file_count": 8,
       "files": [
+        "bin/apply-edits.js",
         "bin/auto-map.js",
         "bin/build-hamt-catalog",
         "bin/cli.js",
@@ -540,13 +544,16 @@
         "entrypoint"
       ],
       "entry_points": [
+        "bin/apply-edits.js",
         "bin/build-hamt-catalog",
         "bin/cli.js",
         "bin/skillopt.js"
       ],
       "tests": [],
       "public_symbols": [
+        "EditError",
         "addEdge",
+        "applyEdits",
         "ask",
         "autoMapProject",
         "buildArchitectureInventory",
@@ -569,9 +576,11 @@
         "collectTodos",
         "collectTopDirectories",
         "commandExists",
+        "computePlan",
         "copyTemplate",
         "copyToClipboard",
         "countAcceptedEdits",
+        "countOccurrences",
         "defaultPersonas",
         "detectChangedFiles",
         "detectExistingInstructionFiles",
@@ -581,13 +590,12 @@
         "detectProjectMode",
         "detectStack",
         "detectStackIn",
-        "detectUrls",
-        "dispatch",
-        "err",
-        "execHandoff",
-        "exists"
+        "detectUrls"
       ],
       "evidence": [
+        {
+          "file": "bin/apply-edits.js"
+        },
         {
           "file": "bin/auto-map.js"
         },
@@ -613,8 +621,8 @@
     },
     {
       "name": "docs",
-      "summary": "Groups 16 files across 2 detected layers.",
-      "file_count": 16,
+      "summary": "Groups 18 files across 2 detected layers.",
+      "file_count": 18,
       "files": [
         "docs/YOOL_TUPLE_HAMT.md",
         "docs/api-examples/README.md",
@@ -622,6 +630,8 @@
         "docs/api-examples/graphql.md",
         "docs/api-examples/rest.md",
         "docs/api-examples/webhook.md",
+        "docs/apply-edits.example.json",
+        "docs/apply-edits.md",
         "docs/architecture-map.md",
         "docs/domain-map.md",
         "docs/evidence/README.md",
@@ -662,23 +672,23 @@
           "file": "docs/api-examples/webhook.md"
         },
         {
+          "file": "docs/apply-edits.example.json"
+        },
+        {
+          "file": "docs/apply-edits.md"
+        },
+        {
           "file": "docs/architecture-map.md"
         },
         {
           "file": "docs/domain-map.md"
-        },
-        {
-          "file": "docs/evidence/README.md"
-        },
-        {
-          "file": "docs/features/README.md"
         }
       ]
     },
     {
       "name": "docs-site",
-      "summary": "Groups 39 files across 4 detected layers.",
-      "file_count": 39,
+      "summary": "Groups 57 files across 4 detected layers.",
+      "file_count": 57,
       "files": [
         "docs-site/README.md",
         "docs-site/docs/community/_category_.json",
@@ -717,7 +727,25 @@
         "docs-site/versioned_docs/version-0.2.0/reference/cli-flags.md",
         "docs-site/versioned_docs/version-0.2.0/reference/init-handoff.md",
         "docs-site/versioned_docs/version-0.2.0/reference/session-start-hook.md",
+        "docs-site/versioned_docs/version-0.7.3/community/_category_.json",
+        "docs-site/versioned_docs/version-0.7.3/community/contributing.md",
+        "docs-site/versioned_docs/version-0.7.3/community/showcase.md",
+        "docs-site/versioned_docs/version-0.7.3/concepts/_category_.json",
+        "docs-site/versioned_docs/version-0.7.3/concepts/architecture-map.md",
+        "docs-site/versioned_docs/version-0.7.3/concepts/domain-map.md",
+        "docs-site/versioned_docs/version-0.7.3/concepts/skills-and-agents.md",
+        "docs-site/versioned_docs/version-0.7.3/concepts/yool-tuple-hamt.md",
+        "docs-site/versioned_docs/version-0.7.3/guide/_category_.json",
+        "docs-site/versioned_docs/version-0.7.3/guide/private-overlay.md",
+        "docs-site/versioned_docs/version-0.7.3/intro.md",
+        "docs-site/versioned_docs/version-0.7.3/quickstart/_category_.json",
+        "docs-site/versioned_docs/version-0.7.3/quickstart/get-going.md",
+        "docs-site/versioned_docs/version-0.7.3/reference/_category_.json",
+        "docs-site/versioned_docs/version-0.7.3/reference/cli-flags.md",
+        "docs-site/versioned_docs/version-0.7.3/reference/init-handoff.md",
+        "docs-site/versioned_docs/version-0.7.3/reference/session-start-hook.md",
         "docs-site/versioned_sidebars/version-0.2.0-sidebars.json",
+        "docs-site/versioned_sidebars/version-0.7.3-sidebars.json",
         "docs-site/versions.json"
       ],
       "layers": [
@@ -820,12 +848,13 @@
     },
     {
       "name": "scripts",
-      "summary": "Groups 15 files across 3 detected layers.",
-      "file_count": 15,
+      "summary": "Groups 16 files across 3 detected layers.",
+      "file_count": 16,
       "files": [
         "scripts/README.md",
         "scripts/build_hamt.py",
         "scripts/check-placeholders.sh",
+        "scripts/check-version-sync.js",
         "scripts/coverage.js",
         "scripts/evidence.ps1",
         "scripts/evidence.sh",
@@ -881,15 +910,15 @@
         "parse_agents",
         "parse_args",
         "parse_scalar",
+        "readInitVersion",
+        "readPackageVersion",
+        "readPyprojectVersion",
         "reflect",
         "removeDir",
         "resolveRelativePath",
         "rewriteMarkdown",
         "rewriteUrl",
-        "round6",
-        "scoreTask",
-        "skillText",
-        "slot_path"
+        "round6"
       ],
       "evidence": [
         {
@@ -900,6 +929,9 @@
         },
         {
           "file": "scripts/check-placeholders.sh"
+        },
+        {
+          "file": "scripts/check-version-sync.js"
         },
         {
           "file": "scripts/coverage.js"
@@ -918,22 +950,22 @@
         },
         {
           "file": "scripts/start.ps1"
-        },
-        {
-          "file": "scripts/start.sh"
         }
       ]
     },
     {
       "name": "simplicio_mapper",
-      "summary": "Groups 6 files across 4 detected layers.",
-      "file_count": 6,
+      "summary": "Groups 9 files across 4 detected layers.",
+      "file_count": 9,
       "files": [
         "simplicio_mapper/__init__.py",
         "simplicio_mapper/_native.py",
         "simplicio_mapper/cache.py",
         "simplicio_mapper/cli.py",
+        "simplicio_mapper/context_cache.py",
+        "simplicio_mapper/context_pack.py",
         "simplicio_mapper/mapper.py",
+        "simplicio_mapper/mechanical_edit.py",
         "simplicio_mapper/models.py"
       ],
       "layers": [
@@ -948,12 +980,16 @@
       "tests": [],
       "public_symbols": [
         "CodeEntity",
+        "ContextCache",
         "FileProcessingCache",
         "PrecedentItem",
         "ProjectFile",
+        "__contains__",
         "__enter__",
         "__exit__",
         "__init__",
+        "__len__",
+        "_absolute",
         "_acquire_index_lock",
         "_artifact_paths",
         "_artifacts_exist",
@@ -965,6 +1001,7 @@
         "_build_symbol_index",
         "_cached_parse_file",
         "_call_expressions",
+        "_call_graph_edges",
         "_candidate_import_targets",
         "_collect_architecture_signals",
         "_collect_entities",
@@ -981,12 +1018,7 @@
         "_extract_text_client_calls",
         "_extract_text_constants",
         "_file_ref",
-        "_freshness_signature",
-        "_git_signature",
-        "_git_status_map",
-        "_group_modules",
-        "_hash_text",
-        "_importance_for"
+        "_file_symbols"
       ],
       "evidence": [
         {
@@ -1002,7 +1034,16 @@
           "file": "simplicio_mapper/cli.py"
         },
         {
+          "file": "simplicio_mapper/context_cache.py"
+        },
+        {
+          "file": "simplicio_mapper/context_pack.py"
+        },
+        {
           "file": "simplicio_mapper/mapper.py"
+        },
+        {
+          "file": "simplicio_mapper/mechanical_edit.py"
         },
         {
           "file": "simplicio_mapper/models.py"
@@ -1011,16 +1052,33 @@
     },
     {
       "name": "tests",
-      "summary": "Groups 16 files across 2 detected layers.",
-      "file_count": 16,
+      "summary": "Groups 33 files across 4 detected layers.",
+      "file_count": 33,
       "files": [
         "tests/e2e/README.md",
         "tests/e2e/build-hamt-catalog.spec.ts",
         "tests/e2e/cli.spec.ts",
         "tests/e2e/skillopt.spec.ts",
         "tests/e2e/smoke.spec.ts",
+        "tests/fixtures/ctx-pack-host/sample.json",
+        "tests/fixtures/ctx-pack-host/sample.md",
+        "tests/fixtures/ctx-pack-host/sample.py",
+        "tests/fixtures/ctx-pack-host/sample.ts",
+        "tests/fixtures/mech-edit-host/sample.json",
+        "tests/fixtures/mech-edit-host/sample.md",
+        "tests/fixtures/mech-edit-host/sample.py",
+        "tests/fixtures/mech-edit-host/sample.ts",
+        "tests/fixtures/parity-host/package.json",
+        "tests/fixtures/parity-host/src/greet.js",
+        "tests/fixtures/parity-host/src/index.js",
+        "tests/fixtures/parity-host/tests/server-fixture.js",
         "tests/python/test_cli.py",
+        "tests/python/test_cli_coverage.py",
+        "tests/python/test_context_pack.py",
+        "tests/python/test_mechanical_edit.py",
         "tests/python/test_native.py",
+        "tests/python/test_parity.py",
+        "tests/unit/apply-edits.test.js",
         "tests/unit/build-hamt-catalog.test.js",
         "tests/unit/cli-args.test.js",
         "tests/unit/cli-install.test.js",
@@ -1032,18 +1090,39 @@
         "tests/unit/why-video-narration.test.js"
       ],
       "layers": [
+        "config",
         "documentation",
+        "entrypoint",
         "test"
       ],
-      "entry_points": [],
+      "entry_points": [
+        "tests/fixtures/parity-host/src/index.js"
+      ],
       "tests": [
         "tests/e2e/README.md",
         "tests/e2e/build-hamt-catalog.spec.ts",
         "tests/e2e/cli.spec.ts",
         "tests/e2e/skillopt.spec.ts",
         "tests/e2e/smoke.spec.ts",
+        "tests/fixtures/ctx-pack-host/sample.json",
+        "tests/fixtures/ctx-pack-host/sample.md",
+        "tests/fixtures/ctx-pack-host/sample.py",
+        "tests/fixtures/ctx-pack-host/sample.ts",
+        "tests/fixtures/mech-edit-host/sample.json",
+        "tests/fixtures/mech-edit-host/sample.md",
+        "tests/fixtures/mech-edit-host/sample.py",
+        "tests/fixtures/mech-edit-host/sample.ts",
+        "tests/fixtures/parity-host/package.json",
+        "tests/fixtures/parity-host/src/greet.js",
+        "tests/fixtures/parity-host/src/index.js",
+        "tests/fixtures/parity-host/tests/server-fixture.js",
         "tests/python/test_cli.py",
+        "tests/python/test_cli_coverage.py",
+        "tests/python/test_context_pack.py",
+        "tests/python/test_mechanical_edit.py",
         "tests/python/test_native.py",
+        "tests/python/test_parity.py",
+        "tests/unit/apply-edits.test.js",
         "tests/unit/build-hamt-catalog.test.js",
         "tests/unit/cli-args.test.js",
         "tests/unit/cli-install.test.js",
@@ -1055,46 +1134,46 @@
         "tests/unit/why-video-narration.test.js"
       ],
       "public_symbols": [
+        "AnchorDriftDetectionTest",
         "ApiClient",
+        "CallGraphAndDependencyTest",
         "CliTest",
+        "ContextCacheTest",
+        "ContextPackBasicTest",
+        "DeterminismTest",
+        "DeterministicContextHashTest",
+        "DocsOnlyShortCircuitTest",
+        "EndpointNormalizationTest",
         "FallbackEqualsNativeTest",
         "FileProcessingCacheTest",
+        "IndexFailureBoundaryTest",
+        "JsonOnlyAndChangedOnlyAliasesTest",
+        "LargeFileCompactModeTest",
         "MapperArtifactsTest",
         "MapperRunsWithoutNativeTest",
+        "MissingFileAndBinaryRefusalTest",
+        "MultiLanguageFixtureTest",
         "NativeShimTest",
+        "NeedsBroaderContextTest",
+        "NodePythonParityTest",
+        "RangeExtractionTest",
+        "SnapshotHashTest",
+        "StableRangeHashingTest",
+        "StackAndProductHintInjectionTest",
+        "WatchLoopExitsOnInterruptTest",
+        "_have_node",
+        "_node_map",
+        "_normalize",
+        "_pack",
+        "_python_map",
         "_reload_with_native",
+        "_run",
         "_write",
         "app_route_definition",
         "attachEvidence",
         "create_snapshot",
-        "get",
-        "listUnresolvedPlaceholders",
-        "list_skills",
-        "load",
-        "mkTmp",
-        "post",
-        "read",
-        "readJson",
-        "rmTmp",
-        "route_definition",
-        "runCli",
-        "save",
-        "setUp",
-        "tearDown",
-        "test_architecture_docs_and_export_render_markdown",
-        "test_architecture_inventory_tracks_layers_symbols_and_relationships",
-        "test_background_index_reports_pid_and_log",
-        "test_build_artifacts_emits_rich_project_map",
-        "test_build_artifacts_ignores_generated_dependency_and_cache_dirs",
-        "test_build_artifacts_without_native",
-        "test_cache_hits_same_file_signature",
-        "test_docs_command_writes_markdown_json_contract",
-        "test_docs_only_renders_without_index_payload",
-        "test_endpoints_captures_python_page_api_calls",
-        "test_endpoints_compares_client_calls_against_server_routes",
-        "test_endpoints_json_includes_sources_for_missing_routes",
-        "test_endpoints_resolves_angular_service_base_urls",
-        "test_export_docs_command_copies_markdown"
+        "farewell",
+        "get"
       ],
       "evidence": [
         {
@@ -1113,19 +1192,19 @@
           "file": "tests/e2e/smoke.spec.ts"
         },
         {
-          "file": "tests/python/test_cli.py"
+          "file": "tests/fixtures/ctx-pack-host/sample.json"
         },
         {
-          "file": "tests/python/test_native.py"
+          "file": "tests/fixtures/ctx-pack-host/sample.md"
         },
         {
-          "file": "tests/unit/build-hamt-catalog.test.js"
+          "file": "tests/fixtures/ctx-pack-host/sample.py"
         },
         {
-          "file": "tests/unit/cli-args.test.js"
+          "file": "tests/fixtures/ctx-pack-host/sample.ts"
         },
         {
-          "file": "tests/unit/cli-install.test.js"
+          "file": "tests/fixtures/mech-edit-host/sample.json"
         }
       ]
     },
@@ -1324,7 +1403,7 @@
   "layers": [
     {
       "name": "asset",
-      "file_count": 46,
+      "file_count": 54,
       "files": [
         ".claude/hooks/post-edit.ps1",
         ".claude/hooks/post-edit.sh",
@@ -1344,6 +1423,8 @@
         ".github/workflows/docs-site.yml",
         ".github/workflows/dod.yml",
         ".github/workflows/publish-pypi.yml",
+        ".github/workflows/python-ci.yml",
+        ".github/workflows/python-lint.yml",
         ".github/workflows/scaffold-self-check.yml",
         ".gitignore",
         ".llm-project-mapper.json",
@@ -1363,7 +1444,13 @@
         "docs-site/versioned_docs/version-0.2.0/guide/_category_.json",
         "docs-site/versioned_docs/version-0.2.0/quickstart/_category_.json",
         "docs-site/versioned_docs/version-0.2.0/reference/_category_.json",
+        "docs-site/versioned_docs/version-0.7.3/community/_category_.json",
+        "docs-site/versioned_docs/version-0.7.3/concepts/_category_.json",
+        "docs-site/versioned_docs/version-0.7.3/guide/_category_.json",
+        "docs-site/versioned_docs/version-0.7.3/quickstart/_category_.json",
+        "docs-site/versioned_docs/version-0.7.3/reference/_category_.json",
         "docs-site/versioned_sidebars/version-0.2.0-sidebars.json",
+        "docs-site/versioned_sidebars/version-0.7.3-sidebars.json",
         "docs-site/versions.json",
         "package-lock.json",
         "video/.gitignore",
@@ -1418,7 +1505,7 @@
     },
     {
       "name": "code",
-      "file_count": 42,
+      "file_count": 45,
       "files": [
         ".github/workflows-templates/telemetry-worker.js",
         "bin/auto-map.js",
@@ -1430,7 +1517,10 @@
         "simplicio_mapper/__init__.py",
         "simplicio_mapper/_native.py",
         "simplicio_mapper/cache.py",
+        "simplicio_mapper/context_cache.py",
+        "simplicio_mapper/context_pack.py",
         "simplicio_mapper/mapper.py",
+        "simplicio_mapper/mechanical_edit.py",
         "video/scripts/generate-why-voiceover.mjs",
         "video/scripts/regression.mjs",
         "video/src/LangContext.tsx",
@@ -1507,7 +1597,7 @@
     },
     {
       "name": "config",
-      "file_count": 13,
+      "file_count": 14,
       "files": [
         ".codex/config.toml",
         "docs-site/docusaurus.config.cjs",
@@ -1517,6 +1607,7 @@
         "pyproject.toml",
         "rust/Cargo.toml",
         "rust/pyproject.toml",
+        "tests/fixtures/parity-host/package.json",
         "video/package.json",
         "video/remotion.config.ts",
         "video/tsconfig.json",
@@ -1528,6 +1619,7 @@
         ".codex",
         "docs-site",
         "rust",
+        "tests",
         "video",
         "vscode-extension"
       ],
@@ -1557,16 +1649,16 @@
           "file": "rust/pyproject.toml"
         },
         {
-          "file": "video/package.json"
+          "file": "tests/fixtures/parity-host/package.json"
         },
         {
-          "file": "video/remotion.config.ts"
+          "file": "video/package.json"
         }
       ]
     },
     {
       "name": "documentation",
-      "file_count": 156,
+      "file_count": 172,
       "files": [
         ".agents/README.md",
         ".agents/_template.agent.md",
@@ -1735,22 +1827,28 @@
     },
     {
       "name": "entrypoint",
-      "file_count": 6,
+      "file_count": 8,
       "files": [
+        "bin/apply-edits.js",
         "bin/build-hamt-catalog",
         "bin/cli.js",
         "bin/skillopt.js",
         "docs/api-examples/cli.md",
         "simplicio_mapper/cli.py",
+        "tests/fixtures/parity-host/src/index.js",
         "video/src/index.ts"
       ],
       "modules": [
         "bin",
         "docs",
         "simplicio_mapper",
+        "tests",
         "video"
       ],
       "evidence": [
+        {
+          "file": "bin/apply-edits.js"
+        },
         {
           "file": "bin/build-hamt-catalog"
         },
@@ -1765,6 +1863,9 @@
         },
         {
           "file": "simplicio_mapper/cli.py"
+        },
+        {
+          "file": "tests/fixtures/parity-host/src/index.js"
         },
         {
           "file": "video/src/index.ts"
@@ -1788,11 +1889,12 @@
     },
     {
       "name": "script",
-      "file_count": 15,
+      "file_count": 16,
       "files": [
         "scripts/README.md",
         "scripts/build_hamt.py",
         "scripts/check-placeholders.sh",
+        "scripts/check-version-sync.js",
         "scripts/coverage.js",
         "scripts/evidence.ps1",
         "scripts/evidence.sh",
@@ -1820,6 +1922,9 @@
           "file": "scripts/check-placeholders.sh"
         },
         {
+          "file": "scripts/check-version-sync.js"
+        },
+        {
           "file": "scripts/coverage.js"
         },
         {
@@ -1836,15 +1941,12 @@
         },
         {
           "file": "scripts/start.ps1"
-        },
-        {
-          "file": "scripts/start.sh"
         }
       ]
     },
     {
       "name": "test",
-      "file_count": 38,
+      "file_count": 55,
       "files": [
         ".skills/subagent-driven-development/spec-reviewer-prompt.md",
         ".skills/test-driven-development/SKILL.md",
@@ -1872,8 +1974,25 @@
         "tests/e2e/cli.spec.ts",
         "tests/e2e/skillopt.spec.ts",
         "tests/e2e/smoke.spec.ts",
+        "tests/fixtures/ctx-pack-host/sample.json",
+        "tests/fixtures/ctx-pack-host/sample.md",
+        "tests/fixtures/ctx-pack-host/sample.py",
+        "tests/fixtures/ctx-pack-host/sample.ts",
+        "tests/fixtures/mech-edit-host/sample.json",
+        "tests/fixtures/mech-edit-host/sample.md",
+        "tests/fixtures/mech-edit-host/sample.py",
+        "tests/fixtures/mech-edit-host/sample.ts",
+        "tests/fixtures/parity-host/package.json",
+        "tests/fixtures/parity-host/src/greet.js",
+        "tests/fixtures/parity-host/src/index.js",
+        "tests/fixtures/parity-host/tests/server-fixture.js",
         "tests/python/test_cli.py",
+        "tests/python/test_cli_coverage.py",
+        "tests/python/test_context_pack.py",
+        "tests/python/test_mechanical_edit.py",
         "tests/python/test_native.py",
+        "tests/python/test_parity.py",
+        "tests/unit/apply-edits.test.js",
         "tests/unit/build-hamt-catalog.test.js",
         "tests/unit/cli-args.test.js",
         "tests/unit/cli-install.test.js",
@@ -2601,6 +2720,40 @@
       "evidence": [
         {
           "file": ".github/workflows/publish-pypi.yml"
+        }
+      ]
+    },
+    {
+      "path": ".github/workflows/python-ci.yml",
+      "language": "yaml",
+      "module": ".github",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": ".github/workflows/python-ci.yml"
+        }
+      ]
+    },
+    {
+      "path": ".github/workflows/python-lint.yml",
+      "language": "yaml",
+      "module": ".github",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": ".github/workflows/python-lint.yml"
         }
       ]
     },
@@ -4350,6 +4503,40 @@
       ]
     },
     {
+      "path": "bin/apply-edits.js",
+      "language": "javascript",
+      "module": "bin",
+      "layers": [
+        "entrypoint"
+      ],
+      "roles": [
+        "entrypoint"
+      ],
+      "imports": [
+        "node:fs",
+        "node:path"
+      ],
+      "symbols": [
+        "EditError",
+        "resolveSafe",
+        "readIfExists",
+        "requireString",
+        "planEdit",
+        "computePlan",
+        "countOccurrences",
+        "replaceN",
+        "applyEdits",
+        "parseArgs",
+        "main"
+      ],
+      "summary": "Starts a CLI, runtime or package entrypoint.",
+      "evidence": [
+        {
+          "file": "bin/apply-edits.js"
+        }
+      ]
+    },
+    {
       "path": "bin/auto-map.js",
       "language": "javascript",
       "module": "bin",
@@ -5329,6 +5516,295 @@
       ]
     },
     {
+      "path": "docs-site/versioned_docs/version-0.7.3/community/_category_.json",
+      "language": "json",
+      "module": "docs-site",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/community/_category_.json"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/community/contributing.md",
+      "language": "markdown",
+      "module": "docs-site",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/community/contributing.md"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/community/showcase.md",
+      "language": "markdown",
+      "module": "docs-site",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/community/showcase.md"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/_category_.json",
+      "language": "json",
+      "module": "docs-site",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/concepts/_category_.json"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/architecture-map.md",
+      "language": "markdown",
+      "module": "docs-site",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/concepts/architecture-map.md"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/domain-map.md",
+      "language": "markdown",
+      "module": "docs-site",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/concepts/domain-map.md"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/skills-and-agents.md",
+      "language": "markdown",
+      "module": "docs-site",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/concepts/skills-and-agents.md"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/concepts/yool-tuple-hamt.md",
+      "language": "markdown",
+      "module": "docs-site",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/concepts/yool-tuple-hamt.md"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/guide/_category_.json",
+      "language": "json",
+      "module": "docs-site",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/guide/_category_.json"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/guide/private-overlay.md",
+      "language": "markdown",
+      "module": "docs-site",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/guide/private-overlay.md"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/intro.md",
+      "language": "markdown",
+      "module": "docs-site",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/intro.md"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/quickstart/_category_.json",
+      "language": "json",
+      "module": "docs-site",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/quickstart/_category_.json"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/quickstart/get-going.md",
+      "language": "markdown",
+      "module": "docs-site",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/quickstart/get-going.md"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/reference/_category_.json",
+      "language": "json",
+      "module": "docs-site",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/reference/_category_.json"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/reference/cli-flags.md",
+      "language": "markdown",
+      "module": "docs-site",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/reference/cli-flags.md"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/reference/init-handoff.md",
+      "language": "markdown",
+      "module": "docs-site",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/reference/init-handoff.md"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_docs/version-0.7.3/reference/session-start-hook.md",
+      "language": "markdown",
+      "module": "docs-site",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_docs/version-0.7.3/reference/session-start-hook.md"
+        }
+      ]
+    },
+    {
       "path": "docs-site/versioned_sidebars/version-0.2.0-sidebars.json",
       "language": "json",
       "module": "docs-site",
@@ -5342,6 +5818,23 @@
       "evidence": [
         {
           "file": "docs-site/versioned_sidebars/version-0.2.0-sidebars.json"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/versioned_sidebars/version-0.7.3-sidebars.json",
+      "language": "json",
+      "module": "docs-site",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "docs-site/versioned_sidebars/version-0.7.3-sidebars.json"
         }
       ]
     },
@@ -5464,6 +5957,40 @@
       "evidence": [
         {
           "file": "docs/api-examples/webhook.md"
+        }
+      ]
+    },
+    {
+      "path": "docs/apply-edits.example.json",
+      "language": "json",
+      "module": "docs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs/apply-edits.example.json"
+        }
+      ]
+    },
+    {
+      "path": "docs/apply-edits.md",
+      "language": "markdown",
+      "module": "docs",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "docs/apply-edits.md"
         }
       ]
     },
@@ -5899,6 +6426,31 @@
       ]
     },
     {
+      "path": "scripts/check-version-sync.js",
+      "language": "javascript",
+      "module": "scripts",
+      "layers": [
+        "script"
+      ],
+      "roles": [],
+      "imports": [
+        "node:fs",
+        "node:path"
+      ],
+      "symbols": [
+        "readPackageVersion",
+        "readPyprojectVersion",
+        "readInitVersion",
+        "main"
+      ],
+      "summary": "Defines exported symbols: main, readInitVersion, readPackageVersion, readPyprojectVersion.",
+      "evidence": [
+        {
+          "file": "scripts/check-version-sync.js"
+        }
+      ]
+    },
+    {
       "path": "scripts/coverage.js",
       "language": "javascript",
       "module": "scripts",
@@ -6191,8 +6743,8 @@
       "roles": [],
       "imports": [
         "__future__",
-        "simplicio_mapper_rs",
-        "typing"
+        "collections.abc",
+        "simplicio_mapper_rs"
       ],
       "symbols": [],
       "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
@@ -6249,14 +6801,14 @@
         ".",
         ".mapper",
         "__future__",
+        "collections.abc",
         "hashlib",
         "json",
         "os",
         "re",
         "subprocess",
         "sys",
-        "time",
-        "typing"
+        "time"
       ],
       "symbols": [
         "_read_json_safe",
@@ -6319,6 +6871,72 @@
       ]
     },
     {
+      "path": "simplicio_mapper/context_cache.py",
+      "language": "python",
+      "module": "simplicio_mapper",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "typing"
+      ],
+      "symbols": [
+        "ContextCache",
+        "__init__",
+        "_load",
+        "get",
+        "set",
+        "clear",
+        "__contains__",
+        "__len__",
+        "_persist"
+      ],
+      "summary": "Defines exported symbols: ContextCache, __contains__, __init__, __len__, _load.",
+      "evidence": [
+        {
+          "file": "simplicio_mapper/context_cache.py"
+        }
+      ]
+    },
+    {
+      "path": "simplicio_mapper/context_pack.py",
+      "language": "python",
+      "module": "simplicio_mapper",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        "__future__",
+        "collections.abc",
+        "hashlib",
+        "json",
+        "os",
+        "typing"
+      ],
+      "symbols": [
+        "_sha256_text",
+        "_read_safe",
+        "_load_json",
+        "_language_for",
+        "_range_snippet",
+        "_file_symbols",
+        "_related_tests",
+        "_call_graph_edges",
+        "build_context_pack"
+      ],
+      "summary": "Defines exported symbols: _call_graph_edges, _file_symbols, _language_for, _load_json, _range_snippet.",
+      "evidence": [
+        {
+          "file": "simplicio_mapper/context_pack.py"
+        }
+      ]
+    },
+    {
       "path": "simplicio_mapper/mapper.py",
       "language": "python",
       "module": "simplicio_mapper",
@@ -6331,6 +6949,7 @@
         ".cache",
         ".models",
         "__future__",
+        "collections.abc",
         "datetime",
         "hashlib",
         "orjson",
@@ -6398,6 +7017,39 @@
       "evidence": [
         {
           "file": "simplicio_mapper/mapper.py"
+        }
+      ]
+    },
+    {
+      "path": "simplicio_mapper/mechanical_edit.py",
+      "language": "python",
+      "module": "simplicio_mapper",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        ".mapper",
+        "__future__",
+        "collections.abc",
+        "hashlib",
+        "os"
+      ],
+      "symbols": [
+        "_sha256_text",
+        "_read_bytes_sample",
+        "is_binary",
+        "snapshot_hash",
+        "range_hash",
+        "_must_contain",
+        "_absolute",
+        "extract_file_entry",
+        "build_context"
+      ],
+      "summary": "Defines exported symbols: _absolute, _must_contain, _read_bytes_sample, _sha256_text, build_context.",
+      "evidence": [
+        {
+          "file": "simplicio_mapper/mechanical_edit.py"
         }
       ]
     },
@@ -6570,6 +7222,261 @@
       ]
     },
     {
+      "path": "tests/fixtures/ctx-pack-host/sample.json",
+      "language": "json",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "symbols": [],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/fixtures/ctx-pack-host/sample.json"
+        }
+      ]
+    },
+    {
+      "path": "tests/fixtures/ctx-pack-host/sample.md",
+      "language": "markdown",
+      "module": "tests",
+      "layers": [
+        "documentation",
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "symbols": [],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/fixtures/ctx-pack-host/sample.md"
+        }
+      ]
+    },
+    {
+      "path": "tests/fixtures/ctx-pack-host/sample.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "symbols": [
+        "load_user"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/fixtures/ctx-pack-host/sample.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/fixtures/ctx-pack-host/sample.ts",
+      "language": "typescript",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "symbols": [
+        "loadUser"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/fixtures/ctx-pack-host/sample.ts"
+        }
+      ]
+    },
+    {
+      "path": "tests/fixtures/mech-edit-host/sample.json",
+      "language": "json",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "symbols": [],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/fixtures/mech-edit-host/sample.json"
+        }
+      ]
+    },
+    {
+      "path": "tests/fixtures/mech-edit-host/sample.md",
+      "language": "markdown",
+      "module": "tests",
+      "layers": [
+        "documentation",
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "symbols": [],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/fixtures/mech-edit-host/sample.md"
+        }
+      ]
+    },
+    {
+      "path": "tests/fixtures/mech-edit-host/sample.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "symbols": [
+        "greet",
+        "farewell"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/fixtures/mech-edit-host/sample.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/fixtures/mech-edit-host/sample.ts",
+      "language": "typescript",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "symbols": [
+        "greet",
+        "farewell"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/fixtures/mech-edit-host/sample.ts"
+        }
+      ]
+    },
+    {
+      "path": "tests/fixtures/parity-host/package.json",
+      "language": "json",
+      "module": "tests",
+      "layers": [
+        "config",
+        "test"
+      ],
+      "roles": [
+        "config",
+        "test"
+      ],
+      "imports": [],
+      "symbols": [],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/fixtures/parity-host/package.json"
+        }
+      ]
+    },
+    {
+      "path": "tests/fixtures/parity-host/src/greet.js",
+      "language": "javascript",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "symbols": [
+        "greet"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/fixtures/parity-host/src/greet.js"
+        }
+      ]
+    },
+    {
+      "path": "tests/fixtures/parity-host/src/index.js",
+      "language": "javascript",
+      "module": "tests",
+      "layers": [
+        "entrypoint",
+        "test"
+      ],
+      "roles": [
+        "entrypoint",
+        "test"
+      ],
+      "imports": [
+        "./greet",
+        "express"
+      ],
+      "symbols": [
+        "startServer"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/fixtures/parity-host/src/index.js"
+        }
+      ]
+    },
+    {
+      "path": "tests/fixtures/parity-host/tests/server-fixture.js",
+      "language": "javascript",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "../src/index",
+        "node:assert/strict",
+        "node:test"
+      ],
+      "symbols": [],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/fixtures/parity-host/tests/server-fixture.js"
+        }
+      ]
+    },
+    {
       "path": "tests/python/test_cli.py",
       "language": "python",
       "module": "tests",
@@ -6612,6 +7519,12 @@
         "test_architecture_docs_and_export_render_markdown",
         "test_incremental_records_changed_files",
         "test_git_status_marks_untracked_files_inside_new_dirs",
+        "EndpointNormalizationTest",
+        "test_placeholders_collapse_to_id",
+        "test_uuid_segments_collapse_to_id",
+        "test_numeric_segments_collapse_to_id",
+        "test_unknown_slug_segments_stay_literal",
+        "test_query_string_and_leading_slash_normalization",
         "CliTest",
         "setUp",
         "tearDown",
@@ -6653,6 +7566,157 @@
       ]
     },
     {
+      "path": "tests/python/test_cli_coverage.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "contextlib",
+        "io",
+        "json",
+        "pathlib",
+        "simplicio_mapper",
+        "simplicio_mapper.cli",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "symbols": [
+        "_write",
+        "_run",
+        "StackAndProductHintInjectionTest",
+        "setUp",
+        "tearDown",
+        "test_stack_and_product_name_flow_into_project_map",
+        "JsonOnlyAndChangedOnlyAliasesTest",
+        "setUp",
+        "tearDown",
+        "test_json_only_keeps_docs_disabled",
+        "test_changed_only_triggers_incremental_refresh",
+        "DocsOnlyShortCircuitTest",
+        "setUp",
+        "tearDown",
+        "test_docs_only_on_index_renders_docs_without_rewriting_json",
+        "IndexFailureBoundaryTest",
+        "test_index_failure_returns_exit_1_with_failed_status_json",
+        "WatchLoopExitsOnInterruptTest",
+        "test_watch_loop_handles_keyboard_interrupt_cleanly"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_cli_coverage.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/python/test_context_pack.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "json",
+        "pathlib",
+        "simplicio_mapper.context_cache",
+        "simplicio_mapper.context_pack",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "symbols": [
+        "_pack",
+        "ContextPackBasicTest",
+        "test_envelope_shape_and_pack_hash",
+        "test_multi_language_fixtures",
+        "RangeExtractionTest",
+        "test_range_hash_emitted_with_snippet",
+        "test_unstable_range_marks_needs_broader_context",
+        "CallGraphAndDependencyTest",
+        "test_callers_and_imports_resolved",
+        "test_tests_resolved_from_project_map",
+        "NeedsBroaderContextTest",
+        "test_missing_target_marked",
+        "test_missing_upstream_artifacts_loaded_implicitly",
+        "DeterminismTest",
+        "test_same_inputs_same_pack",
+        "LargeFileCompactModeTest",
+        "test_compact_mode_omits_snippets_above_threshold",
+        "ContextCacheTest",
+        "setUp",
+        "tearDown",
+        "test_hit_returns_stored_summary",
+        "test_miss_returns_none",
+        "test_invalidation_when_key_changes",
+        "test_persistence_across_instances",
+        "test_clear_empties_cache",
+        "test_persisted_payload_uses_schema"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_context_pack.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/python/test_mechanical_edit.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "pathlib",
+        "simplicio_mapper.mechanical_edit",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "symbols": [
+        "StableRangeHashingTest",
+        "test_same_text_same_range_yields_same_hash",
+        "test_different_ranges_yield_different_hashes",
+        "test_range_out_of_bounds_raises",
+        "SnapshotHashTest",
+        "test_snapshot_hash_changes_when_content_changes",
+        "AnchorDriftDetectionTest",
+        "test_drift_changes_before_hash",
+        "MissingFileAndBinaryRefusalTest",
+        "test_missing_file_raises",
+        "test_binary_file_refused",
+        "LargeFileCompactModeTest",
+        "test_must_contain_omitted_above_threshold",
+        "test_must_contain_emitted_below_threshold",
+        "MultiLanguageFixtureTest",
+        "test_typescript_python_json_markdown_languages",
+        "DeterministicContextHashTest",
+        "test_same_selections_yield_same_context_hash",
+        "test_changed_selection_changes_context_hash"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_mechanical_edit.py"
+        }
+      ]
+    },
+    {
       "path": "tests/python/test_native.py",
       "language": "python",
       "module": "tests",
@@ -6688,6 +7752,81 @@
       "evidence": [
         {
           "file": "tests/python/test_native.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/python/test_parity.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "json",
+        "pathlib",
+        "shutil",
+        "simplicio_mapper.mapper",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "symbols": [
+        "_have_node",
+        "_normalize",
+        "NodePythonParityTest",
+        "setUp",
+        "tearDown",
+        "_node_map",
+        "_python_map",
+        "test_schemas_match",
+        "test_file_inventory_matches",
+        "test_entry_points_match",
+        "test_test_files_match",
+        "test_architecture_signals_match",
+        "test_file_roles_match_per_path",
+        "test_normalization_strips_volatile_fields"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_parity.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/unit/apply-edits.test.js",
+      "language": "javascript",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "../../bin/apply-edits",
+        "node:assert/strict",
+        "node:fs",
+        "node:os",
+        "node:path",
+        "node:test"
+      ],
+      "symbols": [
+        "mkTmp",
+        "rmTmp",
+        "write",
+        "read"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/unit/apply-edits.test.js"
         }
       ]
     },
@@ -8177,9 +9316,198 @@
       "type": "calls",
       "source_file": ".github/workflows-templates/telemetry-worker.js",
       "source_symbol": ".github/workflows-templates/telemetry-worker.js::sanitize",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 58,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": ".github/workflows-templates/telemetry-worker.js",
+      "source_symbol": ".github/workflows-templates/telemetry-worker.js::sanitize",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 58,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::resolveSafe",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::EditError",
+      "line": 58,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::applyEdits",
+      "line": 362,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::planEdit",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::computePlan",
+      "line": 95,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::computePlan",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::countOccurrences",
+      "line": 156,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 339,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::parseArgs",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::parseArgs",
+      "line": 309,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::readIfExists",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::readIfExists",
+      "line": 72,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::computePlan",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::replaceN",
+      "line": 168,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::requireString",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::requireString",
+      "line": 81,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::planEdit",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::resolveSafe",
+      "line": 93,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::computePlan",
+      "target_file": "bin/auto-map.js",
+      "target_symbol": "bin/auto-map.js::exists",
+      "line": 119,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::computePlan",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::exists",
+      "line": 119,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::main",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::main",
+      "line": 339,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::parseArgs",
+      "target_file": "bin/map.js",
+      "target_symbol": "bin/map.js::parseArgs",
+      "line": 309,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::main",
+      "target_file": "bin/skillopt.js",
+      "target_symbol": "bin/skillopt.js::main",
+      "line": 339,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::parseArgs",
+      "target_file": "bin/skillopt.js",
+      "target_symbol": "bin/skillopt.js::parseArgs",
+      "line": 309,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::applyEdits",
+      "target_file": "scripts/skillopt/engine.js",
+      "target_symbol": "scripts/skillopt/engine.js::applyEdits",
+      "line": 252,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::applyEdits",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 272,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::applyEdits",
+      "target_file": "tests/python/test_cli.py",
+      "target_symbol": "tests/python/test_cli.py::get",
+      "line": 272,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/apply-edits.js",
+      "source_symbol": "bin/apply-edits.js::main",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::write",
+      "line": 342,
       "confidence": 0.58
     },
     {
@@ -8751,9 +10079,27 @@
       "type": "calls",
       "source_file": "bin/auto-map.js",
       "source_symbol": "bin/auto-map.js::collectEntities",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 321,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/auto-map.js",
+      "source_symbol": "bin/auto-map.js::collectEntities",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 321,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/cli.js",
+      "source_symbol": "bin/cli.js::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 1225,
       "confidence": 0.58
     },
     {
@@ -9261,15 +10607,6 @@
     {
       "type": "calls",
       "source_file": "bin/cli.js",
-      "source_symbol": "bin/cli.js::main",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::main",
-      "line": 1225,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "bin/cli.js",
       "source_symbol": null,
       "target_file": "scripts/lint.js",
       "target_symbol": "scripts/lint.js::log",
@@ -9289,6 +10626,15 @@
       "type": "calls",
       "source_file": "bin/cli.js",
       "source_symbol": "bin/cli.js::maybeNotifyUpdate",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 443,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/cli.js",
+      "source_symbol": "bin/cli.js::maybeNotifyUpdate",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 443,
@@ -9298,9 +10644,18 @@
       "type": "calls",
       "source_file": "bin/cli.js",
       "source_symbol": "bin/cli.js::read",
-      "target_file": "tests/unit/docs-site.test.js",
-      "target_symbol": "tests/unit/docs-site.test.js::read",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::read",
       "line": 607,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/cli.js",
+      "source_symbol": "bin/cli.js::maybeSendTelemetry",
+      "target_file": "tests/unit/apply-edits.test.js",
+      "target_symbol": "tests/unit/apply-edits.test.js::write",
+      "line": 538,
       "confidence": 0.58
     },
     {
@@ -9310,6 +10665,15 @@
       "target_file": "bin/hook-runner.js",
       "target_symbol": "bin/hook-runner.js::runHook",
       "line": 17,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/map.js",
+      "source_symbol": "bin/map.js::parseArgs",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::parseArgs",
+      "line": 37,
       "confidence": 0.58
     },
     {
@@ -9854,9 +11218,36 @@
       "type": "calls",
       "source_file": "bin/mapper-artifacts.js",
       "source_symbol": "bin/mapper-artifacts.js::collectEntities",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 225,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/mapper-artifacts.js",
+      "source_symbol": "bin/mapper-artifacts.js::collectEntities",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 225,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/skillopt.js",
+      "source_symbol": "bin/skillopt.js::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 109,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/skillopt.js",
+      "source_symbol": "bin/skillopt.js::parseArgs",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::parseArgs",
+      "line": 52,
       "confidence": 0.58
     },
     {
@@ -9961,15 +11352,6 @@
     {
       "type": "calls",
       "source_file": "bin/skillopt.js",
-      "source_symbol": "bin/skillopt.js::main",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::main",
-      "line": 109,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "bin/skillopt.js",
       "source_symbol": "bin/skillopt.js::printHelp",
       "target_file": "scripts/lint.js",
       "target_symbol": "scripts/lint.js::log",
@@ -10023,10 +11405,28 @@
       "type": "calls",
       "source_file": "rust/src/lib.rs",
       "source_symbol": null,
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::get",
+      "line": 41,
+      "confidence": 0.48
+    },
+    {
+      "type": "calls",
+      "source_file": "rust/src/lib.rs",
+      "source_symbol": null,
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 41,
       "confidence": 0.48
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/build_hamt.py",
+      "source_symbol": "scripts/build_hamt.py::main",
+      "target_file": "bin/apply-edits.js",
+      "target_symbol": "bin/apply-edits.js::main",
+      "line": 261,
+      "confidence": 0.58
     },
     {
       "type": "calls",
@@ -10144,276 +11544,15 @@
       "target_symbol": "scripts/build_hamt.py::insert_leaf",
       "line": 164,
       "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::main",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::main",
-      "line": 261,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::parse_agent_terms",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::parse_agent_terms",
-      "line": 84,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::parse_agents",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::parse_agents",
-      "line": 104,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::parse_args",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::parse_args",
-      "line": 253,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::parse_scalar",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::parse_scalar",
-      "line": 56,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::slot_path",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::slot_path",
-      "line": 44,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::yool_hash",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::yool_hash",
-      "line": 35,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::finalize",
-      "target_file": "tests/python/test_cli.py",
-      "target_symbol": "tests/python/test_cli.py::get",
-      "line": 118,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/coverage.js",
-      "source_symbol": "scripts/coverage.js::metric",
-      "target_file": "bin/cli.js",
-      "target_symbol": "bin/cli.js::log",
-      "line": 62,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/coverage.js",
-      "source_symbol": "scripts/coverage.js::metric",
-      "target_file": "scripts/coverage.js",
-      "target_symbol": "scripts/coverage.js::metric",
-      "line": 54,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/coverage.js",
-      "source_symbol": "scripts/coverage.js::metric",
-      "target_file": "scripts/lint.js",
-      "target_symbol": "scripts/lint.js::log",
-      "line": 62,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/lint.js",
-      "source_symbol": "scripts/lint.js::walk",
-      "target_file": "bin/auto-map.js",
-      "target_symbol": "bin/auto-map.js::walk",
-      "line": 50,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/lint.js",
-      "source_symbol": "scripts/lint.js::log",
-      "target_file": "bin/cli.js",
-      "target_symbol": "bin/cli.js::log",
-      "line": 40,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/lint.js",
-      "source_symbol": "scripts/lint.js::main",
-      "target_file": "bin/cli.js",
-      "target_symbol": "bin/cli.js::main",
-      "line": 168,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/lint.js",
-      "source_symbol": "scripts/lint.js::walk",
-      "target_file": "bin/cli.js",
-      "target_symbol": "bin/cli.js::walk",
-      "line": 50,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/lint.js",
-      "source_symbol": "scripts/lint.js::walk",
-      "target_file": "bin/mapper-artifacts.js",
-      "target_symbol": "bin/mapper-artifacts.js::walk",
-      "line": 50,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/lint.js",
-      "source_symbol": "scripts/lint.js::main",
-      "target_file": "bin/skillopt.js",
-      "target_symbol": "bin/skillopt.js::main",
-      "line": 168,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/lint.js",
-      "source_symbol": "scripts/lint.js::main",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::main",
-      "line": 168,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/lint.js",
-      "source_symbol": "scripts/lint.js::lintJavaScript",
-      "target_file": "scripts/lint.js",
-      "target_symbol": "scripts/lint.js::lintJavaScript",
-      "line": 61,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/lint.js",
-      "source_symbol": "scripts/lint.js::lintJson",
-      "target_file": "scripts/lint.js",
-      "target_symbol": "scripts/lint.js::lintJson",
-      "line": 78,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/lint.js",
-      "source_symbol": "scripts/lint.js::lintMarkdown",
-      "target_file": "scripts/lint.js",
-      "target_symbol": "scripts/lint.js::lintMarkdown",
-      "line": 145,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/lint.js",
-      "source_symbol": "scripts/lint.js::lintPowerShell",
-      "target_file": "scripts/lint.js",
-      "target_symbol": "scripts/lint.js::lintPowerShell",
-      "line": 118,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/lint.js",
-      "source_symbol": "scripts/lint.js::lintShell",
-      "target_file": "scripts/lint.js",
-      "target_symbol": "scripts/lint.js::lintShell",
-      "line": 94,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/lint.js",
-      "source_symbol": "scripts/lint.js::log",
-      "target_file": "scripts/lint.js",
-      "target_symbol": "scripts/lint.js::log",
-      "line": 40,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/skillopt/engine.js",
-      "source_symbol": "scripts/skillopt/engine.js::applyEdit",
-      "target_file": "scripts/skillopt/engine.js",
-      "target_symbol": "scripts/skillopt/engine.js::applyEdit",
-      "line": 108,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/skillopt/engine.js",
-      "source_symbol": "scripts/skillopt/engine.js::applyEdits",
-      "target_file": "scripts/skillopt/engine.js",
-      "target_symbol": "scripts/skillopt/engine.js::applyEdits",
-      "line": 137,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/skillopt/engine.js",
-      "source_symbol": "scripts/skillopt/engine.js::containsDirective",
-      "target_file": "scripts/skillopt/engine.js",
-      "target_symbol": "scripts/skillopt/engine.js::containsDirective",
-      "line": 39,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/skillopt/engine.js",
-      "source_symbol": "scripts/skillopt/engine.js::editSignature",
-      "target_file": "scripts/skillopt/engine.js",
-      "target_symbol": "scripts/skillopt/engine.js::editSignature",
-      "line": 71,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/skillopt/engine.js",
-      "source_symbol": "scripts/skillopt/engine.js::applyEdit",
-      "target_file": "scripts/skillopt/engine.js",
-      "target_symbol": "scripts/skillopt/engine.js::escapeRegExp",
-      "line": 118,
-      "confidence": 0.58
     }
   ],
   "coverage": {
-    "files": 300,
+    "files": 344,
     "modules": 18,
     "layers": 10,
-    "symbols": 450,
-    "relationships": 803,
-    "tests": 38
+    "symbols": 588,
+    "relationships": 1000,
+    "tests": 55
   },
   "notes": [
     "Generated from deterministic repository inspection.",
