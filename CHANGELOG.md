@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.8.0] - 2026-06-02
+
+### Added
+- `simplicio_mapper.mechanical_edit` producer for the canonical
+  `simplicio.mechanical-edit/v1` contract (closes #110): `snapshot_hash`,
+  `range_hash`, `is_binary`, `extract_file_entry`, and `build_context`,
+  with binary/missing-file refusal and large-file compact mode.
+- `simplicio_mapper.context_pack` producer for `simplicio.context-pack/v1`
+  and `simplicio_mapper.context_cache.ContextCache` for
+  `simplicio.context-cache/v1` (closes #115): callers/imports from the
+  call graph, related tests from the project map, per-range hashes, and
+  `needs_broader_context` with concrete reasons when upstream artifacts
+  or stable anchors are missing.
+- "Native Runtime Contract" (closes #95), "Mechanical Edit Contract"
+  (closes #110), and "Context Packs and Hash-Based Cache" (closes #115)
+  sections in `SIMPLICIO_INTEGRATION.md`.
+- Python `ruff` configuration and dev extra plus a `python-lint.yml`
+  workflow (closes #101).
+- `scripts/check-version-sync.js` plus a `version-sync` job in
+  `scaffold-self-check.yml` (closes #102).
+- `python-ci.yml` matrix workflow running pytest across Python 3.10–3.12
+  plus a `cargo test` + `maturin develop` parity check for the Rust crate
+  (closes #97); `publish-pypi.yml` now gates on `pytest` passing before
+  building distributions.
+- Node ↔ Python mapper parity test (`tests/python/test_parity.py`) with
+  a deterministic fixture under `tests/fixtures/parity-host/`
+  (closes #98).
+- Coverage for previously untested CLI paths — `--docs-only`,
+  `--json-only`, `--changed-only`, `--stack` / `--product-name` hint
+  injection, `index` failure boundary, and the `_watch` loop
+  (closes #103).
+
+### Changed
+- Endpoint path normalization in `simplicio-mapper endpoints` is now
+  project-agnostic (closes #104): the EVT-specific resource regexes are
+  gone; only placeholders, UUIDs, and numeric segments collapse to
+  `{id}`.
+- Docusaurus site renamed from `llm-project-mapper` to `simplicio-mapper`
+  (`baseUrl`, `projectName`, navbar / footer URLs) and a `0.7.3` docs
+  snapshot was cut so the version dropdown matches the live release
+  (closes #100).
+- `AGENTS.md`, `CLAUDE.md`, `.github/copilot-instructions.md`, and
+  `.specs/product/{VISION,DOMAIN,PERSONAS}.md` no longer carry
+  `<STACK>` / `<APP_NAME>` / `<PRODUCT_NAME>` placeholders; they now
+  describe the real Python + Node + optional Rust stack and the actual
+  command surface (closes #99).
+- Dropped the `publish-npm.yml` workflow; the project ships PyPI-only
+  going forward.
+
 ## [0.7.3] - 2026-06-01
 
 ### Changed
