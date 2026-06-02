@@ -1,127 +1,89 @@
-# DOMAIN — <PRODUCT_NAME>
+# DOMAIN — simplicio-mapper
 
-Glossário e modelo de entidades do <DOMAIN>. Quando um termo aparecer no código (variável, classe, endpoint), ele deve estar aqui antes. Quando alguém perguntar "o que é X?", a resposta vem deste arquivo.
-
-> Regra: nada de sinônimos não documentados. Se "usuário" e "cliente" significam a mesma coisa, escolha um e mantenha em todo o repo.
-
----
-
-## Glossário
-
-Tabela ordenada alfabeticamente. Manter conciso (1-2 linhas por termo).
-
-| Termo | Definição | Onde aparece |
-|---|---|---|
-| `<Entidade1>` | <Definição curta. Não copiar do dicionário, descrever no contexto do produto.> | DB, API, UI |
-| `<Entidade2>` | <Definição.> | DB, API |
-| `<Conceito1>` | <Definição.> | Regra de negócio |
-| `<Status>` | Estado pelo qual `<Entidade1>` passa: `pending` -> `active` -> `archived`. | DB, UI |
-| `<Evento>` | Algo que aconteceu (passado), imutável. Ex: `OrderPlaced`. | Event log |
-| `<Comando>` | Pedido para algo acontecer (futuro). Ex: `PlaceOrder`. | API |
+Vocabulário canônico do produto. Antes de criar nome novo, procura aqui;
+antes de mudar nome existente, atualiza tudo que referencia.
 
 ---
 
-## Entidades principais
+## Entidades
 
-Lista das principais entidades de negócio. Cada uma com 1-3 frases de descrição.
-
-### `<Entidade1>`
-
-- O que é: <descrição>
-- Atributos chave: <id, nome, status, ...>
-- Ciclo de vida: <criação -> transições -> término>
-- Quem cria: <persona>
-- Quem consome: <persona ou sistema>
-
-### `<Entidade2>`
-
-- O que é: <descrição>
-- Atributos chave: <...>
-- Relação com `<Entidade1>`: <1:N, 1:1, N:N e por quê>
-
-### `<Entidade3>`
-
-- O que é: <descrição>
-- Atributos chave: <...>
-- Regras de negócio: <ex: só pode existir uma ativa por usuário>
-
----
-
-## Diagrama de entidades
-
-Visão simplificada das relações. Atualizar quando uma entidade nova for criada ou um relacionamento mudar.
-
-```mermaid
-erDiagram
-    USER ||--o{ ENTIDADE1 : "creates"
-    ENTIDADE1 ||--o{ ENTIDADE2 : "contains"
-    ENTIDADE1 }o--|| ENTIDADE3 : "belongs to"
-
-    USER {
-        uuid id
-        string email
-        string name
-    }
-    ENTIDADE1 {
-        uuid id
-        uuid user_id
-        string status
-        datetime created_at
-    }
-    ENTIDADE2 {
-        uuid id
-        uuid entidade1_id
-        string title
-    }
-    ENTIDADE3 {
-        uuid id
-        string name
-    }
-```
+- **Project** — diretório raiz que o mapper analisa. Identificado por `cwd`
+  e (quando disponível) por commit SHA de `git rev-parse HEAD`.
+- **ProjectFile** — entry deterministica do `files[]` em `project-map.json`.
+  Carrega `path`, `language`, `roles`, `imports`, `exports`, `importance`,
+  `file_hash`, `git_status`, `size_bytes`, `last_modified`.
+- **Precedent** — snippet de alta qualidade extraído pelo mapper, tagueado
+  por `change_type` (`feature`, `bugfix`, `test`, `refactor`, `docs`...).
+- **ArchitectureSignal** — flag de framework/biblioteca detectado por
+  heurística (e.g. `nextjs`, `fastapi`, `dotnet`, `prisma`).
+- **Module / Layer** — agrupamento heurístico em `architecture-inventory.json`
+  com camadas `entrypoint`, `domain`, `route`, `ui`, `config`, `test`.
+- **Symbol** — classe, função, método ou export detectado, com `defined_in`,
+  `line` e `evidence`.
+- **CallEdge** — relação `imports` ou `calls` em `call-graph.json` com
+  `confidence` (1.0 para imports resolvidos, <1.0 para heurísticas).
+- **Endpoint** (`endpoints` command) — par método+path normalizado vindo de
+  cliente (`client_calls`) ou servidor (`server_routes`), comparado por
+  `missing_from_server`.
+- **Screen** (`screens` command) — rota Angular declarativa com persona,
+  redirect, guard e parâmetros dinâmicos.
+- **IndexState** — `simplicio.mapper-index-state/v1`, fingerprint persistido
+  em `.simplicio/index-state.json` que guarda o último HEAD/status para o
+  curto-circuito do `index`.
+- **Receipt** — registro de execução em `.receipts/`, padrão YOOL_TUPLE_HAMT
+  §1.8.4 (com `tuple_id`, `yool_id`, `cost.tokens`, `cost.usd`).
 
 ---
 
-## Regras de negócio (invariantes)
+## Regras críticas
 
-Coisas que nunca podem ser violadas. Cada uma deve virar teste.
-
-- INV-1: `<Entidade1>` só passa de `pending` para `active` se `<condição>`.
-- INV-2: Um `User` não pode ter mais de uma `<Entidade3>` ativa.
-- INV-3: `<Evento>` é imutável; nunca edita, sempre acrescenta.
-- INV-4: <regra...>
-
----
-
-## Estados / máquinas de estado
-
-Quando uma entidade tem ciclo de vida não trivial, desenhar.
-
-```mermaid
-stateDiagram-v2
-    [*] --> Pending
-    Pending --> Active: approve()
-    Pending --> Rejected: reject()
-    Active --> Archived: archive()
-    Archived --> [*]
-    Rejected --> [*]
-```
-
----
-
-## Termos do <DOMAIN> que NÃO usamos
-
-Sinônimos vetados. Mantém vocabulário consistente.
-
-| Termo vetado | Usar em vez |
-|---|---|
-| `customer` | `user` |
-| `record` | nome da entidade específica |
-| `data` | `<o que for, com nome explícito>` |
+1. **Schema é contrato.** Mudar shape de `simplicio.project-map/v1`,
+   `simplicio.precedent-index/v1`, `simplicio.architecture-inventory/v1`,
+   `simplicio.symbol-index/v1`, `simplicio.call-graph/v1`,
+   `simplicio.endpoint-inventory/v1` ou `simplicio.screen-inventory/v1`
+   exige ADR e bump de schema.
+2. **Determinismo.** Mesmo input → mesmo output. Ordenação estável,
+   timestamps em UTC, sem inclusão de paths absolutos do host.
+3. **Idempotência.** `simplicio-mapper index <path>` deve retornar exit 2
+   em <200 ms quando o fingerprint não mudou. Foreground e background não
+   podem rodar concorrentes; lock em `.simplicio/index.lock`.
+4. **Sem LLM no caminho crítico.** O mapper não chama modelo para gerar
+   artefato. Heurísticas e parsers só.
+5. **Generalização sobre nomes.** Endpoint path normalization usa só
+   placeholders, UUIDs e segments numéricos. Slugs específicos de host
+   ficam intactos.
+6. **Dependências leves.** `orjson` e `diskcache` são as únicas runtime
+   deps obrigatórias do pacote Python. A crate Rust é opt-in e o pacote
+   funciona sem ela.
+7. **Cross-runtime parity.** A CLI Python (canonical) e a CLI Node em
+   `bin/cli.js` devem emitir os mesmos artefatos para a mesma entrada;
+   divergência é bug.
 
 ---
 
-## Histórico
+## Casos de borda
 
-| Data | Mudança | Quem |
-|---|---|---|
-| YYYY-MM-DD | Criação inicial | <TEAM> |
+- **Repo sem git** — `_compute_fingerprint` cai no fallback de mtimes.
+- **Repo grande (>10k arquivos)** — `--background` evita bloquear o caller;
+  o foreground reusa o último JSON estável até o background terminar.
+- **Repo com tooling múltiplo** (.NET + Angular + Python) — `.angular`,
+  `obj`, `bin/Debug/`, `output/`, `__pycache__`, `.pytest_cache`,
+  `.ruff_cache`, `.gradle`, `target` são pulados; `bin/` puro (Node CLI) é
+  preservado.
+- **Repo com edits unstaged** — `git status --porcelain --untracked-files=all`
+  marca como `M`/`??`; mtime fallback usa `mtime_ns` + `size`.
+- **Repo overlay (starter dropado sobre host)** — `.specs/`, `.claude/`,
+  `.codex/`, `.github/` podem estar gitignored no host sem afetar o
+  `project_mode`.
+
+---
+
+## Fronteiras
+
+`simplicio-mapper` **não**:
+
+- Roda LLM nem gera prompt.
+- Aplica edits no código do host.
+- Publica artefatos remotos (`export-docs` apenas copia local).
+- Orquestra agentes (responsabilidade de `simplicio-sprint`).
+- Trata billing/pricing (responsabilidade de `simplicio-prompt`).

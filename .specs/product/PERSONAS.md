@@ -1,139 +1,93 @@
-# PERSONAS — <PRODUCT_NAME>
+# PERSONAS — simplicio-mapper
 
-Quem usa <PRODUCT_NAME>. Cada persona é um arquétipo: representa um grupo real de pessoas com objetivos, frustrações e contexto comuns. Decisões de produto e features se justificam contra estas personas, não contra opiniões.
-
-> Regra: se uma feature não move a agulha de pelo menos uma persona aqui, ela não entra no backlog.
-
----
-
-## Persona 1 — `<NOME_PERSONA_1>`
-
-**Arquétipo:** <ex: Dev solo construindo SaaS>
-
-### Quem é
-
-- **Papel/profissão:** <ex: Founder técnico, full-stack>
-- **Idade aproximada:** <ex: 28-40>
-- **Contexto profissional:** <ex: trabalha sozinho ou em time de até 3, sem PM dedicado>
-- **Familiaridade com tech:** <ex: alta — usa terminal, git, CI todo dia>
-- **Familiaridade com o <DOMAIN>:** <ex: média — sabe o suficiente, não é especialista>
-
-### Objetivos
-
-O que essa persona quer alcançar? Listar 3-5.
-
-- Lançar releases pequenas e frequentes sem quebrar produção.
-- Manter contexto do projeto consistente entre dias/semanas.
-- Reduzir tempo gasto em setup repetitivo entre projetos.
-- Trabalhar com IA sem virar refém de um único provedor.
-
-### Frustrações / dores
-
-O que dói hoje? Cada item deve poder virar feature.
-
-- Specs ficam desatualizadas e o agente perde contexto na semana seguinte.
-- Cada projeto novo começa do zero com instruction files inconsistentes.
-- Tasks vagas viram retrabalho e PRs gigantes.
-- Falta de gate automático faz código ruim chegar em produção.
-
-### Contexto de uso
-
-Onde, quando, como usa <PRODUCT_NAME>.
-
-- **Ambiente:** terminal + editor (VS Code/Cursor) + GitHub.
-- **Frequência:** diariamente.
-- **Sessão típica:** 2-6h focado, com pausas curtas.
-- **Trigger principal:** começar projeto novo ou adicionar feature em projeto existente.
-
-### Métrica que importa para essa persona
-
-Como sabemos que estamos servindo bem?
-
-- <ex: cycle time de task < 1 dia>
-- <ex: PRs com checklist de DoD passando no gate>
+Quem consome o mapper, em que contexto, e qual é a expectativa concreta
+de cada um. Use isso para decidir prioridades e quebrar empates de design.
 
 ---
 
-## Persona 2 — `<NOME_PERSONA_2>`
+## P1 · Agent orchestrator (SendSprint / simplicio-sprint)
 
-**Arquétipo:** <ex: Líder técnico em time de 5-15 pessoas>
-
-### Quem é
-
-- **Papel/profissão:** <ex: Tech Lead, EM>
-- **Idade aproximada:** <ex: 32-45>
-- **Contexto profissional:** <ex: lidera time misto, responsável por velocidade e qualidade>
-- **Familiaridade com tech:** <ex: alta>
-- **Familiaridade com o <DOMAIN>:** <ex: alta>
-
-### Objetivos
-
-- Padronizar como o time usa AI agents para reduzir variância de output.
-- Garantir que onboarding de devs novos seja em horas, não semanas.
-- Ter visibilidade do que está sendo construído sem ler todo PR.
-- Manter qualidade alta mesmo com aumento de velocidade.
-
-### Frustrações / dores
-
-- Cada dev usa IA do seu jeito, gerando código inconsistente.
-- Specs vivem em ferramentas diferentes (Notion, Linear, comentários de PR), nunca no repo.
-- Code review vira gargalo porque PRs são grandes e mal explicados.
-- Decisões arquiteturais passadas se perdem na rotação de pessoas.
-
-### Contexto de uso
-
-- **Ambiente:** GitHub + ferramentas de gestão (Linear/Jira) + reuniões.
-- **Frequência:** revê o repo toda semana, não codifica todo dia.
-- **Sessão típica:** 30-60 min de revisão.
-- **Trigger principal:** abrir o repo para revisar PR, escrever ADR ou planejar sprint.
-
-### Métrica que importa
-
-- <ex: variância entre PRs do time caiu>
-- <ex: tempo de onboarding de dev novo caiu de X para Y>
+- **Quem** — bot que recebe uma sprint/issue e dispara agentes em lote.
+- **Comando que chama** — `simplicio-mapper index <repo>` antes de cada
+  execução de agente.
+- **Quer**
+  - Exit codes estáveis (0/1/2), JSON estável (`--json`), idempotência
+    real (<200 ms quando nada mudou).
+  - Mensagens de erro acionáveis (`status="failed"`, `error="..."`).
+  - Lock que evita corridas com refreshes em background concorrentes.
+- **Não tolera** — output não estruturado, schema drift, log ruidoso em
+  no-op.
 
 ---
 
-## Persona 3 — `<NOME_PERSONA_3>` (opcional)
+## P2 · LLM-driven dev CLI (simplicio-dev-cli)
 
-**Arquétipo:** <ex: Agente AI consumindo o repo>
-
-### Quem é
-
-- Não é humano. É o agente (Claude Code, Codex, Copilot) lendo `AGENTS.md` e specs.
-- "Idade", "contexto profissional" não se aplicam, mas tem capacidades e limitações reais.
-- **Limitações:** janela de contexto, sem memória entre sessões, depende 100% do que está escrito no repo.
-
-### Objetivos
-
-- Encontrar contexto rápido (VISION -> DESIGN -> task).
-- Não inventar quando a spec não cobre.
-- Validar trabalho contra DoD antes de fechar PR.
-- Reaproveitar skills existentes em vez de reescrever lógica.
-
-### Frustrações / dores
-
-- Specs ambíguas geram código errado.
-- Falta de exemplos concretos faz desviar do padrão.
-- Hooks/CI sem mensagens claras dificultam autocorreção.
-- Tasks sem critério de aceite testável geram retrabalho.
-
-### Contexto de uso
-
-- **Ambiente:** dentro do repo via CLI/IDE.
-- **Frequência:** sempre que invocado.
-- **Sessão típica:** uma task por vez, idealmente pequena.
-- **Trigger principal:** humano dispara comando ou abre task.
-
-### Métrica que importa
-
-- <ex: % de tasks fechadas sem necessidade de retrabalho humano>
-- <ex: % de PRs que passam no gate de DoD na primeira tentativa>
+- **Quem** — Python CLI 6-layer prompt (mapper + precedent + skill-router +
+  core + test + verify + retry) que entrega tasks com modelos médios e
+  fracos a >96 % de sucesso.
+- **Comando que chama** — lê `.simplicio/project-map.json`,
+  `precedent-index.json`, `architecture-inventory.json`, `symbol-index.json`,
+  `call-graph.json` direto.
+- **Quer**
+  - Sinal alto por token: `roles`, `importance`, `entry_points`,
+    `recent_changes`, `architecture.signals`.
+  - Precedents pré-tagueados por `change_type` para retrieval orientado
+    pela task.
+  - Schema previsível para o `_mapper` plug-point em `prompt.py`.
+- **Não tolera** — paths absolutos do host, hashes voláteis, schema
+  divergente entre runtimes Node e Python.
 
 ---
 
-## Histórico
+## P3 · Engenheiro humano (manutenção/debug)
 
-| Data | Mudança | Quem |
-|---|---|---|
-| YYYY-MM-DD | Criação inicial | <TEAM> |
+- **Quem** — pessoa que abre o repo, dá `simplicio-mapper docs .` e quer
+  entender módulos, layers, símbolos e relações sem ler todo o código.
+- **Comando que chama** — `simplicio-mapper docs <path> --json`,
+  `simplicio-mapper export-docs <path> --target ./wiki-export`.
+- **Quer**
+  - Markdown derivado dos JSONs em `.simplicio/docs/*.md` com layers,
+    call-graph, módulos.
+  - Diff legível semana a semana.
+- **Não tolera** — docs alucinados, prosa LLM, conteúdo que não bate com
+  o código.
+
+---
+
+## P4 · CI / DoD gate (.github/workflows)
+
+- **Quem** — workflows `dod.yml`, `python-ci.yml`, `scaffold-self-check.yml`,
+  `publish-pypi.yml`.
+- **Comando que chama** — não chama o mapper diretamente, mas depende do
+  pacote Python ser instalável, dos testes (`unittest`/`pytest`) verdes e
+  do lint (`ruff`) limpo.
+- **Quer**
+  - Build reproduzível (`hatchling>=1.27,<1.28`).
+  - Versões alinhadas (`scripts/check-version-sync.js`).
+  - Pytest verde antes de qualquer publish.
+- **Não tolera** — divergência de versão entre `package.json`,
+  `pyproject.toml`, `__init__.py`.
+
+---
+
+## P5 · Maintainer de pacote (release/PyPI)
+
+- **Quem** — humano que faz o bump, escreve o changelog e dispara o
+  publish.
+- **Comando que chama** — `npm test`, `python -m pytest tests/python`,
+  `python -m build`, `python -m twine check dist/*`, `git tag`.
+- **Quer**
+  - Changelog Keep-a-Changelog 1.1.0 atualizado.
+  - Workflow `publish-pypi.yml` idempotente (skip se versão igual à
+    publicada).
+  - Wheels e sdist passando em `twine check`.
+- **Não tolera** — release publicado sem changelog ou com testes
+  vermelhos, secret de token vazando em commit/log.
+
+---
+
+## Não-personas
+
+- **Não atendemos** agentes que pedem o mapper para gerar prosa ou opinar
+  sobre código. Isso é deliberado: o mapper só extrai sinais
+  observáveis. Quem opina é o consumidor.

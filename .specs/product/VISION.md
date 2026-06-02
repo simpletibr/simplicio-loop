@@ -1,81 +1,77 @@
-# VISION — <PRODUCT_NAME>
+# VISION — simplicio-mapper
 
-Documento de uma página. Mantém o time alinhado sobre o porquê. Atualizar quando a tese mudar; nunca apagar a versão anterior sem registrar em ADR.
+Documento de uma página. Mantém o time alinhado sobre o porquê. Atualizar
+quando a tese mudar; registrar versão anterior em ADR antes de reescrever.
 
 ---
 
 ## Problema
 
-Descreva em 2-3 frases o problema concreto que o produto resolve.
+Agentes de coding (Claude Code, Codex, Copilot, Cursor, Aider, Hermes) abrem
+qualquer repo sem contexto e gastam tokens redescobrindo a arquitetura, o
+naming, os entry points e os precedents toda execução. Em projetos médios e
+grandes, isso vira:
 
-- Quem sente dor hoje no <DOMAIN>?
-- Qual o custo dessa dor (tempo, dinheiro, frustração, oportunidade perdida)?
-- Por que as soluções existentes não resolvem?
+- variância alta entre runs (mesma task, resultados diferentes);
+- prompts grandes e caros sem sinal claro;
+- bugs por suposição (paths que não existem, dependências erradas, schemas
+  divergentes do que o repo realmente expõe).
 
-> Exemplo: "Times que constroem produtos com IA perdem tempo demais configurando contexto, instruction files e specs do zero a cada projeto. Isso atrasa a primeira release em semanas e produz repos inconsistentes."
+As soluções existentes ou são generalistas (RAG genérico em todo arquivo,
+caro e ruidoso) ou específicas demais para um único framework.
 
 ---
 
 ## Quem usa
 
-Resumo das personas. Detalhes completos em `PERSONAS.md`.
-
-- **Persona primária:** <descrever em uma linha>
-- **Persona secundária:** <descrever em uma linha>
-- **Quem NÃO é o público:** <listar para evitar drift>
-
-Veja `./PERSONAS.md` para objetivos, frustrações e contexto de uso de cada persona.
+- **Agentes** rodando em CLIs, web app, IDE plugins, ou em sessões de
+  orquestração (SendSprint, simplicio-dev-cli, simplicio-sprint, Hyperframes).
+- **Humanos** que mantêm esses agentes — engenheiros que precisam que a
+  primeira ação do agente no repo seja consistente, idempotente e barata.
 
 ---
 
-## Diferencial
+## Proposta de valor
 
-O que faz <PRODUCT_NAME> diferente das alternativas? Listar 3-5 pontos verificáveis.
+`simplicio-mapper` produz artefatos JSON estáveis e versionados sobre **um
+repo qualquer**, em segundos, sem pedir LLM no caminho crítico:
 
-- Diferencial 1: <ex: setup zero-config em 10 minutos>
-- Diferencial 2: <ex: gate de Definition of Done automatizado>
-- Diferencial 3: <ex: skills reutilizáveis entre projetos>
-- Diferencial 4: <ex: agnóstico de stack>
+- `.simplicio/project-map.json` — inventário determinístico de arquivos,
+  linguagens, roles, imports/exports e importance score.
+- `.simplicio/precedent-index.json` — exemplos de alta qualidade (snippets)
+  para retrieval orientado por mudança.
+- `.simplicio/architecture-inventory.json`, `symbol-index.json`,
+  `call-graph.json` — visão de módulos, símbolos e relações.
+- Bootstrap idempotente via `simplicio-mapper index <path>` que curto-circuita
+  em <200 ms quando o repo não mudou (exit codes 0/1/2 estáveis para
+  orquestradores).
 
-Evitar buzzwords vazios ("o melhor", "revolucionário"). Cada bullet deve poder virar teste.
-
----
-
-## Métricas de sucesso
-
-Indicadores que dizem se a tese está certa. Mensuráveis. Com baseline e meta.
-
-| Métrica | Baseline | Meta (3 meses) | Como medimos |
-|---|---|---|---|
-| Tempo até primeira release | <ex: 4 semanas> | <ex: 1 semana> | Data primeiro commit -> data deploy v0.1 |
-| Cobertura de testes mínima por PR | <ex: 0%> | <ex: 80%> | CI gate |
-| Cycle time médio de task | <ex: 5 dias> | <ex: 1 dia> | Issue closed - issue created |
-| Reverts em produção / mês | <ex: ?> | <ex: <= 1> | git log no main |
+Tudo opera offline, com dependências leves (`orjson`, `diskcache`) e um
+fast-path opt-in em Rust via PyO3 para hashing/parsing em escala.
 
 ---
 
-## Não-objetivos
+## Tese central
 
-O que <PRODUCT_NAME> intencionalmente NÃO faz. Tão importante quanto o que faz, evita scope creep.
-
-- Não somos <X>. Quem precisa de <X> deve usar <Y>.
-- Não otimizamos para <Z>. Optamos por <W> em troca.
-- Não entregamos <feature comum> porque <razão>.
-
-> Exemplo: "Não somos um framework. Não geramos código. Entregamos estrutura e processo."
+Contexto de projeto deve ser um **artefato compilável**, não um prompt cada
+hora. Quem dá esse contexto para os agentes é uma camada determinística
+versionada (schemas `simplicio.*/v1`), não o modelo. O modelo só decide.
 
 ---
 
-## Tese de longo prazo
+## Out of scope
 
-Em 12 meses, se der certo, como o mundo do <DOMAIN> está diferente?
-
-> Frase única. Memorável. Algo que qualquer pessoa do <TEAM> consegue repetir sem ler.
+- Geração ou edição de código a partir dos artefatos.
+- Orquestração multi-agente (responsabilidade de `simplicio-sprint`).
+- LLM gateways, billing, pricing (responsabilidade de `simplicio-prompt`).
 
 ---
 
-## Histórico
+## Sucesso
 
-| Data | Versão | Mudança | Quem |
-|---|---|---|---|
-| YYYY-MM-DD | 0.1 | Criação inicial | <TEAM> |
+- Agentes integrados com `simplicio-mapper` reduzem variância e tokens em
+  tarefas reais (medido pelos consumidores: simplicio-dev-cli benchmarks,
+  SendSprint progress tables).
+- `simplicio-mapper index .` roda em <200 ms quando idempotente, e o JSON
+  contract permanece compatível com agentes que já consomem `v1`.
+- Toda mudança de schema vem com ADR e bump de versão.
