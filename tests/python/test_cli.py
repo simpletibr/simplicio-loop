@@ -21,7 +21,7 @@ sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper import __version__  # noqa: E402
 from simplicio_mapper.cache import FileProcessingCache  # noqa: E402
-from simplicio_mapper.cli import main  # noqa: E402
+from simplicio_mapper.cli import _normalize_endpoint_path, main  # noqa: E402
 from simplicio_mapper.mapper import (  # noqa: E402
     ARCHITECTURE_INVENTORY_SCHEMA,
     ARTIFACT_SCHEMA,
@@ -245,6 +245,58 @@ module.exports = { findUsers };
         )
 
 
+class EndpointNormalizationTest(unittest.TestCase):
+    """Endpoint path normalization must stay project-agnostic (issue #104)."""
+
+    def test_placeholders_collapse_to_id(self) -> None:
+        self.assertEqual(
+            _normalize_endpoint_path("/api/v1/projects/{projectId}/snapshots"),
+            "/api/v1/projects/{id}/snapshots",
+        )
+        self.assertEqual(
+            _normalize_endpoint_path("/api/v1/projects/${id}/snapshots"),
+            "/api/v1/projects/{id}/snapshots",
+        )
+
+    def test_uuid_segments_collapse_to_id(self) -> None:
+        self.assertEqual(
+            _normalize_endpoint_path(
+                "/api/v1/users/12345678-1234-1234-1234-123456789012"
+            ),
+            "/api/v1/users/{id}",
+        )
+
+    def test_numeric_segments_collapse_to_id(self) -> None:
+        self.assertEqual(
+            _normalize_endpoint_path("/users/42"),
+            "/users/{id}",
+        )
+        self.assertEqual(
+            _normalize_endpoint_path("/api/v1/orders/1001/items/55"),
+            "/api/v1/orders/{id}/items/{id}",
+        )
+
+    def test_unknown_slug_segments_stay_literal(self) -> None:
+        # Pre-#104 the EVT-specific regex collapsed `/api/v1/areas/<slug>` to
+        # `/api/v1/areas/{id}`. After generalization a slug that is neither
+        # numeric nor a UUID is kept as-is so the mapper does not invent IDs
+        # for arbitrary downstream resources.
+        self.assertEqual(
+            _normalize_endpoint_path("/api/v1/areas/some-slug"),
+            "/api/v1/areas/some-slug",
+        )
+        self.assertEqual(
+            _normalize_endpoint_path("/api/v1/governance/skills/foo-bar"),
+            "/api/v1/governance/skills/foo-bar",
+        )
+
+    def test_query_string_and_leading_slash_normalization(self) -> None:
+        self.assertEqual(
+            _normalize_endpoint_path("api/v1/users/42?expand=details"),
+            "/api/v1/users/{id}",
+        )
+
+
 class CliTest(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -394,7 +446,7 @@ export class UsersService {
         return this.http.patch(`${this.baseUrl}/${userId}/status`, {});
     }
     demoEvidence() {
-        return this.http.get('/api/v1/projects/demo/evidence');
+        return this.http.get('/api/v1/projects/42/evidence');
     }
 }
 """)

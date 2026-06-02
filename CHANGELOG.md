@@ -20,6 +20,20 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+### Changed
+- `simplicio-mapper endpoints` endpoint path normalization is now project-agnostic
+  (closes #104). The previously hardcoded EVT-specific collapses for
+  `/api/v1/(areas|assessments|disciplines|...)/<slug>`,
+  `/api/v1/governance/(skill-versions|skills)/<slug>`,
+  `/api/v1/knowledge-assessment/runs/<slug>`,
+  `/api/v1/llm-gateway/(runs|skills|traces)/<slug>` and
+  `/api/v1/(clients/)?projects/<slug>` have been removed. The normalizer still
+  collapses path/query placeholders (`${foo}` / `{foo}`), UUIDs, and numeric ID
+  segments — these are stable, generic patterns. Downstream projects that
+  relied on slug-after-collection collapsing should switch their fixtures to
+  numeric or placeholder IDs (the `simplicio.endpoint-inventory/v1` schema is
+  unchanged).
+
 ## [0.7.1] - 2026-06-01
 
 ### Added

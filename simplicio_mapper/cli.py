@@ -393,19 +393,30 @@ def _emit_index_json(opts: dict, payload: dict) -> None:
         print(json.dumps(payload, sort_keys=True))
 
 
+_NUMERIC_ID_SEGMENT = re.compile(r"/[0-9]+(?=/|$)")
+_UUID_SEGMENT = re.compile(
+    r"/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?=/|$)"
+)
+
+
 def _normalize_endpoint_path(path: str) -> str:
+    """Normalize a raw endpoint path into a comparable canonical form.
+
+    Generic rules only — no project-specific collection names are baked in.
+    Custom resource collapsing belongs in caller-side configuration, not in
+    this helper.
+    """
     path = path.strip().split("?", 1)[0]
     if not path.startswith("/"):
         path = "/" + path
     path = path.replace("//", "/")
+    # Path/query parameter placeholders such as `${foo}` or `{foo}`.
     path = re.sub(r"\$\{[^}]+\}", "{id}", path)
     path = re.sub(r"\{[^}]+\}", "{id}", path)
-    path = re.sub(r"/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?=/|$)", "/{id}", path)
-    path = re.sub(r"(/api/v1/(?:clients/)?projects/)(?!\{id\})([^/{}]+)(?=/|$)", r"\1{id}", path)
-    path = re.sub(r"(/api/v1/(?:areas|assessments|disciplines|enterprises|evidence|interviews|localities|opportunities|users)/)(?!\{id\})([^/{}]+)(?=/|$)", r"\1{id}", path)
-    path = re.sub(r"(/api/v1/governance/(?:skill-versions|skills)/)(?!\{id\})([^/{}]+)(?=/|$)", r"\1{id}", path)
-    path = re.sub(r"(/api/v1/knowledge-assessment/runs/)(?!\{id\})([^/{}]+)(?=/|$)", r"\1{id}", path)
-    path = re.sub(r"(/api/v1/llm-gateway/(?:runs|skills|traces)/)(?!\{id\})([^/{}]+)(?=/|$)", r"\1{id}", path)
+    # UUIDs anywhere in the path.
+    path = _UUID_SEGMENT.sub("/{id}", path)
+    # Generic numeric IDs (e.g. /users/42, /orders/1001/items).
+    path = _NUMERIC_ID_SEGMENT.sub("/{id}", path)
     return path.rstrip("/") or "/"
 
 

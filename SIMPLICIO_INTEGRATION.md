@@ -65,6 +65,23 @@ Consumers should use `missing_from_server` for delivery planning and keep
 `contract_routes` as context only unless the target project uses controllers as
 runtime handlers.
 
+### Endpoint path normalization
+
+Both `client_calls` and `server_routes` paths are normalized by a small set of
+project-agnostic rules:
+
+- query strings (`?...`) are stripped;
+- a leading slash is inserted when missing and duplicate slashes are collapsed;
+- placeholder segments such as `${foo}` and `{foo}` collapse to `{id}`;
+- UUIDv4-shaped segments collapse to `{id}`;
+- pure-numeric segments (e.g. `/users/42`) collapse to `{id}`.
+
+Slug segments that do not match any of the rules above are left as-is. If a
+project needs collection-specific collapsing (e.g. `/projects/<slug>` → `{id}`),
+emit the route from the upstream client with a placeholder (`${projectId}`) or a
+numeric example so the normalizer can recognize it; the mapper itself no longer
+embeds project-specific resource names.
+
 ## project-map.json
 
 Required top-level fields:
