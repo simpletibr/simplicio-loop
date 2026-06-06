@@ -1,0 +1,84 @@
+# Daily check that ecosystem deps in pyproject.toml are at the latest PyPI
+# minor or newer. If the floor is at least 1 minor behind, the job fails the
+# build so the open PR / master surface the drift immediately.
+#
+# Issue #21: dependency-update policy enforcement.
+name: check-ecosystem-deps
+
+on:
+  schedule:
+    - cron: "17 7 * * *"  # daily 07:17 UTC
+  pull_request:
+    paths:
+      - "pyproject.toml"
+      - ".github/workflows/check-deps.yml"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install minimal deps
+        run: pip install --quiet requests packaging tomli
+
+      - name: Check ecosystem floors against PyPI
+        run: |
+          python <<'PY'
+          import sys
+          import requests
+          import tomli
+          from packaging.requirements import Requirement
+          from packaging.version import Version
+
+          ECOSYSTEM = {"simplicio-mapper", "simplicio-prompt", "simplicio-sprint"}
+
+          with open("pyproject.toml", "rb") as f:
+              data = tomli.load(f)
+          deps = data.get("project", {}).get("dependencies", [])
+
+          drift = []
+          for spec in deps:
+              req = Requirement(spec)
+              name = req.name
+              if name not in ECOSYSTEM:
+                  continue
+              floor = None
+              for s in req.specifier:
+                  if s.operator in (">=", "=="):
+                      floor = Version(s.version)
+                      break
+              if floor is None:
+                  print(f"::warning::{name} has no floor pinned (got '{spec}')")
+                  continue
+
+              try:
+                  meta = requests.get(
+                      f"https://pypi.org/pypi/{name}/json", timeout=15
+                  ).json()
+              except Exception as e:
+                  print(f"::warning::could not query PyPI for {name}: {e}")
+                  continue
+              latest = Version(meta["info"]["version"])
+
+              if latest.major > floor.major:
+                  drift.append((name, str(floor), str(latest), "major"))
+              elif (latest.major, latest.minor) > (floor.major, floor.minor):
+                  drift.append((name, str(floor), str(latest), "minor"))
+              else:
+                  print(f"::notice::{name} floor {floor} >= latest {latest} OK")
+
+          if drift:
+              print("\n::error::Ecosystem floors lagging behind PyPI:")
+              for name, floor, latest, kind in drift:
+                  print(f"::error::{name}: pinned >={floor}, latest on PyPI = {latest} ({kind} drift)")
+              print("\nFix per DEPENDENCY_POLICY.md: bump the floor within 15 days "
+                    "of upstream release.")
+              sys.exit(1)
+          print("\nAll ecosystem floors current with PyPI.")
+          PY
