@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Added
+- `simplicio-cli` console-script alias (alongside `simplicio-py` and `simplicio-dev-cli`), all
+  pointing at `simplicio.cli:main`. Gives the package a command that matches its name on PATH;
+  the bare `simplicio` stays reserved for the compiled Rust `simplicio-runtime`. Non-breaking —
+  the existing entrypoints are unchanged.
+
 ### Fixed
 - Made the runtime doctor contract use installed package metadata when available
   and report explicit Python adapter entrypoints without treating the reserved
