@@ -10,12 +10,50 @@ import argparse
 import json
 import sys
 
+from .ecosystem import check as eco_check
+from .ecosystem import ensure_latest as eco_ensure_latest
+from .ecosystem import tracked_packages
 from .hardware import detect
 from .local_models import (
     RECOMMENDATIONS,
     ensure_recommended,
     model_file_path,
 )
+
+
+def _ecosystem_freshness(refresh: bool = False, upgrade: bool = False):
+    """Run the dependency-freshness check at least once per doctor invocation.
+
+    Returns (statuses, upgraded) where statuses is a list[DepStatus] and
+    upgraded is the list of package names pip actually upgraded (only when
+    upgrade=True)."""
+    packages = tracked_packages()
+    statuses = eco_check(packages, refresh=refresh)
+    upgraded: list[str] = []
+    if upgrade:
+        upgraded = eco_ensure_latest(force=True, packages=packages)
+        # Re-read installed versions so the rendered table reflects the upgrade.
+        statuses = eco_check(packages, refresh=refresh)
+    return statuses, upgraded
+
+
+def _render_ecosystem(statuses, upgraded) -> None:
+    print()
+    print("dependency freshness (installed / floor / pypi-latest):")
+    drift = False
+    for s in statuses:
+        if s.needs_upgrade:
+            drift = True
+        flag = "  <- UPDATE AVAILABLE" if s.needs_upgrade else ""
+        print(f"  {s.name:24s} {str(s.installed or '-'):>12s}"
+              f"  >= {str(s.floor or '-'):<10s}"
+              f"  latest {str(s.latest or '-'):<12s}{flag}")
+    if upgraded:
+        print(f"  upgraded {len(upgraded)} package(s): {', '.join(upgraded)}")
+    elif drift:
+        print("  -> some packages are behind; run: simplicio-py doctor --upgrade")
+    else:
+        print("  all tracked packages are current")
 
 
 def _render_human(result, profile) -> None:
@@ -71,6 +109,12 @@ def main(argv: list[str] | None = None) -> int:
                    help="machine-readable output")
     p.add_argument("--list-tiers", action="store_true",
                    help="print the full hardware → model map and exit")
+    p.add_argument("--no-check-updates", action="store_true",
+                   help="skip the dependency-freshness check")
+    p.add_argument("--refresh", action="store_true",
+                   help="bypass the 24h PyPI cache and force a live lookup")
+    p.add_argument("--upgrade", action="store_true",
+                   help="pip install -U every tracked package that is behind")
     args = p.parse_args(argv)
 
     if args.list_tiers:
@@ -97,9 +141,28 @@ def main(argv: list[str] | None = None) -> int:
     profile = detect()
     result = ensure_recommended(profile, auto_download=args.install)
 
+    check_updates = not args.no_check_updates
+    eco_statuses: list = []
+    eco_upgraded: list = []
+    if check_updates:
+        eco_statuses, eco_upgraded = _ecosystem_freshness(
+            refresh=args.refresh, upgrade=args.upgrade,
+        )
+
     if args.json:
-        print(json.dumps(result.to_dict(), indent=2))
+        payload = result.to_dict()
+        if check_updates:
+            payload["dependencies"] = {
+                "checked": [s.to_dict() for s in eco_statuses],
+                "upgraded": eco_upgraded,
+                "updates_available": [
+                    s.name for s in eco_statuses if s.needs_upgrade
+                ],
+            }
+        print(json.dumps(payload, indent=2))
         return 0
 
     _render_human(result, profile)
+    if check_updates:
+        _render_ecosystem(eco_statuses, eco_upgraded)
     return 0

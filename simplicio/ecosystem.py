@@ -118,12 +118,16 @@ def _write_pypi_cache(payload: dict) -> None:
         pass
 
 
-def _pypi_latest(name: str, timeout: float = 5.0) -> Optional[str]:
-    """Return the latest published version on PyPI, with a 24h disk cache."""
+def _pypi_latest(name: str, timeout: float = 5.0, refresh: bool = False) -> Optional[str]:
+    """Return the latest published version on PyPI, with a 24h disk cache.
+
+    refresh=True bypasses the cache and forces a live PyPI lookup (used by
+    `doctor --refresh`).
+    """
     cache = _read_pypi_cache()
     now = time.time()
     entry = cache.get(name)
-    if entry and (now - entry.get("ts", 0)) < PYPI_TTL_SECONDS:
+    if not refresh and entry and (now - entry.get("ts", 0)) < PYPI_TTL_SECONDS:
         return entry.get("version")
     try:
         req = urllib.request.Request(
@@ -158,13 +162,53 @@ def _version_lt(a: Optional[str], b: Optional[str]) -> bool:
         return False
 
 
-def check(packages: tuple[str, ...] = ECOSYSTEM) -> list[DepStatus]:
-    """Compare installed vs floor vs pypi-latest for each ecosystem package."""
+def _pyproject_dep_names() -> list[str]:
+    """Parse package names from [project].dependencies and every
+    [project.optional-dependencies] group in pyproject.toml.
+
+    Prefers tomllib (3.11+); falls back to a scoped regex on older runtimes so
+    the doctor still works on Python 3.10."""
+    p = _pyproject_path()
+    if not p:
+        return []
+    try:
+        text = p.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    reqs: list[str] = []
+    try:
+        import tomllib  # type: ignore[import-not-found]
+        proj = tomllib.loads(text).get("project", {})
+        reqs = list(proj.get("dependencies", []) or [])
+        for group in (proj.get("optional-dependencies", {}) or {}).values():
+            reqs.extend(group or [])
+    except Exception:
+        reqs = re.findall(r'["\']([A-Za-z0-9._\-\[\]]+\s*[<>=!~][^"\']*)["\']', text)
+    out: list[str] = []
+    for r in reqs:
+        m = re.match(r"\s*([A-Za-z0-9._-]+)", r)
+        if m and m.group(1) not in out:
+            out.append(m.group(1))
+    return out
+
+
+def tracked_packages() -> tuple[str, ...]:
+    """The full set the doctor checks for freshness: the simplicio ecosystem
+    triplet first, then every declared pyproject dependency (deduped)."""
+    names = list(ECOSYSTEM)
+    for n in _pyproject_dep_names():
+        if n not in names:
+            names.append(n)
+    return tuple(names)
+
+
+def check(packages: tuple[str, ...] = ECOSYSTEM, refresh: bool = False) -> list[DepStatus]:
+    """Compare installed vs floor vs pypi-latest for each package."""
     out: list[DepStatus] = []
     for name in packages:
         installed = _installed_version(name)
         floor = _read_floor(name)
-        latest = _pypi_latest(name)
+        latest = _pypi_latest(name, refresh=refresh)
         # needs_upgrade = installed is older than the better of floor / latest
         target = latest or floor
         needs = _version_lt(installed, target)

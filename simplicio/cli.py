@@ -707,10 +707,16 @@ def main(argv=None):
     p_status.add_argument("--root", default=".")
     p_status.add_argument("--json", action="store_true")
 
-    p_doctor = sub.add_parser("doctor", help="check local llama.cpp readiness")
+    p_doctor = sub.add_parser(
+        "doctor",
+        help="check local llama.cpp readiness and dependency freshness",
+    )
     p_doctor.add_argument("--install", action="store_true")
     p_doctor.add_argument("--json", action="store_true")
     p_doctor.add_argument("--list-tiers", action="store_true")
+    p_doctor.add_argument("--no-check-updates", action="store_true")
+    p_doctor.add_argument("--refresh", action="store_true")
+    p_doctor.add_argument("--upgrade", action="store_true")
 
     p_env_export = sub.add_parser(
         "env-export",
@@ -842,6 +848,12 @@ def main(argv=None):
             doctor_argv.append("--json")
         if a.list_tiers:
             doctor_argv.append("--list-tiers")
+        if a.no_check_updates:
+            doctor_argv.append("--no-check-updates")
+        if a.refresh:
+            doctor_argv.append("--refresh")
+        if a.upgrade:
+            doctor_argv.append("--upgrade")
         return doctor_main(doctor_argv)
     elif a.cmd == "env-export":
         from .runtime_env import parse_env_file, shell_export_lines

@@ -2,7 +2,27 @@
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-06-29
+
 ### Added
+- `simplicio-py doctor` now runs a dependency-freshness check on every
+  invocation: it compares each tracked package's installed version against
+  its pyproject floor and the latest release on PyPI, and prints which
+  packages have updates available. Tracked set = the Simplicio ecosystem
+  triplet plus every declared pyproject dependency.
+  - `--upgrade` runs `pip install -U` for every tracked package that is behind.
+  - `--refresh` bypasses the 24h PyPI cache and forces a live lookup.
+  - `--no-check-updates` skips the freshness block entirely.
+  - `--json` output gains a `dependencies` object (`checked`, `upgraded`,
+    `updates_available`).
+
+### Changed
+- Bumped Simplicio ecosystem dependency floors to the latest releases:
+  `simplicio-mapper>=0.9.0` and `simplicio-prompt>=1.14.1`.
+- Bumped third-party dependency floors: `sentence-transformers>=5.6.0`,
+  `numpy>=2.5.0`, `anthropic>=0.112.0`, `openai>=2.44.0`. Optional `local`
+  extra moved to `llama-cpp-python>=0.3.32` and `huggingface-hub>=1.21.0`.
+
 - `simplicio-cli` console-script alias (alongside `simplicio-py` and `simplicio-dev-cli`), all
   pointing at `simplicio.cli:main`. Gives the package a command that matches its name on PATH;
   the bare `simplicio` stays reserved for the compiled Rust `simplicio-runtime`. Non-breaking —
