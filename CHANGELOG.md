@@ -1,5 +1,25 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- `simplicio-mapper flowchart <path>` command and the
+  `simplicio.service-flowchart/v1` contract. Builds a two-faced service map
+  and renders it as Mermaid in `.simplicio/docs/flowchart.md`:
+  - Frontend face — Angular screens linked to the services/endpoints in
+    their module scope, clickable buttons (`(click)` handlers) tied to the
+    endpoints their handler bodies call, and the *observable* rules encoded
+    per screen (route guards, persona gating, dynamic params, form
+    validators). Client calls that match no screen scope are listed as
+    unlinked services.
+  - Backend face — per server route (Azure Functions C# and FastAPI
+    Python): layer, auth level, request/response payload types, external
+    function-call count, database-access detection, and an ordered process
+    flow rendered as a per-endpoint Mermaid diagram.
+- `flowchart.md` is now generated as part of `simplicio-mapper docs`,
+  `index --docs` and copied by `export-docs`.
+- "Service Flowchart Contract" section in `SIMPLICIO_INTEGRATION.md`.
+
 ## [0.8.0] - 2026-06-02
 
 ### Added

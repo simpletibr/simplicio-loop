@@ -21,7 +21,12 @@ sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper import __version__  # noqa: E402
 from simplicio_mapper.cache import FileProcessingCache  # noqa: E402
-from simplicio_mapper.cli import _normalize_endpoint_path, main  # noqa: E402
+from simplicio_mapper.cli import (  # noqa: E402
+    _normalize_endpoint_path,
+    build_service_flowchart,
+    main,
+    render_service_flowchart_markdown,
+)
 from simplicio_mapper.mapper import (  # noqa: E402
     ARCHITECTURE_INVENTORY_SCHEMA,
     ARTIFACT_SCHEMA,
@@ -574,6 +579,201 @@ export const routes: Routes = [
         self.assertEqual(payload["schema"], "simplicio.docs-export/v1")
         self.assertTrue((target / "architecture.md").exists())
         self.assertGreaterEqual(payload["counts"]["files"], 4)
+
+    def _flowchart_app(self) -> Path:
+        app_dir = self.dir / "flow-app"
+        _write(app_dir, "src/app/app.routes.ts", """
+import { Routes } from '@angular/router';
+import { AdminUsersComponent } from './admin/users/users.component';
+import { ClientProjectComponent } from './client/project.component';
+import { authGuard } from './auth.guard';
+
+export const routes: Routes = [
+  {
+    path: 'admin/users',
+    component: AdminUsersComponent,
+    canActivate: [authGuard],
+  },
+  {
+    path: 'clients/:projectId',
+    component: ClientProjectComponent,
+  },
+];
+""")
+        _write(app_dir, "src/app/admin/users/users.component.ts", """
+import { Component } from '@angular/core';
+import { Validators } from '@angular/forms';
+
+@Component({
+  selector: 'app-admin-users',
+  template: `<section>
+    <button (click)="save()">Save user</button>
+    <button (click)="refresh()" aria-label="Reload list">Refresh</button>
+  </section>`,
+})
+export class AdminUsersComponent {
+  form = { name: ['', Validators.required] };
+  save() { this.http.post('/api/v1/admin/users', this.payload); }
+  refresh() { this.list(); }
+}
+""")
+        _write(app_dir, "src/app/admin/users/users.service.ts", """
+import { environment } from '../../../environments/environment';
+
+export class UsersService {
+  private readonly baseUrl = `${environment.apiUrl}/admin/users`;
+  list() { return this.http.get(this.baseUrl); }
+}
+""")
+        _write(app_dir, "src/app/client/project.component.ts", """
+import { Component } from '@angular/core';
+
+@Component({ selector: 'app-client-project', template: `<div>project</div>` })
+export class ClientProjectComponent {}
+""")
+        _write(app_dir, "src/app/shared/orphan.service.ts", """
+export class OrphanService {
+  ping() { return this.http.get('/api/v1/health/ping'); }
+}
+""")
+        _write(app_dir, "server/Functions/UsersFunctions.cs", """
+public sealed class UsersFunctions {
+  [Function("UsersCreate")]
+  public IActionResult Create(
+    [HttpTrigger(AuthorizationLevel.Function, "post", Route = "api/v1/admin/users")] HttpRequest req,
+    [FromBody] CreateUserDto dto) {
+    var saved = _repository.Save(dto);
+    _dbContext.SaveChanges();
+    return Ok(new UserResponse());
+  }
+}
+""")
+        _write(app_dir, "server/api/health.py", """
+from fastapi import APIRouter
+
+router = APIRouter(prefix="/health")
+
+@router.get("/ping")
+async def ping(limit: int) -> PingResult:
+    rows = session.query(Heartbeat).all()
+    return PingResult(items=rows)
+""")
+        return app_dir
+
+    def test_flowchart_builds_frontend_and_backend_faces(self) -> None:
+        app_dir = self._flowchart_app()
+        model = build_service_flowchart(str(app_dir))
+
+        self.assertEqual(model["schema"], "simplicio.service-flowchart/v1")
+        admin = next(s for s in model["screens"] if s["path"] == "/admin/users")
+        self.assertEqual(admin["persona"], "admin")
+        self.assertTrue(admin["guarded"])
+        self.assertIn(
+            ("GET", "/api/v1/admin/users"),
+            {(s["method"], s["path"]) for s in admin["services"]},
+        )
+        save = next(b for b in admin["buttons"] if b["handler"] == "save")
+        self.assertEqual(save["label"], "Save user")
+        self.assertEqual(
+            save["services"], [{"method": "POST", "path": "/api/v1/admin/users"}]
+        )
+        refresh = next(b for b in admin["buttons"] if b["handler"] == "refresh")
+        self.assertEqual(refresh["label"], "Refresh")
+        self.assertEqual(refresh["services"], [])
+        rule_kinds = {rule["kind"] for rule in admin["rules"]}
+        self.assertEqual(rule_kinds, {"guard", "persona", "validator"})
+
+        client = next(s for s in model["screens"] if s["path"] == "/clients/:projectId")
+        self.assertTrue(any(rule["kind"] == "dynamic-route" for rule in client["rules"]))
+
+        self.assertEqual(
+            model["unlinked_services"],
+            [{"method": "GET", "path": "/api/v1/health/ping", "file": "src/app/shared/orphan.service.ts"}],
+        )
+
+        flows = {(f["method"], f["path"]): f for f in model["backend"]}
+        create = flows[("POST", "/api/v1/admin/users")]
+        self.assertEqual(create["auth"], "Function")
+        self.assertEqual(create["request"], ["CreateUserDto"])
+        self.assertEqual(create["response"], ["UserResponse"])
+        self.assertTrue(create["db_access"])
+        self.assertEqual(create["external_count"], 2)
+        self.assertEqual(create["layer"], "function")
+        self.assertTrue(any(step.startswith("Receive POST") for step in create["steps"]))
+
+        ping = flows[("GET", "/api/v1/health/ping")]
+        self.assertEqual(ping["request"], ["int"])
+        self.assertEqual(ping["response"], ["PingResult"])
+        self.assertTrue(ping["db_access"])
+
+        self.assertEqual(model["counts"]["db_flows"], 2)
+
+    def test_flowchart_command_writes_doc_and_json(self) -> None:
+        app_dir = self._flowchart_app()
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["flowchart", str(app_dir), "--json"])
+
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.service-flowchart/v1")
+        doc = app_dir / ".simplicio" / "docs" / "flowchart.md"
+        self.assertTrue(doc.exists())
+        text = doc.read_text(encoding="utf-8")
+        self.assertIn("```mermaid", text)
+        self.assertIn("flowchart TD", text)
+        self.assertIn("flowchart LR", text)
+        self.assertIn("## Backend Flows", text)
+        self.assertIn("Read/write database", text)
+
+    def test_flowchart_reads_external_template_url(self) -> None:
+        app_dir = self.dir / "tpl-app"
+        _write(app_dir, "src/app/app.routes.ts", """
+import { Routes } from '@angular/router';
+import { ReportComponent } from './report/report.component';
+
+export const routes: Routes = [
+  { path: 'admin/report', component: ReportComponent },
+];
+""")
+        _write(app_dir, "src/app/report/report.component.ts", """
+import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-report',
+  templateUrl: './report.component.html',
+})
+export class ReportComponent {
+  download() { this.http.get('/api/v1/admin/report'); }
+}
+""")
+        _write(app_dir, "src/app/report/report.component.html", """
+<button (click)="download()">Download report</button>
+""")
+
+        model = build_service_flowchart(str(app_dir))
+        screen = next(s for s in model["screens"] if s["path"] == "/admin/report")
+        button = next(b for b in screen["buttons"] if b["handler"] == "download")
+        self.assertEqual(button["label"], "Download report")
+        self.assertEqual(
+            button["services"], [{"method": "GET", "path": "/api/v1/admin/report"}]
+        )
+
+    def test_flowchart_renders_empty_project_safely(self) -> None:
+        empty = self.dir / "empty-app"
+        _write(empty, "README.md", "# nothing here\n")
+        model = build_service_flowchart(str(empty))
+        markdown = render_service_flowchart_markdown(model)
+        self.assertIn("No frontend screens", markdown)
+        self.assertEqual(model["counts"]["backend_flows"], 0)
+
+    def test_docs_pipeline_includes_flowchart(self) -> None:
+        app_dir = self._flowchart_app()
+        write_architecture_docs(str(app_dir))
+        flowchart_doc = app_dir / ".simplicio" / "docs" / "flowchart.md"
+        self.assertTrue(flowchart_doc.exists())
+        self.assertIn("# Service Flowchart", flowchart_doc.read_text(encoding="utf-8"))
 
     def test_endpoints_captures_python_page_api_calls(self) -> None:
         client_dir = self.dir / "streamlit-client"

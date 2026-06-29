@@ -1198,6 +1198,11 @@ def write_architecture_docs(cwd: str, output_dir: str = ".simplicio",
         module_index.append(f"- [{module['name']}](modules/{_slugify(module['name'])}.md)")
     docs[os.path.join(root, "modules.md")] = "\n".join(module_index)
 
+    # Local import avoids a module-level cycle (cli imports mapper at import time).
+    from .cli import build_service_flowchart, render_service_flowchart_markdown
+    flowchart_model = build_service_flowchart(abs_cwd)
+    docs[os.path.join(root, "flowchart.md")] = render_service_flowchart_markdown(flowchart_model)
+
     for file, text in docs.items():
         _write_text_stable(file, text)
         paths.append(file)
