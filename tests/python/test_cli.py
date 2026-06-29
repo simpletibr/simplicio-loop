@@ -1060,5 +1060,141 @@ def load(api):
         self.assertEqual(json.loads(out.getvalue())["phase"], "unknown")
 
 
+class TierLanguageSupportTest(unittest.TestCase):
+    """Tier 1/2 language coverage: detection + symbol/import extraction."""
+
+    FILES = {
+        "lib/main.dart": "import 'package:flutter/material.dart';\nclass MyApp {}\nenum Color { red, green }\nvoid main() {}\n",
+        "db/schema.sql": "CREATE TABLE users (id int);\nCREATE OR REPLACE VIEW active_users AS SELECT 1;\nCREATE FUNCTION get_user() RETURNS int AS $$ BEGIN END $$;\n",
+        "src/main.c": "#include <stdio.h>\nstruct Point { int x; };\nint add(int a, int b) {\n  return a + b;\n}\n",
+        "src/app.cpp": "#include \"app.h\"\nclass Engine {\npublic:\n  void run() {\n    start();\n  }\n};\n",
+        "ios/App.swift": "import Foundation\nclass ViewController {}\nstruct Model {}\nfunc greet() {}\n",
+        "ios/Legacy.m": "#import <UIKit/UIKit.h>\n@interface Foo\n@end\n@implementation Foo\n- (void)doThing {}\n@end\n",
+        "ui/Button.vue": "<script>\nimport x from './x';\nexport function handleClick() {}\n</script>\n",
+        "ui/Card.svelte": "<script>\nimport y from './y';\nfunction render() {}\n</script>\n",
+        "be/Service.scala": "import scala.collection.mutable\nobject Main\nclass Repo\ndef compute() = 1\n",
+    }
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self._tmp.name)
+        for rel, content in self.FILES.items():
+            _write(self.dir, rel, content)
+        self.result = build_artifacts(cwd=str(self.dir), meta={})
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_language_detection(self) -> None:
+        langs = {f["path"]: f["language"] for f in self.result["project_map"]["files"]}
+        self.assertEqual(langs["lib/main.dart"], "dart")
+        self.assertEqual(langs["db/schema.sql"], "sql")
+        self.assertEqual(langs["src/main.c"], "c")
+        self.assertEqual(langs["src/app.cpp"], "cpp")
+        self.assertEqual(langs["ios/App.swift"], "swift")
+        self.assertEqual(langs["ios/Legacy.m"], "objectivec")
+        self.assertEqual(langs["ui/Button.vue"], "vue")
+        self.assertEqual(langs["ui/Card.svelte"], "svelte")
+        self.assertEqual(langs["be/Service.scala"], "scala")
+
+    def test_symbols_extracted_per_language(self) -> None:
+        by_file: dict[str, set[str]] = {}
+        for s in self.result["symbol_index"]["symbols"]:
+            by_file.setdefault(s["defined_in"], set()).add(f"{s['kind']}:{s['name']}")
+        self.assertIn("class:MyApp", by_file["lib/main.dart"])
+        self.assertIn("enum:Color", by_file["lib/main.dart"])
+        self.assertIn("table:users", by_file["db/schema.sql"])
+        self.assertIn("view:active_users", by_file["db/schema.sql"])
+        self.assertIn("function:get_user", by_file["db/schema.sql"])
+        self.assertIn("struct:Point", by_file["src/main.c"])
+        self.assertIn("class:Engine", by_file["src/app.cpp"])
+        self.assertIn("class:ViewController", by_file["ios/App.swift"])
+        self.assertIn("class:Foo", by_file["ios/Legacy.m"])
+        self.assertIn("function:handleClick", by_file["ui/Button.vue"])
+        self.assertIn("function:render", by_file["ui/Card.svelte"])
+        self.assertIn("class:Repo", by_file["be/Service.scala"])
+
+    def test_imports_extracted_per_language(self) -> None:
+        imports = {f["path"]: f.get("imports", []) for f in self.result["project_map"]["files"]}
+        self.assertIn("package:flutter/material.dart", imports["lib/main.dart"])
+        self.assertIn("Foundation", imports["ios/App.swift"])
+        self.assertIn("stdio.h", imports["src/main.c"])
+        self.assertIn("UIKit/UIKit.h", imports["ios/Legacy.m"])
+        self.assertIn("scala.collection.mutable", imports["be/Service.scala"])
+        self.assertIn("./x", imports["ui/Button.vue"])
+
+    def test_new_languages_in_call_graph(self) -> None:
+        from simplicio_mapper.mapper import _CALL_GRAPH_LANGUAGES
+        for lang in ("dart", "swift", "objectivec", "c", "cpp", "scala", "vue", "svelte"):
+            self.assertIn(lang, _CALL_GRAPH_LANGUAGES)
+        # SQL is intentionally excluded from the call graph (it has no call sites).
+        self.assertNotIn("sql", _CALL_GRAPH_LANGUAGES)
+
+    def test_dart_control_flow_not_captured_as_function(self) -> None:
+        _write(
+            self.dir,
+            "w.dart",
+            "class W {\n  void build() {\n    if (cond) { x(); }\n    for (var i = 0;;) {}\n  }\n}\n",
+        )
+        result = build_artifacts(cwd=str(self.dir), meta={})
+        names = {f"{s['kind']}:{s['name']}" for s in result["symbol_index"]["symbols"]}
+        self.assertIn("function:build", names)
+        self.assertNotIn("function:if", names)
+        self.assertNotIn("function:for", names)
+
+    def test_sql_schema_qualified_captures_table_name(self) -> None:
+        _write(
+            self.dir,
+            "s.sql",
+            "CREATE TABLE `db`.`users` (id int);\nCREATE TABLE public.orders (id int);\n",
+        )
+        result = build_artifacts(cwd=str(self.dir), meta={})
+        tables = {s["name"] for s in result["symbol_index"]["symbols"] if s["kind"] == "table"}
+        self.assertIn("users", tables)
+        self.assertIn("orders", tables)
+        self.assertNotIn("db", tables)
+
+
+class LlmDirectivesTest(unittest.TestCase):
+    """The mapper hands a no-think / no-internet / minimal-tools-skills contract
+    to any LLM that consumes its artifacts."""
+
+    EXPECTED = {
+        "no_thinking": True,
+        "no_internet": True,
+        "tools": "only_necessary",
+        "skills": "only_necessary",
+    }
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self._tmp.name)
+        _write(self.dir, "package.json", json.dumps({"name": "directive-host"}))
+        _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_project_map_carries_directives(self) -> None:
+        result = build_artifacts(cwd=str(self.dir), meta={})
+        directives = result["project_map"]["integration"]["llm_directives"]
+        for key, value in self.EXPECTED.items():
+            self.assertEqual(directives[key], value)
+        self.assertIn("No-thinking", directives["instruction"])
+        self.assertIn("No-internet", directives["instruction"])
+
+    def test_context_pack_carries_directives(self) -> None:
+        from simplicio_mapper.context_pack import build_context_pack
+        build_artifacts(cwd=str(self.dir), meta={})
+        from simplicio_mapper.mapper import write_mapping_artifacts
+        write_mapping_artifacts(cwd=str(self.dir), meta={})
+        pack = build_context_pack(
+            root=str(self.dir),
+            targets=[{"path": "src/index.js"}],
+        )
+        for key, value in self.EXPECTED.items():
+            self.assertEqual(pack["llm_directives"][key], value)
+
+
 if __name__ == "__main__":
     unittest.main()

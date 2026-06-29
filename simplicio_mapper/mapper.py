@@ -38,6 +38,9 @@ TEXT_EXTS = {
     ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
     ".py", ".go", ".rs", ".java", ".kt", ".php", ".rb", ".cs",
     ".cshtml", ".razor", ".sh", ".ps1", ".env", "",
+    # Tier 1/2 language support
+    ".dart", ".sql", ".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh",
+    ".swift", ".m", ".mm", ".vue", ".svelte", ".scala",
 }
 
 SKIP_DIRS = {
@@ -78,10 +81,42 @@ LANGUAGE_BY_EXT = {
     ".toml": "toml",
     ".sh": "shell",
     ".ps1": "powershell",
+    # Tier 1/2 language support
+    ".dart": "dart",
+    ".sql": "sql",
+    ".c": "c",
+    ".h": "c",
+    ".cc": "cpp",
+    ".cpp": "cpp",
+    ".cxx": "cpp",
+    ".hpp": "cpp",
+    ".hh": "cpp",
+    ".swift": "swift",
+    ".m": "objectivec",
+    ".mm": "objectivec",
+    ".vue": "vue",
+    ".svelte": "svelte",
+    ".scala": "scala",
 }
 
 ENTRYPOINT_STEMS = {"index", "main", "server", "app", "program", "cli"}
 TOKEN_STOPWORDS = {"src", "lib", "test", "tests", "index", "main"}
+
+# Directive contract handed to any LLM that consumes mapper artifacts. The
+# mapper has already done the survey work, so a downstream model must act
+# directly — never deliberate, never reach the internet, and load only the
+# tools/skills the task strictly requires.
+LLM_DIRECTIVES = {
+    "no_thinking": True,
+    "no_internet": True,
+    "tools": "only_necessary",
+    "skills": "only_necessary",
+    "instruction": (
+        "No-thinking: act directly, do not deliberate or chain-of-think. "
+        "No-internet: do not access the network. "
+        "Load only strictly necessary tools. Load only strictly necessary skills."
+    ),
+}
 
 
 def _iso(dt: datetime) -> str:
@@ -197,8 +232,13 @@ def _collect_text_files(cwd: str) -> list[str]:
     return sorted(files)
 
 
+_NATIVE_IMPORT_LANGUAGES = {"javascript", "typescript", "python", "csharp", "razor", "go"}
+
+
 def _parse_imports(text: str, language: str) -> list[str]:
-    if _native.HAS_NATIVE and _native.parse_imports is not None and language:
+    # The optional Rust crate only implements the original language set; newer
+    # languages always take the pure-Python path below.
+    if _native.HAS_NATIVE and _native.parse_imports is not None and language in _NATIVE_IMPORT_LANGUAGES:
         return _native.parse_imports(text, language)
     patterns: list[re.Pattern[str]] = []
     if language in ("javascript", "typescript"):
@@ -211,6 +251,20 @@ def _parse_imports(text: str, language: str) -> list[str]:
         patterns.append(re.compile(r"^\s*using\s+([A-Za-z0-9_.]+)\s*;", re.MULTILINE))
     elif language == "go":
         patterns.append(re.compile(r'^\s*import\s+"([^"]+)"', re.MULTILINE))
+    elif language in ("vue", "svelte"):
+        patterns.append(re.compile(r"import\s+[^'\"]*['\"]([^'\"]+)['\"]"))
+        patterns.append(re.compile(r"require\(['\"]([^'\"]+)['\"]\)"))
+    elif language == "dart":
+        patterns.append(re.compile(r"^\s*import\s+['\"]([^'\"]+)['\"]", re.MULTILINE))
+    elif language == "swift":
+        patterns.append(re.compile(r"^\s*import\s+([A-Za-z_][\w.]*)", re.MULTILINE))
+    elif language == "scala":
+        patterns.append(re.compile(r"^\s*import\s+([A-Za-z_][\w.]*)", re.MULTILINE))
+    elif language in ("c", "cpp"):
+        patterns.append(re.compile(r'^\s*#\s*include\s+[<"]([^>"]+)[>"]', re.MULTILINE))
+    elif language == "objectivec":
+        patterns.append(re.compile(r'^\s*#\s*import\s+[<"]([^>"]+)[>"]', re.MULTILINE))
+        patterns.append(re.compile(r"^\s*@import\s+([A-Za-z_][\w.]*)", re.MULTILINE))
     found: list[str] = []
     for pattern in patterns:
         for match in pattern.finditer(text):
@@ -511,7 +565,7 @@ def _symbol_definitions_for_file(file: ProjectFile, text: str) -> list[dict]:
             (re.compile(r"^\s*class\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
             (re.compile(r"^\s*def\s+([A-Za-z_]\w*)", re.MULTILINE), "function"),
         ]
-    elif file.language in ("javascript", "typescript"):
+    elif file.language in ("javascript", "typescript", "vue", "svelte"):
         patterns = [
             (re.compile(r"^\s*(?:export\s+)?class\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
             (re.compile(r"^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_]\w*)", re.MULTILINE), "function"),
@@ -522,6 +576,45 @@ def _symbol_definitions_for_file(file: ProjectFile, text: str) -> list[dict]:
                 ),
                 "function",
             ),
+        ]
+    elif file.language == "dart":
+        patterns = [
+            (re.compile(r"^\s*(?:abstract\s+)?class\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
+            (re.compile(r"^\s*enum\s+([A-Za-z_]\w*)", re.MULTILINE), "enum"),
+            (re.compile(r"^\s*mixin\s+([A-Za-z_]\w*)", re.MULTILINE), "mixin"),
+            (re.compile(r"^[ \t]*(?:[A-Za-z_][\w<>,? \t]*?[ \t]+)?(?!(?:if|for|while|switch|else|catch|finally|return|new|await|yield)\b)([a-z_]\w*)\s*\([^)]*\)\s*(?:async\s*)?\{", re.MULTILINE), "function"),
+        ]
+    elif file.language == "swift":
+        patterns = [
+            (re.compile(r"^\s*(?:public\s+|private\s+|internal\s+|open\s+|final\s+)*(?:class|struct|enum|protocol|extension|actor)\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
+            (re.compile(r"^\s*(?:public\s+|private\s+|internal\s+|static\s+|override\s+)*func\s+([A-Za-z_]\w*)", re.MULTILINE), "function"),
+        ]
+    elif file.language == "objectivec":
+        patterns = [
+            (re.compile(r"^\s*@interface\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
+            (re.compile(r"^\s*@implementation\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
+            (re.compile(r"^\s*[-+]\s*\([^)]*\)\s*([A-Za-z_]\w*)", re.MULTILINE), "method"),
+        ]
+    elif file.language == "cpp":
+        patterns = [
+            (re.compile(r"^\s*(?:class|struct)\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
+            (re.compile(r"^[ \t]*(?:[A-Za-z_][\w:<>, \t\*&]*?[ \t]+)([A-Za-z_]\w*)\s*\([^;{]*\)\s*(?:const\s*)?\{", re.MULTILINE), "function"),
+        ]
+    elif file.language == "c":
+        patterns = [
+            (re.compile(r"^\s*struct\s+([A-Za-z_]\w*)", re.MULTILINE), "struct"),
+            (re.compile(r"^[ \t]*(?:[A-Za-z_][\w \t\*]*?[ \t]+)\**([A-Za-z_]\w*)\s*\([^;{]*\)\s*\{", re.MULTILINE), "function"),
+        ]
+    elif file.language == "scala":
+        patterns = [
+            (re.compile(r"^\s*(?:case\s+)?(?:class|object|trait)\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
+            (re.compile(r"^\s*def\s+([A-Za-z_]\w*)", re.MULTILINE), "function"),
+        ]
+    elif file.language == "sql":
+        patterns = [
+            (re.compile(r"\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:[\"`]?[A-Za-z_]\w*[\"`]?\.)?[\"`]?([A-Za-z_]\w*)[\"`]?", re.IGNORECASE), "table"),
+            (re.compile(r"\bCREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+(?:[\"`]?[A-Za-z_]\w*[\"`]?\.)?[\"`]?([A-Za-z_]\w*)[\"`]?", re.IGNORECASE), "view"),
+            (re.compile(r"\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\s+(?:[\"`]?[A-Za-z_]\w*[\"`]?\.)?[\"`]?([A-Za-z_]\w*)[\"`]?", re.IGNORECASE), "function"),
         ]
     elif file.language in ("csharp", "razor"):
         patterns = [
@@ -584,7 +677,7 @@ def _layers_for_file(file: ProjectFile) -> list[str]:
     if rel.startswith("docs/") or file.language == "markdown":
         layers.add("documentation")
     if not layers:
-        layers.add("code" if file.language in {"python", "javascript", "typescript", "csharp", "go", "rust"} else "asset")
+        layers.add("code" if file.language in {"python", "javascript", "typescript", "csharp", "go", "rust", "dart", "swift", "objectivec", "c", "cpp", "scala", "vue", "svelte"} else "asset")
     return sorted(layers)
 
 
@@ -679,7 +772,11 @@ _CALL_SKIP_NAMES = {
     "if", "for", "while", "switch", "catch", "return", "function", "class", "def",
     "print", "len", "str", "int", "float", "bool", "list", "dict", "set", "tuple",
 }
-_CALL_GRAPH_LANGUAGES = {"python", "javascript", "typescript", "csharp", "razor", "go", "rust", "java", "kotlin", "php", "ruby"}
+_CALL_GRAPH_LANGUAGES = {
+    "python", "javascript", "typescript", "csharp", "razor", "go", "rust",
+    "java", "kotlin", "php", "ruby",
+    "dart", "swift", "objectivec", "c", "cpp", "scala", "vue", "svelte",
+}
 
 
 def _call_expressions(text: str) -> list[tuple[str, int]]:
@@ -918,7 +1015,7 @@ def _macro_layers_for_path(rel: str, base: str, language: str, roles: set[str]) 
     if low.startswith("docs/") or language == "markdown":
         layers.add("documentation")
     if not layers:
-        layers.add("code" if language in {"python", "javascript", "typescript", "csharp", "go", "rust"} else "asset")
+        layers.add("code" if language in {"python", "javascript", "typescript", "csharp", "go", "rust", "dart", "swift", "objectivec", "c", "cpp", "scala", "vue", "svelte"} else "asset")
     return layers
 
 
@@ -1123,6 +1220,7 @@ def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = Fals
         "integration": {
             "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",
             "contract": "SIMPLICIO_INTEGRATION.md",
+            "llm_directives": LLM_DIRECTIVES,
         },
     }
 

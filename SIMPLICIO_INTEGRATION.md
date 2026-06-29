@@ -209,6 +209,20 @@ These artifacts intentionally prefer conservative, reviewable evidence over
 LLM-generated prose. Missing or ambiguous relationships should be treated as
 unknown rather than absent.
 
+### Languages with structural extraction
+
+Symbol extraction and the call graph cover, by tier:
+
+- **Original:** Python, JavaScript, TypeScript, C#, Razor, Go, Rust, Java, Kotlin, PHP, Ruby.
+- **Tier 1/2 (added):** Dart, C, C++, Swift, Objective-C, Vue, Svelte, Scala — symbols + call graph; **SQL** gets symbol extraction (tables / views / functions / procedures) but is intentionally excluded from the call graph (no call sites).
+
+Dedicated import parsing exists for JS/TS, Python, C#/Razor, Go, Vue, Svelte,
+Dart, Swift, Scala, C/C++ (`#include`) and Objective-C (`#import`/`@import`).
+Any other language is still **counted** and inventoried as text without
+structural extraction. The optional Rust acceleration crate (ADR-002) only
+implements import parsing for the original set; newer languages always take the
+pure-Python path.
+
 ## Markdown docs
 
 Render human-readable docs from the JSON artifacts:
