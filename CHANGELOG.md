@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-06-29
+
+### Changed
+- Bumped the Simplicio ecosystem mapper dependency floor to
+  `simplicio-mapper>=0.11.0` so new installs pick up the latest Tier 1/2/3
+  language coverage, async scan flow, and flowchart contracts already shipped
+  by the mapper package.
+
 ## [0.7.0] — 2026-06-29
 
 ### Added

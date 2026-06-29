@@ -962,10 +962,11 @@ def _skillopt_artifact_frontmatter_valid(path: str) -> bool:
     except (OSError, UnicodeDecodeError):
         return False
     return (
-        fields.get("review_required", "").lower() == "true"
-        and fields.get("by") == "skill-opt"
-        and bool(fields.get("source_goal"))
-        and bool(fields.get("planner_model"))
+        fields.get("review_required", fields.get("auto_generated.review_required", "")).lower()
+        == "true"
+        and fields.get("by", fields.get("auto_generated.by")) == "skill-opt"
+        and bool(fields.get("source_goal", fields.get("auto_generated.source_goal")))
+        and bool(fields.get("planner_model", fields.get("auto_generated.planner_model")))
     )
 
 
@@ -974,10 +975,21 @@ def _skillopt_frontmatter(text: str) -> dict[str, str]:
     if not match:
         return {}
     fields: dict[str, str] = {}
+    current_section = ""
     for line in match.group("body").splitlines():
-        parsed = _FIELD_RE.match(line.strip())
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        stripped = line.strip()
+        if stripped.endswith(":") and indent == 0:
+            current_section = stripped[:-1]
+            continue
+        parsed = _FIELD_RE.match(stripped)
         if parsed:
-            fields[parsed.group("key")] = parsed.group("value").strip('"')
+            key = parsed.group("key")
+            if indent > 0 and current_section:
+                key = f"{current_section}.{key}"
+            fields[key] = parsed.group("value").strip('"')
     return fields
 
 

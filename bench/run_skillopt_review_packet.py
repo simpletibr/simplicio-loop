@@ -157,8 +157,12 @@ def _review_row(path: Path, skills_root: Path) -> dict[str, Any] | None:
         "skills_root_path": _relative_path(path, skills_root),
         "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         "review_required": True,
-        "source_goal": frontmatter.get("source_goal", ""),
-        "planner_model": frontmatter.get("planner_model", ""),
+        "source_goal": frontmatter.get(
+            "source_goal", frontmatter.get("auto_generated.source_goal", "")
+        ),
+        "planner_model": frontmatter.get(
+            "planner_model", frontmatter.get("auto_generated.planner_model", "")
+        ),
         "reviewer": "",
         "approved": None,
         "reviewed_at": "",
@@ -168,10 +172,17 @@ def _review_row(path: Path, skills_root: Path) -> dict[str, Any] | None:
 
 def _is_skillopt_review_candidate(frontmatter: dict[str, str]) -> bool:
     return (
-        frontmatter.get("review_required", "").lower() == "true"
-        and frontmatter.get("by") == "skill-opt"
-        and bool(frontmatter.get("source_goal"))
-        and bool(frontmatter.get("planner_model"))
+        frontmatter.get(
+            "review_required", frontmatter.get("auto_generated.review_required", "")
+        ).lower()
+        == "true"
+        and frontmatter.get("by", frontmatter.get("auto_generated.by")) == "skill-opt"
+        and bool(frontmatter.get("source_goal", frontmatter.get("auto_generated.source_goal")))
+        and bool(
+            frontmatter.get(
+                "planner_model", frontmatter.get("auto_generated.planner_model")
+            )
+        )
     )
 
 
@@ -180,10 +191,21 @@ def _frontmatter(text: str) -> dict[str, str]:
     if not match:
         return {}
     fields: dict[str, str] = {}
+    current_section = ""
     for line in match.group("body").splitlines():
-        parsed = _FIELD_RE.match(line.strip())
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        stripped = line.strip()
+        if stripped.endswith(":") and indent == 0:
+            current_section = stripped[:-1]
+            continue
+        parsed = _FIELD_RE.match(stripped)
         if parsed:
-            fields[parsed.group("key")] = parsed.group("value").strip('"')
+            key = parsed.group("key")
+            if indent > 0 and current_section:
+                key = f"{current_section}.{key}"
+            fields[key] = parsed.group("value").strip('"')
     return fields
 
 

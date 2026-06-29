@@ -12,46 +12,16 @@
       "smoke_command": "BENCH_GGUF_PATH=<models>/Qwen2.5-Coder-1.5B-Instruct-Q8_0.gguf python bench/smoke_schema_v1.py --calls 4"
     },
     {
-      "quant": "Q6_K_L",
-      "filename": "Qwen2.5-Coder-1.5B-Instruct-Q6_K_L.gguf",
-      "smoke_json": "bench/results_v14_qwen15b_q6_k_l_smoke_schema_v1.json",
-      "smoke_command": "BENCH_GGUF_PATH=<models>/Qwen2.5-Coder-1.5B-Instruct-Q6_K_L.gguf python bench/smoke_schema_v1.py --calls 4"
-    },
-    {
       "quant": "Q6_K",
       "filename": "Qwen2.5-Coder-1.5B-Instruct-Q6_K.gguf",
       "smoke_json": "bench/results_v14_qwen15b_q6_k_smoke_schema_v1.json",
       "smoke_command": "BENCH_GGUF_PATH=<models>/Qwen2.5-Coder-1.5B-Instruct-Q6_K.gguf python bench/smoke_schema_v1.py --calls 4"
     },
     {
-      "quant": "Q5_K_L",
-      "filename": "Qwen2.5-Coder-1.5B-Instruct-Q5_K_L.gguf",
-      "smoke_json": "bench/results_v14_qwen15b_q5_k_l_smoke_schema_v1.json",
-      "smoke_command": "BENCH_GGUF_PATH=<models>/Qwen2.5-Coder-1.5B-Instruct-Q5_K_L.gguf python bench/smoke_schema_v1.py --calls 4"
-    },
-    {
-      "quant": "Q5_K_M",
-      "filename": "Qwen2.5-Coder-1.5B-Instruct-Q5_K_M.gguf",
-      "smoke_json": "bench/results_v14_qwen15b_q5_k_m_smoke_schema_v1.json",
-      "smoke_command": "BENCH_GGUF_PATH=<models>/Qwen2.5-Coder-1.5B-Instruct-Q5_K_M.gguf python bench/smoke_schema_v1.py --calls 4"
-    },
-    {
       "quant": "Q4_K_M",
       "filename": "Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf",
       "smoke_json": "bench/results_v14_qwen15b_q4_k_m_smoke_schema_v1.json",
       "smoke_command": "BENCH_GGUF_PATH=<models>/Qwen2.5-Coder-1.5B-Instruct-Q4_K_M.gguf python bench/smoke_schema_v1.py --calls 4"
-    },
-    {
-      "quant": "Q4_K_S",
-      "filename": "Qwen2.5-Coder-1.5B-Instruct-Q4_K_S.gguf",
-      "smoke_json": "bench/results_v14_qwen15b_q4_k_s_smoke_schema_v1.json",
-      "smoke_command": "BENCH_GGUF_PATH=<models>/Qwen2.5-Coder-1.5B-Instruct-Q4_K_S.gguf python bench/smoke_schema_v1.py --calls 4"
-    },
-    {
-      "quant": "Q4_0",
-      "filename": "Qwen2.5-Coder-1.5B-Instruct-Q4_0.gguf",
-      "smoke_json": "bench/results_v14_qwen15b_q4_0_smoke_schema_v1.json",
-      "smoke_command": "BENCH_GGUF_PATH=<models>/Qwen2.5-Coder-1.5B-Instruct-Q4_0.gguf python bench/smoke_schema_v1.py --calls 4"
     }
   ],
   "final_artifacts": [
