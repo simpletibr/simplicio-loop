@@ -228,10 +228,43 @@ Generated files live under `.simplicio/docs/` by default:
 - `call-graph.md`
 - `modules.md`
 - `modules/<module>.md`
+- `flowchart.md`
 
 Remote publication is deliberately not automatic. Exporting to a GitHub Wiki,
 Docusaurus tree, Obsidian vault, or another docs target should be a separate
 explicit step.
+
+## Service Flowchart Contract
+
+`simplicio-mapper flowchart <path>` produces `simplicio.service-flowchart/v1`
+on stdout (with `--json`) and renders Mermaid to `.simplicio/docs/flowchart.md`.
+It is a producer artifact: downstream tools such as `simplicio-dev-cli` read it,
+they do not generate it. All signals are deterministic or clearly heuristic;
+semantic business rules are never inferred — only the rules encoded in the
+source are surfaced.
+
+Top-level fields:
+
+- `schema`, `root`, `doc` (path to the rendered Markdown), `counts`.
+- `screens[]` — frontend face. Each screen carries `path`, `component`,
+  `persona`, `guarded`, `dynamic`, `file`, `scope`, plus:
+  - `services[]` — `{method, path, file}` client calls whose source file lives
+    in the screen component's module scope.
+  - `buttons[]` — `{label, handler, file, line, services[]}` extracted from the
+    component template `(click)` handlers; `services[]` is populated only when
+    the handler body itself issues an `/api/v1` call.
+  - `rules[]` — `{kind, detail}` observable rules: `guard`, `persona`,
+    `dynamic-route`, `validator`.
+- `unlinked_services[]` — `{method, path, file}` client calls that match no
+  screen scope.
+- `backend[]` — backend face, one entry per server route (Azure Functions C#
+  and FastAPI Python): `method`, `path`, `file`, `layer`, `auth`, `request[]`,
+  `response[]`, `external_calls[]`, `external_count`, `db_access`,
+  `db_markers[]`, and an ordered `steps[]` list rendered as a per-endpoint
+  Mermaid flow.
+
+Heuristic fields (`request`, `response`, `external_*`, `db_*`) must be verified
+against the referenced source before being treated as a contract.
 
 ## Python Consumer Example
 
@@ -478,6 +511,7 @@ artifacts for the runtime wrapper, not replacements for
 | `simplicio-mapper update [--root <dir>] [--json]` | stdout when `--json` | mirrors the index payload above | same |
 | `simplicio-mapper endpoints <path> --against <root> --json` | stdout | `simplicio.endpoint-inventory/v1` | `schema`, `counts.client_calls`, `counts.server_routes`, `client_calls[]`, `server_routes[]`, `missing_from_server[]` |
 | `simplicio-mapper screens <path> --json` | stdout | `simplicio.screen-inventory/v1` | `schema`, `routes[]`, `personas[]`, `guards[]` |
+| `simplicio-mapper flowchart <path> --json` | stdout + `.simplicio/docs/flowchart.md` | `simplicio.service-flowchart/v1` | `schema`, `doc`, `counts.*`, `screens[]`, `unlinked_services[]`, `backend[]` |
 | `simplicio-mapper docs <path> --json` | stdout | `simplicio.architecture-docs/v1` envelope | `docs_root`, `counts.files`, `files[].path`, `files[].kind` |
 | `simplicio-mapper export-docs <path> --target <dir> --json` | stdout | same envelope as `docs` plus `target` | `target`, `docs_root`, `counts.files` |
 | `simplicio-mapper docs <path>` (no `--json`) | `.simplicio/docs/*.md` | `simplicio.architecture-docs/v1` markdown | `architecture.md`, `layers.md`, `call-graph.md`, `modules.md`, `modules/<module>.md` |
@@ -555,7 +589,8 @@ main mapping pipeline.
 - All schemas (`simplicio.project-map/v1`, `simplicio.precedent-index/v1`,
   `simplicio.architecture-inventory/v1`, `simplicio.symbol-index/v1`,
   `simplicio.call-graph/v1`, `simplicio.endpoint-inventory/v1`,
-  `simplicio.screen-inventory/v1`, `simplicio.mapper-index/v1`,
+  `simplicio.screen-inventory/v1`, `simplicio.service-flowchart/v1`,
+  `simplicio.mapper-index/v1`,
   `simplicio.mapper-index-state/v1`) are SemVer-locked: additive fields are
   allowed inside `v1`; renames and removals require `v2` plus an ADR.
 - `simplicio-mapper --version` is sourced from `package.json`,
