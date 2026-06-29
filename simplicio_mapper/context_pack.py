@@ -23,6 +23,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from collections.abc import Iterable
 from typing import Any
 
@@ -50,6 +51,26 @@ _LANGUAGE_BY_EXT = {
     ".go": "go",
     ".rs": "rust",
     ".cs": "csharp",
+    ".ex": "elixir",
+    ".exs": "elixir",
+    ".erl": "erlang",
+    ".hrl": "erlang",
+    ".lua": "lua",
+    ".r": "r",
+    ".jl": "julia",
+    ".pl": "perl",
+    ".pm": "perl",
+    ".html": "html",
+    ".htm": "html",
+    ".xhtml": "xhtml",
+    ".css": "css",
+    ".scss": "scss",
+    ".sass": "sass",
+    ".less": "less",
+    ".eex": "html-template",
+    ".heex": "html-template",
+    ".leex": "html-template",
+    ".erb": "html-template",
 }
 
 
@@ -73,11 +94,18 @@ def _load_json(path: str) -> dict | None:
         return None
 
 
-def _language_for(path: str) -> str:
+def _language_for(path: str, text: str | None = None) -> str:
     base = os.path.basename(path)
     if base == "Dockerfile":
         return "dockerfile"
     ext = os.path.splitext(path)[1].lower()
+    if ext == ".m":
+        if text is None:
+            return "objectivec"
+        probe = text
+        if re.search(r"^\s*(#\s*import|@interface|@implementation|@import\b)", probe, re.MULTILINE):
+            return "objectivec"
+        return "matlab"
     return _LANGUAGE_BY_EXT.get(ext, ext[1:] if ext else "text")
 
 
@@ -202,7 +230,7 @@ def build_context_pack(
         })
         files_out.append({
             "path": path.replace(os.sep, "/"),
-            "language": _language_for(abs_path),
+            "language": _language_for(abs_path, text),
             "snapshot_hash": _sha256_text(text),
             "line_count": line_count,
             "compact": compact,

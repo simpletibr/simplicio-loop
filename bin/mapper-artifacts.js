@@ -35,6 +35,10 @@ const TEXT_EXTS = new Set([
   // Tier 1/2 language support
   '.dart', '.sql', '.c', '.h', '.cc', '.cpp', '.cxx', '.hpp', '.hh',
   '.swift', '.m', '.mm', '.vue', '.svelte', '.scala',
+  // Tier 3 niche/basic language support
+  '.ex', '.exs', '.erl', '.hrl', '.lua', '.r', '.jl', '.pl', '.pm',
+  '.html', '.htm', '.xhtml', '.css', '.scss', '.sass', '.less',
+  '.eex', '.heex', '.leex', '.erb',
 ]);
 
 const SKIP_DIRS = new Set([
@@ -89,10 +93,14 @@ function walk(dir, onFile) {
   }
 }
 
-function languageFor(file) {
+function languageFor(file, text = '') {
   const ext = path.extname(file).toLowerCase();
   const base = path.basename(file);
   if (base === 'Dockerfile') return 'dockerfile';
+  if (ext === '.m') {
+    if (text === '') return 'objectivec';
+    return /^\s*(#\s*import|@interface|@implementation|@import\b)/m.test(text) ? 'objectivec' : 'matlab';
+  }
   return {
     '.js': 'javascript',
     '.jsx': 'javascript',
@@ -127,11 +135,30 @@ function languageFor(file) {
     '.hpp': 'cpp',
     '.hh': 'cpp',
     '.swift': 'swift',
-    '.m': 'objectivec',
     '.mm': 'objectivec',
     '.vue': 'vue',
     '.svelte': 'svelte',
     '.scala': 'scala',
+    '.ex': 'elixir',
+    '.exs': 'elixir',
+    '.erl': 'erlang',
+    '.hrl': 'erlang',
+    '.lua': 'lua',
+    '.r': 'r',
+    '.jl': 'julia',
+    '.pl': 'perl',
+    '.pm': 'perl',
+    '.html': 'html',
+    '.htm': 'html',
+    '.xhtml': 'xhtml',
+    '.css': 'css',
+    '.scss': 'scss',
+    '.sass': 'sass',
+    '.less': 'less',
+    '.eex': 'html-template',
+    '.heex': 'html-template',
+    '.leex': 'html-template',
+    '.erb': 'html-template',
   }[ext] || (ext ? ext.slice(1) : 'text');
 }
 
@@ -197,6 +224,22 @@ function parseImports(text, language) {
     patterns.push(/^\s*#\s*include\s+[<"]([^>"]+)[>"]/gm);
   } else if (language === 'objectivec') {
     patterns.push(/^\s*#\s*import\s+[<"]([^>"]+)[>"]/gm, /^\s*@import\s+([A-Za-z_][\w.]*)/gm);
+  } else if (language === 'elixir') {
+    patterns.push(/^\s*(?:alias|import|require|use)\s+([A-Z][A-Za-z0-9_.]*)/gm);
+  } else if (language === 'erlang') {
+    patterns.push(/^\s*-\s*include(?:_lib)?\("([^"]+)"\)/gm, /^\s*-\s*import\(([a-zA-Z0-9_@]+)\s*,/gm);
+  } else if (language === 'lua') {
+    patterns.push(/require\s*\(?\s*['"]([^'"]+)['"]\s*\)?/g);
+  } else if (language === 'r') {
+    patterns.push(/^\s*(?:library|require)\(\s*([A-Za-z][A-Za-z0-9._]*)\s*\)/gm, /^\s*source\(\s*['"]([^'"]+)['"]\s*\)/gm);
+  } else if (language === 'julia') {
+    patterns.push(/^\s*(?:using|import)\s+([A-Za-z_][\w.]*)/gm, /^\s*include\(\s*['"]([^'"]+)['"]\s*\)/gm);
+  } else if (language === 'perl') {
+    patterns.push(/^\s*(?:use|require)\s+([A-Za-z_][A-Za-z0-9_:]*)/gm);
+  } else if (language === 'matlab') {
+    patterns.push(/^\s*import\s+([A-Za-z_][\w.]*)/gm);
+  } else if (['css', 'scss', 'sass', 'less'].includes(language)) {
+    patterns.push(/@import\s+['"]([^'"]+)['"]/g);
   }
   for (const pattern of patterns) {
     for (const match of text.matchAll(pattern)) imports.add(match[1]);
@@ -345,7 +388,7 @@ function buildFileInventory(cwd, pkg, statusMap) {
     const rel = normalizeRel(path.relative(cwd, abs));
     const text = readSafe(abs);
     const stat = fs.statSync(abs);
-    const language = languageFor(rel);
+    const language = languageFor(rel, text);
     const roles = rolesFor(rel, pkg);
     const imports = parseImports(text, language);
     const exports = parseSymbols(text);
@@ -447,6 +490,34 @@ function symbolDefinitionsForFile(file, text) {
     patterns.push([/\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:["`]?[A-Za-z_]\w*["`]?\.)?["`]?([A-Za-z_]\w*)["`]?/gi, 'table']);
     patterns.push([/\bCREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+(?:["`]?[A-Za-z_]\w*["`]?\.)?["`]?([A-Za-z_]\w*)["`]?/gi, 'view']);
     patterns.push([/\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\s+(?:["`]?[A-Za-z_]\w*["`]?\.)?["`]?([A-Za-z_]\w*)["`]?/gi, 'function']);
+  } else if (file.language === 'elixir') {
+    patterns.push([/^\s*defmodule\s+([A-Z][A-Za-z0-9_.]*)/gm, 'module']);
+    patterns.push([/^\s*defp?\s+([a-z_]\w*[!?]?)/gm, 'function']);
+    patterns.push([/^\s*defmacro(?:p)?\s+([a-z_]\w*[!?]?)/gm, 'macro']);
+  } else if (file.language === 'erlang') {
+    patterns.push([/^\s*-\s*module\(([a-zA-Z0-9_@]+)\)\./gm, 'module']);
+    patterns.push([/^\s*([a-z][A-Za-z0-9_]*)\s*\([^)]*\)\s*->/gm, 'function']);
+  } else if (file.language === 'lua') {
+    patterns.push([/^\s*(?:local\s+)?function\s+([A-Za-z_]\w*(?:[:.][A-Za-z_]\w*)?)/gm, 'function']);
+  } else if (file.language === 'r') {
+    patterns.push([/^\s*([A-Za-z.][A-Za-z0-9._]*)\s*(?:<-|=)\s*function\s*\(/gm, 'function']);
+  } else if (file.language === 'julia') {
+    patterns.push([/^\s*module\s+([A-Z][A-Za-z0-9_]*)/gm, 'module']);
+    patterns.push([/^\s*(?:mutable\s+)?struct\s+([A-Z][A-Za-z0-9_]*)/gm, 'class']);
+    patterns.push([/^\s*function\s+([A-Za-z_]\w*[!?]?)/gm, 'function']);
+    patterns.push([/^\s*([A-Za-z_]\w*[!?]?)\s*\([^)]*\)\s*=/gm, 'function']);
+  } else if (file.language === 'perl') {
+    patterns.push([/^\s*package\s+([A-Za-z_][A-Za-z0-9_:]*)\s*;/gm, 'module']);
+    patterns.push([/^\s*sub\s+([A-Za-z_]\w*)/gm, 'function']);
+  } else if (file.language === 'matlab') {
+    patterns.push([/^\s*classdef\s+([A-Z][A-Za-z0-9_]*)/gm, 'class']);
+    patterns.push([/^\s*function\s+(?:\[[^\]]+\]\s*=|[A-Za-z_]\w*\s*=)?\s*([A-Za-z_]\w*)\s*\(/gm, 'function']);
+  } else if (['css', 'scss', 'sass', 'less'].includes(file.language)) {
+    patterns.push([/^\s*\.([A-Za-z_][\w-]*)\b/gm, 'class']);
+    patterns.push([/^\s*#([A-Za-z_][\w-]*)\b/gm, 'id']);
+  } else if (['html', 'xhtml', 'html-template'].includes(file.language)) {
+    patterns.push([/\bid\s*=\s*['"]([A-Za-z_][\w:-]*)['"]/gi, 'id']);
+    patterns.push([/<([A-Z][A-Za-z0-9:_-]*)\b/g, 'component']);
   } else if (file.language === 'csharp' || file.language === 'razor') {
     patterns.push([/^\s*(?:public\s+|private\s+|protected\s+|internal\s+)?(?:sealed\s+|static\s+|partial\s+)?class\s+([A-Za-z_]\w*)/gm, 'class']);
     patterns.push([
@@ -496,7 +567,7 @@ function layersForFile(file) {
   if (rel.startsWith('scripts/')) layers.add('script');
   if (rel.startsWith('docs/') || file.language === 'markdown') layers.add('documentation');
   if (!layers.size) {
-    layers.add(['python', 'javascript', 'typescript', 'csharp', 'go', 'rust', 'dart', 'swift', 'objectivec', 'c', 'cpp', 'scala', 'vue', 'svelte'].includes(file.language) ? 'code' : 'asset');
+    layers.add(['python', 'javascript', 'typescript', 'csharp', 'go', 'rust', 'dart', 'swift', 'objectivec', 'c', 'cpp', 'scala', 'vue', 'svelte', 'elixir', 'erlang', 'lua', 'r', 'julia', 'perl', 'matlab'].includes(file.language) ? 'code' : 'asset');
   }
   return [...layers].sort();
 }
@@ -570,6 +641,7 @@ const CALL_SKIP_NAMES = new Set([
 const CALL_GRAPH_LANGUAGES = new Set([
   'python', 'javascript', 'typescript', 'csharp', 'razor', 'go', 'rust', 'java', 'kotlin', 'php', 'ruby',
   'dart', 'swift', 'objectivec', 'c', 'cpp', 'scala', 'vue', 'svelte',
+  'elixir', 'erlang', 'lua', 'r', 'julia', 'perl', 'matlab',
 ]);
 
 function callExpressions(text) {

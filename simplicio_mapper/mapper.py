@@ -41,6 +41,10 @@ TEXT_EXTS = {
     # Tier 1/2 language support
     ".dart", ".sql", ".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh",
     ".swift", ".m", ".mm", ".vue", ".svelte", ".scala",
+    # Tier 3 niche/basic language support
+    ".ex", ".exs", ".erl", ".hrl", ".lua", ".r", ".jl", ".pl", ".pm",
+    ".html", ".htm", ".xhtml", ".css", ".scss", ".sass", ".less",
+    ".eex", ".heex", ".leex", ".erb",
 }
 
 SKIP_DIRS = {
@@ -97,6 +101,27 @@ LANGUAGE_BY_EXT = {
     ".vue": "vue",
     ".svelte": "svelte",
     ".scala": "scala",
+    # Tier 3 niche/basic language support
+    ".ex": "elixir",
+    ".exs": "elixir",
+    ".erl": "erlang",
+    ".hrl": "erlang",
+    ".lua": "lua",
+    ".r": "r",
+    ".jl": "julia",
+    ".pl": "perl",
+    ".pm": "perl",
+    ".html": "html",
+    ".htm": "html",
+    ".xhtml": "xhtml",
+    ".css": "css",
+    ".scss": "scss",
+    ".sass": "sass",
+    ".less": "less",
+    ".eex": "html-template",
+    ".heex": "html-template",
+    ".leex": "html-template",
+    ".erb": "html-template",
 }
 
 ENTRYPOINT_STEMS = {"index", "main", "server", "app", "program", "cli"}
@@ -183,11 +208,18 @@ def _should_skip_dir(entry: os.DirEntry[str]) -> bool:
     return False
 
 
-def _language_for(file: str) -> str:
+def _language_for(file: str, text: str | None = None) -> str:
     base = os.path.basename(file)
     if base == "Dockerfile":
         return "dockerfile"
     ext = os.path.splitext(file)[1].lower()
+    if ext == ".m":
+        if text is None:
+            return "objectivec"
+        probe = text
+        if re.search(r"^\s*(#\s*import|@interface|@implementation|@import\b)", probe, re.MULTILINE):
+            return "objectivec"
+        return "matlab"
     if ext in LANGUAGE_BY_EXT:
         return LANGUAGE_BY_EXT[ext]
     return ext[1:] if ext else "text"
@@ -265,6 +297,25 @@ def _parse_imports(text: str, language: str) -> list[str]:
     elif language == "objectivec":
         patterns.append(re.compile(r'^\s*#\s*import\s+[<"]([^>"]+)[>"]', re.MULTILINE))
         patterns.append(re.compile(r"^\s*@import\s+([A-Za-z_][\w.]*)", re.MULTILINE))
+    elif language == "elixir":
+        patterns.append(re.compile(r"^\s*(?:alias|import|require|use)\s+([A-Z][A-Za-z0-9_.]*)", re.MULTILINE))
+    elif language == "erlang":
+        patterns.append(re.compile(r'^\s*-\s*include(?:_lib)?\("([^"]+)"\)', re.MULTILINE))
+        patterns.append(re.compile(r"^\s*-\s*import\(([a-zA-Z0-9_@]+)\s*,", re.MULTILINE))
+    elif language == "lua":
+        patterns.append(re.compile(r"require\s*\(?\s*['\"]([^'\"]+)['\"]\s*\)?"))
+    elif language == "r":
+        patterns.append(re.compile(r"^\s*(?:library|require)\(\s*([A-Za-z][A-Za-z0-9._]*)\s*\)", re.MULTILINE))
+        patterns.append(re.compile(r"^\s*source\(\s*['\"]([^'\"]+)['\"]\s*\)", re.MULTILINE))
+    elif language == "julia":
+        patterns.append(re.compile(r"^\s*(?:using|import)\s+([A-Za-z_][\w.]*)", re.MULTILINE))
+        patterns.append(re.compile(r"^\s*include\(\s*['\"]([^'\"]+)['\"]\s*\)", re.MULTILINE))
+    elif language == "perl":
+        patterns.append(re.compile(r"^\s*(?:use|require)\s+([A-Za-z_][A-Za-z0-9_:]*)", re.MULTILINE))
+    elif language == "matlab":
+        patterns.append(re.compile(r"^\s*import\s+([A-Za-z_][\w.]*)", re.MULTILINE))
+    elif language in ("css", "scss", "sass", "less"):
+        patterns.append(re.compile(r"@import\s+['\"]([^'\"]+)['\"]"))
     found: list[str] = []
     for pattern in patterns:
         for match in pattern.finditer(text):
@@ -454,7 +505,7 @@ def _cached_parse_file(abs_path: str, rel: str, stat: os.stat_result, cache: Fil
         return cached
 
     text = _read_safe(abs_path)
-    language = _language_for(rel)
+    language = _language_for(rel, text)
     result = {
         "language": language,
         "file_hash": _sha256(text),
@@ -616,6 +667,52 @@ def _symbol_definitions_for_file(file: ProjectFile, text: str) -> list[dict]:
             (re.compile(r"\bCREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+(?:[\"`]?[A-Za-z_]\w*[\"`]?\.)?[\"`]?([A-Za-z_]\w*)[\"`]?", re.IGNORECASE), "view"),
             (re.compile(r"\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\s+(?:[\"`]?[A-Za-z_]\w*[\"`]?\.)?[\"`]?([A-Za-z_]\w*)[\"`]?", re.IGNORECASE), "function"),
         ]
+    elif file.language == "elixir":
+        patterns = [
+            (re.compile(r"^\s*defmodule\s+([A-Z][A-Za-z0-9_.]*)", re.MULTILINE), "module"),
+            (re.compile(r"^\s*defp?\s+([a-z_]\w*[!?]?)", re.MULTILINE), "function"),
+            (re.compile(r"^\s*defmacro(?:p)?\s+([a-z_]\w*[!?]?)", re.MULTILINE), "macro"),
+        ]
+    elif file.language == "erlang":
+        patterns = [
+            (re.compile(r"^\s*-\s*module\(([a-zA-Z0-9_@]+)\)\.", re.MULTILINE), "module"),
+            (re.compile(r"^\s*([a-z][A-Za-z0-9_]*)\s*\([^)]*\)\s*->", re.MULTILINE), "function"),
+        ]
+    elif file.language == "lua":
+        patterns = [
+            (re.compile(r"^\s*(?:local\s+)?function\s+([A-Za-z_]\w*(?:[:.][A-Za-z_]\w*)?)", re.MULTILINE), "function"),
+        ]
+    elif file.language == "r":
+        patterns = [
+            (re.compile(r"^\s*([A-Za-z.][A-Za-z0-9._]*)\s*(?:<-|=)\s*function\s*\(", re.MULTILINE), "function"),
+        ]
+    elif file.language == "julia":
+        patterns = [
+            (re.compile(r"^\s*module\s+([A-Z][A-Za-z0-9_]*)", re.MULTILINE), "module"),
+            (re.compile(r"^\s*(?:mutable\s+)?struct\s+([A-Z][A-Za-z0-9_]*)", re.MULTILINE), "class"),
+            (re.compile(r"^\s*function\s+([A-Za-z_]\w*[!?]?)", re.MULTILINE), "function"),
+            (re.compile(r"^\s*([A-Za-z_]\w*[!?]?)\s*\([^)]*\)\s*=", re.MULTILINE), "function"),
+        ]
+    elif file.language == "perl":
+        patterns = [
+            (re.compile(r"^\s*package\s+([A-Za-z_][A-Za-z0-9_:]*)\s*;", re.MULTILINE), "module"),
+            (re.compile(r"^\s*sub\s+([A-Za-z_]\w*)", re.MULTILINE), "function"),
+        ]
+    elif file.language == "matlab":
+        patterns = [
+            (re.compile(r"^\s*classdef\s+([A-Z][A-Za-z0-9_]*)", re.MULTILINE), "class"),
+            (re.compile(r"^\s*function\s+(?:\[[^\]]+\]\s*=|[A-Za-z_]\w*\s*=)?\s*([A-Za-z_]\w*)\s*\(", re.MULTILINE), "function"),
+        ]
+    elif file.language in ("css", "scss", "sass", "less"):
+        patterns = [
+            (re.compile(r"(?m)^\s*\.([A-Za-z_][\w-]*)\b"), "class"),
+            (re.compile(r"(?m)^\s*#([A-Za-z_][\w-]*)\b"), "id"),
+        ]
+    elif file.language in ("html", "xhtml", "html-template"):
+        patterns = [
+            (re.compile(r"\bid\s*=\s*['\"]([A-Za-z_][\w:-]*)['\"]", re.IGNORECASE), "id"),
+            (re.compile(r"<([A-Z][A-Za-z0-9:_-]*)\b"), "component"),
+        ]
     elif file.language in ("csharp", "razor"):
         patterns = [
             (re.compile(r"^\s*(?:public\s+|private\s+|protected\s+|internal\s+)?(?:sealed\s+|static\s+|partial\s+)?class\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
@@ -677,7 +774,7 @@ def _layers_for_file(file: ProjectFile) -> list[str]:
     if rel.startswith("docs/") or file.language == "markdown":
         layers.add("documentation")
     if not layers:
-        layers.add("code" if file.language in {"python", "javascript", "typescript", "csharp", "go", "rust", "dart", "swift", "objectivec", "c", "cpp", "scala", "vue", "svelte"} else "asset")
+        layers.add("code" if file.language in {"python", "javascript", "typescript", "csharp", "go", "rust", "dart", "swift", "objectivec", "c", "cpp", "scala", "vue", "svelte", "elixir", "erlang", "lua", "r", "julia", "perl", "matlab"} else "asset")
     return sorted(layers)
 
 
@@ -776,6 +873,7 @@ _CALL_GRAPH_LANGUAGES = {
     "python", "javascript", "typescript", "csharp", "razor", "go", "rust",
     "java", "kotlin", "php", "ruby",
     "dart", "swift", "objectivec", "c", "cpp", "scala", "vue", "svelte",
+    "elixir", "erlang", "lua", "r", "julia", "perl", "matlab",
 }
 
 
@@ -1015,7 +1113,7 @@ def _macro_layers_for_path(rel: str, base: str, language: str, roles: set[str]) 
     if low.startswith("docs/") or language == "markdown":
         layers.add("documentation")
     if not layers:
-        layers.add("code" if language in {"python", "javascript", "typescript", "csharp", "go", "rust", "dart", "swift", "objectivec", "c", "cpp", "scala", "vue", "svelte"} else "asset")
+        layers.add("code" if language in {"python", "javascript", "typescript", "csharp", "go", "rust", "dart", "swift", "objectivec", "c", "cpp", "scala", "vue", "svelte", "elixir", "erlang", "lua", "r", "julia", "perl", "matlab"} else "asset")
     return layers
 
 

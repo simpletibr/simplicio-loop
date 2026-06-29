@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-06-29
+
+### Added
+- Tier 3 niche/basic language support in the mapper (Python + Node mirror):
+  - **Elixir, Erlang, Lua, R, Julia, Perl, MATLAB** — language detection,
+    lightweight symbol extraction, dedicated import parsing, and inclusion in
+    the heuristic call graph.
+  - **HTML templates / basic web text** — `.heex/.leex/.eex/.erb`,
+    `.html/.htm/.xhtml`, and `.css/.scss/.sass/.less` are now inventoried as
+    first-class text/code assets instead of being skipped; HTML/template IDs
+    and component-like tags plus CSS selectors are extracted as lightweight
+    symbols.
+  - `.m` files now use a safe heuristic: Objective-C when Objective-C markers
+    are present, otherwise MATLAB during deep mapping; shallow/macro mode keeps
+    the previous Objective-C default to avoid regressions.
+  - Extended `LANGUAGE_BY_EXT`, `TEXT_EXTS`, `_CALL_GRAPH_LANGUAGES`, import
+    parsers, symbol extractors, and `context-pack` language labeling.
+
 ## [0.10.0] - 2026-06-29
 
 ### Added

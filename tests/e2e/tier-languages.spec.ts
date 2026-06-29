@@ -1,6 +1,7 @@
 /*
- * End-to-end coverage of Tier 1/2 language support (Dart, SQL, C/C++, Swift,
- * Objective-C, Vue, Svelte, Scala).
+ * End-to-end coverage of Tier 1/2/3 language support (structural languages +
+ * niche/basic text/code formats such as Elixir, Erlang, Lua, R, Julia, Perl,
+ * HTML templates, XHTML, CSS and MATLAB-vs-Objective-C `.m` heuristics).
  *
  * Playwright is used here as a test harness (parallelism, reporter, evidence
  * attach), not for browser navigation. The test spawns
@@ -30,6 +31,16 @@ const FILES: Record<string, string> = {
   'ui/Button.vue': "<script>\nimport x from './x';\nexport function handleClick() {}\n</script>\n",
   'ui/Card.svelte': "<script>\nimport y from './y';\nfunction render() {}\n</script>\n",
   'be/Service.scala': 'import scala.collection.mutable\nobject Main\nclass Repo\ndef compute() = 1\n',
+  'apps/live.heex': '<section id="dashboard"><HeroCard /></section>\n',
+  'assets/site.xhtml': '<html id="page-root"><body></body></html>\n',
+  'assets/styles.css': "@import './theme.css';\n.card { color: red; }\n#hero { margin: 0; }\n",
+  'lib/app.ex': 'defmodule Demo.App do\n  use Demo.Web, :controller\n  def hello(name), do: name\nend\n',
+  'src/app.erl': '-module(calc).\n-include("calc.hrl").\n-export([sum/2]).\nsum(A, B) -> A + B.\n',
+  'lua/init.lua': "local M = {}\nfunction M.start()\n  return require('socket')\nend\n",
+  'stats/model.R': 'library(ggplot2)\nfit_model <- function(x) {\n  x\n}\n',
+  'math/solve.jl': 'using LinearAlgebra\nmodule Solver\nfunction solve(x)\n  x\nend\nend\n',
+  'perl/tool.pl': 'use strict;\npackage Demo::Tool;\nsub run {\n  return 1;\n}\n',
+  'matlab/fit.m': 'function y = fitCurve(x)\n y = x;\nend\n',
 };
 
 function mkTmp(): string {
@@ -70,7 +81,7 @@ async function attach(testInfo: TestInfo, res: SpawnSyncReturns<string>, dir: st
   if (fs.existsSync(si)) await testInfo.attach('symbol-index.json', { path: si, contentType: 'application/json' });
 }
 
-test.describe('Tier 1/2 language support', () => {
+test.describe('Tier 1/2/3 language support', () => {
   test('detects new languages and extracts their symbols', async ({}, testInfo) => {
     const dir = mkTmp();
     try {
@@ -90,6 +101,16 @@ test.describe('Tier 1/2 language support', () => {
       expect(langs['ui/Button.vue']).toBe('vue');
       expect(langs['ui/Card.svelte']).toBe('svelte');
       expect(langs['be/Service.scala']).toBe('scala');
+      expect(langs['apps/live.heex']).toBe('html-template');
+      expect(langs['assets/site.xhtml']).toBe('xhtml');
+      expect(langs['assets/styles.css']).toBe('css');
+      expect(langs['lib/app.ex']).toBe('elixir');
+      expect(langs['src/app.erl']).toBe('erlang');
+      expect(langs['lua/init.lua']).toBe('lua');
+      expect(langs['stats/model.R']).toBe('r');
+      expect(langs['math/solve.jl']).toBe('julia');
+      expect(langs['perl/tool.pl']).toBe('perl');
+      expect(langs['matlab/fit.m']).toBe('matlab');
 
       const si = JSON.parse(fs.readFileSync(path.join(dir, '.simplicio', 'symbol-index.json'), 'utf8'));
       const byFile: Record<string, Set<string>> = {};
@@ -102,6 +123,16 @@ test.describe('Tier 1/2 language support', () => {
       expect(byFile['src/app.cpp']).toContain('class:Engine');
       expect(byFile['ios/App.swift']).toContain('class:ViewController');
       expect(byFile['be/Service.scala']).toContain('class:Repo');
+      expect(byFile['apps/live.heex']).toContain('component:HeroCard');
+      expect(byFile['assets/site.xhtml']).toContain('id:page-root');
+      expect(byFile['assets/styles.css']).toContain('class:card');
+      expect(byFile['lib/app.ex']).toContain('module:Demo.App');
+      expect(byFile['src/app.erl']).toContain('function:sum');
+      expect(byFile['lua/init.lua']).toContain('function:M.start');
+      expect(byFile['stats/model.R']).toContain('function:fit_model');
+      expect(byFile['math/solve.jl']).toContain('module:Solver');
+      expect(byFile['perl/tool.pl']).toContain('module:Demo::Tool');
+      expect(byFile['matlab/fit.m']).toContain('function:fitCurve');
     } finally {
       rmTmp(dir);
     }
