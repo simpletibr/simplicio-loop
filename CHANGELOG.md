@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-06-29
+
+### Added
+- Every LLM contact (doer `generate()` and planner `planner_complete()`, across
+  all provider paths — Anthropic native, OpenAI-compatible, `claude-cli`/
+  `codex-cli` shell-out, and in-process llama.cpp) now prepends a fixed
+  `[OPERATING CONSTRAINTS]` block to the prompt: **no thinking** (no
+  chain-of-thought, output only the result), **no internet** (no browsing/
+  fetching), **tools only as strictly necessary**, **skills only as strictly
+  necessary**. The doer is a mechanical task-to-diff worker and does not need
+  to reason or reach the network. Prepended (not appended) so the template's
+  strict `[OUTPUT]` block stays the last thing the model reads. Opt out with
+  `SIMPLICIO_NO_LLM_DIRECTIVES=1`. The directives are part of the completion
+  cache key, so cached entries stay consistent with what was sent.
+
 ## [0.6.0] — 2026-06-29
 
 ### Added

@@ -142,7 +142,7 @@ def test_provider_cache_short_circuits_missing_api_key(monkeypatch):
     key = make_key(
         "anthropic-native",
         "anthropic/claude-opus",
-        "cached prompt",
+        providers._apply_directives("cached prompt"),
         feedback=None,
         max_tokens=4000,
     )
@@ -164,7 +164,7 @@ def test_planner_cache_short_circuits_missing_api_key(monkeypatch):
     cfg = providers.planner_cfg(require_key=False)
     key = providers._planner_cache_key(
         cfg,
-        "cached plan",
+        providers._apply_directives("cached plan"),
         8192,
         0.1,
         "stack-v1",

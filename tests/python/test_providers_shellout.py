@@ -44,7 +44,8 @@ def test_claude_cli_builds_argv_and_injects_guard(monkeypatch):
     cmd = args[0]
     assert cmd[0] in {"claude", "claude.cmd", "claude.exe"}
     assert cmd[1] == "-p"
-    assert cmd[2] == "write hello"
+    assert cmd[2].startswith(providers.LLM_DIRECTIVES)
+    assert "write hello" in cmd[2]
     assert "--model" in cmd and "sonnet" in cmd
     assert kwargs["env"]["SIMPLICIO_HOOK_GUARD"] == "1"
     assert kwargs["env"]["SIMPLICIO_SKIP_AUTO_INIT"] == "1"
@@ -70,7 +71,8 @@ def test_codex_cli_builds_argv_with_model_then_prompt(monkeypatch):
     assert "--model" in cmd
     assert cmd.index("gpt-5") == cmd.index("--model") + 1
     assert cmd[-1] == "-"
-    assert kwargs["input"] == "refactor x"
+    assert kwargs["input"].startswith(providers.LLM_DIRECTIVES)
+    assert "refactor x" in kwargs["input"]
 
 
 def test_claude_cli_skips_model_flag_for_default(monkeypatch):

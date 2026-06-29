@@ -72,6 +72,45 @@ def _inline_feedback(prompt, feedback):
 
 
 # --------------------------------------------------------------------------- #
+# Operating constraints injected into EVERY LLM contact (doer + planner, all
+# provider paths: Anthropic native, OpenAI-compatible, claude-cli/codex-cli
+# shell-out, in-process llama.cpp). The doer is a mechanical task-to-diff
+# worker: it must not reason out loud, must not reach the network, and must
+# only touch the tools/skills the task strictly needs. Prepended (not
+# appended) so the template's strict [OUTPUT] block stays the last thing the
+# model reads. Opt out with SIMPLICIO_NO_LLM_DIRECTIVES=1.
+# --------------------------------------------------------------------------- #
+LLM_DIRECTIVES = (
+    "[OPERATING CONSTRAINTS — non-negotiable]\n"
+    "- No thinking: do not reason out loud, plan, or emit chain-of-thought. "
+    "Produce only the requested output.\n"
+    "- No internet: do not browse, fetch URLs, or use any external network "
+    "resource. Use only the context provided below.\n"
+    "- Tools: use only the tools strictly necessary for this task; invoke no "
+    "others.\n"
+    "- Skills: load only the skills strictly necessary for this task; activate "
+    "no others.\n"
+)
+
+
+def _directives_enabled() -> bool:
+    return os.environ.get("SIMPLICIO_NO_LLM_DIRECTIVES", "").strip() not in (
+        "1", "true", "True", "yes",
+    )
+
+
+def _apply_directives(prompt):
+    """Prepend the operating-constraints header to any prompt bound for an LLM.
+
+    Idempotent and opt-out-able (SIMPLICIO_NO_LLM_DIRECTIVES=1)."""
+    if not _directives_enabled():
+        return prompt
+    if prompt and prompt.startswith(LLM_DIRECTIVES):
+        return prompt
+    return f"{LLM_DIRECTIVES}\n{prompt}"
+
+
+# --------------------------------------------------------------------------- #
 # Path 4: local llama.cpp default + Path 5: explicit in-process GGUF.
 # --------------------------------------------------------------------------- #
 
@@ -447,6 +486,7 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
     # to be set in the environment.
     from ._cache import cache, make_key
     model_name = os.environ.get("SIMPLICIO_MODEL", "").strip()
+    prompt = _apply_directives(prompt)
     cache_full_prompt = _inline_feedback(prompt, feedback)
     cache_key = make_key(
         provider_id="doer", model=model_name, prompt=cache_full_prompt,
@@ -699,6 +739,7 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
     schema-stable, not creative.
     """
     p = planner_cfg(require_key=False)
+    prompt = _apply_directives(prompt)
     key = _planner_cache_key(p, prompt, max_tokens, temperature, template_version)
     cached = cache().get(key)
     if cached is not None:

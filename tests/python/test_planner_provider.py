@@ -105,7 +105,11 @@ def test_local_llama_planner_runs_without_credentials(
     monkeypatch.setattr(P, "_local_generate", fake_local_generate)
 
     assert P.planner_complete("plan this", max_tokens=123) == "local plan"
-    assert calls == [("plan this", None, "local-llama/default", 123)]
+    assert len(calls) == 1
+    sent_prompt, sent_feedback, sent_model, sent_max = calls[0]
+    assert sent_prompt.startswith(P.LLM_DIRECTIVES)
+    assert "plan this" in sent_prompt
+    assert (sent_feedback, sent_model, sent_max) == (None, "local-llama/default", 123)
 
 
 def test_missing_credentials_clearly_signaled(
