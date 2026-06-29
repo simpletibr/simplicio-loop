@@ -12,11 +12,29 @@ const SYMBOL_INDEX_SCHEMA = 'simplicio.symbol-index/v1';
 const CALL_GRAPH_SCHEMA = 'simplicio.call-graph/v1';
 const ARTIFACT_VERSION = 1;
 
+// Directive contract handed to any LLM that consumes mapper artifacts. The
+// mapper has already done the survey work, so a downstream model must act
+// directly — never deliberate, never reach the internet, and load only the
+// tools/skills the task strictly requires.
+const LLM_DIRECTIVES = {
+  no_thinking: true,
+  no_internet: true,
+  tools: 'only_necessary',
+  skills: 'only_necessary',
+  instruction:
+    'No-thinking: act directly, do not deliberate or chain-of-think. '
+    + 'No-internet: do not access the network. '
+    + 'Load only strictly necessary tools. Load only strictly necessary skills.',
+};
+
 const TEXT_EXTS = new Set([
   '.md', '.txt', '.json', '.jsonc', '.yml', '.yaml', '.toml',
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
   '.py', '.go', '.rs', '.java', '.kt', '.php', '.rb', '.cs',
   '.cshtml', '.razor', '.sh', '.ps1', '.env', '',
+  // Tier 1/2 language support
+  '.dart', '.sql', '.c', '.h', '.cc', '.cpp', '.cxx', '.hpp', '.hh',
+  '.swift', '.m', '.mm', '.vue', '.svelte', '.scala',
 ]);
 
 const SKIP_DIRS = new Set([
@@ -99,6 +117,21 @@ function languageFor(file) {
     '.toml': 'toml',
     '.sh': 'shell',
     '.ps1': 'powershell',
+    '.dart': 'dart',
+    '.sql': 'sql',
+    '.c': 'c',
+    '.h': 'c',
+    '.cc': 'cpp',
+    '.cpp': 'cpp',
+    '.cxx': 'cpp',
+    '.hpp': 'cpp',
+    '.hh': 'cpp',
+    '.swift': 'swift',
+    '.m': 'objectivec',
+    '.mm': 'objectivec',
+    '.vue': 'vue',
+    '.svelte': 'svelte',
+    '.scala': 'scala',
   }[ext] || (ext ? ext.slice(1) : 'text');
 }
 
@@ -154,6 +187,16 @@ function parseImports(text, language) {
     patterns.push(/^\s*using\s+([A-Za-z0-9_.]+)\s*;/gm);
   } else if (language === 'go') {
     patterns.push(/^\s*import\s+"([^"]+)"/gm);
+  } else if (language === 'vue' || language === 'svelte') {
+    patterns.push(/import\s+[^'"]*['"]([^'"]+)['"]/g, /require\(['"]([^'"]+)['"]\)/g);
+  } else if (language === 'dart') {
+    patterns.push(/^\s*import\s+['"]([^'"]+)['"]/gm);
+  } else if (language === 'swift' || language === 'scala') {
+    patterns.push(/^\s*import\s+([A-Za-z_][\w.]*)/gm);
+  } else if (language === 'c' || language === 'cpp') {
+    patterns.push(/^\s*#\s*include\s+[<"]([^>"]+)[>"]/gm);
+  } else if (language === 'objectivec') {
+    patterns.push(/^\s*#\s*import\s+[<"]([^>"]+)[>"]/gm, /^\s*@import\s+([A-Za-z_][\w.]*)/gm);
   }
   for (const pattern of patterns) {
     for (const match of text.matchAll(pattern)) imports.add(match[1]);
@@ -372,13 +415,38 @@ function symbolDefinitionsForFile(file, text) {
   if (file.language === 'python') {
     patterns.push([/^\s*class\s+([A-Za-z_]\w*)/gm, 'class']);
     patterns.push([/^\s*def\s+([A-Za-z_]\w*)/gm, 'function']);
-  } else if (file.language === 'javascript' || file.language === 'typescript') {
+  } else if (['javascript', 'typescript', 'vue', 'svelte'].includes(file.language)) {
     patterns.push([/^\s*(?:export\s+)?class\s+([A-Za-z_]\w*)/gm, 'class']);
     patterns.push([/^\s*(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_]\w*)/gm, 'function']);
     patterns.push([
       /^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_]\w*)\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_]\w*)\s*=>/gm,
       'function',
     ]);
+  } else if (file.language === 'dart') {
+    patterns.push([/^\s*(?:abstract\s+)?class\s+([A-Za-z_]\w*)/gm, 'class']);
+    patterns.push([/^\s*enum\s+([A-Za-z_]\w*)/gm, 'enum']);
+    patterns.push([/^\s*mixin\s+([A-Za-z_]\w*)/gm, 'mixin']);
+    patterns.push([/^[ \t]*(?:[A-Za-z_][\w<>,? \t]*?[ \t]+)?(?!(?:if|for|while|switch|else|catch|finally|return|new|await|yield)\b)([a-z_]\w*)\s*\([^)]*\)\s*(?:async\s*)?\{/gm, 'function']);
+  } else if (file.language === 'swift') {
+    patterns.push([/^\s*(?:public\s+|private\s+|internal\s+|open\s+|final\s+)*(?:class|struct|enum|protocol|extension|actor)\s+([A-Za-z_]\w*)/gm, 'class']);
+    patterns.push([/^\s*(?:public\s+|private\s+|internal\s+|static\s+|override\s+)*func\s+([A-Za-z_]\w*)/gm, 'function']);
+  } else if (file.language === 'objectivec') {
+    patterns.push([/^\s*@interface\s+([A-Za-z_]\w*)/gm, 'class']);
+    patterns.push([/^\s*@implementation\s+([A-Za-z_]\w*)/gm, 'class']);
+    patterns.push([/^\s*[-+]\s*\([^)]*\)\s*([A-Za-z_]\w*)/gm, 'method']);
+  } else if (file.language === 'cpp') {
+    patterns.push([/^\s*(?:class|struct)\s+([A-Za-z_]\w*)/gm, 'class']);
+    patterns.push([/^[ \t]*(?:[A-Za-z_][\w:<>, \t*&]*?[ \t]+)([A-Za-z_]\w*)\s*\([^;{]*\)\s*(?:const\s*)?\{/gm, 'function']);
+  } else if (file.language === 'c') {
+    patterns.push([/^\s*struct\s+([A-Za-z_]\w*)/gm, 'struct']);
+    patterns.push([/^[ \t]*(?:[A-Za-z_][\w \t*]*?[ \t]+)\**([A-Za-z_]\w*)\s*\([^;{]*\)\s*\{/gm, 'function']);
+  } else if (file.language === 'scala') {
+    patterns.push([/^\s*(?:case\s+)?(?:class|object|trait)\s+([A-Za-z_]\w*)/gm, 'class']);
+    patterns.push([/^\s*def\s+([A-Za-z_]\w*)/gm, 'function']);
+  } else if (file.language === 'sql') {
+    patterns.push([/\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:["`]?[A-Za-z_]\w*["`]?\.)?["`]?([A-Za-z_]\w*)["`]?/gi, 'table']);
+    patterns.push([/\bCREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+(?:["`]?[A-Za-z_]\w*["`]?\.)?["`]?([A-Za-z_]\w*)["`]?/gi, 'view']);
+    patterns.push([/\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\s+(?:["`]?[A-Za-z_]\w*["`]?\.)?["`]?([A-Za-z_]\w*)["`]?/gi, 'function']);
   } else if (file.language === 'csharp' || file.language === 'razor') {
     patterns.push([/^\s*(?:public\s+|private\s+|protected\s+|internal\s+)?(?:sealed\s+|static\s+|partial\s+)?class\s+([A-Za-z_]\w*)/gm, 'class']);
     patterns.push([
@@ -428,7 +496,7 @@ function layersForFile(file) {
   if (rel.startsWith('scripts/')) layers.add('script');
   if (rel.startsWith('docs/') || file.language === 'markdown') layers.add('documentation');
   if (!layers.size) {
-    layers.add(['python', 'javascript', 'typescript', 'csharp', 'go', 'rust'].includes(file.language) ? 'code' : 'asset');
+    layers.add(['python', 'javascript', 'typescript', 'csharp', 'go', 'rust', 'dart', 'swift', 'objectivec', 'c', 'cpp', 'scala', 'vue', 'svelte'].includes(file.language) ? 'code' : 'asset');
   }
   return [...layers].sort();
 }
@@ -501,6 +569,7 @@ const CALL_SKIP_NAMES = new Set([
 ]);
 const CALL_GRAPH_LANGUAGES = new Set([
   'python', 'javascript', 'typescript', 'csharp', 'razor', 'go', 'rust', 'java', 'kotlin', 'php', 'ruby',
+  'dart', 'swift', 'objectivec', 'c', 'cpp', 'scala', 'vue', 'svelte',
 ]);
 
 function callExpressions(text) {
@@ -721,6 +790,7 @@ function buildArtifacts({ cwd, meta = {}, incremental = false, outputDir = '.sim
     integration: {
       dev_cli_mapper: 'read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples',
       contract: 'SIMPLICIO_INTEGRATION.md',
+      llm_directives: LLM_DIRECTIVES,
     },
   };
 

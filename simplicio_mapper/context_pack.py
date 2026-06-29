@@ -26,6 +26,8 @@ import os
 from collections.abc import Iterable
 from typing import Any
 
+from .mapper import LLM_DIRECTIVES
+
 CONTEXT_PACK_SCHEMA = "simplicio.context-pack/v1"
 MAPPER_INDEX_SCHEMA = "simplicio.mapper-index/v1"
 
@@ -238,12 +240,14 @@ def build_context_pack(
         ),
         "needs_broader_context": needs_broader,
         "needs_broader_context_reason": "; ".join(reasons) if reasons else "",
+        "llm_directives": LLM_DIRECTIVES,
     }
 
 
 __all__ = [
     "COMPACT_LINE_THRESHOLD",
     "CONTEXT_PACK_SCHEMA",
+    "LLM_DIRECTIVES",
     "MAPPER_INDEX_SCHEMA",
     "build_context_pack",
 ]

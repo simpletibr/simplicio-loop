@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-06-29
+
+### Added
+- Tier 1/2 language support in the mapper (Python + Node mirror):
+  - **Dart, C, C++, Swift, Objective-C, Vue, Svelte, Scala** — language
+    detection, per-language symbol extraction, dedicated import parsing, and
+    inclusion in the call graph.
+  - **SQL** — symbol extraction for tables / views / functions / procedures
+    (intentionally excluded from the call graph; SQL has no call sites).
+  - Extended `LANGUAGE_BY_EXT`, `TEXT_EXTS` and `_CALL_GRAPH_LANGUAGES`; added a
+    `_NATIVE_IMPORT_LANGUAGES` guard so new languages always use the pure-Python
+    import path (the optional Rust crate only covers the original set).
+  - "Languages with structural extraction" section in `SIMPLICIO_INTEGRATION.md`.
+
 ## [0.9.0] - 2026-06-29
 
 ### Added
