@@ -1155,6 +1155,85 @@ class TierLanguageSupportTest(unittest.TestCase):
         self.assertNotIn("db", tables)
 
 
+class Tier3LanguageSupportTest(unittest.TestCase):
+    """Tier 3 niche/basic language coverage: detection + lightweight structure."""
+
+    FILES = {
+        "apps/live.heex": "<section id=\"dashboard\"><HeroCard /></section>\n",
+        "assets/site.xhtml": "<html id=\"page-root\"><body></body></html>\n",
+        "assets/styles.css": "@import './theme.css';\n.card { color: red; }\n#hero { margin: 0; }\n",
+        "lib/app.ex": "defmodule Demo.App do\n  use Demo.Web, :controller\n  def hello(name), do: name\nend\n",
+        "src/app.erl": "-module(calc).\n-include(\"calc.hrl\").\n-export([sum/2]).\nsum(A, B) -> A + B.\n",
+        "lua/init.lua": "local M = {}\nfunction M.start()\n  return require('socket')\nend\n",
+        "stats/model.R": "library(ggplot2)\nfit_model <- function(x) {\n  x\n}\n",
+        "math/solve.jl": "using LinearAlgebra\nmodule Solver\nfunction solve(x)\n  x\nend\nend\n",
+        "perl/tool.pl": "use strict;\npackage Demo::Tool;\nsub run {\n  return 1;\n}\n",
+        "matlab/fit.m": "function y = fitCurve(x)\n y = x;\nend\n",
+        "ios/Legacy.m": "#import <UIKit/UIKit.h>\n@interface Foo\n@end\n@implementation Foo\n@end\n",
+    }
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self._tmp.name)
+        for rel, content in self.FILES.items():
+            _write(self.dir, rel, content)
+        self.result = build_artifacts(cwd=str(self.dir), meta={})
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_language_detection(self) -> None:
+        langs = {f["path"]: f["language"] for f in self.result["project_map"]["files"]}
+        self.assertEqual(langs["apps/live.heex"], "html-template")
+        self.assertEqual(langs["assets/site.xhtml"], "xhtml")
+        self.assertEqual(langs["assets/styles.css"], "css")
+        self.assertEqual(langs["lib/app.ex"], "elixir")
+        self.assertEqual(langs["src/app.erl"], "erlang")
+        self.assertEqual(langs["lua/init.lua"], "lua")
+        self.assertEqual(langs["stats/model.R"], "r")
+        self.assertEqual(langs["math/solve.jl"], "julia")
+        self.assertEqual(langs["perl/tool.pl"], "perl")
+        self.assertEqual(langs["matlab/fit.m"], "matlab")
+        self.assertEqual(langs["ios/Legacy.m"], "objectivec")
+
+    def test_symbols_extracted_per_language(self) -> None:
+        by_file: dict[str, set[str]] = {}
+        for s in self.result["symbol_index"]["symbols"]:
+            by_file.setdefault(s["defined_in"], set()).add(f"{s['kind']}:{s['name']}")
+        self.assertIn("component:HeroCard", by_file["apps/live.heex"])
+        self.assertIn("id:page-root", by_file["assets/site.xhtml"])
+        self.assertIn("class:card", by_file["assets/styles.css"])
+        self.assertIn("id:hero", by_file["assets/styles.css"])
+        self.assertIn("module:Demo.App", by_file["lib/app.ex"])
+        self.assertIn("function:hello", by_file["lib/app.ex"])
+        self.assertIn("module:calc", by_file["src/app.erl"])
+        self.assertIn("function:sum", by_file["src/app.erl"])
+        self.assertIn("function:M.start", by_file["lua/init.lua"])
+        self.assertIn("function:fit_model", by_file["stats/model.R"])
+        self.assertIn("module:Solver", by_file["math/solve.jl"])
+        self.assertIn("function:solve", by_file["math/solve.jl"])
+        self.assertIn("module:Demo::Tool", by_file["perl/tool.pl"])
+        self.assertIn("function:run", by_file["perl/tool.pl"])
+        self.assertIn("function:fitCurve", by_file["matlab/fit.m"])
+
+    def test_imports_extracted_per_language(self) -> None:
+        imports = {f["path"]: f.get("imports", []) for f in self.result["project_map"]["files"]}
+        self.assertIn("./theme.css", imports["assets/styles.css"])
+        self.assertIn("Demo.Web", imports["lib/app.ex"])
+        self.assertIn("calc.hrl", imports["src/app.erl"])
+        self.assertIn("socket", imports["lua/init.lua"])
+        self.assertIn("ggplot2", imports["stats/model.R"])
+        self.assertIn("LinearAlgebra", imports["math/solve.jl"])
+        self.assertIn("strict", imports["perl/tool.pl"])
+
+    def test_tier3_languages_in_call_graph(self) -> None:
+        from simplicio_mapper.mapper import _CALL_GRAPH_LANGUAGES
+        for lang in ("elixir", "erlang", "lua", "r", "julia", "perl", "matlab"):
+            self.assertIn(lang, _CALL_GRAPH_LANGUAGES)
+        self.assertNotIn("html-template", _CALL_GRAPH_LANGUAGES)
+        self.assertNotIn("css", _CALL_GRAPH_LANGUAGES)
+
+
 class LlmDirectivesTest(unittest.TestCase):
     """The mapper hands a no-think / no-internet / minimal-tools-skills contract
     to any LLM that consumes its artifacts."""

@@ -18,7 +18,7 @@ sidebar_position: 1
 | `-v, --version` | Print version |
 | `-h, --help` | Show help |
 
-#### Python mapper flags
+##### Python mapper flags
 
 | Flag | Purpose |
 |---|---|
@@ -35,3 +35,5 @@ sidebar_position: 1
 | `--update` | Compatibility alias for index refresh workflows |
 | `--verbose` | Show index refresh progress |
 | `--out <dir>` | Artifact directory, defaulting to `.simplicio` |
+
+#

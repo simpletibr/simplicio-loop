@@ -215,13 +215,15 @@ Symbol extraction and the call graph cover, by tier:
 
 - **Original:** Python, JavaScript, TypeScript, C#, Razor, Go, Rust, Java, Kotlin, PHP, Ruby.
 - **Tier 1/2 (added):** Dart, C, C++, Swift, Objective-C, Vue, Svelte, Scala — symbols + call graph; **SQL** gets symbol extraction (tables / views / functions / procedures) but is intentionally excluded from the call graph (no call sites).
+- **Tier 3 (added):** Elixir, Erlang, Lua, R, Julia, Perl, MATLAB — lightweight symbols + call graph; **HTML templates / XHTML / CSS-family** are now inventoried and get lightweight structural extraction (template IDs/components, CSS selectors) but stay outside the call graph.
 
 Dedicated import parsing exists for JS/TS, Python, C#/Razor, Go, Vue, Svelte,
-Dart, Swift, Scala, C/C++ (`#include`) and Objective-C (`#import`/`@import`).
-Any other language is still **counted** and inventoried as text without
-structural extraction. The optional Rust acceleration crate (ADR-002) only
-implements import parsing for the original set; newer languages always take the
-pure-Python path.
+Dart, Swift, Scala, C/C++ (`#include`), Objective-C (`#import`/`@import`),
+Elixir, Erlang, Lua, R, Julia, Perl, MATLAB, and CSS `@import`. Any other
+language is still **counted** and inventoried as text without structural
+extraction. The optional Rust acceleration crate (ADR-002) only implements
+import parsing for the original set; newer languages always take the pure-Python
+path.
 
 ## Markdown docs
 
