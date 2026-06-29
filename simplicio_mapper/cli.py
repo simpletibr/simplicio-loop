@@ -7,7 +7,9 @@ artifacts under ``.simplicio/``. Exposed as the ``simplicio-mapper`` and
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
+import io
 import json
 import os
 import re
@@ -17,10 +19,18 @@ import time
 from collections.abc import Sequence
 
 from . import __version__
-from .mapper import export_architecture_docs, write_architecture_docs, write_mapping_artifacts
+from .mapper import (
+    build_macro_map,
+    export_architecture_docs,
+    write_architecture_docs,
+    write_mapping_artifacts,
+)
 
 INDEX_RESULT_SCHEMA = "simplicio.mapper-index/v1"
 INDEX_STATE_SCHEMA = "simplicio.mapper-index-state/v1"
+MACRO_MAP_SCHEMA = "simplicio.macro-map/v1"
+MAP_JOB_SCHEMA = "simplicio.map-job/v1"
+MAP_STATUS_SCHEMA = "simplicio.map-status/v1"
 ENDPOINT_INVENTORY_SCHEMA = "simplicio.endpoint-inventory/v1"
 SCREEN_INVENTORY_SCHEMA = "simplicio.screen-inventory/v1"
 SERVICE_FLOWCHART_SCHEMA = "simplicio.service-flowchart/v1"
@@ -43,6 +53,9 @@ Generate or update machine-readable mapper artifacts.
 
 USAGE
   simplicio-mapper index <path> [--json] [--verbose] [--update]
+  simplicio-mapper macro <path> [--json]
+  simplicio-mapper scan <path> [--json] [--sync] [--await] [--timeout <s>]
+  simplicio-mapper status <path> [--json] [--await] [--timeout <s>]
   simplicio-mapper endpoints <path> [--against <server-root>] [--json]
   simplicio-mapper screens <path> [--json]
   simplicio-mapper flowchart <path> [--json]
@@ -53,6 +66,9 @@ USAGE
 
 OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
+  macro <path>          Instant shallow project skeleton (no content reads).
+  scan <path>           Macro now + deep index in background (map-job envelope).
+  status <path>         Report deep-pass phase from lock/state/map-job.
   endpoints <path>      Extract client/server HTTP endpoint inventory.
   screens <path>        Extract frontend route/screen inventory.
   flowchart <path>      Render screen->service->backend mermaid flowchart docs.
@@ -66,6 +82,9 @@ OPTIONS
   --json-only           Compatibility alias for --no-docs.
   --changed-only        Compatibility alias for incremental refresh workflows.
   --background          Start an index refresh in a detached background process.
+  --sync                scan: run the deep pass synchronously (also when CI=true).
+  --await               scan/status: block until the deep pass is terminal.
+  --timeout <s>         Bounded wait for --await (default 120).
   --json                Emit structured index output.
   --update              Compatibility alias for index refresh workflows.
   --verbose             Show progress during index refreshes.
@@ -103,11 +122,17 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "docs": False,
         "docs_only": False,
         "background": False,
+        "sync": False,
+        "await": False,
+        "timeout": 120,
         "command": "map",
         "against": "",
         "target": "",
     }
-    commands = ("index", "map", "update", "endpoints", "screens", "flowchart", "docs", "export-docs")
+    commands = (
+        "index", "map", "update", "macro", "scan", "status",
+        "endpoints", "screens", "flowchart", "docs", "export-docs",
+    )
     command = argv[0] if argv and argv[0] in commands else "map"
     opts["command"] = command
     if command == "index":
@@ -117,7 +142,7 @@ def _parse_args(argv: Sequence[str]) -> dict:
     i = 1 if argv and argv[0] in commands else 0
     while i < len(argv):
         arg = argv[i]
-        if command in ("index", "endpoints", "screens", "flowchart", "docs", "export-docs") and not arg.startswith("-"):
+        if command in ("index", "macro", "scan", "status", "endpoints", "screens", "flowchart", "docs", "export-docs") and not arg.startswith("-"):
             opts["root"] = arg
         elif arg == "--against":
             i += 1
@@ -156,6 +181,17 @@ def _parse_args(argv: Sequence[str]) -> dict:
             opts["incremental"] = True
         elif arg == "--background":
             opts["background"] = True
+        elif arg == "--sync":
+            opts["sync"] = True
+        elif arg == "--await":
+            opts["await"] = True
+        elif arg == "--timeout":
+            i += 1
+            try:
+                opts["timeout"] = max(0, int(argv[i]))
+            except (ValueError, IndexError):
+                print(f"Invalid --timeout value: {argv[i] if i < len(argv) else ''}", file=sys.stderr)
+                sys.exit(2)
         elif arg == "--silent":
             opts["silent"] = True
         elif arg == "--json":
@@ -1578,7 +1614,8 @@ def _run_export_docs(opts: dict) -> int:
     return 0
 
 
-def _run_background(opts: dict) -> int:
+def _spawn_background_index(opts: dict) -> dict:
+    """Spawn a detached ``index`` refresh; return its ``pid``/``log`` payload."""
     root = os.path.abspath(opts["root"])
     out = opts["out"]
     abs_out = os.path.abspath(os.path.join(root, out))
@@ -1608,16 +1645,20 @@ def _run_background(opts: dict) -> int:
             stderr=subprocess.STDOUT,
             start_new_session=True,
         )
-    payload = {
+    return {
         "schema": "simplicio.background-index/v1",
         "status": "started",
         "pid": child.pid,
         "log": log_path.replace(os.sep, "/"),
     }
+
+
+def _run_background(opts: dict) -> int:
+    payload = _spawn_background_index(opts)
     if opts["json"]:
         print(json.dumps(payload, sort_keys=True))
     else:
-        print(f"background index started pid={child.pid} log={log_path}")
+        print(f"background index started pid={payload['pid']} log={payload['log']}")
     return 0
 
 
@@ -1709,6 +1750,153 @@ def _watch(opts: dict) -> None:
         pass
 
 
+def _map_job_path(root: str, out: str) -> str:
+    return os.path.join(os.path.abspath(os.path.join(root, out)), "map-job.json")
+
+
+def _index_is_fresh(root: str, out: str) -> bool:
+    """True when the on-disk artifacts match the current freshness signature."""
+    state = _read_index_state(root, out)
+    if state.get("schema") != INDEX_STATE_SCHEMA:
+        return False
+    if not _artifacts_exist(_artifact_paths(root, out)):
+        return False
+    return state.get("signature") == _freshness_signature(root, out)
+
+
+def _deep_phase(root: str, out: str) -> str:
+    """Derive the deep-pass phase: ``deep_running|complete|failed|unknown``."""
+    if os.path.exists(_lock_path(root, out)):
+        return "deep_running"
+    if _index_is_fresh(root, out):
+        return "complete"
+    job = _read_json_safe(_map_job_path(root, out))
+    if job.get("schema") == MAP_JOB_SCHEMA and not _artifacts_exist(_artifact_paths(root, out)):
+        # A deep pass was requested but produced no fresh artifacts and no lock
+        # is held: the background run is gone without finishing.
+        return "failed"
+    return "unknown"
+
+
+def _await_terminal(root: str, out: str, timeout: int, poll: float = 0.2) -> str:
+    """Block until the deep phase leaves ``deep_running`` or the timeout fires.
+
+    ``timeout=0`` is a non-blocking single poll: it returns the current phase
+    without waiting.
+    """
+    deadline = time.monotonic() + max(0, timeout)
+    phase = _deep_phase(root, out)
+    while phase == "deep_running" and time.monotonic() < deadline:
+        time.sleep(poll)
+        phase = _deep_phase(root, out)
+    return phase
+
+
+def _run_macro(opts: dict) -> int:
+    root = os.path.abspath(opts["root"])
+    meta = dict(_read_json_safe(os.path.join(root, ".starter-meta.json")))
+    if opts["stack"]:
+        meta["stack"] = opts["stack"]
+    if opts["product_name"]:
+        meta["product_name"] = opts["product_name"]
+    payload = build_macro_map(root, meta)
+    if opts["json"]:
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        counts = payload["counts"]
+        print(
+            f"macro files={counts['files']} modules={counts['modules']} "
+            f"screens={counts['screens']} tests={counts['tests']} "
+            f"stack={payload['product']['stack']} confidence={payload['confidence']}"
+        )
+    return 0
+
+
+def _run_scan(opts: dict) -> int:
+    root = os.path.abspath(opts["root"])
+    out = opts["out"]
+    meta = dict(_read_json_safe(os.path.join(root, ".starter-meta.json")))
+    if opts["stack"]:
+        meta["stack"] = opts["stack"]
+    if opts["product_name"]:
+        meta["product_name"] = opts["product_name"]
+    macro = build_macro_map(root, meta)
+
+    ci = os.environ.get("CI", "").strip().lower() in ("1", "true", "yes", "on")
+    synchronous = ci or opts["sync"]
+
+    deep: dict = {
+        "state_path": _state_path(root, out).replace(os.sep, "/"),
+        "lock_path": _lock_path(root, out).replace(os.sep, "/"),
+        "poll": "simplicio-mapper status " + root,
+    }
+    if synchronous:
+        pre_locked = os.path.exists(_lock_path(root, out))
+        with contextlib.redirect_stdout(io.StringIO()):
+            _run_index({**opts, "json": False})
+        phase = "complete" if _index_is_fresh(root, out) else "failed"
+        if phase == "failed" and pre_locked:
+            # Deep pass was skipped because another run holds the lock; record
+            # the reason so the envelope is not a bare, unexplained "failed".
+            deep["skipped_reason"] = "locked"
+    else:
+        spawned = _spawn_background_index(opts)
+        deep["pid"] = spawned["pid"]
+        deep["log"] = spawned["log"]
+        phase = "macro_done"
+
+    if opts["await"] and not synchronous:
+        phase = _await_terminal(root, out, opts["timeout"])
+
+    envelope = {
+        "schema": MAP_JOB_SCHEMA,
+        "phase": phase,
+        "sync": synchronous,
+        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "macro": macro,
+        "deep": deep,
+    }
+    abs_out = os.path.abspath(os.path.join(root, out))
+    os.makedirs(abs_out, exist_ok=True)
+    with open(_map_job_path(root, out), "w", encoding="utf-8") as handle:
+        json.dump(envelope, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+
+    if opts["json"]:
+        print(json.dumps(envelope, sort_keys=True))
+    else:
+        counts = macro["counts"]
+        suffix = f" pid={deep.get('pid')}" if "pid" in deep else ""
+        print(
+            f"scan phase={envelope['phase']} files={counts['files']} "
+            f"modules={counts['modules']} stack={macro['product']['stack']}{suffix}"
+        )
+    return 0
+
+
+def _run_status(opts: dict) -> int:
+    root = os.path.abspath(opts["root"])
+    out = opts["out"]
+    if opts["await"]:
+        phase = _await_terminal(root, out, opts["timeout"])
+    else:
+        phase = _deep_phase(root, out)
+    state = _read_index_state(root, out)
+    payload = {
+        "schema": MAP_STATUS_SCHEMA,
+        "phase": phase,
+        "lock": os.path.exists(_lock_path(root, out)),
+        "fresh": _index_is_fresh(root, out),
+        "state_path": _state_path(root, out).replace(os.sep, "/"),
+        "updated_at": state.get("updated_at"),
+    }
+    if opts["json"]:
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print(f"status phase={phase} lock={payload['lock']} fresh={payload['fresh']}")
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     opts = _parse_args(argv)
@@ -1716,6 +1904,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_background(opts)
     if opts["docs_only"] and opts["command"] in ("index", "map", "update"):
         return _run_docs(opts)
+    if opts["command"] == "macro":
+        return _run_macro(opts)
+    if opts["command"] == "scan":
+        return _run_scan(opts)
+    if opts["command"] == "status":
+        return _run_status(opts)
     if opts["command"] == "endpoints":
         return _run_endpoints(opts)
     if opts["command"] == "screens":

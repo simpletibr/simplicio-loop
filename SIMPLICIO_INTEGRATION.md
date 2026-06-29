@@ -390,6 +390,78 @@ text languages (`sample.ts`, `sample.py`, `sample.json`, `sample.md`) plus
 a binary file (`binary.bin`) used by the refusal test. Producers in
 downstream repositories can copy these as ready-made parity inputs.
 
+## Two-tier async mapper (issue #120)
+
+Schemas: `simplicio.macro-map/v1`, `simplicio.map-job/v1`, `simplicio.map-status/v1`.
+Decision record: [`ADR-003`](.specs/architecture/ADR-003-two-tier-async-mapper.md).
+
+The default synchronous behavior of `map`/`index` is unchanged. This adds a fast
+lane (macro) and a typed way to start + poll the deep pass.
+
+### `macro` — instant shallow skeleton
+
+```bash
+simplicio-mapper macro . --json
+```
+
+`simplicio.macro-map/v1` is derived from filenames plus a few manifests
+(`package.json`, `pyproject.toml`, `.starter-meta.json`) only — **no per-file
+content reads**, no symbol/call-graph pass. It is sub-second and therefore
+`confidence: "shallow"`.
+
+| Field | Meaning |
+|---|---|
+| `product` | `name`, `stack`, `project_mode` |
+| `counts` | `files`, `by_language{}`, `screens`, `endpoint_files`, `tests`, `modules` |
+| `modules[]` | top-level dirs with `file_count` (desc) |
+| `layers[]` | path-derived layers with `file_count` (desc) |
+| `entry_points[]` | files whose stem is an entrypoint or `package.json` main/bin |
+| `config_files[]` | known manifests + `*config*`/`*rc` files |
+| `git` | `head`, `dirty` |
+| `confidence` | always `"shallow"` for this schema |
+
+Screen/endpoint/test counts are path heuristics, not content-verified — treat
+them as hints.
+
+### `scan` — macro now + deep in background
+
+```bash
+simplicio-mapper scan . --json            # async: returns phase=macro_done
+simplicio-mapper scan . --sync --json     # synchronous deep: phase=complete
+simplicio-mapper scan . --await --timeout 60 --json   # block until terminal
+```
+
+Returns a `simplicio.map-job/v1` envelope immediately and persists it to
+`.simplicio/map-job.json`:
+
+| Field | Meaning |
+|---|---|
+| `phase` | `macro_done` (async) · `complete`/`failed` (sync or after `--await`) |
+| `sync` | whether the deep pass ran synchronously (`CI=true` forces this) |
+| `macro` | the inline `simplicio.macro-map/v1` |
+| `deep` | `state_path`, `lock_path`, `poll`; plus `pid`/`log` in async mode |
+
+`CI=true` (or `--sync`) runs the deep pass synchronously and returns a complete
+envelope with artifacts present. The deep pass reuses the detached `index`
+machinery and is lock-guarded by `index.lock` against concurrent deep runs.
+
+### `status` — poll the deep pass
+
+```bash
+simplicio-mapper status . --json
+simplicio-mapper status . --await --timeout 30 --json
+```
+
+`simplicio.map-status/v1` derives `phase` deterministically:
+
+1. `index.lock` present → `deep_running`
+2. else artifacts present and `index-state.json` signature is fresh → `complete`
+3. else `map-job.json` exists but no fresh artifacts and no lock → `failed`
+4. else → `unknown`
+
+`--await` (shared by `scan` and `status`) blocks until the phase leaves
+`deep_running` or the bounded `--timeout` (default 120s) fires.
+
 ## Context Packs and Hash-Based Cache (issue #115)
 
 Schemas: `simplicio.context-pack/v1` and `simplicio.context-cache/v1`.
@@ -509,6 +581,9 @@ artifacts for the runtime wrapper, not replacements for
 | `simplicio-mapper index <path> --json` | stdout | `simplicio.mapper-index/v1` | `status`, `fingerprint`, `project_map_path`, `precedent_path`, `file_count`, `precedent_count`, `duration_ms`, `error?`, `skipped_reason?` |
 | `simplicio-mapper map [--root <dir>] [--json]` | stdout when `--json` | mirrors the index payload above | same — emit the same shape so orchestrators do not branch on command name |
 | `simplicio-mapper update [--root <dir>] [--json]` | stdout when `--json` | mirrors the index payload above | same |
+| `simplicio-mapper macro <path> --json` | stdout | `simplicio.macro-map/v1` | `schema`, `product`, `counts.*`, `modules[]`, `layers[]`, `entry_points[]`, `config_files[]`, `git`, `confidence` |
+| `simplicio-mapper scan <path> [--sync] [--await] --json` | stdout + `.simplicio/map-job.json` | `simplicio.map-job/v1` | `schema`, `phase`, `sync`, `macro`, `deep.{state_path,lock_path,poll,pid?,log?}` |
+| `simplicio-mapper status <path> [--await] --json` | stdout | `simplicio.map-status/v1` | `schema`, `phase`, `lock`, `fresh`, `state_path`, `updated_at?` |
 | `simplicio-mapper endpoints <path> --against <root> --json` | stdout | `simplicio.endpoint-inventory/v1` | `schema`, `counts.client_calls`, `counts.server_routes`, `client_calls[]`, `server_routes[]`, `missing_from_server[]` |
 | `simplicio-mapper screens <path> --json` | stdout | `simplicio.screen-inventory/v1` | `schema`, `routes[]`, `personas[]`, `guards[]` |
 | `simplicio-mapper flowchart <path> --json` | stdout + `.simplicio/docs/flowchart.md` | `simplicio.service-flowchart/v1` | `schema`, `doc`, `counts.*`, `screens[]`, `unlinked_services[]`, `backend[]` |

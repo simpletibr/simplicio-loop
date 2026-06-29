@@ -2,7 +2,22 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-06-29
+
 ### Added
+- Two-tier async mapper (issue #120):
+  - `mapper.build_macro_map(cwd)` + `simplicio-mapper macro <path>` producing the
+    sub-second `simplicio.macro-map/v1` skeleton from filenames + manifests only
+    (no per-file content reads), with `confidence: "shallow"` (#121).
+  - `simplicio-mapper scan <path>` returning a `simplicio.map-job/v1` envelope:
+    macro inline + deep-pass pointers, deep in background by default,
+    synchronous under `CI=true`/`--sync`, `--await` to block until terminal,
+    persisted to `.simplicio/map-job.json` (#122).
+  - `simplicio-mapper status <path>` deriving `deep_running|complete|failed|unknown`
+    from `index.lock` + `index-state.json` freshness + `map-job.json`, with a
+    shared `--await`/`--timeout` helper (#123).
+  - `ADR-003-two-tier-async-mapper.md` and a "Two-tier async mapper" section in
+    `SIMPLICIO_INTEGRATION.md`.
 - `simplicio-mapper flowchart <path>` command and the
   `simplicio.service-flowchart/v1` contract. Builds a two-faced service map
   and renders it as Mermaid in `.simplicio/docs/flowchart.md`:
