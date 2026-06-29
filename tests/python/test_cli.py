@@ -34,6 +34,7 @@ from simplicio_mapper.mapper import (  # noqa: E402
     PRECEDENT_SCHEMA,
     SYMBOL_INDEX_SCHEMA,
     build_artifacts,
+    build_macro_map,
     export_architecture_docs,
     write_architecture_docs,
     write_mapping_artifacts,
@@ -940,6 +941,123 @@ def load(api):
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["schema"], "simplicio.architecture-docs/v1")
         self.assertTrue((self.dir / ".simplicio" / "docs" / "architecture.md").exists())
+
+    def _seed_multi_stack(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "macro-host"}))
+        _write(self.dir, "pyproject.toml", "[project]\nname = 'macro-host'\n")
+        _write(self.dir, "src/app/page.tsx", "export default function Page() {}\n")
+        _write(self.dir, "src/app/users.component.ts", "export class UsersComponent {}\n")
+        _write(self.dir, "api/Users.cs", "public class UsersController {}\n")
+        _write(self.dir, "services/user_service.py", "def get_user():\n    return 1\n")
+        _write(self.dir, "tests/test_user.py", "def test_x():\n    assert True\n")
+
+    def test_macro_no_full_content_reads(self) -> None:
+        # build_macro_map must not read arbitrary file content: a binary,
+        # unreadable-as-text file under the tree must not raise.
+        self._seed_multi_stack()
+        (self.dir / "blob.bin").write_bytes(b"\x00\x01\x02\xff\xfe")
+        macro = build_macro_map(str(self.dir))
+        self.assertEqual(macro["schema"], "simplicio.macro-map/v1")
+        self.assertEqual(macro["confidence"], "shallow")
+
+    def test_macro_deterministic_counts(self) -> None:
+        self._seed_multi_stack()
+        first = build_macro_map(str(self.dir))
+        second = build_macro_map(str(self.dir))
+        self.assertEqual(first["counts"], second["counts"])
+        counts = first["counts"]
+        self.assertGreaterEqual(counts["screens"], 2)  # page.tsx + users.component.ts
+        self.assertEqual(counts["tests"], 1)
+        self.assertGreaterEqual(counts["by_language"]["python"], 2)
+        self.assertGreaterEqual(counts["by_language"]["csharp"], 1)
+        self.assertGreaterEqual(counts["endpoint_files"], 4)
+
+    def test_macro_command_json_schema(self) -> None:
+        self._seed_multi_stack()
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["macro", str(self.dir), "--json"])
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.macro-map/v1")
+        for key in ("product", "counts", "modules", "layers", "entry_points",
+                    "config_files", "git", "confidence"):
+            self.assertIn(key, payload)
+
+    def test_scan_sync_returns_complete_envelope(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "scan-host"}))
+        _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["scan", str(self.dir), "--sync", "--json"])
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.map-job/v1")
+        self.assertEqual(payload["phase"], "complete")
+        self.assertTrue(payload["sync"])
+        self.assertEqual(payload["macro"]["schema"], "simplicio.macro-map/v1")
+        self.assertTrue((self.dir / ".simplicio" / "project-map.json").exists())
+        self.assertTrue((self.dir / ".simplicio" / "map-job.json").exists())
+
+    def test_scan_async_returns_before_deep_completes(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "async-host"}))
+        _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["scan", str(self.dir), "--json"])
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["phase"], "macro_done")
+        self.assertFalse(payload["sync"])
+        self.assertGreater(payload["deep"]["pid"], 0)
+        # Wait for the detached deep pass to finish, then status must report complete.
+        project_map = self.dir / ".simplicio" / "project-map.json"
+        for _ in range(80):
+            if project_map.exists():
+                break
+            time.sleep(0.05)
+        self.assertTrue(project_map.exists())
+
+    def test_scan_sync_lock_guarded(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "guard-host"}))
+        lock = self.dir / ".simplicio" / "index.lock"
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        lock.write_text("123\n", encoding="utf-8")
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["scan", str(self.dir), "--sync", "--json"])
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        # Lock held by another run: deep skips, artifacts absent -> failed.
+        self.assertEqual(payload["phase"], "failed")
+
+    def test_status_reports_running_then_complete(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "status-host"}))
+        _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
+        lock = self.dir / ".simplicio" / "index.lock"
+        lock.parent.mkdir(parents=True, exist_ok=True)
+        lock.write_text("123\n", encoding="utf-8")
+        out = StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(main(["status", str(self.dir), "--json"]), 0)
+        self.assertEqual(json.loads(out.getvalue())["phase"], "deep_running")
+
+        lock.unlink()
+        with redirect_stdout(StringIO()):
+            self.assertEqual(main(["index", str(self.dir), "--json"]), 0)
+        out = StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(main(["status", str(self.dir), "--await", "--timeout", "5", "--json"]), 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["phase"], "complete")
+        self.assertTrue(payload["fresh"])
+
+    def test_status_unknown_without_run(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "unknown-host"}))
+        out = StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(main(["status", str(self.dir), "--json"]), 0)
+        self.assertEqual(json.loads(out.getvalue())["phase"], "unknown")
 
 
 if __name__ == "__main__":

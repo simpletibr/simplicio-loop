@@ -29,6 +29,7 @@ PRECEDENT_SCHEMA = "simplicio.precedent-index/v1"
 ARCHITECTURE_INVENTORY_SCHEMA = "simplicio.architecture-inventory/v1"
 SYMBOL_INDEX_SCHEMA = "simplicio.symbol-index/v1"
 CALL_GRAPH_SCHEMA = "simplicio.call-graph/v1"
+MACRO_MAP_SCHEMA = "simplicio.macro-map/v1"
 ARTIFACT_VERSION = 1
 _JSON_WRITE_OPTIONS = orjson.OPT_INDENT_2 | orjson.OPT_APPEND_NEWLINE
 
@@ -873,6 +874,187 @@ def _build_architecture_inventory(
             "Generated from deterministic repository inspection.",
             "Relationship confidence below 1.0 means the edge is heuristic and should be reviewed before making broad claims.",
         ],
+    }
+
+
+_ENDPOINT_EXTS = {".cs", ".py", ".ts", ".tsx", ".js", ".jsx"}
+
+
+def _macro_roles_for_path(rel: str, base: str, main_value: str, bin_values: list[str]) -> set[str]:
+    """Path-only role detection (mirror of :func:`_roles_for`, no content reads)."""
+    roles: set[str] = set()
+    no_ext = re.sub(r"\.[^.]+$", "", base).lower()
+    if _RE_TEST_PATH.search(rel) or _RE_TEST_FILE.search(base):
+        roles.add("test")
+    if base in CONFIG_FILES or _RE_CONFIG.search(base):
+        roles.add("config")
+    if main_value == rel or rel in bin_values or no_ext in ENTRYPOINT_STEMS:
+        roles.add("entrypoint")
+    if _RE_ROUTE.search(rel):
+        roles.add("route")
+    if _RE_UI.search(rel):
+        roles.add("ui")
+    if _RE_DOMAIN.search(rel):
+        roles.add("domain")
+    return roles
+
+
+def _macro_layers_for_path(rel: str, base: str, language: str, roles: set[str]) -> set[str]:
+    """Path-only layer detection (mirror of :func:`_layers_for_file`)."""
+    low = rel.lower()
+    layers = set(roles)
+    if "controller" in low:
+        layers.add("controller")
+    if "service" in low:
+        layers.add("service")
+    if "repository" in low or "repositories" in low or "repo" in base.lower():
+        layers.add("repository")
+    if "model" in low or "entity" in low or "schema" in low:
+        layers.add("model")
+    if "route" in low or "router" in low:
+        layers.add("route")
+    if low.startswith("scripts/"):
+        layers.add("script")
+    if low.startswith("docs/") or language == "markdown":
+        layers.add("documentation")
+    if not layers:
+        layers.add("code" if language in {"python", "javascript", "typescript", "csharp", "go", "rust"} else "asset")
+    return layers
+
+
+def _is_macro_screen(rel: str, base: str, language: str) -> bool:
+    """Shallow screen heuristic from path alone (no content reads)."""
+    low = rel.lower()
+    if language == "razor":
+        return True
+    if base.endswith((".page.ts", ".page.tsx", ".page.js", ".page.jsx")):
+        return True
+    if ".component.ts" in base or ".component.tsx" in base:
+        return True
+    if language in {"javascript", "typescript"} and ("/pages/" in low or low.startswith("pages/") or "/app/" in low):
+        if base in {"page.tsx", "page.jsx", "page.ts", "page.js", "index.tsx", "index.jsx"}:
+            return True
+    return False
+
+
+def _macro_git(cwd: str) -> dict:
+    head = ""
+    dirty = False
+    try:
+        inside = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=cwd, capture_output=True, text=True, timeout=2,
+        )
+        if inside.returncode != 0 or inside.stdout.strip() != "true":
+            return {"head": "", "dirty": False}
+        rev = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=cwd, capture_output=True, text=True, timeout=2,
+        )
+        if rev.returncode == 0:
+            head = rev.stdout.strip()
+        status = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=all"],
+            cwd=cwd, capture_output=True, text=True, timeout=3,
+        )
+        if status.returncode == 0:
+            dirty = bool(status.stdout.strip())
+    except (OSError, subprocess.SubprocessError):
+        return {"head": head, "dirty": dirty}
+    return {"head": head, "dirty": dirty}
+
+
+def build_macro_map(cwd: str, meta: dict | None = None) -> dict:
+    """Sub-second shallow project skeleton (``simplicio.macro-map/v1``).
+
+    Derived from filenames plus a few manifests only — no per-file content
+    reads, no symbol/call-graph pass. Confidence is therefore ``shallow``.
+    """
+    meta = meta or {}
+    abs_cwd = os.path.abspath(cwd or os.getcwd())
+    pkg = _parse_json_safe(os.path.join(abs_cwd, "package.json"))
+    pyproject = os.path.exists(os.path.join(abs_cwd, "pyproject.toml"))
+
+    main_value = _normalize_rel(pkg["main"]) if isinstance(pkg.get("main"), str) else ""
+    bin_field = pkg.get("bin")
+    if isinstance(bin_field, str):
+        bin_values = [_normalize_rel(bin_field)]
+    elif isinstance(bin_field, dict):
+        bin_values = [_normalize_rel(v) for v in bin_field.values() if isinstance(v, str)]
+    else:
+        bin_values = []
+
+    by_language: dict[str, int] = {}
+    module_counts: dict[str, int] = {}
+    layer_counts: dict[str, int] = {}
+    entry_points: list[str] = []
+    config_files: list[str] = []
+    files = 0
+    screens = 0
+    endpoint_files = 0
+    tests = 0
+
+    for path in _walk(abs_cwd):
+        rel = _normalize_rel(os.path.relpath(path, abs_cwd))
+        base = os.path.basename(rel)
+        ext = os.path.splitext(base)[1].lower()
+        language = _language_for(path)
+        files += 1
+        by_language[language] = by_language.get(language, 0) + 1
+        module = _module_name_for_path(rel)
+        module_counts[module] = module_counts.get(module, 0) + 1
+        roles = _macro_roles_for_path(rel, base, main_value, bin_values)
+        for layer in _macro_layers_for_path(rel, base, language, roles):
+            layer_counts[layer] = layer_counts.get(layer, 0) + 1
+        if "entrypoint" in roles:
+            entry_points.append(rel)
+        if "config" in roles:
+            config_files.append(rel)
+        if "test" in roles:
+            tests += 1
+        if ext in _ENDPOINT_EXTS:
+            endpoint_files += 1
+        if _is_macro_screen(rel, base, language):
+            screens += 1
+
+    if pkg.get("name"):
+        stack = meta.get("stack") or pkg.get("type") or "node"
+    elif pyproject:
+        stack = meta.get("stack") or "python"
+    else:
+        stack = meta.get("stack") or "unknown"
+    product_name = meta.get("product_name") or pkg.get("name") or os.path.basename(abs_cwd)
+
+    modules = [
+        {"name": name, "file_count": count}
+        for name, count in sorted(module_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    ]
+    layers = [
+        {"name": name, "file_count": count}
+        for name, count in sorted(layer_counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    ]
+    return {
+        "schema": MACRO_MAP_SCHEMA,
+        "generated_at": _now_iso(),
+        "product": {
+            "name": product_name,
+            "stack": stack,
+            "project_mode": meta.get("project_mode", "root"),
+        },
+        "counts": {
+            "files": files,
+            "by_language": dict(sorted(by_language.items())),
+            "screens": screens,
+            "endpoint_files": endpoint_files,
+            "tests": tests,
+            "modules": len(modules),
+        },
+        "modules": modules,
+        "layers": layers,
+        "entry_points": sorted(entry_points),
+        "config_files": sorted(config_files),
+        "git": _macro_git(abs_cwd),
+        "confidence": "shallow",
     }
 
 
