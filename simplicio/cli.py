@@ -50,6 +50,52 @@ def maybe_autoinstall(cmd: str | None) -> bool:
     return False
 
 
+def _parse_rust_flags(
+    args: list[str],
+) -> tuple[list[str], bool, bool]:
+    """Strip ``--native`` and ``--python`` flags from *args*.
+
+    Returns ``(cleaned_args, native_flag, python_flag)`` where the flags
+    have been removed from the argument list.
+    """
+    cleaned: list[str] = []
+    native = False
+    python = False
+    for a in args:
+        if a == "--native":
+            native = True
+        elif a == "--python":
+            python = True
+        else:
+            cleaned.append(a)
+    return cleaned, native, python
+
+
+def _try_route_via_simplicio(
+    cmd_name: str,
+    args: list[str],
+    *,
+    prefer_native: bool = True,
+    prefer_python: bool = False,
+) -> int | None:
+    """Attempt to route *cmd_name* via the Rust ``simplicio`` binary.
+
+    Returns the exit code if the binary handled the command, or ``None``
+    if the caller should fall back to the Python implementation.
+    """
+    try:
+        from .commands import route_command
+
+        return route_command(
+            cmd_name,
+            args,
+            prefer_native=prefer_native,
+            prefer_python=prefer_python,
+        )
+    except ImportError:
+        return None
+
+
 def _dispatch_nested(argv: list[str]) -> int | None:
     if argv and argv[0] == "claims":
         maybe_autoinstall("claims")
@@ -57,13 +103,25 @@ def _dispatch_nested(argv: list[str]) -> int | None:
 
         return claims_main(argv[1:])
     if argv and argv[0] == "gate":
+        clean_args, native, python = _parse_rust_flags(argv[1:])
+        result = _try_route_via_simplicio(
+            "gate", clean_args, prefer_native=native or not python, prefer_python=python
+        )
+        if result is not None:
+            return result
         from .commands.gate import main as gate_main
 
-        return gate_main(argv[1:])
+        return gate_main(clean_args)
     if argv and argv[0] == "nest":
+        clean_args, native, python = _parse_rust_flags(argv[1:])
+        result = _try_route_via_simplicio(
+            "nest", clean_args, prefer_native=native or not python, prefer_python=python
+        )
+        if result is not None:
+            return result
         from .commands.nest import main as nest_main
 
-        return nest_main(argv[1:])
+        return nest_main(clean_args)
     if argv and argv[0] == "scratch":
         maybe_autoinstall("scratch")
         from .scratch.cli import main as scratch_main
@@ -847,6 +905,16 @@ def main(argv=None):
         "--verbose", "-v", action="store_true",
         help="print per-scenario detail even on success",
     )
+    p_score_skill.add_argument(
+        "--native",
+        action="store_true",
+        help="force the Rust simplicio binary for this command",
+    )
+    p_score_skill.add_argument(
+        "--python",
+        action="store_true",
+        help="force the Python implementation for this command",
+    )
 
     p_runtime = sub.add_parser("runtime", help="runtime-facing dev-cli contracts")
     runtime_sub = p_runtime.add_subparsers(dest="runtime_cmd", required=True)
@@ -961,8 +1029,6 @@ def main(argv=None):
     elif a.cmd == "token":
         return _run_token_command(a)
     elif a.cmd == "score-skill":
-        from .commands.score_skill import main as score_skill_main
-
         score_argv = [a.skill]
         for s in a.scenario_sources:
             score_argv += ["--scenario", s]
@@ -972,6 +1038,17 @@ def main(argv=None):
             score_argv.append("--json")
         if a.verbose:
             score_argv.append("--verbose")
+        # Try Rust binary first, then fall back to Python
+        result = _try_route_via_simplicio(
+            "score-skill",
+            score_argv,
+            prefer_native=a.native or not a.python,
+            prefer_python=a.python,
+        )
+        if result is not None:
+            return result
+        from .commands.score_skill import main as score_skill_main
+
         return score_skill_main(score_argv)
     elif a.cmd == "runtime":
         return _run_runtime_command(a)
