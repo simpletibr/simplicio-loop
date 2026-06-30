@@ -51,6 +51,10 @@ def maybe_autoinstall(cmd: str | None) -> bool:
 
 
 def _dispatch_nested(argv: list[str]) -> int | None:
+    if argv and argv[0] == "gate":
+        from .commands.gate import main as gate_main
+
+        return gate_main(argv[1:])
     if argv and argv[0] == "scratch":
         maybe_autoinstall("scratch")
         from .scratch.cli import main as scratch_main
@@ -68,6 +72,11 @@ def _dispatch_nested(argv: list[str]) -> int | None:
         from .scratch.skill_opt import main as skill_main
 
         return skill_main(args[1:])
+    if argv and argv[0] == "nest":
+        maybe_autoinstall("nest")
+        from .commands.nest import main as nest_main
+
+        return nest_main(argv[1:])
     return None
 
 
@@ -806,6 +815,35 @@ def main(argv=None):
         p_cache_action.add_argument("--content-file")
     cache_sub.choices["put"].add_argument("--summary-file", required=True)
 
+    p_score_skill = sub.add_parser(
+        "score-skill",
+        help="deterministic SkillOpt-style scorer for skill/law text",
+    )
+    p_score_skill.add_argument(
+        "skill",
+        nargs="?",
+        default="-",
+        help="skill/law text file path, or - for stdin (default: -)",
+    )
+    p_score_skill.add_argument(
+        "--scenario", "-s",
+        dest="scenario_sources",
+        action="append",
+        default=[],
+        help="JSON scenario file path (repeatable); falls back to builtin scenarios",
+    )
+    p_score_skill.add_argument(
+        "--extra-scenario",
+        action="append",
+        default=[],
+        help="inline JSON scenario string (repeatable)",
+    )
+    p_score_skill.add_argument("--json", action="store_true")
+    p_score_skill.add_argument(
+        "--verbose", "-v", action="store_true",
+        help="print per-scenario detail even on success",
+    )
+
     p_runtime = sub.add_parser("runtime", help="runtime-facing dev-cli contracts")
     runtime_sub = p_runtime.add_subparsers(dest="runtime_cmd", required=True)
     p_runtime_doctor = runtime_sub.add_parser("doctor")
@@ -918,6 +956,19 @@ def main(argv=None):
         return _run_edit_command(a)
     elif a.cmd == "token":
         return _run_token_command(a)
+    elif a.cmd == "score-skill":
+        from .commands.score_skill import main as score_skill_main
+
+        score_argv = [a.skill]
+        for s in a.scenario_sources:
+            score_argv += ["--scenario", s]
+        for e in a.extra_scenario:
+            score_argv += ["--extra-scenario", e]
+        if a.json:
+            score_argv.append("--json")
+        if a.verbose:
+            score_argv.append("--verbose")
+        return score_skill_main(score_argv)
     elif a.cmd == "runtime":
         return _run_runtime_command(a)
     elif a.cmd == "task":
