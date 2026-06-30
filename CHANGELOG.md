@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+### Changed
+- Documented the runtime-first execution chain: `simplicio-runtime` owns
+  task/run/gate/evidence orchestration, `simplicio-dev-cli` remains the focused
+  development/test executor, and decided mechanical writes should flow through
+  `simplicio edit` when the compiled runtime is available.
+- Added `simplicio-dev-cli edit` as a runtime-aware alias: it delegates to the
+  compiled `simplicio edit` when available and falls back to the existing Python
+  mechanical-edit executor when the runtime is absent or explicitly disabled.
+
 ## [0.7.1] — 2026-06-29
 
 ### Changed

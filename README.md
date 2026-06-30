@@ -61,14 +61,18 @@ simplicio-py task "hide the Delete button for non-admins"
 ```mermaid
 flowchart LR
   mapper["simplicio-mapper
-repo context"] --> current["simplicio-cli
-this project"]
-  prompt["simplicio-prompt
-reasoning runtime"] --> current
+repo context"] --> runtime["simplicio-runtime
+task and MCP surface"]
+  loop["simplicio-loop
+proven task flow"] --> runtime
+  runtime --> current["simplicio-cli
+focused implementation"]
+  current --> edit["simplicio edit
+mechanical writes"]
   current --> evidence["validated evidence
 tests, docs, screenshots"]
-  current --> sprint["simplicio-sprint
-delivery loop"]
+  runtime --> sprint["simplicio-sprint
+delivery status"]
 ```
 
 ## Proof and validation
@@ -80,8 +84,9 @@ delivery loop"]
 ## Simplicio ecosystem
 
 - [simplicio-mapper](https://github.com/wesleysimplicio/simplicio-mapper) supplies repo context before interpretation.
+- [simplicio-runtime](https://github.com/wesleysimplicio/simplicio-runtime) is the canonical task, MCP, and assistant entrypoint.
+- [simplicio-loop](https://github.com/wesleysimplicio/simplicio-loop) is the proven task-flow reference the runtime reuses for evidence-gated execution.
 - [simplicio-cli](https://github.com/wesleysimplicio/simplicio-dev-cli) executes focused code tasks with verification.
-- [simplicio-prompt](https://github.com/wesleysimplicio/simplicio-prompt) provides fan-out and consensus runtime patterns.
 - [simplicio-sprint](https://github.com/wesleysimplicio/simplicio-sprint) turns cards into draft PR delivery loops.
 
 ## Documentation standard
@@ -114,15 +119,16 @@ pip install simplicio-cli
 ---
 ### Recommended Default Stack (Official)
 
-The recommended and supported way to use `simplicio-dev-cli` is as part of the full Simplicio execution stack:
+The recommended and supported way to use `simplicio-dev-cli` is inside the runtime-first Simplicio execution stack:
 
-**simplicio-dev-cli + simplicio-prompt + agents/skills**
+**simplicio-runtime + simplicio-loop + simplicio-dev-cli + agents/skills**
 
-- `simplicio-dev-cli`: 6-layer contract, verification loop, and core task execution.
-- `simplicio-prompt`: Subagent runtime, fan-out, behavior consensus aggregator, and advanced orchestration.
-- **Agents & Skills**: Reusable capabilities from `.skills/`, `.agents/`, and the Simplicio starter (AGENTS.md, specs-as-code, etc.).
+- `simplicio-runtime`: canonical task, MCP, and assistant entrypoint.
+- `simplicio-loop`: the proven converge/drain task flow used today; runtime reuses it as the reference discipline for evidence-gated completion, durable execution journals, and worker coordination.
+- `simplicio-dev-cli`: focused implementation/test executor that can call `simplicio edit` for deterministic writes once a change is decided.
+- **Agents & Skills**: reusable capabilities from `.skills/`, `.agents/`, and the Simplicio starter (AGENTS.md, specs-as-code, etc.).
 
-This combination is the **official default** across the Simplicio ecosystem. All benchmarks, examples, and documentation assume this full stack.
+This combination is the **official default** across the Simplicio ecosystem. `simplicio-runtime` is the unified future-facing surface, while `simplicio-loop` remains the current production task flow used in company repos.
 
 See the canonical policy:
 - [docs/LLM_USAGE_POLICY.md](docs/LLM_USAGE_POLICY.md)

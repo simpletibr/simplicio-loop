@@ -268,3 +268,109 @@ def test_cli_json_contract_for_dry_run(tmp_path, monkeypatch, capsys):
     assert payload["schema"] == "simplicio.mechanical-edit-result/v1"
     assert payload["applied"] is False
     assert "+new" in payload["planned_diff"]
+
+
+def test_cli_edit_alias_uses_local_fallback_when_runtime_disabled(tmp_path, monkeypatch, capsys):
+    from simplicio import cli
+
+    _write(tmp_path / "app.py", "old\n")
+    plan_path = tmp_path / "plan.json"
+    plan_path.write_text(
+        json.dumps(
+            _plan(
+                "app.py",
+                {
+                    "op": "replace_range",
+                    "path": "app.py",
+                    "start_line": 1,
+                    "end_line": 1,
+                    "text": "new\n",
+                },
+            )
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.setenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT", "1")
+
+    code = cli.main(
+        [
+            "edit",
+            "--root",
+            str(tmp_path),
+            "--plan",
+            str(plan_path),
+            "--dry-run",
+            "--json",
+        ]
+    )
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["schema"] == "simplicio.mechanical-edit-result/v1"
+    assert payload["applied"] is False
+    assert "+new" in payload["planned_diff"]
+
+
+def test_cli_edit_alias_delegates_to_runtime_when_available(tmp_path, monkeypatch):
+    from simplicio import cli
+
+    plan_path = tmp_path / "plan.json"
+    plan_path.write_text(
+        json.dumps(
+            _plan(
+                "app.py",
+                {
+                    "op": "replace_range",
+                    "path": "app.py",
+                    "start_line": 1,
+                    "end_line": 1,
+                    "text": "new\n",
+                },
+            )
+        ),
+        encoding="utf-8",
+    )
+    calls = []
+
+    class Completed:
+        returncode = 17
+
+    def fake_run(cmd, input=None, text=False):
+        calls.append({"cmd": cmd, "input": input, "text": text})
+        return Completed()
+
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.delenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT", raising=False)
+    monkeypatch.setattr(cli.shutil, "which", lambda name: "/bin/simplicio" if name == "simplicio" else None)
+    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+
+    code = cli.main(
+        [
+            "edit",
+            "--root",
+            str(tmp_path),
+            "--plan",
+            str(plan_path),
+            "--dry-run",
+            "--json",
+        ]
+    )
+
+    assert code == 17
+    assert calls == [
+        {
+            "cmd": [
+                "/bin/simplicio",
+                "edit",
+                "--plan",
+                str(plan_path),
+                "--repo",
+                str(tmp_path),
+                "--json",
+                "--dry-run",
+            ],
+            "input": None,
+            "text": True,
+        }
+    ]

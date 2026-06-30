@@ -6,6 +6,8 @@ import argparse
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -546,6 +548,30 @@ def _run_mechanical_edit_command(a: argparse.Namespace) -> int:
     return 0 if result["status"] == "ok" else 1
 
 
+def _runtime_edit_binary() -> str | None:
+    if os.environ.get("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT"):
+        return None
+    return shutil.which("simplicio")
+
+
+def _run_edit_command(a: argparse.Namespace) -> int:
+    runtime = None if a.no_runtime else _runtime_edit_binary()
+    if runtime:
+        cmd = [runtime, "edit", "--plan", a.plan, "--repo", a.root]
+        if a.json:
+            cmd.append("--json")
+        if not a.apply:
+            cmd.append("--dry-run")
+        try:
+            plan_stdin = _read_text_source("-") if a.plan == "-" else None
+            completed = subprocess.run(cmd, input=plan_stdin, text=True)
+        except OSError as exc:
+            print(f"{CLI_PROG} edit: runtime delegation failed ({exc}); using local fallback", file=sys.stderr)
+        else:
+            return completed.returncode
+    return _run_mechanical_edit_command(a)
+
+
 def _run_token_command(a: argparse.Namespace) -> int:
     from .token_primitives import (
         ContextCache,
@@ -735,6 +761,21 @@ def main(argv=None):
     p_mechanical.add_argument("--dry-run", action="store_true")
     p_mechanical.add_argument("--json", action="store_true")
 
+    p_edit = sub.add_parser(
+        "edit",
+        help="apply a mechanical edit plan via simplicio-runtime when available",
+    )
+    p_edit.add_argument("--root", "--repo", dest="root", default=".")
+    p_edit.add_argument("--plan", default="-", help="plan JSON path, or - for stdin")
+    p_edit.add_argument("--apply", action="store_true")
+    p_edit.add_argument("--dry-run", action="store_true")
+    p_edit.add_argument("--json", action="store_true")
+    p_edit.add_argument(
+        "--no-runtime",
+        action="store_true",
+        help="use the Python mechanical-edit fallback instead of delegating to simplicio edit",
+    )
+
     p_token = sub.add_parser("token", help="token-efficient execution primitives")
     token_sub = p_token.add_subparsers(dest="token_cmd", required=True)
     p_log = token_sub.add_parser("log-summary")
@@ -873,6 +914,8 @@ def main(argv=None):
         return 0
     elif a.cmd == "mechanical-edit":
         return _run_mechanical_edit_command(a)
+    elif a.cmd == "edit":
+        return _run_edit_command(a)
     elif a.cmd == "token":
         return _run_token_command(a)
     elif a.cmd == "runtime":

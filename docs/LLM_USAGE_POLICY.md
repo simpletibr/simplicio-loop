@@ -33,10 +33,14 @@ OpenAI-compatible endpoints remain explicit opt-ins via `SIMPLICIO_MODEL`,
     agent execution.
 - This is a hard requirement for the SimplicioCode product.
 
-### simplicio-dev-cli and simplicio-sprint (recommended)
+### simplicio-runtime, simplicio-dev-cli, and simplicio-sprint (recommended)
 - The above `openbmb/minicpm5:latest` MiniCPM5 Q4_K_M GGUF setup is the
   **recommended** configuration for local development.
 - `simplicio-py doctor` validates this setup at runtime.
+- When the compiled `simplicio-runtime` is available, it is the control plane:
+  `simplicio run` owns task routing/evidence, `simplicio-dev-cli` owns focused
+  development/test execution, and `simplicio edit` is the deterministic writer
+  for decided mechanical file changes.
 
 ## Rationale
 
@@ -63,25 +67,37 @@ In SimplicioCode the equivalent is done via the Simplicio1 tier system + explici
 
 ## Default Usage Mode for simplicio-dev-cli
 
-**Official default stack (recommended for all users):**
+**Target runtime-first stack when `simplicio-runtime` is available:**
 
 ```bash
-simplicio-dev-cli + simplicio-prompt + agents
+simplicio-runtime + simplicio-dev-cli + simplicio-prompt + agents
 ```
 
-- `simplicio-dev-cli`: core 6-layer contract + verification loop for task execution.
+- `simplicio-runtime`: canonical task/run/evidence/gate surface; coordinates
+  mapper, dev-cli, prompt, sprint, validation, and deterministic edits.
+- `simplicio-dev-cli`: core 6-layer contract + verification loop for focused
+  task execution; may call `simplicio edit` when a mechanical edit plan is
+  already decided. Its `edit` command delegates to the compiled runtime edit
+  surface when available and falls back to the Python mechanical-edit executor
+  for standalone `simplicio-loop`/dev-cli installs.
 - `simplicio-prompt`: subagent runtime + fan-out + behavior consensus for complex or parallel work.
 - `agents` / `.skills/` + `.agents/`: reusable skills and custom sub-agents from the Simplicio starter.
 
-This combination is the **recommended and documented default** when using `simplicio-dev-cli`. All new examples, benchmarks, and onboarding materials assume this full stack.
+This stack is the **recommended documented path** when using `simplicio-dev-cli`
+with the compiled runtime. For current company installs, `simplicio-loop`
+remains the packaged loop surface and brings the required operators
+(`simplicio-mapper` + `simplicio-cli`/`simplicio-dev-cli`). If the runtime is
+not installed, the Python dev-cli continues to operate as the compatibility
+executor; once the runtime is present, the preferred path is
+`simplicio run -> simplicio-dev-cli -> simplicio edit`.
 
-When starting a new project with the Simplicio starter, the bootstrap configures the environment to use this trio by default.
+When starting a new project with the Simplicio starter, the bootstrap configures the environment to use this stack by default.
 
-## Native Packaged Runtime Direction
+## Native Packaged Runtime Compatibility Note
 
-The goal is not to rewrite Simplicio in C++ or Rust. The practical direction is
-to package the existing Python implementation as a faster, reproducible native
-runtime:
+The compiled runtime is the control plane. The Python package path remains
+important for compatibility, standalone `simplicio-loop` installs, and fast
+feature velocity:
 
 - a single launcher/binary that bootstraps the pinned Python package, extras,
   `llama.cpp` bindings, GGUF path, cache, and mapper state;
