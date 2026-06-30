@@ -22,6 +22,8 @@ class ProjectFile:
         "exports",
         "importance",
         "text_preview",
+        "bh_address",
+        "agent_id",
     )
 
     def __init__(
@@ -37,6 +39,8 @@ class ProjectFile:
         exports: list[str],
         importance: float = 0.0,
         text_preview: str = "",
+        bh_address: str = "",
+        agent_id: str = "",
     ) -> None:
         self.path = path
         self.language = language
@@ -49,9 +53,11 @@ class ProjectFile:
         self.exports = exports
         self.importance = importance
         self.text_preview = text_preview
+        self.bh_address = bh_address
+        self.agent_id = agent_id
 
     def to_dict(self) -> dict:
-        return {
+        d: dict = {
             "path": self.path,
             "language": self.language,
             "size_bytes": self.size_bytes,
@@ -63,6 +69,11 @@ class ProjectFile:
             "exports": self.exports,
             "importance": self.importance,
         }
+        if self.bh_address:
+            d["bh_address"] = self.bh_address
+        if self.agent_id:
+            d["agent_id"] = self.agent_id
+        return d
 
 
 class CodeEntity:

@@ -141,6 +141,15 @@ The bootstrap also writes `.simplicio/project-map.json` and
 `.simplicio/precedent-index.json` for tools such as `simplicio-dev-cli` and
 `simplicio-sprint`.
 
+**New: Brown-Hilbert agent tree.** Since v0.12.0, every file in `project-map.json`
+carries a `bh_address` (Brown-Hilbert coordinate like `R.0.1.2`) and a deterministic
+`agent_id` (8-byte / 16-hex‑char identity). A top-level `agent_tree` field mirrors
+the full project hierarchy so agents can navigate the codebase by address.
+
+See [`SIMPLICIO_INTEGRATION.md`](SIMPLICIO_INTEGRATION.md) for the schema contract
+and [`examples/brown-hilbert-addresses.json`](examples/brown-hilbert-addresses.json)
+for a worked example.
+
 Refresh them without re-running the full starter:
 
 ```bash

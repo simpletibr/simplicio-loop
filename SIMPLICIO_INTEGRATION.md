@@ -134,9 +134,54 @@ Each `files[]` entry is deterministic by `path` and includes:
 - `imports`
 - `exports`
 - `importance`
+- `bh_address` *(Brown-Hilbert tree address, e.g. `R.0.3`)*
+- `agent_id` *(8-byte / 16-hex-char agent identity derived from `sha256(bh_address)[:16]`)*
 
 Consumers should sort or filter by `importance`, `roles`, exact target path,
 and `changed_files` before injecting context into an LLM prompt.
+
+### `agent_tree` — Brown-Hilbert agent tree
+
+The `agent_tree` field in `project-map.json` is a nested tree that mirrors the
+project's module structure. Every node carries:
+
+- `bh_address` — its Brown-Hilbert address (`R` = root, `R.0` = first module, `R.0.0` = first file in first module, etc.)
+- `agent_id` — deterministic 8-byte identity (`sha256(bh_address)[:16]`)
+- `module` — module name (root node is `.`)
+- `children[]` — nested child nodes
+
+Leaf nodes (files) additionally include `path`, `language`, and `roles`.
+
+**Brown-Hilbert addressing** (`R.port.port.port`) gives every mapped resource a stable,
+hierarchical coordinate in the project tree. The agent identity is derived from the
+address itself, so the same address always maps to the same agent — no external seed
+or state needed.
+
+```json
+{
+  "agent_tree": {
+    "bh_address": "R",
+    "agent_id": "d5f1b7c8a2e9f3d0",
+    "module": ".",
+    "children": [
+      {
+        "bh_address": "R.0",
+        "agent_id": "a1b2c3d4e5f67890",
+        "module": "src",
+        "children": [
+          {
+            "bh_address": "R.0.0",
+            "agent_id": "f1e2d3c4b5a67890",
+            "path": "src/main.ts",
+            "language": "typescript",
+            "roles": ["entrypoint"]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
 
 ## precedent-index.json
 

@@ -460,6 +460,106 @@ def _collect_architecture_signals(pkg: dict, corpus: str, stack: str) -> list[st
     return sorted(name for name, rx in _ARCH_CHECKS if rx.search(text))
 
 
+def _brown_hilbert_address(parts: list[int]) -> str:
+    """Build a Brown-Hilbert address string like ``R.0.1.2``.
+
+    ``R`` is the root, and each element in *parts* is a numeric port at that
+    tree depth.
+    """
+    if not parts:
+        return "R"
+    return "R." + ".".join(str(p) for p in parts)
+
+
+def _agent_id_from_seed(seed: str) -> str:
+    """8‑byte (16‑hex‑char) agent identity derived from *seed*.
+
+    Uses ``sha256(seed)[:16]``, matching the Asolaria convention.
+    """
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()[:16]
+
+
+def _build_brown_hilbert_map(files: list[ProjectFile]) -> dict[str, tuple[str, str]]:
+    """Assign a Brown-Hilbert address and agent ID to every file.
+
+    Returns ``{path: (bh_address, agent_id)}``.
+
+    Topology
+    --------
+    - Module (first path segment) → ``R.<module_index>``
+    - File within module → ``R.<module_index>.<file_index>``
+
+    The agent ID is deterministically derived from the BH address, so every
+    address always maps to the same agent identity.
+    """
+    result: dict[str, tuple[str, str]] = {}
+
+    # Group files by module (first path component).
+    modules: dict[str, list[str]] = {}
+    for f in files:
+        module = f.path.split("/")[0] if "/" in f.path else "."
+        modules.setdefault(module, []).append(f.path)
+
+    for mod_idx, (module, paths) in enumerate(sorted(modules.items())):
+        # Module-level address R.<mod_idx>
+        mod_addr = _brown_hilbert_address([mod_idx])
+        mod_agent = _agent_id_from_seed(mod_addr)
+        # Also register a sentinel for the module node itself
+        result[f"__module__:{module}"] = (mod_addr, mod_agent)
+
+        for file_idx, path in enumerate(sorted(paths)):
+            addr = _brown_hilbert_address([mod_idx, file_idx])
+            agent = _agent_id_from_seed(addr)
+            result[path] = (addr, agent)
+
+    return result
+
+
+def _build_agent_tree(
+    files: list[ProjectFile],
+    bh_map: dict[str, tuple[str, str]],
+) -> dict:
+    """Build a nested Brown-Hilbert agent tree from the file inventory.
+
+    The tree mirrors the project's module structure and annotates every node
+    with its BH address, agent ID, and the resources it owns.
+    """
+    # Collect module nodes
+    module_groups: dict[str, dict] = {}
+    for f in files:
+        module = f.path.split("/")[0] if "/" in f.path else "."
+        if module not in module_groups:
+            mod_addr, mod_agent = bh_map.get(f"__module__:{module}", ("R.0", ""))
+            module_groups[module] = {
+                "bh_address": mod_addr,
+                "agent_id": mod_agent,
+                "module": module,
+                "children": [],
+            }
+        addr, agent = bh_map.get(f.path, ("", ""))
+        module_groups[module]["children"].append({
+            "bh_address": addr,
+            "agent_id": agent,
+            "path": f.path,
+            "language": f.language,
+            "roles": f.roles,
+        })
+
+    # Root node
+    root_agent = _agent_id_from_seed("R")
+    root_node: dict = {
+        "bh_address": "R",
+        "agent_id": root_agent,
+        "module": ".",
+        "children": [],
+    }
+
+    for module_name in sorted(module_groups):
+        root_node["children"].append(module_groups[module_name])
+
+    return root_node
+
+
 def _group_modules(files: list[ProjectFile]) -> list[dict]:
     groups: dict[str, dict] = {}
     for file in files:
@@ -550,7 +650,16 @@ def _build_file_inventory(
         )
         entry.importance = _importance_for(entry.roles, entry.imports, entry.exports, entry.git_status)
         inventory.append(entry)
-    return sorted(inventory, key=lambda e: e.path)
+    inventory = sorted(inventory, key=lambda e: e.path)
+
+    # Assign Brown-Hilbert addresses and agent IDs after sorting.
+    bh_map = _build_brown_hilbert_map(inventory)
+    for entry in inventory:
+        addr, agent = bh_map.get(entry.path, ("", ""))
+        entry.bh_address = addr
+        entry.agent_id = agent
+
+    return inventory
 
 
 _RE_PLACEHOLDER = re.compile(r"<[A-Z][A-Z0-9_]+>")
@@ -1340,6 +1449,12 @@ def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = Fals
         call_graph,
         generated_at,
     )
+
+    # Build agent tree from Brown-Hilbert map
+    bh_map = _build_brown_hilbert_map(files)
+    agent_tree = _build_agent_tree(files, bh_map)
+
+    project_map["agent_tree"] = agent_tree
 
     return {
         "project_map": project_map,
