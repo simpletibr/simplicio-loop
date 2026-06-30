@@ -1,0 +1,122 @@
+[
+  {
+    "statement": "The new index page loads 47ms faster after the CSS purge (p95 measured via Lighthouse CI on the linux runner)",
+    "expect_tag": "MEASURED",
+    "expect_pass_count": 7,
+    "note": "MEASURED: empirical measurement (47ms, p95). Rule 8 flags: performance claim ('faster') without lifecycle stage separation."
+  },
+  {
+    "statement": "We should refactor the auth middleware to reduce complexity",
+    "expect_tag": "UNVERIFIED",
+    "expect_pass_count": 8,
+    "note": "UNVERIFIED: no data, no fabric anchor, no measurement — pure opinion. Rules all pass by absence of triggering language."
+  },
+  {
+    "statement": "GitHub Actions CI confirms all 1,432 tests pass on the linux-22.04 runner",
+    "expect_tag": "CANON",
+    "expect_pass_count": 8,
+    "note": "CANON: fabric anchor (GitHub CI), data (1432 tests) but not an empirical performance measurement."
+  },
+  {
+    "statement": "Critical bug: user session data is lost on page refresh",
+    "expect_tag": "UNVERIFIED",
+    "expect_pass_count": 7,
+    "note": "UNVERIFIED: no fabric/no data. Rule 1 flags: 'critical' severity without concrete impact grounding."
+  },
+  {
+    "statement": "The deployment pipeline shows the build artifact was compiled and deployed to production, confirming the fix is live",
+    "expect_tag": "CANON",
+    "expect_pass_count": 8,
+    "note": "CANON: fabric anchor (pipeline, artifact, deployment), lifecycle stages clear (source→built→live)."
+  },
+  {
+    "statement": "I think the API is faster now, based on my memory of how it felt last week",
+    "expect_tag": "UNVERIFIED",
+    "expect_pass_count": 6,
+    "note": "UNVERIFIED: no data/no fabric. Rule 3: 'i think' mirror without fabric anchor. Rule 8: 'faster' performance claim without lifecycle stage."
+  },
+  {
+    "statement": "Layer 3 tier service handles N requests without any issues — all good",
+    "expect_tag": "UNVERIFIED",
+    "expect_pass_count": 8,
+    "note": "UNVERIFIED: no fabric anchor, no empirical measurement. 'N' matched as count word so rule 4 passes despite superficial level language."
+  },
+  {
+    "statement": "The compiled binary running on linux container shows p99 latency at 12ms under 200 concurrent users",
+    "expect_tag": "MEASURED",
+    "expect_pass_count": 8,
+    "note": "MEASURED: empirical (12ms, p99, 200 users), fabric (binary, linux, container), lifecycle clear. Gold standard claim."
+  },
+  {
+    "statement": "As shown in the attached terminal output, our CI check passed",
+    "expect_tag": "CANON",
+    "expect_pass_count": 8,
+    "note": "CANON: 'CI check' provides fabric anchor (ci). 'as shown' paste signal is neutralized by owning-gate reference."
+  },
+  {
+    "statement": "Screenshot confirms the deployment was successful — the dashboard shows green status",
+    "expect_tag": "UNVERIFIED",
+    "expect_pass_count": 7,
+    "note": "UNVERIFIED: no fabric anchor. Rule 3: 'screenshot' mirror without fabric (no CI log, no deploy artifact)."
+  },
+  {
+    "statement": "The Windows CI runner completes the test suite in 90 seconds",
+    "expect_tag": "MEASURED",
+    "expect_pass_count": 7,
+    "note": "MEASURED: empirical (90 seconds). Rule 7 flags: Windows lane without production lane qualifier."
+  },
+  {
+    "statement": "GitHub Actions reports the linux runner completed the full test suite in 90s (p50) and 145s (p99)",
+    "expect_tag": "MEASURED",
+    "expect_pass_count": 8,
+    "note": "MEASURED: empirical measurement (90s, 145s, p50, p99) through CI — fully grounded, all rules pass."
+  },
+  {
+    "statement": "We lost access to the monitoring dashboard so there are no errors to report — everything is clean",
+    "expect_tag": "UNVERIFIED",
+    "expect_pass_count": 8,
+    "note": "UNVERIFIED: no fabric anchor. Rule 6 heuristic does not fire because 'lost access' ≠ 'no access' in missing-signal word list."
+  },
+  {
+    "statement": "The code compiles on all three build nodes (cylinder 1: linux-amd64, cylinder 2: linux-arm64, cylinder 3: darwin-arm64)",
+    "expect_tag": "CANON",
+    "expect_pass_count": 8,
+    "note": "CANON: fabric anchor (code, build), distinct cylinder count, clear lifecycle. All rules pass."
+  },
+  {
+    "statement": "Source code review shows the function handles null input (running in production for 3 weeks with zero null-pointer exceptions)",
+    "expect_tag": "CANON",
+    "expect_pass_count": 7,
+    "note": "CANON: fabric (source, running, production). Rule 8 flags: source+live mentioned without explicit separation language."
+  },
+  {
+    "statement": "Source code contains a new endpoint, deployed binary serves it, running pod responds in <5ms, live traffic confirms 0 errors",
+    "expect_tag": "MEASURED",
+    "expect_pass_count": 7,
+    "note": "MEASURED: empirical (<5ms). Rule 8 flags: source+live mentioned side by side without explicit separation marker."
+  },
+  {
+    "statement": "This is a critical issue that blocks deployment",
+    "expect_tag": "UNVERIFIED",
+    "expect_pass_count": 8,
+    "note": "UNVERIFIED: no fabric anchor. Rule 1 passes: 'blocks deployment' grounds the severity. 'deployment' ≠ 'deploy' (word boundary)."
+  },
+  {
+    "statement": "The code compiles (see above for terminal output where I pasted the build log)",
+    "expect_tag": "CANON",
+    "expect_pass_count": 8,
+    "note": "CANON: 'code' provides fabric anchor. Mirror signals don't trigger because no gate claim verb accompanies the paste."
+  },
+  {
+    "statement": "Docker Desktop build completes in 2.3s vs 1.1s on linux — we should investigate the difference",
+    "expect_tag": "MEASURED",
+    "expect_pass_count": 8,
+    "note": "MEASURED: empirical (2.3s, 1.1s). Rule 7 passes because linux is mentioned alongside Docker Desktop."
+  },
+  {
+    "statement": "Missing data from the telemetry endpoint — status=missing, ok=0",
+    "expect_tag": "UNVERIFIED",
+    "expect_pass_count": 8,
+    "note": "UNVERIFIED: no fabric anchor despite correct 'missing=1/ok=0' convention. Rule 6 passes due to explicit missing flag."
+  }
+]

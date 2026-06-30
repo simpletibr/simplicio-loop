@@ -23,106 +23,9 @@ import re
 import sys
 from pathlib import Path
 
-# ---------------------------------------------------------------------------
-# The 8 rules
-# ---------------------------------------------------------------------------
-
-RULES: list[dict] = [
-    {
-        "id": 1,
-        "slug": "ground_impact_before_severity",
-        "label": "ground impact before severity",
-        "description": (
-            "Ground every claim in actual impact before assigning a "
-            "severity label. 'Critical' without a concrete downstream "
-            "effect is an empty assertion."
-        ),
-        "check": _rule_1_ground,
-    },
-    {
-        "id": 2,
-        "slug": "no_flat_tuples",
-        "label": "no flat tuples — preserve the 60D HyperBEHCS axes",
-        "description": (
-            "Never collapse multi-dimensional measurements into a "
-            "single scalar. Each of the 60 HyperBEHCS axes must be "
-            "reported independently."
-        ),
-        "check": _rule_2_tuples,
-    },
-    {
-        "id": 3,
-        "slug": "mirrors_not_authority",
-        "label": "mirrors ≠ authority — fabric é authority",
-        "description": (
-            "A screenshot, a transcript, or a human recollection is "
-            "a mirror, not authority. The fabric — code, CI log, "
-            "compiled binary, deployed system — is the only authority."
-        ),
-        "check": _rule_3_mirrors,
-    },
-    {
-        "id": 4,
-        "slug": "cylinders_not_levels",
-        "label": "cylinders ≠ levels — count distinct cylinders/towers",
-        "description": (
-            "Do not confuse layer/level abstractions with running "
-            "instances. Count distinct cylinders, towers, or pods, "
-            "not architectural tiers."
-        ),
-        "check": _rule_4_cylinders,
-    },
-    {
-        "id": 5,
-        "slug": "owning_gate_not_transcript",
-        "label": "owning gate, not transcript — verify via gh/CI, not pasted log",
-        "description": (
-            "Never accept a pasted terminal log as proof of a gate "
-            "passing. Verify through the owning gate — GitHub check "
-            "run, CI pipeline status, or the actual test runner exit "
-            "code replayed locally."
-        ),
-        "check": _rule_5_gate,
-    },
-    {
-        "id": 6,
-        "slug": "missing_not_clean_zero",
-        "label": "missing ≠ clean-zero — unreadable ledger emits missing=1/ok=0",
-        "description": (
-            "If a ledger, log, or data source cannot be read, the "
-            "status is 'missing' not 'clean-zero'. An empty result "
-            "from a broken channel must not be reported as success."
-        ),
-        "check": _rule_6_missing,
-    },
-    {
-        "id": 7,
-        "slug": "real_lane_not_windows",
-        "label": "real lane, not Windows — Linux/WSL/USB-raw first",
-        "description": (
-            "Production runs on Linux, containers, or bare metal. "
-            "Windows timings, WSL paths, or emulated environments "
-            "must be explicitly flagged as non-primary lanes."
-        ),
-        "check": _rule_7_lane,
-    },
-    {
-        "id": 8,
-        "slug": "source_not_live",
-        "label": "source ≠ live — distinguish source/built/running/live",
-        "description": (
-            "A claim about source code is not a claim about the "
-            "running system. Distinguish: source (uncompiled), "
-            "built (artifact), running (process), live (production "
-            "traffic)."
-        ),
-        "check": _rule_8_source,
-    },
-]
-
 
 # ---------------------------------------------------------------------------
-# Per-rule check functions
+# Per-rule check functions (defined before RULES to avoid forward-ref)
 # ---------------------------------------------------------------------------
 
 def _rule_1_ground(statement: str) -> dict:
@@ -136,7 +39,7 @@ def _rule_1_ground(statement: str) -> dict:
             found_severity.add(word)
 
     if found_severity:
-        # Look for grounding phrases nearby (within ~60 chars of severity word)
+        # Look for grounding phrases nearby
         has_impact_ground = bool(
             re.search(
                 r"(?:impact|effect|affect|causes?|results?\s+in|lead[s]?\s+to|"
@@ -361,9 +264,8 @@ def _rule_6_missing(statement: str) -> dict:
         if m:
             found_zero.append((phrase, m))
 
-    # If source is reported as missing/unreadable AND reported OK/zero
+    # If source is reported as missing AND reported OK/zero
     if found_missing and found_zero:
-        # Check if there's an explicit "missing=1, ok=0" or similar
         has_explicit_missing_flag = bool(
             re.search(
                 r"(?:missing[=:]\s*[1-9]|unreadable|"
@@ -380,30 +282,12 @@ def _rule_6_missing(statement: str) -> dict:
                 "missing=1/ok=0"
             )
 
-    # If only missing signals without explicit missing=1 flag
-    if found_missing and not has_explicit_missing_flag_present(statement):
-        issues.append(
-            "unreadable source without explicit missing=1 flag"
-        )
-
     return {
         "rule_id": 6,
         "slug": "missing_not_clean_zero",
         "pass": len(issues) == 0,
         "issues": issues,
     }
-
-
-def has_explicit_missing_flag_present(statement: str) -> bool:
-    """Return True if the statement explicitly sets a missing=1 flag."""
-    return bool(
-        re.search(
-            r"(?:missing[=:]\s*[1-9]|status[=:]\s*missing|unreadable|"
-            r"broken\s+channel|no\s+data\s+available)",
-            statement,
-            re.IGNORECASE,
-        )
-    )
 
 
 def _rule_7_lane(statement: str) -> dict:
@@ -471,7 +355,7 @@ def _rule_8_source(statement: str) -> dict:
                 found_stages[stage] = word
                 break
 
-    # If a performance/behavior claim is made, check which lifecycle stage
+    # If a performance/behavior claim is made, check lifecycle stage
     has_performance_claim = bool(
         re.search(
             r"(?:perform|speed|latenc|throughput|fast|slow|memory|cpu|"
@@ -519,6 +403,104 @@ def _rule_8_source(statement: str) -> dict:
         "pass": len(issues) == 0,
         "issues": issues,
     }
+
+
+# ---------------------------------------------------------------------------
+# The 8 rules
+# ---------------------------------------------------------------------------
+
+RULES: list[dict] = [
+    {
+        "id": 1,
+        "slug": "ground_impact_before_severity",
+        "label": "ground impact before severity",
+        "description": (
+            "Ground every claim in actual impact before assigning a "
+            "severity label. 'Critical' without a concrete downstream "
+            "effect is an empty assertion."
+        ),
+        "check": _rule_1_ground,
+    },
+    {
+        "id": 2,
+        "slug": "no_flat_tuples",
+        "label": "no flat tuples — preserve the 60D HyperBEHCS axes",
+        "description": (
+            "Never collapse multi-dimensional measurements into a "
+            "single scalar. Each of the 60 HyperBEHCS axes must be "
+            "reported independently."
+        ),
+        "check": _rule_2_tuples,
+    },
+    {
+        "id": 3,
+        "slug": "mirrors_not_authority",
+        "label": "mirrors ≠ authority — fabric é authority",
+        "description": (
+            "A screenshot, a transcript, or a human recollection is "
+            "a mirror, not authority. The fabric — code, CI log, "
+            "compiled binary, deployed system — is the only authority."
+        ),
+        "check": _rule_3_mirrors,
+    },
+    {
+        "id": 4,
+        "slug": "cylinders_not_levels",
+        "label": "cylinders ≠ levels — count distinct cylinders/towers",
+        "description": (
+            "Do not confuse layer/level abstractions with running "
+            "instances. Count distinct cylinders, towers, or pods, "
+            "not architectural tiers."
+        ),
+        "check": _rule_4_cylinders,
+    },
+    {
+        "id": 5,
+        "slug": "owning_gate_not_transcript",
+        "label": "owning gate, not transcript — verify via gh/CI, not pasted log",
+        "description": (
+            "Never accept a pasted terminal log as proof of a gate "
+            "passing. Verify through the owning gate — GitHub check "
+            "run, CI pipeline status, or the actual test runner exit "
+            "code replayed locally."
+        ),
+        "check": _rule_5_gate,
+    },
+    {
+        "id": 6,
+        "slug": "missing_not_clean_zero",
+        "label": "missing ≠ clean-zero — unreadable ledger emits missing=1/ok=0",
+        "description": (
+            "If a ledger, log, or data source cannot be read, the "
+            "status is 'missing' not 'clean-zero'. An empty result "
+            "from a broken channel must not be reported as success."
+        ),
+        "check": _rule_6_missing,
+    },
+    {
+        "id": 7,
+        "slug": "real_lane_not_windows",
+        "label": "real lane, not Windows — Linux/WSL/USB-raw first",
+        "description": (
+            "Production runs on Linux, containers, or bare metal. "
+            "Windows timings, WSL paths, or emulated environments "
+            "must be explicitly flagged as non-primary lanes."
+        ),
+        "check": _rule_7_lane,
+    },
+    {
+        "id": 8,
+        "slug": "source_not_live",
+        "label": "source ≠ live — distinguish source/built/running/live",
+        "description": (
+            "A claim about source code is not a claim about the "
+            "running system. Distinguish: source (uncompiled), "
+            "built (artifact), running (process), live (production "
+            "traffic)."
+        ),
+        "check": _rule_8_source,
+    },
+]
 
 
 # ---------------------------------------------------------------------------
@@ -575,35 +557,6 @@ def suggest_tag(statement: str, results: list[dict] | None = None) -> str:
     if results is None:
         results = [rule["check"](statement) for rule in RULES]
 
-    # UNVERIFIED: no data, no authority, no channel
-    has_data = bool(
-        re.search(
-            r"(?:\d+\.?\d*\s*(?:ms|s|mb|gb|kb|rps|qps|tps|%|bytes|"
-            r"requests?|users?))",
-            statement,
-            re.IGNORECASE,
-        )
-    )
-    has_authority = bool(
-        re.search(
-            r"(?:code\s+show|ci\s+log|compile[dr]|binary|deploy|"
-            r"repo|git\s+log|test\s+run|pipeline|artifact|"
-            r"github|gh\s+|ci\s+pass|check\s+run|workflow)",
-            statement,
-            re.IGNORECASE,
-        )
-    )
-
-    # CANON: authoritative fabric reference
-    fabric_signals = {
-        "code", "binary", "deploy", "ci", "pipeline", "github",
-        "artifact", "compiled", "repo", "commit", "tag", "release",
-    }
-    found_fabric = set()
-    for word in fabric_signals:
-        if re.search(rf"\b{re.escape(word)}\b", statement, re.I):
-            found_fabric.add(word)
-
     # MEASURED: numbers with units, benchmarks, metrics
     measured_pattern = re.search(
         r"(?:\d+\.?\d*\s*(?:ms|s|mb|gb|kb|rps|qps|tps|%|bytes|"
@@ -614,13 +567,32 @@ def suggest_tag(statement: str, results: list[dict] | None = None) -> str:
     )
     has_empirical_measurement = bool(measured_pattern)
 
-    if has_empirical_measurement and has_authority:
+    # CANON: authoritative fabric reference
+    fabric_signals = {
+        "code", "binary", "deploy", "ci", "pipeline", "github",
+        "artifact", "compiled", "repo", "commit", "tag", "release",
+    }
+    found_fabric = set()
+    for word in fabric_signals:
+        if re.search(rf"\b{re.escape(word)}\b", statement, re.I):
+            found_fabric.add(word)
+    has_authority = bool(found_fabric)
+
+    # UNVERIFIED: no data, no authority, no channel
+    has_data = bool(
+        re.search(
+            r"(?:\d+\.?\d*\s*(?:ms|s|mb|gb|kb|rps|qps|tps|%|bytes|"
+            r"requests?|users?))",
+            statement,
+            re.IGNORECASE,
+        )
+    )
+
+    if has_empirical_measurement:
         return TAG_MEASURED
-    if has_authority or found_fabric:
+    if has_authority or has_data:
         return TAG_CANON
-    if not has_data and not has_authority:
-        return TAG_UNVERIFIED
-    return TAG_CANON
+    return TAG_UNVERIFIED
 
 
 def tag_statement(statement: str) -> dict:

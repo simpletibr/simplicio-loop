@@ -51,10 +51,19 @@ def maybe_autoinstall(cmd: str | None) -> bool:
 
 
 def _dispatch_nested(argv: list[str]) -> int | None:
+    if argv and argv[0] == "claims":
+        maybe_autoinstall("claims")
+        from .commands.claims import main as claims_main
+
+        return claims_main(argv[1:])
     if argv and argv[0] == "gate":
         from .commands.gate import main as gate_main
 
         return gate_main(argv[1:])
+    if argv and argv[0] == "nest":
+        from .commands.nest import main as nest_main
+
+        return nest_main(argv[1:])
     if argv and argv[0] == "scratch":
         maybe_autoinstall("scratch")
         from .scratch.cli import main as scratch_main
@@ -72,11 +81,6 @@ def _dispatch_nested(argv: list[str]) -> int | None:
         from .scratch.skill_opt import main as skill_main
 
         return skill_main(args[1:])
-    if argv and argv[0] == "nest":
-        maybe_autoinstall("nest")
-        from .commands.nest import main as nest_main
-
-        return nest_main(argv[1:])
     return None
 
 
