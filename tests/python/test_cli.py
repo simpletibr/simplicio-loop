@@ -1059,6 +1059,91 @@ def load(api):
             self.assertEqual(main(["status", str(self.dir), "--json"]), 0)
         self.assertEqual(json.loads(out.getvalue())["phase"], "unknown")
 
+    def test_status_json_exposes_job_counts_cache_and_commands(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "status-surface-host"}))
+        _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
+        with redirect_stdout(StringIO()):
+            self.assertEqual(main(["scan", str(self.dir), "--sync", "--json"]), 0)
+
+        cache_path = self.dir / ".simplicio" / "context-cache.json"
+        cache_path.write_text(json.dumps({
+            "schema": "simplicio.context-cache/v1",
+            "entries": {"abc": {"summary": "cached"}},
+        }), encoding="utf-8")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(main(["status", str(self.dir), "--json"]), 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.map-status/v1")
+        self.assertEqual(payload["phase"], "complete")
+        self.assertTrue(payload["terminal"])
+        self.assertTrue(payload["artifacts_present"])
+        self.assertEqual(payload["warnings"], [])
+        self.assertEqual(payload["root"], str(self.dir).replace(os.sep, "/"))
+        self.assertTrue(payload["out"].endswith(".simplicio"))
+        self.assertIn("files", payload["counts"])
+        self.assertEqual(payload["cache"]["entries"], 1)
+        self.assertEqual(payload["cache"]["sample_keys"], ["abc"])
+        self.assertTrue(payload["job"]["sync"])
+        self.assertTrue(payload["map_job_path"].endswith(".simplicio/map-job.json"))
+        self.assertTrue(payload["commands"]["inspect"].endswith(" --json"))
+        self.assertTrue(payload["evidence"]["artifacts"]["project_map"]["exists"])
+        self.assertGreater(payload["evidence"]["artifacts"]["project_map"]["size_bytes"], 0)
+
+    def test_inspect_command_returns_artifact_surface(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "inspect-host"}))
+        _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
+        with redirect_stdout(StringIO()):
+            self.assertEqual(main(["scan", str(self.dir), "--sync", "--json"]), 0)
+
+        out = StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(main(["inspect", str(self.dir), "--json"]), 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.map-inspection/v1")
+        self.assertEqual(payload["status"]["phase"], "complete")
+        self.assertTrue(payload["artifacts"]["project_map"].endswith(".simplicio/project-map.json"))
+        self.assertTrue(payload["evidence"]["artifacts"]["project_map"]["exists"])
+
+    def test_handoff_command_embeds_context_pack_for_changed_files(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "handoff-host"}))
+        _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
+        with redirect_stdout(StringIO()):
+            self.assertEqual(main(["map", "--root", str(self.dir), "--silent"]), 0)
+        _write(self.dir, "src/index.js", "export function run() { return 2; }\n")
+        with redirect_stdout(StringIO()):
+            self.assertEqual(main(["scan", str(self.dir), "--sync", "--json"]), 0)
+
+        out = StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(main(["handoff", str(self.dir), "--json"]), 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.map-handoff/v1")
+        self.assertTrue(payload["ready"])
+        self.assertEqual(payload["reason"], "")
+        self.assertIn("src/index.js", payload["targets"])
+        self.assertEqual(payload["context_pack"]["schema"], "simplicio.context-pack/v1")
+        self.assertFalse(payload["cache"]["pack_cached"])
+        self.assertEqual(payload["evidence"]["pack_hash"], payload["context_pack"]["pack_hash"])
+        self.assertEqual(payload["evidence"]["target_count"], len(payload["targets"]))
+
+    def test_handoff_marks_stale_artifacts_not_ready(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "handoff-stale-host"}))
+        _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
+        with redirect_stdout(StringIO()):
+            self.assertEqual(main(["map", "--root", str(self.dir), "--silent"]), 0)
+        _write(self.dir, "src/index.js", "export function run() { return 2; }\n")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(main(["handoff", str(self.dir), "--json"]), 0)
+        payload = json.loads(out.getvalue())
+        self.assertFalse(payload["ready"])
+        self.assertIn("artifacts_not_fresh", payload["reason"])
+        self.assertIn("artifacts_not_fresh", payload["status"]["warnings"])
+        self.assertIn("src/index.js", payload["targets"])
+
 
 class TierLanguageSupportTest(unittest.TestCase):
     """Tier 1/2 language coverage: detection + symbol/import extraction."""

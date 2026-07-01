@@ -511,6 +511,8 @@ machinery and is lock-guarded by `index.lock` against concurrent deep runs.
 ```bash
 simplicio-mapper status . --json
 simplicio-mapper status . --await --timeout 30 --json
+simplicio-mapper inspect . --json
+simplicio-mapper handoff . --json
 ```
 
 `simplicio.map-status/v1` derives `phase` deterministically:
@@ -520,8 +522,20 @@ simplicio-mapper status . --await --timeout 30 --json
 3. else `map-job.json` exists but no fresh artifacts and no lock → `failed`
 4. else → `unknown`
 
-`--await` (shared by `scan` and `status`) blocks until the phase leaves
+`--await` (shared by `scan`, `status`, `inspect`, and `handoff`) blocks until the phase leaves
 `deep_running` or the bounded `--timeout` (default 120s) fires.
+
+`status` stays the small health probe, while `inspect` and `handoff` build on the
+same underlying signals for downstream tooling:
+
+- `inspect` emits `simplicio.map-inspection/v1`: current status, artifact paths,
+  index counts, cache summary, copy-ready follow-up commands, and file-backed
+  evidence (`exists`, `size_bytes`, `modified_at`) for each mapper artifact.
+- `handoff` emits `simplicio.map-handoff/v1`: the same status block plus a
+  compact `simplicio.context-pack/v1` derived from recent changes / entrypoints,
+  so `simplicio-dev-cli` or an audit agent can pick up focused context without
+  re-deriving the target set, plus evidence for the current artifact set and the
+  embedded `pack_hash`.
 
 ## Context Packs and Hash-Based Cache (issue #115)
 
@@ -644,7 +658,9 @@ artifacts for the runtime wrapper, not replacements for
 | `simplicio-mapper update [--root <dir>] [--json]` | stdout when `--json` | mirrors the index payload above | same |
 | `simplicio-mapper macro <path> --json` | stdout | `simplicio.macro-map/v1` | `schema`, `product`, `counts.*`, `modules[]`, `layers[]`, `entry_points[]`, `config_files[]`, `git`, `confidence` |
 | `simplicio-mapper scan <path> [--sync] [--await] --json` | stdout + `.simplicio/map-job.json` | `simplicio.map-job/v1` | `schema`, `phase`, `sync`, `macro`, `deep.{state_path,lock_path,poll,pid?,log?}` |
-| `simplicio-mapper status <path> [--await] --json` | stdout | `simplicio.map-status/v1` | `schema`, `phase`, `lock`, `fresh`, `state_path`, `updated_at?` |
+| `simplicio-mapper status <path> [--await] --json` | stdout | `simplicio.map-status/v1` | `schema`, `phase`, `lock`, `fresh`, `state_path`, `updated_at?`, `counts?`, `job?`, `cache?`, `evidence.artifacts?`, `commands?` |
+| `simplicio-mapper inspect <path> [--await] --json` | stdout | `simplicio.map-inspection/v1` | `schema`, `root`, `out`, `status`, `artifacts`, `evidence.artifacts` |
+| `simplicio-mapper handoff <path> [--await] --json` | stdout | `simplicio.map-handoff/v1` | `schema`, `ready`, `reason`, `targets[]`, `status`, `context_pack`, `evidence.pack_hash`, `cache.pack_cached` |
 | `simplicio-mapper endpoints <path> --against <root> --json` | stdout | `simplicio.endpoint-inventory/v1` | `schema`, `counts.client_calls`, `counts.server_routes`, `client_calls[]`, `server_routes[]`, `missing_from_server[]` |
 | `simplicio-mapper screens <path> --json` | stdout | `simplicio.screen-inventory/v1` | `schema`, `routes[]`, `personas[]`, `guards[]` |
 | `simplicio-mapper flowchart <path> --json` | stdout + `.simplicio/docs/flowchart.md` | `simplicio.service-flowchart/v1` | `schema`, `doc`, `counts.*`, `screens[]`, `unlinked_services[]`, `backend[]` |
