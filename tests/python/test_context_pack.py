@@ -191,6 +191,13 @@ class ContextCacheTest(unittest.TestCase):
         self.assertEqual(on_disk["schema"], CONTEXT_CACHE_SCHEMA)
         self.assertEqual(on_disk["entries"], {"abc": {"summary": "x"}})
 
+    def test_keys_returns_sorted_sample(self) -> None:
+        cache = ContextCache(self.cache_path)
+        cache.set("def", {"summary": "2"})
+        cache.set("abc", {"summary": "1"})
+        self.assertEqual(cache.keys(limit=1), ["abc"])
+        self.assertEqual(cache.keys(), ["abc", "def"])
+
 
 if __name__ == "__main__":
     unittest.main()
