@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-07-01
+
+### Added
+- `simplicio-dev-cli claims gate status` — explicit claims-gate command exposing
+  the MEASURED/CANON/UNVERIFIED discipline as a first-class CLI surface, plus a
+  resilient `inspect status` path that degrades gracefully when the compiled
+  runtime is unavailable.
+- `simplicio-dev-cli file read` — read raw file contents with optional
+  line-range slicing, delegating to the native Rust `simplicio file read`
+  binary when available (via `simplicio.runtime_bridge`) and falling back to a
+  pure-Python implementation otherwise.
+- `simplicio-dev-cli test run` — run the project's test suite through the CLI,
+  mirroring the Rust CLI contract for consistent output between the compiled
+  runtime and the Python fallback.
+
 ### Changed
 - Documented the runtime-first execution chain: `simplicio-runtime` owns
   task/run/gate/evidence orchestration, `simplicio-dev-cli` remains the focused
