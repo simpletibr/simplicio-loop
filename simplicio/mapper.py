@@ -54,6 +54,82 @@ def load_precedent_index(root: str | os.PathLike[str]) -> tuple[Path, dict[str, 
     return load_artifact(root, PRECEDENT_INDEX_CANDIDATES)
 
 
+def artifact_status(root: str | os.PathLike[str]) -> dict[str, Any]:
+    base = Path(root).resolve()
+    project_map_loaded = load_project_map(base)
+    precedent_loaded = load_precedent_index(base)
+
+    payload: dict[str, Any] = {
+        "root": str(base),
+        "project_map": {"present": False, "path": None, "schema": None},
+        "precedent_index": {"present": False, "path": None, "schema": None},
+    }
+
+    if project_map_loaded is not None:
+        map_path, project_map = project_map_loaded
+        payload["project_map"] = {
+            "present": True,
+            "path": str(map_path),
+            "schema": project_map.get("schema"),
+            "generated_at": project_map.get("generated_at"),
+            "entry_points": _as_list(project_map.get("entry_points")),
+            "test_files": _as_list(project_map.get("test_files")),
+            "config_files": _as_list(project_map.get("config_files")),
+            "recent_changes": [
+                item
+                for item in _as_list(project_map.get("recent_changes"))
+                if isinstance(item, dict)
+            ],
+            "module_names": [
+                str(module.get("name"))
+                for module in _as_list(project_map.get("modules"))
+                if isinstance(module, dict) and module.get("name")
+            ],
+        }
+
+    if precedent_loaded is not None:
+        precedent_path, precedent_index = precedent_loaded
+        raw_items = precedent_index.get("items", precedent_index.get("precedents", []))
+        payload["precedent_index"] = {
+            "present": True,
+            "path": str(precedent_path),
+            "schema": precedent_index.get("schema"),
+            "items": len([item for item in _as_list(raw_items) if isinstance(item, dict)]),
+        }
+
+    return payload
+
+
+def inspect_target(
+    root: str | os.PathLike[str],
+    target: str,
+    *,
+    goal: str = "",
+    limit: int = 8,
+    precedent_limit: int = 3,
+) -> dict[str, Any]:
+    base = Path(root).resolve()
+    artifacts = artifact_status(base)
+    payload: dict[str, Any] = {
+        "root": str(base),
+        "target": target,
+        "goal": goal,
+        "artifacts": artifacts,
+        "relevant_files": [],
+        "precedents": rank_precedents(base, f"{goal} {target}", k=precedent_limit),
+        "context": build_mapper_context(base, target, goal=goal),
+    }
+
+    loaded_map = load_project_map(base)
+    if loaded_map is None:
+        return payload
+
+    _map_path, project_map = loaded_map
+    entries = _file_entries(project_map)
+    payload["relevant_files"] = rank_entries(entries, target=target, query=goal, limit=limit)
+    return payload
+
+
 def _as_list(value: Any) -> list[Any]:
     if value is None:
         return []

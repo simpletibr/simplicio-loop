@@ -487,7 +487,97 @@ def test_status_reports_missing_state(tmp_path, monkeypatch, capsys):
     code = cli.main(["status", "--root", str(tmp_path), "--json"])
 
     assert code == 0
-    assert json.loads(capsys.readouterr().out)["state"] == "none"
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["state"] == "none"
+    assert payload["schema"] == "simplicio.dev-cli.status/v1"
+    assert payload["artifacts"]["project_map"]["present"] is False
+    assert payload["claims_gate"] == {
+        "allow_fresh_verification_claim": False,
+        "allow_repo_green_claim": False,
+        "proof_scope": "none",
+        "reason": "fresh passing verification evidence is not available",
+    }
+
+
+def test_status_json_includes_mapper_artifacts(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    _write(
+        tmp_path / ".simplicio" / "sprint_state.json",
+        json.dumps(
+            {
+                "scope": "sprint",
+                "state": "in-progress",
+                "sprint": "Sprint 01",
+                "completed_features": 1,
+                "total_features": 2,
+                "failed_features": [],
+                "failed_dod_gates": [],
+                "complete": False,
+            }
+        ),
+    )
+    _write(
+        tmp_path / ".simplicio" / "project-map.json",
+        json.dumps(
+            {
+                "schema": "project-map/v1",
+                "entry_points": ["src/app.py"],
+                "test_files": ["tests/test_app.py"],
+                "recent_changes": [{"path": "src/app.py", "status": "modified"}],
+            }
+        ),
+    )
+
+    code = cli.main(["status", "--root", str(tmp_path), "--json"])
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["schema"] == "simplicio.dev-cli.status/v1"
+    assert payload["artifacts"]["project_map"]["present"] is True
+    assert payload["artifacts"]["project_map"]["entry_points"] == ["src/app.py"]
+    assert payload["claims_gate"]["allow_fresh_verification_claim"] is False
+    assert payload["claims_gate"]["proof_scope"] == "none"
+
+
+def test_claims_command_is_public_via_argparse(monkeypatch, capsys):
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+
+    code = cli.main(["claims", "tag", "code shows improvement"])
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["tag"] in {"MEASURED", "CANON", "UNVERIFIED"}
+
+
+def test_inspect_command_returns_mapper_backed_json(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    _write(tmp_path / "src" / "app.py", "import os\n")
+    _write(
+        tmp_path / ".simplicio" / "project-map.json",
+        json.dumps(
+            {
+                "schema": "project-map/v1",
+                "files": [
+                    {
+                        "path": "src/app.py",
+                        "language": "python",
+                        "roles": ["entrypoint"],
+                        "summary": "main app",
+                    }
+                ],
+                "entry_points": ["src/app.py"],
+            }
+        ),
+    )
+
+    code = cli.main(["inspect", "src/app.py", "--root", str(tmp_path), "--json"])
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["schema"] == "simplicio.dev-cli.inspect/v1"
+    assert payload["target"] == "src/app.py"
+    assert payload["artifacts"]["project_map"]["present"] is True
+    assert payload["relevant_files"][0]["path"] == "src/app.py"
 
 
 def test_status_json_reports_invalid_state_file(tmp_path, monkeypatch, capsys):
@@ -525,10 +615,30 @@ def test_status_text_reports_state_and_cost(tmp_path, monkeypatch, capsys):
     assert cli.main(["status", "--root", str(complete_root)]) == 0
     assert capsys.readouterr().out == "complete: Sprint 01 2/2 features cost=0.25/1\n"
 
+    status_code = cli.main(["status", "--root", str(complete_root), "--json"])
+    status_payload = json.loads(capsys.readouterr().out)
+    assert status_code == 0
+    assert status_payload["claims_gate"] == {
+        "allow_fresh_verification_claim": True,
+        "allow_repo_green_claim": False,
+        "proof_scope": "sprint_state",
+        "reason": "last passing evidence came from the stored sprint state; it does not prove repo-wide green",
+    }
+
     failed_root = tmp_path / "failed"
     write_state(failed_root, state="complete", failed_features=["Login"])
     assert cli.main(["status", "--root", str(failed_root)]) == 0
     assert capsys.readouterr().out == "failed: Sprint 01 1/2 features cost=0.25/1\n"
+
+    failed_status_code = cli.main(["status", "--root", str(failed_root), "--json"])
+    failed_payload = json.loads(capsys.readouterr().out)
+    assert failed_status_code == 0
+    assert failed_payload["claims_gate"] == {
+        "allow_fresh_verification_claim": False,
+        "allow_repo_green_claim": False,
+        "proof_scope": "none",
+        "reason": "fresh passing verification evidence is not available",
+    }
 
     active_root = tmp_path / "active"
     write_state(active_root)

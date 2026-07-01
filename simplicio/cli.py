@@ -97,11 +97,6 @@ def _try_route_via_simplicio(
 
 
 def _dispatch_nested(argv: list[str]) -> int | None:
-    if argv and argv[0] == "claims":
-        maybe_autoinstall("claims")
-        from .commands.claims import main as claims_main
-
-        return claims_main(argv[1:])
     if argv and argv[0] == "gate":
         clean_args, native, python = _parse_rust_flags(argv[1:])
         result = _try_route_via_simplicio(
@@ -552,10 +547,56 @@ def _write_sprint_state(
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
+def _status_claims_gate(payload: dict[str, object]) -> dict[str, object]:
+    """Return a low-risk claim contract for ``status --json`` consumers.
+
+    A persisted sprint state can prove that this adapter recorded a fresh,
+    passing local execution for the tracked sprint flow. It still cannot prove
+    repo-wide green on its own, so downstream consumers must not escalate that
+    broader claim from a single status payload.
+    """
+
+    failed_features = payload.get("failed_features")
+    failed_dod_gates = payload.get("failed_dod_gates")
+    state = payload.get("state") or ("complete" if payload.get("complete") else "in-progress")
+    has_fresh_passing_state = (
+        bool(payload.get("complete"))
+        and state == "complete"
+        and not failed_features
+        and not failed_dod_gates
+    )
+    if not has_fresh_passing_state:
+        return {
+            "allow_fresh_verification_claim": False,
+            "allow_repo_green_claim": False,
+            "proof_scope": "none",
+            "reason": "fresh passing verification evidence is not available",
+        }
+    return {
+        "allow_fresh_verification_claim": True,
+        "allow_repo_green_claim": False,
+        "proof_scope": "sprint_state",
+        "reason": (
+            "last passing evidence came from the stored sprint state; "
+            "it does not prove repo-wide green"
+        ),
+    }
+
+
 def _run_status_command(a: argparse.Namespace) -> int:
-    state_path = Path(a.root) / ".simplicio" / "sprint_state.json"
+    from .mapper import artifact_status
+
+    root = Path(a.root).resolve()
+    state_path = root / ".simplicio" / "sprint_state.json"
     if not state_path.is_file():
-        payload = {"state": "none", "path": str(state_path)}
+        payload = {
+            "schema": "simplicio.dev-cli.status/v1",
+            "root": str(root),
+            "state": "none",
+            "path": str(state_path),
+            "artifacts": artifact_status(root),
+        }
+        payload["claims_gate"] = _status_claims_gate(payload)
         if a.json:
             print(json.dumps(payload, sort_keys=True))
         else:
@@ -566,8 +607,15 @@ def _run_status_command(a: argparse.Namespace) -> int:
     except json.JSONDecodeError as exc:
         print(f"{CLI_PROG} status: invalid state file: {exc}", file=sys.stderr)
         return 2
+    json_payload = {
+        "schema": "simplicio.dev-cli.status/v1",
+        "root": str(root),
+        **payload,
+        "artifacts": artifact_status(root),
+    }
+    json_payload["claims_gate"] = _status_claims_gate(json_payload)
     if a.json:
-        print(json.dumps(payload, sort_keys=True))
+        print(json.dumps(json_payload, sort_keys=True))
         return 0
     completed = payload.get("completed_features", 0)
     total = payload.get("total_features", 0)
@@ -709,6 +757,35 @@ def _run_runtime_command(a: argparse.Namespace) -> int:
     return 2
 
 
+def _run_claims_command(a: argparse.Namespace) -> int:
+    from .commands.claims import main as claims_main
+
+    claims_argv = [a.claims_cmd]
+    if a.claims_cmd in {"check", "tag"}:
+        claims_argv.extend(a.statement)
+    elif a.claims_cmd == "report":
+        if a.path:
+            claims_argv += ["--path", a.path]
+        if a.json_file:
+            claims_argv += ["--json", a.json_file]
+        claims_argv.extend(a.claims)
+    return claims_main(claims_argv)
+
+
+def _run_inspect_command(a: argparse.Namespace) -> int:
+    from .mapper import inspect_target
+
+    payload = {
+        "schema": "simplicio.dev-cli.inspect/v1",
+        **inspect_target(a.root, a.target, goal=a.goal),
+    }
+    if a.json:
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print(payload["context"])
+    return 0
+
+
 def _run_run_command(a: argparse.Namespace) -> int:
     from .intent import AUTO_CONFIDENCE_THRESHOLD, classify_goal
 
@@ -803,6 +880,23 @@ def main(argv=None):
     p_status = sub.add_parser("status", help="show current simplicio-py run state")
     p_status.add_argument("--root", default=".")
     p_status.add_argument("--json", action="store_true")
+
+    p_claims = sub.add_parser("claims", help="claims-gate checks and report generation")
+    claims_sub = p_claims.add_subparsers(dest="claims_cmd", required=True)
+    p_claims_check = claims_sub.add_parser("check", help="verify a claim against the 8 rules")
+    p_claims_check.add_argument("statement", nargs="+")
+    p_claims_tag = claims_sub.add_parser("tag", help="suggest MEASURED|CANON|UNVERIFIED")
+    p_claims_tag.add_argument("statement", nargs="+")
+    p_claims_report = claims_sub.add_parser("report", help="generate/load a claims report")
+    p_claims_report.add_argument("claims", nargs="*")
+    p_claims_report.add_argument("--path")
+    p_claims_report.add_argument("--json", dest="json_file")
+
+    p_inspect = sub.add_parser("inspect", help="inspect a target with mapper-backed context")
+    p_inspect.add_argument("target")
+    p_inspect.add_argument("--root", default=".")
+    p_inspect.add_argument("--goal", default="")
+    p_inspect.add_argument("--json", action="store_true")
 
     p_doctor = sub.add_parser(
         "doctor",
@@ -989,6 +1083,10 @@ def main(argv=None):
         return detect_main(detect_argv)
     elif a.cmd == "status":
         return _run_status_command(a)
+    elif a.cmd == "claims":
+        return _run_claims_command(a)
+    elif a.cmd == "inspect":
+        return _run_inspect_command(a)
     elif a.cmd == "doctor":
         from .doctor import main as doctor_main
 
