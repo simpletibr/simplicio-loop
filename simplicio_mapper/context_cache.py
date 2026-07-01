@@ -64,6 +64,12 @@ class ContextCache:
     def __len__(self) -> int:
         return len(self._entries)
 
+    def keys(self, limit: int | None = None) -> list[str]:
+        keys = sorted(self._entries)
+        if limit is None:
+            return keys
+        return keys[: max(0, limit)]
+
     def _persist(self) -> None:
         directory = os.path.dirname(self.path)
         if directory:
