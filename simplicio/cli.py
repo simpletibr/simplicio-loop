@@ -772,6 +772,31 @@ def _run_claims_command(a: argparse.Namespace) -> int:
     return claims_main(claims_argv)
 
 
+def _run_file_command(a: argparse.Namespace) -> int:
+    from .commands.file_read import run as file_read_run
+
+    if a.file_cmd == "read":
+        return file_read_run(a)
+    print(f"{CLI_PROG} file: unsupported command", file=sys.stderr)
+    return 2
+
+
+def _run_test_command(a: argparse.Namespace) -> int:
+    from .commands.test_run import run as test_run_run
+
+    if a.test_cmd == "run":
+        extra_args = a.extra_args
+        if extra_args and extra_args[0] == "--":
+            extra_args = extra_args[1:]
+        # `--cmd` is parsed into `test_program` to avoid colliding with the
+        # top-level subparser's `dest="cmd"`; translate to the attribute
+        # name `commands/test_run.py` expects.
+        a.cmd = a.test_program
+        return test_run_run(a, extra_args)
+    print(f"{CLI_PROG} test: unsupported command", file=sys.stderr)
+    return 2
+
+
 def _run_inspect_command(a: argparse.Namespace) -> int:
     from .mapper import inspect_target
 
@@ -939,6 +964,36 @@ def main(argv=None):
         "--no-runtime",
         action="store_true",
         help="use the Python mechanical-edit fallback instead of delegating to simplicio edit",
+    )
+
+    p_file = sub.add_parser("file", help="read raw file contents")
+    file_sub = p_file.add_subparsers(dest="file_cmd", required=True)
+    p_file_read = file_sub.add_parser(
+        "read", help="print a file's contents, optionally sliced by line range"
+    )
+    p_file_read.add_argument("path")
+    p_file_read.add_argument("--json", action="store_true")
+    p_file_read.add_argument("--start", type=int, default=None, help="1-indexed inclusive start line")
+    p_file_read.add_argument("--end", type=int, default=None, help="1-indexed inclusive end line")
+    p_file_read.add_argument("--max-bytes", type=int, default=None, dest="max_bytes")
+    p_file_read.add_argument("--repo", default=".")
+
+    p_test = sub.add_parser("test", help="run a test command and report results")
+    test_sub = p_test.add_subparsers(dest="test_cmd", required=True)
+    p_test_run = test_sub.add_parser("run", help="run a test command (default: pytest)")
+    p_test_run.add_argument("--cmd", dest="test_program", default="pytest")
+    p_test_run.add_argument("--json", action="store_true")
+    p_test_run.add_argument("--repo", default=".")
+    p_test_run.add_argument(
+        "--timeout",
+        type=float,
+        default=120.0,
+        help="seconds to wait for the test command before giving up (default: 120)",
+    )
+    p_test_run.add_argument(
+        "extra_args",
+        nargs=argparse.REMAINDER,
+        help="extra args passed through to --cmd after a literal --",
     )
 
     p_token = sub.add_parser("token", help="token-efficient execution primitives")
@@ -1124,6 +1179,10 @@ def main(argv=None):
         return _run_mechanical_edit_command(a)
     elif a.cmd == "edit":
         return _run_edit_command(a)
+    elif a.cmd == "file":
+        return _run_file_command(a)
+    elif a.cmd == "test":
+        return _run_test_command(a)
     elif a.cmd == "token":
         return _run_token_command(a)
     elif a.cmd == "score-skill":
