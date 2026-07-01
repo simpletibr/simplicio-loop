@@ -1,6 +1,6 @@
 {
   "name": "simplicio-mapper",
-  "version": "0.11.0",
+  "version": "0.13.0",
   "description": "npm wrapper for the simplicio-mapper PyPI package.",
   "bin": {
     "simplicio-mapper": "./bin/simplicio-mapper.js"

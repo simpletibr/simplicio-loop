@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-07-01
+
+### Added
+- `simplicio-mapper inspect <path>` — rich machine-readable inspection command
+  (`simplicio.map-inspection/v1`) combining deep-pass status, on-disk artifact
+  evidence (project map, precedent index, index state, map job, context cache),
+  cache summary, and status warnings for downstream tooling.
+- `simplicio-mapper handoff <path>` — status plus a compact context-pack
+  bundle (`simplicio.map-handoff/v1`) for downstream agent hand-off, sharing
+  the `--await`/`--timeout` polling helper already used by `scan`/`status`.
+- `ContextCache.keys(limit=...)` on the context cache, used by the new
+  `inspect`/`handoff` cache summaries.
+
+### Fixed
+- Resolved the version drift between `simplicio_mapper/__init__.py` and the
+  `package.json`/`pyproject.toml` release metadata (previously 0.12.0 vs
+  0.11.0), which `scripts/check-version-sync.js` now reports as aligned again.
+
 ## [0.11.0] - 2026-06-29
 
 ### Added
