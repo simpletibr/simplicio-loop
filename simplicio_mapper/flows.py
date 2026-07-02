@@ -19,7 +19,15 @@ import re
 from collections import deque
 from typing import Any
 
-from .diagrams import render_flowchart, to_markdown_block
+from .diagrams import (
+    render_call_sequence,
+    render_call_sequence_svg,
+    render_flowchart,
+    render_flowchart_svg,
+    to_image_markdown,
+    to_markdown_block,
+)
+from .mapper import _slugify
 
 FLOW_INVENTORY_SCHEMA = "simplicio.flow-inventory/v1"
 FLOW_ARTIFACT_VERSION = 1
@@ -237,6 +245,36 @@ _EFFECT_LABELS = {
 }
 
 
+def _flow_slug(flow: dict, index: int) -> str:
+    # Index suffix keeps the slug collision-free when two flow ids slugify
+    # to the same string (e.g. "cli:flowchart" and "cli/flowchart").
+    return f"{_slugify(flow['id'])}-{index}"
+
+
+def _flow_diagram_svgs(inventory: dict) -> dict[str, str]:
+    """Standalone SVG companions (steps flowchart + call sequence) per flow.
+
+    Keyed by path relative to the docs root (``docs/``), matching the
+    image links :func:`render_flow_inventory_markdown` embeds in ``flows.md``.
+    """
+    extras: dict[str, str] = {}
+    for index, flow in enumerate(inventory.get("flows") or []):
+        steps = flow["steps"]
+        if not steps:
+            continue
+        slug = _flow_slug(flow, index)
+        step_nodes = [{"id": step["path"], "label": step["path"]} for step in steps]
+        step_edges = [
+            {"source": steps[i]["path"], "target": steps[i + 1]["path"]} for i in range(len(steps) - 1)
+        ]
+        extras[f"diagrams/flows/{slug}-steps.svg"] = render_flowchart_svg(
+            step_nodes, step_edges, direction="LR"
+        )["svg"]
+        chain = [{"actor": step["path"], "label": step["path"]} for step in steps]
+        extras[f"diagrams/flows/{slug}-sequence.svg"] = render_call_sequence_svg(chain)["svg"]
+    return extras
+
+
 def render_flow_inventory_markdown(inventory: dict) -> str:
     coverage = inventory.get("coverage", {})
     flows = inventory.get("flows") or []
@@ -262,7 +300,7 @@ def render_flow_inventory_markdown(inventory: dict) -> str:
         lines.append("No entry points were detected in this repository.")
         return "\n".join(lines)
 
-    for flow in flows:
+    for index, flow in enumerate(flows):
         lines += [
             f"## `{flow['id']}`",
             "",
@@ -278,8 +316,17 @@ def render_flow_inventory_markdown(inventory: dict) -> str:
             for i in range(len(flow["steps"]) - 1)
         ]
         if step_nodes:
+            slug = _flow_slug(flow, index)
             diagram = render_flowchart(step_nodes, step_edges, direction="LR")
+            lines.append(to_image_markdown(f"diagrams/flows/{slug}-steps.svg", "Flow steps diagram"))
+            lines.append("")
             lines.append(to_markdown_block(diagram, heading="Steps"))
+
+            chain = [{"actor": step["path"], "label": step["path"]} for step in flow["steps"]]
+            sequence = render_call_sequence(chain)
+            lines.append(to_image_markdown(f"diagrams/flows/{slug}-sequence.svg", "Call sequence diagram"))
+            lines.append("")
+            lines.append(to_markdown_block(sequence, heading="Call Sequence"))
 
         if flow["effects"]:
             lines += ["**Effects**", "", "| Type | Evidence |", "| --- | --- |"]

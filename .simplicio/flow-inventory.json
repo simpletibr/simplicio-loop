@@ -1,8 +1,8 @@
 {
   "schema": "simplicio.flow-inventory/v1",
   "version": 1,
-  "generated_at": "2026-07-02T07:11:31.155Z",
-  "root": "/home/user/simplicio-mapper",
+  "generated_at": "2026-07-02T13:51:51.542Z",
+  "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-mapper",
   "flows": [
     {
       "id": "bin.apply.edits",
@@ -491,14 +491,14 @@
       "entry": {
         "path": "simplicio_mapper/cli.py",
         "symbol": "simplicio_mapper/cli.py::_read_json_safe",
-        "line": 148
+        "line": 149
       },
       "steps": [
         {
           "module": "simplicio_mapper",
           "path": "simplicio_mapper/cli.py",
           "symbol": "simplicio_mapper/cli.py::_read_json_safe",
-          "line": 148
+          "line": 149
         },
         {
           "module": "bin",
@@ -600,35 +600,35 @@
           "type": "fs-read",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 720
+            "line": 721
           }
         },
         {
           "type": "fs-read",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1017
+            "line": 1018
           }
         },
         {
           "type": "fs-read",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1106
+            "line": 1107
           }
         },
         {
           "type": "fs-read",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1140
+            "line": 1141
           }
         },
         {
           "type": "fs-read",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1465
+            "line": 1466
           }
         },
         {
@@ -719,14 +719,14 @@
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 392
+            "line": 32
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 506
+            "line": 393
           }
         },
         {
@@ -740,21 +740,21 @@
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1689
+            "line": 508
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1691
+            "line": 1690
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1721
+            "line": 1692
           }
         },
         {
@@ -775,91 +775,91 @@
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1729
+            "line": 1724
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1731
+            "line": 1730
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1814
+            "line": 1732
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1815
+            "line": 1735
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1816
+            "line": 1818
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1821
+            "line": 1819
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1823
+            "line": 1820
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1849
+            "line": 1825
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1851
+            "line": 1827
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1857
+            "line": 1830
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1884
+            "line": 1856
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1885
+            "line": 1858
           }
         },
         {
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1886
+            "line": 1864
           }
         },
         {
@@ -873,6 +873,13 @@
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
+            "line": 1892
+          }
+        },
+        {
+          "type": "fs-write",
+          "evidence": {
+            "path": "simplicio_mapper/cli.py",
             "line": 1893
           }
         },
@@ -880,49 +887,63 @@
           "type": "fs-write",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 2432
+            "line": 1898
+          }
+        },
+        {
+          "type": "fs-write",
+          "evidence": {
+            "path": "simplicio_mapper/cli.py",
+            "line": 1900
+          }
+        },
+        {
+          "type": "fs-write",
+          "evidence": {
+            "path": "simplicio_mapper/cli.py",
+            "line": 2439
           }
         },
         {
           "type": "subprocess",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 425
+            "line": 426
           }
         },
         {
           "type": "subprocess",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 434
+            "line": 435
           }
         },
         {
           "type": "subprocess",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 441
+            "line": 442
           }
         },
         {
           "type": "subprocess",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 456
+            "line": 457
           }
         },
         {
           "type": "subprocess",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1992
+            "line": 1999
           }
         },
         {
           "type": "subprocess",
           "evidence": {
             "path": "simplicio_mapper/cli.py",
-            "line": 1997
+            "line": 2004
           }
         }
       ],
@@ -975,49 +996,13 @@
           "module": "tests",
           "path": "tests/python/test_cli.py",
           "symbol": "tests/python/test_cli.py::_write",
-          "line": 43
+          "line": 45
         },
         {
           "module": "simplicio_mapper",
           "path": "simplicio_mapper/cache.py",
           "symbol": "simplicio_mapper/cache.py::FileProcessingCache",
           "line": 10
-        },
-        {
-          "module": "bin",
-          "path": "bin/apply-edits.js",
-          "symbol": "bin/apply-edits.js::EditError",
-          "line": 50
-        },
-        {
-          "module": "bin",
-          "path": "bin/auto-map.js",
-          "symbol": "bin/auto-map.js::readSafe",
-          "line": 22
-        },
-        {
-          "module": "bin",
-          "path": "bin/cli.js",
-          "symbol": "bin/cli.js::printHelp",
-          "line": 367
-        },
-        {
-          "module": "bin",
-          "path": "bin/skillopt.js",
-          "symbol": "bin/skillopt.js::printHelp",
-          "line": 20
-        },
-        {
-          "module": "packaging",
-          "path": "packaging/npm/lib/python-shim.js",
-          "symbol": "packaging/npm/lib/python-shim.js::run",
-          "line": 7
-        },
-        {
-          "module": "bin",
-          "path": "bin/map.js",
-          "symbol": "bin/map.js::readJsonSafe",
-          "line": 7
         }
       ],
       "effects": [
@@ -1046,217 +1031,28 @@
           "type": "cache-or-db",
           "evidence": {
             "path": "tests/python/test_cli.py",
-            "line": 23
+            "line": 24
           }
         },
         {
           "type": "cache-or-db",
           "evidence": {
             "path": "tests/python/test_cli.py",
-            "line": 51
+            "line": 53
           }
         },
         {
           "type": "cache-or-db",
           "evidence": {
             "path": "tests/python/test_cli.py",
-            "line": 54
+            "line": 56
           }
         },
         {
           "type": "cache-or-db",
           "evidence": {
             "path": "tests/python/test_cli.py",
-            "line": 659
-          }
-        },
-        {
-          "type": "fs-read",
-          "evidence": {
-            "path": "bin/apply-edits.js",
-            "line": 74
-          }
-        },
-        {
-          "type": "fs-read",
-          "evidence": {
-            "path": "bin/apply-edits.js",
-            "line": 348
-          }
-        },
-        {
-          "type": "fs-read",
-          "evidence": {
-            "path": "bin/auto-map.js",
-            "line": 25
-          }
-        },
-        {
-          "type": "fs-read",
-          "evidence": {
-            "path": "bin/cli.js",
-            "line": 434
-          }
-        },
-        {
-          "type": "fs-read",
-          "evidence": {
-            "path": "bin/cli.js",
-            "line": 466
-          }
-        },
-        {
-          "type": "fs-read",
-          "evidence": {
-            "path": "bin/cli.js",
-            "line": 542
-          }
-        },
-        {
-          "type": "fs-read",
-          "evidence": {
-            "path": "bin/cli.js",
-            "line": 749
-          }
-        },
-        {
-          "type": "fs-read",
-          "evidence": {
-            "path": "bin/cli.js",
-            "line": 1014
-          }
-        },
-        {
-          "type": "fs-read",
-          "evidence": {
-            "path": "bin/map.js",
-            "line": 10
-          }
-        },
-        {
-          "type": "fs-read",
-          "evidence": {
-            "path": "bin/skillopt.js",
-            "line": 79
-          }
-        },
-        {
-          "type": "fs-read",
-          "evidence": {
-            "path": "bin/skillopt.js",
-            "line": 145
-          }
-        },
-        {
-          "type": "fs-read",
-          "evidence": {
-            "path": "packaging/npm/lib/python-shim.js",
-            "line": 96
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "bin/apply-edits.js",
-            "line": 292
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "bin/auto-map.js",
-            "line": 1157
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "bin/auto-map.js",
-            "line": 1169
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "bin/cli.js",
-            "line": 453
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "bin/cli.js",
-            "line": 481
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "bin/cli.js",
-            "line": 829
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "bin/cli.js",
-            "line": 839
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "bin/cli.js",
-            "line": 848
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "bin/cli.js",
-            "line": 889
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "bin/cli.js",
-            "line": 1027
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "bin/cli.js",
-            "line": 1114
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "bin/skillopt.js",
-            "line": 105
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "bin/skillopt.js",
-            "line": 163
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "bin/skillopt.js",
-            "line": 167
-          }
-        },
-        {
-          "type": "fs-write",
-          "evidence": {
-            "path": "packaging/npm/lib/python-shim.js",
-            "line": 102
+            "line": 686
           }
         },
         {
@@ -1277,42 +1073,42 @@
           "type": "subprocess",
           "evidence": {
             "path": "tests/python/test_cli.py",
-            "line": 238
+            "line": 265
           }
         },
         {
           "type": "subprocess",
           "evidence": {
             "path": "tests/python/test_cli.py",
-            "line": 861
+            "line": 888
           }
         },
         {
           "type": "subprocess",
           "evidence": {
             "path": "tests/python/test_cli.py",
-            "line": 862
+            "line": 889
           }
         },
         {
           "type": "subprocess",
           "evidence": {
             "path": "tests/python/test_cli.py",
-            "line": 863
+            "line": 890
           }
         },
         {
           "type": "subprocess",
           "evidence": {
             "path": "tests/python/test_cli.py",
-            "line": 866
+            "line": 893
           }
         },
         {
           "type": "subprocess",
           "evidence": {
             "path": "tests/python/test_cli.py",
-            "line": 867
+            "line": 894
           }
         }
       ],

@@ -2,6 +2,162 @@
 
 Edges are deterministic or heuristic. Review `confidence` before using a relationship as proof.
 
+## Call Graph Diagram
+
+![Call graph diagram](diagrams/call-graph.svg)
+
+```mermaid
+flowchart TB
+  github_workflows_templates_telemetry_worker_js[".github/workflows-templates/telemetry-worker.js"]
+  bin_apply_edits_js["bin/apply-edits.js"]
+  bin_auto_map_js["bin/auto-map.js"]
+  bin_cli_js["bin/cli.js"]
+  bin_map_js["bin/map.js"]
+  bin_mapper_artifacts_js["bin/mapper-artifacts.js"]
+  bin_skillopt_js["bin/skillopt.js"]
+  packaging_npm_bin_simplicio_mapper_js["packaging/npm/bin/simplicio-mapper.js"]
+  packaging_npm_lib_python_shim_js["packaging/npm/lib/python-shim.js"]
+  rust_src_lib_rs["rust/src/lib.rs"]
+  scripts_build_hamt_py["scripts/build_hamt.py"]
+  scripts_check_version_sync_js["scripts/check-version-sync.js"]
+  scripts_coverage_js["scripts/coverage.js"]
+  scripts_lint_js["scripts/lint.js"]
+  scripts_render_simplicio_comment_js["scripts/render-simplicio-comment.js"]
+  scripts_skillopt_engine_js["scripts/skillopt/engine.js"]
+  scripts_sync_docs_site_mjs["scripts/sync-docs-site.mjs"]
+  simplicio_mapper___init___py["simplicio_mapper/__init__.py"]
+  simplicio_mapper_business_py["simplicio_mapper/business.py"]
+  simplicio_mapper_cache_py["simplicio_mapper/cache.py"]
+  simplicio_mapper_cli_py["simplicio_mapper/cli.py"]
+  simplicio_mapper_context_cache_py["simplicio_mapper/context_cache.py"]
+  simplicio_mapper_context_pack_py["simplicio_mapper/context_pack.py"]
+  simplicio_mapper_diagrams_py["simplicio_mapper/diagrams.py"]
+  simplicio_mapper_docsync_py["simplicio_mapper/docsync.py"]
+  simplicio_mapper_drift_py["simplicio_mapper/drift.py"]
+  simplicio_mapper_flows_py["simplicio_mapper/flows.py"]
+  simplicio_mapper_history_py["simplicio_mapper/history.py"]
+  simplicio_mapper_mapper_py["simplicio_mapper/mapper.py"]
+  simplicio_mapper_mechanical_edit_py["simplicio_mapper/mechanical_edit.py"]
+  github_workflows_templates_telemetry_worker_js --> simplicio_mapper_context_cache_py
+  bin_apply_edits_js --> bin_auto_map_js
+  bin_apply_edits_js -->|2 edges| bin_cli_js
+  bin_apply_edits_js --> bin_map_js
+  bin_apply_edits_js -->|2 edges| bin_skillopt_js
+  bin_apply_edits_js --> scripts_skillopt_engine_js
+  bin_apply_edits_js --> simplicio_mapper_context_cache_py
+  bin_auto_map_js -->|5 edges| bin_cli_js
+  bin_auto_map_js -->|6 edges| bin_mapper_artifacts_js
+  bin_auto_map_js --> scripts_lint_js
+  bin_auto_map_js --> simplicio_mapper_context_cache_py
+  bin_cli_js --> bin_apply_edits_js
+  bin_cli_js -->|6 edges| bin_auto_map_js
+  bin_cli_js --> bin_map_js
+  bin_cli_js -->|2 edges| bin_mapper_artifacts_js
+  bin_cli_js -->|2 edges| bin_skillopt_js
+  bin_cli_js --> scripts_lint_js
+  bin_cli_js --> simplicio_mapper_cache_py
+  bin_cli_js -->|2 edges| simplicio_mapper_context_cache_py
+  bin_map_js --> bin_apply_edits_js
+  bin_map_js -->|2 edges| bin_cli_js
+  bin_map_js -->|2 edges| bin_mapper_artifacts_js
+  bin_map_js -->|2 edges| bin_skillopt_js
+  bin_map_js --> scripts_lint_js
+  bin_map_js --> scripts_render_simplicio_comment_js
+  bin_mapper_artifacts_js -->|5 edges| bin_auto_map_js
+  bin_mapper_artifacts_js -->|4 edges| bin_cli_js
+  bin_mapper_artifacts_js --> scripts_lint_js
+  bin_mapper_artifacts_js --> scripts_skillopt_engine_js
+  bin_mapper_artifacts_js -->|2 edges| simplicio_mapper_context_cache_py
+  bin_skillopt_js -->|2 edges| bin_apply_edits_js
+  bin_skillopt_js -->|3 edges| bin_cli_js
+  bin_skillopt_js -->|2 edges| bin_map_js
+  bin_skillopt_js --> scripts_lint_js
+  bin_skillopt_js -->|2 edges| scripts_skillopt_engine_js
+  packaging_npm_bin_simplicio_mapper_js -->|2 edges| packaging_npm_lib_python_shim_js
+  rust_src_lib_rs --> bin_mapper_artifacts_js
+  rust_src_lib_rs --> scripts_build_hamt_py
+  rust_src_lib_rs --> simplicio_mapper_context_cache_py
+  scripts_build_hamt_py --> bin_apply_edits_js
+  scripts_build_hamt_py --> bin_auto_map_js
+  scripts_build_hamt_py -->|2 edges| bin_cli_js
+  scripts_build_hamt_py --> bin_mapper_artifacts_js
+  scripts_build_hamt_py --> bin_skillopt_js
+  scripts_build_hamt_py --> simplicio_mapper_context_cache_py
+  scripts_check_version_sync_js --> bin_apply_edits_js
+  scripts_check_version_sync_js -->|2 edges| bin_cli_js
+  scripts_check_version_sync_js --> bin_skillopt_js
+  scripts_check_version_sync_js --> scripts_lint_js
+  scripts_check_version_sync_js --> simplicio_mapper_context_cache_py
+  scripts_coverage_js --> bin_cli_js
+  scripts_coverage_js --> scripts_lint_js
+  scripts_lint_js --> bin_apply_edits_js
+  scripts_lint_js --> bin_auto_map_js
+  scripts_lint_js -->|3 edges| bin_cli_js
+  scripts_lint_js --> bin_mapper_artifacts_js
+  scripts_lint_js --> bin_skillopt_js
+  scripts_render_simplicio_comment_js --> bin_apply_edits_js
+  scripts_render_simplicio_comment_js --> bin_cli_js
+  scripts_render_simplicio_comment_js --> bin_map_js
+  %% truncated: 22 node(s) and 82 edge(s) omitted above max_nodes/max_edges — see the full list below
+```
+
+<details><summary>Full list (diagram truncated)</summary>
+
+- .github/workflows-templates/telemetry-worker.js (`.github/workflows-templates/telemetry-worker.js`)
+- bin/apply-edits.js (`bin/apply-edits.js`)
+- bin/auto-map.js (`bin/auto-map.js`)
+- bin/cli.js (`bin/cli.js`)
+- bin/map.js (`bin/map.js`)
+- bin/mapper-artifacts.js (`bin/mapper-artifacts.js`)
+- bin/skillopt.js (`bin/skillopt.js`)
+- packaging/npm/bin/simplicio-mapper.js (`packaging/npm/bin/simplicio-mapper.js`)
+- packaging/npm/lib/python-shim.js (`packaging/npm/lib/python-shim.js`)
+- rust/src/lib.rs (`rust/src/lib.rs`)
+- scripts/build_hamt.py (`scripts/build_hamt.py`)
+- scripts/check-version-sync.js (`scripts/check-version-sync.js`)
+- scripts/coverage.js (`scripts/coverage.js`)
+- scripts/lint.js (`scripts/lint.js`)
+- scripts/render-simplicio-comment.js (`scripts/render-simplicio-comment.js`)
+- scripts/skillopt/engine.js (`scripts/skillopt/engine.js`)
+- scripts/sync-docs-site.mjs (`scripts/sync-docs-site.mjs`)
+- simplicio_mapper/__init__.py (`simplicio_mapper/__init__.py`)
+- simplicio_mapper/business.py (`simplicio_mapper/business.py`)
+- simplicio_mapper/cache.py (`simplicio_mapper/cache.py`)
+- simplicio_mapper/cli.py (`simplicio_mapper/cli.py`)
+- simplicio_mapper/context_cache.py (`simplicio_mapper/context_cache.py`)
+- simplicio_mapper/context_pack.py (`simplicio_mapper/context_pack.py`)
+- simplicio_mapper/diagrams.py (`simplicio_mapper/diagrams.py`)
+- simplicio_mapper/docsync.py (`simplicio_mapper/docsync.py`)
+- simplicio_mapper/drift.py (`simplicio_mapper/drift.py`)
+- simplicio_mapper/flows.py (`simplicio_mapper/flows.py`)
+- simplicio_mapper/history.py (`simplicio_mapper/history.py`)
+- simplicio_mapper/mapper.py (`simplicio_mapper/mapper.py`)
+- simplicio_mapper/mechanical_edit.py (`simplicio_mapper/mechanical_edit.py`)
+- simplicio_mapper/models.py (`simplicio_mapper/models.py`)
+- simplicio_mapper/query.py (`simplicio_mapper/query.py`)
+- simplicio_mapper/survey.py (`simplicio_mapper/survey.py`)
+- tests/e2e/build-hamt-catalog.spec.ts (`tests/e2e/build-hamt-catalog.spec.ts`)
+- tests/e2e/cli.spec.ts (`tests/e2e/cli.spec.ts`)
+- tests/e2e/flowchart.spec.ts (`tests/e2e/flowchart.spec.ts`)
+- tests/e2e/skillopt.spec.ts (`tests/e2e/skillopt.spec.ts`)
+- tests/e2e/tier-languages.spec.ts (`tests/e2e/tier-languages.spec.ts`)
+- tests/e2e/two-tier-mapper.spec.ts (`tests/e2e/two-tier-mapper.spec.ts`)
+- tests/fixtures/mech-edit-host/sample.py (`tests/fixtures/mech-edit-host/sample.py`)
+- tests/fixtures/mech-edit-host/sample.ts (`tests/fixtures/mech-edit-host/sample.ts`)
+- tests/fixtures/parity-host/src/greet.js (`tests/fixtures/parity-host/src/greet.js`)
+- tests/fixtures/parity-host/src/index.js (`tests/fixtures/parity-host/src/index.js`)
+- tests/fixtures/parity-host/tests/server-fixture.js (`tests/fixtures/parity-host/tests/server-fixture.js`)
+- tests/python/test_business.py (`tests/python/test_business.py`)
+- tests/python/test_cli.py (`tests/python/test_cli.py`)
+- tests/python/test_cli_coverage.py (`tests/python/test_cli_coverage.py`)
+- tests/python/test_survey.py (`tests/python/test_survey.py`)
+- tests/unit/apply-edits.test.js (`tests/unit/apply-edits.test.js`)
+- tests/unit/cli-install.test.js (`tests/unit/cli-install.test.js`)
+- tests/unit/mapping-artifacts.test.js (`tests/unit/mapping-artifacts.test.js`)
+- video/scripts/generate-why-voiceover.mjs (`video/scripts/generate-why-voiceover.mjs`)
+
+</details>
+
 ## Relationships
 
 - calls: `.github/workflows-templates/telemetry-worker.js:31` -> `.github/workflows-templates/telemetry-worker.js::sanitize` (confidence 0.58)

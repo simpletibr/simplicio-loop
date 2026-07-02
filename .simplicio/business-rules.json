@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.business-rules/v1",
   "version": 1,
-  "generated_at": "2026-07-02T07:11:31.844Z",
+  "generated_at": "2026-07-02T13:51:52.389Z",
   "rules": [
     {
       "id": "rule.invariant.scripts/build_hamt.py.180",
@@ -17,26 +17,26 @@
       "flows": []
     },
     {
-      "id": "rule.invariant.simplicio_mapper/mapper.py.1732",
+      "id": "rule.invariant.simplicio_mapper/mapper.py.1808",
       "category": "invariant",
       "statement": "--target is required for export-docs",
       "evidence": [
         {
           "path": "simplicio_mapper/mapper.py",
-          "line": 1732
+          "line": 1808
         }
       ],
       "confidence": "observed",
       "flows": []
     },
     {
-      "id": "rule.invariant.tests/python/test_business.py.59",
+      "id": "rule.invariant.tests/python/test_business.py.61",
       "category": "invariant",
       "statement": "cannot ship after timeout",
       "evidence": [
         {
           "path": "tests/python/test_business.py",
-          "line": 59
+          "line": 61
         }
       ],
       "confidence": "observed",
@@ -101,33 +101,33 @@
       "evidence": [
         {
           "path": "tests/python/test_business.py",
-          "line": 58
+          "line": 60
         }
       ],
       "confidence": "observed",
       "flows": []
     },
     {
-      "id": "rule.permission.tests/python/test_business.py.62",
+      "id": "rule.permission.tests/python/test_business.py.64",
       "category": "permission",
       "statement": "access gate: authentication/authorization check observed",
       "evidence": [
         {
           "path": "tests/python/test_business.py",
-          "line": 62
+          "line": 64
         }
       ],
       "confidence": "observed",
       "flows": []
     },
     {
-      "id": "rule.side-effect.notification.tests/python/test_business.py.65",
+      "id": "rule.side-effect.notification.tests/python/test_business.py.67",
       "category": "side-effect",
       "statement": "business side-effect observed: notification",
       "evidence": [
         {
           "path": "tests/python/test_business.py",
-          "line": 65
+          "line": 67
         }
       ],
       "confidence": "observed",
@@ -236,7 +236,7 @@
       "term": "not",
       "status": "documented",
       "definition_source": "docs/domain-map.md",
-      "occurrences": 7
+      "occurrences": 9
     },
     {
       "term": "não",
@@ -314,25 +314,25 @@
       "term": "symbol",
       "status": "documented",
       "definition_source": ".specs/product/DOMAIN.md",
-      "occurrences": 7
+      "occurrences": 8
     },
     {
       "term": "file",
       "status": "undocumented",
       "definition_source": null,
-      "occurrences": 47
+      "occurrences": 50
+    },
+    {
+      "term": "render",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 50
     },
     {
       "term": "run",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 44
-    },
-    {
-      "term": "render",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 43
     },
     {
       "term": "build",
@@ -350,7 +350,7 @@
       "term": "for",
       "status": "undocumented",
       "definition_source": null,
-      "occurrences": 33
+      "occurrences": 35
     },
     {
       "term": "read",
@@ -365,16 +365,28 @@
       "occurrences": 31
     },
     {
+      "term": "and",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 27
+    },
+    {
       "term": "tmp",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 26
     },
     {
-      "term": "and",
+      "term": "markdown",
       "status": "undocumented",
       "definition_source": null,
-      "occurrences": 23
+      "occurrences": 24
+    },
+    {
+      "term": "flow",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 22
     },
     {
       "term": "path",
@@ -383,7 +395,7 @@
       "occurrences": 21
     },
     {
-      "term": "markdown",
+      "term": "docs",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 20
@@ -401,19 +413,25 @@
       "occurrences": 19
     },
     {
-      "term": "docs",
+      "term": "down",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 18
     },
     {
-      "term": "doc",
+      "term": "tear",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 18
+    },
+    {
+      "term": "call",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 17
     },
     {
-      "term": "down",
+      "term": "doc",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 17
@@ -426,12 +444,6 @@
     },
     {
       "term": "hash",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 17
-    },
-    {
-      "term": "tear",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 17
@@ -461,6 +473,12 @@
       "occurrences": 15
     },
     {
+      "term": "flowchart",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 15
+    },
+    {
       "term": "safe",
       "status": "undocumented",
       "definition_source": null,
@@ -473,7 +491,13 @@
       "occurrences": 15
     },
     {
-      "term": "flow",
+      "term": "diagram",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 14
+    },
+    {
+      "term": "graph",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 14
@@ -497,19 +521,19 @@
       "occurrences": 13
     },
     {
+      "term": "same",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 13
+    },
+    {
+      "term": "architecture",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 12
+    },
+    {
       "term": "cache",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 12
-    },
-    {
-      "term": "call",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 12
-    },
-    {
-      "term": "flowchart",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 12
@@ -527,19 +551,19 @@
       "occurrences": 12
     },
     {
-      "term": "same",
+      "term": "reports",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 12
     },
     {
-      "term": "architecture",
+      "term": "detect",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 11
     },
     {
-      "term": "detect",
+      "term": "state",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 11
@@ -551,13 +575,19 @@
       "occurrences": 10
     },
     {
+      "term": "module",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 10
+    },
+    {
       "term": "python",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 10
     },
     {
-      "term": "reports",
+      "term": "with",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 10
@@ -567,6 +597,12 @@
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 10
+    },
+    {
+      "term": "business",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 9
     },
     {
       "term": "cli",
@@ -611,7 +647,13 @@
       "occurrences": 9
     },
     {
-      "term": "with",
+      "term": "svg",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 9
+    },
+    {
+      "term": "sync",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 9
@@ -635,19 +677,13 @@
       "occurrences": 8
     },
     {
-      "term": "module",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 8
-    },
-    {
       "term": "scan",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 8
     },
     {
-      "term": "state",
+      "term": "svgs",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 8
@@ -659,18 +695,6 @@
       "occurrences": 8
     },
     {
-      "term": "sync",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 8
-    },
-    {
-      "term": "business",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 7
-    },
-    {
       "term": "changes",
       "status": "undocumented",
       "definition_source": null,
@@ -678,12 +702,6 @@
     },
     {
       "term": "evidence",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 7
-    },
-    {
-      "term": "graph",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 7
@@ -702,6 +720,12 @@
     },
     {
       "term": "init",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "layers",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 7
@@ -731,6 +755,18 @@
       "occurrences": 7
     },
     {
+      "term": "per",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "renders",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
       "term": "returns",
       "status": "undocumented",
       "definition_source": null,
@@ -753,6 +789,12 @@
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 7
+    },
+    {
+      "term": "are",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
     },
     {
       "term": "attach",
@@ -779,6 +821,12 @@
       "occurrences": 6
     },
     {
+      "term": "formed",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
       "term": "help",
       "status": "undocumented",
       "definition_source": null,
@@ -791,7 +839,13 @@
       "occurrences": 6
     },
     {
-      "term": "layers",
+      "term": "includes",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
+      "term": "label",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 6
@@ -815,6 +869,12 @@
       "occurrences": 6
     },
     {
+      "term": "root",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
       "term": "rules",
       "status": "undocumented",
       "definition_source": null,
@@ -822,6 +882,12 @@
     },
     {
       "term": "signature",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
+      "term": "well",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 6
@@ -851,6 +917,12 @@
       "occurrences": 5
     },
     {
+      "term": "empty",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
       "term": "endpoints",
       "status": "undocumented",
       "definition_source": null,
@@ -863,19 +935,13 @@
       "occurrences": 5
     },
     {
+      "term": "escape",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
       "term": "flows",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 5
-    },
-    {
-      "term": "includes",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 5
-    },
-    {
-      "term": "label",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 5
@@ -905,6 +971,12 @@
       "occurrences": 5
     },
     {
+      "term": "output",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
       "term": "package",
       "status": "undocumented",
       "definition_source": null,
@@ -912,12 +984,6 @@
     },
     {
       "term": "paths",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 5
-    },
-    {
-      "term": "per",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 5
@@ -947,6 +1013,18 @@
       "occurrences": 5
     },
     {
+      "term": "sequence",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "slug",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
       "term": "stack",
       "status": "undocumented",
       "definition_source": null,
@@ -959,19 +1037,31 @@
       "occurrences": 5
     },
     {
+      "term": "truncation",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
       "term": "unknown",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 5
     },
     {
-      "term": "are",
+      "term": "xml",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "binary",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 4
     },
     {
-      "term": "binary",
+      "term": "collapse",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 4
@@ -995,7 +1085,19 @@
       "occurrences": 4
     },
     {
+      "term": "deterministic",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
       "term": "dir",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "edges",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 4
@@ -1008,12 +1110,6 @@
     },
     {
       "term": "effects",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 4
-    },
-    {
-      "term": "escape",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 4
@@ -1043,6 +1139,12 @@
       "occurrences": 4
     },
     {
+      "term": "keeps",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
       "term": "languages",
       "status": "undocumented",
       "definition_source": null,
@@ -1061,25 +1163,19 @@
       "occurrences": 4
     },
     {
+      "term": "omitted",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
       "term": "raises",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 4
     },
     {
-      "term": "renders",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 4
-    },
-    {
       "term": "roles",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 4
-    },
-    {
-      "term": "root",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 4
@@ -1151,7 +1247,25 @@
       "occurrences": 4
     },
     {
+      "term": "when",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "adversarial",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
       "term": "agent",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "all",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 3
@@ -1199,6 +1313,12 @@
       "occurrences": 3
     },
     {
+      "term": "chain",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
       "term": "changelog",
       "status": "undocumented",
       "definition_source": null,
@@ -1212,12 +1332,6 @@
     },
     {
       "term": "client",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 3
-    },
-    {
-      "term": "collapse",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 3
@@ -1259,6 +1373,18 @@
       "occurrences": 3
     },
     {
+      "term": "cycle",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "dependency",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
       "term": "detected",
       "status": "undocumented",
       "definition_source": null,
@@ -1272,18 +1398,6 @@
     },
     {
       "term": "detects",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 3
-    },
-    {
-      "term": "deterministic",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 3
-    },
-    {
-      "term": "diagram",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 3
@@ -1319,19 +1433,7 @@
       "occurrences": 3
     },
     {
-      "term": "edges",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 3
-    },
-    {
       "term": "edits",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 3
-    },
-    {
-      "term": "empty",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 3
@@ -1361,7 +1463,19 @@
       "occurrences": 3
     },
     {
+      "term": "external",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
       "term": "fallback",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "global",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 3
@@ -1385,6 +1499,12 @@
       "occurrences": 3
     },
     {
+      "term": "image",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
       "term": "incremental",
       "status": "undocumented",
       "definition_source": null,
@@ -1392,6 +1512,18 @@
     },
     {
       "term": "job",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "large",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "level",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 3
@@ -1410,6 +1542,12 @@
     },
     {
       "term": "looks",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "machine",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 3
@@ -1475,6 +1613,12 @@
       "occurrences": 3
     },
     {
+      "term": "order",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
       "term": "orphan",
       "status": "undocumented",
       "definition_source": null,
@@ -1488,6 +1632,12 @@
     },
     {
       "term": "placeholder",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "positions",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 3
@@ -1583,6 +1733,18 @@
       "occurrences": 3
     },
     {
+      "term": "steps",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "still",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
       "term": "substitute",
       "status": "undocumented",
       "definition_source": null,
@@ -1644,12 +1806,6 @@
     },
     {
       "term": "watch",
-      "status": "undocumented",
-      "definition_source": null,
-      "occurrences": 3
-    },
-    {
-      "term": "when",
       "status": "undocumented",
       "definition_source": null,
       "occurrences": 3
