@@ -104,15 +104,21 @@ def test_precedent_index_ranks_candidates_without_embedding(tmp_path):
 
 
 def test_precedent_unknown_stack_falls_back_without_keyerror(tmp_path):
+    # Asserts the STRUCTURAL invariant (marker + the stack name surfaced in the fallback
+    # message), not literal prose wording — the exact wording of this fallback sentence is
+    # an intentional optimization target of the #90 autoresearch run (bench/precedent_
+    # autoresearch_mutate.py), so pinning its exact text here would make the gate reject
+    # every legitimate wording improvement by construction.
+    stack = "Python + FastAPI"
     block = build_precedent_block(
         str(tmp_path),
-        "Python + FastAPI",
+        stack,
         "Add a FastAPI route",
         k=1,
     )
 
     assert "[PRECEDENT]" in block
-    assert "no stack-specific precedent scanner" in block
+    assert repr(stack) in block
 
 
 def test_precedent_alias_stack_scanner_handles_project_stack_labels(tmp_path):

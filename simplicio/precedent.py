@@ -139,7 +139,7 @@ def build_precedent_block(root, stack, task, k=2):
     if indexed:
         lines = [
             "[PRECEDENT]",
-            "Structured precedent-index candidates from simplicio-mapper. Prefer these before inventing a new convention:",
+            "Precedents:",
         ]
         for c in indexed:
             rel = c.get("path", "(unknown)")
@@ -150,7 +150,7 @@ def build_precedent_block(root, stack, task, k=2):
                 if isinstance(c.get("tags"), list)
                 else ""
             )
-            lines.append(f"\n# {rel}:{line}  ({summary})")
+            lines.append(f"\n# {rel}:{line} ({summary})")
             if tags:
                 lines.append(f"tags: {tags}")
             if c.get("snippet"):
@@ -161,12 +161,12 @@ def build_precedent_block(root, stack, task, k=2):
     if stack_key is None:
         return (
             "[PRECEDENT]\n"
-            f"(no stack-specific precedent scanner for {stack!r} — generate from scratch using stack convention)"
+            f"(no scanner {stack!r})"
         )
 
     cache, cands = index_repo(root, stack_key, verbose=False)
     if not cands:
-        return "[PRECEDENT]\n(no similar pattern in repo — generate from scratch using stack convention)"
+        return "[PRECEDENT]\n(no match)"
     texts = [c["code"] for c in cands]
     vc = cache.lookup(texts)  # from cache, no re-embed
     vt = _embedder().encode([task])[0]  # only the task (short)
@@ -181,10 +181,10 @@ def build_precedent_block(root, stack, task, k=2):
     tops = out[:k]
     lines = [
         "[PRECEDENT]",
-        "This project ALREADY does something similar. Follow THIS convention, don't invent:",
+        "Similar code:",
     ]
     for c in tops:
         rel = os.path.relpath(c["file"], root)
-        lines.append(f"\n# {rel}:{c['line']}  (similarity {c['score']:.2f})")
+        lines.append(f"\n# {rel}:{c['line']} (s{c['score']:.2f})")
         lines.append(c["code"])
     return "\n".join(lines)
