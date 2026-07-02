@@ -109,10 +109,17 @@ docs/**
 !docs/YOOL_TUPLE_HAMT.md
 !docs/apply-edits.md
 !docs/apply-edits.example.json
+!docs/toon-benchmark.md
+!docs/asolaria-integration.md
+!docs/toon-autoresearch-log.md
 scripts/**
 !scripts/build_hamt.py
 !scripts/coverage.js
 !scripts/check-placeholders.sh
+!scripts/toon_benchmark.py
+!scripts/toon_contract_runner.py
+!scripts/sync_toon_contract.py
+!scripts/toon_autoresearch.py
 !scripts/render-simplicio-comment.js
 !scripts/skillopt/
 !scripts/skillopt/*.js

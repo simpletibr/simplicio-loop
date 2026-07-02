@@ -11,6 +11,35 @@
   https://github.com/toon-format/toon). Wired into `simplicio-mapper index`
   and `simplicio-mapper handoff` via a new `--for-llm toon` flag.
   [#144]
+- TOON encoder: the tabular path now accepts cells whose value is a list of
+  scalars (`[a,b,c]` inline within a row), which is the mapper's own real
+  array shape (`files[].exports/imports/roles`, `precedent-index.items[].tags`).
+  Measured reduction on this repo's own survey artifacts went from
+  7.1%/4.5%/8.4% to 28.3%/21.2%/0.1% char reduction (~37%/35%/0.5% on an
+  approximate-token basis) — see `docs/toon-benchmark.md`. `decode_toon`
+  now raises `TOONDecodeError` (a `ValueError`) on any malformed/truncated
+  input instead of a bare `IndexError`, and rejects row/field-count
+  mismatches instead of silently dropping data.
+  `encode_toon_with_report()`/`--for-llm toon` now report which arrays (if
+  any) fell back to embedded JSON and why (`toon_fallbacks`, logged to
+  stderr on the CLI). `--for-llm toon` is now also wired on `inspect` and
+  `ask`. [#148]
+- `TOON-CONTRACT.md` — canonical spec for the ecosystem's TOON wire format
+  and decode-error contract, plus `fixtures/toon-golden/` (a golden
+  conformance corpus covering the known bug classes across the ecosystem's
+  8 codecs: quoting, truncated tabular blocks, list cells, row/field
+  mismatches, the `[1]`-scalar ambiguity) and a runner
+  (`scripts/toon_contract_runner.py` / `tests/python/test_toon_contract.py`,
+  `tests/unit/toon-contract.test.js`). `scripts/sync_toon_contract.py`
+  gates local drift between the contract/corpus and their committed hash.
+  [#149]
+- `simplicio-mapper index --tagged`/`--confidence <tag>` — Asolaria
+  confidence-tagging discipline (MEASURED/OPERATOR/CANON/UNVERIFIED) on the
+  `counts` payload, with filtered-out entries always recorded (no
+  deflate-gate). `simplicio-mapper index --geometry` — REALMATHPOS/
+  FNV-1a64/sha16/citizenIdentity addressing per artifact path. P0 slice of
+  the Asolaria integration proposal; P1/P2 documented as explicit follow-up
+  in `docs/asolaria-integration.md`. [#150]
 
 ## [0.15.0] - 2026-07-02
 

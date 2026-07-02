@@ -38,13 +38,33 @@ from .mapper import (
 )
 from .query import run_query
 from .survey import build_survey, render_survey_markdown
-from .toon import encode_toon
+from .toon import encode_toon_with_report
 
 # Supported `--for-llm` output formats for the `map`/`index`/`handoff`
 # commands. Currently only `toon` (Token-Oriented Object Notation, see
 # `simplicio_mapper/toon.py`) is implemented; it swaps the default JSON
 # payload for a token-lean encoding tuned for LLM prompt context.
 FOR_LLM_FORMATS = {"toon"}
+
+# Asolaria tagging discipline (issue #150, P0). Confidence tags mark how a
+# value was obtained, from strongest to weakest provenance:
+#   MEASURED  - read directly off the code on disk this run (AST/regex over
+#               real source files: project-map, precedent-index, symbols).
+#   OPERATOR  - a human/operator supplied the exact number out-of-band
+#               (screen -> photo -> extract provenance). Never emitted by
+#               this CLI on its own — it is a tag for values a caller
+#               injects, not something the mapper can claim for itself.
+#   CANON     - derived from doc/README/architecture-convention claims
+#               rather than a direct code read (e.g. module/layer counts,
+#               which lean on naming and folder conventions).
+#   UNVERIFIED - anything not cross-checked against a live run of the
+#               mapped system. "No deflate-gate" / "no claims-gate": a
+#               value never silently drops out of the payload just because
+#               its tag is weak — see `_apply_confidence_filter`.
+# Order below is provenance strength, strongest first; used for
+# `--confidence <tag>` threshold filtering.
+CONFIDENCE_TAG_ORDER = ("MEASURED", "OPERATOR", "CANON", "UNVERIFIED")
+CONFIDENCE_RANK = {tag: rank for rank, tag in enumerate(CONFIDENCE_TAG_ORDER)}
 
 INDEX_RESULT_SCHEMA = "simplicio.mapper-index/v1"
 INDEX_STATE_SCHEMA = "simplicio.mapper-index-state/v1"
@@ -80,11 +100,11 @@ HELP_TEXT = """simplicio-mapper map
 Generate or update machine-readable mapper artifacts.
 
 USAGE
-  simplicio-mapper index <path> [--json] [--for-llm toon] [--verbose] [--update]
+  simplicio-mapper index <path> [--json] [--for-llm toon] [--tagged] [--confidence <tag>] [--geometry] [--verbose] [--update]
   simplicio-mapper macro <path> [--json]
   simplicio-mapper scan <path> [--json] [--sync] [--await] [--timeout <s>]
   simplicio-mapper status <path> [--json] [--await] [--timeout <s>]
-  simplicio-mapper inspect <path> [--json] [--await] [--timeout <s>]
+  simplicio-mapper inspect <path> [--json] [--for-llm toon] [--await] [--timeout <s>]
   simplicio-mapper handoff <path> [--json] [--for-llm toon] [--await] [--timeout <s>]
   simplicio-mapper endpoints <path> [--against <server-root>] [--json]
   simplicio-mapper screens <path> [--json]
@@ -93,7 +113,7 @@ USAGE
   simplicio-mapper sync <path> [--range <spec>|--staged] [--check] [--json]
   simplicio-mapper history <path> [--json]
   simplicio-mapper diff <path> --from <id> --to <id> [--json]
-  simplicio-mapper ask <path> <verb> [<arg>] [--depth N] [--limit N] [--effect T] [--category C] [--json]
+  simplicio-mapper ask <path> <verb> [<arg>] [--depth N] [--limit N] [--effect T] [--category C] [--json] [--for-llm toon]
   simplicio-mapper business <path> [--json]
   simplicio-mapper survey <path> [--target <file>] [--json]
   simplicio-mapper drift <path> [--check] [--threshold N] [--json]
@@ -141,9 +161,20 @@ OPTIONS
   --await               scan/status/inspect/handoff: block until the deep pass is terminal.
   --timeout <s>         Bounded wait for --await (default 120).
   --json                Emit structured index output.
-  --for-llm <format>    index/handoff: emit payload as <format> instead of JSON.
-                         Supported: toon (Token-Oriented Object Notation,
-                         ~40% fewer tokens than JSON on uniform arrays).
+  --for-llm <format>    index/inspect/handoff/ask: emit payload as <format>
+                         instead of JSON. Supported: toon (Token-Oriented
+                         Object Notation, see docs/toon-benchmark.md for
+                         measured reduction on this repo's own artifacts).
+                         Fallback arrays (if any) are logged as
+                         toon_fallbacks JSON on stderr.
+  --tagged               index: attach Asolaria confidence tags
+                         (MEASURED/OPERATOR/CANON/UNVERIFIED) to counts.
+  --confidence <tag>     index: keep only counts at least as strong as
+                         <tag> (implies --tagged; never silently drops a
+                         weaker entry, see confidence_filtered_out).
+  --geometry             index: attach REALMATHPOS/FNV-1a64/sha16/
+                         citizenIdentity addressing per artifact path
+                         (Algorithms of Asolaria addressing geometry).
   --update              Compatibility alias for index refresh workflows.
   --verbose             Show progress during index refreshes.
   --root <dir>          Project root to map. Defaults to cwd.
@@ -200,6 +231,9 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "category": "",
         "threshold": 10,
         "for_llm": "",
+        "tagged": False,
+        "confidence": "",
+        "geometry": False,
     }
     commands = (
         "index", "map", "update", "macro", "scan", "status", "inspect", "handoff",
@@ -339,6 +373,25 @@ def _parse_args(argv: Sequence[str]) -> dict:
                 )
                 sys.exit(2)
             opts["for_llm"] = value
+        elif arg == "--tagged":
+            opts["tagged"] = True
+        elif arg == "--confidence":
+            i += 1
+            try:
+                value = argv[i]
+            except IndexError:
+                print(f"--confidence requires a value ({', '.join(CONFIDENCE_TAG_ORDER)})", file=sys.stderr)
+                sys.exit(2)
+            if value not in CONFIDENCE_RANK:
+                print(
+                    f"Unknown --confidence tag: {value!r} (supported: {', '.join(CONFIDENCE_TAG_ORDER)})",
+                    file=sys.stderr,
+                )
+                sys.exit(2)
+            opts["confidence"] = value
+            opts["tagged"] = True
+        elif arg == "--geometry":
+            opts["geometry"] = True
         elif arg == "--verbose":
             opts["verbose"] = True
             opts["silent"] = False
@@ -578,9 +631,150 @@ def _index_result(
     }
 
 
+# --- Asolaria tagging discipline (issue #150, P0) --------------------------
+
+# Which `index` counts key was obtained how. Anything not listed here
+# defaults to UNVERIFIED rather than silently omitted (no deflate-gate).
+_INDEX_COUNT_TAGS = {
+    "files": "MEASURED",
+    "precedents": "MEASURED",
+    "changed_files": "MEASURED",
+    "symbols": "MEASURED",
+    "relationships": "MEASURED",
+    "docs": "MEASURED",
+    "modules": "CANON",
+    "layers": "CANON",
+}
+
+_CONFIDENCE_TAG_LEGEND = {
+    "MEASURED": "Read directly off the code on disk this run (AST/regex over real source files).",
+    "OPERATOR": "Human/operator supplied the exact number out-of-band; not emitted by this CLI on its own.",
+    "CANON": "Derived from doc/README/architecture-convention claims, not a direct code read.",
+    "UNVERIFIED": "Not cross-checked against a live run of the mapped system.",
+}
+
+
+def _apply_tagging(payload: dict) -> dict:
+    """Attach Asolaria confidence tags to ``payload["counts"]`` (``--tagged``).
+
+    See ``_INDEX_COUNT_TAGS``/``_CONFIDENCE_TAG_LEGEND`` above for the
+    MEASURED/OPERATOR/CANON/UNVERIFIED discipline this mirrors from
+    Algorithms of Asolaria (issue #150, P0).
+    """
+    counts = payload.get("counts")
+    if not isinstance(counts, dict):
+        return payload
+    payload = dict(payload)
+    payload["confidence_tags"] = {key: _INDEX_COUNT_TAGS.get(key, "UNVERIFIED") for key in counts}
+    payload["confidence_tag_legend"] = dict(_CONFIDENCE_TAG_LEGEND)
+    return payload
+
+
+def _apply_confidence_filter(payload: dict, min_tag: str) -> dict:
+    """Keep only ``counts`` entries at least as strong as ``min_tag`` (``--confidence``).
+
+    Never silently drops a weaker entry — "no deflate-gate": every filtered
+    key is still recorded, with its tag, under ``confidence_filtered_out``.
+    """
+    tags = payload.get("confidence_tags")
+    if not isinstance(tags, dict):
+        return payload
+    threshold = CONFIDENCE_RANK[min_tag]
+    counts = payload.get("counts") or {}
+    kept = {}
+    dropped = []
+    for key, value in counts.items():
+        tag = tags.get(key, "UNVERIFIED")
+        if CONFIDENCE_RANK.get(tag, len(CONFIDENCE_TAG_ORDER)) <= threshold:
+            kept[key] = value
+        else:
+            dropped.append({"key": key, "tag": tag})
+    payload = dict(payload)
+    payload["counts"] = kept
+    payload["confidence_threshold"] = min_tag
+    payload["confidence_filtered_out"] = dropped
+    return payload
+
+
+# --- Addressing geometry (issue #150, P0) -----------------------------------
+
+_FNV_OFFSET_BASIS_64 = 0xCBF29CE484222325
+_FNV_PRIME_64 = 0x100000001B3
+_FNV_MASK_64 = 0xFFFFFFFFFFFFFFFF
+
+
+def _fnv1a64_hex(text: str) -> str:
+    """FNV-1a, 64-bit variant, as a 16-hex-char string (non-cryptographic hash)."""
+    digest = _FNV_OFFSET_BASIS_64
+    for byte in text.encode("utf-8"):
+        digest ^= byte
+        digest = (digest * _FNV_PRIME_64) & _FNV_MASK_64
+    return f"{digest:016x}"
+
+
+def _sha16_hex(text: str) -> str:
+    """sha256 truncated to 16 hex chars (8 bytes) — same convention already
+    used for this repo's own precedent-index item ids."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+
+
+def _citizen_identity(root: str, key: str) -> str:
+    """Stable identity for ``key`` within the federation of mapped repos."""
+    repo_name = os.path.basename(os.path.abspath(root or os.getcwd())) or "repo"
+    return f"{repo_name}::{key}"
+
+
+def _apply_geometry(payload: dict, root: str) -> dict:
+    """Attach REALMATHPOS/FNV-1a64/sha16/citizenIdentity addressing (``--geometry``).
+
+    Applied per entry in ``payload["paths"]`` (each mapper artifact file).
+    ``realmathpos`` degenerates to the artifact file's root position
+    (line 1, col 1) rather than a specific symbol position — this CLI's
+    `index`/`ask` commands do carry true file:line:col positions for
+    individual symbols/routes elsewhere (see the `ask`/`endpoints`
+    payloads), which is out of scope for this top-level artifact-address
+    pass; see #150 P1 for a per-symbol geometry follow-up.
+    """
+    paths = payload.get("paths")
+    if not isinstance(paths, dict):
+        return payload
+    geometry = {}
+    for key, path in paths.items():
+        geometry[key] = {
+            "realmathpos": {"file": path, "line": 1, "col": 1},
+            "fnv1a64": _fnv1a64_hex(path),
+            "sha16": _sha16_hex(path),
+            "citizen_identity": _citizen_identity(root, key),
+        }
+    payload = dict(payload)
+    payload["addressing_geometry"] = geometry
+    return payload
+
+
+def _print_toon(payload: dict) -> None:
+    """Print ``payload`` as TOON on stdout; log any fallbacks to stderr.
+
+    A silent fallback means an operator has no way to tell how much of the
+    payload actually took the token-lean tabular/inline path versus the
+    embedded-JSON fallback — issue #148's "log do motivo" requirement.
+    ``toon_fallbacks`` mirrors the machine-readable shape used elsewhere in
+    the ecosystem (see TOON-CONTRACT.md).
+    """
+    text, fallbacks = encode_toon_with_report(payload)
+    print(text)
+    if fallbacks:
+        print(json.dumps({"toon_fallbacks": fallbacks}, sort_keys=True), file=sys.stderr)
+
+
 def _emit_index_json(opts: dict, payload: dict) -> None:
+    if opts.get("tagged"):
+        payload = _apply_tagging(payload)
+        if opts.get("confidence"):
+            payload = _apply_confidence_filter(payload, opts["confidence"])
+    if opts.get("geometry"):
+        payload = _apply_geometry(payload, opts.get("root"))
     if opts.get("for_llm") == "toon":
-        print(encode_toon(payload))
+        _print_toon(payload)
     elif opts["json"]:
         print(json.dumps(payload, sort_keys=True))
 
@@ -1960,7 +2154,9 @@ def _run_ask(opts: dict) -> int:
     except ValueError as error:
         print(f"ask failed: {error}", file=sys.stderr)
         return 2
-    if opts["json"]:
+    if opts.get("for_llm") == "toon":
+        _print_toon(payload)
+    elif opts["json"]:
         print(json.dumps(payload, sort_keys=True))
     else:
         print(f"verb={opts['verb']} total={payload['total']}")
@@ -2338,7 +2534,9 @@ def _run_inspect(opts: dict) -> int:
             for key, path in _artifact_paths(root, out).items()
         },
     }
-    if opts["json"]:
+    if opts.get("for_llm") == "toon":
+        _print_toon(payload)
+    elif opts["json"]:
         print(json.dumps(payload, sort_keys=True))
     else:
         print(
@@ -2387,7 +2585,7 @@ def _run_handoff(opts: dict) -> int:
         },
     }
     if opts.get("for_llm") == "toon":
-        print(encode_toon(payload))
+        _print_toon(payload)
     elif opts["json"]:
         print(json.dumps(payload, sort_keys=True))
     else:
