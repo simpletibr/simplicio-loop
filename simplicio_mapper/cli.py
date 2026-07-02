@@ -18,15 +18,25 @@ import sys
 import time
 from collections.abc import Sequence
 
+import orjson
+
 from . import __version__
+from .business import build_business_rules, render_business_rules_markdown
 from .context_cache import ContextCache
 from .context_pack import build_context_pack
+from .docsync import build_docs_sync
+from .drift import build_spec_drift, render_drift_markdown
+from .flows import build_flow_inventory, render_flow_inventory_markdown
+from .history import append_changelog, create_snapshot, diff_snapshots, list_snapshots, maybe_snapshot
 from .mapper import (
+    build_artifacts,
     build_macro_map,
     export_architecture_docs,
     write_architecture_docs,
     write_mapping_artifacts,
 )
+from .query import run_query
+from .survey import build_survey, render_survey_markdown
 
 INDEX_RESULT_SCHEMA = "simplicio.mapper-index/v1"
 INDEX_STATE_SCHEMA = "simplicio.mapper-index-state/v1"
@@ -38,6 +48,12 @@ MAP_HANDOFF_SCHEMA = "simplicio.map-handoff/v1"
 ENDPOINT_INVENTORY_SCHEMA = "simplicio.endpoint-inventory/v1"
 SCREEN_INVENTORY_SCHEMA = "simplicio.screen-inventory/v1"
 SERVICE_FLOWCHART_SCHEMA = "simplicio.service-flowchart/v1"
+FLOW_INVENTORY_SCHEMA = "simplicio.flow-inventory/v1"
+DOCS_SYNC_SCHEMA = "simplicio.docs-sync/v1"
+DOC_HISTORY_SCHEMA = "simplicio.doc-history/v1"
+BUSINESS_RULES_SCHEMA = "simplicio.business-rules/v1"
+ONBOARDING_SCHEMA = "simplicio.onboarding/v1"
+SPEC_DRIFT_SCHEMA = "simplicio.spec-drift/v1"
 FRESHNESS_SKIP_DIRS = {
     ".git",
     "node_modules",
@@ -65,6 +81,14 @@ USAGE
   simplicio-mapper endpoints <path> [--against <server-root>] [--json]
   simplicio-mapper screens <path> [--json]
   simplicio-mapper flowchart <path> [--json]
+  simplicio-mapper flows <path> [--json]
+  simplicio-mapper sync <path> [--range <spec>|--staged] [--check] [--json]
+  simplicio-mapper history <path> [--json]
+  simplicio-mapper diff <path> --from <id> --to <id> [--json]
+  simplicio-mapper ask <path> <verb> [<arg>] [--depth N] [--limit N] [--effect T] [--category C] [--json]
+  simplicio-mapper business <path> [--json]
+  simplicio-mapper survey <path> [--target <file>] [--json]
+  simplicio-mapper drift <path> [--check] [--threshold N] [--json]
   simplicio-mapper docs <path> [--json]
   simplicio-mapper export-docs <path> --target <dir> [--json]
   simplicio-mapper map [--root <dir>] [--incremental] [--watch]
@@ -80,8 +104,23 @@ OPTIONS
   endpoints <path>      Extract client/server HTTP endpoint inventory.
   screens <path>        Extract frontend route/screen inventory.
   flowchart <path>      Render screen->service->backend mermaid flowchart docs.
+  flows <path>          Derive stack-neutral end-to-end flows from the call graph.
+  sync <path>           Regenerate only the docs/flows a diff affects.
+  history <path>        List .simplicio/history/ snapshots (created by map/sync).
+  diff <path>           Semantic delta between two history snapshots.
+  ask <path> <verb>     Query artifacts: callers|callees|reaches|impact|flows|rules|tests-for|term.
+  business <path>       Extract observable business rules, state machines and glossary.
+  survey <path>         New-developer onboarding report (run/reading order/flows/rules).
+  drift <path>          Spec-drift: placeholders, orphan specs/code, stale docs.
   docs <path>           Render architecture inventory markdown under .simplicio/docs.
   export-docs <path>    Copy rendered markdown docs to a local target directory.
+  --range <spec>        sync: git diff range (e.g. main..HEAD) instead of the working tree.
+  --staged              sync: diff staged changes instead of the working tree.
+  --check               sync: report staleness without writing (exit 1 if stale).
+  --from <id>           diff: source snapshot id.
+  --to <id>             diff: target snapshot id.
+  --retention <n>       Max history snapshots kept (default 50, oldest GC'd first).
+  --threshold <n>       drift: max findings allowed before --check fails (default 10).
   --against <dir>       Compare endpoint client calls against server routes.
   --target <dir>        Local target directory for export-docs.
   --docs                Render markdown docs after map/index.
@@ -136,10 +175,24 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "command": "map",
         "against": "",
         "target": "",
+        "range": "",
+        "staged": False,
+        "check": False,
+        "from_id": "",
+        "to_id": "",
+        "retention": 50,
+        "verb": "",
+        "query_arg": "",
+        "depth": 3,
+        "limit": 20,
+        "effect": "",
+        "category": "",
+        "threshold": 10,
     }
     commands = (
         "index", "map", "update", "macro", "scan", "status", "inspect", "handoff",
-        "endpoints", "screens", "flowchart", "docs", "export-docs",
+        "endpoints", "screens", "flowchart", "docs", "export-docs", "flows", "sync",
+        "history", "diff", "ask", "business", "survey", "drift",
     )
     command = argv[0] if argv and argv[0] in commands else "map"
     opts["command"] = command
@@ -148,9 +201,18 @@ def _parse_args(argv: Sequence[str]) -> dict:
     if command == "update":
         opts["incremental"] = True
     i = 1 if argv and argv[0] in commands else 0
+    ask_positional = 0
     while i < len(argv):
         arg = argv[i]
-        if command in ("index", "macro", "scan", "status", "inspect", "handoff", "endpoints", "screens", "flowchart", "docs", "export-docs") and not arg.startswith("-"):
+        if command == "ask" and not arg.startswith("-"):
+            if ask_positional == 0:
+                opts["root"] = arg
+            elif ask_positional == 1:
+                opts["verb"] = arg
+            elif ask_positional == 2:
+                opts["query_arg"] = arg
+            ask_positional += 1
+        elif command in ("index", "macro", "scan", "status", "inspect", "handoff", "endpoints", "screens", "flowchart", "docs", "export-docs", "flows", "sync", "history", "diff", "business", "survey", "drift") and not arg.startswith("-"):
             opts["root"] = arg
         elif arg == "--against":
             i += 1
@@ -158,6 +220,53 @@ def _parse_args(argv: Sequence[str]) -> dict:
         elif arg == "--target":
             i += 1
             opts["target"] = argv[i]
+        elif arg == "--range":
+            i += 1
+            opts["range"] = argv[i]
+        elif arg == "--staged":
+            opts["staged"] = True
+        elif arg == "--check":
+            opts["check"] = True
+        elif arg == "--depth":
+            i += 1
+            try:
+                opts["depth"] = max(1, int(argv[i]))
+            except (ValueError, IndexError):
+                print(f"Invalid --depth value: {argv[i] if i < len(argv) else ''}", file=sys.stderr)
+                sys.exit(2)
+        elif arg == "--limit":
+            i += 1
+            try:
+                opts["limit"] = max(1, int(argv[i]))
+            except (ValueError, IndexError):
+                print(f"Invalid --limit value: {argv[i] if i < len(argv) else ''}", file=sys.stderr)
+                sys.exit(2)
+        elif arg == "--effect":
+            i += 1
+            opts["effect"] = argv[i]
+        elif arg == "--category":
+            i += 1
+            opts["category"] = argv[i]
+        elif arg == "--threshold":
+            i += 1
+            try:
+                opts["threshold"] = max(0, int(argv[i]))
+            except (ValueError, IndexError):
+                print(f"Invalid --threshold value: {argv[i] if i < len(argv) else ''}", file=sys.stderr)
+                sys.exit(2)
+        elif arg == "--from":
+            i += 1
+            opts["from_id"] = argv[i]
+        elif arg == "--to":
+            i += 1
+            opts["to_id"] = argv[i]
+        elif arg == "--retention":
+            i += 1
+            try:
+                opts["retention"] = max(0, int(argv[i]))
+            except (ValueError, IndexError):
+                print(f"Invalid --retention value: {argv[i] if i < len(argv) else ''}", file=sys.stderr)
+                sys.exit(2)
         elif arg == "--root":
             i += 1
             opts["root"] = argv[i]
@@ -229,13 +338,21 @@ def _run_once(opts: dict) -> dict:
     if opts["product_name"]:
         meta["product_name"] = opts["product_name"]
     log = (lambda _line: None) if opts["silent"] else print
-    return write_mapping_artifacts(
+    result = write_mapping_artifacts(
         cwd=root,
         meta=meta,
         incremental=opts["incremental"],
         output_dir=opts["out"],
         log=log,
     )
+    # History snapshots (.simplicio/history/*.json) are always cheap JSON and
+    # never create a docs/ directory on their own. The changelog markdown is
+    # only appended when docs are actually being rendered for this run, so
+    # --json-only/--no-docs flows stay JSON-only as documented.
+    snapshot = create_snapshot(root, out_dir=opts["out"], trigger=opts["command"], retention=opts["retention"], artifacts=result)
+    if snapshot is not None and opts.get("docs"):
+        append_changelog(root, opts["out"], snapshot)
+    return result
 
 
 def _signature(root: str, out: str) -> tuple:
@@ -1594,8 +1711,235 @@ def _run_flowchart(opts: dict) -> int:
     return 0
 
 
+def _run_flows(opts: dict) -> int:
+    root = os.path.abspath(opts["root"])
+    abs_out = os.path.abspath(os.path.join(root, opts["out"]))
+    artifacts = build_artifacts(root, output_dir=opts["out"])
+    inventory = build_flow_inventory(root, artifacts)
+    inventory_path = os.path.join(abs_out, "flow-inventory.json")
+    tmp = f"{inventory_path}.tmp"
+    with open(tmp, "wb") as handle:
+        handle.write(orjson.dumps(inventory, option=orjson.OPT_INDENT_2 | orjson.OPT_APPEND_NEWLINE))
+    os.replace(tmp, inventory_path)
+
+    markdown = render_flow_inventory_markdown(inventory)
+    doc_path = os.path.join(abs_out, "docs", "flows.md")
+    os.makedirs(os.path.dirname(doc_path), exist_ok=True)
+    tmp_doc = f"{doc_path}.tmp"
+    with open(tmp_doc, "w", encoding="utf-8") as handle:
+        handle.write(markdown.rstrip() + "\n")
+    os.replace(tmp_doc, doc_path)
+
+    if opts["json"]:
+        print(json.dumps({**inventory, "doc": doc_path.replace(os.sep, "/")}, sort_keys=True))
+    else:
+        coverage = inventory["coverage"]
+        print(
+            f"flows={len(inventory['flows'])} "
+            f"entrypoints_total={coverage['entrypoints_total']} "
+            f"entrypoints_with_flow={coverage['entrypoints_with_flow']} "
+            f"doc={doc_path}"
+        )
+    return 0
+
+
+def _run_sync(opts: dict) -> int:
+    payload = build_docs_sync(
+        opts["root"],
+        out_dir=opts["out"],
+        range_spec=opts["range"] or None,
+        staged=opts["staged"],
+        check=opts["check"],
+    )
+    if not opts["check"]:
+        maybe_snapshot(opts["root"], out_dir=opts["out"], trigger="sync", retention=opts["retention"])
+    if opts["json"]:
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print(
+            f"changed={payload['diff']['files']} "
+            f"affected_flows={len(payload['affected_flows'])} "
+            f"regenerated={len(payload['regenerated_docs'])} "
+            f"needs_review={len(payload['needs_review'])} "
+            f"stale={payload['stale']}"
+        )
+    if opts["check"] and payload["stale"]:
+        return 1
+    return 0
+
+
+def _run_history(opts: dict) -> int:
+    snapshots = list_snapshots(opts["root"], out_dir=opts["out"])
+    if opts["json"]:
+        print(json.dumps({"schema": "simplicio.doc-history-index/v1", "snapshots": snapshots}, sort_keys=True))
+    else:
+        if not snapshots:
+            print("no snapshots yet — run map/sync to create the first one")
+        for snapshot in snapshots:
+            print(f"{snapshot['id']}  {snapshot['created_at']}  {snapshot['summary']}")
+    return 0
+
+
+def _run_diff(opts: dict) -> int:
+    if not opts["from_id"] or not opts["to_id"]:
+        print("diff requires --from <id> --to <id>", file=sys.stderr)
+        return 2
+    try:
+        payload = diff_snapshots(opts["root"], opts["out"], opts["from_id"], opts["to_id"])
+    except ValueError as error:
+        if opts["json"]:
+            print(json.dumps({"schema": DOC_HISTORY_SCHEMA, "error": str(error)}, sort_keys=True))
+        else:
+            print(f"diff failed: {error}", file=sys.stderr)
+        return 1
+    if opts["json"]:
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print(f"from={payload['from']} to={payload['to']}")
+        print(f"modules: +{len(payload['modules']['added'])} -{len(payload['modules']['removed'])} ~{len(payload['modules']['changed'])}")
+        print(f"dependencies: +{len(payload['dependencies']['added'])} -{len(payload['dependencies']['removed'])}")
+        print(f"flows: +{len(payload['flows']['added'])} -{len(payload['flows']['removed'])} ~{len(payload['flows']['changed'])}")
+        print(f"symbols: +{payload['symbols']['added']} -{payload['symbols']['removed']}")
+    return 0
+
+
+def _run_business(opts: dict) -> int:
+    root = os.path.abspath(opts["root"])
+    abs_out = os.path.abspath(os.path.join(root, opts["out"]))
+    artifacts = build_artifacts(root, output_dir=opts["out"])
+    payload = build_business_rules(root, artifacts)
+
+    rules_path = os.path.join(abs_out, "business-rules.json")
+    tmp = f"{rules_path}.tmp"
+    with open(tmp, "wb") as handle:
+        handle.write(orjson.dumps(payload, option=orjson.OPT_INDENT_2 | orjson.OPT_APPEND_NEWLINE))
+    os.replace(tmp, rules_path)
+
+    doc_path = os.path.join(abs_out, "docs", "business-flows.md")
+    os.makedirs(os.path.dirname(doc_path), exist_ok=True)
+    tmp_doc = f"{doc_path}.tmp"
+    with open(tmp_doc, "w", encoding="utf-8") as handle:
+        handle.write(render_business_rules_markdown(payload).rstrip() + "\n")
+    os.replace(tmp_doc, doc_path)
+
+    if opts["json"]:
+        print(json.dumps({**payload, "doc": doc_path.replace(os.sep, "/")}, sort_keys=True))
+    else:
+        print(
+            f"rules={len(payload['rules'])} "
+            f"state_machines={len(payload['state_machines'])} "
+            f"glossary={len(payload['glossary'])} "
+            f"doc={doc_path}"
+        )
+    return 0
+
+
+def _run_survey(opts: dict) -> int:
+    root = os.path.abspath(opts["root"])
+    abs_out = os.path.abspath(os.path.join(root, opts["out"]))
+    artifacts = build_artifacts(root, output_dir=opts["out"])
+    flow_inventory = build_flow_inventory(root, artifacts)
+    business_rules = build_business_rules(root, artifacts)
+    survey = build_survey(root, artifacts, flow_inventory, business_rules)
+
+    doc_path = os.path.join(abs_out, "docs", "onboarding.md")
+    os.makedirs(os.path.dirname(doc_path), exist_ok=True)
+    markdown = render_survey_markdown(survey)
+    tmp_doc = f"{doc_path}.tmp"
+    with open(tmp_doc, "w", encoding="utf-8") as handle:
+        handle.write(markdown.rstrip() + "\n")
+    os.replace(tmp_doc, doc_path)
+
+    copied_to = None
+    if opts["target"]:
+        copied_to = os.path.abspath(os.path.join(root, opts["target"]))
+        os.makedirs(os.path.dirname(copied_to) or ".", exist_ok=True)
+        with open(copied_to, "w", encoding="utf-8") as handle:
+            handle.write(markdown.rstrip() + "\n")
+
+    if opts["json"]:
+        print(json.dumps({
+            **survey,
+            "doc": doc_path.replace(os.sep, "/"),
+            "target": copied_to.replace(os.sep, "/") if copied_to else None,
+        }, sort_keys=True))
+    else:
+        print(
+            f"reading_order={len(survey['reading_order'])} "
+            f"top_flows={len(survey['top_flows'])} "
+            f"glossary={len(survey['glossary'])} "
+            f"doc={doc_path}"
+        )
+    return 0
+
+
+def _run_drift(opts: dict) -> int:
+    root = os.path.abspath(opts["root"])
+    abs_out = os.path.abspath(os.path.join(root, opts["out"]))
+    payload = build_spec_drift(root, out_dir=opts["out"], threshold=opts["threshold"])
+
+    if not opts["check"]:
+        report_path = os.path.join(abs_out, "spec-drift.json")
+        tmp = f"{report_path}.tmp"
+        with open(tmp, "wb") as handle:
+            handle.write(orjson.dumps(payload, option=orjson.OPT_INDENT_2 | orjson.OPT_APPEND_NEWLINE))
+        os.replace(tmp, report_path)
+
+        doc_path = os.path.join(abs_out, "docs", "spec-drift.md")
+        os.makedirs(os.path.dirname(doc_path), exist_ok=True)
+        tmp_doc = f"{doc_path}.tmp"
+        with open(tmp_doc, "w", encoding="utf-8") as handle:
+            handle.write(render_drift_markdown(payload).rstrip() + "\n")
+        os.replace(tmp_doc, doc_path)
+
+    if opts["json"]:
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        score = payload["score"]
+        print(
+            f"findings={score['drift_findings']} threshold={score['threshold']} "
+            f"{'PASS' if score['pass'] else 'FAIL'}"
+        )
+        for finding in payload["findings"]:
+            target = f"{finding['target']}:{finding['line']}" if finding.get("line") else finding["target"]
+            print(f"[{finding['severity']}] {finding['check']}: {target} — {finding['message']}")
+    if opts["check"] and not payload["score"]["pass"]:
+        return 1
+    return 0
+
+
+def _run_ask(opts: dict) -> int:
+    if not opts["verb"]:
+        print("ask requires a verb: callers|callees|reaches|impact|flows|rules|tests-for|term", file=sys.stderr)
+        return 2
+    try:
+        payload = run_query(
+            opts["root"],
+            out_dir=opts["out"],
+            verb=opts["verb"],
+            arg=opts["query_arg"] or None,
+            depth=opts["depth"],
+            limit=opts["limit"],
+            effect=opts["effect"] or None,
+            category=opts["category"] or None,
+        )
+    except ValueError as error:
+        print(f"ask failed: {error}", file=sys.stderr)
+        return 2
+    if opts["json"]:
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print(f"verb={opts['verb']} total={payload['total']}")
+        if payload.get("note"):
+            print(f"note: {payload['note']}")
+        for item in payload["results"]:
+            print(item)
+    return 0
+
+
 def _run_docs(opts: dict) -> int:
     payload = write_architecture_docs(opts["root"], output_dir=opts["out"])
+    maybe_snapshot(opts["root"], out_dir=opts["out"], trigger="docs", retention=opts["retention"])
     if opts["json"]:
         print(json.dumps({
             "schema": "simplicio.architecture-docs/v1",
@@ -2138,6 +2482,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_screens(opts)
     if opts["command"] == "flowchart":
         return _run_flowchart(opts)
+    if opts["command"] == "flows":
+        return _run_flows(opts)
+    if opts["command"] == "sync":
+        return _run_sync(opts)
+    if opts["command"] == "history":
+        return _run_history(opts)
+    if opts["command"] == "diff":
+        return _run_diff(opts)
+    if opts["command"] == "ask":
+        return _run_ask(opts)
+    if opts["command"] == "business":
+        return _run_business(opts)
+    if opts["command"] == "survey":
+        return _run_survey(opts)
+    if opts["command"] == "drift":
+        return _run_drift(opts)
     if opts["command"] == "docs":
         return _run_docs(opts)
     if opts["command"] == "export-docs":

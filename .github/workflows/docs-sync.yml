@@ -1,0 +1,45 @@
+# Dogfoods the simplicio-mapper docs-sync GitHub Action (F8,
+# .specs/product/flow-documentation-spec.md) on this repo's own PRs: comments
+# affected flows/docs and reports spec-drift status. Installs from the local
+# checkout (install-source: none) so it always exercises the code in the PR,
+# not the last PyPI release.
+
+name: simplicio-mapper docs impact
+
+on:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: docs-sync-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  docs-impact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout (full history for diff range)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install simplicio-mapper from the local checkout
+        run: python -m pip install --quiet -e .
+
+      - name: Run docs impact action
+        uses: ./
+        with:
+          mode: pr-comment
+          install-source: none
+          drift-threshold: '10'

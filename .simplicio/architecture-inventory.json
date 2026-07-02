@@ -1,8 +1,8 @@
 {
   "schema": "simplicio.architecture-inventory/v1",
   "version": 1,
-  "generated_at": "2026-06-02T16:01:45.075Z",
-  "root": "/Users/wesleysimplicio/Projetos/ai/simplicio-mapper",
+  "generated_at": "2026-07-02T07:11:53.271Z",
+  "root": "/home/user/simplicio-mapper",
   "source_project_map": ".simplicio/project-map.json",
   "source_symbol_index": ".simplicio/symbol-index.json",
   "source_call_graph": ".simplicio/call-graph.json",
@@ -26,8 +26,8 @@
   "modules": [
     {
       "name": ".",
-      "summary": "Groups 28 files across 3 detected layers.",
-      "file_count": 28,
+      "summary": "Groups 31 files across 3 detected layers.",
+      "file_count": 31,
       "files": [
         ".gitattributes",
         ".gitignore",
@@ -48,15 +48,18 @@
         "README.md",
         "README.pt-BR.md",
         "SHOWCASE.md",
+        "SIMPLICIO_ECOSYSTEM.md",
         "SIMPLICIO_INTEGRATION.md",
         "YOOL_TUPLE_HAMT.md",
         "_BOOTSTRAP.md",
+        "action.yml",
         "bootstrap.ps1",
         "bootstrap.sh",
         "package-lock.json",
         "package.json",
         "playwright.config.ts",
-        "pyproject.toml"
+        "pyproject.toml",
+        "template-manifest.json"
       ],
       "layers": [
         "asset",
@@ -220,8 +223,8 @@
     },
     {
       "name": ".github",
-      "summary": "Groups 20 files across 4 detected layers.",
-      "file_count": 20,
+      "summary": "Groups 21 files across 4 detected layers.",
+      "file_count": 21,
       "files": [
         ".github/CODEOWNERS",
         ".github/ISSUE_TEMPLATE/bug.md",
@@ -238,6 +241,7 @@
         ".github/workflows-templates/telemetry-worker.js",
         ".github/workflows/ci.yml",
         ".github/workflows/docs-site.yml",
+        ".github/workflows/docs-sync.yml",
         ".github/workflows/dod.yml",
         ".github/workflows/publish-pypi.yml",
         ".github/workflows/python-ci.yml",
@@ -388,18 +392,21 @@
     },
     {
       "name": ".specs",
-      "summary": "Groups 16 files across 2 detected layers.",
-      "file_count": 16,
+      "summary": "Groups 19 files across 2 detected layers.",
+      "file_count": 19,
       "files": [
         ".specs/README.md",
         ".specs/architecture/ADR-001-example.md",
         ".specs/architecture/ADR-002-python-rust-hybrid.md",
+        ".specs/architecture/ADR-003-two-tier-async-mapper.md",
+        ".specs/architecture/ADR-004-template-vs-product-content-manifest.md",
         ".specs/architecture/ADR-template.md",
         ".specs/architecture/DESIGN.md",
         ".specs/architecture/PATTERNS.md",
         ".specs/product/DOMAIN.md",
         ".specs/product/PERSONAS.md",
         ".specs/product/VISION.md",
+        ".specs/product/flow-documentation-spec.md",
         ".specs/sprints/BACKLOG.md",
         ".specs/sprints/sprint-01/01-example.task.md",
         ".specs/sprints/sprint-01/SPRINT.md",
@@ -417,12 +424,15 @@
         ".specs/README.md",
         ".specs/architecture/ADR-001-example.md",
         ".specs/architecture/ADR-002-python-rust-hybrid.md",
+        ".specs/architecture/ADR-003-two-tier-async-mapper.md",
+        ".specs/architecture/ADR-004-template-vs-product-content-manifest.md",
         ".specs/architecture/ADR-template.md",
         ".specs/architecture/DESIGN.md",
         ".specs/architecture/PATTERNS.md",
         ".specs/product/DOMAIN.md",
         ".specs/product/PERSONAS.md",
         ".specs/product/VISION.md",
+        ".specs/product/flow-documentation-spec.md",
         ".specs/sprints/BACKLOG.md",
         ".specs/sprints/sprint-01/01-example.task.md",
         ".specs/sprints/sprint-01/SPRINT.md",
@@ -443,6 +453,12 @@
           "file": ".specs/architecture/ADR-002-python-rust-hybrid.md"
         },
         {
+          "file": ".specs/architecture/ADR-003-two-tier-async-mapper.md"
+        },
+        {
+          "file": ".specs/architecture/ADR-004-template-vs-product-content-manifest.md"
+        },
+        {
           "file": ".specs/architecture/ADR-template.md"
         },
         {
@@ -456,12 +472,6 @@
         },
         {
           "file": ".specs/product/PERSONAS.md"
-        },
-        {
-          "file": ".specs/product/VISION.md"
-        },
-        {
-          "file": ".specs/sprints/BACKLOG.md"
         }
       ]
     },
@@ -687,8 +697,8 @@
     },
     {
       "name": "docs-site",
-      "summary": "Groups 57 files across 4 detected layers.",
-      "file_count": 57,
+      "summary": "Groups 58 files across 4 detected layers.",
+      "file_count": 58,
       "files": [
         "docs-site/README.md",
         "docs-site/docs/community/_category_.json",
@@ -711,6 +721,7 @@
         "docs-site/docusaurus.config.cjs",
         "docs-site/package.json",
         "docs-site/sidebars.cjs",
+        "docs-site/src/css/custom.css",
         "docs-site/versioned_docs/version-0.2.0/community/_category_.json",
         "docs-site/versioned_docs/version-0.2.0/community/contributing.md",
         "docs-site/versioned_docs/version-0.2.0/community/showcase.md",
@@ -756,7 +767,10 @@
       ],
       "entry_points": [],
       "tests": [],
-      "public_symbols": [],
+      "public_symbols": [
+        "navbar",
+        "theme-doc-markdown"
+      ],
       "evidence": [
         {
           "file": "docs-site/README.md"
@@ -787,6 +801,70 @@
         },
         {
           "file": "docs-site/docs/guide/_category_.json"
+        }
+      ]
+    },
+    {
+      "name": "examples",
+      "summary": "Groups 1 files across 1 detected layers.",
+      "file_count": 1,
+      "files": [
+        "examples/brown-hilbert-addresses.json"
+      ],
+      "layers": [
+        "asset"
+      ],
+      "entry_points": [],
+      "tests": [],
+      "public_symbols": [],
+      "evidence": [
+        {
+          "file": "examples/brown-hilbert-addresses.json"
+        }
+      ]
+    },
+    {
+      "name": "packaging",
+      "summary": "Groups 4 files across 3 detected layers.",
+      "file_count": 4,
+      "files": [
+        "packaging/npm/README.md",
+        "packaging/npm/bin/simplicio-mapper.js",
+        "packaging/npm/lib/python-shim.js",
+        "packaging/npm/package.json"
+      ],
+      "layers": [
+        "code",
+        "config",
+        "documentation"
+      ],
+      "entry_points": [],
+      "tests": [],
+      "public_symbols": [
+        "ensureAndRun",
+        "ensureInstalled",
+        "ensureVirtualenv",
+        "entrypointCandidates",
+        "findPython",
+        "probe",
+        "resolveEntrypoint",
+        "run",
+        "sanitizePackageName",
+        "venvPython",
+        "venvRoot"
+      ],
+      "evidence": [
+        {
+          "file": "packaging/npm/README.md"
+        },
+        {
+          "file": "packaging/npm/bin/simplicio-mapper.js"
+        },
+        {
+          "file": "packaging/npm/lib/python-shim.js"
+        },
+        {
+          "file": "packaging/npm/package.json"
         }
       ]
     },
@@ -848,8 +926,8 @@
     },
     {
       "name": "scripts",
-      "summary": "Groups 16 files across 3 detected layers.",
-      "file_count": 16,
+      "summary": "Groups 17 files across 3 detected layers.",
+      "file_count": 17,
       "files": [
         "scripts/README.md",
         "scripts/build_hamt.py",
@@ -859,6 +937,7 @@
         "scripts/evidence.ps1",
         "scripts/evidence.sh",
         "scripts/lint.js",
+        "scripts/render-simplicio-comment.js",
         "scripts/skillopt/engine.js",
         "scripts/start.ps1",
         "scripts/start.sh",
@@ -911,14 +990,14 @@
         "parse_args",
         "parse_scalar",
         "readInitVersion",
+        "readJsonSafe",
         "readPackageVersion",
         "readPyprojectVersion",
         "reflect",
         "removeDir",
-        "resolveRelativePath",
-        "rewriteMarkdown",
-        "rewriteUrl",
-        "round6"
+        "renderComment",
+        "renderDriftSection",
+        "renderSyncSection"
       ],
       "evidence": [
         {
@@ -946,27 +1025,35 @@
           "file": "scripts/lint.js"
         },
         {
-          "file": "scripts/skillopt/engine.js"
+          "file": "scripts/render-simplicio-comment.js"
         },
         {
-          "file": "scripts/start.ps1"
+          "file": "scripts/skillopt/engine.js"
         }
       ]
     },
     {
       "name": "simplicio_mapper",
-      "summary": "Groups 9 files across 4 detected layers.",
-      "file_count": 9,
+      "summary": "Groups 17 files across 4 detected layers.",
+      "file_count": 17,
       "files": [
         "simplicio_mapper/__init__.py",
         "simplicio_mapper/_native.py",
+        "simplicio_mapper/business.py",
         "simplicio_mapper/cache.py",
         "simplicio_mapper/cli.py",
         "simplicio_mapper/context_cache.py",
         "simplicio_mapper/context_pack.py",
+        "simplicio_mapper/diagrams.py",
+        "simplicio_mapper/docsync.py",
+        "simplicio_mapper/drift.py",
+        "simplicio_mapper/flows.py",
+        "simplicio_mapper/history.py",
         "simplicio_mapper/mapper.py",
         "simplicio_mapper/mechanical_edit.py",
-        "simplicio_mapper/models.py"
+        "simplicio_mapper/models.py",
+        "simplicio_mapper/query.py",
+        "simplicio_mapper/survey.py"
       ],
       "layers": [
         "code",
@@ -991,34 +1078,34 @@
         "__len__",
         "_absolute",
         "_acquire_index_lock",
+        "_agent_id_from_seed",
+        "_artifact_evidence",
         "_artifact_paths",
         "_artifacts_exist",
+        "_await_terminal",
         "_balanced_span",
+        "_brown_hilbert_address",
+        "_build_agent_tree",
         "_build_architecture_inventory",
+        "_build_backend_face",
+        "_build_brown_hilbert_map",
         "_build_call_graph",
         "_build_file_inventory",
+        "_build_frontend_face",
+        "_build_glossary",
         "_build_precedent_items",
         "_build_symbol_index",
+        "_business_rules",
+        "_button_label",
+        "_cache_summary",
         "_cached_parse_file",
         "_call_expressions",
         "_call_graph_edges",
-        "_candidate_import_targets",
-        "_collect_architecture_signals",
-        "_collect_entities",
-        "_collect_text_files",
-        "_detect_changed_files",
-        "_emit_index_json",
-        "_endpoint_files",
-        "_endpoint_inventory_for",
-        "_extract_angular_screen_entries",
-        "_extract_csharp_server_routes",
-        "_extract_python_routes",
-        "_extract_route_screens_from_array",
-        "_extract_snippet",
-        "_extract_text_client_calls",
-        "_extract_text_constants",
-        "_file_ref",
-        "_file_symbols"
+        "_callees",
+        "_callers",
+        "_calls_by_source_file",
+        "_calls_in_text",
+        "_candidate_import_targets"
       ],
       "evidence": [
         {
@@ -1026,6 +1113,9 @@
         },
         {
           "file": "simplicio_mapper/_native.py"
+        },
+        {
+          "file": "simplicio_mapper/business.py"
         },
         {
           "file": "simplicio_mapper/cache.py"
@@ -1040,26 +1130,29 @@
           "file": "simplicio_mapper/context_pack.py"
         },
         {
-          "file": "simplicio_mapper/mapper.py"
+          "file": "simplicio_mapper/diagrams.py"
         },
         {
-          "file": "simplicio_mapper/mechanical_edit.py"
+          "file": "simplicio_mapper/docsync.py"
         },
         {
-          "file": "simplicio_mapper/models.py"
+          "file": "simplicio_mapper/drift.py"
         }
       ]
     },
     {
       "name": "tests",
-      "summary": "Groups 33 files across 4 detected layers.",
-      "file_count": 33,
+      "summary": "Groups 45 files across 4 detected layers.",
+      "file_count": 45,
       "files": [
         "tests/e2e/README.md",
         "tests/e2e/build-hamt-catalog.spec.ts",
         "tests/e2e/cli.spec.ts",
+        "tests/e2e/flowchart.spec.ts",
         "tests/e2e/skillopt.spec.ts",
         "tests/e2e/smoke.spec.ts",
+        "tests/e2e/tier-languages.spec.ts",
+        "tests/e2e/two-tier-mapper.spec.ts",
         "tests/fixtures/ctx-pack-host/sample.json",
         "tests/fixtures/ctx-pack-host/sample.md",
         "tests/fixtures/ctx-pack-host/sample.py",
@@ -1072,12 +1165,20 @@
         "tests/fixtures/parity-host/src/greet.js",
         "tests/fixtures/parity-host/src/index.js",
         "tests/fixtures/parity-host/tests/server-fixture.js",
+        "tests/python/test_business.py",
         "tests/python/test_cli.py",
         "tests/python/test_cli_coverage.py",
         "tests/python/test_context_pack.py",
+        "tests/python/test_diagrams.py",
+        "tests/python/test_docsync.py",
+        "tests/python/test_drift.py",
+        "tests/python/test_flows.py",
+        "tests/python/test_history.py",
         "tests/python/test_mechanical_edit.py",
         "tests/python/test_native.py",
         "tests/python/test_parity.py",
+        "tests/python/test_query.py",
+        "tests/python/test_survey.py",
         "tests/unit/apply-edits.test.js",
         "tests/unit/build-hamt-catalog.test.js",
         "tests/unit/cli-args.test.js",
@@ -1086,6 +1187,7 @@
         "tests/unit/docs-site.test.js",
         "tests/unit/mapping-artifacts.test.js",
         "tests/unit/overlay-docs.test.js",
+        "tests/unit/render-simplicio-comment.test.js",
         "tests/unit/skillopt.test.js",
         "tests/unit/why-video-narration.test.js"
       ],
@@ -1102,8 +1204,11 @@
         "tests/e2e/README.md",
         "tests/e2e/build-hamt-catalog.spec.ts",
         "tests/e2e/cli.spec.ts",
+        "tests/e2e/flowchart.spec.ts",
         "tests/e2e/skillopt.spec.ts",
         "tests/e2e/smoke.spec.ts",
+        "tests/e2e/tier-languages.spec.ts",
+        "tests/e2e/two-tier-mapper.spec.ts",
         "tests/fixtures/ctx-pack-host/sample.json",
         "tests/fixtures/ctx-pack-host/sample.md",
         "tests/fixtures/ctx-pack-host/sample.py",
@@ -1116,12 +1221,20 @@
         "tests/fixtures/parity-host/src/greet.js",
         "tests/fixtures/parity-host/src/index.js",
         "tests/fixtures/parity-host/tests/server-fixture.js",
+        "tests/python/test_business.py",
         "tests/python/test_cli.py",
         "tests/python/test_cli_coverage.py",
         "tests/python/test_context_pack.py",
+        "tests/python/test_diagrams.py",
+        "tests/python/test_docsync.py",
+        "tests/python/test_drift.py",
+        "tests/python/test_flows.py",
+        "tests/python/test_history.py",
         "tests/python/test_mechanical_edit.py",
         "tests/python/test_native.py",
         "tests/python/test_parity.py",
+        "tests/python/test_query.py",
+        "tests/python/test_survey.py",
         "tests/unit/apply-edits.test.js",
         "tests/unit/build-hamt-catalog.test.js",
         "tests/unit/cli-args.test.js",
@@ -1130,12 +1243,15 @@
         "tests/unit/docs-site.test.js",
         "tests/unit/mapping-artifacts.test.js",
         "tests/unit/overlay-docs.test.js",
+        "tests/unit/render-simplicio-comment.test.js",
         "tests/unit/skillopt.test.js",
         "tests/unit/why-video-narration.test.js"
       ],
       "public_symbols": [
+        "AdminUsersComponent",
         "AnchorDriftDetectionTest",
         "ApiClient",
+        "BusinessRulesTest",
         "CallGraphAndDependencyTest",
         "CliTest",
         "ContextCacheTest",
@@ -1143,12 +1259,19 @@
         "DeterminismTest",
         "DeterministicContextHashTest",
         "DocsOnlyShortCircuitTest",
+        "DocsSyncGitRepoTest",
+        "DocsSyncNoGitTest",
+        "DriftTest",
         "EndpointNormalizationTest",
+        "EscapeLabelTest",
         "FallbackEqualsNativeTest",
         "FileProcessingCacheTest",
+        "FlowInventoryTest",
+        "HistoryTest",
         "IndexFailureBoundaryTest",
         "JsonOnlyAndChangedOnlyAliasesTest",
         "LargeFileCompactModeTest",
+        "LlmDirectivesTest",
         "MapperArtifactsTest",
         "MapperRunsWithoutNativeTest",
         "MissingFileAndBinaryRefusalTest",
@@ -1156,24 +1279,15 @@
         "NativeShimTest",
         "NeedsBroaderContextTest",
         "NodePythonParityTest",
+        "QueryTest",
         "RangeExtractionTest",
+        "RenderCallSequenceTest",
+        "RenderFlowchartTest",
+        "RenderStateDiagramTest",
+        "SanitizeIdTest",
         "SnapshotHashTest",
         "StableRangeHashingTest",
-        "StackAndProductHintInjectionTest",
-        "WatchLoopExitsOnInterruptTest",
-        "_have_node",
-        "_node_map",
-        "_normalize",
-        "_pack",
-        "_python_map",
-        "_reload_with_native",
-        "_run",
-        "_write",
-        "app_route_definition",
-        "attachEvidence",
-        "create_snapshot",
-        "farewell",
-        "get"
+        "StackAndProductHintInjectionTest"
       ],
       "evidence": [
         {
@@ -1186,25 +1300,25 @@
           "file": "tests/e2e/cli.spec.ts"
         },
         {
+          "file": "tests/e2e/flowchart.spec.ts"
+        },
+        {
           "file": "tests/e2e/skillopt.spec.ts"
         },
         {
           "file": "tests/e2e/smoke.spec.ts"
         },
         {
+          "file": "tests/e2e/tier-languages.spec.ts"
+        },
+        {
+          "file": "tests/e2e/two-tier-mapper.spec.ts"
+        },
+        {
           "file": "tests/fixtures/ctx-pack-host/sample.json"
         },
         {
           "file": "tests/fixtures/ctx-pack-host/sample.md"
-        },
-        {
-          "file": "tests/fixtures/ctx-pack-host/sample.py"
-        },
-        {
-          "file": "tests/fixtures/ctx-pack-host/sample.ts"
-        },
-        {
-          "file": "tests/fixtures/mech-edit-host/sample.json"
         }
       ]
     },
@@ -1403,7 +1517,7 @@
   "layers": [
     {
       "name": "asset",
-      "file_count": 54,
+      "file_count": 59,
       "files": [
         ".claude/hooks/post-edit.ps1",
         ".claude/hooks/post-edit.sh",
@@ -1421,6 +1535,7 @@
         ".github/workflows-templates/llm-project-mapper-init.yml",
         ".github/workflows/ci.yml",
         ".github/workflows/docs-site.yml",
+        ".github/workflows/docs-sync.yml",
         ".github/workflows/dod.yml",
         ".github/workflows/publish-pypi.yml",
         ".github/workflows/python-ci.yml",
@@ -1432,6 +1547,7 @@
         ".skills/UPSTREAM-LICENSE-superpowers",
         ".skills/skillopt/example.suite.json",
         "LICENSE",
+        "action.yml",
         "bootstrap.ps1",
         "bootstrap.sh",
         "docs-site/docs/community/_category_.json",
@@ -1439,6 +1555,7 @@
         "docs-site/docs/guide/_category_.json",
         "docs-site/docs/quickstart/_category_.json",
         "docs-site/docs/reference/_category_.json",
+        "docs-site/src/css/custom.css",
         "docs-site/versioned_docs/version-0.2.0/community/_category_.json",
         "docs-site/versioned_docs/version-0.2.0/concepts/_category_.json",
         "docs-site/versioned_docs/version-0.2.0/guide/_category_.json",
@@ -1452,7 +1569,9 @@
         "docs-site/versioned_sidebars/version-0.2.0-sidebars.json",
         "docs-site/versioned_sidebars/version-0.7.3-sidebars.json",
         "docs-site/versions.json",
+        "examples/brown-hilbert-addresses.json",
         "package-lock.json",
+        "template-manifest.json",
         "video/.gitignore",
         "video/package-lock.json",
         "video/src/why/narration.json",
@@ -1467,6 +1586,7 @@
         ".github",
         ".skills",
         "docs-site",
+        "examples",
         "video",
         "vscode-extension"
       ],
@@ -1505,7 +1625,7 @@
     },
     {
       "name": "code",
-      "file_count": 45,
+      "file_count": 55,
       "files": [
         ".github/workflows-templates/telemetry-worker.js",
         "bin/auto-map.js",
@@ -1513,14 +1633,24 @@
         "bin/map.js",
         "bin/mapper-artifacts.js",
         "docs-site/sidebars.cjs",
+        "packaging/npm/bin/simplicio-mapper.js",
+        "packaging/npm/lib/python-shim.js",
         "rust/src/lib.rs",
         "simplicio_mapper/__init__.py",
         "simplicio_mapper/_native.py",
+        "simplicio_mapper/business.py",
         "simplicio_mapper/cache.py",
         "simplicio_mapper/context_cache.py",
         "simplicio_mapper/context_pack.py",
+        "simplicio_mapper/diagrams.py",
+        "simplicio_mapper/docsync.py",
+        "simplicio_mapper/drift.py",
+        "simplicio_mapper/flows.py",
+        "simplicio_mapper/history.py",
         "simplicio_mapper/mapper.py",
         "simplicio_mapper/mechanical_edit.py",
+        "simplicio_mapper/query.py",
+        "simplicio_mapper/survey.py",
         "video/scripts/generate-why-voiceover.mjs",
         "video/scripts/regression.mjs",
         "video/src/LangContext.tsx",
@@ -1557,6 +1687,7 @@
         ".github",
         "bin",
         "docs-site",
+        "packaging",
         "rust",
         "simplicio_mapper",
         "video",
@@ -1582,27 +1713,28 @@
           "file": "docs-site/sidebars.cjs"
         },
         {
+          "file": "packaging/npm/bin/simplicio-mapper.js"
+        },
+        {
+          "file": "packaging/npm/lib/python-shim.js"
+        },
+        {
           "file": "rust/src/lib.rs"
         },
         {
           "file": "simplicio_mapper/__init__.py"
-        },
-        {
-          "file": "simplicio_mapper/_native.py"
-        },
-        {
-          "file": "simplicio_mapper/cache.py"
         }
       ]
     },
     {
       "name": "config",
-      "file_count": 14,
+      "file_count": 15,
       "files": [
         ".codex/config.toml",
         "docs-site/docusaurus.config.cjs",
         "docs-site/package.json",
         "package.json",
+        "packaging/npm/package.json",
         "playwright.config.ts",
         "pyproject.toml",
         "rust/Cargo.toml",
@@ -1618,6 +1750,7 @@
         ".",
         ".codex",
         "docs-site",
+        "packaging",
         "rust",
         "tests",
         "video",
@@ -1637,6 +1770,9 @@
           "file": "package.json"
         },
         {
+          "file": "packaging/npm/package.json"
+        },
+        {
           "file": "playwright.config.ts"
         },
         {
@@ -1650,15 +1786,12 @@
         },
         {
           "file": "tests/fixtures/parity-host/package.json"
-        },
-        {
-          "file": "video/package.json"
         }
       ]
     },
     {
       "name": "documentation",
-      "file_count": 172,
+      "file_count": 177,
       "files": [
         ".agents/README.md",
         ".agents/_template.agent.md",
@@ -1722,12 +1855,15 @@
         ".specs/README.md",
         ".specs/architecture/ADR-001-example.md",
         ".specs/architecture/ADR-002-python-rust-hybrid.md",
+        ".specs/architecture/ADR-003-two-tier-async-mapper.md",
+        ".specs/architecture/ADR-004-template-vs-product-content-manifest.md",
         ".specs/architecture/ADR-template.md",
         ".specs/architecture/DESIGN.md",
         ".specs/architecture/PATTERNS.md",
         ".specs/product/DOMAIN.md",
         ".specs/product/PERSONAS.md",
         ".specs/product/VISION.md",
+        ".specs/product/flow-documentation-spec.md",
         ".specs/sprints/BACKLOG.md",
         ".specs/sprints/sprint-01/01-example.task.md",
         ".specs/sprints/sprint-01/SPRINT.md",
@@ -1756,10 +1892,7 @@
         "READMEs/README.he-IL.md",
         "READMEs/README.hi-IN.md",
         "READMEs/README.id-ID.md",
-        "READMEs/README.it-IT.md",
-        "READMEs/README.ja-JP.md",
-        "READMEs/README.ko-KR.md",
-        "READMEs/README.ms-MY.md"
+        "READMEs/README.it-IT.md"
       ],
       "modules": [
         ".",
@@ -1770,6 +1903,7 @@
         "READMEs",
         "docs",
         "docs-site",
+        "packaging",
         "presentation",
         "rust",
         "scripts",
@@ -1889,7 +2023,7 @@
     },
     {
       "name": "script",
-      "file_count": 16,
+      "file_count": 17,
       "files": [
         "scripts/README.md",
         "scripts/build_hamt.py",
@@ -1899,6 +2033,7 @@
         "scripts/evidence.ps1",
         "scripts/evidence.sh",
         "scripts/lint.js",
+        "scripts/render-simplicio-comment.js",
         "scripts/skillopt/engine.js",
         "scripts/start.ps1",
         "scripts/start.sh",
@@ -1937,16 +2072,16 @@
           "file": "scripts/lint.js"
         },
         {
-          "file": "scripts/skillopt/engine.js"
+          "file": "scripts/render-simplicio-comment.js"
         },
         {
-          "file": "scripts/start.ps1"
+          "file": "scripts/skillopt/engine.js"
         }
       ]
     },
     {
       "name": "test",
-      "file_count": 55,
+      "file_count": 70,
       "files": [
         ".skills/subagent-driven-development/spec-reviewer-prompt.md",
         ".skills/test-driven-development/SKILL.md",
@@ -1954,12 +2089,15 @@
         ".specs/README.md",
         ".specs/architecture/ADR-001-example.md",
         ".specs/architecture/ADR-002-python-rust-hybrid.md",
+        ".specs/architecture/ADR-003-two-tier-async-mapper.md",
+        ".specs/architecture/ADR-004-template-vs-product-content-manifest.md",
         ".specs/architecture/ADR-template.md",
         ".specs/architecture/DESIGN.md",
         ".specs/architecture/PATTERNS.md",
         ".specs/product/DOMAIN.md",
         ".specs/product/PERSONAS.md",
         ".specs/product/VISION.md",
+        ".specs/product/flow-documentation-spec.md",
         ".specs/sprints/BACKLOG.md",
         ".specs/sprints/sprint-01/01-example.task.md",
         ".specs/sprints/sprint-01/SPRINT.md",
@@ -1972,8 +2110,11 @@
         "tests/e2e/README.md",
         "tests/e2e/build-hamt-catalog.spec.ts",
         "tests/e2e/cli.spec.ts",
+        "tests/e2e/flowchart.spec.ts",
         "tests/e2e/skillopt.spec.ts",
         "tests/e2e/smoke.spec.ts",
+        "tests/e2e/tier-languages.spec.ts",
+        "tests/e2e/two-tier-mapper.spec.ts",
         "tests/fixtures/ctx-pack-host/sample.json",
         "tests/fixtures/ctx-pack-host/sample.md",
         "tests/fixtures/ctx-pack-host/sample.py",
@@ -1986,12 +2127,20 @@
         "tests/fixtures/parity-host/src/greet.js",
         "tests/fixtures/parity-host/src/index.js",
         "tests/fixtures/parity-host/tests/server-fixture.js",
+        "tests/python/test_business.py",
         "tests/python/test_cli.py",
         "tests/python/test_cli_coverage.py",
         "tests/python/test_context_pack.py",
+        "tests/python/test_diagrams.py",
+        "tests/python/test_docsync.py",
+        "tests/python/test_drift.py",
+        "tests/python/test_flows.py",
+        "tests/python/test_history.py",
         "tests/python/test_mechanical_edit.py",
         "tests/python/test_native.py",
         "tests/python/test_parity.py",
+        "tests/python/test_query.py",
+        "tests/python/test_survey.py",
         "tests/unit/apply-edits.test.js",
         "tests/unit/build-hamt-catalog.test.js",
         "tests/unit/cli-args.test.js",
@@ -2000,6 +2149,7 @@
         "tests/unit/docs-site.test.js",
         "tests/unit/mapping-artifacts.test.js",
         "tests/unit/overlay-docs.test.js",
+        "tests/unit/render-simplicio-comment.test.js",
         "tests/unit/skillopt.test.js",
         "tests/unit/why-video-narration.test.js",
         "vscode-extension/test/scan.test.js"
@@ -2031,16 +2181,16 @@
           "file": ".specs/architecture/ADR-002-python-rust-hybrid.md"
         },
         {
+          "file": ".specs/architecture/ADR-003-two-tier-async-mapper.md"
+        },
+        {
+          "file": ".specs/architecture/ADR-004-template-vs-product-content-manifest.md"
+        },
+        {
           "file": ".specs/architecture/ADR-template.md"
         },
         {
           "file": ".specs/architecture/DESIGN.md"
-        },
-        {
-          "file": ".specs/architecture/PATTERNS.md"
-        },
-        {
-          "file": ".specs/product/DOMAIN.md"
         }
       ]
     },
@@ -2686,6 +2836,23 @@
       "evidence": [
         {
           "file": ".github/workflows/docs-site.yml"
+        }
+      ]
+    },
+    {
+      "path": ".github/workflows/docs-sync.yml",
+      "language": "yaml",
+      "module": ".github",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": ".github/workflows/docs-sync.yml"
         }
       ]
     },
@@ -3665,6 +3832,46 @@
       ]
     },
     {
+      "path": ".specs/architecture/ADR-003-two-tier-async-mapper.md",
+      "language": "markdown",
+      "module": ".specs",
+      "layers": [
+        "documentation",
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "symbols": [],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": ".specs/architecture/ADR-003-two-tier-async-mapper.md"
+        }
+      ]
+    },
+    {
+      "path": ".specs/architecture/ADR-004-template-vs-product-content-manifest.md",
+      "language": "markdown",
+      "module": ".specs",
+      "layers": [
+        "documentation",
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "symbols": [],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": ".specs/architecture/ADR-004-template-vs-product-content-manifest.md"
+        }
+      ]
+    },
+    {
       "path": ".specs/architecture/ADR-template.md",
       "language": "markdown",
       "module": ".specs",
@@ -3781,6 +3988,26 @@
       "evidence": [
         {
           "file": ".specs/product/VISION.md"
+        }
+      ]
+    },
+    {
+      "path": ".specs/product/flow-documentation-spec.md",
+      "language": "markdown",
+      "module": ".specs",
+      "layers": [
+        "documentation",
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [],
+      "symbols": [],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": ".specs/product/flow-documentation-spec.md"
         }
       ]
     },
@@ -4452,6 +4679,23 @@
       ]
     },
     {
+      "path": "SIMPLICIO_ECOSYSTEM.md",
+      "language": "markdown",
+      "module": ".",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "SIMPLICIO_ECOSYSTEM.md"
+        }
+      ]
+    },
+    {
       "path": "SIMPLICIO_INTEGRATION.md",
       "language": "markdown",
       "module": ".",
@@ -4499,6 +4743,23 @@
       "evidence": [
         {
           "file": "_BOOTSTRAP.md"
+        }
+      ]
+    },
+    {
+      "path": "action.yml",
+      "language": "yaml",
+      "module": ".",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "action.yml"
         }
       ]
     },
@@ -4678,7 +4939,9 @@
         "looksStarterManagedContent",
         "readExistingMeta",
         "detectPreservedUserFiles",
+        "loadProductPaths",
         "copyTemplate",
+        "skipProductPaths",
         "handleGitignore",
         "upsertGitignore",
         "writeFileIfMissing",
@@ -5240,6 +5503,28 @@
       "evidence": [
         {
           "file": "docs-site/sidebars.cjs"
+        }
+      ]
+    },
+    {
+      "path": "docs-site/src/css/custom.css",
+      "language": "css",
+      "module": "docs-site",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [
+        "navbar",
+        "theme-doc-markdown",
+        "theme-doc-markdown",
+        "theme-doc-markdown"
+      ],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "docs-site/src/css/custom.css"
         }
       ]
     },
@@ -6165,6 +6450,23 @@
       ]
     },
     {
+      "path": "examples/brown-hilbert-addresses.json",
+      "language": "json",
+      "module": "examples",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "examples/brown-hilbert-addresses.json"
+        }
+      ]
+    },
+    {
       "path": "package-lock.json",
       "language": "json",
       "module": ".",
@@ -6197,6 +6499,95 @@
       "evidence": [
         {
           "file": "package.json"
+        }
+      ]
+    },
+    {
+      "path": "packaging/npm/README.md",
+      "language": "markdown",
+      "module": "packaging",
+      "layers": [
+        "documentation"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Documents product, architecture, operation or contributor workflow.",
+      "evidence": [
+        {
+          "file": "packaging/npm/README.md"
+        }
+      ]
+    },
+    {
+      "path": "packaging/npm/bin/simplicio-mapper.js",
+      "language": "javascript",
+      "module": "packaging",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        "../lib/python-shim"
+      ],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "packaging/npm/bin/simplicio-mapper.js"
+        }
+      ]
+    },
+    {
+      "path": "packaging/npm/lib/python-shim.js",
+      "language": "javascript",
+      "module": "packaging",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        "node:child_process",
+        "node:fs",
+        "node:os",
+        "node:path"
+      ],
+      "symbols": [
+        "run",
+        "probe",
+        "findPython",
+        "sanitizePackageName",
+        "venvRoot",
+        "venvPython",
+        "entrypointCandidates",
+        "resolveEntrypoint",
+        "ensureVirtualenv",
+        "ensureInstalled",
+        "ensureAndRun"
+      ],
+      "summary": "Defines exported symbols: ensureAndRun, ensureInstalled, ensureVirtualenv, entrypointCandidates, findPython.",
+      "evidence": [
+        {
+          "file": "packaging/npm/lib/python-shim.js"
+        }
+      ]
+    },
+    {
+      "path": "packaging/npm/package.json",
+      "language": "json",
+      "module": "packaging",
+      "layers": [
+        "config"
+      ],
+      "roles": [
+        "config"
+      ],
+      "imports": [],
+      "symbols": [],
+      "summary": "Configures tooling, build, runtime or packaging behavior.",
+      "evidence": [
+        {
+          "file": "packaging/npm/package.json"
         }
       ]
     },
@@ -6538,6 +6929,31 @@
       ]
     },
     {
+      "path": "scripts/render-simplicio-comment.js",
+      "language": "javascript",
+      "module": "scripts",
+      "layers": [
+        "script"
+      ],
+      "roles": [],
+      "imports": [
+        "node:fs"
+      ],
+      "symbols": [
+        "readJsonSafe",
+        "renderSyncSection",
+        "renderDriftSection",
+        "renderComment",
+        "main"
+      ],
+      "summary": "Defines exported symbols: main, readJsonSafe, renderComment, renderDriftSection, renderSyncSection.",
+      "evidence": [
+        {
+          "file": "scripts/render-simplicio-comment.js"
+        }
+      ]
+    },
+    {
       "path": "scripts/skillopt/engine.js",
       "language": "javascript",
       "module": "scripts",
@@ -6755,6 +7171,42 @@
       ]
     },
     {
+      "path": "simplicio_mapper/business.py",
+      "language": "python",
+      "module": "simplicio_mapper",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        ".diagrams",
+        ".flows",
+        ".mapper",
+        "__future__",
+        "os",
+        "re"
+      ],
+      "symbols": [
+        "_read",
+        "_extract_limits",
+        "_extract_pattern_rules",
+        "_extract_side_effects",
+        "_extract_invariants",
+        "_extract_state_machines",
+        "_extract_transitions_for_file",
+        "_domain_doc_terms",
+        "_build_glossary",
+        "build_business_rules",
+        "render_business_rules_markdown"
+      ],
+      "summary": "Defines exported symbols: _build_glossary, _domain_doc_terms, _extract_invariants, _extract_limits, _extract_pattern_rules.",
+      "evidence": [
+        {
+          "file": "simplicio_mapper/business.py"
+        }
+      ]
+    },
+    {
       "path": "simplicio_mapper/cache.py",
       "language": "python",
       "module": "simplicio_mapper",
@@ -6799,16 +7251,25 @@
       ],
       "imports": [
         ".",
+        ".business",
+        ".context_cache",
+        ".context_pack",
+        ".docsync",
+        ".drift",
+        ".flows",
+        ".history",
         ".mapper",
+        ".query",
+        ".survey",
         "__future__",
         "collections.abc",
+        "contextlib",
         "hashlib",
+        "io",
         "json",
         "os",
         "re",
-        "subprocess",
-        "sys",
-        "time"
+        "subprocess"
       ],
       "symbols": [
         "_read_json_safe",
@@ -6855,12 +7316,65 @@
         "_extract_angular_screen_entries",
         "_screen_inventory_for",
         "_run_screens",
+        "_posix_dirname",
+        "_flow_slug",
+        "_mermaid_escape",
+        "_scan_ts_classes",
+        "_component_template",
+        "_button_label",
+        "_handler_body",
+        "_calls_in_text",
+        "_extract_buttons",
+        "_within_scope",
+        "_build_frontend_face",
+        "_external_calls",
+        "_db_markers",
+        "_flow_steps",
+        "_guess_layer",
+        "_csharp_request_payload",
+        "_csharp_response_payload",
+        "_csharp_endpoint_flows",
+        "_python_def_body",
+        "_python_request_payload",
+        "_python_endpoint_flows",
+        "_build_backend_face",
+        "build_service_flowchart",
+        "render_service_flowchart_markdown",
+        "endpoint_node",
+        "_run_flowchart",
+        "_run_flows",
+        "_run_sync",
+        "_run_history",
+        "_run_diff",
+        "_run_business",
+        "_run_survey",
+        "_run_drift",
+        "_run_ask",
         "_run_docs",
         "_run_export_docs",
+        "_spawn_background_index",
         "_run_background",
         "_run_index",
         "_run_index_locked",
         "_watch",
+        "_map_job_path",
+        "_project_map_path",
+        "_context_cache_path",
+        "_index_is_fresh",
+        "_deep_phase",
+        "_await_terminal",
+        "_cache_summary",
+        "_job_summary",
+        "_path_evidence",
+        "_artifact_evidence",
+        "_status_warnings",
+        "_status_payload",
+        "_handoff_targets",
+        "_run_inspect",
+        "_run_handoff",
+        "_run_macro",
+        "_run_scan",
+        "_run_status",
         "main"
       ],
       "summary": "Starts a CLI, runtime or package entrypoint.",
@@ -6893,6 +7407,7 @@
         "clear",
         "__contains__",
         "__len__",
+        "keys",
         "_persist"
       ],
       "summary": "Defines exported symbols: ContextCache, __contains__, __init__, __len__, _load.",
@@ -6911,11 +7426,13 @@
       ],
       "roles": [],
       "imports": [
+        ".mapper",
         "__future__",
         "collections.abc",
         "hashlib",
         "json",
         "os",
+        "re",
         "typing"
       ],
       "symbols": [
@@ -6937,6 +7454,181 @@
       ]
     },
     {
+      "path": "simplicio_mapper/diagrams.py",
+      "language": "python",
+      "module": "simplicio_mapper",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        "__future__",
+        "re"
+      ],
+      "symbols": [
+        "sanitize_id",
+        "escape_label",
+        "render_flowchart",
+        "render_call_sequence",
+        "render_state_diagram",
+        "to_markdown_block"
+      ],
+      "summary": "Defines exported symbols: escape_label, render_call_sequence, render_flowchart, render_state_diagram, sanitize_id.",
+      "evidence": [
+        {
+          "file": "simplicio_mapper/diagrams.py"
+        }
+      ]
+    },
+    {
+      "path": "simplicio_mapper/docsync.py",
+      "language": "python",
+      "module": "simplicio_mapper",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        ".flows",
+        ".mapper",
+        "__future__",
+        "os",
+        "subprocess"
+      ],
+      "symbols": [
+        "_run_git",
+        "_changed_files_from_git",
+        "_changed_files_from_cache",
+        "_symbols_for_files",
+        "_flows_touching",
+        "_modules_for_files",
+        "_scan_manual_docs_for_references",
+        "_would_change",
+        "build_docs_sync",
+        "_render_global_docs"
+      ],
+      "summary": "Defines exported symbols: _changed_files_from_cache, _changed_files_from_git, _flows_touching, _modules_for_files, _render_global_docs.",
+      "evidence": [
+        {
+          "file": "simplicio_mapper/docsync.py"
+        }
+      ]
+    },
+    {
+      "path": "simplicio_mapper/drift.py",
+      "language": "python",
+      "module": "simplicio_mapper",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        ".docsync",
+        ".mapper",
+        "__future__",
+        "json",
+        "os",
+        "re"
+      ],
+      "symbols": [
+        "_load_manifest",
+        "_spec_doc_paths",
+        "_read",
+        "_check_placeholders",
+        "_check_orphan_specs",
+        "_check_orphan_code",
+        "build_spec_drift",
+        "render_drift_markdown"
+      ],
+      "summary": "Defines exported symbols: _check_orphan_code, _check_orphan_specs, _check_placeholders, _load_manifest, _read.",
+      "evidence": [
+        {
+          "file": "simplicio_mapper/drift.py"
+        }
+      ]
+    },
+    {
+      "path": "simplicio_mapper/flows.py",
+      "language": "python",
+      "module": "simplicio_mapper",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        ".diagrams",
+        "__future__",
+        "collections",
+        "os",
+        "re",
+        "typing"
+      ],
+      "symbols": [
+        "_read_cached",
+        "_line_of",
+        "_scan_effects",
+        "_module_name_for_path",
+        "_symbols_by_file",
+        "_calls_by_source_file",
+        "_layers_for_path",
+        "_flow_kind",
+        "_flow_id",
+        "_derive_flow",
+        "_dedupe_effects",
+        "build_flow_inventory",
+        "render_flow_inventory_markdown"
+      ],
+      "summary": "Defines exported symbols: _calls_by_source_file, _dedupe_effects, _derive_flow, _flow_id, _flow_kind.",
+      "evidence": [
+        {
+          "file": "simplicio_mapper/flows.py"
+        }
+      ]
+    },
+    {
+      "path": "simplicio_mapper/history.py",
+      "language": "python",
+      "module": "simplicio_mapper",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        ".flows",
+        ".mapper",
+        "__future__",
+        "hashlib",
+        "orjson",
+        "os",
+        "re",
+        "subprocess",
+        "typing"
+      ],
+      "symbols": [
+        "_history_dir",
+        "_write_json",
+        "_read_json",
+        "_hash_obj",
+        "_git_head",
+        "_digest_from_artifacts",
+        "_compute_delta",
+        "_summarize_delta",
+        "_gc",
+        "create_snapshot",
+        "render_changelog_entry",
+        "append_changelog",
+        "maybe_snapshot",
+        "list_snapshots",
+        "diff_snapshots"
+      ],
+      "summary": "Defines exported symbols: _compute_delta, _digest_from_artifacts, _gc, _git_head, _hash_obj.",
+      "evidence": [
+        {
+          "file": "simplicio_mapper/history.py"
+        }
+      ]
+    },
+    {
       "path": "simplicio_mapper/mapper.py",
       "language": "python",
       "module": "simplicio_mapper",
@@ -6947,6 +7639,8 @@
       "imports": [
         ".",
         ".cache",
+        ".cli",
+        ".diagrams",
         ".models",
         "__future__",
         "collections.abc",
@@ -6980,6 +7674,10 @@
         "_token_words",
         "_collect_entities",
         "_collect_architecture_signals",
+        "_brown_hilbert_address",
+        "_agent_id_from_seed",
+        "_build_brown_hilbert_map",
+        "_build_agent_tree",
         "_group_modules",
         "_detect_changed_files",
         "_load_previous_map",
@@ -7000,6 +7698,11 @@
         "_build_call_graph",
         "add_edge",
         "_build_architecture_inventory",
+        "_macro_roles_for_path",
+        "_macro_layers_for_path",
+        "_is_macro_screen",
+        "_macro_git",
+        "build_macro_map",
         "build_artifacts",
         "_write_json_stable",
         "write_mapping_artifacts",
@@ -7013,7 +7716,7 @@
         "write_architecture_docs",
         "export_architecture_docs"
       ],
-      "summary": "Defines exported symbols: _build_architecture_inventory, _build_call_graph, _build_file_inventory, _build_precedent_items, _build_symbol_index.",
+      "summary": "Defines exported symbols: _agent_id_from_seed, _brown_hilbert_address, _build_agent_tree, _build_brown_hilbert_map, _build_file_inventory.",
       "evidence": [
         {
           "file": "simplicio_mapper/mapper.py"
@@ -7082,6 +7785,91 @@
       "evidence": [
         {
           "file": "simplicio_mapper/models.py"
+        }
+      ]
+    },
+    {
+      "path": "simplicio_mapper/query.py",
+      "language": "python",
+      "module": "simplicio_mapper",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        ".docsync",
+        ".flows",
+        ".mapper",
+        "__future__",
+        "collections",
+        "os",
+        "typing"
+      ],
+      "symbols": [
+        "_edge_view",
+        "_resolve_symbol_name",
+        "_callers",
+        "_callees",
+        "_reaches",
+        "_impact",
+        "_read_text",
+        "_tests_for",
+        "_business_rules",
+        "run_query"
+      ],
+      "summary": "Defines exported symbols: _business_rules, _callees, _callers, _edge_view, _impact.",
+      "evidence": [
+        {
+          "file": "simplicio_mapper/query.py"
+        }
+      ]
+    },
+    {
+      "path": "simplicio_mapper/survey.py",
+      "language": "python",
+      "module": "simplicio_mapper",
+      "layers": [
+        "code"
+      ],
+      "roles": [],
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "re"
+      ],
+      "symbols": [
+        "_read_json_safe",
+        "_read_text",
+        "_detect_run_commands",
+        "_fan_in_by_module",
+        "_reading_order",
+        "_conventions",
+        "_help_sources",
+        "build_survey",
+        "render_survey_markdown"
+      ],
+      "summary": "Defines exported symbols: _conventions, _detect_run_commands, _fan_in_by_module, _help_sources, _read_json_safe.",
+      "evidence": [
+        {
+          "file": "simplicio_mapper/survey.py"
+        }
+      ]
+    },
+    {
+      "path": "template-manifest.json",
+      "language": "json",
+      "module": ".",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": "template-manifest.json"
         }
       ]
     },
@@ -7170,6 +7958,43 @@
       ]
     },
     {
+      "path": "tests/e2e/flowchart.spec.ts",
+      "language": "typescript",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "./admin/users/users.component",
+        "./auth.guard",
+        "@angular/core",
+        "@angular/router",
+        "@playwright/test",
+        "node:child_process",
+        "node:fs",
+        "node:os",
+        "node:path"
+      ],
+      "symbols": [
+        "mkTmp",
+        "rmTmp",
+        "writeFile",
+        "runFlowchart",
+        "scaffold",
+        "AdminUsersComponent",
+        "attachEvidence"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/e2e/flowchart.spec.ts"
+        }
+      ]
+    },
+    {
       "path": "tests/e2e/skillopt.spec.ts",
       "language": "typescript",
       "module": "tests",
@@ -7218,6 +8043,75 @@
       "evidence": [
         {
           "file": "tests/e2e/smoke.spec.ts"
+        }
+      ]
+    },
+    {
+      "path": "tests/e2e/tier-languages.spec.ts",
+      "language": "typescript",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        ",\n  ",
+        "./theme.css",
+        "./x",
+        "./y",
+        "@playwright/test",
+        "node:child_process",
+        "node:fs",
+        "node:os",
+        "node:path",
+        "package:flutter/material.dart",
+        "socket"
+      ],
+      "symbols": [
+        "mkTmp",
+        "rmTmp",
+        "scaffold",
+        "runIndex",
+        "attach"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/e2e/tier-languages.spec.ts"
+        }
+      ]
+    },
+    {
+      "path": "tests/e2e/two-tier-mapper.spec.ts",
+      "language": "typescript",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "@playwright/test",
+        "node:child_process",
+        "node:fs",
+        "node:os",
+        "node:path"
+      ],
+      "symbols": [
+        "mkTmp",
+        "rmTmp",
+        "writeFile",
+        "runMapper",
+        "scaffold",
+        "attach"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/e2e/two-tier-mapper.spec.ts"
         }
       ]
     },
@@ -7477,7 +8371,7 @@
       ]
     },
     {
-      "path": "tests/python/test_cli.py",
+      "path": "tests/python/test_business.py",
       "language": "python",
       "module": "tests",
       "layers": [
@@ -7491,11 +8385,56 @@
         "contextlib",
         "io",
         "json",
+        "pathlib",
+        "simplicio_mapper.business",
+        "simplicio_mapper.cli",
+        "simplicio_mapper.mapper",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "symbols": [
+        "_write",
+        "BusinessRulesTest",
+        "setUp",
+        "tearDown",
+        "_app",
+        "test_detects_limit_permission_side_effect_invariant",
+        "test_state_machine_and_transitions_detected",
+        "test_no_false_positive_limit_without_comparison",
+        "test_glossary_cross_references_domain_doc",
+        "test_markdown_render_includes_state_diagram",
+        "test_business_command_writes_json_and_doc"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_business.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/python/test_cli.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "contextlib",
+        "fastapi",
+        "io",
+        "json",
         "os",
         "pathlib",
         "simplicio_mapper",
         "simplicio_mapper.cache",
         "simplicio_mapper.cli",
+        "simplicio_mapper.context_pack",
         "simplicio_mapper.mapper",
         "simplicio_mapper.models",
         "subprocess",
@@ -7545,6 +8484,12 @@
         "test_screens_extracts_angular_routes",
         "test_docs_command_writes_markdown_json_contract",
         "test_export_docs_command_copies_markdown",
+        "_flowchart_app",
+        "test_flowchart_builds_frontend_and_backend_faces",
+        "test_flowchart_command_writes_doc_and_json",
+        "test_flowchart_reads_external_template_url",
+        "test_flowchart_renders_empty_project_safely",
+        "test_docs_pipeline_includes_flowchart",
         "test_endpoints_captures_python_page_api_calls",
         "route_definition",
         "app_route_definition",
@@ -7556,7 +8501,41 @@
         "test_index_refreshes_when_dirty_file_changes_again",
         "test_index_skips_with_explicit_lock",
         "test_background_index_reports_pid_and_log",
-        "test_docs_only_renders_without_index_payload"
+        "test_docs_only_renders_without_index_payload",
+        "_seed_multi_stack",
+        "test_macro_no_full_content_reads",
+        "test_macro_deterministic_counts",
+        "test_macro_command_json_schema",
+        "test_scan_sync_returns_complete_envelope",
+        "test_scan_async_returns_before_deep_completes",
+        "test_scan_sync_lock_guarded",
+        "test_status_reports_running_then_complete",
+        "test_status_unknown_without_run",
+        "test_status_json_exposes_job_counts_cache_and_commands",
+        "test_inspect_command_returns_artifact_surface",
+        "test_handoff_command_embeds_context_pack_for_changed_files",
+        "test_handoff_marks_stale_artifacts_not_ready",
+        "TierLanguageSupportTest",
+        "setUp",
+        "tearDown",
+        "test_language_detection",
+        "test_symbols_extracted_per_language",
+        "test_imports_extracted_per_language",
+        "test_new_languages_in_call_graph",
+        "test_dart_control_flow_not_captured_as_function",
+        "test_sql_schema_qualified_captures_table_name",
+        "Tier3LanguageSupportTest",
+        "setUp",
+        "tearDown",
+        "test_language_detection",
+        "test_symbols_extracted_per_language",
+        "test_imports_extracted_per_language",
+        "test_tier3_languages_in_call_graph",
+        "LlmDirectivesTest",
+        "setUp",
+        "tearDown",
+        "test_project_map_carries_directives",
+        "test_context_pack_carries_directives"
       ],
       "summary": "Verifies project behavior through automated tests.",
       "evidence": [
@@ -7661,12 +8640,225 @@
         "test_invalidation_when_key_changes",
         "test_persistence_across_instances",
         "test_clear_empties_cache",
-        "test_persisted_payload_uses_schema"
+        "test_persisted_payload_uses_schema",
+        "test_keys_returns_sorted_sample"
       ],
       "summary": "Verifies project behavior through automated tests.",
       "evidence": [
         {
           "file": "tests/python/test_context_pack.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/python/test_diagrams.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "pathlib",
+        "simplicio_mapper.diagrams",
+        "sys",
+        "unittest"
+      ],
+      "symbols": [
+        "SanitizeIdTest",
+        "test_collision_between_different_raw_values_is_resolved",
+        "test_same_raw_value_is_memoized",
+        "test_id_never_starts_with_digit",
+        "EscapeLabelTest",
+        "test_escapes_adversarial_characters",
+        "test_empty_label_has_placeholder",
+        "RenderFlowchartTest",
+        "test_deterministic_output_for_same_input",
+        "test_truncation_is_annotated_not_silent",
+        "test_duplicate_edges_are_deduped_with_count",
+        "test_self_edges_are_dropped",
+        "test_adversarial_filenames_do_not_break_mermaid",
+        "RenderCallSequenceTest",
+        "test_linear_chain_renders_all_participants",
+        "test_truncation_reports_omitted_steps",
+        "RenderStateDiagramTest",
+        "test_transitions_between_kept_states_only",
+        "ToMarkdownBlockTest",
+        "test_wraps_mermaid_fence_and_fallback"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_diagrams.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/python/test_docsync.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "json",
+        "pathlib",
+        "simplicio_mapper.docsync",
+        "simplicio_mapper.mapper",
+        "subprocess",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "symbols": [
+        "_write",
+        "_git",
+        "DocsSyncGitRepoTest",
+        "setUp",
+        "tearDown",
+        "test_no_changes_is_a_noop",
+        "test_editing_one_module_only_regenerates_that_module_doc",
+        "test_manual_doc_referencing_changed_file_is_flagged_not_edited",
+        "test_check_mode_reports_stale_without_writing",
+        "test_check_mode_clean_after_sync",
+        "DocsSyncNoGitTest",
+        "test_falls_back_to_cache_diff_without_git"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_docsync.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/python/test_drift.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "contextlib",
+        "io",
+        "json",
+        "pathlib",
+        "simplicio_mapper.cli",
+        "simplicio_mapper.drift",
+        "simplicio_mapper.mapper",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "symbols": [
+        "_write",
+        "DriftTest",
+        "setUp",
+        "tearDown",
+        "test_placeholder_detected_in_real_spec",
+        "test_generic_placeholder_paths_from_manifest_are_exempt",
+        "test_denylisted_tokens_are_not_flagged_as_placeholders",
+        "test_orphan_spec_reference_flagged",
+        "test_existing_path_reference_is_not_flagged",
+        "test_clean_repo_passes_threshold",
+        "test_markdown_render_reports_pass_fail",
+        "test_drift_check_command_exit_code"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_drift.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/python/test_flows.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "contextlib",
+        "io",
+        "json",
+        "pathlib",
+        "simplicio_mapper.cli",
+        "simplicio_mapper.flows",
+        "simplicio_mapper.mapper",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "symbols": [
+        "_write",
+        "FlowInventoryTest",
+        "setUp",
+        "tearDown",
+        "_fixture_app",
+        "test_build_flow_inventory_detects_fs_write_effect",
+        "test_coverage_reports_entrypoints_without_flow",
+        "test_determinism_same_tree_same_payload",
+        "test_markdown_render_includes_mermaid_and_effects_table",
+        "test_flows_command_writes_json_and_doc"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_flows.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/python/test_history.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "json",
+        "pathlib",
+        "simplicio_mapper.history",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "symbols": [
+        "_write",
+        "HistoryTest",
+        "setUp",
+        "tearDown",
+        "test_unchanged_tree_creates_no_new_snapshot",
+        "test_module_addition_is_captured_in_delta",
+        "test_diff_between_two_snapshots_matches_incremental_delta",
+        "test_diff_unknown_id_raises",
+        "test_retention_gc_removes_oldest_first",
+        "test_maybe_snapshot_appends_changelog_once"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_history.py"
         }
       ]
     },
@@ -7796,6 +8988,96 @@
       "evidence": [
         {
           "file": "tests/python/test_parity.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/python/test_query.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "contextlib",
+        "io",
+        "json",
+        "pathlib",
+        "simplicio_mapper.cli",
+        "simplicio_mapper.query",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "symbols": [
+        "_write",
+        "QueryTest",
+        "setUp",
+        "tearDown",
+        "test_callers_finds_call_site",
+        "test_callees_of_main_includes_persist",
+        "test_reaches_from_entry_file",
+        "test_impact_reports_affected_flow",
+        "test_tests_for_finds_matching_test_file",
+        "test_rules_without_business_index_notes_missing",
+        "test_unknown_verb_raises",
+        "test_ask_command_end_to_end"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_query.py"
+        }
+      ]
+    },
+    {
+      "path": "tests/python/test_survey.py",
+      "language": "python",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "__future__",
+        "contextlib",
+        "io",
+        "json",
+        "pathlib",
+        "simplicio_mapper.business",
+        "simplicio_mapper.cli",
+        "simplicio_mapper.flows",
+        "simplicio_mapper.mapper",
+        "simplicio_mapper.survey",
+        "sys",
+        "tempfile",
+        "unittest"
+      ],
+      "symbols": [
+        "_write",
+        "SurveyTest",
+        "setUp",
+        "tearDown",
+        "_app",
+        "_build",
+        "test_survey_reports_project_and_run_commands",
+        "test_reading_order_starts_with_entry_point",
+        "test_help_sources_detects_contributing_doc",
+        "test_empty_repo_reports_nothing_detected_explicitly",
+        "test_markdown_has_all_eight_sections",
+        "test_survey_command_writes_doc",
+        "test_survey_command_target_copies_to_root"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/python/test_survey.py"
         }
       ]
     },
@@ -8030,6 +9312,29 @@
       "evidence": [
         {
           "file": "tests/unit/overlay-docs.test.js"
+        }
+      ]
+    },
+    {
+      "path": "tests/unit/render-simplicio-comment.test.js",
+      "language": "javascript",
+      "module": "tests",
+      "layers": [
+        "test"
+      ],
+      "roles": [
+        "test"
+      ],
+      "imports": [
+        "../../scripts/render-simplicio-comment.js",
+        "node:assert/strict",
+        "node:test"
+      ],
+      "symbols": [],
+      "summary": "Verifies project behavior through automated tests.",
+      "evidence": [
+        {
+          "file": "tests/unit/render-simplicio-comment.test.js"
         }
       ]
     },
@@ -10099,7 +11404,7 @@
       "source_symbol": "bin/cli.js::main",
       "target_file": "bin/apply-edits.js",
       "target_symbol": "bin/apply-edits.js::main",
-      "line": 1225,
+      "line": 1245,
       "confidence": 0.58
     },
     {
@@ -10108,7 +11413,7 @@
       "source_symbol": "bin/cli.js::main",
       "target_file": "bin/auto-map.js",
       "target_symbol": "bin/auto-map.js::autoMapProject",
-      "line": 1275,
+      "line": 1295,
       "confidence": 0.58
     },
     {
@@ -10144,7 +11449,7 @@
       "source_symbol": "bin/cli.js::walk",
       "target_file": "bin/auto-map.js",
       "target_symbol": "bin/auto-map.js::walk",
-      "line": 1011,
+      "line": 1031,
       "confidence": 0.58
     },
     {
@@ -10160,7 +11465,7 @@
       "source_symbol": "bin/cli.js::handleGitignore",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::ask",
-      "line": 791,
+      "line": 811,
       "confidence": 0.58
     },
     {
@@ -10178,7 +11483,7 @@
       "source_symbol": "bin/cli.js::chooseCli",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::chooseCli",
-      "line": 1104,
+      "line": 1124,
       "confidence": 0.58
     },
     {
@@ -10187,7 +11492,7 @@
       "source_symbol": "bin/cli.js::chooseCli",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::commandExists",
-      "line": 1112,
+      "line": 1132,
       "confidence": 0.58
     },
     {
@@ -10196,7 +11501,7 @@
       "source_symbol": "bin/cli.js::copyTemplate",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::copyTemplate",
-      "line": 741,
+      "line": 756,
       "confidence": 0.58
     },
     {
@@ -10205,7 +11510,7 @@
       "source_symbol": "bin/cli.js::copyToClipboard",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::copyToClipboard",
-      "line": 1122,
+      "line": 1142,
       "confidence": 0.58
     },
     {
@@ -10268,7 +11573,7 @@
       "source_symbol": "bin/cli.js::dispatch",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::dispatch",
-      "line": 907,
+      "line": 927,
       "confidence": 0.58
     },
     {
@@ -10286,7 +11591,7 @@
       "source_symbol": "bin/cli.js::execHandoff",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::execHandoff",
-      "line": 1137,
+      "line": 1157,
       "confidence": 0.58
     },
     {
@@ -10313,7 +11618,7 @@
       "source_symbol": "bin/cli.js::handleGitignore",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::handleGitignore",
-      "line": 779,
+      "line": 799,
       "confidence": 0.58
     },
     {
@@ -10322,7 +11627,7 @@
       "source_symbol": "bin/cli.js::handleRuntimeScaffold",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::handleRuntimeScaffold",
-      "line": 873,
+      "line": 893,
       "confidence": 0.58
     },
     {
@@ -10364,6 +11669,15 @@
     {
       "type": "calls",
       "source_file": "bin/cli.js",
+      "source_symbol": "bin/cli.js::copyTemplate",
+      "target_file": "bin/cli.js",
+      "target_symbol": "bin/cli.js::loadProductPaths",
+      "line": 758,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/cli.js",
       "source_symbol": null,
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::log",
@@ -10376,7 +11690,7 @@
       "source_symbol": "bin/cli.js::looksBinary",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::looksBinary",
-      "line": 986,
+      "line": 1006,
       "confidence": 0.58
     },
     {
@@ -10394,7 +11708,7 @@
       "source_symbol": "bin/cli.js::main",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::main",
-      "line": 1225,
+      "line": 1245,
       "confidence": 0.58
     },
     {
@@ -10448,7 +11762,7 @@
       "source_symbol": "bin/cli.js::readCatalog",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::readCatalog",
-      "line": 894,
+      "line": 914,
       "confidence": 0.58
     },
     {
@@ -10475,7 +11789,7 @@
       "source_symbol": "bin/cli.js::requireCmd",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::requireCmd",
-      "line": 1146,
+      "line": 1166,
       "confidence": 0.58
     },
     {
@@ -10484,7 +11798,7 @@
       "source_symbol": "bin/cli.js::snapshot",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::snapshot",
-      "line": 899,
+      "line": 919,
       "confidence": 0.58
     },
     {
@@ -10493,7 +11807,7 @@
       "source_symbol": "bin/cli.js::stamp",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::stamp",
-      "line": 1033,
+      "line": 1053,
       "confidence": 0.58
     },
     {
@@ -10502,7 +11816,7 @@
       "source_symbol": "bin/cli.js::substitute",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::substitute",
-      "line": 1023,
+      "line": 1043,
       "confidence": 0.58
     },
     {
@@ -10511,7 +11825,7 @@
       "source_symbol": "bin/cli.js::substituteInFile",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::substituteInFile",
-      "line": 991,
+      "line": 1011,
       "confidence": 0.58
     },
     {
@@ -10529,7 +11843,7 @@
       "source_symbol": "bin/cli.js::handleGitignore",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::upsertGitignore",
-      "line": 808,
+      "line": 828,
       "confidence": 0.58
     },
     {
@@ -10538,7 +11852,7 @@
       "source_symbol": "bin/cli.js::walk",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::walk",
-      "line": 1011,
+      "line": 1031,
       "confidence": 0.58
     },
     {
@@ -10547,7 +11861,7 @@
       "source_symbol": "bin/cli.js::writeFileIfMissing",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::writeFileIfMissing",
-      "line": 858,
+      "line": 878,
       "confidence": 0.58
     },
     {
@@ -10556,7 +11870,7 @@
       "source_symbol": "bin/cli.js::writeMeta",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::writeMeta",
-      "line": 1053,
+      "line": 1073,
       "confidence": 0.58
     },
     {
@@ -10583,7 +11897,7 @@
       "source_symbol": "bin/cli.js::walk",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::walk",
-      "line": 1011,
+      "line": 1031,
       "confidence": 0.58
     },
     {
@@ -10592,7 +11906,7 @@
       "source_symbol": "bin/cli.js::main",
       "target_file": "bin/skillopt.js",
       "target_symbol": "bin/skillopt.js::main",
-      "line": 1225,
+      "line": 1245,
       "confidence": 0.58
     },
     {
@@ -10619,7 +11933,7 @@
       "source_symbol": "bin/cli.js::main",
       "target_file": "simplicio_mapper/cache.py",
       "target_symbol": "simplicio_mapper/cache.py::close",
-      "line": 1288,
+      "line": 1308,
       "confidence": 0.58
     },
     {
@@ -10630,6 +11944,15 @@
       "target_symbol": "simplicio_mapper/context_cache.py::get",
       "line": 443,
       "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/cli.js",
+      "source_symbol": null,
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::keys",
+      "line": 357,
+      "confidence": 0.48
     },
     {
       "type": "calls",
@@ -10784,11 +12107,20 @@
     },
     {
       "type": "calls",
+      "source_file": "bin/map.js",
+      "source_symbol": "bin/map.js::readJsonSafe",
+      "target_file": "scripts/render-simplicio-comment.js",
+      "target_symbol": "scripts/render-simplicio-comment.js::readJsonSafe",
+      "line": 8,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
       "source_file": "bin/mapper-artifacts.js",
       "source_symbol": "bin/mapper-artifacts.js::collectEntities",
       "target_file": "bin/auto-map.js",
       "target_symbol": "bin/auto-map.js::collectEntities",
-      "line": 221,
+      "line": 307,
       "confidence": 0.58
     },
     {
@@ -10797,7 +12129,7 @@
       "source_symbol": "bin/mapper-artifacts.js::collectTextFiles",
       "target_file": "bin/auto-map.js",
       "target_symbol": "bin/auto-map.js::collectTextFiles",
-      "line": 131,
+      "line": 191,
       "confidence": 0.58
     },
     {
@@ -10806,7 +12138,7 @@
       "source_symbol": "bin/mapper-artifacts.js::exists",
       "target_file": "bin/auto-map.js",
       "target_symbol": "bin/auto-map.js::exists",
-      "line": 47,
+      "line": 69,
       "confidence": 0.58
     },
     {
@@ -10815,7 +12147,7 @@
       "source_symbol": "bin/mapper-artifacts.js::readSafe",
       "target_file": "bin/auto-map.js",
       "target_symbol": "bin/auto-map.js::readSafe",
-      "line": 39,
+      "line": 61,
       "confidence": 0.58
     },
     {
@@ -10824,7 +12156,7 @@
       "source_symbol": "bin/mapper-artifacts.js::walk",
       "target_file": "bin/auto-map.js",
       "target_symbol": "bin/auto-map.js::walk",
-      "line": 55,
+      "line": 77,
       "confidence": 0.58
     },
     {
@@ -10833,7 +12165,7 @@
       "source_symbol": "bin/mapper-artifacts.js::exists",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::exists",
-      "line": 47,
+      "line": 69,
       "confidence": 0.58
     },
     {
@@ -10842,7 +12174,7 @@
       "source_symbol": "bin/mapper-artifacts.js::writeMappingArtifacts",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::log",
-      "line": 776,
+      "line": 918,
       "confidence": 0.58
     },
     {
@@ -10851,7 +12183,7 @@
       "source_symbol": "bin/mapper-artifacts.js::readSafe",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::readSafe",
-      "line": 39,
+      "line": 61,
       "confidence": 0.58
     },
     {
@@ -10860,7 +12192,7 @@
       "source_symbol": "bin/mapper-artifacts.js::walk",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::walk",
-      "line": 55,
+      "line": 77,
       "confidence": 0.58
     },
     {
@@ -10869,7 +12201,7 @@
       "source_symbol": "bin/mapper-artifacts.js::addEdge",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::addEdge",
-      "line": 543,
+      "line": 684,
       "confidence": 0.58
     },
     {
@@ -10878,7 +12210,7 @@
       "source_symbol": "bin/mapper-artifacts.js::buildArchitectureInventory",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::buildArchitectureInventory",
-      "line": 592,
+      "line": 733,
       "confidence": 0.58
     },
     {
@@ -10887,7 +12219,7 @@
       "source_symbol": "bin/mapper-artifacts.js::buildArtifacts",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::buildArtifacts",
-      "line": 680,
+      "line": 821,
       "confidence": 0.58
     },
     {
@@ -10896,7 +12228,7 @@
       "source_symbol": "bin/mapper-artifacts.js::buildCallGraph",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::buildCallGraph",
-      "line": 522,
+      "line": 663,
       "confidence": 0.58
     },
     {
@@ -10905,7 +12237,7 @@
       "source_symbol": "bin/mapper-artifacts.js::buildFileInventory",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::buildFileInventory",
-      "line": 300,
+      "line": 386,
       "confidence": 0.58
     },
     {
@@ -10914,7 +12246,7 @@
       "source_symbol": "bin/mapper-artifacts.js::buildPrecedentItems",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::buildPrecedentItems",
-      "line": 332,
+      "line": 418,
       "confidence": 0.58
     },
     {
@@ -10923,7 +12255,7 @@
       "source_symbol": "bin/mapper-artifacts.js::buildSymbolIndex",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::buildSymbolIndex",
-      "line": 453,
+      "line": 592,
       "confidence": 0.58
     },
     {
@@ -10932,7 +12264,7 @@
       "source_symbol": "bin/mapper-artifacts.js::callExpressions",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::callExpressions",
-      "line": 506,
+      "line": 647,
       "confidence": 0.58
     },
     {
@@ -10941,7 +12273,7 @@
       "source_symbol": "bin/mapper-artifacts.js::candidateImportTargets",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::candidateImportTargets",
-      "line": 476,
+      "line": 615,
       "confidence": 0.58
     },
     {
@@ -10950,7 +12282,7 @@
       "source_symbol": "bin/mapper-artifacts.js::collectArchitectureSignals",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::collectArchitectureSignals",
-      "line": 237,
+      "line": 323,
       "confidence": 0.58
     },
     {
@@ -10959,7 +12291,7 @@
       "source_symbol": "bin/mapper-artifacts.js::collectEntities",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::collectEntities",
-      "line": 221,
+      "line": 307,
       "confidence": 0.58
     },
     {
@@ -10968,7 +12300,7 @@
       "source_symbol": "bin/mapper-artifacts.js::collectTextFiles",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::collectTextFiles",
-      "line": 131,
+      "line": 191,
       "confidence": 0.58
     },
     {
@@ -10977,7 +12309,7 @@
       "source_symbol": "bin/mapper-artifacts.js::detectChangedFiles",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::detectChangedFiles",
-      "line": 277,
+      "line": 363,
       "confidence": 0.58
     },
     {
@@ -10986,7 +12318,7 @@
       "source_symbol": "bin/mapper-artifacts.js::extractSnippet",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::extractSnippet",
-      "line": 325,
+      "line": 411,
       "confidence": 0.58
     },
     {
@@ -10995,7 +12327,7 @@
       "source_symbol": "bin/mapper-artifacts.js::gitStatusMap",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::gitStatusMap",
-      "line": 113,
+      "line": 173,
       "confidence": 0.58
     },
     {
@@ -11004,7 +12336,7 @@
       "source_symbol": "bin/mapper-artifacts.js::groupModules",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::groupModules",
-      "line": 258,
+      "line": 344,
       "confidence": 0.58
     },
     {
@@ -11013,7 +12345,7 @@
       "source_symbol": "bin/mapper-artifacts.js::importanceFor",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::importanceFor",
-      "line": 201,
+      "line": 287,
       "confidence": 0.58
     },
     {
@@ -11022,7 +12354,7 @@
       "source_symbol": "bin/mapper-artifacts.js::languageFor",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::languageFor",
-      "line": 74,
+      "line": 96,
       "confidence": 0.58
     },
     {
@@ -11031,7 +12363,7 @@
       "source_symbol": "bin/mapper-artifacts.js::layersForFile",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::layersForFile",
-      "line": 419,
+      "line": 558,
       "confidence": 0.58
     },
     {
@@ -11040,7 +12372,7 @@
       "source_symbol": "bin/mapper-artifacts.js::lineNumber",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::lineNumber",
-      "line": 366,
+      "line": 452,
       "confidence": 0.58
     },
     {
@@ -11049,7 +12381,7 @@
       "source_symbol": "bin/mapper-artifacts.js::loadPreviousMap",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::loadPreviousMap",
-      "line": 291,
+      "line": 377,
       "confidence": 0.58
     },
     {
@@ -11058,7 +12390,7 @@
       "source_symbol": "bin/mapper-artifacts.js::moduleNameForPath",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::moduleNameForPath",
-      "line": 449,
+      "line": 588,
       "confidence": 0.58
     },
     {
@@ -11067,7 +12399,7 @@
       "source_symbol": "bin/mapper-artifacts.js::nearestSymbol",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::nearestSymbol",
-      "line": 515,
+      "line": 656,
       "confidence": 0.58
     },
     {
@@ -11076,7 +12408,7 @@
       "source_symbol": "bin/mapper-artifacts.js::normalizeRel",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::normalizeRel",
-      "line": 35,
+      "line": 57,
       "confidence": 0.58
     },
     {
@@ -11085,7 +12417,7 @@
       "source_symbol": "bin/mapper-artifacts.js::parseImports",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::parseImports",
-      "line": 146,
+      "line": 206,
       "confidence": 0.58
     },
     {
@@ -11094,7 +12426,7 @@
       "source_symbol": "bin/mapper-artifacts.js::parseJsonSafe",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::parseJsonSafe",
-      "line": 105,
+      "line": 165,
       "confidence": 0.58
     },
     {
@@ -11103,7 +12435,7 @@
       "source_symbol": "bin/mapper-artifacts.js::parseSymbols",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::parseSymbols",
-      "line": 164,
+      "line": 250,
       "confidence": 0.58
     },
     {
@@ -11112,7 +12444,7 @@
       "source_symbol": "bin/mapper-artifacts.js::readSafe",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::readSafe",
-      "line": 39,
+      "line": 61,
       "confidence": 0.58
     },
     {
@@ -11121,7 +12453,7 @@
       "source_symbol": "bin/mapper-artifacts.js::responsibilityForFile",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::responsibilityForFile",
-      "line": 436,
+      "line": 575,
       "confidence": 0.58
     },
     {
@@ -11130,7 +12462,7 @@
       "source_symbol": "bin/mapper-artifacts.js::rolesFor",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::rolesFor",
-      "line": 180,
+      "line": 266,
       "confidence": 0.58
     },
     {
@@ -11139,7 +12471,7 @@
       "source_symbol": "bin/mapper-artifacts.js::sha256",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::sha256",
-      "line": 51,
+      "line": 73,
       "confidence": 0.58
     },
     {
@@ -11148,7 +12480,7 @@
       "source_symbol": "bin/mapper-artifacts.js::stripKnownExt",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::stripKnownExt",
-      "line": 471,
+      "line": 610,
       "confidence": 0.58
     },
     {
@@ -11157,7 +12489,7 @@
       "source_symbol": "bin/mapper-artifacts.js::symbolDefinitionsForFile",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::symbolDefinitionsForFile",
-      "line": 370,
+      "line": 456,
       "confidence": 0.58
     },
     {
@@ -11166,7 +12498,7 @@
       "source_symbol": "bin/mapper-artifacts.js::tokenWords",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::tokenWords",
-      "line": 213,
+      "line": 299,
       "confidence": 0.58
     },
     {
@@ -11175,7 +12507,7 @@
       "source_symbol": "bin/mapper-artifacts.js::walk",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::walk",
-      "line": 55,
+      "line": 77,
       "confidence": 0.58
     },
     {
@@ -11184,7 +12516,7 @@
       "source_symbol": "bin/mapper-artifacts.js::writeJsonStable",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::writeJsonStable",
-      "line": 749,
+      "line": 891,
       "confidence": 0.58
     },
     {
@@ -11193,7 +12525,7 @@
       "source_symbol": "bin/mapper-artifacts.js::writeMappingArtifacts",
       "target_file": "bin/mapper-artifacts.js",
       "target_symbol": "bin/mapper-artifacts.js::writeMappingArtifacts",
-      "line": 756,
+      "line": 898,
       "confidence": 0.58
     },
     {
@@ -11202,7 +12534,7 @@
       "source_symbol": "bin/mapper-artifacts.js::writeMappingArtifacts",
       "target_file": "scripts/lint.js",
       "target_symbol": "scripts/lint.js::log",
-      "line": 776,
+      "line": 918,
       "confidence": 0.58
     },
     {
@@ -11211,7 +12543,7 @@
       "source_symbol": "bin/mapper-artifacts.js::candidateImportTargets",
       "target_file": "scripts/skillopt/engine.js",
       "target_symbol": "scripts/skillopt/engine.js::normalize",
-      "line": 480,
+      "line": 619,
       "confidence": 0.58
     },
     {
@@ -11220,7 +12552,16 @@
       "source_symbol": "bin/mapper-artifacts.js::collectEntities",
       "target_file": "simplicio_mapper/context_cache.py",
       "target_symbol": "simplicio_mapper/context_cache.py::get",
-      "line": 225,
+      "line": 311,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "bin/mapper-artifacts.js",
+      "source_symbol": "bin/mapper-artifacts.js::buildArtifacts",
+      "target_file": "simplicio_mapper/context_cache.py",
+      "target_symbol": "simplicio_mapper/context_cache.py::keys",
+      "line": 857,
       "confidence": 0.58
     },
     {
@@ -11229,7 +12570,7 @@
       "source_symbol": "bin/mapper-artifacts.js::collectEntities",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
-      "line": 225,
+      "line": 311,
       "confidence": 0.58
     },
     {
@@ -11385,174 +12726,136 @@
     },
     {
       "type": "calls",
-      "source_file": "rust/src/lib.rs",
+      "source_file": "packaging/npm/bin/simplicio-mapper.js",
       "source_symbol": null,
-      "target_file": "bin/mapper-artifacts.js",
-      "target_symbol": "bin/mapper-artifacts.js::sha256",
-      "line": 16,
+      "target_file": "packaging/npm/lib/python-shim.js",
+      "target_symbol": "packaging/npm/lib/python-shim.js::ensureAndRun",
+      "line": 6,
       "confidence": 0.48
     },
     {
-      "type": "calls",
-      "source_file": "rust/src/lib.rs",
-      "source_symbol": null,
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::finalize",
-      "line": 21,
-      "confidence": 0.48
+      "type": "imports",
+      "source_file": "packaging/npm/bin/simplicio-mapper.js",
+      "target_file": "packaging/npm/lib/python-shim.js",
+      "import": "../lib/python-shim",
+      "confidence": 0.82
     },
     {
       "type": "calls",
-      "source_file": "rust/src/lib.rs",
-      "source_symbol": null,
-      "target_file": "simplicio_mapper/context_cache.py",
-      "target_symbol": "simplicio_mapper/context_cache.py::get",
-      "line": 41,
-      "confidence": 0.48
-    },
-    {
-      "type": "calls",
-      "source_file": "rust/src/lib.rs",
-      "source_symbol": null,
-      "target_file": "tests/python/test_cli.py",
-      "target_symbol": "tests/python/test_cli.py::get",
-      "line": 41,
-      "confidence": 0.48
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::main",
-      "target_file": "bin/apply-edits.js",
-      "target_symbol": "bin/apply-edits.js::main",
-      "line": 261,
+      "source_file": "packaging/npm/lib/python-shim.js",
+      "source_symbol": "packaging/npm/lib/python-shim.js::ensureAndRun",
+      "target_file": "packaging/npm/lib/python-shim.js",
+      "target_symbol": "packaging/npm/lib/python-shim.js::ensureAndRun",
+      "line": 105,
       "confidence": 0.58
     },
     {
       "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::main",
-      "target_file": "bin/auto-map.js",
-      "target_symbol": "bin/auto-map.js::exists",
-      "line": 267,
+      "source_file": "packaging/npm/lib/python-shim.js",
+      "source_symbol": "packaging/npm/lib/python-shim.js::ensureInstalled",
+      "target_file": "packaging/npm/lib/python-shim.js",
+      "target_symbol": "packaging/npm/lib/python-shim.js::ensureInstalled",
+      "line": 93,
       "confidence": 0.58
     },
     {
       "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::main",
-      "target_file": "bin/cli.js",
-      "target_symbol": "bin/cli.js::exists",
-      "line": 267,
+      "source_file": "packaging/npm/lib/python-shim.js",
+      "source_symbol": "packaging/npm/lib/python-shim.js::ensureVirtualenv",
+      "target_file": "packaging/npm/lib/python-shim.js",
+      "target_symbol": "packaging/npm/lib/python-shim.js::ensureVirtualenv",
+      "line": 85,
       "confidence": 0.58
     },
     {
       "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::main",
-      "target_file": "bin/cli.js",
-      "target_symbol": "bin/cli.js::main",
-      "line": 261,
+      "source_file": "packaging/npm/lib/python-shim.js",
+      "source_symbol": "packaging/npm/lib/python-shim.js::entrypointCandidates",
+      "target_file": "packaging/npm/lib/python-shim.js",
+      "target_symbol": "packaging/npm/lib/python-shim.js::entrypointCandidates",
+      "line": 65,
       "confidence": 0.58
     },
     {
       "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::build_catalog",
-      "target_file": "bin/mapper-artifacts.js",
-      "target_symbol": "bin/mapper-artifacts.js::sha256",
-      "line": 245,
+      "source_file": "packaging/npm/lib/python-shim.js",
+      "source_symbol": "packaging/npm/lib/python-shim.js::findPython",
+      "target_file": "packaging/npm/lib/python-shim.js",
+      "target_symbol": "packaging/npm/lib/python-shim.js::findPython",
+      "line": 35,
       "confidence": 0.58
     },
     {
       "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::main",
-      "target_file": "bin/skillopt.js",
-      "target_symbol": "bin/skillopt.js::main",
-      "line": 261,
+      "source_file": "packaging/npm/lib/python-shim.js",
+      "source_symbol": "packaging/npm/lib/python-shim.js::probe",
+      "target_file": "packaging/npm/lib/python-shim.js",
+      "target_symbol": "packaging/npm/lib/python-shim.js::probe",
+      "line": 27,
       "confidence": 0.58
     },
     {
       "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::insert_leaf",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::Leaf",
-      "line": 198,
+      "source_file": "packaging/npm/lib/python-shim.js",
+      "source_symbol": "packaging/npm/lib/python-shim.js::resolveEntrypoint",
+      "target_file": "packaging/npm/lib/python-shim.js",
+      "target_symbol": "packaging/npm/lib/python-shim.js::resolveEntrypoint",
+      "line": 76,
       "confidence": 0.58
     },
     {
       "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::blank_node",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::blank_node",
-      "line": 160,
+      "source_file": "packaging/npm/lib/python-shim.js",
+      "source_symbol": "packaging/npm/lib/python-shim.js::run",
+      "target_file": "packaging/npm/lib/python-shim.js",
+      "target_symbol": "packaging/npm/lib/python-shim.js::run",
+      "line": 8,
       "confidence": 0.58
     },
     {
       "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::build_catalog",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::build_catalog",
-      "line": 214,
+      "source_file": "packaging/npm/lib/python-shim.js",
+      "source_symbol": "packaging/npm/lib/python-shim.js::sanitizePackageName",
+      "target_file": "packaging/npm/lib/python-shim.js",
+      "target_symbol": "packaging/npm/lib/python-shim.js::sanitizePackageName",
+      "line": 51,
       "confidence": 0.58
     },
     {
       "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::canonical_json",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::canonical_json",
-      "line": 52,
+      "source_file": "packaging/npm/lib/python-shim.js",
+      "source_symbol": "packaging/npm/lib/python-shim.js::venvPython",
+      "target_file": "packaging/npm/lib/python-shim.js",
+      "target_symbol": "packaging/npm/lib/python-shim.js::venvPython",
+      "line": 59,
       "confidence": 0.58
     },
     {
       "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::finalize",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::finalize",
-      "line": 113,
+      "source_file": "packaging/npm/lib/python-shim.js",
+      "source_symbol": "packaging/npm/lib/python-shim.js::venvRoot",
+      "target_file": "packaging/npm/lib/python-shim.js",
+      "target_symbol": "packaging/npm/lib/python-shim.js::venvRoot",
+      "line": 55,
       "confidence": 0.58
     },
     {
       "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::hash_hex",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::hash_hex",
-      "line": 40,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::heading_anchor",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::heading_anchor",
-      "line": 79,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "scripts/build_hamt.py",
-      "source_symbol": "scripts/build_hamt.py::insert_leaf",
-      "target_file": "scripts/build_hamt.py",
-      "target_symbol": "scripts/build_hamt.py::insert_leaf",
-      "line": 164,
+      "source_file": "packaging/npm/lib/python-shim.js",
+      "source_symbol": "packaging/npm/lib/python-shim.js::run",
+      "target_file": "video/scripts/generate-why-voiceover.mjs",
+      "target_symbol": "video/scripts/generate-why-voiceover.mjs::run",
+      "line": 8,
       "confidence": 0.58
     }
   ],
   "coverage": {
-    "files": 344,
-    "modules": 18,
+    "files": 378,
+    "modules": 20,
     "layers": 10,
-    "symbols": 588,
+    "symbols": 914,
     "relationships": 1000,
-    "tests": 55
+    "tests": 70
   },
   "notes": [
     "Generated from deterministic repository inspection.",

@@ -22,6 +22,7 @@ import orjson
 
 from . import _native
 from .cache import FileProcessingCache
+from .diagrams import render_flowchart, to_markdown_block
 from .models import CodeEntity, PrecedentItem, ProjectFile
 
 ARTIFACT_SCHEMA = "simplicio.project-map/v1"
@@ -1572,17 +1573,20 @@ def _render_architecture_overview(inventory: dict, symbol_index: dict, call_grap
     for layer in layers:
         lines.append(f"- `{layer['name']}`: {layer['file_count']} files across {len(layer.get('modules', []))} modules")
 
-    graph_edges = [
-        edge for edge in call_graph.get("edges", [])
-        if edge.get("type") == "imports" and edge.get("source_file") and edge.get("target_file")
-    ][:20]
-    if graph_edges:
-        lines.extend(["", "## Dependency Sketch", "", "```mermaid", "graph LR"])
-        for edge in graph_edges:
-            source = _slugify(edge["source_file"])
-            target = _slugify(edge["target_file"])
-            lines.append(f'  {source}["{edge["source_file"]}"] --> {target}["{edge["target_file"]}"]')
-        lines.append("```")
+    module_nodes = [{"id": module["name"], "label": module["name"]} for module in modules]
+    module_edges = []
+    for edge in call_graph.get("edges", []):
+        if edge.get("type") != "imports" or not edge.get("source_file") or not edge.get("target_file"):
+            continue
+        source_module = _module_name_for_path(edge["source_file"])
+        target_module = _module_name_for_path(edge["target_file"])
+        if source_module == target_module:
+            continue
+        module_edges.append({"source": source_module, "target": target_module})
+    if module_nodes:
+        diagram = render_flowchart(module_nodes, module_edges, direction="TB")
+        lines.extend(["", "## Module Dependency Diagram", ""])
+        lines.append(to_markdown_block(diagram))
 
     if symbol_index.get("symbols"):
         lines.extend(["", "## Top Symbols", ""])
@@ -1596,7 +1600,20 @@ def _render_architecture_overview(inventory: dict, symbol_index: dict, call_grap
 
 def _render_layers_doc(inventory: dict) -> str:
     lines = ["# Architecture Layers", ""]
-    for layer in inventory.get("layers", []):
+    layers = inventory.get("layers", [])
+    layer_nodes = [{"id": f"layer:{layer['name']}", "label": layer["name"]} for layer in layers]
+    module_ids = {module for layer in layers for module in layer.get("modules") or []}
+    module_nodes = [{"id": f"module:{name}", "label": name} for name in module_ids]
+    layer_edges = [
+        {"source": f"layer:{layer['name']}", "target": f"module:{module}"}
+        for layer in layers
+        for module in layer.get("modules") or []
+    ]
+    if layer_nodes:
+        diagram = render_flowchart(layer_nodes + module_nodes, layer_edges, direction="LR")
+        lines.append(to_markdown_block(diagram, heading="Layers -> Modules"))
+        lines.append("")
+    for layer in layers:
         lines.extend([
             f"## {layer['name']}",
             "",

@@ -1,0 +1,1658 @@
+{
+  "schema": "simplicio.business-rules/v1",
+  "version": 1,
+  "generated_at": "2026-07-02T07:11:31.844Z",
+  "rules": [
+    {
+      "id": "rule.invariant.scripts/build_hamt.py.180",
+      "category": "invariant",
+      "statement": "unexpected non-collision node at max depth",
+      "evidence": [
+        {
+          "path": "scripts/build_hamt.py",
+          "line": 180
+        }
+      ],
+      "confidence": "observed",
+      "flows": []
+    },
+    {
+      "id": "rule.invariant.simplicio_mapper/mapper.py.1732",
+      "category": "invariant",
+      "statement": "--target is required for export-docs",
+      "evidence": [
+        {
+          "path": "simplicio_mapper/mapper.py",
+          "line": 1732
+        }
+      ],
+      "confidence": "observed",
+      "flows": []
+    },
+    {
+      "id": "rule.invariant.tests/python/test_business.py.59",
+      "category": "invariant",
+      "statement": "cannot ship after timeout",
+      "evidence": [
+        {
+          "path": "tests/python/test_business.py",
+          "line": 59
+        }
+      ],
+      "confidence": "observed",
+      "flows": []
+    },
+    {
+      "id": "rule.limit.max_comment_chars",
+      "category": "limit",
+      "statement": "`MAX_COMMENT_CHARS` is compared against a value — treated as a limit/quota/timeout gate",
+      "evidence": [
+        {
+          "path": "scripts/render-simplicio-comment.js",
+          "line": 93
+        }
+      ],
+      "confidence": "observed",
+      "flows": []
+    },
+    {
+      "id": "rule.limit.max_levels",
+      "category": "limit",
+      "statement": "`MAX_LEVELS` is compared against a value — treated as a limit/quota/timeout gate",
+      "evidence": [
+        {
+          "path": "scripts/build_hamt.py",
+          "line": 37
+        }
+      ],
+      "confidence": "observed",
+      "flows": []
+    },
+    {
+      "id": "rule.limit.max_levels",
+      "category": "limit",
+      "statement": "`MAX_LEVELS` is compared against a value — treated as a limit/quota/timeout gate",
+      "evidence": [
+        {
+          "path": "scripts/build_hamt.py",
+          "line": 47
+        }
+      ],
+      "confidence": "observed",
+      "flows": []
+    },
+    {
+      "id": "rule.limit.max_levels",
+      "category": "limit",
+      "statement": "`MAX_LEVELS` is compared against a value — treated as a limit/quota/timeout gate",
+      "evidence": [
+        {
+          "path": "scripts/build_hamt.py",
+          "line": 165
+        }
+      ],
+      "confidence": "observed",
+      "flows": []
+    },
+    {
+      "id": "rule.limit.request_timeout",
+      "category": "limit",
+      "statement": "`REQUEST_TIMEOUT` is compared against a value — treated as a limit/quota/timeout gate",
+      "evidence": [
+        {
+          "path": "tests/python/test_business.py",
+          "line": 58
+        }
+      ],
+      "confidence": "observed",
+      "flows": []
+    },
+    {
+      "id": "rule.permission.tests/python/test_business.py.62",
+      "category": "permission",
+      "statement": "access gate: authentication/authorization check observed",
+      "evidence": [
+        {
+          "path": "tests/python/test_business.py",
+          "line": 62
+        }
+      ],
+      "confidence": "observed",
+      "flows": []
+    },
+    {
+      "id": "rule.side-effect.notification.tests/python/test_business.py.65",
+      "category": "side-effect",
+      "statement": "business side-effect observed: notification",
+      "evidence": [
+        {
+          "path": "tests/python/test_business.py",
+          "line": 65
+        }
+      ],
+      "confidence": "observed",
+      "flows": []
+    }
+  ],
+  "state_machines": [],
+  "glossary": [
+    {
+      "term": "<flow_name>",
+      "status": "documented",
+      "definition_source": "docs/domain-map.md",
+      "occurrences": 0
+    },
+    {
+      "term": "architecturesignal",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 0
+    },
+    {
+      "term": "calledge",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 0
+    },
+    {
+      "term": "casos de borda",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 0
+    },
+    {
+      "term": "checkout",
+      "status": "documented",
+      "definition_source": "docs/domain-map.md",
+      "occurrences": 0
+    },
+    {
+      "term": "core concepts",
+      "status": "documented",
+      "definition_source": "docs/domain-map.md",
+      "occurrences": 0
+    },
+    {
+      "term": "critical rules",
+      "status": "documented",
+      "definition_source": "docs/domain-map.md",
+      "occurrences": 0
+    },
+    {
+      "term": "edge cases",
+      "status": "documented",
+      "definition_source": "docs/domain-map.md",
+      "occurrences": 3
+    },
+    {
+      "term": "endpoint",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 9
+    },
+    {
+      "term": "entidades",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 0
+    },
+    {
+      "term": "example — fictional shop saas (delete or copy as a starting point)",
+      "status": "documented",
+      "definition_source": "docs/domain-map.md",
+      "occurrences": 0
+    },
+    {
+      "term": "fronteiras",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 0
+    },
+    {
+      "term": "glossary",
+      "status": "documented",
+      "definition_source": "docs/domain-map.md",
+      "occurrences": 2
+    },
+    {
+      "term": "important flows",
+      "status": "documented",
+      "definition_source": "docs/domain-map.md",
+      "occurrences": 0
+    },
+    {
+      "term": "indexstate",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 0
+    },
+    {
+      "term": "main entities",
+      "status": "documented",
+      "definition_source": "docs/domain-map.md",
+      "occurrences": 0
+    },
+    {
+      "term": "not",
+      "status": "documented",
+      "definition_source": "docs/domain-map.md",
+      "occurrences": 7
+    },
+    {
+      "term": "não",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 0
+    },
+    {
+      "term": "open questions",
+      "status": "documented",
+      "definition_source": "docs/domain-map.md",
+      "occurrences": 1
+    },
+    {
+      "term": "precedent",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 3
+    },
+    {
+      "term": "product context",
+      "status": "documented",
+      "definition_source": "docs/domain-map.md",
+      "occurrences": 5
+    },
+    {
+      "term": "project",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 10
+    },
+    {
+      "term": "projectfile",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 0
+    },
+    {
+      "term": "receipt",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 1
+    },
+    {
+      "term": "regras críticas",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 0
+    },
+    {
+      "term": "repo com edits unstaged",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 3
+    },
+    {
+      "term": "repo com tooling múltiplo",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 3
+    },
+    {
+      "term": "repo sem git",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 3
+    },
+    {
+      "term": "screen",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 5
+    },
+    {
+      "term": "symbol",
+      "status": "documented",
+      "definition_source": ".specs/product/DOMAIN.md",
+      "occurrences": 7
+    },
+    {
+      "term": "file",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 47
+    },
+    {
+      "term": "run",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 44
+    },
+    {
+      "term": "render",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 43
+    },
+    {
+      "term": "build",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 37
+    },
+    {
+      "term": "write",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 37
+    },
+    {
+      "term": "for",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 33
+    },
+    {
+      "term": "read",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 32
+    },
+    {
+      "term": "json",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 31
+    },
+    {
+      "term": "tmp",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 26
+    },
+    {
+      "term": "and",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 23
+    },
+    {
+      "term": "path",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 21
+    },
+    {
+      "term": "markdown",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 20
+    },
+    {
+      "term": "files",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 19
+    },
+    {
+      "term": "map",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 19
+    },
+    {
+      "term": "docs",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 18
+    },
+    {
+      "term": "doc",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 17
+    },
+    {
+      "term": "down",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 17
+    },
+    {
+      "term": "extract",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 17
+    },
+    {
+      "term": "hash",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 17
+    },
+    {
+      "term": "tear",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 17
+    },
+    {
+      "term": "text",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 17
+    },
+    {
+      "term": "command",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 16
+    },
+    {
+      "term": "parse",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 16
+    },
+    {
+      "term": "artifacts",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 15
+    },
+    {
+      "term": "safe",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 15
+    },
+    {
+      "term": "status",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 15
+    },
+    {
+      "term": "flow",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 14
+    },
+    {
+      "term": "collect",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 13
+    },
+    {
+      "term": "context",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 13
+    },
+    {
+      "term": "git",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 13
+    },
+    {
+      "term": "cache",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 12
+    },
+    {
+      "term": "call",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 12
+    },
+    {
+      "term": "flowchart",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 12
+    },
+    {
+      "term": "inventory",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 12
+    },
+    {
+      "term": "language",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 12
+    },
+    {
+      "term": "same",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 12
+    },
+    {
+      "term": "architecture",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 11
+    },
+    {
+      "term": "detect",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 11
+    },
+    {
+      "term": "changed",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 10
+    },
+    {
+      "term": "python",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 10
+    },
+    {
+      "term": "reports",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 10
+    },
+    {
+      "term": "without",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 10
+    },
+    {
+      "term": "cli",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 9
+    },
+    {
+      "term": "load",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 9
+    },
+    {
+      "term": "macro",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 9
+    },
+    {
+      "term": "name",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 9
+    },
+    {
+      "term": "only",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 9
+    },
+    {
+      "term": "range",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 9
+    },
+    {
+      "term": "snapshot",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 9
+    },
+    {
+      "term": "with",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 9
+    },
+    {
+      "term": "drift",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 8
+    },
+    {
+      "term": "exists",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 8
+    },
+    {
+      "term": "list",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 8
+    },
+    {
+      "term": "module",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 8
+    },
+    {
+      "term": "scan",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 8
+    },
+    {
+      "term": "state",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 8
+    },
+    {
+      "term": "symbols",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 8
+    },
+    {
+      "term": "sync",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 8
+    },
+    {
+      "term": "business",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "changes",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "evidence",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "graph",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "handoff",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "infer",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "init",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "missing",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "node",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "pack",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "payload",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "returns",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "survey",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "walk",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "writes",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 7
+    },
+    {
+      "term": "attach",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
+      "term": "calls",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
+      "term": "check",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
+      "term": "entry",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
+      "term": "help",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
+      "term": "imports",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
+      "term": "layers",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
+      "term": "match",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
+      "term": "mode",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
+      "term": "resolve",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
+      "term": "rules",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
+      "term": "signature",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 6
+    },
+    {
+      "term": "args",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "code",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "diff",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "domain",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "endpoints",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "ensure",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "flows",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "includes",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "label",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "lint",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "lock",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "native",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "normalize",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "package",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "paths",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "per",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "placeholders",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "product",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "route",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "routes",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "stack",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "strip",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "unknown",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 5
+    },
+    {
+      "term": "are",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "binary",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "commands",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "csharp",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "delta",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "dir",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "edit",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "effects",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "escape",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "export",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "extracted",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "first",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "flagged",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "languages",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "maybe",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "mermaid",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "raises",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "renders",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "roles",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "root",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "sanitize",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "scaffold",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "sha256",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "snippet",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "spec",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "stable",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "task",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "template",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "threshold",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "tree",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "version",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 4
+    },
+    {
+      "term": "agent",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "angular",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "apply",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "artifact",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "ask",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "background",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "between",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "callers",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "changelog",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "clear",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "client",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "collapse",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "compact",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "contain",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "content",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "copy",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "count",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "create",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "detected",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "detection",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "detects",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "deterministic",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "diagram",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "dict",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "different",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "directives",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "dirs",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "edge",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "edges",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "edits",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "empty",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "entities",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "existing",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "exit",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "exits",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "fallback",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "greet",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "has",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "history",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "incremental",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "job",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "line",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "log",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "looks",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "mapper",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "mapping",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "marks",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "matches",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "modules",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "multi",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "must",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "new",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "normalization",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "once",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "orphan",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "persist",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "placeholder",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "print",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "query",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "repo",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "resolved",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "schema",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "screens",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "script",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "section",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "segments",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "server",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "service",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "signals",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "snapshots",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "sources",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "sprint",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "substitute",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "summary",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "targets",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "telemetry",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "theme",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "top",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "transitions",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "use",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "user",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "value",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "watch",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    },
+    {
+      "term": "when",
+      "status": "undocumented",
+      "definition_source": null,
+      "occurrences": 3
+    }
+  ]
+}

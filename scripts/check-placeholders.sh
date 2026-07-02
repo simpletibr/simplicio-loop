@@ -7,7 +7,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-EXEMPT_PATTERN='docs/placeholders.md|task-template.md|ADR-template.md|sprint-XX|\.template\.|_template/SKILL.md'
+EXEMPT_PATTERN='docs/placeholders.md|task-template.md|ADR-template.md|sprint-XX|\.template\.|_template/SKILL.md|tests/python/test_drift.py'
 
 # Catch tokens like <PRODUCT_NAME>, <STACK>, <LICENSE_PLACEHOLDER>, <FRONTEND_URL>.
 matches=$(grep -RInE '<[A-Z][A-Z0-9_]+>' \

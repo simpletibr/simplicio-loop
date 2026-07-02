@@ -738,8 +738,28 @@ function detectPreservedUserFiles() {
   return Array.from(preserved).sort();
 }
 
+// Some paths under TEMPLATE_PATHS directories (.specs/, docs/) carry this
+// product's OWN filled-in content (real simplicio-mapper docs, not generic
+// starter placeholders) — see template-manifest.json and
+// .specs/architecture/ADR-004-template-vs-product-content-manifest.md.
+// Those must never be copied verbatim into a host project; autoMapProject's
+// dynamic renderers (bin/auto-map.js) fill them in fresh for the host instead.
+function loadProductPaths() {
+  try {
+    const manifest = JSON.parse(fs.readFileSync(path.join(PACKAGE_ROOT, 'template-manifest.json'), 'utf8'));
+    return new Set(manifest.product_paths || []);
+  } catch (e) {
+    return new Set();
+  }
+}
+
 function copyTemplate(existingProtected, preservedUserFiles) {
   const protectedSet = new Set([...existingProtected, ...preservedUserFiles]);
+  const productPaths = loadProductPaths();
+  const skipProductPaths = (srcPath) => {
+    const rel = path.relative(PACKAGE_ROOT, srcPath).split(path.sep).join('/');
+    return !productPaths.has(rel);
+  };
   let copied = 0, skipped = 0, missing = 0;
 
   for (const rel of TEMPLATE_PATHS) {
@@ -765,7 +785,7 @@ function copyTemplate(existingProtected, preservedUserFiles) {
       continue;
     }
     try {
-      fs.cpSync(src, dest, { recursive: true, force: true });
+      fs.cpSync(src, dest, { recursive: true, force: true, filter: skipProductPaths });
       log(`  copy:           ${rel}`);
       copied++;
     } catch (e) {

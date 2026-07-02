@@ -1,10 +1,10 @@
 # Module: scripts
 
-Groups 15 files across 3 detected layers.
+Groups 17 files across 3 detected layers.
 
 ## Structure
 
-- Files: 15
+- Files: 17
 - Layers: documentation, script, test
 - Entry points: none detected
 - Tests: `scripts/test.ps1`, `scripts/test.sh`
@@ -14,10 +14,12 @@ Groups 15 files across 3 detected layers.
 - `scripts/README.md`: Documents product, architecture, operation or contributor workflow. Layers: documentation, script
 - `scripts/build_hamt.py`: Defines exported symbols: Leaf, blank_node, build_catalog, canonical_json, finalize. Layers: script
 - `scripts/check-placeholders.sh`: Participates in the project implementation; inspect imports and symbols for exact usage. Layers: script
+- `scripts/check-version-sync.js`: Defines exported symbols: main, readInitVersion, readPackageVersion, readPyprojectVersion. Layers: script
 - `scripts/coverage.js`: Participates in the project implementation; inspect imports and symbols for exact usage. Layers: script
 - `scripts/evidence.ps1`: Participates in the project implementation; inspect imports and symbols for exact usage. Layers: script
 - `scripts/evidence.sh`: Participates in the project implementation; inspect imports and symbols for exact usage. Layers: script
 - `scripts/lint.js`: Defines exported symbols: lintJavaScript, lintJson, lintMarkdown, lintPowerShell, lintShell. Layers: script
+- `scripts/render-simplicio-comment.js`: Defines exported symbols: main, readJsonSafe, renderComment, renderDriftSection, renderSyncSection. Layers: script
 - `scripts/skillopt/engine.js`: Defines exported symbols: applyEdit, applyEdits, containsDirective, editSignature, escapeRegExp. Layers: script
 - `scripts/start.ps1`: Participates in the project implementation; inspect imports and symbols for exact usage. Layers: script
 - `scripts/start.sh`: Participates in the project implementation; inspect imports and symbols for exact usage. Layers: script
@@ -60,12 +62,12 @@ Groups 15 files across 3 detected layers.
 - `parse_agents`
 - `parse_args`
 - `parse_scalar`
+- `readInitVersion`
+- `readJsonSafe`
+- `readPackageVersion`
+- `readPyprojectVersion`
 - `reflect`
 - `removeDir`
-- `resolveRelativePath`
-- `rewriteMarkdown`
-- `rewriteUrl`
-- `round6`
-- `scoreTask`
-- `skillText`
-- `slot_path`
+- `renderComment`
+- `renderDriftSection`
+- `renderSyncSection`

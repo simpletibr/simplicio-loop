@@ -1,16 +1,17 @@
 # Module: bin
 
-Groups 7 files across 2 detected layers.
+Groups 8 files across 2 detected layers.
 
 ## Structure
 
-- Files: 7
+- Files: 8
 - Layers: code, entrypoint
-- Entry points: `bin/build-hamt-catalog`, `bin/cli.js`, `bin/skillopt.js`
+- Entry points: `bin/apply-edits.js`, `bin/build-hamt-catalog`, `bin/cli.js`, `bin/skillopt.js`
 - Tests: none detected
 
 ## Files
 
+- `bin/apply-edits.js`: Starts a CLI, runtime or package entrypoint. Layers: entrypoint
 - `bin/auto-map.js`: Defines exported symbols: collectEntities, collectFeatures, collectIntegrations, collectTextFiles, collectTodos. Layers: code
 - `bin/build-hamt-catalog`: Starts a CLI, runtime or package entrypoint. Layers: entrypoint
 - `bin/cli.js`: Starts a CLI, runtime or package entrypoint. Layers: entrypoint
@@ -21,7 +22,9 @@ Groups 7 files across 2 detected layers.
 
 ## Public Symbols
 
+- `EditError`
 - `addEdge`
+- `applyEdits`
 - `ask`
 - `autoMapProject`
 - `buildArchitectureInventory`
@@ -44,9 +47,11 @@ Groups 7 files across 2 detected layers.
 - `collectTodos`
 - `collectTopDirectories`
 - `commandExists`
+- `computePlan`
 - `copyTemplate`
 - `copyToClipboard`
 - `countAcceptedEdits`
+- `countOccurrences`
 - `defaultPersonas`
 - `detectChangedFiles`
 - `detectExistingInstructionFiles`
@@ -57,7 +62,3 @@ Groups 7 files across 2 detected layers.
 - `detectStack`
 - `detectStackIn`
 - `detectUrls`
-- `dispatch`
-- `err`
-- `execHandoff`
-- `exists`

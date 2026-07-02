@@ -68,6 +68,7 @@ Thumbs.db
 .simplicio/cache/
 .simplicio/index-state.json
 .simplicio/index.lock
+.simplicio/history/
 
 # Claude / Codex (estado local, não vai pro repo)
 .codex/local
@@ -111,6 +112,8 @@ docs/**
 scripts/**
 !scripts/build_hamt.py
 !scripts/coverage.js
+!scripts/check-placeholders.sh
+!scripts/render-simplicio-comment.js
 !scripts/skillopt/
 !scripts/skillopt/*.js
 playwright-report/**

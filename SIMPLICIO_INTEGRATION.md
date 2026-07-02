@@ -16,6 +16,11 @@ Default output directory: `.simplicio/`
 | `.simplicio/symbol-index.json` | `simplicio.symbol-index/v1` | Detected classes, functions, methods, exports, file and line evidence |
 | `.simplicio/call-graph.json` | `simplicio.call-graph/v1` | Import and heuristic caller/callee relationships with confidence scores |
 | `.simplicio/docs/*.md` | `simplicio.architecture-docs/v1` | Human-readable Markdown derived from the JSON artifacts for wiki/docs review |
+| `.simplicio/flow-inventory.json` | `simplicio.flow-inventory/v1` | Stack-neutral end-to-end flows derived from the call graph, with effects and evidence (see Flow Documentation Engine below) |
+| `.simplicio/business-rules.json` | `simplicio.business-rules/v1` | Observable business rules, state machines and domain glossary |
+| `.simplicio/history/` | `simplicio.doc-history-index/v1` | Append-only architecture snapshots + semantic deltas |
+| `.simplicio/spec-drift.json` | `simplicio.spec-drift/v1` | Placeholder/orphan-spec/orphan-code/doc-staleness findings + traceability matrix |
+| `.simplicio/docs/onboarding.md` | `simplicio.onboarding/v1` | New-developer survey: how to run, reading order, main flows, rules, glossary |
 
 Generate or refresh them with:
 
@@ -768,3 +773,209 @@ When integrating from the unified runtime:
 5. Track `duration_ms` in your telemetry to attribute speedups.
 6. Cache `fingerprint` per-agent; only re-read artifacts when the
    fingerprint changes.
+
+## Flow Documentation Engine (epic #131)
+
+Ten commands that turn the mapper's structural artifacts into fluxo técnico
+e de negócio documentation a new developer can read on day one, that stays
+in sync with the code, and that keeps history. Spec:
+`.specs/product/flow-documentation-spec.md`. Every contract below follows
+the same rules as the rest of this document: additive JSON, `schema`
+versioned, exit codes `0` success/no-op and `1` failure, evidence-first
+(`path`/`line`) with heuristics explicitly marked `confidence`.
+
+### flow-inventory.json (issue #133)
+
+```bash
+simplicio-mapper flows . --json
+```
+
+`simplicio.flow-inventory/v1` — derives end-to-end flows from the call graph
+starting at detected entry points (CLI commands, `main`, `bin/` scripts).
+Each flow has `entry` (`path`/`symbol`/`line`), ordered `steps`
+(`module`/`path`/`symbol`/`line`), `effects` (`fs-write`, `fs-read`,
+`subprocess`, `network`, `cache-or-db`, each with `evidence`),
+`layers_touched`, and `confidence` (`observed` when effects were found,
+`heuristic` otherwise). `coverage.entrypoints_total` /
+`entrypoints_with_flow` report gaps explicitly — never silently. Also
+writes `.simplicio/docs/flows.md` with a Mermaid diagram per flow. The
+existing web-only `flowchart`/`screens` commands are unchanged; `flows` is
+the stack-neutral generalization (kind `cli-command`/`entrypoint` vs.
+`screen-flow`).
+
+Known limitation: the call graph is static, so dispatch-by-string-literal
+(a `command == "x"` table like `simplicio_mapper/cli.py`'s own `main()`)
+resolves at file granularity, not per-subcommand — a CLI's flow spans every
+file reachable from *any* of its subcommands rather than one flow per
+subcommand.
+
+### Diagram contract (issue #135)
+
+`simplicio_mapper/diagrams.py` renders every Mermaid diagram in
+`.simplicio/docs/*.md` (`architecture.md`, `layers.md`, `flows.md`,
+`business-flows.md`). Guarantees: deterministic ordering (same tree → same
+diagram, byte for byte), sanitized/collision-free node ids, escaped labels
+(safe against adversarial filenames), a hard `max_nodes`/`max_edges` cap
+with an explicit truncation note in the diagram itself (never a silent
+cut), and a textual fallback list next to every diagram. Diagram types:
+`flowchart` (module deps, layer→module, per-flow steps), `sequenceDiagram`
+(call chains), `stateDiagram-v2` (business state machines).
+
+### docs-sync (issue #136)
+
+```bash
+simplicio-mapper sync .                    # working tree vs HEAD (+ untracked)
+simplicio-mapper sync . --range main..HEAD # explicit git range
+simplicio-mapper sync . --staged           # staged changes only
+simplicio-mapper sync . --check            # no writes; exit 1 if stale
+```
+
+`simplicio.docs-sync/v1` — maps a diff to `affected_symbols` (via
+`symbol-index.json`), `affected_flows` (via `flow-inventory.json`), and
+`regenerated_docs`. Whole-repo aggregate docs (`architecture.md`,
+`layers.md`, `call-graph.md`, `modules.md`) always reflect the current
+tree since they summarize the entire repo; per-module docs
+(`modules/<slug>.md`) and `flows.md` are regenerated **only** when the diff
+touches that specific module/flow — unaffected docs stay byte-identical
+(verified in `tests/python/test_docsync.py`). Manual docs (`docs/**`,
+`.specs/**`) are never edited; when one textually references a changed
+path it is reported under `needs_review` instead. Falls back to the
+mapper's own changed-file cache (`diff.source: "cache"`) when git is
+unavailable.
+
+### doc-history (issue #137)
+
+```bash
+simplicio-mapper history .                              # list snapshots
+simplicio-mapper diff . --from <id> --to <id> --json     # simplicio.doc-history/v1
+```
+
+Every `map`/`update`/`sync`/`docs` run calls `maybe_snapshot()`: a compact
+semantic digest (modules, layers, cross-module dependencies, flows,
+symbols) is compared against the last stored snapshot under
+`.simplicio/history/<id>/`; a new snapshot (`manifest.json` + `digest.json`
++ `delta.json`) is written **only** when the digest changed, so unrelated
+runs never grow the history (append-only, verified in
+`tests/python/test_history.py`). `architecture-changelog.md` gets one
+appended entry per snapshot — but only when docs are actually being
+rendered for that run, so `--json-only`/`--no-docs` flows stay JSON-only.
+Retention: `--retention <n>` (default 50) garbage-collects the *oldest*
+snapshots first (YOOL_TUPLE_HAMT.md §11.2 disk guardrail).
+
+### business-rules.json (issue #134)
+
+```bash
+simplicio-mapper business . --json
+```
+
+`simplicio.business-rules/v1` — extracts **observable** signals only, each
+with `path`/`line` evidence and `confidence: observed`: `limit` (named
+constant compared against a value), `permission` (auth/role gate),
+`validation` (schema class / validator decorator), `side-effect`
+(notification/audit/billing call), `invariant` (assert/raise with a
+message). `state_machines[]` come from `Enum` classes with ≥2 members;
+`transitions` are inferred only from sequential same-attribute assignments
+within one function (bounded scan — precision over recall, per the spec's
+own caution against becoming a noise generator). `glossary[]` cross-
+references `.specs/product/DOMAIN.md`/`docs/domain-map.md` terms against
+symbol names, marking each `documented` or `undocumented`. Also writes
+`.simplicio/docs/business-flows.md` with a `stateDiagram-v2` per machine.
+
+### onboarding.md (issue #132)
+
+```bash
+simplicio-mapper survey .                     # writes .simplicio/docs/onboarding.md
+simplicio-mapper survey . --target ONBOARDING.md --json
+```
+
+`simplicio.onboarding/v1` — the "new developer, day one" report, built on
+top of `flows`/`business`: project identity, detected run commands
+(`package.json` scripts, `pyproject.toml [project.scripts]`, `Makefile`
+targets — reported as *detected*, never *validated*), a deterministic
+reading order (entry points → highest-fan-in modules → config files → one
+representative test), the top flows by effect count, a business-rules/
+glossary summary, observed naming conventions (from
+`precedent-index.json` tags), and help sources (`CODEOWNERS`,
+`CONTRIBUTING.md`, `.specs/architecture/ADR-*.md`). Every section that
+finds nothing says so explicitly — never fabricated.
+
+### ask (issue #141)
+
+```bash
+simplicio-mapper ask <path> callers <qualified_or_short_name>
+simplicio-mapper ask <path> callees <name>
+simplicio-mapper ask <path> reaches <file> --depth 3
+simplicio-mapper ask <path> impact <file>
+simplicio-mapper ask <path> flows --effect fs-write
+simplicio-mapper ask <path> rules --category limit
+simplicio-mapper ask <path> tests-for <file>
+simplicio-mapper ask <path> term <glossary-term>
+```
+
+`simplicio.ask/v1` — read-only queries over artifacts already built in
+memory (never a fresh scan), for agents that need three rows instead of
+loading `call-graph.json` whole. `{"results": [...], "total": n}` for every
+verb except `impact`, whose `results` is the same structured object
+`sync`/`drift` compute internally
+(`affected_symbols`/`affected_flows`/`needs_review`). `rules`/`term`
+return a `note` explaining that `business-rules.json` doesn't exist yet
+when it hasn't been generated, instead of failing.
+
+### spec-drift.json (issue #138)
+
+```bash
+simplicio-mapper drift .                         # writes .simplicio/spec-drift.json + docs/spec-drift.md
+simplicio-mapper drift . --check --threshold 10  # exit 1 if findings > threshold
+```
+
+`simplicio.spec-drift/v1` — four checks, each finding carrying
+`check`/`severity`/`target`/`line`/`message`/`evidence`:
+
+- `placeholder` — unresolved `<ALL_CAPS>` template tokens (matches
+  `scripts/check-placeholders.sh`'s own convention; deliberately excludes
+  lowercase CLI-usage placeholders like `<file>`, which are normal prose).
+- `orphan-spec` — a multi-segment path reference (`` `src/deleted.py` ``)
+  in `.specs/**`/`docs/**` that doesn't resolve repo-root-relative *or*
+  relative to the referencing doc's own directory. Bare filenames and
+  `XX`/`NNN`-style wildcard segments are excluded (too ambiguous —
+  generated-artifact names and illustrative naming patterns, not real
+  links).
+- `orphan-code` — a module with ≥3 incoming cross-module references and
+  zero mention anywhere in `.specs/**`/`docs/**`.
+- `doc-stale` — delegates to `sync --check`.
+
+Consults `template-manifest.json` (`generic_placeholder_paths`) so this
+repo's own starter-template scaffolding (`ADR-template.md`,
+`task-template.md`, the sprint-01 worked example, `docs/placeholders.md`,
+`docs/domain-map.md`, `docs/features/login.md`) never registers as a
+false positive — see ADR-004. `traceability` in the payload maps every
+tracked spec doc to the real paths it references (the traceability
+matrix). Starts as `warn` (`score.pass` reported, not enforced) — CI
+integration is opt-in via `--check --threshold`.
+
+### GitHub Action: docs impact on PRs (issue #139)
+
+`action.yml` (repo root, composite action) runs `sync` + `drift --check`
+on a PR's diff and posts one idempotent comment (HTML marker, edited on
+each push, never duplicated) listing affected flows, regenerated/
+needs-review docs, and spec-drift status; full payloads are uploaded as a
+workflow artifact. Degrades to check-only + artifact (no comment) when the
+job lacks PR write permission (fork PRs) instead of failing. `mode: check`
+fails the job when drift exceeds `drift-threshold`. This repo dogfoods it
+in `.github/workflows/docs-sync.yml` with `install-source: none` against
+its own local checkout instead of the last PyPI release.
+
+### Template vs. product content (issue #140, ADR-004)
+
+This repo is both the mapper (product) and the starter template it ships
+(`bin/cli.js`'s `TEMPLATE_PATHS` copies `.specs/`, `docs/`, etc. into host
+projects). `template-manifest.json` classifies which paths under those
+directories carry this product's own real content (`product_paths`) versus
+generic fill-in-the-blank scaffolding (`generic_placeholder_paths`).
+`bin/cli.js`'s `copyTemplate` excludes `product_paths` from the bytes it
+copies to a host (via `fs.cpSync`'s `filter`), so `autoMapProject`'s
+dynamic renderers in `bin/auto-map.js` are always what fills those files
+in for a host — this repo's own GitHub-issue-specific backlog, ADRs, and
+this very spec never leak into a stranger's project. `known_gaps` tracks
+`product_paths` files not yet filled in for simplicio-mapper itself
+(`drift`'s `placeholder` check surfaces the same gaps independently).

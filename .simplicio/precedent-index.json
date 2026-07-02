@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-06-02T16:01:45.075Z",
+  "generated_at": "2026-07-02T07:11:53.271Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -445,17 +445,17 @@
       "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
     },
     {
-      "id": "7ea8e47c20347e71",
+      "id": "b47219c4c07082ae",
       "path": "CHANGELOG.md",
-      "line": 27,
+      "line": 84,
       "language": "markdown",
-      "change_type": "test",
+      "change_type": "feature",
       "tags": [
         "markdown",
         "changelog"
       ],
-      "summary": "test precedent in CHANGELOG.md",
-      "snippet": "  (closes #97); `publish-pypi.yml` now gates on `pytest` passing before\n  building distributions.\n- Node ↔ Python mapper parity test (`tests/python/test_parity.py`) with\n  a deterministic fixture under `tests/fixtures/parity-host/`\n  (closes #98)."
+      "summary": "feature precedent in CHANGELOG.md",
+      "snippet": "  - **HTML templates / basic web text** — `.heex/.leex/.eex/.erb`,\n    `.html/.htm/.xhtml`, and `.css/.scss/.sass/.less` are now inventoried as\n    first-class text/code assets instead of being skipped; HTML/template IDs\n    and component-like tags plus CSS selectors are extracted as lightweight\n    symbols."
     },
     {
       "id": "a3e8e47f38073b5c",
@@ -484,9 +484,9 @@
       "snippet": "- `CI=true` (or any truthy `CI` env var) — the starter never posts telemetry in CI.\n- `--dry-run` — never posts.\n- `LLM_PROJECT_MAPPER_TELEMETRY=0|off` — overrides everything except `CI`.\n- No `LLM_PROJECT_MAPPER_TELEMETRY_URL` configured — there is nowhere to post to, so nothing is sent.\n"
     },
     {
-      "id": "a95bec7f24b2fdf7",
+      "id": "8ed5c4b1425a9a72",
       "path": "SIMPLICIO_INTEGRATION.md",
-      "line": 242,
+      "line": 341,
       "language": "markdown",
       "change_type": "feature",
       "tags": [
@@ -511,6 +511,20 @@
       ],
       "summary": "feature precedent in YOOL_TUPLE_HAMT.md",
       "snippet": "```\n\nA yool is **not** a function. A function might back a yool, but the yool itself is the **addressable symbol + contract**, decoupled from implementation.\n\n### 2.2 tuple"
+    },
+    {
+      "id": "fb5041e84b22b397",
+      "path": "action.yml",
+      "line": 84,
+      "language": "yaml",
+      "change_type": "error-handling",
+      "tags": [
+        "yaml",
+        "action",
+        "yml"
+      ],
+      "summary": "error-handling precedent in action.yml",
+      "snippet": "          simplicio-mapper sync . --json > \"$RUNNER_TEMP/simplicio-sync.json\" || true\n        fi\n        count=$(node -e \"try{const d=require('$RUNNER_TEMP/simplicio-sync.json');console.log((d.affected_flows||[]).length)}catch(e){console.log(0)}\")\n        echo \"affected_flows_count=$count\" >> \"$GITHUB_OUTPUT\"\n"
     },
     {
       "id": "186a0057663db1e5",
@@ -605,9 +619,9 @@
       "snippet": "const { writeMappingArtifacts } = require('./mapper-artifacts');\n\nfunction readJsonSafe(file) {\n  try {\n    return JSON.parse(fs.readFileSync(file, 'utf8'));"
     },
     {
-      "id": "8bae3dfb07ac6797",
+      "id": "8cd7921ca0f3dabf",
       "path": "bin/mapper-artifacts.js",
-      "line": 35,
+      "line": 57,
       "language": "javascript",
       "change_type": "feature",
       "tags": [
@@ -804,6 +818,22 @@
       "snippet": "const crypto = require('node:crypto');\n\nfunction verify(rawBody, headerValue, secret) {\n  const parts = Object.fromEntries(\n    headerValue.split(',').map((kv) => kv.split('='))"
     },
     {
+      "id": "a23cd376859e5ec0",
+      "path": "packaging/npm/lib/python-shim.js",
+      "line": 8,
+      "language": "javascript",
+      "change_type": "feature",
+      "tags": [
+        "javascript",
+        "packaging",
+        "npm",
+        "python",
+        "shim"
+      ],
+      "summary": "feature precedent in packaging/npm/lib/python-shim.js",
+      "snippet": "const { spawnSync } = require('node:child_process');\n\nfunction run(command, args, options = {}) {\n  const result = spawnSync(command, args, {\n    stdio: 'inherit',"
+    },
+    {
       "id": "f9e614680c5eda98",
       "path": "pyproject.toml",
       "line": 73,
@@ -863,6 +893,22 @@
       "snippet": "const RESULTS = { errors: 0, warnings: 0, skipped: [] };\n\nfunction log(level, message) {\n  const tag = level === 'error' ? '\\x1b[31merror\\x1b[0m'\n    : level === 'warn' ? '\\x1b[33mwarn\\x1b[0m'"
     },
     {
+      "id": "9d932f3ca905643b",
+      "path": "scripts/render-simplicio-comment.js",
+      "line": 17,
+      "language": "javascript",
+      "change_type": "feature",
+      "tags": [
+        "javascript",
+        "scripts",
+        "render",
+        "simplicio",
+        "comment"
+      ],
+      "summary": "feature precedent in scripts/render-simplicio-comment.js",
+      "snippet": "const MAX_COMMENT_CHARS = 60000; // stays under GitHub's ~65k comment limit\n\nfunction readJsonSafe(file) {\n  try {\n    return JSON.parse(fs.readFileSync(file, 'utf8'));"
+    },
+    {
       "id": "f9a268593860025c",
       "path": "scripts/skillopt/engine.js",
       "line": 26,
@@ -910,6 +956,21 @@
       "snippet": "parse_imports: Callable[[str, str], list[str]] | None = None\n\ntry:\n    from simplicio_mapper_rs import (  # type: ignore[import-not-found]\n        parse_imports as _native_parse_imports,"
     },
     {
+      "id": "250b66c85e893b9c",
+      "path": "simplicio_mapper/business.py",
+      "line": 64,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "mapper",
+        "business"
+      ],
+      "summary": "feature precedent in simplicio_mapper/business.py",
+      "snippet": "\n\ndef _read(cwd: str, rel: str) -> str:\n    try:\n        with open(os.path.join(cwd, rel), encoding=\"utf-8\", errors=\"ignore\") as handle:"
+    },
+    {
       "id": "83abbab757e87bbc",
       "path": "simplicio_mapper/cache.py",
       "line": 12,
@@ -925,9 +986,9 @@
       "snippet": "\n\nclass FileProcessingCache:\n    \"\"\"Disk-backed cache for parsed file metadata.\n"
     },
     {
-      "id": "cad223f87fa1e76e",
+      "id": "532eb390f9f76450",
       "path": "simplicio_mapper/cli.py",
-      "line": 81,
+      "line": 150,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -957,9 +1018,9 @@
       "snippet": "\n\nclass ContextCache:\n    \"\"\"Hash-keyed cache for LLM summaries.\n"
     },
     {
-      "id": "7bcc7f5da4f84908",
+      "id": "f76d52637e2ce9e5",
       "path": "simplicio_mapper/context_pack.py",
-      "line": 54,
+      "line": 77,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -973,9 +1034,84 @@
       "snippet": "\n\ndef _sha256_text(text: str) -> str:\n    return hashlib.sha256(text.encode(\"utf-8\")).hexdigest()\n"
     },
     {
-      "id": "ad02f5aa04c7f432",
+      "id": "1541774cbe36154b",
+      "path": "simplicio_mapper/diagrams.py",
+      "line": 26,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "mapper",
+        "diagrams"
+      ],
+      "summary": "feature precedent in simplicio_mapper/diagrams.py",
+      "snippet": "\n\ndef sanitize_id(raw: str, seen: dict[str, str]) -> str:\n    \"\"\"Return a stable, collision-free Mermaid node id for ``raw``.\n"
+    },
+    {
+      "id": "69fadefa23c873ed",
+      "path": "simplicio_mapper/docsync.py",
+      "line": 34,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "mapper",
+        "docsync"
+      ],
+      "summary": "feature precedent in simplicio_mapper/docsync.py",
+      "snippet": "\n\ndef _run_git(cwd: str, args: list[str]) -> str | None:\n    try:\n        result = subprocess.run([\"git\", *args], cwd=cwd, capture_output=True, text=True, timeout=5)"
+    },
+    {
+      "id": "dfd91d1fefebe29c",
+      "path": "simplicio_mapper/drift.py",
+      "line": 52,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "mapper",
+        "drift"
+      ],
+      "summary": "feature precedent in simplicio_mapper/drift.py",
+      "snippet": "\n\ndef _load_manifest(cwd: str) -> dict:\n    try:\n        with open(os.path.join(cwd, \"template-manifest.json\"), encoding=\"utf-8\") as handle:"
+    },
+    {
+      "id": "36d04a10e22a622e",
+      "path": "simplicio_mapper/flows.py",
+      "line": 46,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "mapper",
+        "flows"
+      ],
+      "summary": "feature precedent in simplicio_mapper/flows.py",
+      "snippet": "\n\ndef _read_cached(cwd: str, rel_path: str) -> str:\n    key = os.path.join(cwd, rel_path)\n    if key in _READ_CACHE:"
+    },
+    {
+      "id": "a410669e54b99d9c",
+      "path": "simplicio_mapper/history.py",
+      "line": 36,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "mapper",
+        "history"
+      ],
+      "summary": "feature precedent in simplicio_mapper/history.py",
+      "snippet": "\n\ndef _history_dir(cwd: str, out_dir: str) -> str:\n    return os.path.join(os.path.abspath(os.path.join(cwd, out_dir)), \"history\")\n"
+    },
+    {
+      "id": "611fa26d758bd254",
       "path": "simplicio_mapper/mapper.py",
-      "line": 86,
+      "line": 148,
       "language": "python",
       "change_type": "feature",
       "tags": [
@@ -1019,6 +1155,36 @@
       "snippet": "\n\nclass ProjectFile:\n    \"\"\"Parsed project file metadata.\n"
     },
     {
+      "id": "c15f48ef293c4c2f",
+      "path": "simplicio_mapper/query.py",
+      "line": 28,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "mapper",
+        "query"
+      ],
+      "summary": "feature precedent in simplicio_mapper/query.py",
+      "snippet": "\n\ndef _edge_view(edge: dict) -> dict:\n    return {\n        \"source_file\": edge.get(\"source_file\"),"
+    },
+    {
+      "id": "097974e586ee81a5",
+      "path": "simplicio_mapper/survey.py",
+      "line": 27,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "python",
+        "simplicio",
+        "mapper",
+        "survey"
+      ],
+      "summary": "feature precedent in simplicio_mapper/survey.py",
+      "snippet": "\n\ndef _read_json_safe(path: str) -> dict:\n    try:\n        with open(path, encoding=\"utf-8\") as handle:"
+    },
+    {
       "id": "9266e1a508d54e1a",
       "path": "tests/e2e/build-hamt-catalog.spec.ts",
       "line": 10,
@@ -1053,6 +1219,22 @@
       "snippet": "const NODE = process.execPath;\n\nfunction mkTmp(): string {\n  return fs.mkdtempSync(path.join(os.tmpdir(), 'lpm-e2e-'));\n}"
     },
     {
+      "id": "a7a72dad13ba8d1b",
+      "path": "tests/e2e/flowchart.spec.ts",
+      "line": 21,
+      "language": "typescript",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "typescript",
+        "e2e",
+        "flowchart",
+        "spec"
+      ],
+      "summary": "test precedent in tests/e2e/flowchart.spec.ts",
+      "snippet": "const PYTHON = process.env.PYTHON ?? 'python3';\n\nfunction mkTmp(): string {\n  return fs.mkdtempSync(path.join(os.tmpdir(), 'lpm-flow-e2e-'));\n}"
+    },
+    {
       "id": "35a8bfaaa809878e",
       "path": "tests/e2e/skillopt.spec.ts",
       "line": 10,
@@ -1083,6 +1265,41 @@
       ],
       "summary": "test precedent in tests/e2e/smoke.spec.ts",
       "snippet": "const baseUrl = process.env.BASE_URL;\n\ntest.describe('downstream smoke (skipped without BASE_URL)', () => {\n  test.skip(!baseUrl, 'BASE_URL not set — skipping browser smoke');\n"
+    },
+    {
+      "id": "4e4a5d0a20f256e2",
+      "path": "tests/e2e/tier-languages.spec.ts",
+      "line": 31,
+      "language": "typescript",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "typescript",
+        "e2e",
+        "tier",
+        "languages",
+        "spec"
+      ],
+      "summary": "test precedent in tests/e2e/tier-languages.spec.ts",
+      "snippet": "  'ios/App.swift': 'import Foundation\\nclass ViewController {}\\nstruct Model {}\\nfunc greet() {}\\n',\n  'ios/Legacy.m': '#import <UIKit/UIKit.h>\\n@interface Foo\\n@end\\n@implementation Foo\\n- (void)doThing {}\\n@end\\n',\n  'ui/Button.vue': \"<script>\\nimport x from './x';\\nexport function handleClick() {}\\n</script>\\n\",\n  'ui/Card.svelte': \"<script>\\nimport y from './y';\\nfunction render() {}\\n</script>\\n\",\n  'be/Service.scala': 'import scala.collection.mutable\\nobject Main\\nclass Repo\\ndef compute() = 1\\n',"
+    },
+    {
+      "id": "bb14c85016553630",
+      "path": "tests/e2e/two-tier-mapper.spec.ts",
+      "line": 22,
+      "language": "typescript",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "typescript",
+        "e2e",
+        "two",
+        "tier",
+        "mapper",
+        "spec"
+      ],
+      "summary": "test precedent in tests/e2e/two-tier-mapper.spec.ts",
+      "snippet": "const PYTHON = process.env.PYTHON ?? 'python3';\n\nfunction mkTmp(): string {\n  return fs.mkdtempSync(path.join(os.tmpdir(), 'lpm-twotier-e2e-'));\n}"
     },
     {
       "id": "bde8bdff48404818",
@@ -1227,9 +1444,23 @@
       "snippet": "const { startServer } = require('../src/index');\n\ntest('starts the server', () => {\n  const app = startServer();\n  assert.ok(app);"
     },
     {
-      "id": "a0f9fb1a89875342",
+      "id": "cf4b8a9690fd2237",
+      "path": "tests/python/test_business.py",
+      "line": 28,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "business"
+      ],
+      "summary": "test precedent in tests/python/test_business.py",
+      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
+    },
+    {
+      "id": "1f022d341211c6c0",
       "path": "tests/python/test_cli.py",
-      "line": 39,
+      "line": 45,
       "language": "python",
       "change_type": "test",
       "tags": [
@@ -1269,6 +1500,76 @@
       ],
       "summary": "test precedent in tests/python/test_context_pack.py",
       "snippet": "\n\ndef _pack(root, targets, **kwargs):\n    defaults = {\"project_map\": {}, \"symbol_index\": {}, \"call_graph\": {}}\n    defaults.update(kwargs)"
+    },
+    {
+      "id": "816092139a4c9a3d",
+      "path": "tests/python/test_diagrams.py",
+      "line": 25,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "diagrams"
+      ],
+      "summary": "test precedent in tests/python/test_diagrams.py",
+      "snippet": "\n\nclass SanitizeIdTest(unittest.TestCase):\n    def test_collision_between_different_raw_values_is_resolved(self) -> None:\n        seen: dict[str, str] = {}"
+    },
+    {
+      "id": "f88dee7f264e813a",
+      "path": "tests/python/test_docsync.py",
+      "line": 22,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "docsync"
+      ],
+      "summary": "test precedent in tests/python/test_docsync.py",
+      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
+    },
+    {
+      "id": "13f678c9911d9135",
+      "path": "tests/python/test_drift.py",
+      "line": 24,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "drift"
+      ],
+      "summary": "test precedent in tests/python/test_drift.py",
+      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
+    },
+    {
+      "id": "c881a2b1a5504618",
+      "path": "tests/python/test_flows.py",
+      "line": 28,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "flows"
+      ],
+      "summary": "test precedent in tests/python/test_flows.py",
+      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
+    },
+    {
+      "id": "1148f9d81fcc4571",
+      "path": "tests/python/test_history.py",
+      "line": 26,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "history"
+      ],
+      "summary": "test precedent in tests/python/test_history.py",
+      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
     },
     {
       "id": "df670c63e7a05eed",
@@ -1312,6 +1613,34 @@
       ],
       "summary": "test precedent in tests/python/test_parity.py",
       "snippet": "\n\ndef _have_node() -> bool:\n    return shutil.which(\"node\") is not None\n"
+    },
+    {
+      "id": "23978cb0977481ce",
+      "path": "tests/python/test_query.py",
+      "line": 23,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "query"
+      ],
+      "summary": "test precedent in tests/python/test_query.py",
+      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
+    },
+    {
+      "id": "7c9426fb775ac9a3",
+      "path": "tests/python/test_survey.py",
+      "line": 26,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "survey"
+      ],
+      "summary": "test precedent in tests/python/test_survey.py",
+      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
     },
     {
       "id": "3c63098f1d5f6333",
@@ -1441,6 +1770,23 @@
       ],
       "summary": "test precedent in tests/unit/overlay-docs.test.js",
       "snippet": "];\n\ntest('overlay screencast asset captures the required flow', () => {\n  const svg = fs.readFileSync(SVG_PATH, 'utf8');\n"
+    },
+    {
+      "id": "ead6be2e8317dcea",
+      "path": "tests/unit/render-simplicio-comment.test.js",
+      "line": 10,
+      "language": "javascript",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "javascript",
+        "unit",
+        "render",
+        "simplicio",
+        "comment"
+      ],
+      "summary": "test precedent in tests/unit/render-simplicio-comment.test.js",
+      "snippet": "} = require('../../scripts/render-simplicio-comment.js');\n\ntest('renderComment includes the idempotency marker', () => {\n  const body = renderComment(null, null);\n  assert.ok(body.startsWith(MARKER));"
     },
     {
       "id": "d5df471a61db2547",
