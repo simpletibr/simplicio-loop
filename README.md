@@ -202,6 +202,24 @@ wiki publication remains opt-in.
 Use `--watch` during long agent sessions to keep the map fresh. The schema and
 Python consumption example live in [SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRATION.md).
 
+#### Flow Documentation Engine — technical + business flows, sync, history, drift
+
+```bash
+simplicio-mapper flows .                          # stack-neutral flow-inventory + flows.md
+simplicio-mapper business .                       # observable rules, state machines, glossary
+simplicio-mapper survey .                         # onboarding.md — the "new dev, day one" report
+simplicio-mapper sync . --check                   # docs stale relative to the working tree?
+simplicio-mapper history . && simplicio-mapper diff . --from <a> --to <b>
+simplicio-mapper drift . --check --threshold 10   # placeholders, orphan specs/code, stale docs
+simplicio-mapper ask . callers <symbol>           # low-token structured queries over the map
+```
+
+Every command above is documented in full (contracts, guarantees, known
+limitations) under "Flow Documentation Engine" in
+[SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRATION.md#flow-documentation-engine-epic-131).
+A reusable GitHub Action (`action.yml`) runs `sync`+`drift` on a PR's diff
+and comments the affected flows and doc/drift status.
+
 For cross-repo delivery, `simplicio-mapper endpoints <client-root> --against
 <server-root> --json` emits `simplicio.endpoint-inventory/v1`: normalized
 client HTTP calls, runtime server routes, contract-only route counts and

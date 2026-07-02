@@ -1,10 +1,10 @@
 # Module: .
 
-Groups 28 files across 3 detected layers.
+Groups 31 files across 3 detected layers.
 
 ## Structure
 
-- Files: 28
+- Files: 31
 - Layers: asset, config, documentation
 - Entry points: none detected
 - Tests: none detected
@@ -30,12 +30,15 @@ Groups 28 files across 3 detected layers.
 - `README.md`: Documents product, architecture, operation or contributor workflow. Layers: documentation
 - `README.pt-BR.md`: Documents product, architecture, operation or contributor workflow. Layers: documentation
 - `SHOWCASE.md`: Documents product, architecture, operation or contributor workflow. Layers: documentation
+- `SIMPLICIO_ECOSYSTEM.md`: Documents product, architecture, operation or contributor workflow. Layers: documentation
 - `SIMPLICIO_INTEGRATION.md`: Documents product, architecture, operation or contributor workflow. Layers: documentation
 - `YOOL_TUPLE_HAMT.md`: Documents product, architecture, operation or contributor workflow. Layers: documentation
 - `_BOOTSTRAP.md`: Documents product, architecture, operation or contributor workflow. Layers: documentation
+- `action.yml`: Participates in the project implementation; inspect imports and symbols for exact usage. Layers: asset
 - `bootstrap.ps1`: Defines exported symbols: Choose, Copy, Detect, Handle, Has. Layers: asset
 - `bootstrap.sh`: Defines exported symbols: dispatch, readCatalog, read_catalog, snapshot. Layers: asset
 - `package-lock.json`: Participates in the project implementation; inspect imports and symbols for exact usage. Layers: asset
 - `package.json`: Configures tooling, build, runtime or packaging behavior. Layers: config
 - `playwright.config.ts`: Configures tooling, build, runtime or packaging behavior. Layers: config
 - `pyproject.toml`: Configures tooling, build, runtime or packaging behavior. Layers: config
+- `template-manifest.json`: Participates in the project implementation; inspect imports and symbols for exact usage. Layers: asset

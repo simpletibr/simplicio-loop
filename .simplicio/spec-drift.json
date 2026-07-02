@@ -1,0 +1,1100 @@
+{
+  "schema": "simplicio.spec-drift/v1",
+  "version": 1,
+  "findings": [
+    {
+      "check": "orphan-spec",
+      "severity": "warn",
+      "target": ".specs/architecture/ADR-002-python-rust-hybrid.md",
+      "line": 111,
+      "message": "references a path that does not exist: src/lib.rs",
+      "evidence": "src/lib.rs"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/README.md",
+      "line": 52,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/README.md",
+      "line": 52,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/README.md",
+      "line": 52,
+      "message": "template placeholder content detected",
+      "evidence": "<TEAM>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/README.md",
+      "line": 52,
+      "message": "template placeholder content detected",
+      "evidence": "<DOMAIN>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/DESIGN.md",
+      "line": 1,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/DESIGN.md",
+      "line": 18,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/DESIGN.md",
+      "line": 52,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/DESIGN.md",
+      "line": 109,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/DESIGN.md",
+      "line": 113,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/DESIGN.md",
+      "line": 114,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/DESIGN.md",
+      "line": 115,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/DESIGN.md",
+      "line": 116,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/DESIGN.md",
+      "line": 117,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/DESIGN.md",
+      "line": 156,
+      "message": "template placeholder content detected",
+      "evidence": "<TEAM>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/DESIGN.md",
+      "line": 177,
+      "message": "template placeholder content detected",
+      "evidence": "<DOMAIN>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/PATTERNS.md",
+      "line": 1,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/PATTERNS.md",
+      "line": 26,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/PATTERNS.md",
+      "line": 84,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/PATTERNS.md",
+      "line": 87,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/PATTERNS.md",
+      "line": 181,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/architecture/PATTERNS.md",
+      "line": 213,
+      "message": "template placeholder content detected",
+      "evidence": "<TEAM>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/CONTRIBUTING.md",
+      "line": 1,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/CONTRIBUTING.md",
+      "line": 3,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/CONTRIBUTING.md",
+      "line": 3,
+      "message": "template placeholder content detected",
+      "evidence": "<DOMAIN>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/CONTRIBUTING.md",
+      "line": 3,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/CONTRIBUTING.md",
+      "line": 3,
+      "message": "template placeholder content detected",
+      "evidence": "<TEAM>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/CONTRIBUTING.md",
+      "line": 53,
+      "message": "template placeholder content detected",
+      "evidence": "<TEAM>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/CONTRIBUTING.md",
+      "line": 61,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/CONTRIBUTING.md",
+      "line": 200,
+      "message": "template placeholder content detected",
+      "evidence": "<TEAM>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/RELEASE.md",
+      "line": 1,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/RELEASE.md",
+      "line": 3,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/RELEASE.md",
+      "line": 3,
+      "message": "template placeholder content detected",
+      "evidence": "<DOMAIN>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/RELEASE.md",
+      "line": 3,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/RELEASE.md",
+      "line": 3,
+      "message": "template placeholder content detected",
+      "evidence": "<TEAM>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/RELEASE.md",
+      "line": 28,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/RELEASE.md",
+      "line": 122,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/RELEASE.md",
+      "line": 145,
+      "message": "template placeholder content detected",
+      "evidence": "<DOMAIN>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/RELEASE.md",
+      "line": 202,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/RELEASE.md",
+      "line": 220,
+      "message": "template placeholder content detected",
+      "evidence": "<TEAM>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/WORKFLOW.md",
+      "line": 1,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/WORKFLOW.md",
+      "line": 3,
+      "message": "template placeholder content detected",
+      "evidence": "<TEAM>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/WORKFLOW.md",
+      "line": 3,
+      "message": "template placeholder content detected",
+      "evidence": "<DOMAIN>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/WORKFLOW.md",
+      "line": 3,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/WORKFLOW.md",
+      "line": 34,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/WORKFLOW.md",
+      "line": 109,
+      "message": "template placeholder content detected",
+      "evidence": "<STACK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/WORKFLOW.md",
+      "line": 120,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/WORKFLOW.md",
+      "line": 121,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/WORKFLOW.md",
+      "line": 122,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/WORKFLOW.md",
+      "line": 134,
+      "message": "template placeholder content detected",
+      "evidence": "<TEAM>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/WORKFLOW.md",
+      "line": 178,
+      "message": "template placeholder content detected",
+      "evidence": "<PRODUCT_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": ".specs/workflow/WORKFLOW.md",
+      "line": 180,
+      "message": "template placeholder content detected",
+      "evidence": "<TEAM>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 8,
+      "message": "template placeholder content detected",
+      "evidence": "<FRAMEWORK_OR_NONE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 9,
+      "message": "template placeholder content detected",
+      "evidence": "<FRAMEWORK_OR_NONE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 10,
+      "message": "template placeholder content detected",
+      "evidence": "<DATABASE_OR_NONE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 11,
+      "message": "template placeholder content detected",
+      "evidence": "<WORKERS_OR_NONE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 12,
+      "message": "template placeholder content detected",
+      "evidence": "<INTEGRATIONS>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 18,
+      "message": "template placeholder content detected",
+      "evidence": "<FRONTEND_URL>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 18,
+      "message": "template placeholder content detected",
+      "evidence": "<NOTES>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 19,
+      "message": "template placeholder content detected",
+      "evidence": "<BACKEND_URL>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 19,
+      "message": "template placeholder content detected",
+      "evidence": "<NOTES>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 26,
+      "message": "template placeholder content detected",
+      "evidence": "<FRONTEND_ROUTE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 26,
+      "message": "template placeholder content detected",
+      "evidence": "<API_ENDPOINT>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 26,
+      "message": "template placeholder content detected",
+      "evidence": "<SERVICE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 26,
+      "message": "template placeholder content detected",
+      "evidence": "<REPOSITORY>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 26,
+      "message": "template placeholder content detected",
+      "evidence": "<DATABASE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 33,
+      "message": "template placeholder content detected",
+      "evidence": "<PATH>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 33,
+      "message": "template placeholder content detected",
+      "evidence": "<PURPOSE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 37,
+      "message": "template placeholder content detected",
+      "evidence": "<AUTH_FLOW>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 38,
+      "message": "template placeholder content detected",
+      "evidence": "<WHERE_TO_FIND_THEM>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 39,
+      "message": "template placeholder content detected",
+      "evidence": "<COOKIE_HEADER_STORAGE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 40,
+      "message": "template placeholder content detected",
+      "evidence": "<AUTH_FAILURE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 44,
+      "message": "template placeholder content detected",
+      "evidence": "<LOG_LOCATION>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 45,
+      "message": "template placeholder content detected",
+      "evidence": "<LOG_LOCATION>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 46,
+      "message": "template placeholder content detected",
+      "evidence": "<LOG_LOCATION>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 47,
+      "message": "template placeholder content detected",
+      "evidence": "<CORRELATION_ID_OR_TRACE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 51,
+      "message": "template placeholder content detected",
+      "evidence": "<ENVIRONMENTS>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 52,
+      "message": "template placeholder content detected",
+      "evidence": "<PIPELINE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/architecture-map.md",
+      "line": 53,
+      "message": "template placeholder content detected",
+      "evidence": "<LOCATION>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/evidence/README.md",
+      "line": 43,
+      "message": "template placeholder content detected",
+      "evidence": "<FRONTEND_URL>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 14,
+      "message": "template placeholder content detected",
+      "evidence": "<FEATURE_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 18,
+      "message": "template placeholder content detected",
+      "evidence": "<WHAT_USER_OR_SYSTEM_CAN_DO>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 22,
+      "message": "template placeholder content detected",
+      "evidence": "<STEP>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 23,
+      "message": "template placeholder content detected",
+      "evidence": "<STEP>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 24,
+      "message": "template placeholder content detected",
+      "evidence": "<EXPECTED_RESULT>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 30,
+      "message": "template placeholder content detected",
+      "evidence": "<FILES_OR_NONE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 31,
+      "message": "template placeholder content detected",
+      "evidence": "<FILES_OR_NONE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 32,
+      "message": "template placeholder content detected",
+      "evidence": "<FILES_OR_NONE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 33,
+      "message": "template placeholder content detected",
+      "evidence": "<FILES_OR_NONE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 34,
+      "message": "template placeholder content detected",
+      "evidence": "<FILES_OR_NONE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 40,
+      "message": "template placeholder content detected",
+      "evidence": "<METHOD>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 40,
+      "message": "template placeholder content detected",
+      "evidence": "<PATH>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 40,
+      "message": "template placeholder content detected",
+      "evidence": "<PURPOSE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 46,
+      "message": "template placeholder content detected",
+      "evidence": "<NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 46,
+      "message": "template placeholder content detected",
+      "evidence": "<PURPOSE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 50,
+      "message": "template placeholder content detected",
+      "evidence": "<RULE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 54,
+      "message": "template placeholder content detected",
+      "evidence": "<SCENARIO>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 58,
+      "message": "template placeholder content detected",
+      "evidence": "<EXPECTED_SCREEN>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 59,
+      "message": "template placeholder content detected",
+      "evidence": "<WHEN_NEEDED>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 60,
+      "message": "template placeholder content detected",
+      "evidence": "<WHEN_NEEDED>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/features/README.md",
+      "line": 64,
+      "message": "template placeholder content detected",
+      "evidence": "<RISK>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 7,
+      "message": "template placeholder content detected",
+      "evidence": "<NODE_DOTNET_PYTHON_GO_JAVA_VERSION>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 8,
+      "message": "template placeholder content detected",
+      "evidence": "<NPM_PNPM_YARN_NUGET_PIP_POETRY>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 9,
+      "message": "template placeholder content detected",
+      "evidence": "<DATABASE_REQUIREMENT>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 10,
+      "message": "template placeholder content detected",
+      "evidence": "<VPN_OR_NONE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 11,
+      "message": "template placeholder content detected",
+      "evidence": "<WHERE_TO_GET_ENV_VARS>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 17,
+      "message": "template placeholder content detected",
+      "evidence": "<ENV_NAME>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 17,
+      "message": "template placeholder content detected",
+      "evidence": "<VALUE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 17,
+      "message": "template placeholder content detected",
+      "evidence": "<NOTES>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 22,
+      "message": "template placeholder content detected",
+      "evidence": "<INSTALL_COMMAND>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 37,
+      "message": "template placeholder content detected",
+      "evidence": "<FRONTEND_URL>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 37,
+      "message": "template placeholder content detected",
+      "evidence": "<FRONTEND_HEALTH>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 38,
+      "message": "template placeholder content detected",
+      "evidence": "<BACKEND_URL>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 38,
+      "message": "template placeholder content detected",
+      "evidence": "<BACKEND_HEALTH>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 50,
+      "message": "template placeholder content detected",
+      "evidence": "<AUTH_FLOW>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 51,
+      "message": "template placeholder content detected",
+      "evidence": "<DEMO_USER_OR_NONE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 52,
+      "message": "template placeholder content detected",
+      "evidence": "<PASSWORD_LOCATION_OR_NONE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 59,
+      "message": "template placeholder content detected",
+      "evidence": "<FRONTEND_URL>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/local-setup.md",
+      "line": 61,
+      "message": "template placeholder content detected",
+      "evidence": "<FRONTEND_URL>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/troubleshooting.md",
+      "line": 7,
+      "message": "template placeholder content detected",
+      "evidence": "<PORT>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/troubleshooting.md",
+      "line": 13,
+      "message": "template placeholder content detected",
+      "evidence": "<DATABASE_REQUIREMENT>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/troubleshooting.md",
+      "line": 20,
+      "message": "template placeholder content detected",
+      "evidence": "<AUTH_FLOW>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/troubleshooting.md",
+      "line": 27,
+      "message": "template placeholder content detected",
+      "evidence": "<BACKEND_URL>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/troubleshooting.md",
+      "line": 48,
+      "message": "template placeholder content detected",
+      "evidence": "<SYMPTOM>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/troubleshooting.md",
+      "line": 50,
+      "message": "template placeholder content detected",
+      "evidence": "<CAUSE>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/troubleshooting.md",
+      "line": 51,
+      "message": "template placeholder content detected",
+      "evidence": "<COMMAND_OR_LOG>"
+    },
+    {
+      "check": "placeholder",
+      "severity": "warn",
+      "target": "docs/troubleshooting.md",
+      "line": 52,
+      "message": "template placeholder content detected",
+      "evidence": "<FIX>"
+    }
+  ],
+  "matrix_summary": {
+    "specs_total": 36,
+    "specs_linked": 7,
+    "code_modules_uncovered": []
+  },
+  "traceability": {
+    ".specs/README.md": [
+      ".specs/architecture/ADR-001-example.md",
+      ".specs/architecture/DESIGN.md",
+      ".specs/architecture/PATTERNS.md",
+      ".specs/product/DOMAIN.md",
+      ".specs/product/PERSONAS.md",
+      ".specs/product/VISION.md",
+      ".specs/sprints/BACKLOG.md",
+      ".specs/sprints/task-template.md",
+      ".specs/workflow/CONTRIBUTING.md",
+      ".specs/workflow/RELEASE.md",
+      ".specs/workflow/WORKFLOW.md"
+    ],
+    ".specs/architecture/ADR-002-python-rust-hybrid.md": [
+      "tests/python/test_native.py"
+    ],
+    ".specs/architecture/ADR-003-two-tier-async-mapper.md": [],
+    ".specs/architecture/ADR-004-template-vs-product-content-manifest.md": [
+      "bin/cli.js",
+      "tests/unit/overlay-docs.test.js"
+    ],
+    ".specs/architecture/DESIGN.md": [],
+    ".specs/architecture/PATTERNS.md": [],
+    ".specs/product/DOMAIN.md": [
+      "bin/cli.js"
+    ],
+    ".specs/product/PERSONAS.md": [
+      "scripts/check-version-sync.js"
+    ],
+    ".specs/product/VISION.md": [],
+    ".specs/product/flow-documentation-spec.md": [],
+    ".specs/sprints/BACKLOG.md": [],
+    ".specs/workflow/CONTRIBUTING.md": [],
+    ".specs/workflow/RELEASE.md": [],
+    ".specs/workflow/WORKFLOW.md": [],
+    "docs/api-examples/README.md": [],
+    "docs/api-examples/cli.md": [],
+    "docs/api-examples/graphql.md": [],
+    "docs/api-examples/rest.md": [],
+    "docs/api-examples/webhook.md": [],
+    "docs/apply-edits.md": [],
+    "docs/architecture-map.md": [],
+    "docs/evidence/README.md": [],
+    "docs/features/README.md": [],
+    "docs/local-setup.md": [],
+    "docs/readme-globalization-standard.md": [
+      "READMEs/README.ar-SA.md",
+      "READMEs/README.en.md",
+      "READMEs/README.es-ES.md",
+      "READMEs/README.fr-FR.md",
+      "READMEs/README.he-IL.md",
+      "READMEs/README.hi-IN.md",
+      "READMEs/README.id-ID.md",
+      "READMEs/README.it-IT.md",
+      "READMEs/README.ja-JP.md",
+      "READMEs/README.ko-KR.md",
+      "READMEs/README.ms-MY.md",
+      "READMEs/README.pl-PL.md",
+      "READMEs/README.pt-BR.md",
+      "READMEs/README.ru-RU.md",
+      "READMEs/README.zh-CN.md"
+    ],
+    "docs/sessionstart-hook.md": [
+      "bin/hook-runner.js"
+    ],
+    "docs/troubleshooting.md": []
+  },
+  "score": {
+    "drift_findings": 127,
+    "threshold": 10,
+    "pass": false
+  }
+}

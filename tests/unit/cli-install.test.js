@@ -39,12 +39,12 @@ function runCli(args, cwd) {
 
 function listUnresolvedPlaceholders(dir) {
   const matches = [];
-  const exempt = /docs\/placeholders\.md|docs\/api-examples\/|task-template\.md|ADR-template\.md|sprint-XX|\.template\.|_template\/SKILL\.md|INIT\.md|INSTALL\.md|_BOOTSTRAP\.md|bootstrap\.(sh|ps1)|scripts\/check-placeholders\.sh|tests\/unit\/cli-install\.test\.js|\.github\/workflows-templates\//;
+  const exempt = /docs\/placeholders\.md|docs\/api-examples\/|task-template\.md|ADR-template\.md|sprint-XX|\.template\.|_template\/SKILL\.md|INIT\.md|INSTALL\.md|_BOOTSTRAP\.md|bootstrap\.(sh|ps1)|scripts\/check-placeholders\.sh|tests\/unit\/cli-install\.test\.js|tests\/python\/test_drift\.py|\.github\/workflows-templates\//;
 
   function walk(current) {
     const entries = fs.readdirSync(current, { withFileTypes: true });
     for (const entry of entries) {
-      if (['node_modules', '.git', 'playwright-report', 'test-results', 'coverage', 'video'].includes(entry.name)) continue;
+      if (['node_modules', '.git', 'playwright-report', 'test-results', 'coverage', 'video', '__pycache__', '.pytest_cache', '.ruff_cache'].includes(entry.name)) continue;
       const full = path.join(current, entry.name);
       if (entry.isDirectory()) {
         walk(full);
@@ -131,6 +131,30 @@ test('automatic mapping fills starter-managed docs without unresolved placeholde
 
     const unresolved = listUnresolvedPlaceholders(dir);
     assert.deepEqual(unresolved, [], `unresolved placeholders remain:\n${unresolved.join('\n')}`);
+  } finally {
+    rmTmp(dir);
+  }
+});
+
+test('product-specific specs (template-manifest.json product_paths) are never copied verbatim into a host', () => {
+  const dir = mkTmp();
+  try {
+    writeFile(dir, 'package.json', '{"name":"my-product","dependencies":{"next":"14.0.0"}}');
+    const res = runCli(['--yes', '--cli', 'skip', '--append-gitignore', 'no'], dir);
+    assert.equal(res.status, 0, `cli failed: ${res.stderr}`);
+
+    const backlog = fs.readFileSync(path.join(dir, '.specs', 'sprints', 'BACKLOG.md'), 'utf8');
+    // The host's BACKLOG.md must be the freshly rendered generic scaffold, not
+    // this repo's own product backlog (which references simplicio-mapper's
+    // own GitHub issues and would be meaningless — or actively misleading —
+    // for a different project).
+    assert.doesNotMatch(backlog, /simplicio-mapper/);
+    assert.doesNotMatch(backlog, /wesleysimplicio\/simplicio-mapper/);
+    assert.doesNotMatch(backlog, /Motor de Documenta/);
+
+    const vision = fs.readFileSync(path.join(dir, '.specs', 'product', 'VISION.md'), 'utf8');
+    assert.doesNotMatch(vision, /simplicio-mapper/);
+    assert.doesNotMatch(vision, /redescobrindo a arquitetura/);
   } finally {
     rmTmp(dir);
   }

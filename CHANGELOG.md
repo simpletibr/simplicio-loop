@@ -2,6 +2,58 @@
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-07-02
+
+### Added
+
+Flow Documentation Engine (epic [#131](https://github.com/wesleysimplicio/simplicio-mapper/issues/131),
+spec `.specs/product/flow-documentation-spec.md`): ten commands that turn the
+mapper's structural artifacts into technical + business flow documentation
+that stays in sync with the code and keeps history. Full contracts in
+[SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRATION.md#flow-documentation-engine-epic-131).
+
+- `simplicio-mapper flows` — stack-neutral end-to-end flow inventory derived
+  from the call graph (`simplicio.flow-inventory/v1`), generalizing the
+  web-only `flowchart` command. [#133]
+- `simplicio_mapper/diagrams.py` — deterministic Mermaid renderer (flowchart,
+  sequence, state diagrams) with sanitized ids, escaped labels, and an
+  explicit node/edge truncation guardrail, now used by `architecture.md` and
+  `layers.md`. [#135]
+- `simplicio-mapper sync` — diff-driven docs sync: maps a git diff to
+  affected symbols/flows/docs and regenerates only what changed
+  (`simplicio.docs-sync/v1`); `--check` reports staleness for CI without
+  writing. [#136]
+- `simplicio-mapper history` / `simplicio-mapper diff` — append-only
+  architecture snapshots with semantic deltas and a generated
+  `architecture-changelog.md`, garbage-collected by `--retention`. [#137]
+- `simplicio-mapper survey` — the "new developer, day one" onboarding report
+  (`simplicio.onboarding/v1`): how to run, reading order, main flows,
+  business rules/glossary, conventions, help sources. [#132]
+- `simplicio-mapper business` — observable business rules (limits,
+  permission gates, validation, side-effects, invariants), state machines
+  and a domain glossary cross-referenced against `.specs/product/DOMAIN.md`
+  (`simplicio.business-rules/v1`). [#134]
+- `simplicio-mapper ask` — low-token structured queries over already-built
+  artifacts: `callers`/`callees`/`reaches`/`impact`/`flows`/`rules`/
+  `tests-for`/`term` (`simplicio.ask/v1`). [#141]
+- `simplicio-mapper drift` — spec-drift detection: unresolved template
+  placeholders, orphan spec references, orphan high-impact code, and stale
+  docs, plus a spec→code traceability matrix (`simplicio.spec-drift/v1`).
+  [#138]
+- `action.yml` — reusable composite GitHub Action that comments PR-affected
+  flows and spec-drift status (idempotent, degrades gracefully on fork
+  PRs); dogfooded in `.github/workflows/docs-sync.yml`. [#139]
+- `template-manifest.json` + ADR-004 — classifies which `.specs/`/`docs/`
+  paths are this product's own real content versus generic starter
+  scaffolding, so `bin/cli.js` never ships simplicio-mapper's own specs to a
+  host project. [#140]
+
+### Changed
+
+- `.specs/sprints/BACKLOG.md` now tracks this product's real backlog
+  (rastreável via GitHub Issues) instead of generic template placeholder
+  content.
+
 ## [0.13.0] - 2026-07-01
 
 ### Added
