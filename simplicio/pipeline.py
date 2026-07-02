@@ -2,10 +2,11 @@
 from dataclasses import dataclass
 import fnmatch
 import os, re, subprocess
+from .adaptive import get_validation_mode
 from .observability import estimate_tokens, log_run
 from .pipeline_fixers import try_static_fixers
 from .prompt import build_prompt
-from .providers import generate
+from .providers import generate, _provider_id, _cfg
 from .runtime_env import wrap_project_command
 
 MAX_ATTEMPTS = 5
@@ -68,8 +69,10 @@ def extract_patch(output):
         patch = patch[:fence]
     return patch.strip() + "\n"
 
-def validate_generated_output(output, bound_paths=None):
+def validate_generated_output(output, bound_paths=None, mode=None):
     text = output or ""
+    if mode is None:
+        mode = get_validation_mode()
     hints = []
     has_diff = bool(re.search(r"^diff --git |^--- .+\n\+\+\+ ", text, flags=re.M))
     has_test = "TEST:" in text or re.search(r"(^|\n)(test|it|def test_|describe)\b", text)
@@ -77,8 +80,13 @@ def validate_generated_output(output, bound_paths=None):
     has_external_test = bool(external_test_cmd and external_test_cmd != "echo 'configure SIMPLICIO_TEST_CMD'")
     if not has_diff:
         hints.append("include a unified diff with exact target files")
-    if not has_test and not has_external_test:
-        hints.append("include a TEST block or concrete test code")
+    # In "strict" mode (Claude-class), require a TEST block or external
+    # test command.  In "diff" mode (strong non-Claude, weak/local),
+    # accept diff-only output — these models reliably produce diffs but
+    # may not follow the multi-part DIFF+TEST+EVIDENCE output format.
+    if mode == "strict":
+        if not has_test and not has_external_test:
+            hints.append("include a TEST block or concrete test code")
     if not has_external_test and re.search(r"(?i)\b(pseudocode|placeholder|todo: implement)\b", text):
         hints.append("replace placeholders with executable code")
     hints.extend(_bound_path_warnings(extract_changed_files(output), bound_paths))
@@ -189,7 +197,7 @@ def run_task(root, stack, goal, target, criteria, constraints, *,
     prompt = build_prompt(root, stack, goal, target, criteria, constraints)
     if dry_run_task:
         output = generate(prompt)
-        validation = validate_generated_output(output, bound_paths)
+        validation = validate_generated_output(output, bound_paths, mode=get_validation_mode())
         warnings = [] if validation.ok else [validation.reason]
         return _task_result(target, prompt, output, applied=False, warnings=warnings)
 
@@ -199,7 +207,10 @@ def run_task(root, stack, goal, target, criteria, constraints, *,
     last_log = ""
     for t in range(1, MAX_ATTEMPTS + 1):
         if not quiet:
-            print(f"--- attempt {t} (provider={os.environ.get('SIMPLICIO_PROVIDER','claude')}) ---")
+            _model = os.environ.get("SIMPLICIO_MODEL", "")
+            _base = os.environ.get("SIMPLICIO_BASE_URL", "")
+            _prov = _provider_id(_model, _base) if (_model or _base) else os.environ.get("SIMPLICIO_PROVIDER", "unknown")
+            print(f"--- attempt {t} (provider={_prov}, validation={get_validation_mode()}) ---")
         output = generate(prompt, feedback)
         last_output = output or ""
         last_validation = validate_generated_output(output, bound_paths)
