@@ -3,6 +3,15 @@
 ## [Unreleased]
 
 ### Fixed
+- **`numpy>=2.5.0` was an unsatisfiable dependency floor.** No `numpy` release
+  `>=2.5.0` has ever been published on PyPI (latest is `2.4.6` at the time of
+  this fix), so a clean `pip install simplicio-cli` could never resolve —
+  caught by `simplicio-loop`'s new wheel-install-smoke CI step
+  (wesleysimplicio/simplicio-loop#71/#102). `numpy` is a real, direct
+  dependency (`simplicio/precedent.py`, `simplicio/skill_router.py`,
+  `simplicio/cache.py`), not something to move behind an extras group;
+  lowered the floor to `>=2.1.0`, a real published release compatible with
+  this project's `requires-python = ">=3.10"`.
 - **TOON was dead code on the real handoff path (#88).** `build_mapper_context()`
   returned the legacy hand-rolled bullets from `_render_handoff_context()`
   *before* ever reaching the TOON branch merged in #85/PR #87 — which only
