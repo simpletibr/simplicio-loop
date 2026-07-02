@@ -3,6 +3,14 @@
 ## [Unreleased]
 
 ### Added
+- mapper 0.14 `ask` wired into the pipeline: `map_ask(root, verb, arg)` runs the
+  low-token structured queries (`simplicio.ask/v1`) and `inspect_target()` now
+  embeds `impact` (dependents/flows the target touches) and `affected_tests`
+  (`tests-for`) straight from the built artifacts. Fail-open like the 0.13
+  integration: keys are only present when the CLI answered. Dependency floor
+  raised to `simplicio-mapper>=0.14.0`.
+
+### Added
 - Exercise the mapper 0.13 surface end-to-end (fail-open, kill-switch
   `SIMPLICIO_MAPPER_CLI=0`): `artifact_status()` now embeds the per-artifact
   on-disk evidence + warnings from `simplicio-mapper inspect --json`
