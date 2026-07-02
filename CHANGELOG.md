@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+### Added
+
+- `simplicio_mapper/toon.py` — TOON (Token-Oriented Object Notation)
+  encoder/decoder (`encode_toon`/`decode_toon`), a lossless, token-lean
+  alternative to JSON for LLM prompt payloads (uniform arrays of objects
+  collapse into a tabular block instead of repeating keys per element; see
+  https://github.com/toon-format/toon). Wired into `simplicio-mapper index`
+  and `simplicio-mapper handoff` via a new `--for-llm toon` flag.
+  [#144]
+
 ## [0.15.0] - 2026-07-02
 
 ### Added
