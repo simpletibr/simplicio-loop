@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.9.1] — 2026-07-02
+
+### Changed
+- Raised the `simplicio-mapper` dependency floor to `>=0.13.0` (current release), so a
+  fresh install resolves the mapper version this package is developed against.
+
 ## [0.9.0] — 2026-07-01
 
 ### Added
