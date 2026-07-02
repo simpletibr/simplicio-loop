@@ -59,6 +59,9 @@ jobs:
       - name: Run pytest
         run: python -m pytest tests/python -q
 
+      - name: TOON-CONTRACT drift check (issue #149)
+        run: python scripts/sync_toon_contract.py check
+
   rust-tests:
     name: cargo test (PyO3 crate)
     runs-on: ubuntu-latest

@@ -1,0 +1,4 @@
+note: Representative of simplicio-prompt's fanout aggregation shape (hand-built for this corpus).
+results[2]{agent_id,score,labels}:
+  a1,0.91,[kept]
+  a2,0.42,[reverted,regression]

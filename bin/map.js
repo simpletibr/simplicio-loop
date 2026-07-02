@@ -5,13 +5,19 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { writeMappingArtifacts } = require('./mapper-artifacts');
 
-// NOTE (issue #144): the Python CLI (`simplicio_mapper/cli.py`) supports
-// `--for-llm toon` on `index`/`handoff`, backed by `simplicio_mapper/toon.py`
-// (a TOON — Token-Oriented Object Notation — encoder/decoder,
-// https://github.com/toon-format/toon). This Node mirror has no `index`/
-// `handoff`/`--json` command surface to hook a `--for-llm` flag into yet
-// (it only writes artifacts, it does not print JSON payloads), so a Node
-// port of `encode_toon`/`decode_toon` is deferred — Node parity pending.
+// NOTE (issues #144, #148, #149): the Python CLI (`simplicio_mapper/cli.py`)
+// supports `--for-llm toon` on `index`/`inspect`/`handoff`/`ask`, backed by
+// `simplicio_mapper/toon.py` (a TOON — Token-Oriented Object Notation —
+// encoder/decoder, https://github.com/toon-format/toon; spec + conformance
+// corpus: ../TOON-CONTRACT.md, ../fixtures/toon-golden/). This Node mirror
+// has no `index`/`inspect`/`handoff`/`ask`/`--json` command surface to hook
+// a `--for-llm` flag into yet (it only writes artifacts, it does not print
+// JSON payloads), so a Node port of `encode_toon`/`decode_toon` is
+// explicitly re-scoped out of #148/#149 rather than attempted here — Node
+// parity remains pending. When it lands, it must pass
+// `fixtures/toon-golden/` (see `tests/unit/toon-contract.test.js`, which
+// currently reports a labeled skip for exactly this reason) and be wired
+// through a Node counterpart of `scripts/toon_contract_runner.py`.
 
 function readJsonSafe(file) {
   try {
