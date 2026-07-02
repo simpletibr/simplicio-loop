@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+### Added
+- Exercise the mapper 0.13 surface end-to-end (fail-open, kill-switch
+  `SIMPLICIO_MAPPER_CLI=0`): `artifact_status()` now embeds the per-artifact
+  on-disk evidence + warnings from `simplicio-mapper inspect --json`
+  (`simplicio.map-inspection/v1`) — surfacing through the `status` and
+  `inspect` CLI payloads — and `build_mapper_context()` prefers the compact
+  `handoff` context-pack (files/symbols/deps/`pack_hash`) over re-deriving
+  context from `project-map.json`, honoring `needs_broader_context` as the
+  fallback trigger. Any miss (binary absent, timeout, bad JSON) keeps the
+  previous artifact-file behavior byte-for-byte.
+
 ## [0.9.1] — 2026-07-02
 
 ### Changed

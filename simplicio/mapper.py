@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +26,56 @@ PRECEDENT_INDEX_CANDIDATES = (
     "precedent-index.json",
     ".mapper/precedent-index.json",
 )
+
+MAPPER_BIN = "simplicio-mapper"
+_MAPPER_CLI_CACHE: dict[tuple[str, str], dict[str, Any] | None] = {}
+
+
+def _mapper_cli_enabled() -> bool:
+    return os.environ.get("SIMPLICIO_MAPPER_CLI", "1") != "0"
+
+
+def run_mapper_json(root: str | os.PathLike[str], subcommand: str, *, timeout: int = 30) -> dict[str, Any] | None:
+    """Run `simplicio-mapper <subcommand> <root> --json` fail-open.
+
+    Returns the parsed JSON dict, or None on ANY failure (binary missing, env
+    kill-switch SIMPLICIO_MAPPER_CLI=0, non-zero exit, timeout, bad JSON) —
+    callers keep their artifact-file fallback. Results are memoized per
+    (root, subcommand) for the process lifetime; both mapper 0.13 verbs used
+    here (`inspect`, `handoff`) are read-only and fast (~60ms).
+    """
+    if not _mapper_cli_enabled():
+        return None
+    base = str(Path(root).resolve())
+    key = (base, subcommand)
+    if key in _MAPPER_CLI_CACHE:
+        return _MAPPER_CLI_CACHE[key]
+    result: dict[str, Any] | None = None
+    exe = shutil.which(MAPPER_BIN)
+    if exe:
+        try:
+            proc = subprocess.run(
+                [exe, subcommand, base, "--json"],
+                capture_output=True, text=True, timeout=timeout, check=False,
+            )
+            if proc.returncode == 0:
+                data = loads(proc.stdout)
+                if isinstance(data, dict):
+                    result = data
+        except (OSError, ValueError, subprocess.SubprocessError):
+            result = None
+    _MAPPER_CLI_CACHE[key] = result
+    return result
+
+
+def map_inspection(root: str | os.PathLike[str]) -> dict[str, Any] | None:
+    """mapper 0.13 `inspect` — per-artifact on-disk evidence (simplicio.map-inspection/v1)."""
+    return run_mapper_json(root, "inspect")
+
+
+def map_handoff(root: str | os.PathLike[str]) -> dict[str, Any] | None:
+    """mapper 0.13 `handoff` — compact context-pack for downstream agents (simplicio.map-handoff/v1)."""
+    return run_mapper_json(root, "handoff")
 
 
 def _safe_json(path: Path) -> dict[str, Any] | None:
@@ -95,6 +147,15 @@ def artifact_status(root: str | os.PathLike[str]) -> dict[str, Any]:
             "path": str(precedent_path),
             "schema": precedent_index.get("schema"),
             "items": len([item for item in _as_list(raw_items) if isinstance(item, dict)]),
+        }
+
+    inspection = map_inspection(base)
+    if inspection is not None:
+        evidence = inspection.get("evidence")
+        payload["inspection"] = {
+            "schema": inspection.get("schema"),
+            "evidence": evidence.get("artifacts") if isinstance(evidence, dict) else None,
+            "warnings": _as_list(inspection.get("warnings")),
         }
 
     return payload
@@ -212,8 +273,69 @@ def _read_target_fallback(root: Path, target: str) -> str:
     )
 
 
+def _render_handoff_context(pack: dict[str, Any], base: Path, target: str) -> str | None:
+    """Render a mapper 0.13 handoff context_pack into the {{TARGET}} context block.
+
+    Returns None when the pack says it is not enough (`needs_broader_context`)
+    or carries no files — the caller then falls back to the project-map render.
+    """
+    files = [f for f in _as_list(pack.get("files")) if isinstance(f, dict)]
+    if not files or pack.get("needs_broader_context"):
+        return None
+
+    lines = ["Mapper handoff pack (simplicio.map-handoff/v1)"]
+    pack_hash = pack.get("pack_hash")
+    if pack_hash:
+        lines.append(f"Pack hash: {pack_hash}")
+
+    deps = pack.get("dependencies")
+    if isinstance(deps, dict):
+        runtime_deps = [str(d) for d in _as_list(deps.get("runtime"))][:10]
+        if runtime_deps:
+            lines.append("Dependencies: " + ", ".join(runtime_deps))
+
+    lines.append("Files:")
+    for entry in files[:12]:
+        path = entry.get("path", "(unknown)")
+        bits = [f"path={path}"]
+        if entry.get("language"):
+            bits.append(f"lang={entry['language']}")
+        symbols = [
+            str(sym.get("name"))
+            for sym in _as_list(entry.get("symbols"))
+            if isinstance(sym, dict) and sym.get("name")
+        ][:8]
+        if symbols:
+            bits.append("symbols=" + ",".join(symbols))
+        imports = [str(i) for i in _as_list(entry.get("imports"))][:6]
+        if imports:
+            bits.append("imports=" + ",".join(imports))
+        lines.append("- " + " | ".join(bits))
+
+    recent = [c for c in _as_list(pack.get("recent_changes")) if isinstance(c, dict)][:6]
+    if recent:
+        lines.append("Recent changes:")
+        for item in recent:
+            lines.append(f"- {item.get('path', '?')} ({item.get('status', 'changed')})")
+
+    fallback = _read_target_fallback(base, target)
+    return "\n".join(lines + ["", "Target fallback:", fallback])
+
+
 def build_mapper_context(root: str | os.PathLike[str], target: str, *, goal: str = "") -> str:
     base = Path(root)
+
+    # mapper 0.13+: prefer the pre-compressed handoff context-pack (files +
+    # symbols + deps + pack_hash) over re-deriving context from project-map.
+    # Fail-open: any miss falls through to the artifact-file path below.
+    handoff = map_handoff(base)
+    if handoff is not None:
+        pack = handoff.get("context_pack")
+        if isinstance(pack, dict):
+            rendered = _render_handoff_context(pack, base, target)
+            if rendered is not None:
+                return rendered
+
     loaded_map = load_project_map(base)
     if loaded_map is None:
         return _read_target_fallback(base, target)
