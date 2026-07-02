@@ -11,6 +11,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "scripts"))
+
+from toon_contract_runner import strict_equal  # noqa: E402
 
 from simplicio_mapper.toon import (  # noqa: E402
     TOONDecodeError,
@@ -28,6 +31,11 @@ class ToonRoundTripTest(unittest.TestCase):
         self.assertIsInstance(encoded, str)
         decoded = decode_toon(encoded)
         self.assertEqual(decoded, value)
+        # Type-strict on top of plain ``==`` — Python's ``True == 1`` would
+        # let a bool-shortened-to-int mutation slip past a naive check
+        # (autoresearch pilot finding, issue #151). See
+        # toon_contract_runner.strict_equal's docstring.
+        self.assertTrue(strict_equal(decoded, value), f"strict_equal failed for {value!r} -> {decoded!r}")
 
     def test_root_scalar_values(self) -> None:
         for value in (42, -3, 3.5, 0.0, True, False, None, "hello", ""):

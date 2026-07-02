@@ -28,6 +28,28 @@ def _load_manifest() -> dict:
         return json.load(handle)
 
 
+def strict_equal(a: object, b: object) -> bool:
+    """Round-trip equality that does NOT treat ``bool`` and ``int`` as
+    interchangeable.
+
+    Plain ``==`` in Python treats ``True == 1`` and ``False == 0``, so a
+    codec mutation that (incorrectly) shortens booleans to ``1``/``0``
+    passes a naive ``decode(encode(x)) == x`` check even though it silently
+    changed the value's type. Found by the autoresearch pilot (issue #151,
+    iteration 1: a deliberate `true/false -> 1/0` mutation was rejected by
+    *other* test assertions, not by the round-trip invariant itself, which
+    is exactly the blind spot this closes) — see
+    ``docs/toon-autoresearch-log.md``.
+    """
+    if isinstance(a, bool) or isinstance(b, bool):
+        return type(a) is type(b) and a == b
+    if isinstance(a, dict) and isinstance(b, dict):
+        return set(a) == set(b) and all(strict_equal(a[k], b[k]) for k in a)
+    if isinstance(a, list) and isinstance(b, list):
+        return len(a) == len(b) and all(strict_equal(x, y) for x, y in zip(a, b, strict=True))
+    return a == b
+
+
 def check_valid_case(case_id: str) -> list[str]:
     """Return a list of failure messages (empty = pass) for a valid case."""
     failures: list[str] = []
@@ -38,9 +60,9 @@ def check_valid_case(case_id: str) -> list[str]:
         expected_toon = handle.read().rstrip("\n")
 
     fresh_encoded = encode_toon(expected_value)
-    if decode_toon(fresh_encoded) != expected_value:
+    if not strict_equal(decode_toon(fresh_encoded), expected_value):
         failures.append(f"{case_id}: decode(encode(input.json)) != input.json (round-trip)")
-    if decode_toon(expected_toon) != expected_value:
+    if not strict_equal(decode_toon(expected_toon), expected_value):
         failures.append(f"{case_id}: decode(expected.toon) != input.json")
     if fresh_encoded != expected_toon:
         failures.append(
