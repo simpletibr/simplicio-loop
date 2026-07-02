@@ -83,7 +83,7 @@ def test_generate_prepends_directives_on_openai_compatible(monkeypatch) -> None:
 
     def fake_oai(model, base, key, prompt, feedback, max_tokens):
         seen["prompt"] = prompt
-        return "diff"
+        return "diff", None
 
     monkeypatch.setattr(providers, "_openai_compatible_generate", fake_oai)
     providers.generate("change y")

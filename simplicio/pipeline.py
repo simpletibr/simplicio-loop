@@ -4,6 +4,7 @@ import fnmatch
 import os, re, subprocess
 from .adaptive import get_validation_mode
 from .observability import estimate_tokens, log_run
+from .orchestrator.cost_governor import _price as _estimate_price
 from .pipeline_fixers import try_static_fixers
 from .prompt import build_prompt
 from .providers import generate, _provider_id, _cfg
@@ -179,15 +180,31 @@ def _diff_summary(files_changed):
 
 def _task_result(task_id, prompt, output, *, applied, warnings=None):
     files_changed = extract_changed_files(output)
+    prompt_tokens = estimate_tokens(prompt)
+    completion_tokens = estimate_tokens(output or "")
+    # cost_usd used to be hardcoded to 0.0 regardless of pricing (issue #88
+    # AC4). It is now computed with the same pricing helper the cost
+    # governor charges against (SIMPLICIO_PRICE_*_PER_MTOK); `cost_basis`
+    # says whether that came from configured pricing ("estimated" from the
+    # canonical token estimator) or is genuinely unknown because no pricing
+    # env var was ever set (still 0.0, but explicitly labeled, never a
+    # silent fake real cost).
+    priced = os.environ.get("SIMPLICIO_PRICE_PER_MTOK") or (
+        os.environ.get("SIMPLICIO_PRICE_PROMPT_PER_MTOK")
+        or os.environ.get("SIMPLICIO_PRICE_COMPLETION_PER_MTOK")
+    )
+    model = os.environ.get("SIMPLICIO_MODEL", "")
+    cost_usd = float(_estimate_price(model, prompt_tokens, completion_tokens)) if priced else 0.0
     return {
         "task_id": task_id,
         "applied": bool(applied),
         "files_changed": files_changed,
         "tokens_used": {
-            "prompt": estimate_tokens(prompt),
-            "completion": estimate_tokens(output or ""),
+            "prompt": prompt_tokens,
+            "completion": completion_tokens,
         },
-        "cost_usd": 0.0,
+        "cost_usd": cost_usd,
+        "cost_basis": "estimated" if priced else "unknown_no_pricing_configured",
         "diff_summary": _diff_summary(files_changed),
         "warnings": warnings or [],
     }

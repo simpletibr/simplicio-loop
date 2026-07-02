@@ -444,6 +444,80 @@ def _charge_if_budgeted(model, prompt, out):
     charge_provider_call(model, prompt, out or "")
 
 
+def _openai_usage(response):
+    """Pull `{prompt_tokens, completion_tokens}` off an OpenAI-compatible
+    response when the SDK/endpoint reported it, else None."""
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return None
+    prompt_tokens = getattr(usage, "prompt_tokens", None)
+    completion_tokens = getattr(usage, "completion_tokens", None)
+    if prompt_tokens is None and completion_tokens is None:
+        return None
+    return {"prompt_tokens": prompt_tokens or 0, "completion_tokens": completion_tokens or 0}
+
+
+def _anthropic_usage(response):
+    """Pull `{prompt_tokens, completion_tokens}` off a native Anthropic
+    Messages response (`usage.input_tokens`/`usage.output_tokens`), else
+    None."""
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return None
+    input_tokens = getattr(usage, "input_tokens", None)
+    output_tokens = getattr(usage, "output_tokens", None)
+    if input_tokens is None and output_tokens is None:
+        return None
+    return {"prompt_tokens": input_tokens or 0, "completion_tokens": output_tokens or 0}
+
+
+def _log_usage_event(*, provider_id, model, prompt, completion, cache_hit, usage=None, surface="generate"):
+    """Append one runs.jsonl usage event per provider call (issue #88 AC3).
+
+    Opt-in via `SIMPLICIO_LOG_ROOT`: `providers.py` has no notion of "the
+    project root" the way `pipeline.py`/`bench.py` do (both receive `root`
+    explicitly from their caller), so — unlike those — it never guesses one
+    from the current working directory. Callers that know the project root
+    (the `task`/`run`/`bench` CLI commands) set `SIMPLICIO_LOG_ROOT` for the
+    duration of the call; with it unset this is a no-op, matching
+    `observability.log_run`'s existing "lightweight opt-in" contract.
+
+    `usage_source` is "provider" when the SDK/endpoint reported real token
+    counts (`usage` arg present), else "estimated" via the single canonical
+    estimator (`observability.estimate_tokens` — see issue #88 AC4). Fails
+    open: a logging error never breaks generation.
+    """
+    root = os.environ.get("SIMPLICIO_LOG_ROOT")
+    if not root:
+        return
+    from .observability import estimate_tokens, log_run
+
+    if usage:
+        prompt_tokens = int(usage.get("prompt_tokens") or 0)
+        completion_tokens = int(usage.get("completion_tokens") or 0)
+        usage_source = "provider"
+    else:
+        prompt_tokens = estimate_tokens(prompt)
+        completion_tokens = estimate_tokens(completion)
+        usage_source = "estimated"
+    try:
+        log_run(
+            root,
+            {
+                "mode": "provider_call",
+                "surface": surface,
+                "provider_id": provider_id,
+                "model": model or "",
+                "cache_hit": bool(cache_hit),
+                "usage_source": usage_source,
+                "tokens": {"prompt": prompt_tokens, "completion": completion_tokens},
+                "tokens_estimated": prompt_tokens + completion_tokens,
+            },
+        )
+    except OSError:
+        pass
+
+
 def _generate_local_cached(prompt, feedback, model, max_tokens, cache_full_prompt):
     from ._cache import CacheEntry, cache, make_key
 
@@ -463,21 +537,32 @@ def _generate_local_cached(prompt, feedback, model, max_tokens, cache_full_promp
     )
     cached = cache().get(key)
     if cached is not None:
+        _log_usage_event(
+            provider_id="local-llama", model=eff_model, prompt=cache_full_prompt,
+            completion=cached.completion, cache_hit=True,
+        )
         return cached.completion
     out = _local_generate(prompt, feedback, eff_model, max_tokens)
     _charge_if_budgeted(eff_model, cache_full_prompt, out)
+    _log_usage_event(
+        provider_id="local-llama", model=eff_model, prompt=cache_full_prompt,
+        completion=out, cache_hit=False,
+    )
     cache().put(key, CacheEntry(out, provider_id="local-llama", model=eff_model))
     return out
 
 
 def _openai_compatible_generate(model, base, key, prompt, feedback, max_tokens):
+    """Returns `(completion, usage)`; `usage` is the dict `_openai_usage`
+    extracted from the response, or None when the endpoint didn't report
+    it."""
     from openai import OpenAI
 
     cli = OpenAI(base_url=base, api_key=key)
     r = cli.chat.completions.create(
         model=model, max_tokens=max_tokens, messages=_msgs(prompt, feedback)
     )
-    return r.choices[0].message.content
+    return r.choices[0].message.content, _openai_usage(r)
 
 
 def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
@@ -495,6 +580,10 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
     )
     cached = cache().get(cache_key)
     if cached is not None:
+        _log_usage_event(
+            provider_id="doer", model=model_name, prompt=cache_full_prompt,
+            completion=cached.completion, cache_hit=True,
+        )
         return cached.completion
 
     c = _cfg()
@@ -530,6 +619,10 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
     )
     cached = cache().get(key)
     if cached is not None:
+        _log_usage_event(
+            provider_id=provider_id, model=model, prompt=cache_full_prompt,
+            completion=cached.completion, cache_hit=True,
+        )
         return cached.completion
 
     # Path 3: shell out to a logged-in CLI. No API key needed.
@@ -538,6 +631,10 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
             _inline_feedback(prompt, feedback), model.split("/", 1)[1]
         )
         _charge_if_budgeted(model, cache_full_prompt, out)
+        _log_usage_event(
+            provider_id=provider_id, model=model, prompt=cache_full_prompt,
+            completion=out, cache_hit=False,
+        )
         cache().put(key, CacheEntry(out, provider_id=provider_id, model=model))
         return out
     if model.startswith("codex-cli/"):
@@ -545,6 +642,10 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
             _inline_feedback(prompt, feedback), model.split("/", 1)[1]
         )
         _charge_if_budgeted(model, cache_full_prompt, out)
+        _log_usage_event(
+            provider_id=provider_id, model=model, prompt=cache_full_prompt,
+            completion=out, cache_hit=False,
+        )
         cache().put(key, CacheEntry(out, provider_id=provider_id, model=model))
         return out
 
@@ -565,14 +666,22 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
         )
         out = next((b.text for b in r.content if b.type == "text"), "")
         _charge_if_budgeted(model, cache_full_prompt, out)
+        _log_usage_event(
+            provider_id=provider_id, model=model, prompt=cache_full_prompt,
+            completion=out, cache_hit=False, usage=_anthropic_usage(r),
+        )
         cache().put(key, CacheEntry(out, provider_id=provider_id, model=model))
         return out
 
     # Any OpenAI-compatible endpoint (OpenRouter, GLM, DeepSeek, local...)
-    out = _openai_compatible_generate(
+    out, usage = _openai_compatible_generate(
         model, c["base"], c["key"], prompt, feedback, max_tokens
     )
     _charge_if_budgeted(model, cache_full_prompt, out)
+    _log_usage_event(
+        provider_id=provider_id, model=model, prompt=cache_full_prompt,
+        completion=out, cache_hit=False, usage=usage,
+    )
     cache().put(key, CacheEntry(out, provider_id=provider_id, model=model))
     return out
 
@@ -743,6 +852,10 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
     key = _planner_cache_key(p, prompt, max_tokens, temperature, template_version)
     cached = cache().get(key)
     if cached is not None:
+        _log_usage_event(
+            provider_id=_planner_provider_id(p), model=p["model"], prompt=prompt,
+            completion=cached.completion, cache_hit=True, surface="planner_complete",
+        )
         return cached.completion
 
     if p["shell_out"]:
@@ -750,6 +863,10 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
         if p["model"].startswith("claude-cli/"):
             out = _shell_out_claude(prompt, p["model"].split("/", 1)[1])
             _charge_if_budgeted(p["model"], prompt, out)
+            _log_usage_event(
+                provider_id=provider_id, model=p["model"], prompt=prompt,
+                completion=out, cache_hit=False, surface="planner_complete",
+            )
             cache().put(
                 key,
                 CacheEntry(out, provider_id=provider_id, model=p["model"]),
@@ -758,6 +875,10 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
         if p["model"].startswith("codex-cli/"):
             out = _shell_out_codex(prompt, p["model"].split("/", 1)[1])
             _charge_if_budgeted(p["model"], prompt, out)
+            _log_usage_event(
+                provider_id=provider_id, model=p["model"], prompt=prompt,
+                completion=out, cache_hit=False, surface="planner_complete",
+            )
             cache().put(
                 key,
                 CacheEntry(out, provider_id=provider_id, model=p["model"]),
@@ -767,6 +888,10 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
     if p["model"].startswith(LOCAL_MODEL_PREFIX):
         out = _local_generate(prompt, None, p["model"], max_tokens)
         _charge_if_budgeted(p["model"], prompt, out)
+        _log_usage_event(
+            provider_id="planner:local-llama", model=p["model"], prompt=prompt,
+            completion=out, cache_hit=False, surface="planner_complete",
+        )
         cache().put(
             key,
             CacheEntry(out, provider_id="planner:local-llama", model=p["model"]),
@@ -791,6 +916,11 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
         )
         out = next((b.text for b in r.content if b.type == "text"), "")
         _charge_if_budgeted(p["model"], prompt, out)
+        _log_usage_event(
+            provider_id=_planner_provider_id(p), model=p["model"], prompt=prompt,
+            completion=out, cache_hit=False, usage=_anthropic_usage(r),
+            surface="planner_complete",
+        )
         cache().put(
             key,
             CacheEntry(out, provider_id=_planner_provider_id(p), model=p["model"]),
@@ -808,6 +938,11 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
     )
     out = r.choices[0].message.content
     _charge_if_budgeted(p["model"], prompt, out)
+    _log_usage_event(
+        provider_id=_planner_provider_id(p), model=p["model"], prompt=prompt,
+        completion=out, cache_hit=False, usage=_openai_usage(r),
+        surface="planner_complete",
+    )
     cache().put(
         key,
         CacheEntry(out, provider_id=_planner_provider_id(p), model=p["model"]),

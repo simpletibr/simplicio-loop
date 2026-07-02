@@ -390,6 +390,38 @@ classifies failures, and sends targeted retry feedback. Bench and pipeline runs
 can append lightweight JSONL records to `.simplicio/runs.jsonl` with prompt
 variant, model/provider, estimated tokens, target, mode and failure class.
 
+**TOON-encoded prompt context (`SIMPLICIO_PROMPT_TOON`, default on).** The
+uniform-array context blocks injected into generation prompts — mapper
+handoff `files[]`, project-map `Relevant files`, `Precedent candidates` — are
+rendered as [TOON](https://github.com/toon-format/toon) instead of
+hand-rolled bullets, ~27% fewer tokens on the same content (measured over
+`bench/cases.json`, see `bench/results_toon_ab.md`), losslessly. Non-uniform
+arrays fall back to compact JSON automatically. Set
+`SIMPLICIO_PROMPT_TOON=0` to restore the legacy bullet rendering.
+
+**Per-call usage events (`SIMPLICIO_LOG_ROOT`, opt-in).** Point this at a
+project root and `generate()`/`planner_complete()` append one usage event to
+`.simplicio/runs.jsonl` per provider call (cache hit or miss), labeling
+whether the token count is real provider-reported usage or the canonical
+estimator's guess. TOON activations and other measured token savings are
+recorded to a separate append-only ledger,
+`.simplicio/ledger/savings-events.jsonl` (`simplicio.savings-event/v1`), via
+`simplicio.observability.record_savings_event()`.
+
+#### MCP server and cross-vendor memory
+
+`simplicio-dev-cli serve --mcp` runs this CLI as an MCP stdio server
+(stdlib-only JSON-RPC 2.0, no extra dependency), exposing `dev_cli_edit`,
+`dev_cli_validate`, and `dev_cli_memory` as tools any MCP client (Claude
+Code, Codex, Cursor, VS Code) can call directly.
+
+`simplicio-dev-cli memory init|store|recall` is a markdown + git store under
+`~/.simplicio/memory/` (override with `SIMPLICIO_MEMORY_DIR`) for handing
+context off between agent vendors — a decision stored by one tool is
+recallable by another. Recall is deterministic keyword search, no LLM call,
+no network; real FTS5/vector-hybrid recall is a documented follow-up, not
+claimed here.
+
 **The idea in one line: don't ask the model to guess — hand it the path.**
 Each layer terminates one decision the model would otherwise hallucinate.
 Relevant > complete — inject the *right* context, never *all* of it.

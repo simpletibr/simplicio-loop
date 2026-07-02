@@ -89,7 +89,10 @@ def _build_prompt(stack: Stack, goal: str, project_name: str) -> str:
         stack_practices=stack.practices[:6000],
         goal=goal,
         project_name=project_name,
-        schema_example=json.dumps(EXAMPLE_PLAN, indent=2),
+        # issue #88 quick win: pretty-printed (indent=2) was pure token
+        # waste in a few-shot example embedded in the prompt — the model
+        # doesn't need human-readable indentation, it needs the schema.
+        schema_example=json.dumps(EXAMPLE_PLAN, separators=(",", ":")),
     )
 
 

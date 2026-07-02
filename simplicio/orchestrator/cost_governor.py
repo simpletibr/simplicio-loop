@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Iterator
 
+from ..observability import estimate_tokens as _canonical_estimate_tokens
+
 
 class BudgetExceeded(RuntimeError):
     """Raised when an orchestration run exceeds its configured cost budget."""
@@ -110,7 +112,16 @@ def charge_provider_call(model: str | None, prompt: str, completion: str) -> Non
 
 
 def _estimate_tokens(text: str) -> int:
-    return max(1, len(text or "") // 4)
+    """Delegates to the single canonical estimator (issue #88 AC4).
+
+    This module used to run its own `chars/4` heuristic while
+    `observability.estimate_tokens` ran a `words*4/3` heuristic on the same
+    text — the two could diverge ~30% on the same prompt, so a before/after
+    token claim depended on which one happened to be quoted. There is now
+    exactly one estimator (`observability.ESTIMATOR_LABEL`); this wrapper
+    stays only so existing call sites in this module do not need to change.
+    """
+    return _canonical_estimate_tokens(text)
 
 
 def _price(model: str | None, prompt_tokens: int, completion_tokens: int) -> Decimal:

@@ -13,6 +13,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from .observability import estimate_tokens, record_savings_event
 from .toon_codec import to_toon
 from .utils.serialization import loads
 
@@ -324,6 +325,48 @@ def _read_target_fallback(root: Path, target: str) -> str:
     )
 
 
+def _handoff_file_bits(entry: dict[str, Any]) -> list[str]:
+    path = entry.get("path", "(unknown)")
+    bits = [f"path={path}"]
+    if entry.get("language"):
+        bits.append(f"lang={entry['language']}")
+    symbols = [
+        str(sym.get("name"))
+        for sym in _as_list(entry.get("symbols"))
+        if isinstance(sym, dict) and sym.get("name")
+    ][:8]
+    if symbols:
+        bits.append("symbols=" + ",".join(symbols))
+    imports = [str(i) for i in _as_list(entry.get("imports"))][:6]
+    if imports:
+        bits.append("imports=" + ",".join(imports))
+    return bits
+
+
+def _render_handoff_files_legacy(files: list[dict[str, Any]]) -> str:
+    lines = ["Files:"]
+    for entry in files[:12]:
+        lines.append("- " + " | ".join(_handoff_file_bits(entry)))
+    return "\n".join(lines)
+
+
+def _render_handoff_files_toon(files: list[dict[str, Any]]) -> str:
+    normalized = [
+        {
+            "path": str(entry.get("path", "(unknown)")),
+            "language": str(entry.get("language") or ""),
+            "symbols": ",".join(
+                str(sym.get("name"))
+                for sym in _as_list(entry.get("symbols"))
+                if isinstance(sym, dict) and sym.get("name")
+            )[:200],
+            "imports": ",".join(str(i) for i in _as_list(entry.get("imports"))[:6]),
+        }
+        for entry in files[:12]
+    ]
+    return "Files (TOON — https://github.com/toon-format/toon):\n" + to_toon(normalized)
+
+
 def _render_handoff_context(pack: dict[str, Any], base: Path, target: str) -> str | None:
     """Render a mapper 0.13 handoff context_pack into the {{TARGET}} context block.
 
@@ -345,23 +388,27 @@ def _render_handoff_context(pack: dict[str, Any], base: Path, target: str) -> st
         if runtime_deps:
             lines.append("Dependencies: " + ", ".join(runtime_deps))
 
-    lines.append("Files:")
-    for entry in files[:12]:
-        path = entry.get("path", "(unknown)")
-        bits = [f"path={path}"]
-        if entry.get("language"):
-            bits.append(f"lang={entry['language']}")
-        symbols = [
-            str(sym.get("name"))
-            for sym in _as_list(entry.get("symbols"))
-            if isinstance(sym, dict) and sym.get("name")
-        ][:8]
-        if symbols:
-            bits.append("symbols=" + ",".join(symbols))
-        imports = [str(i) for i in _as_list(entry.get("imports"))][:6]
-        if imports:
-            bits.append("imports=" + ",".join(imports))
-        lines.append("- " + " | ".join(bits))
+    # issue #88: this is the mapper 0.13+ handoff path — the one that
+    # actually runs whenever `simplicio-mapper` is installed (which the
+    # simplicio-loop bound operator requires). The TOON encoding merged in
+    # #85/#87 only lived in the project-map fallback branch below, which
+    # this pack pre-empts by returning first — so `SIMPLICIO_PROMPT_TOON`
+    # was a no-op in the common case. `files[]` is the same shape of
+    # genuinely uniform array (path/language/symbols/imports) TOON was
+    # built for, so it gets the same on/off gate here.
+    if _toon_enabled():
+        toon_text = _render_handoff_files_toon(files)
+        legacy_text = _render_handoff_files_legacy(files)
+        record_savings_event(
+            base,
+            source="toon",
+            baseline_tokens=estimate_tokens(legacy_text),
+            actual_tokens=estimate_tokens(toon_text),
+            note="mapper handoff files[] block",
+        )
+        lines.append(toon_text)
+    else:
+        lines.append(_render_handoff_files_legacy(files))
 
     recent = [c for c in _as_list(pack.get("recent_changes")) if isinstance(c, dict)][:6]
     if recent:
@@ -424,37 +471,24 @@ def build_mapper_context(root: str | os.PathLike[str], target: str, *, goal: str
                 lines.append(f"- {name}: {files}".rstrip(": "))
 
     if relevant:
+        legacy_text = _render_relevant_files_legacy(relevant)
         if _toon_enabled():
             # Relevant files is a genuinely uniform array of objects (every
             # entry gets the same 4 flattened scalar fields), the sweet spot
             # TOON was built for — issue #85: precedent/context payloads
             # embedded into the LLM prompt go through TOON instead of raw
             # JSON/hand-rolled bullets to cut prompt tokens losslessly.
-            normalized = [
-                {
-                    "path": str(entry.get("path", "(unknown)")),
-                    "language": str(entry.get("language") or ""),
-                    "roles": ",".join(str(r) for r in _as_list(entry.get("roles"))),
-                    "imports": ",".join(str(i) for i in _as_list(entry.get("imports"))[:6]),
-                }
-                for entry in relevant
-            ]
-            lines.append("Relevant files (TOON — https://github.com/toon-format/toon):")
-            lines.append(to_toon(normalized))
+            toon_text = _render_relevant_files_toon(relevant)
+            record_savings_event(
+                base,
+                source="toon",
+                baseline_tokens=estimate_tokens(legacy_text),
+                actual_tokens=estimate_tokens(toon_text),
+                note="mapper project-map relevant-files block",
+            )
+            lines.append(toon_text)
         else:
-            lines.append("Relevant files:")
-            for entry in relevant:
-                path = entry.get("path", "(unknown)")
-                roles = ",".join(str(r) for r in _as_list(entry.get("roles")))
-                imports = ",".join(str(i) for i in _as_list(entry.get("imports"))[:6])
-                bits = [f"path={path}"]
-                if entry.get("language"):
-                    bits.append(f"lang={entry['language']}")
-                if roles:
-                    bits.append(f"roles={roles}")
-                if imports:
-                    bits.append(f"imports={imports}")
-                lines.append("- " + " | ".join(bits))
+            lines.append(legacy_text)
 
     recent = _as_list(project_map.get("recent_changes"))[:6]
     if recent:
@@ -464,11 +498,73 @@ def build_mapper_context(root: str | os.PathLike[str], target: str, *, goal: str
                 lines.append(f"- {item.get('path', '?')} ({item.get('status', 'changed')})")
 
     if precedents:
-        lines.append("Precedent candidates:")
-        for item in precedents:
-            loc = f"{item.get('path', '(unknown)')}:{item.get('line', 1)}"
-            summary = item.get("summary") or item.get("change_type") or "similar code"
-            lines.append(f"- {loc} — {summary}")
+        legacy_prec = _render_precedent_candidates_legacy(precedents)
+        if _toon_enabled():
+            # issue #85 AC1: precedent context, not just relevant-files,
+            # embedded into the prompt via TOON — {path, line, summary} is a
+            # uniform array of scalar fields, the same shape TOON collapses.
+            toon_prec = _render_precedent_candidates_toon(precedents)
+            record_savings_event(
+                base,
+                source="toon",
+                baseline_tokens=estimate_tokens(legacy_prec),
+                actual_tokens=estimate_tokens(toon_prec),
+                note="mapper precedent-candidates block",
+            )
+            lines.append(toon_prec)
+        else:
+            lines.append(legacy_prec)
 
     fallback = _read_target_fallback(base, target)
     return "\n".join(lines + ["", "Target fallback:", fallback])
+
+
+def _render_relevant_files_legacy(relevant: list[dict[str, Any]]) -> str:
+    lines = ["Relevant files:"]
+    for entry in relevant:
+        path = entry.get("path", "(unknown)")
+        roles = ",".join(str(r) for r in _as_list(entry.get("roles")))
+        imports = ",".join(str(i) for i in _as_list(entry.get("imports"))[:6])
+        bits = [f"path={path}"]
+        if entry.get("language"):
+            bits.append(f"lang={entry['language']}")
+        if roles:
+            bits.append(f"roles={roles}")
+        if imports:
+            bits.append(f"imports={imports}")
+        lines.append("- " + " | ".join(bits))
+    return "\n".join(lines)
+
+
+def _render_relevant_files_toon(relevant: list[dict[str, Any]]) -> str:
+    normalized = [
+        {
+            "path": str(entry.get("path", "(unknown)")),
+            "language": str(entry.get("language") or ""),
+            "roles": ",".join(str(r) for r in _as_list(entry.get("roles"))),
+            "imports": ",".join(str(i) for i in _as_list(entry.get("imports"))[:6]),
+        }
+        for entry in relevant
+    ]
+    return "Relevant files (TOON — https://github.com/toon-format/toon):\n" + to_toon(normalized)
+
+
+def _render_precedent_candidates_legacy(precedents: list[dict[str, Any]]) -> str:
+    lines = ["Precedent candidates:"]
+    for item in precedents:
+        loc = f"{item.get('path', '(unknown)')}:{item.get('line', 1)}"
+        summary = item.get("summary") or item.get("change_type") or "similar code"
+        lines.append(f"- {loc} — {summary}")
+    return "\n".join(lines)
+
+
+def _render_precedent_candidates_toon(precedents: list[dict[str, Any]]) -> str:
+    normalized = [
+        {
+            "path": str(item.get("path", "(unknown)")),
+            "line": int(item.get("line", 1) or 1),
+            "summary": str(item.get("summary") or item.get("change_type") or "similar code"),
+        }
+        for item in precedents
+    ]
+    return "Precedent candidates (TOON — https://github.com/toon-format/toon):\n" + to_toon(normalized)

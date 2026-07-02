@@ -64,24 +64,10 @@ def test_build_mapper_context_prefers_handoff_pack(monkeypatch, tmp_path):
     _write_project_map(tmp_path)
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "app.py").write_text("import os\n", encoding="utf-8")
-    monkeypatch.setattr(mapper, "map_handoff", lambda _root: {
-        "schema": "simplicio.map-handoff/v1",
-        "context_pack": {
-            "pack_hash": "abc123",
-            "needs_broader_context": False,
-            "dependencies": {"runtime": ["orjson"]},
-            "files": [{
-                "path": "src/app.py", "language": "python",
-                "symbols": [{"name": "main", "kind": "function"}],
-                "imports": ["os"],
-            }],
-            "recent_changes": [{"path": "src/app.py", "status": "modified"}],
-        },
-    })
+    monkeypatch.setattr(mapper, "map_handoff", lambda _root: _HANDOFF_PACK_FIXTURE)
     context = mapper.build_mapper_context(tmp_path, "src/app.py")
     assert "simplicio.map-handoff/v1" in context
     assert "Pack hash: abc123" in context
-    assert "symbols=main" in context
     assert "Target fallback:" in context
 
 
@@ -93,6 +79,82 @@ def test_build_mapper_context_falls_back_when_pack_insufficient(monkeypatch, tmp
     context = mapper.build_mapper_context(tmp_path, "src/app.py")
     assert "Mapper artifact:" in context
     assert "map-handoff" not in context
+
+
+# --------------------------------------------------------------------------
+# issue #88 — TOON on the handoff path (previously dead code: build_mapper_
+# context() returned the legacy bullets before ever reaching the TOON branch,
+# because that branch only existed in the project-map fallback below the
+# handoff pre-empt).
+# --------------------------------------------------------------------------
+
+_HANDOFF_PACK_FIXTURE = {
+    "schema": "simplicio.map-handoff/v1",
+    "context_pack": {
+        "pack_hash": "abc123",
+        "needs_broader_context": False,
+        "dependencies": {"runtime": ["orjson"]},
+        "files": [{
+            "path": "src/app.py", "language": "python",
+            "symbols": [{"name": "main", "kind": "function"}],
+            "imports": ["os"],
+        }],
+        "recent_changes": [{"path": "src/app.py", "status": "modified"}],
+    },
+}
+
+
+def _setup_handoff_target(tmp_path):
+    _write_project_map(tmp_path)
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("import os\n", encoding="utf-8")
+
+
+def test_handoff_path_emits_toon_header_by_default(monkeypatch, tmp_path):
+    monkeypatch.delenv("SIMPLICIO_PROMPT_TOON", raising=False)
+    _setup_handoff_target(tmp_path)
+    monkeypatch.setattr(mapper, "map_handoff", lambda _root: _HANDOFF_PACK_FIXTURE)
+    context = mapper.build_mapper_context(tmp_path, "src/app.py")
+    assert "Files (TOON — https://github.com/toon-format/toon):" in context
+    assert "src/app.py" in context
+    assert "main" in context
+    # legacy hand-rolled bullet syntax is gone on this path when TOON is on
+    assert "symbols=main" not in context
+
+
+def test_handoff_path_falls_back_to_legacy_bullets_when_toon_disabled(monkeypatch, tmp_path):
+    monkeypatch.setenv("SIMPLICIO_PROMPT_TOON", "0")
+    _setup_handoff_target(tmp_path)
+    monkeypatch.setattr(mapper, "map_handoff", lambda _root: _HANDOFF_PACK_FIXTURE)
+    context = mapper.build_mapper_context(tmp_path, "src/app.py")
+    assert "symbols=main" in context
+    assert "imports=os" in context
+    assert "TOON" not in context
+
+
+def test_handoff_path_toon_records_savings_event(monkeypatch, tmp_path):
+    monkeypatch.delenv("SIMPLICIO_PROMPT_TOON", raising=False)
+    monkeypatch.delenv("SIMPLICIO_DISABLE_RUN_LOG", raising=False)
+    _setup_handoff_target(tmp_path)
+    monkeypatch.setattr(mapper, "map_handoff", lambda _root: _HANDOFF_PACK_FIXTURE)
+    mapper.build_mapper_context(tmp_path, "src/app.py")
+    ledger = tmp_path / ".simplicio" / "ledger" / "savings-events.jsonl"
+    assert ledger.exists()
+    lines = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line]
+    assert any(
+        e.get("schema") == "simplicio.savings-event/v1" and e.get("source") == "toon"
+        for e in lines
+    )
+
+
+def test_handoff_path_toon_disabled_writes_no_savings_event(monkeypatch, tmp_path):
+    monkeypatch.setenv("SIMPLICIO_PROMPT_TOON", "0")
+    monkeypatch.delenv("SIMPLICIO_DISABLE_RUN_LOG", raising=False)
+    _setup_handoff_target(tmp_path)
+    monkeypatch.setattr(mapper, "map_handoff", lambda _root: _HANDOFF_PACK_FIXTURE)
+    mapper.build_mapper_context(tmp_path, "src/app.py")
+    ledger = tmp_path / ".simplicio" / "ledger" / "savings-events.jsonl"
+    assert not ledger.exists()
 
 
 def test_build_mapper_context_falls_back_without_handoff(monkeypatch, tmp_path):

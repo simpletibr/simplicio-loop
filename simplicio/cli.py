@@ -757,6 +757,48 @@ def _run_runtime_command(a: argparse.Namespace) -> int:
     return 2
 
 
+def _run_serve_command(a: argparse.Namespace) -> int:
+    if not a.mcp:
+        print(f"{CLI_PROG} serve: only --mcp is supported today", file=sys.stderr)
+        return 2
+    from .mcp_server import serve_stdio
+
+    serve_stdio()
+    return 0
+
+
+def _run_memory_command(a: argparse.Namespace) -> int:
+    from .memory_store import init_memory, recall_memory, store_memory
+
+    if a.memory_cmd == "init":
+        payload = init_memory(root=a.dir)
+        if a.json:
+            print(json.dumps(payload, sort_keys=True))
+        else:
+            print(f"{CLI_PROG} memory init: {payload['dir']} (created={payload['created']}, git={payload['git_initialized']})")
+        return 0
+    if a.memory_cmd == "store":
+        tags = [t.strip() for t in a.tags.split(",") if t.strip()] if a.tags else None
+        payload = store_memory(a.topic, a.content, tags=tags, root=a.dir)
+        if a.json:
+            print(json.dumps(payload, sort_keys=True))
+        else:
+            print(f"{CLI_PROG} memory store: {payload['path']} (committed={payload['committed']})")
+        return 0
+    if a.memory_cmd == "recall":
+        results = recall_memory(a.query, limit=a.limit, root=a.dir)
+        if a.json:
+            print(json.dumps({"results": results}, sort_keys=True))
+        else:
+            if not results:
+                print(f"{CLI_PROG} memory recall: no matches")
+            for r in results:
+                print(f"[{r['score']}] {r['topic']}: {r['snippet'][:120]}")
+        return 0
+    print(f"{CLI_PROG} memory: unsupported command", file=sys.stderr)
+    return 2
+
+
 def _run_claims_command(a: argparse.Namespace) -> int:
     from .commands.claims import main as claims_main
 
@@ -1071,6 +1113,34 @@ def main(argv=None):
     p_runtime_doctor.add_argument("--root", default=".")
     p_runtime_doctor.add_argument("--json", action="store_true")
 
+    p_serve = sub.add_parser(
+        "serve", help="run simplicio-dev-cli as a server (--mcp for the MCP stdio protocol)"
+    )
+    p_serve.add_argument(
+        "--mcp",
+        action="store_true",
+        help="serve MCP tools (dev_cli_edit, dev_cli_validate, dev_cli_memory) over stdio",
+    )
+
+    p_memory = sub.add_parser(
+        "memory", help="cross-vendor memory handoff (markdown + git under ~/.simplicio/memory)"
+    )
+    memory_sub = p_memory.add_subparsers(dest="memory_cmd", required=True)
+    p_mem_init = memory_sub.add_parser("init", help="create the memory store")
+    p_mem_init.add_argument("--dir", default=None, help="override memory dir (default ~/.simplicio/memory)")
+    p_mem_init.add_argument("--json", action="store_true")
+    p_mem_store = memory_sub.add_parser("store", help="append a note")
+    p_mem_store.add_argument("topic")
+    p_mem_store.add_argument("content")
+    p_mem_store.add_argument("--tags", default="", help="comma-separated tags")
+    p_mem_store.add_argument("--dir", default=None)
+    p_mem_store.add_argument("--json", action="store_true")
+    p_mem_recall = memory_sub.add_parser("recall", help="keyword search over stored notes")
+    p_mem_recall.add_argument("query")
+    p_mem_recall.add_argument("--limit", type=int, default=5)
+    p_mem_recall.add_argument("--dir", default=None)
+    p_mem_recall.add_argument("--json", action="store_true")
+
     a = ap.parse_args(argv)
     maybe_autoinstall(a.cmd)
     if a.cmd == "index":
@@ -1209,6 +1279,10 @@ def main(argv=None):
         return score_skill_main(score_argv)
     elif a.cmd == "runtime":
         return _run_runtime_command(a)
+    elif a.cmd == "serve":
+        return _run_serve_command(a)
+    elif a.cmd == "memory":
+        return _run_memory_command(a)
     elif a.cmd == "task":
         return _run_task_command(a)
     elif a.cmd == "run":

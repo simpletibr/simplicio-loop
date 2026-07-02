@@ -2,7 +2,57 @@
 
 ## [Unreleased]
 
+### Fixed
+- **TOON was dead code on the real handoff path (#88).** `build_mapper_context()`
+  returned the legacy hand-rolled bullets from `_render_handoff_context()`
+  *before* ever reaching the TOON branch merged in #85/PR #87 — which only
+  lived in the project-map fallback path below the `handoff` pre-empt. Since
+  `simplicio-mapper` >= 0.13 always answers `handoff`, `SIMPLICIO_PROMPT_TOON`
+  was a no-op in production. The `files[]` block on the handoff path, and the
+  `Precedent candidates` block on the fallback path, now honor the same
+  `SIMPLICIO_PROMPT_TOON` gate the `Relevant files` block always did.
+- `pipeline.py`'s per-task `cost_usd` was hardcoded to `0.0` regardless of
+  configured pricing. It is now computed from the same pricing helper the
+  cost governor charges against, with an explicit `cost_basis` field
+  (`"estimated"` vs `"unknown_no_pricing_configured"`) — never a silently
+  fake real cost.
+- Unified the two token estimators that used to disagree by up to ~30% on
+  the same text (`observability.estimate_tokens`'s `words*4/3` vs
+  `orchestrator/cost_governor.py`'s own `chars/4`). There is now exactly one
+  canonical estimator; `cost_governor._estimate_tokens` delegates to it.
+
 ### Added
+- **`SIMPLICIO_PROMPT_TOON`** (default on) — TOON-encodes the uniform-array
+  context blocks embedded into generation prompts (mapper handoff `files[]`,
+  project-map `Relevant files`, `Precedent candidates`) instead of
+  hand-rolled bullets; ~27% fewer tokens on the same content, measured with
+  the canonical estimator over `bench/cases.json` — see
+  `bench/results_toon_ab.md`. Falls back to compact JSON per-value for
+  non-uniform arrays (logged at DEBUG). Set `SIMPLICIO_PROMPT_TOON=0` to
+  restore the legacy bullet rendering.
+- **`SIMPLICIO_LOG_ROOT`** — opt-in per-provider-call usage logging.
+  `generate()`/`planner_complete()` append one `.simplicio/runs.jsonl` event
+  per call (cache hit or miss) when this points at a project root; token
+  counts are labeled `usage_source: "provider"` when the SDK/endpoint
+  reported real usage (Anthropic `usage.input_tokens`/`output_tokens`,
+  OpenAI-compatible `usage.prompt_tokens`/`completion_tokens`) or
+  `"estimated"` otherwise.
+- `simplicio.observability.record_savings_event()` — the producer side of
+  the `.simplicio/ledger/savings-events.jsonl` ledger (`simplicio.savings-
+  event/v1`), previously only hosted, never written, by this repo. TOON
+  activation now emits one event per render call; the door is open for
+  `#90`'s autoresearch template optimization to emit `source=autoresearch`
+  events against the same ledger.
+- `simplicio-dev-cli serve --mcp` — runs this CLI as a stdlib-only MCP
+  stdio server (newline-delimited JSON-RPC 2.0, no new dependency) exposing
+  `dev_cli_edit`, `dev_cli_validate`, and `dev_cli_memory` as MCP tools for
+  any MCP client (Claude Code, Codex, Cursor, VS Code).
+- `simplicio-dev-cli memory init|store|recall` — cross-vendor memory
+  handoff, markdown + git under `~/.simplicio/memory/`
+  (`SIMPLICIO_MEMORY_DIR` to override). Deterministic keyword recall, no
+  LLM call. Ports the P0 slice of the `ai-memory`
+  (JesseBrown1980/ai-memory) pattern; FTS5/vector-hybrid recall and the
+  HRM validation toolchain are P1/P2 follow-up, not implemented here.
 - mapper 0.14 `ask` wired into the pipeline: `map_ask(root, verb, arg)` runs the
   low-token structured queries (`simplicio.ask/v1`) and `inspect_target()` now
   embeds `impact` (dependents/flows the target touches) and `affected_tests`
