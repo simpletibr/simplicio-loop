@@ -100,6 +100,39 @@ class DocsSyncGitRepoTest(unittest.TestCase):
         payload = build_docs_sync(str(self.dir), check=True)
         self.assertFalse(payload["stale"])
 
+    def test_global_diagram_svgs_regenerate_alongside_architecture_docs(self) -> None:
+        _write(self.dir, "moduleA/c.py", "def c():\n    return 3\n")
+        payload = build_docs_sync(str(self.dir))
+        self.assertTrue(any(doc.endswith("diagrams/architecture-modules.svg") for doc in payload["regenerated_docs"]))
+        svg_path = self.dir / ".simplicio" / "docs" / "diagrams" / "architecture-modules.svg"
+        self.assertTrue(svg_path.exists())
+
+
+class DocsSyncFlowDiagramTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self._tmp.name)
+        _write(self.dir, "package.json", json.dumps({"name": "sync-flow-app", "main": "src/main.py"}))
+        _write(self.dir, "src/main.py", "from src.writer import persist\ndef main():\n    persist()\n")
+        _write(self.dir, "src/writer.py", "def persist():\n    with open('out.json', 'w') as handle:\n        handle.write('{}')\n")
+        _git(self.dir, "init", "-q")
+        _git(self.dir, "config", "user.email", "test@example.com")
+        _git(self.dir, "config", "user.name", "Test")
+        _git(self.dir, "add", "-A")
+        _git(self.dir, "commit", "-q", "-m", "initial")
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_flow_diagram_svgs_regenerate_when_flow_is_touched(self) -> None:
+        _write(self.dir, "src/main.py", "from src.writer import persist\ndef main():\n    persist()\n    persist()\n")
+        payload = build_docs_sync(str(self.dir))
+        self.assertTrue(payload["affected_flows"])
+        self.assertTrue(any("diagrams/flows/" in doc for doc in payload["regenerated_docs"]))
+        diagrams_dir = self.dir / ".simplicio" / "docs" / "diagrams" / "flows"
+        self.assertTrue(diagrams_dir.exists())
+        self.assertTrue(list(diagrams_dir.glob("*.svg")))
+
 
 class DocsSyncNoGitTest(unittest.TestCase):
     def test_falls_back_to_cache_diff_without_git(self) -> None:

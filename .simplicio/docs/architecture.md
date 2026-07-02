@@ -49,6 +49,8 @@ Generated from `.simplicio` machine-readable artifacts. Statements below are der
 
 ## Module Dependency Diagram
 
+![Module dependency diagram](diagrams/architecture-modules.svg)
+
 ```mermaid
 flowchart TB
   n["."]

@@ -1,5 +1,7 @@
 # Architecture Layers
 
+![Layers to modules diagram](diagrams/layers.svg)
+
 #### Layers -> Modules
 
 ```mermaid
