@@ -13,7 +13,20 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from .toon_codec import to_toon
 from .utils.serialization import loads
+
+
+def _toon_enabled() -> bool:
+    """Kill switch for TOON-encoded prompt context (issue #85 AC: config flag
+    to disable). Default on — TOON is lossless and ~40% cheaper in tokens for
+    the uniform arrays this module emits."""
+    return os.environ.get("SIMPLICIO_PROMPT_TOON", "1").strip().lower() not in {
+        "0",
+        "false",
+        "no",
+        "off",
+    }
 
 
 PROJECT_MAP_CANDIDATES = (
@@ -411,19 +424,37 @@ def build_mapper_context(root: str | os.PathLike[str], target: str, *, goal: str
                 lines.append(f"- {name}: {files}".rstrip(": "))
 
     if relevant:
-        lines.append("Relevant files:")
-        for entry in relevant:
-            path = entry.get("path", "(unknown)")
-            roles = ",".join(str(r) for r in _as_list(entry.get("roles")))
-            imports = ",".join(str(i) for i in _as_list(entry.get("imports"))[:6])
-            bits = [f"path={path}"]
-            if entry.get("language"):
-                bits.append(f"lang={entry['language']}")
-            if roles:
-                bits.append(f"roles={roles}")
-            if imports:
-                bits.append(f"imports={imports}")
-            lines.append("- " + " | ".join(bits))
+        if _toon_enabled():
+            # Relevant files is a genuinely uniform array of objects (every
+            # entry gets the same 4 flattened scalar fields), the sweet spot
+            # TOON was built for — issue #85: precedent/context payloads
+            # embedded into the LLM prompt go through TOON instead of raw
+            # JSON/hand-rolled bullets to cut prompt tokens losslessly.
+            normalized = [
+                {
+                    "path": str(entry.get("path", "(unknown)")),
+                    "language": str(entry.get("language") or ""),
+                    "roles": ",".join(str(r) for r in _as_list(entry.get("roles"))),
+                    "imports": ",".join(str(i) for i in _as_list(entry.get("imports"))[:6]),
+                }
+                for entry in relevant
+            ]
+            lines.append("Relevant files (TOON — https://github.com/toon-format/toon):")
+            lines.append(to_toon(normalized))
+        else:
+            lines.append("Relevant files:")
+            for entry in relevant:
+                path = entry.get("path", "(unknown)")
+                roles = ",".join(str(r) for r in _as_list(entry.get("roles")))
+                imports = ",".join(str(i) for i in _as_list(entry.get("imports"))[:6])
+                bits = [f"path={path}"]
+                if entry.get("language"):
+                    bits.append(f"lang={entry['language']}")
+                if roles:
+                    bits.append(f"roles={roles}")
+                if imports:
+                    bits.append(f"imports={imports}")
+                lines.append("- " + " | ".join(bits))
 
     recent = _as_list(project_map.get("recent_changes"))[:6]
     if recent:
