@@ -16,9 +16,9 @@ from __future__ import annotations
 import os
 import re
 
-from .diagrams import render_state_diagram, to_markdown_block
+from .diagrams import render_state_diagram, render_state_diagram_svg, to_image_markdown, to_markdown_block
 from .flows import build_flow_inventory
-from .mapper import _token_words
+from .mapper import _slugify, _token_words
 
 BUSINESS_RULES_SCHEMA = "simplicio.business-rules/v1"
 BUSINESS_RULES_VERSION = 1
@@ -322,6 +322,23 @@ def build_business_rules(cwd: str, artifacts: dict) -> dict:
     }
 
 
+def _machine_slug(machine: dict, index: int) -> str:
+    # Index suffix keeps the slug collision-free when two files define a
+    # state machine with the same name (e.g. two ``OrderStatus`` enums).
+    return f"{_slugify(machine['name'])}-{index}"
+
+
+def _business_diagram_svgs(payload: dict) -> dict[str, str]:
+    """Standalone SVG companion per state machine, keyed to the image links
+    :func:`render_business_rules_markdown` embeds in ``business-flows.md``."""
+    extras: dict[str, str] = {}
+    for index, machine in enumerate(payload.get("state_machines") or []):
+        transitions = [{"from": t["from"], "to": t["to"]} for t in machine["transitions"]]
+        svg = render_state_diagram_svg(machine["states"], transitions)["svg"]
+        extras[f"diagrams/business/{_machine_slug(machine, index)}.svg"] = svg
+    return extras
+
+
 def render_business_rules_markdown(payload: dict) -> str:
     rules = payload["rules"]
     state_machines = payload["state_machines"]
@@ -354,10 +371,12 @@ def render_business_rules_markdown(payload: dict) -> str:
 
     if state_machines:
         lines += ["## State Machines", ""]
-        for machine in state_machines:
+        for index, machine in enumerate(state_machines):
             lines += [f"### {machine['name']}", ""]
             transitions = [{"from": t["from"], "to": t["to"]} for t in machine["transitions"]]
             diagram = render_state_diagram(machine["states"], transitions)
+            lines.append(to_image_markdown(f"diagrams/business/{_machine_slug(machine, index)}.svg", "State diagram"))
+            lines.append("")
             lines.append(to_markdown_block(diagram))
             if not machine["transitions"]:
                 lines.append("_No transitions observed between these states._")

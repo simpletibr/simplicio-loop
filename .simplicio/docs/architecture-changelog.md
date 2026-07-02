@@ -11,3 +11,13 @@ Append-only. Each entry is a `.simplicio/history/` snapshot created by `map`/`up
 
 - Trigger: map
 - 97 symbol(s) added, 0 removed
+
+## 2026-07-02T13:33:47.490Z — `2026-07-02T13-33-47-490Z_0063376f`
+
+- Trigger: docs
+- +21 module(s); +2/-0 dependency edge(s); +8/-0 flow(s); 923 symbol(s) added, 0 removed
+
+## 2026-07-02T13:51:12.448Z — `2026-07-02T13-51-12-448Z_bd19a10e`
+
+- Trigger: docs
+- 8 symbol(s) added, 0 removed

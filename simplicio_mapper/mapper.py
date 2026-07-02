@@ -22,7 +22,7 @@ import orjson
 
 from . import _native
 from .cache import FileProcessingCache
-from .diagrams import render_flowchart, to_markdown_block
+from .diagrams import render_flowchart, render_flowchart_svg, to_image_markdown, to_markdown_block
 from .models import CodeEntity, PrecedentItem, ProjectFile
 
 ARTIFACT_SCHEMA = "simplicio.project-map/v1"
@@ -1542,6 +1542,59 @@ def _file_ref(path: str, line: int | None = None) -> str:
     return f"`{path}{suffix}`"
 
 
+def _module_dependency_graph(modules: list[dict], call_graph: dict) -> tuple[list[dict], list[dict]]:
+    nodes = [{"id": module["name"], "label": module["name"]} for module in modules]
+    edges = []
+    for edge in call_graph.get("edges", []):
+        if edge.get("type") != "imports" or not edge.get("source_file") or not edge.get("target_file"):
+            continue
+        source_module = _module_name_for_path(edge["source_file"])
+        target_module = _module_name_for_path(edge["target_file"])
+        if source_module == target_module:
+            continue
+        edges.append({"source": source_module, "target": target_module})
+    return nodes, edges
+
+
+def _layer_module_graph(layers: list[dict]) -> tuple[list[dict], list[dict]]:
+    layer_nodes = [{"id": f"layer:{layer['name']}", "label": layer["name"]} for layer in layers]
+    module_ids = {module for layer in layers for module in layer.get("modules") or []}
+    module_nodes = [{"id": f"module:{name}", "label": name} for name in module_ids]
+    edges = [
+        {"source": f"layer:{layer['name']}", "target": f"module:{module}"}
+        for layer in layers
+        for module in layer.get("modules") or []
+    ]
+    return layer_nodes + module_nodes, edges
+
+
+def _call_graph_file_graph(call_graph: dict) -> tuple[list[dict], list[dict]]:
+    # ``target_symbol`` (unresolved calls) and ``target_file`` (imports/resolved
+    # calls) are different id spaces — prefixed so a symbol name can never
+    # collide with a same-named file path (mirrors the layer:/module: prefix
+    # convention in _layer_module_graph).
+    seen_nodes: dict[str, dict] = {}
+    edges: list[dict] = []
+    for edge in call_graph.get("edges", []):
+        source_file = edge.get("source_file")
+        target_file = edge.get("target_file")
+        target_symbol = edge.get("target_symbol")
+        if not source_file:
+            continue
+        if target_file:
+            target_id, target_label = target_file, target_file
+        elif target_symbol:
+            target_id, target_label = f"symbol:{target_symbol}", target_symbol
+        else:
+            continue
+        if source_file == target_id:
+            continue
+        seen_nodes.setdefault(source_file, {"id": source_file, "label": source_file})
+        seen_nodes.setdefault(target_id, {"id": target_id, "label": target_label})
+        edges.append({"source": source_file, "target": target_id})
+    return list(seen_nodes.values()), edges
+
+
 def _render_architecture_overview(inventory: dict, symbol_index: dict, call_graph: dict) -> str:
     product = inventory.get("product", {})
     coverage = inventory.get("coverage", {})
@@ -1573,19 +1626,12 @@ def _render_architecture_overview(inventory: dict, symbol_index: dict, call_grap
     for layer in layers:
         lines.append(f"- `{layer['name']}`: {layer['file_count']} files across {len(layer.get('modules', []))} modules")
 
-    module_nodes = [{"id": module["name"], "label": module["name"]} for module in modules]
-    module_edges = []
-    for edge in call_graph.get("edges", []):
-        if edge.get("type") != "imports" or not edge.get("source_file") or not edge.get("target_file"):
-            continue
-        source_module = _module_name_for_path(edge["source_file"])
-        target_module = _module_name_for_path(edge["target_file"])
-        if source_module == target_module:
-            continue
-        module_edges.append({"source": source_module, "target": target_module})
+    module_nodes, module_edges = _module_dependency_graph(modules, call_graph)
     if module_nodes:
         diagram = render_flowchart(module_nodes, module_edges, direction="TB")
         lines.extend(["", "## Module Dependency Diagram", ""])
+        lines.append(to_image_markdown("diagrams/architecture-modules.svg", "Module dependency diagram"))
+        lines.append("")
         lines.append(to_markdown_block(diagram))
 
     if symbol_index.get("symbols"):
@@ -1601,16 +1647,11 @@ def _render_architecture_overview(inventory: dict, symbol_index: dict, call_grap
 def _render_layers_doc(inventory: dict) -> str:
     lines = ["# Architecture Layers", ""]
     layers = inventory.get("layers", [])
-    layer_nodes = [{"id": f"layer:{layer['name']}", "label": layer["name"]} for layer in layers]
-    module_ids = {module for layer in layers for module in layer.get("modules") or []}
-    module_nodes = [{"id": f"module:{name}", "label": name} for name in module_ids]
-    layer_edges = [
-        {"source": f"layer:{layer['name']}", "target": f"module:{module}"}
-        for layer in layers
-        for module in layer.get("modules") or []
-    ]
-    if layer_nodes:
-        diagram = render_flowchart(layer_nodes + module_nodes, layer_edges, direction="LR")
+    graph_nodes, layer_edges = _layer_module_graph(layers)
+    if graph_nodes:
+        diagram = render_flowchart(graph_nodes, layer_edges, direction="LR")
+        lines.append(to_image_markdown("diagrams/layers.svg", "Layers to modules diagram"))
+        lines.append("")
         lines.append(to_markdown_block(diagram, heading="Layers -> Modules"))
         lines.append("")
     for layer in layers:
@@ -1633,9 +1674,15 @@ def _render_call_graph_doc(call_graph: dict) -> str:
         "",
         "Edges are deterministic or heuristic. Review `confidence` before using a relationship as proof.",
         "",
-        "## Relationships",
-        "",
     ]
+    graph_nodes, graph_edges = _call_graph_file_graph(call_graph)
+    if graph_nodes:
+        diagram = render_flowchart(graph_nodes, graph_edges, direction="TB")
+        lines.extend(["## Call Graph Diagram", ""])
+        lines.append(to_image_markdown("diagrams/call-graph.svg", "Call graph diagram"))
+        lines.append("")
+        lines.append(to_markdown_block(diagram))
+    lines.extend(["## Relationships", ""])
     for edge in call_graph.get("edges", [])[:300]:
         if edge.get("type") == "imports":
             lines.append(
@@ -1681,6 +1728,32 @@ def _render_module_doc(module: dict, inventory: dict) -> str:
     return "\n".join(lines)
 
 
+def _global_diagram_svgs(inventory: dict, call_graph: dict) -> dict[str, str]:
+    """Standalone SVG companions for the architecture/layers/call-graph diagrams.
+
+    Keyed by path relative to the docs root (``docs/``). Regenerated by both
+    a full ``map``/``docs`` build and the diff-driven ``sync`` (F5) so the
+    SVG artifacts stay in sync with the Mermaid blocks that link to them.
+    """
+    extras: dict[str, str] = {}
+    module_nodes, module_edges = _module_dependency_graph(inventory.get("modules", []), call_graph)
+    if module_nodes:
+        extras["diagrams/architecture-modules.svg"] = render_flowchart_svg(
+            module_nodes, module_edges, direction="TB"
+        )["svg"]
+    layer_graph_nodes, layer_edges = _layer_module_graph(inventory.get("layers", []))
+    if layer_graph_nodes:
+        extras["diagrams/layers.svg"] = render_flowchart_svg(
+            layer_graph_nodes, layer_edges, direction="LR"
+        )["svg"]
+    call_graph_nodes, call_graph_edges = _call_graph_file_graph(call_graph)
+    if call_graph_nodes:
+        extras["diagrams/call-graph.svg"] = render_flowchart_svg(
+            call_graph_nodes, call_graph_edges, direction="TB"
+        )["svg"]
+    return extras
+
+
 def write_architecture_docs(cwd: str, output_dir: str = ".simplicio",
                             docs_dir: str | None = None) -> dict:
     abs_cwd = os.path.abspath(cwd or os.getcwd())
@@ -1707,6 +1780,9 @@ def write_architecture_docs(cwd: str, output_dir: str = ".simplicio",
         docs[module_file] = _render_module_doc(module, inventory)
         module_index.append(f"- [{module['name']}](modules/{_slugify(module['name'])}.md)")
     docs[os.path.join(root, "modules.md")] = "\n".join(module_index)
+
+    for rel_path, content in _global_diagram_svgs(inventory, call_graph).items():
+        docs[os.path.join(root, rel_path)] = content
 
     # Local import avoids a module-level cycle (cli imports mapper at import time).
     from .cli import build_service_flowchart, render_service_flowchart_markdown
@@ -1737,7 +1813,7 @@ def export_architecture_docs(cwd: str, target_dir: str, output_dir: str = ".simp
     copied = []
     for current, _dirs, files in os.walk(source):
         for name in files:
-            if not name.endswith(".md"):
+            if not name.endswith((".md", ".svg")):
                 continue
             src = os.path.join(current, name)
             rel = os.path.relpath(src, source)

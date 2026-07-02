@@ -9,6 +9,7 @@ import json
 import sys
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -18,6 +19,7 @@ sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper.business import (  # noqa: E402
     BUSINESS_RULES_SCHEMA,
+    _business_diagram_svgs,
     build_business_rules,
     render_business_rules_markdown,
 )
@@ -121,6 +123,18 @@ class BusinessRulesTest(unittest.TestCase):
         self.assertIn("```mermaid", markdown)
         self.assertIn("stateDiagram-v2", markdown)
         self.assertIn("## Glossary", markdown)
+        self.assertIn("diagrams/business/", markdown)
+
+    def test_business_diagram_svgs_are_well_formed_and_keyed_per_machine(self) -> None:
+        app_dir = self._app()
+        artifacts = build_artifacts(str(app_dir))
+        payload = build_business_rules(str(app_dir), artifacts)
+        extras = _business_diagram_svgs(payload)
+        self.assertTrue(extras)
+        for rel_path, svg in extras.items():
+            self.assertTrue(rel_path.startswith("diagrams/business/"))
+            self.assertTrue(rel_path.endswith(".svg"))
+            ET.fromstring(svg)
 
     def test_business_command_writes_json_and_doc(self) -> None:
         app_dir = self._app()
@@ -132,6 +146,9 @@ class BusinessRulesTest(unittest.TestCase):
         self.assertEqual(payload["schema"], BUSINESS_RULES_SCHEMA)
         self.assertTrue((app_dir / ".simplicio" / "business-rules.json").exists())
         self.assertTrue((app_dir / ".simplicio" / "docs" / "business-flows.md").exists())
+        diagrams_dir = app_dir / ".simplicio" / "docs" / "diagrams" / "business"
+        self.assertTrue(diagrams_dir.exists())
+        self.assertTrue(list(diagrams_dir.glob("*.svg")))
 
 
 if __name__ == "__main__":

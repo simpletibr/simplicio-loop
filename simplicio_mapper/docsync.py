@@ -15,7 +15,7 @@ from __future__ import annotations
 import os
 import subprocess
 
-from .flows import build_flow_inventory, render_flow_inventory_markdown
+from .flows import _flow_diagram_svgs, build_flow_inventory, render_flow_inventory_markdown
 from .mapper import (
     _render_module_doc,
     _slugify,
@@ -197,6 +197,14 @@ def build_docs_sync(
             else:
                 _write_text_stable(path, text)
                 regenerated_docs.append(path.replace(os.sep, "/"))
+            for rel_path, svg in _flow_diagram_svgs(flow_inventory).items():
+                svg_path = os.path.join(docs_root, rel_path)
+                if check:
+                    if _would_change(svg_path, svg):
+                        stale_docs.append(svg_path.replace(os.sep, "/"))
+                else:
+                    _write_text_stable(svg_path, svg)
+                    regenerated_docs.append(svg_path.replace(os.sep, "/"))
 
     return {
         "schema": DOCS_SYNC_SCHEMA,
@@ -222,15 +230,22 @@ def build_docs_sync(
 def _render_global_docs(inventory: dict, symbol_index: dict, call_graph: dict) -> list[tuple[str, str]]:
     # Local import avoids a module-level cycle (mapper imports cli which
     # could in turn want docsync in the future).
-    from .mapper import _render_architecture_overview, _render_call_graph_doc, _render_layers_doc
+    from .mapper import (
+        _global_diagram_svgs,
+        _render_architecture_overview,
+        _render_call_graph_doc,
+        _render_layers_doc,
+    )
 
     module_index = ["# Modules", ""]
     for module in inventory.get("modules", []):
         module_index.append(f"- [{module['name']}](modules/{_slugify(module['name'])}.md)")
 
-    return [
+    docs = [
         ("architecture.md", _render_architecture_overview(inventory, symbol_index, call_graph)),
         ("layers.md", _render_layers_doc(inventory)),
         ("call-graph.md", _render_call_graph_doc(call_graph)),
         ("modules.md", "\n".join(module_index)),
     ]
+    docs.extend(_global_diagram_svgs(inventory, call_graph).items())
+    return docs

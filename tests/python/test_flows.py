@@ -9,6 +9,7 @@ import json
 import sys
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -19,6 +20,7 @@ sys.path.insert(0, str(ROOT))
 from simplicio_mapper.cli import main  # noqa: E402
 from simplicio_mapper.flows import (  # noqa: E402
     FLOW_INVENTORY_SCHEMA,
+    _flow_diagram_svgs,
     build_flow_inventory,
     render_flow_inventory_markdown,
 )
@@ -101,6 +103,43 @@ class FlowInventoryTest(unittest.TestCase):
         self.assertIn("flowchart LR", markdown)
         self.assertIn("Effects", markdown)
 
+    def test_markdown_render_includes_call_sequence_and_svg_links(self) -> None:
+        app_dir = self._fixture_app()
+        artifacts = build_artifacts(str(app_dir))
+        inventory = build_flow_inventory(str(app_dir), artifacts)
+        markdown = render_flow_inventory_markdown(inventory)
+        self.assertIn("sequenceDiagram", markdown)
+        self.assertIn("Call Sequence", markdown)
+        self.assertIn("-steps.svg", markdown)
+        self.assertIn("-sequence.svg", markdown)
+
+    def test_flow_diagram_svgs_are_well_formed_and_keyed_per_flow(self) -> None:
+        app_dir = self._fixture_app()
+        artifacts = build_artifacts(str(app_dir))
+        inventory = build_flow_inventory(str(app_dir), artifacts)
+        extras = _flow_diagram_svgs(inventory)
+        self.assertTrue(extras)
+        for rel_path, svg in extras.items():
+            self.assertTrue(rel_path.startswith("diagrams/flows/"))
+            self.assertTrue(rel_path.endswith(("-steps.svg", "-sequence.svg")))
+            ET.fromstring(svg)
+
+    def test_flow_diagram_svgs_survive_slug_collisions(self) -> None:
+        # "cli:flowchart" and "cli/flowchart" both slugify to "cli-flowchart"
+        # -- without an index suffix the second flow's SVGs silently
+        # overwrite the first's in the extras dict.
+        inventory = {
+            "flows": [
+                {"id": "cli:flowchart", "steps": [{"path": "a.py"}, {"path": "b.py"}]},
+                {"id": "cli/flowchart", "steps": [{"path": "c.py"}, {"path": "d.py"}]},
+            ]
+        }
+        extras = _flow_diagram_svgs(inventory)
+        self.assertEqual(len(extras), 4)  # 2 flows x (steps + sequence), none overwritten
+        steps_svgs = {path: svg for path, svg in extras.items() if path.endswith("-steps.svg")}
+        self.assertEqual(len(steps_svgs), 2)
+        self.assertNotEqual(*steps_svgs.values())
+
     def test_flows_command_writes_json_and_doc(self) -> None:
         app_dir = self._fixture_app()
         out = StringIO()
@@ -113,6 +152,9 @@ class FlowInventoryTest(unittest.TestCase):
         doc_path = app_dir / ".simplicio" / "docs" / "flows.md"
         self.assertTrue(inventory_path.exists())
         self.assertTrue(doc_path.exists())
+        diagrams_dir = app_dir / ".simplicio" / "docs" / "diagrams" / "flows"
+        self.assertTrue(diagrams_dir.exists())
+        self.assertTrue(list(diagrams_dir.glob("*.svg")))
 
 
 if __name__ == "__main__":

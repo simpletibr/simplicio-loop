@@ -21,14 +21,15 @@ from collections.abc import Sequence
 import orjson
 
 from . import __version__
-from .business import build_business_rules, render_business_rules_markdown
+from .business import _business_diagram_svgs, build_business_rules, render_business_rules_markdown
 from .context_cache import ContextCache
 from .context_pack import build_context_pack
 from .docsync import build_docs_sync
 from .drift import build_spec_drift, render_drift_markdown
-from .flows import build_flow_inventory, render_flow_inventory_markdown
+from .flows import _flow_diagram_svgs, build_flow_inventory, render_flow_inventory_markdown
 from .history import append_changelog, create_snapshot, diff_snapshots, list_snapshots, maybe_snapshot
 from .mapper import (
+    _write_text_stable,
     build_artifacts,
     build_macro_map,
     export_architecture_docs,
@@ -1757,6 +1758,9 @@ def _run_flows(opts: dict) -> int:
         handle.write(markdown.rstrip() + "\n")
     os.replace(tmp_doc, doc_path)
 
+    for rel_path, svg in _flow_diagram_svgs(inventory).items():
+        _write_text_stable(os.path.join(abs_out, "docs", rel_path), svg)
+
     if opts["json"]:
         print(json.dumps({**inventory, "doc": doc_path.replace(os.sep, "/")}, sort_keys=True))
     else:
@@ -1848,6 +1852,9 @@ def _run_business(opts: dict) -> int:
     with open(tmp_doc, "w", encoding="utf-8") as handle:
         handle.write(render_business_rules_markdown(payload).rstrip() + "\n")
     os.replace(tmp_doc, doc_path)
+
+    for rel_path, svg in _business_diagram_svgs(payload).items():
+        _write_text_stable(os.path.join(abs_out, "docs", rel_path), svg)
 
     if opts["json"]:
         print(json.dumps({**payload, "doc": doc_path.replace(os.sep, "/")}, sort_keys=True))

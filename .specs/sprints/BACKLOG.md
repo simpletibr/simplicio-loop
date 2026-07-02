@@ -42,6 +42,7 @@ Lista priorizada de tudo que precisa ser feito. É a fonte da verdade de pendên
 | F9  | Manifest template vs produto (ADR-004)                                | #140  | P1         | pré-F7 | done |
 | F7  | `drift` — spec-drift e matriz de rastreabilidade                      | #138  | P1         | 4    | doing  |
 | F8  | GitHub Action de fluxos afetados no PR                                | #139  | P2         | 4    | todo   |
+| F4b | Artifacts SVG standalone (flowchart/sequence/state/call-graph)        | #146  | P1         | 1    | done   |
 
 ## Dívida conhecida (surfaced pelo próprio `drift`/F7)
 

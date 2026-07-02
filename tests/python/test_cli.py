@@ -12,6 +12,7 @@ import sys
 import tempfile
 import time
 import unittest
+import xml.etree.ElementTree as ET
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -33,6 +34,7 @@ from simplicio_mapper.mapper import (  # noqa: E402
     CALL_GRAPH_SCHEMA,
     PRECEDENT_SCHEMA,
     SYMBOL_INDEX_SCHEMA,
+    _call_graph_file_graph,
     build_artifacts,
     build_macro_map,
     export_architecture_docs,
@@ -214,13 +216,38 @@ module.exports = { findUsers };
         docs = write_architecture_docs(str(self.dir))
         architecture_doc = self.dir / ".simplicio" / "docs" / "architecture.md"
         self.assertTrue(architecture_doc.exists())
-        self.assertIn("Architecture Inventory", architecture_doc.read_text())
+        architecture_text = architecture_doc.read_text()
+        self.assertIn("Architecture Inventory", architecture_text)
+        self.assertIn("![Module dependency diagram](diagrams/architecture-modules.svg)", architecture_text)
         self.assertGreaterEqual(docs["counts"]["files"], 4)
+
+        svg_doc = self.dir / ".simplicio" / "docs" / "diagrams" / "architecture-modules.svg"
+        self.assertTrue(svg_doc.exists())
+        ET.fromstring(svg_doc.read_text())
 
         target = self.dir / "wiki"
         exported = export_architecture_docs(str(self.dir), str(target))
         self.assertTrue((target / "architecture.md").exists())
+        self.assertTrue((target / "diagrams" / "architecture-modules.svg").exists())
         self.assertEqual(exported["counts"]["files"], docs["counts"]["files"])
+
+    def test_call_graph_file_graph_keeps_symbol_and_file_id_spaces_disjoint(self) -> None:
+        # A target_symbol string ("writer.persist") could coincidentally
+        # equal a real file path elsewhere in the graph; without a disjoint
+        # id namespace the two would silently merge into one node.
+        call_graph = {
+            "edges": [
+                {"source_file": "a.py", "target_file": "writer.persist"},
+                {"source_file": "b.py", "target_symbol": "writer.persist"},
+            ]
+        }
+        nodes, edges = _call_graph_file_graph(call_graph)
+        node_ids = {node["id"] for node in nodes}
+        self.assertIn("writer.persist", node_ids)
+        self.assertIn("symbol:writer.persist", node_ids)
+        self.assertEqual(len(nodes), 4)
+        labels = {node["id"]: node["label"] for node in nodes}
+        self.assertEqual(labels["symbol:writer.persist"], "writer.persist")
 
     def test_incremental_records_changed_files(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "incremental-host"}))
