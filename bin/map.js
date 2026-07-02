@@ -5,6 +5,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { writeMappingArtifacts } = require('./mapper-artifacts');
 
+// NOTE (issue #144): the Python CLI (`simplicio_mapper/cli.py`) supports
+// `--for-llm toon` on `index`/`handoff`, backed by `simplicio_mapper/toon.py`
+// (a TOON — Token-Oriented Object Notation — encoder/decoder,
+// https://github.com/toon-format/toon). This Node mirror has no `index`/
+// `handoff`/`--json` command surface to hook a `--for-llm` flag into yet
+// (it only writes artifacts, it does not print JSON payloads), so a Node
+// port of `encode_toon`/`decode_toon` is deferred — Node parity pending.
+
 function readJsonSafe(file) {
   try {
     return JSON.parse(fs.readFileSync(file, 'utf8'));

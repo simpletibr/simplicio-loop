@@ -37,6 +37,13 @@ from .mapper import (
 )
 from .query import run_query
 from .survey import build_survey, render_survey_markdown
+from .toon import encode_toon
+
+# Supported `--for-llm` output formats for the `map`/`index`/`handoff`
+# commands. Currently only `toon` (Token-Oriented Object Notation, see
+# `simplicio_mapper/toon.py`) is implemented; it swaps the default JSON
+# payload for a token-lean encoding tuned for LLM prompt context.
+FOR_LLM_FORMATS = {"toon"}
 
 INDEX_RESULT_SCHEMA = "simplicio.mapper-index/v1"
 INDEX_STATE_SCHEMA = "simplicio.mapper-index-state/v1"
@@ -72,12 +79,12 @@ HELP_TEXT = """simplicio-mapper map
 Generate or update machine-readable mapper artifacts.
 
 USAGE
-  simplicio-mapper index <path> [--json] [--verbose] [--update]
+  simplicio-mapper index <path> [--json] [--for-llm toon] [--verbose] [--update]
   simplicio-mapper macro <path> [--json]
   simplicio-mapper scan <path> [--json] [--sync] [--await] [--timeout <s>]
   simplicio-mapper status <path> [--json] [--await] [--timeout <s>]
   simplicio-mapper inspect <path> [--json] [--await] [--timeout <s>]
-  simplicio-mapper handoff <path> [--json] [--await] [--timeout <s>]
+  simplicio-mapper handoff <path> [--json] [--for-llm toon] [--await] [--timeout <s>]
   simplicio-mapper endpoints <path> [--against <server-root>] [--json]
   simplicio-mapper screens <path> [--json]
   simplicio-mapper flowchart <path> [--json]
@@ -133,6 +140,9 @@ OPTIONS
   --await               scan/status/inspect/handoff: block until the deep pass is terminal.
   --timeout <s>         Bounded wait for --await (default 120).
   --json                Emit structured index output.
+  --for-llm <format>    index/handoff: emit payload as <format> instead of JSON.
+                         Supported: toon (Token-Oriented Object Notation,
+                         ~40% fewer tokens than JSON on uniform arrays).
   --update              Compatibility alias for index refresh workflows.
   --verbose             Show progress during index refreshes.
   --root <dir>          Project root to map. Defaults to cwd.
@@ -188,6 +198,7 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "effect": "",
         "category": "",
         "threshold": 10,
+        "for_llm": "",
     }
     commands = (
         "index", "map", "update", "macro", "scan", "status", "inspect", "handoff",
@@ -313,6 +324,20 @@ def _parse_args(argv: Sequence[str]) -> dict:
             opts["silent"] = True
         elif arg == "--json":
             opts["json"] = True
+        elif arg == "--for-llm":
+            i += 1
+            try:
+                value = argv[i]
+            except IndexError:
+                print("--for-llm requires a value (e.g. --for-llm toon)", file=sys.stderr)
+                sys.exit(2)
+            if value not in FOR_LLM_FORMATS:
+                print(
+                    f"Unknown --for-llm format: {value!r} (supported: {', '.join(sorted(FOR_LLM_FORMATS))})",
+                    file=sys.stderr,
+                )
+                sys.exit(2)
+            opts["for_llm"] = value
         elif arg == "--verbose":
             opts["verbose"] = True
             opts["silent"] = False
@@ -553,7 +578,9 @@ def _index_result(
 
 
 def _emit_index_json(opts: dict, payload: dict) -> None:
-    if opts["json"]:
+    if opts.get("for_llm") == "toon":
+        print(encode_toon(payload))
+    elif opts["json"]:
         print(json.dumps(payload, sort_keys=True))
 
 
@@ -2352,7 +2379,9 @@ def _run_handoff(opts: dict) -> int:
             "pack_cached": isinstance(pack_hash, str) and pack_hash in cache,
         },
     }
-    if opts["json"]:
+    if opts.get("for_llm") == "toon":
+        print(encode_toon(payload))
+    elif opts["json"]:
         print(json.dumps(payload, sort_keys=True))
     else:
         print(
@@ -2512,7 +2541,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 status="failed",
                 error=str(error),
             )
-            if opts["json"]:
+            if opts["json"] or opts.get("for_llm"):
                 _emit_index_json(opts, payload)
             else:
                 print(f"index failed: {error}", file=sys.stderr)
