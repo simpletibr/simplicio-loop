@@ -28,26 +28,32 @@ PRECEDENT_INDEX_CANDIDATES = (
 )
 
 MAPPER_BIN = "simplicio-mapper"
-_MAPPER_CLI_CACHE: dict[tuple[str, str], dict[str, Any] | None] = {}
+_MAPPER_CLI_CACHE: dict[tuple[str, ...], dict[str, Any] | None] = {}
 
 
 def _mapper_cli_enabled() -> bool:
     return os.environ.get("SIMPLICIO_MAPPER_CLI", "1") != "0"
 
 
-def run_mapper_json(root: str | os.PathLike[str], subcommand: str, *, timeout: int = 30) -> dict[str, Any] | None:
-    """Run `simplicio-mapper <subcommand> <root> --json` fail-open.
+def run_mapper_json(
+    root: str | os.PathLike[str],
+    subcommand: str,
+    *,
+    extra: tuple[str, ...] = (),
+    timeout: int = 30,
+) -> dict[str, Any] | None:
+    """Run `simplicio-mapper <subcommand> <root> [extra...] --json` fail-open.
 
     Returns the parsed JSON dict, or None on ANY failure (binary missing, env
     kill-switch SIMPLICIO_MAPPER_CLI=0, non-zero exit, timeout, bad JSON) —
     callers keep their artifact-file fallback. Results are memoized per
-    (root, subcommand) for the process lifetime; both mapper 0.13 verbs used
-    here (`inspect`, `handoff`) are read-only and fast (~60ms).
+    (root, subcommand, extra) for the process lifetime; the mapper verbs used
+    here (`inspect`, `handoff`, `ask`) are read-only and fast (~60ms).
     """
     if not _mapper_cli_enabled():
         return None
     base = str(Path(root).resolve())
-    key = (base, subcommand)
+    key = (base, subcommand, *extra)
     if key in _MAPPER_CLI_CACHE:
         return _MAPPER_CLI_CACHE[key]
     result: dict[str, Any] | None = None
@@ -55,7 +61,7 @@ def run_mapper_json(root: str | os.PathLike[str], subcommand: str, *, timeout: i
     if exe:
         try:
             proc = subprocess.run(
-                [exe, subcommand, base, "--json"],
+                [exe, subcommand, base, *extra, "--json"],
                 capture_output=True, text=True, timeout=timeout, check=False,
             )
             if proc.returncode == 0:
@@ -76,6 +82,26 @@ def map_inspection(root: str | os.PathLike[str]) -> dict[str, Any] | None:
 def map_handoff(root: str | os.PathLike[str]) -> dict[str, Any] | None:
     """mapper 0.13 `handoff` — compact context-pack for downstream agents (simplicio.map-handoff/v1)."""
     return run_mapper_json(root, "handoff")
+
+
+ASK_VERBS = ("callers", "callees", "reaches", "impact", "flows", "rules", "tests-for", "term")
+
+
+def map_ask(root: str | os.PathLike[str], verb: str, arg: str = "") -> list[dict[str, Any]] | None:
+    """mapper 0.14 `ask` — low-token structured queries over the built artifacts.
+
+    Returns the `results` list from `simplicio.ask/v1`, or None when the CLI is
+    unavailable/fails or the verb is unknown — callers treat None as "no data",
+    never as an empty answer.
+    """
+    if verb not in ASK_VERBS:
+        return None
+    extra = (verb, arg) if arg else (verb,)
+    data = run_mapper_json(root, "ask", extra=extra)
+    if data is None:
+        return None
+    results = data.get("results")
+    return [item for item in results if isinstance(item, dict)] if isinstance(results, list) else None
 
 
 def _safe_json(path: Path) -> dict[str, Any] | None:
@@ -180,6 +206,18 @@ def inspect_target(
         "precedents": rank_precedents(base, f"{goal} {target}", k=precedent_limit),
         "context": build_mapper_context(base, target, goal=goal),
     }
+
+    # mapper 0.14+: structured impact + affected-tests for the target, straight
+    # from the built artifacts (simplicio.ask/v1). Fail-open: keys are only
+    # present when the CLI answered — an absent key means "no data", never
+    # "no impact".
+    if target:
+        impact = map_ask(base, "impact", target)
+        if impact is not None:
+            payload["impact"] = impact[:limit]
+        tests_for = map_ask(base, "tests-for", target)
+        if tests_for is not None:
+            payload["affected_tests"] = tests_for[:limit]
 
     loaded_map = load_project_map(base)
     if loaded_map is None:
