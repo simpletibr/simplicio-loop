@@ -92,3 +92,58 @@ def test_smoke_cli_can_emit_stable_json(monkeypatch, capsys):
     assert payload["schema"] == "simplicio.dev-cli.smoke/v1"
     assert payload["provider"] == "test-provider"
     assert payload["ok"] is True
+
+
+# ── Issue #93: impact-test evidence in task_contract ─────────────────────
+
+
+def test_task_contract_carries_impact_block_when_present():
+    result = task_contract(
+        {
+            "task_id": "src/lib.py",
+            "applied": True,
+            "files_changed": ["src/lib.py"],
+            "warnings": [],
+            "impact": {
+                "callers": ["src/caller.py"],
+                "tests_run": ["tests/test_caller.py"],
+                "result": "passed",
+                "status": "verified",
+            },
+        },
+    )
+
+    assert "impact" in result
+    assert result["impact"]["callers"] == ["src/caller.py"]
+    assert result["impact"]["tests_run"] == ["tests/test_caller.py"]
+    assert result["impact"]["result"] == "passed"
+    assert result["impact"]["status"] == "verified"
+
+
+def test_task_contract_omits_impact_block_when_absent():
+    result = task_contract(
+        {
+            "task_id": "src/lib.py",
+            "applied": True,
+            "files_changed": ["src/lib.py"],
+            "warnings": [],
+        },
+    )
+
+    assert "impact" not in result
+
+
+def test_task_contract_impact_block_shows_unverified_when_unknown():
+    result = task_contract(
+        {
+            "task_id": "src/lib.py",
+            "applied": True,
+            "files_changed": ["src/lib.py"],
+            "warnings": [],
+            "impact": {"callers": [], "tests_run": [], "result": "unverified"},
+        },
+    )
+
+    assert "impact" in result
+    assert result["impact"]["result"] == "unverified"
+    assert result["impact"]["status"] == "unverified"

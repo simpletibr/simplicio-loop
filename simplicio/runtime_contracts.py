@@ -61,7 +61,14 @@ def doctor_contract(root: str | Path = ".") -> dict[str, Any]:
 
 
 def task_contract(task_result: dict[str, Any], *, root: str | Path = ".") -> dict[str, Any]:
-    return {
+    """Wrap a task result into a stable runtime contract.
+
+    Issue #93: the contract now carries an optional ``impact`` block
+    (``callers``, ``tests_run``, ``result``, ``status``) so downstream
+    consumers — CI, PR templates, ``runs.jsonl`` — have verifiable evidence
+    that the change's blast-radius was checked.
+    """
+    payload = {
         "schema": "simplicio.dev-cli.task/v1",
         "root": str(Path(root)),
         "applied": bool(task_result.get("applied")),
@@ -69,6 +76,15 @@ def task_contract(task_result: dict[str, Any], *, root: str | Path = ".") -> dic
         "warnings": task_result.get("warnings", []),
         "task": task_result,
     }
+    impact = task_result.get("impact")
+    if impact is not None:
+        payload["impact"] = {
+            "callers": impact.get("callers", []),
+            "tests_run": impact.get("tests_run", []),
+            "result": impact.get("result", "unverified"),
+            "status": impact.get("status", "unverified"),
+        }
+    return payload
 
 
 def smoke_contract(*, provider: str, reply: str, root: str | Path = ".") -> dict[str, Any]:

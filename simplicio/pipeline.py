@@ -1,16 +1,151 @@
-"""pipeline.py — build -> generate -> validate -> test -> fix (loop)."""
+"""pipeline.py — build -> generate -> validate -> test -> fix -> verify (loop).
+
+The 6-layer contract (mapper→precedent→prompt→diff→test→verify) is
+implemented by this module plus :mod:`simplicio.mapper` for the first two
+layers.  Issue #93 adds impact-test verification to the ``verify`` layer:
+after the primary test passes, ``_run_impact_tests`` queries the mapper's
+``impact`` and ``tests-for`` verbs to find callers of the changed symbols
+and runs their tests too.  When impact tests fail, the failure enters the
+retry loop just like any verify failure.
+"""
 from dataclasses import dataclass
 import fnmatch
-import os, re, subprocess
+import os
+import re
+import subprocess
+from pathlib import Path
+from typing import Any
+
 from .adaptive import get_validation_mode
+from .mapper import map_ask
 from .observability import estimate_tokens, log_run
 from .orchestrator.cost_governor import _price as _estimate_price
 from .pipeline_fixers import try_static_fixers
 from .prompt import build_prompt
-from .providers import generate, _provider_id, _cfg
+from .providers import generate, _provider_id
 from .runtime_env import wrap_project_command
 
 MAX_ATTEMPTS = 5
+
+# ---------------------------------------------------------------------------
+# Impact-test verification — issue #93
+# ---------------------------------------------------------------------------
+
+IMPACT_RESULT_PASSED = "passed"
+IMPACT_RESULT_FAILED = "failed"
+IMPACT_RESULT_UNVERIFIED = "unverified"
+IMPACT_RESULT_NOT_NEEDED = "no_impact_tests"
+
+
+def _run_impact_tests(
+    root: str | Path,
+    files_changed: list[str],
+    *,
+    test_cmd: str | None = None,
+) -> dict[str, Any]:
+    """Run tests for callers/dependents of *files_changed*.
+
+    Uses the mapper's ``ask impact`` verb to find callers of each changed
+    file, then ``ask tests-for`` to locate test files for those callers.
+    Runs the discovered test files with the configured test command.
+
+    Returns a dict with keys ``status``, ``callers``, ``tests_run``,
+    ``result``, and optionally ``output_tail``.  When the mapper CLI is
+    unavailable or no callers/tests are found the result is a "safe miss"
+    (``unverified`` or ``no_impact_tests``) — the pipeline treats these as
+    *not-a-failure*.
+    """
+    if not files_changed:
+        return {
+            "status": "no_changed_files",
+            "callers": [],
+            "tests_run": [],
+            "result": IMPACT_RESULT_NOT_NEEDED,
+        }
+
+    root_str = str(Path(root).resolve())
+    callers_seen: set[str] = set()
+    test_files_seen: set[str] = set()
+
+    for filepath in files_changed:
+        impact = map_ask(root_str, "impact", filepath)
+        if not impact:
+            continue
+        for entry in impact:
+            if not isinstance(entry, dict):
+                continue
+            caller = entry.get("caller") or entry.get("path") or ""
+            if caller and caller not in callers_seen:
+                callers_seen.add(caller)
+
+    if not callers_seen:
+        return {
+            "status": "no_callers_found",
+            "callers": [],
+            "tests_run": [],
+            "result": IMPACT_RESULT_NOT_NEEDED,
+        }
+
+    for caller in callers_seen:
+        tests = map_ask(root_str, "tests-for", caller)
+        if not tests:
+            continue
+        for t in tests:
+            if not isinstance(t, dict):
+                continue
+            test_path = (
+                t.get("test_path") or t.get("path") or t.get("file") or ""
+            )
+            if test_path:
+                test_files_seen.add(test_path)
+
+    if not test_files_seen:
+        return {
+            "status": "no_tests_found",
+            "callers": sorted(callers_seen),
+            "tests_run": [],
+            "result": IMPACT_RESULT_NOT_NEEDED,
+        }
+
+    test_files = sorted(test_files_seen)
+    cmd_raw = (
+        test_cmd or os.environ.get("SIMPLICIO_TEST_CMD", "pytest")
+    ).strip()
+    argv = cmd_raw.split() + test_files
+    use_shell = len(cmd_raw.split()) == 1
+
+    try:
+        p = subprocess.run(
+            argv if not use_shell else " ".join(argv),
+            shell=use_shell,
+            cwd=root_str,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {
+            "status": "error",
+            "callers": sorted(callers_seen),
+            "tests_run": test_files,
+            "result": IMPACT_RESULT_UNVERIFIED,
+            "error": str(exc),
+        }
+
+    passed = p.returncode == 0
+    return {
+        "status": "ok" if passed else "failed",
+        "callers": sorted(callers_seen),
+        "tests_run": test_files,
+        "result": IMPACT_RESULT_PASSED if passed else IMPACT_RESULT_FAILED,
+        "returncode": p.returncode,
+        "output_tail": (p.stdout + p.stderr)[-2000:] if not passed else "",
+    }
+
+
+# ---------------------------------------------------------------------------
+# Existing helpers (unchanged except where noted for #93)
+# ---------------------------------------------------------------------------
 
 @dataclass
 class ValidationResult:
@@ -81,10 +216,6 @@ def validate_generated_output(output, bound_paths=None, mode=None):
     has_external_test = bool(external_test_cmd and external_test_cmd != "echo 'configure SIMPLICIO_TEST_CMD'")
     if not has_diff:
         hints.append("include a unified diff with exact target files")
-    # In "strict" mode (Claude-class), require a TEST block or external
-    # test command.  In "diff" mode (strong non-Claude, weak/local),
-    # accept diff-only output — these models reliably produce diffs but
-    # may not follow the multi-part DIFF+TEST+EVIDENCE output format.
     if mode == "strict":
         if not has_test and not has_external_test:
             hints.append("include a TEST block or concrete test code")
@@ -178,24 +309,17 @@ def _diff_summary(files_changed):
         return "no changed files reported"
     return "changed " + ", ".join(files_changed)
 
-def _task_result(task_id, prompt, output, *, applied, warnings=None):
+def _task_result(task_id, prompt, output, *, applied, warnings=None, impact=None):
     files_changed = extract_changed_files(output)
     prompt_tokens = estimate_tokens(prompt)
     completion_tokens = estimate_tokens(output or "")
-    # cost_usd used to be hardcoded to 0.0 regardless of pricing (issue #88
-    # AC4). It is now computed with the same pricing helper the cost
-    # governor charges against (SIMPLICIO_PRICE_*_PER_MTOK); `cost_basis`
-    # says whether that came from configured pricing ("estimated" from the
-    # canonical token estimator) or is genuinely unknown because no pricing
-    # env var was ever set (still 0.0, but explicitly labeled, never a
-    # silent fake real cost).
     priced = os.environ.get("SIMPLICIO_PRICE_PER_MTOK") or (
         os.environ.get("SIMPLICIO_PRICE_PROMPT_PER_MTOK")
         or os.environ.get("SIMPLICIO_PRICE_COMPLETION_PER_MTOK")
     )
     model = os.environ.get("SIMPLICIO_MODEL", "")
     cost_usd = float(_estimate_price(model, prompt_tokens, completion_tokens)) if priced else 0.0
-    return {
+    result = {
         "task_id": task_id,
         "applied": bool(applied),
         "files_changed": files_changed,
@@ -208,6 +332,20 @@ def _task_result(task_id, prompt, output, *, applied, warnings=None):
         "diff_summary": _diff_summary(files_changed),
         "warnings": warnings or [],
     }
+    # Issue #93: impact-test evidence block
+    if impact is not None:
+        result["impact"] = {
+            "callers": impact.get("callers", []),
+            "tests_run": impact.get("tests_run", []),
+            "result": impact.get("result", IMPACT_RESULT_UNVERIFIED),
+        }
+        if impact.get("status") in ("ok", "passed"):
+            result["impact"]["status"] = "verified"
+        elif impact.get("status") in ("failed", "error"):
+            result["impact"]["status"] = impact["status"]
+        else:
+            result["impact"]["status"] = IMPACT_RESULT_UNVERIFIED
+    return result
 
 def run_task(root, stack, goal, target, criteria, constraints, *,
              dry_run_task=False, bound_paths=None, quiet=False):
@@ -222,6 +360,8 @@ def run_task(root, stack, goal, target, criteria, constraints, *,
     last_output = ""
     last_validation = None
     last_log = ""
+    # Issue #93: impact-test tracking across attempts
+    impact_results: dict[str, Any] | None = None
     for t in range(1, MAX_ATTEMPTS + 1):
         if not quiet:
             _model = os.environ.get("SIMPLICIO_MODEL", "")
@@ -243,9 +383,40 @@ def run_task(root, stack, goal, target, criteria, constraints, *,
             "stack": stack,
         })
         if ok:
-            if not quiet:
-                print("PASSED the contract. DONE.")
-            return _task_result(target, prompt, output, applied=True)
+            # Issue #93: run impact tests after the primary test passes
+            files_changed = extract_changed_files(output)
+            impact_results = _run_impact_tests(root, files_changed)
+            impact_result = impact_results.get("result", IMPACT_RESULT_UNVERIFIED) if impact_results else IMPACT_RESULT_UNVERIFIED
+
+            if impact_result == IMPACT_RESULT_FAILED:
+                # Impact test failure → retry as a verify failure
+                ok = False
+                log = (
+                    "impact test failure — callers: "
+                    + ", ".join(impact_results.get("callers", []))[:200]
+                    + "\n"
+                    + impact_results.get("output_tail", "")[:1500]
+                )
+                if not quiet:
+                    print("impact test failed:", log[:300])
+            elif impact_result in (IMPACT_RESULT_PASSED, IMPACT_RESULT_NOT_NEEDED):
+                # Impact tests passed or nothing to verify → done
+                if not quiet:
+                    print("PASSED the contract (impact verified). DONE.")
+                return _task_result(
+                    target, prompt, output, applied=True,
+                    impact=impact_results,
+                )
+            else:
+                # IMPACT_RESULT_UNVERIFIED — mapper unavailable or error
+                if not quiet:
+                    print("PASSED the contract (impact unverifiable). DONE.")
+                return _task_result(
+                    target, prompt, output, applied=True,
+                    impact=impact_results,
+                )
+
+        # ── Primary test or impact test failed — try fixers ──
         fixer_result = try_static_fixers(log, root)
         if fixer_result.applied:
             ok, fixed_log = _apply_and_test(output, root, bound_paths)
@@ -262,9 +433,29 @@ def run_task(root, stack, goal, target, criteria, constraints, *,
             last_log = fixed_log
             log = fixed_log if ok else f"{fixer_result.details}\n{fixed_log}"
             if ok:
-                if not quiet:
-                    print(f"PASSED after static fixer {fixer_result.fixer}. DONE.")
-                return _task_result(target, prompt, output, applied=True)
+                # Re-run impact tests after fixer pass
+                files_changed = extract_changed_files(output)
+                impact_results = _run_impact_tests(root, files_changed)
+                impact_result = impact_results.get("result", IMPACT_RESULT_UNVERIFIED) if impact_results else IMPACT_RESULT_UNVERIFIED
+
+                if impact_result == IMPACT_RESULT_FAILED:
+                    ok = False
+                    log = (
+                        "impact test failure after fixer — callers: "
+                        + ", ".join(impact_results.get("callers", []))[:200]
+                        + "\n"
+                        + impact_results.get("output_tail", "")[:1500]
+                    )
+                    if not quiet:
+                        print("impact test failed after fixer:", log[:300])
+                else:
+                    if not quiet:
+                        suffix = " (impact verified)" if impact_result == IMPACT_RESULT_PASSED else " (impact unverifiable)"
+                        print(f"PASSED after static fixer {fixer_result.fixer}.{suffix} DONE.")
+                    return _task_result(
+                        target, prompt, output, applied=True,
+                        impact=impact_results,
+                    )
         if not quiet:
             print("failed:", log[:300])
         feedback = build_retry_feedback(t + 1, last_validation, log)
@@ -275,7 +466,10 @@ def run_task(root, stack, goal, target, criteria, constraints, *,
         warnings.append(last_validation.reason)
     elif last_log:
         warnings.append(last_log[:500])
-    return _task_result(target, prompt, last_output, applied=False, warnings=warnings)
+    return _task_result(
+        target, prompt, last_output, applied=False, warnings=warnings,
+        impact=impact_results,
+    )
 
 def run(root, stack, goal, target, criteria, constraints, bound_paths=None):
     result = run_task(root, stack, goal, target, criteria, constraints,
