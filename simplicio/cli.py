@@ -140,7 +140,7 @@ def _dispatch_nested(argv: list[str]) -> int | None:
 def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None:
     p.add_argument("goal")
     p.add_argument("--root", default=".")
-    p.add_argument("--stack", default="angular")
+    p.add_argument("--stack", default=None)
     p.add_argument("--target", required=target_required)
     p.add_argument("--criteria", default="- true state\n- false state")
     p.add_argument("--constraints", default="- build passes")
@@ -202,9 +202,10 @@ def _force_local_if_requested(a: argparse.Namespace) -> None:
 
 def _run_task_command(a: argparse.Namespace) -> int:
     from .pipeline import run_task
+    from .precedent import auto_detect_stack
 
     _force_local_if_requested(a)
-    stack = a.stack or "angular"
+    stack = auto_detect_stack(a.root, a.stack)
     if a.json or a.dry_run_task:
         result = run_task(
             a.root,
@@ -906,7 +907,7 @@ def main(argv=None):
     pi = sub.add_parser("index", help="index/cache the repo (once, or after changes)")
     pi.add_argument("root_arg", nargs="?", help="project root; same as --root")
     pi.add_argument("--root", default=".")
-    pi.add_argument("--stack", default="angular")
+    pi.add_argument("--stack", default=None)
 
     pt = sub.add_parser("task", help="run a task")
     _add_task_args(pt, target_required=True)
@@ -916,7 +917,7 @@ def main(argv=None):
 
     pb = sub.add_parser("bench", help="compare with vs without (real numbers)")
     pb.add_argument("--root", default=".")
-    pb.add_argument("--stack", default="angular")
+    pb.add_argument("--stack", default=None, help="stack slug (auto-detected if omitted)")
     pb.add_argument("--cases", default="bench/cases.json")
 
     pc = sub.add_parser("cache", help="inspect or clear completion cache")

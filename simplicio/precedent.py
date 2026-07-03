@@ -5,6 +5,7 @@ precedent.py — finds PRECEDENT using the cache (only embeds new blocks).
 import glob
 import os
 import re
+from pathlib import Path
 import numpy as np
 from .cache import EmbeddingCache
 from .mapper import rank_precedents
@@ -45,11 +46,23 @@ PATTERNS = {
         r"\[HasPolicy",
         r"RequireClaim",
     ],
+    "python": [
+        r"^def ",
+        r"^class ",
+        r"^import ",
+        r"^from ",
+        r"@\w+\.\w+\.",
+        r"->\s*\w+",
+        r"async\s+def",
+        r"if\s+__name__",
+        r"\.pyi?$",
+    ],
 }
 EXT = {
     "angular": (".html", ".ts"),
     "react": (".tsx", ".jsx", ".ts"),
     "dotnet": (".cs", ".cshtml", ".razor"),
+    "python": (".py", ".pyi", ".pyx"),
 }
 SKIP = (
     "node_modules",
@@ -59,7 +72,59 @@ SKIP = (
     "/obj/",
     "/.angular/",
     "/.simplicio/",
+    "__pycache__",
+    ".venv",
+    "/venv/",
+    "site-packages",
 )
+
+
+def auto_detect_stack(root: str = ".", explicit_stack: str = None) -> str:
+    """Auto-detect project stack from project files, falling back to explicit stack or python.
+
+    Detection order:
+    1. If explicit stack given, resolve it via _resolve_stack_key
+    2. If pyproject.toml exists → "python"
+    3. If requirements.txt exists → "python"
+    4. If setup.py exists → "python"
+    5. If package.json exists (no pyproject.toml) → "react" (JS/TS default)
+    6. Fallback → "python" (safe for stdlib Python repos)
+    """
+    if explicit_stack and explicit_stack != "auto":
+        resolved = _resolve_stack_key(explicit_stack)
+        if resolved:
+            return resolved
+        return explicit_stack  # pass through custom stack name
+
+    root_path = Path(root).resolve() if root != "." else Path.cwd()
+
+    # Python markers
+    if (root_path / "pyproject.toml").exists():
+        return "python"
+    if (root_path / "requirements.txt").exists():
+        return "python"
+    if (root_path / "setup.py").exists():
+        return "python"
+    if (root_path / "setup.cfg").exists():
+        return "python"
+
+    # JS/TS markers
+    if (root_path / "package.json").exists():
+        # Check for Angular marker
+        if (root_path / "angular.json").exists():
+            return "angular"
+        return "react"
+
+    # DotNet markers
+    if list(root_path.glob("*.sln")) or list(root_path.glob("*.csproj")):
+        return "dotnet"
+
+    # Fallback: scan for .py files
+    py_files = list(root_path.rglob("*.py"))
+    if py_files:
+        return "python"
+
+    return "python"  # safe fallback
 
 
 def _resolve_stack_key(stack):
@@ -79,6 +144,15 @@ def _resolve_stack_key(stack):
         or "blazor" in compact
     ):
         return "dotnet"
+    if (
+        "python" in compact
+        or "py" == compact
+        or "django" in compact
+        or "fastapi" in compact
+        or "flask" in compact
+        or "pytest" in compact
+    ):
+        return "python"
     return None
 
 

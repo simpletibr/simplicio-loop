@@ -377,9 +377,18 @@ def _detect_stack_from_files(reg: StackRegistry, root: str = ".") -> str | None:
         if reg.get("csharp-blazor"):
             return "csharp-blazor"
 
+    # JS/TS markers
     if (root_path / "angular.json").exists():
+        if reg.get("ts-angular"):
+            return "ts-angular"
+        # fallback to generic ts if angular stack isn't registered
+        return None
+    if (root_path / "package.json").exists():
+        if reg.get("ts-nextjs"):
+            return "ts-nextjs"
         if reg.get("react-vite"):
             return "react-vite"
+        return None
 
     pyproject = root_path / "pyproject.toml"
     requirements = root_path / "requirements.txt"
@@ -420,6 +429,14 @@ def _detect_stack_from_files(reg: StackRegistry, root: str = ".") -> str | None:
                 return "py-cli"
         except Exception:
             pass
+
+    # Fallback: scan for .py files
+    try:
+        py_files = list(root_path.rglob("*.py"))
+        if py_files and reg.get("py-cli"):
+            return "py-cli"
+    except Exception:
+        pass
 
     return None
 
