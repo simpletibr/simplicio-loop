@@ -455,7 +455,7 @@ def test_executor_scaffolds_tree_in_stub_mode() -> None:
             report = execute_plan(plan, stack, Path(td), skip_install=True)
             assert report.project_dir.exists()
             assert report.project_dir.name == "condo-mgmt"
-            assert len(report.files_written) > 0
+            assert report.files_written
             assert (report.project_dir / ".simplicio" / "plan.json").is_file()
             assert (report.project_dir / "pyproject.toml").is_file()
             # tasks in stub mode are recorded but not passed

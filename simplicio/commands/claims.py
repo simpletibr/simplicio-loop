@@ -58,7 +58,7 @@ def _rule_1_ground(statement: str) -> dict:
     return {
         "rule_id": 1,
         "slug": "ground_impact_before_severity",
-        "pass": len(issues) == 0,
+        "pass": not issues,
         "issues": issues,
     }
 
@@ -96,7 +96,7 @@ def _rule_2_tuples(statement: str) -> dict:
     return {
         "rule_id": 2,
         "slug": "no_flat_tuples",
-        "pass": len(issues) == 0,
+        "pass": not issues,
         "issues": issues,
     }
 
@@ -135,7 +135,7 @@ def _rule_3_mirrors(statement: str) -> dict:
     return {
         "rule_id": 3,
         "slug": "mirrors_not_authority",
-        "pass": len(issues) == 0,
+        "pass": not issues,
         "issues": issues,
     }
 
@@ -175,7 +175,7 @@ def _rule_4_cylinders(statement: str) -> dict:
     return {
         "rule_id": 4,
         "slug": "cylinders_not_levels",
-        "pass": len(issues) == 0,
+        "pass": not issues,
         "issues": issues,
     }
 
@@ -233,7 +233,7 @@ def _rule_5_gate(statement: str) -> dict:
     return {
         "rule_id": 5,
         "slug": "owning_gate_not_transcript",
-        "pass": len(issues) == 0,
+        "pass": not issues,
         "issues": issues,
     }
 
@@ -285,7 +285,7 @@ def _rule_6_missing(statement: str) -> dict:
     return {
         "rule_id": 6,
         "slug": "missing_not_clean_zero",
-        "pass": len(issues) == 0,
+        "pass": not issues,
         "issues": issues,
     }
 
@@ -334,7 +334,7 @@ def _rule_7_lane(statement: str) -> dict:
     return {
         "rule_id": 7,
         "slug": "real_lane_not_windows",
-        "pass": len(issues) == 0,
+        "pass": not issues,
         "issues": issues,
     }
 
@@ -400,7 +400,7 @@ def _rule_8_source(statement: str) -> dict:
     return {
         "rule_id": 8,
         "slug": "source_not_live",
-        "pass": len(issues) == 0,
+        "pass": not issues,
         "issues": issues,
     }
 
