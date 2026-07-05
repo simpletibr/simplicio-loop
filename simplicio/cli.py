@@ -632,8 +632,7 @@ def _run_status_command(a: argparse.Namespace) -> int:
             cost_suffix = f" cost={spent}/{budget}"
     print(
         f"{state}: {payload.get('sprint', 'sprint')} "
-        f"{completed}/{total} features"
-        f"{cost_suffix}"
+        f"{completed}/{total} features{cost_suffix}"
     )
     for failed in payload.get("failed_features", []):
         print(f"failed: {failed}", file=sys.stderr)
