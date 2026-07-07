@@ -1,0 +1,141 @@
+# Publish to PyPI — publishes the Python package automatically when master is updated.
+# Idempotent: compares the local version with the published one and only publishes on a diff.
+# Mirrors simplicio-mapper's publish-pypi.yml, adjusted for this repo's default branch (master).
+#
+# Requirements:
+#   - Secret `PYPI_API_TOKEN` configured in the repository (PyPI API token).
+#   - `contents: write` permission (to create the release tag).
+
+name: Publish to PyPI
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: publish-pypi-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish Python package
+    runs-on: ubuntu-latest
+    if: github.repository == 'wesleysimplicio/simplicio-dev-cli'
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+
+      - name: Read package metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          PKG_NAME=$(python -c "import tomllib; print(tomllib.loads(open('pyproject.toml','rb').read().decode())['project']['name'])")
+          LOCAL_VERSION=$(python -c "import tomllib; print(tomllib.loads(open('pyproject.toml','rb').read().decode())['project']['version'])")
+          PUBLISHED_VERSION=$(curl -fsSL "https://pypi.org/pypi/${PKG_NAME}/json" 2>/dev/null | jq -r '.info.version' || echo "none")
+          if [ -z "$PUBLISHED_VERSION" ] || [ "$PUBLISHED_VERSION" = "null" ]; then
+            PUBLISHED_VERSION="none"
+          fi
+          echo "name=$PKG_NAME" >> "$GITHUB_OUTPUT"
+          echo "local=$LOCAL_VERSION" >> "$GITHUB_OUTPUT"
+          echo "published=$PUBLISHED_VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$LOCAL_VERSION" != "$PUBLISHED_VERSION" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Package: $PKG_NAME"
+          echo "Local version: $LOCAL_VERSION"
+          echo "Published version: $PUBLISHED_VERSION"
+
+      - name: Skip notice (version unchanged)
+        if: steps.meta.outputs.should_publish != 'true'
+        run: |
+          echo "::notice::Version ${{ steps.meta.outputs.local }} already published on PyPI. Skipping."
+
+      - name: Configure Git identity (for fixture commits)
+        if: steps.meta.outputs.should_publish == 'true'
+        run: |
+          git config --global user.email "ci@simplicio.dev"
+          git config --global user.name "Simplicio CI"
+          git config --global commit.gpgsign false
+
+      - name: Install package and pytest
+        if: steps.meta.outputs.should_publish == 'true'
+        run: |
+          python -m pip install -e .
+          python -m pip install pytest
+
+      - name: Run pytest before publishing
+        if: steps.meta.outputs.should_publish == 'true'
+        run: python -m pytest tests/python -q
+
+      - name: Build distributions
+        if: steps.meta.outputs.should_publish == 'true'
+        run: python -m build
+
+      - name: Check distributions
+        if: steps.meta.outputs.should_publish == 'true'
+        run: python -m twine check dist/*
+
+      - name: Verify PyPI token presence
+        if: steps.meta.outputs.should_publish == 'true'
+        env:
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          if [ -z "${TWINE_PASSWORD:-}" ]; then
+            echo "::error::Secret PYPI_API_TOKEN is empty or missing in this repository."
+            exit 1
+          fi
+          echo "Token length: ${#TWINE_PASSWORD}"
+
+      - name: Publish to PyPI
+        if: steps.meta.outputs.should_publish == 'true'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: python -m twine upload --non-interactive dist/*
+
+      - name: Tag release
+        if: steps.meta.outputs.should_publish == 'true'
+        run: |
+          set -euo pipefail
+          TAG="v${{ steps.meta.outputs.local }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, skipping."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Publish to PyPI"
+            echo ""
+            echo "- Package: \`${{ steps.meta.outputs.name }}\`"
+            echo "- Local version: \`${{ steps.meta.outputs.local }}\`"
+            echo "- Published version: \`${{ steps.meta.outputs.published }}\`"
+            echo "- Action: \`${{ steps.meta.outputs.should_publish == 'true' && 'PUBLISHED' || 'SKIPPED (version unchanged)' }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
