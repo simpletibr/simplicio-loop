@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.9.6] — 2026-07-07
+
+### Changed
+- Bump minimum `simplicio-mapper` dependency to `>=0.17.0`.
+- Regenerate `uv.lock` to match declared dependencies.
+
 ## [0.9.5] — 2026-07-07
 
 ### Fixed
