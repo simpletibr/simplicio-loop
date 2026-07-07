@@ -27,3 +27,11 @@ models/.cache/
 # Local GGUF weights (Path 4 in-process llama backend)
 *.gguf
 /models/
+
+# Stray backup/temp files that shouldn't be committed (issue #104): a
+# README.backup-2026-05-27.md sat at repo root before being noticed. Catch
+# this pattern before it recurs.
+*.backup
+*.backup-*
+*.bak
+*~
