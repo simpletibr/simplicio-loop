@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+### Added
+- **Native `simplicio edit` delegation for mechanical-edit plans.**
+  `mechanical_edit.execute_plan()` now attempts the compiled `simplicio` Rust
+  binary before running its own pure-Python implementation: the parsed plan
+  is written to a temp file and passed via `simplicio edit --plan <file>
+  --repo <root> --json` (plus `--dry-run` when not applying), and a clean
+  JSON result matching `simplicio.mechanical-edit-result/v1` is translated
+  into this module's own return shape. Fail-open like every other
+  native/Python pair in this package: binary missing, the
+  `SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT` kill-switch (same one the existing
+  `simplicio-dev-cli edit` alias honors), a non-zero or unparseable response,
+  a timeout, or a schema mismatch all fall through unchanged to the existing
+  Python patcher — never raises, never breaks a caller. Note: the currently
+  installed `simplicio` binary's `edit` command answers with a different,
+  incompatible contract (`schema: simplicio.edit-result/v1`), so today this
+  safely no-ops in practice until the native and Python plan/result schemas
+  converge; the delegation path itself is exercised and asserted by
+  `tests/python/test_mechanical_edit.py`.
+
+## [0.9.3] — 2026-07-07
+
 ### Changed
 - Bumped the `simplicio-mapper` dependency floor to `>=0.16.0` (was
   `>=0.15.0`), the latest published release on PyPI.

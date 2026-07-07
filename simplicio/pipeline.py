@@ -275,6 +275,14 @@ def build_retry_feedback(attempt, validation=None, test_log=""):
 
 
 def _git_apply_patch(root, patch):
+    # No native-first `simplicio` delegation here (unlike mechanical_edit.py's
+    # execute_plan). Confirmed against the installed `simplicio` binary's own
+    # --help: `simplicio edit` only accepts a JSON operations plan
+    # (`--plan <file|->` or a literal JSON positional argument) — there is no
+    # --diff/--patch flag to feed it a raw unified diff. Delegation to the
+    # native binary happens at the mechanical_edit.py layer instead; this
+    # git-apply path (which applies an LLM-generated unified diff, not a
+    # mechanical-edit plan) stays local-only.
     attempts = [
         ([], "git apply"),
         (["--recount"], "git apply --recount"),

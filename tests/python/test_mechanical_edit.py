@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 import sys
+from pathlib import Path
 
 from simplicio.mechanical_edit import execute_plan, execute_plan_json
 
@@ -377,3 +379,249 @@ def test_cli_edit_alias_delegates_to_runtime_when_available(tmp_path, monkeypatc
             "text": True,
         }
     ]
+
+
+# ---------------------------------------------------------------------------
+# Native-first delegation inside execute_plan (mechanical_edit.py's own
+# native-binary attempt, distinct from the commands/edit.py alias tested
+# above). See simplicio/mechanical_edit.py's _try_native_edit/
+# _translate_native_result/_native_edit_binary.
+# ---------------------------------------------------------------------------
+
+
+def test_execute_plan_uses_python_fallback_when_native_binary_absent(tmp_path, monkeypatch):
+    from simplicio import mechanical_edit
+
+    monkeypatch.setattr(mechanical_edit.shutil, "which", lambda name: None)
+    _write(tmp_path / "app.py", "old\nkeep\n")
+    operation = {
+        "op": "replace_range",
+        "path": "app.py",
+        "start_line": 1,
+        "end_line": 1,
+        "text": "new\n",
+    }
+
+    result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
+
+    assert result["schema"] == "simplicio.mechanical-edit-result/v1"
+    assert result["status"] == "ok"
+    assert result["applied"] is True
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\nkeep\n"
+
+
+def test_execute_plan_disabled_by_kill_switch_env_var(tmp_path, monkeypatch):
+    from simplicio import mechanical_edit
+
+    monkeypatch.setenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT", "1")
+    monkeypatch.setattr(mechanical_edit.shutil, "which", lambda name: "/bin/simplicio")
+
+    def fail_if_called(cmd, **kwargs):
+        raise AssertionError("subprocess.run must not run when the kill-switch is set")
+
+    monkeypatch.setattr(mechanical_edit.subprocess, "run", fail_if_called)
+    _write(tmp_path / "app.py", "old\n")
+    operation = {"op": "replace_range", "path": "app.py", "start_line": 1, "end_line": 1, "text": "new\n"}
+
+    result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
+
+    assert result["status"] == "ok"
+    assert result["applied"] is True
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
+
+
+def test_execute_plan_delegates_and_translates_native_result_when_binary_present(tmp_path, monkeypatch):
+    from simplicio import mechanical_edit
+
+    _write(tmp_path / "app.py", "old\nkeep\n")
+    operation = {
+        "op": "replace_range",
+        "path": "app.py",
+        "start_line": 1,
+        "end_line": 1,
+        "text": "new\n",
+    }
+    plan = _plan("app.py", operation)
+
+    # Sentinel values a real Python execution of this plan could never
+    # produce, so a match proves the native JSON was trusted verbatim (after
+    # shape validation) rather than the Python path having run anyway.
+    fake_payload = {
+        "schema": "simplicio.mechanical-edit-result/v1",
+        "root": "/native/reported/root/must/be/ignored",
+        "status": "ok",
+        "applied": True,
+        "noop": False,
+        "planned_diff": "FAKE_NATIVE_DIFF",
+        "files": [{"path": "app.py", "before_sha256": "fake-before", "after_sha256": "fake-after"}],
+        "operation_count": 42,
+        "errors": [],
+        "validation": [],
+    }
+    calls = []
+
+    class FakeCompleted:
+        returncode = 0
+        stdout = json.dumps(fake_payload)
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        plan_path = Path(cmd[cmd.index("--plan") + 1])
+        assert json.loads(plan_path.read_text(encoding="utf-8")) == plan
+        return FakeCompleted()
+
+    monkeypatch.setattr(
+        mechanical_edit.shutil, "which", lambda name: "/bin/simplicio" if name == "simplicio" else None
+    )
+    monkeypatch.setattr(mechanical_edit.subprocess, "run", fake_run)
+
+    result = execute_plan(plan, root=tmp_path, apply=False)
+
+    assert len(calls) == 1
+    cmd = calls[0]
+    assert cmd[0] == "/bin/simplicio"
+    assert cmd[1] == "edit"
+    assert "--repo" in cmd
+    assert cmd[cmd.index("--repo") + 1] == str(tmp_path)
+    assert "--json" in cmd
+    assert "--dry-run" in cmd
+
+    # the temp plan file is cleaned up after the call
+    plan_path = Path(cmd[cmd.index("--plan") + 1])
+    assert not plan_path.exists()
+
+    assert result["schema"] == "simplicio.mechanical-edit-result/v1"
+    assert result["root"] == str(tmp_path)  # ours, never the native payload's
+    assert result["status"] == "ok"
+    assert result["applied"] is True
+    assert result["noop"] is False
+    assert result["planned_diff"] == "FAKE_NATIVE_DIFF"
+    assert result["files"] == fake_payload["files"]
+    assert result["operation_count"] == 42
+    assert result["errors"] == []
+    assert result["validation"] == []
+
+    # the Python fallback path never ran
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "old\nkeep\n"
+
+
+def test_execute_plan_apply_true_omits_dry_run_flag_on_native_call(tmp_path, monkeypatch):
+    from simplicio import mechanical_edit
+
+    _write(tmp_path / "app.py", "old\n")
+    operation = {"op": "replace_range", "path": "app.py", "start_line": 1, "end_line": 1, "text": "new\n"}
+    plan = _plan("app.py", operation)
+    calls = []
+
+    class FakeCompleted:
+        returncode = 0
+        stdout = json.dumps(
+            {
+                "schema": "simplicio.mechanical-edit-result/v1",
+                "status": "ok",
+                "applied": True,
+                "noop": False,
+                "planned_diff": "",
+                "files": [],
+                "operation_count": 1,
+                "errors": [],
+                "validation": [],
+            }
+        )
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return FakeCompleted()
+
+    monkeypatch.setattr(mechanical_edit.shutil, "which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(mechanical_edit.subprocess, "run", fake_run)
+
+    execute_plan(plan, root=tmp_path, apply=True)
+
+    assert "--dry-run" not in calls[0]
+
+
+def test_execute_plan_falls_back_on_subprocess_oserror(tmp_path, monkeypatch):
+    from simplicio import mechanical_edit
+
+    _write(tmp_path / "app.py", "old\n")
+    operation = {"op": "replace_range", "path": "app.py", "start_line": 1, "end_line": 1, "text": "new\n"}
+
+    def fake_run(cmd, **kwargs):
+        raise OSError("simplicio binary vanished mid-call")
+
+    monkeypatch.setattr(mechanical_edit.shutil, "which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(mechanical_edit.subprocess, "run", fake_run)
+
+    result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
+
+    assert result["status"] == "ok"
+    assert result["applied"] is True
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
+
+
+def test_execute_plan_falls_back_on_subprocess_timeout(tmp_path, monkeypatch):
+    from simplicio import mechanical_edit
+
+    _write(tmp_path / "app.py", "old\n")
+    operation = {"op": "replace_range", "path": "app.py", "start_line": 1, "end_line": 1, "text": "new\n"}
+
+    def fake_run(cmd, **kwargs):
+        raise subprocess.TimeoutExpired(cmd=cmd, timeout=30)
+
+    monkeypatch.setattr(mechanical_edit.shutil, "which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(mechanical_edit.subprocess, "run", fake_run)
+
+    result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
+
+    assert result["status"] == "ok"
+    assert result["applied"] is True
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
+
+
+def test_execute_plan_falls_back_on_unparseable_json(tmp_path, monkeypatch):
+    from simplicio import mechanical_edit
+
+    _write(tmp_path / "app.py", "old\n")
+    operation = {"op": "replace_range", "path": "app.py", "start_line": 1, "end_line": 1, "text": "new\n"}
+
+    class FakeCompleted:
+        returncode = 1
+        stdout = "not json at all"
+
+    monkeypatch.setattr(mechanical_edit.shutil, "which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(mechanical_edit.subprocess, "run", lambda cmd, **kwargs: FakeCompleted())
+
+    result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
+
+    assert result["status"] == "ok"
+    assert result["applied"] is True
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
+
+
+def test_execute_plan_falls_back_when_native_schema_does_not_match(tmp_path, monkeypatch):
+    """Regression guard for the real-world mismatch: the installed simplicio
+    binary's ``edit`` command currently answers with
+    ``schema: simplicio.edit-result/v1`` (a different plan/result contract),
+    not this module's ``simplicio.mechanical-edit-result/v1``. Any
+    schema/shape mismatch must fall through to the Python implementation
+    rather than being trusted partially.
+    """
+    from simplicio import mechanical_edit
+
+    _write(tmp_path / "app.py", "old\n")
+    operation = {"op": "replace_range", "path": "app.py", "start_line": 1, "end_line": 1, "text": "new\n"}
+
+    class FakeCompleted:
+        returncode = 0
+        stdout = json.dumps({"schema": "simplicio.edit-result/v1", "status": "ok", "file": "app.py"})
+
+    monkeypatch.setattr(mechanical_edit.shutil, "which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(mechanical_edit.subprocess, "run", lambda cmd, **kwargs: FakeCompleted())
+
+    result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
+
+    assert result["schema"] == "simplicio.mechanical-edit-result/v1"
+    assert result["status"] == "ok"
+    assert result["applied"] is True
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"

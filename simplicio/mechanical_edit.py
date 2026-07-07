@@ -5,7 +5,10 @@ from __future__ import annotations
 import difflib
 import io
 import json
+import os
+import shutil
 import subprocess
+import tempfile
 import tokenize
 from copy import deepcopy
 from pathlib import Path
@@ -61,6 +64,11 @@ def execute_plan(
     apply: bool = False,
 ) -> dict[str, Any]:
     root_path = Path(root)
+
+    native_result = _try_native_edit(plan, root_path, apply=apply)
+    if native_result is not None:
+        return native_result
+
     errors = _validate_shape(plan)
     operations = plan.get("operations") if isinstance(plan.get("operations"), list) else []
     touched_files = _declared_touched_files(plan, operations)
@@ -131,6 +139,131 @@ class MechanicalEditError(ValueError):
 
     def to_dict(self) -> dict[str, Any]:
         return {"code": self.code, "message": self.message, **self.extra}
+
+
+# Timeout for delegating a plan to the native ``simplicio`` Rust binary.
+# Matches the precedent in commands/file_read.py's RUNTIME_DELEGATION_TIMEOUT_S
+# — generous enough for a real edit, short enough to never hang the caller
+# when the binary exists but misbehaves.
+_NATIVE_EDIT_TIMEOUT_S = 30.0
+
+
+def _native_edit_binary() -> str | None:
+    """Locate the native ``simplicio`` binary, honoring the dev-cli kill-switch.
+
+    Mirrors ``simplicio.commands.edit._runtime_edit_binary`` without importing
+    that module: ``commands/edit.py`` imports this module lazily (inside
+    ``run_mechanical_edit``), so a module-level import back here would invert
+    that dependency.
+    """
+    if os.environ.get("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT"):
+        return None
+    return shutil.which("simplicio")
+
+
+def _try_native_edit(
+    plan: dict[str, Any],
+    root_path: Path,
+    *,
+    apply: bool,
+) -> dict[str, Any] | None:
+    """Attempt to delegate *plan* to the native ``simplicio edit`` binary.
+
+    Returns the translated result dict on a clean, schema-matching success.
+    Returns ``None`` on ANY failure — binary missing, subprocess error,
+    timeout, non-JSON stdout, or a JSON payload that doesn't match
+    ``RESULT_SCHEMA`` — so the caller falls through to the pure-Python
+    implementation below. Never raises.
+    """
+    binary = _native_edit_binary()
+    if binary is None:
+        return None
+
+    try:
+        plan_text = json.dumps(plan)
+    except (TypeError, ValueError):
+        return None
+
+    tmp_path: str | None = None
+    try:
+        try:
+            fd, tmp_path = tempfile.mkstemp(prefix="simplicio-edit-plan-", suffix=".json")
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(plan_text)
+        except OSError:
+            return None
+
+        cmd = [binary, "edit", "--plan", tmp_path, "--repo", str(root_path), "--json"]
+        if not apply:
+            cmd.append("--dry-run")
+        try:
+            completed = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=_NATIVE_EDIT_TIMEOUT_S,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+
+        try:
+            payload = json.loads(completed.stdout)
+        except (json.JSONDecodeError, ValueError):
+            return None
+
+        return _translate_native_result(payload, root_path)
+    finally:
+        if tmp_path is not None:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
+
+def _translate_native_result(payload: Any, root_path: Path) -> dict[str, Any] | None:
+    """Validate *payload* against ``RESULT_SCHEMA`` and rebuild it in this
+    module's own result shape (same keys ``execute_plan`` always returns).
+
+    Returns ``None`` on any shape mismatch — a missing/renamed field is
+    treated the same as "the binary can't help here" rather than trusted
+    partially.
+    """
+    if not isinstance(payload, dict) or payload.get("schema") != RESULT_SCHEMA:
+        return None
+    status = payload.get("status")
+    applied = payload.get("applied")
+    noop = payload.get("noop")
+    planned_diff = payload.get("planned_diff")
+    files = payload.get("files")
+    operation_count = payload.get("operation_count")
+    errors = payload.get("errors")
+    validation = payload.get("validation")
+    if (
+        status not in ("ok", "refused")
+        or not isinstance(applied, bool)
+        or not isinstance(noop, bool)
+        or not isinstance(planned_diff, str)
+        or not isinstance(files, list)
+        or not isinstance(operation_count, int)
+        or not isinstance(errors, list)
+        or not isinstance(validation, list)
+    ):
+        return None
+
+    result = _base_result(root_path)
+    result.update(
+        {
+            "status": status,
+            "applied": applied,
+            "noop": noop,
+            "planned_diff": planned_diff,
+            "files": files,
+            "operation_count": operation_count,
+            "errors": errors,
+            "validation": validation,
+        }
+    )
+    return result
 
 
 def _validate_shape(plan: dict[str, Any]) -> list[dict[str, Any]]:
