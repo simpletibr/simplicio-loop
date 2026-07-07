@@ -3,8 +3,8 @@
 ## [Unreleased]
 
 ### Changed
-- Bumped the `simplicio-mapper` dependency floor to `>=0.15.0` (was
-  `>=0.14.0`), the latest published release on PyPI.
+- Bumped the `simplicio-mapper` dependency floor to `>=0.16.0` (was
+  `>=0.15.0`), the latest published release on PyPI.
 
 ### Fixed
 - **`numpy>=2.5.0` was an unsatisfiable dependency floor.** No `numpy` release
