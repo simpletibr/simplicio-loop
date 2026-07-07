@@ -452,8 +452,8 @@ OPTIONS
                               (also honored via env LLM_PROJECT_MAPPER_NO_UPDATE_CHECK=1)
   --telemetry <on|off>        Opt in/out of anonymous install telemetry.
                               Default is OFF. Also honored via env
-                              LLM_PROJECT_MAPPER_TELEMETRY=on|off. See PRIVACY.md
-                              for what gets sent.
+                              LLM_PROJECT_MAPPER_TELEMETRY=on|off. See
+                              docs/PRIVACY.md for what gets sent.
   --silent                    Minimal output
   -v, --version               Print version
   -h, --help                  Show this help

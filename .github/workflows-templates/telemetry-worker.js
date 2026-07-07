@@ -13,7 +13,7 @@
  *
  * NOT shipped as an active worker in this repo — adopters bring their own
  * Cloudflare account and configure LLM_PROJECT_MAPPER_TELEMETRY_URL on dev
- * machines to point here. See PRIVACY.md for the data contract.
+ * machines to point here. See docs/PRIVACY.md for the data contract.
  */
 
 const ALLOWED_FIELDS = new Set([

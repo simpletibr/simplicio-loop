@@ -599,7 +599,7 @@ git add -A; git commit -m "chore: remove starter bootstrap files"
 
 - **SkillOpt optimizer** — `npx @wesleysimplicio/llm-project-mapper skillopt --suite <suite.json>` (or `node bin/skillopt.js`) optimizes a `SKILL.md`/prompt with the [SkillOpt](https://microsoft.github.io/SkillOpt/) loop (Rollout → Reflect → Edit → Gate). The skill document is the only trainable artifact; edits are accepted only when they improve a held-out task split. Outputs `best_skill.md` plus an optional report and receipt. See [.skills/skillopt/SKILL.md](.skills/skillopt/SKILL.md).
 - **VS Code extension** — `vscode-extension/` ships a sidebar TreeView for `.specs/sprints/`, plus commands to open the current task, create ADRs, and run the `INIT.md` handoff. See [vscode-extension/README.md](vscode-extension/README.md). Will be published to the Marketplace as `wesleysimplicio.llm-project-mapper-vscode`.
-- **Telemetry (opt-in)** — `bin/cli.js` accepts `--telemetry on|off`. Default is off. See [PRIVACY.md](PRIVACY.md) for the exact payload and how to deploy your own [`telemetry-worker.js`](.github/workflows-templates/telemetry-worker.js).
+- **Telemetry (opt-in)** — `bin/cli.js` accepts `--telemetry on|off`. Default is off. See [docs/PRIVACY.md](docs/PRIVACY.md) for the exact payload and how to deploy your own [`telemetry-worker.js`](.github/workflows-templates/telemetry-worker.js).
 
 ---
 

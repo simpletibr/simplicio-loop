@@ -4,6 +4,18 @@
 
 ### Changed
 
+- Root `.md` consolidation follow-up (issue #161, ADR-007 addendum):
+  `PRIVACY.md` and `SHOWCASE.md` moved to `docs/PRIVACY.md`/`docs/SHOWCASE.md`.
+  Updated the 2 markdown links (`README.md`, `README.pt-BR.md`), the CLI
+  help text (`bin/cli.js`), and the template comment
+  (`.github/workflows-templates/telemetry-worker.js`); dropped the now-
+  redundant standalone `package.json` `files` entries (`docs/` already
+  ships them). Everything else evaluated in ADR-007 stays at root for the
+  same documented reasons (standing cross-repo convention, `TEMPLATE_PATHS`
+  membership or direct sibling of a `TEMPLATE_PATHS` file, or heavy
+  cross-linking) — see the ADR-007 addendum for the file-by-file
+  reasoning.
+
 - `simplicio_mapper/mapper.py` (~1830 lines) split into the
   `simplicio_mapper/mapper/` package — `parse.py` (discovery/read: filesystem
   walk, text/import/symbol regex parsing, per-file role/importance tagging,
