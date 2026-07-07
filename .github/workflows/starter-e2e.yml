@@ -1,0 +1,135 @@
+# Starter-kit E2E harness validation — Playwright lint/unit/e2e for the
+# Node harness shipped inside this repo (tests/e2e/, playwright.config.ts,
+# package.json "simplicio-cli-e2e"). This validates the *template harness*
+# consumers copy, not the simplicio-cli Python package itself.
+#
+# Deliberately isolated (#98): this workflow is NOT the primary gate for the
+# repo. The Python package gate lives in ci.yml (job `python`). Keep this
+# file's jobs out of required-status-checks for `master` so a starter-kit
+# harness issue never blocks shipping the actual product.
+
+name: Starter Kit E2E Harness (non-gating)
+
+on:
+  push:
+    branches:
+      - master
+      - main
+      - develop
+  pull_request:
+    branches:
+      - master
+      - main
+      - develop
+
+concurrency:
+  group: starter-e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_ENV: test
+  CI: true
+
+jobs:
+  lint:
+    name: Lint (starter harness)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+        continue-on-error: true
+
+  unit:
+    name: Unit tests (node ${{ matrix.node-version }}, starter harness)
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests with coverage
+        run: npm test -- --coverage
+        continue-on-error: true
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-node-${{ matrix.node-version }}
+          path: coverage/
+          if-no-files-found: warn
+          retention-days: 14
+
+  e2e:
+    name: E2E Playwright (node ${{ matrix.node-version }}, starter harness)
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20, 22]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright tests
+        run: npx playwright test
+        continue-on-error: true
+
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-node-${{ matrix.node-version }}
+          path: playwright-report/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Playwright test results (traces, screenshots, videos)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results-node-${{ matrix.node-version }}
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 14

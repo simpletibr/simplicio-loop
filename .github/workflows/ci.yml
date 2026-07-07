@@ -1,21 +1,28 @@
-# CI pipeline — lint, unit tests com coverage, e E2E Playwright em matriz
-# Roda em push (main/develop) e em todo pull_request
+# CI pipeline for the real product shipped from this repo: the Python
+# package `simplicio-cli` (entrypoints `simplicio-cli` / `simplicio-py` /
+# `simplicio-dev-cli`). The `python` job is the primary required gate.
 #
-# Design note: este arquivo é o TEMPLATE de CI que o starter copia para
-# repositórios consumidores. No próprio repo `wesleysimplicio/llm-project-mapper`
-# todos os jobs aqui são pulados via `if: github.repository != ...` porque o
-# starter não tem código de produção pra rodar lint/unit/e2e em formato
-# consumer. O CI real deste repo vive em `scaffold-self-check.yml`.
+# History note (#98): this file used to be the generic Node/Playwright
+# starter-scaffold template (copied verbatim from the mapper starter) and
+# triggered on main/develop even though this repo's actual default branch is
+# `master`. Fixed both: branch triggers now include the real default branch,
+# and the primary gate now installs+tests the actual Python package instead
+# of a starter-kit npm harness. The Playwright starter-kit harness that ships
+# inside this repo (`tests/e2e/`, `playwright.config.ts`) still gets
+# exercised, but in the isolated `starter-e2e.yml` workflow — it validates the
+# template harness, not this package, and must not gate merges to `master`.
 
 name: CI
 
 on:
   push:
     branches:
+      - master
       - main
       - develop
   pull_request:
     branches:
+      - master
       - main
       - develop
 
@@ -25,109 +32,74 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_ENV: test
   CI: true
+  PIP_DISABLE_PIP_VERSION_CHECK: 1
 
 jobs:
-  lint:
-    name: Lint
+  python:
+    name: Python package (${{ matrix.python-version }})
     runs-on: ubuntu-latest
-    if: github.repository != 'wesleysimplicio/llm-project-mapper'
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run lint
-        run: npm run lint
-
-  unit:
-    name: Unit tests (node ${{ matrix.node-version }})
-    needs: lint
-    runs-on: ubuntu-latest
-    if: github.repository != 'wesleysimplicio/llm-project-mapper'
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [20, 22]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run unit tests with coverage
-        run: npm test -- --coverage
-
-      - name: Upload coverage
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-node-${{ matrix.node-version }}
-          path: coverage/
-          if-no-files-found: warn
-          retention-days: 14
-
-  e2e:
-    name: E2E Playwright (node ${{ matrix.node-version }})
-    needs: unit
-    runs-on: ubuntu-latest
-    if: github.repository != 'wesleysimplicio/llm-project-mapper'
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        node-version: [20, 22]
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v6
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
+          python-version: ${{ matrix.python-version }}
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install simplicio-cli (editable) + pytest
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . pytest
 
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+      - name: Run pytest (tests/python, per pyproject.toml testpaths)
+        run: pytest
 
-      - name: Run Playwright tests
-        run: npx playwright test
+      - name: Smoke-test all 3 CLI entrypoints
+        run: |
+          set -euo pipefail
+          for entry in simplicio-py simplicio-cli simplicio-dev-cli; do
+            echo "::group::$entry --help"
+            "$entry" --help
+            echo "::endgroup::"
+          done
 
-      - name: Upload Playwright HTML report
+  packaging:
+    name: Packaging smoke (sdist + wheel + twine check)
+    needs: python
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install build + twine
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Build sdist + wheel
+        run: python -m build
+
+      - name: Validate distributions with twine check
+        run: python -m twine check dist/*
+
+      - name: Upload built distributions
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report-node-${{ matrix.node-version }}
-          path: playwright-report/
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Upload Playwright test results (traces, screenshots, videos)
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-results-node-${{ matrix.node-version }}
-          path: test-results/
+          name: dist
+          path: dist/
           if-no-files-found: warn
           retention-days: 14

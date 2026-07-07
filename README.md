@@ -436,6 +436,24 @@ pip install simplicio-cli           # from PyPI (pulls simplicio-mapper + simpli
 pip install -e .                    # from this repo
 ```
 
+#### Local-equivalent of the CI gate
+
+`.github/workflows/ci.yml` is the primary required gate (the Node/Playwright
+harness in `starter-e2e.yml` validates the starter-kit template only and does
+not gate merges). Reproduce it locally with:
+
+```bash
+pip install -e . pytest
+pytest                               # tests/python, per pyproject.toml testpaths
+simplicio-py --help                  # entrypoint smoke (x3)
+simplicio-cli --help
+simplicio-dev-cli --help
+
+pip install build twine
+python -m build                      # sdist + wheel
+python -m twine check dist/*         # packaging smoke
+```
+
 The install ships **three Simplicio packages** that play distinct roles:
 
 - **`simplicio-cli`** (this repo) — the 6-layer task contract + verify loop.
