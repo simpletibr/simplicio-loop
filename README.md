@@ -91,7 +91,12 @@ delivery status"]
 
 ## Documentation standard
 
-- [docs/PYTHON_PACKAGE_INTERDEPENDENCE.md](docs/PYTHON_PACKAGE_INTERDEPENDENCE.md)
+- [docs/PYTHON_PACKAGE_INTERDEPENDENCE.md](docs/PYTHON_PACKAGE_INTERDEPENDENCE.md) —
+  **generated, not hand-edited** (#101). Regenerate after touching
+  `pyproject.toml`'s version/dependencies/extras:
+  `python3 scripts/gen_package_interdependence.py`. CI enforces it hasn't
+  drifted (`python3 scripts/gen_package_interdependence.py --check`, also
+  covered by `tests/python/test_generated_docs.py`).
 - [docs/LLM_USAGE_POLICY.md](docs/LLM_USAGE_POLICY.md)
 - [docs/readme-globalization-standard.md](docs/readme-globalization-standard.md)
 
@@ -464,6 +469,7 @@ not gate merges). Reproduce it locally with:
 ```bash
 pip install -e ".[test]"             # base install + pytest (+ tomli on 3.10)
 pytest                               # tests/python + tests/contracts, per pyproject.toml testpaths
+python3 scripts/gen_package_interdependence.py --check  # generated-doc drift gate (#101)
 simplicio-py --help                  # entrypoint smoke (x3)
 simplicio-cli --help
 simplicio-dev-cli --help

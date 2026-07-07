@@ -61,6 +61,9 @@ jobs:
       - name: Run pytest (tests/python + tests/contracts, per pyproject.toml testpaths)
         run: pytest
 
+      - name: Check generated docs haven't drifted from pyproject.toml (#101)
+        run: python3 scripts/gen_package_interdependence.py --check
+
       - name: Smoke-test all 3 CLI entrypoints
         run: |
           set -euo pipefail
