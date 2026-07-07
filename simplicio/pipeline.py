@@ -19,7 +19,7 @@ from typing import Any
 
 from .adaptive import get_validation_mode
 from .mapper import map_ask
-from .observability import estimate_tokens, info, log_run
+from .observability import emit_event, estimate_tokens, info, log_run
 from .orchestrator.cost_governor import _price as _estimate_price
 from .pipeline_fixers import try_static_fixers
 from .prompt import build_prompt
@@ -378,6 +378,11 @@ def run_task(
         warnings = [] if validation.ok else [validation.reason]
         return _task_result(target, prompt, output, applied=False, warnings=warnings)
 
+    # Issue #107: structured "task_start" event — the dev-cli side of the
+    # unified evidence flow a host loop's journal (e.g. simplicio-loop's
+    # loop_journal.py) can consume. See observability.emit_event's contract.
+    emit_event("task_start", {"target": target, "stack": stack, "goal": goal}, root=root)
+
     feedback = None
     last_output = ""
     last_validation = None
@@ -399,6 +404,7 @@ def run_task(
         last_validation = validate_generated_output(output, bound_paths)
         ok, log = _apply_and_test(output, root, bound_paths)
         last_log = log
+        attempt_tokens = estimate_tokens(prompt) + estimate_tokens(output)
         log_run(
             root,
             {
@@ -406,10 +412,15 @@ def run_task(
                 "attempt": t,
                 "ok": ok,
                 "failure_class": "none" if ok else classify_failure(log).kind,
-                "tokens_estimated": estimate_tokens(prompt) + estimate_tokens(output),
+                "tokens_estimated": attempt_tokens,
                 "target": target,
                 "stack": stack,
             },
+        )
+        emit_event(
+            "token_usage",
+            {"target": target, "attempt": t, "tokens_estimated": attempt_tokens},
+            root=root,
         )
         if ok:
             # Issue #93: run impact tests after the primary test passes
@@ -436,6 +447,12 @@ def run_task(
                 # Impact tests passed or nothing to verify → done
                 if not quiet:
                     info("PASSED the contract (impact verified). DONE.")
+                emit_event(
+                    "task_complete",
+                    {"target": target, "attempt": t, "impact": "verified"},
+                    root=root,
+                    tokens_saved=0,
+                )
                 return _task_result(
                     target,
                     prompt,
@@ -447,6 +464,12 @@ def run_task(
                 # IMPACT_RESULT_UNVERIFIED — mapper unavailable or error
                 if not quiet:
                     info("PASSED the contract (impact unverifiable). DONE.")
+                emit_event(
+                    "task_complete",
+                    {"target": target, "attempt": t, "impact": "unverifiable"},
+                    root=root,
+                    tokens_saved=0,
+                )
                 return _task_result(
                     target,
                     prompt,
@@ -502,6 +525,12 @@ def run_task(
                             else " (impact unverifiable)"
                         )
                         info(f"PASSED after static fixer {fixer_result.fixer}.{suffix} DONE.")
+                    emit_event(
+                        "task_complete",
+                        {"target": target, "attempt": t, "fixer": fixer_result.fixer},
+                        root=root,
+                        tokens_saved=0,
+                    )
                     return _task_result(
                         target,
                         prompt,
@@ -519,6 +548,12 @@ def run_task(
         warnings.append(last_validation.reason)
     elif last_log:
         warnings.append(last_log[:500])
+    emit_event(
+        "validation_fail",
+        {"target": target, "attempts": MAX_ATTEMPTS, "warnings": warnings[:1]},
+        level="warning",
+        root=root,
+    )
     return _task_result(
         target,
         prompt,

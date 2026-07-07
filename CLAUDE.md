@@ -199,6 +199,17 @@ Padrões completos em `.specs/architecture/PATTERNS.md`. Resumo:
 
 ---
 
+## Observability / unified evidence flow (issues #106, #107)
+
+`simplicio/observability.py` é a camada central de output/logging + eventos estruturados deste pacote:
+
+- **stdout vs stderr (#106)**: `emit_data()` escreve o payload máquina-consumível (o resultado pretendido) em stdout; `info()`/`warn()`/`error()` escrevem status/diagnóstico humano em stderr via um `logging.Logger("simplicio")`, configurável por `configure_logging(quiet=, verbose=)` e `SIMPLICIO_LOG_LEVEL` (`--quiet`/`-q`/`--verbose`/`-v` antes do subcomando em `simplicio-py` fazem essa configuração — ver `_extract_global_verbosity` em `cli.py`). `simplicio/mcp_server.py` roda sobre stdio: qualquer coisa que não seja um frame JSON-RPC no stdout dele corrompe o transporte, então código adjacente ao MCP usa `info`/`warn`/`error`, nunca `print()`. CLI *handlers* (`cli.py`, `commands/*.py`, `doctor.py`, etc.) são a exceção documentada — stdout ali É o resultado do subcomando.
+- **Eventos estruturados / evidência unificada (#107)**: `emit_event(event_type, payload, level=, root=, tokens_saved=)` emite uma linha humana em stderr **e**, quando `root` é passado, um registro JSON em `<root>/.simplicio/events.jsonl` (schema `simplicio.dev-cli-event/v1`, documentado no docstring de `emit_event`). Este é o **contrato** que um loop host (ex.: `loop_journal.py` do simplicio-loop) pode ler — dev-cli não importa nem depende do código do loop, só se compromete com esse formato. Produtores já ligados: `pipeline.run_task` (`task_start`/`task_complete`/`validation_fail`/`token_usage`), `mapper.py` (`evidence_captured` nos três blocos TOON), `mcp_server.py` (`edit_applied`/`handoff`/`validation_fail` em cada `tools/call`).
+- `simplicio-py doctor` (humano e `--json`) mostra um resumo desses eventos (`events_summary()`, flags `--root`/--events-limit`) — não é preciso inspecionar `.simplicio/events.jsonl` a mão para ver se a emissão está funcionando.
+- Regra de regressão: ruff `T20` (flake8-print) está no `select` do lint — um `print()` reintroduzido em código de biblioteca/MCP-adjacente quebra o CI; a exceção fica em `[tool.ruff.lint.per-file-ignores]`, restrita aos CLI handlers documentados.
+
+---
+
 ## Onde encontrar contexto
 
 | Pergunta | Onde olha |

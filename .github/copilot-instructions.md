@@ -119,6 +119,12 @@ Decisões irreversíveis viram **ADR** em `.specs/architecture/ADR-XXX-*.md` (te
 
 ---
 
+## Observability / unified evidence flow (issues #106, #107)
+
+`simplicio/observability.py`: `emit_data()` -> stdout (resultado pretendido), `info`/`warn`/`error` -> stderr (status humano, respeitando `--quiet`/`--verbose`/`SIMPLICIO_LOG_LEVEL`). `mcp_server.py` roda sobre stdio — nunca `print()` lá nem em código que ele chama. `emit_event(event_type, payload, root=)` produz o evento estruturado (`simplicio.dev-cli-event/v1`) que um loop host consome via `<root>/.simplicio/events.jsonl`; já ligado em `pipeline.py`, `mapper.py`, `mcp_server.py`. `simplicio-py doctor` mostra um resumo desses eventos. Ruff `T20` bloqueia `print()` novo fora dos CLI handlers documentados.
+
+---
+
 ## Onde encontrar contexto
 
 | Pergunta | Onde olha |

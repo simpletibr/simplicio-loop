@@ -27,6 +27,8 @@ import sys
 from collections.abc import Callable
 from typing import Any
 
+from .observability import emit_event
+
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_NAME = "simplicio-dev-cli"
 
@@ -207,13 +209,28 @@ def _handle_tool_call(msg_id: Any, params: dict[str, Any]) -> dict[str, Any]:
     if spec is None:
         return _rpc_error(msg_id, -32602, f"unknown tool: {name!r}")
     handler: Callable[[dict[str, Any]], dict[str, Any]] = spec["handler"]
+    # Issue #107: structured event for the unified evidence flow. Routes
+    # through observability.emit_event, which is stderr/JSONL-only by
+    # design (see #106) — never stdout, so this cannot corrupt the MCP
+    # frame stream. `root` is only passed through when the tool call
+    # itself carried one (dev_cli_edit/dev_cli_memory), so a stray call
+    # against a root-less tool still gets its stderr line without trying
+    # to write a bogus `.simplicio/events.jsonl` path.
+    event_root = args.get("root") or args.get("dir")
     try:
         payload = handler(args)
+        emit_event("edit_applied" if name == "dev_cli_edit" else "handoff", {"tool": name}, root=event_root)
         return _rpc_result(
             msg_id,
             {"content": [{"type": "text", "text": json.dumps(payload)}], "isError": False},
         )
     except Exception as exc:  # tool-level failure -> isError result, not a transport error
+        emit_event(
+            "validation_fail",
+            {"tool": name, "error": str(exc)},
+            level="warning",
+            root=event_root,
+        )
         return _rpc_result(
             msg_id,
             {"content": [{"type": "text", "text": str(exc)}], "isError": True},

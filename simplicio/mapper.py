@@ -14,7 +14,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from .observability import estimate_tokens, record_savings_event
+from .observability import emit_event, estimate_tokens, record_savings_event
 from .toon_codec import to_toon
 from .utils.serialization import loads
 
@@ -414,6 +414,11 @@ def _render_handoff_context(pack: dict[str, Any], base: Path, target: str) -> st
             actual_tokens=estimate_tokens(toon_text),
             note="mapper handoff files[] block",
         )
+        emit_event(
+            "evidence_captured",
+            {"block": "handoff_files", "encoding": "toon"},
+            root=str(base),
+        )
         lines.append(toon_text)
     else:
         lines.append(_render_handoff_files_legacy(files))
@@ -494,6 +499,11 @@ def build_mapper_context(root: str | os.PathLike[str], target: str, *, goal: str
                 actual_tokens=estimate_tokens(toon_text),
                 note="mapper project-map relevant-files block",
             )
+            emit_event(
+                "evidence_captured",
+                {"block": "relevant_files", "encoding": "toon"},
+                root=str(base),
+            )
             lines.append(toon_text)
         else:
             lines.append(legacy_text)
@@ -518,6 +528,11 @@ def build_mapper_context(root: str | os.PathLike[str], target: str, *, goal: str
                 baseline_tokens=estimate_tokens(legacy_prec),
                 actual_tokens=estimate_tokens(toon_prec),
                 note="mapper precedent-candidates block",
+            )
+            emit_event(
+                "evidence_captured",
+                {"block": "precedent_candidates", "encoding": "toon"},
+                root=str(base),
             )
             lines.append(toon_prec)
         else:

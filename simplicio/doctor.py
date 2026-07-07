@@ -20,6 +20,7 @@ from .local_models import (
     ensure_recommended,
     model_file_path,
 )
+from .observability import events_summary
 
 
 def _ecosystem_freshness(refresh: bool = False, upgrade: bool = False):
@@ -107,6 +108,21 @@ def _render_human(result, profile) -> None:
         )
 
 
+def _render_events(summary: dict) -> None:
+    """Issue #107: surface the structured event stream (`emit_event`) that
+    feeds a host loop's journal, so `doctor` is a place to see it's wired up
+    without hand-inspecting `.simplicio/events.jsonl`."""
+    print()
+    print("observability events (issue #107 unified evidence flow):")
+    if not summary["exists"]:
+        print(f"  no events recorded yet ({summary['path']})")
+        return
+    print(f"  path          {summary['path']}")
+    print(f"  count         {summary['count']}")
+    for record in summary["recent"]:
+        print(f"  - [{record.get('ts', '?')}] {record.get('event', '?')}: {record.get('payload', {})}")
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="simplicio-py doctor")
     p.add_argument(
@@ -118,6 +134,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--refresh", action="store_true", help="bypass the 24h PyPI cache and force a live lookup")
     p.add_argument(
         "--upgrade", action="store_true", help="pip install -U every tracked package that is behind"
+    )
+    p.add_argument(
+        "--root",
+        default=".",
+        help="repo root to read .simplicio/events.jsonl from (issue #107)",
+    )
+    p.add_argument(
+        "--events-limit",
+        type=int,
+        default=5,
+        help="how many recent observability events to show (default 5)",
     )
     args = p.parse_args(argv)
 
@@ -159,6 +186,8 @@ def main(argv: list[str] | None = None) -> int:
             upgrade=args.upgrade,
         )
 
+    events = events_summary(args.root, limit=args.events_limit)
+
     if args.json:
         payload = result.to_dict()
         if check_updates:
@@ -167,10 +196,12 @@ def main(argv: list[str] | None = None) -> int:
                 "upgraded": eco_upgraded,
                 "updates_available": [s.name for s in eco_statuses if s.needs_upgrade],
             }
+        payload["observability_events"] = events
         print(json.dumps(payload, indent=2))
         return 0
 
     _render_human(result, profile)
     if check_updates:
         _render_ecosystem(eco_statuses, eco_upgraded)
+    _render_events(events)
     return 0
