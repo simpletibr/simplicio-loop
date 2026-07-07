@@ -46,6 +46,28 @@ simplicio-mapper docs . --json
 simplicio-mapper endpoints ./web --against ./api --json
 ```
 
+## Install matrix — I want X, so I install Y
+
+This repo ships two distinct things under one name, on two package
+registries. Pick by what you actually want (formalized in
+[ADR-006](.specs/architecture/ADR-006-package-identity-channels.md), issue
+#160):
+
+| I want... | Install | Notes |
+|---|---|---|
+| **The mapper engine** (`map`/`index`/`ask`/`drift`/... commands, `.simplicio/*.json` artifacts) | `pip install -U simplicio-mapper` | **Canonical/live channel.** New mapper features land here first. |
+| **The starter scaffolder** (bootstrap `AGENTS.md`, `.skills/`, `.specs/`, etc. into a new/existing project) | `npx @wesleysimplicio/llm-project-mapper` | Node-only, no PyPI equivalent — this is the only way to run the scaffolder. Not deprecated, actively maintained. |
+| **Both, from a Node-only host** (no Python installed) | `npx @wesleysimplicio/llm-project-mapper` | `map`/`update` fall back to a Node reimplementation of the engine when Python isn't found (see [ADR-005](.specs/architecture/ADR-005-node-thin-shim.md), issue #158) — kept only as a Python-less fallback, not where new engine features land first. |
+| **Both, from a host with Python installed** | either — `npx @wesleysimplicio/llm-project-mapper map` shims straight to the Python engine automatically | Same underlying implementation runs either way once Python is on PATH. |
+
+The npm package name (`@wesleysimplicio/llm-project-mapper`) intentionally
+keeps its original name rather than renaming to match `simplicio-mapper` —
+see ADR-006 for why (short version: renaming would break every existing
+`npx @wesleysimplicio/llm-project-mapper` invocation in the wild for a
+cosmetic gain). It is **not** a deprecated package; only its bundled copy of
+the mapper *engine* (not the scaffolder) is a fallback rather than the
+canonical implementation.
+
 ## What it does
 
 - Generates versioned .simplicio artifacts agents can read before planning.
@@ -110,7 +132,7 @@ The section below restores the project-specific README material that existed bef
 > 🇺🇸 English. Leia em português: [README.pt-BR.md](README.pt-BR.md).
 > Live docs site: [wesleysimplicio.github.io/simplicio-mapper](https://wesleysimplicio.github.io/simplicio-mapper/)
 >
-> The npm package name `@wesleysimplicio/llm-project-mapper` is intentionally retained for historical npm consumers; new releases ship as `simplicio-mapper` on PyPI only (see #87).
+> The npm package name `@wesleysimplicio/llm-project-mapper` is intentionally retained for historical npm consumers (see #87, formalized in [ADR-006](.specs/architecture/ADR-006-package-identity-channels.md) / issue #160). It is **not** a deprecated package — it remains the only way to run the starter scaffolder. Only its bundled copy of the *mapper engine* (`map`/`update`) is a fallback for Python-less hosts; new mapper engine features land on PyPI's `simplicio-mapper` first (see the "Install matrix" section above).
 
 AI-friendly, stack-neutral repository scaffold. Drop it into **any** project — new or existing — and any agent CLI (Claude Code, Codex, Cursor, GitHub Copilot, Aider with Deepseek/Kimi/MiniMax/GLM, Hermes, OpenClaw) gets the context it needs to ship work the same day.
 

@@ -1013,3 +1013,66 @@ in for a host — this repo's own GitHub-issue-specific backlog, ADRs, and
 this very spec never leak into a stranger's project. `known_gaps` tracks
 `product_paths` files not yet filled in for simplicio-mapper itself
 (`drift`'s `placeholder` check surfaces the same gaps independently).
+
+### Ecosystem contract harness (issue #164)
+
+`contracts/mapper-artifacts/v1/` (issue #157, above) only covers artifacts
+`simplicio-mapper` itself produces. `contracts/ecosystem/v1/` extends the
+same versioned-schema/fixture/validator pattern to two payloads that
+originate in the *other* Simplicio repos and flow through the ecosystem:
+the `simplicio-loop` run-journal/task-anchor execution record
+(`simplicio.loop-execution/v1`) and the `simplicio-dev-cli` 6-layer
+execute/deterministic_edit contract record (`simplicio.executor-contract/v1`).
+
+Important honesty note, spelled out in full in
+`contracts/ecosystem/v1/README.md`: those two schemas are **hand-written
+local copies**, not a live import of `simplicio-loop`'s/`simplicio-dev-cli`'s
+real schema modules — this repo has no cross-repo git access to those
+projects at contract-authoring time. Keeping them in sync across repos is a
+documented convention (source-of-truth repo updates its copy + this repo's
+copy in the same change, bump `v1` -> `v2` on a breaking change), not
+something CI enforces across repositories today.
+
+Validate everything (mapper-artifacts/v1 + ecosystem/v1 fixtures) in one
+shot:
+
+```bash
+simplicio-mapper doctor --contracts
+# or, dependency-free / no simplicio_mapper import (the file simplicio-loop
+# and simplicio-dev-cli should vendor into their own repos):
+python3 scripts/validate_ecosystem_contracts.py
+```
+
+**How `simplicio-dev-cli` and `simplicio-loop` should consume this:** vendor
+(copy) `scripts/validate_ecosystem_contracts.py` — it is intentionally
+self-contained stdlib-only, no `simplicio_mapper` import — plus whichever
+`contracts/ecosystem/v1/schemas/*.schema.json` describes payloads that repo
+produces, and run the vendored script with `--schema-root <path>` against
+that repo's own fixtures/real output. See
+`contracts/ecosystem/v1/README.md` for the full layout and sync convention.
+
+### Node-as-thin-shim over the Python CLI (issue #158, ADR-005)
+
+`simplicio_mapper/mapper.py` is the canonical implementation;
+`bin/mapper-artifacts.js` used to be a full, independently-maintained JS
+reimplementation of the same parsing/graph/emit logic, kept in sync only by
+`tests/python/test_parity.py` (issue #98) — real drift happened between the
+two in the past. `bin/cli.js`'s `map`/`update` dispatch now **prefers
+shimming straight to the canonical Python CLI**
+(`python3 -m simplicio_mapper.cli map|update <same argv>`) whenever a
+Python 3 with an importable `simplicio_mapper` is found on `PATH` — the two
+CLIs already accept the identical flag set for these two subcommands, so
+argv passes through unchanged, no translation layer needed.
+
+`bin/map.js` + `bin/mapper-artifacts.js` remain in the tree as the
+**fallback for Python-less hosts** (the npm package still declares no
+Python dependency) — this is an explicitly transitional state, not the end
+state; see `.specs/architecture/ADR-005-node-thin-shim.md` for the full
+scope, what is *not* covered yet (`bin/auto-map.js`, every other `bin/cli.js`
+subcommand), and the alternative considered (making Python a hard
+requirement) and why it was deferred. Force the Node fallback for
+debugging/testing with `SIMPLICIO_MAPPER_NO_SHIM=1`.
+`tests/python/test_parity.py`'s `NodeThinShimTest` proves both paths: the
+shim firing by default in an environment with Python installed, and the
+Node fallback working correctly (and actionably) both when explicitly
+forced and when Python is genuinely absent from `PATH`.

@@ -28,7 +28,6 @@
     "READMEs/",
     "INSTALL.md",
     "INSTALL.en.md",
-    "assets/",
     "docs/",
     "scripts/",
     ".agents/",
@@ -74,13 +73,13 @@
     "url": "https://github.com/wesleysimplicio"
   },
   "license": "MIT",
-  "homepage": "https://github.com/wesleysimplicio/llm-project-mapper#readme",
+  "homepage": "https://github.com/wesleysimplicio/simplicio-mapper#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wesleysimplicio/llm-project-mapper.git"
+    "url": "git+https://github.com/wesleysimplicio/simplicio-mapper.git"
   },
   "bugs": {
-    "url": "https://github.com/wesleysimplicio/llm-project-mapper/issues"
+    "url": "https://github.com/wesleysimplicio/simplicio-mapper/issues"
   },
   "publishConfig": {
     "access": "public"

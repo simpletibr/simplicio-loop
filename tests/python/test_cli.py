@@ -23,11 +23,18 @@ sys.path.insert(0, str(ROOT))
 from simplicio_mapper import __version__  # noqa: E402
 from simplicio_mapper.cache import FileProcessingCache  # noqa: E402
 from simplicio_mapper.cli import (  # noqa: E402
-    _normalize_endpoint_path,
     build_service_flowchart,
     main,
     render_service_flowchart_markdown,
 )
+
+# _normalize_endpoint_path is an internal helper that moved into cli/_endpoints.py
+# as part of the issue #159 god-file split (cli.py -> cli/ package); it was
+# never part of the package's public re-exported surface (main/
+# build_service_flowchart/render_service_flowchart_markdown are), so this test
+# reaches into the submodule directly rather than growing __init__.py's
+# re-export list for a white-box unit test.
+from simplicio_mapper.cli._endpoints import _normalize_endpoint_path  # noqa: E402
 from simplicio_mapper.mapper import (  # noqa: E402
     ARCHITECTURE_INVENTORY_SCHEMA,
     ARTIFACT_SCHEMA,

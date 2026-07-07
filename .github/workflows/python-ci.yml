@@ -68,6 +68,9 @@ jobs:
       - name: mapper-artifacts contract check (issue #157)
         run: python scripts/regen_contract_fixtures.py check
 
+      - name: ecosystem contract check (issue #164)
+        run: python -m simplicio_mapper.cli doctor --contracts
+
   rust-tests:
     name: cargo test (PyO3 crate)
     runs-on: ubuntu-latest

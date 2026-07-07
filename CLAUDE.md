@@ -1,6 +1,10 @@
 # CLAUDE.md
 
-> Este arquivo espelha [AGENTS.md](./AGENTS.md). Edite ambos juntos OU mantenha apenas `AGENTS.md` e symlink `CLAUDE.md` -> `AGENTS.md` (`ln -sf AGENTS.md CLAUDE.md`). O Claude Code lê arquivo regular, não símbolo.
+> Este arquivo espelha [AGENTS.md](./AGENTS.md) e é **gerado**, não editado
+> a mão -- veja `scripts/check-doc-sync.js` (issue #163). Edite
+> `AGENTS.md`, depois rode `node scripts/check-doc-sync.js sync`. Não é
+> um symlink: o próprio Claude Code lê arquivo regular, não símbolo, nesta
+> configuração.
 >
 > Canonical pattern spec: [YOOL_TUPLE_HAMT.md](YOOL_TUPLE_HAMT.md)
 >
@@ -9,6 +13,10 @@
 ---
 
 # AGENTS.md
+
+> Canonical pattern spec: [YOOL_TUPLE_HAMT.md](YOOL_TUPLE_HAMT.md)
+>
+> Receipt schema reference: [YOOL_TUPLE_HAMT.md §1.8.4](YOOL_TUPLE_HAMT.md#184-receipt-schema-reference)
 
 ## Operational Context
 
@@ -24,7 +32,9 @@ Before changing code, agents should check the project-specific operational docs:
 | Common failures and fixes | `docs/troubleshooting.md` |
 | Reusable local commands | `scripts/README.md` |
 
-Key placeholders to replace in real projects:
+Project identity (this repo is the canonical scaffold itself, so no host
+placeholders — fill these row-by-row when copying the file into a host
+project):
 
 | Slot | Value here |
 |---|---|
@@ -48,7 +58,7 @@ Agent checklist:
 
 > Master instruction file lido por **Claude Code**, **Codex CLI**, **GitHub Copilot**, **Hermes Agent** (Nous Research), **OpenClaw**, **Cursor**, **Aider** e qualquer outro agent que respeite o padrão `AGENTS.md`. É o contrato entre humano e IA neste repositório.
 >
-> Mudou algo aqui? Reflete em `CLAUDE.md` e `.github/copilot-instructions.md` (mantém os três alinhados ou usa symlink).
+> Mudou algo aqui? **Este arquivo é a única fonte editada à mão** (issue #163). `CLAUDE.md` é **gerado** a partir dele — depois de editar, rode `node scripts/check-doc-sync.js sync` (CI roda `check` e falha se esquecer). `.github/copilot-instructions.md` não é mais um hand-copy: é um stub curto que aponta pra cá para tudo que não é específico de Copilot Agent Mode — só precisa de edição manual se a mudança afetar algo genuinamente específico do Copilot.
 
 Este arquivo dá ao agent **tudo que ele precisa saber pra entregar uma task** sem perguntar: stack, comandos, fluxo de trabalho, padrões, proibições, skills disponíveis e atalhos. Lê ele inteiro antes de escrever a primeira linha de código.
 
@@ -104,10 +114,10 @@ node --test tests/unit                       # Node unit
 npm test                                     # cross alias (chama node --test)
 
 # E2E
-npx playwright install                       # instala browsers (1a vez)
+npx playwright install                       # instala browsers (1ª vez)
 npx playwright test                          # roda suite E2E
 npx playwright test --ui                     # modo interativo
-npx playwright show-report                   # abre relatorio ultimo run
+npx playwright show-report                   # abre relatório último run
 
 # Rust opt-in
 (cd rust && maturin develop --release)       # builda extensão nativa no venv
@@ -118,8 +128,6 @@ git checkout -b feat/<task-id>-<slug>
 gh pr create --fill                          # usa template de PR
 gh run watch                                 # acompanha CI do branch atual
 ```
-
-Adapta os comandos pra stack real (`pnpm`, `yarn`, `bun`, `dotnet`, `python`, `go`).
 
 ## Shell token-smart (RTK CLI, opcional)
 
@@ -176,10 +184,43 @@ Toda task técnica passa por esses passos. Não pula etapa.
 4. **Editar** — aplica edits cirúrgicos. Só toca o que a task pede. Sem refactor extra, sem renomeação, sem comentário a mais.
 5. **Lint** — `npm run lint`. Vermelho = corrige antes de seguir.
 6. **Unit** — `npm test`. Vermelho = corrige antes de seguir. Coverage do diff >= 80%.
-7. **E2E (OBRIGATÓRIO em TODA task)** — `npx playwright test --reporter=list,html`. Captura **trace + screenshot + video** (todos, não "ou"). Sem evidência salva em `playwright-report/` + `test-results/` = task não fechada. Vermelho = corrige.
+7. **E2E (condicional ao risco/superfície da mudança — issue #162)** — obrigatório **apenas quando a task toca um fluxo end-to-end observável**: CLI ponta-a-ponta sobre uma fixture (`simplicio-mapper index|map|contract ...` rodado de verdade contra um projeto real), o bootstrap/scaffold (`bin/cli.js` instalando o starter num host), o docs-site, ou qualquer superfície com UI navegável. Quando aplicável: `npx playwright test --reporter=list,html`, captura **trace + screenshot + video**. **Quando a task só mexe em parser/serialização/emissão interna, docs, ou refactor sem mudança de comportamento observável, `unit + lint` bastam** — não force Playwright onde não há navegador nem fluxo pra gravar. Ver critério completo logo abaixo desta lista.
 8. **Fix loop** — se qualquer etapa falhou: volta ao passo 4. Repete até verde.
 9. **Commit** — Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`). Mensagem em **inglês**. Body explica *why*, não *what*.
-10. **PR** — `gh pr create`. Preenche template inteiro: link da task, evidências (screenshots Playwright), checklist DoD marcado.
+10. **PR** — `gh pr create`. Preenche template inteiro: link da task, evidências (Playwright quando aplicável, ou snapshot de output/artefato — ver critério abaixo), checklist DoD marcado.
+
+### Critério de "E2E obrigatório" vs "unit+lint bastam" (issue #162)
+
+Este projeto é majoritariamente uma **CLI/lib** (não uma aplicação web com UI
+navegável), então "E2E em TODA task, sem exceção" nunca fez sentido literal
+aqui — a regra antiga virou dogma descolado da superfície real do projeto.
+Critério explícito, substitui o "obrigatório sempre" anterior:
+
+- **E2E (Playwright) obrigatório quando:** a mudança altera um fluxo
+  end-to-end observável — comportamento do `bin/cli.js` scaffolder
+  instalando num host, o docs-site (`docs-site/`), ou qualquer tela/rota
+  navegável que este repo venha a ganhar. Nestes casos, a evidência
+  continua sendo `playwright-report/index.html` + `test-results/<spec>/trace.zip`
+  + screenshot + video.
+- **Unit + lint bastam quando:** a mudança é em parsing/AST/regex
+  (`simplicio_mapper/mapper.py`, `bin/mapper-artifacts.js`), serialização
+  de artefatos JSON, um script standalone (`scripts/*.py`, `scripts/*.js`),
+  documentação, ADRs, ou um refactor interno que não muda comportamento
+  observável de nenhum comando. Não existe "fluxo de UI" pra gravar nesses
+  casos — exigir um vídeo Playwright deles é teatro de compliance, não
+  evidência real.
+- **"Evidência" para uma task CLI/lib (não-browser)** — issue #162
+  redefine o termo: em vez de "só existe evidência = vídeo Playwright",
+  conta como evidência válida **qualquer captura de execução real**:
+  stdout do comando real capturado num arquivo/trecho do PR
+  (`simplicio-mapper index <fixture> --json > /tmp/out.json`, colado no
+  PR), o artefato `.simplicio/*.json`/`contracts/*/fixtures/*` gerado de
+  verdade, ou o output de `python3 -m unittest`/`node --test` para o
+  arquivo específico que mudou. O que continua proibido é "não rodei nada,
+  confio que está certo" — alguma evidência de execução real sempre é
+  exigida, só não é sempre um vídeo de navegador.
+- Na dúvida sobre qual lado do critério a task cai, trate como
+  "E2E obrigatório" (mais seguro) e documente a decisão no PR.
 
 ---
 
@@ -189,7 +230,7 @@ PR só faz merge quando **todos** os itens abaixo estão marcados:
 
 - [ ] Unit tests passam (`npm test` verde)
 - [ ] Lint passa (`npm run lint` verde)
-- [ ] E2E Playwright passa com **evidência anexada em TODA task** — `playwright-report/index.html` + `test-results/<spec>/trace.zip` + screenshots por cenário + video (when retry). Hard rule: sem evidência, sem merge.
+- [ ] **Evidência de execução real, proporcional ao risco/superfície** (critério completo na seção "Workflow loop" acima, issue #162): quando a task toca um fluxo end-to-end observável (scaffolder, docs-site, UI navegável) — E2E Playwright com `playwright-report/index.html` + `test-results/<spec>/trace.zip` + screenshot + video; caso contrário (parser/serialização/script/refactor interno/docs) — snapshot do output/artefato real (stdout capturado, `.simplicio/*.json` gerado, resultado do `unittest`/`node --test` específico). Hard rule: sem NENHUM tipo de evidência de execução real, sem merge — mas não é sempre vídeo de navegador.
 - [ ] Coverage do diff >= 80%
 - [ ] Acceptance Criteria da task: todos os checkboxes marcados
 - [ ] PR template preenchido (link task + descrição + evidências)
@@ -237,7 +278,7 @@ Padrões completos em `.specs/architecture/PATTERNS.md`. Resumo:
 
 Lista negra. Nada aqui é negociável.
 
-- **Pular testes** — sem unit/E2E = sem merge.
+- **Pular validação** — sem unit/lint = sem merge. E2E é obrigatório apenas quando a mudança toca um fluxo end-to-end observável (critério em "Workflow loop", passo 7, issue #162) — pular Playwright numa task que genuinamente não tem fluxo pra gravar não é "pular teste", é seguir o critério; pular quando o critério pede E2E, isso sim é proibido.
 - **Mockar pra fazer passar** — mock só pra isolar dependência externa real (HTTP, DB), nunca pra esconder falha.
 - **Commit com vermelho** — lint/test falhando = não commita. Hook `.claude/hooks/pre-commit.sh` bloqueia.
 - **Ignorar ADR** — decisão registrada em ADR é lei. Reverter/mudar ADR exige novo ADR ("Supersedes ADR-XXX").
@@ -256,11 +297,11 @@ Skills moram em `.skills/<nome>/SKILL.md` e são capacidades reutilizáveis que 
 
 ### Ativadas por padrão no início da sessão
 
-Estas três skills são **ativadas automaticamente no começo de toda sessão** (via `.claude/settings.json` SessionStart hook). A política de uso de cada uma é a seguinte:
+Estas três skills são **ativadas automaticamente em toda sessão** (via `.claude/settings.json` SessionStart hook). Isso define o estado inicial padrão; a obrigatoriedade e a possibilidade de desativação dependem da política de cada skill:
 
-- **`caveman`** — modo terse de resposta. Economiza ~65% tokens de output sem perder substância técnica. Default level: `full`. Boundaries: código, commits, PRs e docs canônicos permanecem em prosa normal. **Ativada por padrão**, mas pode ser desativada quando o contexto pedir resposta em prosa normal, via `stop caveman` / `normal mode`.
+- **`caveman`** — modo terse de resposta. Economiza ~65% tokens de output sem perder substância técnica. Default level: `full`. Boundaries: código, commits, PRs e docs canônicos permanecem em prosa normal. **É ativada por padrão, mas pode ser desativada explicitamente** quando a tarefa exigir resposta em prosa normal, via `stop caveman` / `normal mode`.
 - **`ralph-loop`** — loop autônomo `read → plan → execute → lint → unit → e2e → fix → repeat` até DoD verde. **Obrigatório** em TODA task técnica com AC mensurável. Dual exit gate: indicadores verdes + `EXIT_SIGNAL: true`.
-- **`everything-claude-code`** — bundle de ~60 agents + ~221 skills. Padrão: usar o **máximo de agents ECC em paralelo** a cada alteração (single message, múltiplas Agent calls). Reviewers da stack + `security-reviewer` **obrigatórios** após edits.
+- **`everything-claude-code`** — bundle de ~60 agents + ~221 skills. Padrão (issue #162: **proporcional ao risco**, não mais "sempre o máximo"): edits pequenos/locais (parser, docs, refactor isolado) → 1-2 reviewers focados na área tocada; mudanças arquiteturais, de segurança, release-sensitive, ou que tocam múltiplos módulos → mais agents ECC em paralelo (single message, múltiplas Agent calls) se o risco justificar. Reviewers da stack + `security-reviewer` continuam obrigatórios após edits que tocam superfície de segurança ou de release.
 
 ### Sob demanda
 
@@ -344,7 +385,7 @@ npm run lint && npm test -- --coverage && npx playwright test
 - **Paralelo é o padrão** — research + read + review independentes rodam simultâneos.
 - **Hooks do `.claude/hooks/`** rodam automaticamente: post-edit faz lint/format, pre-commit bloqueia commit vermelho.
 
-<!-- codex-long-running-agent-overlay:start -->
+<!-- yool-tuple-hamt:start -->
 ## yool / tuple / HAMT (capability addressing)
 
 Spec: [`YOOL_TUPLE_HAMT.md`](YOOL_TUPLE_HAMT.md) (vendored from https://github.com/wesleysimplicio/yool-tuple-hamt, version v0.2).
@@ -354,16 +395,22 @@ Every agent registered in this repo MUST declare its capability with the followi
 ```markdown
 ### My Agent
 
-- yool_id: `agent.dev.python`
-- authority: dev | ops | review | audit
-- lane: fast | slow | background
+- yool_id: `agent.dev.python`            # namespace.verb.object, kebab/dot-case
+- authority: dev | ops | review | audit  # who is allowed to dispatch this yool
+- lane: fast | slow | background         # scheduling lane
 - agent_terms:
     cpu_quota_pct: 60       # MANDATORY guardrail (spec §11.1)
     disk_quota_mb: 100      # MANDATORY guardrail (spec §11.2)
     timeout_s: 300
 ```
 
-Guardrails are MANDATORY per Victor Genaro's review: *"precisa de guardrail pra não fritar o processador. Você precisa de garbage collector também pra não encher 100% do disco."* See spec §11.
+Why these fields exist:
+
+- `yool_id` — atomic opcode; key into the HAMT registry; stable across renames of the agent's display name.
+- `authority` — gating: only authorized lanes may `in` a tuple addressed to this yool.
+- `lane` — Linda-style channel partition; lets workers subscribe selectively.
+- `agent_terms.cpu_quota_pct` — soft throttle via `os.nice` or cgroups. Per Victor Genaro's guardrail: *"precisa de guardrail pra não fritar o processador."*
+- `agent_terms.disk_quota_mb` — local disk cap before GC kicks in. Per the same review: *"você precisa de garbage collector também pra não encher 100% do disco."*
 
 ### Receipts schema
 
@@ -394,8 +441,11 @@ Build the HAMT catalog with:
 node bin/build-hamt-catalog --source AGENTS.md --output .catalog/agents.json
 ```
 
----
+Without all four fields, the catalog build skips the entry. CI gate enforces full population for any new agent declaration.
 
+<!-- yool-tuple-hamt:end -->
+
+<!-- codex-long-running-agent-overlay:start -->
 ## Universal Long-Running Agent Overlay
 
 This section complements the repository-specific guidance already in this file. If anything here conflicts with the repo-specific rules above, the repo-specific rules win.

@@ -27,6 +27,11 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper import cli as cli_module  # noqa: E402
+
+# `time` moved into cli/_background.py as part of the issue #159 god-file
+# split (cli.py -> cli/ package) -- __init__.py itself no longer imports the
+# stdlib `time` module directly, so patch it where `_watch` actually calls it.
+from simplicio_mapper.cli import _background as cli_background  # noqa: E402
 from simplicio_mapper.cli import main  # noqa: E402
 
 
@@ -176,7 +181,7 @@ class WatchLoopExitsOnInterruptTest(unittest.TestCase):
 
         # Replace time.sleep so the watch loop hits a single iteration then exits
         # via the documented KeyboardInterrupt branch.
-        with mock.patch.object(cli_module.time, "sleep", side_effect=KeyboardInterrupt):
+        with mock.patch.object(cli_background.time, "sleep", side_effect=KeyboardInterrupt):
             # Should return cleanly without raising — that is the contract.
             with contextlib.redirect_stdout(io.StringIO()):
                 cli_module._watch(opts)

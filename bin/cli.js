@@ -46,6 +46,35 @@ const PACKAGE_ROOT = path.resolve(__dirname, '..');
 const CWD = process.cwd();
 const PKG = require(path.join(PACKAGE_ROOT, 'package.json'));
 
+// Candidate Python 3 executable names to probe for the `map`/`update` shim
+// (issue #158, ADR-005). `python3` first everywhere except Windows, where a
+// bare `python` more commonly resolves to Python 3 (`python3` is often
+// absent there even when Python 3 is installed).
+const PYTHON_SHIM_CANDIDATES = process.platform === 'win32'
+  ? ['python', 'python3']
+  : ['python3', 'python'];
+
+/**
+ * Probe PATH for a Python 3 interpreter that can `import simplicio_mapper`.
+ * Returns the executable name/path to use, or `null` when neither Python
+ * nor an importable `simplicio_mapper` package is available -- callers
+ * must fall back to the Node reimplementation in that case, never fail.
+ */
+function detectPythonShim() {
+  for (const candidate of PYTHON_SHIM_CANDIDATES) {
+    let probe;
+    try {
+      probe = spawnSync(candidate, ['-c', 'import simplicio_mapper'], { stdio: 'ignore' });
+    } catch {
+      continue;
+    }
+    if (!probe.error && probe.status === 0) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
 const TEMPLATE_PATHS = [
   'AGENTS.md',
   'CLAUDE.md',
@@ -285,6 +314,32 @@ if (argv[0] === 'skillopt') {
 }
 
 if (argv[0] === 'map' || argv[0] === 'update') {
+  // Issue #158 (ADR-005, .specs/architecture/ADR-005-node-thin-shim.md):
+  // `map`/`update` prefer shimming straight through to the canonical Python
+  // CLI (`python3 -m simplicio_mapper.cli`) when a Python 3 + an importable
+  // `simplicio_mapper` are both present on PATH -- argv passes through
+  // unchanged since the two CLIs already accept the identical
+  // --root/--stack/--product-name/--out/--incremental/--watch/--silent flag
+  // set for these two subcommands. `map.js`/`mapper-artifacts.js` (the Node
+  // reimplementation of the mapper) is kept only as the fallback for hosts
+  // without Python -- this is a transitional state, not the long-term shape;
+  // see the ADR for what is/isn't shimmed yet and why. Set
+  // `SIMPLICIO_MAPPER_NO_SHIM=1` to force the Node path (debugging/tests).
+  if (!process.env.SIMPLICIO_MAPPER_NO_SHIM) {
+    const pythonBin = detectPythonShim();
+    if (pythonBin) {
+      const child = spawnSync(pythonBin, ['-m', 'simplicio_mapper.cli', ...argv], {
+        cwd: process.cwd(),
+        stdio: 'inherit',
+      });
+      if (!child.error) {
+        process.exit(child.status ?? 1);
+      }
+      // Unexpected spawn error (not "Python missing" -- that already
+      // returned null from detectPythonShim above) -- fall through to the
+      // Node reimplementation rather than fail the whole command.
+    }
+  }
   const wrapper = path.join(__dirname, 'map.js');
   const child = spawnSync(process.execPath, [wrapper, ...argv], {
     cwd: process.cwd(),
