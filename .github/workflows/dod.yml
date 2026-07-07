@@ -1,6 +1,8 @@
 # DoD gate — valida Definition of Done em todo PR antes do merge
-# Verifica: coverage >= 80%, evidência Playwright presente, conventional commit,
-# referência a task no body, ADR linkado se houver mudanças em architecture/
+# Verifica: coverage >= 80%, evidência Playwright presente QUANDO A SUPERFÍCIE
+# TOCADA JUSTIFICA (issue #162 — ver "Detect whether this PR touches an
+# E2E-relevant surface" abaixo), conventional commit, referência a task no
+# body, ADR linkado se houver mudanças em architecture/
 #
 # Design note: este arquivo é o TEMPLATE de DoD gate que o starter copia para
 # repositórios consumidores. O próprio repo `wesleysimplicio/llm-project-mapper`
@@ -8,6 +10,16 @@
 # com `coverage-summary.json`. O DoD do starter é validado por
 # `scaffold-self-check.yml` (structure + CLI smoke + npm pack + shellcheck +
 # PSScriptAnalyzer + unit tests cross-platform).
+#
+# issue #162: o gate Playwright deixou de ser incondicional. Antes disso,
+# QUALQUER PR (mesmo um que só mude um parser interno ou um .md) precisava de
+# `playwright-report/`+`test-results/`, o que virou dogma descolado do risco
+# real da mudança. Agora: o job calcula se o diff toca uma superfície
+# E2E-relevante (globs em E2E_RELEVANT_GLOBS, abaixo — AJUSTE pra stack real
+# do projeto consumidor) e só exige Playwright quando toca. Duas labels de
+# escape hatch: `force-e2e` (exige mesmo se o path-match não bateu) e
+# `skip-e2e` (humano decidiu explicitamente que não se aplica, mesmo tocando
+# um path da lista — fica registrado no log do job, não é silencioso).
 
 name: DoD Gate
 
@@ -63,15 +75,67 @@ jobs:
           echo "Coverage de linhas: ${PCT}%"
           awk -v p="$PCT" 'BEGIN { if (p+0 < 80) { print "::error::Coverage abaixo de 80% (atual: " p "%)"; exit 1 } }'
 
-      # Instala browsers e roda Playwright para gerar evidências
+      # Detecta se este PR toca uma superfície E2E-relevante (issue #162).
+      # AJUSTE E2E_RELEVANT_GLOBS pra stack real do projeto consumidor —
+      # aqui está um default razoável pra apps web (src/UI, rotas, páginas).
+      # Sem nenhum match e sem a label `force-e2e` -> Playwright é pulado
+      # (não bloqueia o merge); o "unit tests with coverage" acima já rodou
+      # e conta como evidência para esse caso (issue #162 redefine
+      # "evidência" para incluir output/coverage real, não só vídeo).
+      - name: Detect whether this PR touches an E2E-relevant surface
+        id: detect_surface
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          E2E_RELEVANT_GLOBS: 'src/,app/,pages/,components/,public/,e2e/,tests/e2e/,playwright.config.,.tsx,.jsx,.vue,.svelte,.html'
+        run: |
+          set -euo pipefail
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" || true)
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          NEEDS_E2E=false
+          IFS=',' read -ra GLOBS <<< "$E2E_RELEVANT_GLOBS"
+          while IFS= read -r file; do
+            [ -z "$file" ] && continue
+            for glob in "${GLOBS[@]}"; do
+              case "$file" in
+                "$glob"*|*"$glob") NEEDS_E2E=true ;;
+              esac
+            done
+          done <<< "$CHANGED"
+
+          if echo ",$LABELS," | grep -q ',force-e2e,'; then
+            echo "Label 'force-e2e' presente — exigindo Playwright independente do path-match."
+            NEEDS_E2E=true
+          fi
+          if echo ",$LABELS," | grep -q ',skip-e2e,'; then
+            echo "::warning::Label 'skip-e2e' presente — humano decidiu explicitamente pular Playwright neste PR (registrado, não silencioso)."
+            NEEDS_E2E=false
+          fi
+
+          echo "needs_e2e=$NEEDS_E2E" >> "$GITHUB_OUTPUT"
+          if [ "$NEEDS_E2E" = "true" ]; then
+            echo "Superfície E2E-relevante detectada (ou forçada) — Playwright é obrigatório neste PR."
+          else
+            echo "Nenhuma superfície E2E-relevante tocada — Playwright pulado (unit+lint+coverage já rodaram acima e contam como evidência, issue #162)."
+          fi
+
+      # Instala browsers e roda Playwright para gerar evidências — só quando
+      # a superfície tocada justifica (ver step acima).
       - name: Install Playwright browsers
+        if: steps.detect_surface.outputs.needs_e2e == 'true'
         run: npx playwright install --with-deps
 
       - name: Run Playwright tests
+        if: steps.detect_surface.outputs.needs_e2e == 'true'
         run: npx playwright test
 
       # Bloqueia se evidência Playwright (junit ou test-results) não existe
+      # -- só quando este PR precisava de Playwright em primeiro lugar.
       - name: Verify Playwright evidence
+        if: steps.detect_surface.outputs.needs_e2e == 'true'
         run: |
           set -euo pipefail
           if [ ! -d test-results ] && [ ! -f test-results/results.xml ] && [ ! -f test-results/results.json ]; then

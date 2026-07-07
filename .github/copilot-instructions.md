@@ -93,7 +93,7 @@ Em Copilot Workspace/Agent Mode, todo plano de execução segue esse loop. Não 
 4. **Implementar (Agent Mode)** — edits cirúrgicos. Só toca o que a task pede. Sem refactor extra.
 5. **Lint** — `npm run lint`. Vermelho = corrige.
 6. **Unit** — `npm test`. Vermelho = corrige. Coverage do diff >= 80%.
-7. **E2E (OBRIGATÓRIO em TODA task)** — `npx playwright test --reporter=list,html`. Captura **trace + screenshot + video** (todos). Sem evidência em `playwright-report/` + `test-results/` = task não fechada.
+7. **E2E (condicional ao risco/superfície — issue #162)** — obrigatório só quando a task toca um fluxo end-to-end observável (scaffolder `bin/cli.js`, docs-site, UI navegável): `npx playwright test --reporter=list,html`, **trace + screenshot + video**. Task em parser/serialização/script/docs/refactor interno sem mudança de comportamento observável → `unit + lint` bastam, evidência = output/artefato real capturado. Ver AGENTS.md "Critério de E2E obrigatório vs unit+lint bastam".
 8. **Fix loop** — falhou? Volta ao 4. Repete até verde.
 9. **Commit** — Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`). Mensagem em **inglês**.
 10. **PR** — `gh pr create --fill`. Preenche template inteiro.
@@ -106,7 +106,7 @@ PR só faz merge quando todos os itens abaixo estão marcados:
 
 - [ ] Unit tests passam
 - [ ] Lint passa
-- [ ] E2E Playwright passa **com evidência anexada em TODA task** — `playwright-report/index.html` + `test-results/<spec>/trace.zip` + screenshots por cenário + video. Hard rule: sem evidência, sem merge.
+- [ ] **Evidência de execução real, proporcional ao risco** (issue #162): E2E Playwright (`playwright-report/index.html` + `test-results/<spec>/trace.zip` + screenshot + video) quando a task toca um fluxo end-to-end observável; caso contrário, snapshot do output/artefato real (stdout capturado, `.simplicio/*.json`, resultado do unit test específico). Hard rule: sem nenhum tipo de evidência, sem merge.
 - [ ] Coverage do diff >= 80%
 - [ ] Acceptance Criteria todos marcados
 - [ ] PR template preenchido (link task + descrição + evidências)
@@ -147,7 +147,7 @@ Decisões irreversíveis viram **ADR** em `.specs/architecture/ADR-XXX-*.md` (te
 
 ## Proibido
 
-- **Pular testes** — sem unit/E2E = sem merge.
+- **Pular validação** — sem unit/lint = sem merge. E2E é obrigatório só quando a mudança toca um fluxo end-to-end observável (ver AGENTS.md, issue #162) — fora disso, pular Playwright é seguir o critério, não "pular teste".
 - **Mockar pra fazer passar** — mock só pra dep externa real (HTTP, DB), nunca pra esconder falha.
 - **Commit com vermelho** — lint/test falhando = não commita.
 - **Ignorar ADR** — decisão registrada é lei.
