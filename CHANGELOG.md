@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-07-07
+
 ### Added
 
 - `scripts/dogfood.py` — self-dogfooding (issue #165): runs the real,
