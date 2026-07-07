@@ -11,6 +11,7 @@ import numpy as np
 
 from .cache import EmbeddingCache
 from .mapper import rank_precedents
+from .observability import info
 
 _emb = None
 
@@ -203,7 +204,7 @@ def index_repo(root, stack, verbose=True):
         cache.save()
         embedded = len(missing)
     if verbose:
-        print(
+        info(
             f"[index] candidates={len(cands)} newly_embedded={embedded} "
             f"cache_total={cache.stats()['cached_blocks']}"
         )

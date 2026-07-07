@@ -869,8 +869,41 @@ def _run_run_command(a: argparse.Namespace) -> int:
     return 2
 
 
+def _extract_global_verbosity(argv: list[str]) -> tuple[bool, bool, list[str]]:
+    """Consume a leading ``--quiet``/``-q``/``--verbose``/``-v`` before the subcommand.
+
+    Only flags appearing *before* the first positional token (the subcommand
+    name) are treated as global verbosity controls for
+    :func:`simplicio.observability.configure_logging` (issue #106). Any
+    subcommand-local ``--quiet``/``--verbose`` (e.g. ``detect --quiet``,
+    ``score-skill --verbose``) appear *after* the subcommand token and are
+    left untouched, so this is purely additive — existing invocations are
+    unaffected.
+    """
+    quiet = False
+    verbose = False
+    remaining: list[str] = []
+    consuming_global = True
+    for token in argv:
+        if consuming_global and token in ("--quiet", "-q"):
+            quiet = True
+            continue
+        if consuming_global and token in ("--verbose", "-v"):
+            verbose = True
+            continue
+        if consuming_global and not token.startswith("-"):
+            consuming_global = False
+        remaining.append(token)
+    return quiet, verbose, remaining
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
+
+    quiet, verbose, argv = _extract_global_verbosity(argv)
+    from .observability import configure_logging
+
+    configure_logging(quiet=quiet, verbose=verbose)
 
     # Session-start ecosystem-freshness check (closes the runtime gap where
     # pyproject pins >=X but the installed version is older). Idempotent +

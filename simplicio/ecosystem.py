@@ -33,6 +33,8 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
+from .observability import info, warn
+
 ECOSYSTEM = ("simplicio-prompt", "simplicio-mapper", "simplicio-sprint")
 PYPI_TTL_SECONDS = 86400  # 24h
 
@@ -258,7 +260,7 @@ def ensure_latest(
     try:
         subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=120)
     except (subprocess.SubprocessError, OSError) as e:
-        print(f"simplicio: ecosystem auto-upgrade failed ({e})", file=sys.stderr)
+        warn(f"simplicio: ecosystem auto-upgrade failed ({e})")
         return []
     return targets
 
@@ -298,8 +300,7 @@ def maybe_run_session_start() -> None:
 
     upgraded = ensure_latest()
     if upgraded:
-        print(
+        info(
             f"simplicio: auto-upgraded {len(upgraded)} ecosystem package(s): "
-            f"{', '.join(upgraded)}. Disable via SIMPLICIO_NO_AUTO_UPGRADE=1.",
-            file=sys.stderr,
+            f"{', '.join(upgraded)}. Disable via SIMPLICIO_NO_AUTO_UPGRADE=1."
         )

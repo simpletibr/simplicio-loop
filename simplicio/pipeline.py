@@ -19,7 +19,7 @@ from typing import Any
 
 from .adaptive import get_validation_mode
 from .mapper import map_ask
-from .observability import estimate_tokens, log_run
+from .observability import estimate_tokens, info, log_run
 from .orchestrator.cost_governor import _price as _estimate_price
 from .pipeline_fixers import try_static_fixers
 from .prompt import build_prompt
@@ -393,7 +393,7 @@ def run_task(
                 if (_model or _base)
                 else os.environ.get("SIMPLICIO_PROVIDER", "unknown")
             )
-            print(f"--- attempt {t} (provider={_prov}, validation={get_validation_mode()}) ---")
+            info(f"--- attempt {t} (provider={_prov}, validation={get_validation_mode()}) ---")
         output = generate(prompt, feedback)
         last_output = output or ""
         last_validation = validate_generated_output(output, bound_paths)
@@ -431,11 +431,11 @@ def run_task(
                     + impact_results.get("output_tail", "")[:1500]
                 )
                 if not quiet:
-                    print("impact test failed:", log[:300])
+                    info("impact test failed: %s", log[:300])
             elif impact_result in (IMPACT_RESULT_PASSED, IMPACT_RESULT_NOT_NEEDED):
                 # Impact tests passed or nothing to verify → done
                 if not quiet:
-                    print("PASSED the contract (impact verified). DONE.")
+                    info("PASSED the contract (impact verified). DONE.")
                 return _task_result(
                     target,
                     prompt,
@@ -446,7 +446,7 @@ def run_task(
             else:
                 # IMPACT_RESULT_UNVERIFIED — mapper unavailable or error
                 if not quiet:
-                    print("PASSED the contract (impact unverifiable). DONE.")
+                    info("PASSED the contract (impact unverifiable). DONE.")
                 return _task_result(
                     target,
                     prompt,
@@ -493,7 +493,7 @@ def run_task(
                         + impact_results.get("output_tail", "")[:1500]
                     )
                     if not quiet:
-                        print("impact test failed after fixer:", log[:300])
+                        info("impact test failed after fixer: %s", log[:300])
                 else:
                     if not quiet:
                         suffix = (
@@ -501,7 +501,7 @@ def run_task(
                             if impact_result == IMPACT_RESULT_PASSED
                             else " (impact unverifiable)"
                         )
-                        print(f"PASSED after static fixer {fixer_result.fixer}.{suffix} DONE.")
+                        info(f"PASSED after static fixer {fixer_result.fixer}.{suffix} DONE.")
                     return _task_result(
                         target,
                         prompt,
@@ -510,10 +510,10 @@ def run_task(
                         impact=impact_results,
                     )
         if not quiet:
-            print("failed:", log[:300])
+            info("failed: %s", log[:300])
         feedback = build_retry_feedback(t + 1, last_validation, log)
     if not quiet:
-        print("attempts exhausted — manual review needed.")
+        info("attempts exhausted — manual review needed.")
     warnings = []
     if last_validation and not last_validation.ok:
         warnings.append(last_validation.reason)

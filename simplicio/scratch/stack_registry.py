@@ -18,6 +18,8 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ..observability import warn
+
 _TREE_CACHE_DIRS = {"__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
 
 
@@ -134,7 +136,7 @@ class StackRegistry:
             except json.JSONDecodeError as e:
                 # Stack file with bad JSON should not crash the whole registry —
                 # skip it but make the failure visible.
-                print(f"[stack_registry] skipping {entry.name}: bad stack.json ({e})")
+                warn(f"[stack_registry] skipping {entry.name}: bad stack.json ({e})")
                 continue
             slug = meta.get("slug") or entry.name
             stack = Stack(slug=slug, path=entry, meta=meta)

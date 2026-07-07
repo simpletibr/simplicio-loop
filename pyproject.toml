@@ -143,15 +143,35 @@ extend-exclude = [
 ]
 
 [tool.ruff.lint]
-# E/F = pyflakes+pycodestyle core, I = isort, UP = pyupgrade, B = bugbear.
-select = ["E", "F", "I", "UP", "B"]
+# E/F = pyflakes+pycodestyle core, I = isort, UP = pyupgrade, B = bugbear,
+# T20 = flake8-print (issue #106 — blocks new print() regressions in
+# library/MCP-adjacent code; see per-file-ignores below for the documented
+# CLI-handler exception, where stdout IS the subcommand's intended output).
+select = ["E", "F", "I", "UP", "B", "T20"]
 # B008: PLAN_JSON-style default args show up in a few argparse builders;
 # revisit case-by-case with a scoped noqa instead of a blanket ignore.
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
 # Test modules intentionally shadow fixtures/imports and use long fixtures.
-"tests/**/*.py" = ["E501"]
+"tests/**/*.py" = ["E501", "T201"]
+# CLI-handler exception (#106): stdout IS the intended output of these
+# subcommand entry points (JSON payloads, tables, human summaries), so
+# print() is the correct tool here — never in mcp_server.py, providers.py,
+# pipeline.py, mapper.py, or any other library/MCP-adjacent module, which
+# stay covered by the bare T201 rule above with zero suppressions.
+"simplicio/cli.py" = ["T201"]
+"simplicio/doctor.py" = ["T201"]
+"simplicio/init.py" = ["T201"]
+"simplicio/cache_cli.py" = ["T201"]
+"simplicio/bench.py" = ["T201"]
+"simplicio/detect.py" = ["T201"]
+"simplicio/commands/*.py" = ["T201"]
+"simplicio/scratch/cli.py" = ["T201"]
+"simplicio/scratch/skill_opt.py" = ["T201"]
+# Standalone dev/CI scripts outside the `simplicio` package — their stdout
+# is their entire purpose (doc-generator output, demo pipeline summary).
+"scripts/**/*.py" = ["T201"]
 
 [tool.ruff.format]
 quote-style = "double"

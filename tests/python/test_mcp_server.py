@@ -205,3 +205,93 @@ def test_cli_serve_without_mcp_flag_errors(tmp_path, monkeypatch):
     monkeypatch.setenv("HOME", str(tmp_path))
     code = cli.main(["serve"])
     assert code == 2
+
+
+def test_serve_stdio_stdout_contains_only_valid_mcp_frames(tmp_path):
+    """Issue #106 hard rule: mcp_server's stdout must never carry anything
+    but newline-delimited JSON-RPC frames. Drives every tool (edit, validate,
+    memory init/store/recall) through the real stdio loop — including a tool
+    call that touches mechanical_edit.py and memory_store.py, the two modules
+    `_tool_dev_cli_edit`/`_tool_dev_cli_memory` import — and asserts stdout
+    is 100% parseable JSON-RPC, one object per line, every one carrying the
+    `jsonrpc` envelope key. A stray `print()`/log line anywhere in that call
+    graph would show up here as a non-JSON or non-envelope line.
+    """
+    mem_dir = str(tmp_path / "mem")
+    plan = {
+        "schema": "simplicio.mechanical-edit/v1",
+        "operations": [{"op": "create_file", "path": "hello.txt", "text": "hi\n"}],
+    }
+    requests = [
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize"},
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+        {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+                "name": "dev_cli_edit",
+                "arguments": {"root": str(tmp_path), "plan": plan, "apply": True},
+            },
+        },
+        {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "tools/call",
+            "params": {
+                "name": "dev_cli_validate",
+                "arguments": {"output": "diff --git a/x b/x\n--- a/x\n+++ b/x\nTEST:\nassert True"},
+            },
+        },
+        {
+            "jsonrpc": "2.0",
+            "id": 5,
+            "method": "tools/call",
+            "params": {"name": "dev_cli_memory", "arguments": {"action": "init", "dir": mem_dir}},
+        },
+        {
+            "jsonrpc": "2.0",
+            "id": 6,
+            "method": "tools/call",
+            "params": {
+                "name": "dev_cli_memory",
+                "arguments": {
+                    "action": "store",
+                    "dir": mem_dir,
+                    "topic": "mcp stdout purity",
+                    "content": "note",
+                },
+            },
+        },
+        {
+            "jsonrpc": "2.0",
+            "id": 7,
+            "method": "tools/call",
+            "params": {
+                "name": "dev_cli_memory",
+                "arguments": {"action": "recall", "dir": mem_dir, "query": "note"},
+            },
+        },
+        # Malformed tool + missing tool exercise the error paths too.
+        {"jsonrpc": "2.0", "id": 8, "method": "tools/call", "params": {"name": "nope"}},
+        {"jsonrpc": "2.0", "id": 9, "method": "nope/nope"},
+    ]
+    stdin_text = "".join(json.dumps(r) + "\n" for r in requests)
+    stdin = io.StringIO(stdin_text)
+    stdout = io.StringIO()
+
+    mcp_server.serve_stdio(stdin=stdin, stdout=stdout)
+
+    raw_lines = stdout.getvalue().split("\n")
+    # serve_stdio always terminates each frame with \n, so the split leaves
+    # exactly one trailing empty string, never a partial/non-frame line.
+    assert raw_lines[-1] == ""
+    frame_lines = raw_lines[:-1]
+    assert len(frame_lines) > 0
+    for line in frame_lines:
+        parsed = json.loads(line)  # raises if anything non-JSON leaked out
+        assert parsed.get("jsonrpc") == "2.0"
+        assert "id" in parsed
+        assert "result" in parsed or "error" in parsed
+    assert (tmp_path / "hello.txt").read_text(encoding="utf-8") == "hi\n"
