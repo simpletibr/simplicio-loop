@@ -94,9 +94,7 @@ def test_schema_smoke_summary_writes_reports(tmp_path):
 
     write_reports(summary, json_path, md_path)
 
-    assert json.loads(json_path.read_text(encoding="utf-8"))["benchmark"] == (
-        "schema-smoke-summary"
-    )
+    assert json.loads(json_path.read_text(encoding="utf-8"))["benchmark"] == ("schema-smoke-summary")
     md = md_path.read_text(encoding="utf-8")
     assert "# Schema Smoke Summary" in md
     assert "release ready: False" in md
@@ -190,9 +188,7 @@ def test_schema_smoke_summary_main_accepts_inputs(tmp_path):
     )
 
     assert rc == 0
-    assert json.loads(json_path.read_text(encoding="utf-8"))["summary"][
-        "go_no_go_passes"
-    ] == 1
+    assert json.loads(json_path.read_text(encoding="utf-8"))["summary"]["go_no_go_passes"] == 1
 
 
 def test_schema_smoke_summary_main_defaults_to_success_with_missing_quants(tmp_path):
@@ -325,9 +321,7 @@ def test_schema_smoke_summary_main_fails_when_required_quant_smoke_fails(tmp_pat
             "--fail-missing-required-quants",
         ]
     )
-    summary = json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))[
-        "summary"
-    ]
+    summary = json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))["summary"]
 
     assert rc == 1
     assert summary["missing_quant_smokes"] == []
@@ -335,13 +329,9 @@ def test_schema_smoke_summary_main_fails_when_required_quant_smoke_fails(tmp_pat
 
 
 def test_qwen15b_quant_curve_manifest_covers_required_quants() -> None:
-    manifest = json.loads(
-        Path("bench/qwen15b_quant_curve_manifest.json").read_text(encoding="utf-8")
-    )
+    manifest = json.loads(Path("bench/qwen15b_quant_curve_manifest.json").read_text(encoding="utf-8"))
 
-    assert {row["quant"] for row in manifest["required_quants"]} == set(
-        REQUIRED_QUANT_SMOKES
-    )
+    assert {row["quant"] for row in manifest["required_quants"]} == set(REQUIRED_QUANT_SMOKES)
     assert all(row["filename"].endswith(".gguf") for row in manifest["required_quants"])
     assert set(manifest["final_artifacts"]) == {
         "bench/results_v14_qwen15b_quant_curve.json",

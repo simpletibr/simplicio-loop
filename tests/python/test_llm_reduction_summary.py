@@ -117,9 +117,7 @@ def _fixtures(tmp_path):
                     "e2e_green_ge_80": True,
                     "release_ready": False,
                 },
-                "missing_release_evidence": [
-                    "full 15 goals x 5 pilot stacks live matrix"
-                ],
+                "missing_release_evidence": ["full 15 goals x 5 pilot stacks live matrix"],
             },
         },
     )
@@ -150,9 +148,7 @@ def test_llm_reduction_summary_keeps_release_gap_explicit(tmp_path) -> None:
     assert result["levers"]["scratch_live_gate"]["total_runs"] == 30
     assert summary["release_gates"]["scratch_live_e2e_green_ge_80"] is True
     assert summary["release_gates"]["scratch_live_matrix_complete"] is False
-    assert any(
-        "captured LLM baseline" in item for item in summary["missing_release_evidence"]
-    )
+    assert any("captured LLM baseline" in item for item in summary["missing_release_evidence"])
     assert result["inputs"]["cache"]["path"].endswith("cache.json")
 
 
@@ -192,9 +188,7 @@ def test_llm_reduction_summary_proves_release_call_reduction(tmp_path) -> None:
                 "tasks_llm": 0,
                 "e2e_green": 75,
             },
-            "missing_release_evidence": [
-                "real scratch LLM baseline for task latency comparison"
-            ],
+            "missing_release_evidence": ["real scratch LLM baseline for task latency comparison"],
         }
     )
     codegen["summary"]["release_gates"].update(
@@ -231,10 +225,7 @@ def test_llm_reduction_summary_proves_release_call_reduction(tmp_path) -> None:
         "aggregate call-reduction proof across cache, recipes, fixers, and executors"
         not in summary["missing_release_evidence"]
     )
-    assert any(
-        "real scratch LLM baseline" in item
-        for item in summary["missing_release_evidence"]
-    )
+    assert any("real scratch LLM baseline" in item for item in summary["missing_release_evidence"])
 
 
 def test_llm_reduction_summary_marks_missing_inputs(tmp_path) -> None:
@@ -255,7 +246,5 @@ def test_llm_reduction_summary_writes_reports(tmp_path) -> None:
 
     write_reports(result, json_path, md_path)
 
-    assert '"benchmark": "llm-reduction-summary"' in json_path.read_text(
-        encoding="utf-8"
-    )
+    assert '"benchmark": "llm-reduction-summary"' in json_path.read_text(encoding="utf-8")
     assert "# LLM Reduction Summary" in md_path.read_text(encoding="utf-8")

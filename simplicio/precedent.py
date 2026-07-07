@@ -6,9 +6,12 @@ import glob
 import os
 import re
 from pathlib import Path
+
 import numpy as np
+
 from .cache import EmbeddingCache
 from .mapper import rank_precedents
+from .observability import info
 
 _emb = None
 
@@ -18,11 +21,11 @@ def _embedder():
     if _emb is None:
         try:
             from sentence_transformers import SentenceTransformer
-        except ImportError:
+        except ImportError as exc:
             raise SystemExit(
                 "simplicio: semantic precedent ranking needs sentence-transformers. "
                 "Install extras: pip install 'simplicio-cli[ml]'"
-            )
+            ) from exc
         _emb = SentenceTransformer("all-MiniLM-L6-v2")
     return _emb
 
@@ -142,12 +145,7 @@ def _resolve_stack_key(stack):
         return "angular"
     if "react" in compact or "next" in compact or "vite" in compact:
         return "react"
-    if (
-        "dotnet" in compact
-        or "aspnet" in compact
-        or "csharp" in compact
-        or "blazor" in compact
-    ):
+    if "dotnet" in compact or "aspnet" in compact or "csharp" in compact or "blazor" in compact:
         return "dotnet"
     if (
         "python" in compact
@@ -206,7 +204,7 @@ def index_repo(root, stack, verbose=True):
         cache.save()
         embedded = len(missing)
     if verbose:
-        print(
+        info(
             f"[index] candidates={len(cands)} newly_embedded={embedded} "
             f"cache_total={cache.stats()['cached_blocks']}"
         )
@@ -224,11 +222,7 @@ def build_precedent_block(root, stack, task, k=2):
             rel = c.get("path", "(unknown)")
             line = c.get("line", 1)
             summary = c.get("summary") or c.get("change_type") or "similar code"
-            tags = (
-                ", ".join(str(t) for t in c.get("tags", [])[:8])
-                if isinstance(c.get("tags"), list)
-                else ""
-            )
+            tags = ", ".join(str(t) for t in c.get("tags", [])[:8]) if isinstance(c.get("tags"), list) else ""
             lines.append(f"\n# {rel}:{line} ({summary})")
             if tags:
                 lines.append(f"tags: {tags}")
@@ -238,10 +232,7 @@ def build_precedent_block(root, stack, task, k=2):
 
     stack_key = _resolve_stack_key(stack)
     if stack_key is None:
-        return (
-            "[PRECEDENT]\n"
-            f"(no scanner {stack!r})"
-        )
+        return f"[PRECEDENT]\n(no scanner {stack!r})"
 
     cache, cands = index_repo(root, stack_key, verbose=False)
     if not cands:
@@ -249,7 +240,7 @@ def build_precedent_block(root, stack, task, k=2):
     texts = [c["code"] for c in cands]
     vc = cache.lookup(texts)  # from cache, no re-embed
     vt = _embedder().encode([task])[0]  # only the task (short)
-    for c, v in zip(cands, vc):
+    for c, v in zip(cands, vc, strict=True):
         c["score"] = float(np.dot(vt, v) / (np.linalg.norm(vt) * np.linalg.norm(v)))
     seen, out = set(), []
     for c in sorted(cands, key=lambda x: x["score"], reverse=True):

@@ -11,8 +11,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
-from .token_primitives import summarize_log, sha256_text
-
+from .token_primitives import sha256_text, summarize_log
 
 PLAN_SCHEMA = "simplicio.mechanical-edit/v1"
 RESULT_SCHEMA = "simplicio.mechanical-edit-result/v1"
@@ -238,7 +237,7 @@ def _validate_overlaps(operations: list[dict[str, Any]]) -> list[dict[str, Any]]
         ranges.setdefault(path, []).append((start, end, index, isinstance(operation.get("order"), int)))
     for path, rows in ranges.items():
         rows = sorted(rows)
-        for left, right in zip(rows, rows[1:]):
+        for left, right in zip(rows, rows[1:], strict=False):
             if left[1] >= right[0] and not (left[3] and right[3]):
                 return [
                     {
@@ -326,8 +325,8 @@ def _check_text_preconditions(
         raise MechanicalEditError("binary_file", f"{rel} appears to be binary", path=rel)
     try:
         text = raw.decode("utf-8")
-    except UnicodeDecodeError:
-        raise MechanicalEditError("binary_file", f"{rel} is not UTF-8 text", path=rel)
+    except UnicodeDecodeError as exc:
+        raise MechanicalEditError("binary_file", f"{rel} is not UTF-8 text", path=rel) from exc
     _check_file_hash(snapshot, operation)
     expected = operation.get("range_sha256")
     if expected:
@@ -393,7 +392,7 @@ def _apply_json_patch(snapshot: dict[str, bytes | None], operation: dict[str, An
     try:
         data = json.loads(raw.decode("utf-8"))
     except json.JSONDecodeError as exc:
-        raise MechanicalEditError("invalid_json_file", str(exc), path=rel)
+        raise MechanicalEditError("invalid_json_file", str(exc), path=rel) from exc
     patch = operation.get("patch")
     if not isinstance(patch, list):
         raise MechanicalEditError("invalid_schema", "json_patch.patch must be a list", path=rel)
@@ -459,7 +458,7 @@ def _apply_ast_patch(snapshot: dict[str, bytes | None], operation: dict[str, Any
             tokens.append(token)
         snapshot[rel] = tokenize.untokenize(tokens)
     except tokenize.TokenError as exc:
-        raise MechanicalEditError("ast_patch_failed", str(exc), path=rel)
+        raise MechanicalEditError("ast_patch_failed", str(exc), path=rel) from exc
 
 
 def _selected_range(text: str, operation: dict[str, Any]) -> str:

@@ -10,7 +10,7 @@ import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 def _env_flag(name: str, default: bool) -> bool:
@@ -55,9 +55,9 @@ class CacheEntry:
     provider_id: str = ""
     model: str = ""
     created_at: float = field(default_factory=time.time)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "completion": self.completion,
             "provider_id": self.provider_id,
@@ -67,7 +67,7 @@ class CacheEntry:
         }
 
     @classmethod
-    def from_dict(cls, payload: Dict[str, Any]) -> "CacheEntry":
+    def from_dict(cls, payload: dict[str, Any]) -> CacheEntry:
         return cls(
             completion=str(payload.get("completion", "")),
             provider_id=str(payload.get("provider_id", "")),
@@ -80,20 +80,14 @@ class CacheEntry:
 class CompletionCache:
     def __init__(
         self,
-        root: Optional[Path] = None,
+        root: Path | None = None,
         *,
-        ttl_days: Optional[float] = None,
-        max_mb: Optional[float] = None,
+        ttl_days: float | None = None,
+        max_mb: float | None = None,
     ) -> None:
         self.root = Path(root) if root is not None else _cache_root()
-        self.ttl_days = (
-            ttl_days
-            if ttl_days is not None
-            else _env_float("SIMPLICIO_CACHE_TTL_DAYS", 30)
-        )
-        self.max_mb = (
-            max_mb if max_mb is not None else _env_float("SIMPLICIO_CACHE_MAX_MB", 500)
-        )
+        self.ttl_days = ttl_days if ttl_days is not None else _env_float("SIMPLICIO_CACHE_TTL_DAYS", 30)
+        self.max_mb = max_mb if max_mb is not None else _env_float("SIMPLICIO_CACHE_MAX_MB", 500)
         self.hits = 0
         self.misses = 0
         self.puts = 0
@@ -109,7 +103,7 @@ class CompletionCache:
     def path_for(self, key: str) -> Path:
         return self.root / key[:2] / f"{key}.json"
 
-    def get(self, key: str) -> Optional[CacheEntry]:
+    def get(self, key: str) -> CacheEntry | None:
         if not self.enabled or self.bust:
             self.misses += 1
             return None
@@ -167,7 +161,7 @@ class CompletionCache:
             shutil.rmtree(self.root)
         return int(n)
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         files = list(self._files())
         total_bytes = sum(path.stat().st_size for path in files if path.exists())
         now = time.time()
@@ -182,9 +176,7 @@ class CompletionCache:
             "hits": self.hits,
             "misses": self.misses,
             "puts": self.puts,
-            "hit_rate": round(self.hits / (self.hits + self.misses), 4)
-            if self.hits + self.misses
-            else 0.0,
+            "hit_rate": round(self.hits / (self.hits + self.misses), 4) if self.hits + self.misses else 0.0,
             "bytes": total_bytes,
             "mb": round(total_bytes / (1024 * 1024), 3),
             "oldest_age_s": round(oldest, 3) if oldest is not None else None,
@@ -233,7 +225,7 @@ class CompletionCache:
             return
 
 
-_cache: Optional[CompletionCache] = None
+_cache: CompletionCache | None = None
 
 
 def cache() -> CompletionCache:
@@ -248,11 +240,7 @@ def _is_completion_cache_file(root: Path, path: Path) -> bool:
         rel = path.relative_to(root)
     except ValueError:
         return False
-    return (
-        len(rel.parts) == 2
-        and len(path.stem) == 64
-        and rel.parts[0] == path.stem[:2]
-    )
+    return len(rel.parts) == 2 and len(path.stem) == 64 and rel.parts[0] == path.stem[:2]
 
 
 def reset_for_tests() -> None:

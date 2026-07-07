@@ -1,5 +1,6 @@
 """Cross-vendor memory handoff — markdown + git under a configurable memory
 dir (issue #89 P0)."""
+
 import json
 
 import pytest
@@ -46,8 +47,11 @@ def test_store_then_recall_roundtrip(tmp_path):
     base = tmp_path / "mem"
     memory_store.init_memory(root=base)
     memory_store.store_memory(
-        "auth flow", "Decided to use OAuth device flow for CLI login.",
-        tags=["auth", "decision"], root=base, actor="claude-code",
+        "auth flow",
+        "Decided to use OAuth device flow for CLI login.",
+        tags=["auth", "decision"],
+        root=base,
+        actor="claude-code",
     )
     results = memory_store.recall_memory("oauth device flow", root=base)
     assert results
@@ -91,10 +95,17 @@ def test_cli_memory_init_store_recall(tmp_path, capsys):
     init_payload = json.loads(capsys.readouterr().out)
     assert init_payload["created"] is True
 
-    code = cli.main([
-        "memory", "store", "release process", "Ship via draft PR first.",
-        "--dir", str(mem_dir), "--json",
-    ])
+    code = cli.main(
+        [
+            "memory",
+            "store",
+            "release process",
+            "Ship via draft PR first.",
+            "--dir",
+            str(mem_dir),
+            "--json",
+        ]
+    )
     assert code == 0
     store_payload = json.loads(capsys.readouterr().out)
     assert store_payload["slug"] == "release-process"

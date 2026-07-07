@@ -178,9 +178,7 @@ def test_planner_cache_short_circuits_missing_api_key(monkeypatch):
         ),
     )
 
-    assert providers.planner_complete("cached plan", template_version="stack-v1") == (
-        "CACHED_PLAN"
-    )
+    assert providers.planner_complete("cached plan", template_version="stack-v1") == ("CACHED_PLAN")
     with pytest.raises(SystemExit):
         providers.planner_complete("cached plan", template_version="stack-v2")
 

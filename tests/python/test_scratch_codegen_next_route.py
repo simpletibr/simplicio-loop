@@ -8,8 +8,8 @@ import subprocess
 from pathlib import Path
 
 from simplicio.scratch.codegen import TypeScriptAddNextRouteExecutor
-from simplicio.scratch.codegen.typescript_next_route import _ts_morph_env
 from simplicio.scratch.codegen import registry as codegen_registry
+from simplicio.scratch.codegen.typescript_next_route import _ts_morph_env
 from simplicio.scratch.plan_schema import Task
 from simplicio.scratch.stack_registry import Stack
 
@@ -44,16 +44,12 @@ def test_typescript_add_next_route_executor_creates_json_handlers(tmp_path):
     generated = route.read_text(encoding="utf-8")
     assert "export async function GET(): Promise<Response>" in generated
     assert "return Response.json(units);" in generated
-    assert (
-        "export async function POST(request: Request): Promise<Response>" in generated
-    )
+    assert "export async function POST(request: Request): Promise<Response>" in generated
     assert "return Response.json(body, { status: 201 });" in generated
 
 
 def test_typescript_add_next_route_executor_outputs_runnable_json_handlers(tmp_path):
-    result = TypeScriptAddNextRouteExecutor().execute(
-        _task(), tmp_path, _stack(tmp_path)
-    )
+    result = TypeScriptAddNextRouteExecutor().execute(_task(), tmp_path, _stack(tmp_path))
     assert result.passed is True
 
     route = tmp_path / "src/app/api/units/route.ts"
@@ -103,9 +99,7 @@ def test_typescript_add_next_route_executor_appends_missing_handler(tmp_path):
     generated = route.read_text(encoding="utf-8")
     assert result.passed is True
     assert generated.count("export async function GET") == 1
-    assert (
-        "export async function POST(request: Request): Promise<Response>" in generated
-    )
+    assert "export async function POST(request: Request): Promise<Response>" in generated
 
 
 def test_typescript_add_next_route_executor_falls_back_for_non_route_target(tmp_path):

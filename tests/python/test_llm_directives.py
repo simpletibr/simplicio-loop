@@ -4,6 +4,7 @@ No-thinking / No-internet / tools-only-necessary / skills-only-necessary must
 be prepended to the prompt on every doer and planner provider path, opt-out via
 SIMPLICIO_NO_LLM_DIRECTIVES=1.
 """
+
 from unittest.mock import patch
 
 import pytest

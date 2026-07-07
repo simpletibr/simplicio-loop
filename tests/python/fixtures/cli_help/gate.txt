@@ -1,0 +1,14 @@
+usage: simplicio-py gate [-h] {check,verify,tamper} ...
+
+N-Nest corrective gate — verify agent honesty in a tree.
+
+positional arguments:
+  {check,verify,tamper}
+    check               check if gate_ok between a reported value and a
+                        watcher truth
+    verify              verify all gates in an agent tree (JSON file or stdin)
+    tamper              inject a confabulated agent for testing
+                        (gate_ok=False)
+
+options:
+  -h, --help            show this help message and exit

@@ -1,0 +1,8 @@
+usage: simplicio-py file [-h] {read} ...
+
+positional arguments:
+  {read}
+    read      print a file's contents, optionally sliced by line range
+
+options:
+  -h, --help  show this help message and exit

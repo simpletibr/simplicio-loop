@@ -10,10 +10,9 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import Optional
 
 from ..providers import planner_complete
-from .plan_schema import Plan, PlanValidationError, validate_plan, EXAMPLE_PLAN
+from .plan_schema import EXAMPLE_PLAN, Plan, PlanValidationError, validate_plan
 from .recipes import RecipeRegistry, RecipeSlotError
 from .stack_registry import Stack
 
@@ -96,7 +95,7 @@ def _build_prompt(stack: Stack, goal: str, project_name: str) -> str:
     )
 
 
-def _extract_json(text: str) -> Optional[dict]:
+def _extract_json(text: str) -> dict | None:
     """Pull the first top-level JSON object out of a model response.
     Tolerates accidental code fences and leading/trailing prose, because that's
     what models occasionally do regardless of instructions."""
@@ -148,10 +147,10 @@ def generate_plan(
         raise PlannerError(str(e)) from e
 
     prompt = _build_prompt(stack, goal, project_name)
-    feedback: Optional[list[str]] = None
+    feedback: list[str] | None = None
     last_raw_text = ""
 
-    for attempt in range(1, PLANNER_MAX_RETRIES + 2):
+    for _attempt in range(1, PLANNER_MAX_RETRIES + 2):
         prompt_with_feedback = prompt
         if feedback:
             prompt_with_feedback = (

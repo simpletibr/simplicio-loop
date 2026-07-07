@@ -80,9 +80,7 @@ def test_static_fixer_bench_records_real_probe_summary(tmp_path) -> None:
 
 
 def test_static_fixer_bench_repairs_scratch_import_failure(tmp_path) -> None:
-    project_dir = (
-        tmp_path / "scratch" / "run-01" / "projects" / "static-fixer-import-probe-01"
-    )
+    project_dir = tmp_path / "scratch" / "run-01" / "projects" / "static-fixer-import-probe-01"
     calls: list[list[str]] = []
 
     def fake_runner(argv, **kwargs):
@@ -174,12 +172,8 @@ def test_static_fixer_bench_consumes_live_gate_corpus(tmp_path) -> None:
     assert gates["real_eligible_failures_observed"] is False
     assert summary["live_corpus"]["total_runs"] == 75
     assert summary["live_corpus"]["eligible_failure_runs"] == 0
-    assert "real 50-scratch corpus" not in "\n".join(
-        summary["missing_release_evidence"]
-    )
-    assert "real install/import/lint failures" in "\n".join(
-        summary["missing_release_evidence"]
-    )
+    assert "real 50-scratch corpus" not in "\n".join(summary["missing_release_evidence"])
+    assert "real install/import/lint failures" in "\n".join(summary["missing_release_evidence"])
 
     live_path = tmp_path / "live-gate.json"
     live_path.write_text(json.dumps(live_gate), encoding="utf-8")

@@ -4,6 +4,7 @@ The mapper repo produces optional JSON artifacts. This module keeps their
 consumer contract small, deterministic, and backward compatible with projects
 that only have source files.
 """
+
 from __future__ import annotations
 
 import os
@@ -13,7 +14,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from .observability import estimate_tokens, record_savings_event
+from .observability import emit_event, estimate_tokens, record_savings_event
 from .toon_codec import to_toon
 from .utils.serialization import loads
 
@@ -76,7 +77,10 @@ def run_mapper_json(
         try:
             proc = subprocess.run(
                 [exe, subcommand, base, *extra, "--json"],
-                capture_output=True, text=True, timeout=timeout, check=False,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
             )
             if proc.returncode == 0:
                 data = loads(proc.stdout)
@@ -126,7 +130,9 @@ def _safe_json(path: Path) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
-def load_artifact(root: str | os.PathLike[str], candidates: tuple[str, ...]) -> tuple[Path, dict[str, Any]] | None:
+def load_artifact(
+    root: str | os.PathLike[str], candidates: tuple[str, ...]
+) -> tuple[Path, dict[str, Any]] | None:
     base = Path(root)
     for rel in candidates:
         path = base / rel
@@ -168,9 +174,7 @@ def artifact_status(root: str | os.PathLike[str]) -> dict[str, Any]:
             "test_files": _as_list(project_map.get("test_files")),
             "config_files": _as_list(project_map.get("config_files")),
             "recent_changes": [
-                item
-                for item in _as_list(project_map.get("recent_changes"))
-                if isinstance(item, dict)
+                item for item in _as_list(project_map.get("recent_changes")) if isinstance(item, dict)
             ],
             "module_names": [
                 str(module.get("name"))
@@ -278,7 +282,9 @@ def _entry_text(entry: dict[str, Any]) -> str:
     return " ".join(parts)
 
 
-def rank_entries(entries: list[dict[str, Any]], *, target: str = "", query: str = "", limit: int = 8) -> list[dict[str, Any]]:
+def rank_entries(
+    entries: list[dict[str, Any]], *, target: str = "", query: str = "", limit: int = 8
+) -> list[dict[str, Any]]:
     query_tokens = _tokens(f"{target} {query}")
     ranked: list[tuple[float, dict[str, Any]]] = []
     for entry in entries:
@@ -298,7 +304,9 @@ def rank_entries(entries: list[dict[str, Any]], *, target: str = "", query: str 
     return [entry for _score, entry in ranked[:limit]]
 
 
-def rank_precedents(root: str | os.PathLike[str], task: str, *, stack: str = "", k: int = 2) -> list[dict[str, Any]]:
+def rank_precedents(
+    root: str | os.PathLike[str], task: str, *, stack: str = "", k: int = 2
+) -> list[dict[str, Any]]:
     loaded = load_precedent_index(root)
     if loaded is None:
         return []
@@ -400,11 +408,16 @@ def _render_handoff_context(pack: dict[str, Any], base: Path, target: str) -> st
         toon_text = _render_handoff_files_toon(files)
         legacy_text = _render_handoff_files_legacy(files)
         record_savings_event(
-            base,
+            str(base),
             source="toon",
             baseline_tokens=estimate_tokens(legacy_text),
             actual_tokens=estimate_tokens(toon_text),
             note="mapper handoff files[] block",
+        )
+        emit_event(
+            "evidence_captured",
+            {"block": "handoff_files", "encoding": "toon"},
+            root=str(base),
         )
         lines.append(toon_text)
     else:
@@ -480,11 +493,16 @@ def build_mapper_context(root: str | os.PathLike[str], target: str, *, goal: str
             # JSON/hand-rolled bullets to cut prompt tokens losslessly.
             toon_text = _render_relevant_files_toon(relevant)
             record_savings_event(
-                base,
+                str(base),
                 source="toon",
                 baseline_tokens=estimate_tokens(legacy_text),
                 actual_tokens=estimate_tokens(toon_text),
                 note="mapper project-map relevant-files block",
+            )
+            emit_event(
+                "evidence_captured",
+                {"block": "relevant_files", "encoding": "toon"},
+                root=str(base),
             )
             lines.append(toon_text)
         else:
@@ -505,11 +523,16 @@ def build_mapper_context(root: str | os.PathLike[str], target: str, *, goal: str
             # uniform array of scalar fields, the same shape TOON collapses.
             toon_prec = _render_precedent_candidates_toon(precedents)
             record_savings_event(
-                base,
+                str(base),
                 source="toon",
                 baseline_tokens=estimate_tokens(legacy_prec),
                 actual_tokens=estimate_tokens(toon_prec),
                 note="mapper precedent-candidates block",
+            )
+            emit_event(
+                "evidence_captured",
+                {"block": "precedent_candidates", "encoding": "toon"},
+                root=str(base),
             )
             lines.append(toon_prec)
         else:

@@ -8,15 +8,14 @@ existing verify-loop, and a failing task can trigger one bounded replan.
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
-from ..scratch.codegen import try_execute
 from ..scratch._pipeline_adapter import run_task as run_plan_task
+from ..scratch.codegen import try_execute
 from ..scratch.planner import generate_plan
 from ..scratch.stack_registry import StackRegistry, slugify_project
 from .cost_governor import BudgetExceeded, provider_budget
-
 
 TaskRunner = Callable[..., tuple[bool, str]]
 
@@ -58,11 +57,7 @@ def _ordered_tasks(tasks: list[object]) -> list[object]:
     ordered = []
     completed: set[str] = set()
     while pending:
-        ready = [
-            task
-            for task in pending
-            if all(dep in completed for dep in getattr(task, "depends_on", []))
-        ]
+        ready = [task for task in pending if all(dep in completed for dep in getattr(task, "depends_on", []))]
         if not ready:
             ids = ", ".join(getattr(task, "id", "<unknown>") for task in pending)
             raise ValueError(f"task dependency cycle or blocked dependency: {ids}")
@@ -95,9 +90,7 @@ def run_feature(
     reg = StackRegistry()
     stack = reg.get(stack_slug)
     if stack is None:
-        raise ValueError(
-            f"unknown stack '{stack_slug}'. Run `simplicio-py scratch --list-stacks`."
-        )
+        raise ValueError(f"unknown stack '{stack_slug}'. Run `simplicio-py scratch --list-stacks`.")
 
     project_name = slugify_project(goal)
     feature_goal = goal
@@ -176,9 +169,7 @@ def run_feature(
                         "plan_tasks": len(last_plan.tasks),
                         "tasks": task_results,
                         "replans": replans,
-                        "warnings": [
-                            f"feature task {failed['id']} failed after {replans} replans"
-                        ],
+                        "warnings": [f"feature task {failed['id']} failed after {replans} replans"],
                         "cost": governor.report(),
                     }
 

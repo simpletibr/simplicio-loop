@@ -12,31 +12,32 @@ The disk cache lives under `.simplicio/cache/` next to the existing
 `.simplicio/embedding_cache.npz`. Each namespace gets its own subdir so
 entries from different decorators never collide.
 """
+
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import Callable, Optional
 
 try:
     import diskcache as _dc
+
     _HAS_DISKCACHE = True
 except ImportError:  # pragma: no cover - degrades gracefully
     _HAS_DISKCACHE = False
 
 
 def _cache_root() -> Path:
-    root = Path(os.environ.get("SIMPLICIO_CACHE_DIR",
-                               str(Path.cwd() / ".simplicio" / "cache")))
+    root = Path(os.environ.get("SIMPLICIO_CACHE_DIR", str(Path.cwd() / ".simplicio" / "cache")))
     root.mkdir(parents=True, exist_ok=True)
     return root
 
 
-_caches: dict[str, "_dc.Cache"] = {}
+_caches: dict[str, _dc.Cache] = {}
 
 
-def get_cache(namespace: str) -> Optional["_dc.Cache"]:
+def get_cache(namespace: str) -> _dc.Cache | None:
     """Return the diskcache for `namespace`, creating it on first use."""
     if not _HAS_DISKCACHE:
         return None
@@ -45,12 +46,13 @@ def get_cache(namespace: str) -> Optional["_dc.Cache"]:
     return _caches[namespace]
 
 
-def memoize_disk(*, namespace: str, ttl: Optional[int] = None) -> Callable:
+def memoize_disk(*, namespace: str, ttl: int | None = None) -> Callable:
     """Decorator: memoize deterministic function calls to disk.
 
     `ttl` (seconds) lets a cache expire automatically; pass `None` for
     permanent entries (still purgeable manually by deleting the namespace).
     """
+
     def decorate(fn: Callable) -> Callable:
         if not _HAS_DISKCACHE:
             return fn

@@ -1,4 +1,5 @@
 """Tests for simplicio.cli.maybe_autoinstall — first-run bootstrap."""
+
 from simplicio.cli import maybe_autoinstall
 
 

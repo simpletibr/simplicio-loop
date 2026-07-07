@@ -10,7 +10,6 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 
@@ -69,8 +68,7 @@ def call_simplicio(
     binary = discover_simplicio()
     if binary is None:
         raise RuntimeError(
-            "simplicio (Rust binary) not found on PATH. "
-            "Install the simplicio-runtime or set SIMPLICIO_BIN."
+            "simplicio (Rust binary) not found on PATH. Install the simplicio-runtime or set SIMPLICIO_BIN."
         )
     cmd = [binary, *args]
     completed = subprocess.run(

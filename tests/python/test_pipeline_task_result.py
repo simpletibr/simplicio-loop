@@ -9,6 +9,7 @@ never a silently fake real cost.
 Issue #93 adds impact-test verification — tests here cover the impact block
 in _task_result and the _run_impact_tests helper.
 """
+
 from __future__ import annotations
 
 from simplicio.pipeline import (
@@ -19,7 +20,6 @@ from simplicio.pipeline import (
     _run_impact_tests,
     _task_result,
 )
-
 
 # ---------------------------------------------------------------------------
 # _task_result — impact block
@@ -40,7 +40,8 @@ def test_task_result_impact_passed(monkeypatch):
     monkeypatch.delenv("SIMPLICIO_PRICE_PER_MTOK", raising=False)
 
     result = _task_result(
-        "t1", "a prompt",
+        "t1",
+        "a prompt",
         "diff --git a/x b/x\n--- a/x\n+++ b/x\n",
         applied=True,
         impact={
@@ -61,7 +62,8 @@ def test_task_result_impact_failed(monkeypatch):
     monkeypatch.delenv("SIMPLICIO_PRICE_PER_MTOK", raising=False)
 
     result = _task_result(
-        "t1", "a prompt",
+        "t1",
+        "a prompt",
         "diff --git a/x b/x\n--- a/x\n+++ b/x\n",
         applied=True,
         impact={
@@ -80,7 +82,8 @@ def test_task_result_impact_unverified(monkeypatch):
     monkeypatch.delenv("SIMPLICIO_PRICE_PER_MTOK", raising=False)
 
     result = _task_result(
-        "t1", "a prompt",
+        "t1",
+        "a prompt",
         "diff --git a/x b/x\n--- a/x\n+++ b/x\n",
         applied=True,
         impact={
@@ -99,7 +102,8 @@ def test_task_result_impact_not_needed(monkeypatch):
     monkeypatch.delenv("SIMPLICIO_PRICE_PER_MTOK", raising=False)
 
     result = _task_result(
-        "t1", "a prompt",
+        "t1",
+        "a prompt",
         "diff --git a/x b/x\n--- a/x\n+++ b/x\n",
         applied=True,
         impact={

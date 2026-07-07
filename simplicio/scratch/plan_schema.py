@@ -14,8 +14,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Any, Optional
-
+from typing import Any
 
 SCHEMA_VERSION = "1.0"
 
@@ -29,7 +28,7 @@ class Task:
     constraints: str
     verify: str
     depends_on: list[str] = field(default_factory=list)
-    required_skill: Optional[str] = None
+    required_skill: str | None = None
 
 
 @dataclass
@@ -105,9 +104,7 @@ def validate_plan(raw: dict) -> Plan:
     stack = _need(raw, "stack", str, errors, "") or ""
     project_name = _need(raw, "project_name", str, errors, "") or ""
     if project_name and not _PROJECT_NAME_RE.match(project_name):
-        errors.append(
-            f"project_name '{project_name}' must match {_PROJECT_NAME_RE.pattern}"
-        )
+        errors.append(f"project_name '{project_name}' must match {_PROJECT_NAME_RE.pattern}")
 
     rationale = _need(raw, "rationale", str, errors, "") or ""
 
@@ -147,9 +144,7 @@ def validate_plan(raw: dict) -> Plan:
         deps = _list_of_str(d, errors, f"{path}.depends_on")
         required_skill = tr.get("required_skill")
         if required_skill is not None and not isinstance(required_skill, str):
-            errors.append(
-                f"{path}.required_skill must be str, got {type(required_skill).__name__}"
-            )
+            errors.append(f"{path}.required_skill must be str, got {type(required_skill).__name__}")
         if g and t and c and co and v:
             tasks.append(
                 Task(
@@ -170,9 +165,7 @@ def validate_plan(raw: dict) -> Plan:
             if dep not in seen_ids:
                 errors.append(f"tasks[{t.id}].depends_on references unknown id '{dep}'")
 
-    deps_to_install = _list_of_str(
-        raw.get("deps_to_install", []), errors, "deps_to_install"
-    )
+    deps_to_install = _list_of_str(raw.get("deps_to_install", []), errors, "deps_to_install")
     deps_dev = _list_of_str(raw.get("deps_dev", []), errors, "deps_dev")
     test_command = _need(raw, "test_command", str, errors, "") or ""
     lint_command = _need(raw, "lint_command", str, errors, "") or ""
@@ -180,9 +173,7 @@ def validate_plan(raw: dict) -> Plan:
     if estimated is None:
         estimated = 0
     elif estimated != len(tasks):
-        errors.append(
-            f"estimated_total_tasks={estimated} but tasks has {len(tasks)} entries"
-        )
+        errors.append(f"estimated_total_tasks={estimated} but tasks has {len(tasks)} entries")
 
     if errors:
         raise PlanValidationError(errors)

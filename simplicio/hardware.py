@@ -8,14 +8,13 @@ The detection routines all fail soft — if a probe fails we mark that
 resource as unknown rather than crash. simplicio-py doctor surfaces the
 unknown fields so the user can override.
 """
+
 from __future__ import annotations
 
-import json
 import platform
 import re
 import subprocess
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -43,7 +42,7 @@ class HardwareProfile:
 # ---- RAM detection ---- #
 
 
-def _ram_linux() -> Optional[float]:
+def _ram_linux() -> float | None:
     try:
         with open("/proc/meminfo") as f:
             for line in f:
@@ -55,15 +54,17 @@ def _ram_linux() -> Optional[float]:
     return None
 
 
-def _ram_macos() -> Optional[float]:
+def _ram_macos() -> float | None:
     try:
         out = subprocess.run(
             ["sysctl", "-n", "hw.memsize"],
-            capture_output=True, text=True, timeout=3,
+            capture_output=True,
+            text=True,
+            timeout=3,
         )
         if out.returncode != 0:
             return None
-        return int(out.stdout.strip()) / (1024 ** 3)
+        return int(out.stdout.strip()) / (1024**3)
     except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
         return None
 
@@ -85,13 +86,14 @@ def detect_ram() -> tuple[float, str]:
 # ---- GPU detection ---- #
 
 
-def _gpu_nvidia() -> Optional[tuple[float, str]]:
+def _gpu_nvidia() -> tuple[float, str] | None:
     """nvidia-smi available? Return (vram_gb, name) for the biggest GPU."""
     try:
         out = subprocess.run(
-            ["nvidia-smi", "--query-gpu=memory.total,name",
-             "--format=csv,noheader,nounits"],
-            capture_output=True, text=True, timeout=5,
+            ["nvidia-smi", "--query-gpu=memory.total,name", "--format=csv,noheader,nounits"],
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return None
@@ -112,7 +114,7 @@ def _gpu_nvidia() -> Optional[tuple[float, str]]:
 _APPLE_SILICON_RE = re.compile(r"Apple (M\d+(?:\s+(?:Pro|Max|Ultra))?)")
 
 
-def _gpu_apple_silicon() -> Optional[tuple[float, str]]:
+def _gpu_apple_silicon() -> tuple[float, str] | None:
     """On Apple Silicon the GPU shares system RAM. Return (vram_gb, chip)
     where vram_gb = total RAM (since unified memory), and chip is e.g. "M3 Max".
     """
@@ -123,7 +125,9 @@ def _gpu_apple_silicon() -> Optional[tuple[float, str]]:
     try:
         out = subprocess.run(
             ["sysctl", "-n", "machdep.cpu.brand_string"],
-            capture_output=True, text=True, timeout=3,
+            capture_output=True,
+            text=True,
+            timeout=3,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return None

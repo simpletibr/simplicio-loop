@@ -1,4 +1,5 @@
 """Tests for simplicio.init — skill + hook installer."""
+
 import json
 import os
 
@@ -57,11 +58,7 @@ def test_preserves_existing_settings(tmp_path):
     existing = {
         "env": {"FOO": "bar"},
         "permissions": {"allow": ["Bash"]},
-        "hooks": {
-            "PreToolUse": [
-                {"matcher": "Bash", "hooks": [{"type": "command", "command": "echo pre"}]}
-            ]
-        },
+        "hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "echo pre"}]}]},
     }
     settings_path.parent.mkdir(parents=True, exist_ok=True)
     settings_path.write_text(json.dumps(existing), encoding="utf-8")

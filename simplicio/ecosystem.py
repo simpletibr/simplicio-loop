@@ -32,8 +32,8 @@ import time
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
+from .observability import info, warn
 
 ECOSYSTEM = ("simplicio-prompt", "simplicio-mapper", "simplicio-sprint")
 PYPI_TTL_SECONDS = 86400  # 24h
@@ -42,10 +42,10 @@ PYPI_TTL_SECONDS = 86400  # 24h
 @dataclass
 class DepStatus:
     name: str
-    installed: Optional[str]
-    floor: Optional[str]     # the >= pin from pyproject
-    latest: Optional[str]    # latest on PyPI
-    needs_upgrade: bool      # installed < latest (or installed < floor)
+    installed: str | None
+    floor: str | None  # the >= pin from pyproject
+    latest: str | None  # latest on PyPI
+    needs_upgrade: bool  # installed < latest (or installed < floor)
     reason: str = ""
 
     def to_dict(self) -> dict:
@@ -59,7 +59,7 @@ class DepStatus:
         }
 
 
-def _pyproject_path() -> Optional[Path]:
+def _pyproject_path() -> Path | None:
     candidates = [
         Path.cwd() / "pyproject.toml",
         Path(__file__).resolve().parent.parent / "pyproject.toml",
@@ -70,7 +70,7 @@ def _pyproject_path() -> Optional[Path]:
     return None
 
 
-def _read_floor(name: str) -> Optional[str]:
+def _read_floor(name: str) -> str | None:
     p = _pyproject_path()
     if not p:
         return None
@@ -83,9 +83,10 @@ def _read_floor(name: str) -> Optional[str]:
     return m.group(1) if m else None
 
 
-def _installed_version(name: str) -> Optional[str]:
+def _installed_version(name: str) -> str | None:
     try:
         from importlib import metadata
+
         return metadata.version(name)
     except Exception:
         return None
@@ -118,7 +119,7 @@ def _write_pypi_cache(payload: dict) -> None:
         pass
 
 
-def _pypi_latest(name: str, timeout: float = 5.0, refresh: bool = False) -> Optional[str]:
+def _pypi_latest(name: str, timeout: float = 5.0, refresh: bool = False) -> str | None:
     """Return the latest published version on PyPI, with a 24h disk cache.
 
     refresh=True bypasses the cache and forces a live PyPI lookup (used by
@@ -148,14 +149,16 @@ def _pypi_latest(name: str, timeout: float = 5.0, refresh: bool = False) -> Opti
     return None
 
 
-def _version_lt(a: Optional[str], b: Optional[str]) -> bool:
+def _version_lt(a: str | None, b: str | None) -> bool:
     """Naive but adequate lex-on-int-tuple compare. Returns False if either is
     None — we don't try to guess what 'unknown' means."""
     if a is None or b is None:
         return False
+
     def parse(v: str) -> tuple[int, ...]:
         parts = re.split(r"[^0-9]+", v)
         return tuple(int(x) for x in parts if x.isdigit())
+
     try:
         return parse(a) < parse(b)
     except Exception:
@@ -178,6 +181,7 @@ def _pyproject_dep_names() -> list[str]:
     reqs: list[str] = []
     try:
         import tomllib  # type: ignore[import-not-found]
+
         proj = tomllib.loads(text).get("project", {})
         reqs = list(proj.get("dependencies", []) or [])
         for group in (proj.get("optional-dependencies", {}) or {}).values():
@@ -218,22 +222,32 @@ def check(packages: tuple[str, ...] = ECOSYSTEM, refresh: bool = False) -> list[
                 reason = f"installed {installed} < pyproject floor {floor}"
             else:
                 reason = f"installed {installed} < latest {latest}"
-        out.append(DepStatus(
-            name=name, installed=installed, floor=floor, latest=latest,
-            needs_upgrade=needs, reason=reason,
-        ))
+        out.append(
+            DepStatus(
+                name=name,
+                installed=installed,
+                floor=floor,
+                latest=latest,
+                needs_upgrade=needs,
+                reason=reason,
+            )
+        )
     return out
 
 
-def ensure_latest(force: bool = False, dry_run: bool = False,
-                  packages: tuple[str, ...] = ECOSYSTEM) -> list[str]:
+def ensure_latest(
+    force: bool = False, dry_run: bool = False, packages: tuple[str, ...] = ECOSYSTEM
+) -> list[str]:
     """Pip-install -U everything that has drifted. Returns names upgraded.
 
     Honors SIMPLICIO_NO_AUTO_UPGRADE=1 unless force=True.
     Calls pip silently (--quiet); errors get printed to stderr but never raise.
     """
     if not force and os.environ.get("SIMPLICIO_NO_AUTO_UPGRADE", "").strip() in (
-        "1", "true", "True", "yes",
+        "1",
+        "true",
+        "True",
+        "yes",
     ):
         return []
     drifting = [s for s in check(packages) if s.needs_upgrade]
@@ -246,7 +260,7 @@ def ensure_latest(force: bool = False, dry_run: bool = False,
     try:
         subprocess.run(cmd, check=False, capture_output=True, text=True, timeout=120)
     except (subprocess.SubprocessError, OSError) as e:
-        print(f"simplicio: ecosystem auto-upgrade failed ({e})", file=sys.stderr)
+        warn(f"simplicio: ecosystem auto-upgrade failed ({e})")
         return []
     return targets
 
@@ -277,14 +291,16 @@ def maybe_run_session_start() -> None:
     if os.environ.get("SIMPLICIO_SKIP_AUTO_INIT"):
         return
     if os.environ.get("SIMPLICIO_NO_AUTO_UPGRADE", "").strip() in (
-        "1", "true", "True", "yes",
+        "1",
+        "true",
+        "True",
+        "yes",
     ):
         return
 
     upgraded = ensure_latest()
     if upgraded:
-        print(
+        info(
             f"simplicio: auto-upgraded {len(upgraded)} ecosystem package(s): "
-            f"{', '.join(upgraded)}. Disable via SIMPLICIO_NO_AUTO_UPGRADE=1.",
-            file=sys.stderr,
+            f"{', '.join(upgraded)}. Disable via SIMPLICIO_NO_AUTO_UPGRADE=1."
         )

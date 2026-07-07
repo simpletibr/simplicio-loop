@@ -1,7 +1,6 @@
 import json
 
-from simplicio import bench
-from simplicio import pipeline
+from simplicio import bench, pipeline
 from simplicio import precedent as precedent_module
 from simplicio import prompt as prompt_module
 from simplicio.pipeline_fixers import FixerResult
@@ -62,9 +61,7 @@ def test_mapper_consumes_project_map_and_precedent_index(tmp_path):
         },
     )
 
-    block = prompt_module._mapper(
-        str(tmp_path), "src/app.py", goal="update service test"
-    )
+    block = prompt_module._mapper(str(tmp_path), "src/app.py", goal="update service test")
 
     assert "project-map.json" in block
     assert "src/app.py" in block
@@ -154,9 +151,7 @@ def test_prompt_adds_model_adaptation_and_decomposition(tmp_path, monkeypatch):
     target.parent.mkdir(parents=True)
     target.write_text("print('ok')\n", encoding="utf-8")
     monkeypatch.setenv("SIMPLICIO_MODEL", "tiny-local")
-    monkeypatch.setattr(
-        prompt_module, "build_precedent_block", lambda *a, **k: "[PRECEDENT]\nnone"
-    )
+    monkeypatch.setattr(prompt_module, "build_precedent_block", lambda *a, **k: "[PRECEDENT]\nnone")
     monkeypatch.setattr(prompt_module, "build_skill_block", lambda *a, **k: "")
 
     rendered = prompt_module.build_prompt(
@@ -300,9 +295,7 @@ def _valid_pipeline_diff():
     )
 
 
-def test_pipeline_static_fixer_skips_llm_retry_when_verify_passes(
-    tmp_path, monkeypatch
-):
+def test_pipeline_static_fixer_skips_llm_retry_when_verify_passes(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
     generate_calls = []
     apply_calls = {"count": 0}
@@ -341,9 +334,7 @@ def test_pipeline_static_fixer_skips_llm_retry_when_verify_passes(
     assert apply_calls["count"] == 2
 
 
-def test_pipeline_retries_with_llm_when_static_fixer_does_not_resolve(
-    tmp_path, monkeypatch
-):
+def test_pipeline_retries_with_llm_when_static_fixer_does_not_resolve(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
     generate_calls = []
     apply_calls = {"count": 0}
@@ -385,9 +376,7 @@ def test_pipeline_retries_with_llm_when_static_fixer_does_not_resolve(
     assert generate_calls[1] is not None
 
 
-def test_static_fixers_reduce_retry_calls_in_synthetic_pipeline_case(
-    tmp_path, monkeypatch
-):
+def test_static_fixers_reduce_retry_calls_in_synthetic_pipeline_case(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
 
     def run_case(root, fixer_enabled):
@@ -449,18 +438,14 @@ def test_benchmark_writes_observability_log(tmp_path, monkeypatch):
         "generate",
         lambda prompt, *args, **kwargs: "diff --git a/src/app.py b/src/app.py",
     )
-    monkeypatch.setattr(
-        bench, "build_prompt", lambda *args, **kwargs: "structured prompt"
-    )
+    monkeypatch.setattr(bench, "build_prompt", lambda *args, **kwargs: "structured prompt")
     monkeypatch.setenv("SIMPLICIO_PROMPT_VARIANT", "mapper-v1")
 
     bench.run_bench(str(tmp_path), "python", str(cases_path))
 
     run_log = tmp_path / ".simplicio" / "runs.jsonl"
     assert run_log.exists()
-    events = [
-        json.loads(line) for line in run_log.read_text(encoding="utf-8").splitlines()
-    ]
+    events = [json.loads(line) for line in run_log.read_text(encoding="utf-8").splitlines()]
     assert {event["mode"] for event in events} == {"baseline", "pipeline"}
     assert all(event["prompt_variant"] == "mapper-v1" for event in events)
     assert all("tokens_estimated" in event for event in events)

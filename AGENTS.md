@@ -57,68 +57,86 @@ Antes de qualquer análise, o agent **DEVE** ler `.starter-meta.json` e respeita
 
 ## Stack
 
-`<STACK>` (placeholder — substitui pela stack real do projeto, ex: `Node.js 20 + TypeScript + Next.js 14 + Playwright + Vitest`).
+**Python 3.10+** — this repo ships the real product, the `simplicio-cli` PyPI
+package (entrypoints `simplicio-cli`, `simplicio-py`, `simplicio-dev-cli`,
+~8.8k lines under `simplicio/`). A Node.js/Playwright harness also lives in
+this repo, but only as an **embedded starter-kit template** (see below) — it
+does not build or test the Python product.
 
-Detalhes completos:
+Detalhes completos (**PRODUCT** — o pacote Python real):
 
-- Linguagem principal: `<STACK>`
-- Framework web/API: `<STACK>`
-- Banco de dados: `<STACK>`
-- Test runner unit: `<STACK>` (sugestão: Vitest, Jest, pytest, xUnit)
-- Test runner E2E: **Playwright** (config em `playwright.config.ts`)
-- Linter/formatter: `<STACK>` (sugestão: ESLint + Prettier, Ruff, dotnet format)
-- CI/CD: GitHub Actions (ver `.github/workflows/`)
-- Deploy: `<STACK>` (Vercel/Netlify/Docker/Azure/AWS — ver `.specs/workflow/RELEASE.md`)
+- Linguagem principal: **Python 3.10+** (`pyproject.toml`, `setuptools` build backend).
+- Empacotamento: `python -m build` → sdist + wheel; ver `docs/PYTHON_PACKAGE_INTERDEPENDENCE.md` (gerado) para o grafo de deps/extras.
+- Test runner unit/contract: **pytest** (`tests/python/`, `tests/contracts/`; `[tool.pytest.ini_options]` em `pyproject.toml`).
+- Linter/formatter: **ruff** (`ruff check .` / `ruff format --check .`; `[tool.ruff]` em `pyproject.toml`, issue #102).
+- Type checker: **mypy** (`mypy simplicio`; `[tool.mypy]` em `pyproject.toml`, baseline documentado, issue #102).
+- CI/CD: GitHub Actions (`.github/workflows/ci.yml` — jobs `python`, `lint`, `extras`, `packaging`; este é o gate real que bloqueia merge).
+- Deploy/release: PyPI (`simplicio-cli`), tag `vX.Y.Z` — ver `.specs/workflow/RELEASE.md`.
 
-> Antes de adicionar dependência nova: **pergunta ao usuário**. Sem exceção.
+Detalhes do **STARTER embutido** (harness de exemplo, não é o produto):
+
+- `package.json` na raiz só declara os scripts `test:e2e`/`test:e2e:ui`/`test:e2e:report` do harness Playwright (`playwright.config.ts`, `tests/e2e/`). Não há `npm run dev`/`build`/`lint`/`docs:build` — não invente esses comandos.
+- Test runner E2E do starter: **Playwright**, rodado isoladamente no workflow `.github/workflows/starter-e2e.yml` (não gate do pacote Python).
+
+> Antes de adicionar dependência nova (Python ou npm): **pergunta ao usuário**. Sem exceção.
 
 ---
 
 ## Comandos importantes
 
 ```bash
-# desenvolvimento
-npm run dev                  # sobe app local
-npm run build                # build de produção
+# PRODUCT (Python — simplicio-cli) ------------------------------------------
+# setup
+pip install -e ".[dev]"        # editable install + ruff/mypy/pytest (issue #102)
+pip install -e ".[test]"       # só pytest, sem ruff/mypy (o que a CI usa no job "python")
 
 # qualidade
-npm run lint                 # lint + format check
-npm run lint:fix             # lint + format auto-fix
-npm test                     # unit tests
-npm test -- --coverage       # unit + coverage report (gate >= 80%)
+ruff check .                   # lint (E/F/I/UP/B)
+ruff format --check .          # format check (--check só verifica; sem --check reescreve)
+mypy simplicio                 # type check (baseline documentado em pyproject.toml)
 
-# E2E
-npx playwright install       # instala browsers (1ª vez)
-npx playwright test          # roda suite E2E
-npx playwright test --ui     # modo interativo
-npx playwright show-report   # abre relatório último run
+# testes
+pytest                         # tests/python + tests/contracts (testpaths em pyproject.toml)
+pytest --cov                   # com coverage, se pytest-cov estiver instalado
 
-# git/PR
+# docs geradas
+python3 scripts/gen_package_interdependence.py --check   # falha se a doc de deps driftou (#101)
+
+# CLI real
+simplicio-py --help            # (ou simplicio-cli / simplicio-dev-cli — mesmo entrypoint)
+
+# STARTER embutido (Playwright — não é o produto) ----------------------------
+npx playwright install         # instala browsers (1a vez)
+npx playwright test            # roda a suite E2E do harness starter
+npx playwright test --ui       # modo interativo
+npx playwright show-report     # abre relatorio ultimo run
+
+# git/PR (produto e starter) -------------------------------------------------
 git checkout -b feat/<task-id>-<slug>
-gh pr create --fill          # usa template de PR
-gh run watch                 # acompanha CI do branch atual
+gh pr create --fill            # usa template de PR
+gh run watch                   # acompanha CI do branch atual
 ```
-
-Adapta os comandos pra stack real (`pnpm`, `yarn`, `bun`, `dotnet`, `python`, `go`).
 
 ---
 
 ## Padrão de sincronização deste projeto
 
-Para este repositório, sempre que a mudança for **release-relevant**, o fechamento padrão deve deixar tudo sincronizado no mesmo ciclo:
+Para este repositório, sempre que a mudança for **release-relevant** (o pacote Python `simplicio-cli`), o fechamento padrão deve deixar tudo sincronizado no mesmo ciclo:
 
-- npm publicado na versão atual de `package.json`
+- versão de `pyproject.toml` publicada no PyPI (`simplicio-cli`)
 - tag GitHub `vX.Y.Z` criada e enviada
 - GitHub Release correspondente criada/atualizada
-- `main` limpa e sincronizada com `origin/main`
+- `master` limpa e sincronizada com `origin/master`
 
 Validação padrão obrigatória antes de publicar/sincronizar:
 
 ```bash
-npm run lint
-npm test
-npm run docs:build
-npm run test:e2e -- --reporter=list,html
+ruff check .
+ruff format --check .
+mypy simplicio
+pytest
+python3 scripts/gen_package_interdependence.py --check
+python -m build && python -m twine check dist/*
 ```
 
 Se qualquer item acima falhar, **não** publique e **não** crie a release/tag até corrigir.
@@ -129,16 +147,16 @@ Se qualquer item acima falhar, **não** publique e **não** crie a release/tag a
 
 Toda task técnica passa por esses passos. Não pula etapa.
 
-1. **Ler task** — abre arquivo em `.specs/sprints/sprint-XX/<task-id>.task.md`. Lê contexto + acceptance criteria + test plan + DoD.
+1. **Ler task** — abre arquivo em `.specs/sprints/sprint-XX/<task-id>.task.md` (ou a issue do GitHub). Lê contexto + acceptance criteria + test plan + DoD.
 2. **Planejar** — escreve plano interno curto: o que muda, quais arquivos, como verificar, efeitos colaterais. Se task ambígua → pergunta antes de codar.
 3. **Carregar contexto** — lê `.specs/architecture/PATTERNS.md` + ADRs relevantes em `.specs/architecture/ADR-*.md`. Verifica skills aplicáveis em `.skills/`.
 4. **Editar** — aplica edits cirúrgicos. Só toca o que a task pede. Sem refactor extra, sem renomeação, sem comentário a mais.
-5. **Lint** — `npm run lint`. Vermelho = corrige antes de seguir.
-6. **Unit** — `npm test`. Vermelho = corrige antes de seguir. Coverage do diff >= 80%.
-7. **E2E (OBRIGATÓRIO em TODA task)** — `npx playwright test --reporter=list,html`. Captura **trace + screenshot + video** (todos, não "ou"). Sem evidência salva em `playwright-report/` + `test-results/` = task não fechada. Vermelho = corrige.
+5. **Lint + type** — `ruff check .` e `ruff format --check .` e `mypy simplicio`. Vermelho = corrige antes de seguir.
+6. **Unit/contract** — `pytest`. Vermelho = corrige antes de seguir (exceto falhas pré-existentes já documentadas e sem relação com a mudança — cite-as explicitamente no PR).
+7. **E2E (quando a mudança tocar o harness starter/Playwright)** — `npx playwright test --reporter=list,html`. Captura **trace + screenshot + video** (todos, não "ou"). Sem evidência salva em `playwright-report/` + `test-results/` = task não fechada. Vermelho = corrige. (A maior parte das tasks deste repo mexe no pacote Python e não passa por este passo — não é o gate universal.)
 8. **Fix loop** — se qualquer etapa falhou: volta ao passo 4. Repete até verde.
 9. **Commit** — Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`). Mensagem em **inglês**. Body explica *why*, não *what*.
-10. **PR** — `gh pr create`. Preenche template inteiro: link da task, evidências (screenshots Playwright), checklist DoD marcado.
+10. **PR** — `gh pr create`. Preenche template inteiro: link da task/issue, evidências, checklist DoD marcado.
 
 ---
 
@@ -146,21 +164,22 @@ Toda task técnica passa por esses passos. Não pula etapa.
 
 PR só faz merge quando **todos** os itens abaixo estão marcados:
 
-- [ ] Unit tests passam (`npm test` verde)
-- [ ] Lint passa (`npm run lint` verde)
-- [ ] E2E Playwright passa com **evidência anexada em TODA task** — `playwright-report/index.html` + `test-results/<spec>/trace.zip` + screenshots por cenário + video (when retry). Hard rule: sem evidência, sem merge.
-- [ ] Coverage do diff >= 80%
-- [ ] Acceptance Criteria da task: todos os checkboxes marcados
+- [ ] `pytest` verde (ou falhas pré-existentes documentadas explicitamente, sem relação com o diff)
+- [ ] `ruff check .` e `ruff format --check .` verdes
+- [ ] `mypy simplicio` verde no rigor documentado em `pyproject.toml` (`[tool.mypy]`)
+- [ ] `python3 scripts/gen_package_interdependence.py --check` verde se `pyproject.toml` mudou (#101)
+- [ ] E2E Playwright, **quando a mudança tocar o starter/harness**, com evidência anexada — `playwright-report/index.html` + `test-results/<spec>/trace.zip` + screenshots por cenário + video (when retry). Hard rule quando aplicável: sem evidência, sem merge.
+- [ ] Acceptance Criteria da task/issue: todos os checkboxes marcados (ou partial, com motivo explícito no PR)
 - [ ] **Verificação independente/adversarial pós-verde** — depois do DoD verde, UMA passada *ortogonal* (não repetição da mesma checagem): AC relida lado a lado com o resultado, feature exercitada de verdade + 1 cenário de borda + 1 caminho de erro, resultado registrado. Verde no DoD ≠ feito. (`.skills/llm-verification/`)
-- [ ] PR template preenchido (link task + descrição + evidências)
+- [ ] PR template preenchido (link task/issue + descrição + evidências)
 - [ ] Conventional commit no merge
 - [ ] ADR criado em `.specs/architecture/` se mudou decisão arquitetural
 - [ ] Changelog atualizado se release-relevant
 - [ ] Sem warning novo no console
-- [ ] Sem `console.log` / `print` / `Debug.WriteLine` deixado pra trás
+- [ ] Sem `print()`/`console.log` de diagnóstico deixado pra trás em código de biblioteca (ver `simplicio/observability.py` / módulo de output central, issue #106) — CLI handlers onde stdout É o resultado pretendido são a exceção documentada
 - [ ] Sem TODO sem dono e sem prazo
 
-CI bloqueia merge se DoD falhar (`.github/workflows/dod.yml`).
+CI (`.github/workflows/ci.yml`, job `python` + `lint`) bloqueia merge se o gate falhar.
 
 ---
 
@@ -171,6 +190,17 @@ Padrões completos em `.specs/architecture/PATTERNS.md`. Resumo:
 - Naming, estrutura de pastas, criação de endpoint/componente/teste, tratamento de erro, logging, validação — **tudo lá**.
 - Decisões irreversíveis viram **ADR** em `.specs/architecture/ADR-XXX-*.md` (template em `.specs/architecture/ADR-template.md`).
 - Antes de escrever código novo: lê `PATTERNS.md` da seção relevante. Não inventa estilo próprio.
+
+---
+
+## Observability / unified evidence flow (issues #106, #107)
+
+`simplicio/observability.py` é a camada central de output/logging + eventos estruturados deste pacote:
+
+- **stdout vs stderr (#106)**: `emit_data()` escreve o payload máquina-consumível (o resultado pretendido) em stdout; `info()`/`warn()`/`error()` escrevem status/diagnóstico humano em stderr via um `logging.Logger("simplicio")`, configurável por `configure_logging(quiet=, verbose=)` e `SIMPLICIO_LOG_LEVEL` (`--quiet`/`-q`/`--verbose`/`-v` antes do subcomando em `simplicio-py` fazem essa configuração — ver `_extract_global_verbosity` em `cli.py`). `simplicio/mcp_server.py` roda sobre stdio: qualquer coisa que não seja um frame JSON-RPC no stdout dele corrompe o transporte, então código adjacente ao MCP usa `info`/`warn`/`error`, nunca `print()`. CLI *handlers* (`cli.py`, `commands/*.py`, `doctor.py`, etc.) são a exceção documentada — stdout ali É o resultado do subcomando.
+- **Eventos estruturados / evidência unificada (#107)**: `emit_event(event_type, payload, level=, root=, tokens_saved=)` emite uma linha humana em stderr **e**, quando `root` é passado, um registro JSON em `<root>/.simplicio/events.jsonl` (schema `simplicio.dev-cli-event/v1`, documentado no docstring de `emit_event`). Este é o **contrato** que um loop host (ex.: `loop_journal.py` do simplicio-loop) pode ler — dev-cli não importa nem depende do código do loop, só se compromete com esse formato. Produtores já ligados: `pipeline.run_task` (`task_start`/`task_complete`/`validation_fail`/`token_usage`), `mapper.py` (`evidence_captured` nos três blocos TOON), `mcp_server.py` (`edit_applied`/`handoff`/`validation_fail` em cada `tools/call`).
+- `simplicio-py doctor` (humano e `--json`) mostra um resumo desses eventos (`events_summary()`, flags `--root`/--events-limit`) — não é preciso inspecionar `.simplicio/events.jsonl` a mão para ver se a emissão está funcionando.
+- Regra de regressão: ruff `T20` (flake8-print) está no `select` do lint — um `print()` reintroduzido em código de biblioteca/MCP-adjacente quebra o CI; a exceção fica em `[tool.ruff.lint.per-file-ignores]`, restrita aos CLI handlers documentados.
 
 ---
 
@@ -289,8 +319,9 @@ cp -R .skills/_template .skills/<nome-da-skill>
 ### Rodar checklist DoD localmente antes de PR
 
 ```bash
-npm run lint && npm test -- --coverage && npx playwright test
+ruff check . && ruff format --check . && mypy simplicio && pytest
 # se tudo verde -> git commit && git push && gh pr create --fill
+# tocou o harness starter/Playwright? roda também: npx playwright test
 ```
 
 ---

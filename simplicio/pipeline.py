@@ -8,21 +8,22 @@ after the primary test passes, ``_run_impact_tests`` queries the mapper's
 and runs their tests too.  When impact tests fail, the failure enters the
 retry loop just like any verify failure.
 """
-from dataclasses import dataclass
+
 import fnmatch
 import os
 import re
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from .adaptive import get_validation_mode
 from .mapper import map_ask
-from .observability import estimate_tokens, log_run
+from .observability import emit_event, estimate_tokens, info, log_run
 from .orchestrator.cost_governor import _price as _estimate_price
 from .pipeline_fixers import try_static_fixers
 from .prompt import build_prompt
-from .providers import generate, _provider_id
+from .providers import _provider_id, generate
 from .runtime_env import wrap_project_command
 
 MAX_ATTEMPTS = 5
@@ -93,9 +94,7 @@ def _run_impact_tests(
         for t in tests:
             if not isinstance(t, dict):
                 continue
-            test_path = (
-                t.get("test_path") or t.get("path") or t.get("file") or ""
-            )
+            test_path = t.get("test_path") or t.get("path") or t.get("file") or ""
             if test_path:
                 test_files_seen.add(test_path)
 
@@ -108,9 +107,7 @@ def _run_impact_tests(
         }
 
     test_files = sorted(test_files_seen)
-    cmd_raw = (
-        test_cmd or os.environ.get("SIMPLICIO_TEST_CMD", "pytest")
-    ).strip()
+    cmd_raw = (test_cmd or os.environ.get("SIMPLICIO_TEST_CMD", "pytest")).strip()
     argv = cmd_raw.split() + test_files
     use_shell = len(cmd_raw.split()) == 1
 
@@ -147,16 +144,19 @@ def _run_impact_tests(
 # Existing helpers (unchanged except where noted for #93)
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class ValidationResult:
     ok: bool
     reason: str
     hints: list[str]
 
+
 @dataclass
 class FailureClassification:
     kind: str
     guidance: str
+
 
 def extract_changed_files(output):
     text = output or ""
@@ -166,6 +166,7 @@ def extract_changed_files(output):
     for match in re.finditer(r"^\+\+\+ b/(.+?)$", text, flags=re.M):
         files.append(match.group(1).strip())
     return list(dict.fromkeys(f for f in files if f and f != "/dev/null"))
+
 
 def _matches_bound(path, patterns):
     normalized = path.replace(os.sep, "/").lstrip("./")
@@ -179,6 +180,7 @@ def _matches_bound(path, patterns):
                 return True
     return False
 
+
 def _bound_path_warnings(files, bound_paths):
     if not bound_paths:
         return []
@@ -191,6 +193,7 @@ def _bound_path_warnings(files, bound_paths):
         + f" (allowed: {', '.join(bound_paths)})"
     ]
 
+
 def extract_patch(output):
     text = output or ""
     fenced = re.search(r"```(?:diff|patch)?\s*\n(.*?)(?:\n```|$)", text, flags=re.S)
@@ -199,11 +202,12 @@ def extract_patch(output):
     match = re.search(r"(?m)^(diff --git .+|--- .+)$", text)
     if not match:
         return ""
-    patch = text[match.start():]
+    patch = text[match.start() :]
     fence = patch.find("\n```")
     if fence != -1:
         patch = patch[:fence]
     return patch.strip() + "\n"
+
 
 def validate_generated_output(output, bound_paths=None, mode=None):
     text = output or ""
@@ -228,19 +232,31 @@ def validate_generated_output(output, bound_paths=None, mode=None):
         hints=hints,
     )
 
+
 def classify_failure(log):
     text = (log or "").lower()
     if "syntaxerror" in text or "unexpected token" in text or "parse error" in text:
-        return FailureClassification("syntax", "Fix syntax first; keep the patch minimal and rerun the same test.")
+        return FailureClassification(
+            "syntax", "Fix syntax first; keep the patch minimal and rerun the same test."
+        )
     if "assertionerror" in text or "expected" in text and "actual" in text:
-        return FailureClassification("assertion", "The test ran but behavior is wrong; inspect the asserted contract and adjust logic.")
+        return FailureClassification(
+            "assertion", "The test ran but behavior is wrong; inspect the asserted contract and adjust logic."
+        )
     if "modulenotfound" in text or "no module named" in text or "cannot find module" in text:
-        return FailureClassification("dependency", "Use existing project dependencies or correct imports; do not invent packages.")
+        return FailureClassification(
+            "dependency", "Use existing project dependencies or correct imports; do not invent packages."
+        )
     if "timeout" in text or "timed out" in text:
-        return FailureClassification("timeout", "Reduce scope, avoid long-running work, and make the verification deterministic.")
+        return FailureClassification(
+            "timeout", "Reduce scope, avoid long-running work, and make the verification deterministic."
+        )
     if "traceback" in text or "exception" in text or "typeerror" in text or "referenceerror" in text:
         return FailureClassification("runtime", "Fix the runtime exception at the reported callsite.")
-    return FailureClassification("unknown", "Re-read the mapper context and produce a smaller, directly testable diff.")
+    return FailureClassification(
+        "unknown", "Re-read the mapper context and produce a smaller, directly testable diff."
+    )
+
 
 def build_retry_feedback(attempt, validation=None, test_log=""):
     classification = classify_failure(test_log)
@@ -256,6 +272,7 @@ def build_retry_feedback(attempt, validation=None, test_log=""):
         lines.append(test_log[-1600:])
     lines.append("Return the full corrected DIFF + TEST block only.")
     return "\n".join(lines)
+
 
 def _git_apply_patch(root, patch):
     attempts = [
@@ -286,6 +303,7 @@ def _git_apply_patch(root, patch):
         errors.append(f"{label} failed:\n{(apply.stderr or apply.stdout)[-1600:]}")
     return False, "\n".join(errors)
 
+
 def _apply_and_test(output, root, bound_paths=None):
     os.makedirs(os.path.join(root, ".simplicio"), exist_ok=True)
     open(os.path.join(root, ".simplicio/last_output.txt"), "w").write(output or "")
@@ -304,10 +322,12 @@ def _apply_and_test(output, root, bound_paths=None):
     p = subprocess.run(cmd, shell=True, cwd=root, capture_output=True, text=True)
     return p.returncode == 0, (p.stdout + p.stderr)[-2000:]
 
+
 def _diff_summary(files_changed):
     if not files_changed:
         return "no changed files reported"
     return "changed " + ", ".join(files_changed)
+
 
 def _task_result(task_id, prompt, output, *, applied, warnings=None, impact=None):
     files_changed = extract_changed_files(output)
@@ -347,14 +367,21 @@ def _task_result(task_id, prompt, output, *, applied, warnings=None, impact=None
             result["impact"]["status"] = IMPACT_RESULT_UNVERIFIED
     return result
 
-def run_task(root, stack, goal, target, criteria, constraints, *,
-             dry_run_task=False, bound_paths=None, quiet=False):
+
+def run_task(
+    root, stack, goal, target, criteria, constraints, *, dry_run_task=False, bound_paths=None, quiet=False
+):
     prompt = build_prompt(root, stack, goal, target, criteria, constraints)
     if dry_run_task:
         output = generate(prompt)
         validation = validate_generated_output(output, bound_paths, mode=get_validation_mode())
         warnings = [] if validation.ok else [validation.reason]
         return _task_result(target, prompt, output, applied=False, warnings=warnings)
+
+    # Issue #107: structured "task_start" event — the dev-cli side of the
+    # unified evidence flow a host loop's journal (e.g. simplicio-loop's
+    # loop_journal.py) can consume. See observability.emit_event's contract.
+    emit_event("task_start", {"target": target, "stack": stack, "goal": goal}, root=root)
 
     feedback = None
     last_output = ""
@@ -366,27 +393,44 @@ def run_task(root, stack, goal, target, criteria, constraints, *,
         if not quiet:
             _model = os.environ.get("SIMPLICIO_MODEL", "")
             _base = os.environ.get("SIMPLICIO_BASE_URL", "")
-            _prov = _provider_id(_model, _base) if (_model or _base) else os.environ.get("SIMPLICIO_PROVIDER", "unknown")
-            print(f"--- attempt {t} (provider={_prov}, validation={get_validation_mode()}) ---")
+            _prov = (
+                _provider_id(_model, _base)
+                if (_model or _base)
+                else os.environ.get("SIMPLICIO_PROVIDER", "unknown")
+            )
+            info(f"--- attempt {t} (provider={_prov}, validation={get_validation_mode()}) ---")
         output = generate(prompt, feedback)
         last_output = output or ""
         last_validation = validate_generated_output(output, bound_paths)
         ok, log = _apply_and_test(output, root, bound_paths)
         last_log = log
-        log_run(root, {
-            "mode": "pipeline",
-            "attempt": t,
-            "ok": ok,
-            "failure_class": "none" if ok else classify_failure(log).kind,
-            "tokens_estimated": estimate_tokens(prompt) + estimate_tokens(output),
-            "target": target,
-            "stack": stack,
-        })
+        attempt_tokens = estimate_tokens(prompt) + estimate_tokens(output)
+        log_run(
+            root,
+            {
+                "mode": "pipeline",
+                "attempt": t,
+                "ok": ok,
+                "failure_class": "none" if ok else classify_failure(log).kind,
+                "tokens_estimated": attempt_tokens,
+                "target": target,
+                "stack": stack,
+            },
+        )
+        emit_event(
+            "token_usage",
+            {"target": target, "attempt": t, "tokens_estimated": attempt_tokens},
+            root=root,
+        )
         if ok:
             # Issue #93: run impact tests after the primary test passes
             files_changed = extract_changed_files(output)
             impact_results = _run_impact_tests(root, files_changed)
-            impact_result = impact_results.get("result", IMPACT_RESULT_UNVERIFIED) if impact_results else IMPACT_RESULT_UNVERIFIED
+            impact_result = (
+                impact_results.get("result", IMPACT_RESULT_UNVERIFIED)
+                if impact_results
+                else IMPACT_RESULT_UNVERIFIED
+            )
 
             if impact_result == IMPACT_RESULT_FAILED:
                 # Impact test failure → retry as a verify failure
@@ -398,21 +442,39 @@ def run_task(root, stack, goal, target, criteria, constraints, *,
                     + impact_results.get("output_tail", "")[:1500]
                 )
                 if not quiet:
-                    print("impact test failed:", log[:300])
+                    info("impact test failed: %s", log[:300])
             elif impact_result in (IMPACT_RESULT_PASSED, IMPACT_RESULT_NOT_NEEDED):
                 # Impact tests passed or nothing to verify → done
                 if not quiet:
-                    print("PASSED the contract (impact verified). DONE.")
+                    info("PASSED the contract (impact verified). DONE.")
+                emit_event(
+                    "task_complete",
+                    {"target": target, "attempt": t, "impact": "verified"},
+                    root=root,
+                    tokens_saved=0,
+                )
                 return _task_result(
-                    target, prompt, output, applied=True,
+                    target,
+                    prompt,
+                    output,
+                    applied=True,
                     impact=impact_results,
                 )
             else:
                 # IMPACT_RESULT_UNVERIFIED — mapper unavailable or error
                 if not quiet:
-                    print("PASSED the contract (impact unverifiable). DONE.")
+                    info("PASSED the contract (impact unverifiable). DONE.")
+                emit_event(
+                    "task_complete",
+                    {"target": target, "attempt": t, "impact": "unverifiable"},
+                    root=root,
+                    tokens_saved=0,
+                )
                 return _task_result(
-                    target, prompt, output, applied=True,
+                    target,
+                    prompt,
+                    output,
+                    applied=True,
                     impact=impact_results,
                 )
 
@@ -420,23 +482,30 @@ def run_task(root, stack, goal, target, criteria, constraints, *,
         fixer_result = try_static_fixers(log, root)
         if fixer_result.applied:
             ok, fixed_log = _apply_and_test(output, root, bound_paths)
-            log_run(root, {
-                "mode": "fixer",
-                "attempt": t,
-                "ok": ok,
-                "fixer": fixer_result.fixer,
-                "details": fixer_result.details,
-                "failure_class": "none" if ok else classify_failure(fixed_log).kind,
-                "target": target,
-                "stack": stack,
-            })
+            log_run(
+                root,
+                {
+                    "mode": "fixer",
+                    "attempt": t,
+                    "ok": ok,
+                    "fixer": fixer_result.fixer,
+                    "details": fixer_result.details,
+                    "failure_class": "none" if ok else classify_failure(fixed_log).kind,
+                    "target": target,
+                    "stack": stack,
+                },
+            )
             last_log = fixed_log
             log = fixed_log if ok else f"{fixer_result.details}\n{fixed_log}"
             if ok:
                 # Re-run impact tests after fixer pass
                 files_changed = extract_changed_files(output)
                 impact_results = _run_impact_tests(root, files_changed)
-                impact_result = impact_results.get("result", IMPACT_RESULT_UNVERIFIED) if impact_results else IMPACT_RESULT_UNVERIFIED
+                impact_result = (
+                    impact_results.get("result", IMPACT_RESULT_UNVERIFIED)
+                    if impact_results
+                    else IMPACT_RESULT_UNVERIFIED
+                )
 
                 if impact_result == IMPACT_RESULT_FAILED:
                     ok = False
@@ -447,33 +516,56 @@ def run_task(root, stack, goal, target, criteria, constraints, *,
                         + impact_results.get("output_tail", "")[:1500]
                     )
                     if not quiet:
-                        print("impact test failed after fixer:", log[:300])
+                        info("impact test failed after fixer: %s", log[:300])
                 else:
                     if not quiet:
-                        suffix = " (impact verified)" if impact_result == IMPACT_RESULT_PASSED else " (impact unverifiable)"
-                        print(f"PASSED after static fixer {fixer_result.fixer}.{suffix} DONE.")
+                        suffix = (
+                            " (impact verified)"
+                            if impact_result == IMPACT_RESULT_PASSED
+                            else " (impact unverifiable)"
+                        )
+                        info(f"PASSED after static fixer {fixer_result.fixer}.{suffix} DONE.")
+                    emit_event(
+                        "task_complete",
+                        {"target": target, "attempt": t, "fixer": fixer_result.fixer},
+                        root=root,
+                        tokens_saved=0,
+                    )
                     return _task_result(
-                        target, prompt, output, applied=True,
+                        target,
+                        prompt,
+                        output,
+                        applied=True,
                         impact=impact_results,
                     )
         if not quiet:
-            print("failed:", log[:300])
+            info("failed: %s", log[:300])
         feedback = build_retry_feedback(t + 1, last_validation, log)
     if not quiet:
-        print("attempts exhausted — manual review needed.")
+        info("attempts exhausted — manual review needed.")
     warnings = []
     if last_validation and not last_validation.ok:
         warnings.append(last_validation.reason)
     elif last_log:
         warnings.append(last_log[:500])
+    emit_event(
+        "validation_fail",
+        {"target": target, "attempts": MAX_ATTEMPTS, "warnings": warnings[:1]},
+        level="warning",
+        root=root,
+    )
     return _task_result(
-        target, prompt, last_output, applied=False, warnings=warnings,
+        target,
+        prompt,
+        last_output,
+        applied=False,
+        warnings=warnings,
         impact=impact_results,
     )
 
+
 def run(root, stack, goal, target, criteria, constraints, bound_paths=None):
-    result = run_task(root, stack, goal, target, criteria, constraints,
-                      bound_paths=bound_paths)
+    result = run_task(root, stack, goal, target, criteria, constraints, bound_paths=bound_paths)
     if result["applied"]:
         return result
     return None

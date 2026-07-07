@@ -24,10 +24,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # Core gate primitives (absorbed from Asolaria/N-Nest)
 # ---------------------------------------------------------------------------
+
 
 def sha16(s: str) -> str:
     """16-char hex digest mimicking the original JS `sha16`."""
@@ -66,6 +66,7 @@ def gate_ok(reported: str, watcher_truth: str) -> bool:
 # ---------------------------------------------------------------------------
 # Tree verification
 # ---------------------------------------------------------------------------
+
 
 def make_agent(addr: str, *, confabulate: bool = False) -> dict[str, Any]:
     """Construct an N-Nest agent node.
@@ -160,6 +161,7 @@ def verify_tree(tree: dict[str, Any] | list[dict[str, Any]]) -> dict[str, Any]:
 # Tamper injection (testing helper)
 # ---------------------------------------------------------------------------
 
+
 def _random_addr() -> str:
     return f"agent/{random.randint(1000, 9999)}"
 
@@ -179,6 +181,7 @@ def tamper(addr: str | None = None) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # CLI handler
 # ---------------------------------------------------------------------------
+
 
 def main(argv: list[str] | None = None) -> int:
     """Entry point for ``simplicio-py gate ...``."""
@@ -260,10 +263,7 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(result, sort_keys=True, indent=2))
         else:
             status = "ALL PASS" if result["all_pass"] else f"{result['failed']} FAILED"
-            print(
-                f"GATE VERIFY: {status}  "
-                f"({result['passed']}/{result['total']} gates passed)"
-            )
+            print(f"GATE VERIFY: {status}  ({result['passed']}/{result['total']} gates passed)")
             for node in result["nodes"]:
                 if not node["gate_ok"]:
                     print(

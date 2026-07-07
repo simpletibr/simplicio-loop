@@ -14,9 +14,11 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterator, Optional
+
+from ..observability import warn
 
 _TREE_CACHE_DIRS = {"__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache"}
 
@@ -112,9 +114,9 @@ def _is_ignored_tree_cache(path: Path, tree: Path) -> bool:
 class StackRegistry:
     """Lazy registry: scans the stacks dir on first access."""
 
-    def __init__(self, root: Optional[Path] = None) -> None:
+    def __init__(self, root: Path | None = None) -> None:
         self.root = root or _stacks_root()
-        self._cache: Optional[dict[str, Stack]] = None
+        self._cache: dict[str, Stack] | None = None
 
     def _load(self) -> dict[str, Stack]:
         if self._cache is not None:
@@ -134,7 +136,7 @@ class StackRegistry:
             except json.JSONDecodeError as e:
                 # Stack file with bad JSON should not crash the whole registry —
                 # skip it but make the failure visible.
-                print(f"[stack_registry] skipping {entry.name}: bad stack.json ({e})")
+                warn(f"[stack_registry] skipping {entry.name}: bad stack.json ({e})")
                 continue
             slug = meta.get("slug") or entry.name
             stack = Stack(slug=slug, path=entry, meta=meta)
@@ -157,7 +159,7 @@ class StackRegistry:
     def list(self) -> list[Stack]:
         return sorted(self._load().values(), key=lambda s: s.slug)
 
-    def get(self, slug: str) -> Optional[Stack]:
+    def get(self, slug: str) -> Stack | None:
         return self._load().get(slug)
 
     def by_tags(self, tags: list[str]) -> list[Stack]:

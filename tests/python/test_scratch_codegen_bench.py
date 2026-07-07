@@ -19,9 +19,7 @@ from bench.run_scratch_codegen import (
 def test_scratch_codegen_bench_cases_cover_python_executors() -> None:
     cases = build_cases(include_typescript=False)
 
-    assert {
-        case.expected_executor for case in cases if case.stack_slug == "py-fastapi"
-    } == {
+    assert {case.expected_executor for case in cases if case.stack_slug == "py-fastapi"} == {
         "python-add-fastapi-route",
         "python-add-orm-field",
         "python-add-pydantic-schema",
@@ -32,9 +30,7 @@ def test_scratch_codegen_bench_cases_cover_python_executors() -> None:
 def test_scratch_codegen_bench_cases_cover_typescript_executors() -> None:
     cases = build_cases(include_typescript=True)
 
-    assert {
-        case.expected_executor for case in cases if case.stack_slug == "ts-nextjs"
-    } == {
+    assert {case.expected_executor for case in cases if case.stack_slug == "ts-nextjs"} == {
         "typescript-add-next-page",
         "typescript-add-next-route",
     }
@@ -44,9 +40,7 @@ def test_scratch_codegen_bench_cases_cover_live_stack_executors() -> None:
     cases = build_cases(include_typescript=True)
 
     assert {
-        case.expected_executor
-        for case in cases
-        if case.stack_slug in {"go-gin", "rust-axum", "php-laravel"}
+        case.expected_executor for case in cases if case.stack_slug in {"go-gin", "rust-axum", "php-laravel"}
     } == {
         "go-gin-crud",
         "php-laravel-crud-routes",
@@ -70,10 +64,7 @@ def test_scratch_codegen_bench_runs_keyless_non_typescript_cases(tmp_path) -> No
     assert summary["post_validated_cases"] == 7
     assert summary["post_validation_failed_cases"] == 0
     assert summary["release_gates"]["llm_baseline_present"] is False
-    assert (
-        summary["release_gates"]["typescript_next_route_compiles_and_responds_json"]
-        is False
-    )
+    assert summary["release_gates"]["typescript_next_route_compiles_and_responds_json"] is False
 
 
 def test_scratch_codegen_bench_writes_reports(tmp_path) -> None:
@@ -111,9 +102,7 @@ def test_scratch_codegen_bench_compares_captured_llm_baseline(tmp_path) -> None:
     assert summary["release_gates"]["executor_pass_rate_ge_llm"] is True
     assert summary["release_gates"]["latency_reduction_ge_50"] is True
     assert summary["llm_baseline"]["source"] == "fixture"
-    assert "LLM baseline pass-rate" not in "\n".join(
-        summary["missing_release_evidence"]
-    )
+    assert "LLM baseline pass-rate" not in "\n".join(summary["missing_release_evidence"])
 
 
 def test_scratch_codegen_bench_consumes_live_gate_evidence(tmp_path) -> None:

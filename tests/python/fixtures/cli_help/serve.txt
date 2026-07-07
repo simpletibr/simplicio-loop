@@ -1,0 +1,6 @@
+usage: simplicio-py serve [-h] [--mcp]
+
+options:
+  -h, --help  show this help message and exit
+  --mcp       serve MCP tools (dev_cli_edit, dev_cli_validate, dev_cli_memory)
+              over stdio

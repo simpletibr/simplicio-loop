@@ -33,9 +33,7 @@ class RustAxumCrudExecutor(TaskExecutor):
         if task.target.replace("\\", "/") != "src/main.rs":
             return False
         text = _task_text(task).lower()
-        return "crud" in text and any(
-            token in text for token in ("axum", "route", "api")
-        )
+        return "crud" in text and any(token in text for token in ("axum", "route", "api"))
 
     def execute(self, task: Task, project_dir: Path, stack: Stack) -> CodegenResult:
         if task.target.replace("\\", "/") != "src/main.rs":

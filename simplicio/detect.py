@@ -6,32 +6,106 @@ invoke the simplicio-cli skill instead of editing by hand.
 
 No LLM call. Pure regex/keyword. Cheap to run on every prompt.
 """
+
 from __future__ import annotations
 
 import re
 import sys
 from dataclasses import dataclass
-from pathlib import Path
 
 from .intent import classify_goal
 
 _EDIT_VERBS = (
     # English
-    "add", "remove", "delete", "rename", "refactor", "fix", "patch", "update",
-    "change", "replace", "hide", "show", "validate", "implement", "wire", "inject",
-    "extract", "split", "rewrite", "tweak", "adjust", "introduce", "expose",
-    "map", "inventory", "align", "document", "improve", "use", "run",
-    "execute", "connect", "test", "prove", "evidence",
+    "add",
+    "remove",
+    "delete",
+    "rename",
+    "refactor",
+    "fix",
+    "patch",
+    "update",
+    "change",
+    "replace",
+    "hide",
+    "show",
+    "validate",
+    "implement",
+    "wire",
+    "inject",
+    "extract",
+    "split",
+    "rewrite",
+    "tweak",
+    "adjust",
+    "introduce",
+    "expose",
+    "map",
+    "inventory",
+    "align",
+    "document",
+    "improve",
+    "use",
+    "run",
+    "execute",
+    "connect",
+    "test",
+    "prove",
+    "evidence",
     # Portuguese
-    "adicione", "adicionar", "remova", "remover", "renomeie", "renomear",
-    "corrija", "corrigir", "atualize", "atualizar", "altere", "alterar",
-    "esconda", "esconder", "mostre", "mostrar", "valide", "validar",
-    "implemente", "implementar", "troque", "trocar", "ajuste", "ajustar",
-    "ocultar", "exiba", "exibir", "criar", "crie", "veja", "ver",
-    "alinhe", "alinhar", "mapeie", "mapear", "documente", "documentar",
-    "melhore", "melhorar", "use", "usar", "rode", "rodar", "execute",
-    "executar", "teste", "testar", "conecte", "conectar", "prove", "provar",
-    "evidencie", "evidenciar",
+    "adicione",
+    "adicionar",
+    "remova",
+    "remover",
+    "renomeie",
+    "renomear",
+    "corrija",
+    "corrigir",
+    "atualize",
+    "atualizar",
+    "altere",
+    "alterar",
+    "esconda",
+    "esconder",
+    "mostre",
+    "mostrar",
+    "valide",
+    "validar",
+    "implemente",
+    "implementar",
+    "troque",
+    "trocar",
+    "ajuste",
+    "ajustar",
+    "ocultar",
+    "exiba",
+    "exibir",
+    "criar",
+    "crie",
+    "veja",
+    "ver",
+    "alinhe",
+    "alinhar",
+    "mapeie",
+    "mapear",
+    "documente",
+    "documentar",
+    "melhore",
+    "melhorar",
+    "use",
+    "usar",
+    "rode",
+    "rodar",
+    "execute",
+    "executar",
+    "teste",
+    "testar",
+    "conecte",
+    "conectar",
+    "prove",
+    "provar",
+    "evidencie",
+    "evidenciar",
 )
 
 _FILE_EXT_RE = re.compile(
@@ -41,20 +115,77 @@ _FILE_EXT_RE = re.compile(
 )
 
 _CODE_NOUNS = (
-    "component", "endpoint", "route", "handler", "service", "controller",
-    "middleware", "guard", "model", "schema", "migration", "fixture", "test",
-    "spec", "validator", "selector", "store", "reducer", "action", "hook",
-    "directive", "pipe", "module", "function", "method", "class", "prop",
-    "field", "column", "button", "form", "input", "dropdown", "modal", "page",
-    "api", "apis", "database", "postgres", "postgresql", "playwright", "e2e",
-    "componente", "função", "funcao", "classe", "tela", "rota", "campo",
-    "botão", "botao", "formulário", "formulario", "banco", "dados",
+    "component",
+    "endpoint",
+    "route",
+    "handler",
+    "service",
+    "controller",
+    "middleware",
+    "guard",
+    "model",
+    "schema",
+    "migration",
+    "fixture",
+    "test",
+    "spec",
+    "validator",
+    "selector",
+    "store",
+    "reducer",
+    "action",
+    "hook",
+    "directive",
+    "pipe",
+    "module",
+    "function",
+    "method",
+    "class",
+    "prop",
+    "field",
+    "column",
+    "button",
+    "form",
+    "input",
+    "dropdown",
+    "modal",
+    "page",
+    "api",
+    "apis",
+    "database",
+    "postgres",
+    "postgresql",
+    "playwright",
+    "e2e",
+    "componente",
+    "função",
+    "funcao",
+    "classe",
+    "tela",
+    "rota",
+    "campo",
+    "botão",
+    "botao",
+    "formulário",
+    "formulario",
+    "banco",
+    "dados",
 )
 
 _NEGATIVE_CUES = (
-    "what does", "explain", "how does", "why does", "what is",
-    "o que faz", "explique", "como funciona", "por que", "o que é",
-    "show me the", "list ", "list the",
+    "what does",
+    "explain",
+    "how does",
+    "why does",
+    "what is",
+    "o que faz",
+    "explique",
+    "como funciona",
+    "por que",
+    "o que é",
+    "show me the",
+    "list ",
+    "list the",
 )
 
 
@@ -95,7 +226,9 @@ def detect(prompt: str) -> DetectResult:
         score += 1
         signals.append(f"noun:{nouns[0]}")
 
-    if any(s in lower for s in ("$simplicio", "/simplicio", "use simplicio", "rode o simplicio", "via simplicio")):
+    if any(
+        s in lower for s in ("$simplicio", "/simplicio", "use simplicio", "rode o simplicio", "via simplicio")
+    ):
         score += 5
         signals.append("explicit_invocation")
 
@@ -155,12 +288,17 @@ def main(argv=None) -> int:
 
     if args.json:
         import json
-        print(json.dumps({
-            "is_code_task": result.is_code_task,
-            "score": result.score,
-            "scope": result.scope,
-            "signals": result.signals,
-        }))
+
+        print(
+            json.dumps(
+                {
+                    "is_code_task": result.is_code_task,
+                    "score": result.score,
+                    "scope": result.scope,
+                    "signals": result.signals,
+                }
+            )
+        )
 
     if result.is_code_task and not args.quiet:
         print(result.hint, file=sys.stderr)

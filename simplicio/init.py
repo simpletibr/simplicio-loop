@@ -3,6 +3,7 @@
 Idempotent: re-running upgrades the skill, re-installs the hook script, and
 re-merges the settings.json hook entry without duplicating.
 """
+
 from __future__ import annotations
 
 import shutil
@@ -109,19 +110,21 @@ def _plan_settings_update(settings_path: Path, hook_target: Path):
         return False, settings
 
     command_str = str(hook_target)
-    already_present = any(
-        _entry_matches(e, command_str) for e in entries if isinstance(e, dict)
-    )
+    already_present = any(_entry_matches(e, command_str) for e in entries if isinstance(e, dict))
     if already_present:
         return False, settings
 
-    entries.append({
-        "matcher": "",
-        "hooks": [{
-            "type": "command",
-            "command": command_str,
-        }],
-    })
+    entries.append(
+        {
+            "matcher": "",
+            "hooks": [
+                {
+                    "type": "command",
+                    "command": command_str,
+                }
+            ],
+        }
+    )
     return True, settings
 
 
@@ -153,9 +156,12 @@ def main(argv=None) -> int:
     report = install(claude_home=home, dry_run=args.dry_run)
 
     print(f"claude_home:         {report.claude_home}")
-    print(f"skill:               {report.skill_path}  ({'updated' if report.skill_installed else 'unchanged'})")
-    print(f"hook script:         {report.hook_script_path}  ({'updated' if report.hook_script_installed else 'unchanged'})")
-    print(f"settings.json:       {report.settings_path}  ({'updated' if report.settings_updated else 'unchanged'})")
+    skill_state = "updated" if report.skill_installed else "unchanged"
+    print(f"skill:               {report.skill_path}  ({skill_state})")
+    hook_state = "updated" if report.hook_script_installed else "unchanged"
+    print(f"hook script:         {report.hook_script_path}  ({hook_state})")
+    settings_state = "updated" if report.settings_updated else "unchanged"
+    print(f"settings.json:       {report.settings_path}  ({settings_state})")
     if report.dry_run:
         print("(dry-run — no files written)")
     else:

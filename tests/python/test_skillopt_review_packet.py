@@ -15,11 +15,7 @@ from bench.run_skillopt_review_packet import (
 
 
 def _write_skill(root, slug, *, review_required=True):
-    review_line = (
-        "    review_required: true"
-        if review_required
-        else "    review_required: false"
-    )
+    review_line = "    review_required: true" if review_required else "    review_required: false"
     path = root / slug / "SKILL.md"
     path.parent.mkdir(parents=True)
     path.write_text(
@@ -75,9 +71,10 @@ def test_skillopt_review_packet_collects_only_review_gated_skills(tmp_path):
     assert packet["reviews"][0]["approved"] is None
     assert packet["reviews"][0]["reviewer"] == ""
     assert len(packet["reviews"][0]["sha256"]) == 64
-    assert packet["reviews"][0]["sha256"] == hashlib.sha256(
-        (skills_root / "generated-one" / "SKILL.md").read_bytes()
-    ).hexdigest()
+    assert (
+        packet["reviews"][0]["sha256"]
+        == hashlib.sha256((skills_root / "generated-one" / "SKILL.md").read_bytes()).hexdigest()
+    )
 
 
 def test_skillopt_review_packet_pending_rows_do_not_pass_live_gate(tmp_path):
@@ -273,15 +270,11 @@ def test_skillopt_review_packet_script_can_import_repo_package(tmp_path):
     )
 
     assert completed.returncode == 0
-    assert json.loads(json_path.read_text(encoding="utf-8"))["benchmark"] == (
-        "skillopt-review-packet"
-    )
+    assert json.loads(json_path.read_text(encoding="utf-8"))["benchmark"] == ("skillopt-review-packet")
 
 
 def test_versioned_skillopt_review_packet_has_pending_candidates() -> None:
-    packet = json.loads(
-        open("bench/results_skillopt_review_packet.json", encoding="utf-8").read()
-    )
+    packet = json.loads(open("bench/results_skillopt_review_packet.json", encoding="utf-8").read())
 
     assert packet["summary"]["pending_reviews"] >= 10
     assert packet["summary"]["human_review_complete"] is False

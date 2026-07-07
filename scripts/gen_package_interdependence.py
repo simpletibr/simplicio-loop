@@ -57,7 +57,7 @@ def _local_default_model() -> str:
 def _ecosystem_floor(dependencies: list[str], name: str) -> str:
     for req in dependencies:
         if _req_name(req) == name:
-            return req[len(name):].lstrip()
+            return req[len(name) :].lstrip()
     return "(not a base dependency)"
 
 
@@ -188,8 +188,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(
             "DRIFT: docs/PYTHON_PACKAGE_INTERDEPENDENCE.md is stale.\n"
-            "Regenerate it with: python3 scripts/gen_package_interdependence.py\n\n"
-            + diff,
+            "Regenerate it with: python3 scripts/gen_package_interdependence.py\n\n" + diff,
             file=sys.stderr,
         )
         return 1

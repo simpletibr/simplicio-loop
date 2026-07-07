@@ -59,9 +59,7 @@ def build_tree(
         else:
             for i in range(branching):
                 children.append(_node(f"{addr}.{i}", d + 1))
-            true_val = sha16(
-                f"{addr}|{','.join(c['reported'] for c in children)}"
-            )
+            true_val = sha16(f"{addr}|{','.join(c['reported'] for c in children)}")
 
         if addr == tamper_addr:
             reported = sha16(f"{true_val}|CONFABULATED")
@@ -171,9 +169,7 @@ def cmd_build(argv: list[str]) -> int:
             print(f"tamper addr: {a.tamper}")
         for fail in result["failed_gates"]:
             print(
-                f"  GATE FAIL  addr={fail['addr']}  "
-                f"true={fail['true_val']}  "
-                f"reported={fail['reported']}",
+                f"  GATE FAIL  addr={fail['addr']}  true={fail['true_val']}  reported={fail['reported']}",
                 file=sys.stderr,
             )
     return 0 if result["all_gate_ok"] else 1
@@ -189,9 +185,7 @@ def cmd_verify(argv: list[str]) -> int:
     a = ap.parse_args(argv)
 
     try:
-        raw = sys.stdin.read() if a.path == "-" else Path(a.path).read_text(
-            encoding="utf-8"
-        )
+        raw = sys.stdin.read() if a.path == "-" else Path(a.path).read_text(encoding="utf-8")
         tree = json.loads(raw)
     except (OSError, json.JSONDecodeError) as exc:
         print(f"{CLI_PROG} nest verify: {exc}", file=sys.stderr)
@@ -211,9 +205,7 @@ def cmd_verify(argv: list[str]) -> int:
         )
         for fail in result["failed_gates"]:
             print(
-                f"  GATE FAIL  addr={fail['addr']}  "
-                f"true={fail['true_val']}  "
-                f"reported={fail['reported']}",
+                f"  GATE FAIL  addr={fail['addr']}  true={fail['true_val']}  reported={fail['reported']}",
                 file=sys.stderr,
             )
     return 0 if result["all_gate_ok"] else 1

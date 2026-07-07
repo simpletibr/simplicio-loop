@@ -1,14 +1,14 @@
 """Mechanical fixes for common verify-loop failures."""
+
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from pathlib import Path
 import re
 import subprocess
 import sys
-from typing import Callable, Iterable
-
+from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
+from pathlib import Path
 
 Runner = Callable[..., subprocess.CompletedProcess]
 
@@ -32,7 +32,9 @@ class StaticFixer(ABC):
         raise NotImplementedError
 
 
-def _run(argv: list[str], project_dir: Path, runner: Runner | None, timeout: int = 120) -> subprocess.CompletedProcess:
+def _run(
+    argv: list[str], project_dir: Path, runner: Runner | None, timeout: int = 120
+) -> subprocess.CompletedProcess:
     run = runner or subprocess.run
     return run(
         argv,
@@ -156,7 +158,7 @@ def _add_pyproject_dependency(pyproject: Path, package: str) -> bool:
 
     if dep_idx is None:
         insertion = ["dependencies = [", f'  "{package}",', "]"]
-        lines[start + 1:start + 1] = insertion
+        lines[start + 1 : start + 1] = insertion
         pyproject.write_text("\n".join(lines) + "\n", encoding="utf-8")
         return True
 
@@ -177,7 +179,9 @@ def _add_pyproject_dependency(pyproject: Path, package: str) -> bool:
     if close_idx is None:
         return False
 
-    indent = re.match(r"^(\s*)", lines[close_idx - 1] if close_idx > dep_idx + 1 else "  ").group(1)
+    indent_match = re.match(r"^(\s*)", lines[close_idx - 1] if close_idx > dep_idx + 1 else "  ")
+    assert indent_match is not None  # `^(\s*)` always matches, even on ""
+    indent = indent_match.group(1)
     item_indent = indent or "  "
     lines.insert(close_idx, f'{item_indent}"{package}",')
     pyproject.write_text("\n".join(lines) + "\n", encoding="utf-8")

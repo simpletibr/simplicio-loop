@@ -1,0 +1,10 @@
+usage: simplicio-py memory [-h] {init,store,recall} ...
+
+positional arguments:
+  {init,store,recall}
+    init               create the memory store
+    store              append a note
+    recall             keyword search over stored notes
+
+options:
+  -h, --help           show this help message and exit

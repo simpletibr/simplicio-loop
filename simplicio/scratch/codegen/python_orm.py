@@ -73,10 +73,7 @@ class PythonAddOrmFieldExecutor(TaskExecutor):
             return CodegenResult(
                 passed=True,
                 files_modified=[],
-                log=(
-                    f"{spec.model_name}.{spec.field_name} already exists; "
-                    "no changes needed"
-                ),
+                log=(f"{spec.model_name}.{spec.field_name} already exists; no changes needed"),
             )
 
         try:
@@ -95,9 +92,7 @@ class PythonAddOrmFieldExecutor(TaskExecutor):
         return CodegenResult(
             passed=True,
             files_modified=[target],
-            log=(
-                f"added {spec.model_name}.{spec.field_name}: Mapped[{spec.mapped_type}] with libcst"
-            ),
+            log=(f"added {spec.model_name}.{spec.field_name}: Mapped[{spec.mapped_type}] with libcst"),
         )
 
 
@@ -165,9 +160,7 @@ def _parse_model_fields(text: str) -> list[str]:
     if match:
         raw = re.sub(r"\band\b", ",", match.group(1), flags=re.IGNORECASE)
         fields = [
-            field.strip()
-            for field in raw.split(",")
-            if re.fullmatch(r"[a-z_][a-z0-9_]*", field.strip())
+            field.strip() for field in raw.split(",") if re.fullmatch(r"[a-z_][a-z0-9_]*", field.strip())
         ]
         if fields:
             return list(dict.fromkeys(fields))

@@ -65,9 +65,7 @@ class User(Base):
     updated = models_path.read_text(encoding="utf-8")
     ast.parse(updated)
     assert "    name: Mapped[str]\n    email: Mapped[str]\n" in updated
-    assert (
-        "from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column" in updated
-    )
+    assert "from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column" in updated
 
 
 def test_python_add_orm_field_creates_recipe_model_file(tmp_path):

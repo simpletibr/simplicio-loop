@@ -39,6 +39,7 @@ Four modes, picked by SIMPLICIO_MODEL prefix (or by absence of config):
 import os
 import shutil
 from pathlib import Path
+from typing import Any
 
 from ._cache import CacheEntry, cache, make_key
 
@@ -46,22 +47,22 @@ from ._cache import CacheEntry, cache, make_key
 def _import_openai():
     try:
         from openai import OpenAI
-    except ImportError:
+    except ImportError as exc:
         raise SystemExit(
             "simplicio: this provider needs the openai SDK. "
             "Install extras: pip install 'simplicio-cli[providers]'"
-        )
+        ) from exc
     return OpenAI
 
 
 def _import_anthropic():
     try:
         import anthropic
-    except ImportError:
+    except ImportError as exc:
         raise SystemExit(
             "simplicio: this provider needs the anthropic SDK. "
             "Install extras: pip install 'simplicio-cli[providers]'"
-        )
+        ) from exc
     return anthropic
 
 
@@ -117,7 +118,10 @@ LLM_DIRECTIVES = (
 
 def _directives_enabled() -> bool:
     return os.environ.get("SIMPLICIO_NO_LLM_DIRECTIVES", "").strip() not in (
-        "1", "true", "True", "yes",
+        "1",
+        "true",
+        "True",
+        "yes",
     )
 
 
@@ -157,7 +161,7 @@ LOCAL_MAX_GPU_LAYERS = 0
 
 # Loaded Llama instances, keyed by memory-relevant llama.cpp settings.
 # A model load is expensive (weights -> RAM), so we keep it for the process.
-_LOCAL_LLAMA_CACHE = {}
+_LOCAL_LLAMA_CACHE: dict[tuple[Any, ...], Any] = {}
 
 
 def _is_local(model, base):
@@ -243,11 +247,11 @@ def _resolve_local_path(repo, fname, path):
         return path
     try:
         from huggingface_hub import hf_hub_download
-    except ImportError:
+    except ImportError as exc:
         raise SystemExit(
             "simplicio: local backend needs huggingface-hub. "
             "Install extras: pip install 'simplicio-cli[local]'"
-        )
+        ) from exc
     errors = []
     for candidate_repo, candidate_file in _local_candidates(repo, fname):
         local_file = _local_executor_dir() / candidate_file
@@ -274,8 +278,8 @@ def _bounded_int(name, default, *, minimum=1, maximum=None):
     else:
         try:
             value = int(raw)
-        except ValueError:
-            raise SystemExit(f"simplicio: {name} must be a positive integer")
+        except ValueError as exc:
+            raise SystemExit(f"simplicio: {name} must be a positive integer") from exc
     value = max(minimum, value)
     if maximum is not None:
         value = min(value, maximum)
@@ -292,9 +296,7 @@ def _safe_local_threads():
         _bounded_int("SIMPLICIO_LOCAL_THREADS_MAX", LOCAL_MAX_THREADS),
         LOCAL_MAX_THREADS,
     )
-    return _bounded_int(
-        "SIMPLICIO_LOCAL_THREADS", LOCAL_DEFAULT_THREADS, maximum=maximum
-    )
+    return _bounded_int("SIMPLICIO_LOCAL_THREADS", LOCAL_DEFAULT_THREADS, maximum=maximum)
 
 
 def _safe_local_batch():
@@ -310,9 +312,7 @@ def _safe_local_ubatch():
         _bounded_int("SIMPLICIO_LOCAL_UBATCH_MAX", LOCAL_MAX_UBATCH),
         LOCAL_MAX_UBATCH,
     )
-    return _bounded_int(
-        "SIMPLICIO_LOCAL_UBATCH", LOCAL_DEFAULT_UBATCH, minimum=16, maximum=maximum
-    )
+    return _bounded_int("SIMPLICIO_LOCAL_UBATCH", LOCAL_DEFAULT_UBATCH, minimum=16, maximum=maximum)
 
 
 def _safe_local_gpu_layers():
@@ -343,11 +343,11 @@ def _local_llama(model):
     """Load (or reuse) the Llama instance for the given local model id."""
     try:
         from llama_cpp import Llama
-    except ImportError:
+    except ImportError as exc:
         raise SystemExit(
             "simplicio: local backend needs llama-cpp-python. "
             "Install extras: pip install 'simplicio-cli[local]'"
-        )
+        ) from exc
     repo, fname, path = _local_spec(model)
     gguf = _resolve_local_path(repo, fname, path)
     n_ctx = _safe_local_ctx()
@@ -420,18 +420,15 @@ def _shell_out(cmd, label, stdin_text=None):
             timeout=600,
             check=False,
         )
-    except FileNotFoundError:
+    except FileNotFoundError as exc:
         raise SystemExit(
-            f"simplicio: `{cmd[0]}` CLI not on PATH. "
-            f"Install {label} first, then re-run."
-        )
-    except subprocess.TimeoutExpired:
-        raise SystemExit(f"simplicio: {label} timed out (>600s)")
+            f"simplicio: `{cmd[0]}` CLI not on PATH. Install {label} first, then re-run."
+        ) from exc
+    except subprocess.TimeoutExpired as exc:
+        raise SystemExit(f"simplicio: {label} timed out (>600s)") from exc
     if result.returncode != 0:
         stderr = (result.stderr or "").strip()
-        raise SystemExit(
-            f"simplicio: {label} failed (exit {result.returncode}): {stderr[:500]}"
-        )
+        raise SystemExit(f"simplicio: {label} failed (exit {result.returncode}): {stderr[:500]}")
     return result.stdout
 
 
@@ -560,15 +557,21 @@ def _generate_local_cached(prompt, feedback, model, max_tokens, cache_full_promp
     cached = cache().get(key)
     if cached is not None:
         _log_usage_event(
-            provider_id="local-llama", model=eff_model, prompt=cache_full_prompt,
-            completion=cached.completion, cache_hit=True,
+            provider_id="local-llama",
+            model=eff_model,
+            prompt=cache_full_prompt,
+            completion=cached.completion,
+            cache_hit=True,
         )
         return cached.completion
     out = _local_generate(prompt, feedback, eff_model, max_tokens)
     _charge_if_budgeted(eff_model, cache_full_prompt, out)
     _log_usage_event(
-        provider_id="local-llama", model=eff_model, prompt=cache_full_prompt,
-        completion=out, cache_hit=False,
+        provider_id="local-llama",
+        model=eff_model,
+        prompt=cache_full_prompt,
+        completion=out,
+        cache_hit=False,
     )
     cache().put(key, CacheEntry(out, provider_id="local-llama", model=eff_model))
     return out
@@ -581,9 +584,7 @@ def _openai_compatible_generate(model, base, key, prompt, feedback, max_tokens):
     OpenAI = _import_openai()
 
     cli = OpenAI(base_url=base, api_key=key)
-    r = cli.chat.completions.create(
-        model=model, max_tokens=max_tokens, messages=_msgs(prompt, feedback)
-    )
+    r = cli.chat.completions.create(model=model, max_tokens=max_tokens, messages=_msgs(prompt, feedback))
     return r.choices[0].message.content, _openai_usage(r)
 
 
@@ -592,19 +593,25 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
     # (no credential check) so a hit returns without requiring an API key
     # to be set in the environment.
     from ._cache import cache, make_key
+
     model_name = os.environ.get("SIMPLICIO_MODEL", "").strip()
     prompt = _apply_directives(prompt)
     cache_full_prompt = _inline_feedback(prompt, feedback)
     cache_key = make_key(
-        provider_id="doer", model=model_name, prompt=cache_full_prompt,
+        provider_id="doer",
+        model=model_name,
+        prompt=cache_full_prompt,
         max_tokens=max_tokens,
         template_version=template_version,
     )
     cached = cache().get(cache_key)
     if cached is not None:
         _log_usage_event(
-            provider_id="doer", model=model_name, prompt=cache_full_prompt,
-            completion=cached.completion, cache_hit=True,
+            provider_id="doer",
+            model=model_name,
+            prompt=cache_full_prompt,
+            completion=cached.completion,
+            cache_hit=True,
         )
         return cached.completion
 
@@ -642,31 +649,36 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
     cached = cache().get(key)
     if cached is not None:
         _log_usage_event(
-            provider_id=provider_id, model=model, prompt=cache_full_prompt,
-            completion=cached.completion, cache_hit=True,
+            provider_id=provider_id,
+            model=model,
+            prompt=cache_full_prompt,
+            completion=cached.completion,
+            cache_hit=True,
         )
         return cached.completion
 
     # Path 3: shell out to a logged-in CLI. No API key needed.
     if model.startswith("claude-cli/"):
-        out = _shell_out_claude(
-            _inline_feedback(prompt, feedback), model.split("/", 1)[1]
-        )
+        out = _shell_out_claude(_inline_feedback(prompt, feedback), model.split("/", 1)[1])
         _charge_if_budgeted(model, cache_full_prompt, out)
         _log_usage_event(
-            provider_id=provider_id, model=model, prompt=cache_full_prompt,
-            completion=out, cache_hit=False,
+            provider_id=provider_id,
+            model=model,
+            prompt=cache_full_prompt,
+            completion=out,
+            cache_hit=False,
         )
         cache().put(key, CacheEntry(out, provider_id=provider_id, model=model))
         return out
     if model.startswith("codex-cli/"):
-        out = _shell_out_codex(
-            _inline_feedback(prompt, feedback), model.split("/", 1)[1]
-        )
+        out = _shell_out_codex(_inline_feedback(prompt, feedback), model.split("/", 1)[1])
         _charge_if_budgeted(model, cache_full_prompt, out)
         _log_usage_event(
-            provider_id=provider_id, model=model, prompt=cache_full_prompt,
-            completion=out, cache_hit=False,
+            provider_id=provider_id,
+            model=model,
+            prompt=cache_full_prompt,
+            completion=out,
+            cache_hit=False,
         )
         cache().put(key, CacheEntry(out, provider_id=provider_id, model=model))
         return out
@@ -683,26 +695,30 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
         anthropic = _import_anthropic()
 
         cli = anthropic.Anthropic(api_key=c["key"])
-        r = cli.messages.create(
-            model=model, max_tokens=max_tokens, messages=_msgs(prompt, feedback)
-        )
+        r = cli.messages.create(model=model, max_tokens=max_tokens, messages=_msgs(prompt, feedback))
         out = next((b.text for b in r.content if b.type == "text"), "")
         _charge_if_budgeted(model, cache_full_prompt, out)
         _log_usage_event(
-            provider_id=provider_id, model=model, prompt=cache_full_prompt,
-            completion=out, cache_hit=False, usage=_anthropic_usage(r),
+            provider_id=provider_id,
+            model=model,
+            prompt=cache_full_prompt,
+            completion=out,
+            cache_hit=False,
+            usage=_anthropic_usage(r),
         )
         cache().put(key, CacheEntry(out, provider_id=provider_id, model=model))
         return out
 
     # Any OpenAI-compatible endpoint (OpenRouter, GLM, DeepSeek, local...)
-    out, usage = _openai_compatible_generate(
-        model, c["base"], c["key"], prompt, feedback, max_tokens
-    )
+    out, usage = _openai_compatible_generate(model, c["base"], c["key"], prompt, feedback, max_tokens)
     _charge_if_budgeted(model, cache_full_prompt, out)
     _log_usage_event(
-        provider_id=provider_id, model=model, prompt=cache_full_prompt,
-        completion=out, cache_hit=False, usage=usage,
+        provider_id=provider_id,
+        model=model,
+        prompt=cache_full_prompt,
+        completion=out,
+        cache_hit=False,
+        usage=usage,
     )
     cache().put(key, CacheEntry(out, provider_id=provider_id, model=model))
     return out
@@ -731,10 +747,7 @@ def info():
         return f"model={model} provider=claude-cli (shell-out, uses Claude Code OAuth) key=not-needed"
     if model.startswith("codex-cli/"):
         return f"model={model} provider=codex-cli (shell-out, uses Codex/ChatGPT login) key=not-needed"
-    return (
-        f"model={model} base={c['base'] or 'anthropic-native'} "
-        f"key={'set' if c['key'] else 'MISSING'}"
-    )
+    return f"model={model} base={c['base'] or 'anthropic-native'} key={'set' if c['key'] else 'MISSING'}"
 
 
 # --------------------------------------------------------------------------- #
@@ -875,8 +888,12 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
     cached = cache().get(key)
     if cached is not None:
         _log_usage_event(
-            provider_id=_planner_provider_id(p), model=p["model"], prompt=prompt,
-            completion=cached.completion, cache_hit=True, surface="planner_complete",
+            provider_id=_planner_provider_id(p),
+            model=p["model"],
+            prompt=prompt,
+            completion=cached.completion,
+            cache_hit=True,
+            surface="planner_complete",
         )
         return cached.completion
 
@@ -886,8 +903,12 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
             out = _shell_out_claude(prompt, p["model"].split("/", 1)[1])
             _charge_if_budgeted(p["model"], prompt, out)
             _log_usage_event(
-                provider_id=provider_id, model=p["model"], prompt=prompt,
-                completion=out, cache_hit=False, surface="planner_complete",
+                provider_id=provider_id,
+                model=p["model"],
+                prompt=prompt,
+                completion=out,
+                cache_hit=False,
+                surface="planner_complete",
             )
             cache().put(
                 key,
@@ -898,8 +919,12 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
             out = _shell_out_codex(prompt, p["model"].split("/", 1)[1])
             _charge_if_budgeted(p["model"], prompt, out)
             _log_usage_event(
-                provider_id=provider_id, model=p["model"], prompt=prompt,
-                completion=out, cache_hit=False, surface="planner_complete",
+                provider_id=provider_id,
+                model=p["model"],
+                prompt=prompt,
+                completion=out,
+                cache_hit=False,
+                surface="planner_complete",
             )
             cache().put(
                 key,
@@ -911,8 +936,12 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
         out = _local_generate(prompt, None, p["model"], max_tokens)
         _charge_if_budgeted(p["model"], prompt, out)
         _log_usage_event(
-            provider_id="planner:local-llama", model=p["model"], prompt=prompt,
-            completion=out, cache_hit=False, surface="planner_complete",
+            provider_id="planner:local-llama",
+            model=p["model"],
+            prompt=prompt,
+            completion=out,
+            cache_hit=False,
+            surface="planner_complete",
         )
         cache().put(
             key,
@@ -939,8 +968,12 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
         out = next((b.text for b in r.content if b.type == "text"), "")
         _charge_if_budgeted(p["model"], prompt, out)
         _log_usage_event(
-            provider_id=_planner_provider_id(p), model=p["model"], prompt=prompt,
-            completion=out, cache_hit=False, usage=_anthropic_usage(r),
+            provider_id=_planner_provider_id(p),
+            model=p["model"],
+            prompt=prompt,
+            completion=out,
+            cache_hit=False,
+            usage=_anthropic_usage(r),
             surface="planner_complete",
         )
         cache().put(
@@ -961,8 +994,12 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
     out = r.choices[0].message.content
     _charge_if_budgeted(p["model"], prompt, out)
     _log_usage_event(
-        provider_id=_planner_provider_id(p), model=p["model"], prompt=prompt,
-        completion=out, cache_hit=False, usage=_openai_usage(r),
+        provider_id=_planner_provider_id(p),
+        model=p["model"],
+        prompt=prompt,
+        completion=out,
+        cache_hit=False,
+        usage=_openai_usage(r),
         surface="planner_complete",
     )
     cache().put(
@@ -978,6 +1015,4 @@ def planner_info():
         return f"planner={p['model']} (shell-out)"
     if p["native_anthropic"]:
         return f"planner={p['model']} provider=anthropic-native key={'set' if p['key'] else 'MISSING'}"
-    return (
-        f"planner={p['model']} base={p['base']} key={'set' if p['key'] else 'MISSING'}"
-    )
+    return f"planner={p['model']} base={p['base']} key={'set' if p['key'] else 'MISSING'}"

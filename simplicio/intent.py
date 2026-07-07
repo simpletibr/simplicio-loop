@@ -5,6 +5,7 @@ The classifier is intentionally small and deterministic.  It gives the future
 goal should use the existing task pipeline, scratch scaffolder, or a higher
 level orchestrator once feature and sprint modes are wired.
 """
+
 from __future__ import annotations
 
 import re

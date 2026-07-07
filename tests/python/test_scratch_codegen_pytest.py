@@ -22,9 +22,7 @@ def _stack(tmp_path: Path) -> Stack:
 
 
 def _task(
-    goal: str = (
-        "Generate a happy-path pytest for function double in src/utils/math_ops.py"
-    ),
+    goal: str = ("Generate a happy-path pytest for function double in src/utils/math_ops.py"),
 ) -> Task:
     return Task(
         id="T02-pytest",

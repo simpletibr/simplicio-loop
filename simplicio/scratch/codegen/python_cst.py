@@ -11,9 +11,7 @@ def _cst():
     try:
         import libcst as cst
         from libcst.helpers import get_full_name_for_node
-    except (
-        ModuleNotFoundError
-    ) as exc:  # pragma: no cover - exercised by deployments without libcst
+    except ModuleNotFoundError as exc:  # pragma: no cover - exercised by deployments without libcst
         raise LibCSTUnavailable("libcst is not installed") from exc
     return cst, get_full_name_for_node
 
@@ -40,9 +38,7 @@ def ensure_from_import(source: str, module: str, name: str) -> str:
             if not isinstance(names, tuple):
                 return updated_node
             imported = {
-                get_full_name_for_node(alias.name)
-                for alias in names
-                if get_full_name_for_node(alias.name)
+                get_full_name_for_node(alias.name) for alias in names if get_full_name_for_node(alias.name)
             }
             if "*" in imported or name in imported:
                 self.changed = True
@@ -51,9 +47,7 @@ def ensure_from_import(source: str, module: str, name: str) -> str:
                 *head, last = names
                 names = (
                     *head,
-                    last.with_changes(
-                        comma=cst.Comma(whitespace_after=cst.SimpleWhitespace(" "))
-                    ),
+                    last.with_changes(comma=cst.Comma(whitespace_after=cst.SimpleWhitespace(" "))),
                     cst.ImportAlias(cst.Name(name)),
                 )
             else:
@@ -74,9 +68,7 @@ def ensure_from_import(source: str, module: str, name: str) -> str:
     return updated.with_changes(body=body).code
 
 
-def append_statement_to_class(
-    source: str, class_name: str, statement: str
-) -> str | None:
+def append_statement_to_class(source: str, class_name: str, statement: str) -> str | None:
     """Append a concrete statement to a class body using LibCST."""
     cst, _ = _cst()
 
@@ -92,9 +84,7 @@ def append_statement_to_class(
             body = [item for item in updated_node.body.body if not _is_pass(item, cst)]
             body.append(next_statement)
             self.changed = True
-            return updated_node.with_changes(
-                body=updated_node.body.with_changes(body=tuple(body))
-            )
+            return updated_node.with_changes(body=updated_node.body.with_changes(body=tuple(body)))
 
     tree = cst.parse_module(source or "\n")
     transformer = ClassAppender()

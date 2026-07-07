@@ -314,6 +314,7 @@ def test_cli_edit_alias_uses_local_fallback_when_runtime_disabled(tmp_path, monk
 
 def test_cli_edit_alias_delegates_to_runtime_when_available(tmp_path, monkeypatch):
     from simplicio import cli
+    from simplicio.commands import edit as edit_cmd
 
     plan_path = tmp_path / "plan.json"
     plan_path.write_text(
@@ -342,8 +343,10 @@ def test_cli_edit_alias_delegates_to_runtime_when_available(tmp_path, monkeypatc
 
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     monkeypatch.delenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT", raising=False)
-    monkeypatch.setattr(cli.shutil, "which", lambda name: "/bin/simplicio" if name == "simplicio" else None)
-    monkeypatch.setattr(cli.subprocess, "run", fake_run)
+    monkeypatch.setattr(
+        edit_cmd.shutil, "which", lambda name: "/bin/simplicio" if name == "simplicio" else None
+    )
+    monkeypatch.setattr(edit_cmd.subprocess, "run", fake_run)
 
     code = cli.main(
         [

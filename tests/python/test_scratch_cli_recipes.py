@@ -103,15 +103,17 @@ def test_slot_values_are_passed_to_generate_plan_signature(
     monkeypatch.setattr(scratch_cli, "generate_plan", fake_generate_plan)
     monkeypatch.setattr(scratch_cli, "planner_info", lambda: "test-planner")
 
-    rc = scratch_cli.main([
-        "CRUD API for Unit",
-        "--stack",
-        "py-fastapi",
-        "--plan-only",
-        "--json",
-        "--slot",
-        "entity=Unit",
-    ])
+    rc = scratch_cli.main(
+        [
+            "CRUD API for Unit",
+            "--stack",
+            "py-fastapi",
+            "--plan-only",
+            "--json",
+            "--slot",
+            "entity=Unit",
+        ]
+    )
 
     assert rc == 0
     assert captured == {
@@ -120,9 +122,7 @@ def test_slot_values_are_passed_to_generate_plan_signature(
         "project_name": "crud-api-for-unit",
         "slots": {"entity": "Unit"},
     }
-    assert json.loads(capsys.readouterr().out)["project_name"] == (
-        "crud-api-for-unit"
-    )
+    assert json.loads(capsys.readouterr().out)["project_name"] == ("crud-api-for-unit")
 
 
 def test_slot_values_fall_back_to_environment_for_old_planner_signature(
@@ -138,14 +138,16 @@ def test_slot_values_fall_back_to_environment_for_old_planner_signature(
     monkeypatch.setattr(scratch_cli, "generate_plan", fake_generate_plan)
     monkeypatch.setattr(scratch_cli, "planner_info", lambda: "test-planner")
 
-    rc = scratch_cli.main([
-        "CRUD API for Unit",
-        "--stack",
-        "py-fastapi",
-        "--plan-only",
-        "--slot",
-        "entity=Unit",
-    ])
+    rc = scratch_cli.main(
+        [
+            "CRUD API for Unit",
+            "--stack",
+            "py-fastapi",
+            "--plan-only",
+            "--slot",
+            "entity=Unit",
+        ]
+    )
 
     assert rc == 0
     assert captured["recipe_slots"] == '{"entity": "Unit"}'
@@ -162,14 +164,16 @@ def test_empty_slot_value_fails_before_planner(monkeypatch, capsys) -> None:
 
     monkeypatch.setattr(scratch_cli, "generate_plan", fake_generate_plan)
 
-    rc = scratch_cli.main([
-        "CRUD API for Unit",
-        "--stack",
-        "py-fastapi",
-        "--plan-only",
-        "--slot",
-        "entity=",
-    ])
+    rc = scratch_cli.main(
+        [
+            "CRUD API for Unit",
+            "--stack",
+            "py-fastapi",
+            "--plan-only",
+            "--slot",
+            "entity=",
+        ]
+    )
 
     err = capsys.readouterr().err
     assert rc == 2

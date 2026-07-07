@@ -7,13 +7,12 @@ Covers the v1 contract documented in docs/specs/STRUCTURED_OUTPUT_v1.md:
 - Behavior signature determinism
 - Modal vote with parsed + unparsed mix
 """
+
 from __future__ import annotations
 
 import json
 import sys
 from pathlib import Path
-
-import pytest
 
 # bench/ is not a package; add to path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "bench"))
@@ -25,7 +24,6 @@ from sp_output_schema import (  # noqa: E402
     behavior_modal_vote,
 )
 
-
 # ----- marker / instruction surface ----- #
 
 
@@ -35,8 +33,14 @@ def test_marker_is_canonical_string():
 
 def test_instruction_mentions_all_six_fields():
     inst = STRUCTURED_OUTPUT_INSTRUCTION
-    for field in ("artifact", "files_changed", "behaviors_added",
-                  "expected_oracle_pass", "confidence", "concerns"):
+    for field in (
+        "artifact",
+        "files_changed",
+        "behaviors_added",
+        "expected_oracle_pass",
+        "confidence",
+        "concerns",
+    ):
         assert field in inst, f"instruction missing field: {field}"
 
 
@@ -90,9 +94,9 @@ def test_falls_back_on_pure_text():
 
 
 def test_falls_back_on_malformed_json():
-    r = StructuredResponse.from_text("{artifact: \"missing quotes\"")
+    r = StructuredResponse.from_text('{artifact: "missing quotes"')
     assert r.parse_ok is False
-    assert r.artifact == "{artifact: \"missing quotes\""
+    assert r.artifact == '{artifact: "missing quotes"'
 
 
 def test_promotes_alternate_artifact_field_names():
@@ -209,10 +213,8 @@ def test_modal_vote_picks_winning_signature():
 
 def test_modal_vote_tiebreaks_on_confidence():
     """Two responses in the modal group: highest confidence wins."""
-    p_low = json.dumps({**_example_payload(), "confidence": 0.3,
-                        "artifact": "low-conf code"})
-    p_high = json.dumps({**_example_payload(), "confidence": 0.9,
-                         "artifact": "high-conf code"})
+    p_low = json.dumps({**_example_payload(), "confidence": 0.3, "artifact": "low-conf code"})
+    p_high = json.dumps({**_example_payload(), "confidence": 0.9, "artifact": "high-conf code"})
     responses = [
         StructuredResponse.from_text(p_low),
         StructuredResponse.from_text(p_high),

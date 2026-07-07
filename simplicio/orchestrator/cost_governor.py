@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
-from typing import Iterator
 
 from ..observability import estimate_tokens as _canonical_estimate_tokens
 
@@ -21,7 +21,7 @@ class CostGovernor:
     spent_usd: Decimal = Decimal("0")
 
     @classmethod
-    def from_value(cls, value: str | float | int | None) -> "CostGovernor":
+    def from_value(cls, value: str | float | int | None) -> CostGovernor:
         raw = value if value is not None else os.environ.get("SIMPLICIO_MAX_COST")
         if raw in (None, ""):
             return cls(None)
@@ -48,8 +48,7 @@ class CostGovernor:
         self.spent_usd += cost
         if self.budget_usd is not None and self.spent_usd > self.budget_usd:
             raise BudgetExceeded(
-                f"cost budget exceeded: spent ${self.spent_usd} "
-                f"over budget ${self.budget_usd}"
+                f"cost budget exceeded: spent ${self.spent_usd} over budget ${self.budget_usd}"
             )
 
     def refresh_from_env(self) -> None:
@@ -126,15 +125,12 @@ def _estimate_tokens(text: str) -> int:
 
 def _price(model: str | None, prompt_tokens: int, completion_tokens: int) -> Decimal:
     prompt_price = Decimal(os.environ.get("SIMPLICIO_PRICE_PROMPT_PER_MTOK", "0"))
-    completion_price = Decimal(
-        os.environ.get("SIMPLICIO_PRICE_COMPLETION_PER_MTOK", "0")
-    )
+    completion_price = Decimal(os.environ.get("SIMPLICIO_PRICE_COMPLETION_PER_MTOK", "0"))
     if prompt_price == 0 and completion_price == 0:
         blended = Decimal(os.environ.get("SIMPLICIO_PRICE_PER_MTOK", "0"))
         prompt_price = blended
         completion_price = blended
-    total = (
-        Decimal(prompt_tokens) * prompt_price
-        + Decimal(completion_tokens) * completion_price
-    ) / Decimal("1000000")
+    total = (Decimal(prompt_tokens) * prompt_price + Decimal(completion_tokens) * completion_price) / Decimal(
+        "1000000"
+    )
     return total.quantize(Decimal("0.0000001"))

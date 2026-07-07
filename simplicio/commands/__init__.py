@@ -9,6 +9,10 @@ from __future__ import annotations
 
 from ..runtime_bridge import call_simplicio, simplicio_available, use_native_implementation
 
+# Re-exported for callers that check native-binary availability without
+# reaching into `simplicio.runtime_bridge` directly.
+__all__ = ["route_command", "simplicio_available"]
+
 
 def route_command(
     cmd_name: str,
@@ -42,9 +46,7 @@ def route_command(
     Exit code (``int``) when the Rust binary handled the command, or
     ``None`` if the caller should fall back to the Python implementation.
     """
-    if not use_native_implementation(
-        prefer_native=prefer_native, prefer_python=prefer_python
-    ):
+    if not use_native_implementation(prefer_native=prefer_native, prefer_python=prefer_python):
         return None
 
     try:

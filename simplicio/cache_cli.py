@@ -7,6 +7,7 @@ landed by issue #34.
   simplicio-py cache clear         wipe cache directory
   simplicio-py cache stats --json  machine-readable
 """
+
 from __future__ import annotations
 
 import argparse
@@ -19,15 +20,20 @@ from ._cache import cache
 def _cmd_stats(args: argparse.Namespace) -> int:
     s = cache().stats()
     if args.json:
-        print(json.dumps({
-            "entries": s.entries,
-            "size_bytes": s.size_bytes,
-            "size_mb": round(s.size_bytes / (1024 * 1024), 2),
-            "oldest_age_days": s.oldest_age_days,
-            "enabled": s.enabled,
-            "bust_active": s.bust_active,
-            "root": s.root,
-        }, indent=2))
+        print(
+            json.dumps(
+                {
+                    "entries": s.entries,
+                    "size_bytes": s.size_bytes,
+                    "size_mb": round(s.size_bytes / (1024 * 1024), 2),
+                    "oldest_age_days": s.oldest_age_days,
+                    "enabled": s.enabled,
+                    "bust_active": s.bust_active,
+                    "root": s.root,
+                },
+                indent=2,
+            )
+        )
         return 0
     print("simplicio-py cache stats")
     print(f"  root              {s.root}")
@@ -41,8 +47,10 @@ def _cmd_stats(args: argparse.Namespace) -> int:
 
 def _cmd_clear(args: argparse.Namespace) -> int:
     if not args.force:
-        print("[cache] refusing to clear without --force; "
-              "this removes every cached completion.", file=sys.stderr)
+        print(
+            "[cache] refusing to clear without --force; this removes every cached completion.",
+            file=sys.stderr,
+        )
         return 2
     removed = cache().clear()
     print(f"[cache] cleared {removed} entries", file=sys.stderr)
@@ -57,8 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     ps.add_argument("--json", action="store_true")
 
     pc = sub.add_parser("clear", help="remove every cached completion")
-    pc.add_argument("--force", action="store_true",
-                    help="required: confirm destructive op")
+    pc.add_argument("--force", action="store_true", help="required: confirm destructive op")
 
     args = p.parse_args(argv)
     if args.verb == "stats":

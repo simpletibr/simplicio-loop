@@ -50,18 +50,14 @@ def test_parse_env_file_preserves_semicolon_connection_string(tmp_path):
 
     values = parse_env_file(env_file)
 
-    assert values["Database__ConnectionString"] == (
-        "Host=localhost;Port=5432;Database=maturity_matrix;"
-    )
+    assert values["Database__ConnectionString"] == ("Host=localhost;Port=5432;Database=maturity_matrix;")
     assert values["Jwt__Key"] == "secret;with;semicolons"
 
 
 def test_shell_export_lines_quote_values(tmp_path):
     values = {"Database__ConnectionString": "Host=localhost;Port=5432;"}
 
-    assert shell_export_lines(values) == [
-        "export Database__ConnectionString='Host=localhost;Port=5432;'"
-    ]
+    assert shell_export_lines(values) == ["export Database__ConnectionString='Host=localhost;Port=5432;'"]
 
 
 def test_parse_env_file_rejects_invalid_lines(tmp_path):

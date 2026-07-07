@@ -60,6 +60,5 @@ def test_markdown_document_executor_is_idempotent(tmp_path):
 
 def test_markdown_document_executor_registered() -> None:
     assert any(
-        isinstance(executor, MarkdownDocumentExecutor)
-        for executor in codegen_registry.registered_executors()
+        isinstance(executor, MarkdownDocumentExecutor) for executor in codegen_registry.registered_executors()
     )

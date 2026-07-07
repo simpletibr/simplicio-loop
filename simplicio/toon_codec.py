@@ -31,6 +31,7 @@ Encoding rules (see YOOL_TUPLE_HAMT.md-adjacent TOON spec, summarized):
 
 Both object and array values are supported at the root, matching the spec.
 """
+
 from __future__ import annotations
 
 import json
@@ -100,7 +101,7 @@ def _compact_json(value: Any) -> str:
     return json.dumps(value, separators=(",", ":"), ensure_ascii=False)
 
 
-def _uniform_object_fields(arr: list) -> "list[str] | None":
+def _uniform_object_fields(arr: list) -> list[str] | None:
     """Return the stable field order if `arr` is a uniform array of
     scalar-only-valued dicts (all sharing the exact same key set), else
     None."""
@@ -194,7 +195,7 @@ _ARRAY_SCALAR_RE = re.compile(r"^(?P<key>[^:\[\]]*)\[(?P<n>\d+)\]:(?: (?P<rest>.
 _KV_RE = re.compile(r"^(?P<key>[^:\[\]]+):(?: (?P<rest>.*))?$")
 
 
-def _tokenize(text: str) -> "list[tuple[int, str]]":
+def _tokenize(text: str) -> list[tuple[int, str]]:
     raw_lines = text.split("\n")
     # Drop a single trailing blank line produced by a trailing "\n" in the
     # input; interior blank lines are kept (they matter for zero-field rows).
@@ -209,7 +210,7 @@ def _tokenize(text: str) -> "list[tuple[int, str]]":
     return tokens
 
 
-def _split_row(s: str) -> "list[str]":
+def _split_row(s: str) -> list[str]:
     if s == "":
         return []
     parts: list = []
@@ -274,16 +275,16 @@ def _parse_scalar_or_json(rest: str) -> Any:
 
 
 class _Cursor:
-    def __init__(self, lines: "list[tuple[int, str]]") -> None:
+    def __init__(self, lines: list[tuple[int, str]]) -> None:
         self._lines = lines
         self._i = 0
 
-    def peek(self) -> "tuple[int, str] | None":
+    def peek(self) -> tuple[int, str] | None:
         if self._i >= len(self._lines):
             return None
         return self._lines[self._i]
 
-    def next(self) -> "tuple[int, str]":
+    def next(self) -> tuple[int, str]:
         if self._i >= len(self._lines):
             raise TOONDecodeError("unexpected end of TOON input")
         line = self._lines[self._i]
@@ -291,7 +292,7 @@ class _Cursor:
         return line
 
 
-def _read_array_obj_rows(pos: _Cursor, fields: "list[str]", n: int) -> "list[dict]":
+def _read_array_obj_rows(pos: _Cursor, fields: list[str], n: int) -> list[dict]:
     rows = []
     for _ in range(n):
         _level, content = pos.next()
@@ -300,7 +301,7 @@ def _read_array_obj_rows(pos: _Cursor, fields: "list[str]", n: int) -> "list[dic
             raise TOONDecodeError(
                 f"TOON row has {len(values)} values but header declares {len(fields)} fields"
             )
-        rows.append({field: _parse_scalar(v) for field, v in zip(fields, values)})
+        rows.append({field: _parse_scalar(v) for field, v in zip(fields, values, strict=True)})
     return rows
 
 
@@ -393,9 +394,7 @@ def from_toon(text: str) -> Any:
         return _parse_root_array(_Cursor(lines))
 
     if first_level == 0 and (
-        m_kv
-        or (m_obj and m_obj.group("key") != "")
-        or (m_scalar and m_scalar.group("key") != "")
+        m_kv or (m_obj and m_obj.group("key") != "") or (m_scalar and m_scalar.group("key") != "")
     ):
         return _parse_object(_Cursor(lines), 0)
 

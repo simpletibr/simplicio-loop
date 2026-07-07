@@ -5,6 +5,7 @@ provider call. This is opt-in via `SIMPLICIO_LOG_ROOT` (providers.py has no
 notion of "project root" otherwise) and labels whether the token count came
 from a real provider `usage` field or the canonical estimator.
 """
+
 import json
 
 import pytest

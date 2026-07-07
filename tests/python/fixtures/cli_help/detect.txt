@@ -1,0 +1,7 @@
+usage: simplicio-py detect [-h] [--prompt PROMPT] [--quiet] [--json]
+
+options:
+  -h, --help       show this help message and exit
+  --prompt PROMPT  prompt text (default: read from stdin)
+  --quiet
+  --json

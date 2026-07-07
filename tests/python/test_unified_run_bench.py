@@ -13,7 +13,6 @@ from bench.run_unified_run_bench import (
     write_reports,
 )
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -61,10 +60,7 @@ def test_unified_run_bench_records_expected_tradeoffs() -> None:
     assert by_mode["unified_sprint"]["resume_state_supported_cases"] == 1
     assert by_mode["unified_sprint"]["cost_cap_required_cases"] == 1
     assert by_mode["codex_goal"]["cost_observable_cases"] == 0
-    assert any(
-        "Codex /goal baseline" in item
-        for item in result["summary"]["missing_live_evidence"]
-    )
+    assert any("Codex /goal baseline" in item for item in result["summary"]["missing_live_evidence"])
 
 
 def test_unified_run_bench_writes_reports(tmp_path) -> None:
@@ -97,10 +93,7 @@ def test_unified_run_bench_writes_partial_only_results(tmp_path) -> None:
     assert payload["source_evidence_level"] == "fixture"
     assert payload["observation_count"] == 9
     assert payload["observations"]
-    assert all(
-        observation["mode_id"] != "codex_goal"
-        for observation in payload["observations"]
-    )
+    assert all(observation["mode_id"] != "codex_goal" for observation in payload["observations"])
 
 
 def test_unified_run_bench_ingests_partial_live_results() -> None:
@@ -143,9 +136,7 @@ def test_unified_run_bench_marks_complete_live_matrix_release_ready() -> None:
                     "llm_invoked": mode != "cli_ag",
                     "external_agent_invoked": mode == "codex_goal",
                     "transcript_sha256": "a" * 64 if mode == "codex_goal" else "",
-                    "artifacts": (
-                        [_verified_artifact()] if case["scope"] == "sprint" else []
-                    ),
+                    "artifacts": ([_verified_artifact()] if case["scope"] == "sprint" else []),
                 }
             )
 
@@ -197,9 +188,7 @@ def test_unified_run_bench_keeps_string_artifacts_as_non_verified_labels() -> No
     assert result["summary"]["live_row_count"] == result["summary"]["expected_row_count"]
     assert result["summary"]["evidence_level"] == "partial-live"
     assert result["summary"]["release_ready"] is False
-    assert "artifact collection for sprint DoD evidence" in result["summary"][
-        "release_blockers"
-    ]
+    assert "artifact collection for sprint DoD evidence" in result["summary"]["release_blockers"]
 
 
 def test_unified_run_bench_requires_valid_codex_transcript_hash() -> None:
@@ -217,9 +206,7 @@ def test_unified_run_bench_requires_valid_codex_transcript_hash() -> None:
                     "llm_invoked": mode != "cli_ag",
                     "external_agent_invoked": mode == "codex_goal",
                     "transcript_sha256": "not-a-sha" if mode == "codex_goal" else "",
-                    "artifacts": (
-                        [_verified_artifact()] if case["scope"] == "sprint" else []
-                    ),
+                    "artifacts": ([_verified_artifact()] if case["scope"] == "sprint" else []),
                 }
             )
 
@@ -228,9 +215,7 @@ def test_unified_run_bench_requires_valid_codex_transcript_hash() -> None:
     assert result["summary"]["evidence_level"] == "partial-live"
     assert result["summary"]["external_codex_goal_run_present"] is False
     assert result["summary"]["release_ready"] is False
-    assert "Codex /goal live row needs transcript hash" in result["summary"][
-        "release_blockers"
-    ]
+    assert "Codex /goal live row needs transcript hash" in result["summary"]["release_blockers"]
 
 
 def test_unified_run_bench_rejects_duplicate_live_rows() -> None:
@@ -277,9 +262,7 @@ def test_unified_run_bench_rejects_inconsistent_live_success() -> None:
     )
 
     assert result["summary"]["live_row_count"] == 0
-    assert result["summary"]["live_result_errors"] == [
-        "live row 1 success must match exit_code==0"
-    ]
+    assert result["summary"]["live_result_errors"] == ["live row 1 success must match exit_code==0"]
 
 
 def test_unified_run_bench_rejects_invalid_live_timing_and_cost() -> None:
@@ -499,10 +482,7 @@ def test_unified_run_bench_example_live_results_fixture_stays_partial_live(
     assert payload["summary"]["evidence_level"] == "partial-live"
     assert payload["summary"]["release_ready"] is False
     assert payload["summary"]["live_row_count"] == 1
-    assert (
-        payload["summary"]["live_row_count"]
-        < payload["summary"]["expected_row_count"]
-    )
+    assert payload["summary"]["live_row_count"] < payload["summary"]["expected_row_count"]
     assert artifact["verified"] is True
 
 
@@ -533,9 +513,7 @@ def test_unified_run_bench_codex_partial_transcript_stays_partial_live(
     for live_row in live_payload["rows"]:
         transcript_artifact = live_row["artifacts"][0]
         transcript_path = ROOT / transcript_artifact["path"]
-        assert transcript_artifact["sha256"] == hashlib.sha256(
-            transcript_path.read_bytes()
-        ).hexdigest()
+        assert transcript_artifact["sha256"] == hashlib.sha256(transcript_path.read_bytes()).hexdigest()
     assert payload["summary"]["evidence_level"] == "partial-live"
     assert payload["summary"]["release_ready"] is False
     assert payload["summary"]["live_row_count"] == 3
@@ -571,14 +549,10 @@ def test_unified_run_bench_full_live_matrix_is_release_ready(tmp_path) -> None:
             if not isinstance(artifact, dict):
                 continue
             artifact_path = ROOT / artifact["path"]
-            assert artifact["sha256"] == hashlib.sha256(
-                artifact_path.read_bytes()
-            ).hexdigest()
+            assert artifact["sha256"] == hashlib.sha256(artifact_path.read_bytes()).hexdigest()
     assert payload["summary"]["evidence_level"] == "live"
     assert payload["summary"]["release_ready"] is True
     assert payload["summary"]["release_blockers"] == []
-    assert payload["summary"]["live_row_count"] == payload["summary"][
-        "expected_row_count"
-    ]
+    assert payload["summary"]["live_row_count"] == payload["summary"]["expected_row_count"]
     assert len(live_rows) == 12
     assert all(row["success"] is True for row in live_rows)

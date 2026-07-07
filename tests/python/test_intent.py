@@ -74,9 +74,7 @@ def test_new_endpoint_is_not_scratch():
 
 
 def test_cross_repo_endpoint_alignment_is_sprint():
-    result = classify_goal(
-        "veja todas as telas, alinhe todos os endpoints da web com api e ai-agents"
-    )
+    result = classify_goal("veja todas as telas, alinhe todos os endpoints da web com api e ai-agents")
 
     assert result.scope == "sprint"
     assert result.confidence >= AUTO_CONFIDENCE_THRESHOLD
@@ -84,9 +82,7 @@ def test_cross_repo_endpoint_alignment_is_sprint():
 
 
 def test_remaining_endpoint_backlog_is_sprint():
-    result = classify_goal(
-        "alinhar as 32 rotas restantes do ai-agents contra api .NET com fontes do mapper"
-    )
+    result = classify_goal("alinhar as 32 rotas restantes do ai-agents contra api .NET com fontes do mapper")
 
     assert result.scope == "sprint"
     assert result.confidence >= AUTO_CONFIDENCE_THRESHOLD

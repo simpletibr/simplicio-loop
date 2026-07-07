@@ -1,0 +1,8 @@
+usage: simplicio-py env-export [-h] [--json] env_file
+
+positional arguments:
+  env_file
+
+options:
+  -h, --help  show this help message and exit
+  --json

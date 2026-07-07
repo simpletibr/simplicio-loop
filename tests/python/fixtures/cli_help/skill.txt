@@ -1,0 +1,1 @@
+usage: simplicio-py skill new "<description>" [--planner ...] [--dry-run]

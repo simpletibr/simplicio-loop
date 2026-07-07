@@ -38,9 +38,7 @@ def test_release_gate_preflight_writes_reports(tmp_path, monkeypatch) -> None:
 
     write_reports(result, json_path, md_path)
 
-    assert '"benchmark": "scratch-release-gate"' in json_path.read_text(
-        encoding="utf-8"
-    )
+    assert '"benchmark": "scratch-release-gate"' in json_path.read_text(encoding="utf-8")
     assert "# Scratch Release Gate Preflight" in md_path.read_text(encoding="utf-8")
 
 
@@ -87,8 +85,6 @@ def test_release_gate_preflight_rejects_broken_tool_override(monkeypatch) -> Non
         return Result()
 
     monkeypatch.setattr("bench.run_scratch_release_gate.subprocess.run", fake_run)
-    monkeypatch.setattr(
-        "bench.run_scratch_release_gate.shutil.which", lambda _cmd: None
-    )
+    monkeypatch.setattr("bench.run_scratch_release_gate.shutil.which", lambda _cmd: None)
 
     assert _which("composer") is None

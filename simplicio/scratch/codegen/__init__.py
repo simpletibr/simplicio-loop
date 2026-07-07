@@ -9,9 +9,9 @@ from .python_pydantic import PythonAddPydanticSchemaExecutor
 from .python_pytest import PythonAddPytestTestExecutor
 from .registry import register_executor, registered_executors, try_execute
 from .rust_axum import RustAxumCrudExecutor
+from .types import CodegenResult, TaskExecutor
 from .typescript_next_page import TypeScriptAddNextPageExecutor
 from .typescript_next_route import TypeScriptAddNextRouteExecutor
-from .types import CodegenResult, TaskExecutor
 
 __all__ = [
     "CodegenResult",

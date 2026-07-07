@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import pytest
 
 from simplicio.scratch.plan_schema import Plan
@@ -13,7 +11,6 @@ from simplicio.scratch.recipes import (
     RecipeSlotError,
     plan_from_recipe,
 )
-
 
 MATCH_CASES = [
     ("py-fastapi", "CRUD API for Unit", "crud-resource", "Unit"),
@@ -101,7 +98,7 @@ def test_recipe_match_cases(
     stack_slug: str,
     goal: str,
     recipe_name: str,
-    entity: Optional[str],
+    entity: str | None,
 ) -> None:
     registry = RecipeRegistry()
 
@@ -133,7 +130,7 @@ def test_recipe_instantiation_returns_valid_plan(
     stack_slug: str,
     goal: str,
     recipe_name: str,
-    entity: Optional[str],
+    entity: str | None,
 ) -> None:
     registry = RecipeRegistry()
     match = registry.match(goal, stack_slug)

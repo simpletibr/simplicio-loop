@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 from ..plan_schema import Task
 from ..stack_registry import Stack
@@ -15,9 +15,9 @@ from .python_orm import PythonAddOrmFieldExecutor
 from .python_pydantic import PythonAddPydanticSchemaExecutor
 from .python_pytest import PythonAddPytestTestExecutor
 from .rust_axum import RustAxumCrudExecutor
+from .types import CodegenResult, TaskExecutor
 from .typescript_next_page import TypeScriptAddNextPageExecutor
 from .typescript_next_route import TypeScriptAddNextRouteExecutor
-from .types import CodegenResult, TaskExecutor
 
 _DEFAULT_EXECUTORS: list[TaskExecutor] = [
     MarkdownDocumentExecutor(),
