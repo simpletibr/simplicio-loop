@@ -27,8 +27,7 @@ def _task(
         goal=goal,
         target="src/api/schemas/user.py",
         criteria=(
-            "- UserCreate, UserUpdate, and UserRead schemas exist\n"
-            "- optional update fields are supported"
+            "- UserCreate, UserUpdate, and UserRead schemas exist\n- optional update fields are supported"
         ),
         constraints="- keep schemas framework-agnostic",
         verify="pytest tests/api/test_users.py -q",
@@ -78,14 +77,9 @@ class User(Base):
     assert "from __future__ import annotations" in generated
     assert "from datetime import datetime" in generated
     assert "from pydantic import BaseModel, ConfigDict" in generated
+    assert "class UserCreate(BaseModel):\n    name: str\n    email: str | None = None" in generated
     assert (
-        "class UserCreate(BaseModel):\n    name: str\n    email: str | None = None"
-        in generated
-    )
-    assert (
-        "class UserUpdate(BaseModel):\n"
-        "    name: str | None = None\n"
-        "    email: str | None = None"
+        "class UserUpdate(BaseModel):\n    name: str | None = None\n    email: str | None = None"
     ) in generated
     assert (
         "class UserRead(BaseModel):\n"
@@ -126,9 +120,7 @@ class UserCreate(BaseModel):
         encoding="utf-8",
     )
 
-    result = PythonAddPydanticSchemaExecutor().execute(
-        _task(), tmp_path, _stack(tmp_path)
-    )
+    result = PythonAddPydanticSchemaExecutor().execute(_task(), tmp_path, _stack(tmp_path))
 
     assert result.passed is True
     updated = schema_path.read_text(encoding="utf-8")
@@ -140,9 +132,7 @@ class UserCreate(BaseModel):
 
 
 def test_python_add_pydantic_schema_falls_back_when_model_is_missing(tmp_path):
-    result = PythonAddPydanticSchemaExecutor().execute(
-        _task(), tmp_path, _stack(tmp_path)
-    )
+    result = PythonAddPydanticSchemaExecutor().execute(_task(), tmp_path, _stack(tmp_path))
 
     assert result.passed is False
     assert result.fallback_to_llm is True

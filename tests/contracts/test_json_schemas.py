@@ -27,9 +27,7 @@ def test_detect_json_contract(capsys):
 
     assert code == 0
     payload = json.loads(capsys.readouterr().out)
-    assert_has_keys(
-        payload, {"is_code_task", "score", "scope", "signals"}, where="detect --json"
-    )
+    assert_has_keys(payload, {"is_code_task", "score", "scope", "signals"}, where="detect --json")
     assert isinstance(payload["is_code_task"], bool)
     assert isinstance(payload["signals"], list)
 
@@ -54,9 +52,7 @@ def test_doctor_json_contract_no_network(capsys):
     assert "dependencies" not in payload  # only present when update checks ran
 
 
-def test_task_json_contract_over_real_mapper_fixture(
-    sample_project, stub_local_provider, capsys
-):
+def test_task_json_contract_over_real_mapper_fixture(sample_project, stub_local_provider, capsys):
     """The full local (standalone-Python) executor path: real mapper
     artifacts feed the prompt, a stubbed provider stands in for the LLM (no
     network), and SIMPLICIO_TEST_CMD stands in for the project's real test

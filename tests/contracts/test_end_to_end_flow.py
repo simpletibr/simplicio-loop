@@ -84,9 +84,7 @@ def test_minimal_flow_standalone(sample_project, stub_local_provider, monkeypatc
     assert verify_payload["exit_code"] == 0
 
 
-def test_minimal_flow_runtime_integrated_leg_is_stubbed(
-    sample_project, stub_runtime_binary, capsys
-):
+def test_minimal_flow_runtime_integrated_leg_is_stubbed(sample_project, stub_runtime_binary, capsys):
     """Same `test run` contract, but delegated to SIMPLICIO_BIN (stub Rust
     runtime — see conftest.py). Proves `simplicio/commands/test_run.py`'s
     runtime-delegation branch (`_run_via_runtime`) round-trips the

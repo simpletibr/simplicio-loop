@@ -1,4 +1,5 @@
 """Lightweight opt-in run logging for benchmarks and retry loops."""
+
 from __future__ import annotations
 
 import os
@@ -80,9 +81,7 @@ def record_savings_event(
             "baseline": baseline_tokens,
             "actual": actual_tokens,
             "saved": saved_tokens,
-            "pct_saved": round(100 * saved_tokens / baseline_tokens, 2)
-            if baseline_tokens
-            else 0.0,
+            "pct_saved": round(100 * saved_tokens / baseline_tokens, 2) if baseline_tokens else 0.0,
         },
     }
     if note:

@@ -62,20 +62,21 @@ def score(skill_text: str, scenarios: list[dict]) -> dict:
                 missing_groups.append(group)
 
         forbidden_hits: list[str] = [
-            p for p in scenario.get("must_not_include", [])
-            if phrase_present(text, p)
+            p for p in scenario.get("must_not_include", []) if phrase_present(text, p)
         ]
 
         ok = not missing_groups and not forbidden_hits
         passed += 1 if ok else 0
 
-        results.append({
-            "id": scenario.get("id"),
-            "ok": ok,
-            "failure": scenario.get("failure", ""),
-            "missing_groups": missing_groups,
-            "forbidden_hits": forbidden_hits,
-        })
+        results.append(
+            {
+                "id": scenario.get("id"),
+                "ok": ok,
+                "failure": scenario.get("failure", ""),
+                "missing_groups": missing_groups,
+                "forbidden_hits": forbidden_hits,
+            }
+        )
 
     total = len(scenarios)
     return {
@@ -144,10 +145,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(
         prog="simplicio score-skill",
         description="Deterministic SkillOpt-style scorer for skill/law text.",
-        epilog=(
-            "Exit codes: 0 = all scenarios pass, "
-            "1 = one or more failures, 2 = invalid input."
-        ),
+        epilog=("Exit codes: 0 = all scenarios pass, 1 = one or more failures, 2 = invalid input."),
     )
     ap.add_argument(
         "skill",
@@ -200,8 +198,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not scenarios:
         print(
-            "simplicio score-skill: no scenarios found "
-            "(pass --scenario or ensure builtin scenarios exist)",
+            "simplicio score-skill: no scenarios found (pass --scenario or ensure builtin scenarios exist)",
             file=sys.stderr,
         )
         return 2

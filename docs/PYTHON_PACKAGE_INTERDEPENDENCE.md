@@ -41,6 +41,7 @@ simplicio-sprint (downstream, depends on this package)
 - **`simplicio-cli[local]`**: `llama-cpp-python>=0.3.32`, `huggingface-hub>=1.21.0`
 - **`simplicio-cli[all]`**: `simplicio-cli[providers]`, `simplicio-cli[ml]`, `simplicio-cli[bench]`, `simplicio-cli[local]`
 - **`simplicio-cli[test]`**: `pytest>=8`, `tomli>=2.0.1; python_version < '3.11'`
+- **`simplicio-cli[dev]`**: `simplicio-cli[test]`, `ruff>=0.15.8`, `mypy>=1.19.1`
 
 ## Rules
 

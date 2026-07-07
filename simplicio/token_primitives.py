@@ -8,7 +8,6 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-
 LOG_SUMMARY_SCHEMA = "simplicio.log-summary/v1"
 DIFF_REVIEW_SCHEMA = "simplicio.diff-review/v1"
 CONTEXT_CACHE_SCHEMA = "simplicio.context-cache/v1"

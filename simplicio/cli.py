@@ -35,11 +35,7 @@ def maybe_autoinstall(cmd: str | None) -> bool:
     except Exception as e:
         print(f"{CLI_PROG}: auto-activation skipped ({e})", file=sys.stderr)
         return False
-    if (
-        report.skill_installed
-        or report.hook_script_installed
-        or report.settings_updated
-    ):
+    if report.skill_installed or report.hook_script_installed or report.settings_updated:
         print(
             f"{CLI_PROG}: auto-activation installed in Claude Code "
             "(skill + UserPromptSubmit hook). "
@@ -149,9 +145,7 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
         action="store_true",
         help="generate the would-be task output without applying/testing",
     )
-    p.add_argument(
-        "--json", action="store_true", help="emit stable structured task output"
-    )
+    p.add_argument("--json", action="store_true", help="emit stable structured task output")
     p.add_argument(
         "--bound-paths",
         action="append",
@@ -161,8 +155,7 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
     p.add_argument(
         "--local",
         action="store_true",
-        help="force local llama.cpp with MiniCPM5; overrides "
-        "SIMPLICIO_MODEL/SIMPLICIO_BASE_URL",
+        help="force local llama.cpp with MiniCPM5; overrides SIMPLICIO_MODEL/SIMPLICIO_BASE_URL",
     )
 
 
@@ -297,10 +290,7 @@ def _run_feature_command(a: argparse.Namespace) -> int:
         print(json.dumps(result, sort_keys=True))
     else:
         status = "DONE" if result["applied"] else "FAILED"
-        print(
-            f"{status}: feature tasks={len(result['tasks'])} "
-            f"replans={result['replans']}"
-        )
+        print(f"{status}: feature tasks={len(result['tasks'])} replans={result['replans']}")
         for warning in result["warnings"]:
             print(f"warning: {warning}", file=sys.stderr)
     return 0 if result["applied"] else 1
@@ -375,9 +365,7 @@ def _run_sprint_command(a: argparse.Namespace) -> int:
         if isinstance(row.get("result"), dict) and row["result"].get("applied")
     }
     completed_tasks = {
-        row["task"]
-        for row in results
-        if isinstance(row.get("result"), dict) and row["result"].get("applied")
+        row["task"] for row in results if isinstance(row.get("result"), dict) and row["result"].get("applied")
     }
     with provider_budget(a.max_cost) as governor:
         for task in sprint.tasks:
@@ -561,10 +549,7 @@ def _status_claims_gate(payload: dict[str, object]) -> dict[str, object]:
     failed_dod_gates = payload.get("failed_dod_gates")
     state = payload.get("state") or ("complete" if payload.get("complete") else "in-progress")
     has_fresh_passing_state = (
-        bool(payload.get("complete"))
-        and state == "complete"
-        and not failed_features
-        and not failed_dod_gates
+        bool(payload.get("complete")) and state == "complete" and not failed_features and not failed_dod_gates
     )
     if not has_fresh_passing_state:
         return {
@@ -578,8 +563,7 @@ def _status_claims_gate(payload: dict[str, object]) -> dict[str, object]:
         "allow_repo_green_claim": False,
         "proof_scope": "sprint_state",
         "reason": (
-            "last passing evidence came from the stored sprint state; "
-            "it does not prove repo-wide green"
+            "last passing evidence came from the stored sprint state; it does not prove repo-wide green"
         ),
     }
 
@@ -630,10 +614,7 @@ def _run_status_command(a: argparse.Namespace) -> int:
         budget = cost.get("budget_usd")
         if spent is not None and budget is not None:
             cost_suffix = f" cost={spent}/{budget}"
-    print(
-        f"{state}: {payload.get('sprint', 'sprint')} "
-        f"{completed}/{total} features{cost_suffix}"
-    )
+    print(f"{state}: {payload.get('sprint', 'sprint')} {completed}/{total} features{cost_suffix}")
     for failed in payload.get("failed_features", []):
         print(f"failed: {failed}", file=sys.stderr)
     for failed in payload.get("failed_dod_gates", []):
@@ -685,7 +666,9 @@ def _run_edit_command(a: argparse.Namespace) -> int:
             plan_stdin = _read_text_source("-") if a.plan == "-" else None
             completed = subprocess.run(cmd, input=plan_stdin, text=True)
         except OSError as exc:
-            print(f"{CLI_PROG} edit: runtime delegation failed ({exc}); using local fallback", file=sys.stderr)
+            print(
+                f"{CLI_PROG} edit: runtime delegation failed ({exc}); using local fallback", file=sys.stderr
+            )
         else:
             return completed.returncode
     return _run_mechanical_edit_command(a)
@@ -775,7 +758,10 @@ def _run_memory_command(a: argparse.Namespace) -> int:
         if a.json:
             print(json.dumps(payload, sort_keys=True))
         else:
-            print(f"{CLI_PROG} memory init: {payload['dir']} (created={payload['created']}, git={payload['git_initialized']})")
+            print(
+                f"{CLI_PROG} memory init: {payload['dir']} "
+                f"(created={payload['created']}, git={payload['git_initialized']})"
+            )
         return 0
     if a.memory_cmd == "store":
         tags = [t.strip() for t in a.tags.split(",") if t.strip()] if a.tags else None
@@ -891,6 +877,7 @@ def main(argv=None):
     # opt-out via SIMPLICIO_NO_AUTO_UPGRADE=1. See simplicio/ecosystem.py.
     try:
         from .ecosystem import maybe_run_session_start
+
         maybe_run_session_start()
     except Exception as e:
         # Never let the freshness check break the CLI.
@@ -926,15 +913,11 @@ def main(argv=None):
     pc_clear = pc_sub.add_parser("clear", help="clear completion cache")
     pc_clear.add_argument("--force", action="store_true", help="required to clear")
 
-    p_smoke = sub.add_parser(
-        "smoke", help="one proof call: connect+generate (needs SIMPLICIO_MODEL+KEY)"
-    )
+    p_smoke = sub.add_parser("smoke", help="one proof call: connect+generate (needs SIMPLICIO_MODEL+KEY)")
     p_smoke.add_argument("--json", action="store_true")
     p_smoke.add_argument("--root", default=".")
 
-    p_init = sub.add_parser(
-        "init", help="install skill + UserPromptSubmit hook into ~/.claude/"
-    )
+    p_init = sub.add_parser("init", help="install skill + UserPromptSubmit hook into ~/.claude/")
     p_init.add_argument("--claude-home", help="override ~/.claude (for tests)")
     p_init.add_argument("--dry-run", action="store_true")
 
@@ -1010,9 +993,7 @@ def main(argv=None):
 
     p_file = sub.add_parser("file", help="read raw file contents")
     file_sub = p_file.add_subparsers(dest="file_cmd", required=True)
-    p_file_read = file_sub.add_parser(
-        "read", help="print a file's contents, optionally sliced by line range"
-    )
+    p_file_read = file_sub.add_parser("read", help="print a file's contents, optionally sliced by line range")
     p_file_read.add_argument("path")
     p_file_read.add_argument("--json", action="store_true")
     p_file_read.add_argument("--start", type=int, default=None, help="1-indexed inclusive start line")
@@ -1079,7 +1060,8 @@ def main(argv=None):
         help="skill/law text file path, or - for stdin (default: -)",
     )
     p_score_skill.add_argument(
-        "--scenario", "-s",
+        "--scenario",
+        "-s",
         dest="scenario_sources",
         action="append",
         default=[],
@@ -1093,7 +1075,9 @@ def main(argv=None):
     )
     p_score_skill.add_argument("--json", action="store_true")
     p_score_skill.add_argument(
-        "--verbose", "-v", action="store_true",
+        "--verbose",
+        "-v",
+        action="store_true",
         help="print per-scenario detail even on success",
     )
     p_score_skill.add_argument(
@@ -1259,8 +1243,8 @@ def main(argv=None):
         score_argv = [a.skill]
         for s in a.scenario_sources:
             score_argv += ["--scenario", s]
-        for e in a.extra_scenario:
-            score_argv += ["--extra-scenario", e]
+        for extra in a.extra_scenario:
+            score_argv += ["--extra-scenario", extra]
         if a.json:
             score_argv.append("--json")
         if a.verbose:

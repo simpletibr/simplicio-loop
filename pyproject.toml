@@ -82,6 +82,10 @@ all = [
 # CI/dev-only, not a product extra: pytest to run tests/python, plus tomli
 # on 3.10 (tomllib is stdlib only from 3.11+; several tests parse this file).
 test = ["pytest>=8", "tomli>=2.0.1; python_version < '3.11'"]
+# CI/dev-only lint+type gate (#102): never a base/product dependency.
+# `ruff format --check .` / `ruff check .` / `mypy simplicio` is the local
+# command (see CONTRIBUTING.md / AGENTS.md "Comandos importantes").
+dev = ["simplicio-cli[test]", "ruff>=0.15.8", "mypy>=1.19.1"]
 
 [project.urls]
 Homepage = "https://github.com/wesleysimplicio/simplicio-cli"
@@ -104,6 +108,7 @@ include = ["simplicio*"]
 
 [tool.setuptools.package-data]
 simplicio = [
+  "py.typed",
   "templates/*.md",
   "templates/*.sh",
   "templates/recipes/**/*.json",
@@ -117,3 +122,75 @@ simplicio = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests/python", "tests/contracts"]
+
+# --------------------------------------------------------------------------- #
+# Lint / type gate (#102). Dev-only tooling — see the `dev` extra above.
+# Baseline is intentionally permissive (not `mypy --strict`); documented here
+# rather than left implicit so future tightening is a deliberate diff.
+# --------------------------------------------------------------------------- #
+[tool.ruff]
+# 110 rather than the ruff default of 88: several product modules carry
+# long but meaningful lines (URLs, JSON schema literals, long f-strings in
+# provider/pipeline diagnostics) that read worse wrapped than left alone.
+line-length = 110
+target-version = "py310"
+extend-exclude = [
+  "bench",
+  "output",
+  ".simplicio",
+  ".orchestrator",
+  "simplicio/templates",
+]
+
+[tool.ruff.lint]
+# E/F = pyflakes+pycodestyle core, I = isort, UP = pyupgrade, B = bugbear.
+select = ["E", "F", "I", "UP", "B"]
+# B008: PLAN_JSON-style default args show up in a few argparse builders;
+# revisit case-by-case with a scoped noqa instead of a blanket ignore.
+ignore = []
+
+[tool.ruff.lint.per-file-ignores]
+# Test modules intentionally shadow fixtures/imports and use long fixtures.
+"tests/**/*.py" = ["E501"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.10"
+files = ["simplicio"]
+# Baseline rigor (#102 AC): permissive on missing third-party stubs, but
+# real within the package. Tighten per-module (`[[tool.mypy.overrides]]`)
+# once a module's own tests give confidence to raise the bar.
+ignore_missing_imports = true
+warn_redundant_casts = true
+warn_unused_ignores = false
+exclude = ["simplicio/templates/"]
+
+# Legacy-debt allowlist (#102 baseline): these modules predate the mypy gate
+# and lean on dynamic dict/Any shapes (JSON-parsed configs, duck-typed
+# introspection over an optional `libcst`/`cst` dependency, dataclass-ish
+# `object` placeholders) that a real fix means non-trivial refactors, not a
+# quick annotation. Tracked as debt rather than silenced with a blanket
+# `ignore_missing_imports`-style rule repo-wide. New code should NOT be
+# added to this list — annotate it properly instead. Shrink this list as
+# each module gets tightened (see issue #102 follow-up).
+[[tool.mypy.overrides]]
+module = [
+  "simplicio.scratch.codegen.python_cst",
+  "simplicio.scratch.stack_registry",
+  "simplicio.mechanical_edit",
+  "simplicio.orchestrator.cost_governor",
+  "simplicio.scratch.codegen.typescript_next_route",
+  "simplicio.scratch.codegen.python_orm",
+  "simplicio.commands.test_run",
+  "simplicio.cache_cli",
+  "simplicio.precedent",
+  "simplicio.mcp_server",
+  "simplicio.scratch.executor",
+  "simplicio.orchestrator.feature",
+  "simplicio.scratch.cli",
+  "simplicio.cli",
+]
+ignore_errors = true

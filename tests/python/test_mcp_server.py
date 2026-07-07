@@ -1,6 +1,7 @@
 """simplicio-dev-cli as an MCP stdio server — stdlib-only JSON-RPC 2.0
 dispatcher (issue #89 P0). `handle_message` is exercised directly (no real
 stdio) so these tests are fast and deterministic."""
+
 import io
 import json
 
@@ -40,23 +41,31 @@ def test_unknown_method_notification_is_silently_ignored():
 
 
 def test_tools_call_unknown_tool_is_a_jsonrpc_error():
-    resp = mcp_server.handle_message({
-        "jsonrpc": "2.0", "id": 4, "method": "tools/call",
-        "params": {"name": "does_not_exist", "arguments": {}},
-    })
+    resp = mcp_server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "tools/call",
+            "params": {"name": "does_not_exist", "arguments": {}},
+        }
+    )
     assert resp["error"]["code"] == -32602
 
 
 def test_tools_call_dev_cli_validate_ok(tmp_path):
-    resp = mcp_server.handle_message({
-        "jsonrpc": "2.0", "id": 5, "method": "tools/call",
-        "params": {
-            "name": "dev_cli_validate",
-            "arguments": {
-                "output": "diff --git a/x b/x\n--- a/x\n+++ b/x\nTEST:\nassert True",
+    resp = mcp_server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 5,
+            "method": "tools/call",
+            "params": {
+                "name": "dev_cli_validate",
+                "arguments": {
+                    "output": "diff --git a/x b/x\n--- a/x\n+++ b/x\nTEST:\nassert True",
+                },
             },
-        },
-    })
+        }
+    )
     result = resp["result"]
     assert result["isError"] is False
     payload = json.loads(result["content"][0]["text"])
@@ -64,10 +73,14 @@ def test_tools_call_dev_cli_validate_ok(tmp_path):
 
 
 def test_tools_call_dev_cli_validate_missing_diff_flags_hint():
-    resp = mcp_server.handle_message({
-        "jsonrpc": "2.0", "id": 6, "method": "tools/call",
-        "params": {"name": "dev_cli_validate", "arguments": {"output": "no diff here"}},
-    })
+    resp = mcp_server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 6,
+            "method": "tools/call",
+            "params": {"name": "dev_cli_validate", "arguments": {"output": "no diff here"}},
+        }
+    )
     payload = json.loads(resp["result"]["content"][0]["text"])
     assert payload["ok"] is False
     assert payload["hints"]
@@ -76,42 +89,60 @@ def test_tools_call_dev_cli_validate_missing_diff_flags_hint():
 def test_tools_call_dev_cli_memory_init_store_recall(tmp_path):
     mem_dir = str(tmp_path / "mem")
 
-    init_resp = mcp_server.handle_message({
-        "jsonrpc": "2.0", "id": 7, "method": "tools/call",
-        "params": {"name": "dev_cli_memory", "arguments": {"action": "init", "dir": mem_dir}},
-    })
+    init_resp = mcp_server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 7,
+            "method": "tools/call",
+            "params": {"name": "dev_cli_memory", "arguments": {"action": "init", "dir": mem_dir}},
+        }
+    )
     init_payload = json.loads(init_resp["result"]["content"][0]["text"])
     assert init_payload["created"] is True
 
-    store_resp = mcp_server.handle_message({
-        "jsonrpc": "2.0", "id": 8, "method": "tools/call",
-        "params": {
-            "name": "dev_cli_memory",
-            "arguments": {
-                "action": "store", "dir": mem_dir,
-                "topic": "handoff test", "content": "cross-vendor note",
+    store_resp = mcp_server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 8,
+            "method": "tools/call",
+            "params": {
+                "name": "dev_cli_memory",
+                "arguments": {
+                    "action": "store",
+                    "dir": mem_dir,
+                    "topic": "handoff test",
+                    "content": "cross-vendor note",
+                },
             },
-        },
-    })
+        }
+    )
     store_payload = json.loads(store_resp["result"]["content"][0]["text"])
     assert store_payload["slug"] == "handoff-test"
 
-    recall_resp = mcp_server.handle_message({
-        "jsonrpc": "2.0", "id": 9, "method": "tools/call",
-        "params": {
-            "name": "dev_cli_memory",
-            "arguments": {"action": "recall", "dir": mem_dir, "query": "cross-vendor"},
-        },
-    })
+    recall_resp = mcp_server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 9,
+            "method": "tools/call",
+            "params": {
+                "name": "dev_cli_memory",
+                "arguments": {"action": "recall", "dir": mem_dir, "query": "cross-vendor"},
+            },
+        }
+    )
     recall_payload = json.loads(recall_resp["result"]["content"][0]["text"])
     assert len(recall_payload["results"]) == 1
 
 
 def test_tools_call_dev_cli_memory_unknown_action_is_iserror():
-    resp = mcp_server.handle_message({
-        "jsonrpc": "2.0", "id": 10, "method": "tools/call",
-        "params": {"name": "dev_cli_memory", "arguments": {"action": "delete-everything"}},
-    })
+    resp = mcp_server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 10,
+            "method": "tools/call",
+            "params": {"name": "dev_cli_memory", "arguments": {"action": "delete-everything"}},
+        }
+    )
     assert resp["result"]["isError"] is True
 
 
@@ -122,13 +153,17 @@ def test_tools_call_dev_cli_edit_dry_run(tmp_path):
             {"op": "create_file", "path": "hello.txt", "content": "hi\n"},
         ],
     }
-    resp = mcp_server.handle_message({
-        "jsonrpc": "2.0", "id": 11, "method": "tools/call",
-        "params": {
-            "name": "dev_cli_edit",
-            "arguments": {"root": str(tmp_path), "plan": plan, "apply": False},
-        },
-    })
+    resp = mcp_server.handle_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 11,
+            "method": "tools/call",
+            "params": {
+                "name": "dev_cli_edit",
+                "arguments": {"root": str(tmp_path), "plan": plan, "apply": False},
+            },
+        }
+    )
     payload = json.loads(resp["result"]["content"][0]["text"])
     assert payload["status"] == "ok"
     assert not (tmp_path / "hello.txt").exists()  # dry-run: nothing applied

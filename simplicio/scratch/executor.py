@@ -22,7 +22,6 @@ import time
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Optional
 
 from .codegen import CodegenResult, try_execute
 from .plan_schema import Plan, Task
@@ -35,12 +34,12 @@ class TaskResult:
     target: str
     passed: bool
     execution_mode: str = "unknown"
-    codegen_executor: Optional[str] = None
+    codegen_executor: str | None = None
     files_modified: list[str] = field(default_factory=list)
-    skipped_reason: Optional[str] = None
+    skipped_reason: str | None = None
     duration_ms: int = 0
     log_tail: str = ""
-    generated_skill: Optional[str] = None
+    generated_skill: str | None = None
     line_stats: dict[str, int] = field(default_factory=dict)
     file_line_stats: list[dict[str, int | str | bool]] = field(default_factory=list)
 
@@ -202,9 +201,7 @@ def _execute_one_task(task: Task, project_dir: Path, stack: Stack) -> TaskResult
     if not os.environ.get("SIMPLICIO_MODEL"):
         # smoke-test mode: log the task but mark as skipped (no LLM call made)
         ms = int((time.perf_counter() - t0) * 1000)
-        fallback_note = (
-            f"codegen fallback: {codegen_log[:200]}\n" if codegen_log else ""
-        )
+        fallback_note = f"codegen fallback: {codegen_log[:200]}\n" if codegen_log else ""
         return TaskResult(
             id=task.id,
             target=task.target,
@@ -254,7 +251,7 @@ def _task_result_from_codegen(
     result: CodegenResult,
     *,
     skill_log: str = "",
-    generated_skill: Optional[str] = None,
+    generated_skill: str | None = None,
 ) -> TaskResult:
     ms = int((time.perf_counter() - started_at) * 1000)
     files = ", ".join(str(path) for path in result.files_modified)
@@ -280,7 +277,7 @@ def _codegen_disabled() -> bool:
 def _ensure_required_skill(
     task: Task,
     project_dir: Path,
-) -> tuple[str, Optional[str]]:
+) -> tuple[str, str | None]:
     required = (task.required_skill or "").strip()
     if not required:
         return "", None
@@ -447,9 +444,7 @@ def _line_churn(before_lines: list[str], after_lines: list[str]) -> tuple[int, i
     return added, removed
 
 
-def execute_plan(
-    plan: Plan, stack: Stack, parent_dir: Path, skip_install: bool = False
-) -> ExecutorReport:
+def execute_plan(plan: Plan, stack: Stack, parent_dir: Path, skip_install: bool = False) -> ExecutorReport:
     """Materialize the plan into parent_dir/<project_name>/."""
     t_start = time.perf_counter()
 
@@ -482,9 +477,7 @@ def execute_plan(
                 "stack": plan.stack,
                 "project_name": plan.project_name,
                 "rationale": plan.rationale,
-                "files_to_create": [
-                    {"path": f.path, "purpose": f.purpose} for f in plan.files_to_create
-                ],
+                "files_to_create": [{"path": f.path, "purpose": f.purpose} for f in plan.files_to_create],
                 "tasks": [
                     {
                         "id": t.id,
@@ -494,11 +487,7 @@ def execute_plan(
                         "constraints": t.constraints,
                         "verify": t.verify,
                         "depends_on": t.depends_on,
-                        **(
-                            {"required_skill": t.required_skill}
-                            if t.required_skill
-                            else {}
-                        ),
+                        **({"required_skill": t.required_skill} if t.required_skill else {}),
                     }
                     for t in plan.tasks
                 ],
@@ -515,9 +504,7 @@ def execute_plan(
 
     # 3. Run install (best-effort)
     if not skip_install and stack.install_command:
-        report.install_ok, report.install_log = _safe_run(
-            stack.install_command, project_dir, timeout=600
-        )
+        report.install_ok, report.install_log = _safe_run(stack.install_command, project_dir, timeout=600)
 
     # 4. Execute tasks in dependency order
     for task in _topo_sort(plan.tasks):
@@ -530,8 +517,6 @@ def execute_plan(
     report.elapsed_s = time.perf_counter() - t_start
 
     # 5. Write final report next to the plan
-    (sim_dir / "scratch_report.json").write_text(
-        json.dumps(report.to_dict(), indent=2), encoding="utf-8"
-    )
+    (sim_dir / "scratch_report.json").write_text(json.dumps(report.to_dict(), indent=2), encoding="utf-8")
 
     return report

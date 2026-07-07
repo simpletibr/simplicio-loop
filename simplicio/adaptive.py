@@ -1,9 +1,9 @@
 """Model-adaptive prompt helpers and lightweight task decomposition."""
+
 from __future__ import annotations
 
 import os
 import re
-
 
 WEAK_MODEL_HINTS = (
     "tiny",
@@ -47,12 +47,7 @@ DIFF_FOCUSED_MODEL_HINTS = (
 
 
 def _model_name(model: str | None = None) -> str:
-    return (
-        model
-        or os.environ.get("SIMPLICIO_MODEL")
-        or os.environ.get("MODEL")
-        or ""
-    ).lower()
+    return (model or os.environ.get("SIMPLICIO_MODEL") or os.environ.get("MODEL") or "").lower()
 
 
 def model_profile(model: str | None = None) -> dict[str, str]:
@@ -61,12 +56,17 @@ def model_profile(model: str | None = None) -> dict[str, str]:
         return {
             "name": name or "unknown",
             "tier": "scaffolded",
-            "guidance": "Use extra scaffolding, explicit file/path checks, short steps, and concrete verification before producing the final diff.",
+            "guidance": (
+                "Use extra scaffolding, explicit file/path checks, short steps, "
+                "and concrete verification before producing the final diff."
+            ),
         }
     return {
         "name": name or "unknown",
         "tier": "efficient",
-        "guidance": "Use concise reasoning, rely on the mapper and precedents, and avoid redundant explanation.",
+        "guidance": (
+            "Use concise reasoning, rely on the mapper and precedents, and avoid redundant explanation."
+        ),
     }
 
 

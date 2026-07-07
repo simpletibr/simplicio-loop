@@ -1,4 +1,5 @@
 """Tests for simplicio.detect — heuristic classifier."""
+
 from simplicio import cli
 from simplicio.detect import detect
 
@@ -64,7 +65,9 @@ def test_portuguese_endpoint_alignment_is_code_task():
 
 
 def test_portuguese_playwright_local_api_evidence_is_code_task():
-    r = detect("vamos usar playwright para evidenciar as telas web conectando ao api com banco postgresql local")
+    r = detect(
+        "vamos usar playwright para evidenciar as telas web conectando ao api com banco postgresql local"
+    )
     assert r.is_code_task is True
     assert r.scope == "feature"
     assert "feature-scale code work" in r.hint
@@ -76,16 +79,18 @@ def test_portuguese_playwright_local_api_evidence_is_code_task():
 def test_cli_detect_accepts_positional_prompt(monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
 
-    code = cli.main([
-        "detect",
-        "ajuste",
-        "o",
-        "endpoint",
-        "em",
-        "Header.tsx",
-        "--json",
-        "--quiet",
-    ])
+    code = cli.main(
+        [
+            "detect",
+            "ajuste",
+            "o",
+            "endpoint",
+            "em",
+            "Header.tsx",
+            "--json",
+            "--quiet",
+        ]
+    )
 
     assert code == 0
     assert '"is_code_task": true' in capsys.readouterr().out
@@ -94,19 +99,21 @@ def test_cli_detect_accepts_positional_prompt(monkeypatch, capsys):
 def test_cli_detect_reports_sprint_scope_for_full_inventory(monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
 
-    code = cli.main([
-        "detect",
-        "veja",
-        "todas",
-        "as",
-        "telas",
-        "e",
-        "todos",
-        "os",
-        "endpoints",
-        "--json",
-        "--quiet",
-    ])
+    code = cli.main(
+        [
+            "detect",
+            "veja",
+            "todas",
+            "as",
+            "telas",
+            "e",
+            "todos",
+            "os",
+            "endpoints",
+            "--json",
+            "--quiet",
+        ]
+    )
 
     assert code == 0
     assert '"scope": "sprint"' in capsys.readouterr().out

@@ -1,4 +1,5 @@
 """Doctor dependency-freshness check (no network — PyPI + installed are mocked)."""
+
 from __future__ import annotations
 
 import json
@@ -20,9 +21,7 @@ def test_tracked_packages_includes_ecosystem_and_pyproject_deps() -> None:
 
 def _stub_versions(monkeypatch, installed: dict, latest: dict) -> None:
     monkeypatch.setattr(ecosystem, "_installed_version", lambda n: installed.get(n))
-    monkeypatch.setattr(
-        ecosystem, "_pypi_latest", lambda n, timeout=5.0, refresh=False: latest.get(n)
-    )
+    monkeypatch.setattr(ecosystem, "_pypi_latest", lambda n, timeout=5.0, refresh=False: latest.get(n))
 
 
 def test_doctor_json_reports_available_updates(monkeypatch, capsys) -> None:

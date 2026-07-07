@@ -189,9 +189,7 @@ def _path_parameters(path: str) -> list[str]:
 
 
 def _function_name(method: str, path: str, target: str) -> str:
-    resource = next(
-        (part for part in path.split("/") if part and not part.startswith("{")), ""
-    )
+    resource = next((part for part in path.split("/") if part and not part.startswith("{")), "")
     if not resource:
         resource = Path(target).stem
     name = re.sub(r"[^A-Za-z0-9_]+", "_", resource).strip("_").lower() or "resource"
@@ -352,7 +350,7 @@ def _write_crud_router(
                 "    try:",
                 f"        return _items[{id_name}]",
                 "    except KeyError as exc:",
-                f'        raise HTTPException(status_code=404, detail="{spec.model_name} not found") from exc',
+                f'        raise HTTPException(status_code=404, detail="{spec.model_name} not found") from exc',  # noqa: E501
                 "",
             ]
         ),
@@ -371,10 +369,7 @@ def _write_crud_router(
 
 def _mount_router(main_path: Path, spec: _CrudRouteSpec) -> bool:
     original = main_path.read_text(encoding="utf-8")
-    import_line = (
-        f"from api.routes.{Path(spec.prefix).name} import router as "
-        f"{spec.resource_name}_router"
-    )
+    import_line = f"from api.routes.{Path(spec.prefix).name} import router as {spec.resource_name}_router"
     include_line = f"    app.include_router({spec.resource_name}_router)"
     updated = original
     if import_line not in updated:

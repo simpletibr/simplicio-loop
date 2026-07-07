@@ -47,10 +47,7 @@ def test_rust_axum_crud_executor_generates_routes_and_tests(tmp_path):
     assert result.files_modified == [main_rs]
     generated = main_rs.read_text(encoding="utf-8")
     assert "simplicio generated rust-axum CRUD" in generated
-    assert (
-        'route("/condo_units", get(list_condo_units).post(create_condo_unit))'
-        in generated
-    )
+    assert 'route("/condo_units", get(list_condo_units).post(create_condo_unit))' in generated
     assert "struct CondoUnit" in generated
     assert "async fn condo_units_crud_routes_work()" in generated
 
@@ -87,8 +84,7 @@ def test_rust_axum_crud_executor_falls_back_for_non_main_target(tmp_path):
 
 def test_default_registry_includes_rust_axum_crud_executor():
     assert any(
-        isinstance(executor, RustAxumCrudExecutor)
-        for executor in codegen_registry.registered_executors()
+        isinstance(executor, RustAxumCrudExecutor) for executor in codegen_registry.registered_executors()
     )
 
 
@@ -104,9 +100,7 @@ def test_rust_axum_generated_project_passes_cargo_test(tmp_path):
             timeout=30,
             check=False,
         )
-        if "host:" in rustc.stdout and "-msvc" in rustc.stdout and not shutil.which(
-            "link.exe"
-        ):
+        if "host:" in rustc.stdout and "-msvc" in rustc.stdout and not shutil.which("link.exe"):
             pytest.skip("MSVC Rust target needs link.exe")
 
     project = tmp_path / "project"

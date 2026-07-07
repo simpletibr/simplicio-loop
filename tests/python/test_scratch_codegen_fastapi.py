@@ -46,9 +46,7 @@ router = APIRouter()
 """,
     )
 
-    result = PythonAddFastApiRouteExecutor().execute(
-        _task(), tmp_path, _stack(tmp_path)
-    )
+    result = PythonAddFastApiRouteExecutor().execute(_task(), tmp_path, _stack(tmp_path))
 
     assert result.passed is True
     assert result.fallback_to_llm is False
@@ -117,13 +115,8 @@ def create_app() -> FastAPI:
     ast.parse(generated)
     assert 'router = APIRouter(prefix="/apps", tags=["app"])' in generated
     assert "async def create_app(payload: AppCreate) -> AppRead:" in generated
-    assert (
-        '@router.delete("/{app_id}", status_code=status.HTTP_204_NO_CONTENT)'
-        in generated
-    )
-    assert "from api.routes.apps import router as app_router" in main_path.read_text(
-        encoding="utf-8"
-    )
+    assert '@router.delete("/{app_id}", status_code=status.HTTP_204_NO_CONTENT)' in generated
+    assert "from api.routes.apps import router as app_router" in main_path.read_text(encoding="utf-8")
 
 
 def test_python_add_fastapi_route_falls_back_for_ambiguous_route(tmp_path):

@@ -34,9 +34,7 @@ def test_run_scope_task_preserves_task_json_contract(tmp_path, monkeypatch, caps
     _write(tmp_path / "frontend" / "app.ts", "old\n")
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", _true_cmd())
-    monkeypatch.setattr(
-        "simplicio.pipeline.generate", lambda *a, **k: _diff("frontend/app.ts")
-    )
+    monkeypatch.setattr("simplicio.pipeline.generate", lambda *a, **k: _diff("frontend/app.ts"))
 
     code = cli.main(
         [
@@ -643,10 +641,7 @@ def test_status_text_reports_state_and_cost(tmp_path, monkeypatch, capsys):
     active_root = tmp_path / "active"
     write_state(active_root)
     assert cli.main(["status", "--root", str(active_root)]) == 0
-    assert (
-        capsys.readouterr().out
-        == "in-progress: Sprint 01 1/2 features cost=0.25/1\n"
-    )
+    assert capsys.readouterr().out == "in-progress: Sprint 01 1/2 features cost=0.25/1\n"
 
 
 def test_run_scope_sprint_rejects_empty_sprint(tmp_path, monkeypatch, capsys):
@@ -673,9 +668,7 @@ def test_run_scope_sprint_rejects_empty_sprint(tmp_path, monkeypatch, capsys):
 
     assert code == 2
     assert "sprint has no task specs" in capsys.readouterr().err
-    state = json.loads(
-        (tmp_path / ".simplicio" / "sprint_state.json").read_text(encoding="utf-8")
-    )
+    state = json.loads((tmp_path / ".simplicio" / "sprint_state.json").read_text(encoding="utf-8"))
     assert state["state"] == "failed"
     assert state["complete"] is False
     assert state["total_features"] == 0

@@ -45,9 +45,7 @@ def _paths(tmp_path) -> dict[str, object]:
             "benchmark": "llm-reduction-summary",
             "summary": {
                 "release_evidence_complete": False,
-                "missing_release_evidence": [
-                    "real scratch LLM baseline for B/codegen pass-rate and latency"
-                ],
+                "missing_release_evidence": ["real scratch LLM baseline for B/codegen pass-rate and latency"],
                 "release_gates": {
                     "target_reduction_met": True,
                     "real_50_scratch_corpus": True,
@@ -89,9 +87,7 @@ def _paths(tmp_path) -> dict[str, object]:
                     "Q4_K_M": False,
                 },
                 "failed_required_quant_smokes": [],
-                "missing_release_evidence": [
-                    "bench/results_v14_qwen15b_quant_curve.{md,json,pdf}"
-                ],
+                "missing_release_evidence": ["bench/results_v14_qwen15b_quant_curve.{md,json,pdf}"],
             },
         },
     )
@@ -184,7 +180,5 @@ def test_issue_closure_audit_writes_reports(tmp_path) -> None:
 
     write_reports(result, json_path, md_path)
 
-    assert '"benchmark": "issue-closure-audit"' in json_path.read_text(
-        encoding="utf-8"
-    )
+    assert '"benchmark": "issue-closure-audit"' in json_path.read_text(encoding="utf-8")
     assert "# Issue Closure Audit" in md_path.read_text(encoding="utf-8")

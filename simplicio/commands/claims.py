@@ -23,10 +23,10 @@ import re
 import sys
 from pathlib import Path
 
-
 # ---------------------------------------------------------------------------
 # Per-rule check functions (defined before RULES to avoid forward-ref)
 # ---------------------------------------------------------------------------
+
 
 def _rule_1_ground(statement: str) -> dict:
     """Check that impact is grounded before severity is claimed."""
@@ -51,8 +51,7 @@ def _rule_1_ground(statement: str) -> dict:
         )
         if not has_impact_ground:
             issues.append(
-                f"severity label '{', '.join(found_severity)}' used without "
-                "grounding in concrete impact"
+                f"severity label '{', '.join(found_severity)}' used without grounding in concrete impact"
             )
 
     return {
@@ -67,8 +66,14 @@ def _rule_2_tuples(statement: str) -> dict:
     """Check that dimensions are not collapsed into flat scalars."""
     issues: list[str] = []
     flat_signal_words = {
-        "faster", "slower", "better", "worse", "improved",
-        "degraded", "more", "less",
+        "faster",
+        "slower",
+        "better",
+        "worse",
+        "improved",
+        "degraded",
+        "more",
+        "less",
     }
 
     found_flat = set()
@@ -105,10 +110,19 @@ def _rule_3_mirrors(statement: str) -> dict:
     """Check that mirrors are not conflated with authority."""
     issues: list[str] = []
     mirror_signals = {
-        "screenshot", "transcript", "screen cap", "screen recording",
-        "human said", "developer told", "i think", "i believe",
-        "recollection", "as far as i know", "my memory",
-        "somebody said", "i heard",
+        "screenshot",
+        "transcript",
+        "screen cap",
+        "screen recording",
+        "human said",
+        "developer told",
+        "i think",
+        "i believe",
+        "recollection",
+        "as far as i know",
+        "my memory",
+        "somebody said",
+        "i heard",
     }
 
     found_mirror = None
@@ -127,10 +141,7 @@ def _rule_3_mirrors(statement: str) -> dict:
             )
         )
         if not has_fabric_anchor:
-            issues.append(
-                f"mirror signal '{found_mirror}' without fabric "
-                "anchor — fabric é authority"
-            )
+            issues.append(f"mirror signal '{found_mirror}' without fabric anchor — fabric é authority")
 
     return {
         "rule_id": 3,
@@ -145,8 +156,23 @@ def _rule_4_cylinders(statement: str) -> dict:
     issues: list[str] = []
     level_words = {"layer", "level", "tier", "stack"}
     cylinder_words = {"cylinder", "tower", "pod", "instance", "node", "replica"}
-    count_words = {"one", "two", "three", "four", "five", "single", "double",
-                   "1", "2", "3", "4", "5", "n", "multiple", "several"}
+    count_words = {
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "single",
+        "double",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "n",
+        "multiple",
+        "several",
+    }
 
     found_level = set()
     for word in level_words:
@@ -184,14 +210,29 @@ def _rule_5_gate(statement: str) -> dict:
     """Check that gate verification does not rely on pasted logs."""
     issues: list[str] = []
     paste_signals = {
-        "pasted", "copy-paste", "ctrl+c", "ctrl+v", "here's the log",
-        "see below", "as shown", "above log", "attached log",
-        "terminal output", "i ran this", "output was",
+        "pasted",
+        "copy-paste",
+        "ctrl+c",
+        "ctrl+v",
+        "here's the log",
+        "see below",
+        "as shown",
+        "above log",
+        "attached log",
+        "terminal output",
+        "i ran this",
+        "output was",
     }
 
     gate_verbs = {
-        "verified", "validated", "confirmed", "passed", "green",
-        "ci passed", "check passed", "gate passed",
+        "verified",
+        "validated",
+        "confirmed",
+        "passed",
+        "green",
+        "ci passed",
+        "check passed",
+        "gate passed",
     }
 
     found_paste = None
@@ -222,13 +263,12 @@ def _rule_5_gate(statement: str) -> dict:
                 "(gh/CI check run)"
             )
 
-    if found_gate and not found_paste and not bool(
-        re.search(r"(?:github|gh|ci|pipeline|check\s+run)", statement, re.I)
+    if (
+        found_gate
+        and not found_paste
+        and not bool(re.search(r"(?:github|gh|ci|pipeline|check\s+run)", statement, re.I))
     ):
-        issues.append(
-            "gate claim without reference to the owning gate "
-            "(gh/CI pipeline)"
-        )
+        issues.append("gate claim without reference to the owning gate (gh/CI pipeline)")
 
     return {
         "rule_id": 5,
@@ -242,14 +282,32 @@ def _rule_6_missing(statement: str) -> dict:
     """Check that missing/unreadable sources are not reported as clean-zero."""
     issues: list[str] = []
     missing_signals = {
-        "no data", "no log", "empty log", "no output", "no result",
-        "unavailable", "no access", "not found", "missing",
-        "could not read", "failed to fetch", "errored",
+        "no data",
+        "no log",
+        "empty log",
+        "no output",
+        "no result",
+        "unavailable",
+        "no access",
+        "not found",
+        "missing",
+        "could not read",
+        "failed to fetch",
+        "errored",
     }
 
     zero_signals = {
-        "zero", "0", "clean", "nothing", "none", "no errors", "no issues",
-        "all good", "healthy", "ok", "clear",
+        "zero",
+        "0",
+        "clean",
+        "nothing",
+        "none",
+        "no errors",
+        "no issues",
+        "all good",
+        "healthy",
+        "ok",
+        "clear",
     }
 
     found_missing = []
@@ -294,15 +352,30 @@ def _rule_7_lane(statement: str) -> dict:
     """Check that the primary lane is not a non-production environment."""
     issues: list[str] = []
     windows_signals = {
-        "windows", "wsl", "cygwin", "mingw", "msys", "powershell",
+        "windows",
+        "wsl",
+        "cygwin",
+        "mingw",
+        "msys",
+        "powershell",
     }
     non_lane_signals = {
-        "emulator", "simulator", "vmware", "virtualbox", "docker desktop",
-        "parallels", "qemu",
+        "emulator",
+        "simulator",
+        "vmware",
+        "virtualbox",
+        "docker desktop",
+        "parallels",
+        "qemu",
     }
     production_signals = {
-        "linux", "container", "bare metal", "production", "deploy",
-        "usb-raw", "raw usb",
+        "linux",
+        "container",
+        "bare metal",
+        "production",
+        "deploy",
+        "usb-raw",
+        "raw usb",
     }
 
     found_windows = set()
@@ -369,17 +442,13 @@ def _rule_8_source(statement: str) -> dict:
     if has_performance_claim:
         if not found_stages:
             issues.append(
-                "performance/behavior claim without lifecycle stage — "
-                "distinguish source/built/running/live"
+                "performance/behavior claim without lifecycle stage — distinguish source/built/running/live"
             )
         elif len(found_stages) == 1:
             # Single stage is fine, but if "source" is the only stage
             # for a perf claim, flag that source != running
             if "source" in found_stages:
-                issues.append(
-                    "claim about source code conflated with runtime "
-                    "behavior — source ≠ live"
-                )
+                issues.append("claim about source code conflated with runtime behavior — source ≠ live")
 
     # Check for conflated stages
     if "source" in found_stages and "live" in found_stages:
@@ -393,8 +462,7 @@ def _rule_8_source(statement: str) -> dict:
             )
         ):
             issues.append(
-                "source and live mentioned without clear separation — "
-                "source ≠ built ≠ running ≠ live"
+                "source and live mentioned without clear separation — source ≠ built ≠ running ≠ live"
             )
 
     return {
@@ -507,6 +575,7 @@ RULES: list[dict] = [
 # Check runner
 # ---------------------------------------------------------------------------
 
+
 def check_statement(statement: str) -> dict:
     """Run all 8 rules against *statement* and return a structured result.
 
@@ -569,8 +638,18 @@ def suggest_tag(statement: str, results: list[dict] | None = None) -> str:
 
     # CANON: authoritative fabric reference
     fabric_signals = {
-        "code", "binary", "deploy", "ci", "pipeline", "github",
-        "artifact", "compiled", "repo", "commit", "tag", "release",
+        "code",
+        "binary",
+        "deploy",
+        "ci",
+        "pipeline",
+        "github",
+        "artifact",
+        "compiled",
+        "repo",
+        "commit",
+        "tag",
+        "release",
     }
     found_fabric = set()
     for word in fabric_signals:
@@ -616,8 +695,7 @@ def tag_statement(statement: str) -> dict:
 DEFAULT_REPORT_PATH = ".simplicio/claims_report.json"
 
 
-def generate_report(claims: list[str] | None = None, *,
-                    path: str | None = None) -> dict:
+def generate_report(claims: list[str] | None = None, *, path: str | None = None) -> dict:
     """Generate a claims-gate report.
 
     If *claims* is None, the report is loaded from *path* (default:
@@ -674,6 +752,7 @@ def _run_report(claims: list[str]) -> dict:
 # ---------------------------------------------------------------------------
 # CLI entrypoints
 # ---------------------------------------------------------------------------
+
 
 def cmd_check(args: list[str]) -> int:
     """simplicio-py claims check <statement>"""

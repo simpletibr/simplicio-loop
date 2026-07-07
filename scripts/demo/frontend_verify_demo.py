@@ -17,6 +17,7 @@ returncode -> pass/fail decision, the failure feedback, and MAX_ATTEMPTS.
 For the TRUE end-to-end loop, set SIMPLICIO_MODEL + a provider key and run:
     SIMPLICIO_TEST_CMD="npx playwright test ..." simplicio-py task "<goal>" --target <file>
 """
+
 import os
 import shutil
 import sys

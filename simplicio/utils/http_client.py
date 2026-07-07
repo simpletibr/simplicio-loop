@@ -6,15 +6,15 @@ benchmark batch or pipeline cuts the round-trip cost of repeated calls to
 the same endpoint by an order of magnitude. The client is constructed
 lazily on first use and disposed at process exit.
 """
+
 from __future__ import annotations
 
 import atexit
 import os
-from typing import Optional
 
 import httpx
 
-_client: Optional[httpx.Client] = None
+_client: httpx.Client | None = None
 
 
 def _config() -> dict:
@@ -27,9 +27,7 @@ def _config() -> dict:
         ),
         "limits": httpx.Limits(
             max_connections=int(os.environ.get("SIMPLICIO_HTTP_MAX_CONN", "100")),
-            max_keepalive_connections=int(
-                os.environ.get("SIMPLICIO_HTTP_KEEPALIVE", "20")
-            ),
+            max_keepalive_connections=int(os.environ.get("SIMPLICIO_HTTP_KEEPALIVE", "20")),
         ),
         "follow_redirects": True,
     }
@@ -54,18 +52,20 @@ def _close() -> None:
         _client = None
 
 
-def post_json(url: str, payload: dict, *, headers: Optional[dict] = None,
-              timeout: Optional[float] = None) -> dict:
+def post_json(url: str, payload: dict, *, headers: dict | None = None, timeout: float | None = None) -> dict:
     """POST a JSON body and decode the JSON response. Uses the shared client.
 
     `timeout` lets callers override the read timeout for slow LLM endpoints
     without changing the env-driven default for the whole process.
     """
     from .serialization import dumps, loads
+
     headers = dict(headers or {})
     headers.setdefault("Content-Type", "application/json")
     response = client().post(
-        url, content=dumps(payload), headers=headers,
+        url,
+        content=dumps(payload),
+        headers=headers,
         timeout=timeout if timeout is not None else None,
     )
     response.raise_for_status()

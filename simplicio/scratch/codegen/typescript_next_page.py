@@ -153,9 +153,7 @@ def _camel_case(words: list[str]) -> str:
 
 
 def _looks_generated(text: str) -> bool:
-    return (
-        "data-simplicio-crud-page" in text and "export default async function" in text
-    )
+    return "data-simplicio-crud-page" in text and "export default async function" in text
 
 
 def _render_page(spec: _NextPageSpec) -> str:

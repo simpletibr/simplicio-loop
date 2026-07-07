@@ -7,7 +7,6 @@ import re
 import shlex
 from pathlib import Path
 
-
 _NODE_COMMAND_RE = re.compile(r"(^|[;&|({]\s*)(corepack|ng|node|npm|npx|pnpm|yarn)\b")
 _DOTENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 

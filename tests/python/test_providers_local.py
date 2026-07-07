@@ -169,8 +169,8 @@ def test_resolve_local_path_existing_file(tmp_path):
 
 
 def test_resolve_local_path_downloads_from_hf(monkeypatch):
-    from pathlib import Path
     import tempfile
+    from pathlib import Path
 
     downloaded_path = Path(tempfile.mkdtemp()) / "weights.gguf"
     downloaded_path.write_bytes(b"GGUF")
@@ -180,9 +180,7 @@ def test_resolve_local_path_downloads_from_hf(monkeypatch):
     monkeypatch.setitem(sys.modules, "huggingface_hub", fake)
     out = providers._resolve_local_path("owner/repo", "weights.gguf", None)
     assert out == downloaded
-    fake.hf_hub_download.assert_called_once_with(
-        repo_id="owner/repo", filename="weights.gguf"
-    )
+    fake.hf_hub_download.assert_called_once_with(repo_id="owner/repo", filename="weights.gguf")
 
 
 def test_resolve_local_path_prefers_executor_dir(monkeypatch, tmp_path):
@@ -195,9 +193,7 @@ def test_resolve_local_path_prefers_executor_dir(monkeypatch, tmp_path):
     monkeypatch.setitem(sys.modules, "huggingface_hub", fake)
     monkeypatch.setenv("SIMPLICIO_LOCAL_MODEL_DIR", str(model_dir))
 
-    out = providers._resolve_local_path(
-        providers.LOCAL_DEFAULT_REPO, providers.LOCAL_DEFAULT_FILE, None
-    )
+    out = providers._resolve_local_path(providers.LOCAL_DEFAULT_REPO, providers.LOCAL_DEFAULT_FILE, None)
 
     assert out == str(primary)
     fake.hf_hub_download.assert_not_called()
@@ -216,9 +212,7 @@ def test_resolve_local_path_skips_corrupt_executor_file(monkeypatch, tmp_path):
     monkeypatch.setitem(sys.modules, "huggingface_hub", fake)
     monkeypatch.setenv("SIMPLICIO_LOCAL_MODEL_DIR", str(model_dir))
 
-    out = providers._resolve_local_path(
-        providers.LOCAL_DEFAULT_REPO, providers.LOCAL_DEFAULT_FILE, None
-    )
+    out = providers._resolve_local_path(providers.LOCAL_DEFAULT_REPO, providers.LOCAL_DEFAULT_FILE, None)
 
     assert out == str(downloaded)
     fake.hf_hub_download.assert_called_once()
@@ -231,20 +225,12 @@ def test_resolve_local_path_default_does_not_try_legacy_qwen25(monkeypatch, tmp_
     monkeypatch.setenv("SIMPLICIO_LOCAL_MODEL_DIR", str(tmp_path / "empty-models"))
 
     with pytest.raises(SystemExit) as exc:
-        providers._resolve_local_path(
-            providers.LOCAL_DEFAULT_REPO, providers.LOCAL_DEFAULT_FILE, None
-        )
+        providers._resolve_local_path(providers.LOCAL_DEFAULT_REPO, providers.LOCAL_DEFAULT_FILE, None)
 
     assert providers.LOCAL_DEFAULT_FILE in str(exc.value)
     assert len(fake.hf_hub_download.call_args_list) == 1
-    assert (
-        fake.hf_hub_download.call_args_list[0].kwargs["repo_id"]
-        == providers.LOCAL_DEFAULT_REPO
-    )
-    assert (
-        fake.hf_hub_download.call_args_list[0].kwargs["filename"]
-        == providers.LOCAL_DEFAULT_FILE
-    )
+    assert fake.hf_hub_download.call_args_list[0].kwargs["repo_id"] == providers.LOCAL_DEFAULT_REPO
+    assert fake.hf_hub_download.call_args_list[0].kwargs["filename"] == providers.LOCAL_DEFAULT_FILE
 
 
 def test_resolve_local_path_no_hf_lib_raises(monkeypatch):
@@ -402,9 +388,7 @@ def test_generate_no_model_with_base_still_raises(monkeypatch):
 
 def test_local_generate_caps_tokens_and_temp(monkeypatch):
     llm = MagicMock()
-    llm.create_chat_completion.return_value = {
-        "choices": [{"message": {"content": "hi"}}]
-    }
+    llm.create_chat_completion.return_value = {"choices": [{"message": {"content": "hi"}}]}
     monkeypatch.setattr(providers, "_local_llama", lambda model: llm)
     monkeypatch.setenv("SIMPLICIO_LOCAL_MAX_TOKENS", "256")
     monkeypatch.setenv("SIMPLICIO_LOCAL_TEMP", "0.4")
@@ -418,9 +402,7 @@ def test_local_generate_caps_tokens_and_temp(monkeypatch):
 
 def test_local_generate_clamps_unsafe_token_cap(monkeypatch):
     llm = MagicMock()
-    llm.create_chat_completion.return_value = {
-        "choices": [{"message": {"content": "hi"}}]
-    }
+    llm.create_chat_completion.return_value = {"choices": [{"message": {"content": "hi"}}]}
     monkeypatch.setattr(providers, "_local_llama", lambda model: llm)
     monkeypatch.setenv("SIMPLICIO_LOCAL_MAX_TOKENS", "999999")
 

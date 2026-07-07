@@ -26,6 +26,7 @@ call, no embeddings, no network. This is the "Zero-LLM Mode" P0 slice of
 CHANGELOG / PR body), not implemented here to avoid overclaiming a search
 quality this module does not deliver.
 """
+
 from __future__ import annotations
 
 import os
@@ -93,7 +94,7 @@ def init_memory(*, root: str | os.PathLike[str] | None = None) -> dict[str, Any]
             "vendors (Claude Code, Codex, Cursor, simplicio-dev-cli, ...). "
             "One file per topic under `notes/`, each `simplicio memory "
             "store` call appends a timestamped section — history is never "
-            "overwritten. See `simplicio memory recall \"<query>\"`.\n",
+            'overwritten. See `simplicio memory recall "<query>"`.\n',
             encoding="utf-8",
         )
     git_initialized = (base / ".git").is_dir()

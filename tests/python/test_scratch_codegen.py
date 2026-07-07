@@ -33,9 +33,7 @@ def _stack(tmp_path: Path) -> Stack:
 class _Executor(TaskExecutor):
     name = "fake"
 
-    def __init__(
-        self, *, can_handle: bool = True, result: CodegenResult | None = None
-    ) -> None:
+    def __init__(self, *, can_handle: bool = True, result: CodegenResult | None = None) -> None:
         self._can_handle = can_handle
         self._result = result or CodegenResult(passed=True, log="mechanical ok")
         self.calls = 0
@@ -56,9 +54,7 @@ def test_empty_registry_returns_none(tmp_path, monkeypatch):
 def test_registry_executes_first_matching_executor(tmp_path):
     skipped = _Executor(can_handle=False)
     matched = _Executor(result=CodegenResult(passed=True, log="matched"))
-    result = codegen_registry.try_execute(
-        _task(), tmp_path, _stack(tmp_path), [skipped, matched]
-    )
+    result = codegen_registry.try_execute(_task(), tmp_path, _stack(tmp_path), [skipped, matched])
     assert result is not None
     assert result.log == "matched"
     assert skipped.calls == 0
@@ -67,9 +63,7 @@ def test_registry_executes_first_matching_executor(tmp_path):
 
 def test_successful_codegen_runs_without_model(tmp_path, monkeypatch):
     executor = _Executor(
-        result=CodegenResult(
-            passed=True, files_modified=[tmp_path / "src/app.py"], log="done"
-        )
+        result=CodegenResult(passed=True, files_modified=[tmp_path / "src/app.py"], log="done")
     )
     monkeypatch.setattr(codegen_registry, "_DEFAULT_EXECUTORS", [executor])
     monkeypatch.delenv("SIMPLICIO_MODEL", raising=False)
@@ -105,11 +99,7 @@ def test_codegen_failure_without_fallback_does_not_call_llm(tmp_path, monkeypatc
 
 
 def test_codegen_fallback_preserves_existing_stub_mode(tmp_path, monkeypatch):
-    executor = _Executor(
-        result=CodegenResult(
-            passed=False, log="shape unsupported", fallback_to_llm=True
-        )
-    )
+    executor = _Executor(result=CodegenResult(passed=False, log="shape unsupported", fallback_to_llm=True))
     monkeypatch.setattr(codegen_registry, "_DEFAULT_EXECUTORS", [executor])
     monkeypatch.delenv("SIMPLICIO_MODEL", raising=False)
     result = _execute_one_task(_task(), tmp_path, _stack(tmp_path))
@@ -150,7 +140,5 @@ def test_required_skill_generates_review_gated_skill_before_stub_mode(
     skill_path = tmp_path / ".skills/liquibase-migrations/SKILL.md"
     assert result.execution_mode == "skipped"
     assert result.generated_skill == ".skills/liquibase-migrations/SKILL.md"
-    assert (
-        "skill-opt generated .skills/liquibase-migrations/SKILL.md" in result.log_tail
-    )
+    assert "skill-opt generated .skills/liquibase-migrations/SKILL.md" in result.log_tail
     assert "review_required: true" in skill_path.read_text(encoding="utf-8")

@@ -8,8 +8,12 @@ cache hit. Snippet changes -> new hash -> only that one is re-embedded. Granular
 Persisted in .simplicio/emb_cache.npz (vectors) + .json (hash->row index).
 """
 
-import os, json, hashlib
+import hashlib
+import json
+import os
+
 import numpy as np
+
 
 class EmbeddingCache:
     def __init__(self, root):
@@ -17,8 +21,8 @@ class EmbeddingCache:
         os.makedirs(self.dir, exist_ok=True)
         self.vec_path = os.path.join(self.dir, "emb_cache.npz")
         self.idx_path = os.path.join(self.dir, "emb_index.json")
-        self.index = {}        # hash -> row position in the matrix
-        self.vectors = None    # np.ndarray [N, dim]
+        self.index = {}  # hash -> row position in the matrix
+        self.vectors = None  # np.ndarray [N, dim]
         self._load()
 
     @staticmethod
@@ -55,5 +59,7 @@ class EmbeddingCache:
         return self.vectors[rows]
 
     def stats(self):
-        return {"cached_blocks": len(self.index),
-                "dim": 0 if self.vectors is None else int(self.vectors.shape[1])}
+        return {
+            "cached_blocks": len(self.index),
+            "dim": 0 if self.vectors is None else int(self.vectors.shape[1]),
+        }

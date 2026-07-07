@@ -19,11 +19,13 @@ stdout (matching stdio framing used by simple MCP servers). `handle_message`
 is the pure, directly-testable core; `serve_stdio` is the thin I/O loop
 around it.
 """
+
 from __future__ import annotations
 
 import json
 import sys
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 PROTOCOL_VERSION = "2025-06-18"
 SERVER_NAME = "simplicio-dev-cli"

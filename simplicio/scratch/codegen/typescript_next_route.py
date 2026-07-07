@@ -15,7 +15,6 @@ from ..plan_schema import Task
 from ..stack_registry import Stack
 from .types import CodegenResult, TaskExecutor
 
-
 _SUPPORTED_METHODS = ("GET", "POST", "PUT", "PATCH", "DELETE")
 
 
@@ -37,10 +36,7 @@ class TypeScriptAddNextRouteExecutor(TaskExecutor):
         if _route_parts(task.target) is None:
             return False
         text = _task_text(task).lower()
-        return any(
-            token in text
-            for token in ("api", "crud", "endpoint", "json", "route", "handler")
-        )
+        return any(token in text for token in ("api", "crud", "endpoint", "json", "route", "handler"))
 
     def execute(self, task: Task, project_dir: Path, stack: Stack) -> CodegenResult:
         spec = _parse_route_spec(task)
@@ -52,11 +48,7 @@ class TypeScriptAddNextRouteExecutor(TaskExecutor):
             return _fallback(f"target is not a file: {task.target}")
 
         original = target.read_text(encoding="utf-8") if target.exists() else ""
-        missing = [
-            method
-            for method in spec.methods
-            if not _has_exported_method(original, method)
-        ]
+        missing = [method for method in spec.methods if not _has_exported_method(original, method)]
         if target.exists() and not missing:
             return CodegenResult(
                 passed=True,
@@ -127,9 +119,7 @@ def _resource_from_parts(parts: list[str]) -> str:
 
 def _parse_methods(text: str) -> tuple[str, ...]:
     upper = text.upper()
-    methods = [
-        method for method in _SUPPORTED_METHODS if re.search(rf"\b{method}\b", upper)
-    ]
+    methods = [method for method in _SUPPORTED_METHODS if re.search(rf"\b{method}\b", upper)]
     if "CRUD" in upper:
         for method in ("GET", "POST"):
             if method not in methods:
@@ -170,9 +160,7 @@ def _write_with_ts_morph(
         "resource": spec.resource,
         "variableName": spec.variable_name,
     }
-    with tempfile.NamedTemporaryFile(
-        "w", encoding="utf-8", suffix=".cjs", delete=False
-    ) as handle:
+    with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".cjs", delete=False) as handle:
         handle.write(_TS_MORPH_SCRIPT)
         script = Path(handle.name)
     node = shutil.which("node") or shutil.which("node.exe")
@@ -224,11 +212,7 @@ def _ts_morph_env(project_dir: Path) -> tuple[bool, dict[str, str] | str]:
             return False, node_modules_or_log
         node_modules = node_modules_or_log
     existing = env.get("NODE_PATH")
-    env["NODE_PATH"] = (
-        str(node_modules)
-        if not existing
-        else os.pathsep.join([str(node_modules), existing])
-    )
+    env["NODE_PATH"] = str(node_modules) if not existing else os.pathsep.join([str(node_modules), existing])
     return True, env
 
 

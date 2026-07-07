@@ -73,6 +73,33 @@ jobs:
             echo "::endgroup::"
           done
 
+  lint:
+    name: Lint + type gate (ruff, mypy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install simplicio-cli[dev] (ruff + mypy, #102)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: ruff check
+        run: ruff check .
+
+      - name: ruff format --check
+        run: ruff format --check .
+
+      - name: mypy simplicio
+        run: mypy simplicio
+
   extras:
     name: Extras install (${{ matrix.extra }})
     needs: python

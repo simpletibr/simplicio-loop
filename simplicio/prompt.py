@@ -1,4 +1,5 @@
 """prompt.py — stacks the prompt layers."""
+
 import os
 import re
 from functools import lru_cache
@@ -30,14 +31,28 @@ def _mapper(root, target, goal=""):
     return build_mapper_context(root, target, goal=goal)
 
 
-def _assemble_python(tpl: str, stack: str, goal: str, target_block: str,
-                     prec: str, skill: str, adaptation: str,
-                     criteria: str, constraints: str) -> str:
+def _assemble_python(
+    tpl: str,
+    stack: str,
+    goal: str,
+    target_block: str,
+    prec: str,
+    skill: str,
+    adaptation: str,
+    criteria: str,
+    constraints: str,
+) -> str:
     """Python reference implementation — exact contract the Rust impl mirrors."""
-    for s, v in {"{{STACK}}": stack, "{{GOAL}}": goal,
-                 "{{TARGET}}": target_block, "{{PRECEDENT}}": prec, "{{SKILL}}": skill,
-                 "{{ADAPTATION}}": adaptation,
-                 "{{CRITERIA}}": criteria, "{{CONSTRAINTS}}": constraints}.items():
+    for s, v in {
+        "{{STACK}}": stack,
+        "{{GOAL}}": goal,
+        "{{TARGET}}": target_block,
+        "{{PRECEDENT}}": prec,
+        "{{SKILL}}": skill,
+        "{{ADAPTATION}}": adaptation,
+        "{{CRITERIA}}": criteria,
+        "{{CONSTRAINTS}}": constraints,
+    }.items():
         tpl = tpl.replace(s, v)
     return re.sub(r"\{#.*?#\}", "", tpl, flags=re.DOTALL).strip()
 
@@ -50,7 +65,5 @@ def build_prompt(root, stack, goal, target, criteria, constraints):
     target_block = f"{target}\n\nTarget context:\n{_mapper(root, target, goal=goal)}"
     adaptation = build_adaptation_block(goal)
     if _rs_build is not None:
-        return _rs_build(tpl, stack, goal, target_block, prec, skill,
-                         adaptation, criteria, constraints)
-    return _assemble_python(tpl, stack, goal, target_block, prec, skill,
-                            adaptation, criteria, constraints)
+        return _rs_build(tpl, stack, goal, target_block, prec, skill, adaptation, criteria, constraints)
+    return _assemble_python(tpl, stack, goal, target_block, prec, skill, adaptation, criteria, constraints)

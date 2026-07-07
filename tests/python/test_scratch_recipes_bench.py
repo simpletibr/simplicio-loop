@@ -45,9 +45,7 @@ def test_scratch_recipe_bench_measures_match_rate() -> None:
 
 
 def test_scratch_recipe_bench_writes_reports(tmp_path) -> None:
-    result = run_benchmark(
-        [RecipeCase("py-fastapi", "CRUD API for Unit", True, "crud-resource")]
-    )
+    result = run_benchmark([RecipeCase("py-fastapi", "CRUD API for Unit", True, "crud-resource")])
     json_path = tmp_path / "recipes.json"
     md_path = tmp_path / "recipes.md"
 
@@ -75,9 +73,7 @@ def test_scratch_recipe_bench_compares_llm_baseline(tmp_path) -> None:
     assert summary["release_gates"]["llm_baseline_covers_matched_cases"] is True
     assert summary["release_gates"]["recipe_plan_pass_rate_ge_llm"] is True
     assert summary["llm_baseline"]["source"] == "fixture"
-    assert "recipe path pass-rate compared" not in "\n".join(
-        summary["missing_release_evidence"]
-    )
+    assert "recipe path pass-rate compared" not in "\n".join(summary["missing_release_evidence"])
 
 
 def test_scratch_recipe_bench_consumes_live_gate_corpus(tmp_path) -> None:
@@ -110,9 +106,7 @@ def test_scratch_recipe_bench_consumes_live_gate_corpus(tmp_path) -> None:
     assert gates["real_recipe_match_ge_40"] is True
     assert gates["real_recipe_plans_valid"] is True
     assert gates["real_e2e_green_ge_80"] is True
-    assert "real 50-scratch recipe corpus" not in "\n".join(
-        summary["missing_release_evidence"]
-    )
+    assert "real 50-scratch recipe corpus" not in "\n".join(summary["missing_release_evidence"])
 
     live_gate_path = tmp_path / "live-gate.json"
     live_gate_path.write_text(json.dumps(live_gate), encoding="utf-8")

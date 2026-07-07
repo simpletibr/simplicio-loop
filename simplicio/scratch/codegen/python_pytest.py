@@ -42,9 +42,7 @@ class PythonAddPytestTestExecutor(TaskExecutor):
         if "tests/" not in f"{target}/" and "/tests/" not in f"/{target}":
             return False
         text = _task_text(task).lower()
-        return (
-            "pytest" in text or "test" in text or Path(target).name.startswith("test_")
-        )
+        return "pytest" in text or "test" in text or Path(target).name.startswith("test_")
 
     def execute(self, task: Task, project_dir: Path, stack: Stack) -> CodegenResult:
         crud_spec = _parse_crud_api_test_spec(task)
@@ -61,9 +59,7 @@ class PythonAddPytestTestExecutor(TaskExecutor):
 
         call_args = _call_args(function_target.node)
         if call_args is None:
-            return _fallback(
-                f"could not synthesize happy-path arguments for {function_target.name}"
-            )
+            return _fallback(f"could not synthesize happy-path arguments for {function_target.name}")
 
         original = ""
         if target.exists():
@@ -196,9 +192,7 @@ def _resolve_function_target(task: Task, project_dir: Path) -> _FunctionTarget |
 
 def _source_paths_from_text(text: str, project_dir: Path) -> list[Path]:
     paths: list[Path] = []
-    for match in re.finditer(
-        r"(?P<path>(?:[A-Za-z0-9_.-]+[\\/])+[A-Za-z0-9_.-]+\.py)", text
-    ):
+    for match in re.finditer(r"(?P<path>(?:[A-Za-z0-9_.-]+[\\/])+[A-Za-z0-9_.-]+\.py)", text):
         raw = match.group("path").strip("`'\"()[],;:")
         normalized = raw.replace("\\", "/")
         if normalized.startswith("tests/") or "/tests/" in f"/{normalized}":
@@ -242,16 +236,10 @@ def _top_level_functions(path: Path) -> list[ast.FunctionDef | ast.AsyncFunction
         tree = ast.parse(path.read_text(encoding="utf-8"))
     except (OSError, SyntaxError):
         return []
-    return [
-        node
-        for node in tree.body
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-    ]
+    return [node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
 
 
-def _find_function(
-    path: Path, function_name: str
-) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+def _find_function(path: Path, function_name: str) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
     for node in _top_level_functions(path):
         if node.name == function_name:
             return node
@@ -320,7 +308,7 @@ def _call_args(node: ast.FunctionDef | ast.AsyncFunctionDef) -> str | None:
             return None
         rendered.append(literal)
 
-    for arg, default in zip(args.kwonlyargs, args.kw_defaults):
+    for arg, default in zip(args.kwonlyargs, args.kw_defaults, strict=True):
         if default is not None:
             continue
         literal = _literal_for_arg(arg)
@@ -344,11 +332,7 @@ def _literal_for_arg(arg: ast.arg) -> str | None:
         return "1.0"
     if "bool" in lowered:
         return "True"
-    if (
-        "list" in lowered
-        or lowered.startswith("sequence")
-        or lowered.startswith("iterable")
-    ):
+    if "list" in lowered or lowered.startswith("sequence") or lowered.startswith("iterable"):
         return "[]"
     if "dict" in lowered or lowered.startswith("mapping"):
         return "{}"
@@ -357,14 +341,9 @@ def _literal_for_arg(arg: ast.arg) -> str | None:
     if "tuple" in lowered:
         return "()"
 
-    if any(
-        token in name for token in ("text", "name", "email", "slug", "title", "query")
-    ):
+    if any(token in name for token in ("text", "name", "email", "slug", "title", "query")):
         return '"sample"'
-    if any(
-        token in name
-        for token in ("count", "index", "number", "size", "limit", "offset")
-    ):
+    if any(token in name for token in ("count", "index", "number", "size", "limit", "offset")):
         return "1"
     if name.endswith("_id") or name == "id":
         return "1"
@@ -454,8 +433,7 @@ def _append_test(original: str, rendered: str) -> str:
 
 def _module_has_function(tree: ast.AST, function_name: str) -> bool:
     return any(
-        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        and node.name == function_name
+        isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == function_name
         for node in getattr(tree, "body", [])
     )
 

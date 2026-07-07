@@ -2,6 +2,7 @@
 context-pack in build_mapper_context — always fail-open to the artifact-file
 path so projects without the binary (or with SIMPLICIO_MAPPER_CLI=0) behave
 exactly as before."""
+
 import json
 
 import pytest
@@ -19,12 +20,17 @@ def _clear_cli_cache():
 def _write_project_map(tmp_path):
     art_dir = tmp_path / ".simplicio"
     art_dir.mkdir()
-    (art_dir / "project-map.json").write_text(json.dumps({
-        "schema": "simplicio.project-map/v2",
-        "generated_at": "2026-07-02T00:00:00Z",
-        "entry_points": ["src/app.py"],
-        "files": [{"path": "src/app.py", "language": "python", "importance": 3}],
-    }), encoding="utf-8")
+    (art_dir / "project-map.json").write_text(
+        json.dumps(
+            {
+                "schema": "simplicio.project-map/v2",
+                "generated_at": "2026-07-02T00:00:00Z",
+                "entry_points": ["src/app.py"],
+                "files": [{"path": "src/app.py", "language": "python", "importance": 3}],
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def test_run_mapper_json_disabled_by_env(monkeypatch, tmp_path):
@@ -40,11 +46,15 @@ def test_run_mapper_json_missing_binary_is_none(monkeypatch, tmp_path):
 
 def test_artifact_status_embeds_inspection_evidence(monkeypatch, tmp_path):
     _write_project_map(tmp_path)
-    monkeypatch.setattr(mapper, "map_inspection", lambda _root: {
-        "schema": "simplicio.map-inspection/v1",
-        "evidence": {"artifacts": {"project_map": {"exists": True, "size_bytes": 321}}},
-        "warnings": ["deep pass stale"],
-    })
+    monkeypatch.setattr(
+        mapper,
+        "map_inspection",
+        lambda _root: {
+            "schema": "simplicio.map-inspection/v1",
+            "evidence": {"artifacts": {"project_map": {"exists": True, "size_bytes": 321}}},
+            "warnings": ["deep pass stale"],
+        },
+    )
     payload = mapper.artifact_status(tmp_path)
     assert payload["project_map"]["present"] is True
     assert payload["inspection"]["schema"] == "simplicio.map-inspection/v1"
@@ -73,9 +83,13 @@ def test_build_mapper_context_prefers_handoff_pack(monkeypatch, tmp_path):
 
 def test_build_mapper_context_falls_back_when_pack_insufficient(monkeypatch, tmp_path):
     _write_project_map(tmp_path)
-    monkeypatch.setattr(mapper, "map_handoff", lambda _root: {
-        "context_pack": {"needs_broader_context": True, "files": [{"path": "x"}]},
-    })
+    monkeypatch.setattr(
+        mapper,
+        "map_handoff",
+        lambda _root: {
+            "context_pack": {"needs_broader_context": True, "files": [{"path": "x"}]},
+        },
+    )
     context = mapper.build_mapper_context(tmp_path, "src/app.py")
     assert "Mapper artifact:" in context
     assert "map-handoff" not in context
@@ -94,11 +108,14 @@ _HANDOFF_PACK_FIXTURE = {
         "pack_hash": "abc123",
         "needs_broader_context": False,
         "dependencies": {"runtime": ["orjson"]},
-        "files": [{
-            "path": "src/app.py", "language": "python",
-            "symbols": [{"name": "main", "kind": "function"}],
-            "imports": ["os"],
-        }],
+        "files": [
+            {
+                "path": "src/app.py",
+                "language": "python",
+                "symbols": [{"name": "main", "kind": "function"}],
+                "imports": ["os"],
+            }
+        ],
         "recent_changes": [{"path": "src/app.py", "status": "modified"}],
     },
 }
@@ -141,10 +158,7 @@ def test_handoff_path_toon_records_savings_event(monkeypatch, tmp_path):
     ledger = tmp_path / ".simplicio" / "ledger" / "savings-events.jsonl"
     assert ledger.exists()
     lines = [json.loads(line) for line in ledger.read_text(encoding="utf-8").splitlines() if line]
-    assert any(
-        e.get("schema") == "simplicio.savings-event/v1" and e.get("source") == "toon"
-        for e in lines
-    )
+    assert any(e.get("schema") == "simplicio.savings-event/v1" and e.get("source") == "toon" for e in lines)
 
 
 def test_handoff_path_toon_disabled_writes_no_savings_event(monkeypatch, tmp_path):
@@ -165,12 +179,16 @@ def test_build_mapper_context_falls_back_without_handoff(monkeypatch, tmp_path):
 
 
 def test_map_ask_returns_results_list(monkeypatch, tmp_path):
-    monkeypatch.setattr(mapper, "run_mapper_json", lambda root, sub, *, extra=(), timeout=30: {
-        "schema": "simplicio.ask/v1",
-        "query": {"verb": extra[0], "arg": extra[1] if len(extra) > 1 else None},
-        "results": [{"path": "src/app.py", "symbol": "main"}, "not-a-dict"],
-        "total": 1,
-    })
+    monkeypatch.setattr(
+        mapper,
+        "run_mapper_json",
+        lambda root, sub, *, extra=(), timeout=30: {
+            "schema": "simplicio.ask/v1",
+            "query": {"verb": extra[0], "arg": extra[1] if len(extra) > 1 else None},
+            "results": [{"path": "src/app.py", "symbol": "main"}, "not-a-dict"],
+            "total": 1,
+        },
+    )
     results = mapper.map_ask(tmp_path, "impact", "src/app.py")
     assert results == [{"path": "src/app.py", "symbol": "main"}]
 

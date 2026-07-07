@@ -13,12 +13,12 @@ import bench.run_scratch_live_gate as live_gate
 from bench.run_scratch_live_gate import (
     CODEGEN_DISABLED_RESULTS_JSON,
     CODEGEN_DISABLED_RESULTS_MD,
-    merge_results,
     _normalize_skillopt_review,
     _parse_json_stdout,
     _resolve_output_paths,
     _summarize,
     load_skillopt_review_evidence,
+    merge_results,
     parse_args,
     run_live_gate,
     write_reports,
@@ -159,9 +159,7 @@ def test_live_gate_runs_execution_slice(tmp_path) -> None:
     assert summary["release_gates"]["full_75_run_matrix"] is False
 
 
-def test_live_gate_reports_missing_post_verify_runtime_tools(
-    tmp_path, monkeypatch
-) -> None:
+def test_live_gate_reports_missing_post_verify_runtime_tools(tmp_path, monkeypatch) -> None:
     project_dir = tmp_path / "live" / "projects" / "gate-g01-go-gin"
     project_dir.mkdir(parents=True)
     monkeypatch.setattr(live_gate.shutil, "which", lambda _tool: None)
@@ -210,9 +208,7 @@ def test_live_gate_reports_missing_post_verify_runtime_tools(
     assert "- missing runtime tools: `go`" in md_path.read_text(encoding="utf-8")
 
 
-def test_live_gate_disables_runtime_tool_preflight_without_post_verify(
-    tmp_path, monkeypatch
-) -> None:
+def test_live_gate_disables_runtime_tool_preflight_without_post_verify(tmp_path, monkeypatch) -> None:
     def fail_if_checked(_tool):
         raise AssertionError("runtime tool preflight should be disabled")
 
@@ -328,10 +324,7 @@ def test_live_gate_requires_post_verify_for_e2e_metric(tmp_path) -> None:
     assert row["task_all_passed"] is True
     assert row["e2e_green"] is None
     assert summary["release_gates"]["e2e_green_ge_80"] is None
-    assert (
-        "post-scratch stack test/lint verification"
-        in summary["missing_release_evidence"]
-    )
+    assert "post-scratch stack test/lint verification" in summary["missing_release_evidence"]
 
 
 def test_live_gate_handles_timeout_bytes_in_reports(tmp_path) -> None:
@@ -428,10 +421,7 @@ def test_live_gate_keeps_cost_unknown_when_llm_cost_is_missing() -> None:
 
 
 def test_live_gate_accepts_skillopt_human_review_evidence(tmp_path) -> None:
-    reviews = [
-        _skillopt_review_row(tmp_path, index, approved=index <= 8)
-        for index in range(1, 11)
-    ]
+    reviews = [_skillopt_review_row(tmp_path, index, approved=index <= 8) for index in range(1, 11)]
     review_path = tmp_path / "skillopt-review.json"
     review_path.write_text(json.dumps({"reviews": reviews}), encoding="utf-8")
     rows = [
@@ -462,10 +452,7 @@ def test_live_gate_accepts_skillopt_human_review_evidence(tmp_path) -> None:
     assert summary["skillopt_review"]["approved"] == 8
     assert summary["release_gates"]["skillopt_human_approval_ge_80"] is True
     assert summary["release_gates"]["release_ready"] is True
-    assert (
-        "SkillOpt human approval evidence >=80%"
-        not in summary["missing_release_evidence"]
-    )
+    assert "SkillOpt human approval evidence >=80%" not in summary["missing_release_evidence"]
 
 
 def test_live_gate_rejects_invalid_skillopt_review_rows() -> None:
@@ -501,10 +488,7 @@ def test_live_gate_rejects_invalid_skillopt_review_rows() -> None:
 
 
 def test_live_gate_verifies_skillopt_review_packet_artifacts(tmp_path) -> None:
-    reviews = [
-        _skillopt_review_row(tmp_path, index, approved=index <= 8)
-        for index in range(1, 11)
-    ]
+    reviews = [_skillopt_review_row(tmp_path, index, approved=index <= 8) for index in range(1, 11)]
     review_path = tmp_path / "skillopt-review.json"
     review_path.write_text(json.dumps({"reviews": reviews}), encoding="utf-8")
 
@@ -771,9 +755,7 @@ def test_live_gate_writes_reports(tmp_path) -> None:
 
 
 def test_versioned_agent_skillopt_review_packet_passes_gate() -> None:
-    summary = load_skillopt_review_evidence(
-        Path("bench/results_skillopt_agent_review_packet.json")
-    )
+    summary = load_skillopt_review_evidence(Path("bench/results_skillopt_agent_review_packet.json"))
 
     assert summary["total_reviews"] == 10
     assert summary["approved"] == 8

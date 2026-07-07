@@ -1,4 +1,5 @@
 """Unit tests for the planner provider routing in simplicio.providers."""
+
 from __future__ import annotations
 
 import importlib
@@ -11,10 +12,15 @@ import simplicio.providers as P
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for v in (
-        "SIMPLICIO_PLANNER", "HF_TOKEN",
-        "DEEPSEEK_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY",
+        "SIMPLICIO_PLANNER",
+        "HF_TOKEN",
+        "DEEPSEEK_API_KEY",
+        "OPENAI_API_KEY",
+        "OPENROUTER_API_KEY",
         "ANTHROPIC_API_KEY",
-        "SIMPLICIO_API_KEY", "SIMPLICIO_BASE_URL", "SIMPLICIO_MODEL",
+        "SIMPLICIO_API_KEY",
+        "SIMPLICIO_BASE_URL",
+        "SIMPLICIO_MODEL",
     ):
         monkeypatch.delenv(v, raising=False)
     importlib.reload(P)

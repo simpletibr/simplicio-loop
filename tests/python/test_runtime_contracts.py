@@ -8,11 +8,7 @@ from simplicio.runtime_contracts import doctor_contract, task_contract
 
 def test_doctor_contract_reports_ecosystem_tool_status(tmp_path, monkeypatch):
     def fake_which(name: str):
-        return (
-            f"/bin/{name}"
-            if name in {"simplicio-mapper", "simplicio-dev-cli", "simplicio-py"}
-            else None
-        )
+        return f"/bin/{name}" if name in {"simplicio-mapper", "simplicio-dev-cli", "simplicio-py"} else None
 
     monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", fake_which)
     monkeypatch.setattr(
@@ -39,9 +35,7 @@ def test_doctor_contract_reports_ecosystem_tool_status(tmp_path, monkeypatch):
     assert result["runtime"]["model"] == "openbmb/minicpm5:latest"
 
 
-def test_doctor_contract_falls_back_to_local_version_for_editable_checkout(
-    tmp_path, monkeypatch
-):
+def test_doctor_contract_falls_back_to_local_version_for_editable_checkout(tmp_path, monkeypatch):
     monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: None)
     monkeypatch.setattr("simplicio.runtime_contracts._package_version", lambda name: None)
 

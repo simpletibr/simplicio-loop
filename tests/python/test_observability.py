@@ -1,5 +1,6 @@
 """Tests for observability.py's canonical estimator + savings-event ledger
 producer (issue #88 AC3/AC4)."""
+
 import json
 
 from simplicio.observability import (

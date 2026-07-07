@@ -12,7 +12,6 @@ from ..stack_registry import Stack
 from .python_cst import LibCSTUnavailable, format_module
 from .types import CodegenResult, TaskExecutor
 
-
 _AUTO_INPUT_FIELDS = {"id", "created_at", "updated_at", "created_on", "updated_on"}
 _TYPE_IMPORTS = {
     "date": ("datetime", "date"),
@@ -49,10 +48,7 @@ class PythonAddPydanticSchemaExecutor(TaskExecutor):
         target = task.target.replace("\\", "/").lower()
         if not target.endswith(".py"):
             return False
-        if (
-            "/src/api/schemas/" not in f"/{target}"
-            and "schema" not in Path(target).stem
-        ):
+        if "/src/api/schemas/" not in f"/{target}" and "schema" not in Path(target).stem:
             return False
         text = _task_text(task).lower()
         return "pydantic" in text or "schema" in text
@@ -83,10 +79,7 @@ class PythonAddPydanticSchemaExecutor(TaskExecutor):
             return CodegenResult(
                 passed=True,
                 files_modified=[],
-                log=(
-                    f"{spec.model_name} Pydantic schemas already exist; "
-                    "no changes needed"
-                ),
+                log=(f"{spec.model_name} Pydantic schemas already exist; no changes needed"),
             )
 
         try:
@@ -104,9 +97,7 @@ class PythonAddPydanticSchemaExecutor(TaskExecutor):
         try:
             ast.parse(updated)
         except SyntaxError as exc:
-            return _fallback(
-                f"generated Pydantic schemas are not valid Python: {exc.msg}"
-            )
+            return _fallback(f"generated Pydantic schemas are not valid Python: {exc.msg}")
 
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(updated, encoding="utf-8")
@@ -246,9 +237,7 @@ def _field_from_annassign(node: ast.AnnAssign) -> _ModelField | None:
 
 
 def _mapped_type_text(annotation: ast.expr) -> str | None:
-    if isinstance(annotation, ast.Subscript) and _qualified_name(
-        annotation.value
-    ).endswith("Mapped"):
+    if isinstance(annotation, ast.Subscript) and _qualified_name(annotation.value).endswith("Mapped"):
         return _normalize_type(ast.unparse(annotation.slice))
     return None
 
@@ -275,19 +264,13 @@ def _find_class(tree: ast.AST, class_name: str) -> ast.ClassDef | None:
 
 
 def _looks_like_sqlalchemy_model(node: ast.ClassDef) -> bool:
-    if any(
-        _qualified_name(base).split(".")[-1] in {"Base", "DeclarativeBase"}
-        for base in node.bases
-    ):
+    if any(_qualified_name(base).split(".")[-1] in {"Base", "DeclarativeBase"} for base in node.bases):
         return True
     for item in node.body:
         if isinstance(item, ast.Assign):
             if any(_target_name(target) == "__tablename__" for target in item.targets):
                 return True
-        if (
-            isinstance(item, ast.AnnAssign)
-            and _target_name(item.target) == "__tablename__"
-        ):
+        if isinstance(item, ast.AnnAssign) and _target_name(item.target) == "__tablename__":
             return True
     return False
 
@@ -332,11 +315,7 @@ def _has_default(node: ast.AST | None) -> bool:
 
 
 def _is_optional_type(type_text: str) -> bool:
-    return (
-        type_text.endswith("| None")
-        or type_text.startswith("None |")
-        or " | None | " in type_text
-    )
+    return type_text.endswith("| None") or type_text.startswith("None |") or " | None | " in type_text
 
 
 def _optionalize(type_text: str) -> str:
@@ -350,11 +329,7 @@ def _schema_class_names(model_name: str) -> list[str]:
 
 
 def _module_class_names(tree: ast.AST) -> set[str]:
-    return {
-        node.name
-        for node in getattr(tree, "body", [])
-        if isinstance(node, ast.ClassDef)
-    }
+    return {node.name for node in getattr(tree, "body", []) if isinstance(node, ast.ClassDef)}
 
 
 def _render_updated_schema_module(
@@ -419,13 +394,9 @@ def _render_schema_classes(
     for class_name in class_names:
         suffix = class_name.removeprefix(model_name)
         if suffix == "Create":
-            blocks.append(
-                _render_model_class(class_name, _input_fields(fields), "create")
-            )
+            blocks.append(_render_model_class(class_name, _input_fields(fields), "create"))
         elif suffix == "Update":
-            blocks.append(
-                _render_model_class(class_name, _input_fields(fields), "update")
-            )
+            blocks.append(_render_model_class(class_name, _input_fields(fields), "update"))
         elif suffix == "Read":
             blocks.append(_render_model_class(class_name, fields, "read"))
     return "\n\n\n".join(blocks) + "\n"
@@ -461,9 +432,7 @@ def _ensure_pydantic_import(lines: list[str], tree: ast.AST, newline: str) -> No
     _ensure_from_import(lines, tree, "pydantic", ["BaseModel", "ConfigDict"], newline)
 
 
-def _ensure_type_imports(
-    lines: list[str], tree: ast.AST, fields: list[_ModelField], newline: str
-) -> None:
+def _ensure_type_imports(lines: list[str], tree: ast.AST, fields: list[_ModelField], newline: str) -> None:
     for module, names in _needed_type_imports(fields).items():
         _ensure_from_import(lines, tree, module, sorted(names), newline)
         tree = ast.parse("".join(lines) or "\n")
@@ -487,11 +456,7 @@ def _ensure_from_import(
             continue
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             insert_at = max(insert_at, getattr(node, "end_lineno", node.lineno))
-        if not (
-            isinstance(node, ast.ImportFrom)
-            and node.level == 0
-            and node.module == module
-        ):
+        if not (isinstance(node, ast.ImportFrom) and node.level == 0 and node.module == module):
             continue
         if any(alias.name == "*" for alias in node.names):
             return
@@ -505,9 +470,7 @@ def _ensure_from_import(
     lines.insert(insert_at, f"from {module} import {', '.join(names)}{newline}")
 
 
-def _add_names_to_import_line(
-    lines: list[str], index: int, module: str, names: list[str]
-) -> None:
+def _add_names_to_import_line(lines: list[str], index: int, module: str, names: list[str]) -> None:
     escaped = re.escape(module)
     match = re.match(
         rf"^(\s*from\s+{escaped}\s+import\s+)(.*?)(\s*(#.*)?\r?\n?)$",

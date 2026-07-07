@@ -14,9 +14,7 @@ from ._schema import assert_has_keys, assert_schema_id
 def test_artifact_status_loads_real_fixture_project_map(sample_project):
     payload = mapper.artifact_status(sample_project)
 
-    assert_schema_id(
-        payload["project_map"], "simplicio.project-map/v1", where="artifact_status.project_map"
-    )
+    assert_schema_id(payload["project_map"], "simplicio.project-map/v1", where="artifact_status.project_map")
     assert payload["project_map"]["present"] is True
     assert payload["project_map"]["entry_points"] == ["src/app.py"]
     assert payload["project_map"]["module_names"] == ["src"]

@@ -13,7 +13,8 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional, Pattern
+from re import Pattern
+from typing import Any
 
 from .plan_schema import Plan, validate_plan
 
@@ -33,8 +34,8 @@ class RecipeSlotError(RecipeError):
 @dataclass
 class SlotSpec:
     required: bool = False
-    default: Optional[str] = None
-    derived_from: Optional[str] = None
+    default: str | None = None
+    derived_from: str | None = None
     transform: str = "identity"
 
 
@@ -60,43 +61,32 @@ class Recipe:
     test_command: str = ""
     lint_command: str = ""
     rationale: str = ""
-    source_path: Optional[Path] = None
+    source_path: Path | None = None
 
     @classmethod
     def from_dict(
         cls,
         raw: dict[str, Any],
         stack_slug: str,
-        source_path: Optional[Path] = None,
-    ) -> "Recipe":
+        source_path: Path | None = None,
+    ) -> Recipe:
         name = _need_str(raw, "name", source_path)
-        matches = [
-            re.compile(pattern)
-            for pattern in _need_list_of_str(raw, "matches", source_path)
-        ]
+        matches = [re.compile(pattern) for pattern in _need_list_of_str(raw, "matches", source_path)]
         slots_raw = raw.get("slots", {})
         if not isinstance(slots_raw, dict):
             raise RecipeLoadError(_where(source_path, "slots must be an object"))
         slots_spec = {
             str(slot): SlotSpec(
                 required=bool(spec.get("required", False)),
-                default=(
-                    None if spec.get("default") is None else str(spec.get("default"))
-                ),
-                derived_from=(
-                    None
-                    if spec.get("derived_from") is None
-                    else str(spec.get("derived_from"))
-                ),
+                default=(None if spec.get("default") is None else str(spec.get("default"))),
+                derived_from=(None if spec.get("derived_from") is None else str(spec.get("derived_from"))),
                 transform=str(spec.get("transform", "identity")),
             )
             for slot, spec in slots_raw.items()
             if isinstance(spec, dict)
         }
         if len(slots_spec) != len(slots_raw):
-            raise RecipeLoadError(
-                _where(source_path, "every slot spec must be an object")
-            )
+            raise RecipeLoadError(_where(source_path, "every slot spec must be an object"))
 
         return cls(
             name=name,
@@ -119,8 +109,8 @@ class Recipe:
         self,
         goal: str,
         stack_slug: str,
-        slot_overrides: Optional[dict[str, str]] = None,
-    ) -> Optional[RecipeMatch]:
+        slot_overrides: dict[str, str] | None = None,
+    ) -> RecipeMatch | None:
         if stack_slug not in self.applies_to:
             return None
         for pattern in self.matches:
@@ -145,13 +135,11 @@ class Recipe:
     def instantiate(self, match: RecipeMatch, project_name: str) -> Plan:
         if match.recipe_name != self.name:
             raise RecipeError(
-                f"match for recipe {match.recipe_name!r} cannot instantiate "
-                f"recipe {self.name!r}"
+                f"match for recipe {match.recipe_name!r} cannot instantiate recipe {self.name!r}"
             )
         if match.stack_slug != self.stack_slug:
             raise RecipeError(
-                f"recipe {self.name!r} is for stack {self.stack_slug!r}, "
-                f"got match stack {match.stack_slug!r}"
+                f"recipe {self.name!r} is for stack {self.stack_slug!r}, got match stack {match.stack_slug!r}"
             )
 
         slots = dict(match.slots)
@@ -188,8 +176,7 @@ class Recipe:
                 value = _render(spec.default, slots)
             if not value and spec.required:
                 raise RecipeSlotError(
-                    f"missing required slot {name!r} for recipe {self.name!r}; "
-                    f"pass --slot {name}=VALUE"
+                    f"missing required slot {name!r} for recipe {self.name!r}; pass --slot {name}=VALUE"
                 )
             if value:
                 slots[name] = _transform(value, spec.transform)
@@ -199,14 +186,14 @@ class Recipe:
 class RecipeRegistry:
     """Lazy registry for stack-specific declarative recipes."""
 
-    def __init__(self, root: Optional[Path] = None) -> None:
+    def __init__(self, root: Path | None = None) -> None:
         self.root = root or _recipes_root()
-        self._cache: Optional[dict[tuple[str, str], Recipe]] = None
+        self._cache: dict[tuple[str, str], Recipe] | None = None
 
     def load(self) -> None:
         self._load()
 
-    def list(self, stack_slug: Optional[str] = None) -> list[Recipe]:
+    def list(self, stack_slug: str | None = None) -> list[Recipe]:
         recipes = list(self._load().values())
         if stack_slug is not None:
             recipes = [recipe for recipe in recipes if stack_slug in recipe.applies_to]
@@ -216,29 +203,23 @@ class RecipeRegistry:
         self,
         goal: str,
         stack_slug: str,
-        slot_overrides: Optional[dict[str, str]] = None,
-    ) -> Optional[RecipeMatch]:
+        slot_overrides: dict[str, str] | None = None,
+    ) -> RecipeMatch | None:
         for recipe in self.list(stack_slug):
             match = recipe.try_match(goal, stack_slug, slot_overrides=slot_overrides)
             if match is not None:
                 return match
         return None
 
-    def get(self, name: str, stack_slug: Optional[str] = None) -> Recipe:
+    def get(self, name: str, stack_slug: str | None = None) -> Recipe:
         recipes = self._load()
         if stack_slug is not None:
             try:
                 return recipes[(stack_slug, name)]
             except KeyError as exc:
-                raise KeyError(
-                    f"recipe {name!r} not found for stack {stack_slug!r}"
-                ) from exc
+                raise KeyError(f"recipe {name!r} not found for stack {stack_slug!r}") from exc
 
-        matches = [
-            recipe
-            for (stack, recipe_name), recipe in recipes.items()
-            if recipe_name == name
-        ]
+        matches = [recipe for (stack, recipe_name), recipe in recipes.items() if recipe_name == name]
         if not matches:
             raise KeyError(f"recipe {name!r} not found")
         return sorted(matches, key=lambda recipe: recipe.stack_slug)[0]
@@ -251,11 +232,7 @@ class RecipeRegistry:
             self._cache = recipes
             return recipes
 
-        paths = [
-            path
-            for suffix in ("*.yaml", "*.yml", "*.json")
-            for path in self.root.glob(f"*/{suffix}")
-        ]
+        paths = [path for suffix in ("*.yaml", "*.yml", "*.json") for path in self.root.glob(f"*/{suffix}")]
         for path in sorted(paths):
             if not path.is_file():
                 continue
@@ -279,8 +256,8 @@ def plan_from_recipe(
     goal: str,
     stack_slug: str,
     project_name: str,
-    slot_overrides: Optional[dict[str, str]] = None,
-) -> Optional[Plan]:
+    slot_overrides: dict[str, str] | None = None,
+) -> Plan | None:
     """Return a validated recipe plan for a known goal, or None on a miss."""
     registry = RecipeRegistry()
     match = registry.match(goal, stack_slug, slot_overrides=slot_overrides)
@@ -316,15 +293,13 @@ def _load_template(path: Path) -> dict[str, Any]:
         try:
             raw = yaml.safe_load(text)
         except Exception as exc:  # pragma: no cover - depends on optional PyYAML
-            raise RecipeLoadError(
-                _where(path, f"invalid recipe YAML: {json_error}")
-            ) from exc
+            raise RecipeLoadError(_where(path, f"invalid recipe YAML: {json_error}")) from exc
     if not isinstance(raw, dict):
         raise RecipeLoadError(_where(path, "recipe root must be an object"))
     return raw
 
 
-def _need_str(raw: dict[str, Any], key: str, path: Optional[Path]) -> str:
+def _need_str(raw: dict[str, Any], key: str, path: Path | None) -> str:
     value = raw.get(key)
     if not isinstance(value, str) or not value:
         raise RecipeLoadError(_where(path, f"{key} must be a non-empty string"))
@@ -334,7 +309,7 @@ def _need_str(raw: dict[str, Any], key: str, path: Optional[Path]) -> str:
 def _need_list_of_str(
     raw: dict[str, Any],
     key: str,
-    path: Optional[Path],
+    path: Path | None,
 ) -> list[str]:
     if key not in raw:
         raise RecipeLoadError(_where(path, f"{key} missing"))
@@ -344,7 +319,7 @@ def _need_list_of_str(
 def _need_list_of_dict(
     raw: dict[str, Any],
     key: str,
-    path: Optional[Path],
+    path: Path | None,
 ) -> list[dict[str, Any]]:
     if key not in raw:
         raise RecipeLoadError(_where(path, f"{key} missing"))
@@ -373,7 +348,7 @@ def _list_of_dict(value: Any) -> list[dict[str, Any]]:
     return out
 
 
-def _where(path: Optional[Path], message: str) -> str:
+def _where(path: Path | None, message: str) -> str:
     if path is None:
         return message
     return f"{path}: {message}"

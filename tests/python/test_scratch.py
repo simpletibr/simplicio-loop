@@ -17,7 +17,6 @@ from simplicio.scratch.plan_schema import (
 )
 from simplicio.scratch.stack_registry import Stack, StackRegistry, slugify_project
 
-
 # ----- plan_schema ----- #
 
 
@@ -325,11 +324,7 @@ def test_rust_axum_stack_renders_cargo_project_name() -> None:
 
         assert (dest / "Cargo.toml").is_file()
         assert (dest / "src/main.rs").is_file()
-        assert (
-            (dest / "Cargo.toml")
-            .read_text(encoding="utf-8")
-            .startswith('[package]\nname = "demo-api"')
-        )
+        assert (dest / "Cargo.toml").read_text(encoding="utf-8").startswith('[package]\nname = "demo-api"')
         assert any(path.name == "main.rs" for path in written)
 
 
@@ -345,9 +340,7 @@ def test_php_laravel_stack_renders_composer_project_name() -> None:
         assert (dest / "composer.json").is_file()
         assert (dest / "routes/api.php").is_file()
         assert (dest / "bootstrap/cache").is_dir()
-        assert '"name": "simplicio/demo-api"' in (dest / "composer.json").read_text(
-            encoding="utf-8"
-        )
+        assert '"name": "simplicio/demo-api"' in (dest / "composer.json").read_text(encoding="utf-8")
         with (dest / "routes/api.php").open(encoding="utf-8", newline="") as fh:
             assert "\r\n" not in fh.read()
         assert any(path.name == "HealthTest.php" for path in written)

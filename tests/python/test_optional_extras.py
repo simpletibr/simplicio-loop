@@ -97,8 +97,7 @@ _HEAVY_OR_OPTIONAL = {
 def test_base_dependencies_exclude_heavy_and_provider_packages():
     data = _load_pyproject()
     base_names = {
-        req.split(">=")[0].split("==")[0].split("[")[0].strip()
-        for req in data["project"]["dependencies"]
+        req.split(">=")[0].split("==")[0].split("[")[0].strip() for req in data["project"]["dependencies"]
     }
     overlap = base_names & _HEAVY_OR_OPTIONAL
     assert not overlap, f"heavy/optional packages leaked into base deps: {overlap}"

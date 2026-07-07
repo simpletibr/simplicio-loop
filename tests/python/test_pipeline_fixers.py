@@ -111,8 +111,7 @@ def test_missing_go_module_fixer_runs_go_get(tmp_path):
         return _ok(argv)
 
     result = MissingGoModuleFixer().try_fix(
-        "main.go:5:2: no required module provides package "
-        "github.com/gin-gonic/gin; to add it:",
+        "main.go:5:2: no required module provides package github.com/gin-gonic/gin; to add it:",
         tmp_path,
         runner=fake_run,
     )

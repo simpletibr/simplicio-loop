@@ -51,9 +51,7 @@ def _add_scratch_args(p: argparse.ArgumentParser) -> None:
         default=".",
         help="existing project root used for stack detection (default: cwd)",
     )
-    p.add_argument(
-        "--planner", default=None, help="override SIMPLICIO_PLANNER for this run only"
-    )
+    p.add_argument("--planner", default=None, help="override SIMPLICIO_PLANNER for this run only")
     p.add_argument(
         "--plan-only",
         action="store_true",
@@ -64,9 +62,7 @@ def _add_scratch_args(p: argparse.ArgumentParser) -> None:
         action="store_true",
         help="skip package-manager install after scaffolding",
     )
-    p.add_argument(
-        "--list-stacks", action="store_true", help="print available stack templates"
-    )
+    p.add_argument("--list-stacks", action="store_true", help="print available stack templates")
     p.add_argument(
         "--show-stack",
         default=None,
@@ -144,10 +140,7 @@ def _cmd_show(reg: StackRegistry, slug: str, as_json: bool) -> int:
     print(f"language : {s.language}")
     print(f"framework: {s.framework}")
     print(f"version  : {s.version}")
-    print(
-        f"verify   : install={s.install_command!r} "
-        f"test={s.test_command!r} lint={s.lint_command!r}"
-    )
+    print(f"verify   : install={s.install_command!r} test={s.test_command!r} lint={s.lint_command!r}")
     print()
     print("## README")
     print(s.readme or "(no README)")
@@ -290,21 +283,13 @@ def _infer_stack(reg: StackRegistry, goal: str, root: str = ".") -> str | None:
         return "py-django"
     if "flask" in g and reg.get("py-flask"):
         return "py-flask"
-    if any(k in g for k in ("typer", "python cli", "command line")) and reg.get(
-        "py-cli"
-    ):
+    if any(k in g for k in ("typer", "python cli", "command line")) and reg.get("py-cli"):
         return "py-cli"
-    if any(k in g for k in ("express", "node api", "node.js api")) and reg.get(
-        "js-express"
-    ):
+    if any(k in g for k in ("express", "node api", "node.js api")) and reg.get("js-express"):
         return "js-express"
-    if any(k in g for k in ("vite", "react spa", "react app")) and reg.get(
-        "react-vite"
-    ):
+    if any(k in g for k in ("vite", "react spa", "react app")) and reg.get("react-vite"):
         return "react-vite"
-    if any(k in g for k in ("bash", "shell script", "shell cli")) and reg.get(
-        "bash-cli"
-    ):
+    if any(k in g for k in ("bash", "shell script", "shell cli")) and reg.get("bash-cli"):
         return "bash-cli"
     if any(k in g for k in ("axum", "rust ")) and reg.get("rust-axum"):
         return "rust-axum"
@@ -314,27 +299,19 @@ def _infer_stack(reg: StackRegistry, goal: str, root: str = ".") -> str | None:
         return "rust-cli"
     if "laravel" in g and reg.get("php-laravel"):
         return "php-laravel"
-    if any(k in g for k in ("plain php", "phpunit", "vanilla php")) and reg.get(
-        "php-vanilla"
-    ):
+    if any(k in g for k in ("plain php", "phpunit", "vanilla php")) and reg.get("php-vanilla"):
         return "php-vanilla"
     if "symfony" in g and reg.get("php-symfony"):
         return "php-symfony"
     if any(k in g for k in ("rails", "ruby on rails")) and reg.get("ruby-rails"):
         return "ruby-rails"
-    if any(k in g for k in ("asp.net", "aspnet", "c# api")) and reg.get(
-        "csharp-aspnet"
-    ):
+    if any(k in g for k in ("asp.net", "aspnet", "c# api")) and reg.get("csharp-aspnet"):
         return "csharp-aspnet"
     if any(k in g for k in ("blazor", "c# ui")) and reg.get("csharp-blazor"):
         return "csharp-blazor"
-    if any(k in g for k in ("java spring", "spring boot java")) and reg.get(
-        "java-spring"
-    ):
+    if any(k in g for k in ("java spring", "spring boot java")) and reg.get("java-spring"):
         return "java-spring"
-    if any(k in g for k in ("kotlin spring", "spring boot kotlin")) and reg.get(
-        "kotlin-spring"
-    ):
+    if any(k in g for k in ("kotlin spring", "spring boot kotlin")) and reg.get("kotlin-spring"):
         return "kotlin-spring"
     if "ktor" in g and reg.get("kotlin-ktor"):
         return "kotlin-ktor"
@@ -342,9 +319,7 @@ def _infer_stack(reg: StackRegistry, goal: str, root: str = ".") -> str | None:
         return "elixir-phoenix"
     if "flutter" in g and reg.get("dart-flutter"):
         return "dart-flutter"
-    if any(k in g for k in ("android", "jetpack compose")) and reg.get(
-        "kotlin-android"
-    ):
+    if any(k in g for k in ("android", "jetpack compose")) and reg.get("kotlin-android"):
         return "kotlin-android"
     if any(k in g for k in ("vapor", "swift api")) and reg.get("swift-vapor"):
         return "swift-vapor"
@@ -461,8 +436,7 @@ def _cmd_scratch(args: argparse.Namespace, reg: StackRegistry) -> int:
     stack = reg.get(stack_slug)
     if stack is None:
         print(
-            f"error: unknown stack '{stack_slug}'. Run "
-            f"`simplicio-py scratch --list-stacks`.",
+            f"error: unknown stack '{stack_slug}'. Run `simplicio-py scratch --list-stacks`.",
             file=sys.stderr,
         )
         return 2
@@ -543,9 +517,7 @@ def _cmd_scratch(args: argparse.Namespace, reg: StackRegistry) -> int:
     from .executor import execute_plan
 
     try:
-        report = execute_plan(
-            plan, stack, Path(args.dest), skip_install=args.skip_install
-        )
+        report = execute_plan(plan, stack, Path(args.dest), skip_install=args.skip_install)
     except FileExistsError as e:
         print(f"[scratch] {e}", file=sys.stderr)
         return 4

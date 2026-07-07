@@ -182,9 +182,7 @@ def _run_fallback(a: argparse.Namespace, extra_args: list[str]) -> int:
 
     if summary is None:
         summary = (
-            f"{a.cmd} exited {completed.returncode}"
-            if completed.returncode != 0
-            else f"{a.cmd} exited 0"
+            f"{a.cmd} exited {completed.returncode}" if completed.returncode != 0 else f"{a.cmd} exited 0"
         )
 
     output_truncated = len(combined_output) > OUTPUT_TAIL_CHARS
@@ -216,9 +214,7 @@ def _print_human(payload: dict) -> None:
     print(f"{payload['cmd']}: {payload['summary']}")
     if payload.get("passed") is not None or payload.get("failed") is not None:
         print(
-            f"  passed={payload.get('passed')} "
-            f"failed={payload.get('failed')} "
-            f"errors={payload.get('errors')}"
+            f"  passed={payload.get('passed')} failed={payload.get('failed')} errors={payload.get('errors')}"
         )
     print(f"  exit_code={payload['exit_code']}")
     if payload.get("output_tail"):

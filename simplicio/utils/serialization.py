@@ -9,15 +9,18 @@ Falls back to stdlib json automatically if orjson is not installed so the
 import chain never breaks; a deployment that wants the speedup just installs
 the optional dependency.
 """
+
 from __future__ import annotations
 
 from typing import Any
 
 try:  # optional fast path
     import orjson as _oj
+
     _HAS_ORJSON = True
 except ImportError:  # pragma: no cover - degrades gracefully
     import json as _json
+
     _HAS_ORJSON = False
 
 

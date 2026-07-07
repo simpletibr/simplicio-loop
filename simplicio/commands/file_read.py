@@ -55,9 +55,7 @@ def _run_via_runtime(a: argparse.Namespace) -> int | None:
         return None
     cmd = [binary, *_build_runtime_args(a)]
     try:
-        completed = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=RUNTIME_DELEGATION_TIMEOUT_S
-        )
+        completed = subprocess.run(cmd, capture_output=True, text=True, timeout=RUNTIME_DELEGATION_TIMEOUT_S)
     except (OSError, subprocess.TimeoutExpired):
         return None
 
@@ -117,7 +115,7 @@ def _read_fallback(a: argparse.Namespace) -> tuple[dict | None, str | None]:
         start = max(a.start or 1, 1)
         end = a.end if a.end is not None else len(lines)
         # 1-indexed inclusive slice
-        text = "".join(lines[start - 1:end])
+        text = "".join(lines[start - 1 : end])
         line_count = len(text.splitlines())
     else:
         line_count = len(lines)

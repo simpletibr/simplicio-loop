@@ -14,18 +14,7 @@ from simplicio.scratch.codegen import registry as codegen_registry
 from simplicio.scratch.plan_schema import Task
 from simplicio.scratch.stack_registry import Stack
 
-
-_PORTABLE_GO = (
-    Path.home()
-    / "Pictures"
-    / "m"
-    / "tmp"
-    / "go-portable"
-    / "extract"
-    / "go"
-    / "bin"
-    / "go.exe"
-)
+_PORTABLE_GO = Path.home() / "Pictures" / "m" / "tmp" / "go-portable" / "extract" / "go" / "bin" / "go.exe"
 
 
 def _go_binary() -> str | None:
@@ -102,8 +91,7 @@ def test_go_gin_crud_executor_falls_back_for_non_router_target(tmp_path):
 
 def test_default_registry_includes_go_gin_crud_executor():
     assert any(
-        isinstance(executor, GoGinCrudExecutor)
-        for executor in codegen_registry.registered_executors()
+        isinstance(executor, GoGinCrudExecutor) for executor in codegen_registry.registered_executors()
     )
 
 

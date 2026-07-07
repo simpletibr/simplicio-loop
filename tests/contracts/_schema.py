@@ -14,14 +14,12 @@ from typing import Any
 def assert_schema_id(payload: dict[str, Any], expected: str, *, where: str) -> None:
     actual = payload.get("schema")
     assert actual == expected, (
-        f"{where}: expected schema {expected!r}, got {actual!r}. "
-        f"Full payload keys: {sorted(payload.keys())}"
+        f"{where}: expected schema {expected!r}, got {actual!r}. Full payload keys: {sorted(payload.keys())}"
     )
 
 
 def assert_has_keys(payload: dict[str, Any], required: set[str], *, where: str) -> None:
     missing = required - payload.keys()
     assert not missing, (
-        f"{where}: missing required key(s) {sorted(missing)}. "
-        f"Present keys: {sorted(payload.keys())}"
+        f"{where}: missing required key(s) {sorted(missing)}. Present keys: {sorted(payload.keys())}"
     )

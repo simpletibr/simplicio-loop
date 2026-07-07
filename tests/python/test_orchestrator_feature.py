@@ -28,7 +28,7 @@ def _task(tid, target, depends_on=None):
         target=target,
         criteria="- passes",
         constraints="- minimal",
-        verify="python -c \"raise SystemExit(0)\"",
+        verify='python -c "raise SystemExit(0)"',
         depends_on=depends_on or [],
     )
 
@@ -250,8 +250,7 @@ def test_run_feature_uses_codegen_for_docs_marker_tasks(tmp_path):
             Task(
                 id="T01-doc-marker",
                 goal=(
-                    "Create or update docs/simplicio-code-desktop-debug-flow.md "
-                    f"with marker text `{marker}`."
+                    f"Create or update docs/simplicio-code-desktop-debug-flow.md with marker text `{marker}`."
                 ),
                 target="docs/simplicio-code-desktop-debug-flow.md",
                 criteria=f"- file contains marker text `{marker}`",
@@ -270,6 +269,4 @@ def test_run_feature_uses_codegen_for_docs_marker_tasks(tmp_path):
     assert result["applied"] is True
     assert result["tasks"][0]["target"] == "docs/simplicio-code-desktop-debug-flow.md"
     assert "codegen:markdown-doc-marker" in result["tasks"][0]["log"]
-    assert marker in (
-        tmp_path / "docs/simplicio-code-desktop-debug-flow.md"
-    ).read_text(encoding="utf-8")
+    assert marker in (tmp_path / "docs/simplicio-code-desktop-debug-flow.md").read_text(encoding="utf-8")
