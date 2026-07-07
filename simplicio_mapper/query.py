@@ -10,7 +10,11 @@ Emits ``simplicio.ask/v1`` as documented in ``SIMPLICIO_INTEGRATION.md``.
 
 from __future__ import annotations
 
+import json
 import os
+import re
+import shutil
+import subprocess
 from collections import deque
 from typing import Any
 
@@ -22,7 +26,14 @@ ASK_SCHEMA = "simplicio.ask/v1"
 DEFAULT_LIMIT = 20
 DEFAULT_DEPTH = 3
 
-VERBS = ("callers", "callees", "reaches", "impact", "flows", "rules", "tests-for", "term")
+VERBS = ("callers", "callees", "reaches", "impact", "flows", "rules", "tests-for", "term", "precedent")
+
+# `precedent` is native-first: shell out to the `simplicio` runtime's
+# SQLite/FTS5 precedent search when the binary is on PATH, falling back to a
+# local keyword-overlap ranking over the in-memory precedent-index otherwise.
+_PRECEDENT_RUNTIME_BINARY = "simplicio"
+_PRECEDENT_NO_RUNTIME_ENV = "SIMPLICIO_MAPPER_NO_RUNTIME_PRECEDENT"
+_PRECEDENT_TOP_N = 5
 
 
 def _edge_view(edge: dict) -> dict:
@@ -137,6 +148,71 @@ def _business_rules(out_dir_abs: str) -> dict | None:
     return _parse_json_safe(os.path.join(out_dir_abs, "business-rules.json")) or None
 
 
+def _tokenize(text: str) -> set[str]:
+    return {token for token in re.findall(r"[a-z0-9]+", text.lower()) if token}
+
+
+def _runtime_precedent_search(cwd: str, text: str, top_n: int) -> dict | None:
+    """Shell out to the `simplicio` runtime's precedent search (SQLite/FTS5
+    lexical ranking + a git-apply dry-run reuse-safety check).
+
+    Returns the parsed ``simplicio.precedent-search/v1`` payload, or
+    ``None`` on any failure — binary missing, kill-switch set, non-zero
+    exit, timeout, or malformed JSON — so the caller always has a safe
+    local fallback. Never raises.
+    """
+    if os.environ.get(_PRECEDENT_NO_RUNTIME_ENV):
+        return None
+    binary = shutil.which(_PRECEDENT_RUNTIME_BINARY)
+    if not binary:
+        return None
+    try:
+        result = subprocess.run(
+            [binary, "precedent", "search", "--repo", cwd, "--text", text, "--top", str(top_n), "--json"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    try:
+        payload = json.loads(result.stdout)
+    except ValueError:
+        return None
+    if not isinstance(payload, dict) or "candidates" not in payload:
+        return None
+    return payload
+
+
+def _candidate_view(candidate: dict) -> dict:
+    return {
+        "precedent_id": candidate.get("precedent_id"),
+        "score": candidate.get("score"),
+        "reuse_level": candidate.get("reuse_level"),
+        "suggested_next_action": candidate.get("suggested_next_action"),
+    }
+
+
+def _local_precedent_fallback(items: list[dict], text: str, top_n: int) -> list[dict]:
+    """Rank precedent-index items by keyword overlap between the query and
+    each item's ``tags`` + ``summary``. Descending overlap count; ties keep
+    the index's original order (stable sort). Items with zero overlap are
+    dropped rather than padding the tail with irrelevant precedents."""
+    query_tokens = _tokenize(text)
+    if not query_tokens:
+        return []
+    scored: list[tuple[int, dict]] = []
+    for item in items:
+        haystack = " ".join(item.get("tags") or []) + " " + str(item.get("summary") or "")
+        overlap = len(query_tokens & _tokenize(haystack))
+        if overlap:
+            scored.append((overlap, item))
+    scored.sort(key=lambda row: row[0], reverse=True)
+    return [item for _, item in scored[:top_n]]
+
+
 def run_query(
     cwd: str,
     out_dir: str = ".simplicio",
@@ -192,6 +268,20 @@ def run_query(
     elif verb == "tests-for":
         matches, total = _tests_for(abs_cwd, project_map, arg or "", limit)
         payload = {"results": matches, "total": total}
+    elif verb == "precedent":
+        text = arg or ""
+        top_n = min(limit, _PRECEDENT_TOP_N)
+        native = _runtime_precedent_search(abs_cwd, text, top_n) if text else None
+        if native is not None:
+            candidates = native.get("candidates") or []
+            results = [_candidate_view(c) for c in candidates[:top_n]]
+            payload = {"results": results, "total": len(candidates), "source": "runtime-precedent-search"}
+            if not results and native.get("suggested_next_action"):
+                note = native["suggested_next_action"]
+        else:
+            items = artifacts["precedent_index"].get("items") or []
+            matches = _local_precedent_fallback(items, text, top_n)
+            payload = {"results": matches, "total": len(matches), "source": "local-tag-overlap"}
     elif verb in ("rules", "term"):
         rules_doc = _business_rules(abs_out)
         if rules_doc is None:

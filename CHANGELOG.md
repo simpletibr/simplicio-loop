@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-07-07
+
+### Added
+
+- `ask precedent "<query>"` verb — searches the native `simplicio` runtime's
+  SQLite/FTS5 precedent memory when the binary is available (`simplicio
+  precedent search --json`), falling back to local tag-overlap ranking over
+  `.simplicio/precedent-index.json` otherwise. First real precedent *query*
+  capability in this repo (previously only built the index, never searched
+  it). Native results carry `source: "runtime-precedent-search"`; the local
+  fallback carries `source: "local-tag-overlap"`, both capped at the top 5
+  matches.
+
 ## [0.16.0] - 2026-07-07
 
 ### Added

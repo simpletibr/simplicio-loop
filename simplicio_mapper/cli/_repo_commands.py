@@ -237,7 +237,8 @@ def _run_drift(opts: dict) -> int:
 def _run_ask(opts: dict) -> int:
     if not opts["verb"]:
         print(
-            "ask requires a verb: callers|callees|reaches|impact|flows|rules|tests-for|term", file=sys.stderr
+            "ask requires a verb: callers|callees|reaches|impact|flows|rules|tests-for|term|precedent",
+            file=sys.stderr,
         )
         return 2
     try:

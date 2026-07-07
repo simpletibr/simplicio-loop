@@ -6,12 +6,14 @@ Run with: python3 -m unittest discover -s tests/python
 from __future__ import annotations
 
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -91,6 +93,101 @@ class QueryTest(unittest.TestCase):
         self.assertEqual(code, 0)
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["schema"], ASK_SCHEMA)
+
+
+class PrecedentVerbTest(unittest.TestCase):
+    """`ask precedent` (F10 extension): native-first search over the
+    simplicio runtime, falling back to local tag/summary keyword overlap
+    over the in-memory precedent-index when the runtime is unavailable."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self._tmp.name)
+        _write(self.dir, "package.json", json.dumps({"name": "precedent-app"}))
+        # First line matches the `route` precedent pattern, so
+        # _build_precedent_items produces exactly one item here whose
+        # summary is "route precedent in src/api/routes.py".
+        _write(self.dir, "src/api/routes.py", "router.get('/x')\ndef handler():\n    return 1\n")
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_native_runtime_used_when_binary_on_path(self) -> None:
+        native_payload = {
+            "schema": "simplicio.precedent-search/v1",
+            "candidates": [
+                {
+                    "precedent_id": "p1",
+                    "score": 0.92,
+                    "reuse_level": "high",
+                    "suggested_next_action": "reuse as-is",
+                }
+            ],
+        }
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=json.dumps(native_payload))
+        with (
+            mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
+            mock.patch("simplicio_mapper.query.subprocess.run", return_value=completed) as run_mock,
+        ):
+            payload = run_query(str(self.dir), verb="precedent", arg="route")
+
+        self.assertEqual(payload["schema"], ASK_SCHEMA)
+        self.assertEqual(payload["source"], "runtime-precedent-search")
+        self.assertEqual(payload["total"], 1)
+        self.assertEqual(payload["results"][0]["precedent_id"], "p1")
+        self.assertEqual(payload["results"][0]["reuse_level"], "high")
+        called_argv = run_mock.call_args[0][0]
+        self.assertEqual(called_argv[0], "/usr/local/bin/simplicio")
+        self.assertIn("--text", called_argv)
+        self.assertIn("route", called_argv)
+
+    def test_fallback_to_local_tag_overlap_when_binary_absent(self) -> None:
+        with mock.patch("simplicio_mapper.query.shutil.which", return_value=None):
+            payload = run_query(str(self.dir), verb="precedent", arg="route")
+
+        self.assertEqual(payload["source"], "local-tag-overlap")
+        self.assertGreaterEqual(payload["total"], 1)
+        self.assertTrue(any("routes.py" in item.get("path", "") for item in payload["results"]))
+
+    def test_fallback_on_subprocess_timeout(self) -> None:
+        with (
+            mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
+            mock.patch(
+                "simplicio_mapper.query.subprocess.run",
+                side_effect=subprocess.TimeoutExpired(cmd="simplicio", timeout=10),
+            ),
+        ):
+            payload = run_query(str(self.dir), verb="precedent", arg="route")
+        self.assertEqual(payload["source"], "local-tag-overlap")
+
+    def test_fallback_on_malformed_json(self) -> None:
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="not-json{")
+        with (
+            mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
+            mock.patch("simplicio_mapper.query.subprocess.run", return_value=completed),
+        ):
+            payload = run_query(str(self.dir), verb="precedent", arg="route")
+        self.assertEqual(payload["source"], "local-tag-overlap")
+
+    def test_fallback_on_non_zero_exit(self) -> None:
+        completed = subprocess.CompletedProcess(args=[], returncode=1, stdout="")
+        with (
+            mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
+            mock.patch("simplicio_mapper.query.subprocess.run", return_value=completed),
+        ):
+            payload = run_query(str(self.dir), verb="precedent", arg="route")
+        self.assertEqual(payload["source"], "local-tag-overlap")
+
+    def test_empty_precedent_index_does_not_crash(self) -> None:
+        with tempfile.TemporaryDirectory() as empty_dir_name:
+            empty_dir = Path(empty_dir_name)
+            _write(empty_dir, "package.json", json.dumps({"name": "empty-precedent-app"}))
+            _write(empty_dir, "README.md", "This project has no code yet, only plans and ideas.\n")
+            with mock.patch("simplicio_mapper.query.shutil.which", return_value=None):
+                payload = run_query(str(empty_dir), verb="precedent", arg="anything")
+            self.assertEqual(payload["source"], "local-tag-overlap")
+            self.assertEqual(payload["results"], [])
+            self.assertEqual(payload["total"], 0)
 
 
 if __name__ == "__main__":
