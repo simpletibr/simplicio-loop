@@ -1,0 +1,14 @@
+{
+  "schema": "simplicio.executor-contract/v1",
+  "operation": "execute",
+  "target": "src/index.js",
+  "layers": [
+    { "name": "parse", "status": "pass", "detail": null },
+    { "name": "precedent", "status": "skipped", "detail": "no precedent match" },
+    { "name": "skill_router", "status": "pass", "detail": null },
+    { "name": "apply", "status": "pass", "detail": "git apply clean" },
+    { "name": "test", "status": "pass", "detail": "node --test exit 0" },
+    { "name": "verify", "status": "pass", "detail": null }
+  ],
+  "verified": true
+}

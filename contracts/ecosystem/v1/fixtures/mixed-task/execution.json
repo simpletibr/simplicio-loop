@@ -1,0 +1,27 @@
+{
+  "schema": "simplicio.loop-execution/v1",
+  "task_id": "mixed-task-001",
+  "goal": "wire frontend App.jsx call to the new backend /health endpoint",
+  "status": "blocked",
+  "attempts": [
+    {
+      "index": 1,
+      "action": "deterministic_edit backend/server.py",
+      "result": "backend test green, frontend still failing"
+    },
+    {
+      "index": 2,
+      "action": "deterministic_edit frontend/src/App.jsx",
+      "result": "e2e still failing: fetch 404",
+      "stalled": true
+    }
+  ],
+  "promise": {
+    "text": "e2e smoke test hits /health and renders status",
+    "evidence_gated": true,
+    "acceptance_criteria": [
+      { "id": "ac-1", "verified": true, "evidence": "backend pytest exit 0" },
+      { "id": "ac-2", "verified": false, "evidence": null }
+    ]
+  }
+}

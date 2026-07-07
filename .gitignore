@@ -126,6 +126,7 @@ scripts/**
 !scripts/generate-ecosystem-doc.py
 !scripts/ecosystem-consumers.json
 !scripts/regen_contract_fixtures.py
+!scripts/validate_ecosystem_contracts.py
 playwright-report/**
 tests/**
 !tests/unit/

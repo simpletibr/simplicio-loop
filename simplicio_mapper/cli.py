@@ -122,6 +122,7 @@ USAGE
   simplicio-mapper map [--root <dir>] [--incremental] [--watch]
   simplicio-mapper update [--root <dir>] [--watch]
   simplicio-mapper contract validate <path> [<path> ...]
+  simplicio-mapper doctor --contracts [<path> ...]
 
 OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
@@ -147,6 +148,9 @@ OPTIONS
                         Validate mapper-artifact JSON file(s)/dir(s) against
                         the versioned schemas in
                         contracts/mapper-artifacts/v1/schemas/ (issue #157).
+  doctor --contracts    Validate contracts/mapper-artifacts/v1/ and
+                        contracts/ecosystem/v1/ fixtures against their
+                        schemas; exit 0 when all valid (issue #164).
   --range <spec>        sync: git diff range (e.g. main..HEAD) instead of the working tree.
   --staged              sync: diff staged changes instead of the working tree.
   --check               sync: report staleness without writing (exit 1 if stale).
@@ -2707,6 +2711,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         from .contract import run_contract_cli
 
         return run_contract_cli(argv[1:])
+    # `doctor --contracts` similarly takes flags/paths rather than the usual
+    # `<command> <root>` shape (issue #164, ecosystem contract harness).
+    if argv and argv[0] == "doctor":
+        from .ecosystem_contract import run_doctor_cli
+
+        return run_doctor_cli(argv[1:])
     opts = _parse_args(argv)
     if opts["background"] and opts["command"] in ("index", "map", "update"):
         return _run_background(opts)

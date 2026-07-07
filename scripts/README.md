@@ -84,3 +84,25 @@ testable contract under
 See that README for schemas, fixtures, the validate command, and how
 downstream repos (simplicio-dev-cli, simplicio-loop, simplicio-runtime)
 should consume the fixtures in their own tests.
+
+## `simplicio-mapper doctor --contracts` / `scripts/validate_ecosystem_contracts.py` (issue #164)
+
+Extends the above to two cross-repo payloads that originate *outside*
+`simplicio-mapper`: the `simplicio-loop` run-journal/task-anchor execution
+record and the `simplicio-dev-cli` 6-layer executor contract record, under
+[`contracts/ecosystem/v1/`](../contracts/ecosystem/v1/README.md). That
+README documents, in full and without spin, that the two schemas are
+**hand-written local copies** (not a live cross-repo import — this repo has
+no git access to those other repos at contract-authoring time) and the
+convention for keeping them in sync.
+
+```bash
+simplicio-mapper doctor --contracts       # validates both contract roots at once
+python3 scripts/validate_ecosystem_contracts.py   # standalone, stdlib-only, vendorable copy
+```
+
+`scripts/validate_ecosystem_contracts.py` is deliberately dependency-free
+and does not import `simplicio_mapper` — it is meant to be copy-pasted into
+`simplicio-loop`/`simplicio-dev-cli`'s own repos (`--schema-root` points it
+at a vendored copy of the schemas) rather than shared as an installed
+package dependency.

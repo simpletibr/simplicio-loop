@@ -1,0 +1,35 @@
+{
+  "$id": "https://simplicio.dev/schemas/ecosystem/v1/executor-contract.schema.json",
+  "title": "simplicio.executor-contract/v1",
+  "description": "VENDORED COPY (issue #164). This is a local, hand-maintained copy of the 6-layer execute/deterministic_edit contract record produced by simplicio-dev-cli (see simplicio-dev-cli AGENTS.md/CLAUDE.md 6-layer contract). It is NOT imported live from the simplicio-dev-cli repository -- true cross-repo schema import is not practical from this sandbox. simplicio-dev-cli is the source of truth; when its executor contract payload shape changes, update this file to match and bump the version directory (v1 -> v2) if the change is breaking. See ../README.md for the sync convention.",
+  "type": "object",
+  "required": ["schema", "operation", "target", "layers", "verified"],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": ["simplicio.executor-contract/v1"]
+    },
+    "operation": {
+      "type": "string",
+      "enum": ["execute", "deterministic_edit"]
+    },
+    "target": { "type": "string" },
+    "layers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "status"],
+        "properties": {
+          "name": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["pass", "fail", "skipped"]
+          },
+          "detail": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "verified": { "type": "boolean" }
+  }
+}
