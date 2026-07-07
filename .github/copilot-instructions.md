@@ -8,35 +8,38 @@
 
 ## Stack
 
-`<STACK>` (placeholder — substitui pela stack real do projeto, ex: `Node.js 20 + TypeScript + Next.js 14 + Playwright + Vitest`).
+**Python 3.10+** — este repo é o pacote real `simplicio-cli` (entrypoints
+`simplicio-cli`/`simplicio-py`/`simplicio-dev-cli`, ~8.8k linhas em
+`simplicio/`). Um harness Node/Playwright também vive aqui, mas só como
+**starter-kit embutido** — não builda nem testa o pacote Python.
 
-- Linguagem principal: `<STACK>`
-- Framework web/API: `<STACK>`
-- Banco de dados: `<STACK>`
-- Test runner unit: `<STACK>` (Vitest, Jest, pytest, xUnit)
-- Test runner E2E: **Playwright** (config em `playwright.config.ts`)
-- Linter/formatter: `<STACK>` (ESLint + Prettier, Ruff, dotnet format)
-- CI/CD: GitHub Actions (`.github/workflows/`)
-- Deploy: `<STACK>` (ver `.specs/workflow/RELEASE.md`)
+PRODUCT:
+- Linguagem principal: **Python 3.10+** (`pyproject.toml`, `setuptools`).
+- Test runner unit/contract: **pytest** (`tests/python/`, `tests/contracts/`).
+- Linter/formatter: **ruff** (`ruff check .` / `ruff format --check .`).
+- Type checker: **mypy** (`mypy simplicio`).
+- CI/CD: GitHub Actions (`.github/workflows/ci.yml` — jobs `python`, `lint`, `extras`, `packaging`).
+- Deploy: PyPI (`simplicio-cli`) — ver `.specs/workflow/RELEASE.md`.
 
-> Antes de adicionar dependência nova: pergunta ao humano. Sem exceção.
+STARTER embutido (não é o produto): `package.json` só declara
+`test:e2e`/`test:e2e:ui`/`test:e2e:report` (Playwright). Não existe `npm run
+dev`/`build`/`lint`/`docs:build` — não invente esses comandos.
+
+> Antes de adicionar dependência nova (Python ou npm): pergunta ao humano. Sem exceção.
 
 ---
 
 ## Comandos importantes
 
 ```bash
-# desenvolvimento
-npm run dev
-npm run build
+# PRODUCT (Python)
+pip install -e ".[dev]"      # ruff + mypy + pytest
+ruff check .
+ruff format --check .
+mypy simplicio
+pytest
 
-# qualidade
-npm run lint
-npm run lint:fix
-npm test
-npm test -- --coverage
-
-# E2E
+# STARTER embutido (Playwright)
 npx playwright install
 npx playwright test
 npx playwright show-report
@@ -47,26 +50,23 @@ gh pr create --fill
 gh run watch
 ```
 
-Adapta pra `pnpm`, `yarn`, `bun`, `dotnet`, `python`, `go` conforme stack real.
-
 ---
 
 ## Padrão de sincronização deste projeto
 
-Quando a mudança for **release-relevant**, o padrão deste repositório é fechar o trabalho com tudo sincronizado no mesmo ciclo:
+Quando a mudança for **release-relevant** (pacote Python `simplicio-cli`), o padrão deste repositório é fechar o trabalho com tudo sincronizado no mesmo ciclo:
 
-- npm publicado na mesma versão de `package.json`
+- versão de `pyproject.toml` publicada no PyPI
 - tag GitHub `vX.Y.Z`
 - GitHub Release correspondente
-- `main` limpa e sincronizada com `origin/main`
+- `master` limpa e sincronizada com `origin/master`
 
 Validação obrigatória antes de publicar/sincronizar:
 
 ```bash
-npm run lint
-npm test
-npm run docs:build
-npm run test:e2e -- --reporter=list,html
+ruff check . && ruff format --check . && mypy simplicio && pytest
+python3 scripts/gen_package_interdependence.py --check
+python -m build && python -m twine check dist/*
 ```
 
 Se qualquer comando falhar, não publique e não crie a release/tag.
@@ -77,13 +77,13 @@ Se qualquer comando falhar, não publique e não crie a release/tag.
 
 Em Copilot Workspace/Agent Mode, todo plano de execução segue esse loop. Não pula etapa.
 
-1. **Ler task** — abre `.specs/sprints/sprint-XX/<task-id>.task.md`. Lê contexto + acceptance criteria + test plan + DoD.
+1. **Ler task** — abre `.specs/sprints/sprint-XX/<task-id>.task.md` (ou a issue do GitHub). Lê contexto + acceptance criteria + test plan + DoD.
 2. **Plano explícito** — Copilot Workspace gera spec/plan. Revisa antes de implementar.
 3. **Carregar contexto** — `.specs/architecture/PATTERNS.md` + ADRs relevantes em `.specs/architecture/ADR-*.md`. Skills aplicáveis em `.skills/`.
 4. **Implementar (Agent Mode)** — edits cirúrgicos. Só toca o que a task pede. Sem refactor extra.
-5. **Lint** — `npm run lint`. Vermelho = corrige.
-6. **Unit** — `npm test`. Vermelho = corrige. Coverage do diff >= 80%.
-7. **E2E (OBRIGATÓRIO em TODA task)** — `npx playwright test --reporter=list,html`. Captura **trace + screenshot + video** (todos). Sem evidência em `playwright-report/` + `test-results/` = task não fechada.
+5. **Lint + type** — `ruff check .`, `ruff format --check .`, `mypy simplicio`. Vermelho = corrige.
+6. **Unit/contract** — `pytest`. Vermelho = corrige (exceto falhas pré-existentes documentadas, sem relação com o diff).
+7. **E2E (quando a mudança tocar o harness starter/Playwright)** — `npx playwright test --reporter=list,html`. Captura **trace + screenshot + video** (todos). Sem evidência em `playwright-report/` + `test-results/` = task não fechada.
 8. **Fix loop** — falhou? Volta ao 4. Repete até verde.
 9. **Commit** — Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`). Mensagem em **inglês**.
 10. **PR** — `gh pr create --fill`. Preenche template inteiro.
@@ -94,20 +94,20 @@ Em Copilot Workspace/Agent Mode, todo plano de execução segue esse loop. Não 
 
 PR só faz merge quando todos os itens abaixo estão marcados:
 
-- [ ] Unit tests passam
-- [ ] Lint passa
-- [ ] E2E Playwright passa **com evidência anexada em TODA task** — `playwright-report/index.html` + `test-results/<spec>/trace.zip` + screenshots por cenário + video. Hard rule: sem evidência, sem merge.
-- [ ] Coverage do diff >= 80%
-- [ ] Acceptance Criteria todos marcados
+- [ ] `pytest` verde (ou falhas pré-existentes documentadas, sem relação com o diff)
+- [ ] `ruff check .` e `ruff format --check .` verdes
+- [ ] `mypy simplicio` verde no rigor documentado em `pyproject.toml`
+- [ ] E2E Playwright, quando a mudança tocar o starter/harness, **com evidência anexada** — `playwright-report/index.html` + `test-results/<spec>/trace.zip` + screenshots por cenário + video. Hard rule quando aplicável: sem evidência, sem merge.
+- [ ] Acceptance Criteria todos marcados (ou partial, com motivo explícito no PR)
 - [ ] **Verificação independente/adversarial pós-verde** — uma passada *ortogonal* (não repetição): AC ⇄ resultado, feature rodada de verdade + 1 borda + 1 caminho de erro. Verde ≠ feito. (`.skills/llm-verification/`)
-- [ ] PR template preenchido (link task + descrição + evidências)
+- [ ] PR template preenchido (link task/issue + descrição + evidências)
 - [ ] Conventional commit no merge
 - [ ] ADR criado se mudou decisão arquitetural
 - [ ] Changelog atualizado se release-relevant
-- [ ] Sem warning novo, sem `console.log`/`print` deixado pra trás
+- [ ] Sem warning novo, sem `print()`/`console.log` de diagnóstico deixado pra trás em código de biblioteca (exceção documentada: CLI handlers onde stdout é o resultado pretendido)
 - [ ] Sem TODO sem dono e sem prazo
 
-CI bloqueia merge se DoD falhar (`.github/workflows/dod.yml`).
+CI (`.github/workflows/ci.yml`, jobs `python` + `lint`) bloqueia merge se o gate falhar.
 
 ---
 
@@ -199,7 +199,8 @@ cp .specs/sprints/task-template.md .specs/sprints/sprint-XX/<id>-<slug>.task.md
 ### DoD local antes de push
 
 ```bash
-npm run lint && npm test -- --coverage && npx playwright test
+ruff check . && ruff format --check . && mypy simplicio && pytest
+# tocou o harness starter/Playwright? roda também: npx playwright test
 ```
 
 ---
