@@ -1,6 +1,10 @@
 # CLAUDE.md
 
-> Este arquivo espelha [AGENTS.md](./AGENTS.md). Edite ambos juntos OU mantenha apenas `AGENTS.md` e symlink `CLAUDE.md` -> `AGENTS.md` (`ln -sf AGENTS.md CLAUDE.md`). O Claude Code lê arquivo regular, não símbolo.
+> Este arquivo espelha [AGENTS.md](./AGENTS.md) e é **gerado**, não editado
+> a mão -- veja `scripts/check-doc-sync.js` (issue #163). Edite
+> `AGENTS.md`, depois rode `node scripts/check-doc-sync.js sync`. Não é
+> um symlink: o próprio Claude Code lê arquivo regular, não símbolo, nesta
+> configuração.
 >
 > Canonical pattern spec: [YOOL_TUPLE_HAMT.md](YOOL_TUPLE_HAMT.md)
 >
@@ -9,6 +13,10 @@
 ---
 
 # AGENTS.md
+
+> Canonical pattern spec: [YOOL_TUPLE_HAMT.md](YOOL_TUPLE_HAMT.md)
+>
+> Receipt schema reference: [YOOL_TUPLE_HAMT.md §1.8.4](YOOL_TUPLE_HAMT.md#184-receipt-schema-reference)
 
 ## Operational Context
 
@@ -24,7 +32,9 @@ Before changing code, agents should check the project-specific operational docs:
 | Common failures and fixes | `docs/troubleshooting.md` |
 | Reusable local commands | `scripts/README.md` |
 
-Key placeholders to replace in real projects:
+Project identity (this repo is the canonical scaffold itself, so no host
+placeholders — fill these row-by-row when copying the file into a host
+project):
 
 | Slot | Value here |
 |---|---|
@@ -48,7 +58,7 @@ Agent checklist:
 
 > Master instruction file lido por **Claude Code**, **Codex CLI**, **GitHub Copilot**, **Hermes Agent** (Nous Research), **OpenClaw**, **Cursor**, **Aider** e qualquer outro agent que respeite o padrão `AGENTS.md`. É o contrato entre humano e IA neste repositório.
 >
-> Mudou algo aqui? Reflete em `CLAUDE.md` e `.github/copilot-instructions.md` (mantém os três alinhados ou usa symlink).
+> Mudou algo aqui? **Este arquivo é a única fonte editada à mão** (issue #163). `CLAUDE.md` é **gerado** a partir dele — depois de editar, rode `node scripts/check-doc-sync.js sync` (CI roda `check` e falha se esquecer). `.github/copilot-instructions.md` não é mais um hand-copy: é um stub curto que aponta pra cá para tudo que não é específico de Copilot Agent Mode — só precisa de edição manual se a mudança afetar algo genuinamente específico do Copilot.
 
 Este arquivo dá ao agent **tudo que ele precisa saber pra entregar uma task** sem perguntar: stack, comandos, fluxo de trabalho, padrões, proibições, skills disponíveis e atalhos. Lê ele inteiro antes de escrever a primeira linha de código.
 
@@ -104,10 +114,10 @@ node --test tests/unit                       # Node unit
 npm test                                     # cross alias (chama node --test)
 
 # E2E
-npx playwright install                       # instala browsers (1a vez)
+npx playwright install                       # instala browsers (1ª vez)
 npx playwright test                          # roda suite E2E
 npx playwright test --ui                     # modo interativo
-npx playwright show-report                   # abre relatorio ultimo run
+npx playwright show-report                   # abre relatório último run
 
 # Rust opt-in
 (cd rust && maturin develop --release)       # builda extensão nativa no venv
@@ -118,8 +128,6 @@ git checkout -b feat/<task-id>-<slug>
 gh pr create --fill                          # usa template de PR
 gh run watch                                 # acompanha CI do branch atual
 ```
-
-Adapta os comandos pra stack real (`pnpm`, `yarn`, `bun`, `dotnet`, `python`, `go`).
 
 ## Shell token-smart (RTK CLI, opcional)
 
@@ -289,11 +297,11 @@ Skills moram em `.skills/<nome>/SKILL.md` e são capacidades reutilizáveis que 
 
 ### Ativadas por padrão no início da sessão
 
-Estas três skills são **ativadas automaticamente no começo de toda sessão** (via `.claude/settings.json` SessionStart hook). A política de uso de cada uma é a seguinte:
+Estas três skills são **ativadas automaticamente em toda sessão** (via `.claude/settings.json` SessionStart hook). Isso define o estado inicial padrão; a obrigatoriedade e a possibilidade de desativação dependem da política de cada skill:
 
-- **`caveman`** — modo terse de resposta. Economiza ~65% tokens de output sem perder substância técnica. Default level: `full`. Boundaries: código, commits, PRs e docs canônicos permanecem em prosa normal. **Ativada por padrão**, mas pode ser desativada quando o contexto pedir resposta em prosa normal, via `stop caveman` / `normal mode`.
+- **`caveman`** — modo terse de resposta. Economiza ~65% tokens de output sem perder substância técnica. Default level: `full`. Boundaries: código, commits, PRs e docs canônicos permanecem em prosa normal. **É ativada por padrão, mas pode ser desativada explicitamente** quando a tarefa exigir resposta em prosa normal, via `stop caveman` / `normal mode`.
 - **`ralph-loop`** — loop autônomo `read → plan → execute → lint → unit → e2e → fix → repeat` até DoD verde. **Obrigatório** em TODA task técnica com AC mensurável. Dual exit gate: indicadores verdes + `EXIT_SIGNAL: true`.
-- **`everything-claude-code`** — bundle de ~60 agents + ~221 skills. Padrão (issue #162: **proporcional ao risco**, não mais "sempre o máximo"): edits pequenos/locais (parser, docs, refactor isolado) → 1-2 reviewers focados na área tocada; mudanças arquiteturais, de segurança, release-sensitive, ou que tocam múltiplos módulos → mais agents ECC em paralelo (single message, múltiplas Agent calls) se o risco justificar. Reviewers da stack + `security-reviewer` continuam **obrigatórios** após edits que tocam superfície de segurança ou de release.
+- **`everything-claude-code`** — bundle de ~60 agents + ~221 skills. Padrão (issue #162: **proporcional ao risco**, não mais "sempre o máximo"): edits pequenos/locais (parser, docs, refactor isolado) → 1-2 reviewers focados na área tocada; mudanças arquiteturais, de segurança, release-sensitive, ou que tocam múltiplos módulos → mais agents ECC em paralelo (single message, múltiplas Agent calls) se o risco justificar. Reviewers da stack + `security-reviewer` continuam obrigatórios após edits que tocam superfície de segurança ou de release.
 
 ### Sob demanda
 
@@ -377,7 +385,7 @@ npm run lint && npm test -- --coverage && npx playwright test
 - **Paralelo é o padrão** — research + read + review independentes rodam simultâneos.
 - **Hooks do `.claude/hooks/`** rodam automaticamente: post-edit faz lint/format, pre-commit bloqueia commit vermelho.
 
-<!-- codex-long-running-agent-overlay:start -->
+<!-- yool-tuple-hamt:start -->
 ## yool / tuple / HAMT (capability addressing)
 
 Spec: [`YOOL_TUPLE_HAMT.md`](YOOL_TUPLE_HAMT.md) (vendored from https://github.com/wesleysimplicio/yool-tuple-hamt, version v0.2).
@@ -387,16 +395,22 @@ Every agent registered in this repo MUST declare its capability with the followi
 ```markdown
 ### My Agent
 
-- yool_id: `agent.dev.python`
-- authority: dev | ops | review | audit
-- lane: fast | slow | background
+- yool_id: `agent.dev.python`            # namespace.verb.object, kebab/dot-case
+- authority: dev | ops | review | audit  # who is allowed to dispatch this yool
+- lane: fast | slow | background         # scheduling lane
 - agent_terms:
     cpu_quota_pct: 60       # MANDATORY guardrail (spec §11.1)
     disk_quota_mb: 100      # MANDATORY guardrail (spec §11.2)
     timeout_s: 300
 ```
 
-Guardrails are MANDATORY per Victor Genaro's review: *"precisa de guardrail pra não fritar o processador. Você precisa de garbage collector também pra não encher 100% do disco."* See spec §11.
+Why these fields exist:
+
+- `yool_id` — atomic opcode; key into the HAMT registry; stable across renames of the agent's display name.
+- `authority` — gating: only authorized lanes may `in` a tuple addressed to this yool.
+- `lane` — Linda-style channel partition; lets workers subscribe selectively.
+- `agent_terms.cpu_quota_pct` — soft throttle via `os.nice` or cgroups. Per Victor Genaro's guardrail: *"precisa de guardrail pra não fritar o processador."*
+- `agent_terms.disk_quota_mb` — local disk cap before GC kicks in. Per the same review: *"você precisa de garbage collector também pra não encher 100% do disco."*
 
 ### Receipts schema
 
@@ -427,8 +441,11 @@ Build the HAMT catalog with:
 node bin/build-hamt-catalog --source AGENTS.md --output .catalog/agents.json
 ```
 
----
+Without all four fields, the catalog build skips the entry. CI gate enforces full population for any new agent declaration.
 
+<!-- yool-tuple-hamt:end -->
+
+<!-- codex-long-running-agent-overlay:start -->
 ## Universal Long-Running Agent Overlay
 
 This section complements the repository-specific guidance already in this file. If anything here conflicts with the repo-specific rules above, the repo-specific rules win.

@@ -106,3 +106,42 @@ and does not import `simplicio_mapper` — it is meant to be copy-pasted into
 `simplicio-loop`/`simplicio-dev-cli`'s own repos (`--schema-root` points it
 at a vendored copy of the schemas) rather than shared as an installed
 package dependency.
+
+## `check-doc-sync.js` / `check-readme-sync.js` (issue #163)
+
+Two checks that replace manual doc mirroring with either a generated file or
+a CI gate:
+
+```bash
+node scripts/check-doc-sync.js check      # CLAUDE.md in sync with AGENTS.md? copilot-instructions.md still a short stub?
+node scripts/check-doc-sync.js sync       # regenerate CLAUDE.md from AGENTS.md (run after editing AGENTS.md)
+
+node scripts/check-readme-sync.js check   # README.md/README.pt-BR.md heading structure within baseline?
+node scripts/check-readme-sync.js report  # print the current structural edit-distance, no gate
+node scripts/check-readme-sync.js baseline # rewrite scripts/readme-sync-baseline.json to today's distance
+```
+
+`CLAUDE.md`'s own header used to say Claude Code needs a *regular file*
+("não símbolo"), so a plain `ln -sf AGENTS.md CLAUDE.md` symlink was not
+used here — instead `CLAUDE.md` is a **generated** file (fixed preamble +
+`AGENTS.md` verbatim), same pattern as `SIMPLICIO_ECOSYSTEM.md` (issue #156)
+and the mapper-artifacts contract fixtures (issue #157). `AGENTS.md` is the
+one hand-edited source; edit it, then run `sync`.
+
+`.github/copilot-instructions.md` used to be a near-complete hand-copy of
+`AGENTS.md`'s shared sections (Stack/Comandos/Workflow loop/DoD/Proibido).
+It is now a short stub (~55 lines) that points at `AGENTS.md` for all of
+that and keeps only genuinely Copilot-specific content (Agent Mode custom
+agents, `.github/copilot/agents/` mirror note). `check-doc-sync.js check`
+fails if it grows back past a line-count ceiling or stops linking to
+`AGENTS.md`.
+
+`check-readme-sync.js` compares README.md/README.pt-BR.md's heading-*level*
+sequence (not text — translations never match byte-for-byte) via edit
+distance, and fails only when that distance goes **above** a committed
+baseline (`scripts/readme-sync-baseline.json`) — a real, nonzero amount of
+structural drift between the two files predates this script (a known,
+separately-scoped translation gap), so this is a regression gate, not a
+perfection gate. `tests/unit/check-readme-sync.test.js` proves the
+mechanism itself catches an intentionally-desynced mirror using synthetic
+fixtures, independent of today's real baseline.

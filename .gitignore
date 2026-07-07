@@ -127,6 +127,9 @@ scripts/**
 !scripts/ecosystem-consumers.json
 !scripts/regen_contract_fixtures.py
 !scripts/validate_ecosystem_contracts.py
+!scripts/check-doc-sync.js
+!scripts/check-readme-sync.js
+!scripts/readme-sync-baseline.json
 playwright-report/**
 tests/**
 !tests/unit/

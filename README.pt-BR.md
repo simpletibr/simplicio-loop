@@ -46,6 +46,19 @@ simplicio-mapper docs . --json
 simplicio-mapper endpoints ./web --against ./api --json
 ```
 
+## Matriz de instalação — quero X, então instalo Y
+
+Este repositório entrega duas coisas distintas sob um nome, em dois registries de pacote. Escolha pelo que você realmente quer (formalizado na [ADR-006](.specs/architecture/ADR-006-package-identity-channels.md), issue #160):
+
+| Eu quero... | Instalo | Notas |
+|---|---|---|
+| **O engine do mapper** (comandos `map`/`index`/`ask`/`drift`/...; artefatos `.simplicio/*.json`) | `pip install -U simplicio-mapper` | **Canal canônico/live.** Feature nova do engine chega aqui primeiro. |
+| **O scaffolder do starter** (bootstrap de `AGENTS.md`, `.skills/`, `.specs/`, etc. num projeto novo/existente) | `npx @wesleysimplicio/llm-project-mapper` | Só Node, sem equivalente PyPI — é o único jeito de rodar o scaffolder. Não depreciado, mantido ativamente. |
+| **As duas coisas, de um host só-Node** (sem Python instalado) | `npx @wesleysimplicio/llm-project-mapper` | `map`/`update` caem pra uma reimplementação Node quando Python não é encontrado (ver [ADR-005](.specs/architecture/ADR-005-node-thin-shim.md), issue #158) — mantida só como fallback sem Python, não é onde feature nova do engine chega primeiro. |
+| **As duas coisas, de um host com Python instalado** | qualquer um — `npx @wesleysimplicio/llm-project-mapper map` faz shim direto pro engine Python automaticamente | Mesma implementação por baixo dos panos rodando de qualquer jeito, uma vez que Python está no PATH. |
+
+O nome do pacote npm (`@wesleysimplicio/llm-project-mapper`) mantém intencionalmente o nome original em vez de renomear pra bater com `simplicio-mapper` — ver ADR-006 pro porquê (resumo: renomear quebraria todo `npx @wesleysimplicio/llm-project-mapper` já em uso por aí, por um ganho cosmético). **Não** é um pacote depreciado; só a cópia do engine que ele empacota é que é um fallback, não o scaffolder.
+
 ## O que faz
 
 - Generates versioned .simplicio artifacts agents can read before planning.

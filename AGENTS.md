@@ -44,7 +44,7 @@ Agent checklist:
 
 > Master instruction file lido por **Claude Code**, **Codex CLI**, **GitHub Copilot**, **Hermes Agent** (Nous Research), **OpenClaw**, **Cursor**, **Aider** e qualquer outro agent que respeite o padrão `AGENTS.md`. É o contrato entre humano e IA neste repositório.
 >
-> Mudou algo aqui? Reflete em `CLAUDE.md` e `.github/copilot-instructions.md` (mantém os três alinhados ou usa symlink).
+> Mudou algo aqui? **Este arquivo é a única fonte editada à mão** (issue #163). `CLAUDE.md` é **gerado** a partir dele — depois de editar, rode `node scripts/check-doc-sync.js sync` (CI roda `check` e falha se esquecer). `.github/copilot-instructions.md` não é mais um hand-copy: é um stub curto que aponta pra cá para tudo que não é específico de Copilot Agent Mode — só precisa de edição manual se a mudança afetar algo genuinamente específico do Copilot.
 
 Este arquivo dá ao agent **tudo que ele precisa saber pra entregar uma task** sem perguntar: stack, comandos, fluxo de trabalho, padrões, proibições, skills disponíveis e atalhos. Lê ele inteiro antes de escrever a primeira linha de código.
 

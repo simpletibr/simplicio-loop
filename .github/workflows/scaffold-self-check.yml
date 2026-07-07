@@ -262,3 +262,22 @@ jobs:
 
       - name: Check version alignment
         run: node scripts/check-version-sync.js
+
+  doc-sync:
+    name: Doc sync (CLAUDE.md / copilot-instructions.md / README.pt-BR.md, issue #163)
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check CLAUDE.md / copilot-instructions.md sync
+        run: node scripts/check-doc-sync.js check
+
+      - name: Check README.md / README.pt-BR.md structural sync
+        run: node scripts/check-readme-sync.js check
