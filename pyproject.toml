@@ -116,4 +116,4 @@ simplicio = [
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
-testpaths = ["tests/python"]
+testpaths = ["tests/python", "tests/contracts"]

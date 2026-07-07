@@ -58,7 +58,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[test]"
 
-      - name: Run pytest (tests/python, per pyproject.toml testpaths)
+      - name: Run pytest (tests/python + tests/contracts, per pyproject.toml testpaths)
         run: pytest
 
       - name: Smoke-test all 3 CLI entrypoints

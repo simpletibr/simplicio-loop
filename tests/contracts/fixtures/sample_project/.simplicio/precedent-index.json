@@ -1,0 +1,18 @@
+{
+  "schema": "simplicio.precedent-index/v1",
+  "version": 1,
+  "generated_at": "2026-07-01T00:00:00.000Z",
+  "source_project_map": ".simplicio/project-map.json",
+  "items": [
+    {
+      "id": "fixture0000001",
+      "path": "src/app.py",
+      "line": 6,
+      "language": "python",
+      "change_type": "feature",
+      "tags": ["python", "greeting", "function"],
+      "summary": "greet() returns a formatted hello string",
+      "snippet": "def greet(name: str) -> str:\n    return f\"hello, {name}\""
+    }
+  ]
+}

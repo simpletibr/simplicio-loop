@@ -463,7 +463,7 @@ not gate merges). Reproduce it locally with:
 
 ```bash
 pip install -e ".[test]"             # base install + pytest (+ tomli on 3.10)
-pytest                               # tests/python, per pyproject.toml testpaths
+pytest                               # tests/python + tests/contracts, per pyproject.toml testpaths
 simplicio-py --help                  # entrypoint smoke (x3)
 simplicio-cli --help
 simplicio-dev-cli --help
