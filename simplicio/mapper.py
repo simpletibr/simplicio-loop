@@ -304,9 +304,112 @@ def rank_entries(
     return [entry for _score, entry in ranked[:limit]]
 
 
+# Timeout for delegating a precedent search to the native `simplicio` Rust
+# binary (`simplicio precedent search`, schema `simplicio.precedent-search/v1`).
+# Short because this only assists ranking before a prompt is built — a
+# slow/hanging binary must never block the existing artifact-file/embedding
+# fallback chain below.
+_NATIVE_PRECEDENT_TIMEOUT_S = 5.0
+
+
+def _native_precedent_binary() -> str | None:
+    """Locate the native `simplicio` binary, honoring this repo's dev-cli
+    kill-switch. Mirrors `simplicio.commands.edit._runtime_edit_binary` /
+    `simplicio.mechanical_edit._native_edit_binary` for this feature."""
+    if os.environ.get("SIMPLICIO_DEV_CLI_NO_RUNTIME_PRECEDENT"):
+        return None
+    return shutil.which("simplicio")
+
+
+def _translate_native_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
+    """Reshape one `simplicio.precedent-search/v1` candidate (`precedent_id`,
+    `score`, `reuse_level`, `suggested_next_action`) into the item shape this
+    module's `rank_entries()`-backed candidates already carry (`path`,
+    `line`, `summary`, `tags`), so every existing caller of
+    `rank_precedents()` (`build_precedent_block()`, `build_mapper_context()`,
+    `_render_precedent_candidates_legacy/toon()`) keeps working unmodified.
+    The native fields are kept on the dict too, for any caller that wants
+    them directly."""
+    precedent_id = candidate.get("precedent_id")
+    reuse_level = candidate.get("reuse_level")
+    suggested_next_action = candidate.get("suggested_next_action")
+    return {
+        "precedent_id": precedent_id,
+        "score": candidate.get("score"),
+        "reuse_level": reuse_level,
+        "suggested_next_action": suggested_next_action,
+        "path": candidate.get("path") or f"precedent:{precedent_id or '?'}",
+        "line": candidate.get("line", 1),
+        "summary": candidate.get("summary")
+        or suggested_next_action
+        or (f"reuse_level={reuse_level}" if reuse_level else "runtime precedent"),
+        "tags": candidate.get("tags") or ([str(reuse_level)] if reuse_level else []),
+    }
+
+
+def _native_precedent_search(
+    root: str | os.PathLike[str], text: str, top_n: int
+) -> list[dict[str, Any]] | None:
+    """Delegate precedent ranking to `simplicio precedent search --json`.
+
+    Returns the translated candidate list on a clean, non-empty answer, or
+    `None` on ANY failure — binary missing/kill-switched, non-zero exit,
+    timeout, unparseable JSON, a payload missing `candidates`, or a valid
+    but *empty* candidate list. Empty is deliberately treated the same as
+    failure here (stricter than `simplicio-mapper`'s own `ask precedent`,
+    which trusts an empty native answer as final): the native precedent
+    memory (`.simplicio/precedents/*.sqlite`, built from run history) and
+    this module's `precedent-index.json` artifact are independent stores, so
+    an empty/uninitialized native store must not shadow real candidates the
+    artifact-file chain below might still have. Never raises.
+    """
+    binary = _native_precedent_binary()
+    if binary is None:
+        return None
+    top_n = top_n if isinstance(top_n, int) and top_n > 0 else 1
+    try:
+        completed = subprocess.run(
+            [
+                binary,
+                "precedent",
+                "search",
+                "--repo",
+                str(Path(root).resolve()),
+                "--text",
+                text,
+                "--top",
+                str(top_n),
+                "--json",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=_NATIVE_PRECEDENT_TIMEOUT_S,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    try:
+        payload = loads(completed.stdout)
+    except (ValueError, TypeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    candidates = payload.get("candidates")
+    if not isinstance(candidates, list):
+        return None
+    translated = [_translate_native_candidate(c) for c in candidates[:top_n] if isinstance(c, dict)]
+    return translated or None
+
+
 def rank_precedents(
     root: str | os.PathLike[str], task: str, *, stack: str = "", k: int = 2
 ) -> list[dict[str, Any]]:
+    text = task.strip()
+    if text:
+        native = _native_precedent_search(root, text, k)
+        if native is not None:
+            return native[:k]
     loaded = load_precedent_index(root)
     if loaded is None:
         return []

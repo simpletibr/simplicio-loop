@@ -4,6 +4,7 @@ path so projects without the binary (or with SIMPLICIO_MAPPER_CLI=0) behave
 exactly as before."""
 
 import json
+import subprocess
 
 import pytest
 
@@ -228,3 +229,210 @@ def test_inspect_target_omits_ask_keys_when_unavailable(monkeypatch, tmp_path):
     payload = mapper.inspect_target(tmp_path, "src/app.py")
     assert "impact" not in payload
     assert "affected_tests" not in payload
+
+
+# ---------------------------------------------------------------------------
+# Native-first precedent search (rank_precedents): before touching the
+# existing precedent-index.json + rank_entries() chain, try
+# `simplicio precedent search --json` (schema simplicio.precedent-search/v1)
+# on the native `simplicio` Rust binary. Fail-open like every other
+# native/Python pair in this package: the SIMPLICIO_DEV_CLI_NO_RUNTIME_
+# PRECEDENT kill-switch, a missing binary, non-zero exit, timeout, bad JSON,
+# a payload missing `candidates`, or a valid-but-empty candidate list all
+# fall through unchanged to the existing chain below — never raises, never
+# breaks a caller. See mapper._native_precedent_search / _native_precedent_
+# binary / _translate_native_candidate.
+# ---------------------------------------------------------------------------
+
+
+class _FakeCompleted:
+    def __init__(self, returncode=0, stdout=""):
+        self.returncode = returncode
+        self.stdout = stdout
+
+
+def _native_payload(candidates):
+    return {"schema": "simplicio.precedent-search/v1", "status": "ok", "candidates": candidates}
+
+
+def _write_precedent_index(tmp_path, items):
+    art_dir = tmp_path / ".simplicio"
+    art_dir.mkdir(exist_ok=True)
+    (art_dir / "precedent-index.json").write_text(
+        json.dumps({"schema": "simplicio.precedent-index/v1", "items": items}),
+        encoding="utf-8",
+    )
+
+
+def test_rank_precedents_uses_native_binary_when_present(monkeypatch, tmp_path):
+    candidate = {
+        "precedent_id": "p1",
+        "score": 0.83,
+        "reuse_level": "high",
+        "suggested_next_action": "reuse guard pattern from src/auth/guard.py",
+    }
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return _FakeCompleted(returncode=0, stdout=json.dumps(_native_payload([candidate])))
+
+    monkeypatch.setattr(
+        mapper.shutil, "which", lambda name: "/bin/simplicio" if name == "simplicio" else None
+    )
+    monkeypatch.setattr(mapper.subprocess, "run", fake_run)
+
+    result = mapper.rank_precedents(tmp_path, "fix login guard", k=2)
+
+    assert len(calls) == 1
+    cmd = calls[0]
+    assert cmd[0] == "/bin/simplicio"
+    assert cmd[1:4] == ["precedent", "search", "--repo"]
+    assert cmd[4] == str(tmp_path.resolve())
+    assert cmd[cmd.index("--text") + 1] == "fix login guard"
+    assert cmd[cmd.index("--top") + 1] == "2"
+    assert "--json" in cmd
+
+    assert result == [
+        {
+            "precedent_id": "p1",
+            "score": 0.83,
+            "reuse_level": "high",
+            "suggested_next_action": "reuse guard pattern from src/auth/guard.py",
+            "path": "precedent:p1",
+            "line": 1,
+            "summary": "reuse guard pattern from src/auth/guard.py",
+            "tags": ["high"],
+        }
+    ]
+
+
+def test_rank_precedents_falls_back_when_binary_absent(monkeypatch, tmp_path):
+    _write_precedent_index(
+        tmp_path, [{"path": "src/ui/Login.tsx", "line": 12, "summary": "Login guard", "tags": ["login"]}]
+    )
+    monkeypatch.setattr(mapper.shutil, "which", lambda name: None)
+
+    def fail_if_called(cmd, **kwargs):
+        raise AssertionError("subprocess.run must not run when the binary is absent")
+
+    monkeypatch.setattr(mapper.subprocess, "run", fail_if_called)
+
+    result = mapper.rank_precedents(tmp_path, "fix login permission", k=1)
+
+    assert len(result) == 1
+    assert result[0]["path"] == "src/ui/Login.tsx"
+
+
+def test_rank_precedents_respects_kill_switch_env_var(monkeypatch, tmp_path):
+    _write_precedent_index(
+        tmp_path, [{"path": "src/ui/Login.tsx", "line": 12, "summary": "Login guard", "tags": ["login"]}]
+    )
+    monkeypatch.setenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_PRECEDENT", "1")
+    monkeypatch.setattr(mapper.shutil, "which", lambda name: "/bin/simplicio")
+
+    def fail_if_called(cmd, **kwargs):
+        raise AssertionError("subprocess.run must not run when the kill-switch is set")
+
+    monkeypatch.setattr(mapper.subprocess, "run", fail_if_called)
+
+    result = mapper.rank_precedents(tmp_path, "fix login permission", k=1)
+
+    assert result[0]["path"] == "src/ui/Login.tsx"
+
+
+def test_rank_precedents_falls_back_on_subprocess_timeout(monkeypatch, tmp_path):
+    _write_precedent_index(
+        tmp_path, [{"path": "src/ui/Login.tsx", "line": 12, "summary": "Login guard", "tags": ["login"]}]
+    )
+    monkeypatch.setattr(mapper.shutil, "which", lambda name: "/bin/simplicio")
+
+    def timeout_run(cmd, **kwargs):
+        raise subprocess.TimeoutExpired(cmd="simplicio", timeout=mapper._NATIVE_PRECEDENT_TIMEOUT_S)
+
+    monkeypatch.setattr(mapper.subprocess, "run", timeout_run)
+
+    result = mapper.rank_precedents(tmp_path, "fix login permission", k=1)
+
+    assert result[0]["path"] == "src/ui/Login.tsx"
+
+
+def test_rank_precedents_falls_back_on_malformed_json(monkeypatch, tmp_path):
+    _write_precedent_index(
+        tmp_path, [{"path": "src/ui/Login.tsx", "line": 12, "summary": "Login guard", "tags": ["login"]}]
+    )
+    monkeypatch.setattr(mapper.shutil, "which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(
+        mapper.subprocess, "run", lambda cmd, **kwargs: _FakeCompleted(returncode=0, stdout="not-json{")
+    )
+
+    result = mapper.rank_precedents(tmp_path, "fix login permission", k=1)
+
+    assert result[0]["path"] == "src/ui/Login.tsx"
+
+
+def test_rank_precedents_falls_back_on_non_zero_exit(monkeypatch, tmp_path):
+    _write_precedent_index(
+        tmp_path, [{"path": "src/ui/Login.tsx", "line": 12, "summary": "Login guard", "tags": ["login"]}]
+    )
+    monkeypatch.setattr(mapper.shutil, "which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(
+        mapper.subprocess, "run", lambda cmd, **kwargs: _FakeCompleted(returncode=1, stdout="")
+    )
+
+    result = mapper.rank_precedents(tmp_path, "fix login permission", k=1)
+
+    assert result[0]["path"] == "src/ui/Login.tsx"
+
+
+def test_rank_precedents_falls_back_on_missing_candidates_key(monkeypatch, tmp_path):
+    _write_precedent_index(
+        tmp_path, [{"path": "src/ui/Login.tsx", "line": 12, "summary": "Login guard", "tags": ["login"]}]
+    )
+    monkeypatch.setattr(mapper.shutil, "which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(
+        mapper.subprocess,
+        "run",
+        lambda cmd, **kwargs: _FakeCompleted(
+            returncode=0, stdout=json.dumps({"schema": "simplicio.precedent-search/v1"})
+        ),
+    )
+
+    result = mapper.rank_precedents(tmp_path, "fix login permission", k=1)
+
+    assert result[0]["path"] == "src/ui/Login.tsx"
+
+
+def test_rank_precedents_falls_back_on_empty_native_candidates(monkeypatch, tmp_path):
+    """Deliberate deviation from simplicio-mapper's own `ask precedent`: an
+    empty-but-valid native answer is treated the same as a failure here,
+    because the native precedent-memory database and this repo's
+    precedent-index.json are independent stores — an uninitialized/empty
+    native store must not shadow real candidates the artifact-file chain
+    still has (see mapper._native_precedent_search's docstring)."""
+    _write_precedent_index(
+        tmp_path, [{"path": "src/ui/Login.tsx", "line": 12, "summary": "Login guard", "tags": ["login"]}]
+    )
+    monkeypatch.setattr(mapper.shutil, "which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(
+        mapper.subprocess,
+        "run",
+        lambda cmd, **kwargs: _FakeCompleted(returncode=0, stdout=json.dumps(_native_payload([]))),
+    )
+
+    result = mapper.rank_precedents(tmp_path, "fix login permission", k=1)
+
+    assert result[0]["path"] == "src/ui/Login.tsx"
+
+
+def test_rank_precedents_skips_native_call_when_task_is_blank(monkeypatch, tmp_path):
+    monkeypatch.setattr(mapper.shutil, "which", lambda name: "/bin/simplicio")
+
+    def fail_if_called(cmd, **kwargs):
+        raise AssertionError("subprocess.run must not run for a blank/whitespace-only task")
+
+    monkeypatch.setattr(mapper.subprocess, "run", fail_if_called)
+
+    result = mapper.rank_precedents(tmp_path, "   ", k=1)
+
+    assert result == []

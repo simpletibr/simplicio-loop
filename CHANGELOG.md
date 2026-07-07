@@ -3,6 +3,37 @@
 ## [Unreleased]
 
 ### Added
+- **Native-first precedent search via `simplicio precedent search`.**
+  `mapper.rank_precedents()` now attempts the compiled `simplicio` Rust
+  binary before its existing `precedent-index.json` + `rank_entries()`
+  ranking: `simplicio precedent search --repo <root> --text <task> --top
+  <k> --json` is parsed as `simplicio.precedent-search/v1` and each
+  `candidates[]` entry (`precedent_id`, `score`, `reuse_level`,
+  `suggested_next_action`) is translated into this module's existing item
+  shape (`path`, `line`, `summary`, `tags`) so every current caller
+  (`build_precedent_block()`, `build_mapper_context()`, `inspect_target()`)
+  keeps working unmodified. Fail-open like every other native/Python pair in
+  this package: the new `SIMPLICIO_DEV_CLI_NO_RUNTIME_PRECEDENT` kill-switch
+  (named after the existing `SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT`), a missing
+  binary, non-zero exit, timeout, unparseable JSON, or a payload missing
+  `candidates` all fall through unchanged to the existing mapper-index chain
+  — never raises, never breaks a caller. One deliberate deviation from
+  `simplicio-mapper`'s own `ask precedent` verb (which this mirrors): a
+  valid but *empty* candidate list is also treated as "nothing gained" and
+  falls through, rather than being trusted as a final answer, because the
+  native precedent-memory database (`.simplicio/precedents/*.sqlite`, built
+  from run history via `simplicio precedent index`) and this repo's
+  `precedent-index.json` artifact are independent stores — an
+  uninitialized native store must not shadow real candidates the
+  artifact-file chain might still have. The free-text query comes from
+  `rank_precedents()`'s own existing `task` parameter (already threaded
+  through by every caller — `build_precedent_block()`'s `goal`,
+  `inspect_target()`/`build_mapper_context()`'s `f"{goal} {target}"`), so no
+  new plumbing was needed to source it.
+
+## [0.9.4] — 2026-07-07
+
+### Added
 - **Native `simplicio edit` delegation for mechanical-edit plans.**
   `mechanical_edit.execute_plan()` now attempts the compiled `simplicio` Rust
   binary before running its own pure-Python implementation: the parsed plan

@@ -1,6 +1,6 @@
 import json
 
-from simplicio import bench, pipeline
+from simplicio import bench, mapper, pipeline
 from simplicio import precedent as precedent_module
 from simplicio import prompt as prompt_module
 from simplicio.pipeline_fixers import FixerResult
@@ -98,6 +98,41 @@ def test_precedent_index_ranks_candidates_without_embedding(tmp_path):
 
     assert "src/ui/Login.tsx:12" in block
     assert "Payment helper" not in block
+
+
+def test_precedent_block_renders_native_precedent_search_candidates(tmp_path, monkeypatch):
+    """End-to-end proof that rank_precedents()'s native-first branch
+    (simplicio/mapper.py) slots into build_precedent_block()'s existing
+    rendering unmodified: a translated simplicio.precedent-search/v1
+    candidate (no path/line/summary of its own) still produces a legible
+    [PRECEDENT] block via the same code that renders precedent-index.json
+    items."""
+
+    class _Completed:
+        returncode = 0
+        stdout = json.dumps(
+            {
+                "schema": "simplicio.precedent-search/v1",
+                "status": "ok",
+                "candidates": [
+                    {
+                        "precedent_id": "p42",
+                        "score": 0.77,
+                        "reuse_level": "high",
+                        "suggested_next_action": "reuse the login guard from a prior run",
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr(mapper.shutil, "which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(mapper.subprocess, "run", lambda cmd, **kwargs: _Completed())
+
+    block = build_precedent_block(str(tmp_path), "react", "fix login permission", k=1)
+
+    assert "[PRECEDENT]" in block
+    assert "precedent:p42" in block
+    assert "reuse the login guard from a prior run" in block
 
 
 def test_precedent_unknown_stack_falls_back_without_keyerror(tmp_path):
