@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/dogfood.py` — self-dogfooding (issue #165): runs the real,
+  packaged `simplicio-mapper index . --json` CLI against this repo's own
+  working tree, validates the result against the versioned
+  mapper-artifacts contract (`contracts/mapper-artifacts/v1/`, issue
+  #157), and publishes a stable, committed snapshot
+  (`project-map.json`/`precedent-index.json`/`architecture-inventory.json`
+  + `_meta.json`) in `examples/ecosystem-dogfood/`. `--check` verifies the
+  snapshot without regenerating it. The cross-repo leg of the full recipe
+  (mapper + simplicio-dev-cli + simplicio-loop working together) is
+  documented, not executed, in `examples/ecosystem-dogfood/README.md` — it
+  needs separate checkouts of all three repos, which a single-repo
+  session/PR cannot safely orchestrate. `SIMPLICIO_ECOSYSTEM.md` (a
+  generated file, issue #156) gained a "Dogfooding" section from its
+  generator; `README.md`/`README.pt-BR.md` gained a "See it in action on
+  our own repos" section. `tests/python/test_dogfood.py` covers `--check`
+  against the committed snapshot and a real `regenerate()` run against a
+  synthetic fixture.
+
 ### Changed
 
 - Root `.md` consolidation follow-up (issue #161, ADR-007 addendum):

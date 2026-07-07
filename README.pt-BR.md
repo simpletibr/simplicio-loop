@@ -103,6 +103,22 @@ delivery loop"]
 - [simplicio-prompt](https://github.com/wesleysimplicio/simplicio-prompt) provides fan-out and consensus runtime patterns.
 - [simplicio-sprint](https://github.com/wesleysimplicio/simplicio-sprint) turns cards into draft PR delivery loops.
 
+## Veja funcionando nos nossos próprios repos
+
+Este repo faz dogfooding de si mesmo, de forma explícita e reproduzível
+(issue #165) — `python3 scripts/dogfood.py` roda o CLI real e empacotado
+`simplicio-mapper index . --json` contra este próprio repositório, valida
+o resultado contra o contrato versionado de mapper-artifacts, e publica um
+snapshot estável em
+[`examples/ecosystem-dogfood/`](examples/ecosystem-dogfood/README.md) —
+`project-map.json`/`precedent-index.json`/`architecture-inventory.json`
+reais deste código, não uma fixture de brinquedo. Rode `python3
+scripts/dogfood.py --check` para verificar o snapshot sem regenerá-lo. A
+perna cross-repo da receita completa (mapper + [simplicio-dev-cli](https://github.com/wesleysimplicio/simplicio-dev-cli)
++ [simplicio-loop](https://github.com/wesleysimplicio/simplicio-loop)
+funcionando juntos) fica documentada, não executada, no README daquele
+diretório — precisa de checkouts separados dos três repos.
+
 ## Padrão de documentação
 
 - [SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRATION.md)

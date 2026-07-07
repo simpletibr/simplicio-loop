@@ -120,6 +120,22 @@ a versioned, testable contract, not free-form output — see
 [contracts/mapper-artifacts/v1/](contracts/mapper-artifacts/v1/README.md)
 (issue #157).
 
+## See it in action on our own repos
+
+This repo dogfoods itself, explicitly and reproducibly (issue #165) —
+`python3 scripts/dogfood.py` runs the real, packaged `simplicio-mapper
+index . --json` CLI against this very repository, validates the result
+against the versioned mapper-artifacts contract, and publishes a stable,
+committed snapshot in
+[`examples/ecosystem-dogfood/`](examples/ecosystem-dogfood/README.md) —
+real `project-map.json`/`precedent-index.json`/`architecture-inventory.json`
+for this codebase, not a toy fixture. Run `python3 scripts/dogfood.py
+--check` to verify the snapshot without regenerating it. The cross-repo
+leg of the full recipe (mapper + [simplicio-dev-cli](https://github.com/wesleysimplicio/simplicio-dev-cli)
++ [simplicio-loop](https://github.com/wesleysimplicio/simplicio-loop) working
+together) is documented, not executed, in that directory's README — it
+needs separate checkouts of all three repos.
+
 ## Documentation standard
 
 - [SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRATION.md)

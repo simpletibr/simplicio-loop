@@ -203,6 +203,25 @@ def render_markdown(current_version: str, report: list[dict], generated_at: str)
         "artefatos que ele produz."
     )
     lines.append("")
+    lines.append("## Dogfooding")
+    lines.append(
+        "Este repo aplica o próprio mapper em si mesmo, de forma explícita e "
+        "reproduzível — não é só um efeito colateral implícito do "
+        "desenvolvimento. `python3 scripts/dogfood.py` roda `simplicio-mapper "
+        "index . --json` (o CLI real, empacotado) contra este repositório, "
+        "valida o resultado contra o contrato versionado "
+        "(`contracts/mapper-artifacts/v1/`, issue #157), e publica um "
+        "snapshot estável em "
+        "[`examples/ecosystem-dogfood/`](examples/ecosystem-dogfood/README.md) "
+        "(issue #165) — `project-map.json`, `precedent-index.json` e "
+        "`architecture-inventory.json` reais deste repo, não uma fixture de "
+        "brinquedo. `python3 scripts/dogfood.py --check` verifica o snapshot "
+        "sem regenerar. A perna cross-repo da receita completa (mapper + "
+        "simplicio-dev-cli + simplicio-loop juntos) fica documentada, não "
+        "executada, no README daquele diretório — precisa de checkouts "
+        "separados dos três repos."
+    )
+    lines.append("")
     lines.append("## Versão atual")
     lines.append(f"{current_version} (lido de `pyproject.toml` e `package.json`)")
     lines.append("")
