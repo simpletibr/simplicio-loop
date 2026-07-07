@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from simplicio.mechanical_edit import execute_plan, execute_plan_json
 
 
@@ -430,6 +432,36 @@ def test_execute_plan_disabled_by_kill_switch_env_var(tmp_path, monkeypatch):
     assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
 
 
+def _native_edit_payload(root, **overrides):
+    """A well-formed fake of the native `simplicio edit --json` payload —
+    the REAL shape (`simplicio.edit-result/v1`), confirmed by running the
+    live binary, not this module's own `simplicio.mechanical-edit-result/v1`.
+    """
+    payload = {
+        "schema": "simplicio.edit-result/v1",
+        "status": "ok",
+        "file": str(Path(root) / "app.py"),
+        "created": False,
+        "dry_run": False,
+        "changed": True,
+        "mechanical_only": True,
+        "operations_applied": 1,
+        "operations": [{"op": "replace_range", "detail": "line 1", "changes": 1}],
+        "before_sha256": "fake-before-sha",
+        "after_sha256": "fake-after-sha",
+        "commit_hash": None,
+        "commit_message": None,
+        "bytes_before": 8,
+        "bytes_after": 8,
+        "post_edit_phases": [],
+        "post_edit_skipped_reason": None,
+        "reflection": {},
+        "token_ledger": {"schema": "simplicio.communication-token-ledger/v1"},
+    }
+    payload.update(overrides)
+    return payload
+
+
 def test_execute_plan_delegates_and_translates_native_result_when_binary_present(tmp_path, monkeypatch):
     from simplicio import mechanical_edit
 
@@ -442,22 +474,7 @@ def test_execute_plan_delegates_and_translates_native_result_when_binary_present
         "text": "new\n",
     }
     plan = _plan("app.py", operation)
-
-    # Sentinel values a real Python execution of this plan could never
-    # produce, so a match proves the native JSON was trusted verbatim (after
-    # shape validation) rather than the Python path having run anyway.
-    fake_payload = {
-        "schema": "simplicio.mechanical-edit-result/v1",
-        "root": "/native/reported/root/must/be/ignored",
-        "status": "ok",
-        "applied": True,
-        "noop": False,
-        "planned_diff": "FAKE_NATIVE_DIFF",
-        "files": [{"path": "app.py", "before_sha256": "fake-before", "after_sha256": "fake-after"}],
-        "operation_count": 42,
-        "errors": [],
-        "validation": [],
-    }
+    fake_payload = _native_edit_payload(tmp_path, dry_run=True)
     calls = []
 
     class FakeCompleted:
@@ -490,14 +507,18 @@ def test_execute_plan_delegates_and_translates_native_result_when_binary_present
     plan_path = Path(cmd[cmd.index("--plan") + 1])
     assert not plan_path.exists()
 
+    # translated into THIS module's own shape, not a pass-through of the
+    # native payload (which uses a different schema/field set entirely)
     assert result["schema"] == "simplicio.mechanical-edit-result/v1"
     assert result["root"] == str(tmp_path)  # ours, never the native payload's
     assert result["status"] == "ok"
-    assert result["applied"] is True
-    assert result["noop"] is False
-    assert result["planned_diff"] == "FAKE_NATIVE_DIFF"
-    assert result["files"] == fake_payload["files"]
-    assert result["operation_count"] == 42
+    assert result["applied"] is False  # dry_run=True in the fake payload
+    assert result["noop"] is False  # changed=True in the fake payload
+    assert result["planned_diff"] == ""  # native --json doesn't expose one
+    assert result["files"] == [
+        {"path": "app.py", "before_sha256": "fake-before-sha", "after_sha256": "fake-after-sha"}
+    ]
+    assert result["operation_count"] == 1
     assert result["errors"] == []
     assert result["validation"] == []
 
@@ -515,19 +536,7 @@ def test_execute_plan_apply_true_omits_dry_run_flag_on_native_call(tmp_path, mon
 
     class FakeCompleted:
         returncode = 0
-        stdout = json.dumps(
-            {
-                "schema": "simplicio.mechanical-edit-result/v1",
-                "status": "ok",
-                "applied": True,
-                "noop": False,
-                "planned_diff": "",
-                "files": [],
-                "operation_count": 1,
-                "errors": [],
-                "validation": [],
-            }
-        )
+        stdout = json.dumps(_native_edit_payload(tmp_path, dry_run=False))
 
     def fake_run(cmd, **kwargs):
         calls.append(cmd)
@@ -536,9 +545,39 @@ def test_execute_plan_apply_true_omits_dry_run_flag_on_native_call(tmp_path, mon
     monkeypatch.setattr(mechanical_edit.shutil, "which", lambda name: "/bin/simplicio")
     monkeypatch.setattr(mechanical_edit.subprocess, "run", fake_run)
 
-    execute_plan(plan, root=tmp_path, apply=True)
+    result = execute_plan(plan, root=tmp_path, apply=True)
 
     assert "--dry-run" not in calls[0]
+    assert result["applied"] is True  # dry_run=False in the fake payload
+
+
+def test_execute_plan_falls_back_when_native_status_is_checks_failed(tmp_path, monkeypatch):
+    """Real semantic gap, not just caution: on a failed post-edit phase the
+    native binary does NOT roll back the write, while this module's own
+    Python path restores the pre-edit file on the same failure. Translating
+    "checks_failed" as a normal result would misrepresent that the file is
+    unchanged when it is not — must fall through to Python instead, which
+    genuinely rolls back."""
+    from simplicio import mechanical_edit
+
+    _write(tmp_path / "app.py", "old\n")
+    operation = {"op": "replace_range", "path": "app.py", "start_line": 1, "end_line": 1, "text": "new\n"}
+
+    class FakeCompleted:
+        returncode = 0
+        stdout = json.dumps(
+            _native_edit_payload(tmp_path, status="checks_failed", post_edit_skipped_reason=None)
+        )
+
+    monkeypatch.setattr(mechanical_edit.shutil, "which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(mechanical_edit.subprocess, "run", lambda cmd, **kwargs: FakeCompleted())
+
+    result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
+
+    # fell through to the real Python path, which ran the edit itself
+    assert result["status"] == "ok"
+    assert result["applied"] is True
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
 
 
 def test_execute_plan_falls_back_on_subprocess_oserror(tmp_path, monkeypatch):
@@ -599,14 +638,11 @@ def test_execute_plan_falls_back_on_unparseable_json(tmp_path, monkeypatch):
     assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
 
 
-def test_execute_plan_falls_back_when_native_schema_does_not_match(tmp_path, monkeypatch):
-    """Regression guard for the real-world mismatch: the installed simplicio
-    binary's ``edit`` command currently answers with
-    ``schema: simplicio.edit-result/v1`` (a different plan/result contract),
-    not this module's ``simplicio.mechanical-edit-result/v1``. Any
-    schema/shape mismatch must fall through to the Python implementation
-    rather than being trusted partially.
-    """
+def test_execute_plan_falls_back_when_native_schema_is_unknown(tmp_path, monkeypatch):
+    """An unrecognized schema (typo, future breaking change, wrong tool
+    entirely) must fall through to Python rather than being trusted
+    partially. The REAL native schema (`simplicio.edit-result/v1`) is
+    covered by the translation tests above — this covers anything else."""
     from simplicio import mechanical_edit
 
     _write(tmp_path / "app.py", "old\n")
@@ -614,7 +650,7 @@ def test_execute_plan_falls_back_when_native_schema_does_not_match(tmp_path, mon
 
     class FakeCompleted:
         returncode = 0
-        stdout = json.dumps({"schema": "simplicio.edit-result/v1", "status": "ok", "file": "app.py"})
+        stdout = json.dumps({"schema": "simplicio.some-other-tool-result/v1", "status": "ok", "file": "app.py"})
 
     monkeypatch.setattr(mechanical_edit.shutil, "which", lambda name: "/bin/simplicio")
     monkeypatch.setattr(mechanical_edit.subprocess, "run", lambda cmd, **kwargs: FakeCompleted())
@@ -625,3 +661,57 @@ def test_execute_plan_falls_back_when_native_schema_does_not_match(tmp_path, mon
     assert result["status"] == "ok"
     assert result["applied"] is True
     assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
+
+
+def test_execute_plan_falls_back_when_native_payload_has_wrong_types(tmp_path, monkeypatch):
+    """The real native schema tag, but a field of the wrong type (e.g. a
+    future minor field-shape drift) — must fall through rather than crash
+    or trust a partially-shaped payload."""
+    from simplicio import mechanical_edit
+
+    _write(tmp_path / "app.py", "old\n")
+    operation = {"op": "replace_range", "path": "app.py", "start_line": 1, "end_line": 1, "text": "new\n"}
+
+    class FakeCompleted:
+        returncode = 0
+        stdout = json.dumps(_native_edit_payload(tmp_path, operations_applied="not-an-int"))
+
+    monkeypatch.setattr(mechanical_edit.shutil, "which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(mechanical_edit.subprocess, "run", lambda cmd, **kwargs: FakeCompleted())
+
+    result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
+
+    assert result["status"] == "ok"
+    assert result["applied"] is True
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
+
+
+def test_execute_plan_real_native_binary_activates_when_installed(tmp_path):
+    """End-to-end against the REAL installed `simplicio` binary, not a mock
+    — proves the translation genuinely activates today, not just against a
+    hand-written fake payload. Skips cleanly if the binary isn't on PATH
+    (e.g. CI), matching how this repo's other real-binary tests behave."""
+    import shutil as _shutil
+
+    if _shutil.which("simplicio") is None:
+        pytest.skip("simplicio binary not on PATH")
+
+    _write(tmp_path / "app.py", "old\nkeep\n")
+    operation = {
+        "op": "replace_range",
+        "path": "app.py",
+        "start_line": 1,
+        "end_line": 1,
+        "text": "new\n",
+    }
+
+    result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
+
+    assert result["schema"] == "simplicio.mechanical-edit-result/v1"
+    assert result["status"] == "ok"
+    assert result["applied"] is True
+    assert result["noop"] is False
+    assert len(result["files"]) == 1
+    assert result["files"][0]["path"] == "app.py"
+    assert result["files"][0]["before_sha256"] != result["files"][0]["after_sha256"]
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\nkeep\n"

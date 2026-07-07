@@ -220,47 +220,94 @@ def _try_native_edit(
                 pass
 
 
+
+# The native binary's *actual* `simplicio edit --json` output schema today —
+# confirmed by running it live. It does NOT match this module's own
+# RESULT_SCHEMA ("simplicio.mechanical-edit-result/v1"): the field shapes are
+# genuinely different (`changed`/`file`/`operations_applied` vs this module's
+# `noop`/`files`/`operation_count`), not just a schema-string typo. Translated
+# below rather than requiring the runtime to change its established contract.
+NATIVE_EDIT_RESULT_SCHEMA = "simplicio.edit-result/v1"
+
+
 def _translate_native_result(payload: Any, root_path: Path) -> dict[str, Any] | None:
-    """Validate *payload* against ``RESULT_SCHEMA`` and rebuild it in this
+    """Translate the native `simplicio edit --json` payload into this
     module's own result shape (same keys ``execute_plan`` always returns).
 
-    Returns ``None`` on any shape mismatch — a missing/renamed field is
-    treated the same as "the binary can't help here" rather than trusted
-    partially.
+    Returns ``None`` on any shape mismatch OR on `native_status ==
+    "checks_failed"` — a missing/renamed field is treated the same as "the
+    binary can't help here" rather than trusted partially. The
+    "checks_failed" exclusion is a real semantic gap, not caution for its own
+    sake: on a failed post-edit validation phase, the native binary has
+    already written the file and does NOT roll it back, while this module's
+    own Python path restores the pre-edit content on the same failure
+    (`_restore(root_path, backups)` in `execute_plan`). Translating that case
+    as a normal "refused" result would silently misrepresent the file as
+    unchanged when it is not — falling through to the Python path instead
+    preserves the rollback guarantee callers rely on.
     """
-    if not isinstance(payload, dict) or payload.get("schema") != RESULT_SCHEMA:
+    if not isinstance(payload, dict) or payload.get("schema") != NATIVE_EDIT_RESULT_SCHEMA:
         return None
-    status = payload.get("status")
-    applied = payload.get("applied")
-    noop = payload.get("noop")
-    planned_diff = payload.get("planned_diff")
-    files = payload.get("files")
-    operation_count = payload.get("operation_count")
-    errors = payload.get("errors")
-    validation = payload.get("validation")
+    native_status = payload.get("status")
+    if native_status == "checks_failed":
+        return None
+    file_abs = payload.get("file")
+    changed = payload.get("changed")
+    dry_run = payload.get("dry_run")
+    operations_applied = payload.get("operations_applied")
+    before_sha = payload.get("before_sha256")
+    after_sha = payload.get("after_sha256")
     if (
-        status not in ("ok", "refused")
-        or not isinstance(applied, bool)
-        or not isinstance(noop, bool)
-        or not isinstance(planned_diff, str)
-        or not isinstance(files, list)
-        or not isinstance(operation_count, int)
-        or not isinstance(errors, list)
-        or not isinstance(validation, list)
+        not isinstance(native_status, str)
+        or not isinstance(file_abs, str)
+        or not isinstance(changed, bool)
+        or not isinstance(dry_run, bool)
+        or not isinstance(operations_applied, int)
+        or not isinstance(before_sha, str)
+        or not isinstance(after_sha, str)
     ):
         return None
+
+    try:
+        rel_path = str(Path(file_abs).resolve().relative_to(root_path.resolve()))
+    except ValueError:
+        # Native binary reported a path outside root — untranslatable, not a
+        # crash; the Python path applies its own root-escape checks anyway.
+        return None
+
+    files = (
+        []
+        if before_sha == after_sha
+        else [{"path": rel_path, "before_sha256": before_sha, "after_sha256": after_sha}]
+    )
+    errors: list[dict[str, Any]] = []
+    if native_status != "ok":
+        skipped_reason = payload.get("post_edit_skipped_reason")
+        errors.append(
+            {
+                "code": "post_edit_phase_skipped",
+                "message": skipped_reason
+                if isinstance(skipped_reason, str)
+                else f"native status: {native_status}",
+            }
+        )
 
     result = _base_result(root_path)
     result.update(
         {
-            "status": status,
-            "applied": applied,
-            "noop": noop,
-            "planned_diff": planned_diff,
+            "status": "ok",
+            "applied": bool(not dry_run),
+            "noop": not changed,
+            # The native binary's --json output does not currently include a
+            # unified diff string (only prints one to the console in
+            # --review/--dry-run mode, not part of this JSON payload) — an
+            # empty string is the honest "not available" value here, not a
+            # claim that nothing changed (see `files`/`noop` for that).
+            "planned_diff": "",
             "files": files,
-            "operation_count": operation_count,
+            "operation_count": operations_applied,
             "errors": errors,
-            "validation": validation,
+            "validation": [],
         }
     )
     return result
