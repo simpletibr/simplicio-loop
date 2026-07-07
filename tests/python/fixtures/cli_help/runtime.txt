@@ -1,0 +1,7 @@
+usage: simplicio-py runtime [-h] {doctor} ...
+
+positional arguments:
+  {doctor}
+
+options:
+  -h, --help  show this help message and exit

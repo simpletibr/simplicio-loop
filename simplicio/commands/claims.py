@@ -18,6 +18,7 @@ UNVERIFIED   Unsubstantiated. No data, no authority, no channel.
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import sys
@@ -852,3 +853,19 @@ def main(argv: list[str]) -> int:
         return cmd_report(sub_args)
 
     return 0
+
+
+def run(a: argparse.Namespace) -> int:
+    """Adapter from `cli.py`'s parsed ``claims`` Namespace to `main`'s argv
+    contract (issue #103, extracted from `cli.py`'s `_run_claims_command`).
+    """
+    claims_argv = [a.claims_cmd]
+    if a.claims_cmd in {"check", "tag"}:
+        claims_argv.extend(a.statement)
+    elif a.claims_cmd == "report":
+        if a.path:
+            claims_argv += ["--path", a.path]
+        if a.json_file:
+            claims_argv += ["--json", a.json_file]
+        claims_argv.extend(a.claims)
+    return main(claims_argv)

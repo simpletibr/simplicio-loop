@@ -1,0 +1,8 @@
+usage: simplicio-py test [-h] {run} ...
+
+positional arguments:
+  {run}
+    run       run a test command (default: pytest)
+
+options:
+  -h, --help  show this help message and exit

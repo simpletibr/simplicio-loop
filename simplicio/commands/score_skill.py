@@ -228,5 +228,31 @@ def main(argv: list[str] | None = None) -> int:
     return 0 if result["ok"] else 1
 
 
+def run(a: argparse.Namespace) -> int:
+    """Adapter from `cli.py`'s parsed ``score-skill`` Namespace to `main`'s
+    argv contract, trying the native Rust binary first (issue #103,
+    extracted from `cli.py`'s inline ``score-skill`` dispatch)."""
+    from ._shared import try_route_via_simplicio
+
+    score_argv = [a.skill]
+    for s in a.scenario_sources:
+        score_argv += ["--scenario", s]
+    for extra in a.extra_scenario:
+        score_argv += ["--extra-scenario", extra]
+    if a.json:
+        score_argv.append("--json")
+    if a.verbose:
+        score_argv.append("--verbose")
+    result = try_route_via_simplicio(
+        "score-skill",
+        score_argv,
+        prefer_native=a.native or not a.python,
+        prefer_python=a.python,
+    )
+    if result is not None:
+        return result
+    return main(score_argv)
+
+
 if __name__ == "__main__":
     raise SystemExit(main())

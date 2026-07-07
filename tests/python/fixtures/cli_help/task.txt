@@ -1,0 +1,24 @@
+usage: simplicio-py task [-h] [--root ROOT] [--stack STACK] --target TARGET
+                         [--criteria CRITERIA] [--constraints CONSTRAINTS]
+                         [--dry-run-task] [--json] [--bound-paths BOUND_PATHS]
+                         [--local]
+                         goal
+
+positional arguments:
+  goal
+
+options:
+  -h, --help            show this help message and exit
+  --root ROOT
+  --stack STACK
+  --target TARGET
+  --criteria CRITERIA
+  --constraints CONSTRAINTS
+  --dry-run-task        generate the would-be task output without
+                        applying/testing
+  --json                emit stable structured task output
+  --bound-paths BOUND_PATHS
+                        glob limiting which paths the task may change;
+                        repeatable
+  --local               force local llama.cpp with MiniCPM5; overrides
+                        SIMPLICIO_MODEL/SIMPLICIO_BASE_URL

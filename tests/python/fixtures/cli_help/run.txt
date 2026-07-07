@@ -1,0 +1,34 @@
+usage: simplicio-py run [-h] [--scope {auto,task,feature,sprint,scratch}]
+                        [--root ROOT] [--stack STACK] [--target TARGET]
+                        [--criteria CRITERIA] [--constraints CONSTRAINTS]
+                        [--dry-run-task] [--json] [--bound-paths BOUND_PATHS]
+                        [--local] [--max-cost MAX_COST] [--max-iter MAX_ITER]
+                        [--sprint SPRINT] [--name NAME] [--dest DEST]
+                        [--planner PLANNER] [--plan-only] [--skip-install]
+                        [--slot KEY=VALUE]
+                        goal
+
+positional arguments:
+  goal
+
+options:
+  -h, --help            show this help message and exit
+  --scope {auto,task,feature,sprint,scratch}
+  --root ROOT
+  --stack STACK
+  --target TARGET
+  --criteria CRITERIA
+  --constraints CONSTRAINTS
+  --dry-run-task
+  --json
+  --bound-paths BOUND_PATHS
+  --local
+  --max-cost MAX_COST
+  --max-iter MAX_ITER
+  --sprint SPRINT       sprint directory name, e.g. sprint-01
+  --name NAME           scratch project directory name
+  --dest DEST           scratch destination parent
+  --planner PLANNER     scratch planner override
+  --plan-only           scratch plan only
+  --skip-install        scratch skip install
+  --slot KEY=VALUE

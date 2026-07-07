@@ -211,6 +211,5 @@ module = [
   "simplicio.scratch.executor",
   "simplicio.orchestrator.feature",
   "simplicio.scratch.cli",
-  "simplicio.cli",
 ]
 ignore_errors = true

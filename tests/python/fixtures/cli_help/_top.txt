@@ -1,0 +1,37 @@
+usage: simplicio-py [-h]
+                    {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,doctor,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,serve,memory}
+                    ...
+
+positional arguments:
+  {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,doctor,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,serve,memory}
+    index               index/cache the repo (once, or after changes)
+    task                run a task
+    run                 run a task, feature, sprint, or scratch goal
+    bench               compare with vs without (real numbers)
+    cache               inspect or clear completion cache
+    smoke               one proof call: connect+generate (needs
+                        SIMPLICIO_MODEL+KEY)
+    init                install skill + UserPromptSubmit hook into ~/.claude/
+    detect              heuristic: is a prompt a code-edit task
+    status              show current simplicio-py run state
+    claims              claims-gate checks and report generation
+    inspect             inspect a target with mapper-backed context
+    doctor              check local llama.cpp readiness and dependency
+                        freshness
+    env-export          print shell-safe exports from a dotenv file without
+                        sourcing it
+    mechanical-edit     execute simplicio.mechanical-edit/v1 dry-run or apply
+    edit                apply a mechanical edit plan via simplicio-runtime
+                        when available
+    file                read raw file contents
+    test                run a test command and report results
+    token               token-efficient execution primitives
+    score-skill         deterministic SkillOpt-style scorer for skill/law text
+    runtime             runtime-facing dev-cli contracts
+    serve               run simplicio-dev-cli as a server (--mcp for the MCP
+                        stdio protocol)
+    memory              cross-vendor memory handoff (markdown + git under
+                        ~/.simplicio/memory)
+
+options:
+  -h, --help            show this help message and exit

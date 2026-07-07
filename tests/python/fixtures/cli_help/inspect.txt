@@ -1,0 +1,10 @@
+usage: simplicio-py inspect [-h] [--root ROOT] [--goal GOAL] [--json] target
+
+positional arguments:
+  target
+
+options:
+  -h, --help   show this help message and exit
+  --root ROOT
+  --goal GOAL
+  --json
