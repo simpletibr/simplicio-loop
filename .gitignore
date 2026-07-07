@@ -123,6 +123,9 @@ scripts/**
 !scripts/render-simplicio-comment.js
 !scripts/skillopt/
 !scripts/skillopt/*.js
+!scripts/generate-ecosystem-doc.py
+!scripts/ecosystem-consumers.json
+!scripts/regen_contract_fixtures.py
 playwright-report/**
 tests/**
 !tests/unit/

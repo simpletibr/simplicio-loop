@@ -30,3 +30,57 @@ Use `LLM_PROJECT_MAPPER_SOURCE` to test from a local clone instead of npm:
 $env:LLM_PROJECT_MAPPER_SOURCE="C:\Users\you\source\repos\llm-project-mapper"
 .\scripts\update-starter.ps1
 ```
+
+## `generate-ecosystem-doc.py` (issue #156)
+
+Regenerates [`SIMPLICIO_ECOSYSTEM.md`](../SIMPLICIO_ECOSYSTEM.md) from real
+package metadata instead of hand edits:
+
+```bash
+python3 scripts/generate-ecosystem-doc.py            # regenerate + write
+python3 scripts/generate-ecosystem-doc.py --check    # verify freshness (CI), exit 1 if stale
+```
+
+Sources of truth:
+
+- **Current version** — `pyproject.toml` and `package.json` (`version = "..."` /
+  `"version": "..."`); the script errors out if these two disagree rather than
+  silently pick one.
+- **Who depends on this repo** — `scripts/ecosystem-consumers.json`
+  (schema `simplicio.ecosystem-consumers/v1`), a manually maintained fixture
+  since this repo has no live cross-repo access:
+
+  ```json
+  {
+    "schema": "simplicio.ecosystem-consumers/v1",
+    "consumers": [
+      {
+        "name": "simplicio-dev-cli",
+        "repo": "https://github.com/wesleysimplicio/simplicio-dev-cli",
+        "min_version": "0.15.0",
+        "constraint_source": "pyproject.toml dependency `simplicio-mapper>=0.15.0`"
+      }
+    ]
+  }
+  ```
+
+  Update it by hand whenever a consumer repo bumps its declared
+  `simplicio-mapper` floor. Each consumer's `min_version` is compared against
+  the real current version and classified as `current`, `behind` (a stale
+  constraint that trails the current release — reported as a note, not a
+  failure), or `ahead` (the consumer expects a version that has not shipped
+  yet — a hard divergence that fails both the default run and `--check`).
+
+`SIMPLICIO_ECOSYSTEM.md` carries a **"generated file, do not hand-edit"**
+notice at the top for this reason — edit `scripts/ecosystem-consumers.json`
+or bump the version instead, then re-run the generator. CI runs `--check`
+(see `.github/workflows/python-ci.yml`) so a stale doc fails the build.
+
+## `simplicio-mapper contract validate` / `scripts/regen_contract_fixtures.py` (issue #157)
+
+The JSON shape of `.simplicio/*.json` mapper artifacts is a versioned,
+testable contract under
+[`contracts/mapper-artifacts/v1/`](../contracts/mapper-artifacts/v1/README.md).
+See that README for schemas, fixtures, the validate command, and how
+downstream repos (simplicio-dev-cli, simplicio-loop, simplicio-runtime)
+should consume the fixtures in their own tests.
