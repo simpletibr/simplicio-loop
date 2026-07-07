@@ -12,8 +12,6 @@
   "files": [
     "LICENSE",
     "CHANGELOG.md",
-    "PRIVACY.md",
-    "SHOWCASE.md",
     "SIMPLICIO_INTEGRATION.md",
     "template-manifest.json",
     "bin/",

@@ -170,6 +170,34 @@ avaliada e conscientemente adiada, não esquecida.
 - Se o "Universal Long-Running Agent Overlay" for descontinuado como
   convenção entre-repos, revisitar a Alternativa A.
 
+## Addendum (2026-07-07, issue #161 follow-up)
+
+O item 3 ("Consolidação de `.md` da raiz — NÃO feita nesta ADR") deixou
+`SHOWCASE.md` fora do corte por "baixo risco, mas também baixo ganho... não
+vale sozinho o overhead de revisão". Numa passada de follow-up, sozinho
+não valia — mas junto de `PRIVACY.md` (idem: baixo risco, só 2 links
+markdown pra atualizar, `README.md`/`README.pt-BR.md`, mais 2 menções em
+comentário de código sem link real) o corte passou a valer o overhead:
+
+- `docs/PRIVACY.md` e `docs/SHOWCASE.md` — **movidos** para `docs/`.
+  Atualizados: os 2 links markdown (`README.md:602`, `README.pt-BR.md:527`),
+  o texto de ajuda do CLI (`bin/cli.js`) e o comentário do template
+  (`.github/workflows-templates/telemetry-worker.js`). `package.json`'s
+  `files` já inclui `docs/` como entrada própria, então as entradas
+  standalone `"PRIVACY.md"`/`"SHOWCASE.md"` foram removidas (redundantes,
+  não uma remoção de cobertura — `npm pack --dry-run` confirma que ambos
+  continuam no tarball, agora em `docs/`).
+- Os demais itens do item 3 (`PRD.md`/`PROGRESS.md`/`GOAL_RESULT.md`,
+  `TEMPLATE_PATHS`, `PYPI.md`, os meta-docs técnicos fortemente
+  cross-linkados) continuam **não movidos** pelas mesmas razões já
+  documentadas acima — nenhuma delas mudou. `INIT.en.md`/`INSTALL.en.md`
+  (não listados explicitamente na tabela original, adicionados depois)
+  também ficam: não estão em `TEMPLATE_PATHS` mas são o par de tradução
+  direto de `INIT.md`/`INSTALL.md` (que estão), linkados um do outro
+  (`INIT.md:3`, `INSTALL.md:3`), listados em `package.json`'s `files`, e
+  fixados por path absoluto em `tests/unit/overlay-docs.test.js` — mover
+  quebraria esse teste e o link do irmão TEMPLATE_PATHS.
+
 ---
 
 ## Links

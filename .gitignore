@@ -130,6 +130,7 @@ scripts/**
 !scripts/check-doc-sync.js
 !scripts/check-readme-sync.js
 !scripts/readme-sync-baseline.json
+!scripts/dogfood.py
 playwright-report/**
 tests/**
 !tests/unit/

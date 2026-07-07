@@ -4,6 +4,56 @@
 
 ### Added
 
+- `scripts/dogfood.py` — self-dogfooding (issue #165): runs the real,
+  packaged `simplicio-mapper index . --json` CLI against this repo's own
+  working tree, validates the result against the versioned
+  mapper-artifacts contract (`contracts/mapper-artifacts/v1/`, issue
+  #157), and publishes a stable, committed snapshot
+  (`project-map.json`/`precedent-index.json`/`architecture-inventory.json`
+  + `_meta.json`) in `examples/ecosystem-dogfood/`. `--check` verifies the
+  snapshot without regenerating it. The cross-repo leg of the full recipe
+  (mapper + simplicio-dev-cli + simplicio-loop working together) is
+  documented, not executed, in `examples/ecosystem-dogfood/README.md` — it
+  needs separate checkouts of all three repos, which a single-repo
+  session/PR cannot safely orchestrate. `SIMPLICIO_ECOSYSTEM.md` (a
+  generated file, issue #156) gained a "Dogfooding" section from its
+  generator; `README.md`/`README.pt-BR.md` gained a "See it in action on
+  our own repos" section. `tests/python/test_dogfood.py` covers `--check`
+  against the committed snapshot and a real `regenerate()` run against a
+  synthetic fixture.
+
+### Changed
+
+- Root `.md` consolidation follow-up (issue #161, ADR-007 addendum):
+  `PRIVACY.md` and `SHOWCASE.md` moved to `docs/PRIVACY.md`/`docs/SHOWCASE.md`.
+  Updated the 2 markdown links (`README.md`, `README.pt-BR.md`), the CLI
+  help text (`bin/cli.js`), and the template comment
+  (`.github/workflows-templates/telemetry-worker.js`); dropped the now-
+  redundant standalone `package.json` `files` entries (`docs/` already
+  ships them). Everything else evaluated in ADR-007 stays at root for the
+  same documented reasons (standing cross-repo convention, `TEMPLATE_PATHS`
+  membership or direct sibling of a `TEMPLATE_PATHS` file, or heavy
+  cross-linking) — see the ADR-007 addendum for the file-by-file
+  reasoning.
+
+- `simplicio_mapper/mapper.py` (~1830 lines) split into the
+  `simplicio_mapper/mapper/` package — `parse.py` (discovery/read: filesystem
+  walk, text/import/symbol regex parsing, per-file role/importance tagging,
+  precedent extraction, ~654 lines), `graph.py` (call-graph, symbol-index,
+  architecture-inventory, macro-map construction, ~643 lines), `emit.py`
+  (`.simplicio/*.json` serialization + rendered architecture docs, ~544
+  lines), with `mapper/__init__.py` re-exporting the full original API
+  (including internal `_prefixed` helpers other modules import directly) so
+  `from simplicio_mapper.mapper import X` is unchanged. Pure move-and-wire
+  refactor — verified byte-identical (modulo `generated_at`) output on
+  `write_mapping_artifacts`/`write_architecture_docs`/`build_macro_map`
+  against `tests/fixtures/parity-host`, before vs after. Adds
+  `tests/python/test_mapper_{parse,graph,emit}.py` (direct unit tests per
+  new module, imported straight from the submodule, not just the
+  re-exported package surface). [#159]
+
+### Added
+
 - `simplicio_mapper/toon.py` — TOON (Token-Oriented Object Notation)
   encoder/decoder (`encode_toon`/`decode_toon`), a lossless, token-lean
   alternative to JSON for LLM prompt payloads (uniform arrays of objects
