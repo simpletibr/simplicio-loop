@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Changed
+
+- `simplicio_mapper/mapper.py` (~1830 lines) split into the
+  `simplicio_mapper/mapper/` package — `parse.py` (discovery/read: filesystem
+  walk, text/import/symbol regex parsing, per-file role/importance tagging,
+  precedent extraction, ~654 lines), `graph.py` (call-graph, symbol-index,
+  architecture-inventory, macro-map construction, ~643 lines), `emit.py`
+  (`.simplicio/*.json` serialization + rendered architecture docs, ~544
+  lines), with `mapper/__init__.py` re-exporting the full original API
+  (including internal `_prefixed` helpers other modules import directly) so
+  `from simplicio_mapper.mapper import X` is unchanged. Pure move-and-wire
+  refactor — verified byte-identical (modulo `generated_at`) output on
+  `write_mapping_artifacts`/`write_architecture_docs`/`build_macro_map`
+  against `tests/fixtures/parity-host`, before vs after. Adds
+  `tests/python/test_mapper_{parse,graph,emit}.py` (direct unit tests per
+  new module, imported straight from the submodule, not just the
+  re-exported package surface). [#159]
+
 ### Added
 
 - `simplicio_mapper/toon.py` — TOON (Token-Oriented Object Notation)
