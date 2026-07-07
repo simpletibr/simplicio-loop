@@ -1050,3 +1050,29 @@ self-contained stdlib-only, no `simplicio_mapper` import — plus whichever
 produces, and run the vendored script with `--schema-root <path>` against
 that repo's own fixtures/real output. See
 `contracts/ecosystem/v1/README.md` for the full layout and sync convention.
+
+### Node-as-thin-shim over the Python CLI (issue #158, ADR-005)
+
+`simplicio_mapper/mapper.py` is the canonical implementation;
+`bin/mapper-artifacts.js` used to be a full, independently-maintained JS
+reimplementation of the same parsing/graph/emit logic, kept in sync only by
+`tests/python/test_parity.py` (issue #98) — real drift happened between the
+two in the past. `bin/cli.js`'s `map`/`update` dispatch now **prefers
+shimming straight to the canonical Python CLI**
+(`python3 -m simplicio_mapper.cli map|update <same argv>`) whenever a
+Python 3 with an importable `simplicio_mapper` is found on `PATH` — the two
+CLIs already accept the identical flag set for these two subcommands, so
+argv passes through unchanged, no translation layer needed.
+
+`bin/map.js` + `bin/mapper-artifacts.js` remain in the tree as the
+**fallback for Python-less hosts** (the npm package still declares no
+Python dependency) — this is an explicitly transitional state, not the end
+state; see `.specs/architecture/ADR-005-node-thin-shim.md` for the full
+scope, what is *not* covered yet (`bin/auto-map.js`, every other `bin/cli.js`
+subcommand), and the alternative considered (making Python a hard
+requirement) and why it was deferred. Force the Node fallback for
+debugging/testing with `SIMPLICIO_MAPPER_NO_SHIM=1`.
+`tests/python/test_parity.py`'s `NodeThinShimTest` proves both paths: the
+shim firing by default in an environment with Python installed, and the
+Node fallback working correctly (and actionably) both when explicitly
+forced and when Python is genuinely absent from `PATH`.
