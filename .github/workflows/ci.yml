@@ -53,10 +53,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install simplicio-cli (editable) + pytest
+      - name: Install simplicio-cli (editable, base only) + test tooling
         run: |
           python -m pip install --upgrade pip
-          pip install -e . pytest
+          pip install -e ".[test]"
 
       - name: Run pytest (tests/python, per pyproject.toml testpaths)
         run: pytest
@@ -69,6 +69,41 @@ jobs:
             "$entry" --help
             echo "::endgroup::"
           done
+
+  extras:
+    name: Extras install (${{ matrix.extra }})
+    needs: python
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        # #99: heavy ML/provider deps live behind extras, not the base
+        # install. `providers` is the cheap one to cover in every run;
+        # `ml`/`local` pull PyTorch/llama.cpp (~GBs) so they are exercised
+        # here too but are not part of the base-install job above.
+        extra: [providers, ml]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install simplicio-cli[${{ matrix.extra }}]
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[${{ matrix.extra }}]"
+
+      - name: Verify the extra's imports actually resolve
+        run: |
+          set -euo pipefail
+          case "${{ matrix.extra }}" in
+            providers) python -c "import openai, anthropic; print('providers OK')" ;;
+            ml) python -c "import sentence_transformers; print('ml OK')" ;;
+          esac
 
   packaging:
     name: Packaging smoke (sdist + wheel + twine check)

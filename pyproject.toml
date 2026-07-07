@@ -39,11 +39,19 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
   "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
+# Base install is the executor/contract/mapper-context/edit-verify core:
+# mechanical edit, mapper handoff, task/run pipeline (precedent + skill
+# router use numpy for cosine-similarity ranking, but NOT the embedding
+# model itself), doctor/runtime contracts, caching. numpy stays in base
+# (lightweight, no GPU/torch) because it is imported unconditionally by
+# simplicio.cache -> simplicio.precedent/skill_router, which the core
+# `task`/`run` commands import even when no remote/semantic provider is
+# configured. The genuinely heavy ML dependency (sentence-transformers,
+# which pulls PyTorch + CUDA wheels, ~3 GB) moves to the `ml` extra; remote
+# provider SDKs move to `providers`. See docs/PYTHON_PACKAGE_INTERDEPENDENCE.md
+# (generated, `--check`-able) for the full graph and #99 for the audit.
 dependencies = [
-  "sentence-transformers>=5.6.0",
   "numpy>=2.1.0",
-  "anthropic>=0.112.0",
-  "openai>=2.44.0",
   "simplicio-mapper>=0.14.0",
   "simplicio-prompt>=1.14.1",
   "httpx>=0.28.1",
@@ -53,10 +61,27 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Remote LLM provider SDKs (native Anthropic path + any OpenAI-compatible
+# endpoint: OpenRouter, GLM, DeepSeek, ...). Not needed for claude-cli/
+# codex-cli shell-out providers or the local llama.cpp path.
+providers = ["anthropic>=0.112.0", "openai>=2.44.0"]
+# Semantic precedent/skill ranking (sentence-transformers -> PyTorch). Only
+# needed once `task`/`run` actually reach the embedding path (no cached
+# vectors yet); the numpy-only cosine-similarity math stays in base.
+ml = ["sentence-transformers>=5.6.0"]
 bench = ["fpdf2>=2.8.7"]
 # Offline fallback in-process inference. Pulls the llama.cpp Python bindings
 # plus huggingface-hub to fetch MiniCPM5-1B-Q4_K_M.gguf.
 local = ["llama-cpp-python>=0.3.32", "huggingface-hub>=1.21.0"]
+all = [
+  "simplicio-cli[providers]",
+  "simplicio-cli[ml]",
+  "simplicio-cli[bench]",
+  "simplicio-cli[local]",
+]
+# CI/dev-only, not a product extra: pytest to run tests/python, plus tomli
+# on 3.10 (tomllib is stdlib only from 3.11+; several tests parse this file).
+test = ["pytest>=8", "tomli>=2.0.1; python_version < '3.11'"]
 
 [project.urls]
 Homepage = "https://github.com/wesleysimplicio/simplicio-cli"
