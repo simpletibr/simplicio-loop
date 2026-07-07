@@ -16,8 +16,13 @@ _emb = None
 def _embedder():
     global _emb
     if _emb is None:
-        from sentence_transformers import SentenceTransformer
-
+        try:
+            from sentence_transformers import SentenceTransformer
+        except ImportError:
+            raise SystemExit(
+                "simplicio: semantic precedent ranking needs sentence-transformers. "
+                "Install extras: pip install 'simplicio-cli[ml]'"
+            )
         _emb = SentenceTransformer("all-MiniLM-L6-v2")
     return _emb
 

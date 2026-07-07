@@ -43,6 +43,28 @@ from pathlib import Path
 from ._cache import CacheEntry, cache, make_key
 
 
+def _import_openai():
+    try:
+        from openai import OpenAI
+    except ImportError:
+        raise SystemExit(
+            "simplicio: this provider needs the openai SDK. "
+            "Install extras: pip install 'simplicio-cli[providers]'"
+        )
+    return OpenAI
+
+
+def _import_anthropic():
+    try:
+        import anthropic
+    except ImportError:
+        raise SystemExit(
+            "simplicio: this provider needs the anthropic SDK. "
+            "Install extras: pip install 'simplicio-cli[providers]'"
+        )
+    return anthropic
+
+
 def _cfg():
     return {
         "model": os.environ.get("SIMPLICIO_MODEL"),
@@ -556,7 +578,7 @@ def _openai_compatible_generate(model, base, key, prompt, feedback, max_tokens):
     """Returns `(completion, usage)`; `usage` is the dict `_openai_usage`
     extracted from the response, or None when the endpoint didn't report
     it."""
-    from openai import OpenAI
+    OpenAI = _import_openai()
 
     cli = OpenAI(base_url=base, api_key=key)
     r = cli.chat.completions.create(
@@ -658,7 +680,7 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
 
     # Native Anthropic path: no base_url
     if not c["base"]:
-        import anthropic
+        anthropic = _import_anthropic()
 
         cli = anthropic.Anthropic(api_key=c["key"])
         r = cli.messages.create(
@@ -905,7 +927,7 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
         )
 
     if p["native_anthropic"]:
-        import anthropic
+        anthropic = _import_anthropic()
 
         cli = anthropic.Anthropic(api_key=p["key"])
         r = cli.messages.create(
@@ -927,7 +949,7 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
         )
         return out
 
-    from openai import OpenAI
+    OpenAI = _import_openai()
 
     cli = OpenAI(base_url=p["base"], api_key=p["key"])
     r = cli.chat.completions.create(

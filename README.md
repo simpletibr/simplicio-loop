@@ -91,7 +91,12 @@ delivery status"]
 
 ## Documentation standard
 
-- [docs/PYTHON_PACKAGE_INTERDEPENDENCE.md](docs/PYTHON_PACKAGE_INTERDEPENDENCE.md)
+- [docs/PYTHON_PACKAGE_INTERDEPENDENCE.md](docs/PYTHON_PACKAGE_INTERDEPENDENCE.md) —
+  **generated, not hand-edited** (#101). Regenerate after touching
+  `pyproject.toml`'s version/dependencies/extras:
+  `python3 scripts/gen_package_interdependence.py`. CI enforces it hasn't
+  drifted (`python3 scripts/gen_package_interdependence.py --check`, also
+  covered by `tests/python/test_generated_docs.py`).
 - [docs/LLM_USAGE_POLICY.md](docs/LLM_USAGE_POLICY.md)
 - [docs/readme-globalization-standard.md](docs/readme-globalization-standard.md)
 
@@ -434,6 +439,45 @@ Relevant > complete — inject the *right* context, never *all* of it.
 pip install simplicio-cli           # from PyPI (pulls simplicio-mapper + simplicio-prompt)
 # or
 pip install -e .                    # from this repo
+```
+
+#### Install profiles (extras)
+
+The base install (above) is just the executor/contract/mapper-context/
+edit-verify core — **no PyTorch, no provider SDKs**. Everything else is an
+opt-in extra, picked to match what the code actually imports (#99):
+
+| Extra | Adds | When you need it |
+|---|---|---|
+| *(base)* | `numpy`, `simplicio-mapper`, `simplicio-prompt`, `httpx`, `orjson`, `diskcache`, `libcst` | mechanical edit, mapper handoff, doctor/runtime contracts, `claude-cli`/`codex-cli` shell-out providers, cache/token primitives. `numpy` stays in base because `task`/`run`'s precedent+skill-router cosine-similarity ranking imports it unconditionally — it's lightweight (no GPU/torch), unlike the embedding model itself. |
+| `simplicio-cli[providers]` | `openai`, `anthropic` | native Anthropic models, or any OpenAI-compatible endpoint (OpenRouter, GLM, DeepSeek, ...) via `SIMPLICIO_MODEL`/`SIMPLICIO_BASE_URL`. |
+| `simplicio-cli[ml]` | `sentence-transformers` (pulls PyTorch, ~3 GB) | semantic precedent/skill ranking once cached vectors run out (`all-MiniLM-L6-v2`). |
+| `simplicio-cli[local]` | `llama-cpp-python`, `huggingface-hub` | offline in-process inference (default local GGUF, or any `local-llama/<repo>::<file>` model). |
+| `simplicio-cli[bench]` | `fpdf2` | `bench` command's PDF report. |
+| `simplicio-cli[all]` | union of the four above | everything. |
+
+Missing an extra never crashes with a raw traceback — every optional import
+is guarded and raises an actionable error naming the exact extra to install
+(e.g. `pip install 'simplicio-cli[providers]'`).
+
+#### Local-equivalent of the CI gate
+
+`.github/workflows/ci.yml` is the primary required gate (the Node/Playwright
+harness in `starter-e2e.yml` validates the starter-kit template only and does
+not gate merges). Reproduce it locally with:
+
+```bash
+pip install -e ".[test]"             # base install + pytest (+ tomli on 3.10)
+pytest                               # tests/python + tests/contracts, per pyproject.toml testpaths
+python3 scripts/gen_package_interdependence.py --check  # generated-doc drift gate (#101)
+simplicio-py --help                  # entrypoint smoke (x3)
+simplicio-cli --help
+simplicio-dev-cli --help
+
+pip install -e ".[providers]" && python -c "import openai, anthropic"  # extras coverage
+pip install build twine
+python -m build                      # sdist + wheel
+python -m twine check dist/*         # packaging smoke
 ```
 
 The install ships **three Simplicio packages** that play distinct roles:
