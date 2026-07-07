@@ -1,0 +1,56 @@
+{
+  "counts": {
+    "calls": 4,
+    "edges": 5,
+    "imports": 1
+  },
+  "edges": [
+    {
+      "confidence": 0.58,
+      "line": 4,
+      "source_file": "src/app.py",
+      "source_symbol": "src/app.py::greet",
+      "target_file": "src/app.py",
+      "target_symbol": "src/app.py::greet",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "line": 9,
+      "source_file": "src/app.py",
+      "source_symbol": "src/app.py::main",
+      "target_file": "src/app.py",
+      "target_symbol": "src/app.py::main",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "line": 5,
+      "source_file": "tests/test_app.py",
+      "source_symbol": "tests/test_app.py::test_greet",
+      "target_file": "src/app.py",
+      "target_symbol": "src/app.py::greet",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.65,
+      "import": "src.app",
+      "source_file": "tests/test_app.py",
+      "target_file": "src/app.py",
+      "type": "imports"
+    },
+    {
+      "confidence": 0.58,
+      "line": 4,
+      "source_file": "tests/test_app.py",
+      "source_symbol": "tests/test_app.py::test_greet",
+      "target_file": "tests/test_app.py",
+      "target_symbol": "tests/test_app.py::test_greet",
+      "type": "calls"
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "schema": "simplicio.call-graph/v1",
+  "source_symbol_index": ".simplicio/symbol-index.json",
+  "version": 1
+}

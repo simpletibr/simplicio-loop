@@ -1,0 +1,120 @@
+{
+  "$id": "simplicio.project-map/v1",
+  "title": "simplicio-mapper project-map.json (v1)",
+  "description": "Whole-repo inventory: files, modules, entities, architecture signals, dependencies, and the Brown-Hilbert agent tree. Produced by simplicio_mapper.mapper.build_artifacts / write_mapping_artifacts.",
+  "type": "object",
+  "required": [
+    "schema",
+    "version",
+    "generated_at",
+    "update_mode",
+    "product",
+    "files",
+    "entry_points",
+    "test_files",
+    "config_files",
+    "modules",
+    "entities",
+    "architecture",
+    "dependencies",
+    "recent_changes",
+    "changed_files",
+    "integration"
+  ],
+  "properties": {
+    "schema": { "type": "string", "enum": ["simplicio.project-map/v1"] },
+    "version": { "type": "integer" },
+    "generated_at": { "type": "string" },
+    "update_mode": { "type": "string", "enum": ["full", "incremental"] },
+    "product": {
+      "type": "object",
+      "required": ["name", "stack"],
+      "properties": {
+        "name": { "type": "string" },
+        "stack": { "type": "string" },
+        "project_mode": { "type": "string" }
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "language", "size_bytes", "roles", "imports", "exports"],
+        "properties": {
+          "path": { "type": "string" },
+          "language": { "type": "string" },
+          "size_bytes": { "type": "integer" },
+          "last_modified": { "type": "string" },
+          "file_hash": { "type": "string" },
+          "git_status": { "type": "string" },
+          "roles": { "type": "array", "items": { "type": "string" } },
+          "imports": { "type": "array", "items": { "type": "string" } },
+          "exports": { "type": "array", "items": { "type": "string" } },
+          "importance": { "type": "number" },
+          "bh_address": { "type": "string" },
+          "agent_id": { "type": "string" }
+        }
+      }
+    },
+    "entry_points": { "type": "array", "items": { "type": "string" } },
+    "test_files": { "type": "array", "items": { "type": "string" } },
+    "config_files": { "type": "array", "items": { "type": "string" } },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "files", "file_count"],
+        "properties": {
+          "name": { "type": "string" },
+          "files": { "type": "array", "items": { "type": "string" } },
+          "roles": { "type": "array", "items": { "type": "string" } },
+          "file_count": { "type": "integer" }
+        }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "score"],
+        "properties": {
+          "name": { "type": "string" },
+          "score": { "type": "number" }
+        }
+      }
+    },
+    "architecture": {
+      "type": "object",
+      "required": ["signals", "system_type"],
+      "properties": {
+        "signals": { "type": "array", "items": { "type": "string" } },
+        "system_type": { "type": "string" }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "required": ["package_manager", "runtime", "dev"],
+      "properties": {
+        "package_manager": { "type": "string" },
+        "manifest": { "type": ["string", "null"] },
+        "runtime": { "type": "array" },
+        "dev": { "type": "array" }
+      }
+    },
+    "recent_changes": { "type": "array" },
+    "changed_files": { "type": "array", "items": { "type": "string" } },
+    "integration": {
+      "type": "object",
+      "required": ["dev_cli_mapper", "contract"],
+      "properties": {
+        "dev_cli_mapper": { "type": "string" },
+        "contract": { "type": "string" },
+        "llm_directives": { "type": "object" }
+      }
+    },
+    "agent_tree": {
+      "description": "Recursive Brown-Hilbert agent tree; not deep-validated by this schema subset (no $ref/recursion support — see contracts/mapper-artifacts/v1/README.md).",
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "items": [
+    {
+      "change_type": "feature",
+      "id": "1b468c42be9e1bf9",
+      "language": "python",
+      "line": 4,
+      "path": "backend/server.py",
+      "snippet": "\n\ndef handle_request(path: str) -> str:\n    if path == \"/health\":\n        return \"ok\"",
+      "summary": "feature precedent in backend/server.py",
+      "tags": [
+        "entrypoint",
+        "python",
+        "backend",
+        "server"
+      ]
+    },
+    {
+      "change_type": "test",
+      "id": "da884f5904816ac6",
+      "language": "python",
+      "line": 4,
+      "path": "backend/tests/test_server.py",
+      "snippet": "\n\ndef test_health():\n    assert handle_request(\"/health\") == \"ok\"\n",
+      "summary": "test precedent in backend/tests/test_server.py",
+      "tags": [
+        "test",
+        "python",
+        "backend",
+        "server"
+      ]
+    },
+    {
+      "change_type": "feature",
+      "id": "bb05cc2bfa2ff96f",
+      "language": "javascript",
+      "line": 3,
+      "path": "frontend/src/App.jsx",
+      "snippet": "import React from \"react\";\n\nexport function App() {\n  return <div>Hello from the frontend</div>;\n}",
+      "summary": "feature precedent in frontend/src/App.jsx",
+      "tags": [
+        "entrypoint",
+        "javascript",
+        "frontend",
+        "app",
+        "jsx"
+      ]
+    }
+  ],
+  "schema": "simplicio.precedent-index/v1",
+  "source_project_map": ".simplicio/project-map.json",
+  "version": 1
+}

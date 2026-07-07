@@ -1,0 +1,60 @@
+{
+  "counts": {
+    "files": 3,
+    "symbols": 4
+  },
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "root": "<fixture-root>",
+  "schema": "simplicio.symbol-index/v1",
+  "symbols": [
+    {
+      "defined_in": "backend/server.py",
+      "evidence": {
+        "file": "backend/server.py",
+        "line": 2
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 2,
+      "name": "handle_request",
+      "qualified_name": "backend/server.py::handle_request"
+    },
+    {
+      "defined_in": "backend/server.py",
+      "evidence": {
+        "file": "backend/server.py",
+        "line": 8
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 8,
+      "name": "main",
+      "qualified_name": "backend/server.py::main"
+    },
+    {
+      "defined_in": "backend/tests/test_server.py",
+      "evidence": {
+        "file": "backend/tests/test_server.py",
+        "line": 2
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 2,
+      "name": "test_health",
+      "qualified_name": "backend/tests/test_server.py::test_health"
+    },
+    {
+      "defined_in": "frontend/src/App.jsx",
+      "evidence": {
+        "file": "frontend/src/App.jsx",
+        "line": 2
+      },
+      "kind": "function",
+      "language": "javascript",
+      "line": 2,
+      "name": "App",
+      "qualified_name": "frontend/src/App.jsx::App"
+    }
+  ],
+  "version": 1
+}

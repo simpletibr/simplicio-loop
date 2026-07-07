@@ -1,0 +1,233 @@
+{
+  "agent_tree": {
+    "agent_id": "8c2574892063f995",
+    "bh_address": "R",
+    "children": [
+      {
+        "agent_id": "b6756361cf9057a4",
+        "bh_address": "R.0",
+        "children": [
+          {
+            "agent_id": "eeb42a9b5bbe7343",
+            "bh_address": "R.0.0",
+            "language": "toml",
+            "path": "pyproject.toml",
+            "roles": [
+              "config"
+            ]
+          }
+        ],
+        "module": "."
+      },
+      {
+        "agent_id": "638066da3589a01b",
+        "bh_address": "R.1",
+        "children": [
+          {
+            "agent_id": "dedc0f1f7e6e0aae",
+            "bh_address": "R.1.0",
+            "language": "python",
+            "path": "src/app.py",
+            "roles": [
+              "entrypoint"
+            ]
+          },
+          {
+            "agent_id": "97735bdb05e8940e",
+            "bh_address": "R.1.1",
+            "language": "python",
+            "path": "src/util.py",
+            "roles": []
+          }
+        ],
+        "module": "src"
+      },
+      {
+        "agent_id": "2f42337dd49075f2",
+        "bh_address": "R.2",
+        "children": [
+          {
+            "agent_id": "c62e6628f35e9209",
+            "bh_address": "R.2.0",
+            "language": "python",
+            "path": "tests/test_app.py",
+            "roles": [
+              "test"
+            ]
+          }
+        ],
+        "module": "tests"
+      }
+    ],
+    "module": "."
+  },
+  "architecture": {
+    "signals": [],
+    "system_type": "library-or-service"
+  },
+  "changed_files": [],
+  "config_files": [
+    "pyproject.toml"
+  ],
+  "dependencies": {
+    "dev": [],
+    "manifest": null,
+    "package_manager": "npm",
+    "runtime": []
+  },
+  "entities": [
+    {
+      "name": "greet",
+      "score": 4
+    },
+    {
+      "name": "add",
+      "score": 2
+    },
+    {
+      "name": "app",
+      "score": 2
+    },
+    {
+      "name": "pyproject",
+      "score": 1
+    },
+    {
+      "name": "util",
+      "score": 1
+    }
+  ],
+  "entry_points": [
+    "src/app.py"
+  ],
+  "files": [
+    {
+      "agent_id": "eeb42a9b5bbe7343",
+      "bh_address": "R.0.0",
+      "exports": [],
+      "file_hash": "2d93a735222db1eb8b1cdd0958778702b64b4b18fdc50143d6bd37337ef74c7e",
+      "git_status": "clean",
+      "importance": 0.32,
+      "imports": [],
+      "language": "toml",
+      "last_modified": "2026-07-07T04:32:12.449Z",
+      "path": "pyproject.toml",
+      "roles": [
+        "config"
+      ],
+      "size_bytes": 51
+    },
+    {
+      "agent_id": "dedc0f1f7e6e0aae",
+      "bh_address": "R.1.0",
+      "exports": [
+        "greet",
+        "main"
+      ],
+      "file_hash": "b244867049f61917f066bd4920e5b590f2c93cb9d4587af527f690d1d0b8860b",
+      "git_status": "clean",
+      "importance": 0.65,
+      "imports": [],
+      "language": "python",
+      "last_modified": "2026-07-07T04:32:12.450Z",
+      "path": "src/app.py",
+      "roles": [
+        "entrypoint"
+      ],
+      "size_bytes": 235
+    },
+    {
+      "agent_id": "97735bdb05e8940e",
+      "bh_address": "R.1.1",
+      "exports": [
+        "add"
+      ],
+      "file_hash": "b414e3e8a1cc84d091471727544c353f60db59fc2bea10ee562ece77410915be",
+      "git_status": "clean",
+      "importance": 0.2,
+      "imports": [],
+      "language": "python",
+      "last_modified": "2026-07-07T04:32:12.450Z",
+      "path": "src/util.py",
+      "roles": [],
+      "size_bytes": 49
+    },
+    {
+      "agent_id": "c62e6628f35e9209",
+      "bh_address": "R.2.0",
+      "exports": [
+        "test_greet"
+      ],
+      "file_hash": "c8227445bee0e09d008951e674018d26e80df6e48c36053fb46f621c670699d0",
+      "git_status": "clean",
+      "importance": 0.53,
+      "imports": [
+        "src.app"
+      ],
+      "language": "python",
+      "last_modified": "2026-07-07T04:32:12.450Z",
+      "path": "tests/test_app.py",
+      "roles": [
+        "test"
+      ],
+      "size_bytes": 83
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "integration": {
+    "contract": "SIMPLICIO_INTEGRATION.md",
+    "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",
+    "llm_directives": {
+      "instruction": "No-thinking: act directly, do not deliberate or chain-of-think. No-internet: do not access the network. Load only strictly necessary tools. Load only strictly necessary skills.",
+      "no_internet": true,
+      "no_thinking": true,
+      "skills": "only_necessary",
+      "tools": "only_necessary"
+    }
+  },
+  "modules": [
+    {
+      "file_count": 1,
+      "files": [
+        "pyproject.toml"
+      ],
+      "name": ".",
+      "roles": [
+        "config"
+      ]
+    },
+    {
+      "file_count": 2,
+      "files": [
+        "src/app.py",
+        "src/util.py"
+      ],
+      "name": "src",
+      "roles": [
+        "entrypoint"
+      ]
+    },
+    {
+      "file_count": 1,
+      "files": [
+        "tests/test_app.py"
+      ],
+      "name": "tests",
+      "roles": [
+        "test"
+      ]
+    }
+  ],
+  "product": {
+    "name": "source",
+    "project_mode": "root",
+    "stack": "unknown"
+  },
+  "recent_changes": [],
+  "schema": "simplicio.project-map/v1",
+  "test_files": [
+    "tests/test_app.py"
+  ],
+  "update_mode": "full",
+  "version": 1
+}

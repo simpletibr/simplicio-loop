@@ -1,0 +1,49 @@
+{
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "items": [
+    {
+      "change_type": "feature",
+      "id": "fc1f7e40488501a2",
+      "language": "python",
+      "line": 4,
+      "path": "src/app.py",
+      "snippet": "\n\ndef greet(name: str) -> str:\n    \"\"\"Return a greeting for ``name``.\"\"\"\n    return f\"Hello, {name}!\"",
+      "summary": "feature precedent in src/app.py",
+      "tags": [
+        "entrypoint",
+        "python",
+        "app"
+      ]
+    },
+    {
+      "change_type": "feature",
+      "id": "9c52fa3f2726b48c",
+      "language": "python",
+      "line": 1,
+      "path": "src/util.py",
+      "snippet": "def add(a: int, b: int) -> int:\n    return a + b\n",
+      "summary": "feature precedent in src/util.py",
+      "tags": [
+        "python",
+        "util"
+      ]
+    },
+    {
+      "change_type": "test",
+      "id": "16271231ce0948ce",
+      "language": "python",
+      "line": 4,
+      "path": "tests/test_app.py",
+      "snippet": "\n\ndef test_greet():\n    assert greet(\"x\") == \"Hello, x!\"\n",
+      "summary": "test precedent in tests/test_app.py",
+      "tags": [
+        "test",
+        "python",
+        "app"
+      ]
+    }
+  ],
+  "schema": "simplicio.precedent-index/v1",
+  "source_project_map": ".simplicio/project-map.json",
+  "version": 1
+}

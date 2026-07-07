@@ -1,0 +1,47 @@
+{
+  "counts": {
+    "calls": 3,
+    "edges": 4,
+    "imports": 1
+  },
+  "edges": [
+    {
+      "confidence": 0.48,
+      "line": 6,
+      "source_file": "spec/greet.spec.js",
+      "source_symbol": null,
+      "target_file": "src/index.js",
+      "target_symbol": "src/index.js::greet",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.82,
+      "import": "../src/index.js",
+      "source_file": "spec/greet.spec.js",
+      "target_file": "src/index.js",
+      "type": "imports"
+    },
+    {
+      "confidence": 0.58,
+      "line": 3,
+      "source_file": "src/index.js",
+      "source_symbol": "src/index.js::greet",
+      "target_file": "src/index.js",
+      "target_symbol": "src/index.js::greet",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "line": 7,
+      "source_file": "src/index.js",
+      "source_symbol": "src/index.js::main",
+      "target_file": "src/index.js",
+      "target_symbol": "src/index.js::main",
+      "type": "calls"
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "schema": "simplicio.call-graph/v1",
+  "source_symbol_index": ".simplicio/symbol-index.json",
+  "version": 1
+}

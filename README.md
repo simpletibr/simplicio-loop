@@ -90,6 +90,14 @@ delivery loop"]
 - [simplicio-prompt](https://github.com/wesleysimplicio/simplicio-prompt) provides fan-out and consensus runtime patterns.
 - [simplicio-sprint](https://github.com/wesleysimplicio/simplicio-sprint) turns cards into draft PR delivery loops.
 
+Who currently depends on this repo, and with what minimum version, is tracked
+in [SIMPLICIO_ECOSYSTEM.md](SIMPLICIO_ECOSYSTEM.md) — a **generated file**
+(`scripts/generate-ecosystem-doc.py`, issue #156); do not hand-edit it. The
+JSON shape of the `.simplicio/*.json` artifacts this repo produces is likewise
+a versioned, testable contract, not free-form output — see
+[contracts/mapper-artifacts/v1/](contracts/mapper-artifacts/v1/README.md)
+(issue #157).
+
 ## Documentation standard
 
 - [SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRATION.md)

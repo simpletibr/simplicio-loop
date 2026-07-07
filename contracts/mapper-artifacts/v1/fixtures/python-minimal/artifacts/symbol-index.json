@@ -1,0 +1,60 @@
+{
+  "counts": {
+    "files": 3,
+    "symbols": 4
+  },
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "root": "<fixture-root>",
+  "schema": "simplicio.symbol-index/v1",
+  "symbols": [
+    {
+      "defined_in": "src/app.py",
+      "evidence": {
+        "file": "src/app.py",
+        "line": 2
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 2,
+      "name": "greet",
+      "qualified_name": "src/app.py::greet"
+    },
+    {
+      "defined_in": "src/app.py",
+      "evidence": {
+        "file": "src/app.py",
+        "line": 7
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 7,
+      "name": "main",
+      "qualified_name": "src/app.py::main"
+    },
+    {
+      "defined_in": "src/util.py",
+      "evidence": {
+        "file": "src/util.py",
+        "line": 1
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 1,
+      "name": "add",
+      "qualified_name": "src/util.py::add"
+    },
+    {
+      "defined_in": "tests/test_app.py",
+      "evidence": {
+        "file": "tests/test_app.py",
+        "line": 2
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 2,
+      "name": "test_greet",
+      "qualified_name": "tests/test_app.py::test_greet"
+    }
+  ],
+  "version": 1
+}

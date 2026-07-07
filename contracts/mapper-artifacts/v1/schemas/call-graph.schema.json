@@ -1,0 +1,39 @@
+{
+  "$id": "simplicio.call-graph/v1",
+  "title": "simplicio-mapper call-graph.json (v1)",
+  "description": "calls/imports edges derived from symbol-index.json. Edge shape varies by `type`: an `imports` edge has no source_symbol/target_symbol/line; a `calls` edge has no `import`, and its source_symbol may be null when the caller could not be resolved to a specific symbol.",
+  "type": "object",
+  "required": ["schema", "version", "generated_at", "source_symbol_index", "edges", "counts"],
+  "properties": {
+    "schema": { "type": "string", "enum": ["simplicio.call-graph/v1"] },
+    "version": { "type": "integer" },
+    "generated_at": { "type": "string" },
+    "source_symbol_index": { "type": "string" },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "source_file", "target_file", "confidence"],
+        "properties": {
+          "type": { "type": "string", "enum": ["calls", "imports"] },
+          "source_file": { "type": "string" },
+          "target_file": { "type": "string" },
+          "source_symbol": { "type": ["string", "null"] },
+          "target_symbol": { "type": ["string", "null"] },
+          "import": { "type": "string" },
+          "line": { "type": "integer" },
+          "confidence": { "type": "number" }
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "required": ["edges", "imports", "calls"],
+      "properties": {
+        "edges": { "type": "integer" },
+        "imports": { "type": "integer" },
+        "calls": { "type": "integer" }
+      }
+    }
+  }
+}

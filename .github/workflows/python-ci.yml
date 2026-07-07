@@ -62,6 +62,12 @@ jobs:
       - name: TOON-CONTRACT drift check (issue #149)
         run: python scripts/sync_toon_contract.py check
 
+      - name: SIMPLICIO_ECOSYSTEM.md freshness check (issue #156)
+        run: python scripts/generate-ecosystem-doc.py --check
+
+      - name: mapper-artifacts contract check (issue #157)
+        run: python scripts/regen_contract_fixtures.py check
+
   rust-tests:
     name: cargo test (PyO3 crate)
     runs-on: ubuntu-latest

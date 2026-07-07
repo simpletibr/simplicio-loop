@@ -1,0 +1,18 @@
+{
+  "$comment": "Test-only fixture for tests/python/test_generate_ecosystem_doc.py (issue #156). Simulates two kinds of drift the detector in scripts/generate-ecosystem-doc.py must catch: a consumer whose declared floor trails the current release ('behind', an old/stale constraint someone forgot to bump) and a consumer whose declared floor is newer than the current release ('ahead', a hard divergence — the consumer expects capabilities simplicio-mapper has not shipped yet).",
+  "schema": "simplicio.ecosystem-consumers/v1",
+  "consumers": [
+    {
+      "name": "simplicio-fixture-behind",
+      "repo": "https://github.com/wesleysimplicio/simplicio-fixture-behind",
+      "min_version": "0.10.0",
+      "constraint_source": "test fixture: old constraint, never bumped after later mapper releases"
+    },
+    {
+      "name": "simplicio-fixture-ahead",
+      "repo": "https://github.com/wesleysimplicio/simplicio-fixture-ahead",
+      "min_version": "99.0.0",
+      "constraint_source": "test fixture: declares a mapper version newer than what has been released"
+    }
+  ]
+}

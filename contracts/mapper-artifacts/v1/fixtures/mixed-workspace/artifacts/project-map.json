@@ -1,0 +1,247 @@
+{
+  "agent_tree": {
+    "agent_id": "8c2574892063f995",
+    "bh_address": "R",
+    "children": [
+      {
+        "agent_id": "b6756361cf9057a4",
+        "bh_address": "R.0",
+        "children": [
+          {
+            "agent_id": "eeb42a9b5bbe7343",
+            "bh_address": "R.0.0",
+            "language": "json",
+            "path": "package.json",
+            "roles": [
+              "config"
+            ]
+          }
+        ],
+        "module": "."
+      },
+      {
+        "agent_id": "638066da3589a01b",
+        "bh_address": "R.1",
+        "children": [
+          {
+            "agent_id": "dedc0f1f7e6e0aae",
+            "bh_address": "R.1.0",
+            "language": "python",
+            "path": "backend/server.py",
+            "roles": [
+              "entrypoint"
+            ]
+          },
+          {
+            "agent_id": "97735bdb05e8940e",
+            "bh_address": "R.1.1",
+            "language": "python",
+            "path": "backend/tests/test_server.py",
+            "roles": [
+              "test"
+            ]
+          }
+        ],
+        "module": "backend"
+      },
+      {
+        "agent_id": "2f42337dd49075f2",
+        "bh_address": "R.2",
+        "children": [
+          {
+            "agent_id": "c62e6628f35e9209",
+            "bh_address": "R.2.0",
+            "language": "javascript",
+            "path": "frontend/src/App.jsx",
+            "roles": [
+              "entrypoint"
+            ]
+          }
+        ],
+        "module": "frontend"
+      }
+    ],
+    "module": "."
+  },
+  "architecture": {
+    "signals": [
+      "react"
+    ],
+    "system_type": "web"
+  },
+  "changed_files": [],
+  "config_files": [
+    "package.json"
+  ],
+  "dependencies": {
+    "dev": [],
+    "manifest": "package.json",
+    "package_manager": "npm",
+    "runtime": []
+  },
+  "entities": [
+    {
+      "name": "app",
+      "score": 3
+    },
+    {
+      "name": "handle",
+      "score": 2
+    },
+    {
+      "name": "health",
+      "score": 2
+    },
+    {
+      "name": "request",
+      "score": 2
+    },
+    {
+      "name": "server",
+      "score": 2
+    },
+    {
+      "name": "package",
+      "score": 1
+    }
+  ],
+  "entry_points": [
+    "backend/server.py",
+    "frontend/src/App.jsx"
+  ],
+  "files": [
+    {
+      "agent_id": "dedc0f1f7e6e0aae",
+      "bh_address": "R.1.0",
+      "exports": [
+        "handle_request",
+        "main"
+      ],
+      "file_hash": "2f3a40daddd9026a6fd1d33a7d069be23b1c0a5f7ce2ed277525fa3333a59d6a",
+      "git_status": "clean",
+      "importance": 0.65,
+      "imports": [],
+      "language": "python",
+      "last_modified": "2026-07-07T04:32:12.448Z",
+      "path": "backend/server.py",
+      "roles": [
+        "entrypoint"
+      ],
+      "size_bytes": 266
+    },
+    {
+      "agent_id": "97735bdb05e8940e",
+      "bh_address": "R.1.1",
+      "exports": [
+        "test_health"
+      ],
+      "file_hash": "f9445ff0a28eaa52342f777864f5ddef4d8c7230e79cbfc7e2ebf08f543f4ba3",
+      "git_status": "clean",
+      "importance": 0.53,
+      "imports": [
+        "backend.server"
+      ],
+      "language": "python",
+      "last_modified": "2026-07-07T04:32:12.448Z",
+      "path": "backend/tests/test_server.py",
+      "roles": [
+        "test"
+      ],
+      "size_bytes": 108
+    },
+    {
+      "agent_id": "c62e6628f35e9209",
+      "bh_address": "R.2.0",
+      "exports": [
+        "App"
+      ],
+      "file_hash": "d80da0c97876805398c69393d73e16589d09fee778e22f0d508a203663d163a1",
+      "git_status": "clean",
+      "importance": 0.73,
+      "imports": [
+        "react"
+      ],
+      "language": "javascript",
+      "last_modified": "2026-07-07T04:32:12.449Z",
+      "path": "frontend/src/App.jsx",
+      "roles": [
+        "entrypoint"
+      ],
+      "size_bytes": 120
+    },
+    {
+      "agent_id": "eeb42a9b5bbe7343",
+      "bh_address": "R.0.0",
+      "exports": [],
+      "file_hash": "7d3f4dc67b5de15ab8b3e49ed8e44eb68152ef7b84c3d5e1b4e52a8fdf0f5f6e",
+      "git_status": "clean",
+      "importance": 0.32,
+      "imports": [],
+      "language": "json",
+      "last_modified": "2026-07-07T04:32:12.449Z",
+      "path": "package.json",
+      "roles": [
+        "config"
+      ],
+      "size_bytes": 80
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "integration": {
+    "contract": "SIMPLICIO_INTEGRATION.md",
+    "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",
+    "llm_directives": {
+      "instruction": "No-thinking: act directly, do not deliberate or chain-of-think. No-internet: do not access the network. Load only strictly necessary tools. Load only strictly necessary skills.",
+      "no_internet": true,
+      "no_thinking": true,
+      "skills": "only_necessary",
+      "tools": "only_necessary"
+    }
+  },
+  "modules": [
+    {
+      "file_count": 1,
+      "files": [
+        "package.json"
+      ],
+      "name": ".",
+      "roles": [
+        "config"
+      ]
+    },
+    {
+      "file_count": 2,
+      "files": [
+        "backend/server.py",
+        "backend/tests/test_server.py"
+      ],
+      "name": "backend",
+      "roles": [
+        "entrypoint",
+        "test"
+      ]
+    },
+    {
+      "file_count": 1,
+      "files": [
+        "frontend/src/App.jsx"
+      ],
+      "name": "frontend",
+      "roles": [
+        "entrypoint"
+      ]
+    }
+  ],
+  "product": {
+    "name": "sample-mixed-workspace",
+    "project_mode": "root",
+    "stack": "unknown"
+  },
+  "recent_changes": [],
+  "schema": "simplicio.project-map/v1",
+  "test_files": [
+    "backend/tests/test_server.py"
+  ],
+  "update_mode": "full",
+  "version": 1
+}
