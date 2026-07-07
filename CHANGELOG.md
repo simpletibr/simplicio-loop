@@ -1,6 +1,22 @@
 # Changelog
 
-## [Unreleased]
+## [0.9.5] — 2026-07-07
+
+### Fixed
+- **Native `simplicio edit` delegation now genuinely activates.** The 0.9.4
+  entry below shipped the delegation wired up, but `_translate_native_result`
+  checked the native payload against this module's own `RESULT_SCHEMA`
+  (`simplicio.mechanical-edit-result/v1`) — the real native schema is
+  `simplicio.edit-result/v1`, with a genuinely different field shape
+  (`changed`/`file`/`operations_applied` vs this module's own
+  `noop`/`files`/`operation_count`), not just a differently-spelled schema
+  tag. Rewrote the translator to map the real fields. Deliberate exclusion:
+  a native `status == "checks_failed"` now falls through to the Python path
+  rather than being translated, because the native binary does not roll back
+  the file write on a failed post-edit phase while this module's Python path
+  does — translating that case would misrepresent the file as unchanged.
+  Added a real end-to-end test against the installed `simplicio` binary
+  (not mocked) proving the native path activates today.
 
 ### Added
 - **Native-first precedent search via `simplicio precedent search`.**
