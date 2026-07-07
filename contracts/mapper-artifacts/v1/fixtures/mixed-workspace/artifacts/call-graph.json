@@ -1,0 +1,65 @@
+{
+  "counts": {
+    "calls": 5,
+    "edges": 6,
+    "imports": 1
+  },
+  "edges": [
+    {
+      "confidence": 0.58,
+      "line": 4,
+      "source_file": "backend/server.py",
+      "source_symbol": "backend/server.py::handle_request",
+      "target_file": "backend/server.py",
+      "target_symbol": "backend/server.py::handle_request",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "line": 10,
+      "source_file": "backend/server.py",
+      "source_symbol": "backend/server.py::main",
+      "target_file": "backend/server.py",
+      "target_symbol": "backend/server.py::main",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "line": 5,
+      "source_file": "backend/tests/test_server.py",
+      "source_symbol": "backend/tests/test_server.py::test_health",
+      "target_file": "backend/server.py",
+      "target_symbol": "backend/server.py::handle_request",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.65,
+      "import": "backend.server",
+      "source_file": "backend/tests/test_server.py",
+      "target_file": "backend/server.py",
+      "type": "imports"
+    },
+    {
+      "confidence": 0.58,
+      "line": 4,
+      "source_file": "backend/tests/test_server.py",
+      "source_symbol": "backend/tests/test_server.py::test_health",
+      "target_file": "backend/tests/test_server.py",
+      "target_symbol": "backend/tests/test_server.py::test_health",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "line": 3,
+      "source_file": "frontend/src/App.jsx",
+      "source_symbol": "frontend/src/App.jsx::App",
+      "target_file": "frontend/src/App.jsx",
+      "target_symbol": "frontend/src/App.jsx::App",
+      "type": "calls"
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "schema": "simplicio.call-graph/v1",
+  "source_symbol_index": ".simplicio/symbol-index.json",
+  "version": 1
+}

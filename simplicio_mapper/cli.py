@@ -121,6 +121,7 @@ USAGE
   simplicio-mapper export-docs <path> --target <dir> [--json]
   simplicio-mapper map [--root <dir>] [--incremental] [--watch]
   simplicio-mapper update [--root <dir>] [--watch]
+  simplicio-mapper contract validate <path> [<path> ...]
 
 OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
@@ -142,6 +143,10 @@ OPTIONS
   drift <path>          Spec-drift: placeholders, orphan specs/code, stale docs.
   docs <path>           Render architecture inventory markdown under .simplicio/docs.
   export-docs <path>    Copy rendered markdown docs to a local target directory.
+  contract validate <path>...
+                        Validate mapper-artifact JSON file(s)/dir(s) against
+                        the versioned schemas in
+                        contracts/mapper-artifacts/v1/schemas/ (issue #157).
   --range <spec>        sync: git diff range (e.g. main..HEAD) instead of the working tree.
   --staged              sync: diff staged changes instead of the working tree.
   --check               sync: report staleness without writing (exit 1 if stale).
@@ -2695,6 +2700,13 @@ def _run_status(opts: dict) -> int:
 
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    # `contract` takes a subcommand + a list of paths, not the usual
+    # `<command> <root>` shape the rest of the CLI expects, so it is
+    # dispatched before `_parse_args` (issue #157, mapper-artifacts contract).
+    if argv and argv[0] == "contract":
+        from .contract import run_contract_cli
+
+        return run_contract_cli(argv[1:])
     opts = _parse_args(argv)
     if opts["background"] and opts["command"] in ("index", "map", "update"):
         return _run_background(opts)

@@ -4,6 +4,17 @@ This contract defines the machine-readable outputs that `simplicio-dev-cli`,
 `simplicio-sprint`, and other tools can consume without depending on the
 markdown starter docs.
 
+> **Versioned schemas + fixtures (issue #157):** the shapes described below
+> are additionally codified as versioned JSON Schemas with real,
+> mapper-generated fixtures under
+> [`contracts/mapper-artifacts/v1/`](contracts/mapper-artifacts/v1/README.md).
+> Validate any `.simplicio/*.json` file or `index --json` payload with
+> `simplicio-mapper contract validate <path>`; CI runs
+> `scripts/regen_contract_fixtures.py check` so a mapper change that breaks
+> this contract fails the build unless the contract is bumped deliberately
+> (see that README for the compatibility policy and how downstream repos
+> should consume the fixtures).
+
 ## Artifact Locations
 
 Default output directory: `.simplicio/`
@@ -362,6 +373,17 @@ The JSON artifacts are additive. Existing markdown docs in `.specs/`, `docs/`,
 and agent instruction files remain the human-readable source for project
 operation. If `.simplicio/` is absent, consumers should fall back to the current
 markdown or file-inspection behavior.
+
+For the six core artifacts (`project-map.json`, `precedent-index.json`,
+`architecture-inventory.json`, `symbol-index.json`, `call-graph.json`,
+`index --json`), "additive" is enforced, not just stated: schemas under
+[`contracts/mapper-artifacts/v1/`](contracts/mapper-artifacts/v1/README.md)
+only require the fields a consumer can currently rely on and allow unknown
+extra fields, so purely-additive mapper changes never fail validation. A
+change that removes or retypes a required field fails
+`scripts/regen_contract_fixtures.py check` in CI, forcing a deliberate
+`contracts/mapper-artifacts/v2/` bump (with its own schemas/fixtures,
+`v1/` left untouched) instead of silently breaking downstream parsers.
 
 ## Mechanical Edit Contract (issue #110)
 

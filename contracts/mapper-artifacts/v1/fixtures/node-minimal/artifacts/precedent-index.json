@@ -1,0 +1,36 @@
+{
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "items": [
+    {
+      "change_type": "test",
+      "id": "8dc24b7caabb3743",
+      "language": "javascript",
+      "line": 5,
+      "path": "spec/greet.spec.js",
+      "snippet": "const { greet } = require(\"../src/index.js\");\n\ntest(\"greet returns a greeting\", () => {\n  assert.strictEqual(greet(\"x\"), \"Hello, x!\");\n});",
+      "summary": "test precedent in spec/greet.spec.js",
+      "tags": [
+        "test",
+        "javascript",
+        "spec",
+        "greet"
+      ]
+    },
+    {
+      "change_type": "feature",
+      "id": "dcece681b4e0aba6",
+      "language": "javascript",
+      "line": 3,
+      "path": "src/index.js",
+      "snippet": "\"use strict\";\n\nfunction greet(name) {\n  return `Hello, ${name}!`;\n}",
+      "summary": "feature precedent in src/index.js",
+      "tags": [
+        "entrypoint",
+        "javascript"
+      ]
+    }
+  ],
+  "schema": "simplicio.precedent-index/v1",
+  "source_project_map": ".simplicio/project-map.json",
+  "version": 1
+}

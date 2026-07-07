@@ -1,0 +1,296 @@
+{
+  "architecture": {
+    "signals": [],
+    "system_type": "library-or-service"
+  },
+  "coverage": {
+    "files": 4,
+    "layers": 4,
+    "modules": 3,
+    "relationships": 5,
+    "symbols": 4,
+    "tests": 1
+  },
+  "files": [
+    {
+      "evidence": [
+        {
+          "file": "pyproject.toml"
+        }
+      ],
+      "imports": [],
+      "language": "toml",
+      "layers": [
+        "config"
+      ],
+      "module": ".",
+      "path": "pyproject.toml",
+      "roles": [
+        "config"
+      ],
+      "summary": "Configures tooling, build, runtime or packaging behavior.",
+      "symbols": []
+    },
+    {
+      "evidence": [
+        {
+          "file": "src/app.py"
+        }
+      ],
+      "imports": [],
+      "language": "python",
+      "layers": [
+        "entrypoint"
+      ],
+      "module": "src",
+      "path": "src/app.py",
+      "roles": [
+        "entrypoint"
+      ],
+      "summary": "Starts a CLI, runtime or package entrypoint.",
+      "symbols": [
+        "greet",
+        "main"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "file": "src/util.py"
+        }
+      ],
+      "imports": [],
+      "language": "python",
+      "layers": [
+        "code"
+      ],
+      "module": "src",
+      "path": "src/util.py",
+      "roles": [],
+      "summary": "Defines exported symbols: add.",
+      "symbols": [
+        "add"
+      ]
+    },
+    {
+      "evidence": [
+        {
+          "file": "tests/test_app.py"
+        }
+      ],
+      "imports": [
+        "src.app"
+      ],
+      "language": "python",
+      "layers": [
+        "test"
+      ],
+      "module": "tests",
+      "path": "tests/test_app.py",
+      "roles": [
+        "test"
+      ],
+      "summary": "Verifies project behavior through automated tests.",
+      "symbols": [
+        "test_greet"
+      ]
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "layers": [
+    {
+      "evidence": [
+        {
+          "file": "src/util.py"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "src/util.py"
+      ],
+      "modules": [
+        "src"
+      ],
+      "name": "code"
+    },
+    {
+      "evidence": [
+        {
+          "file": "pyproject.toml"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "pyproject.toml"
+      ],
+      "modules": [
+        "."
+      ],
+      "name": "config"
+    },
+    {
+      "evidence": [
+        {
+          "file": "src/app.py"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "src/app.py"
+      ],
+      "modules": [
+        "src"
+      ],
+      "name": "entrypoint"
+    },
+    {
+      "evidence": [
+        {
+          "file": "tests/test_app.py"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "tests/test_app.py"
+      ],
+      "modules": [
+        "tests"
+      ],
+      "name": "test"
+    }
+  ],
+  "modules": [
+    {
+      "entry_points": [],
+      "evidence": [
+        {
+          "file": "pyproject.toml"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "pyproject.toml"
+      ],
+      "layers": [
+        "config"
+      ],
+      "name": ".",
+      "public_symbols": [],
+      "summary": "Groups 1 files across 1 detected layers.",
+      "tests": []
+    },
+    {
+      "entry_points": [
+        "src/app.py"
+      ],
+      "evidence": [
+        {
+          "file": "src/app.py"
+        },
+        {
+          "file": "src/util.py"
+        }
+      ],
+      "file_count": 2,
+      "files": [
+        "src/app.py",
+        "src/util.py"
+      ],
+      "layers": [
+        "code",
+        "entrypoint"
+      ],
+      "name": "src",
+      "public_symbols": [
+        "add",
+        "greet",
+        "main"
+      ],
+      "summary": "Groups 2 files across 2 detected layers.",
+      "tests": []
+    },
+    {
+      "entry_points": [],
+      "evidence": [
+        {
+          "file": "tests/test_app.py"
+        }
+      ],
+      "file_count": 1,
+      "files": [
+        "tests/test_app.py"
+      ],
+      "layers": [
+        "test"
+      ],
+      "name": "tests",
+      "public_symbols": [
+        "test_greet"
+      ],
+      "summary": "Groups 1 files across 1 detected layers.",
+      "tests": [
+        "tests/test_app.py"
+      ]
+    }
+  ],
+  "notes": [
+    "Generated from deterministic repository inspection.",
+    "Relationship confidence below 1.0 means the edge is heuristic and should be reviewed before making broad claims."
+  ],
+  "product": {
+    "name": "source",
+    "project_mode": "root",
+    "stack": "unknown"
+  },
+  "relationships": [
+    {
+      "confidence": 0.58,
+      "line": 4,
+      "source_file": "src/app.py",
+      "source_symbol": "src/app.py::greet",
+      "target_file": "src/app.py",
+      "target_symbol": "src/app.py::greet",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "line": 9,
+      "source_file": "src/app.py",
+      "source_symbol": "src/app.py::main",
+      "target_file": "src/app.py",
+      "target_symbol": "src/app.py::main",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "line": 5,
+      "source_file": "tests/test_app.py",
+      "source_symbol": "tests/test_app.py::test_greet",
+      "target_file": "src/app.py",
+      "target_symbol": "src/app.py::greet",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.65,
+      "import": "src.app",
+      "source_file": "tests/test_app.py",
+      "target_file": "src/app.py",
+      "type": "imports"
+    },
+    {
+      "confidence": 0.58,
+      "line": 4,
+      "source_file": "tests/test_app.py",
+      "source_symbol": "tests/test_app.py::test_greet",
+      "target_file": "tests/test_app.py",
+      "target_symbol": "tests/test_app.py::test_greet",
+      "type": "calls"
+    }
+  ],
+  "root": "<fixture-root>",
+  "schema": "simplicio.architecture-inventory/v1",
+  "source_call_graph": ".simplicio/call-graph.json",
+  "source_project_map": ".simplicio/project-map.json",
+  "source_symbol_index": ".simplicio/symbol-index.json",
+  "version": 1
+}
