@@ -1,0 +1,113 @@
+# Publish to npm — publica o pacote Node/scaffolder automaticamente quando
+# main é atualizada. Idempotente: compara a versão local com a publicada no
+# npm registry e só publica se diferente.
+#
+# Requisitos:
+#   - Secret `NPM_TOKEN` configurado no repositório.
+
+name: Publish to npm
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-npm-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish npm package
+    runs-on: ubuntu-latest
+    if: github.repository == 'wesleysimplicio/simplicio-mapper'
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Read package metadata
+        id: meta
+        run: |
+          set -euo pipefail
+          PKG_NAME=$(node -p "require('./package.json').name")
+          LOCAL_VERSION=$(node -p "require('./package.json').version")
+          PUBLISHED_VERSION=$(npm view "$PKG_NAME" version 2>/dev/null || echo "none")
+          echo "name=$PKG_NAME" >> "$GITHUB_OUTPUT"
+          echo "local=$LOCAL_VERSION" >> "$GITHUB_OUTPUT"
+          echo "published=$PUBLISHED_VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$LOCAL_VERSION" != "$PUBLISHED_VERSION" ]; then
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Skip notice (version unchanged)
+        if: steps.meta.outputs.should_publish != 'true'
+        run: echo "::notice::Versão ${{ steps.meta.outputs.local }} já publicada no npm. Skipping."
+
+      - name: Install dependencies
+        if: steps.meta.outputs.should_publish == 'true'
+        run: npm ci
+
+      - name: Validate before publish
+        if: steps.meta.outputs.should_publish == 'true'
+        run: |
+          npm run lint
+          npm test
+
+      - name: Verify npm token presence
+        if: steps.meta.outputs.should_publish == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::Secret NPM_TOKEN está vazio ou ausente no repositório."
+            exit 1
+          fi
+
+      - name: Publish to npm
+        if: steps.meta.outputs.should_publish == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
+
+      - name: Tag release
+        if: steps.meta.outputs.should_publish == 'true'
+        run: |
+          set -euo pipefail
+          TAG="v${{ steps.meta.outputs.local }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG já existe, pulando."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Publish to npm"
+            echo ""
+            echo "- Pacote: \`${{ steps.meta.outputs.name }}\`"
+            echo "- Versão local: \`${{ steps.meta.outputs.local }}\`"
+            echo "- Versão publicada: \`${{ steps.meta.outputs.published }}\`"
+            echo "- Ação: \`${{ steps.meta.outputs.should_publish == 'true' && 'PUBLICADO' || 'SKIPPED (versão inalterada)' }}\`"
+            echo "- Requisito manual: secret \`NPM_TOKEN\` configurado no repositório."
+          } >> "$GITHUB_STEP_SUMMARY"
