@@ -37,6 +37,8 @@ const ROOT = path.resolve(__dirname, "..");
 const AGENTS_PATH = path.join(ROOT, "AGENTS.md");
 const CLAUDE_PATH = path.join(ROOT, "CLAUDE.md");
 const COPILOT_PATH = path.join(ROOT, ".github", "copilot-instructions.md");
+const ROOT_YOOL_PATH = path.join(ROOT, "YOOL_TUPLE_HAMT.md");
+const DOCS_YOOL_PATH = path.join(ROOT, "docs", "YOOL_TUPLE_HAMT.md");
 
 // The only hand-maintained part of CLAUDE.md going forward: this preamble
 // plus a "---" separator, followed by AGENTS.md's content verbatim.
@@ -62,6 +64,14 @@ const CLAUDE_PREAMBLE = `# CLAUDE.md
 // AGENTS.md's shared sections, and it must keep pointing readers at AGENTS.md.
 const COPILOT_MAX_LINES = 140;
 const COPILOT_REQUIRED_SNIPPETS = ["AGENTS.md"];
+const DOCS_YOOL_EXPECTED = `# YOOL_TUPLE_HAMT.md
+
+> Stub de documentação: a cópia canônica e completa vive na raiz em
+> [\`../YOOL_TUPLE_HAMT.md\`](../YOOL_TUPLE_HAMT.md).
+>
+> Este arquivo existe só para preservar links históricos em \`docs/\`.
+> Não duplique nem edite o spec aqui; atualize o arquivo da raiz.
+`;
 
 function buildExpectedClaudeMd() {
   const agents = fs.readFileSync(AGENTS_PATH, "utf8");
@@ -113,10 +123,31 @@ function checkCopilotStub() {
   return { ok: true };
 }
 
+function checkYoolStub() {
+  if (!fs.existsSync(ROOT_YOOL_PATH)) {
+    return { ok: false, reason: "YOOL_TUPLE_HAMT.md is missing at repo root." };
+  }
+  if (!fs.existsSync(DOCS_YOOL_PATH)) {
+    return { ok: false, reason: "docs/YOOL_TUPLE_HAMT.md is missing." };
+  }
+  const actual = fs.readFileSync(DOCS_YOOL_PATH, "utf8").trim();
+  const expected = DOCS_YOOL_EXPECTED.trim();
+  if (actual !== expected) {
+    return {
+      ok: false,
+      reason:
+        "docs/YOOL_TUPLE_HAMT.md is no longer the expected stub that points to the root spec. " +
+        "Run `node scripts/check-doc-sync.js sync` and commit the result.",
+    };
+  }
+  return { ok: true };
+}
+
 function runCheck() {
   const claude = checkClaudeSync();
   const copilot = checkCopilotStub();
-  const failures = [claude, copilot].filter((r) => !r.ok);
+  const yool = checkYoolStub();
+  const failures = [claude, copilot, yool].filter((r) => !r.ok);
   if (failures.length === 0) {
     console.log("[ok] CLAUDE.md is in sync with AGENTS.md; copilot-instructions.md stays a short stub.");
     return 0;
@@ -130,6 +161,7 @@ function runCheck() {
 
 function runSync() {
   fs.writeFileSync(CLAUDE_PATH, buildExpectedClaudeMd());
+  fs.writeFileSync(DOCS_YOOL_PATH, DOCS_YOOL_EXPECTED);
   console.log("[ok] regenerated CLAUDE.md from AGENTS.md.");
   return 0;
 }

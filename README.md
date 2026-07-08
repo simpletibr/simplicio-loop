@@ -101,7 +101,7 @@ delivery loop"]
 
 ## Proof and validation
 
-- Current local mapper version is 0.7.x with background indexing and docs-only modes.
+- Current capabilities and release history are tracked in [CHANGELOG.md](CHANGELOG.md) rather than hardcoded here.
 - This repo is the canonical standard for visible, versioned .simplicio artifacts.
 - It now carries the README globalization standard used across this workspace.
 
@@ -225,8 +225,10 @@ simplicio-mapper index . --docs --background
 simplicio-mapper map --watch         # re-map as files change locally
 ```
 
-Both `simplicio-mapper` and `llm-project-mapper` console scripts are installed,
-and the Python output is byte-for-byte compatible with the Node mapper's schema.
+Both `simplicio-mapper` and `llm-project-mapper` console scripts are installed.
+The Python engine is the canonical implementation; the Node fallback keeps the
+same base artifact schemas, but Brown-Hilbert-only fields such as
+`bh_address`, `agent_id`, and `agent_tree` currently remain Python-only.
 
 For orchestrators, `simplicio-mapper index <path>` is quiet by default. It
 returns `0` when artifacts are written/refreshed or already fresh, and `1` on

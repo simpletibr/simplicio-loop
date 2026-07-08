@@ -2,7 +2,7 @@
 # Roda em push (main/develop) e em todo pull_request
 #
 # Design note: este arquivo é o TEMPLATE de CI que o starter copia para
-# repositórios consumidores. No próprio repo `wesleysimplicio/llm-project-mapper`
+# repositórios consumidores. No próprio repo `wesleysimplicio/simplicio-mapper`
 # todos os jobs aqui são pulados via `if: github.repository != ...` porque o
 # starter não tem código de produção pra rodar lint/unit/e2e em formato
 # consumer. O CI real deste repo vive em `scaffold-self-check.yml`.
@@ -32,7 +32,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    if: github.repository != 'wesleysimplicio/llm-project-mapper'
+    if: github.repository != 'wesleysimplicio/simplicio-mapper'
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -54,7 +54,7 @@ jobs:
     name: Unit tests (node ${{ matrix.node-version }})
     needs: lint
     runs-on: ubuntu-latest
-    if: github.repository != 'wesleysimplicio/llm-project-mapper'
+    if: github.repository != 'wesleysimplicio/simplicio-mapper'
     timeout-minutes: 15
     strategy:
       fail-fast: false
@@ -89,7 +89,7 @@ jobs:
     name: E2E Playwright (node ${{ matrix.node-version }})
     needs: unit
     runs-on: ubuntu-latest
-    if: github.repository != 'wesleysimplicio/llm-project-mapper'
+    if: github.repository != 'wesleysimplicio/simplicio-mapper'
     timeout-minutes: 30
     strategy:
       fail-fast: false
