@@ -5,7 +5,7 @@
 # body, ADR linkado se houver mudanças em architecture/
 #
 # Design note: este arquivo é o TEMPLATE de DoD gate que o starter copia para
-# repositórios consumidores. O próprio repo `wesleysimplicio/llm-project-mapper`
+# repositórios consumidores. O próprio repo `wesleysimplicio/simplicio-mapper`
 # pula este job via `if: github.repository != ...` porque não tem suite Vitest
 # com `coverage-summary.json`. O DoD do starter é validado por
 # `scaffold-self-check.yml` (structure + CLI smoke + npm pack + shellcheck +
@@ -42,7 +42,7 @@ jobs:
   dod-check:
     name: Definition of Done
     runs-on: ubuntu-latest
-    if: github.repository != 'wesleysimplicio/llm-project-mapper'
+    if: github.repository != 'wesleysimplicio/simplicio-mapper'
     timeout-minutes: 15
     steps:
       - name: Checkout

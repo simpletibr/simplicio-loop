@@ -56,7 +56,7 @@ function main() {
     console.error(`  ${file.padEnd(36)} ${value}`);
   }
   console.error("\nRelease bumps must update all three files in the same commit.");
-  console.error("See CONTRIBUTING.md / .specs/workflow/RELEASE.md for the bump checklist.");
+  console.error("See .specs/workflow/CONTRIBUTING.md / .specs/workflow/RELEASE.md for the bump checklist.");
   return 1;
 }
 

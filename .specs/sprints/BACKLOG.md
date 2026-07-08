@@ -40,8 +40,8 @@ Lista priorizada de tudo que precisa ser feito. É a fonte da verdade de pendên
 | F3  | `business` — regras de negócio + glossário                            | #134  | P1         | 3    | done   |
 | F10 | `ask` — consultas estruturadas sobre o mapa                           | #141  | P2         | exp. | done   |
 | F9  | Manifest template vs produto (ADR-004)                                | #140  | P1         | pré-F7 | done |
-| F7  | `drift` — spec-drift e matriz de rastreabilidade                      | #138  | P1         | 4    | doing  |
-| F8  | GitHub Action de fluxos afetados no PR                                | #139  | P2         | 4    | todo   |
+| F7  | `drift` — spec-drift e matriz de rastreabilidade                      | #138  | P1         | 4    | done   |
+| F8  | GitHub Action de fluxos afetados no PR                                | #139  | P2         | 4    | done   |
 | F4b | Artifacts SVG standalone (flowchart/sequence/state/call-graph)        | #146  | P1         | 1    | done   |
 
 ## Dívida conhecida (surfaced pelo próprio `drift`/F7)
@@ -71,7 +71,7 @@ TEAM, DOMAIN, STACK — sem os angle brackets):
 
 ## Próximas decisões pendentes
 
-- F7 (`drift`) e F8 (GitHub Action) fecham o loop de governança spec-driven da épica #131.
+- Loop de governança spec-driven da épica #131 já está fechado com F7 (`drift`) e F8 (GitHub Action) entregues.
 - Preenchimento dos docs em "Dívida conhecida" depende de decisão de processo real do time
   (branch strategy, cadência de release, papéis) — não é um problema de código, é conteúdo
   que só o time pode fornecer com precisão.

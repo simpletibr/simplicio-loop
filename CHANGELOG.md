@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-07-07
+
+### Changed
+
+- CI/template hardening: fixed the self-repo guard in `ci.yml`/`dod.yml`
+  after the repository rename to `wesleysimplicio/simplicio-mapper`,
+  reduced Playwright to Chromium-only for this CLI-centric suite, added
+  Python coverage gating (`pytest-cov`, floor 88%), pip caching, a
+  non-blocking dependency-audit job, Dependabot config for npm/pip/cargo/
+  GitHub Actions, Trusted Publishing OIDC wiring for PyPI, and a new
+  guarded `publish-npm.yml` for the still-active npm scaffolder channel.
+- Mapper core: deep artifact builds now memoize file contents within a run
+  (single-read reuse across parse/precedent/symbol/call-graph passes),
+  emit deterministic `project_map.degraded` metadata, record skipped large
+  files, extract imports/symbols for Go/Rust/Java/Kotlin/PHP/Ruby, and
+  build up to three ranked precedents per file with deterministic
+  round-robin capping.
+- Docs/spec sync: README no longer hardcodes a stale local version claim or
+  overstates Node/Python parity, `AGENTS.md`/`CLAUDE.md` now describe npm as
+  an active scaffolder channel, `docs/YOOL_TUPLE_HAMT.md` became a stub that
+  points to the root canonical spec, and `scripts/check-doc-sync.js` now
+  checks/regenerates that relationship too.
+
 ## [0.17.0] - 2026-07-07
 
 ### Added
@@ -703,7 +726,8 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 - Remotion skills tutorial video in PT-BR. ([#1](https://github.com/wesleysimplicio/llm-project-mapper/pull/1))
 - i18n layer + English skills tutorial video. ([#2](https://github.com/wesleysimplicio/llm-project-mapper/pull/2))
 
-[Unreleased]: https://github.com/wesleysimplicio/llm-project-mapper/compare/v0.6.3...HEAD
+[Unreleased]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.17.0...v0.18.0
 [0.6.3]: https://github.com/wesleysimplicio/llm-project-mapper/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/wesleysimplicio/llm-project-mapper/compare/v0.6.1...v0.6.2
 [0.4.0]: https://github.com/wesleysimplicio/llm-project-mapper/compare/v0.3.2...v0.4.0

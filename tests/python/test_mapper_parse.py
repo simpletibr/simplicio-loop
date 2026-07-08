@@ -10,10 +10,12 @@ Run with: python3 -m unittest discover -s tests/python
 
 from __future__ import annotations
 
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -63,6 +65,15 @@ class HelperFunctionTest(unittest.TestCase):
         self.assertIn("os", imports)
         self.assertIn("collections", imports)
 
+    def test_parse_imports_expanded_languages(self) -> None:
+        self.assertIn("std::collections::HashMap", _parse_imports("use std::collections::HashMap;\n", "rust"))
+        self.assertIn("java.util.List", _parse_imports("import java.util.List;\n", "java"))
+        self.assertIn("kotlin.collections.List", _parse_imports("import kotlin.collections.List\n", "kotlin"))
+        php_imports = _parse_imports("use App\\Service\\UserService;\nrequire 'bootstrap.php';\n", "php")
+        self.assertIn("App\\Service\\UserService", php_imports)
+        self.assertIn("bootstrap.php", php_imports)
+        self.assertIn("json", _parse_imports("require 'json'\n", "ruby"))
+
     def test_parse_symbols_python_def(self) -> None:
         text = "def handler(request):\n    return None\n"
         symbols = _parse_symbols(text)
@@ -109,6 +120,24 @@ class BuildFileInventoryTest(unittest.TestCase):
         by_path = {f.path: f for f in files}
         self.assertIn("entrypoint", by_path["src/index.js"].roles)
         self.assertIn("test", by_path["tests/index.test.js"].roles)
+
+    def test_collect_text_files_reports_large_file_skip(self) -> None:
+        _write(self.dir, "src/huge.txt", "x" * 260_000)
+        skipped: list[str] = []
+        files = _build_file_inventory(str(self.dir), {"name": "fixture"}, {}, None, skipped_large_files=skipped)
+        self.assertTrue(all(f.path != "src/huge.txt" for f in files))
+        self.assertEqual(skipped, ["src/huge.txt"])
+
+    def test_git_status_timeout_marks_degraded(self) -> None:
+        from simplicio_mapper.mapper.parse import _git_status_map
+
+        degraded = {"git_timeout": False, "git_status_unavailable": False}
+        with mock.patch(
+            "simplicio_mapper.mapper.parse.subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd="git", timeout=3),
+        ):
+            self.assertEqual(_git_status_map(str(self.dir), degraded=degraded), {})
+        self.assertTrue(degraded["git_timeout"])
 
 
 if __name__ == "__main__":

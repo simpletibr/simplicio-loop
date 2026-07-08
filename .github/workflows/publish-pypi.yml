@@ -2,8 +2,8 @@
 # Idempotente: compara versão local com a publicada e só publica se diferente.
 #
 # Requisitos:
-#   - Secret `PYPI_API_TOKEN` configurado no repositório (token PyPI API).
-#   - Permissões `contents: write` (para criar tag).
+#   - Trusted Publisher configurado no PyPI para este repositório.
+#   - Permissões `contents: write` (para criar tag) e `id-token: write`.
 
 name: Publish to PyPI
 
@@ -95,23 +95,11 @@ jobs:
         if: steps.meta.outputs.should_publish == 'true'
         run: python -m twine check dist/*
 
-      - name: Verify PyPI token presence
-        if: steps.meta.outputs.should_publish == 'true'
-        env:
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          if [ -z "${TWINE_PASSWORD:-}" ]; then
-            echo "::error::Secret PYPI_API_TOKEN está vazio ou ausente no repositório."
-            exit 1
-          fi
-          echo "Token length: ${#TWINE_PASSWORD}"
-
       - name: Publish to PyPI
         if: steps.meta.outputs.should_publish == 'true'
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: python -m twine upload --non-interactive dist/*
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
 
       - name: Tag release
         if: steps.meta.outputs.should_publish == 'true'
@@ -137,4 +125,5 @@ jobs:
             echo "- Versão local: \`${{ steps.meta.outputs.local }}\`"
             echo "- Versão publicada: \`${{ steps.meta.outputs.published }}\`"
             echo "- Ação: \`${{ steps.meta.outputs.should_publish == 'true' && 'PUBLICADO' || 'SKIPPED (versão inalterada)' }}\`"
+            echo "- Nota: este workflow usa Trusted Publishing OIDC; configure o publisher correspondente no PyPI antes do primeiro publish."
           } >> "$GITHUB_STEP_SUMMARY"

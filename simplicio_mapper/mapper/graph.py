@@ -27,6 +27,7 @@ from .parse import (
     ENTRYPOINT_STEMS,
     MACRO_MAP_SCHEMA,
     SYMBOL_INDEX_SCHEMA,
+    _content_for,
     _json_text,
     _language_for,
     _layers_for_file,
@@ -34,7 +35,6 @@ from .parse import (
     _normalize_rel,
     _now_iso,
     _parse_json_safe,
-    _read_safe,
     _responsibility_for_file,
     _walk,
 )
@@ -179,11 +179,53 @@ def _symbol_definitions_for_file(file: ProjectFile, text: str) -> list[dict]:
                 "method",
             ),
         ]
-    elif file.language in {"go", "rust", "java", "kotlin", "php", "ruby"}:
+    elif file.language == "go":
+        patterns = [
+            (re.compile(r"^\s*type\s+([A-Za-z_]\w*)\s+struct\b", re.MULTILINE), "struct"),
+            (re.compile(r"^\s*type\s+([A-Za-z_]\w*)\s+interface\b", re.MULTILINE), "interface"),
+            (re.compile(r"^\s*func\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)\s*\(", re.MULTILINE), "function"),
+        ]
+    elif file.language == "rust":
+        patterns = [
+            (re.compile(r"^\s*(?:pub\s+)?(?:async\s+)?(?:unsafe\s+)?fn\s+([A-Za-z_]\w*)", re.MULTILINE), "function"),
+            (re.compile(r"^\s*(?:pub\s+)?struct\s+([A-Za-z_]\w*)", re.MULTILINE), "struct"),
+            (re.compile(r"^\s*(?:pub\s+)?enum\s+([A-Za-z_]\w*)", re.MULTILINE), "enum"),
+            (re.compile(r"^\s*(?:pub\s+)?trait\s+([A-Za-z_]\w*)", re.MULTILINE), "trait"),
+        ]
+    elif file.language == "java":
+        patterns = [
+            (re.compile(r"^\s*(?:public\s+|protected\s+|private\s+)?(?:abstract\s+|final\s+)?class\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
+            (re.compile(r"^\s*(?:public\s+|protected\s+|private\s+)?interface\s+([A-Za-z_]\w*)", re.MULTILINE), "interface"),
+            (re.compile(r"^\s*(?:public\s+|protected\s+|private\s+)?enum\s+([A-Za-z_]\w*)", re.MULTILINE), "enum"),
+            (re.compile(r"^\s*(?:public\s+|protected\s+|private\s+)?record\s+([A-Za-z_]\w*)", re.MULTILINE), "record"),
+            (
+                re.compile(
+                    r"(?:^|[;{}]\s*)(?:public|protected|private)\s+(?:static\s+)?(?:final\s+)?(?:synchronized\s+)?[A-Za-z0-9_<>,\[\]\s?]+\s+([A-Za-z_]\w*)\s*\(",
+                    re.MULTILINE,
+                ),
+                "method",
+            ),
+        ]
+    elif file.language == "kotlin":
+        patterns = [
+            (re.compile(r"^\s*(?:public\s+|private\s+|protected\s+|internal\s+)?class\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
+            (re.compile(r"^\s*(?:public\s+|private\s+|protected\s+|internal\s+)?interface\s+([A-Za-z_]\w*)", re.MULTILINE), "interface"),
+            (re.compile(r"^\s*(?:public\s+|private\s+|protected\s+|internal\s+)?object\s+([A-Za-z_]\w*)", re.MULTILINE), "object"),
+            (re.compile(r"^\s*(?:public\s+|private\s+|protected\s+|internal\s+)?fun\s+([A-Za-z_]\w*)", re.MULTILINE), "function"),
+        ]
+    elif file.language == "php":
+        patterns = [
+            (re.compile(r"^\s*(?:final\s+|abstract\s+)?class\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
+            (re.compile(r"^\s*interface\s+([A-Za-z_]\w*)", re.MULTILINE), "interface"),
+            (re.compile(r"^\s*trait\s+([A-Za-z_]\w*)", re.MULTILINE), "trait"),
+            (re.compile(r"^\s*enum\s+([A-Za-z_]\w*)", re.MULTILINE), "enum"),
+            (re.compile(r"^\s*function\s+([A-Za-z_]\w*)", re.MULTILINE), "function"),
+        ]
+    elif file.language == "ruby":
         patterns = [
             (re.compile(r"\bclass\s+([A-Za-z_]\w*)"), "class"),
-            (re.compile(r"\bfunction\s+([A-Za-z_]\w*)"), "function"),
-            (re.compile(r"\bdef\s+([A-Za-z_]\w*)"), "function"),
+            (re.compile(r"\bmodule\s+([A-Za-z_]\w*(?:::[A-Za-z_]\w*)*)"), "module"),
+            (re.compile(r"^\s*def\s+([A-Za-z_]\w*[!?=]?)", re.MULTILINE), "function"),
         ]
     else:
         return []
@@ -209,10 +251,15 @@ def _symbol_definitions_for_file(file: ProjectFile, text: str) -> list[dict]:
             })
     return sorted(symbols, key=lambda item: (item["defined_in"], item["line"], item["name"]))
 
-def _build_symbol_index(cwd: str, files: list[ProjectFile], generated_at: str) -> dict:
+def _build_symbol_index(
+    cwd: str,
+    files: list[ProjectFile],
+    generated_at: str,
+    contents: dict[str, str] | None = None,
+) -> dict:
     symbols = []
     for file in files:
-        text = _read_safe(os.path.join(cwd, file.path))
+        text = _content_for(cwd, file.path, contents)
         symbols.extend(_symbol_definitions_for_file(file, text))
     return {
         "schema": SYMBOL_INDEX_SCHEMA,
@@ -291,7 +338,13 @@ def _nearest_symbol(symbols: list[dict], file: str, line: int) -> dict | None:
         return None
     return sorted(previous, key=lambda item: item["line"])[-1]
 
-def _build_call_graph(cwd: str, files: list[ProjectFile], symbol_index: dict, generated_at: str) -> dict:
+def _build_call_graph(
+    cwd: str,
+    files: list[ProjectFile],
+    symbol_index: dict,
+    generated_at: str,
+    contents: dict[str, str] | None = None,
+) -> dict:
     known_paths = {file.path for file in files}
     symbols = list(symbol_index.get("symbols") or [])
     symbols_by_name: dict[str, list[dict]] = {}
@@ -328,7 +381,7 @@ def _build_call_graph(cwd: str, files: list[ProjectFile], symbol_index: dict, ge
                 })
 
         if file.language in _CALL_GRAPH_LANGUAGES:
-            text = _read_safe(os.path.join(cwd, file.path))
+            text = _content_for(cwd, file.path, contents)
             for name, line in _call_expressions(text):
                 for target in symbols_by_name.get(name, [])[:3]:
                     if target["defined_in"] == file.path and target["line"] == line:
@@ -526,13 +579,14 @@ def _is_macro_screen(rel: str, base: str, language: str) -> bool:
 def _macro_git(cwd: str) -> dict:
     head = ""
     dirty = False
+    degraded = False
     try:
         inside = subprocess.run(
             ["git", "rev-parse", "--is-inside-work-tree"],
             cwd=cwd, capture_output=True, text=True, timeout=2,
         )
         if inside.returncode != 0 or inside.stdout.strip() != "true":
-            return {"head": "", "dirty": False}
+            return {"head": "", "dirty": False, "degraded": False}
         rev = subprocess.run(
             ["git", "rev-parse", "HEAD"],
             cwd=cwd, capture_output=True, text=True, timeout=2,
@@ -546,8 +600,9 @@ def _macro_git(cwd: str) -> dict:
         if status.returncode == 0:
             dirty = bool(status.stdout.strip())
     except (OSError, subprocess.SubprocessError):
-        return {"head": head, "dirty": dirty}
-    return {"head": head, "dirty": dirty}
+        degraded = True
+        return {"head": head, "dirty": dirty, "degraded": degraded}
+    return {"head": head, "dirty": dirty, "degraded": degraded}
 
 def build_macro_map(cwd: str, meta: dict | None = None) -> dict:
     """Sub-second shallow project skeleton (``simplicio.macro-map/v1``).

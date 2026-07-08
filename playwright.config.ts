@@ -6,7 +6,7 @@ import { defineConfig, devices } from '@playwright/test';
  * - Trace sempre ligado para auditoria de qualquer execução.
  * - Screenshots e vídeos só em falha (artefato menor em verde).
  * - Reporters html/json/junit gerados em test-results/ para o gate de DoD.
- * - Projetos cobrindo Chromium, Firefox e WebKit (cross-browser baseline).
+ * - Projeto único Chromium: as specs atuais exercitam o CLI, não browsers múltiplos.
  */
 export default defineConfig({
   testDir: './tests/e2e',
@@ -42,14 +42,6 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
     },
   ],
   // Caso o projeto rode dev server local, descomente e ajuste:

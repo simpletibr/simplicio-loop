@@ -19,7 +19,7 @@ class FileProcessingCache:
 
     __slots__ = ("_cache",)
 
-    VERSION = "v1"
+    VERSION = "v2"
 
     def __init__(self, cache_dir: str | Path) -> None:
         self._cache = Cache(str(cache_dir))

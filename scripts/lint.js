@@ -166,7 +166,7 @@ function lintMarkdown() {
 }
 
 function main() {
-  log('info', `LLM Project Mapper lint runner${FIX ? ' (fix mode)' : ''}`);
+  log('info', `simplicio-mapper lint runner${FIX ? ' (fix mode)' : ''}`);
   lintJavaScript();
   lintJson();
   lintShell();

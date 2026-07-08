@@ -96,11 +96,27 @@ def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = Fals
     abs_cwd = os.path.abspath(cwd or os.getcwd())
     abs_out = os.path.abspath(os.path.join(abs_cwd, output_dir))
     pkg = _parse_json_safe(os.path.join(abs_cwd, "package.json"))
-    status_map = _git_status_map(abs_cwd)
+    contents: dict[str, str] = {}
+    skipped_large_files: list[str] = []
+    degraded = {
+        "git_timeout": False,
+        "git_status_unavailable": False,
+        "skipped_large_files": [],
+        "large_file_limit_bytes": 250000,
+    }
+    status_map = _git_status_map(abs_cwd, degraded=degraded)
     previous_map = _load_previous_map(abs_out)
     cache_dir = os.path.join(abs_out, "cache")
     with FileProcessingCache(cache_dir) as file_cache:
-        files = _build_file_inventory(abs_cwd, pkg, status_map, file_cache)
+        files = _build_file_inventory(
+            abs_cwd,
+            pkg,
+            status_map,
+            file_cache,
+            contents=contents,
+            skipped_large_files=skipped_large_files,
+        )
+    degraded["skipped_large_files"] = sorted(skipped_large_files)
     file_entries = [file.to_dict() for file in files]
     corpus = "\n".join(file.text_preview for file in files[:80])
     changed_files = _detect_changed_files(files, previous_map, status_map, incremental)
@@ -157,6 +173,7 @@ def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = Fals
             "contract": "SIMPLICIO_INTEGRATION.md",
             "llm_directives": LLM_DIRECTIVES,
         },
+        "degraded": degraded,
     }
 
     precedent_index = {
@@ -164,11 +181,11 @@ def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = Fals
         "version": ARTIFACT_VERSION,
         "generated_at": generated_at,
         "source_project_map": ".simplicio/project-map.json",
-        "items": _build_precedent_items(abs_cwd, files),
+        "items": _build_precedent_items(abs_cwd, files, contents=contents),
     }
 
-    symbol_index = _build_symbol_index(abs_cwd, files, generated_at)
-    call_graph = _build_call_graph(abs_cwd, files, symbol_index, generated_at)
+    symbol_index = _build_symbol_index(abs_cwd, files, generated_at, contents=contents)
+    call_graph = _build_call_graph(abs_cwd, files, symbol_index, generated_at, contents=contents)
     architecture_inventory = _build_architecture_inventory(
         abs_cwd,
         project_map,
@@ -183,6 +200,7 @@ def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = Fals
     agent_tree = _build_agent_tree(files, bh_map)
 
     project_map["agent_tree"] = agent_tree
+    contents.clear()
 
     return {
         "project_map": project_map,

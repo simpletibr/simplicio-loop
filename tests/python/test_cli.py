@@ -284,6 +284,63 @@ module.exports = { findUsers };
             project_map["recent_changes"],
         )
 
+    def test_build_artifacts_emits_deterministic_degraded_shape(self) -> None:
+        subprocess.run(["git", "init"], cwd=self.dir, check=True, capture_output=True)
+        _write(self.dir, "package.json", json.dumps({"name": "degraded-host"}))
+        _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
+
+        result = build_artifacts(cwd=str(self.dir), meta={"stack": "node"})
+        degraded = result["project_map"]["degraded"]
+
+        self.assertEqual(
+            degraded,
+            {
+                "git_timeout": False,
+                "git_status_unavailable": False,
+                "skipped_large_files": [],
+                "large_file_limit_bytes": 250000,
+            },
+        )
+
+    def test_build_artifacts_reports_skipped_large_files(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "large-host"}))
+        _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
+        _write(self.dir, "src/huge.txt", "x" * 260_000)
+
+        result = build_artifacts(cwd=str(self.dir), meta={"stack": "node"})
+        degraded = result["project_map"]["degraded"]
+
+        self.assertEqual(degraded["skipped_large_files"], ["src/huge.txt"])
+
+    def test_precedent_index_keeps_multiple_ranked_items_per_file(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "precedent-host"}))
+        _write(
+            self.dir,
+            "src/routes.py",
+            "\n".join(
+                [
+                    "router.get('/a')",
+                    "pass",
+                    "pass",
+                    "pass",
+                    "pass",
+                    "router.post('/b')",
+                    "pass",
+                    "pass",
+                    "pass",
+                    "pass",
+                    "def helper():",
+                    "    return 1",
+                ]
+            ) + "\n",
+        )
+
+        result = build_artifacts(cwd=str(self.dir), meta={"stack": "python"})
+        items = [item for item in result["precedent_index"]["items"] if item["path"] == "src/routes.py"]
+
+        self.assertEqual([item["rank"] for item in items], [1, 2, 3])
+        self.assertEqual(len(items), 3)
+
 
 class EndpointNormalizationTest(unittest.TestCase):
     """Endpoint path normalization must stay project-agnostic (issue #104)."""
@@ -1192,6 +1249,12 @@ class TierLanguageSupportTest(unittest.TestCase):
         "ui/Button.vue": "<script>\nimport x from './x';\nexport function handleClick() {}\n</script>\n",
         "ui/Card.svelte": "<script>\nimport y from './y';\nfunction render() {}\n</script>\n",
         "be/Service.scala": "import scala.collection.mutable\nobject Main\nclass Repo\ndef compute() = 1\n",
+        "go/main.go": "package main\nimport \"fmt\"\ntype Server struct{}\ntype Runner interface{}\nfunc Start() { fmt.Println(\"ok\") }\n",
+        "rust/lib.rs": "use std::collections::HashMap;\npub struct Store {}\npub enum Mode { A }\npub trait Loader {}\npub async fn load() {}\n",
+        "java/App.java": "import java.util.List;\npublic class App { public void run() {} }\n",
+        "kotlin/App.kt": "import kotlin.collections.List\nclass App\ninterface Port\nobject AppRuntime\nfun launch() {}\n",
+        "php/App.php": "<?php\nuse App\\Service\\UserService;\nrequire 'bootstrap.php';\nclass App {}\ninterface Port {}\ntrait UsesThing {}\nenum Mode { case On; }\nfunction run() {}\n",
+        "ruby/app.rb": "require 'json'\nmodule Demo\nclass App\nend\ndef run!\nend\n",
     }
 
     def setUp(self) -> None:
@@ -1215,6 +1278,12 @@ class TierLanguageSupportTest(unittest.TestCase):
         self.assertEqual(langs["ui/Button.vue"], "vue")
         self.assertEqual(langs["ui/Card.svelte"], "svelte")
         self.assertEqual(langs["be/Service.scala"], "scala")
+        self.assertEqual(langs["go/main.go"], "go")
+        self.assertEqual(langs["rust/lib.rs"], "rust")
+        self.assertEqual(langs["java/App.java"], "java")
+        self.assertEqual(langs["kotlin/App.kt"], "kotlin")
+        self.assertEqual(langs["php/App.php"], "php")
+        self.assertEqual(langs["ruby/app.rb"], "ruby")
 
     def test_symbols_extracted_per_language(self) -> None:
         by_file: dict[str, set[str]] = {}
@@ -1232,6 +1301,27 @@ class TierLanguageSupportTest(unittest.TestCase):
         self.assertIn("function:handleClick", by_file["ui/Button.vue"])
         self.assertIn("function:render", by_file["ui/Card.svelte"])
         self.assertIn("class:Repo", by_file["be/Service.scala"])
+        self.assertIn("struct:Server", by_file["go/main.go"])
+        self.assertIn("interface:Runner", by_file["go/main.go"])
+        self.assertIn("function:Start", by_file["go/main.go"])
+        self.assertIn("struct:Store", by_file["rust/lib.rs"])
+        self.assertIn("enum:Mode", by_file["rust/lib.rs"])
+        self.assertIn("trait:Loader", by_file["rust/lib.rs"])
+        self.assertIn("function:load", by_file["rust/lib.rs"])
+        self.assertIn("class:App", by_file["java/App.java"])
+        self.assertIn("method:run", by_file["java/App.java"])
+        self.assertIn("class:App", by_file["kotlin/App.kt"])
+        self.assertIn("interface:Port", by_file["kotlin/App.kt"])
+        self.assertIn("object:AppRuntime", by_file["kotlin/App.kt"])
+        self.assertIn("function:launch", by_file["kotlin/App.kt"])
+        self.assertIn("class:App", by_file["php/App.php"])
+        self.assertIn("interface:Port", by_file["php/App.php"])
+        self.assertIn("trait:UsesThing", by_file["php/App.php"])
+        self.assertIn("enum:Mode", by_file["php/App.php"])
+        self.assertIn("function:run", by_file["php/App.php"])
+        self.assertIn("module:Demo", by_file["ruby/app.rb"])
+        self.assertIn("class:App", by_file["ruby/app.rb"])
+        self.assertIn("function:run!", by_file["ruby/app.rb"])
 
     def test_imports_extracted_per_language(self) -> None:
         imports = {f["path"]: f.get("imports", []) for f in self.result["project_map"]["files"]}
@@ -1241,6 +1331,13 @@ class TierLanguageSupportTest(unittest.TestCase):
         self.assertIn("UIKit/UIKit.h", imports["ios/Legacy.m"])
         self.assertIn("scala.collection.mutable", imports["be/Service.scala"])
         self.assertIn("./x", imports["ui/Button.vue"])
+        self.assertIn("fmt", imports["go/main.go"])
+        self.assertIn("std::collections::HashMap", imports["rust/lib.rs"])
+        self.assertIn("java.util.List", imports["java/App.java"])
+        self.assertIn("kotlin.collections.List", imports["kotlin/App.kt"])
+        self.assertIn("App\\Service\\UserService", imports["php/App.php"])
+        self.assertIn("bootstrap.php", imports["php/App.php"])
+        self.assertIn("json", imports["ruby/app.rb"])
 
     def test_new_languages_in_call_graph(self) -> None:
         from simplicio_mapper.mapper import _CALL_GRAPH_LANGUAGES

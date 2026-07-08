@@ -90,7 +90,7 @@ Detalhes:
 - Test runner E2E: **Playwright** (config em `playwright.config.ts`).
 - Linter/formatter: **`ruff`** (Python, ver `[tool.ruff]` em `pyproject.toml`) e `node scripts/lint.js` (shell + JS).
 - CI/CD: GitHub Actions (ver `.github/workflows/`). DoD gate em `dod.yml`. Publish em `publish-pypi.yml` (PyPI-only desde 0.7.x).
-- Distribuição: **PyPI** `simplicio-mapper` é o canal oficial; versões anteriores do pacote npm `@wesleysimplicio/llm-project-mapper` permanecem no registry mas não recebem novos releases.
+- Distribuição: **PyPI** `simplicio-mapper` é o motor canônico do mapper; o pacote npm `@wesleysimplicio/llm-project-mapper` continua **ativo** como canal do scaffolder e shim Node.
 - Opt-in: crate Rust em `rust/` build via `maturin develop --release` (ADR-002).
 
 > Antes de adicionar dependência nova: **pergunta ao usuário**. Sem exceção.

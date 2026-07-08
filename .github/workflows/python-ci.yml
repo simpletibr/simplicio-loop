@@ -44,20 +44,21 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Setup Node.js (parity tests run both runtimes)
         uses: actions/setup-node@v4
         with:
           node-version: 22
 
-      - name: Install package and pytest
+      - name: Install package and test tooling
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e .
-          python -m pip install pytest
-
-      - name: Run pytest
-        run: python -m pytest tests/python -q
+          python -m pip install pytest pytest-cov
+      - name: Run pytest with coverage gate
+        run: python -m pytest tests/python -q --cov=simplicio_mapper --cov-report=term --cov-fail-under=88
 
       - name: TOON-CONTRACT drift check (issue #149)
         run: python scripts/sync_toon_contract.py check
@@ -98,6 +99,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: maturin develop + native parity test
         run: |
@@ -107,3 +110,38 @@ jobs:
           python -m pip install -e . maturin pytest
           (cd rust && maturin develop --release)
           python -m pytest tests/python/test_native.py -q
+
+  dependency-audit:
+    name: Dependency audit (informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install audit tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pip-audit
+          npm ci
+
+      - name: Run pip-audit
+        run: python -m pip_audit
+
+      - name: Run npm audit (high+)
+        run: npm audit --audit-level=high
