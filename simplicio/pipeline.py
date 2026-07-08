@@ -24,7 +24,7 @@ from .orchestrator.cost_governor import _price as _estimate_price
 from .pipeline_fixers import try_static_fixers
 from .prompt import build_prompt
 from .providers import _provider_id, generate
-from .runtime_env import wrap_project_command
+from .runtime_env import prepare_project_command
 
 MAX_ATTEMPTS = 5
 
@@ -108,12 +108,11 @@ def _run_impact_tests(
 
     test_files = sorted(test_files_seen)
     cmd_raw = (test_cmd or os.environ.get("SIMPLICIO_TEST_CMD", "pytest")).strip()
-    argv = cmd_raw.split() + test_files
-    use_shell = len(cmd_raw.split()) == 1
+    cmd, use_shell = prepare_project_command(root_str, cmd_raw, test_files)
 
     try:
         p = subprocess.run(
-            argv if not use_shell else " ".join(argv),
+            cmd,
             shell=use_shell,
             cwd=root_str,
             capture_output=True,
@@ -326,8 +325,8 @@ def _apply_and_test(output, root, bound_paths=None):
     if not applied:
         return False, apply_log
     cmd = os.environ.get("SIMPLICIO_TEST_CMD", "echo 'configure SIMPLICIO_TEST_CMD'")
-    cmd = wrap_project_command(root, cmd)
-    p = subprocess.run(cmd, shell=True, cwd=root, capture_output=True, text=True)
+    prepared, use_shell = prepare_project_command(root, cmd)
+    p = subprocess.run(prepared, shell=use_shell, cwd=root, capture_output=True, text=True)
     return p.returncode == 0, (p.stdout + p.stderr)[-2000:]
 
 

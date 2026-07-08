@@ -44,7 +44,8 @@ def memory_dir() -> Path:
     override = os.environ.get("SIMPLICIO_MEMORY_DIR")
     if override:
         return Path(override)
-    return Path.home() / ".simplicio" / "memory"
+    home = os.environ.get("HOME")
+    return (Path(home) if home else Path.home()) / ".simplicio" / "memory"
 
 
 def _notes_dir(base: Path) -> Path:

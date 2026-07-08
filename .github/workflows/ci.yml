@@ -43,7 +43,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -52,6 +52,7 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
       - name: Install simplicio-cli (editable, base only) + test tooling
         run: |
@@ -85,6 +86,7 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: pip
 
       - name: Install simplicio-cli[dev] (ruff + mypy, #102)
         run: |
@@ -121,6 +123,7 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: pip
 
       - name: Install simplicio-cli[${{ matrix.extra }}]
         run: |
@@ -148,6 +151,7 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+          cache: pip
 
       - name: Install build + twine
         run: |
@@ -159,6 +163,14 @@ jobs:
 
       - name: Validate distributions with twine check
         run: python -m twine check dist/*
+
+      - name: Install built wheel in a clean venv and smoke-test CLI
+        run: |
+          python -m venv .venv-wheel
+          . .venv-wheel/bin/activate
+          python -m pip install --upgrade pip
+          pip install dist/*.whl
+          SIMPLICIO_SKIP_AUTO_INIT=1 simplicio-py --help
 
       - name: Upload built distributions
         if: always()

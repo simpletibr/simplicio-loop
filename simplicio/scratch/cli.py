@@ -356,7 +356,8 @@ def _detect_stack_from_files(reg: StackRegistry, root: str = ".") -> str | None:
     if (root_path / "angular.json").exists():
         if reg.get("ts-angular"):
             return "ts-angular"
-        # fallback to generic ts if angular stack isn't registered
+        if reg.get("react-vite"):
+            return "react-vite"
         return None
     if (root_path / "package.json").exists():
         if reg.get("ts-nextjs"):

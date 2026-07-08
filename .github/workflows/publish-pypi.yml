@@ -3,7 +3,7 @@
 # Mirrors simplicio-mapper's publish-pypi.yml, adjusted for this repo's default branch (master).
 #
 # Requirements:
-#   - Secret `PYPI_API_TOKEN` configured in the repository (PyPI API token).
+#   - PyPI Trusted Publishing configured for this repo/workflow.
 #   - `contents: write` permission (to create the release tag).
 
 name: Publish to PyPI
@@ -96,23 +96,11 @@ jobs:
         if: steps.meta.outputs.should_publish == 'true'
         run: python -m twine check dist/*
 
-      - name: Verify PyPI token presence
-        if: steps.meta.outputs.should_publish == 'true'
-        env:
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          if [ -z "${TWINE_PASSWORD:-}" ]; then
-            echo "::error::Secret PYPI_API_TOKEN is empty or missing in this repository."
-            exit 1
-          fi
-          echo "Token length: ${#TWINE_PASSWORD}"
-
       - name: Publish to PyPI
         if: steps.meta.outputs.should_publish == 'true'
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: python -m twine upload --non-interactive dist/*
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
 
       - name: Tag release
         if: steps.meta.outputs.should_publish == 'true'

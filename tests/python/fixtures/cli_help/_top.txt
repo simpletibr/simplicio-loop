@@ -1,9 +1,8 @@
 usage: simplicio-py [-h]
-                    {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,doctor,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,serve,memory}
-                    ...
+                    {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,doctor,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,memory} ...
 
 positional arguments:
-  {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,doctor,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,serve,memory}
+  {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,doctor,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,memory}
     index               index/cache the repo (once, or after changes)
     task                run a task
     run                 run a task, feature, sprint, or scratch goal
@@ -28,8 +27,6 @@ positional arguments:
     token               token-efficient execution primitives
     score-skill         deterministic SkillOpt-style scorer for skill/law text
     runtime             runtime-facing dev-cli contracts
-    serve               run simplicio-dev-cli as a server (--mcp for the MCP
-                        stdio protocol)
     memory              cross-vendor memory handoff (markdown + git under
                         ~/.simplicio/memory)
 

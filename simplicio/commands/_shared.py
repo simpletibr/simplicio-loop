@@ -17,7 +17,11 @@ def read_text_source(path: str) -> str:
     """Read *path*, or stdin when *path* is the literal string ``"-"``."""
     if path == "-":
         return sys.stdin.read()
-    return Path(path).read_text(encoding="utf-8")
+    try:
+        return Path(path).read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError) as exc:
+        print(f"{Path(sys.argv[0]).name}: error: cannot read {path}: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
 
 
 def force_local_if_requested(a: argparse.Namespace) -> None:

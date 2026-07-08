@@ -4,16 +4,14 @@ Two concerns live in this module:
 
 1. **Output/logging separation** (`emit_data`/`info`/`warn`/`error`,
    `configure_logging`): the single place library code (`providers.py`,
-   `pipeline.py`, `mapper.py`, `mcp_server.py`, ...) should route through
+   `pipeline.py`, `mapper.py`, ...) should route through
    instead of a bare `print()`. Machine-consumable payloads (JSON results,
    the thing a caller actually asked for) go to **stdout** via `emit_data`;
    human-readable status/diagnostics go to **stderr** via `info`/`warn`/
    `error`, through a `logging.Logger` so `--quiet`/`--verbose`/
    `SIMPLICIO_LOG_LEVEL` control verbosity without touching call sites.
-   `simplicio.mcp_server` runs over stdio — anything written to its stdout
-   that isn't a JSON-RPC frame corrupts the transport, so MCP-adjacent code
-   MUST route diagnostics through `info`/`warn`/`error` (stderr), never
-   `print()`. CLI *handlers* in `cli.py`/`commands/*.py`, where stdout is the
+   Anything machine-consumable belongs on stdout and human diagnostics on
+   stderr. CLI *handlers* in `cli.py`/`commands/*.py`, where stdout is the
    literal intended output of the subcommand, are the documented exception
    and may keep `print()`.
 2. **Run/event logging** (`log_run`, `record_savings_event`, and — issue
@@ -29,10 +27,17 @@ import logging
 import os
 import sys
 import time
+from collections import deque
 from pathlib import Path
 from typing import Any
 
 from .utils.serialization import dumps_str
+
+fcntl: Any | None
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows
+    fcntl = None
 
 # --------------------------------------------------------------------------- #
 # Output / logging separation (#106)
@@ -134,11 +139,27 @@ def estimate_tokens(text: str | None) -> int:
     return max(1, len(text.split()) * 4 // 3)
 
 
+def _append_jsonl(path: Path, record: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        if fcntl is not None:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+            except OSError:
+                pass
+        handle.write(dumps_str(record) + "\n")
+        handle.flush()
+        if fcntl is not None:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            except OSError:
+                pass
+
+
 def log_run(root: str, event: dict[str, Any]) -> Path | None:
     if os.environ.get("SIMPLICIO_DISABLE_RUN_LOG"):
         return None
     out = Path(root) / ".simplicio" / "runs.jsonl"
-    out.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "model": os.environ.get("SIMPLICIO_MODEL") or os.environ.get("MODEL") or "",
@@ -146,8 +167,7 @@ def log_run(root: str, event: dict[str, Any]) -> Path | None:
         "prompt_variant": os.environ.get("SIMPLICIO_PROMPT_VARIANT", "default"),
         **event,
     }
-    with out.open("a", encoding="utf-8") as f:
-        f.write(dumps_str(payload) + "\n")
+    _append_jsonl(out, payload)
     return out
 
 
@@ -197,9 +217,7 @@ def record_savings_event(
         payload["extra"] = extra
     out = Path(root) / ".simplicio" / "ledger" / "savings-events.jsonl"
     try:
-        out.parent.mkdir(parents=True, exist_ok=True)
-        with out.open("a", encoding="utf-8") as f:
-            f.write(dumps_str(payload) + "\n")
+        _append_jsonl(out, payload)
     except OSError:
         return None
     return out
@@ -281,8 +299,8 @@ def emit_event(
     Writing is two-track, exactly like the rest of this module's
     stdout/stderr split:
 
-    - **stderr** (always, via `info`/`warn`/`error`): a short human-readable
-      line — this is diagnostic, never MCP stdout, never suppressed except
+     - **stderr** (always, via `info`/`warn`/`error`): a short human-readable
+       line — this is diagnostic output, never suppressed except
       by the normal ``--quiet``/`SIMPLICIO_LOG_LEVEL` rules.
     - **``<root>/.simplicio/events.jsonl``** (only when *root* is given):
       the structured record above, one JSON object per line, honoring the
@@ -310,9 +328,13 @@ def emit_event(
     if root and not os.environ.get("SIMPLICIO_DISABLE_RUN_LOG"):
         out = Path(root) / ".simplicio" / "events.jsonl"
         try:
-            out.parent.mkdir(parents=True, exist_ok=True)
-            with out.open("a", encoding="utf-8") as f:
-                f.write(dumps_str(record) + "\n")
+            max_bytes = int(os.environ.get("SIMPLICIO_EVENTS_MAX_BYTES", str(10 * 1024 * 1024)))
+            try:
+                if out.exists() and out.stat().st_size > max_bytes:
+                    os.replace(out, out.with_suffix(".jsonl.1"))
+            except OSError:
+                pass
+            _append_jsonl(out, record)
         except OSError:
             pass
     return record
@@ -328,18 +350,23 @@ def events_summary(root: str, *, limit: int = 5) -> dict[str, Any]:
     out = Path(root) / ".simplicio" / "events.jsonl"
     if not out.is_file():
         return {"path": str(out), "exists": False, "count": 0, "recent": []}
-    records: list[dict[str, Any]] = []
-    for line in out.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            records.append(json.loads(line))
-        except ValueError:
-            continue
+    recent: deque[dict[str, Any]] = deque(maxlen=max(0, limit))
+    count = 0
+    with out.open("r", encoding="utf-8") as handle:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except ValueError:
+                continue
+            count += 1
+            if limit > 0:
+                recent.append(record)
     return {
         "path": str(out),
         "exists": True,
-        "count": len(records),
-        "recent": records[-limit:],
+        "count": count,
+        "recent": list(recent),
     }

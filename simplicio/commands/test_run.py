@@ -69,7 +69,11 @@ def _run_via_runtime(a: argparse.Namespace, extra_args: list[str]) -> int | None
     binary = discover_simplicio()
     if binary is None:
         return None
-    cmd = [binary, *_build_runtime_args(a, extra_args)]
+    binary_path = Path(binary)
+    if sys.platform == "win32" and binary_path.suffix.lower() not in {".exe", ".bat", ".cmd", ".ps1", ".py"}:
+        cmd = [sys.executable, binary, *_build_runtime_args(a, extra_args)]
+    else:
+        cmd = [binary, *_build_runtime_args(a, extra_args)]
     try:
         completed = subprocess.run(
             cmd,
@@ -93,7 +97,7 @@ def _run_via_runtime(a: argparse.Namespace, extra_args: list[str]) -> int | None
         _print_human(payload)
     if completed.stderr:
         print(completed.stderr, end="", file=sys.stderr)
-    return completed.returncode
+    return int(payload.get("exit_code", completed.returncode))
 
 
 def _parse_pytest_summary(output: str) -> tuple[int | None, int | None, int | None, float | None, str | None]:

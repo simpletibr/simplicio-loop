@@ -30,6 +30,16 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 def _cache_root() -> Path:
     override = os.environ.get("SIMPLICIO_CACHE_DIR")
     if override:
@@ -153,7 +163,9 @@ class CompletionCache:
             if os.path.exists(tmp_name):
                 self._safe_unlink(Path(tmp_name))
         self.puts += 1
-        self._evict_if_needed()
+        evict_every = max(1, _env_int("SIMPLICIO_CACHE_EVICT_EVERY", 16))
+        if self.puts == 1 or self.puts % evict_every == 0:
+            self._evict_if_needed()
 
     def clear(self) -> int:
         n = self.stats()["entries"]

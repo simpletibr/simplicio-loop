@@ -8,7 +8,7 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
-  --scenario SCENARIO_SOURCES, -s SCENARIO_SOURCES
+  --scenario, -s SCENARIO_SOURCES
                         JSON scenario file path (repeatable); falls back to
                         builtin scenarios
   --extra-scenario EXTRA_SCENARIO

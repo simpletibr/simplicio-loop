@@ -14,6 +14,7 @@ import sys
 import time
 from pathlib import Path
 
+from ..utils.fs import write_text_atomic
 from ._shared import force_local_if_requested
 
 CLI_PROG = "simplicio-py"
@@ -158,7 +159,7 @@ def _write_sprint_state(
         "dod": dod_results,
         "cost": cost,
     }
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    write_text_atomic(path, json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
 def _run_sprint(a: argparse.Namespace) -> int:

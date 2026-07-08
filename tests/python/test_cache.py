@@ -119,6 +119,7 @@ def test_concurrent_writes_keep_valid_json():
 
 def test_lru_eviction_removes_oldest(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_CACHE_MAX_MB", "0.001")
+    monkeypatch.setenv("SIMPLICIO_CACHE_EVICT_EVERY", "1")
     c = CompletionCache()
     old_key = make_key("p", "m", "old")
     new_key = make_key("p", "m", "new")
@@ -209,3 +210,15 @@ def test_cache_cli_stats_and_clear(capsys):
     assert cli_main(["cache", "clear"]) == 2
     assert cli_main(["cache", "clear", "--force"]) == 0
     assert "cleared 1" in capsys.readouterr().out
+
+
+def test_eviction_runs_only_on_configured_put_interval(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_CACHE_EVICT_EVERY", "16")
+    c = CompletionCache()
+    calls = []
+    monkeypatch.setattr(c, "_evict_if_needed", lambda: calls.append(c.puts))
+
+    for i in range(17):
+        c.put(make_key("p", "m", f"prompt-{i}"), CacheEntry("cached", provider_id="p", model="m"))
+
+    assert calls == [1, 16]

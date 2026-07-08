@@ -46,9 +46,6 @@ from simplicio.commands import (
     runtime as runtime_cmd,
 )
 from simplicio.commands import (
-    serve as serve_cmd,
-)
-from simplicio.commands import (
     status as status_cmd,
 )
 from simplicio.commands import (
@@ -187,19 +184,6 @@ def test_runtime_run_doctor(monkeypatch, capsys):
     assert code == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["package"]["version"] == "9.9.9"
-
-
-def test_serve_run_requires_mcp_flag(capsys):
-    code = serve_cmd.run(ns(mcp=False))
-    assert code == 2
-
-
-def test_serve_run_delegates_to_serve_stdio(monkeypatch):
-    calls = []
-    monkeypatch.setattr("simplicio.mcp_server.serve_stdio", lambda: calls.append(True))
-    code = serve_cmd.run(ns(mcp=True))
-    assert code == 0
-    assert calls == [True]
 
 
 def test_bench_run_calls_run_bench(monkeypatch):

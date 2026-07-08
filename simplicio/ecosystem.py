@@ -16,9 +16,9 @@ API:
 Cached: PyPI lookups go through a 24h cache in ~/.simplicio/cache/pypi_versions.json
 so we don't hit pypi.org on every invocation.
 
-Opt-out:
-  SIMPLICIO_NO_AUTO_UPGRADE=1   # skip session-start upgrade entirely
-  SIMPLICIO_AUTO_UPGRADE=1      # force run even in CI
+Controls:
+  SIMPLICIO_AUTO_UPGRADE=1      # enable session-start upgrade check
+  SIMPLICIO_NO_AUTO_UPGRADE=1   # skip it even when AUTO_UPGRADE is set
 """
 
 from __future__ import annotations
@@ -150,14 +150,19 @@ def _pypi_latest(name: str, timeout: float = 5.0, refresh: bool = False) -> str 
 
 
 def _version_lt(a: str | None, b: str | None) -> bool:
-    """Naive but adequate lex-on-int-tuple compare. Returns False if either is
-    None — we don't try to guess what 'unknown' means."""
+    """PEP-440-lite compare for numeric releases plus dev/a/b/rc prereleases."""
     if a is None or b is None:
         return False
 
-    def parse(v: str) -> tuple[int, ...]:
-        parts = re.split(r"[^0-9]+", v)
-        return tuple(int(x) for x in parts if x.isdigit())
+    def parse(v: str) -> tuple[tuple[int, ...], tuple[int, int]]:
+        match = re.match(r"^\s*(\d+(?:\.\d+)*)\s*([A-Za-z]+)?\s*(\d+)?\s*$", v)
+        if not match:
+            raise ValueError(v)
+        release = tuple(int(part) for part in match.group(1).split("."))
+        stage_raw = (match.group(2) or "").lower()
+        stage_num = int(match.group(3) or 0)
+        stage_order = {"dev": 0, "a": 1, "alpha": 1, "b": 2, "beta": 2, "rc": 3, "c": 3, "": 4}
+        return release, (stage_order.get(stage_raw, 4), stage_num)
 
     try:
         return parse(a) < parse(b)
@@ -296,6 +301,8 @@ def maybe_run_session_start() -> None:
         "True",
         "yes",
     ):
+        return
+    if os.environ.get("SIMPLICIO_AUTO_UPGRADE", "").strip().lower() not in {"1", "true", "yes"}:
         return
 
     upgraded = ensure_latest()

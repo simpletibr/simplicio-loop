@@ -215,6 +215,76 @@ def test_validation_failure_rolls_back_and_returns_compact_evidence(tmp_path):
     assert (tmp_path / "app.py").read_text(encoding="utf-8") == "old\n"
 
 
+def test_validation_failure_restores_bytes_exactly(tmp_path):
+    original = b"old\r\nkeep\r\n"
+    (tmp_path / "app.py").write_bytes(original)
+    plan = _plan(
+        "app.py",
+        {
+            "op": "replace_range",
+            "path": "app.py",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "new\n",
+        },
+    )
+    plan["validation"] = [{"cmd": [sys.executable, "-c", "raise SystemExit(1)"]}]
+
+    result = execute_plan(plan, root=tmp_path, apply=True)
+
+    assert result["status"] == "refused"
+    assert (tmp_path / "app.py").read_bytes() == original
+
+
+def test_refuses_symlink_escape_outside_root(tmp_path, monkeypatch):
+    outside = tmp_path / "outside.txt"
+    outside.write_text("secret\n", encoding="utf-8")
+    try:
+        (tmp_path / "link.txt").symlink_to(outside)
+    except OSError as exc:
+        pytest.skip(f"symlinks unavailable on this machine: {exc}")
+    plan = _plan(
+        "link.txt",
+        {
+            "op": "replace_range",
+            "path": "link.txt",
+            "start_line": 1,
+            "end_line": 1,
+            "text": "new\n",
+        },
+    )
+    monkeypatch.setenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT", "1")
+
+    result = execute_plan(plan, root=tmp_path, apply=True)
+
+    assert result["status"] == "refused"
+    assert result["errors"][0]["code"] == "unsafe_path"
+    assert outside.read_text(encoding="utf-8") == "secret\n"
+
+
+def test_accepts_normal_path_with_runtime_edit_disabled(tmp_path, monkeypatch):
+    _write(tmp_path / "app.py", "old\n")
+    monkeypatch.setenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT", "1")
+
+    result = execute_plan(
+        _plan(
+            "app.py",
+            {
+                "op": "replace_range",
+                "path": "app.py",
+                "start_line": 1,
+                "end_line": 1,
+                "text": "new\n",
+            },
+        ),
+        root=tmp_path,
+        apply=True,
+    )
+
+    assert result["status"] == "ok"
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
+
+
 def test_noop_result_is_machine_readable_and_compact(tmp_path):
     _write(tmp_path / "app.py", "same\n")
     operation = {
@@ -650,7 +720,9 @@ def test_execute_plan_falls_back_when_native_schema_is_unknown(tmp_path, monkeyp
 
     class FakeCompleted:
         returncode = 0
-        stdout = json.dumps({"schema": "simplicio.some-other-tool-result/v1", "status": "ok", "file": "app.py"})
+        stdout = json.dumps(
+            {"schema": "simplicio.some-other-tool-result/v1", "status": "ok", "file": "app.py"}
+        )
 
     monkeypatch.setattr(mechanical_edit.shutil, "which", lambda name: "/bin/simplicio")
     monkeypatch.setattr(mechanical_edit.subprocess, "run", lambda cmd, **kwargs: FakeCompleted())

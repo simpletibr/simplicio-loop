@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.10.0] — 2026-07-07
+
+### Changed
+- Make ecosystem auto-upgrade opt-in via `SIMPLICIO_AUTO_UPGRADE=1`; `doctor --upgrade` remains the explicit upgrade path.
+- Run DoD checklist commands without `shell=True` by default; shell metacharacters now require `SIMPLICIO_DOD_ALLOW_SHELL=1`.
+- Remove the dev-cli MCP server surface (`serve --mcp`) so MCP is no longer exposed from this package.
+- Bump the minimum `simplicio-mapper` dependency to `>=0.18.0`.
+- Expose the installed `simplicio-mapper` dependency through `simplicio.mapper_api` for downstream Python consumers.
+
+### Fixed
+- Harden mechanical-edit path validation against prefix-match escapes and symlink traversal, and make snapshot restore writes atomic.
+- Lock JSONL appends, stream `events_summary()`, rotate oversized `events.jsonl`, and make context/sprint state writes atomic.
+- Handle missing text inputs, malformed bench case files, empty bench suites, zero-norm skill vectors, and top-level CLI failures more defensively.
+- Tighten pre-release version comparison so `1.12.0rc1 < 1.12.0`.
+
+### CI
+- Remove dead starter workflows, add Python 3.13 plus pip caching, smoke-test the built wheel in a clean venv, and switch PyPI publishing to Trusted Publishing.
+
 ## [0.9.6] — 2026-07-07
 
 ### Changed
@@ -130,10 +148,6 @@
   activation now emits one event per render call; the door is open for
   `#90`'s autoresearch template optimization to emit `source=autoresearch`
   events against the same ledger.
-- `simplicio-dev-cli serve --mcp` — runs this CLI as a stdlib-only MCP
-  stdio server (newline-delimited JSON-RPC 2.0, no new dependency) exposing
-  `dev_cli_edit`, `dev_cli_validate`, and `dev_cli_memory` as MCP tools for
-  any MCP client (Claude Code, Codex, Cursor, VS Code).
 - `simplicio-dev-cli memory init|store|recall` — cross-vendor memory
   handoff, markdown + git under `~/.simplicio/memory/`
   (`SIMPLICIO_MEMORY_DIR` to override). Deterministic keyword recall, no

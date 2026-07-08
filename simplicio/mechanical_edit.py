@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from .token_primitives import sha256_text, summarize_log
+from .utils.fs import write_bytes_atomic
 
 PLAN_SCHEMA = "simplicio.mechanical-edit/v1"
 RESULT_SCHEMA = "simplicio.mechanical-edit-result/v1"
@@ -218,7 +219,6 @@ def _try_native_edit(
                 os.unlink(tmp_path)
             except OSError:
                 pass
-
 
 
 # The native binary's *actual* `simplicio edit --json` output schema today —
@@ -691,7 +691,7 @@ def _write_snapshot(root: Path, after: dict[str, bytes | None]) -> None:
                 path.unlink()
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(raw)
+        write_bytes_atomic(path, raw)
 
 
 def _restore(root: Path, backups: dict[str, bytes | None]) -> None:
@@ -702,7 +702,7 @@ def _restore(root: Path, backups: dict[str, bytes | None]) -> None:
                 path.unlink()
             continue
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(raw)
+        write_bytes_atomic(path, raw)
 
 
 def _run_validation(raw: Any, root: Path) -> list[dict[str, Any]]:
@@ -806,7 +806,7 @@ def _safe_path(root: Path, rel: str) -> Path:
         raise MechanicalEditError("unsafe_path", f"unsafe relative path: {rel}", path=rel)
     root_resolved = root.resolve()
     path = (root_resolved / rel_path).resolve()
-    if not str(path).startswith(str(root_resolved)):
+    if not path.is_relative_to(root_resolved):
         raise MechanicalEditError("unsafe_path", f"path escapes root: {rel}", path=rel)
     return path
 

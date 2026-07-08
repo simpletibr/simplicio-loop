@@ -40,6 +40,10 @@ simplicio-py detect "hide the Delete button for non-admins"
 simplicio-py task "hide the Delete button for non-admins"
 ```
 
+Auto-upgrade is now opt-in: set `SIMPLICIO_AUTO_UPGRADE=1` for session-start upgrades, or run `simplicio-py doctor --upgrade` explicitly.
+Python consumers can expose the bundled mapper dependency directly with
+`from simplicio import mapper_module, mapper_version` or `import simplicio.mapper_api`.
+
 ## What it does
 
 - Classifies the task before execution so small fixes stay small and sprint-scale work becomes a plan.
@@ -413,12 +417,7 @@ recorded to a separate append-only ledger,
 `.simplicio/ledger/savings-events.jsonl` (`simplicio.savings-event/v1`), via
 `simplicio.observability.record_savings_event()`.
 
-#### MCP server and cross-vendor memory
-
-`simplicio-dev-cli serve --mcp` runs this CLI as an MCP stdio server
-(stdlib-only JSON-RPC 2.0, no extra dependency), exposing `dev_cli_edit`,
-`dev_cli_validate`, and `dev_cli_memory` as tools any MCP client (Claude
-Code, Codex, Cursor, VS Code) can call directly.
+#### Cross-vendor memory
 
 `simplicio-dev-cli memory init|store|recall` is a markdown + git store under
 `~/.simplicio/memory/` (override with `SIMPLICIO_MEMORY_DIR`) for handing

@@ -40,6 +40,7 @@ def test_context_cache_hits_and_misses_by_content_hash(tmp_path):
     assert hit["summary"] == {"files": 3}
     assert miss["hit"] is False
     assert miss["reason"] == "hash_mismatch"
+    assert not list(tmp_path.glob("*.tmp"))
 
 
 def test_postconditions_evaluate_files_text_and_commands(tmp_path):

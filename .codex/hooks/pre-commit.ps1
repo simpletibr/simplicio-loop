@@ -8,35 +8,33 @@ param()
 
 $ErrorActionPreference = 'Continue'
 
-Write-Host '[pre-commit] Rodando testes locais antes do commit...'
+Write-Host '[pre-commit] Rodando gates locais antes do commit...'
 
-# Garante que existe package.json antes de tentar npm test.
-if (-not (Test-Path -LiteralPath 'package.json' -PathType Leaf)) {
-    Write-Host '[pre-commit] package.json nao encontrado. Pulando testes.'
-    exit 0
+$stagedPy = git diff --cached --name-only --diff-filter=ACMR | Where-Object { $_ -match '\.py$' }
+if ($stagedPy) {
+    Write-Host '[pre-commit] Arquivos Python staged detectados -> ruff check .'
+    & ruff check .
+    if ($LASTEXITCODE -ne 0) { exit 1 }
+
+    if ($env:SKIP_PRECOMMIT_TESTS -ne '1') {
+        Write-Host '[pre-commit] Arquivos Python staged detectados -> pytest -q -x'
+        & pytest -q -x
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+    } else {
+        Write-Host '[pre-commit] SKIP_PRECOMMIT_TESTS=1 -> pulando pytest local.'
+    }
 }
 
-# Roda a menor suite real deste pacote. Se falhar, bloqueia.
-$npmCmd = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
-$packageJson = Get-Content -LiteralPath 'package.json' -Raw
-
-if ($packageJson -match '"test:cli"\s*:') {
-    & $npmCmd run test:cli --silent
-} elseif ($packageJson -match '"test"\s*:') {
-    & $npmCmd test --silent
-} else {
-    Write-Host '[pre-commit] Nenhum script de teste encontrado. Pulando testes.'
-    exit 0
-}
-
-$exitCode = $LASTEXITCODE
-
-if ($exitCode -ne 0) {
-    Write-Host ''
-    Write-Host '[pre-commit] FALHOU: testes vermelhos. Commit bloqueado.'
-    Write-Host '[pre-commit] Corrija os testes antes de commitar.'
-    Write-Host "[pre-commit] Para depurar: rode o script de teste configurado no package.json e leia o output."
-    exit 1
+if (Test-Path -LiteralPath 'package.json' -PathType Leaf) {
+    $npmCmd = if ($IsWindows) { 'npm.cmd' } else { 'npm' }
+    $packageJson = Get-Content -LiteralPath 'package.json' -Raw
+    if ($packageJson -match '"test:cli"\s*:') {
+        & $npmCmd run test:cli --silent
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+    } elseif ($packageJson -match '"test"\s*:') {
+        & $npmCmd test --silent
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+    }
 }
 
 Write-Host '[pre-commit] Testes verdes. Seguindo com o commit.'

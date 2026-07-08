@@ -32,6 +32,13 @@ if ($jsTsExtensions -contains $ext) {
     try {
         & npx --no-install eslint --fix $FilePath 2>$null
     } catch { }
+} elseif ($ext -eq '.py') {
+    try {
+        & ruff format $FilePath 2>$null
+    } catch { }
+    try {
+        & ruff check --fix $FilePath 2>$null
+    } catch { }
 }
 
 exit 0

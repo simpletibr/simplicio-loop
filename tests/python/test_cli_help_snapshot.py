@@ -40,7 +40,6 @@ TOP_LEVEL_SUBCOMMANDS = [
     "token",
     "score-skill",
     "runtime",
-    "serve",
     "memory",
 ]
 

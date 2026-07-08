@@ -537,9 +537,43 @@ def _log_usage_event(*, provider_id, model, prompt, completion, cache_hit, usage
         pass
 
 
-def _generate_local_cached(prompt, feedback, model, max_tokens, cache_full_prompt):
-    from ._cache import CacheEntry, cache, make_key
+def _return_cached(*, provider_id, model, prompt, cached, surface="generate"):
+    _log_usage_event(
+        provider_id=provider_id,
+        model=model,
+        prompt=prompt,
+        completion=cached.completion,
+        cache_hit=True,
+        surface=surface,
+    )
+    return cached.completion
 
+
+def _finalize_completion(
+    *,
+    key,
+    out,
+    provider_id,
+    model,
+    prompt,
+    usage=None,
+    surface="generate",
+):
+    _charge_if_budgeted(model, prompt, out)
+    _log_usage_event(
+        provider_id=provider_id,
+        model=model,
+        prompt=prompt,
+        completion=out,
+        cache_hit=False,
+        usage=usage,
+        surface=surface,
+    )
+    cache().put(key, CacheEntry(out, provider_id=provider_id, model=model))
+    return out
+
+
+def _generate_local_cached(prompt, feedback, model, max_tokens, cache_full_prompt):
     eff_model = model or (LOCAL_MODEL_PREFIX + "default")
     # Fold the resolved weights into the cache key: two different GGUFs can
     # both route as the default model (via SIMPLICIO_LOCAL_MODEL_PATH /
@@ -556,14 +590,12 @@ def _generate_local_cached(prompt, feedback, model, max_tokens, cache_full_promp
     )
     cached = cache().get(key)
     if cached is not None:
-        _log_usage_event(
+        return _return_cached(
             provider_id="local-llama",
             model=eff_model,
             prompt=cache_full_prompt,
-            completion=cached.completion,
-            cache_hit=True,
+            cached=cached,
         )
-        return cached.completion
     out = _local_generate(prompt, feedback, eff_model, max_tokens)
     _charge_if_budgeted(eff_model, cache_full_prompt, out)
     _log_usage_event(
@@ -606,14 +638,7 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
     )
     cached = cache().get(cache_key)
     if cached is not None:
-        _log_usage_event(
-            provider_id="doer",
-            model=model_name,
-            prompt=cache_full_prompt,
-            completion=cached.completion,
-            cache_hit=True,
-        )
-        return cached.completion
+        return _return_cached(provider_id="doer", model=model_name, prompt=cache_full_prompt, cached=cached)
 
     c = _cfg()
     model = c["model"]
@@ -648,40 +673,19 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
     )
     cached = cache().get(key)
     if cached is not None:
-        _log_usage_event(
-            provider_id=provider_id,
-            model=model,
-            prompt=cache_full_prompt,
-            completion=cached.completion,
-            cache_hit=True,
-        )
-        return cached.completion
+        return _return_cached(provider_id=provider_id, model=model, prompt=cache_full_prompt, cached=cached)
 
     # Path 3: shell out to a logged-in CLI. No API key needed.
     if model.startswith("claude-cli/"):
         out = _shell_out_claude(_inline_feedback(prompt, feedback), model.split("/", 1)[1])
-        _charge_if_budgeted(model, cache_full_prompt, out)
-        _log_usage_event(
-            provider_id=provider_id,
-            model=model,
-            prompt=cache_full_prompt,
-            completion=out,
-            cache_hit=False,
+        return _finalize_completion(
+            key=key, out=out, provider_id=provider_id, model=model, prompt=cache_full_prompt
         )
-        cache().put(key, CacheEntry(out, provider_id=provider_id, model=model))
-        return out
     if model.startswith("codex-cli/"):
         out = _shell_out_codex(_inline_feedback(prompt, feedback), model.split("/", 1)[1])
-        _charge_if_budgeted(model, cache_full_prompt, out)
-        _log_usage_event(
-            provider_id=provider_id,
-            model=model,
-            prompt=cache_full_prompt,
-            completion=out,
-            cache_hit=False,
+        return _finalize_completion(
+            key=key, out=out, provider_id=provider_id, model=model, prompt=cache_full_prompt
         )
-        cache().put(key, CacheEntry(out, provider_id=provider_id, model=model))
-        return out
 
     if not c["key"]:
         raise SystemExit(
@@ -697,31 +701,20 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
         cli = anthropic.Anthropic(api_key=c["key"])
         r = cli.messages.create(model=model, max_tokens=max_tokens, messages=_msgs(prompt, feedback))
         out = next((b.text for b in r.content if b.type == "text"), "")
-        _charge_if_budgeted(model, cache_full_prompt, out)
-        _log_usage_event(
+        return _finalize_completion(
+            key=key,
+            out=out,
             provider_id=provider_id,
             model=model,
             prompt=cache_full_prompt,
-            completion=out,
-            cache_hit=False,
             usage=_anthropic_usage(r),
         )
-        cache().put(key, CacheEntry(out, provider_id=provider_id, model=model))
-        return out
 
     # Any OpenAI-compatible endpoint (OpenRouter, GLM, DeepSeek, local...)
     out, usage = _openai_compatible_generate(model, c["base"], c["key"], prompt, feedback, max_tokens)
-    _charge_if_budgeted(model, cache_full_prompt, out)
-    _log_usage_event(
-        provider_id=provider_id,
-        model=model,
-        prompt=cache_full_prompt,
-        completion=out,
-        cache_hit=False,
-        usage=usage,
+    return _finalize_completion(
+        key=key, out=out, provider_id=provider_id, model=model, prompt=cache_full_prompt, usage=usage
     )
-    cache().put(key, CacheEntry(out, provider_id=provider_id, model=model))
-    return out
 
 
 def info():
@@ -887,67 +880,47 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
     key = _planner_cache_key(p, prompt, max_tokens, temperature, template_version)
     cached = cache().get(key)
     if cached is not None:
-        _log_usage_event(
+        return _return_cached(
             provider_id=_planner_provider_id(p),
             model=p["model"],
             prompt=prompt,
-            completion=cached.completion,
-            cache_hit=True,
+            cached=cached,
             surface="planner_complete",
         )
-        return cached.completion
 
     if p["shell_out"]:
         provider_id = _planner_provider_id(p)
         if p["model"].startswith("claude-cli/"):
             out = _shell_out_claude(prompt, p["model"].split("/", 1)[1])
-            _charge_if_budgeted(p["model"], prompt, out)
-            _log_usage_event(
+            return _finalize_completion(
+                key=key,
+                out=out,
                 provider_id=provider_id,
                 model=p["model"],
                 prompt=prompt,
-                completion=out,
-                cache_hit=False,
                 surface="planner_complete",
             )
-            cache().put(
-                key,
-                CacheEntry(out, provider_id=provider_id, model=p["model"]),
-            )
-            return out
         if p["model"].startswith("codex-cli/"):
             out = _shell_out_codex(prompt, p["model"].split("/", 1)[1])
-            _charge_if_budgeted(p["model"], prompt, out)
-            _log_usage_event(
+            return _finalize_completion(
+                key=key,
+                out=out,
                 provider_id=provider_id,
                 model=p["model"],
                 prompt=prompt,
-                completion=out,
-                cache_hit=False,
                 surface="planner_complete",
             )
-            cache().put(
-                key,
-                CacheEntry(out, provider_id=provider_id, model=p["model"]),
-            )
-            return out
 
     if p["model"].startswith(LOCAL_MODEL_PREFIX):
         out = _local_generate(prompt, None, p["model"], max_tokens)
-        _charge_if_budgeted(p["model"], prompt, out)
-        _log_usage_event(
+        return _finalize_completion(
+            key=key,
+            out=out,
             provider_id="planner:local-llama",
             model=p["model"],
             prompt=prompt,
-            completion=out,
-            cache_hit=False,
             surface="planner_complete",
         )
-        cache().put(
-            key,
-            CacheEntry(out, provider_id="planner:local-llama", model=p["model"]),
-        )
-        return out
 
     if not p["key"]:
         raise SystemExit(
@@ -966,21 +939,15 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
             messages=[{"role": "user", "content": prompt}],
         )
         out = next((b.text for b in r.content if b.type == "text"), "")
-        _charge_if_budgeted(p["model"], prompt, out)
-        _log_usage_event(
+        return _finalize_completion(
+            key=key,
+            out=out,
             provider_id=_planner_provider_id(p),
             model=p["model"],
             prompt=prompt,
-            completion=out,
-            cache_hit=False,
             usage=_anthropic_usage(r),
             surface="planner_complete",
         )
-        cache().put(
-            key,
-            CacheEntry(out, provider_id=_planner_provider_id(p), model=p["model"]),
-        )
-        return out
 
     OpenAI = _import_openai()
 
@@ -992,21 +959,15 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
         messages=[{"role": "user", "content": prompt}],
     )
     out = r.choices[0].message.content
-    _charge_if_budgeted(p["model"], prompt, out)
-    _log_usage_event(
+    return _finalize_completion(
+        key=key,
+        out=out,
         provider_id=_planner_provider_id(p),
         model=p["model"],
         prompt=prompt,
-        completion=out,
-        cache_hit=False,
         usage=_openai_usage(r),
         surface="planner_complete",
     )
-    cache().put(
-        key,
-        CacheEntry(out, provider_id=_planner_provider_id(p), model=p["model"]),
-    )
-    return out
 
 
 def planner_info():

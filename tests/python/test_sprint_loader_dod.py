@@ -72,3 +72,34 @@ def test_load_sprint_dod_reads_sprint_and_task_checklists(tmp_path):
     gates = load_sprint_dod(sprint_dir)
 
     assert [gate.label for gate in gates] == ["Sprint note", "Task note"]
+
+
+def test_run_dod_gates_blocks_shell_metacharacters_by_default(tmp_path):
+    gates = parse_dod("- [ ] Shell (`echo ok | cat`)\n")
+
+    results = run_dod_gates(tmp_path, gates)
+
+    assert results[0]["passed"] is False
+    assert "SIMPLICIO_DOD_ALLOW_SHELL=1" in results[0]["log"]
+
+
+def test_run_dod_gates_allows_shell_opt_in(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_DOD_ALLOW_SHELL", "1")
+    gates = parse_dod("- [ ] Shell (`echo ok | findstr ok`)\n")
+
+    results = run_dod_gates(tmp_path, gates)
+
+    assert results[0]["passed"] is True
+
+
+def test_run_dod_gates_timeout_returns_failed_result(tmp_path, monkeypatch):
+    def fake_timeout(*args, **kwargs):
+        raise __import__("subprocess").TimeoutExpired(cmd="x", timeout=1)
+
+    monkeypatch.setattr("simplicio.dod.subprocess.run", fake_timeout)
+    gates = parse_dod(f"- [ ] Slow (`{sys.executable} -c \"print('ok')\"`)\n")
+
+    results = run_dod_gates(tmp_path, gates)
+
+    assert results[0]["passed"] is False
+    assert "timed out" in results[0]["log"]

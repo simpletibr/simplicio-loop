@@ -6,30 +6,26 @@
 
 set -euo pipefail
 
-echo "[pre-commit] Rodando testes locais antes do commit..."
+echo "[pre-commit] Rodando gates locais antes do commit..."
 
-# Garante que existe package.json antes de tentar npm test.
-if [[ ! -f "package.json" ]]; then
-  echo "[pre-commit] package.json não encontrado. Pulando testes."
-  exit 0
+STAGED_PY="$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.py$' || true)"
+if [[ -n "$STAGED_PY" ]]; then
+  echo "[pre-commit] Arquivos Python staged detectados -> ruff check ."
+  ruff check .
+  if [[ "${SKIP_PRECOMMIT_TESTS:-}" != "1" ]]; then
+    echo "[pre-commit] Arquivos Python staged detectados -> pytest -q -x"
+    pytest -q -x
+  else
+    echo "[pre-commit] SKIP_PRECOMMIT_TESTS=1 -> pulando pytest local."
+  fi
 fi
 
-# Roda a menor suite real deste pacote. Se falhar, bloqueia.
-if grep -q '"test:cli"\s*:' package.json; then
-  TEST_CMD=(npm run test:cli --silent)
-elif grep -q '"test"\s*:' package.json; then
-  TEST_CMD=(npm test --silent)
-else
-  echo "[pre-commit] Nenhum script de teste encontrado. Pulando testes."
-  exit 0
-fi
-
-if ! "${TEST_CMD[@]}"; then
-  echo ""
-  echo "[pre-commit] FALHOU: testes vermelhos. Commit bloqueado."
-  echo "[pre-commit] Corrija os testes antes de commitar."
-  echo "[pre-commit] Para depurar: rode o script de teste configurado no package.json e leia o output."
-  exit 1
+if [[ -f "package.json" ]]; then
+  if grep -q '"test:cli"\s*:' package.json; then
+    npm run test:cli --silent
+  elif grep -q '"test"\s*:' package.json; then
+    npm test --silent
+  fi
 fi
 
 echo "[pre-commit] Testes verdes. Seguindo com o commit."

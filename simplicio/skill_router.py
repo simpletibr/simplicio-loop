@@ -15,11 +15,11 @@ import numpy as np
 from .cache import EmbeddingCache
 
 
-def _skills_dir(root):
+def _skills_dir(root: str) -> str:
     return os.environ.get("SIMPLICIO_SKILLS_DIR", os.path.join(root, ".mapper", "skills"))
 
 
-def _load_skills(root):
+def _load_skills(root: str) -> list[dict[str, str]]:
     d = _skills_dir(root)
     out = []
     for fp in glob.glob(os.path.join(d, "*.md")):
@@ -32,21 +32,26 @@ def _load_skills(root):
     return out
 
 
-def build_skill_block(root, task, threshold=0.15):
+def build_skill_block(root: str, task: str, threshold: float = 0.15) -> str:
     skills = _load_skills(root)
     if not skills:
         return ""  # no skills -> layer disappears, no noise
     from .precedent import _embedder
 
+    embedder = _embedder()
     cache = EmbeddingCache(root)
     descs = [s["desc"] for s in skills]
     missing = cache.get_missing(descs)
     if missing:
-        cache.add(missing, _embedder().encode(missing, show_progress_bar=False))
+        cache.add(missing, embedder.encode(missing, show_progress_bar=False))
         cache.save()
     vd = cache.lookup(descs)
-    vt = _embedder().encode([task])[0]
-    scores = [float(np.dot(vt, v) / (np.linalg.norm(vt) * np.linalg.norm(v))) for v in vd]
+    vt = embedder.encode([task])[0]
+    vt_norm = float(np.linalg.norm(vt))
+    scores = []
+    for v in vd:
+        denom = vt_norm * float(np.linalg.norm(v))
+        scores.append(float(np.dot(vt, v) / denom) if denom else 0.0)
     i = int(np.argmax(scores))
     if scores[i] < threshold:
         return ""  # nothing matches enough -> don't force an irrelevant skill

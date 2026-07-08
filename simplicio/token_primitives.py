@@ -8,6 +8,8 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from .utils.fs import write_text_atomic
+
 LOG_SUMMARY_SCHEMA = "simplicio.log-summary/v1"
 DIFF_REVIEW_SCHEMA = "simplicio.diff-review/v1"
 CONTEXT_CACHE_SCHEMA = "simplicio.context-cache/v1"
@@ -138,7 +140,7 @@ class ContextCache:
         store = self._read()
         store[key] = {"hash": digest, "summary": summary}
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(store, indent=2, sort_keys=True), encoding="utf-8")
+        write_text_atomic(self.path, json.dumps(store, indent=2, sort_keys=True), encoding="utf-8")
         return {
             "schema": CONTEXT_CACHE_SCHEMA,
             "key": key,
@@ -157,7 +159,7 @@ class ContextCache:
             removed = 1 if key in store else 0
             store.pop(key, None)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(store, indent=2, sort_keys=True), encoding="utf-8")
+        write_text_atomic(self.path, json.dumps(store, indent=2, sort_keys=True), encoding="utf-8")
         return {"schema": CONTEXT_CACHE_SCHEMA, "removed": removed}
 
     def _read(self) -> dict[str, Any]:

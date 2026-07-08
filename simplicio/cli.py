@@ -55,23 +55,28 @@ def _dispatch_nested(argv: list[str]) -> int | None:
     parsing (unchanged by issue #103's cli.py cleanup)."""
     from .commands._shared import parse_rust_flags, try_route_via_simplicio
 
+    def wants_help(args: list[str]) -> bool:
+        return any(arg in {"-h", "--help"} for arg in args)
+
     if argv and argv[0] == "gate":
         clean_args, native, python = parse_rust_flags(argv[1:])
-        result = try_route_via_simplicio(
-            "gate", clean_args, prefer_native=native or not python, prefer_python=python
-        )
-        if result is not None:
-            return result
+        if not wants_help(clean_args):
+            result = try_route_via_simplicio(
+                "gate", clean_args, prefer_native=native or not python, prefer_python=python
+            )
+            if result is not None:
+                return result
         from .commands.gate import main as gate_main
 
         return gate_main(clean_args)
     if argv and argv[0] == "nest":
         clean_args, native, python = parse_rust_flags(argv[1:])
-        result = try_route_via_simplicio(
-            "nest", clean_args, prefer_native=native or not python, prefer_python=python
-        )
-        if result is not None:
-            return result
+        if not wants_help(clean_args):
+            result = try_route_via_simplicio(
+                "nest", clean_args, prefer_native=native or not python, prefer_python=python
+            )
+            if result is not None:
+                return result
         from .commands.nest import main as nest_main
 
         return nest_main(clean_args)
@@ -383,15 +388,6 @@ def _build_parser() -> argparse.ArgumentParser:
     p_runtime_doctor.add_argument("--root", default=".")
     p_runtime_doctor.add_argument("--json", action="store_true")
 
-    p_serve = sub.add_parser(
-        "serve", help="run simplicio-dev-cli as a server (--mcp for the MCP stdio protocol)"
-    )
-    p_serve.add_argument(
-        "--mcp",
-        action="store_true",
-        help="serve MCP tools (dev_cli_edit, dev_cli_validate, dev_cli_memory) over stdio",
-    )
-
     p_memory = sub.add_parser(
         "memory", help="cross-vendor memory handoff (markdown + git under ~/.simplicio/memory)"
     )
@@ -435,7 +431,6 @@ _COMMAND_MODULES = {
     "test": "test",
     "token": "token",
     "runtime": "runtime",
-    "serve": "serve",
     "memory": "memory",
 }
 
@@ -448,48 +443,58 @@ def main(argv=None):
 
     configure_logging(quiet=quiet, verbose=verbose)
 
-    # Session-start ecosystem-freshness check (closes the runtime gap where
-    # pyproject pins >=X but the installed version is older). Idempotent +
-    # opt-out via SIMPLICIO_NO_AUTO_UPGRADE=1. See simplicio/ecosystem.py.
     try:
-        from .ecosystem import maybe_run_session_start
+        # Session-start ecosystem-freshness check (closes the runtime gap where
+        # pyproject pins >=X but the installed version is older). Idempotent +
+        # opt-in via SIMPLICIO_AUTO_UPGRADE=1. See simplicio/ecosystem.py.
+        try:
+            from .ecosystem import maybe_run_session_start
 
-        maybe_run_session_start()
-    except Exception as e:
-        # Never let the freshness check break the CLI.
-        print(f"{CLI_PROG}: ecosystem check skipped ({e})", file=sys.stderr)
+            maybe_run_session_start()
+        except Exception as e:
+            # Never let the freshness check break the CLI.
+            print(f"{CLI_PROG}: ecosystem check skipped ({e})", file=sys.stderr)
 
-    nested = _dispatch_nested(argv)
-    if nested is not None:
-        return nested
+        nested = _dispatch_nested(argv)
+        if nested is not None:
+            return nested
 
-    ap = _build_parser()
-    a = ap.parse_args(argv)
-    maybe_autoinstall(a.cmd)
+        ap = _build_parser()
+        a = ap.parse_args(argv)
+        maybe_autoinstall(a.cmd)
 
-    # `mechanical-edit`/`edit`/`score-skill` need a little dispatch logic
-    # of their own (edit falls back to mechanical-edit; score-skill tries
-    # the Rust binary first) that doesn't fit the flat name->module table.
-    if a.cmd == "mechanical-edit":
-        from .commands.edit import run_mechanical_edit
+        # `mechanical-edit`/`edit`/`score-skill` need a little dispatch logic
+        # of their own (edit falls back to mechanical-edit; score-skill tries
+        # the Rust binary first) that doesn't fit the flat name->module table.
+        if a.cmd == "mechanical-edit":
+            from .commands.edit import run_mechanical_edit
 
-        return run_mechanical_edit(a)
-    if a.cmd == "edit":
-        from .commands.edit import run_edit
+            return run_mechanical_edit(a)
+        if a.cmd == "edit":
+            from .commands.edit import run_edit
 
-        return run_edit(a)
-    if a.cmd == "score-skill":
-        from .commands.score_skill import run as score_skill_run
+            return run_edit(a)
+        if a.cmd == "score-skill":
+            from .commands.score_skill import run as score_skill_run
 
-        return score_skill_run(a)
+            return score_skill_run(a)
 
-    module_name = _COMMAND_MODULES.get(a.cmd)
-    if module_name is None:
-        return 0
-    import importlib
+        module_name = _COMMAND_MODULES.get(a.cmd)
+        if module_name is None:
+            return 0
+        import importlib
 
-    command_module = importlib.import_module(f".commands.{module_name}", package=__package__)
-    return command_module.run(a)
+        command_module = importlib.import_module(f".commands.{module_name}", package=__package__)
+        return command_module.run(a)
+    except KeyboardInterrupt:
+        return 130
+    except BrokenPipeError:
+        return 130
+    except Exception as exc:
+        if verbose:
+            raise
+        print(f"{CLI_PROG}: error: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

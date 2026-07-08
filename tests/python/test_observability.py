@@ -280,3 +280,34 @@ def test_events_summary_tolerates_corrupt_trailing_line(tmp_path):
     )
     summary = events_summary(str(tmp_path))
     assert summary["count"] == 1
+
+
+def test_emit_event_rotates_large_jsonl(tmp_path, monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_DISABLE_RUN_LOG", raising=False)
+    monkeypatch.setenv("SIMPLICIO_EVENTS_MAX_BYTES", "100")
+    events_dir = tmp_path / ".simplicio"
+    events_dir.mkdir()
+    (events_dir / "events.jsonl").write_text("x" * 101, encoding="utf-8")
+
+    emit_event("task_start", {"n": 1}, root=str(tmp_path))
+
+    assert (events_dir / "events.jsonl.1").exists()
+    summary = events_summary(str(tmp_path))
+    assert summary["count"] == 1
+
+
+def test_events_summary_streams_large_file_and_skips_corrupt_lines(tmp_path):
+    events_dir = tmp_path / ".simplicio"
+    events_dir.mkdir()
+    out = events_dir / "events.jsonl"
+    with out.open("w", encoding="utf-8") as handle:
+        for i in range(200):
+            handle.write(
+                json.dumps({"schema": EVENT_SCHEMA, "event": "task_start", "payload": {"n": i}}) + "\n"
+            )
+        handle.write("not-json\n")
+
+    summary = events_summary(str(tmp_path), limit=2)
+
+    assert summary["count"] == 200
+    assert [row["payload"]["n"] for row in summary["recent"]] == [198, 199]

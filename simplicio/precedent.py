@@ -236,7 +236,7 @@ def build_precedent_block(root, stack, task, k=2):
 
     cache, cands = index_repo(root, stack_key, verbose=False)
     if not cands:
-        return "[PRECEDENT]\n(no match)"
+        return f"[PRECEDENT]\n(no match for {stack!r})"
     texts = [c["code"] for c in cands]
     vc = cache.lookup(texts)  # from cache, no re-embed
     vt = _embedder().encode([task])[0]  # only the task (short)

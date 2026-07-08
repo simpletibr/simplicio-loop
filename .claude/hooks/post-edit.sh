@@ -16,6 +16,10 @@ FILE="${1:-}"
 [[ ! -f "$FILE" ]] && exit 0
 
 case "$FILE" in
+  *.py)
+    ruff format "$FILE" 2>/dev/null || true
+    ruff check --fix "$FILE" 2>/dev/null || true
+    ;;
   *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs)
     # Prettier formata, ESLint corrige o que dá.
     npx --no-install prettier --write "$FILE" 2>/dev/null || true

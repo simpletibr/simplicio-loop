@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import os
 import re
+import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 _CHECK_RE = re.compile(r"^\s*-\s+\[(?P<mark>[ xX])\]\s+(?P<label>.+?)\s*$")
 _COMMAND_RE = re.compile(r"`([^`]+)`")
+_SHELL_META_RE = re.compile(r"[|;&><$`]")
 
 
 @dataclass
@@ -54,6 +57,7 @@ def load_sprint_dod(sprint_root: str | Path) -> list[DodGate]:
 
 def run_dod_gates(root: str | Path, gates: list[DodGate]) -> list[dict]:
     results = []
+    allow_shell = os.environ.get("SIMPLICIO_DOD_ALLOW_SHELL", "").strip().lower() in {"1", "true", "yes"}
     for gate in gates:
         if not gate.command:
             results.append(
@@ -66,21 +70,45 @@ def run_dod_gates(root: str | Path, gates: list[DodGate]) -> list[dict]:
                 }
             )
             continue
-        proc = subprocess.run(
-            gate.command,
-            shell=True,
-            cwd=root,
-            capture_output=True,
-            text=True,
-            timeout=600,
-            check=False,
-        )
+        try:
+            if allow_shell:
+                proc = subprocess.run(
+                    gate.command,
+                    shell=True,
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    timeout=600,
+                    check=False,
+                )
+            else:
+                if _SHELL_META_RE.search(gate.command):
+                    raise ValueError(
+                        "shell metacharacters are blocked by default; rerun with SIMPLICIO_DOD_ALLOW_SHELL=1"
+                    )
+                proc = subprocess.run(
+                    shlex.split(gate.command),
+                    shell=False,
+                    cwd=root,
+                    capture_output=True,
+                    text=True,
+                    timeout=600,
+                    check=False,
+                )
+            passed = proc.returncode == 0
+            log = (proc.stdout + proc.stderr)[-1500:]
+        except subprocess.TimeoutExpired as exc:
+            passed = False
+            log = f"command timed out after {exc.timeout}s"
+        except ValueError as exc:
+            passed = False
+            log = str(exc)
         results.append(
             {
                 "label": gate.label,
-                "passed": proc.returncode == 0,
+                "passed": passed,
                 "command": gate.command,
-                "log": (proc.stdout + proc.stderr)[-1500:],
+                "log": log,
                 "manual": False,
             }
         )
