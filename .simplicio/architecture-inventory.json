@@ -1,8 +1,8 @@
 {
   "schema": "simplicio.architecture-inventory/v1",
   "version": 1,
-  "generated_at": "2026-07-07T06:30:26.886Z",
-  "root": "/home/user/simplicio-mapper",
+  "generated_at": "2026-07-08T01:38:13.319Z",
+  "root": "C:/Users/Z0059V7A/m/ai/simplicio-mapper",
   "source_project_map": ".simplicio/project-map.json",
   "source_symbol_index": ".simplicio/symbol-index.json",
   "source_call_graph": ".simplicio/call-graph.json",
@@ -27,9 +27,10 @@
   "modules": [
     {
       "name": ".",
-      "summary": "Groups 30 files across 3 detected layers.",
-      "file_count": 30,
+      "summary": "Groups 31 files across 3 detected layers.",
+      "file_count": 31,
       "files": [
+        ".coverage",
         ".gitattributes",
         ".gitignore",
         ".llm-project-mapper.json",
@@ -71,6 +72,9 @@
       "public_symbols": [],
       "evidence": [
         {
+          "file": ".coverage"
+        },
+        {
           "file": ".gitattributes"
         },
         {
@@ -96,9 +100,6 @@
         },
         {
           "file": "INIT.md"
-        },
-        {
-          "file": "INSTALL.en.md"
         }
       ]
     },
@@ -223,8 +224,8 @@
     },
     {
       "name": ".github",
-      "summary": "Groups 21 files across 4 detected layers.",
-      "file_count": 21,
+      "summary": "Groups 23 files across 4 detected layers.",
+      "file_count": 23,
       "files": [
         ".github/CODEOWNERS",
         ".github/ISSUE_TEMPLATE/bug.md",
@@ -236,6 +237,7 @@
         ".github/copilot/agents/ralph-loop.agent.md",
         ".github/copilot/agents/reviewer.agent.md",
         ".github/copilot/agents/tdd.agent.md",
+        ".github/dependabot.yml",
         ".github/workflows-templates/README.md",
         ".github/workflows-templates/llm-project-mapper-init.yml",
         ".github/workflows-templates/telemetry-worker.js",
@@ -243,6 +245,7 @@
         ".github/workflows/docs-site.yml",
         ".github/workflows/docs-sync.yml",
         ".github/workflows/dod.yml",
+        ".github/workflows/publish-npm.yml",
         ".github/workflows/publish-pypi.yml",
         ".github/workflows/python-ci.yml",
         ".github/workflows/python-lint.yml",
@@ -1166,7 +1169,12 @@
       ],
       "entry_points": [],
       "tests": [],
-      "public_symbols": [],
+      "public_symbols": [
+        "collect_matches",
+        "parse_imports",
+        "sha256_hex",
+        "simplicio_mapper_rs"
+      ],
       "evidence": [
         {
           "file": "rust/Cargo.toml"
@@ -1259,6 +1267,7 @@
         "check",
         "checkClaudeSync",
         "checkCopilotStub",
+        "checkYoolStub",
         "check_invalid_case",
         "check_valid_case",
         "cmd_check",
@@ -1266,8 +1275,7 @@
         "cmd_write",
         "compare_versions",
         "computeDivergence",
-        "compute_hash",
-        "containsDirective"
+        "compute_hash"
       ],
       "evidence": [
         {
@@ -1829,7 +1837,7 @@
   "layers": [
     {
       "name": "asset",
-      "file_count": 102,
+      "file_count": 105,
       "files": [
         ".claude/hooks/post-edit.ps1",
         ".claude/hooks/post-edit.sh",
@@ -1842,13 +1850,16 @@
         ".codex/hooks/pre-commit.ps1",
         ".codex/hooks/pre-commit.sh",
         ".codex/hooks/session-start-skills.ps1",
+        ".coverage",
         ".gitattributes",
         ".github/CODEOWNERS",
+        ".github/dependabot.yml",
         ".github/workflows-templates/llm-project-mapper-init.yml",
         ".github/workflows/ci.yml",
         ".github/workflows/docs-site.yml",
         ".github/workflows/docs-sync.yml",
         ".github/workflows/dod.yml",
+        ".github/workflows/publish-npm.yml",
         ".github/workflows/publish-pypi.yml",
         ".github/workflows/python-ci.yml",
         ".github/workflows/python-lint.yml",
@@ -1927,10 +1938,7 @@
         "fixtures/toon-golden/valid/sprint-cards-representative/input.json",
         "package-lock.json",
         "template-manifest.json",
-        "video/.gitignore",
-        "video/package-lock.json",
-        "video/src/why/narration.json",
-        "vscode-extension/.gitignore"
+        "video/.gitignore"
       ],
       "modules": [
         ".",
@@ -3048,6 +3056,23 @@
       ]
     },
     {
+      "path": ".coverage",
+      "language": "text",
+      "module": ".",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": ".coverage"
+        }
+      ]
+    },
+    {
       "path": ".gitattributes",
       "language": "text",
       "module": ".",
@@ -3238,6 +3263,23 @@
       ]
     },
     {
+      "path": ".github/dependabot.yml",
+      "language": "yaml",
+      "module": ".github",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": ".github/dependabot.yml"
+        }
+      ]
+    },
+    {
       "path": ".github/workflows-templates/README.md",
       "language": "markdown",
       "module": ".github",
@@ -3355,6 +3397,23 @@
       "evidence": [
         {
           "file": ".github/workflows/dod.yml"
+        }
+      ]
+    },
+    {
+      "path": ".github/workflows/publish-npm.yml",
+      "language": "yaml",
+      "module": ".github",
+      "layers": [
+        "asset"
+      ],
+      "roles": [],
+      "imports": [],
+      "symbols": [],
+      "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
+      "evidence": [
+        {
+          "file": ".github/workflows/publish-npm.yml"
         }
       ]
     },
@@ -8589,8 +8648,19 @@
         "code"
       ],
       "roles": [],
-      "imports": [],
-      "symbols": [],
+      "imports": [
+        "once_cell::sync::Lazy",
+        "pyo3::exceptions::PyValueError",
+        "pyo3::prelude::*",
+        "regex::Regex",
+        "sha2::{Digest, Sha256}"
+      ],
+      "symbols": [
+        "sha256_hex",
+        "collect_matches",
+        "parse_imports",
+        "simplicio_mapper_rs"
+      ],
       "summary": "Participates in the project implementation; inspect imports and symbols for exact usage.",
       "evidence": [
         {
@@ -8676,11 +8746,12 @@
         "buildExpectedClaudeMd",
         "checkClaudeSync",
         "checkCopilotStub",
+        "checkYoolStub",
         "runCheck",
         "runSync",
         "main"
       ],
-      "summary": "Defines exported symbols: buildExpectedClaudeMd, checkClaudeSync, checkCopilotStub, main, runCheck.",
+      "summary": "Defines exported symbols: buildExpectedClaudeMd, checkClaudeSync, checkCopilotStub, checkYoolStub, main.",
       "evidence": [
         {
           "file": "scripts/check-doc-sync.js"
@@ -10321,6 +10392,7 @@
         "_now_iso",
         "_normalize_rel",
         "_read_safe",
+        "_content_for",
         "_sha256",
         "_json_text",
         "_parse_json_safe",
@@ -10435,7 +10507,11 @@
         ".mapper",
         "__future__",
         "collections",
+        "json",
         "os",
+        "re",
+        "shutil",
+        "subprocess",
         "typing"
       ],
       "symbols": [
@@ -10448,9 +10524,13 @@
         "_read_text",
         "_tests_for",
         "_business_rules",
+        "_tokenize",
+        "_runtime_precedent_search",
+        "_candidate_view",
+        "_local_precedent_fallback",
         "run_query"
       ],
-      "summary": "Defines exported symbols: _business_rules, _callees, _callers, _edge_view, _impact.",
+      "summary": "Defines exported symbols: _business_rules, _callees, _callers, _candidate_view, _edge_view.",
       "evidence": [
         {
           "file": "simplicio_mapper/query.py"
@@ -11167,6 +11247,9 @@
         "test_call_graph_file_graph_keeps_symbol_and_file_id_spaces_disjoint",
         "test_incremental_records_changed_files",
         "test_git_status_marks_untracked_files_inside_new_dirs",
+        "test_build_artifacts_emits_deterministic_degraded_shape",
+        "test_build_artifacts_reports_skipped_large_files",
+        "test_precedent_index_keeps_multiple_ranked_items_per_file",
         "EndpointNormalizationTest",
         "test_placeholders_collapse_to_id",
         "test_uuid_segments_collapse_to_id",
@@ -11957,6 +12040,7 @@
         "os",
         "pathlib",
         "simplicio_mapper.mapper.parse",
+        "subprocess",
         "sys",
         "tempfile",
         "unittest"
@@ -11968,6 +12052,7 @@
         "test_normalize_rel_replaces_os_sep_with_forward_slash",
         "test_language_for_known_extensions",
         "test_parse_imports_python",
+        "test_parse_imports_expanded_languages",
         "test_parse_symbols_python_def",
         "test_roles_for_test_file",
         "test_roles_for_entrypoint",
@@ -11976,7 +12061,9 @@
         "BuildFileInventoryTest",
         "setUp",
         "tearDown",
-        "test_discovers_entrypoint_and_test_files"
+        "test_discovers_entrypoint_and_test_files",
+        "test_collect_text_files_reports_large_file_skip",
+        "test_git_status_timeout_marks_degraded"
       ],
       "summary": "Verifies project behavior through automated tests.",
       "evidence": [
@@ -12141,6 +12228,7 @@
         "pathlib",
         "simplicio_mapper.cli",
         "simplicio_mapper.query",
+        "subprocess",
         "sys",
         "tempfile",
         "unittest"
@@ -12157,7 +12245,16 @@
         "test_tests_for_finds_matching_test_file",
         "test_rules_without_business_index_notes_missing",
         "test_unknown_verb_raises",
-        "test_ask_command_end_to_end"
+        "test_ask_command_end_to_end",
+        "PrecedentVerbTest",
+        "setUp",
+        "tearDown",
+        "test_native_runtime_used_when_binary_on_path",
+        "test_fallback_to_local_tag_overlap_when_binary_absent",
+        "test_fallback_on_subprocess_timeout",
+        "test_fallback_on_malformed_json",
+        "test_fallback_on_non_zero_exit",
+        "test_empty_precedent_index_does_not_crash"
       ],
       "summary": "Verifies project behavior through automated tests.",
       "evidence": [
@@ -16172,10 +16269,10 @@
     }
   ],
   "coverage": {
-    "files": 495,
+    "files": 498,
     "modules": 23,
     "layers": 11,
-    "symbols": 1343,
+    "symbols": 1368,
     "relationships": 1000,
     "tests": 91
   },

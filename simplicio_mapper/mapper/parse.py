@@ -152,6 +152,14 @@ def _read_safe(file: str) -> str:
     except OSError:
         return ""
 
+def _content_for(cwd: str, rel: str, contents: dict[str, str] | None = None) -> str:
+    if contents is not None and rel in contents:
+        return contents[rel]
+    text = _read_safe(os.path.join(cwd, rel))
+    if contents is not None:
+        contents[rel] = text
+    return text
+
 def _sha256(text: str) -> str:
     if _native.HAS_NATIVE and _native.sha256_hex is not None:
         return _native.sha256_hex(text)
@@ -207,7 +215,7 @@ def _language_for(file: str, text: str | None = None) -> str:
         return LANGUAGE_BY_EXT[ext]
     return ext[1:] if ext else "text"
 
-def _git_status_map(cwd: str) -> dict[str, str]:
+def _git_status_map(cwd: str, degraded: dict[str, Any] | None = None) -> dict[str, str]:
     out: dict[str, str] = {}
     try:
         result = subprocess.run(
@@ -217,9 +225,17 @@ def _git_status_map(cwd: str) -> dict[str, str]:
             text=True,
             timeout=3,
         )
+    except subprocess.TimeoutExpired:
+        if degraded is not None:
+            degraded["git_timeout"] = True
+        return out
     except (OSError, subprocess.SubprocessError):
+        if degraded is not None:
+            degraded["git_status_unavailable"] = True
         return out
     if result.returncode != 0:
+        if degraded is not None:
+            degraded["git_status_unavailable"] = True
         return out
     for line in (result.stdout or "").split("\n"):
         if not line.strip():
@@ -230,7 +246,7 @@ def _git_status_map(cwd: str) -> dict[str, str]:
         out[_normalize_rel(file)] = status
     return out
 
-def _collect_text_files(cwd: str) -> list[str]:
+def _collect_text_files(cwd: str, skipped: list[str] | None = None) -> list[str]:
     files = []
     for file in _walk(cwd):
         ext = os.path.splitext(file)[1].lower()
@@ -238,6 +254,8 @@ def _collect_text_files(cwd: str) -> list[str]:
             continue
         try:
             if os.path.getsize(file) > 250_000:
+                if skipped is not None:
+                    skipped.append(_normalize_rel(os.path.relpath(file, cwd)))
                 continue
         except OSError:
             continue
@@ -262,6 +280,23 @@ def _parse_imports(text: str, language: str) -> list[str]:
         patterns.append(re.compile(r"^\s*using\s+([A-Za-z0-9_.]+)\s*;", re.MULTILINE))
     elif language == "go":
         patterns.append(re.compile(r'^\s*import\s+"([^"]+)"', re.MULTILINE))
+    elif language == "rust":
+        patterns.append(re.compile(r"^\s*use\s+([^;]+);", re.MULTILINE))
+        patterns.append(re.compile(r"^\s*extern\s+crate\s+([A-Za-z_][\w]*)", re.MULTILINE))
+    elif language == "java":
+        patterns.append(re.compile(r"^\s*import\s+(?:static\s+)?([A-Za-z_][\w.*]*)\s*;", re.MULTILINE))
+    elif language == "kotlin":
+        patterns.append(re.compile(r"^\s*import\s+([A-Za-z_][\w.*]*)", re.MULTILINE))
+    elif language == "php":
+        patterns.append(re.compile(r"^\s*use\s+([A-Za-z_\\][A-Za-z0-9_\\]*)\s*;", re.MULTILINE))
+        patterns.append(
+            re.compile(
+                r"^\s*(?:require|require_once|include|include_once)\s*\(?\s*['\"]([^'\"]+)['\"]\s*\)?",
+                re.MULTILINE,
+            )
+        )
+    elif language == "ruby":
+        patterns.append(re.compile(r"^\s*require(?:_relative)?\s+['\"]([^'\"]+)['\"]", re.MULTILINE))
     elif language in ("vue", "svelte"):
         patterns.append(re.compile(r"import\s+[^'\"]*['\"]([^'\"]+)['\"]"))
         patterns.append(re.compile(r"require\(['\"]([^'\"]+)['\"]\)"))
@@ -495,12 +530,21 @@ def _load_previous_map(output_dir: str) -> dict:
     except (OSError, orjson.JSONDecodeError, TypeError):
         return {}
 
-def _cached_parse_file(abs_path: str, rel: str, stat: os.stat_result, cache: FileProcessingCache | None) -> dict:
+def _cached_parse_file(
+    cwd: str,
+    abs_path: str,
+    rel: str,
+    stat: os.stat_result,
+    cache: FileProcessingCache | None,
+    contents: dict[str, str] | None = None,
+) -> dict:
     cached = cache.get_processed_file(rel, stat.st_size, stat.st_mtime_ns) if cache else None
     if cached is not None:
+        if contents is not None and rel not in contents:
+            contents[rel] = _content_for(cwd, rel, contents)
         return cached
 
-    text = _read_safe(abs_path)
+    text = _content_for(cwd, rel, contents)
     language = _language_for(rel, text)
     result = {
         "language": language,
@@ -518,15 +562,17 @@ def _build_file_inventory(
     pkg: dict,
     status_map: dict,
     cache: FileProcessingCache | None = None,
+    contents: dict[str, str] | None = None,
+    skipped_large_files: list[str] | None = None,
 ) -> list[ProjectFile]:
     inventory: list[ProjectFile] = []
-    for abs_path in _collect_text_files(cwd):
+    for abs_path in _collect_text_files(cwd, skipped=skipped_large_files):
         rel = _normalize_rel(os.path.relpath(abs_path, cwd))
         try:
             stat = os.stat(abs_path)
         except OSError:
             continue
-        parsed = _cached_parse_file(abs_path, rel, stat, cache)
+        parsed = _cached_parse_file(cwd, abs_path, rel, stat, cache, contents=contents)
         roles = _roles_for(rel, pkg)
         imports = list(parsed.get("imports") or [])
         exports = list(parsed.get("exports") or [])
@@ -569,12 +615,19 @@ def _extract_snippet(lines: list[str], line_index: int, radius: int = 2) -> str:
     end = min(len(lines), line_index + radius + 1)
     return "\n".join(lines[start:end])[:1200]
 
-def _build_precedent_items(cwd: str, files: list[ProjectFile]) -> list[dict]:
-    items: list[PrecedentItem] = []
-    for file in files:
-        abs_path = os.path.join(cwd, file.path)
-        lines = _read_safe(abs_path).split("\n")
+def _build_precedent_items(
+    cwd: str,
+    files: list[ProjectFile],
+    contents: dict[str, str] | None = None,
+    per_file_limit: int = 3,
+    max_items: int = 250,
+) -> list[dict]:
+    grouped: list[tuple[ProjectFile, list[PrecedentItem]]] = []
+    for file in sorted(files, key=lambda item: (-item.importance, item.path)):
+        lines = _content_for(cwd, file.path, contents).split("\n")
         is_test = "test" in file.roles
+        file_items: list[PrecedentItem] = []
+        used_lines: list[int] = []
         for i, line in enumerate(lines):
             change_type = None
             for rx, fixed_type in _PRECEDENT_PATTERNS:
@@ -583,15 +636,17 @@ def _build_precedent_items(cwd: str, files: list[ProjectFile]) -> list[dict]:
                     break
             if change_type is None:
                 continue
+            if any(abs(i - used) < 5 for used in used_lines):
+                continue
             snippet = _extract_snippet(lines, i)
             if _RE_PLACEHOLDER.search(snippet):
-                break
+                continue
             tags = list(dict.fromkeys(
                 [r for r in file.roles if r]
                 + ([file.language] if file.language else [])
                 + _token_words(file.path)
             ))[:10]
-            items.append(PrecedentItem(
+            file_items.append(PrecedentItem(
                 id=_sha256(f"{file.path}:{i + 1}:{line}")[:16],
                 path=file.path,
                 line=i + 1,
@@ -600,10 +655,22 @@ def _build_precedent_items(cwd: str, files: list[ProjectFile]) -> list[dict]:
                 tags=tags,
                 summary=f"{change_type} precedent in {file.path}",
                 snippet=snippet,
+                rank=len(file_items) + 1,
             ))
-            break
-    items.sort(key=lambda item: (item.path, item.line))
-    return [item.to_dict() for item in items[:250]]
+            used_lines.append(i)
+            if len(file_items) >= per_file_limit:
+                break
+        if file_items:
+            grouped.append((file, file_items))
+
+    items: list[PrecedentItem] = []
+    for rank in range(per_file_limit):
+        for _file, file_items in grouped:
+            if rank < len(file_items):
+                items.append(file_items[rank])
+                if len(items) >= max_items:
+                    return [item.to_dict() for item in items]
+    return [item.to_dict() for item in items]
 
 def _layers_for_file(file: ProjectFile) -> list[str]:
     rel = file.path.lower()

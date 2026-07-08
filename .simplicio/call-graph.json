@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.call-graph/v1",
   "version": 1,
-  "generated_at": "2026-07-07T06:30:26.886Z",
+  "generated_at": "2026-07-08T01:38:13.319Z",
   "source_symbol_index": ".simplicio/symbol-index.json",
   "edges": [
     {
@@ -2799,11 +2799,11 @@
     {
       "type": "calls",
       "source_file": "rust/src/lib.rs",
-      "source_symbol": null,
+      "source_symbol": "rust/src/lib.rs::simplicio_mapper_rs",
       "target_file": "contracts/mapper-artifacts/v1/fixtures/python-minimal/source/src/util.py",
       "target_symbol": "contracts/mapper-artifacts/v1/fixtures/python-minimal/source/src/util.py::add",
       "line": 80,
-      "confidence": 0.48
+      "confidence": 0.58
     },
     {
       "type": "calls",
@@ -2817,29 +2817,38 @@
     {
       "type": "calls",
       "source_file": "rust/src/lib.rs",
-      "source_symbol": null,
+      "source_symbol": "rust/src/lib.rs::parse_imports",
+      "target_file": "rust/src/lib.rs",
+      "target_symbol": "rust/src/lib.rs::collect_matches",
+      "line": 56,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "rust/src/lib.rs",
+      "source_symbol": "rust/src/lib.rs::sha256_hex",
       "target_file": "scripts/build_hamt.py",
       "target_symbol": "scripts/build_hamt.py::finalize",
       "line": 21,
-      "confidence": 0.48
+      "confidence": 0.58
     },
     {
       "type": "calls",
       "source_file": "rust/src/lib.rs",
-      "source_symbol": null,
+      "source_symbol": "rust/src/lib.rs::collect_matches",
       "target_file": "simplicio_mapper/context_cache.py",
       "target_symbol": "simplicio_mapper/context_cache.py::get",
       "line": 41,
-      "confidence": 0.48
+      "confidence": 0.58
     },
     {
       "type": "calls",
       "source_file": "rust/src/lib.rs",
-      "source_symbol": null,
+      "source_symbol": "rust/src/lib.rs::collect_matches",
       "target_file": "tests/python/test_cli.py",
       "target_symbol": "tests/python/test_cli.py::get",
       "line": 41,
-      "confidence": 0.48
+      "confidence": 0.58
     },
     {
       "type": "calls",
@@ -3054,7 +3063,7 @@
       "source_symbol": "scripts/check-doc-sync.js::main",
       "target_file": "bin/apply-edits.js",
       "target_symbol": "bin/apply-edits.js::main",
-      "line": 137,
+      "line": 169,
       "confidence": 0.58
     },
     {
@@ -3063,7 +3072,7 @@
       "source_symbol": "scripts/check-doc-sync.js::runCheck",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::log",
-      "line": 121,
+      "line": 152,
       "confidence": 0.58
     },
     {
@@ -3072,7 +3081,7 @@
       "source_symbol": "scripts/check-doc-sync.js::main",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::main",
-      "line": 137,
+      "line": 169,
       "confidence": 0.58
     },
     {
@@ -3081,7 +3090,7 @@
       "source_symbol": "scripts/check-doc-sync.js::main",
       "target_file": "bin/skillopt.js",
       "target_symbol": "bin/skillopt.js::main",
-      "line": 137,
+      "line": 169,
       "confidence": 0.58
     },
     {
@@ -3090,7 +3099,7 @@
       "source_symbol": "scripts/check-doc-sync.js::buildExpectedClaudeMd",
       "target_file": "scripts/check-doc-sync.js",
       "target_symbol": "scripts/check-doc-sync.js::buildExpectedClaudeMd",
-      "line": 66,
+      "line": 76,
       "confidence": 0.58
     },
     {
@@ -3099,7 +3108,7 @@
       "source_symbol": "scripts/check-doc-sync.js::checkClaudeSync",
       "target_file": "scripts/check-doc-sync.js",
       "target_symbol": "scripts/check-doc-sync.js::checkClaudeSync",
-      "line": 71,
+      "line": 81,
       "confidence": 0.58
     },
     {
@@ -3108,7 +3117,16 @@
       "source_symbol": "scripts/check-doc-sync.js::checkCopilotStub",
       "target_file": "scripts/check-doc-sync.js",
       "target_symbol": "scripts/check-doc-sync.js::checkCopilotStub",
-      "line": 88,
+      "line": 98,
+      "confidence": 0.58
+    },
+    {
+      "type": "calls",
+      "source_file": "scripts/check-doc-sync.js",
+      "source_symbol": "scripts/check-doc-sync.js::checkYoolStub",
+      "target_file": "scripts/check-doc-sync.js",
+      "target_symbol": "scripts/check-doc-sync.js::checkYoolStub",
+      "line": 126,
       "confidence": 0.58
     },
     {
@@ -3117,7 +3135,7 @@
       "source_symbol": "scripts/check-doc-sync.js::runCheck",
       "target_file": "scripts/check-doc-sync.js",
       "target_symbol": "scripts/check-doc-sync.js::runCheck",
-      "line": 116,
+      "line": 146,
       "confidence": 0.58
     },
     {
@@ -3126,7 +3144,7 @@
       "source_symbol": "scripts/check-doc-sync.js::runSync",
       "target_file": "scripts/check-doc-sync.js",
       "target_symbol": "scripts/check-doc-sync.js::runSync",
-      "line": 131,
+      "line": 162,
       "confidence": 0.58
     },
     {
@@ -3135,7 +3153,7 @@
       "source_symbol": "scripts/check-doc-sync.js::runCheck",
       "target_file": "scripts/check-readme-sync.js",
       "target_symbol": "scripts/check-readme-sync.js::runCheck",
-      "line": 116,
+      "line": 146,
       "confidence": 0.58
     },
     {
@@ -3144,7 +3162,7 @@
       "source_symbol": "scripts/check-doc-sync.js::runCheck",
       "target_file": "scripts/lint.js",
       "target_symbol": "scripts/lint.js::log",
-      "line": 121,
+      "line": 152,
       "confidence": 0.58
     },
     {
@@ -3531,7 +3549,7 @@
       "source_symbol": "scripts/generate-ecosystem-doc.py::main",
       "target_file": "bin/apply-edits.js",
       "target_symbol": "bin/apply-edits.js::main",
-      "line": 296,
+      "line": 315,
       "confidence": 0.58
     },
     {
@@ -3540,7 +3558,7 @@
       "source_symbol": "scripts/generate-ecosystem-doc.py::main",
       "target_file": "bin/cli.js",
       "target_symbol": "bin/cli.js::main",
-      "line": 296,
+      "line": 315,
       "confidence": 0.58
     },
     {
@@ -3558,7 +3576,7 @@
       "source_symbol": "scripts/generate-ecosystem-doc.py::main",
       "target_file": "bin/skillopt.js",
       "target_symbol": "bin/skillopt.js::main",
-      "line": 296,
+      "line": 315,
       "confidence": 0.58
     },
     {
@@ -3576,7 +3594,7 @@
       "source_symbol": "scripts/generate-ecosystem-doc.py::main",
       "target_file": "scripts/build_hamt.py",
       "target_symbol": "scripts/build_hamt.py::parse_args",
-      "line": 304,
+      "line": 323,
       "confidence": 0.58
     },
     {
@@ -3603,7 +3621,7 @@
       "source_symbol": "scripts/generate-ecosystem-doc.py::_strip_date_line",
       "target_file": "scripts/generate-ecosystem-doc.py",
       "target_symbol": "scripts/generate-ecosystem-doc.py::_strip_date_line",
-      "line": 241,
+      "line": 260,
       "confidence": 0.58
     },
     {
@@ -3621,7 +3639,7 @@
       "source_symbol": "scripts/generate-ecosystem-doc.py::cmd_check",
       "target_file": "scripts/generate-ecosystem-doc.py",
       "target_symbol": "scripts/generate-ecosystem-doc.py::cmd_check",
-      "line": 265,
+      "line": 284,
       "confidence": 0.58
     },
     {
@@ -3630,7 +3648,7 @@
       "source_symbol": "scripts/generate-ecosystem-doc.py::cmd_write",
       "target_file": "scripts/generate-ecosystem-doc.py",
       "target_symbol": "scripts/generate-ecosystem-doc.py::cmd_write",
-      "line": 245,
+      "line": 264,
       "confidence": 0.58
     },
     {
@@ -3702,7 +3720,7 @@
       "source_symbol": "scripts/generate-ecosystem-doc.py::cmd_check",
       "target_file": "scripts/regen_contract_fixtures.py",
       "target_symbol": "scripts/regen_contract_fixtures.py::cmd_check",
-      "line": 265,
+      "line": 284,
       "confidence": 0.58
     },
     {
@@ -3711,7 +3729,7 @@
       "source_symbol": "scripts/generate-ecosystem-doc.py::cmd_check",
       "target_file": "scripts/sync_toon_contract.py",
       "target_symbol": "scripts/sync_toon_contract.py::cmd_check",
-      "line": 265,
+      "line": 284,
       "confidence": 0.58
     },
     {
@@ -3765,7 +3783,7 @@
       "source_symbol": "scripts/generate-ecosystem-doc.py::cmd_write",
       "target_file": "tests/unit/apply-edits.test.js",
       "target_symbol": "tests/unit/apply-edits.test.js::write",
-      "line": 251,
+      "line": 270,
       "confidence": 0.58
     },
     {
@@ -7398,7 +7416,7 @@
       "source_symbol": "simplicio_mapper/cli/_repo_commands.py::_run_ask",
       "target_file": "simplicio_mapper/cli/_index_engine.py",
       "target_symbol": "simplicio_mapper/cli/_index_engine.py::_print_toon",
-      "line": 258,
+      "line": 259,
       "confidence": 0.58
     },
     {
@@ -7434,7 +7452,7 @@
       "source_symbol": "simplicio_mapper/cli/_repo_commands.py::_run_docs",
       "target_file": "simplicio_mapper/cli/_repo_commands.py",
       "target_symbol": "simplicio_mapper/cli/_repo_commands.py::_run_docs",
-      "line": 270,
+      "line": 271,
       "confidence": 0.58
     },
     {
@@ -7452,7 +7470,7 @@
       "source_symbol": "simplicio_mapper/cli/_repo_commands.py::_run_export_docs",
       "target_file": "simplicio_mapper/cli/_repo_commands.py",
       "target_symbol": "simplicio_mapper/cli/_repo_commands.py::_run_export_docs",
-      "line": 290,
+      "line": 291,
       "confidence": 0.58
     },
     {
@@ -7605,7 +7623,7 @@
       "source_symbol": "simplicio_mapper/cli/_repo_commands.py::_run_export_docs",
       "target_file": "simplicio_mapper/mapper/emit.py",
       "target_symbol": "simplicio_mapper/mapper/emit.py::export_architecture_docs",
-      "line": 291,
+      "line": 292,
       "confidence": 0.58
     },
     {
@@ -7614,7 +7632,7 @@
       "source_symbol": "simplicio_mapper/cli/_repo_commands.py::_run_docs",
       "target_file": "simplicio_mapper/mapper/emit.py",
       "target_symbol": "simplicio_mapper/mapper/emit.py::write_architecture_docs",
-      "line": 271,
+      "line": 272,
       "confidence": 0.58
     },
     {
@@ -7623,7 +7641,7 @@
       "source_symbol": "simplicio_mapper/cli/_repo_commands.py::_run_ask",
       "target_file": "simplicio_mapper/query.py",
       "target_symbol": "simplicio_mapper/query.py::run_query",
-      "line": 244,
+      "line": 245,
       "confidence": 0.58
     },
     {
@@ -8957,29 +8975,11 @@
       "target_symbol": "simplicio_mapper/docsync.py::_modules_for_files",
       "line": 86,
       "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "simplicio_mapper/docsync.py",
-      "source_symbol": "simplicio_mapper/docsync.py::build_docs_sync",
-      "target_file": "simplicio_mapper/docsync.py",
-      "target_symbol": "simplicio_mapper/docsync.py::_render_global_docs",
-      "line": 168,
-      "confidence": 0.58
-    },
-    {
-      "type": "calls",
-      "source_file": "simplicio_mapper/docsync.py",
-      "source_symbol": "simplicio_mapper/docsync.py::_run_git",
-      "target_file": "simplicio_mapper/docsync.py",
-      "target_symbol": "simplicio_mapper/docsync.py::_run_git",
-      "line": 34,
-      "confidence": 0.58
     }
   ],
   "counts": {
-    "edges": 2639,
+    "edges": 2671,
     "imports": 177,
-    "calls": 2462
+    "calls": 2494
   }
 }

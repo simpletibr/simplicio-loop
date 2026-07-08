@@ -96,6 +96,7 @@ class PrecedentItem:
         "id",
         "path",
         "line",
+        "rank",
         "language",
         "change_type",
         "tags",
@@ -113,10 +114,12 @@ class PrecedentItem:
         tags: list[str],
         summary: str,
         snippet: str,
+        rank: int = 1,
     ) -> None:
         self.id = id
         self.path = path
         self.line = line
+        self.rank = rank
         self.language = language
         self.change_type = change_type
         self.tags = tags
@@ -128,6 +131,7 @@ class PrecedentItem:
             "id": self.id,
             "path": self.path,
             "line": self.line,
+            "rank": self.rank,
             "language": self.language,
             "change_type": self.change_type,
             "tags": self.tags,
