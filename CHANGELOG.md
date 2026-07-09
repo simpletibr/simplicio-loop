@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.11.0] — 2026-07-09
+
+### Added
+- **Per-verb native-vs-python delegation telemetry in `doctor`** (#111).
+  `simplicio.runtime_bridge.record_delegation()` records a `native_delegation`
+  event (schema `simplicio.dev-cli-event/v1`) plus a `record_savings_event`
+  ledger entry for every delegable-verb invocation (`gate`, `nest`, `edit`,
+  `file`, `test-run`), tagged with the route taken (`native`,
+  `python-fallback`, `python-forced`) and, for a fallback, the reason.
+  `simplicio.observability.native_delegation_summary()` aggregates
+  `.simplicio/events.jsonl` per verb; `simplicio-py doctor` (human and
+  `--json`) now renders overall and per-verb native-routing percentages
+  under `native_delegation`.
+- **Token/context budget guard wired into CI** (#111). `scripts/token_budget.py
+  --check` runs as a new step in the `python` job of `.github/workflows/ci.yml`,
+  failing the build on a regression against the committed
+  `scripts/token_budget_baseline.json`.
+- **Honest `proof_kind` on savings-ledger entries.** `record_savings_event()`
+  gained a `proof_kind` parameter (`"estimated"` default, or `"measured"`)
+  so a `simplicio.savings-event/v1` record states how its token figures were
+  obtained instead of presenting an estimate as measured.
+
+### Changed
+- Bump the minimum `simplicio-mapper` dependency to `>=0.19.0`. The mapper's
+  0.19.0 release is being cut in parallel; its PyPI publish still depends on
+  the same Actions billing gap noted below, so this floor only installs once
+  that publish actually runs.
+
+### CI
+- Actions billing/quota remains broken for this repo (noted in previous
+  entries); the tag push for this release will not trigger the publish
+  workflow — publishing to PyPI stays a manual, out-of-session step until
+  billing is restored.
+
 ## [0.10.0] — 2026-07-07
 
 ### Changed

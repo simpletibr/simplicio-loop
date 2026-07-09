@@ -6,16 +6,16 @@
        python3 scripts/gen_package_interdependence.py --check
 -->
 
-Source of truth: this repo's `pyproject.toml` (`simplicio-cli` v0.10.0).
+Source of truth: this repo's `pyproject.toml` (`simplicio-cli` v0.11.0).
 
 ## Current Graph
 
 ```text
-simplicio-mapper >=0.18.0
+simplicio-mapper >=0.19.0
 simplicio-prompt >=1.14.1
   ^          ^
   |          |
-simplicio-cli 0.10.0
+simplicio-cli 0.11.0
   ^
   |
 simplicio-sprint (downstream, depends on this package)
@@ -26,7 +26,7 @@ simplicio-sprint (downstream, depends on this package)
 ### Base (always installed — `pip install simplicio-cli`)
 
 - `numpy>=2.1.0`
-- `simplicio-mapper>=0.18.0`
+- `simplicio-mapper>=0.19.0`
 - `simplicio-prompt>=1.14.1`
 - `httpx>=0.28.1`
 - `orjson>=3.11.9`
