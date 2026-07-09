@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-07-09
+
+### Added
+
+- Token/context budget guard in CI (`scripts/token_budget.py`, issue #174):
+  estimates token cost for `AGENTS.md`/`CLAUDE.md`, the largest
+  `simplicio_mapper/` modules, and the committed `.simplicio/*.json`-shaped
+  contract fixtures, and fails the `python-ci.yml` `python-tests` job when
+  any artifact grows more than 25% above the committed baseline
+  (`scripts/token_budget_baseline.json`). Default estimator is the stdlib
+  heuristic `heuristic:chars-div-4`, with `tiktoken` used automatically when
+  installed. `--self-test` proves the guard fails on a simulated regression.
+- Native delegation for `ask impact` and `ask tests-for` (issue #174),
+  extending the existing `ask precedent` pattern to the two verbs measured
+  as most expensive locally (`scripts/measure_verbs.py`,
+  `scripts/measure_verbs_report.json`): `ask impact` is delegated behind
+  `SIMPLICIO_MAPPER_NO_RUNTIME_IMPACT`, `ask tests-for` behind
+  `SIMPLICIO_MAPPER_NO_RUNTIME_TESTS_FOR`. Both validate the
+  `simplicio.ask/v1` envelope, apply a 10s timeout, and fall back to the
+  existing local implementation on any failure (missing binary, kill-switch,
+  non-zero exit, timeout, malformed JSON, or schema mismatch) — no silent
+  fake-pass.
+- Savings ledger per verb (`simplicio_mapper/savings.py`): every native
+  delegation hit records a `simplicio.savings-event/v1` entry to
+  `.simplicio/ledger/savings-events.jsonl`
+  (`source=native-delegation:<verb>`, `proof_kind` always `"estimated"`),
+  mirroring the `simplicio-dev-cli` savings-event format without importing
+  its code. Opt out with `SIMPLICIO_DISABLE_RUN_LOG`.
+
 ## [0.18.0] - 2026-07-07
 
 ### Changed
@@ -726,7 +755,8 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 - Remotion skills tutorial video in PT-BR. ([#1](https://github.com/wesleysimplicio/llm-project-mapper/pull/1))
 - i18n layer + English skills tutorial video. ([#2](https://github.com/wesleysimplicio/llm-project-mapper/pull/2))
 
-[Unreleased]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.18.0...HEAD
+[Unreleased]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.17.0...v0.18.0
 [0.6.3]: https://github.com/wesleysimplicio/llm-project-mapper/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/wesleysimplicio/llm-project-mapper/compare/v0.6.1...v0.6.2
