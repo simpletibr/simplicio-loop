@@ -21,6 +21,7 @@ from typing import Any
 from .docsync import _flows_touching, _scan_manual_docs_for_references, _symbols_for_files
 from .flows import build_flow_inventory
 from .mapper import _parse_json_safe, build_artifacts
+from .savings import estimate_tokens, record_savings_event
 
 ASK_SCHEMA = "simplicio.ask/v1"
 DEFAULT_LIMIT = 20
@@ -34,6 +35,23 @@ VERBS = ("callers", "callees", "reaches", "impact", "flows", "rules", "tests-for
 _PRECEDENT_RUNTIME_BINARY = "simplicio"
 _PRECEDENT_NO_RUNTIME_ENV = "SIMPLICIO_MAPPER_NO_RUNTIME_PRECEDENT"
 _PRECEDENT_TOP_N = 5
+
+# `impact` and `tests-for` are native-first too (issue #174), same pattern as
+# `precedent` above: shell out to the `simplicio` runtime binary when it is
+# on PATH and its response validates, falling back to the local Python
+# computation (`_impact`/`_tests_for`) otherwise. Chosen over the other `ask`
+# verbs based on real measurement (`scripts/measure_verbs.py`,
+# `scripts/measure_verbs_report.json`) -- isolated from the fixed
+# `build_artifacts()` cost every `ask` call already pays, `impact` and
+# `tests-for` are respectively ~36x and ~8x more expensive than the cheapest
+# verb (`callers`/`callees`), because `impact` recomputes a fresh
+# flow-inventory and scans every spec/doc file on each call, and `tests-for`
+# reads the full text of every test file on each call.
+_ASK_RUNTIME_BINARY = "simplicio"
+_ASK_NATIVE_VERBS = {
+    "impact": "SIMPLICIO_MAPPER_NO_RUNTIME_IMPACT",
+    "tests-for": "SIMPLICIO_MAPPER_NO_RUNTIME_TESTS_FOR",
+}
 
 
 def _edge_view(edge: dict) -> dict:
@@ -186,6 +204,66 @@ def _runtime_precedent_search(cwd: str, text: str, top_n: int) -> dict | None:
     return payload
 
 
+def _runtime_ask_query(cwd: str, verb: str, arg: str, limit: int) -> dict | None:
+    """Shell out to the `simplicio` runtime binary for a native `ask <verb>`
+    answer (`impact`/`tests-for` only, issue #174 -- same pattern as
+    ``_runtime_precedent_search`` above).
+
+    Returns the parsed ``simplicio.ask/v1`` payload (``results``/``total``
+    only), or ``None`` on any failure -- binary missing, kill-switch set,
+    non-zero exit, timeout, or a response that does not validate against the
+    ``simplicio.ask/v1`` envelope -- so the caller always has a safe local
+    fallback. Never raises.
+    """
+    env_var = _ASK_NATIVE_VERBS.get(verb)
+    if env_var is None:
+        return None
+    if os.environ.get(env_var):
+        return None
+    if not arg:
+        return None
+    binary = shutil.which(_ASK_RUNTIME_BINARY)
+    if not binary:
+        return None
+    try:
+        result = subprocess.run(
+            [binary, "ask", verb, "--repo", cwd, "--arg", arg, "--limit", str(limit), "--json"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    try:
+        payload = json.loads(result.stdout)
+    except ValueError:
+        return None
+    if not isinstance(payload, dict) or payload.get("schema") != ASK_SCHEMA:
+        return None
+    if "results" not in payload or "total" not in payload:
+        return None
+    return payload
+
+
+def _record_ask_native_savings(cwd: str, verb: str, baseline_tokens: int, payload: dict, note: str) -> None:
+    """Best-effort savings-ledger receipt for a native `ask` hit. Never
+    raises -- a ledger write failure must never break the query path."""
+    try:
+        actual_tokens = estimate_tokens(json.dumps(payload, sort_keys=True))
+        record_savings_event(
+            cwd,
+            source=f"native-delegation:{verb}",
+            baseline_tokens=baseline_tokens,
+            actual_tokens=actual_tokens,
+            proof_kind="estimated",
+            note=note,
+        )
+    except Exception:  # noqa: BLE001 - savings receipts are best-effort only
+        return
+
+
 def _candidate_view(candidate: dict) -> dict:
     return {
         "precedent_id": candidate.get("precedent_id"),
@@ -256,9 +334,21 @@ def run_query(
         matches, total = _reaches(call_graph, arg or "", depth, limit)
         payload = {"results": matches, "total": total}
     elif verb == "impact":
-        impact = _impact(abs_cwd, artifacts, [arg] if arg else [])
-        total = len(impact["affected_symbols"]) + len(impact["affected_flows"]) + len(impact["needs_review"])
-        payload = {"results": impact, "total": total}
+        native = _runtime_ask_query(abs_cwd, "impact", arg or "", limit)
+        if native is not None:
+            payload = {"results": native["results"], "total": native["total"], "source": "runtime-ask-impact"}
+            baseline = estimate_tokens(
+                json.dumps(artifacts.get("call_graph"), sort_keys=True)
+            ) + estimate_tokens(json.dumps(artifacts.get("symbol_index"), sort_keys=True))
+            _record_ask_native_savings(
+                abs_cwd, "impact", baseline, payload,
+                note="baseline=call_graph+symbol_index the LLM/loop would otherwise have to read "
+                     "to answer 'what does changing this file affect' manually; method=heuristic:chars-div-4",
+            )
+        else:
+            impact = _impact(abs_cwd, artifacts, [arg] if arg else [])
+            total = len(impact["affected_symbols"]) + len(impact["affected_flows"]) + len(impact["needs_review"])
+            payload = {"results": impact, "total": total, "source": "local-python"}
     elif verb == "flows":
         flow_inventory = build_flow_inventory(abs_cwd, artifacts)
         flows = flow_inventory["flows"]
@@ -266,8 +356,19 @@ def run_query(
             flows = [f for f in flows if any(e["type"] == effect for e in f["effects"])]
         payload = {"results": flows[:limit], "total": len(flows)}
     elif verb == "tests-for":
-        matches, total = _tests_for(abs_cwd, project_map, arg or "", limit)
-        payload = {"results": matches, "total": total}
+        native = _runtime_ask_query(abs_cwd, "tests-for", arg or "", limit)
+        if native is not None:
+            payload = {"results": native["results"], "total": native["total"], "source": "runtime-ask-tests-for"}
+            test_files = project_map.get("test_files") or []
+            baseline = sum(estimate_tokens(_read_text(abs_cwd, f)) for f in test_files)
+            _record_ask_native_savings(
+                abs_cwd, "tests-for", baseline, payload,
+                note="baseline=full text of every test file the local fallback would otherwise "
+                     "read in full to find matches; method=heuristic:chars-div-4",
+            )
+        else:
+            matches, total = _tests_for(abs_cwd, project_map, arg or "", limit)
+            payload = {"results": matches, "total": total, "source": "local-python"}
     elif verb == "precedent":
         text = arg or ""
         top_n = min(limit, _PRECEDENT_TOP_N)

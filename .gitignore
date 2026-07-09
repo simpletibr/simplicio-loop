@@ -131,6 +131,10 @@ scripts/**
 !scripts/check-readme-sync.js
 !scripts/readme-sync-baseline.json
 !scripts/dogfood.py
+!scripts/token_budget.py
+!scripts/token_budget_baseline.json
+!scripts/measure_verbs.py
+!scripts/measure_verbs_report.json
 playwright-report/**
 tests/**
 !tests/unit/
@@ -139,6 +143,8 @@ tests/**
 !tests/e2e/*.spec.ts
 !tests/python/
 !tests/python/*.py
+!tests/python/fixtures/
+!tests/python/fixtures/*.py
 !tests/fixtures/
 !tests/fixtures/**
 test-results/**
