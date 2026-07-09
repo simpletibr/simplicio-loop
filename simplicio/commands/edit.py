@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 
+from ..runtime_bridge import record_delegation
 from ._shared import read_text_source
 
 CLI_PROG = "simplicio-py"
@@ -61,6 +62,17 @@ def run_edit(a: argparse.Namespace) -> int:
             print(
                 f"{CLI_PROG} edit: runtime delegation failed ({exc}); using local fallback", file=sys.stderr
             )
+            record_delegation("edit", "python-fallback", root=a.root, reason=f"delegation-error: {exc}")
         else:
+            record_delegation("edit", "native", root=a.root)
             return completed.returncode
+    else:
+        if a.no_runtime:
+            reason = "user-forced-python (--no-runtime)"
+        elif os.environ.get("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT"):
+            reason = "user-forced-python (SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT)"
+        else:
+            reason = "binary-not-found"
+        route = "python-forced" if reason.startswith("user-forced-python") else "python-fallback"
+        record_delegation("edit", route, root=a.root, reason=reason)
     return run_mechanical_edit(a)

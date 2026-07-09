@@ -27,7 +27,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ..runtime_bridge import discover_simplicio
+from ..runtime_bridge import discover_simplicio, record_delegation
 
 SCHEMA = "simplicio.test-run/v1"
 DEFAULT_CMD = "pytest"
@@ -59,16 +59,19 @@ def _build_runtime_args(a: argparse.Namespace, extra_args: list[str]) -> list[st
     return cmd
 
 
-def _run_via_runtime(a: argparse.Namespace, extra_args: list[str]) -> int | None:
+def _run_via_runtime(a: argparse.Namespace, extra_args: list[str]) -> tuple[int | None, str | None]:
     """Attempt delegation to the Rust ``simplicio`` binary.
 
-    Returns the exit code on success, or ``None`` so the caller falls back
-    to the Python implementation (binary missing, or the call errored in a
-    way that suggests the subcommand isn't implemented there yet).
+    Returns ``(exit_code, reason)``: ``exit_code`` is populated on success,
+    or ``None`` so the caller falls back to the Python implementation
+    (binary missing, or the call errored/timed out/returned an unexpected
+    contract in a way that suggests the subcommand isn't implemented there
+    yet). ``reason`` is a short telemetry tag for `runtime_bridge.
+    record_delegation`, always populated when ``exit_code`` is ``None``.
     """
     binary = discover_simplicio()
     if binary is None:
-        return None
+        return None, "binary-not-found"
     binary_path = Path(binary)
     if sys.platform == "win32" and binary_path.suffix.lower() not in {".exe", ".bat", ".cmd", ".ps1", ".py"}:
         cmd = [sys.executable, binary, *_build_runtime_args(a, extra_args)]
@@ -81,15 +84,17 @@ def _run_via_runtime(a: argparse.Namespace, extra_args: list[str]) -> int | None
             text=True,
             timeout=a.timeout + RUNTIME_DELEGATION_TIMEOUT_SLACK_S,
         )
-    except (OSError, subprocess.TimeoutExpired):
-        return None
+    except subprocess.TimeoutExpired:
+        return None, "timeout"
+    except OSError as exc:
+        return None, f"delegation-error: {exc}"
 
     try:
         payload = json.loads(completed.stdout)
     except (json.JSONDecodeError, ValueError):
-        return None
+        return None, "invalid-json"
     if payload.get("schema") != SCHEMA:
-        return None
+        return None, "schema-mismatch"
 
     if a.json:
         print(completed.stdout, end="")
@@ -97,7 +102,7 @@ def _run_via_runtime(a: argparse.Namespace, extra_args: list[str]) -> int | None
         _print_human(payload)
     if completed.stderr:
         print(completed.stderr, end="", file=sys.stderr)
-    return int(payload.get("exit_code", completed.returncode))
+    return int(payload.get("exit_code", completed.returncode)), None
 
 
 def _parse_pytest_summary(output: str) -> tuple[int | None, int | None, int | None, float | None, str | None]:
@@ -230,7 +235,10 @@ def _print_human(payload: dict) -> None:
 
 def run(a: argparse.Namespace, extra_args: list[str]) -> int:
     """Entry point wired from ``cli.py`` for ``simplicio-dev-cli test run``."""
-    result = _run_via_runtime(a, extra_args)
+    result, reason = _run_via_runtime(a, extra_args)
+    root = a.repo or "."
     if result is not None:
+        record_delegation("test-run", "native", root=root)
         return result
+    record_delegation("test-run", "python-fallback", root=root, reason=reason)
     return _run_fallback(a, extra_args)

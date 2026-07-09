@@ -1,0 +1,88 @@
+{
+  "$schema_note": "simplicio-dev-cli token/context budget baseline (issue #111). Regenerate with `python3 scripts/token_budget.py --update-baseline` after a deliberate, reviewed size change to a tracked artifact -- never to silence a regression you haven't looked at.",
+  "artifacts": {
+    ".simplicio/architecture-inventory.json": {
+      "label": "mapper artifact (architecture-inventory.json)",
+      "tokens": 141127,
+      "words": 34987
+    },
+    ".simplicio/call-graph.json": {
+      "label": "mapper artifact (call-graph.json)",
+      "tokens": 78747,
+      "words": 15910
+    },
+    ".simplicio/index-state.json": {
+      "label": "mapper artifact (index-state.json)",
+      "tokens": 131,
+      "words": 34
+    },
+    ".simplicio/precedent-index.json": {
+      "label": "mapper artifact (precedent-index.json)",
+      "tokens": 37876,
+      "words": 11324
+    },
+    ".simplicio/project-map.json": {
+      "label": "mapper artifact (project-map.json)",
+      "tokens": 99386,
+      "words": 20938
+    },
+    ".simplicio/symbol-index.json": {
+      "label": "mapper artifact (symbol-index.json)",
+      "tokens": 177460,
+      "words": 40487
+    },
+    "AGENTS.md": {
+      "label": "AGENTS.md",
+      "tokens": 5589,
+      "words": 3026
+    },
+    "CLAUDE.md": {
+      "label": "CLAUDE.md",
+      "tokens": 5648,
+      "words": 3058
+    },
+    "simplicio/cli.py": {
+      "label": "cli.py",
+      "tokens": 5438,
+      "words": 1674
+    },
+    "simplicio/commands/claims.py": {
+      "label": "commands/claims.py",
+      "tokens": 6715,
+      "words": 2452
+    },
+    "simplicio/intent.py": {
+      "label": "intent.py",
+      "tokens": 2805,
+      "words": 1038
+    },
+    "simplicio/mapper.py": {
+      "label": "mapper.py",
+      "tokens": 6570,
+      "words": 2496
+    },
+    "simplicio/mechanical_edit.py": {
+      "label": "mechanical_edit.py",
+      "tokens": 7312,
+      "words": 2698
+    },
+    "simplicio/observability.py": {
+      "label": "observability.py",
+      "tokens": 4399,
+      "words": 1926
+    },
+    "simplicio/pipeline.py": {
+      "label": "pipeline.py",
+      "tokens": 5555,
+      "words": 1946
+    },
+    "simplicio/providers.py": {
+      "label": "providers.py",
+      "tokens": 8841,
+      "words": 3158
+    }
+  },
+  "estimator": "heuristic:chars-div-4",
+  "generated_at": "2026-07-09T16:26:51Z",
+  "threshold_growth": 0.25
+}

@@ -49,11 +49,24 @@ def maybe_autoinstall(cmd: str | None) -> bool:
     return False
 
 
+def _delegation_route(*, forced_python: bool, native_available: bool, delegated: bool) -> tuple[str, str]:
+    """Classify a gate/nest delegation attempt into (route, reason) for
+    `runtime_bridge.record_delegation` (issue #111)."""
+    if forced_python:
+        return "python-forced", "user-forced-python"
+    if delegated:
+        return "native", ""
+    if not native_available:
+        return "python-fallback", "binary-not-found"
+    return "python-fallback", "delegation-error"
+
+
 def _dispatch_nested(argv: list[str]) -> int | None:
     """``gate``/``nest``/``scratch``/``skill`` bypass the main argparse
     parser entirely — each owns its own argv[0]-based dispatch and arg
     parsing (unchanged by issue #103's cli.py cleanup)."""
     from .commands._shared import parse_rust_flags, try_route_via_simplicio
+    from .runtime_bridge import record_delegation, simplicio_available
 
     def wants_help(args: list[str]) -> bool:
         return any(arg in {"-h", "--help"} for arg in args)
@@ -61,9 +74,14 @@ def _dispatch_nested(argv: list[str]) -> int | None:
     if argv and argv[0] == "gate":
         clean_args, native, python = parse_rust_flags(argv[1:])
         if not wants_help(clean_args):
+            native_available = simplicio_available()
             result = try_route_via_simplicio(
                 "gate", clean_args, prefer_native=native or not python, prefer_python=python
             )
+            route, reason = _delegation_route(
+                forced_python=python, native_available=native_available, delegated=result is not None
+            )
+            record_delegation("gate", route, reason=reason or None)
             if result is not None:
                 return result
         from .commands.gate import main as gate_main
@@ -72,9 +90,14 @@ def _dispatch_nested(argv: list[str]) -> int | None:
     if argv and argv[0] == "nest":
         clean_args, native, python = parse_rust_flags(argv[1:])
         if not wants_help(clean_args):
+            native_available = simplicio_available()
             result = try_route_via_simplicio(
                 "nest", clean_args, prefer_native=native or not python, prefer_python=python
             )
+            route, reason = _delegation_route(
+                forced_python=python, native_available=native_available, delegated=result is not None
+            )
+            record_delegation("nest", route, reason=reason or None)
             if result is not None:
                 return result
         from .commands.nest import main as nest_main

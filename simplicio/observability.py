@@ -174,6 +174,16 @@ def log_run(root: str, event: dict[str, Any]) -> Path | None:
 SAVINGS_EVENT_SCHEMA = "simplicio.savings-event/v1"
 
 
+#: Honest proof-kind labels for a `record_savings_event` figure (mirrors the
+#: `proof.kind` discipline documented org-wide in simplicio-runtime's
+#: `docs/SAVINGS_EVENT_SPEC.md`, applied here at the scope of this repo's
+#: simpler ledger): ``"measured"`` is reserved for real provider-reported
+#: usage or an aggregate over already-measured records; everything else,
+#: including this module's own words*4/3 heuristic, is ``"estimated"`` and
+#: must say so rather than being presented as a real number.
+PROOF_KINDS = ("estimated", "measured")
+
+
 def record_savings_event(
     root: str,
     *,
@@ -181,6 +191,7 @@ def record_savings_event(
     baseline_tokens: int,
     actual_tokens: int,
     note: str = "",
+    proof_kind: str = "estimated",
     extra: dict[str, Any] | None = None,
 ) -> Path | None:
     """Append one `simplicio.savings-event/v1` record to the shared ledger.
@@ -193,9 +204,18 @@ def record_savings_event(
     line, honoring the same `SIMPLICIO_DISABLE_RUN_LOG` kill-switch as
     `log_run`. Fails open: a write error never raises into the caller's
     generation path.
+
+    ``proof_kind`` (issue #111): honest label for how ``baseline_tokens``/
+    ``actual_tokens`` were obtained — ``"estimated"`` (default; this is what
+    every existing caller in this repo does today via `estimate_tokens`,
+    recorded alongside :data:`ESTIMATOR_LABEL`) or ``"measured"`` when the
+    caller has real provider-reported usage. Never claim ``"measured"``
+    without an actual measurement backing it.
     """
     if os.environ.get("SIMPLICIO_DISABLE_RUN_LOG"):
         return None
+    if proof_kind not in PROOF_KINDS:
+        raise ValueError(f"proof_kind must be one of {PROOF_KINDS!r}, got {proof_kind!r}")
     baseline_tokens = max(0, int(baseline_tokens))
     actual_tokens = max(0, int(actual_tokens))
     saved_tokens = baseline_tokens - actual_tokens
@@ -204,6 +224,7 @@ def record_savings_event(
         "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "source": source,
         "estimator": ESTIMATOR_LABEL,
+        "proof_kind": proof_kind,
         "tokens": {
             "baseline": baseline_tokens,
             "actual": actual_tokens,
@@ -248,6 +269,9 @@ EVENT_TYPES = (
     "validation_pass",
     "validation_fail",
     "handoff",
+    # issue #111: one record per delegable-verb invocation (gate/nest/edit/
+    # file/test-run), see `simplicio.runtime_bridge.record_delegation`.
+    "native_delegation",
 )
 
 _LEVEL_FUNCS: dict[str, Any] = {"info": info, "warning": warn, "warn": warn, "error": error}
@@ -369,4 +393,67 @@ def events_summary(root: str, *, limit: int = 5) -> dict[str, Any]:
         "exists": True,
         "count": count,
         "recent": list(recent),
+    }
+
+
+def native_delegation_summary(root: str) -> dict[str, Any]:
+    """Aggregate `native_delegation` events (issue #111) for `doctor`.
+
+    Streams the same `<root>/.simplicio/events.jsonl` file `events_summary`
+    reads, but only counts records with ``event == "native_delegation"``
+    (emitted by `simplicio.runtime_bridge.record_delegation` for every
+    delegable-verb invocation — ``gate``/``nest``/``edit``/``file``/
+    ``test-run``), bucketed by ``payload["verb"]`` and ``payload["route"]``
+    (``"native"``, ``"python-fallback"``, ``"python-forced"``).
+
+    Returns a JSON-serializable dict: ``path``, ``exists``, ``total``
+    (delegation events across every verb), ``native_pct`` (overall % routed
+    to the native Rust binary), and ``verbs`` — one entry per verb with its
+    own route counts and ``native_pct``. Tolerant of a missing file or a
+    corrupt trailing line (best-effort — never raises).
+    """
+    out = Path(root) / ".simplicio" / "events.jsonl"
+    if not out.is_file():
+        return {"path": str(out), "exists": False, "total": 0, "native_pct": 0.0, "verbs": {}}
+
+    per_verb: dict[str, dict[str, int]] = {}
+    with out.open("r", encoding="utf-8") as handle:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except ValueError:
+                continue
+            if record.get("event") != "native_delegation":
+                continue
+            payload = record.get("payload") or {}
+            verb = payload.get("verb")
+            route = payload.get("route")
+            if not verb or not route:
+                continue
+            bucket = per_verb.setdefault(verb, {})
+            bucket[route] = bucket.get(route, 0) + 1
+
+    verbs_out: dict[str, Any] = {}
+    total_all = 0
+    native_all = 0
+    for verb, counts in sorted(per_verb.items()):
+        total = sum(counts.values())
+        native = counts.get("native", 0)
+        total_all += total
+        native_all += native
+        verbs_out[verb] = {
+            **counts,
+            "total": total,
+            "native_pct": round(100 * native / total, 1) if total else 0.0,
+        }
+
+    return {
+        "path": str(out),
+        "exists": True,
+        "total": total_all,
+        "native_pct": round(100 * native_all / total_all, 1) if total_all else 0.0,
+        "verbs": verbs_out,
     }

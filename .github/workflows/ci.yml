@@ -102,6 +102,9 @@ jobs:
       - name: mypy simplicio
         run: mypy simplicio
 
+      - name: Token/context budget guard (#111)
+        run: python3 scripts/token_budget.py --check
+
   extras:
     name: Extras install (${{ matrix.extra }})
     needs: python

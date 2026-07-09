@@ -13,6 +13,7 @@ import pytest
 from simplicio import observability as obs
 from simplicio.observability import (
     EVENT_SCHEMA,
+    EVENT_TYPES,
     SAVINGS_EVENT_SCHEMA,
     emit_data,
     emit_event,
@@ -20,6 +21,7 @@ from simplicio.observability import (
     estimate_tokens,
     events_summary,
     info,
+    native_delegation_summary,
     record_savings_event,
     warn,
 )
@@ -97,6 +99,33 @@ def test_record_savings_event_zero_baseline_no_division_error(tmp_path, monkeypa
     out = record_savings_event(tmp_path, source="toon", baseline_tokens=0, actual_tokens=0)
     lines = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line]
     assert lines[0]["tokens"]["pct_saved"] == 0.0
+
+
+# --------------------------------------------------------------------------- #
+# proof_kind (issue #111)
+# --------------------------------------------------------------------------- #
+
+
+def test_record_savings_event_defaults_to_estimated_proof_kind(tmp_path, monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_DISABLE_RUN_LOG", raising=False)
+    out = record_savings_event(tmp_path, source="toon", baseline_tokens=10, actual_tokens=5)
+    lines = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line]
+    assert lines[0]["proof_kind"] == "estimated"
+
+
+def test_record_savings_event_accepts_measured_proof_kind(tmp_path, monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_DISABLE_RUN_LOG", raising=False)
+    out = record_savings_event(
+        tmp_path, source="toon", baseline_tokens=10, actual_tokens=5, proof_kind="measured"
+    )
+    lines = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines() if line]
+    assert lines[0]["proof_kind"] == "measured"
+
+
+def test_record_savings_event_rejects_unknown_proof_kind(tmp_path, monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_DISABLE_RUN_LOG", raising=False)
+    with pytest.raises(ValueError, match="proof_kind"):
+        record_savings_event(tmp_path, source="toon", baseline_tokens=10, actual_tokens=5, proof_kind="vibes")
 
 
 # --------------------------------------------------------------------------- #
@@ -311,3 +340,63 @@ def test_events_summary_streams_large_file_and_skips_corrupt_lines(tmp_path):
 
     assert summary["count"] == 200
     assert [row["payload"]["n"] for row in summary["recent"]] == [198, 199]
+
+
+# --------------------------------------------------------------------------- #
+# native_delegation_summary (issue #111)
+# --------------------------------------------------------------------------- #
+
+
+def test_native_delegation_summary_missing_file(tmp_path):
+    summary = native_delegation_summary(str(tmp_path))
+    assert summary["exists"] is False
+    assert summary["total"] == 0
+    assert summary["native_pct"] == 0.0
+    assert summary["verbs"] == {}
+
+
+def test_native_delegation_summary_aggregates_per_verb_and_overall(tmp_path, monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_DISABLE_RUN_LOG", raising=False)
+    root = str(tmp_path)
+    emit_event("native_delegation", {"verb": "gate", "route": "native"}, root=root)
+    emit_event("native_delegation", {"verb": "gate", "route": "native"}, root=root)
+    emit_event("native_delegation", {"verb": "gate", "route": "python-fallback", "reason": "x"}, root=root)
+    emit_event("native_delegation", {"verb": "edit", "route": "python-forced", "reason": "y"}, root=root)
+    # Non-delegation events in the same stream must be ignored.
+    emit_event("task_start", {"target": "x.py"}, root=root)
+
+    summary = native_delegation_summary(root)
+
+    assert summary["exists"] is True
+    assert summary["total"] == 4
+    assert summary["native_pct"] == 50.0
+    assert summary["verbs"]["gate"] == {
+        "native": 2,
+        "python-fallback": 1,
+        "total": 3,
+        "native_pct": round(100 * 2 / 3, 1),
+    }
+    assert summary["verbs"]["edit"] == {"python-forced": 1, "total": 1, "native_pct": 0.0}
+
+
+def test_native_delegation_summary_tolerates_corrupt_trailing_line(tmp_path):
+    events_dir = tmp_path / ".simplicio"
+    events_dir.mkdir()
+    (events_dir / "events.jsonl").write_text(
+        json.dumps(
+            {
+                "schema": EVENT_SCHEMA,
+                "event": "native_delegation",
+                "payload": {"verb": "file", "route": "native"},
+            }
+        )
+        + "\nnot json\n",
+        encoding="utf-8",
+    )
+    summary = native_delegation_summary(str(tmp_path))
+    assert summary["total"] == 1
+    assert summary["verbs"]["file"]["native"] == 1
+
+
+def test_native_delegation_is_a_documented_event_type():
+    assert "native_delegation" in EVENT_TYPES

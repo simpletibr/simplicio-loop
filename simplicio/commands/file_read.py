@@ -22,7 +22,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ..runtime_bridge import discover_simplicio
+from ..runtime_bridge import discover_simplicio, record_delegation
 
 SCHEMA = "simplicio.file-read/v1"
 DEFAULT_MAX_BYTES = 2 * 1024 * 1024  # 2 MiB
@@ -44,20 +44,26 @@ def _build_runtime_args(a: argparse.Namespace) -> list[str]:
     return cmd
 
 
-def _run_via_runtime(a: argparse.Namespace) -> int | None:
+def _run_via_runtime(a: argparse.Namespace) -> tuple[int | None, str | None]:
     """Attempt delegation to the Rust ``simplicio`` binary.
 
-    Returns the exit code on success, or ``None`` so the caller falls back
-    to the Python implementation (binary missing, or the call errored).
+    Returns ``(exit_code, reason)``: ``exit_code`` is the runtime binary's
+    exit code on success, or ``None`` so the caller falls back to the
+    Python implementation (binary missing, delegation errored, or the
+    binary didn't return the expected JSON contract). ``reason`` is a short
+    telemetry tag for `runtime_bridge.record_delegation`, always populated
+    when ``exit_code`` is ``None``.
     """
     binary = discover_simplicio()
     if binary is None:
-        return None
+        return None, "binary-not-found"
     cmd = [binary, *_build_runtime_args(a)]
     try:
         completed = subprocess.run(cmd, capture_output=True, text=True, timeout=RUNTIME_DELEGATION_TIMEOUT_S)
-    except (OSError, subprocess.TimeoutExpired):
-        return None
+    except subprocess.TimeoutExpired:
+        return None, "timeout"
+    except OSError as exc:
+        return None, f"delegation-error: {exc}"
 
     # Only trust the Rust binary's result if it actually produced the
     # expected JSON envelope — an unimplemented/erroring subcommand prints
@@ -66,9 +72,9 @@ def _run_via_runtime(a: argparse.Namespace) -> int | None:
     try:
         payload = json.loads(completed.stdout)
     except (json.JSONDecodeError, ValueError):
-        return None
+        return None, "invalid-json"
     if payload.get("schema") != SCHEMA:
-        return None
+        return None, "schema-mismatch"
 
     if a.json:
         print(completed.stdout, end="")
@@ -76,7 +82,7 @@ def _run_via_runtime(a: argparse.Namespace) -> int | None:
         print(payload.get("content", ""), end="")
     if completed.stderr:
         print(completed.stderr, end="", file=sys.stderr)
-    return completed.returncode
+    return completed.returncode, None
 
 
 def _read_fallback(a: argparse.Namespace) -> tuple[dict | None, str | None]:
@@ -147,7 +153,10 @@ def _run_fallback(a: argparse.Namespace) -> int:
 
 def run(a: argparse.Namespace) -> int:
     """Entry point wired from ``cli.py`` for ``simplicio-dev-cli file read``."""
-    result = _run_via_runtime(a)
+    result, reason = _run_via_runtime(a)
+    root = a.repo or "."
     if result is not None:
+        record_delegation("file", "native", root=root)
         return result
+    record_delegation("file", "python-fallback", root=root, reason=reason)
     return _run_fallback(a)

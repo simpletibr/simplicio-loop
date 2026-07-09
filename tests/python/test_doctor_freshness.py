@@ -91,3 +91,53 @@ def test_cli_forwards_new_doctor_flags(monkeypatch) -> None:
 
     assert code == 0
     assert seen["argv"] == ["--no-check-updates", "--refresh", "--upgrade"]
+
+
+# --------------------------------------------------------------------------- #
+# native-vs-python delegation aggregate (issue #111)
+# --------------------------------------------------------------------------- #
+
+
+def test_doctor_json_reports_native_delegation_aggregate(tmp_path, capsys) -> None:
+    from simplicio.runtime_bridge import record_delegation
+
+    root = str(tmp_path)
+    record_delegation("gate", "native", root=root)
+    record_delegation("gate", "native", root=root)
+    record_delegation("gate", "python-fallback", root=root, reason="binary-not-found")
+    record_delegation("edit", "python-forced", root=root, reason="user-forced-python")
+
+    code = doctor.main(["--json", "--no-check-updates", "--root", root])
+    out = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    delegation = out["native_delegation"]
+    assert delegation["exists"] is True
+    assert delegation["total"] == 4
+    assert delegation["native_pct"] == 50.0
+    assert delegation["verbs"]["gate"]["total"] == 3
+    assert delegation["verbs"]["gate"]["native"] == 2
+    assert delegation["verbs"]["edit"]["python-forced"] == 1
+
+
+def test_doctor_json_reports_empty_native_delegation_when_no_events(tmp_path, capsys) -> None:
+    code = doctor.main(["--json", "--no-check-updates", "--root", str(tmp_path)])
+    out = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert out["native_delegation"]["exists"] is False
+    assert out["native_delegation"]["total"] == 0
+
+
+def test_doctor_human_output_renders_native_delegation_section(tmp_path, capsys) -> None:
+    from simplicio.runtime_bridge import record_delegation
+
+    root = str(tmp_path)
+    record_delegation("test-run", "native", root=root)
+
+    code = doctor.main(["--no-check-updates", "--root", root])
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert "native-vs-python delegation (issue #111):" in out
+    assert "test-run" in out

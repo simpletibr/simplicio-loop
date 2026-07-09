@@ -3,6 +3,17 @@
 Command routing — dispatches ``gate``, ``nest``, and ``score-skill``
 commands to the native Rust ``simplicio`` binary when available, with
 automatic fallback to the Python implementation.
+
+All three reach `route_command` (below) through
+`simplicio.commands._shared.try_route_via_simplicio`, but via two different
+paths — worth spelling out explicitly (issue #111 audit) so "score-skill is
+delegable" doesn't read as dead documentation: ``gate``/``nest`` bypass the
+main argparse parser entirely (`cli.py`'s ``_dispatch_nested`` calls
+`try_route_via_simplicio` directly, before falling back to
+`commands.gate`/`commands.nest`'s own ``main()``); ``score-skill`` goes
+through the normal argparse subparser and `commands/score_skill.py`'s
+``run()``, which calls `try_route_via_simplicio` itself
+(`commands/score_skill.py:246`) before falling back to its own ``main()``.
 """
 
 from __future__ import annotations

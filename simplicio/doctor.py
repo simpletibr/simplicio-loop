@@ -20,7 +20,7 @@ from .local_models import (
     ensure_recommended,
     model_file_path,
 )
-from .observability import events_summary
+from .observability import events_summary, native_delegation_summary
 
 
 def _ecosystem_freshness(refresh: bool = False, upgrade: bool = False):
@@ -123,6 +123,26 @@ def _render_events(summary: dict) -> None:
         print(f"  - [{record.get('ts', '?')}] {record.get('event', '?')}: {record.get('payload', {})}")
 
 
+def _render_native_delegation(summary: dict) -> None:
+    """Issue #111: surface the native-vs-python routing telemetry
+    (`native_delegation` events, `simplicio.runtime_bridge.record_delegation`)
+    per delegable verb, so `doctor` shows what fraction of `gate`/`nest`/
+    `edit`/`file`/`test-run` invocations actually reached the native Rust
+    binary vs the Python fallback."""
+    print()
+    print("native-vs-python delegation (issue #111):")
+    if not summary["exists"] or not summary["verbs"]:
+        print(f"  no delegation events recorded yet ({summary['path']})")
+        return
+    print(f"  path          {summary['path']}")
+    print(f"  overall       {summary['native_pct']:5.1f}% native  ({summary['total']} invocations)")
+    for verb, counts in summary["verbs"].items():
+        routes = ", ".join(
+            f"{route}={n}" for route, n in counts.items() if route not in {"total", "native_pct"}
+        )
+        print(f"  - {verb:12s} {counts['native_pct']:5.1f}% native  ({counts['total']} total: {routes})")
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="simplicio-py doctor")
     p.add_argument(
@@ -187,6 +207,7 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     events = events_summary(args.root, limit=args.events_limit)
+    delegation = native_delegation_summary(args.root)
 
     if args.json:
         payload = result.to_dict()
@@ -197,6 +218,7 @@ def main(argv: list[str] | None = None) -> int:
                 "updates_available": [s.name for s in eco_statuses if s.needs_upgrade],
             }
         payload["observability_events"] = events
+        payload["native_delegation"] = delegation
         print(json.dumps(payload, indent=2))
         return 0
 
@@ -204,4 +226,5 @@ def main(argv: list[str] | None = None) -> int:
     if check_updates:
         _render_ecosystem(eco_statuses, eco_upgraded)
     _render_events(events)
+    _render_native_delegation(delegation)
     return 0
