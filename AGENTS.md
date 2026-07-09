@@ -138,6 +138,91 @@ Regras:
 
 ---
 
+## Token/context budget guard (issue #174)
+
+`scripts/token_budget.py` porta o padrão do `simplicio-loop`
+(`scripts/token_budget.py` lá) para este repo: estima em tokens o custo de
+abrir os artefatos que um agent/LLM tipicamente lê inteiros neste projeto —
+`AGENTS.md`, `CLAUDE.md`, os maiores módulos de `simplicio_mapper/` (hoje
+`mapper/parse.py`, `mapper/graph.py`, `mapper/emit.py`, `cli/_flowchart.py`,
+`toon.py`) e os artefatos `.simplicio/*.json`-shaped já commitados em
+`contracts/mapper-artifacts/v1/fixtures/python-minimal/artifacts/`
+(saída real do mapper contra a fixture `python-minimal`, issue #157;
+regenerar com `python3 scripts/regen_contract_fixtures.py update`) — e falha
+se algum artefato crescer mais que 25% acima do baseline commitado em
+`scripts/token_budget_baseline.json`.
+
+```bash
+python3 scripts/token_budget.py                    # relatório + gate contra o baseline
+python3 scripts/token_budget.py --check             # mesmo, silencioso a menos que falhe (usado no CI)
+python3 scripts/token_budget.py --update-baseline   # regenera o baseline após mudança deliberada de tamanho
+python3 scripts/token_budget.py --self-test         # prova negativa: o guard falha de verdade numa regressão simulada
+```
+
+Estimador default: heurística stdlib `heuristic:chars-div-4` (~4
+caracteres/token); usa `tiktoken` (cl100k_base) quando instalado, sem ser
+dependência do pacote. Ligado no CI real deste repo em `python-ci.yml`
+(job `python-tests`, step "Token/context budget guard") — `dod.yml`/`ci.yml`
+são pulados neste repo (ver notas nos próprios arquivos), então o gate real
+vive nos workflows Python.
+
+## Delegação nativa ao runtime `simplicio` (F10 `ask`, issue #174)
+
+`simplicio_mapper/query.py` (F10 `ask`) já delegava `ask precedent` para o
+binário Rust `simplicio` (runtime) quando presente no PATH — busca
+SQLite/FTS5, envelope validado, timeout de 10s, kill-switch
+`SIMPLICIO_MAPPER_NO_RUNTIME_PRECEDENT`, fallback local automático em
+qualquer falha. Issue #174 estendeu o MESMO padrão para mais dois verbos,
+escolhidos por medição real (não achismo) — ver
+`scripts/measure_verbs.py` e o relatório commitado
+`scripts/measure_verbs_report.json`, rodado contra a fixture
+`contracts/mapper-artifacts/v1/fixtures/python-minimal/source`:
+
+| Verbo | Kill-switch | Por quê |
+|---|---|---|
+| `ask impact` | `SIMPLICIO_MAPPER_NO_RUNTIME_IMPACT` | ~73x mais caro que o verbo `ask` mais barato (`callers`/`callees`), isolando o custo de `build_artifacts()` (que todo `ask` já paga hoje, ver limitação abaixo) — recomputa flow-inventory do zero e varre todo `.specs/**`/`docs/**` a cada chamada. |
+| `ask tests-for` | `SIMPLICIO_MAPPER_NO_RUNTIME_TESTS_FOR` | ~8x mais caro que o mais barato — lê o texto inteiro de cada arquivo de teste a cada chamada, sem cache. |
+
+Mesmo padrão do `precedent`: `shutil.which("simplicio")`, envelope
+`simplicio.ask/v1` validado (`schema`/`results`/`total` presentes) antes de
+confiar, timeout de 10s, fallback local automático (`_impact`/`_tests_for`)
+em qualquer falha — binário ausente, kill-switch setado, exit != 0, timeout,
+JSON malformado ou schema não bate. Nenhum silent fake-pass: uma falha do
+binário nativo cai no fallback local existente, nunca finge sucesso.
+
+**Savings por verbo**: todo hit nativo (`impact`/`tests-for`) grava um
+evento `simplicio.savings-event/v1` em
+`<repo>/.simplicio/ledger/savings-events.jsonl` via
+`simplicio_mapper/savings.py` (`record_savings_event`, espelha o formato de
+`simplicio-dev-cli`'s `simplicio/observability.py::record_savings_event`,
+sem importar código de lá) — `source=native-delegation:<verbo>`,
+`baseline_tokens`/`actual_tokens`/`saved`/`pct_saved`, `proof_kind` sempre
+`"estimated"` aqui (nenhuma chamada real de LLM mede o gasto, então nunca é
+apresentado como `"measured"`), com `note` declarando o método do baseline
+(`heuristic:chars-div-4`, mesma heurística do token-budget guard acima).
+Kill-switch em `SIMPLICIO_DISABLE_RUN_LOG` (compartilhado com os outros
+produtores JSONL do ecossistema) desliga a gravação; falha de escrita nunca
+propaga para o caminho de query (best-effort).
+
+**Limitação conhecida, documentada e fora de escopo aqui**: `run_query`
+ainda chama `build_artifacts()` incondicionalmente antes de despachar para
+qualquer verbo — inclusive quando o caminho nativo vai responder e não
+precisaria dos artefatos locais (o mesmo já valia para `precedent` antes
+desta issue). A delegação nativa desta issue elimina o custo específico da
+lógica de `impact`/`tests-for`, não esse custo compartilhado; tornar
+`build_artifacts()` lazy por verbo é um refactor maior, fora do escopo
+cirúrgico pedido aqui.
+
+**`contract`/`impact`/`tests-for` não são comandos de topo-de-nível da
+CLI** (`simplicio_mapper/cli/_args.py`, tupla `commands`): `impact` e
+`tests-for` só existem como sub-verbos de `ask` (`simplicio-mapper ask
+<root> impact|tests-for <arg>`); `contract` existe como subcomando
+especial, despachado antes de `_parse_args` em `cli/__init__.py::main`,
+mas serve para validação de contrato de artefatos (`simplicio-mapper
+contract validate ...`), não tem relação com F10 `ask`.
+
+---
+
 ## Padrão de sincronização deste projeto
 
 Para este repositório, sempre que a mudança for **release-relevant**, o fechamento padrão deve deixar tudo sincronizado no mesmo ciclo:
