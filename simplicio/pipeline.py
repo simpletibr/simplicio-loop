@@ -12,6 +12,7 @@ retry loop just like any verify failure.
 import fnmatch
 import os
 import re
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +26,7 @@ from .pipeline_fixers import try_static_fixers
 from .prompt import build_prompt
 from .providers import _provider_id, generate
 from .runtime_env import prepare_project_command
+from .transaction import begin_transaction
 
 MAX_ATTEMPTS = 5
 
@@ -363,6 +365,24 @@ def _git_apply_patch(root, patch):
     return False, "\n".join(errors)
 
 
+def _copy_transaction_workspace(root: str, candidate: Path) -> None:
+    src_root = Path(root)
+    for item in src_root.iterdir():
+        if item.name in {".git", ".simplicio", "__pycache__"}:
+            continue
+        destination = candidate / item.name
+        if item.is_dir():
+            shutil.copytree(
+                item,
+                destination,
+                ignore=shutil.ignore_patterns(".git", ".simplicio", "__pycache__", "*.pyc"),
+                dirs_exist_ok=True,
+            )
+        elif item.is_file():
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(item, destination)
+
+
 def _apply_and_test(output, root, bound_paths=None):
     cmd, command_error = _configured_test_command()
     if command_error:
@@ -376,20 +396,33 @@ def _apply_and_test(output, root, bound_paths=None):
     if not patch:
         return False, "pre-apply validation failed: no unified diff found"
     open(os.path.join(root, ".simplicio/last_patch.diff"), "w").write(patch)
-    applied, apply_log = _git_apply_patch(root, patch)
+    tx = begin_transaction(root, dirty_policy="preserve")
+    _copy_transaction_workspace(root, tx.candidate)
+    applied, apply_log = _git_apply_patch(str(tx.candidate), patch)
     if not applied:
         return False, apply_log
     assert cmd is not None
-    prepared, use_shell = prepare_project_command(root, cmd)
+    prepared, use_shell = prepare_project_command(str(tx.candidate), cmd)
     p = subprocess.run(
         prepared,
         shell=use_shell,
-        cwd=root,
+        cwd=str(tx.candidate),
         stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
     )
-    return p.returncode == 0, (p.stdout + p.stderr)[-2000:]
+    output_tail = (p.stdout + p.stderr)[-2000:]
+    if p.returncode != 0:
+        return False, output_tail
+    receipt = tx.receipt(
+        extract_changed_files(output),
+        commands=[" ".join(prepared) if isinstance(prepared, list) else str(prepared)],
+        exit_codes=[p.returncode],
+        stdout=p.stdout,
+        stderr=p.stderr,
+    )
+    tx.promote(receipt)
+    return True, output_tail
 
 
 def _diff_summary(files_changed):

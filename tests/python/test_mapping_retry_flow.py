@@ -358,6 +358,33 @@ def test_apply_and_test_recovers_bad_hunk_counts_with_recount(tmp_path, monkeypa
     assert "Simplicio Sprint CLI E2E - terminal" in target.read_text(encoding="utf-8")
 
 
+def test_apply_and_test_keeps_worktree_byte_for_byte_when_verification_fails(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    untouched = tmp_path / "README.md"
+    target.write_text("old\n", encoding="utf-8")
+    untouched.write_text("keep me\n", encoding="utf-8")
+    output = "\n".join(
+        [
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -1 +1 @@",
+            "-old",
+            "+new",
+            "",
+            "TEST: pytest -q",
+        ]
+    )
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "python -c \"import sys; sys.exit(1)\"")
+
+    ok, log = pipeline._apply_and_test(output, str(tmp_path))
+
+    assert ok is False
+    assert target.read_text(encoding="utf-8") == "old\n"
+    assert untouched.read_text(encoding="utf-8") == "keep me\n"
+    assert ".simplicio" not in log
+
+
 def test_external_test_command_allows_textual_placeholder_mentions(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "grep -q marker docs/result.md")
 
