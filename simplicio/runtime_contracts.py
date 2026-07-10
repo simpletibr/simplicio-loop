@@ -67,6 +67,9 @@ def task_contract(task_result: dict[str, Any], *, root: str | Path = ".") -> dic
     (``callers``, ``tests_run``, ``result``, ``status``) so downstream
     consumers — CI, PR templates, ``runs.jsonl`` — have verifiable evidence
     that the change's blast-radius was checked.
+    Issue #118: the contract also carries the primary verification receipt so
+    downstream consumers can reason about the test command, exit code, and
+    digest without scraping the transaction journal.
     """
     payload = {
         "schema": "simplicio.dev-cli.task/v1",
@@ -84,6 +87,9 @@ def task_contract(task_result: dict[str, Any], *, root: str | Path = ".") -> dic
             "result": impact.get("result", "unverified"),
             "status": impact.get("status", "unverified"),
         }
+    verify = task_result.get("verify")
+    if verify is not None:
+        payload["verify"] = verify
     return payload
 
 

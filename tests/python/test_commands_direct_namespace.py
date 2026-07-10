@@ -271,6 +271,17 @@ def test_token_run_log_summary(tmp_path, capsys):
 def test_task_run_dry_run_task(tmp_path, monkeypatch, capsys):
     (tmp_path / "app.py").write_text("old\n", encoding="utf-8")
     monkeypatch.setattr(
+        "simplicio.pipeline.artifact_status",
+        lambda _root: {
+            "project_map": {"present": True},
+            "precedent_index": {"present": True},
+        },
+    )
+    monkeypatch.setattr(
+        "simplicio.pipeline.map_handoff",
+        lambda _root: {"context_pack": {"needs_broader_context": False, "files": [{"path": "app.py"}]}},
+    )
+    monkeypatch.setattr(
         "simplicio.pipeline.generate",
         lambda *a, **k: "diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n@@ -1 +1 @@\n-old\n+new\n",
     )

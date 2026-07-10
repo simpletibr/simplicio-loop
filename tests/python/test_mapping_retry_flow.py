@@ -751,6 +751,61 @@ def test_pipeline_retry_restarts_from_last_promoted_state_not_failed_attempt(tmp
     assert feedbacks[1] is not None
 
 
+def test_run_task_surfaces_primary_verify_receipt_from_transaction(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD",
+        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
+    )
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+
+    monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
+    monkeypatch.setattr(
+        pipeline,
+        "generate",
+        lambda *args, **kwargs: "\n".join(
+            [
+                "diff --git a/app.py b/app.py",
+                "--- a/app.py",
+                "+++ b/app.py",
+                "@@ -1 +1 @@",
+                "-old",
+                "+new",
+                "",
+                "TEST: pytest -q",
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "_run_impact_tests",
+        lambda *a, **k: {
+            "status": "no_callers_found",
+            "callers": [],
+            "tests_run": [],
+            "result": pipeline.IMPACT_RESULT_NOT_NEEDED,
+        },
+    )
+
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "change app",
+        "app.py",
+        "- behavior proven",
+        "- keep compatibility",
+        quiet=True,
+    )
+
+    assert result["applied"] is True
+    assert result["verify"]["status"] == "verified"
+    assert "python -c" in result["verify"]["receipt"]["command"]
+    assert result["verify"]["receipt"]["exit_code"] == 0
+    assert result["verify"]["receipt"]["receipt_digest"]
+    assert result["verify"]["receipt"]["files"][0]["path"] == "app.py"
+
+
 def test_static_fixers_reduce_retry_calls_in_synthetic_pipeline_case(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
