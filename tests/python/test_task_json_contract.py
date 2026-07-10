@@ -148,6 +148,103 @@ def test_task_non_json_propagates_failed_pipeline_exit_code(tmp_path, monkeypatc
     assert "include a unified diff" in captured.err
 
 
+def test_task_dry_run_json_fails_closed_with_structured_blocked_preconditions(tmp_path, monkeypatch, capsys):
+    _write(tmp_path / "frontend" / "app.ts", "old\n")
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.setattr("simplicio.pipeline.build_prompt", lambda *a, **k: "prompt")
+    monkeypatch.setattr(
+        "simplicio.pipeline.artifact_status",
+        lambda _root: {
+            "project_map": {"present": False},
+            "precedent_index": {"present": False},
+        },
+    )
+    monkeypatch.setattr("simplicio.pipeline.map_handoff", lambda _root: None)
+    called = {"generate": 0}
+
+    def fail_if_called(*_args, **_kwargs):
+        called["generate"] += 1
+        raise AssertionError("generate must not run when dry-run preconditions are blocked")
+
+    monkeypatch.setattr("simplicio.pipeline.generate", fail_if_called)
+
+    code = cli.main(
+        [
+            "task",
+            "update app",
+            "--root",
+            str(tmp_path),
+            "--stack",
+            "angular",
+            "--target",
+            "frontend/app.ts",
+            "--dry-run-task",
+            "--json",
+        ]
+    )
+
+    assert code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "blocked"
+    assert payload["blocked_preconditions"][0]["next_surface"]
+    reasons = {item["reason"] for item in payload["blocked_preconditions"]}
+    assert "artifacts_missing" in reasons
+    assert "no_handoff_targets" in reasons
+    assert called["generate"] == 0
+
+
+def test_task_dry_run_json_distinguishes_broader_context_and_target_resolution(
+    tmp_path, monkeypatch, capsys
+):
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.setattr("simplicio.pipeline.build_prompt", lambda *a, **k: "prompt")
+    monkeypatch.setattr(
+        "simplicio.pipeline.artifact_status",
+        lambda _root: {
+            "project_map": {"present": True},
+            "precedent_index": {"present": True},
+            "inspection": {"warnings": ["deep pass stale"]},
+        },
+    )
+    monkeypatch.setattr(
+        "simplicio.pipeline.map_handoff",
+        lambda _root: {
+            "context_pack": {
+                "needs_broader_context": True,
+                "files": [{"path": "frontend/other.ts"}],
+            }
+        },
+    )
+    monkeypatch.setattr(
+        "simplicio.pipeline.generate",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("generate must not run when dry-run is blocked")
+        ),
+    )
+
+    code = cli.main(
+        [
+            "task",
+            "update app",
+            "--root",
+            str(tmp_path),
+            "--stack",
+            "angular",
+            "--target",
+            "frontend/missing.ts",
+            "--dry-run-task",
+            "--json",
+        ]
+    )
+
+    assert code == 1
+    payload = json.loads(capsys.readouterr().out)
+    reasons = {item["reason"] for item in payload["blocked_preconditions"]}
+    assert "artifacts_stale" in reasons
+    assert "broader_context_required" in reasons
+    assert "target_resolution_failed" in reasons
+
+
 def test_python_module_entrypoint_propagates_cli_exit_code():
     env = {**os.environ, "SIMPLICIO_SKIP_AUTO_INIT": "1"}
     proc = subprocess.run(

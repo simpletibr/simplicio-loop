@@ -34,11 +34,13 @@ def run(a: argparse.Namespace) -> int:
         if a.json:
             print(json.dumps(result, sort_keys=True))
         else:
-            status = "DRY-RUN" if a.dry_run_task else "DONE"
+            status = "BLOCKED" if result.get("status") == "blocked" else ("DRY-RUN" if a.dry_run_task else "DONE")
             print(f"{status}: {result['diff_summary']}")
             for warning in result["warnings"]:
                 print(f"warning: {warning}", file=sys.stderr)
-        return 0 if (a.dry_run_task or result["applied"]) else 1
+        if a.dry_run_task:
+            return 1 if result.get("status") == "blocked" else 0
+        return 0 if result["applied"] else 1
     result = run_task(
         a.root,
         stack,
