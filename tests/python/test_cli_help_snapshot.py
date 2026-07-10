@@ -31,6 +31,7 @@ TOP_LEVEL_SUBCOMMANDS = [
     "status",
     "claims",
     "inspect",
+    "intake",
     "doctor",
     "env-export",
     "mechanical-edit",

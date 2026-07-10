@@ -138,8 +138,8 @@ def test_run_impact_tests_mapper_unavailable(tmp_path, monkeypatch):
 
     result = _run_impact_tests(tmp_path, ["src/lib.py"])
 
-    assert result["result"] == IMPACT_RESULT_NOT_NEEDED
-    assert result["status"] == "no_callers_found"
+    assert result["result"] == IMPACT_RESULT_UNVERIFIED
+    assert result["status"] == "mapper_unavailable"
 
 
 def test_run_impact_tests_mapper_returns_no_callers(tmp_path, monkeypatch):
@@ -160,7 +160,7 @@ def test_run_impact_tests_finds_callers_but_no_tests(tmp_path, monkeypatch):
 
     result = _run_impact_tests(tmp_path, ["src/lib.py"])
 
-    assert result["result"] == IMPACT_RESULT_NOT_NEEDED
+    assert result["result"] == IMPACT_RESULT_UNVERIFIED
     assert result["callers"] == ["src/caller.py"]
     assert result["tests_run"] == []
 

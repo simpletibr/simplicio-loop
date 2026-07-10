@@ -250,6 +250,68 @@ def test_apply_and_test_applies_unified_diff_before_running_test(tmp_path, monke
     assert (tmp_path / ".simplicio" / "last_patch.diff").exists()
 
 
+def test_apply_and_test_fails_closed_without_real_test_command(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+    monkeypatch.delenv("SIMPLICIO_TEST_CMD", raising=False)
+    output = "\n".join(
+        [
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -1 +1 @@",
+            "-old",
+            "+new",
+            "TEST: pytest -q",
+        ]
+    )
+
+    ok, log = pipeline._apply_and_test(output, str(tmp_path))
+
+    assert ok is False
+    assert "verification command missing" in log
+    assert target.read_text(encoding="utf-8") == "old\n"
+
+
+def test_run_task_rejects_missing_test_command_before_application(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+    monkeypatch.delenv("SIMPLICIO_TEST_CMD", raising=False)
+    monkeypatch.setattr(pipeline, "MAX_ATTEMPTS", 1)
+    generated = []
+    output = "\n".join(
+        [
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -1 +1 @@",
+            "-old",
+            "+new",
+            "TEST: pytest -q",
+        ]
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "generate",
+        lambda *a, **k: generated.append(True) or output,
+    )
+
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "change app",
+        "app.py",
+        "- behavior proven",
+        "- keep compatibility",
+        quiet=True,
+    )
+
+    assert result["applied"] is False
+    assert generated == [True]
+    assert target.read_text(encoding="utf-8") == "old\n"
+    assert "verification command missing" in result["warnings"][0]
+
+
 def test_external_test_command_satisfies_generated_test_contract(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
 
@@ -332,6 +394,7 @@ def _valid_pipeline_diff():
 
 def test_pipeline_static_fixer_skips_llm_retry_when_verify_passes(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
     generate_calls = []
     apply_calls = {"count": 0}
 
@@ -348,6 +411,16 @@ def test_pipeline_static_fixer_skips_llm_retry_when_verify_passes(tmp_path, monk
     monkeypatch.setattr(pipeline, "generate", fake_generate)
     monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
     monkeypatch.setattr(pipeline, "_apply_and_test", fake_apply_and_test)
+    monkeypatch.setattr(
+        pipeline,
+        "_run_impact_tests",
+        lambda *a, **k: {
+            "status": "no_callers_found",
+            "callers": [],
+            "tests_run": [],
+            "result": pipeline.IMPACT_RESULT_NOT_NEEDED,
+        },
+    )
     monkeypatch.setattr(
         pipeline,
         "try_static_fixers",
@@ -371,6 +444,7 @@ def test_pipeline_static_fixer_skips_llm_retry_when_verify_passes(tmp_path, monk
 
 def test_pipeline_retries_with_llm_when_static_fixer_does_not_resolve(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
     generate_calls = []
     apply_calls = {"count": 0}
 
@@ -394,6 +468,16 @@ def test_pipeline_retries_with_llm_when_static_fixer_does_not_resolve(tmp_path, 
     monkeypatch.setattr(pipeline, "generate", fake_generate)
     monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
     monkeypatch.setattr(pipeline, "_apply_and_test", fake_apply_and_test)
+    monkeypatch.setattr(
+        pipeline,
+        "_run_impact_tests",
+        lambda *a, **k: {
+            "status": "no_callers_found",
+            "callers": [],
+            "tests_run": [],
+            "result": pipeline.IMPACT_RESULT_NOT_NEEDED,
+        },
+    )
     monkeypatch.setattr(pipeline, "try_static_fixers", fake_fixers)
 
     result = pipeline.run_task(
@@ -413,6 +497,7 @@ def test_pipeline_retries_with_llm_when_static_fixer_does_not_resolve(tmp_path, 
 
 def test_static_fixers_reduce_retry_calls_in_synthetic_pipeline_case(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
 
     def run_case(root, fixer_enabled):
         generate_calls = []
@@ -436,6 +521,16 @@ def test_static_fixers_reduce_retry_calls_in_synthetic_pipeline_case(tmp_path, m
         monkeypatch.setattr(pipeline, "generate", fake_generate)
         monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
         monkeypatch.setattr(pipeline, "_apply_and_test", fake_apply_and_test)
+        monkeypatch.setattr(
+            pipeline,
+            "_run_impact_tests",
+            lambda *a, **k: {
+                "status": "no_callers_found",
+                "callers": [],
+                "tests_run": [],
+                "result": pipeline.IMPACT_RESULT_NOT_NEEDED,
+            },
+        )
         monkeypatch.setattr(pipeline, "try_static_fixers", fake_fixers)
         pipeline.run_task(
             str(root),
