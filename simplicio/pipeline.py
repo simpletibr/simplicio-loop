@@ -412,8 +412,6 @@ def _apply_and_test(output, root, bound_paths=None):
         text=True,
     )
     output_tail = (p.stdout + p.stderr)[-2000:]
-    if p.returncode != 0:
-        return False, output_tail
     receipt = tx.receipt(
         extract_changed_files(output),
         commands=[" ".join(prepared) if isinstance(prepared, list) else str(prepared)],
@@ -421,6 +419,8 @@ def _apply_and_test(output, root, bound_paths=None):
         stdout=p.stdout,
         stderr=p.stderr,
     )
+    if p.returncode != 0:
+        return False, output_tail
     tx.promote(receipt)
     return True, output_tail
 

@@ -5,6 +5,7 @@ from simplicio import precedent as precedent_module
 from simplicio import prompt as prompt_module
 from simplicio.pipeline_fixers import FixerResult
 from simplicio.precedent import build_precedent_block
+from simplicio.transaction import VerificationReceipt
 
 
 def write_json(path, payload):
@@ -383,6 +384,40 @@ def test_apply_and_test_keeps_worktree_byte_for_byte_when_verification_fails(tmp
     assert target.read_text(encoding="utf-8") == "old\n"
     assert untouched.read_text(encoding="utf-8") == "keep me\n"
     assert ".simplicio" not in log
+
+
+def test_apply_and_test_persists_transaction_receipt_for_failed_verification(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+    output = "\n".join(
+        [
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -1 +1 @@",
+            "-old",
+            "+new",
+            "",
+            "TEST: pytest -q",
+        ]
+    )
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "python -c \"import sys; print('boom'); sys.exit(3)\"")
+
+    ok, _log = pipeline._apply_and_test(output, str(tmp_path))
+
+    assert ok is False
+    journals = sorted((tmp_path / ".simplicio" / "transactions").glob("*.jsonl"))
+    assert journals, "expected a transaction journal for the failed attempt"
+    receipt_events = []
+    for line in journals[-1].read_text(encoding="utf-8").splitlines():
+        event = json.loads(line)
+        if event.get("event") == "receipt":
+            receipt_events.append(event)
+    assert receipt_events, "expected a persisted receipt event"
+    receipt = VerificationReceipt.from_dict(receipt_events[-1]["receipt"])
+    assert receipt.exit_codes == (3,)
+    assert "boom" in receipt.stdout_tail
+    assert receipt.files[0].path == "app.py"
 
 
 def test_external_test_command_allows_textual_placeholder_mentions(monkeypatch):
