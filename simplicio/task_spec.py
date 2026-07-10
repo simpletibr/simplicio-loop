@@ -326,7 +326,7 @@ def _labeled_item(line: _Line, pattern: str) -> dict[str, Any]:
 
 
 def _parse_acceptance_criteria(
-    lines: list[_Line], ranges: dict[str, tuple[int, int]], *, raw: str, base_start: int
+    lines: list[_Line], ranges: dict[str, list[tuple[int, int]]], *, raw: str, base_start: int
 ) -> list[dict[str, Any]]:
     rows = _content_lines(lines, ranges, "acceptance_criteria")
     starts: list[int] = []
@@ -391,7 +391,7 @@ def _verification_test_paths(text: str) -> list[str]:
 
 
 def _parse_contract_acceptance_criteria(
-    lines: list[_Line], ranges: dict[str, tuple[int, int]]
+    lines: list[_Line], ranges: dict[str, list[tuple[int, int]]]
 ) -> list[dict[str, Any]]:
     rows = _content_lines(lines, ranges, "contract")
     criteria: list[dict[str, Any]] = []
@@ -414,7 +414,9 @@ def _parse_contract_acceptance_criteria(
     return criteria
 
 
-def _parse_business_rules(lines: list[_Line], ranges: dict[str, tuple[int, int]]) -> list[dict[str, Any]]:
+def _parse_business_rules(
+    lines: list[_Line], ranges: dict[str, list[tuple[int, int]]]
+) -> list[dict[str, Any]]:
     rows = _content_lines(lines, ranges, "business_rules")
     rules: list[dict[str, Any]] = []
     for _, line in rows:
@@ -427,7 +429,7 @@ def _parse_business_rules(lines: list[_Line], ranges: dict[str, tuple[int, int]]
 
 
 def _parse_constraints_as_business_rules(
-    lines: list[_Line], ranges: dict[str, tuple[int, int]]
+    lines: list[_Line], ranges: dict[str, list[tuple[int, int]]]
 ) -> list[dict[str, Any]]:
     rows = _content_lines(lines, ranges, "constraints")
     rules: list[dict[str, Any]] = []
@@ -442,7 +444,7 @@ def _parse_constraints_as_business_rules(
     return rules
 
 
-def _parse_impact(lines: list[_Line], ranges: dict[str, tuple[int, int]]) -> dict[str, dict[str, Any]]:
+def _parse_impact(lines: list[_Line], ranges: dict[str, list[tuple[int, int]]]) -> dict[str, dict[str, Any]]:
     result: dict[str, dict[str, Any]] = {}
     for _, line in _content_lines(lines, ranges, "impact_signals"):
         match = re.match(r"^\s*[-*+]?\s*([^:]+):\s*(.*?)\s*$", line.text)
@@ -470,7 +472,7 @@ def _parse_impact(lines: list[_Line], ranges: dict[str, tuple[int, int]]) -> dic
 
 
 def _parse_references(
-    lines: list[_Line], ranges: dict[str, tuple[int, int]]
+    lines: list[_Line], ranges: dict[str, list[tuple[int, int]]]
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     def references(text: str) -> list[str]:
         markdown_urls = re.findall(r"!?\[[^]]*\]\(([^)]+)\)", text)

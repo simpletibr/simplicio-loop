@@ -376,7 +376,7 @@ def test_apply_and_test_keeps_worktree_byte_for_byte_when_verification_fails(tmp
             "TEST: pytest -q",
         ]
     )
-    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "python -c \"import sys; sys.exit(1)\"")
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", 'python -c "import sys; sys.exit(1)"')
 
     ok, log = pipeline._apply_and_test(output, str(tmp_path))
 
