@@ -114,6 +114,31 @@ def test_task_contract_carries_impact_block_when_present():
     assert result["impact"]["status"] == "verified"
 
 
+def test_task_contract_carries_verify_block_when_present():
+    result = task_contract(
+        {
+            "task_id": "src/lib.py",
+            "applied": True,
+            "files_changed": ["src/lib.py"],
+            "warnings": [],
+            "verify": {
+                "status": "verified",
+                "receipt": {
+                    "command": "pytest -q",
+                    "exit_code": 0,
+                    "receipt_digest": "digest",
+                },
+            },
+        },
+    )
+
+    assert result["verify"]["status"] == "verified"
+    assert result["verify"]["receipt"]["command"] == "pytest -q"
+    assert result["task"]["verify"]["status"] == "verified"
+    assert result["task"]["verify"]["receipt"]["command"] == "pytest -q"
+    assert result["task"]["verify"]["receipt"]["receipt_digest"] == "digest"
+
+
 def test_task_contract_omits_impact_block_when_absent():
     result = task_contract(
         {

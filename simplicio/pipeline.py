@@ -26,7 +26,7 @@ from .pipeline_fixers import try_static_fixers
 from .prompt import build_prompt
 from .providers import _provider_id, generate
 from .runtime_env import prepare_project_command
-from .transaction import begin_transaction
+from .transaction import VerificationReceipt, begin_transaction
 
 MAX_ATTEMPTS = 5
 
@@ -37,6 +37,7 @@ _TEST_COMMAND_PLACEHOLDERS = {
 }
 
 _DEFAULT_VERIFY_TIMEOUT_S = 120
+_LAST_VERIFY_RECEIPT: dict[str, Any] | None = None
 
 
 def _configured_test_command() -> tuple[str | None, str | None]:
@@ -59,6 +60,32 @@ def _verification_timeout_seconds() -> int:
     except ValueError:
         return _DEFAULT_VERIFY_TIMEOUT_S
     return value if value > 0 else _DEFAULT_VERIFY_TIMEOUT_S
+
+
+def _remember_verify_receipt(receipt: VerificationReceipt | None) -> None:
+    global _LAST_VERIFY_RECEIPT
+    _LAST_VERIFY_RECEIPT = receipt.to_dict() if receipt is not None else None
+
+
+def _verify_receipt_payload(receipt: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not receipt:
+        return None
+    commands = [str(item) for item in receipt.get("commands", [])]
+    exit_codes = [int(item) for item in receipt.get("exit_codes", [])]
+    payload = {
+        "transaction_id": receipt.get("transaction_id"),
+        "base_sha": receipt.get("base_sha"),
+        "candidate_sha": receipt.get("candidate_sha"),
+        "receipt_digest": receipt.get("receipt_digest"),
+        "commands": commands,
+        "exit_codes": exit_codes,
+        "command": commands[0] if commands else None,
+        "exit_code": exit_codes[0] if exit_codes else None,
+        "stdout_tail": receipt.get("stdout_tail", ""),
+        "stderr_tail": receipt.get("stderr_tail", ""),
+        "files": receipt.get("files", []),
+    }
+    return payload
 
 
 # ---------------------------------------------------------------------------
@@ -398,6 +425,7 @@ def _copy_transaction_workspace(root: str, candidate: Path) -> None:
 
 
 def _apply_and_test(output, root, bound_paths=None):
+    _remember_verify_receipt(None)
     cmd, command_error = _configured_test_command()
     if command_error:
         return False, command_error
@@ -414,13 +442,14 @@ def _apply_and_test(output, root, bound_paths=None):
     _copy_transaction_workspace(root, tx.candidate)
     applied, apply_log = _git_apply_patch(str(tx.candidate), patch)
     if not applied:
-        tx.receipt(
+        receipt = tx.receipt(
             extract_changed_files(output),
             commands=["git apply"],
             exit_codes=[2],
             stdout="",
             stderr=apply_log,
         )
+        _remember_verify_receipt(receipt)
         return False, apply_log
     assert cmd is not None
     prepared, use_shell = prepare_project_command(str(tx.candidate), cmd)
@@ -443,17 +472,19 @@ def _apply_and_test(output, root, bound_paths=None):
             stdout=p.stdout,
             stderr=p.stderr,
         )
+        _remember_verify_receipt(receipt)
     except subprocess.TimeoutExpired as exc:
         stdout = exc.output if isinstance(exc.output, str) else (exc.output or b"").decode("utf-8", errors="replace")
         stderr = exc.stderr if isinstance(exc.stderr, str) else (exc.stderr or b"").decode("utf-8", errors="replace")
         output_tail = (stdout + stderr)[-2000:]
-        tx.receipt(
+        receipt = tx.receipt(
             extract_changed_files(output),
             commands=[verify_cmd],
             exit_codes=[124],
             stdout=stdout,
             stderr=stderr or f"timed out after {exc.timeout}s",
         )
+        _remember_verify_receipt(receipt)
         return False, f"verification timed out after {exc.timeout}s"
     if p.returncode != 0:
         return False, output_tail
@@ -467,7 +498,7 @@ def _diff_summary(files_changed):
     return "changed " + ", ".join(files_changed)
 
 
-def _task_result(task_id, prompt, output, *, applied, warnings=None, impact=None):
+def _task_result(task_id, prompt, output, *, applied, warnings=None, verify=None, impact=None):
     files_changed = extract_changed_files(output)
     prompt_tokens = estimate_tokens(prompt)
     completion_tokens = estimate_tokens(output or "")
@@ -490,6 +521,17 @@ def _task_result(task_id, prompt, output, *, applied, warnings=None, impact=None
         "diff_summary": _diff_summary(files_changed),
         "warnings": warnings or [],
     }
+    verify_receipt = _verify_receipt_payload(verify)
+    if verify_receipt is not None:
+        exit_codes = verify_receipt.get("exit_codes", [])
+        if exit_codes:
+            status = "verified" if all(code == 0 for code in exit_codes) else "failed"
+        else:
+            status = IMPACT_RESULT_UNVERIFIED
+        result["verify"] = {
+            "status": status,
+            "receipt": verify_receipt,
+        }
     # Issue #93: impact-test evidence block
     if impact is not None:
         result["impact"] = {
@@ -533,6 +575,7 @@ def run_task(
     last_output = ""
     last_validation = None
     last_log = ""
+    last_verify_receipt: dict[str, Any] | None = None
     # Issue #93: impact-test tracking across attempts
     impact_results: dict[str, Any] | None = None
     for t in range(1, MAX_ATTEMPTS + 1):
@@ -549,6 +592,7 @@ def run_task(
         last_output = output or ""
         last_validation = validate_generated_output(output, bound_paths)
         ok, log = _apply_and_test(output, root, bound_paths)
+        last_verify_receipt = _LAST_VERIFY_RECEIPT
         last_log = log
         attempt_tokens = estimate_tokens(prompt) + estimate_tokens(output)
         log_run(
@@ -604,6 +648,7 @@ def run_task(
                     prompt,
                     output,
                     applied=True,
+                    verify=last_verify_receipt,
                     impact=impact_results,
                 )
             else:
@@ -632,6 +677,7 @@ def run_task(
                     output,
                     applied=False,
                     warnings=[log],
+                    verify=last_verify_receipt,
                     impact=impact_results,
                 )
 
@@ -639,6 +685,7 @@ def run_task(
         fixer_result = try_static_fixers(log, root)
         if fixer_result.applied:
             ok, fixed_log = _apply_and_test(output, root, bound_paths)
+            last_verify_receipt = _LAST_VERIFY_RECEIPT
             log_run(
                 root,
                 {
@@ -693,6 +740,7 @@ def run_task(
                         prompt,
                         output,
                         applied=True,
+                        verify=last_verify_receipt,
                         impact=impact_results,
                     )
                 else:
@@ -722,6 +770,7 @@ def run_task(
         last_output,
         applied=False,
         warnings=warnings,
+        verify=last_verify_receipt,
         impact=impact_results,
     )
 

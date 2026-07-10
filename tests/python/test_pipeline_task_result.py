@@ -78,6 +78,59 @@ def test_task_result_impact_failed(monkeypatch):
     assert result["impact"]["status"] == "failed"
 
 
+def test_task_result_includes_structured_primary_verify_receipt(monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_PRICE_PER_MTOK", raising=False)
+
+    result = _task_result(
+        "t1",
+        "a prompt",
+        "diff --git a/x b/x\n--- a/x\n+++ b/x\n",
+        applied=True,
+        verify={
+            "transaction_id": "tx-1",
+            "base_sha": "base",
+            "candidate_sha": "candidate",
+            "receipt_digest": "digest",
+            "commands": ["pytest -q"],
+            "exit_codes": [0],
+            "stdout_tail": "1 passed",
+            "stderr_tail": "",
+            "files": [{"path": "src/app.py"}],
+        },
+    )
+
+    assert result["verify"]["status"] == "verified"
+    assert result["verify"]["receipt"]["command"] == "pytest -q"
+    assert result["verify"]["receipt"]["exit_code"] == 0
+    assert result["verify"]["receipt"]["receipt_digest"] == "digest"
+    assert result["verify"]["receipt"]["files"] == [{"path": "src/app.py"}]
+
+
+def test_task_result_marks_failed_primary_verify_receipt(monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_PRICE_PER_MTOK", raising=False)
+
+    result = _task_result(
+        "t1",
+        "a prompt",
+        "diff --git a/x b/x\n--- a/x\n+++ b/x\n",
+        applied=False,
+        verify={
+            "transaction_id": "tx-2",
+            "base_sha": "base",
+            "candidate_sha": "candidate",
+            "receipt_digest": "digest-2",
+            "commands": ["pytest -q"],
+            "exit_codes": [1],
+            "stdout_tail": "",
+            "stderr_tail": "AssertionError: boom",
+            "files": [{"path": "src/app.py"}],
+        },
+    )
+
+    assert result["verify"]["status"] == "failed"
+    assert result["verify"]["receipt"]["stderr_tail"] == "AssertionError: boom"
+
+
 def test_task_result_impact_includes_structured_receipt(monkeypatch):
     monkeypatch.delenv("SIMPLICIO_PRICE_PER_MTOK", raising=False)
 
