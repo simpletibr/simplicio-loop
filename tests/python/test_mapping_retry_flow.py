@@ -449,6 +449,44 @@ def test_apply_and_test_preserves_unrelated_dirty_worktree_files(tmp_path, monke
     assert unrelated.read_text(encoding="utf-8") == "user draft\n"
 
 
+def test_apply_and_test_persists_timeout_receipt_and_preserves_worktree(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+    output = "\n".join(
+        [
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -1 +1 @@",
+            "-old",
+            "+new",
+            "",
+            "TEST: pytest -q",
+        ]
+    )
+    monkeypatch.setenv("SIMPLICIO_TEST_TIMEOUT_S", "1")
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD",
+        "python -c \"import time; print('start'); time.sleep(2)\"",
+    )
+
+    ok, log = pipeline._apply_and_test(output, str(tmp_path))
+
+    assert ok is False
+    assert "timed out" in log
+    assert target.read_text(encoding='utf-8') == "old\n"
+    journals = sorted((tmp_path / ".simplicio" / "transactions").glob("*.jsonl"))
+    assert journals
+    receipt_events = []
+    for line in journals[-1].read_text(encoding="utf-8").splitlines():
+        event = json.loads(line)
+        if event.get("event") == "receipt":
+            receipt_events.append(event)
+    assert receipt_events
+    receipt = VerificationReceipt.from_dict(receipt_events[-1]["receipt"])
+    assert receipt.exit_codes == (124,)
+
+
 def test_external_test_command_allows_textual_placeholder_mentions(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "grep -q marker docs/result.md")
 

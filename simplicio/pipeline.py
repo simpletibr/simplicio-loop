@@ -36,6 +36,8 @@ _TEST_COMMAND_PLACEHOLDERS = {
     'echo "configure SIMPLICIO_TEST_CMD"',
 }
 
+_DEFAULT_VERIFY_TIMEOUT_S = 120
+
 
 def _configured_test_command() -> tuple[str | None, str | None]:
     """Return the real verification command or a fail-closed diagnostic."""
@@ -46,6 +48,17 @@ def _configured_test_command() -> tuple[str | None, str | None]:
             "project test command before execution"
         )
     return raw, None
+
+
+def _verification_timeout_seconds() -> int:
+    raw = os.environ.get("SIMPLICIO_TEST_TIMEOUT_S", "").strip()
+    if not raw:
+        return _DEFAULT_VERIFY_TIMEOUT_S
+    try:
+        value = int(raw)
+    except ValueError:
+        return _DEFAULT_VERIFY_TIMEOUT_S
+    return value if value > 0 else _DEFAULT_VERIFY_TIMEOUT_S
 
 
 # ---------------------------------------------------------------------------
@@ -403,22 +416,37 @@ def _apply_and_test(output, root, bound_paths=None):
         return False, apply_log
     assert cmd is not None
     prepared, use_shell = prepare_project_command(str(tx.candidate), cmd)
-    p = subprocess.run(
-        prepared,
-        shell=use_shell,
-        cwd=str(tx.candidate),
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-        text=True,
-    )
-    output_tail = (p.stdout + p.stderr)[-2000:]
-    receipt = tx.receipt(
-        extract_changed_files(output),
-        commands=[" ".join(prepared) if isinstance(prepared, list) else str(prepared)],
-        exit_codes=[p.returncode],
-        stdout=p.stdout,
-        stderr=p.stderr,
-    )
+    verify_cmd = " ".join(prepared) if isinstance(prepared, list) else str(prepared)
+    try:
+        p = subprocess.run(
+            prepared,
+            shell=use_shell,
+            cwd=str(tx.candidate),
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=_verification_timeout_seconds(),
+        )
+        output_tail = (p.stdout + p.stderr)[-2000:]
+        receipt = tx.receipt(
+            extract_changed_files(output),
+            commands=[verify_cmd],
+            exit_codes=[p.returncode],
+            stdout=p.stdout,
+            stderr=p.stderr,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.output if isinstance(exc.output, str) else (exc.output or b"").decode("utf-8", errors="replace")
+        stderr = exc.stderr if isinstance(exc.stderr, str) else (exc.stderr or b"").decode("utf-8", errors="replace")
+        output_tail = (stdout + stderr)[-2000:]
+        tx.receipt(
+            extract_changed_files(output),
+            commands=[verify_cmd],
+            exit_codes=[124],
+            stdout=stdout,
+            stderr=stderr or f"timed out after {exc.timeout}s",
+        )
+        return False, f"verification timed out after {exc.timeout}s"
     if p.returncode != 0:
         return False, output_tail
     tx.promote(receipt)
