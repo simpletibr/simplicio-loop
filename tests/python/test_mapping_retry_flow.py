@@ -586,6 +586,97 @@ def test_pipeline_retries_with_llm_when_static_fixer_does_not_resolve(tmp_path, 
     assert generate_calls[1] is not None
 
 
+def test_pipeline_retry_restarts_from_last_promoted_state_not_failed_attempt(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD",
+        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
+    )
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+    outputs = iter(
+        [
+            "\n".join(
+                [
+                    "diff --git a/app.py b/app.py",
+                    "--- a/app.py",
+                    "+++ b/app.py",
+                    "@@ -1 +1 @@",
+                    "-old",
+                    "+mid",
+                    "",
+                    "TEST: pytest -q",
+                ]
+            ),
+            "\n".join(
+                [
+                    "diff --git a/app.py b/app.py",
+                    "--- a/app.py",
+                    "+++ b/app.py",
+                    "@@ -1 +1 @@",
+                    "-old",
+                    "+new",
+                    "",
+                    "TEST: pytest -q",
+                ]
+            ),
+        ]
+    )
+    feedbacks = []
+    test_invocations = {"count": 0}
+
+    def fake_generate(prompt, feedback=None):
+        feedbacks.append(feedback)
+        return next(outputs)
+
+    def fake_fixers(log, root):
+        return FixerResult("none", False, "no static fixer matched")
+
+    monkeypatch.setattr(pipeline, "generate", fake_generate)
+    monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
+    monkeypatch.setattr(
+        pipeline,
+        "_run_impact_tests",
+        lambda *a, **k: {
+            "status": "no_callers_found",
+            "callers": [],
+            "tests_run": [],
+            "result": pipeline.IMPACT_RESULT_NOT_NEEDED,
+        },
+    )
+    monkeypatch.setattr(pipeline, "try_static_fixers", fake_fixers)
+
+    real_prepare = pipeline.prepare_project_command
+
+    def wrapped_prepare(root, cmd, extra_args=None):
+        prepared, use_shell = real_prepare(root, cmd, extra_args)
+        if "python -c" in cmd:
+            test_invocations["count"] += 1
+            if test_invocations["count"] == 1:
+                if isinstance(prepared, list):
+                    return ["python", "-c", "import sys; sys.exit(1)"], False
+                return "python -c \"import sys; sys.exit(1)\"", True
+        return prepared, use_shell
+
+    monkeypatch.setattr(pipeline, "prepare_project_command", wrapped_prepare)
+
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "change app",
+        "app.py",
+        "- behavior proven",
+        "- keep compatibility",
+        quiet=True,
+    )
+
+    assert result["applied"] is True
+    assert target.read_text(encoding="utf-8") == "new\n"
+    assert len(feedbacks) == 2
+    assert feedbacks[0] is None
+    assert feedbacks[1] is not None
+
+
 def test_static_fixers_reduce_retry_calls_in_synthetic_pipeline_case(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
