@@ -437,7 +437,10 @@ def test_apply_and_test_preserves_unrelated_dirty_worktree_files(tmp_path, monke
             "TEST: pytest -q",
         ]
     )
-    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"")
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD",
+        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
+    )
 
     ok, log = pipeline._apply_and_test(output, str(tmp_path))
 
