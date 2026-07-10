@@ -420,6 +420,32 @@ def test_apply_and_test_persists_transaction_receipt_for_failed_verification(tmp
     assert receipt.files[0].path == "app.py"
 
 
+def test_apply_and_test_preserves_unrelated_dirty_worktree_files(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    unrelated = tmp_path / "notes.md"
+    target.write_text("old\n", encoding="utf-8")
+    unrelated.write_text("user draft\n", encoding="utf-8")
+    output = "\n".join(
+        [
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -1 +1 @@",
+            "-old",
+            "+new",
+            "",
+            "TEST: pytest -q",
+        ]
+    )
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"")
+
+    ok, log = pipeline._apply_and_test(output, str(tmp_path))
+
+    assert ok is True, log
+    assert target.read_text(encoding="utf-8") == "new\n"
+    assert unrelated.read_text(encoding="utf-8") == "user draft\n"
+
+
 def test_external_test_command_allows_textual_placeholder_mentions(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "grep -q marker docs/result.md")
 
