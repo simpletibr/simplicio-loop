@@ -474,7 +474,7 @@ def _shell_out_codex(prompt, model):
         output_path = str(Path(temp_dir) / "last-message.txt")
         cmd = [_cli_command("codex"), "exec"]
         cmd.append("--skip-git-repo-check")
-        cmd += ["--ignore-rules", "--color", "never", "--output-last-message", output_path]
+        cmd += ["--cd", temp_dir, "--ignore-rules", "--color", "never", "--output-last-message", output_path]
         if model and model not in ("default", "auto"):
             cmd += ["--model", model]
         effort = os.environ.get("SIMPLICIO_CODEX_EFFORT", "").strip().lower()

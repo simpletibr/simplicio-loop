@@ -79,6 +79,7 @@ def test_codex_cli_builds_argv_with_model_then_prompt(monkeypatch):
     assert cmd[0] in {"codex", "codex.cmd", "codex.exe"}
     assert cmd[1] == "exec"
     assert "--skip-git-repo-check" in cmd
+    assert "--cd" in cmd
     assert "--ignore-rules" in cmd
     assert "--output-last-message" in cmd
     assert "--color" in cmd
