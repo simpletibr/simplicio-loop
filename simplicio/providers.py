@@ -38,6 +38,8 @@ Four modes, picked by SIMPLICIO_MODEL prefix (or by absence of config):
 
 import os
 import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -441,6 +443,25 @@ def _cli_command(name):
     return name
 
 
+def _codex_supports_effort_flag() -> bool:
+    cmd = [_cli_command("codex"), "exec", "--help"]
+    try:
+        result = subprocess.run(
+            cmd,
+            env={**os.environ, "SIMPLICIO_HOOK_GUARD": "1", "SIMPLICIO_SKIP_AUTO_INIT": "1"},
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+            check=False,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+    help_text = f"{result.stdout}\n{result.stderr}"
+    return "--effort" in help_text
+
+
 def _shell_out_claude(prompt, model):
     cmd = [_cli_command("claude"), "-p", prompt]
     if model and model not in ("default", "auto"):
@@ -449,12 +470,24 @@ def _shell_out_claude(prompt, model):
 
 
 def _shell_out_codex(prompt, model):
-    cmd = [_cli_command("codex"), "exec"]
-    cmd.append("--skip-git-repo-check")
-    if model and model not in ("default", "auto"):
-        cmd += ["--model", model]
-    cmd.append("-")
-    return _shell_out(cmd, "Codex CLI (`codex exec`)", stdin_text=prompt)
+    with tempfile.TemporaryDirectory(prefix="simplicio-codex-") as temp_dir:
+        output_path = str(Path(temp_dir) / "last-message.txt")
+        cmd = [_cli_command("codex"), "exec"]
+        cmd.append("--skip-git-repo-check")
+        cmd += ["--cd", temp_dir, "--ignore-rules", "--color", "never", "--output-last-message", output_path]
+        if model and model not in ("default", "auto"):
+            cmd += ["--model", model]
+        effort = os.environ.get("SIMPLICIO_CODEX_EFFORT", "").strip().lower()
+        if effort and _codex_supports_effort_flag():
+            cmd += ["--effort", effort]
+        cmd.append("-")
+        _shell_out(cmd, "Codex CLI (`codex exec`)", stdin_text=prompt)
+        try:
+            return Path(output_path).read_text(encoding="utf-8")
+        except OSError as exc:
+            raise SystemExit(
+                "simplicio: Codex CLI completed but did not produce an output-last-message file."
+            ) from exc
 
 
 def _charge_if_budgeted(model, prompt, out):

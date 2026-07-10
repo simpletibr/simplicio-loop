@@ -31,6 +31,16 @@ def _ok(stdout="ok"):
     return r
 
 
+def _codex_ok_with_output_file(stdout="ignored", content="done"):
+    def _side_effect(cmd, **kwargs):
+        out_path = cmd[cmd.index("--output-last-message") + 1]
+        with open(out_path, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        return _ok(stdout)
+
+    return _side_effect
+
+
 def test_claude_cli_builds_argv_and_injects_guard(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_MODEL", "claude-cli/sonnet")
     monkeypatch.delenv("SIMPLICIO_API_KEY", raising=False)
@@ -58,8 +68,9 @@ def test_claude_cli_builds_argv_and_injects_guard(monkeypatch):
 def test_codex_cli_builds_argv_with_model_then_prompt(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_MODEL", "codex-cli/gpt-5")
     monkeypatch.delenv("SIMPLICIO_API_KEY", raising=False)
+    monkeypatch.delenv("SIMPLICIO_CODEX_EFFORT", raising=False)
 
-    with patch("subprocess.run", return_value=_ok("done")) as run:
+    with patch("subprocess.run", side_effect=_codex_ok_with_output_file(content="done")) as run:
         out = providers.generate("refactor x")
 
     assert out == "done"
@@ -68,11 +79,48 @@ def test_codex_cli_builds_argv_with_model_then_prompt(monkeypatch):
     assert cmd[0] in {"codex", "codex.cmd", "codex.exe"}
     assert cmd[1] == "exec"
     assert "--skip-git-repo-check" in cmd
+    assert "--cd" in cmd
+    assert "--ignore-rules" in cmd
+    assert "--output-last-message" in cmd
+    assert "--color" in cmd
     assert "--model" in cmd
     assert cmd.index("gpt-5") == cmd.index("--model") + 1
     assert cmd[-1] == "-"
     assert kwargs["input"].startswith(providers.LLM_DIRECTIVES)
     assert "refactor x" in kwargs["input"]
+
+
+def test_codex_cli_adds_effort_when_configured(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_MODEL", "codex-cli/gpt-5.4")
+    monkeypatch.setenv("SIMPLICIO_CODEX_EFFORT", "medium")
+    monkeypatch.delenv("SIMPLICIO_API_KEY", raising=False)
+
+    with (
+        patch("simplicio.providers._codex_supports_effort_flag", return_value=True),
+        patch("subprocess.run", side_effect=_codex_ok_with_output_file(content="done")) as run,
+    ):
+        out = providers.generate("refactor x")
+
+    assert out == "done"
+    cmd = run.call_args[0][0]
+    assert "--effort" in cmd
+    assert cmd[cmd.index("--effort") + 1] == "medium"
+
+
+def test_codex_cli_skips_effort_when_cli_does_not_support_it(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_MODEL", "codex-cli/gpt-5.4")
+    monkeypatch.setenv("SIMPLICIO_CODEX_EFFORT", "medium")
+    monkeypatch.delenv("SIMPLICIO_API_KEY", raising=False)
+
+    with (
+        patch("simplicio.providers._codex_supports_effort_flag", return_value=False),
+        patch("subprocess.run", side_effect=_codex_ok_with_output_file(content="done")) as run,
+    ):
+        out = providers.generate("refactor x")
+
+    assert out == "done"
+    cmd = run.call_args[0][0]
+    assert "--effort" not in cmd
 
 
 def test_claude_cli_skips_model_flag_for_default(monkeypatch):
