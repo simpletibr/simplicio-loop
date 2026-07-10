@@ -413,6 +413,13 @@ def _apply_and_test(output, root, bound_paths=None):
     _copy_transaction_workspace(root, tx.candidate)
     applied, apply_log = _git_apply_patch(str(tx.candidate), patch)
     if not applied:
+        tx.receipt(
+            extract_changed_files(output),
+            commands=["git apply"],
+            exit_codes=[2],
+            stdout="",
+            stderr=apply_log,
+        )
         return False, apply_log
     assert cmd is not None
     prepared, use_shell = prepare_project_command(str(tx.candidate), cmd)
