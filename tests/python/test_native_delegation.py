@@ -15,7 +15,8 @@ from __future__ import annotations
 
 import argparse
 import json
-import stat
+import os
+from types import SimpleNamespace
 
 import pytest
 
@@ -123,14 +124,11 @@ def test_gate_check_records_python_forced_with_flag(tmp_path, monkeypatch):
 def test_nest_build_records_native_when_binary_available(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
-    script = tmp_path / "bin" / "simplicio"
-    script.parent.mkdir(parents=True, exist_ok=True)
-    script.write_text(
-        "#!/usr/bin/env python3\nprint('{\"ok\": true}')\n",
-        encoding="utf-8",
+    monkeypatch.setattr("simplicio.cli.simplicio_available", lambda: True, raising=False)
+    monkeypatch.setattr(
+        "simplicio.commands._shared.try_route_via_simplicio",
+        lambda verb, clean_args, prefer_native, prefer_python: 0,
     )
-    script.chmod(script.stat().st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
-    monkeypatch.setenv("SIMPLICIO_BIN", str(script))
 
     code = cli.main(["nest", "build", "2", "1"])
 
@@ -232,13 +230,21 @@ def test_file_read_records_python_fallback_when_no_binary(tmp_path, monkeypatch,
 
 
 def test_test_run_records_python_fallback_when_no_binary(tmp_path, monkeypatch, capsys):
-    import sys
-
     monkeypatch.setattr("simplicio.commands.test_run.discover_simplicio", lambda: None)
+    monkeypatch.setattr(
+        "simplicio.commands.test_run.subprocess.run",
+        lambda *a, **k: SimpleNamespace(returncode=0, stdout="", stderr=""),
+    )
+    if os.name == "nt":
+        cmd = os.environ.get("ComSpec", "cmd.exe")
+        extra = ["/c", "exit", "0"]
+    else:
+        cmd = "/bin/sh"
+        extra = ["-c", "exit 0"]
 
     code = test_run_cmd.run(
-        argparse.Namespace(cmd=sys.executable, json=True, repo=str(tmp_path), timeout=30.0),
-        ["-c", "print(1)"],
+        argparse.Namespace(cmd=cmd, json=True, repo=str(tmp_path), timeout=30.0),
+        extra,
     )
 
     assert code == 0

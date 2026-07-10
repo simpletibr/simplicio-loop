@@ -26,7 +26,14 @@ def _test(output: str, root: str, test_cmd: str) -> bool:
     os.makedirs(os.path.join(root, ".simplicio"), exist_ok=True)
     Path(root, ".simplicio", "bench_out.txt").write_text(output or "", encoding="utf-8")
     test_cmd = wrap_project_command(root, test_cmd)
-    p = subprocess.run(test_cmd, shell=True, cwd=root, capture_output=True, text=True)
+    p = subprocess.run(
+        test_cmd,
+        shell=True,
+        cwd=root,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+    )
     return p.returncode == 0
 
 

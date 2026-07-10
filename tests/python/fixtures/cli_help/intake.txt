@@ -1,0 +1,23 @@
+usage: simplicio-py intake [-h] [--file FILE] [--stdin]
+                           [--source-url SOURCE_URL] [--validate-only]
+                           [--contract] [--execution-mode] [--plan-only]
+                           [--json]
+                           [text]
+
+positional arguments:
+  text                  raw task text; defaults to stdin
+
+options:
+  -h, --help            show this help message and exit
+  --file FILE           read task Markdown/text from a file
+  --stdin               read task Markdown/text from stdin
+  --source-url SOURCE_URL
+                        preserve an external source URL without fetching it
+  --validate-only       validate and wrap the TaskSpec in a validation result
+  --contract            compile each TaskSpec into an immutable
+                        ExecutionContract
+  --execution-mode      fail closed when the compiled contract is not
+                        executable
+  --plan-only           emit a contract-backed plan preview without dispatch
+                        or mutation
+  --json                emit stable structured JSON

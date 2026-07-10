@@ -5,6 +5,7 @@ from simplicio import precedent as precedent_module
 from simplicio import prompt as prompt_module
 from simplicio.pipeline_fixers import FixerResult
 from simplicio.precedent import build_precedent_block
+from simplicio.transaction import VerificationReceipt
 
 
 def write_json(path, payload):
@@ -250,6 +251,68 @@ def test_apply_and_test_applies_unified_diff_before_running_test(tmp_path, monke
     assert (tmp_path / ".simplicio" / "last_patch.diff").exists()
 
 
+def test_apply_and_test_fails_closed_without_real_test_command(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+    monkeypatch.delenv("SIMPLICIO_TEST_CMD", raising=False)
+    output = "\n".join(
+        [
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -1 +1 @@",
+            "-old",
+            "+new",
+            "TEST: pytest -q",
+        ]
+    )
+
+    ok, log = pipeline._apply_and_test(output, str(tmp_path))
+
+    assert ok is False
+    assert "verification command missing" in log
+    assert target.read_text(encoding="utf-8") == "old\n"
+
+
+def test_run_task_rejects_missing_test_command_before_application(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+    monkeypatch.delenv("SIMPLICIO_TEST_CMD", raising=False)
+    monkeypatch.setattr(pipeline, "MAX_ATTEMPTS", 1)
+    generated = []
+    output = "\n".join(
+        [
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -1 +1 @@",
+            "-old",
+            "+new",
+            "TEST: pytest -q",
+        ]
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "generate",
+        lambda *a, **k: generated.append(True) or output,
+    )
+
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "change app",
+        "app.py",
+        "- behavior proven",
+        "- keep compatibility",
+        quiet=True,
+    )
+
+    assert result["applied"] is False
+    assert generated == [True]
+    assert target.read_text(encoding="utf-8") == "old\n"
+    assert "verification command missing" in result["warnings"][0]
+
+
 def test_external_test_command_satisfies_generated_test_contract(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
 
@@ -296,6 +359,170 @@ def test_apply_and_test_recovers_bad_hunk_counts_with_recount(tmp_path, monkeypa
     assert "Simplicio Sprint CLI E2E - terminal" in target.read_text(encoding="utf-8")
 
 
+def test_apply_and_test_persists_receipt_when_git_apply_fails(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+    output = "\n".join(
+        [
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -9 +9 @@",
+            "-missing",
+            "+new",
+            "",
+            "TEST: pytest -q",
+        ]
+    )
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "python -c \"import sys; sys.exit(0)\"")
+
+    ok, log = pipeline._apply_and_test(output, str(tmp_path))
+
+    assert ok is False
+    assert "git apply" in log.lower()
+    assert target.read_text(encoding="utf-8") == "old\n"
+    journals = sorted((tmp_path / ".simplicio" / "transactions").glob("*.jsonl"))
+    assert journals, "expected a transaction journal for the failed apply attempt"
+    receipt_events = []
+    for line in journals[-1].read_text(encoding="utf-8").splitlines():
+        event = json.loads(line)
+        if event.get("event") == "receipt":
+            receipt_events.append(event)
+    assert receipt_events
+    receipt = VerificationReceipt.from_dict(receipt_events[-1]["receipt"])
+    assert receipt.exit_codes == (2,)
+    assert "git apply" in receipt.stderr_tail.lower()
+    assert receipt.files[0].path == "app.py"
+
+
+def test_apply_and_test_keeps_worktree_byte_for_byte_when_verification_fails(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    untouched = tmp_path / "README.md"
+    target.write_text("old\n", encoding="utf-8")
+    untouched.write_text("keep me\n", encoding="utf-8")
+    output = "\n".join(
+        [
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -1 +1 @@",
+            "-old",
+            "+new",
+            "",
+            "TEST: pytest -q",
+        ]
+    )
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", 'python -c "import sys; sys.exit(1)"')
+
+    ok, log = pipeline._apply_and_test(output, str(tmp_path))
+
+    assert ok is False
+    assert target.read_text(encoding="utf-8") == "old\n"
+    assert untouched.read_text(encoding="utf-8") == "keep me\n"
+    assert ".simplicio" not in log
+
+
+def test_apply_and_test_persists_transaction_receipt_for_failed_verification(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+    output = "\n".join(
+        [
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -1 +1 @@",
+            "-old",
+            "+new",
+            "",
+            "TEST: pytest -q",
+        ]
+    )
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "python -c \"import sys; print('boom'); sys.exit(3)\"")
+
+    ok, _log = pipeline._apply_and_test(output, str(tmp_path))
+
+    assert ok is False
+    journals = sorted((tmp_path / ".simplicio" / "transactions").glob("*.jsonl"))
+    assert journals, "expected a transaction journal for the failed attempt"
+    receipt_events = []
+    for line in journals[-1].read_text(encoding="utf-8").splitlines():
+        event = json.loads(line)
+        if event.get("event") == "receipt":
+            receipt_events.append(event)
+    assert receipt_events, "expected a persisted receipt event"
+    receipt = VerificationReceipt.from_dict(receipt_events[-1]["receipt"])
+    assert receipt.exit_codes == (3,)
+    assert "boom" in receipt.stdout_tail
+    assert receipt.files[0].path == "app.py"
+
+
+def test_apply_and_test_preserves_unrelated_dirty_worktree_files(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    unrelated = tmp_path / "notes.md"
+    target.write_text("old\n", encoding="utf-8")
+    unrelated.write_text("user draft\n", encoding="utf-8")
+    output = "\n".join(
+        [
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -1 +1 @@",
+            "-old",
+            "+new",
+            "",
+            "TEST: pytest -q",
+        ]
+    )
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD",
+        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
+    )
+
+    ok, log = pipeline._apply_and_test(output, str(tmp_path))
+
+    assert ok is True, log
+    assert target.read_text(encoding="utf-8") == "new\n"
+    assert unrelated.read_text(encoding="utf-8") == "user draft\n"
+
+
+def test_apply_and_test_persists_timeout_receipt_and_preserves_worktree(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+    output = "\n".join(
+        [
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -1 +1 @@",
+            "-old",
+            "+new",
+            "",
+            "TEST: pytest -q",
+        ]
+    )
+    monkeypatch.setenv("SIMPLICIO_TEST_TIMEOUT_S", "1")
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD",
+        "python -c \"import time; print('start'); time.sleep(2)\"",
+    )
+
+    ok, log = pipeline._apply_and_test(output, str(tmp_path))
+
+    assert ok is False
+    assert "timed out" in log
+    assert target.read_text(encoding='utf-8') == "old\n"
+    journals = sorted((tmp_path / ".simplicio" / "transactions").glob("*.jsonl"))
+    assert journals
+    receipt_events = []
+    for line in journals[-1].read_text(encoding="utf-8").splitlines():
+        event = json.loads(line)
+        if event.get("event") == "receipt":
+            receipt_events.append(event)
+    assert receipt_events
+    receipt = VerificationReceipt.from_dict(receipt_events[-1]["receipt"])
+    assert receipt.exit_codes == (124,)
+
+
 def test_external_test_command_allows_textual_placeholder_mentions(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "grep -q marker docs/result.md")
 
@@ -332,6 +559,7 @@ def _valid_pipeline_diff():
 
 def test_pipeline_static_fixer_skips_llm_retry_when_verify_passes(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
     generate_calls = []
     apply_calls = {"count": 0}
 
@@ -348,6 +576,16 @@ def test_pipeline_static_fixer_skips_llm_retry_when_verify_passes(tmp_path, monk
     monkeypatch.setattr(pipeline, "generate", fake_generate)
     monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
     monkeypatch.setattr(pipeline, "_apply_and_test", fake_apply_and_test)
+    monkeypatch.setattr(
+        pipeline,
+        "_run_impact_tests",
+        lambda *a, **k: {
+            "status": "no_callers_found",
+            "callers": [],
+            "tests_run": [],
+            "result": pipeline.IMPACT_RESULT_NOT_NEEDED,
+        },
+    )
     monkeypatch.setattr(
         pipeline,
         "try_static_fixers",
@@ -371,6 +609,7 @@ def test_pipeline_static_fixer_skips_llm_retry_when_verify_passes(tmp_path, monk
 
 def test_pipeline_retries_with_llm_when_static_fixer_does_not_resolve(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
     generate_calls = []
     apply_calls = {"count": 0}
 
@@ -394,6 +633,16 @@ def test_pipeline_retries_with_llm_when_static_fixer_does_not_resolve(tmp_path, 
     monkeypatch.setattr(pipeline, "generate", fake_generate)
     monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
     monkeypatch.setattr(pipeline, "_apply_and_test", fake_apply_and_test)
+    monkeypatch.setattr(
+        pipeline,
+        "_run_impact_tests",
+        lambda *a, **k: {
+            "status": "no_callers_found",
+            "callers": [],
+            "tests_run": [],
+            "result": pipeline.IMPACT_RESULT_NOT_NEEDED,
+        },
+    )
     monkeypatch.setattr(pipeline, "try_static_fixers", fake_fixers)
 
     result = pipeline.run_task(
@@ -411,8 +660,100 @@ def test_pipeline_retries_with_llm_when_static_fixer_does_not_resolve(tmp_path, 
     assert generate_calls[1] is not None
 
 
+def test_pipeline_retry_restarts_from_last_promoted_state_not_failed_attempt(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD",
+        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
+    )
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+    outputs = iter(
+        [
+            "\n".join(
+                [
+                    "diff --git a/app.py b/app.py",
+                    "--- a/app.py",
+                    "+++ b/app.py",
+                    "@@ -1 +1 @@",
+                    "-old",
+                    "+mid",
+                    "",
+                    "TEST: pytest -q",
+                ]
+            ),
+            "\n".join(
+                [
+                    "diff --git a/app.py b/app.py",
+                    "--- a/app.py",
+                    "+++ b/app.py",
+                    "@@ -1 +1 @@",
+                    "-old",
+                    "+new",
+                    "",
+                    "TEST: pytest -q",
+                ]
+            ),
+        ]
+    )
+    feedbacks = []
+    test_invocations = {"count": 0}
+
+    def fake_generate(prompt, feedback=None):
+        feedbacks.append(feedback)
+        return next(outputs)
+
+    def fake_fixers(log, root):
+        return FixerResult("none", False, "no static fixer matched")
+
+    monkeypatch.setattr(pipeline, "generate", fake_generate)
+    monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
+    monkeypatch.setattr(
+        pipeline,
+        "_run_impact_tests",
+        lambda *a, **k: {
+            "status": "no_callers_found",
+            "callers": [],
+            "tests_run": [],
+            "result": pipeline.IMPACT_RESULT_NOT_NEEDED,
+        },
+    )
+    monkeypatch.setattr(pipeline, "try_static_fixers", fake_fixers)
+
+    real_prepare = pipeline.prepare_project_command
+
+    def wrapped_prepare(root, cmd, extra_args=None):
+        prepared, use_shell = real_prepare(root, cmd, extra_args)
+        if "python -c" in cmd:
+            test_invocations["count"] += 1
+            if test_invocations["count"] == 1:
+                if isinstance(prepared, list):
+                    return ["python", "-c", "import sys; sys.exit(1)"], False
+                return "python -c \"import sys; sys.exit(1)\"", True
+        return prepared, use_shell
+
+    monkeypatch.setattr(pipeline, "prepare_project_command", wrapped_prepare)
+
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "change app",
+        "app.py",
+        "- behavior proven",
+        "- keep compatibility",
+        quiet=True,
+    )
+
+    assert result["applied"] is True
+    assert target.read_text(encoding="utf-8") == "new\n"
+    assert len(feedbacks) == 2
+    assert feedbacks[0] is None
+    assert feedbacks[1] is not None
+
+
 def test_static_fixers_reduce_retry_calls_in_synthetic_pipeline_case(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
 
     def run_case(root, fixer_enabled):
         generate_calls = []
@@ -436,6 +777,16 @@ def test_static_fixers_reduce_retry_calls_in_synthetic_pipeline_case(tmp_path, m
         monkeypatch.setattr(pipeline, "generate", fake_generate)
         monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
         monkeypatch.setattr(pipeline, "_apply_and_test", fake_apply_and_test)
+        monkeypatch.setattr(
+            pipeline,
+            "_run_impact_tests",
+            lambda *a, **k: {
+                "status": "no_callers_found",
+                "callers": [],
+                "tests_run": [],
+                "result": pipeline.IMPACT_RESULT_NOT_NEEDED,
+            },
+        )
         monkeypatch.setattr(pipeline, "try_static_fixers", fake_fixers)
         pipeline.run_task(
             str(root),

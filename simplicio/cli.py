@@ -262,6 +262,36 @@ def _build_parser() -> argparse.ArgumentParser:
     p_inspect.add_argument("--goal", default="")
     p_inspect.add_argument("--json", action="store_true")
 
+    p_intake = sub.add_parser(
+        "intake",
+        help="parse raw task cards into the provider-free TaskSpec v2 contract",
+    )
+    p_intake.add_argument("text", nargs="?", help="raw task text; defaults to stdin")
+    p_intake.add_argument("--file", help="read task Markdown/text from a file")
+    p_intake.add_argument("--stdin", action="store_true", help="read task Markdown/text from stdin")
+    p_intake.add_argument("--source-url", help="preserve an external source URL without fetching it")
+    p_intake.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="validate and wrap the TaskSpec in a validation result",
+    )
+    p_intake.add_argument(
+        "--contract",
+        action="store_true",
+        help="compile each TaskSpec into an immutable ExecutionContract",
+    )
+    p_intake.add_argument(
+        "--execution-mode",
+        action="store_true",
+        help="fail closed when the compiled contract is not executable",
+    )
+    p_intake.add_argument(
+        "--plan-only",
+        action="store_true",
+        help="emit a contract-backed plan preview without dispatch or mutation",
+    )
+    p_intake.add_argument("--json", action="store_true", help="emit stable structured JSON")
+
     p_doctor = sub.add_parser(
         "doctor",
         help="check local llama.cpp readiness and dependency freshness",
@@ -448,6 +478,7 @@ _COMMAND_MODULES = {
     "status": "status",
     "claims": "claims",
     "inspect": "inspect",
+    "intake": "intake",
     "doctor": "doctor",
     "env-export": "env_export",
     "file": "file",

@@ -1,8 +1,8 @@
 usage: simplicio-py [-h]
-                    {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,doctor,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,memory} ...
+                    {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,memory} ...
 
 positional arguments:
-  {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,doctor,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,memory}
+  {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,memory}
     index               index/cache the repo (once, or after changes)
     task                run a task
     run                 run a task, feature, sprint, or scratch goal
@@ -15,6 +15,8 @@ positional arguments:
     status              show current simplicio-py run state
     claims              claims-gate checks and report generation
     inspect             inspect a target with mapper-backed context
+    intake              parse raw task cards into the provider-free TaskSpec
+                        v2 contract
     doctor              check local llama.cpp readiness and dependency
                         freshness
     env-export          print shell-safe exports from a dotenv file without

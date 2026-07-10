@@ -12,6 +12,7 @@ retry loop just like any verify failure.
 import fnmatch
 import os
 import re
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,8 +26,40 @@ from .pipeline_fixers import try_static_fixers
 from .prompt import build_prompt
 from .providers import _provider_id, generate
 from .runtime_env import prepare_project_command
+from .transaction import begin_transaction
 
 MAX_ATTEMPTS = 5
+
+_TEST_COMMAND_PLACEHOLDERS = {
+    "",
+    "echo 'configure SIMPLICIO_TEST_CMD'",
+    'echo "configure SIMPLICIO_TEST_CMD"',
+}
+
+_DEFAULT_VERIFY_TIMEOUT_S = 120
+
+
+def _configured_test_command() -> tuple[str | None, str | None]:
+    """Return the real verification command or a fail-closed diagnostic."""
+    raw = os.environ.get("SIMPLICIO_TEST_CMD", "").strip()
+    if raw in _TEST_COMMAND_PLACEHOLDERS:
+        return None, (
+            "verification command missing: configure SIMPLICIO_TEST_CMD with a real "
+            "project test command before execution"
+        )
+    return raw, None
+
+
+def _verification_timeout_seconds() -> int:
+    raw = os.environ.get("SIMPLICIO_TEST_TIMEOUT_S", "").strip()
+    if not raw:
+        return _DEFAULT_VERIFY_TIMEOUT_S
+    try:
+        value = int(raw)
+    except ValueError:
+        return _DEFAULT_VERIFY_TIMEOUT_S
+    return value if value > 0 else _DEFAULT_VERIFY_TIMEOUT_S
+
 
 # ---------------------------------------------------------------------------
 # Impact-test verification — issue #93
@@ -67,9 +100,13 @@ def _run_impact_tests(
     root_str = str(Path(root).resolve())
     callers_seen: set[str] = set()
     test_files_seen: set[str] = set()
+    mapper_responded = False
 
     for filepath in files_changed:
         impact = map_ask(root_str, "impact", filepath)
+        if impact is None:
+            continue
+        mapper_responded = True
         if not impact:
             continue
         for entry in impact:
@@ -81,10 +118,10 @@ def _run_impact_tests(
 
     if not callers_seen:
         return {
-            "status": "no_callers_found",
+            "status": "no_callers_found" if mapper_responded else "mapper_unavailable",
             "callers": [],
             "tests_run": [],
-            "result": IMPACT_RESULT_NOT_NEEDED,
+            "result": IMPACT_RESULT_NOT_NEEDED if mapper_responded else IMPACT_RESULT_UNVERIFIED,
         }
 
     for caller in callers_seen:
@@ -103,11 +140,19 @@ def _run_impact_tests(
             "status": "no_tests_found",
             "callers": sorted(callers_seen),
             "tests_run": [],
-            "result": IMPACT_RESULT_NOT_NEEDED,
+            "result": IMPACT_RESULT_UNVERIFIED,
         }
 
     test_files = sorted(test_files_seen)
-    cmd_raw = (test_cmd or os.environ.get("SIMPLICIO_TEST_CMD", "pytest")).strip()
+    cmd_raw = (test_cmd or os.environ.get("SIMPLICIO_TEST_CMD", "")).strip()
+    if cmd_raw in _TEST_COMMAND_PLACEHOLDERS:
+        return {
+            "status": "missing_test_command",
+            "callers": sorted(callers_seen),
+            "tests_run": test_files,
+            "result": IMPACT_RESULT_UNVERIFIED,
+            "error": "verification command missing",
+        }
     cmd, use_shell = prepare_project_command(root_str, cmd_raw, test_files)
 
     try:
@@ -115,6 +160,7 @@ def _run_impact_tests(
             cmd,
             shell=use_shell,
             cwd=root_str,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             timeout=120,
@@ -134,6 +180,7 @@ def _run_impact_tests(
         "callers": sorted(callers_seen),
         "tests_run": test_files,
         "result": IMPACT_RESULT_PASSED if passed else IMPACT_RESULT_FAILED,
+        "command": cmd_raw,
         "returncode": p.returncode,
         "output_tail": (p.stdout + p.stderr)[-2000:] if not passed else "",
     }
@@ -202,6 +249,14 @@ def extract_patch(output):
     if not match:
         return ""
     patch = text[match.start() :]
+    # The generated response contract places an optional TEST block after the
+    # unified diff.  Keep that executable evidence out of git-apply input;
+    # otherwise the hunk parser treats ``TEST:`` as a patch line and rejects a
+    # valid diff.  This is especially important for the deterministic fixture
+    # used by task/run JSON contracts.
+    test_marker = re.search(r"(?m)^TEST:\s*$", patch)
+    if test_marker:
+        patch = patch[: test_marker.start()]
     fence = patch.find("\n```")
     if fence != -1:
         patch = patch[:fence]
@@ -282,6 +337,19 @@ def _git_apply_patch(root, patch):
     # native binary happens at the mechanical_edit.py layer instead; this
     # git-apply path (which applies an LLM-generated unified diff, not a
     # mechanical-edit plan) stays local-only.
+    # Match the target file's newline convention.  Python's text writes on
+    # Windows commonly create CRLF fixtures; git apply requires the hunk line
+    # endings to match those bytes even though the diff is otherwise valid.
+    patch = patch.replace("\r\n", "\n").replace("\r", "\n")
+    paths = re.findall(r"^diff --git a/(\S+) b/\S+$", patch, flags=re.M)
+    if paths:
+        candidate = Path(root) / paths[0].replace("/", os.sep)
+        try:
+            data = candidate.read_bytes()
+        except OSError:
+            data = b""
+        if data and data.count(b"\r\n") == data.count(b"\n"):
+            patch = patch.replace("\n", "\r\n")
     attempts = [
         ([], "git apply"),
         (["--recount"], "git apply --recount"),
@@ -290,28 +358,49 @@ def _git_apply_patch(root, patch):
     for extra_args, label in attempts:
         check = subprocess.run(
             ["git", "apply", "--check", *extra_args, "-"],
-            input=patch,
+            input=patch.encode("utf-8"),
             cwd=root,
             capture_output=True,
-            text=True,
         )
         if check.returncode != 0:
-            errors.append(f"{label} --check failed:\n{(check.stderr or check.stdout)[-1600:]}")
+            detail = (check.stderr or check.stdout).decode("utf-8", errors="replace")
+            errors.append(f"{label} --check failed:\n{detail[-1600:]}")
             continue
         apply = subprocess.run(
             ["git", "apply", *extra_args, "-"],
-            input=patch,
+            input=patch.encode("utf-8"),
             cwd=root,
             capture_output=True,
-            text=True,
         )
         if apply.returncode == 0:
             return True, ""
-        errors.append(f"{label} failed:\n{(apply.stderr or apply.stdout)[-1600:]}")
+        detail = (apply.stderr or apply.stdout).decode("utf-8", errors="replace")
+        errors.append(f"{label} failed:\n{detail[-1600:]}")
     return False, "\n".join(errors)
 
 
+def _copy_transaction_workspace(root: str, candidate: Path) -> None:
+    src_root = Path(root)
+    for item in src_root.iterdir():
+        if item.name in {".git", ".simplicio", "__pycache__"}:
+            continue
+        destination = candidate / item.name
+        if item.is_dir():
+            shutil.copytree(
+                item,
+                destination,
+                ignore=shutil.ignore_patterns(".git", ".simplicio", "__pycache__", "*.pyc"),
+                dirs_exist_ok=True,
+            )
+        elif item.is_file():
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(item, destination)
+
+
 def _apply_and_test(output, root, bound_paths=None):
+    cmd, command_error = _configured_test_command()
+    if command_error:
+        return False, command_error
     os.makedirs(os.path.join(root, ".simplicio"), exist_ok=True)
     open(os.path.join(root, ".simplicio/last_output.txt"), "w").write(output or "")
     validation = validate_generated_output(output, bound_paths)
@@ -321,13 +410,55 @@ def _apply_and_test(output, root, bound_paths=None):
     if not patch:
         return False, "pre-apply validation failed: no unified diff found"
     open(os.path.join(root, ".simplicio/last_patch.diff"), "w").write(patch)
-    applied, apply_log = _git_apply_patch(root, patch)
+    tx = begin_transaction(root, dirty_policy="preserve")
+    _copy_transaction_workspace(root, tx.candidate)
+    applied, apply_log = _git_apply_patch(str(tx.candidate), patch)
     if not applied:
+        tx.receipt(
+            extract_changed_files(output),
+            commands=["git apply"],
+            exit_codes=[2],
+            stdout="",
+            stderr=apply_log,
+        )
         return False, apply_log
-    cmd = os.environ.get("SIMPLICIO_TEST_CMD", "echo 'configure SIMPLICIO_TEST_CMD'")
-    prepared, use_shell = prepare_project_command(root, cmd)
-    p = subprocess.run(prepared, shell=use_shell, cwd=root, capture_output=True, text=True)
-    return p.returncode == 0, (p.stdout + p.stderr)[-2000:]
+    assert cmd is not None
+    prepared, use_shell = prepare_project_command(str(tx.candidate), cmd)
+    verify_cmd = " ".join(prepared) if isinstance(prepared, list) else str(prepared)
+    try:
+        p = subprocess.run(
+            prepared,
+            shell=use_shell,
+            cwd=str(tx.candidate),
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=_verification_timeout_seconds(),
+        )
+        output_tail = (p.stdout + p.stderr)[-2000:]
+        receipt = tx.receipt(
+            extract_changed_files(output),
+            commands=[verify_cmd],
+            exit_codes=[p.returncode],
+            stdout=p.stdout,
+            stderr=p.stderr,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.output if isinstance(exc.output, str) else (exc.output or b"").decode("utf-8", errors="replace")
+        stderr = exc.stderr if isinstance(exc.stderr, str) else (exc.stderr or b"").decode("utf-8", errors="replace")
+        output_tail = (stdout + stderr)[-2000:]
+        tx.receipt(
+            extract_changed_files(output),
+            commands=[verify_cmd],
+            exit_codes=[124],
+            stdout=stdout,
+            stderr=stderr or f"timed out after {exc.timeout}s",
+        )
+        return False, f"verification timed out after {exc.timeout}s"
+    if p.returncode != 0:
+        return False, output_tail
+    tx.promote(receipt)
+    return True, output_tail
 
 
 def _diff_summary(files_changed):
@@ -366,6 +497,14 @@ def _task_result(task_id, prompt, output, *, applied, warnings=None, impact=None
             "tests_run": impact.get("tests_run", []),
             "result": impact.get("result", IMPACT_RESULT_UNVERIFIED),
         }
+        receipt = {
+            "command": impact.get("command"),
+            "exit_code": impact.get("returncode"),
+            "output_tail": impact.get("output_tail", ""),
+            "status": impact.get("status"),
+        }
+        if any(value not in (None, "", []) for value in receipt.values()):
+            result["impact"]["receipt"] = receipt
         if impact.get("status") in ("ok", "passed"):
             result["impact"]["status"] = "verified"
         elif impact.get("status") in ("failed", "error"):
@@ -468,20 +607,31 @@ def run_task(
                     impact=impact_results,
                 )
             else:
-                # IMPACT_RESULT_UNVERIFIED — mapper unavailable or error
+                ok = False
+                log = (
+                    "impact verification unavailable — "
+                    + impact_results.get("status", "unknown")
+                    + ": "
+                    + impact_results.get("error", "no executable impact receipt")
+                )
                 if not quiet:
-                    info("PASSED the contract (impact unverifiable). DONE.")
+                    info("impact verification unavailable: %s", log[:300])
+                # The patch already passed its primary test, but the impact
+                # receipt is missing.  Stop fail-closed here; retrying the
+                # identical diff would reapply against the now-mutated file
+                # and obscure the real blocker with a secondary hunk error.
                 emit_event(
-                    "task_complete",
-                    {"target": target, "attempt": t, "impact": "unverifiable"},
+                    "validation_fail",
+                    {"target": target, "attempts": t, "warnings": [log[:500]]},
+                    level="warning",
                     root=root,
-                    tokens_saved=0,
                 )
                 return _task_result(
                     target,
                     prompt,
                     output,
-                    applied=True,
+                    applied=False,
+                    warnings=[log],
                     impact=impact_results,
                 )
 
@@ -524,7 +674,7 @@ def run_task(
                     )
                     if not quiet:
                         info("impact test failed after fixer: %s", log[:300])
-                else:
+                elif impact_result in (IMPACT_RESULT_PASSED, IMPACT_RESULT_NOT_NEEDED):
                     if not quiet:
                         suffix = (
                             " (impact verified)"
@@ -544,6 +694,11 @@ def run_task(
                         output,
                         applied=True,
                         impact=impact_results,
+                    )
+                else:
+                    ok = False
+                    log = "impact verification unavailable after fixer — " + (impact_results or {}).get(
+                        "status", "unknown"
                     )
         if not quiet:
             info("failed: %s", log[:300])
