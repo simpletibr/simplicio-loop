@@ -348,13 +348,9 @@ def begin_transaction(
     if dirty_policy not in {"reject", "preserve"}:
         raise ValueError("dirty_policy must be 'reject' or 'preserve'")
     if dirty_policy == "reject" and _git_dirty(root_path):
-        raise DirtyWorktreeError(
-            "worktree is dirty; use dirty_policy='preserve' explicitly"
-        )
+        raise DirtyWorktreeError("worktree is dirty; use dirty_policy='preserve' explicitly")
     candidate_path = (
-        Path(candidate).resolve()
-        if candidate
-        else Path(tempfile.mkdtemp(prefix="simplicio-tx-"))
+        Path(candidate).resolve() if candidate else Path(tempfile.mkdtemp(prefix="simplicio-tx-"))
     )
     candidate_path.mkdir(parents=True, exist_ok=True)
     tx_id = transaction_id or f"tx-{uuid.uuid4().hex}"

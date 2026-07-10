@@ -201,7 +201,9 @@ def _clean_heading(text: str) -> str:
 def _section_key(text: str) -> str | None:
     folded = _fold(_clean_heading(text))
     for key, names in _SECTION_NAMES.items():
-        if folded in names or any(folded.startswith(name + " ") or folded.startswith(name + " (") for name in names):
+        if folded in names or any(
+            folded.startswith(name + " ") or folded.startswith(name + " (") for name in names
+        ):
             return key
     return None
 
@@ -388,7 +390,9 @@ def _verification_test_paths(text: str) -> list[str]:
     return list(dict.fromkeys(result))
 
 
-def _parse_contract_acceptance_criteria(lines: list[_Line], ranges: dict[str, tuple[int, int]]) -> list[dict[str, Any]]:
+def _parse_contract_acceptance_criteria(
+    lines: list[_Line], ranges: dict[str, tuple[int, int]]
+) -> list[dict[str, Any]]:
     rows = _content_lines(lines, ranges, "contract")
     criteria: list[dict[str, Any]] = []
     for _, line in rows:

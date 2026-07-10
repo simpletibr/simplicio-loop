@@ -50,9 +50,7 @@ def run(a: argparse.Namespace) -> int:
         text, source = _read_input(a)
         document = parse_task_document(text, source=source)
     except (TaskSpecValidationError, ContractCompilationError) as exc:
-        diagnostics = (
-            getattr(exc, "diagnostics", None) or getattr(exc, "errors", None) or [str(exc)]
-        )
+        diagnostics = getattr(exc, "diagnostics", None) or getattr(exc, "errors", None) or [str(exc)]
         if a.json:
             print(
                 json.dumps(
