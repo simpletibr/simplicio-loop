@@ -180,6 +180,7 @@ def _run_impact_tests(
         "callers": sorted(callers_seen),
         "tests_run": test_files,
         "result": IMPACT_RESULT_PASSED if passed else IMPACT_RESULT_FAILED,
+        "command": cmd_raw,
         "returncode": p.returncode,
         "output_tail": (p.stdout + p.stderr)[-2000:] if not passed else "",
     }
@@ -496,6 +497,14 @@ def _task_result(task_id, prompt, output, *, applied, warnings=None, impact=None
             "tests_run": impact.get("tests_run", []),
             "result": impact.get("result", IMPACT_RESULT_UNVERIFIED),
         }
+        receipt = {
+            "command": impact.get("command"),
+            "exit_code": impact.get("returncode"),
+            "output_tail": impact.get("output_tail", ""),
+            "status": impact.get("status"),
+        }
+        if any(value not in (None, "", []) for value in receipt.values()):
+            result["impact"]["receipt"] = receipt
         if impact.get("status") in ("ok", "passed"):
             result["impact"]["status"] = "verified"
         elif impact.get("status") in ("failed", "error"):

@@ -78,6 +78,30 @@ def test_task_result_impact_failed(monkeypatch):
     assert result["impact"]["status"] == "failed"
 
 
+def test_task_result_impact_includes_structured_receipt(monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_PRICE_PER_MTOK", raising=False)
+
+    result = _task_result(
+        "t1",
+        "a prompt",
+        "diff --git a/x b/x\n--- a/x\n+++ b/x\n",
+        applied=True,
+        impact={
+            "callers": ["caller.py"],
+            "tests_run": ["tests/test_caller.py"],
+            "result": IMPACT_RESULT_FAILED,
+            "status": "failed",
+            "command": "pytest tests/test_caller.py",
+            "returncode": 1,
+            "output_tail": "AssertionError: boom",
+        },
+    )
+
+    assert result["impact"]["receipt"]["command"] == "pytest tests/test_caller.py"
+    assert result["impact"]["receipt"]["exit_code"] == 1
+    assert "boom" in result["impact"]["receipt"]["output_tail"]
+
+
 def test_task_result_impact_unverified(monkeypatch):
     monkeypatch.delenv("SIMPLICIO_PRICE_PER_MTOK", raising=False)
 
@@ -191,6 +215,7 @@ def test_run_impact_tests_runs_discovered_tests(tmp_path, monkeypatch):
     assert result["result"] == IMPACT_RESULT_PASSED
     assert result["callers"] == ["src/caller.py"]
     assert str(test_file) in result["tests_run"]
+    assert result["command"] == "pytest"
 
 
 def test_run_impact_tests_reports_failure(tmp_path, monkeypatch):
