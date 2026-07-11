@@ -64,6 +64,7 @@ TRACKED_ARTIFACTS = [
     ("mechanical_edit.py", "simplicio/mechanical_edit.py"),
     ("mapper.py", "simplicio/mapper.py"),
     ("pipeline.py", "simplicio/pipeline.py"),
+    ("pipeline_stages.py", "simplicio/pipeline_stages.py"),
     ("cli.py", "simplicio/cli.py"),
     ("intent.py", "simplicio/intent.py"),
     ("observability.py", "simplicio/observability.py"),
@@ -111,13 +112,17 @@ def _read_text(path):
         return None
 
 
+def _normalize_rel(path: str) -> str:
+    return path.replace("\\", "/")
+
+
 def discover_mapper_artifacts(repo=REPO):
     """`.simplicio/*.json` -- only present if this repo has been mapped
     locally; not committed."""
     pattern = os.path.join(repo, ".simplicio", "*.json")
     out = []
     for p in sorted(glob.glob(pattern)):
-        rel = os.path.relpath(p, repo)
+        rel = _normalize_rel(os.path.relpath(p, repo))
         out.append((f"mapper artifact ({os.path.basename(p)})", rel))
     return out
 
@@ -132,6 +137,7 @@ def measure(estimate_fn, repo=REPO, artifacts=None):
     if artifacts is None:
         all_artifacts += discover_mapper_artifacts(repo)
     for label, rel in all_artifacts:
+        rel = _normalize_rel(rel)
         abspath = os.path.join(repo, rel)
         text = _read_text(abspath)
         if text is None:

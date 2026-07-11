@@ -6,7 +6,7 @@ Terminar issues abertas do `simplicio-dev-cli`.
 
 ## Result
 
-Implemented the first bounded P0 slice from the open backlog: issue #129 patch extraction/apply recovery for Codex-style outputs.
+Implemented three bounded backlog slices in this worktree: the earlier #129 patch extraction/apply recovery, the #120/#121 evidence-gate watcher hardening slice, and the #119 deterministic multi-task intake/DAG/resume/status slice.
 
 ## Completed
 
@@ -15,11 +15,25 @@ Implemented the first bounded P0 slice from the open backlog: issue #129 patch e
 - Persisted the selected patch parser strategy in `.simplicio/last_patch_strategy.txt` for diagnostics.
 - Added task JSON model metadata for requested/effective model, effort, tier and provider.
 - Added regression tests for full-file artifact diff synthesis and stale patch recovery.
+- Added watcher-side receipt revalidation in `simplicio.evidence_ledger.EvidenceLedger.matrix()`.
+- Measured claims are now demoted back to `UNVERIFIED` when a stored artifact disappears or no longer matches its original SHA-256.
+- Added focused regression tests for wrong-scenario artifact replacement and missing-artifact demotion.
+- Updated `docs/evidence-ledger.md` with the watcher/revalidation contract.
+- Added deterministic `task_batch` preview generation from multi-card `TaskSpec` input, including stable batch/source hashes and DAG validation.
+- Added dependency resolution for multi-task intake using explicit task IDs or unique task labels, with fail-closed errors for ambiguous and unknown references.
+- `simplicio-py intake --plan-only` and `--contract` now emit a `task_batch` preview alongside contracts/blocked plan data.
+- `simplicio-py status --json` now reports `.simplicio/task_batch.json` as a first-class resumable state surface when no sprint state is present.
+- Added focused regression tests for batch preview dependency inference/validation and standalone batch status reporting.
 
 ## Validation
 
 - `pytest tests/python/test_mapping_retry_flow.py -q` passed.
+- `pytest tests/python/test_evidence_ledger.py tests/python/test_delivery_corpus.py -q` passed.
+- `pytest -q tests/python/test_multi_task.py tests/python/test_run_cli.py -k "task_batch or multi_task or status_json_reports_task_batch"` passed.
+- Manual `simplicio.commands.intake.run(... plan_only=True, json=True)` checks passed for single-card and two-card dependency previews.
 - `ruff check .` passed.
 - `ruff format --check .` passed after formatting existing drift.
 - `mypy simplicio` passed.
-- Full `pytest -q` was run and exposed existing broader-suite failures unrelated to this patch slice, including help snapshots, symlink/path behavior, impact gate assumptions, benchmark fixtures and live-gate fixture drift.
+- Focused `ruff check` on the #119 touched files passed.
+- `tests/python/test_task_spec.py` could not be re-run end-to-end because collection still fails on the pre-existing `ModuleNotFoundError: No module named 'simplicio.pipeline_stages'` import drift in `simplicio.pipeline`.
+- Full `pytest -q` was run earlier in the worktree and exposed existing broader-suite failures unrelated to these bounded slices, including help snapshots, symlink/path behavior, impact gate assumptions, benchmark fixtures and live-gate fixture drift.

@@ -133,22 +133,67 @@ class EvidenceLedger:
                 result.append(json.loads(line))
         return result
 
+    def _receipt_artifact_state(self, row: Mapping[str, Any]) -> tuple[bool, str | None]:
+        status = str(row.get("status", UNVERIFIED)).upper()
+        if status != MEASURED:
+            return False, None
+        artifact = row.get("artifact")
+        if not artifact:
+            return False, "missing-artifact-path"
+        artifact_path = Path(str(artifact))
+        if not artifact_path.is_absolute():
+            artifact_path = self.path.parent / artifact_path
+        try:
+            actual = artifact_digest(artifact_path)
+        except OSError:
+            return False, "artifact-missing"
+        expected = str(row.get("artifact_hash", "")).strip()
+        if not expected:
+            return False, "missing-artifact-hash"
+        if expected != actual:
+            return False, "artifact-hash-mismatch"
+        return True, None
+
     def matrix(self, criterion_ids: list[str] | tuple[str, ...]) -> dict[str, Any]:
         rows = self.rows()
         by_id: dict[str, list[dict[str, Any]]] = {str(item): [] for item in criterion_ids}
         for row in rows:
             if row.get("criterion_id") in by_id:
                 by_id[row["criterion_id"]].append(row)
-        claims = {
-            criterion: {
-                "status": MEASURED if any(item.get("status") == MEASURED for item in items) else UNVERIFIED,
-                "receipts": items,
+        claims = {}
+        watcher_failures: list[dict[str, Any]] = []
+        for criterion, items in by_id.items():
+            measured_receipts: list[dict[str, Any]] = []
+            invalid_receipts: list[dict[str, Any]] = []
+            for item in items:
+                valid, reason = self._receipt_artifact_state(item)
+                if valid:
+                    measured_receipts.append(item)
+                    continue
+                if str(item.get("status", UNVERIFIED)).upper() == MEASURED:
+                    invalid = dict(item)
+                    invalid["watcher_reason"] = reason
+                    invalid_receipts.append(invalid)
+                    watcher_failures.append(
+                        {
+                            "criterion_id": criterion,
+                            "artifact": invalid.get("artifact"),
+                            "reason": reason,
+                        }
+                    )
+            claims[criterion] = {
+                "status": MEASURED if measured_receipts else UNVERIFIED,
+                "receipts": measured_receipts,
+                "invalid_receipts": invalid_receipts,
             }
-            for criterion, items in by_id.items()
-        }
         return {
             "schema": LEDGER_SCHEMA,
             "base_sha": self.base_sha,
             "plan_hash": self.plan_hash,
             "claims": claims,
+            "watcher": {
+                "revalidated": True,
+                "ok": not watcher_failures,
+                "failures": watcher_failures,
+            },
         }

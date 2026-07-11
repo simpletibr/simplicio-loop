@@ -117,6 +117,9 @@ def task_contract(task_result: dict[str, Any], *, root: str | Path = ".") -> dic
             "result": impact.get("result", "unverified"),
             "status": impact.get("status", "unverified"),
         }
+    prompt_envelope = task_result.get("prompt_envelope")
+    if prompt_envelope is not None:
+        payload["prompt_envelope"] = prompt_envelope
     verify = task_result.get("verify")
     if verify is not None:
         payload["verify"] = verify

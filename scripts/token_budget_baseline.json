@@ -76,6 +76,11 @@
       "tokens": 5555,
       "words": 1946
     },
+    "simplicio/pipeline_stages.py": {
+      "label": "pipeline_stages.py",
+      "tokens": 5437,
+      "words": 1829
+    },
     "simplicio/providers.py": {
       "label": "providers.py",
       "tokens": 8841,
@@ -83,6 +88,6 @@
     }
   },
   "estimator": "heuristic:chars-div-4",
-  "generated_at": "2026-07-09T16:26:51Z",
+  "generated_at": "2026-07-11T00:00:00Z",
   "threshold_growth": 0.25
 }

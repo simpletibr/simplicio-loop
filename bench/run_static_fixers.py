@@ -115,7 +115,7 @@ def run_benchmark(
     try:
         # This benchmark isolates primary verification and fixer behavior;
         # impact verification is a separate contract and has no mapper fixture.
-        pipeline._run_impact_tests = lambda root, files: {
+        pipeline._run_impact_tests = lambda root, files, **kwargs: {
             "result": pipeline.IMPACT_RESULT_NOT_NEEDED,
             "callers": [],
             "tests_run": [],

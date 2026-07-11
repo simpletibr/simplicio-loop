@@ -74,6 +74,20 @@ def test_concurrent_root_change_is_rejected(tmp_path):
         tx.promote(receipt)
 
 
+def test_promotion_ignores_unrelated_worktree_changes(tmp_path):
+    (tmp_path / "app.py").write_text("old\n", encoding="utf-8")
+    (tmp_path / "notes.md").write_text("draft\n", encoding="utf-8")
+    tx = begin_transaction(tmp_path, dirty_policy="preserve")
+    _candidate(tx, "app.py", "new\n")
+    receipt = tx.receipt(["app.py"], exit_codes=[0])
+    (tmp_path / "notes.md").write_text("updated draft\n", encoding="utf-8")
+
+    tx.promote(receipt)
+
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
+    assert (tmp_path / "notes.md").read_text(encoding="utf-8") == "updated draft\n"
+
+
 @pytest.mark.parametrize("relative", ["../escape.txt", "C:/escape.txt", "/tmp/escape.txt", ""])
 def test_paths_cannot_escape_root(tmp_path, relative):
     tx = begin_transaction(tmp_path, dirty_policy="preserve")

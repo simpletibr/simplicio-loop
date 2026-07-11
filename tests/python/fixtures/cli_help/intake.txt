@@ -1,4 +1,4 @@
-usage: simplicio-py intake [-h] [--file FILE] [--stdin]
+usage: simplicio-py intake [-h] [--root ROOT] [--file FILE] [--stdin]
                            [--source-url SOURCE_URL] [--validate-only]
                            [--contract] [--execution-mode] [--plan-only]
                            [--json]
@@ -9,6 +9,7 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
+  --root ROOT           repository root used for plan-only mapper discovery
   --file FILE           read task Markdown/text from a file
   --stdin               read task Markdown/text from stdin
   --source-url SOURCE_URL

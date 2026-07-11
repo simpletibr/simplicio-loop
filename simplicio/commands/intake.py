@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 
 from ..execution_contract import ContractCompilationError, compile_execution_contracts
+from ..orchestrator.multi_task import BatchBuildError, build_batch_preview
+from ..plan_discovery import PlanDiscoveryError, build_plan_preview
 from ..task_spec import SourceRef, TaskSpecValidationError, parse_task_document
 
 CLI_PROG = "simplicio-py"
@@ -74,6 +76,7 @@ def run(a: argparse.Namespace) -> int:
             contracts = compile_execution_contracts(
                 document, execution_mode=getattr(a, "execution_mode", False)
             )
+            batch_preview = build_batch_preview(document)
         except ContractCompilationError as exc:
             diagnostics = list(exc.errors)
             if a.json:
@@ -92,25 +95,73 @@ def run(a: argparse.Namespace) -> int:
                 for diagnostic in diagnostics:
                     print(f"{CLI_PROG} intake: {diagnostic}", file=sys.stderr)
             return 2
+        except BatchBuildError as exc:
+            diagnostics = list(exc.diagnostics)
+            if a.json:
+                print(
+                    json.dumps(
+                        {
+                            "schema": "simplicio.task-batch-validation/v1",
+                            "valid": False,
+                            "errors": diagnostics,
+                        },
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    )
+                )
+            else:
+                for diagnostic in diagnostics:
+                    print(f"{CLI_PROG} intake: {diagnostic}", file=sys.stderr)
+            return 2
         contracts_payload = [contract.to_dict() for contract in contracts]
         if getattr(a, "plan_only", False):
+            try:
+                preview = (
+                    build_plan_preview(
+                        getattr(a, "root", "."),
+                        document.tasks[0],
+                        contracts[0],
+                        task_spec_payload=payload["tasks"][0],
+                    )
+                    if len(document.tasks) == 1
+                    else {
+                        "schema": "simplicio.plan-preview/v1",
+                        "status": "blocked",
+                        "dispatch": False,
+                        "mutated": False,
+                        "root": str(Path(getattr(a, "root", ".")).resolve()),
+                        "discovery_mode": "mapper-single-repo/v1",
+                        "blockers": [
+                            (
+                                "plan-only execution discovery currently supports exactly one "
+                                "task card per preview"
+                            ),
+                            "split the intake into one task per preview or use the frozen task_batch output",
+                        ],
+                    }
+                )
+            except PlanDiscoveryError as exc:
+                preview = {
+                    "schema": "simplicio.plan-preview/v1",
+                    "status": "blocked",
+                    "dispatch": False,
+                    "mutated": False,
+                    "root": str(Path(getattr(a, "root", ".")).resolve()),
+                    "discovery_mode": "mapper-single-repo/v1",
+                    "blockers": list(exc.diagnostics),
+                }
             payload = {
-                "schema": "simplicio.plan-preview/v1",
-                "status": "blocked",
-                "dispatch": False,
-                "mutated": False,
-                "blockers": [
-                    "mapper evidence is required before an OrientationPlan can select targets",
-                    "run simplicio-mapper scan/inspect/handoff and re-submit the preview",
-                ],
+                **preview,
                 "task_spec": payload,
                 "contracts": contracts_payload,
+                "task_batch": batch_preview,
             }
         else:
             payload = {
                 "schema": "simplicio.intake-result/v1",
                 "task_spec": payload,
                 "contracts": contracts_payload,
+                "task_batch": batch_preview,
             }
     if a.validate_only:
         payload = {

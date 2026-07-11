@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 
 import pytest
 
@@ -288,6 +289,42 @@ def test_intake_plan_only_is_blocked_without_mapper_and_never_dispatches(capsys)
     assert payload["dispatch"] is False
     assert payload["mutated"] is False
     assert payload["status"] == "blocked"
+    assert payload["task_batch"]["task_count"] == 1
+    assert payload["task_batch"]["tasks"][0]["id"] == payload["task_spec"]["tasks"][0]["task_id"]
+
+
+def test_intake_plan_only_emits_multi_task_batch_preview_with_dependency_edges(capsys) -> None:
+    raw = """## Card 1
+Funcionalidade: Login
+Tipo: Evolução
+
+## Card 2
+Funcionalidade: Reports
+Tipo: Evolução
+
+Dependências
+- depends on: Login
+"""
+    code = intake_cmd.run(
+        ns(
+            text=raw,
+            file=None,
+            stdin=False,
+            source_url=None,
+            validate_only=False,
+            contract=False,
+            execution_mode=False,
+            plan_only=True,
+            json=True,
+        )
+    )
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    first_id = payload["task_spec"]["tasks"][0]["task_id"]
+    assert payload["task_batch"]["task_count"] == 2
+    assert payload["task_batch"]["ready"] == [first_id]
+    assert payload["task_batch"]["tasks"][1]["depends_on"] == [first_id]
 
 
 def test_malformed_input_is_actionable_and_never_calls_generation(monkeypatch, capsys) -> None:
@@ -371,3 +408,285 @@ def test_crlf_acceptance_source_span_preserves_exact_original_bytes() -> None:
 
     assert criterion["original_text"].count("\r\n") == 3
     assert raw[span["start"] : span["end"]] == criterion["original_text"]
+
+
+def _write_mapper_artifacts(root: Path, *, files: list[dict], precedents: list[dict]) -> None:
+    simplicio_dir = root / ".simplicio"
+    simplicio_dir.mkdir(parents=True, exist_ok=True)
+    (simplicio_dir / "project-map.json").write_text(
+        json.dumps(
+            {
+                "schema": "simplicio.project-map/v1",
+                "version": 1,
+                "generated_at": "2026-07-11T00:00:00.000Z",
+                "product": {"name": "fixture", "stack": "python", "project_mode": "root"},
+                "files": files,
+                "entry_points": [item["path"] for item in files],
+                "test_files": [],
+                "config_files": [],
+                "modules": [{"name": "src", "files": [item["path"] for item in files], "roles": ["source"]}],
+                "recent_changes": [],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    (simplicio_dir / "precedent-index.json").write_text(
+        json.dumps(
+            {
+                "schema": "simplicio.precedent-index/v1",
+                "version": 1,
+                "generated_at": "2026-07-11T00:00:00.000Z",
+                "items": precedents,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_intake_plan_only_discovers_execution_plan_without_target_or_stack(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text(
+        """def greet(name: str) -> str:
+    return f'hello, {name}'
+""",
+        encoding="utf-8",
+    )
+    _write_mapper_artifacts(
+        tmp_path,
+        files=[
+            {
+                "path": "src/app.py",
+                "language": "python",
+                "file_hash": "0" * 64,
+                "size_bytes": 64,
+                "git_status": "clean",
+                "roles": ["entry_point"],
+                "exports": ["greet", "farewell"],
+                "importance": 0.95,
+            }
+        ],
+        precedents=[
+            {
+                "id": "prec-1",
+                "path": "src/app.py",
+                "line": 1,
+                "summary": "greet helper lives here",
+            }
+        ],
+    )
+
+    def fake_map_ask(_root, verb, arg=""):
+        if arg != "src/app.py":
+            return []
+        return {
+            "impact": [{"caller": "src/app.py"}],
+            "tests-for": [{"test_path": "tests/test_app.py"}],
+            "callers": [],
+            "flows": [],
+            "rules": [{"rule": "farewell helper remains local"}],
+        }[verb]
+
+    monkeypatch.setattr("simplicio.plan_discovery.map_ask", fake_map_ask)
+    monkeypatch.setattr("simplicio.mapper.map_ask", fake_map_ask)
+    code = intake_cmd.run(
+        ns(
+            text="""System: APP
+Feature: Add farewell helper
+Type: Enhancement
+AS A maintainer
+I WANT to add a farewell helper
+SO THAT greetings and farewells live together
+
+Acceptance Criteria
+Scenario 1: helper exists
+  Given the greetings module
+  When I request a farewell
+  Then a farewell helper is returned [RN01]
+
+Business Rules
+RN01 - Keep greeting and farewell helpers in the same module.
+
+Impact Signals
+Backend: ✓
+Frontend: ✗
+""",
+            file=None,
+            stdin=False,
+            source_url=None,
+            validate_only=False,
+            contract=False,
+            execution_mode=False,
+            plan_only=True,
+            json=True,
+            root=str(tmp_path),
+        )
+    )
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "planned"
+    assert payload["execution_plan"]["schema"] == "simplicio.orientation-plan/v1"
+    assert payload["execution_plan"]["slices"][0]["targets"] == ["src/app.py"]
+    assert payload["execution_plan"]["slices"][0]["verify_command"] == "pytest tests/test_app.py"
+    assert payload["task_batch"]["task_count"] == 1
+
+
+def test_intake_plan_only_fails_closed_when_target_discovery_is_ambiguous(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "billing.py").write_text(
+        """def download_invoice():
+    return b''
+""",
+        encoding="utf-8",
+    )
+    (tmp_path / "src" / "invoice.py").write_text(
+        """def download_invoice():
+    return b''
+""",
+        encoding="utf-8",
+    )
+    _write_mapper_artifacts(
+        tmp_path,
+        files=[
+            {
+                "path": "src/billing.py",
+                "language": "python",
+                "file_hash": "1" * 64,
+                "size_bytes": 64,
+                "git_status": "clean",
+                "roles": ["entry_point"],
+                "exports": ["download_invoice"],
+                "importance": 0.90,
+            },
+            {
+                "path": "src/invoice.py",
+                "language": "python",
+                "file_hash": "2" * 64,
+                "size_bytes": 64,
+                "git_status": "clean",
+                "roles": ["entry_point"],
+                "exports": ["download_invoice"],
+                "importance": 0.90,
+            },
+        ],
+        precedents=[{"id": "prec-1", "path": "src/billing.py", "line": 1, "summary": "billing download"}],
+    )
+    monkeypatch.setattr("simplicio.plan_discovery.map_ask", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr("simplicio.mapper.map_ask", lambda *_args, **_kwargs: [])
+    code = intake_cmd.run(
+        ns(
+            text="""Feature: Download invoice
+Type: Enhancement
+AS A customer
+I WANT to download an invoice
+SO THAT I can archive it
+
+Acceptance Criteria
+Scenario 1: PDF download
+  Given a paid invoice
+  When I select download
+  Then a PDF is returned [RN01]
+
+Business Rules
+RN01 - Only paid invoices are downloadable.
+""",
+            file=None,
+            stdin=False,
+            source_url=None,
+            validate_only=False,
+            contract=False,
+            execution_mode=False,
+            plan_only=True,
+            json=True,
+            root=str(tmp_path),
+        )
+    )
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "blocked"
+    assert any("ambiguous" in item for item in payload["blockers"])
+
+
+def test_intake_plan_only_fails_closed_when_tests_for_evidence_is_missing(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text(
+        """def greet(name: str) -> str:
+    return f'hello, {name}'
+""",
+        encoding="utf-8",
+    )
+    _write_mapper_artifacts(
+        tmp_path,
+        files=[
+            {
+                "path": "src/app.py",
+                "language": "python",
+                "file_hash": "0" * 64,
+                "size_bytes": 64,
+                "git_status": "clean",
+                "roles": ["entry_point"],
+                "exports": ["greet"],
+                "importance": 0.95,
+            }
+        ],
+        precedents=[{"id": "prec-1", "path": "src/app.py", "line": 1, "summary": "greet helper lives here"}],
+    )
+
+    def fake_map_ask(_root, verb, arg=""):
+        if arg != "src/app.py":
+            return []
+        return {
+            "impact": [{"caller": "src/app.py"}],
+            "tests-for": [],
+            "callers": [],
+            "flows": [],
+            "rules": [{"rule": "keep helper local"}],
+        }[verb]
+
+    monkeypatch.setattr("simplicio.plan_discovery.map_ask", fake_map_ask)
+    monkeypatch.setattr("simplicio.mapper.map_ask", fake_map_ask)
+    code = intake_cmd.run(
+        ns(
+            text="""Feature: Add farewell helper
+Type: Enhancement
+AS A maintainer
+I WANT to add a farewell helper
+SO THAT greetings and farewells live together
+
+Acceptance Criteria
+Scenario 1: helper exists
+  Given the greetings module
+  When I request a farewell
+  Then a farewell helper is returned [RN01]
+
+Business Rules
+RN01 - Keep greeting and farewell helpers in the same module.
+
+Impact Signals
+Backend: ✓
+""",
+            file=None,
+            stdin=False,
+            source_url=None,
+            validate_only=False,
+            contract=False,
+            execution_mode=False,
+            plan_only=True,
+            json=True,
+            root=str(tmp_path),
+        )
+    )
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "blocked"
+    assert any("tests-for" in item for item in payload["blockers"])

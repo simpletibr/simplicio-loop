@@ -47,12 +47,55 @@ def status_claims_gate(payload: Mapping[str, object]) -> dict[str, object]:
     }
 
 
+def _batch_state(batch_payload: Mapping[str, object]) -> str:
+    counts = batch_payload.get("counts", {})
+    if not isinstance(counts, Mapping):
+        return "in-progress"
+    pending = int(counts.get("pending", 0))
+    running = int(counts.get("running", 0))
+    blocked = int(counts.get("blocked", 0))
+    if pending == 0 and running == 0 and blocked == 0:
+        return "complete"
+    if blocked:
+        return "failed"
+    return "in-progress"
+
+
 def run(a: argparse.Namespace) -> int:
     from ..mapper import artifact_status
+    from ..orchestrator.multi_task import BatchError, TaskBatch
 
     root = Path(a.root).resolve()
     state_path = root / ".simplicio" / "sprint_state.json"
+    batch_path = root / ".simplicio" / "task_batch.json"
+    batch_payload = None
+    if batch_path.is_file():
+        try:
+            batch_payload = TaskBatch.load(batch_path).status()
+        except BatchError as exc:
+            print(f"{CLI_PROG} status: invalid task batch file: {exc}", file=sys.stderr)
+            return 2
     if not state_path.is_file():
+        if batch_payload is not None:
+            payload = {
+                "schema": "simplicio.dev-cli.status/v1",
+                "root": str(root),
+                "state": _batch_state(batch_payload),
+                "path": str(batch_path),
+                "task_batch": batch_payload,
+                "artifacts": artifact_status(root),
+            }
+            payload["claims_gate"] = status_claims_gate(payload)
+            if a.json:
+                print(json.dumps(payload, sort_keys=True))
+            else:
+                counts = batch_payload.get("counts", {})
+                passed = counts.get("passed", 0) if isinstance(counts, Mapping) else 0
+                total = sum(int(value) for value in counts.values()) if isinstance(counts, Mapping) else 0
+                ready = batch_payload.get("ready", [])
+                ready_count = len(ready) if isinstance(ready, list) else 0
+                print(f"{payload['state']}: task batch {passed}/{total} passed ready={ready_count}")
+            return 0
         payload = {
             "schema": "simplicio.dev-cli.status/v1",
             "root": str(root),
@@ -77,6 +120,8 @@ def run(a: argparse.Namespace) -> int:
         **payload,
         "artifacts": artifact_status(root),
     }
+    if batch_payload is not None:
+        json_payload["task_batch"] = batch_payload
     json_payload["claims_gate"] = status_claims_gate(json_payload)
     if a.json:
         print(json.dumps(json_payload, sort_keys=True))

@@ -274,9 +274,19 @@ class Transaction:
             raise ReceiptError("receipt is not bound to this transaction/base")
         if any(code != 0 for code in receipt.exit_codes):
             raise ReceiptError("cannot promote a receipt with a failing command")
-        if _tree_digest(self.root) != self.initial_sha:
-            raise ConcurrentModificationError("repository changed after transaction began")
         paths = [item.path for item in receipt.files]
+        for item in receipt.files:
+            current = _inside(self.root, item.path)
+            exists_now = current.is_file()
+            if exists_now != item.existed_before:
+                raise ConcurrentModificationError(
+                    f"repository changed after transaction began for promoted path: {item.path}"
+                )
+            current_sha = sha256_file(current) if exists_now else None
+            if current_sha != item.before_sha256:
+                raise ConcurrentModificationError(
+                    f"repository changed after transaction began for promoted path: {item.path}"
+                )
         if _tree_digest(self.candidate, paths) != receipt.candidate_sha:
             raise ReceiptError("candidate changed after verification")
         backup = self.journal.with_suffix(".backup")

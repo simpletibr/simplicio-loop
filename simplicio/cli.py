@@ -267,6 +267,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="parse raw task cards into the provider-free TaskSpec v2 contract",
     )
     p_intake.add_argument("text", nargs="?", help="raw task text; defaults to stdin")
+    p_intake.add_argument("--root", default=".", help="repository root used for plan-only mapper discovery")
     p_intake.add_argument("--file", help="read task Markdown/text from a file")
     p_intake.add_argument("--stdin", action="store_true", help="read task Markdown/text from stdin")
     p_intake.add_argument("--source-url", help="preserve an external source URL without fetching it")

@@ -887,6 +887,146 @@ def test_run_task_surfaces_primary_verify_receipt_from_transaction(tmp_path, mon
     assert result["patch"]["capability"]["effective"] == result["patch"]["capability"]["requested"]
 
 
+def test_run_task_keeps_worktree_clean_when_impact_verification_is_unavailable(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD",
+        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
+    )
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+
+    monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
+    monkeypatch.setattr(
+        pipeline,
+        "generate",
+        lambda *args, **kwargs: "\n".join(
+            [
+                "diff --git a/app.py b/app.py",
+                "--- a/app.py",
+                "+++ b/app.py",
+                "@@ -1 +1 @@",
+                "-old",
+                "+new",
+                "",
+                "TEST: pytest -q",
+            ]
+        ),
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "_run_impact_tests",
+        lambda *a, **k: {
+            "status": "mapper_unavailable",
+            "callers": [],
+            "tests_run": [],
+            "result": pipeline.IMPACT_RESULT_UNVERIFIED,
+            "error": "no executable impact receipt",
+        },
+    )
+
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "change app",
+        "app.py",
+        "- behavior proven",
+        "- keep compatibility",
+        quiet=True,
+    )
+
+    assert result["applied"] is False
+    assert "impact verification unavailable" in result["warnings"][0]
+    assert target.read_text(encoding="utf-8") == "old\n"
+    assert result["verify"]["status"] == "verified"
+
+
+def test_pipeline_retry_after_impact_failure_restarts_from_unpromoted_state(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD",
+        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() in {'mid\\n', 'new\\n'} else 1)\"",
+    )
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+    outputs = iter(
+        [
+            "\n".join(
+                [
+                    "diff --git a/app.py b/app.py",
+                    "--- a/app.py",
+                    "+++ b/app.py",
+                    "@@ -1 +1 @@",
+                    "-old",
+                    "+mid",
+                    "",
+                    "TEST: pytest -q",
+                ]
+            ),
+            "\n".join(
+                [
+                    "diff --git a/app.py b/app.py",
+                    "--- a/app.py",
+                    "+++ b/app.py",
+                    "@@ -1 +1 @@",
+                    "-old",
+                    "+new",
+                    "",
+                    "TEST: pytest -q",
+                ]
+            ),
+        ]
+    )
+    feedbacks = []
+    impact_calls = {"count": 0}
+
+    def fake_generate(prompt, feedback=None):
+        feedbacks.append(feedback)
+        return next(outputs)
+
+    def fake_impact(root, files_changed, **kwargs):
+        impact_calls["count"] += 1
+        if impact_calls["count"] == 1:
+            return {
+                "status": "failed",
+                "callers": ["tests/test_app.py"],
+                "tests_run": ["tests/test_app.py"],
+                "result": pipeline.IMPACT_RESULT_FAILED,
+                "output_tail": "impact failure",
+            }
+        return {
+            "status": "no_callers_found",
+            "callers": [],
+            "tests_run": [],
+            "result": pipeline.IMPACT_RESULT_NOT_NEEDED,
+        }
+
+    monkeypatch.setattr(pipeline, "generate", fake_generate)
+    monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
+    monkeypatch.setattr(pipeline, "_run_impact_tests", fake_impact)
+    monkeypatch.setattr(
+        pipeline,
+        "try_static_fixers",
+        lambda *args, **kwargs: FixerResult("none", False, "no static fixer matched"),
+    )
+
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "change app",
+        "app.py",
+        "- behavior proven",
+        "- keep compatibility",
+        quiet=True,
+    )
+
+    assert result["applied"] is True
+    assert target.read_text(encoding="utf-8") == "new\n"
+    assert len(feedbacks) == 2
+    assert feedbacks[0] is None
+    assert "impact test failure" in feedbacks[1]
+
+
 def test_static_fixers_reduce_retry_calls_in_synthetic_pipeline_case(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")

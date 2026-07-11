@@ -22,7 +22,7 @@ def test_version_cli_supports_text_and_json(monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
 
     assert cli.main(["--version"]) == 0
-    assert "simplicio-py 0.12.0" in capsys.readouterr().out
+    assert "simplicio-py 0.13.0" in capsys.readouterr().out
 
     assert cli.main(["version", "--json"]) == 0
     payload = json.loads(capsys.readouterr().out)
@@ -135,6 +135,24 @@ def test_task_contract_carries_impact_block_when_present():
     assert result["impact"]["tests_run"] == ["tests/test_caller.py"]
     assert result["impact"]["result"] == "passed"
     assert result["impact"]["status"] == "verified"
+
+
+def test_task_contract_carries_prompt_envelope_when_present():
+    result = task_contract(
+        {
+            "task_id": "src/lib.py",
+            "applied": True,
+            "files_changed": ["src/lib.py"],
+            "warnings": [],
+            "prompt_envelope": {
+                "schema": "simplicio.prompt-envelope/v1",
+                "prefix_hash": "sha256:abc",
+            },
+        },
+    )
+
+    assert result["prompt_envelope"]["schema"] == "simplicio.prompt-envelope/v1"
+    assert result["task"]["prompt_envelope"]["prefix_hash"] == "sha256:abc"
 
 
 def test_task_contract_carries_verify_block_when_present():

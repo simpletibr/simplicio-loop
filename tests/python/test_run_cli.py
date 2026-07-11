@@ -560,6 +560,44 @@ def test_status_json_includes_mapper_artifacts(tmp_path, monkeypatch, capsys):
     assert payload["claims_gate"]["proof_scope"] == "none"
 
 
+def test_status_json_reports_task_batch_when_present_without_sprint_state(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    _write(
+        tmp_path / ".simplicio" / "task_batch.json",
+        json.dumps(
+            {
+                "schema": "simplicio.dev-cli.task-batch/v1",
+                "identity": {"source_hash": "source", "plan_hash": "plan", "base_sha": "base"},
+                "tasks": [
+                    {
+                        "id": "TASK-LOGIN",
+                        "depends_on": [],
+                        "status": "passed",
+                        "attempts": 1,
+                        "receipt": None,
+                    },
+                    {
+                        "id": "TASK-REPORTS",
+                        "depends_on": ["TASK-LOGIN"],
+                        "status": "pending",
+                        "attempts": 0,
+                        "receipt": None,
+                    },
+                ],
+            }
+        ),
+    )
+
+    code = cli.main(["status", "--root", str(tmp_path), "--json"])
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["state"] == "in-progress"
+    assert payload["task_batch"]["counts"]["passed"] == 1
+    assert payload["task_batch"]["ready"] == ["TASK-REPORTS"]
+    assert payload["claims_gate"]["allow_fresh_verification_claim"] is False
+
+
 def test_claims_command_is_public_via_argparse(monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
 

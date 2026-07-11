@@ -20,6 +20,7 @@ from simplicio.pipeline import (
     _run_impact_tests,
     _task_result,
 )
+from simplicio.prompt_envelope import PromptEnvelope
 
 # ---------------------------------------------------------------------------
 # _task_result — impact block
@@ -129,6 +130,22 @@ def test_task_result_marks_failed_primary_verify_receipt(monkeypatch):
 
     assert result["verify"]["status"] == "failed"
     assert result["verify"]["receipt"]["stderr_tail"] == "AssertionError: boom"
+
+
+def test_task_result_includes_prompt_envelope_receipt(monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_PRICE_PER_MTOK", raising=False)
+
+    envelope = PromptEnvelope.from_layers({"goal": "fix bug", "target": "src/app.py"}, template_version="v1")
+    result = _task_result(
+        "t1",
+        "a prompt",
+        "diff --git a/x b/x\n--- a/x\n+++ b/x\n",
+        applied=True,
+        prompt_envelope=envelope,
+    )
+
+    assert result["prompt_envelope"]["schema"] == "simplicio.prompt-envelope/v1"
+    assert result["prompt_envelope"]["prefix_hash"] == envelope.prefix_hash
 
 
 def test_task_result_impact_includes_structured_receipt(monkeypatch):

@@ -93,12 +93,14 @@ def latest_prompt_envelope() -> PromptEnvelope | None:
 
 def set_prompt_retry_delta(
     *, reason: str, failure_class: str, diagnostics: str, affected_files: list[str]
-) -> None:
+) -> str | None:
     global _LAST_PROMPT_ENVELOPE
-    if _LAST_PROMPT_ENVELOPE is not None:
-        _LAST_PROMPT_ENVELOPE = _LAST_PROMPT_ENVELOPE.with_retry_delta(
-            reason=reason,
-            failure_class=failure_class,
-            diagnostics=diagnostics,
-            affected_files=affected_files,
-        )
+    if _LAST_PROMPT_ENVELOPE is None:
+        return None
+    _LAST_PROMPT_ENVELOPE = _LAST_PROMPT_ENVELOPE.with_retry_delta(
+        reason=reason,
+        failure_class=failure_class,
+        diagnostics=diagnostics,
+        affected_files=affected_files,
+    )
+    return _LAST_PROMPT_ENVELOPE.render_retry_delta()
