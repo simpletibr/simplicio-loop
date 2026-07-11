@@ -581,6 +581,7 @@ diffs outside the allowed edit surface; violations are reported in `warnings`
 and the command exits non-zero.
 
 See [structured blocked-precondition receipts](docs/blocked-preconditions.md) for the JSON `status`, `blocked_preconditions`, `reason`, and `next_surface` contract.
+See [patch receipts](docs/patch-receipts.md) for parser strategy, recovery fingerprint, and requested/effective capability evidence.
 
 #### Path 3 example — standalone with API key
 

@@ -419,6 +419,11 @@ def test_apply_and_test_recovers_stale_patch_from_full_file_artifact(tmp_path, m
     assert (tmp_path / ".simplicio" / "last_patch_strategy.txt").read_text(
         encoding="utf-8"
     ) == "full_file_after_patch_failure\n"
+    receipt = pipeline._LAST_PATCH_RECEIPT
+    assert receipt is not None
+    assert receipt["parser_strategy"] == "full_file_after_patch_failure"
+    assert len(receipt["fingerprint"]) == 64
+    assert receipt["files"] == ["app.py"]
 
 
 def test_apply_and_test_persists_receipt_when_git_apply_fails(tmp_path, monkeypatch):
@@ -815,6 +820,12 @@ def test_pipeline_retry_restarts_from_last_promoted_state_not_failed_attempt(tmp
 
 def test_run_task_surfaces_primary_verify_receipt_from_transaction(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
+    monkeypatch.setenv("SIMPLICIO_MODEL", "codex-cli/gpt-5.6-luna")
+    monkeypatch.setenv("SIMPLICIO_EFFECTIVE_MODEL", "codex-cli/gpt-5.6-luna")
+    monkeypatch.setenv("SIMPLICIO_CODEX_EFFORT", "medium")
+    monkeypatch.setenv("SIMPLICIO_EFFECTIVE_EFFORT", "medium")
+    monkeypatch.setenv("SIMPLICIO_MODEL_TIER", "fast")
+    monkeypatch.setenv("SIMPLICIO_EFFECTIVE_TIER", "fast")
     monkeypatch.setenv(
         "SIMPLICIO_TEST_CMD",
         "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
@@ -866,6 +877,14 @@ def test_run_task_surfaces_primary_verify_receipt_from_transaction(tmp_path, mon
     assert result["verify"]["receipt"]["exit_code"] == 0
     assert result["verify"]["receipt"]["receipt_digest"]
     assert result["verify"]["receipt"]["files"][0]["path"] == "app.py"
+    assert result["patch"]["parser_strategy"] == "unified_diff"
+    assert len(result["patch"]["fingerprint"]) == 64
+    assert result["patch"]["capability"]["requested"] == {
+        "model": "codex-cli/gpt-5.6-luna",
+        "effort": "medium",
+        "tier": "fast",
+    }
+    assert result["patch"]["capability"]["effective"] == result["patch"]["capability"]["requested"]
 
 
 def test_static_fixers_reduce_retry_calls_in_synthetic_pipeline_case(tmp_path, monkeypatch):

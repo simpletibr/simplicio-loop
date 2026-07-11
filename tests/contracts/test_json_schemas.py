@@ -52,7 +52,9 @@ def test_doctor_json_contract_no_network(capsys):
     assert "dependencies" not in payload  # only present when update checks ran
 
 
-def test_task_json_contract_over_real_mapper_fixture(sample_project, stub_local_provider, capsys):
+def test_task_json_contract_over_real_mapper_fixture(
+    sample_project, stub_local_provider, capsys, monkeypatch
+):
     """The full local (standalone-Python) executor path: real mapper
     artifacts feed the prompt, a stubbed provider stands in for the LLM (no
     network), and SIMPLICIO_TEST_CMD stands in for the project's real test
@@ -60,6 +62,16 @@ def test_task_json_contract_over_real_mapper_fixture(sample_project, stub_local_
     load mapper artifacts -> classify -> build contract -> structured
     output."""
     import os
+
+    monkeypatch.setattr(
+        "simplicio.pipeline._run_impact_tests",
+        lambda *_args, **_kwargs: {
+            "result": "no_impact_tests",
+            "status": "no_callers_found",
+            "callers": [],
+            "tests_run": [],
+        },
+    )
 
     # Match the stub provider's canned unified diff (-old/+new), same
     # pattern tests/python/test_task_json_contract.py uses for the same
@@ -90,6 +102,7 @@ def test_task_json_contract_over_real_mapper_fixture(sample_project, stub_local_
     )
     assert payload["applied"] is True
     assert payload["files_changed"] == ["src/app.py"]
+    assert payload["patch"]["parser_strategy"] == "unified_diff"
     assert stub_local_provider, "the stubbed provider should have been called at least once"
 
     # Runtime-handoff envelope: what simplicio-runtime consumes when it
