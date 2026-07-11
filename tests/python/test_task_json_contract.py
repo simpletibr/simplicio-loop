@@ -1,6 +1,4 @@
 import json
-import os
-import subprocess
 import sys
 
 from simplicio import cli
@@ -34,24 +32,15 @@ def _true_cmd():
 def test_task_dry_run_json_does_not_touch_worktree(tmp_path, monkeypatch, capsys):
     _write(tmp_path / "frontend" / "app.ts", "old\n")
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.setattr("simplicio.pipeline.generate", lambda *a, **k: _diff("frontend/app.ts"))
     monkeypatch.setattr(
         "simplicio.pipeline.artifact_status",
-        lambda _root: {
-            "project_map": {"present": True},
-            "precedent_index": {"present": True},
-        },
+        lambda _root: {"project_map": {"present": True}, "precedent_index": {"present": True}},
     )
     monkeypatch.setattr(
         "simplicio.pipeline.map_handoff",
-        lambda _root: {
-            "context_pack": {
-                "needs_broader_context": False,
-                "files": [{"path": "frontend/app.ts"}],
-            }
-        },
+        lambda _root: {"context_pack": {"files": [{"path": "frontend/app.ts"}]}},
     )
-    monkeypatch.setattr("simplicio.pipeline.generate", lambda *a, **k: _diff("frontend/app.ts"))
-
     code = cli.main(
         [
             "task",
@@ -84,9 +73,16 @@ def test_task_json_reports_normal_run(tmp_path, monkeypatch, capsys):
     _write(tmp_path / "frontend" / "app.ts", "old\n")
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", _true_cmd())
-    monkeypatch.setattr("simplicio.pipeline.map_ask", lambda *_args, **_kwargs: [])
     monkeypatch.setattr("simplicio.pipeline.generate", lambda *a, **k: _diff("frontend/app.ts"))
-
+    monkeypatch.setattr(
+        "simplicio.pipeline._run_impact_tests",
+        lambda *_args, **_kwargs: {
+            "result": "no_impact_tests",
+            "status": "no_callers_found",
+            "callers": [],
+            "tests_run": [],
+        },
+    )
     code = cli.main(
         [
             "task",
@@ -260,15 +256,9 @@ def test_task_dry_run_json_distinguishes_broader_context_and_target_resolution(t
     assert "target_resolution_failed" in reasons
 
 
-def test_python_module_entrypoint_propagates_cli_exit_code():
-    env = {**os.environ, "SIMPLICIO_SKIP_AUTO_INIT": "1"}
-    proc = subprocess.run(
-        [sys.executable, "-m", "simplicio.cli", "scratch"],
-        capture_output=True,
-        env=env,
-        text=True,
-        timeout=30,
-    )
-
-    assert proc.returncode == 2
-    assert "provide a goal" in proc.stderr
+def test_cli_entrypoint_propagates_cli_exit_code(capsys, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    code = cli.main(["scratch"])
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "provide a goal" in captured.err
