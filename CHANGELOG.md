@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.0] — 2026-07-11
+
+### Added
+- Fail-closed plan discovery and batch orchestration with resumable state.
+- Prompt envelopes with token budgets, retry deltas, and receipts (#140).
+- Extracted pipeline stages and enforced token-budget regression checks (#141).
+
+### Verification
+- Local: 917 passed, 5 skipped; ruff, format, mypy, token-budget, and packaging checks green.
+- Hosted Actions remain externally blocked by the repository billing lock.
+
 ## [0.13.0] — 2026-07-11
 
 ### Added
