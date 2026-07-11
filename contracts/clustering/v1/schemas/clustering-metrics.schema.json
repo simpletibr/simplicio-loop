@@ -1,0 +1,22 @@
+{
+  "$id": "simplicio.clustering-metrics/v1",
+  "title": "Clustering metrics and renderer-neutral layout hints",
+  "type": "object",
+  "required": ["schema", "version", "mapper_version", "schema_version", "generated_at", "project", "config", "clusters", "layout_hints", "provenance"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["simplicio.clustering-metrics/v1"]},
+    "version": {"type": "integer"},
+    "mapper_version": {"type": "string"},
+    "schema_version": {"type": "string", "enum": ["v1"]},
+    "generated_at": {"type": "string"},
+    "project": {"type": "object", "required": ["root", "file_count"]},
+    "config": {"type": "object", "required": ["min_cluster_size", "community_min_size", "max_clusters_per_strategy", "layout_hints"]},
+    "clusters": {"type": "array", "items": {"$ref": "#/$defs/cluster"}},
+    "layout_hints": {"type": "array", "items": {"$ref": "#/$defs/hint"}},
+    "provenance": {"type": "object", "required": ["config", "strategies", "metrics"]}
+  },
+  "$defs": {
+    "cluster": {"type": "object", "required": ["id", "kind", "name", "member_ids", "member_paths", "member_count", "language_mix", "dependency_density", "cohesion", "coupling", "internal_edge_count", "external_edge_count", "edge_count", "recommended_collapse_level", "overlapping"]},
+    "hint": {"type": "object", "required": ["cluster_id", "lane", "lane_index", "order", "importance", "collapse_level", "rationale"]}
+  }
+}

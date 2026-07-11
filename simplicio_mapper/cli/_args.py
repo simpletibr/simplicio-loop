@@ -68,6 +68,10 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "max_lines": 200,
         "max_bytes": 16384,
         "allow_full_content": False,
+        "full_rescan": False,
+        "snapshot": "",
+        "clustering_config": "",
+        "changed_paths": [],
     }
     commands = (
         "index",
@@ -94,6 +98,7 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "business",
         "survey",
         "drift",
+        "delta",
     )
     command = argv[0] if argv and argv[0] in commands else "map"
     opts["command"] = command
@@ -135,6 +140,7 @@ def _parse_args(argv: Sequence[str]) -> dict:
             "business",
             "survey",
             "drift",
+            "delta",
         ) and not arg.startswith("-"):
             opts["root"] = arg
         elif arg == "--against":
@@ -345,6 +351,17 @@ def _parse_args(argv: Sequence[str]) -> dict:
             opts["max_bytes"] = max(1, int(argv[i]))
         elif arg == "--allow-full-content":
             opts["allow_full_content"] = True
+        elif arg == "--full-rescan":
+            opts["full_rescan"] = True
+        elif arg == "--snapshot":
+            i += 1
+            opts["snapshot"] = argv[i]
+        elif arg == "--changed-paths":
+            i += 1
+            opts["changed_paths"] = [item.replace("\\", "/") for item in argv[i].split(",") if item]
+        elif arg == "--clustering-config":
+            i += 1
+            opts["clustering_config"] = argv[i]
         elif arg == "--verbose":
             opts["verbose"] = True
             opts["silent"] = False

@@ -1,0 +1,14 @@
+{
+  "$id": "simplicio.graph-snapshot/v1",
+  "title": "simplicio-mapper incremental graph snapshot (v1)",
+  "type": "object",
+  "required": ["schema", "version", "root", "revision", "entities", "edges"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["simplicio.graph-snapshot/v1"]},
+    "version": {"type": "integer", "enum": [1]},
+    "root": {"type": "string"},
+    "revision": {"type": "string"},
+    "entities": {"type": "array"},
+    "edges": {"type": "array"}
+  }
+}

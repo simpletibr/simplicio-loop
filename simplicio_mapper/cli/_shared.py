@@ -69,7 +69,7 @@ USAGE
   simplicio-mapper screens <path> [--json]
   simplicio-mapper flowchart <path> [--json]
   simplicio-mapper flows <path> [--json]
-  simplicio-mapper visualize <path> [--json]
+  simplicio-mapper visualize <path> [--json] [--clustering-config <file>]
   simplicio-mapper preview <path> (--path <file>|--entity-id <id>) [--json]
   simplicio-mapper sync <path> [--range <spec>|--staged] [--check] [--json]
   simplicio-mapper history <path> [--json]
@@ -78,6 +78,7 @@ USAGE
   simplicio-mapper business <path> [--json]
   simplicio-mapper survey <path> [--target <file>] [--json]
   simplicio-mapper drift <path> [--scope all|product|template] [--check] [--threshold N] [--json]
+  simplicio-mapper delta <path> [--json] [--out <dir>] [--changed-paths p1,p2] [--full-rescan]
   simplicio-mapper docs <path> [--json]
   simplicio-mapper export-docs <path> --target <dir> [--json]
   simplicio-mapper map [--root <dir>] [--incremental] [--watch]
@@ -97,6 +98,7 @@ OPTIONS
   flowchart <path>      Render screen->service->backend mermaid flowchart docs.
   flows <path>          Derive stack-neutral end-to-end flows from the call graph.
   visualize <path>      Write a versioned renderer-neutral visualization bundle.
+                        Optional clustering thresholds/hints come from JSON config.
   preview <path>        Read a bounded, read-only source preview.
   sync <path>           Regenerate only the docs/flows a diff affects.
   history <path>        List .simplicio/history/ snapshots (created by map/sync).
@@ -105,6 +107,7 @@ OPTIONS
   business <path>       Extract observable business rules, state machines and glossary.
   survey <path>         New-developer onboarding report (run/reading order/flows/rules).
   drift <path>          Spec-drift: placeholders, orphan specs/code, stale docs.
+  delta <path>          Emit an initial graph snapshot or deterministic incremental delta.
   docs <path>           Render architecture inventory markdown under .simplicio/docs.
   export-docs <path>    Copy rendered markdown docs to a local target directory.
   contract validate <path>...
@@ -170,6 +173,9 @@ OPTIONS
   --max-bytes <n>       Preview byte limit (default 16384).
   --allow-full-content  Explicitly opt in to full-content preview with warning.
   --incremental         Record changed files and update existing artifacts.
+  --full-rescan          Ignore incremental state and request a consumer resync snapshot.
+  --snapshot <file>      Optional graph snapshot path for delta consumers.
+  --changed-paths <list> Comma-separated repository-relative paths affected by this scan.
   --watch               Re-run mapping when local files change.
   --silent              Minimal output.
   -V, --version         Show version and exit.

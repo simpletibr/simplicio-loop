@@ -1,0 +1,1128 @@
+{
+  "capabilities": [
+    "hierarchy",
+    "typed-edges",
+    "flows",
+    "provenance",
+    "source-preview",
+    "language-diagnostics",
+    "clustering-metrics",
+    "layout-hints"
+  ],
+  "clustering": {
+    "clusters": [
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:workspace:86fa3762d2eb6db6",
+        "importance": 0.3025,
+        "internal_edge_count": 0,
+        "kind": "workspace",
+        "language_mix": {
+          "javascript": 1,
+          "json": 1,
+          "markdown": 1,
+          "text": 1
+        },
+        "member_count": 4,
+        "member_ids": [
+          "cluster:file:56c17ad5d9463672",
+          "cluster:file:a451623ea511a512",
+          "cluster:file:d7f6204f00b61069",
+          "cluster:file:f5ed0571f3d5e126"
+        ],
+        "member_paths": [
+          ".env",
+          "README.md",
+          "package.json",
+          "src/app.js"
+        ],
+        "name": ".",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:directory:c22d9e7664332f0b",
+        "importance": 0.186667,
+        "internal_edge_count": 0,
+        "kind": "directory",
+        "language_mix": {
+          "json": 1,
+          "markdown": 1,
+          "text": 1
+        },
+        "member_count": 3,
+        "member_ids": [
+          "cluster:file:56c17ad5d9463672",
+          "cluster:file:a451623ea511a512",
+          "cluster:file:d7f6204f00b61069"
+        ],
+        "member_paths": [
+          ".env",
+          "README.md",
+          "package.json"
+        ],
+        "name": ".",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:directory:64b2cdb21b87ca36",
+        "importance": 0.65,
+        "internal_edge_count": 0,
+        "kind": "directory",
+        "language_mix": {
+          "javascript": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:f5ed0571f3d5e126"
+        ],
+        "member_paths": [
+          "src/app.js"
+        ],
+        "name": "src",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:package:710115d946c582c2",
+        "importance": 0.186667,
+        "internal_edge_count": 0,
+        "kind": "package",
+        "language_mix": {
+          "json": 1,
+          "markdown": 1,
+          "text": 1
+        },
+        "member_count": 3,
+        "member_ids": [
+          "cluster:file:56c17ad5d9463672",
+          "cluster:file:a451623ea511a512",
+          "cluster:file:d7f6204f00b61069"
+        ],
+        "member_paths": [
+          ".env",
+          "README.md",
+          "package.json"
+        ],
+        "name": ".",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:package:d2975bd0cf12cdeb",
+        "importance": 0.65,
+        "internal_edge_count": 0,
+        "kind": "package",
+        "language_mix": {
+          "javascript": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:f5ed0571f3d5e126"
+        ],
+        "member_paths": [
+          "src/app.js"
+        ],
+        "name": "src",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:namespace:ae7db4ac72c14b1f",
+        "importance": 0.12,
+        "internal_edge_count": 0,
+        "kind": "namespace",
+        "language_mix": {
+          "text": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:56c17ad5d9463672"
+        ],
+        "member_paths": [
+          ".env"
+        ],
+        "name": "",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:namespace:dc094dac44e7bb2e",
+        "importance": 0.12,
+        "internal_edge_count": 0,
+        "kind": "namespace",
+        "language_mix": {
+          "markdown": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:a451623ea511a512"
+        ],
+        "member_paths": [
+          "README.md"
+        ],
+        "name": "README",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:namespace:ad0eed0c5b9bdb9b",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "namespace",
+        "language_mix": {
+          "json": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:d7f6204f00b61069"
+        ],
+        "member_paths": [
+          "package.json"
+        ],
+        "name": "package",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:namespace:24f1046a3b708e2b",
+        "importance": 0.65,
+        "internal_edge_count": 0,
+        "kind": "namespace",
+        "language_mix": {
+          "javascript": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:f5ed0571f3d5e126"
+        ],
+        "member_paths": [
+          "src/app.js"
+        ],
+        "name": "src",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:domain:883d523e9eba130e",
+        "importance": 0.3025,
+        "internal_edge_count": 0,
+        "kind": "domain",
+        "language_mix": {
+          "javascript": 1,
+          "json": 1,
+          "markdown": 1,
+          "text": 1
+        },
+        "member_count": 4,
+        "member_ids": [
+          "cluster:file:56c17ad5d9463672",
+          "cluster:file:a451623ea511a512",
+          "cluster:file:d7f6204f00b61069",
+          "cluster:file:f5ed0571f3d5e126"
+        ],
+        "member_paths": [
+          ".env",
+          "README.md",
+          "package.json",
+          "src/app.js"
+        ],
+        "name": "unclassified",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:layer:0db4f4feb847f612",
+        "importance": 0.12,
+        "internal_edge_count": 0,
+        "kind": "layer",
+        "language_mix": {
+          "text": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:56c17ad5d9463672"
+        ],
+        "member_paths": [
+          ".env"
+        ],
+        "name": "asset",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:layer:c79aec78748b7816",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "layer",
+        "language_mix": {
+          "json": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:d7f6204f00b61069"
+        ],
+        "member_paths": [
+          "package.json"
+        ],
+        "name": "config",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:layer:ee543bbfc45efcfd",
+        "importance": 0.12,
+        "internal_edge_count": 0,
+        "kind": "layer",
+        "language_mix": {
+          "markdown": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:a451623ea511a512"
+        ],
+        "member_paths": [
+          "README.md"
+        ],
+        "name": "documentation",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:layer:f333279cd5d5eb65",
+        "importance": 0.65,
+        "internal_edge_count": 0,
+        "kind": "layer",
+        "language_mix": {
+          "javascript": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:f5ed0571f3d5e126"
+        ],
+        "member_paths": [
+          "src/app.js"
+        ],
+        "name": "entrypoint",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:flow:89c7fb78e4b83b37",
+        "importance": 0.65,
+        "internal_edge_count": 0,
+        "kind": "flow",
+        "language_mix": {
+          "javascript": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:f5ed0571f3d5e126"
+        ],
+        "member_paths": [
+          "src/app.js"
+        ],
+        "name": "src.app",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      }
+    ],
+    "config": {
+      "community_min_size": 2,
+      "layout_hints": {
+        "enabled": true,
+        "lane_order": [
+          "workspace",
+          "package",
+          "directory",
+          "namespace",
+          "domain",
+          "layer",
+          "flow",
+          "graph-community"
+        ]
+      },
+      "max_clusters_per_strategy": 100,
+      "min_cluster_size": 1
+    },
+    "generated_at": "1970-01-01T00:00:00.000Z",
+    "layout_hints": [
+      {
+        "cluster_id": "cluster:workspace:86fa3762d2eb6db6",
+        "collapse_level": "expanded",
+        "importance": 0.3025,
+        "lane": "workspace",
+        "lane_index": 0,
+        "order": 0,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:directory:c22d9e7664332f0b",
+        "collapse_level": "expanded",
+        "importance": 0.186667,
+        "lane": "directory",
+        "lane_index": 2,
+        "order": 1,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:directory:64b2cdb21b87ca36",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "directory",
+        "lane_index": 2,
+        "order": 2,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:package:710115d946c582c2",
+        "collapse_level": "expanded",
+        "importance": 0.186667,
+        "lane": "package",
+        "lane_index": 1,
+        "order": 3,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:package:d2975bd0cf12cdeb",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "package",
+        "lane_index": 1,
+        "order": 4,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:namespace:ae7db4ac72c14b1f",
+        "collapse_level": "expanded",
+        "importance": 0.12,
+        "lane": "namespace",
+        "lane_index": 3,
+        "order": 5,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:namespace:dc094dac44e7bb2e",
+        "collapse_level": "expanded",
+        "importance": 0.12,
+        "lane": "namespace",
+        "lane_index": 3,
+        "order": 6,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:namespace:ad0eed0c5b9bdb9b",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "namespace",
+        "lane_index": 3,
+        "order": 7,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:namespace:24f1046a3b708e2b",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "namespace",
+        "lane_index": 3,
+        "order": 8,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:domain:883d523e9eba130e",
+        "collapse_level": "expanded",
+        "importance": 0.3025,
+        "lane": "domain",
+        "lane_index": 4,
+        "order": 9,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:layer:0db4f4feb847f612",
+        "collapse_level": "expanded",
+        "importance": 0.12,
+        "lane": "layer",
+        "lane_index": 5,
+        "order": 10,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:layer:c79aec78748b7816",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "layer",
+        "lane_index": 5,
+        "order": 11,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:layer:ee543bbfc45efcfd",
+        "collapse_level": "expanded",
+        "importance": 0.12,
+        "lane": "layer",
+        "lane_index": 5,
+        "order": 12,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:layer:f333279cd5d5eb65",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "layer",
+        "lane_index": 5,
+        "order": 13,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:flow:89c7fb78e4b83b37",
+        "collapse_level": "members",
+        "importance": 0.65,
+        "lane": "flow",
+        "lane_index": 6,
+        "order": 14,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      }
+    ],
+    "mapper_version": "0.20.0",
+    "project": {
+      "file_count": 4,
+      "root": "."
+    },
+    "provenance": {
+      "config": {
+        "community_min_size": 2,
+        "layout_hints": {
+          "enabled": true,
+          "lane_order": [
+            "workspace",
+            "package",
+            "directory",
+            "namespace",
+            "domain",
+            "layer",
+            "flow",
+            "graph-community"
+          ]
+        },
+        "max_clusters_per_strategy": 100,
+        "min_cluster_size": 1
+      },
+      "metrics": "directed call/import edges; cohesion=internal/incident; coupling=external/incident",
+      "strategies": [
+        "workspace",
+        "directory",
+        "package",
+        "namespace",
+        "domain",
+        "layer",
+        "flow",
+        "graph-community"
+      ]
+    },
+    "schema": "simplicio.clustering-metrics/v1",
+    "schema_version": "v1",
+    "version": 1
+  },
+  "diagnostics": [
+    {
+      "code": "heuristic-edge",
+      "count": 5
+    },
+    {
+      "code": "unresolved-relation",
+      "count": 0
+    }
+  ],
+  "edges": [
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:f5ed0571f3d5e126",
+      "source_location": {
+        "line": 1,
+        "path": "src/app.js"
+      },
+      "target": "symbol:378891004e5582e3",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:04164df2fbf7cf9b",
+      "source_location": {
+        "path": "src/app.js"
+      },
+      "target": "file:f5ed0571f3d5e126",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:5a219264bc5d86e9",
+      "source_location": {
+        "path": "README.md"
+      },
+      "target": "file:a451623ea511a512",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:5a219264bc5d86e9",
+      "source_location": {
+        "path": "package.json"
+      },
+      "target": "file:d7f6204f00b61069",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:f39c4b97cb07d484",
+      "source_location": null,
+      "target": "flow:89c7fb78e4b83b37",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:f39c4b97cb07d484",
+      "source_location": null,
+      "target": "module:04164df2fbf7cf9b",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:f39c4b97cb07d484",
+      "source_location": null,
+      "target": "module:5a219264bc5d86e9",
+      "type": "contains"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:f39c4b97cb07d484",
+      "source_location": null,
+      "target": "layer:0db4f4feb847f612",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:f39c4b97cb07d484",
+      "source_location": null,
+      "target": "layer:c79aec78748b7816",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:f39c4b97cb07d484",
+      "source_location": null,
+      "target": "layer:ee543bbfc45efcfd",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:f39c4b97cb07d484",
+      "source_location": null,
+      "target": "layer:f333279cd5d5eb65",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.5,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "flow:89c7fb78e4b83b37",
+      "source_location": {
+        "line": 1,
+        "path": "src/app.js"
+      },
+      "target": "file:f5ed0571f3d5e126",
+      "type": "transitions-to"
+    }
+  ],
+  "flows": [
+    {
+      "confidence": "heuristic",
+      "effects": [],
+      "entry": {
+        "line": 1,
+        "path": "src/app.js",
+        "symbol": "src/app.js::boot"
+      },
+      "generated_at": "1970-01-01T00:00:00.000Z",
+      "id": "src.app",
+      "kind": "entrypoint",
+      "layers_touched": [
+        "entrypoint"
+      ],
+      "steps": [
+        {
+          "line": 1,
+          "module": "src",
+          "path": "src/app.js",
+          "symbol": "src/app.js::boot"
+        }
+      ]
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "language_diagnostics": [
+    {
+      "confidence": 1.0,
+      "errors": [],
+      "language": "markdown",
+      "line_count": 1,
+      "parser_used": "builtin-text",
+      "parser_version": "1",
+      "path": "README.md",
+      "skipped": false,
+      "unsupported_constructs": []
+    },
+    {
+      "confidence": 1.0,
+      "errors": [],
+      "language": "json",
+      "line_count": 1,
+      "parser_used": "builtin-text",
+      "parser_version": "1",
+      "path": "package.json",
+      "skipped": false,
+      "unsupported_constructs": []
+    },
+    {
+      "confidence": 0.7,
+      "errors": [],
+      "language": "javascript",
+      "line_count": 2,
+      "parser_used": "builtin-regex",
+      "parser_version": "1",
+      "path": "src/app.js",
+      "skipped": false,
+      "unsupported_constructs": []
+    }
+  ],
+  "layout_hints": [
+    {
+      "cluster_id": "cluster:workspace:86fa3762d2eb6db6",
+      "collapse_level": "expanded",
+      "importance": 0.3025,
+      "lane": "workspace",
+      "lane_index": 0,
+      "order": 0,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:c22d9e7664332f0b",
+      "collapse_level": "expanded",
+      "importance": 0.186667,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 1,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:64b2cdb21b87ca36",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 2,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:package:710115d946c582c2",
+      "collapse_level": "expanded",
+      "importance": 0.186667,
+      "lane": "package",
+      "lane_index": 1,
+      "order": 3,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:package:d2975bd0cf12cdeb",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "package",
+      "lane_index": 1,
+      "order": 4,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:ae7db4ac72c14b1f",
+      "collapse_level": "expanded",
+      "importance": 0.12,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 5,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:dc094dac44e7bb2e",
+      "collapse_level": "expanded",
+      "importance": 0.12,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 6,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:ad0eed0c5b9bdb9b",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 7,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:24f1046a3b708e2b",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 8,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:domain:883d523e9eba130e",
+      "collapse_level": "expanded",
+      "importance": 0.3025,
+      "lane": "domain",
+      "lane_index": 4,
+      "order": 9,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:layer:0db4f4feb847f612",
+      "collapse_level": "expanded",
+      "importance": 0.12,
+      "lane": "layer",
+      "lane_index": 5,
+      "order": 10,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:layer:c79aec78748b7816",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "layer",
+      "lane_index": 5,
+      "order": 11,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:layer:ee543bbfc45efcfd",
+      "collapse_level": "expanded",
+      "importance": 0.12,
+      "lane": "layer",
+      "lane_index": 5,
+      "order": 12,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:layer:f333279cd5d5eb65",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "layer",
+      "lane_index": 5,
+      "order": 13,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:flow:89c7fb78e4b83b37",
+      "collapse_level": "members",
+      "importance": 0.65,
+      "lane": "flow",
+      "lane_index": 6,
+      "order": 14,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    }
+  ],
+  "mapper_version": "0.20.0",
+  "nodes": [
+    {
+      "canonical": "README.md",
+      "id": "file:a451623ea511a512",
+      "kind": "file",
+      "language": "markdown",
+      "metrics": {
+        "size_bytes": 70
+      },
+      "name": "README.md",
+      "parent_id": "module:5a219264bc5d86e9",
+      "path": "README.md"
+    },
+    {
+      "canonical": "package.json",
+      "id": "file:d7f6204f00b61069",
+      "kind": "file",
+      "language": "json",
+      "metrics": {
+        "size_bytes": 50
+      },
+      "name": "package.json",
+      "parent_id": "module:5a219264bc5d86e9",
+      "path": "package.json"
+    },
+    {
+      "canonical": "src/app.js",
+      "id": "file:f5ed0571f3d5e126",
+      "kind": "file",
+      "language": "javascript",
+      "metrics": {
+        "size_bytes": 88
+      },
+      "name": "app.js",
+      "parent_id": "module:04164df2fbf7cf9b",
+      "path": "src/app.js"
+    },
+    {
+      "canonical": "src.app",
+      "confidence": 0.5,
+      "id": "flow:89c7fb78e4b83b37",
+      "kind": "flow",
+      "metrics": {},
+      "name": "src.app",
+      "parent_id": "repository:f39c4b97cb07d484",
+      "path": null
+    },
+    {
+      "canonical": "asset",
+      "confidence": 0.7,
+      "id": "layer:0db4f4feb847f612",
+      "kind": "layer",
+      "metrics": {},
+      "name": "asset",
+      "parent_id": "repository:f39c4b97cb07d484",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": "config",
+      "confidence": 0.7,
+      "id": "layer:c79aec78748b7816",
+      "kind": "layer",
+      "metrics": {},
+      "name": "config",
+      "parent_id": "repository:f39c4b97cb07d484",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": "documentation",
+      "confidence": 0.7,
+      "id": "layer:ee543bbfc45efcfd",
+      "kind": "layer",
+      "metrics": {},
+      "name": "documentation",
+      "parent_id": "repository:f39c4b97cb07d484",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": "entrypoint",
+      "confidence": 0.7,
+      "id": "layer:f333279cd5d5eb65",
+      "kind": "layer",
+      "metrics": {},
+      "name": "entrypoint",
+      "parent_id": "repository:f39c4b97cb07d484",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": ".",
+      "id": "module:5a219264bc5d86e9",
+      "kind": "module",
+      "metrics": {},
+      "name": ".",
+      "parent_id": "repository:f39c4b97cb07d484",
+      "path": null
+    },
+    {
+      "canonical": "src",
+      "id": "module:04164df2fbf7cf9b",
+      "kind": "module",
+      "metrics": {},
+      "name": "src",
+      "parent_id": "repository:f39c4b97cb07d484",
+      "path": null
+    },
+    {
+      "canonical": "canvas-incomplete",
+      "id": "repository:f39c4b97cb07d484",
+      "kind": "repository",
+      "metrics": {},
+      "name": "canvas-incomplete",
+      "parent_id": null,
+      "path": null
+    },
+    {
+      "canonical": "src/app.js\u0000src/app.js::boot",
+      "id": "symbol:378891004e5582e3",
+      "kind": "symbol",
+      "metrics": {
+        "line": 1
+      },
+      "name": "boot",
+      "parent_id": "file:f5ed0571f3d5e126",
+      "path": "src/app.js"
+    }
+  ],
+  "project": {
+    "id": "repository:f39c4b97cb07d484",
+    "name": "canvas-incomplete",
+    "root": "."
+  },
+  "provenance": {
+    "branch": null,
+    "clone_type": "plain-folder",
+    "clustering": {
+      "config": {
+        "community_min_size": 2,
+        "layout_hints": {
+          "enabled": true,
+          "lane_order": [
+            "workspace",
+            "package",
+            "directory",
+            "namespace",
+            "domain",
+            "layer",
+            "flow",
+            "graph-community"
+          ]
+        },
+        "max_clusters_per_strategy": 100,
+        "min_cluster_size": 1
+      },
+      "metrics": "directed call/import edges; cohesion=internal/incident; coupling=external/incident",
+      "strategies": [
+        "workspace",
+        "directory",
+        "package",
+        "namespace",
+        "domain",
+        "layer",
+        "flow",
+        "graph-community"
+      ]
+    },
+    "commit_sha": null,
+    "default_branch": null,
+    "dirty": false,
+    "host": null,
+    "monorepo_roots": [],
+    "owner": null,
+    "remote_url": null,
+    "remotes": [],
+    "repository": null,
+    "scan_root": ".",
+    "submodules": []
+  },
+  "schema": "simplicio.visualization-bundle/v1",
+  "schema_version": "v1",
+  "version": 1
+}

@@ -14,6 +14,8 @@
     "project": { "type": "object", "required": ["id", "name", "root"] },
     "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" } },
     "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } },
+    "clustering": { "type": "object", "required": ["schema", "version", "mapper_version", "schema_version", "generated_at", "project", "config", "clusters", "layout_hints", "provenance"] },
+    "layout_hints": { "type": "array" },
     "flows": { "type": "array" },
     "diagnostics": { "type": "array" },
     "language_diagnostics": { "type": "array", "items": { "type": "object", "required": ["path", "language", "line_count", "parser_used", "parser_version", "confidence", "errors", "skipped", "unsupported_constructs"] } }

@@ -34,12 +34,13 @@ Module map:
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from collections.abc import Sequence
 
 from ..mapper import write_architecture_docs
-from ._args import _parse_args
+from ._args import _parse_args, _read_json_safe
 from ._background import _run_background, _run_index, _watch
 from ._endpoints import _run_endpoints
 from ._flowchart import (
@@ -63,6 +64,28 @@ from ._repo_commands import (
 )
 from ._screens import _run_screens
 from ._status_engine import _run_handoff, _run_inspect, _run_macro, _run_scan, _run_status
+
+
+def _run_delta(opts: dict) -> int:
+    from ..incremental import run_incremental_scan
+
+    root = os.path.abspath(opts["root"])
+    meta = dict(_read_json_safe(os.path.join(root, ".starter-meta.json")))
+    if opts.get("stack"):
+        meta["stack"] = opts["stack"]
+    if opts.get("product_name"):
+        meta["product_name"] = opts["product_name"]
+    payload = run_incremental_scan(root, out=opts["out"], meta=meta,
+                                   full_rescan=opts.get("full_rescan", False),
+                                   changed_paths=opts.get("changed_paths") or None)
+    if opts.get("json"):
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    else:
+        print(
+            f"delta mode={payload['mode']} events={len(payload['events'])} "
+            f"revision={payload['scan_revision']} full_rescan={payload['full_rescan']}"
+        )
+    return 0
 
 __all__ = [
     "main",
@@ -136,6 +159,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_survey(opts)
     if opts["command"] == "drift":
         return _run_drift(opts)
+    if opts["command"] == "delta":
+        return _run_delta(opts)
     if opts["command"] == "docs":
         return _run_docs(opts)
     if opts["command"] == "export-docs":
