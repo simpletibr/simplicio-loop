@@ -35,7 +35,15 @@ def test_run_scope_task_preserves_task_json_contract(tmp_path, monkeypatch, caps
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", _true_cmd())
     monkeypatch.setattr("simplicio.pipeline.generate", lambda *a, **k: _diff("frontend/app.ts"))
-
+    monkeypatch.setattr(
+        "simplicio.pipeline._run_impact_tests",
+        lambda *_args, **_kwargs: {
+            "result": "no_impact_tests",
+            "status": "no_callers_found",
+            "callers": [],
+            "tests_run": [],
+        },
+    )
     code = cli.main(
         [
             "run",
@@ -109,7 +117,14 @@ def test_run_auto_task_infers_target_from_goal(tmp_path, monkeypatch, capsys):
     _write(tmp_path / "src" / "auth.py", "old\n")
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     monkeypatch.setattr("simplicio.pipeline.generate", lambda *a, **k: _diff("src/auth.py"))
-
+    monkeypatch.setattr(
+        "simplicio.pipeline.artifact_status",
+        lambda _root: {"project_map": {"present": True}, "precedent_index": {"present": True}},
+    )
+    monkeypatch.setattr(
+        "simplicio.pipeline.map_handoff",
+        lambda _root: {"context_pack": {"files": [{"path": "src/auth.py"}]}},
+    )
     code = cli.main(
         [
             "run",
@@ -278,7 +293,15 @@ def test_run_scope_feature_json_suppresses_pipeline_logs(
 
     monkeypatch.setattr(feature_module, "generate_plan", fake_planner)
     monkeypatch.setattr("simplicio.pipeline.generate", lambda *a, **k: _diff("src/app.py"))
-
+    monkeypatch.setattr(
+        "simplicio.pipeline._run_impact_tests",
+        lambda *_args, **_kwargs: {
+            "result": "no_impact_tests",
+            "status": "no_callers_found",
+            "callers": [],
+            "tests_run": [],
+        },
+    )
     code = cli.main(
         [
             "run",
