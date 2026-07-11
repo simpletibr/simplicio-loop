@@ -1,83 +1,77 @@
 # Ecosystem contract — `v1` (issue #164)
 
 Extends `contracts/mapper-artifacts/v1/` (issue #157, mapper-only artifacts)
-with the shape of the two other cross-repo payloads that flow through the
-Simplicio ecosystem outside `simplicio-mapper` itself:
+with cross-repository payloads that flow through the Simplicio ecosystem
+outside `simplicio-mapper` itself:
 
 | Payload | Produced by | Schema id | Schema file |
 |---|---|---|---|
 | Autonomous loop execution / run-journal / task-anchor record | `simplicio-loop` (`scripts/loop_journal.py`, `scripts/task_anchor.py`) | `simplicio.loop-execution/v1` | `schemas/loop-execution.schema.json` |
 | 6-layer execute/deterministic_edit contract record | `simplicio-dev-cli` | `simplicio.executor-contract/v1` | `schemas/executor-contract.schema.json` |
+| Renderer-neutral multi-repository graph with pinned revisions, typed edges, evidence and boundaries | Mapper/integration producers; consumed by Canvas and other graph tools | `simplicio.ecosystem-graph/v1` | `schemas/ecosystem-graph.schema.json` |
 
-## Honesty note: this is a vendored copy, not a live cross-repo import
+## Ownership and honesty
 
-**`simplicio-loop` and `simplicio-dev-cli` are separate repositories.** From
-this sandbox/session there is no practical way to reach into their git
-history and import their actual schema modules at contract-authoring time —
-so the two schemas above are **hand-written local copies** of what those
-projects document their payloads to look like (see this repo's own
-`CLAUDE.md` mirrors of `simplicio-loop`'s and `simplicio-dev-cli`'s
-`CLAUDE.md`/`AGENTS.md` for the prose description this was derived from), not
-an automated `import`/`$ref` of the upstream repos' real schema files.
+`loop-execution` and `executor-contract` remain vendored copies of shapes owned
+by separate repositories. The owning producer is the source of truth. Breaking
+changes require a new `contracts/ecosystem/v2/` directory rather than editing
+`v1` in place.
 
-This means the schemas here can silently drift from what `simplicio-loop` /
-`simplicio-dev-cli` actually emit if those projects change their payload shape
-without a corresponding update here. **Convention to keep them in sync:**
+The ecosystem graph is intentionally a generic transport contract rather than a
+hard-coded application model. Its producers own the truth of each repository,
+edge and evidence record. Consumers must preserve access, revision, status,
+evidence kind and boundary metadata instead of promoting every visible node to
+live runtime truth.
 
-1. Whichever repo owns the payload (`simplicio-loop` for
-   `loop-execution.schema.json`, `simplicio-dev-cli` for
-   `executor-contract.schema.json`) is the source of truth.
-2. When that repo changes the payload shape, it (or whoever notices the
-   drift) updates the matching file here in the same PR/session, and bumps
-   `contracts/ecosystem/v2/` instead of editing `v1/` in place if the change
-   is breaking (same versioning discipline as
-   `contracts/mapper-artifacts/v1/`).
-3. `scripts/validate_ecosystem_contracts.py` (repo root) is intentionally
-   **dependency-free and self-contained** (stdlib only, no import of
-   `simplicio_mapper`) specifically so `simplicio-loop` and
-   `simplicio-dev-cli` can copy that one file into their own repo and run it
-   against their own fixtures without depending on `simplicio-mapper` being
-   installed. That is the "reusable by dev-cli/loop" story for this contract
-   today: **vendored copy of the schemas + vendored copy of the validator
-   script**, not a shared installed dependency.
-4. `scripts/cross_repo_conformance.py` is the live check for this repository:
-   it runs the mapper producer, the installed/local dev-cli consumer, and the
-   loop repository's real contract producer check. A passing local fixture
-   check is reported separately from this cross-repo result.
+The committed Asolaria fixture is public metadata and public evidence links only.
+It is not a live import of private repositories, private corpora, keys, model
+bodies or device state. Its separate `canvas-flow.json` is a compatibility
+projection for the current Canvas importer; the richer `ecosystem-graph.json`
+remains the authoritative fixture.
+
+## Cross-repository sync convention
+
+1. The repository that owns a payload is its source of truth.
+2. When an owner changes a payload shape, update the matching ecosystem schema
+   in the same session. Breaking changes create `v2`.
+3. `scripts/validate_ecosystem_contracts.py` is dependency-free and vendorable.
+4. `scripts/cross_repo_conformance.py` remains the live check for producer and
+   consumer compatibility where those repositories are available.
+5. A consumer that cannot see a private repository records its access state;
+   lack of visibility is not a refutation and is not a license to invent data.
 
 ## Layout
 
-```
+```text
 contracts/ecosystem/v1/
-  README.md                     - this file
+  README.md
   schemas/
-    loop-execution.schema.json      - simplicio-loop run/task-anchor record (vendored copy)
-    executor-contract.schema.json   - simplicio-dev-cli 6-layer contract record (vendored copy)
+    loop-execution.schema.json
+    executor-contract.schema.json
+    ecosystem-graph.schema.json
   fixtures/
     python-task/
-      execution.json           - loop-execution/v1 sample for a Python-only task
-      executor.json            - executor-contract/v1 sample for the same task
+      execution.json
+      executor.json
     node-task/
-      execution.json           - loop-execution/v1 sample for a Node-only task
-      executor.json            - executor-contract/v1 sample for the same task
+      execution.json
+      executor.json
     mixed-task/
-      execution.json           - loop-execution/v1 sample for a mixed Python+JS task
-                                  (deliberately status: "blocked" / ac-2 unverified,
-                                  to exercise the non-happy-path shape too)
-      executor.json            - executor-contract/v1 sample for the same task
-                                  (deliberately verified: false / a failing layer)
+      execution.json
+      executor.json
+    asolaria-ecosystem/
+      ecosystem-graph.json    # authoritative versioned public metadata graph
+      canvas-flow.json        # compatibility projection for Canvas 2.13
+      README.md
 ```
 
-Unlike `contracts/mapper-artifacts/v1/fixtures/*/artifacts`, these fixtures
-are **hand-written**, not generated by running a real mapper — there is no
-"real loop run" or "real dev-cli run" available to generate them from in this
-repo. They are illustrative minimal examples of the documented shape, not
-captured live output. Treat them as shape/structure fixtures for the
-validator, not as behavioral ground truth for the other two projects.
+The task fixtures are illustrative shape fixtures for external producer payloads.
+The Asolaria ecosystem fixture pins public repository revisions and evidence URLs,
+but it does not redistribute repository source.
 
 ## Schema format
 
-Same deliberately small JSON-Schema *subset* as
+Same deliberately small JSON-Schema subset as
 `contracts/mapper-artifacts/v1/`: `type` (including `["string", "null"]`
 unions), `required`, `properties`, `items`, `enum`, `minItems`.
 `additionalProperties` is always implicitly allowed. See
@@ -89,29 +83,39 @@ unions), `required`, `properties`, `items`, `enum`, `minItems`.
 From within this repo:
 
 ```bash
-# via the mapper CLI (wraps both mapper-artifacts/v1 and ecosystem/v1)
+# via the mapper CLI (wraps mapper-artifacts/v1 and ecosystem/v1)
 python -m simplicio_mapper.cli doctor --contracts
 
-# or the standalone script directly (no simplicio_mapper import; this is the
-# file to vendor into simplicio-loop/simplicio-dev-cli)
+# standalone, dependency-free validator
 python3 scripts/validate_ecosystem_contracts.py
-python3 scripts/validate_ecosystem_contracts.py contracts/ecosystem/v1/fixtures/python-task
+python3 scripts/validate_ecosystem_contracts.py \
+  contracts/ecosystem/v1/fixtures/asolaria-ecosystem/ecosystem-graph.json
 ```
 
-Both exit `0` when every fixture validates against its own `"schema"` field,
-non-zero with an actionable per-field message (path + expected vs. actual)
-otherwise.
+Both exit `0` when every recognized fixture validates against its own `schema`
+field, non-zero with an actionable field path otherwise. Files without a schema
+field, including the Canvas compatibility projection, are skipped rather than
+misrepresented as validated contract payloads.
 
-## How simplicio-dev-cli / simplicio-loop should consume this
+## How downstream repositories should consume this
 
-1. Vendor (copy) `scripts/validate_ecosystem_contracts.py` into your own repo
-   (e.g. `scripts/validate_ecosystem_contracts.py`) — it has no dependency on
-   `simplicio_mapper` being installed.
-2. Vendor (copy) `contracts/ecosystem/v1/schemas/*.schema.json` — whichever
-   one describes payloads your repo produces or consumes.
-3. Point the vendored script at your own fixtures/real output:
-   `python3 scripts/validate_ecosystem_contracts.py --schema-root <path-to-vendored-schemas> <path-to-your-fixtures>`.
-4. When your repo's real payload shape changes, update your vendored copy of
-   the schema *and* open a note/PR against `simplicio-mapper` (this repo) so
-   `contracts/ecosystem/v1/` does not silently go stale — see the honesty
-   note above; there is no automation for this yet, only the convention.
+1. Vendor the schema(s) the consumer needs and the standalone validator, or
+   consume them from a pinned mapper revision.
+2. Keep evidence links commit-pinned when they prove exact bytes; use default-
+   branch links only for living navigation.
+3. Preserve repository access and status when a repo is unavailable.
+4. Preserve typed edge semantics rather than flattening every relationship into
+   a generic dependency.
+5. Keep static, runtime, CI, third-seat, operator, paper and documentation
+   evidence distinct.
+6. Render explicit boundaries. A paper may motivate or calibrate a system
+   without proving that the downstream integration is physically deployed.
+7. When the contract bumps to `v2`, retain `v1` schemas and fixtures so consumers
+   migrate on their own schedule.
+
+## Current Canvas integration
+
+The current Canvas parser can safely open `canvas-flow.json`. Native
+`ecosystem-graph/v1` support should retain repository URLs, immutable revisions,
+access states, typed cross-repository relationships, evidence provenance and
+boundaries directly instead of rebuilding the graph only from synthetic paths.
