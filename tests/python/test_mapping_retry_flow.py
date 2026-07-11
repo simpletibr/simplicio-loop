@@ -1,7 +1,8 @@
 import json
 import subprocess
+from pathlib import Path
 
-from simplicio import bench, mapper, pipeline
+from simplicio import bench, mapper, pipeline, pipeline_stages
 from simplicio import precedent as precedent_module
 from simplicio import prompt as prompt_module
 from simplicio.pipeline_fixers import FixerResult
@@ -1131,3 +1132,100 @@ def test_git_apply_patch_falls_back_to_three_way_recovery(tmp_path, monkeypatch)
     assert applied is True
     assert error == ""
     assert any("--3way" in argv for argv in calls)
+
+
+# ---------------------------------------------------------------------------
+# Issue #129 fixtures: Codex CLI corrupt / stale unified diffs
+# ---------------------------------------------------------------------------
+
+_FIXTURES = Path(__file__).resolve().parent.parent / "fixtures" / "issue-129"
+
+
+def _load_fixture(name: str) -> str:
+    return (_FIXTURES / name).read_text(encoding="utf-8")
+
+
+def test_codex_corrupt_patch_recovers_from_full_file_fixture(tmp_path, monkeypatch):
+    """Fixture `codex_corrupt_at_line.diff.txt` yields a `corrupt patch at line`
+    from Codex CLI. The pipeline must not burn retries on the broken diff; it
+    must recover deterministically from the bundled full-file artifact."""
+    target = tmp_path / "app.py"
+    target.write_text("line1\nline2\nline3\n", encoding="utf-8")
+    output = _load_fixture("codex_corrupt_at_line.diff.txt")
+    # Sanity: the raw diff really is corrupt -> git apply rejects it.
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "false")
+    raw_ok, _ = pipeline._git_apply_patch(str(tmp_path), pipeline_stages.extract_patch(output))
+    assert raw_ok is False, "fixture precondition: the diff must be corrupt"
+
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD",
+        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text(encoding='utf-8') == 'fixed\\n' else 1)\"",
+    )
+    ok, log = pipeline._apply_and_test(output, str(tmp_path), bound_paths=["app.py"])
+
+    assert ok, log
+    assert target.read_text(encoding="utf-8") == "fixed\n"
+    assert (tmp_path / ".simplicio" / "last_patch_strategy.txt").read_text(
+        encoding="utf-8"
+    ) == "full_file_after_patch_failure\n"
+    receipt = pipeline._LAST_PATCH_RECEIPT
+    assert receipt is not None
+    assert receipt["parser_strategy"] == "full_file_after_patch_failure"
+    assert receipt["files"] == ["app.py"]
+
+
+def test_codex_patch_does_not_apply_recovers_from_full_file_fixture(tmp_path, monkeypatch):
+    """Fixture `codex_patch_does_not_apply.diff.txt` yields a `patch does not
+    apply` from Codex CLI. The pipeline must recover deterministically from the
+    bundled full-file artifact instead of retrying the stale diff."""
+    target = tmp_path / "app.py"
+    target.write_text("line1\nline2\nline3\n", encoding="utf-8")
+    output = _load_fixture("codex_patch_does_not_apply.diff.txt")
+    # Sanity: the raw diff really does not apply.
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "false")
+    raw_ok, _ = pipeline._git_apply_patch(str(tmp_path), pipeline_stages.extract_patch(output))
+    assert raw_ok is False, "fixture precondition: the diff must not apply"
+
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD",
+        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text(encoding='utf-8') == 'fixed\\n' else 1)\"",
+    )
+    ok, log = pipeline._apply_and_test(output, str(tmp_path), bound_paths=["app.py"])
+
+    assert ok, log
+    assert target.read_text(encoding="utf-8") == "fixed\n"
+    assert (tmp_path / ".simplicio" / "last_patch_strategy.txt").read_text(
+        encoding="utf-8"
+    ) == "full_file_after_patch_failure\n"
+    receipt = pipeline._LAST_PATCH_RECEIPT
+    assert receipt is not None
+    assert receipt["parser_strategy"] == "full_file_after_patch_failure"
+    assert receipt["files"] == ["app.py"]
+
+
+def test_codex_corrupt_patch_without_full_file_fails_deterministically(tmp_path, monkeypatch):
+    """A corrupt diff with NO full-file artifact must fail fast with an explicit
+    reason code instead of burning identical retries."""
+    target = tmp_path / "app.py"
+    target.write_text("line1\nline2\nline3\n", encoding="utf-8")
+    output = "\n".join(
+        [
+            "```diff",
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -1 +1 @@",
+            " line1",
+            "+added",
+            "```",
+        ]
+    )
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD",
+        'python -c "import sys; sys.exit(0)"',
+    )
+    ok, log = pipeline._apply_and_test(output, str(tmp_path), bound_paths=["app.py"])
+
+    assert ok is False
+    assert "corrupt" in log.lower() or "git apply" in log.lower()
+    assert target.read_text(encoding="utf-8") == "line1\nline2\nline3\n"
