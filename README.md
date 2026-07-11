@@ -583,6 +583,7 @@ and the command exits non-zero.
 See [structured blocked-precondition receipts](docs/blocked-preconditions.md) for the JSON `status`, `blocked_preconditions`, `reason`, and `next_surface` contract.
 See [patch receipts](docs/patch-receipts.md) for parser strategy, recovery fingerprint, and requested/effective capability evidence.
 See [the evidence ledger](docs/evidence-ledger.md) for append-only AC/RN receipts and stale-artifact gates.
+See [multi-task batches](docs/multi-task-batches.md) for deterministic DAG state and resumable transitions.
 
 #### Path 3 example — standalone with API key
 
