@@ -108,10 +108,18 @@ def run_benchmark(
     old_build_prompt = pipeline.build_prompt
     old_apply_and_test = pipeline._apply_and_test
     old_try_static_fixers = pipeline.try_static_fixers
+    old_run_impact_tests = pipeline._run_impact_tests
 
     rows: list[dict[str, Any]] = []
     t0 = time.perf_counter()
     try:
+        # This benchmark isolates primary verification and fixer behavior;
+        # impact verification is a separate contract and has no mapper fixture.
+        pipeline._run_impact_tests = lambda root, files: {
+            "result": pipeline.IMPACT_RESULT_NOT_NEEDED,
+            "callers": [],
+            "tests_run": [],
+        }
         for case in build_cases():
             baseline = _run_case(case, work_dir / "baseline" / case.name, False)
             with_fixer = _run_case(case, work_dir / "with-fixer" / case.name, True)
@@ -121,6 +129,7 @@ def run_benchmark(
         pipeline.build_prompt = old_build_prompt
         pipeline._apply_and_test = old_apply_and_test
         pipeline.try_static_fixers = old_try_static_fixers
+        pipeline._run_impact_tests = old_run_impact_tests
 
     real_probe_rows = (
         run_real_package_manager_probe(
