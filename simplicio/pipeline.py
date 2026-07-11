@@ -9,6 +9,7 @@ and runs their tests too.  When impact tests fail, the failure enters the
 retry loop just like any verify failure.
 """
 
+import difflib
 import fnmatch
 import os
 import re
@@ -145,7 +146,11 @@ def _dry_run_preconditions(root: str | Path, target: str) -> list[dict[str, Any]
                 }
             )
         else:
-            files = [str(item.get("path")) for item in pack.get("files", []) if isinstance(item, dict) and item.get("path")]
+            files = [
+                str(item.get("path"))
+                for item in pack.get("files", [])
+                if isinstance(item, dict) and item.get("path")
+            ]
             if pack.get("needs_broader_context"):
                 blockers.append(
                     {
@@ -193,6 +198,8 @@ def _dry_run_preconditions(root: str | Path, target: str) -> list[dict[str, Any]
         seen.add(key)
         deduped.append(blocker)
     return deduped
+
+
 # ---------------------------------------------------------------------------
 # Impact-test verification — issue #93
 # ---------------------------------------------------------------------------
@@ -331,6 +338,13 @@ class ValidationResult:
 
 
 @dataclass
+class PatchCandidate:
+    patch: str
+    strategy: str
+    reason: str = ""
+
+
+@dataclass
 class FailureClassification:
     kind: str
     guidance: str
@@ -395,6 +409,71 @@ def extract_patch(output):
     return patch.strip() + "\n"
 
 
+def _single_bound_path(bound_paths) -> str | None:
+    normalized = [str(path).replace(os.sep, "/").lstrip("./") for path in (bound_paths or [])]
+    concrete = [path for path in normalized if path and not any(ch in path for ch in "*?[")]
+    return concrete[0] if len(concrete) == 1 else None
+
+
+def _extract_full_file_artifact(output: str, target: str) -> str:
+    text = output or ""
+    fence_pattern = re.compile(r"```[^\n`]*(?:file|path|filename)?[^\n`]*\n(.*?)(?:\n```|$)", re.S | re.I)
+    fenced_blocks = [match.group(1) for match in fence_pattern.finditer(text)]
+    for block in fenced_blocks:
+        if "diff --git " not in block and not re.search(r"(?m)^--- .+\n\+\+\+ ", block):
+            return block.strip("\n") + "\n"
+
+    labelled = re.search(
+        rf"(?ims)^(?:FILE|TARGET|PATH):\s*{re.escape(target)}\s*$\n(.*?)(?:^TEST:\s*$|\Z)",
+        text,
+    )
+    if labelled:
+        return labelled.group(1).strip("\n") + "\n"
+    return ""
+
+
+def _diff_for_full_file(root: str, target: str, content: str) -> str:
+    target_path = Path(root) / target.replace("/", os.sep)
+    try:
+        old = target_path.read_text(encoding="utf-8")
+    except OSError:
+        old = ""
+    if old == content:
+        return ""
+    old_lines = old.splitlines(keepends=True)
+    new_lines = content.splitlines(keepends=True)
+    body = "".join(
+        difflib.unified_diff(
+            old_lines,
+            new_lines,
+            fromfile=f"a/{target}",
+            tofile=f"b/{target}",
+            lineterm="\n",
+        )
+    )
+    if not body.endswith("\n"):
+        body += "\n"
+    return f"diff --git a/{target} b/{target}\n{body}"
+
+
+def _extract_patch_candidate(output: str, root: str, bound_paths=None) -> PatchCandidate:
+    patch = extract_patch(output)
+    if patch:
+        return PatchCandidate(patch=patch, strategy="unified_diff")
+    target = _single_bound_path(bound_paths)
+    if not target:
+        return PatchCandidate(patch="", strategy="none", reason="no unified diff and no single bound target")
+    content = _extract_full_file_artifact(output, target)
+    if not content:
+        return PatchCandidate(patch="", strategy="none", reason="no unified diff or full-file artifact found")
+    patch = _diff_for_full_file(root, target, content)
+    if not patch:
+        return PatchCandidate(
+            patch="", strategy="full_file_noop", reason="full-file artifact matches current target"
+        )
+    return PatchCandidate(patch=patch, strategy="full_file_artifact")
+
+
 def validate_generated_output(output, bound_paths=None, mode=None):
     text = output or ""
     if mode is None:
@@ -404,6 +483,8 @@ def validate_generated_output(output, bound_paths=None, mode=None):
     has_test = "TEST:" in text or re.search(r"(^|\n)(test|it|def test_|describe)\b", text)
     external_test_cmd = os.environ.get("SIMPLICIO_TEST_CMD", "").strip()
     has_external_test = bool(external_test_cmd and external_test_cmd != "echo 'configure SIMPLICIO_TEST_CMD'")
+    if not has_diff and _single_bound_path(bound_paths):
+        has_diff = bool(_extract_full_file_artifact(text, _single_bound_path(bound_paths) or ""))
     if not has_diff:
         hints.append("include a unified diff with exact target files")
     if mode == "strict":
@@ -540,17 +621,39 @@ def _apply_and_test(output, root, bound_paths=None):
     validation = validate_generated_output(output, bound_paths)
     if not validation.ok:
         return False, f"pre-apply validation failed: {validation.reason}"
-    patch = extract_patch(output)
+    candidate = _extract_patch_candidate(output or "", root, bound_paths)
+    patch = candidate.patch
     if not patch:
-        return False, "pre-apply validation failed: no unified diff found"
+        reason = candidate.reason or "no unified diff found"
+        return False, f"pre-apply validation failed: {reason}"
     open(os.path.join(root, ".simplicio/last_patch.diff"), "w").write(patch)
+    open(os.path.join(root, ".simplicio/last_patch_strategy.txt"), "w").write(candidate.strategy + "\n")
     tx = begin_transaction(root, dirty_policy="preserve")
     _copy_transaction_workspace(root, tx.candidate)
+    changed_files = extract_changed_files(patch)
     applied, apply_log = _git_apply_patch(str(tx.candidate), patch)
+    if not applied and candidate.strategy == "unified_diff":
+        target = _single_bound_path(bound_paths)
+        content = _extract_full_file_artifact(output or "", target or "") if target else ""
+        fallback_patch = _diff_for_full_file(str(tx.candidate), target, content) if target and content else ""
+        if fallback_patch:
+            fallback_applied, fallback_log = _git_apply_patch(str(tx.candidate), fallback_patch)
+            if fallback_applied:
+                candidate = PatchCandidate(fallback_patch, "full_file_after_patch_failure")
+                patch = fallback_patch
+                changed_files = extract_changed_files(patch)
+                applied = True
+                apply_log = ""
+                open(os.path.join(root, ".simplicio/last_patch.diff"), "w").write(patch)
+                open(os.path.join(root, ".simplicio/last_patch_strategy.txt"), "w").write(
+                    candidate.strategy + "\n"
+                )
+            else:
+                apply_log = apply_log + "\nfull-file fallback failed:\n" + fallback_log
     if not applied:
         receipt = tx.receipt(
-            extract_changed_files(output),
-            commands=["git apply"],
+            changed_files,
+            commands=[f"git apply ({candidate.strategy})"],
             exit_codes=[2],
             stdout="",
             stderr=apply_log,
@@ -572,7 +675,7 @@ def _apply_and_test(output, root, bound_paths=None):
         )
         output_tail = (p.stdout + p.stderr)[-2000:]
         receipt = tx.receipt(
-            extract_changed_files(output),
+            changed_files,
             commands=[verify_cmd],
             exit_codes=[p.returncode],
             stdout=p.stdout,
@@ -580,11 +683,19 @@ def _apply_and_test(output, root, bound_paths=None):
         )
         _remember_verify_receipt(receipt)
     except subprocess.TimeoutExpired as exc:
-        stdout = exc.output if isinstance(exc.output, str) else (exc.output or b"").decode("utf-8", errors="replace")
-        stderr = exc.stderr if isinstance(exc.stderr, str) else (exc.stderr or b"").decode("utf-8", errors="replace")
+        stdout = (
+            exc.output
+            if isinstance(exc.output, str)
+            else (exc.output or b"").decode("utf-8", errors="replace")
+        )
+        stderr = (
+            exc.stderr
+            if isinstance(exc.stderr, str)
+            else (exc.stderr or b"").decode("utf-8", errors="replace")
+        )
         output_tail = (stdout + stderr)[-2000:]
         receipt = tx.receipt(
-            extract_changed_files(output),
+            changed_files,
             commands=[verify_cmd],
             exit_codes=[124],
             stdout=stdout,
@@ -638,6 +749,15 @@ def _task_result(
         "cost_basis": "estimated" if priced else "unknown_no_pricing_configured",
         "diff_summary": _diff_summary(files_changed),
         "warnings": warnings or [],
+        "model": {
+            "requested": os.environ.get("SIMPLICIO_MODEL", ""),
+            "effective": os.environ.get("SIMPLICIO_EFFECTIVE_MODEL", os.environ.get("SIMPLICIO_MODEL", "")),
+            "effort": os.environ.get("SIMPLICIO_REASONING_EFFORT", os.environ.get("SIMPLICIO_EFFORT", "")),
+            "tier": os.environ.get("SIMPLICIO_MODEL_TIER", ""),
+            "provider": _provider_id(
+                os.environ.get("SIMPLICIO_MODEL", ""), os.environ.get("SIMPLICIO_BASE_URL", "")
+            ),
+        },
     }
     if blocked_preconditions:
         result["blocked_preconditions"] = blocked_preconditions

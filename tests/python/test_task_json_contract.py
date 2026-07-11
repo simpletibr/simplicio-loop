@@ -210,9 +210,7 @@ def test_task_dry_run_json_fails_closed_with_structured_blocked_preconditions(tm
     assert called["generate"] == 0
 
 
-def test_task_dry_run_json_distinguishes_broader_context_and_target_resolution(
-    tmp_path, monkeypatch, capsys
-):
+def test_task_dry_run_json_distinguishes_broader_context_and_target_resolution(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     monkeypatch.setattr("simplicio.pipeline.build_prompt", lambda *a, **k: "prompt")
     monkeypatch.setattr(

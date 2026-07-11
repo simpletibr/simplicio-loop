@@ -1,5 +1,5 @@
-import subprocess
 import json
+import subprocess
 
 from simplicio import bench, mapper, pipeline
 from simplicio import precedent as precedent_module
@@ -360,6 +360,67 @@ def test_apply_and_test_recovers_bad_hunk_counts_with_recount(tmp_path, monkeypa
     assert "Simplicio Sprint CLI E2E - terminal" in target.read_text(encoding="utf-8")
 
 
+def test_apply_and_test_builds_diff_from_full_file_artifact(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    target.write_text("old\n", encoding="utf-8")
+    output = "\n".join(
+        [
+            "Here is the complete corrected file:",
+            "```python",
+            "new",
+            "```",
+            "",
+            "TEST: python check",
+        ]
+    )
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD",
+        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
+    )
+
+    ok, log = pipeline._apply_and_test(output, str(tmp_path), bound_paths=["app.py"])
+
+    assert ok, log
+    assert target.read_text(encoding="utf-8") == "new\n"
+    assert (tmp_path / ".simplicio" / "last_patch_strategy.txt").read_text(
+        encoding="utf-8"
+    ) == "full_file_artifact\n"
+
+
+def test_apply_and_test_recovers_stale_patch_from_full_file_artifact(tmp_path, monkeypatch):
+    target = tmp_path / "app.py"
+    target.write_text("current\n", encoding="utf-8")
+    output = "\n".join(
+        [
+            "```diff",
+            "diff --git a/app.py b/app.py",
+            "--- a/app.py",
+            "+++ b/app.py",
+            "@@ -1 +1 @@",
+            "-stale",
+            "+wrong",
+            "```",
+            "The full file is:",
+            "```python",
+            "fixed",
+            "```",
+            "TEST: python check",
+        ]
+    )
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD",
+        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'fixed\\n' else 1)\"",
+    )
+
+    ok, log = pipeline._apply_and_test(output, str(tmp_path), bound_paths=["app.py"])
+
+    assert ok, log
+    assert target.read_text(encoding="utf-8") == "fixed\n"
+    assert (tmp_path / ".simplicio" / "last_patch_strategy.txt").read_text(
+        encoding="utf-8"
+    ) == "full_file_after_patch_failure\n"
+
+
 def test_apply_and_test_persists_receipt_when_git_apply_fails(tmp_path, monkeypatch):
     target = tmp_path / "app.py"
     target.write_text("old\n", encoding="utf-8")
@@ -375,7 +436,7 @@ def test_apply_and_test_persists_receipt_when_git_apply_fails(tmp_path, monkeypa
             "TEST: pytest -q",
         ]
     )
-    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "python -c \"import sys; sys.exit(0)\"")
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", 'python -c "import sys; sys.exit(0)"')
 
     ok, log = pipeline._apply_and_test(output, str(tmp_path))
 
@@ -511,7 +572,7 @@ def test_apply_and_test_persists_timeout_receipt_and_preserves_worktree(tmp_path
 
     assert ok is False
     assert "timed out" in log
-    assert target.read_text(encoding='utf-8') == "old\n"
+    assert target.read_text(encoding="utf-8") == "old\n"
     journals = sorted((tmp_path / ".simplicio" / "transactions").glob("*.jsonl"))
     assert journals
     receipt_events = []
@@ -730,7 +791,7 @@ def test_pipeline_retry_restarts_from_last_promoted_state_not_failed_attempt(tmp
             if test_invocations["count"] == 1:
                 if isinstance(prepared, list):
                     return ["python", "-c", "import sys; sys.exit(1)"], False
-                return "python -c \"import sys; sys.exit(1)\"", True
+                return 'python -c "import sys; sys.exit(1)"', True
         return prepared, use_shell
 
     monkeypatch.setattr(pipeline, "prepare_project_command", wrapped_prepare)
