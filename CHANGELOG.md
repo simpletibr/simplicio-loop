@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.12.0] — 2026-07-11
+
+### Added
+- **TaskSpec v2 intake and frozen execution planning** for raw task cards, with source and plan hashes (#114, #117).
+- **Fail-closed transactional execution** with rollback, verification receipts, impact-gate receipts, and deterministic patch recovery (#118, #129).
+- **Structured blocked-precondition receipts** for dry-run task diagnostics (#122).
+
+### Changed
+- Task JSON output now distinguishes verified, blocked, and unverified evidence instead of treating missing mapper context as success.
+
+### CI
+- GitHub Actions remains externally blocked because the account is locked due to a billing issue; local focused contract gates are recorded in the release PR.
+
 ## [0.11.0] — 2026-07-09
 
 ### Added
