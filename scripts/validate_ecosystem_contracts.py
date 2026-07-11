@@ -4,22 +4,24 @@
 INTENTIONALLY SELF-CONTAINED / VENDORABLE: this file has zero imports outside
 the Python 3.8+ standard library and does NOT import ``simplicio_mapper``.
 That is on purpose -- see ``contracts/ecosystem/v1/README.md``. The point of
-this script is that ``simplicio-loop`` and ``simplicio-dev-cli`` (separate
-repos) can copy this single file into their own trees and validate their own
-fixtures/output against a vendored copy of the ecosystem schemas, without
-taking a dependency on ``simplicio-mapper`` being installed.
+this script is that separate ecosystem repositories can copy this single file
+into their own trees and validate their own fixtures/output against a vendored
+copy of the ecosystem schemas, without taking a dependency on
+``simplicio_mapper`` being installed.
 
 It duplicates (deliberately -- not a bug) the same small JSON-Schema subset
 engine as ``simplicio_mapper/contract.py``: ``type`` (including
 ``["string", "null"]`` unions), ``required``, ``properties``, ``items``,
-``enum``, ``minItems``. ``additionalProperties`` is always implicitly
-allowed.
+``enum``, ``minItems``. ``additionalProperties`` is always implicitly allowed.
+For ``simplicio.ecosystem-graph/v1`` it also enforces semantic graph invariants
+that the small schema subset cannot express: unique IDs, closed endpoints,
+immutable revisions for available repositories, HTTPS evidence and non-empty
+boundaries.
 
 Usage
 -----
 
     # validate every *.json fixture under contracts/ecosystem/v1/fixtures/
-    # (resolved by walking up from cwd, same convention as contract.py)
     python3 scripts/validate_ecosystem_contracts.py
 
     # validate specific file(s)/dir(s)
@@ -29,7 +31,8 @@ Usage
     python3 scripts/validate_ecosystem_contracts.py --schema-root /path/to/schemas path/to/fixtures
 
 Exit code 0 when every discovered/validated file matches its own ``"schema"``
-field; non-zero otherwise, with a per-file, per-field actionable message.
+field and semantic invariants; non-zero otherwise, with a per-file, per-field
+actionable message.
 """
 
 from __future__ import annotations
@@ -37,14 +40,15 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 
 CONTRACT_VERSION = "v1"
 
-# Maps a payload's own "schema" field to the schema file that describes it.
 SCHEMA_FILENAMES = {
     "simplicio.loop-execution/v1": "loop-execution.schema.json",
     "simplicio.executor-contract/v1": "executor-contract.schema.json",
+    "simplicio.ecosystem-graph/v1": "ecosystem-graph.schema.json",
 }
 
 _PY_TYPE_NAMES = {
@@ -57,19 +61,15 @@ _PY_TYPE_NAMES = {
     "null": type(None),
 }
 
+_PINNED_REVISION = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
+
 
 class ContractError(RuntimeError):
     """Raised for validator/setup problems (missing schema, bad fixture path)."""
 
 
 def find_default_schema_root(start: str | None = None) -> str:
-    """Locate ``contracts/ecosystem/v1/schemas`` by walking upward from ``start``.
-
-    Only used when ``--schema-root`` is not given -- i.e. when running this
-    script from within a ``simplicio-mapper`` checkout. A repo that vendors
-    this file should always pass ``--schema-root`` explicitly instead of
-    relying on this discovery.
-    """
+    """Locate ``contracts/ecosystem/v1/schemas`` by walking upward from ``start``."""
     here = os.path.abspath(start or os.getcwd())
     while True:
         candidate = os.path.join(here, "contracts", "ecosystem", CONTRACT_VERSION, "schemas")
@@ -83,7 +83,7 @@ def find_default_schema_root(start: str | None = None) -> str:
         "could not locate contracts/ecosystem/v1/schemas from "
         f"{start or os.getcwd()} or its parents. Pass --schema-root explicitly "
         "when running this script outside a simplicio-mapper checkout "
-        "(e.g. from a vendored copy in simplicio-loop/simplicio-dev-cli)."
+        "(e.g. from a vendored copy in another ecosystem repository)."
     )
 
 
@@ -107,9 +107,9 @@ def load_schema(schema_id: str, schema_root: str) -> dict:
 def _type_matches(value: object, expected: str) -> bool:
     py_type = _PY_TYPE_NAMES.get(expected)
     if py_type is None:
-        return True  # unknown type keyword: do not fail closed on a typo
+        return True
     if expected in ("integer", "number") and isinstance(value, bool):
-        return False  # bool is technically an int subclass in Python
+        return False
     return isinstance(value, py_type)
 
 
@@ -144,9 +144,111 @@ def _validate_node(value: object, schema: dict, path: str, errors: list[str]) ->
 
 
 def validate_instance(instance: object, schema: dict) -> list[str]:
-    """Return a list of human-readable validation errors (empty = valid)."""
     errors: list[str] = []
     _validate_node(instance, schema, "$", errors)
+    return errors
+
+
+def _duplicate_ids(items: object, label: str) -> list[str]:
+    if not isinstance(items, list):
+        return []
+    errors: list[str] = []
+    seen: set[str] = set()
+    singular = {
+        "repositories": "repository",
+        "edges": "edge",
+        "references": "reference",
+    }.get(label, label.rstrip("s"))
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        value = item.get("id")
+        if not isinstance(value, str) or not value.strip():
+            continue
+        if value in seen:
+            errors.append(f"$.{label}[{index}].id: duplicate {singular} id {value!r}")
+        seen.add(value)
+    return errors
+
+
+def _valid_pinned_revision(value: object) -> bool:
+    return isinstance(value, str) and bool(_PINNED_REVISION.fullmatch(value))
+
+
+def _validate_evidence(items: object, path: str) -> list[str]:
+    if not isinstance(items, list):
+        return []
+    errors: list[str] = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        url = item.get("url")
+        if isinstance(url, str) and not url.startswith("https://"):
+            errors.append(f"{path}[{index}].url: evidence URL must use https")
+        revision = item.get("revision")
+        if revision is not None and not _valid_pinned_revision(revision):
+            errors.append(
+                f"{path}[{index}].revision: expected a full 40- or 64-hex immutable revision"
+            )
+    return errors
+
+
+def validate_ecosystem_graph_semantics(payload: dict) -> list[str]:
+    errors: list[str] = []
+    repositories = payload.get("repositories")
+    edges = payload.get("edges")
+    references = payload.get("references")
+
+    errors.extend(_duplicate_ids(repositories, "repositories"))
+    errors.extend(_duplicate_ids(edges, "edges"))
+    errors.extend(_duplicate_ids(references, "references"))
+
+    repo_ids: set[str] = set()
+    if isinstance(repositories, list):
+        for index, repo in enumerate(repositories):
+            if not isinstance(repo, dict):
+                continue
+            repo_id = repo.get("id")
+            if isinstance(repo_id, str) and repo_id:
+                repo_ids.add(repo_id)
+            url = repo.get("url")
+            if isinstance(url, str) and not url.startswith("https://"):
+                errors.append(f"$.repositories[{index}].url: repository URL must use https")
+            if repo.get("access") == "available" and not _valid_pinned_revision(repo.get("revision")):
+                errors.append(
+                    f"$.repositories[{index}].revision: available repository requires a full 40- or 64-hex immutable revision"
+                )
+            errors.extend(_validate_evidence(repo.get("evidence"), f"$.repositories[{index}].evidence"))
+
+    if isinstance(edges, list):
+        for index, edge in enumerate(edges):
+            if not isinstance(edge, dict):
+                continue
+            source = edge.get("from")
+            target = edge.get("to")
+            if isinstance(source, str) and source not in repo_ids:
+                errors.append(f"$.edges[{index}].from: unknown repository id {source!r}")
+            if isinstance(target, str) and target not in repo_ids:
+                errors.append(f"$.edges[{index}].to: unknown repository id {target!r}")
+            errors.extend(_validate_evidence(edge.get("evidence"), f"$.edges[{index}].evidence"))
+
+    if isinstance(references, list):
+        for index, reference in enumerate(references):
+            if not isinstance(reference, dict):
+                continue
+            url = reference.get("url")
+            if isinstance(url, str) and not url.startswith("https://"):
+                errors.append(f"$.references[{index}].url: reference URL must use https")
+            boundary = reference.get("boundary")
+            if isinstance(boundary, str) and not boundary.strip():
+                errors.append(f"$.references[{index}].boundary: boundary must not be empty")
+
+    boundaries = payload.get("boundaries")
+    if isinstance(boundaries, list):
+        for index, boundary in enumerate(boundaries):
+            if not isinstance(boundary, str) or not boundary.strip():
+                errors.append(f"$.boundaries[{index}]: boundary must be a non-empty string")
+
     return errors
 
 
@@ -155,7 +257,10 @@ def validate_payload(payload: dict, schema_root: str) -> tuple[str, list[str]]:
     if not schema_id:
         raise ContractError('payload has no "schema" field to look up a contract by')
     schema = load_schema(schema_id, schema_root)
-    return schema_id, validate_instance(payload, schema)
+    errors = validate_instance(payload, schema)
+    if schema_id == "simplicio.ecosystem-graph/v1":
+        errors.extend(validate_ecosystem_graph_semantics(payload))
+    return schema_id, errors
 
 
 def validate_file(path: str, schema_root: str) -> tuple[str, list[str]]:
@@ -165,7 +270,6 @@ def validate_file(path: str, schema_root: str) -> tuple[str, list[str]]:
 
 
 def iter_json_files(paths: list[str]) -> list[str]:
-    """Expand a mix of file/directory paths into a sorted list of *.json files."""
     found: list[str] = []
     for raw_path in paths:
         if os.path.isdir(raw_path):

@@ -1,12 +1,12 @@
 """Ecosystem contract validator + ``doctor --contracts`` CLI (issue #164).
 
 Extends ``simplicio_mapper/contract.py`` (mapper-artifacts/v1, issue #157)
-with the two cross-repo payload shapes that flow through the ecosystem
-outside the mapper itself: the ``simplicio-loop`` run-journal/task-anchor
-execution record and the ``simplicio-dev-cli`` 6-layer executor contract
-record. Schemas + fixtures live in ``contracts/ecosystem/v1/`` -- see
-``contracts/ecosystem/v1/README.md`` for the (explicitly non-live,
-vendored-copy) cross-repo sync convention.
+with cross-repo payload shapes that flow through the ecosystem outside the
+mapper itself: the ``simplicio-loop`` run-journal/task-anchor execution record,
+the ``simplicio-dev-cli`` 6-layer executor contract record, and the renderer-
+neutral repository/evidence graph consumed by tools such as Simplicio Canvas.
+Schemas + fixtures live in ``contracts/ecosystem/v1/`` -- see that directory's
+README for the explicit ownership and cross-repo sync convention.
 
 This module reuses the validator engine from ``simplicio_mapper.contract``
 (no need to duplicate it inside the installed package -- the *portable*,
@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -29,7 +30,10 @@ CONTRACT_VERSION = "v1"
 SCHEMA_FILENAMES = {
     "simplicio.loop-execution/v1": "loop-execution.schema.json",
     "simplicio.executor-contract/v1": "executor-contract.schema.json",
+    "simplicio.ecosystem-graph/v1": "ecosystem-graph.schema.json",
 }
+
+_PINNED_REVISION = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 
 
 def find_ecosystem_contract_root(start: str | None = None) -> str:
@@ -70,12 +74,124 @@ def load_schema(schema_id: str, contract_root: str) -> dict:
         return json.load(handle)
 
 
+def _duplicate_ids(items: object, label: str) -> list[str]:
+    if not isinstance(items, list):
+        return []
+    errors: list[str] = []
+    seen: set[str] = set()
+    singular = {
+        "repositories": "repository",
+        "edges": "edge",
+        "references": "reference",
+    }.get(label, label.rstrip("s"))
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        value = item.get("id")
+        if not isinstance(value, str) or not value.strip():
+            continue
+        if value in seen:
+            errors.append(f"$.{label}[{index}].id: duplicate {singular} id {value!r}")
+        seen.add(value)
+    return errors
+
+
+def _valid_pinned_revision(value: object) -> bool:
+    return isinstance(value, str) and bool(_PINNED_REVISION.fullmatch(value))
+
+
+def _validate_evidence(items: object, path: str) -> list[str]:
+    if not isinstance(items, list):
+        return []
+    errors: list[str] = []
+    for index, item in enumerate(items):
+        if not isinstance(item, dict):
+            continue
+        url = item.get("url")
+        if isinstance(url, str) and not url.startswith("https://"):
+            errors.append(f"{path}[{index}].url: evidence URL must use https")
+        revision = item.get("revision")
+        if revision is not None and not _valid_pinned_revision(revision):
+            errors.append(
+                f"{path}[{index}].revision: expected a full 40- or 64-hex immutable revision"
+            )
+    return errors
+
+
+def validate_ecosystem_graph_semantics(payload: dict) -> list[str]:
+    """Validate graph invariants that the intentionally small JSON-Schema subset cannot express.
+
+    The ecosystem contract is a navigable evidence graph, not merely a shape. It
+    must fail closed on identity duplication, dangling endpoints, unpinned
+    available repositories, unsafe evidence links, and empty claim boundaries.
+    """
+    errors: list[str] = []
+    repositories = payload.get("repositories")
+    edges = payload.get("edges")
+    references = payload.get("references")
+
+    errors.extend(_duplicate_ids(repositories, "repositories"))
+    errors.extend(_duplicate_ids(edges, "edges"))
+    errors.extend(_duplicate_ids(references, "references"))
+
+    repo_ids: set[str] = set()
+    if isinstance(repositories, list):
+        for index, repo in enumerate(repositories):
+            if not isinstance(repo, dict):
+                continue
+            repo_id = repo.get("id")
+            if isinstance(repo_id, str) and repo_id:
+                repo_ids.add(repo_id)
+            url = repo.get("url")
+            if isinstance(url, str) and not url.startswith("https://"):
+                errors.append(f"$.repositories[{index}].url: repository URL must use https")
+            if repo.get("access") == "available" and not _valid_pinned_revision(repo.get("revision")):
+                errors.append(
+                    f"$.repositories[{index}].revision: available repository requires a full 40- or 64-hex immutable revision"
+                )
+            errors.extend(_validate_evidence(repo.get("evidence"), f"$.repositories[{index}].evidence"))
+
+    if isinstance(edges, list):
+        for index, edge in enumerate(edges):
+            if not isinstance(edge, dict):
+                continue
+            source = edge.get("from")
+            target = edge.get("to")
+            if isinstance(source, str) and source not in repo_ids:
+                errors.append(f"$.edges[{index}].from: unknown repository id {source!r}")
+            if isinstance(target, str) and target not in repo_ids:
+                errors.append(f"$.edges[{index}].to: unknown repository id {target!r}")
+            errors.extend(_validate_evidence(edge.get("evidence"), f"$.edges[{index}].evidence"))
+
+    if isinstance(references, list):
+        for index, reference in enumerate(references):
+            if not isinstance(reference, dict):
+                continue
+            url = reference.get("url")
+            if isinstance(url, str) and not url.startswith("https://"):
+                errors.append(f"$.references[{index}].url: reference URL must use https")
+            boundary = reference.get("boundary")
+            if isinstance(boundary, str) and not boundary.strip():
+                errors.append(f"$.references[{index}].boundary: boundary must not be empty")
+
+    boundaries = payload.get("boundaries")
+    if isinstance(boundaries, list):
+        for index, boundary in enumerate(boundaries):
+            if not isinstance(boundary, str) or not boundary.strip():
+                errors.append(f"$.boundaries[{index}]: boundary must be a non-empty string")
+
+    return errors
+
+
 def validate_payload(payload: dict, contract_root: str) -> tuple[str, list[str]]:
     schema_id = payload.get("schema")
     if not schema_id:
         raise ContractError('payload has no "schema" field to look up a contract by')
     schema = load_schema(schema_id, contract_root)
-    return schema_id, validate_instance(payload, schema)
+    errors = validate_instance(payload, schema)
+    if schema_id == "simplicio.ecosystem-graph/v1":
+        errors.extend(validate_ecosystem_graph_semantics(payload))
+    return schema_id, errors
 
 
 def validate_file(path: str, contract_root: str) -> tuple[str, list[str]]:
@@ -148,8 +264,6 @@ def run_doctor_cli(argv: list[str]) -> int:
 
     overall_ok = True
 
-    # 1. mapper-artifacts/v1 (issue #157) -- reuse contract.py's own root/fixtures
-    #    AND its own validate_file (different SCHEMA_FILENAMES map than ecosystem/v1).
     try:
         from .contract import find_contract_root
         from .contract import validate_file as mapper_validate_file
@@ -167,7 +281,6 @@ def run_doctor_cli(argv: list[str]) -> int:
         print(f"::error::[mapper-artifacts/v1] {error}", flush=True)
         overall_ok = False
 
-    # 2. ecosystem/v1 (issue #164) -- new schemas + fixtures.
     try:
         eco_root = find_ecosystem_contract_root()
         eco_fixtures = os.path.join(eco_root, "fixtures")
