@@ -109,6 +109,22 @@ class DriftTest(unittest.TestCase):
         payload = json.loads(out.getvalue())
         self.assertFalse(payload["score"]["pass"])
 
+    def test_product_scope_is_separate_from_template_scope(self) -> None:
+        app_dir = self.dir / "scoped"
+        _write(app_dir, "package.json", json.dumps({"name": "scoped-app"}))
+        _write(app_dir, ".specs/product/VISION.md", "A filled product vision.\n")
+        _write(app_dir, "docs/template.md", "Use <PRODUCT_NAME> here.\n")
+        _write(app_dir, "template-manifest.json", json.dumps({
+            "product_paths": [".specs/product/VISION.md"],
+            "template_paths": ["docs/template.md"],
+        }))
+        product = build_spec_drift(str(app_dir), scope="product", threshold=0)
+        template = build_spec_drift(str(app_dir), scope="template", threshold=0)
+        self.assertTrue(product["score"]["pass"])
+        self.assertEqual(product["scope"], "product")
+        self.assertEqual(len(template["findings"]), 1)
+        self.assertEqual(template["findings"][0]["target"], "docs/template.md")
+
 
 if __name__ == "__main__":
     unittest.main()

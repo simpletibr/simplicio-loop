@@ -43,7 +43,7 @@ recomendação errada de "depreciar o npm inteiro"):
   **ativamente mantido** — não é candidato a depreciação.
 - **(b) O engine do mapper** — os comandos `map`/`update`/`index`/etc. que
   produzem `.simplicio/*.json`. Historicamente existiam **duas
-  implementações paralelas**: `simplicio_mapper/mapper.py` (Python) e
+  implementações paralelas**: o pacote `simplicio_mapper` (Python) e
   `bin/mapper-artifacts.js` (Node, dentro do mesmo pacote npm). A ADR-005
   (issue #158) já tornou Python a fonte de verdade pra este engine
   especificamente, com Node fazendo *shim* pra ele quando disponível.

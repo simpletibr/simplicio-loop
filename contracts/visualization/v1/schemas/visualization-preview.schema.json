@@ -1,0 +1,22 @@
+{
+  "$id": "simplicio.visualization-preview/v1",
+  "title": "Bounded read-only source preview",
+  "type": "object",
+  "required": ["schema", "version", "path", "language", "encoding", "line_start", "line_end", "content", "truncated", "revision_fingerprint", "read_only"],
+  "properties": {
+    "schema": {"type": "string", "enum": ["simplicio.visualization-preview/v1"]},
+    "version": {"type": "integer"},
+    "path": {"type": "string"},
+    "entity_id": {"type": ["string", "null"]},
+    "symbol": {"type": ["string", "null"]},
+    "language": {"type": "string"},
+    "encoding": {"type": "string", "enum": ["utf-8"]},
+    "line_start": {"type": "integer"},
+    "line_end": {"type": "integer"},
+    "content": {"type": "string"},
+    "truncated": {"type": "boolean"},
+    "revision_fingerprint": {"type": "string"},
+    "sensitivity_warning": {"type": ["string", "null"]},
+    "read_only": {"type": "boolean", "enum": [true]}
+  }
+}

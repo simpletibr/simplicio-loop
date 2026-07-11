@@ -59,6 +59,7 @@ from ._repo_commands import (
     _run_history,
     _run_survey,
     _run_sync,
+    _run_visualize,
 )
 from ._screens import _run_screens
 from ._status_engine import _run_handoff, _run_inspect, _run_macro, _run_scan, _run_status
@@ -103,6 +104,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_inspect(opts)
     if opts["command"] == "handoff":
         return _run_handoff(opts)
+    if opts["command"] == "orient":
+        from ..orient import run_orientation_cli
+
+        return run_orientation_cli(opts)
     if opts["command"] == "endpoints":
         return _run_endpoints(opts)
     if opts["command"] == "screens":
@@ -111,6 +116,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_flowchart(opts)
     if opts["command"] == "flows":
         return _run_flows(opts)
+    if opts["command"] == "visualize":
+        return _run_visualize(opts)
+    if opts["command"] == "preview":
+        from ..visualization import run_preview_cli
+
+        return run_preview_cli(opts)
     if opts["command"] == "sync":
         return _run_sync(opts)
     if opts["command"] == "history":

@@ -12,6 +12,8 @@ else that reads `.simplicio/*.json`):
 | Symbol table | `.simplicio/symbol-index.json` | `simplicio.symbol-index/v1` |
 | calls/imports edges | `.simplicio/call-graph.json` | `simplicio.call-graph/v1` |
 | `index --json` result | (stdout of `simplicio-mapper index <path> --json`) | `simplicio.mapper-index/v1` |
+| Renderer-neutral visualization bundle | `.simplicio/visualization-bundle.json` / fixture | `simplicio.visualization-bundle/v1` |
+| Bounded read-only source preview | `simplicio-mapper preview <path>` JSON | `simplicio.visualization-preview/v1` |
 
 Before this issue, that shape was implicit — whatever `simplicio_mapper/mapper.py`
 happened to emit. This directory makes it an explicit, versioned contract:
@@ -85,6 +87,11 @@ simplicio-mapper contract validate <path> [<path> ...]
 simplicio-mapper contract validate contracts/mapper-artifacts/v1/fixtures/python-minimal/artifacts
 simplicio-mapper contract validate .simplicio/project-map.json
 ```
+
+Visualization bundles and preview payloads use the same validator. `preview`
+never writes files and denies out-of-root, symlink, binary, secret-like,
+generated, vendored and ignored paths by default. Full content requires an
+explicit opt-in and carries a sensitivity warning.
 
 Paths may be files or directories (directories are walked recursively for
 `*.json`). Each file's own `"schema"` field selects which schema validates it;

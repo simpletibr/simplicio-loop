@@ -75,6 +75,18 @@ jobs:
       - name: Token/context budget guard (issue #174)
         run: python3 scripts/token_budget.py --check
 
+      - name: Behavioral corpus scorecard (issue #182)
+        run: python scripts/behavioral_scorecard.py --json > behavioral-scorecard.json
+
+      - name: Publish behavioral scorecard
+        uses: actions/upload-artifact@v4
+        with:
+          name: behavioral-scorecard-py${{ matrix.python-version }}
+          path: behavioral-scorecard.json
+
+      - name: Product-scope drift gate (issue #184)
+        run: python -m simplicio_mapper.cli drift . --scope product --check --threshold 0 --json > product-drift.json
+
   rust-tests:
     name: cargo test (PyO3 crate)
     runs-on: ubuntu-latest

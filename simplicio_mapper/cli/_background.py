@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import threading
 import time
 
 from ..mapper import write_architecture_docs
@@ -15,6 +16,7 @@ from ._index_engine import (
     _freshness_signature,
     _index_result,
     _lock_path,
+    _process_start_token,
     _read_index_state,
     _release_index_lock,
     _run_once,
@@ -55,10 +57,15 @@ def _spawn_background_index(opts: dict) -> dict:
             stderr=subprocess.STDOUT,
             start_new_session=True,
         )
+    # Keep the Popen object alive until the detached child exits. Besides
+    # reaping it, this prevents Python's Windows ResourceWarning from closing
+    # a still-active process handle during object finalization.
+    threading.Thread(target=child.wait, name=f"simplicio-index-{child.pid}", daemon=True).start()
     return {
         "schema": "simplicio.background-index/v1",
         "status": "started",
         "pid": child.pid,
+        "process_start": _process_start_token(child.pid) or "unknown",
         "log": log_path.replace(os.sep, "/"),
     }
 

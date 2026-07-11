@@ -48,18 +48,18 @@ class NativeAskDelegationTest(unittest.TestCase):
         _write(
             self.dir,
             "src/main.py",
-            "from src.writer import persist\n"
-            "def main():\n"
-            "    persist()\n",
+            "from src.writer import persist\ndef main():\n    persist()\n",
         )
         _write(
             self.dir,
             "src/writer.py",
-            "def persist():\n"
-            "    with open('out.json', 'w') as handle:\n"
-            "        handle.write('{}')\n",
+            "def persist():\n    with open('out.json', 'w') as handle:\n        handle.write('{}')\n",
         )
-        _write(self.dir, "tests/test_writer.py", "from src.writer import persist\n\ndef test_persist():\n    persist()\n")
+        _write(
+            self.dir,
+            "tests/test_writer.py",
+            "from src.writer import persist\n\ndef test_persist():\n    persist()\n",
+        )
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
@@ -101,7 +101,18 @@ class NativeAskDelegationTest(unittest.TestCase):
             payload = run_query(str(self.dir), verb="impact", arg="src/writer.py")
         self.assertIn("affected_flows", payload["results"])
         self.assertGreaterEqual(len(payload["results"]["affected_flows"]), 1)
-        self.assertFalse(self._ledger_path().exists(), "no savings event should be recorded on a local fallback")
+        self.assertFalse(
+            self._ledger_path().exists(), "no savings event should be recorded on a local fallback"
+        )
+        self.assertEqual(payload["delegation"]["reason"], "binary_missing")
+
+    def test_homonymous_agent_binary_is_rejected_before_delegation(self) -> None:
+        os.environ["FAKE_SIMPLICIO_MODE"] = "agent-homonym"
+        with mock.patch("simplicio_mapper.query.shutil.which", side_effect=self._which_fake):
+            payload = run_query(str(self.dir), verb="impact", arg="src/writer.py")
+        self.assertEqual(payload["source"], "local-python")
+        self.assertFalse(payload["delegation"]["used"])
+        self.assertEqual(payload["delegation"]["reason"], "identity_mismatch")
 
     def test_impact_kill_switch_forces_local_even_when_binary_present(self) -> None:
         os.environ["SIMPLICIO_MAPPER_NO_RUNTIME_IMPACT"] = "1"
@@ -134,6 +145,14 @@ class NativeAskDelegationTest(unittest.TestCase):
         with mock.patch("simplicio_mapper.query.shutil.which", side_effect=self._which_fake):
             payload = run_query(str(self.dir), verb="tests-for", arg="src/writer.py")
         self.assertEqual(payload["results"], ["tests/test_fake.py"])
+        self.assertEqual(
+            payload["delegation"],
+            {
+                "runtime": "simplicio-runtime",
+                "used": True,
+                "reason": "delegated",
+            },
+        )
 
     def test_tests_for_records_savings_event_on_native_hit(self) -> None:
         with mock.patch("simplicio_mapper.query.shutil.which", side_effect=self._which_fake):

@@ -98,7 +98,7 @@ class ContractRootAndSchemaLoadingTest(unittest.TestCase):
         with self.assertRaises(ContractError):
             load_schema("simplicio.does-not-exist/v1", CONTRACT_ROOT)
 
-    def test_all_six_schemas_load(self) -> None:
+    def test_mapper_and_visualization_schemas_load(self) -> None:
         for schema_id in [
             "simplicio.project-map/v1",
             "simplicio.precedent-index/v1",
@@ -106,6 +106,8 @@ class ContractRootAndSchemaLoadingTest(unittest.TestCase):
             "simplicio.symbol-index/v1",
             "simplicio.call-graph/v1",
             "simplicio.mapper-index/v1",
+            "simplicio.visualization-bundle/v1",
+            "simplicio.visualization-preview/v1",
         ]:
             schema = load_schema(schema_id, CONTRACT_ROOT)
             self.assertEqual(schema.get("$id"), schema_id)

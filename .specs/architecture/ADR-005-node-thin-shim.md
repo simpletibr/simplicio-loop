@@ -24,7 +24,7 @@
 
 ## Contexto
 
-`simplicio_mapper/mapper.py` (1830 linhas) é a implementação canônica do
+`simplicio_mapper/mapper` package é a implementação canônica do
 mapper. `bin/mapper-artifacts.js` (945 linhas) é uma **reimplementação
 completa em JS** do mesmo parsing/graph/emit, mantida manualmente em
 paridade via `tests/python/test_parity.py` (issue #98) — toda mudança de
@@ -87,7 +87,7 @@ validada (testes reais rodados, não apenas raciocínio):
 
 ### Quem é dono / mantenedor
 
-`simplicio_mapper/cli.py` (Python) é a fonte de verdade daqui em diante
+`simplicio_mapper/cli/__init__.py` (Python) é a fonte de verdade daqui em diante
 para o comportamento de `map`/`update`. `bin/map.js` +
 `bin/mapper-artifacts.js` são mantidos apenas como fallback — mudanças de
 comportamento no mapper só precisam ser escritas uma vez em Python; o
@@ -135,7 +135,7 @@ paralelo").
 - O shim é **transparente para os testes de paridade existentes**: os
   campos que `tests/unit/mapping-artifacts.test.js` verifica
   (`update_mode`, `changed_files`, `recent_changes`, `git_status`) já
-  existem igualmente em `simplicio_mapper/mapper.py` — não foi necessário
+  existem igualmente no pacote `simplicio_mapper` — não foi necessário
   mudar nenhuma asserção desses testes Node para o shim passar.
 
 ---
@@ -182,7 +182,7 @@ paralelo").
 
 - Issue: https://github.com/wesleysimplicio/simplicio-mapper/issues/158
 - `bin/cli.js` (dispatch do shim), `bin/map.js`/`bin/mapper-artifacts.js`
-  (fallback Node), `simplicio_mapper/cli.py` (fonte de verdade)
+  (fallback Node), `simplicio_mapper/cli/__init__.py` (fonte de verdade)
 - `tests/python/test_parity.py` (issue #98, reforçado por esta ADR)
 - ADRs relacionados: nenhum diretamente; ver `SIMPLICIO_INTEGRATION.md`
   para o contrato de artefatos que ambos os lados precisam respeitar.

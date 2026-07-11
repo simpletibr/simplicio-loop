@@ -32,7 +32,13 @@ SCHEMA_FILENAMES = {
     "simplicio.architecture-inventory/v1": "architecture-inventory.schema.json",
     "simplicio.symbol-index/v1": "symbol-index.schema.json",
     "simplicio.call-graph/v1": "call-graph.schema.json",
+    "simplicio.task-intent/v1": "task-intent.schema.json",
+    "simplicio.task-context/v1": "task-context.schema.json",
+    "simplicio.task-batch/v1": "task-batch.schema.json",
+    "simplicio.task-traceability/v1": "task-traceability.schema.json",
     "simplicio.mapper-index/v1": "mapper-index.schema.json",
+    "simplicio.visualization-bundle/v1": "visualization-bundle.schema.json",
+    "simplicio.visualization-preview/v1": "visualization-preview.schema.json",
 }
 
 _PY_TYPE_NAMES = {
@@ -72,9 +78,10 @@ def find_contract_root(start: str | None = None) -> str:
     candidates.append(os.path.dirname(package_dir))
 
     for candidate in candidates:
-        root = os.path.join(candidate, "contracts", "mapper-artifacts", CONTRACT_VERSION)
-        if os.path.isdir(os.path.join(root, "schemas")):
-            return root
+        for contract_name in ("mapper-artifacts", "visualization"):
+            root = os.path.join(candidate, "contracts", contract_name, CONTRACT_VERSION)
+            if os.path.isdir(os.path.join(root, "schemas")):
+                return root
     raise ContractError(
         "could not locate contracts/mapper-artifacts/v1/schemas/ from "
         f"{start or os.getcwd()} or its parents. Run this from within a "
@@ -89,7 +96,22 @@ def load_schema(schema_id: str, contract_root: str) -> dict:
         raise ContractError(
             f'unknown schema id "{schema_id}" (known: {sorted(SCHEMA_FILENAMES)})'
         )
-    path = os.path.join(contract_root, "schemas", filename)
+    schema_dir = os.path.join(contract_root, "schemas")
+    if schema_id.startswith("simplicio.task-"):
+        schema_dir = os.path.join(
+            os.path.dirname(os.path.dirname(contract_root)),
+            "task-orientation",
+            CONTRACT_VERSION,
+            "schemas",
+        )
+    if schema_id.startswith("simplicio.visualization-"):
+        schema_dir = os.path.join(
+            os.path.dirname(os.path.dirname(contract_root)),
+            "visualization",
+            CONTRACT_VERSION,
+            "schemas",
+        )
+    path = os.path.join(schema_dir, filename)
     if not os.path.isfile(path):
         raise ContractError(f"schema file missing: {path}")
     with open(path, encoding="utf-8") as handle:

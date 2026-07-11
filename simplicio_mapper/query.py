@@ -15,7 +15,9 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from collections import deque
+from functools import lru_cache
 from typing import Any
 
 from .docsync import _flows_touching, _scan_manual_docs_for_references, _symbols_for_files
@@ -35,6 +37,7 @@ VERBS = ("callers", "callees", "reaches", "impact", "flows", "rules", "tests-for
 _PRECEDENT_RUNTIME_BINARY = "simplicio"
 _PRECEDENT_NO_RUNTIME_ENV = "SIMPLICIO_MAPPER_NO_RUNTIME_PRECEDENT"
 _PRECEDENT_TOP_N = 5
+_PRECEDENT_SCHEMA = "simplicio.precedent-search/v1"
 
 # `impact` and `tests-for` are native-first too (issue #174), same pattern as
 # `precedent` above: shell out to the `simplicio` runtime binary when it is
@@ -52,6 +55,91 @@ _ASK_NATIVE_VERBS = {
     "impact": "SIMPLICIO_MAPPER_NO_RUNTIME_IMPACT",
     "tests-for": "SIMPLICIO_MAPPER_NO_RUNTIME_TESTS_FOR",
 }
+_RUNTIME_VERSION_PREFIX = "Simplicio Runtime "
+_RUNTIME_CAPABILITY_SCHEMA = "simplicio.capability-list/v1"
+_RUNTIME_MAPPER_CAPABILITY = "simplicio-mapper"
+
+
+def _runtime_argv(binary: str, *args: str) -> list[str]:
+    # Test/runtime shims can be Python scripts; Windows cannot exec their
+    # shebang directly, so invoke them through the current interpreter.
+    prefix = [sys.executable, binary] if binary.lower().endswith(".py") else [binary]
+    return [*prefix, *args]
+
+
+def _json_object_from_output(text: str, schema: str) -> dict | None:
+    """Find a schema-matching JSON object in output that may contain progress lines."""
+    for line in reversed(text.splitlines()):
+        try:
+            payload = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(payload, dict) and payload.get("schema") == schema:
+            return payload
+    return None
+
+
+def _validated_runtime_binary(binary: str) -> tuple[bool, str]:
+    """Reject homonymous ``simplicio`` executables before native delegation."""
+    try:
+        version = subprocess.run(
+            _runtime_argv(binary, "--version"),
+            capture_output=True,
+            text=True,
+            timeout=3,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False, "identity_probe_failed"
+    if version.returncode != 0 or not version.stdout.strip().startswith(_RUNTIME_VERSION_PREFIX):
+        return False, "identity_mismatch"
+    try:
+        capabilities = subprocess.run(
+            _runtime_argv(binary, "capabilities", "list", "--json"),
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False, "capability_probe_failed"
+    if capabilities.returncode != 0:
+        return False, "capability_probe_failed"
+    payload = _json_object_from_output(capabilities.stdout, _RUNTIME_CAPABILITY_SCHEMA)
+    if payload is None:
+        return False, "capability_schema_mismatch"
+    items = payload.get("items")
+    if not isinstance(items, list) or not any(
+        isinstance(item, dict)
+        and item.get("id") == _RUNTIME_MAPPER_CAPABILITY
+        and item.get("status") in ("available", "installed")
+        for item in items
+    ):
+        return False, "mapper_capability_missing"
+    return True, "validated"
+
+
+@lru_cache(maxsize=8)
+def _cached_runtime_validation(binary: str, mtime_ns: int, size: int) -> tuple[bool, str]:
+    del mtime_ns, size  # Cache invalidators, not probe inputs.
+    return _validated_runtime_binary(binary)
+
+
+def _runtime_target(binary_name: str) -> tuple[str | None, str]:
+    binary = shutil.which(binary_name)
+    if not binary:
+        return None, "binary_missing"
+    try:
+        stat = os.stat(binary)
+    except OSError:
+        valid, reason = _validated_runtime_binary(binary)
+    else:
+        # Python development shims stay uncached so their controlled test
+        # modes remain observable; installed executables are re-probed only
+        # when mtime or size changes.
+        if binary.lower().endswith(".py"):
+            valid, reason = _validated_runtime_binary(binary)
+        else:
+            valid, reason = _cached_runtime_validation(binary, stat.st_mtime_ns, stat.st_size)
+    return (binary, "validated") if valid else (None, reason)
 
 
 def _edge_view(edge: dict) -> dict:
@@ -80,7 +168,8 @@ def _resolve_symbol_name(symbol_index: dict, name: str) -> str:
 
 def _callers(call_graph: dict, name: str, limit: int) -> tuple[list[dict], int]:
     matches = [
-        edge for edge in call_graph.get("edges", [])
+        edge
+        for edge in call_graph.get("edges", [])
         if edge.get("type") == "calls" and edge.get("target_symbol") == name
     ]
     matches.sort(key=lambda e: (e.get("source_file") or "", e.get("line") or 0))
@@ -89,7 +178,8 @@ def _callers(call_graph: dict, name: str, limit: int) -> tuple[list[dict], int]:
 
 def _callees(call_graph: dict, name: str, limit: int) -> tuple[list[dict], int]:
     matches = [
-        edge for edge in call_graph.get("edges", [])
+        edge
+        for edge in call_graph.get("edges", [])
         if edge.get("type") == "calls" and edge.get("source_symbol") == name
     ]
     matches.sort(key=lambda e: (e.get("target_file") or "", e.get("target_symbol") or ""))
@@ -170,7 +260,7 @@ def _tokenize(text: str) -> set[str]:
     return {token for token in re.findall(r"[a-z0-9]+", text.lower()) if token}
 
 
-def _runtime_precedent_search(cwd: str, text: str, top_n: int) -> dict | None:
+def _runtime_precedent_search(cwd: str, text: str, top_n: int) -> tuple[dict | None, str]:
     """Shell out to the `simplicio` runtime's precedent search (SQLite/FTS5
     lexical ranking + a git-apply dry-run reuse-safety check).
 
@@ -180,31 +270,39 @@ def _runtime_precedent_search(cwd: str, text: str, top_n: int) -> dict | None:
     local fallback. Never raises.
     """
     if os.environ.get(_PRECEDENT_NO_RUNTIME_ENV):
-        return None
-    binary = shutil.which(_PRECEDENT_RUNTIME_BINARY)
+        return None, "kill_switch"
+    binary, reason = _runtime_target(_PRECEDENT_RUNTIME_BINARY)
     if not binary:
-        return None
+        return None, reason
     try:
         result = subprocess.run(
-            [binary, "precedent", "search", "--repo", cwd, "--text", text, "--top", str(top_n), "--json"],
+            _runtime_argv(
+                binary,
+                "precedent",
+                "search",
+                "--repo",
+                cwd,
+                "--text",
+                text,
+                "--top",
+                str(top_n),
+                "--json",
+            ),
             capture_output=True,
             text=True,
             timeout=10,
         )
     except (OSError, subprocess.SubprocessError):
-        return None
+        return None, "command_failed"
     if result.returncode != 0:
-        return None
-    try:
-        payload = json.loads(result.stdout)
-    except ValueError:
-        return None
-    if not isinstance(payload, dict) or "candidates" not in payload:
-        return None
-    return payload
+        return None, "command_failed"
+    payload = _json_object_from_output(result.stdout, _PRECEDENT_SCHEMA)
+    if payload is None or not isinstance(payload.get("candidates"), list):
+        return None, "invalid_response_schema"
+    return payload, "delegated"
 
 
-def _runtime_ask_query(cwd: str, verb: str, arg: str, limit: int) -> dict | None:
+def _runtime_ask_query(cwd: str, verb: str, arg: str, limit: int) -> tuple[dict | None, str]:
     """Shell out to the `simplicio` runtime binary for a native `ask <verb>`
     answer (`impact`/`tests-for` only, issue #174 -- same pattern as
     ``_runtime_precedent_search`` above).
@@ -217,34 +315,34 @@ def _runtime_ask_query(cwd: str, verb: str, arg: str, limit: int) -> dict | None
     """
     env_var = _ASK_NATIVE_VERBS.get(verb)
     if env_var is None:
-        return None
+        return None, "unsupported_verb"
     if os.environ.get(env_var):
-        return None
+        return None, "kill_switch"
     if not arg:
-        return None
-    binary = shutil.which(_ASK_RUNTIME_BINARY)
+        return None, "missing_argument"
+    binary, reason = _runtime_target(_ASK_RUNTIME_BINARY)
     if not binary:
-        return None
+        return None, reason
     try:
         result = subprocess.run(
-            [binary, "ask", verb, "--repo", cwd, "--arg", arg, "--limit", str(limit), "--json"],
+            _runtime_argv(binary, "ask", verb, "--repo", cwd, "--arg", arg, "--limit", str(limit), "--json"),
             capture_output=True,
             text=True,
             timeout=10,
         )
     except (OSError, subprocess.SubprocessError):
-        return None
+        return None, "command_failed"
     if result.returncode != 0:
-        return None
+        return None, "command_failed"
     try:
         payload = json.loads(result.stdout)
     except ValueError:
-        return None
+        return None, "invalid_response_json"
     if not isinstance(payload, dict) or payload.get("schema") != ASK_SCHEMA:
-        return None
+        return None, "invalid_response_schema"
     if "results" not in payload or "total" not in payload:
-        return None
-    return payload
+        return None, "invalid_response_schema"
+    return payload, "delegated"
 
 
 def _record_ask_native_savings(cwd: str, verb: str, baseline_tokens: int, payload: dict, note: str) -> None:
@@ -334,21 +432,31 @@ def run_query(
         matches, total = _reaches(call_graph, arg or "", depth, limit)
         payload = {"results": matches, "total": total}
     elif verb == "impact":
-        native = _runtime_ask_query(abs_cwd, "impact", arg or "", limit)
+        native, delegation_reason = _runtime_ask_query(abs_cwd, "impact", arg or "", limit)
         if native is not None:
             payload = {"results": native["results"], "total": native["total"], "source": "runtime-ask-impact"}
             baseline = estimate_tokens(
                 json.dumps(artifacts.get("call_graph"), sort_keys=True)
             ) + estimate_tokens(json.dumps(artifacts.get("symbol_index"), sort_keys=True))
             _record_ask_native_savings(
-                abs_cwd, "impact", baseline, payload,
+                abs_cwd,
+                "impact",
+                baseline,
+                payload,
                 note="baseline=call_graph+symbol_index the LLM/loop would otherwise have to read "
-                     "to answer 'what does changing this file affect' manually; method=heuristic:chars-div-4",
+                "to answer 'what does changing this file affect' manually; method=heuristic:chars-div-4",
             )
         else:
             impact = _impact(abs_cwd, artifacts, [arg] if arg else [])
-            total = len(impact["affected_symbols"]) + len(impact["affected_flows"]) + len(impact["needs_review"])
+            total = (
+                len(impact["affected_symbols"]) + len(impact["affected_flows"]) + len(impact["needs_review"])
+            )
             payload = {"results": impact, "total": total, "source": "local-python"}
+        payload["delegation"] = {
+            "runtime": "simplicio-runtime",
+            "used": native is not None,
+            "reason": delegation_reason,
+        }
     elif verb == "flows":
         flow_inventory = build_flow_inventory(abs_cwd, artifacts)
         flows = flow_inventory["flows"]
@@ -356,23 +464,38 @@ def run_query(
             flows = [f for f in flows if any(e["type"] == effect for e in f["effects"])]
         payload = {"results": flows[:limit], "total": len(flows)}
     elif verb == "tests-for":
-        native = _runtime_ask_query(abs_cwd, "tests-for", arg or "", limit)
+        native, delegation_reason = _runtime_ask_query(abs_cwd, "tests-for", arg or "", limit)
         if native is not None:
-            payload = {"results": native["results"], "total": native["total"], "source": "runtime-ask-tests-for"}
+            payload = {
+                "results": native["results"],
+                "total": native["total"],
+                "source": "runtime-ask-tests-for",
+            }
             test_files = project_map.get("test_files") or []
             baseline = sum(estimate_tokens(_read_text(abs_cwd, f)) for f in test_files)
             _record_ask_native_savings(
-                abs_cwd, "tests-for", baseline, payload,
+                abs_cwd,
+                "tests-for",
+                baseline,
+                payload,
                 note="baseline=full text of every test file the local fallback would otherwise "
-                     "read in full to find matches; method=heuristic:chars-div-4",
+                "read in full to find matches; method=heuristic:chars-div-4",
             )
         else:
             matches, total = _tests_for(abs_cwd, project_map, arg or "", limit)
             payload = {"results": matches, "total": total, "source": "local-python"}
+        payload["delegation"] = {
+            "runtime": "simplicio-runtime",
+            "used": native is not None,
+            "reason": delegation_reason,
+        }
     elif verb == "precedent":
         text = arg or ""
         top_n = min(limit, _PRECEDENT_TOP_N)
-        native = _runtime_precedent_search(abs_cwd, text, top_n) if text else None
+        if text:
+            native, delegation_reason = _runtime_precedent_search(abs_cwd, text, top_n)
+        else:
+            native, delegation_reason = None, "missing_argument"
         if native is not None:
             candidates = native.get("candidates") or []
             results = [_candidate_view(c) for c in candidates[:top_n]]
@@ -383,6 +506,11 @@ def run_query(
             items = artifacts["precedent_index"].get("items") or []
             matches = _local_precedent_fallback(items, text, top_n)
             payload = {"results": matches, "total": len(matches), "source": "local-tag-overlap"}
+        payload["delegation"] = {
+            "runtime": "simplicio-runtime",
+            "used": native is not None,
+            "reason": delegation_reason,
+        }
     elif verb in ("rules", "term"):
         rules_doc = _business_rules(abs_out)
         if rules_doc is None:

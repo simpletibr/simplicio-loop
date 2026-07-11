@@ -1,0 +1,559 @@
+{
+  "capabilities": [
+    "hierarchy",
+    "typed-edges",
+    "flows",
+    "provenance",
+    "source-preview",
+    "language-diagnostics"
+  ],
+  "diagnostics": [
+    {
+      "code": "heuristic-edge",
+      "count": 10
+    },
+    {
+      "code": "unresolved-relation",
+      "count": 0
+    }
+  ],
+  "edges": [
+    {
+      "confidence": 0.58,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "symbol:3361cde5eac8f07e",
+      "source_location": {
+        "line": 4,
+        "path": "tests/test_app.py"
+      },
+      "target": "symbol:3361cde5eac8f07e",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "symbol:3361cde5eac8f07e",
+      "source_location": {
+        "line": 5,
+        "path": "tests/test_app.py"
+      },
+      "target": "symbol:e741da529fd44af9",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "symbol:4199deeec4710ec4",
+      "source_location": {
+        "line": 9,
+        "path": "src/app.py"
+      },
+      "target": "symbol:4199deeec4710ec4",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "symbol:e741da529fd44af9",
+      "source_location": {
+        "line": 4,
+        "path": "src/app.py"
+      },
+      "target": "symbol:e741da529fd44af9",
+      "type": "calls"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:a85f1a65864656fc",
+      "source_location": {
+        "line": 2,
+        "path": "tests/test_app.py"
+      },
+      "target": "symbol:3361cde5eac8f07e",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:de0cfdd56786325d",
+      "source_location": {
+        "line": 1,
+        "path": "src/util.py"
+      },
+      "target": "symbol:42dec2eaeaa31de7",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:ea8e8ed72c3dd881",
+      "source_location": {
+        "line": 7,
+        "path": "src/app.py"
+      },
+      "target": "symbol:4199deeec4710ec4",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:ea8e8ed72c3dd881",
+      "source_location": {
+        "line": 2,
+        "path": "src/app.py"
+      },
+      "target": "symbol:e741da529fd44af9",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:04164df2fbf7cf9b",
+      "source_location": {
+        "path": "src/util.py"
+      },
+      "target": "file:de0cfdd56786325d",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:04164df2fbf7cf9b",
+      "source_location": {
+        "path": "src/app.py"
+      },
+      "target": "file:ea8e8ed72c3dd881",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:5a219264bc5d86e9",
+      "source_location": {
+        "path": "pyproject.toml"
+      },
+      "target": "file:0ea01f10142a8497",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:d7bf31a558a20367",
+      "source_location": {
+        "path": "tests/test_app.py"
+      },
+      "target": "file:a85f1a65864656fc",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:200d3d02a997d8cc",
+      "source_location": null,
+      "target": "flow:89c7fb78e4b83b37",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:200d3d02a997d8cc",
+      "source_location": null,
+      "target": "module:04164df2fbf7cf9b",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:200d3d02a997d8cc",
+      "source_location": null,
+      "target": "module:5a219264bc5d86e9",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:200d3d02a997d8cc",
+      "source_location": null,
+      "target": "module:d7bf31a558a20367",
+      "type": "contains"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:200d3d02a997d8cc",
+      "source_location": null,
+      "target": "layer:38e85a35c031d96f",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:200d3d02a997d8cc",
+      "source_location": null,
+      "target": "layer:516f842e3bcb51a5",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:200d3d02a997d8cc",
+      "source_location": null,
+      "target": "layer:c79aec78748b7816",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:200d3d02a997d8cc",
+      "source_location": null,
+      "target": "layer:f333279cd5d5eb65",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.65,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:a85f1a65864656fc",
+      "source_location": {
+        "path": "tests/test_app.py"
+      },
+      "target": "file:ea8e8ed72c3dd881",
+      "type": "imports"
+    },
+    {
+      "confidence": 0.5,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "flow:89c7fb78e4b83b37",
+      "source_location": {
+        "line": 2,
+        "path": "src/app.py"
+      },
+      "target": "file:ea8e8ed72c3dd881",
+      "type": "transitions-to"
+    }
+  ],
+  "flows": [
+    {
+      "confidence": "heuristic",
+      "effects": [],
+      "entry": {
+        "line": 2,
+        "path": "src/app.py",
+        "symbol": "src/app.py::greet"
+      },
+      "generated_at": "1970-01-01T00:00:00.000Z",
+      "id": "src.app",
+      "kind": "entrypoint",
+      "layers_touched": [
+        "entrypoint"
+      ],
+      "steps": [
+        {
+          "line": 2,
+          "module": "src",
+          "path": "src/app.py",
+          "symbol": "src/app.py::greet"
+        }
+      ]
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "language_diagnostics": [
+    {
+      "confidence": 1.0,
+      "errors": [],
+      "language": "toml",
+      "line_count": 3,
+      "parser_used": "builtin-text",
+      "parser_version": "1",
+      "path": "pyproject.toml",
+      "skipped": false,
+      "unsupported_constructs": []
+    },
+    {
+      "confidence": 0.7,
+      "errors": [],
+      "language": "python",
+      "line_count": 14,
+      "parser_used": "builtin-regex",
+      "parser_version": "1",
+      "path": "src/app.py",
+      "skipped": false,
+      "unsupported_constructs": []
+    },
+    {
+      "confidence": 0.7,
+      "errors": [],
+      "language": "python",
+      "line_count": 2,
+      "parser_used": "builtin-regex",
+      "parser_version": "1",
+      "path": "src/util.py",
+      "skipped": false,
+      "unsupported_constructs": []
+    },
+    {
+      "confidence": 0.7,
+      "errors": [],
+      "language": "python",
+      "line_count": 5,
+      "parser_used": "builtin-regex",
+      "parser_version": "1",
+      "path": "tests/test_app.py",
+      "skipped": false,
+      "unsupported_constructs": []
+    }
+  ],
+  "mapper_version": "0.19.0",
+  "nodes": [
+    {
+      "canonical": "pyproject.toml",
+      "id": "file:0ea01f10142a8497",
+      "kind": "file",
+      "language": "toml",
+      "metrics": {
+        "size_bytes": 51
+      },
+      "name": "pyproject.toml",
+      "parent_id": "module:5a219264bc5d86e9",
+      "path": "pyproject.toml"
+    },
+    {
+      "canonical": "src/app.py",
+      "id": "file:ea8e8ed72c3dd881",
+      "kind": "file",
+      "language": "python",
+      "metrics": {
+        "size_bytes": 235
+      },
+      "name": "app.py",
+      "parent_id": "module:04164df2fbf7cf9b",
+      "path": "src/app.py"
+    },
+    {
+      "canonical": "src/util.py",
+      "id": "file:de0cfdd56786325d",
+      "kind": "file",
+      "language": "python",
+      "metrics": {
+        "size_bytes": 49
+      },
+      "name": "util.py",
+      "parent_id": "module:04164df2fbf7cf9b",
+      "path": "src/util.py"
+    },
+    {
+      "canonical": "tests/test_app.py",
+      "id": "file:a85f1a65864656fc",
+      "kind": "file",
+      "language": "python",
+      "metrics": {
+        "size_bytes": 83
+      },
+      "name": "test_app.py",
+      "parent_id": "module:d7bf31a558a20367",
+      "path": "tests/test_app.py"
+    },
+    {
+      "canonical": "src.app",
+      "confidence": 0.5,
+      "id": "flow:89c7fb78e4b83b37",
+      "kind": "flow",
+      "metrics": {},
+      "name": "src.app",
+      "parent_id": "repository:200d3d02a997d8cc",
+      "path": null
+    },
+    {
+      "canonical": "code",
+      "confidence": 0.7,
+      "id": "layer:516f842e3bcb51a5",
+      "kind": "layer",
+      "metrics": {},
+      "name": "code",
+      "parent_id": "repository:200d3d02a997d8cc",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": "config",
+      "confidence": 0.7,
+      "id": "layer:c79aec78748b7816",
+      "kind": "layer",
+      "metrics": {},
+      "name": "config",
+      "parent_id": "repository:200d3d02a997d8cc",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": "entrypoint",
+      "confidence": 0.7,
+      "id": "layer:f333279cd5d5eb65",
+      "kind": "layer",
+      "metrics": {},
+      "name": "entrypoint",
+      "parent_id": "repository:200d3d02a997d8cc",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": "test",
+      "confidence": 0.7,
+      "id": "layer:38e85a35c031d96f",
+      "kind": "layer",
+      "metrics": {},
+      "name": "test",
+      "parent_id": "repository:200d3d02a997d8cc",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": ".",
+      "id": "module:5a219264bc5d86e9",
+      "kind": "module",
+      "metrics": {},
+      "name": ".",
+      "parent_id": "repository:200d3d02a997d8cc",
+      "path": null
+    },
+    {
+      "canonical": "src",
+      "id": "module:04164df2fbf7cf9b",
+      "kind": "module",
+      "metrics": {},
+      "name": "src",
+      "parent_id": "repository:200d3d02a997d8cc",
+      "path": null
+    },
+    {
+      "canonical": "tests",
+      "id": "module:d7bf31a558a20367",
+      "kind": "module",
+      "metrics": {},
+      "name": "tests",
+      "parent_id": "repository:200d3d02a997d8cc",
+      "path": null
+    },
+    {
+      "canonical": "https://github.com/wesleysimplicio/simplicio-mapper.git",
+      "id": "repository:200d3d02a997d8cc",
+      "kind": "repository",
+      "metrics": {},
+      "name": "simplicio-mapper",
+      "parent_id": null,
+      "path": null
+    },
+    {
+      "canonical": "src/app.py\u0000src/app.py::greet",
+      "id": "symbol:e741da529fd44af9",
+      "kind": "symbol",
+      "metrics": {
+        "line": 2
+      },
+      "name": "greet",
+      "parent_id": "file:ea8e8ed72c3dd881",
+      "path": "src/app.py"
+    },
+    {
+      "canonical": "src/app.py\u0000src/app.py::main",
+      "id": "symbol:4199deeec4710ec4",
+      "kind": "symbol",
+      "metrics": {
+        "line": 7
+      },
+      "name": "main",
+      "parent_id": "file:ea8e8ed72c3dd881",
+      "path": "src/app.py"
+    },
+    {
+      "canonical": "src/util.py\u0000src/util.py::add",
+      "id": "symbol:42dec2eaeaa31de7",
+      "kind": "symbol",
+      "metrics": {
+        "line": 1
+      },
+      "name": "add",
+      "parent_id": "file:de0cfdd56786325d",
+      "path": "src/util.py"
+    },
+    {
+      "canonical": "tests/test_app.py\u0000tests/test_app.py::test_greet",
+      "id": "symbol:3361cde5eac8f07e",
+      "kind": "symbol",
+      "metrics": {
+        "line": 2
+      },
+      "name": "test_greet",
+      "parent_id": "file:a85f1a65864656fc",
+      "path": "tests/test_app.py"
+    }
+  ],
+  "project": {
+    "id": "repository:200d3d02a997d8cc",
+    "name": "source",
+    "root": "."
+  },
+  "provenance": {
+    "branch": null,
+    "clone_type": "plain-folder",
+    "commit_sha": null,
+    "default_branch": null,
+    "dirty": false,
+    "host": null,
+    "monorepo_roots": [],
+    "owner": null,
+    "remote_url": null,
+    "remotes": [],
+    "repository": "python-minimal",
+    "scan_root": ".",
+    "submodules": []
+  },
+  "schema": "simplicio.visualization-bundle/v1",
+  "schema_version": "v1",
+  "version": 1
+}

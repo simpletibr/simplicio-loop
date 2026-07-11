@@ -1,0 +1,6 @@
+{
+  "tasks": [
+    {"id": "planes-frontend", "task": {"functionality": "Ordenação de linhas da tela de modelagem", "acceptance_criteria": [], "business_rules": []}},
+    {"id": "planes-tests", "depends_on": ["planes-frontend"], "task": {"functionality": "Testes da ordenação de linhas da tela de modelagem", "acceptance_criteria": [], "business_rules": []}}
+  ]
+}

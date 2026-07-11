@@ -6,7 +6,7 @@
     "template_root_paths mirrors bin/cli.js TEMPLATE_PATHS: the payload copied byte-for-byte into host projects by the bootstrap.",
     "product_paths is the subset that also carries this product's OWN filled-in, real content (used as a worked example for INIT.md to refine on the host).",
     "generic_placeholder_paths is the subset whose stated purpose is to remain a fill-in-the-blanks scaffold for any host — never a drift finding.",
-    "known_gaps lists product_paths-shaped files that are NOT yet filled in for this product itself (still carry <PLACEHOLDER> tokens) — legitimate drift findings, not exemptions.",
+    "template_paths is the explicit starter-owned scope; product_paths is the only scope used by the product drift gate.",
     "See .specs/architecture/ADR-004-template-vs-product-content-manifest.md for the decision record (issue #140)."
   ],
   "template_root_paths": [
@@ -24,13 +24,20 @@
     ".specs/architecture/ADR-003-two-tier-async-mapper.md",
     ".specs/architecture/ADR-004-template-vs-product-content-manifest.md",
     ".specs/sprints/BACKLOG.md",
-    ".specs/README.md",
     "docs/apply-edits.md",
+    "docs/readme-globalization-standard.md",
+    "docs/sessionstart-hook.md"
+  ],
+  "template_paths": [
+    ".specs/README.md",
+    ".specs/architecture/DESIGN.md",
+    ".specs/architecture/PATTERNS.md",
+    ".specs/workflow/WORKFLOW.md",
+    ".specs/workflow/CONTRIBUTING.md",
+    ".specs/workflow/RELEASE.md",
     "docs/architecture-map.md",
     "docs/local-setup.md",
     "docs/troubleshooting.md",
-    "docs/readme-globalization-standard.md",
-    "docs/sessionstart-hook.md",
     "docs/features/README.md",
     "docs/evidence/README.md"
   ],
@@ -46,38 +53,5 @@
     "docs/features/login.md",
     "docs/YOOL_TUPLE_HAMT.md"
   ],
-  "known_gaps": [
-    {
-      "path": ".specs/architecture/DESIGN.md",
-      "reason": "still carries <PRODUCT_NAME>/<STACK> template tokens — never filled in for simplicio-mapper itself"
-    },
-    {
-      "path": ".specs/architecture/PATTERNS.md",
-      "reason": "still carries <PRODUCT_NAME> template tokens — never filled in for simplicio-mapper itself"
-    },
-    {
-      "path": ".specs/workflow/WORKFLOW.md",
-      "reason": "still carries <PRODUCT_NAME>/<TEAM>/<DOMAIN>/<STACK> template tokens"
-    },
-    {
-      "path": ".specs/workflow/CONTRIBUTING.md",
-      "reason": "still carries <PRODUCT_NAME>/<DOMAIN>/<STACK>/<TEAM> template tokens"
-    },
-    {
-      "path": ".specs/workflow/RELEASE.md",
-      "reason": "still carries <PRODUCT_NAME>/<DOMAIN>/<STACK>/<TEAM> template tokens"
-    },
-    {
-      "path": "docs/troubleshooting.md",
-      "reason": "still carries <SYMPTOM>/<CAUSE>/<COMMAND_OR_LOG>/<FIX> template tokens in its worked-example section"
-    },
-    {
-      "path": "docs/evidence/README.md",
-      "reason": "still carries a <FRONTEND_URL> template token in its example command"
-    },
-    {
-      "path": ".specs/README.md",
-      "reason": "documents the placeholder convention using the literal tokens as examples — a known limitation of regex-based drift detection, not an actual unfilled placeholder"
-    }
-  ]
+  "known_gaps": []
 }

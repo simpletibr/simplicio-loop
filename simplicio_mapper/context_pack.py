@@ -28,6 +28,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from .mapper import LLM_DIRECTIVES
+from .task_context import apply_task_context, select_context_targets
 
 CONTEXT_PACK_SCHEMA = "simplicio.context-pack/v1"
 MAPPER_INDEX_SCHEMA = "simplicio.mapper-index/v1"
@@ -165,6 +166,12 @@ def build_context_pack(
     project_map: dict | None = None,
     symbol_index: dict | None = None,
     call_graph: dict | None = None,
+    goal: str = "",
+    task_intent: dict[str, Any] | None = None,
+    task_fingerprint: str = "",
+    target: str = "",
+    query_terms: list[str] | None = None,
+    minimum_query_coverage: float = 0.2,
 ) -> dict[str, Any]:
     """Build a `simplicio.context-pack/v1` envelope.
 
@@ -173,6 +180,7 @@ def build_context_pack(
     can be passed in; otherwise the function looks under `.simplicio/` and
     emits `needs_broader_context=True` when any of them is missing.
     """
+    target_rows = list(targets)
     abs_root = os.path.abspath(root)
     base = os.path.join(abs_root, ".simplicio")
     project_map = project_map if project_map is not None else _load_json(os.path.join(base, "project-map.json"))
@@ -195,9 +203,9 @@ def build_context_pack(
     cg_edges = _call_graph_edges(call_graph)
 
     files_out: list[dict] = []
-    for target in targets:
-        path = target["path"]
-        ranges = list(target.get("ranges", []))
+    for target_row in target_rows:
+        path = target_row["path"]
+        ranges = list(target_row.get("ranges", []))
         abs_path = os.path.join(abs_root, path) if not os.path.isabs(path) else path
         if not os.path.exists(abs_path):
             reasons.append(f"target missing: {path}")
@@ -252,7 +260,7 @@ def build_context_pack(
         for selected in entry["ranges"]:
             digest.update(selected["range_hash"].encode("utf-8"))
 
-    return {
+    payload = {
         "schema": CONTEXT_PACK_SCHEMA,
         "repo": {
             "mapper_schema": MAPPER_INDEX_SCHEMA,
@@ -270,6 +278,17 @@ def build_context_pack(
         "needs_broader_context_reason": "; ".join(reasons) if reasons else "",
         "llm_directives": LLM_DIRECTIVES,
     }
+    return apply_task_context(
+        payload,
+        target_rows=target_rows,
+        project_map=project_map,
+        goal=goal,
+        task_intent=task_intent,
+        task_fingerprint=task_fingerprint,
+        target=target,
+        query_terms=query_terms,
+        minimum_query_coverage=minimum_query_coverage,
+    )
 
 
 __all__ = [
@@ -278,4 +297,5 @@ __all__ = [
     "LLM_DIRECTIVES",
     "MAPPER_INDEX_SCHEMA",
     "build_context_pack",
+    "select_context_targets",
 ]

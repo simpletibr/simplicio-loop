@@ -40,9 +40,10 @@ without a corresponding update here. **Convention to keep them in sync:**
    installed. That is the "reusable by dev-cli/loop" story for this contract
    today: **vendored copy of the schemas + vendored copy of the validator
    script**, not a shared installed dependency.
-4. There is no CI check today that catches drift *across* repos (only within
-   this repo, against the fixtures below). If a real shared package for this
-   becomes worth the coordination cost later, that supersedes this note.
+4. `scripts/cross_repo_conformance.py` is the live check for this repository:
+   it runs the mapper producer, the installed/local dev-cli consumer, and the
+   loop repository's real contract producer check. A passing local fixture
+   check is reported separately from this cross-repo result.
 
 ## Layout
 

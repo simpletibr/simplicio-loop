@@ -108,7 +108,7 @@ Negativas:
 ## Plano de adoção
 
 1. ✅ Add `rust/` crate with PyO3 bindings, Cargo.toml, maturin pyproject.toml,
-   README and `src/lib.rs` implementing `sha256_hex` + `parse_imports`.
+   README and `rust/src/lib.rs` implementing `sha256_hex` + `parse_imports`.
 2. ✅ Add `simplicio_mapper._native` shim exposing `HAS_NATIVE` + functions.
 3. ✅ Route `mapper._sha256` and `mapper._parse_imports` through the shim with
    pure-Python fallback.
