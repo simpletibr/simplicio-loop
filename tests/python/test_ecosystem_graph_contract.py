@@ -6,6 +6,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -158,9 +159,8 @@ class CanvasCompatibilityProjectionTest(unittest.TestCase):
         self.assertIn("simplicio.ecosystem-graph/v1", result.stdout)
 
     def test_standalone_validator_rejects_semantic_tamper(self) -> None:
-        tampered = json.loads(json.dumps(self.graph if hasattr(self, "graph") else json.loads(GRAPH_FILE.read_text(encoding="utf-8"))))
+        tampered = json.loads(GRAPH_FILE.read_text(encoding="utf-8"))
         tampered["edges"][0]["to"] = "missing-repository"
-        import tempfile
 
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "tampered.json"
