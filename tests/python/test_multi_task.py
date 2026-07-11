@@ -201,3 +201,92 @@ def test_build_batch_preview_rejects_ambiguous_or_unknown_dependencies():
                 ]
             }
         )
+
+
+def test_batch_drain_executes_ready_items_deterministically_and_stabilizes_empty_rounds(tmp_path):
+    batch = TaskBatch.create(
+        tmp_path / "drain.json",
+        [
+            {"id": "A"},
+            {"id": "B", "depends_on": ["A"]},
+            {"id": "C"},
+        ],
+        source_hash="source",
+        plan_hash="plan",
+        base_sha="base",
+    )
+    calls: list[str] = []
+
+    def executor(task):
+        calls.append(task["id"])
+        return {
+            "status": "passed",
+            "cost_usd": {"A": 0.25, "B": 0.5, "C": 0.75}[task["id"]],
+            "receipt": {"status": "MEASURED", "task_id": task["id"]},
+        }
+
+    first = batch.drain(executor, empty_rounds=2)
+
+    assert calls == ["A", "C", "B"]
+    assert first["executed"] == ["A", "C", "B"]
+    assert first["quarantined"] == []
+    assert first["rounds"] == 4
+    assert first["empty_rounds"] == 2
+    assert first["counts"]["passed"] == 3
+    assert first["cost_usd"] == 1.5
+    assert first["run_cost_usd"] == 1.5
+    assert [task["attempts"] for task in first["tasks"]] == [1, 1, 1]
+    assert [task["cost_usd"] for task in first["tasks"]] == [0.25, 0.5, 0.75]
+
+    second = batch.drain(executor, empty_rounds=2)
+
+    assert calls == ["A", "C", "B"]
+    assert second["executed"] == []
+    assert second["quarantined"] == []
+    assert second["rounds"] == 2
+    assert second["empty_rounds"] == 2
+    assert second["counts"]["passed"] == 3
+    assert second["cost_usd"] == 1.5
+    assert second["run_cost_usd"] == 0.0
+
+
+def test_batch_drain_quarantines_failures_and_preserves_receipts(tmp_path):
+    batch = TaskBatch.create(
+        tmp_path / "drain-failure.json",
+        [
+            {"id": "A"},
+            {"id": "B", "depends_on": ["A"]},
+            {"id": "C", "depends_on": ["B"]},
+        ],
+        source_hash="source",
+        plan_hash="plan",
+        base_sha="base",
+    )
+    calls: list[str] = []
+
+    def executor(task):
+        calls.append(task["id"])
+        if task["id"] == "A":
+            return {"status": "passed", "cost_usd": 0.1, "receipt": {"status": "MEASURED"}}
+        raise RuntimeError("boom")
+
+    summary = batch.drain(executor, empty_rounds=1)
+
+    assert calls == ["A", "B"]
+    assert summary["executed"] == ["A", "B"]
+    assert summary["quarantined"] == ["B"]
+    assert summary["counts"]["passed"] == 1
+    assert summary["counts"]["blocked"] == 1
+    assert summary["counts"]["pending"] == 1
+    assert summary["ready"] == []
+    assert summary["cost_usd"] == 0.1
+    assert summary["run_cost_usd"] == 0.1
+
+    tasks = {task["id"]: task for task in summary["tasks"]}
+    assert tasks["A"]["receipt"] == {"status": "MEASURED"}
+    assert tasks["B"]["attempts"] == 1
+    assert tasks["B"]["receipt"]["status"] == "UNVERIFIED"
+    assert tasks["B"]["receipt"]["error_type"] == "RuntimeError"
+    assert "boom" in tasks["B"]["receipt"]["error"]
+    assert tasks["C"]["attempts"] == 0
+    assert tasks["C"]["status"] == "pending"

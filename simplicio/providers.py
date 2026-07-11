@@ -40,10 +40,104 @@ import os
 import shutil
 import subprocess
 import tempfile
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
 from ._cache import CacheEntry, cache, make_key
+
+_LAST_CACHE_RECEIPT: dict[str, Any] | None = None
+
+
+def _cache_bypass_reason() -> str | None:
+    current_cache = cache()
+    if not current_cache.enabled:
+        return "cache_disabled"
+    if current_cache.bust:
+        return "cache_busted"
+    return None
+
+
+def _remember_cache_receipt(receipt: dict[str, Any] | None) -> None:
+    global _LAST_CACHE_RECEIPT
+    _LAST_CACHE_RECEIPT = None if receipt is None else deepcopy(receipt)
+
+
+def last_cache_receipt() -> dict[str, Any] | None:
+    if _LAST_CACHE_RECEIPT is None:
+        return None
+    return deepcopy(_LAST_CACHE_RECEIPT)
+
+
+def _new_cache_receipt(*, surface: str, requested_provider_id: str, requested_model: str) -> dict[str, Any]:
+    receipt = {
+        "schema": "simplicio.providers.cache-receipt/v1",
+        "surface": surface,
+        "requested_provider_id": requested_provider_id,
+        "requested_model": requested_model,
+        "outcome": "pending",
+        "local_exact_lookup": {
+            "status": "not_tried",
+            "reason": None,
+            "provider_id": None,
+            "model": None,
+            "key": None,
+        },
+        "provider_lookup": {
+            "status": "not_tried",
+            "reason": None,
+            "provider_id": None,
+            "model": None,
+            "key": None,
+        },
+        "provider_write": {
+            "status": "not_tried",
+            "reason": None,
+            "provider_id": None,
+            "model": None,
+            "key": None,
+        },
+    }
+    _remember_cache_receipt(receipt)
+    return receipt
+
+
+def _set_cache_step(
+    receipt: dict[str, Any],
+    step: str,
+    *,
+    status: str,
+    provider_id: str,
+    model: str,
+    key: str,
+    reason: str | None = None,
+) -> None:
+    receipt[step] = {
+        "status": status,
+        "reason": reason,
+        "provider_id": provider_id,
+        "model": model,
+        "key": key,
+    }
+    _remember_cache_receipt(receipt)
+
+
+def _finalize_cache_receipt(receipt: dict[str, Any]) -> None:
+    if receipt["local_exact_lookup"]["status"] == "hit":
+        outcome = "local_exact_reuse"
+    elif receipt["provider_lookup"]["status"] == "hit":
+        outcome = "provider_cache_read"
+    elif receipt["provider_write"]["status"] == "written":
+        outcome = "provider_cache_write"
+    elif any(
+        receipt[name]["status"] == "bypass"
+        for name in ("local_exact_lookup", "provider_lookup", "provider_write")
+    ):
+        outcome = "bypass"
+    else:
+        outcome = "cache_miss"
+    receipt["outcome"] = outcome
+    _remember_cache_receipt(receipt)
 
 
 def _import_openai():
@@ -570,7 +664,27 @@ def _log_usage_event(*, provider_id, model, prompt, completion, cache_hit, usage
         pass
 
 
-def _return_cached(*, provider_id, model, prompt, cached, surface="generate"):
+def _return_cached(
+    *,
+    provider_id,
+    model,
+    prompt,
+    cached,
+    surface="generate",
+    receipt: dict[str, Any] | None = None,
+    cache_step: str | None = None,
+    key: str | None = None,
+):
+    if receipt is not None and cache_step is not None and key is not None:
+        _set_cache_step(
+            receipt,
+            cache_step,
+            status="hit",
+            provider_id=provider_id,
+            model=model,
+            key=key,
+        )
+        _finalize_cache_receipt(receipt)
     _log_usage_event(
         provider_id=provider_id,
         model=model,
@@ -591,6 +705,7 @@ def _finalize_completion(
     prompt,
     usage=None,
     surface="generate",
+    receipt: dict[str, Any] | None = None,
 ):
     _charge_if_budgeted(model, prompt, out)
     _log_usage_event(
@@ -602,11 +717,34 @@ def _finalize_completion(
         usage=usage,
         surface=surface,
     )
+    bypass_reason = _cache_bypass_reason()
+    if receipt is not None:
+        if bypass_reason is not None:
+            _set_cache_step(
+                receipt,
+                "provider_write",
+                status="bypass",
+                reason=bypass_reason,
+                provider_id=provider_id,
+                model=model,
+                key=key,
+            )
+        else:
+            _set_cache_step(
+                receipt,
+                "provider_write",
+                status="written",
+                provider_id=provider_id,
+                model=model,
+                key=key,
+            )
     cache().put(key, CacheEntry(out, provider_id=provider_id, model=model))
+    if receipt is not None:
+        _finalize_cache_receipt(receipt)
     return out
 
 
-def _generate_local_cached(prompt, feedback, model, max_tokens, cache_full_prompt):
+def _generate_local_cached(prompt, feedback, model, max_tokens, cache_full_prompt, receipt=None):
     eff_model = model or (LOCAL_MODEL_PREFIX + "default")
     # Fold the resolved weights into the cache key: two different GGUFs can
     # both route as the default model (via SIMPLICIO_LOCAL_MODEL_PATH /
@@ -621,6 +759,17 @@ def _generate_local_cached(prompt, feedback, model, max_tokens, cache_full_promp
         max_tokens=max_tokens,
         weights=weights,
     )
+    bypass_reason = _cache_bypass_reason()
+    if receipt is not None:
+        _set_cache_step(
+            receipt,
+            "provider_lookup",
+            status="bypass" if bypass_reason is not None else "miss",
+            reason=bypass_reason,
+            provider_id="local-llama",
+            model=eff_model,
+            key=key,
+        )
     cached = cache().get(key)
     if cached is not None:
         return _return_cached(
@@ -628,6 +777,9 @@ def _generate_local_cached(prompt, feedback, model, max_tokens, cache_full_promp
             model=eff_model,
             prompt=cache_full_prompt,
             cached=cached,
+            receipt=receipt,
+            cache_step="provider_lookup",
+            key=key,
         )
     out = _local_generate(prompt, feedback, eff_model, max_tokens)
     _charge_if_budgeted(eff_model, cache_full_prompt, out)
@@ -638,7 +790,29 @@ def _generate_local_cached(prompt, feedback, model, max_tokens, cache_full_promp
         completion=out,
         cache_hit=False,
     )
+    if receipt is not None:
+        if bypass_reason is not None:
+            _set_cache_step(
+                receipt,
+                "provider_write",
+                status="bypass",
+                reason=bypass_reason,
+                provider_id="local-llama",
+                model=eff_model,
+                key=key,
+            )
+        else:
+            _set_cache_step(
+                receipt,
+                "provider_write",
+                status="written",
+                provider_id="local-llama",
+                model=eff_model,
+                key=key,
+            )
     cache().put(key, CacheEntry(out, provider_id="local-llama", model=eff_model))
+    if receipt is not None:
+        _finalize_cache_receipt(receipt)
     return out
 
 
@@ -669,9 +843,32 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
         max_tokens=max_tokens,
         template_version=template_version,
     )
+    receipt = _new_cache_receipt(
+        surface="generate",
+        requested_provider_id="doer",
+        requested_model=model_name,
+    )
+    exact_bypass_reason = _cache_bypass_reason()
+    _set_cache_step(
+        receipt,
+        "local_exact_lookup",
+        status="bypass" if exact_bypass_reason is not None else "miss",
+        reason=exact_bypass_reason,
+        provider_id="doer",
+        model=model_name,
+        key=cache_key,
+    )
     cached = cache().get(cache_key)
     if cached is not None:
-        return _return_cached(provider_id="doer", model=model_name, prompt=cache_full_prompt, cached=cached)
+        return _return_cached(
+            provider_id="doer",
+            model=model_name,
+            prompt=cache_full_prompt,
+            cached=cached,
+            receipt=receipt,
+            cache_step="local_exact_lookup",
+            key=cache_key,
+        )
 
     c = _cfg()
     model = c["model"]
@@ -684,11 +881,12 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
             LOCAL_DEFAULT_MODEL,
             max_tokens,
             cache_full_prompt,
+            receipt,
         )
 
     # Path 5: in-process local inference via explicit `local-llama/` model.
     if _is_local(model, c["base"]):
-        return _generate_local_cached(prompt, feedback, model, max_tokens, cache_full_prompt)
+        return _generate_local_cached(prompt, feedback, model, max_tokens, cache_full_prompt, receipt)
 
     if not model:
         raise SystemExit(
@@ -704,20 +902,48 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
         feedback=feedback,
         max_tokens=max_tokens,
     )
+    provider_bypass_reason = _cache_bypass_reason()
+    _set_cache_step(
+        receipt,
+        "provider_lookup",
+        status="bypass" if provider_bypass_reason is not None else "miss",
+        reason=provider_bypass_reason,
+        provider_id=provider_id,
+        model=model,
+        key=key,
+    )
     cached = cache().get(key)
     if cached is not None:
-        return _return_cached(provider_id=provider_id, model=model, prompt=cache_full_prompt, cached=cached)
+        return _return_cached(
+            provider_id=provider_id,
+            model=model,
+            prompt=cache_full_prompt,
+            cached=cached,
+            receipt=receipt,
+            cache_step="provider_lookup",
+            key=key,
+        )
 
     # Path 3: shell out to a logged-in CLI. No API key needed.
     if model.startswith("claude-cli/"):
         out = _shell_out_claude(_inline_feedback(prompt, feedback), model.split("/", 1)[1])
         return _finalize_completion(
-            key=key, out=out, provider_id=provider_id, model=model, prompt=cache_full_prompt
+            key=key,
+            out=out,
+            provider_id=provider_id,
+            model=model,
+            prompt=cache_full_prompt,
+            receipt=receipt,
         )
     if model.startswith("codex-cli/"):
         out = _shell_out_codex(_inline_feedback(prompt, feedback), model.split("/", 1)[1])
         return _finalize_completion(
-            key=key, out=out, provider_id=provider_id, model=model, prompt=cache_full_prompt
+            key=key,
+            out=out,
+            provider_id=provider_id,
+            model=model,
+            prompt=cache_full_prompt,
+            receipt=receipt,
         )
 
     if not c["key"]:
@@ -741,12 +967,19 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
             model=model,
             prompt=cache_full_prompt,
             usage=_anthropic_usage(r),
+            receipt=receipt,
         )
 
     # Any OpenAI-compatible endpoint (OpenRouter, GLM, DeepSeek, local...)
     out, usage = _openai_compatible_generate(model, c["base"], c["key"], prompt, feedback, max_tokens)
     return _finalize_completion(
-        key=key, out=out, provider_id=provider_id, model=model, prompt=cache_full_prompt, usage=usage
+        key=key,
+        out=out,
+        provider_id=provider_id,
+        model=model,
+        prompt=cache_full_prompt,
+        usage=usage,
+        receipt=receipt,
     )
 
 
@@ -911,6 +1144,21 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
     p = planner_cfg(require_key=False)
     prompt = _apply_directives(prompt)
     key = _planner_cache_key(p, prompt, max_tokens, temperature, template_version)
+    receipt = _new_cache_receipt(
+        surface="planner_complete",
+        requested_provider_id=_planner_provider_id(p),
+        requested_model=p["model"],
+    )
+    exact_bypass_reason = _cache_bypass_reason()
+    _set_cache_step(
+        receipt,
+        "local_exact_lookup",
+        status="bypass" if exact_bypass_reason is not None else "miss",
+        reason=exact_bypass_reason,
+        provider_id=_planner_provider_id(p),
+        model=p["model"],
+        key=key,
+    )
     cached = cache().get(key)
     if cached is not None:
         return _return_cached(
@@ -919,6 +1167,9 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
             prompt=prompt,
             cached=cached,
             surface="planner_complete",
+            receipt=receipt,
+            cache_step="local_exact_lookup",
+            key=key,
         )
 
     if p["shell_out"]:
@@ -932,6 +1183,7 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
                 model=p["model"],
                 prompt=prompt,
                 surface="planner_complete",
+                receipt=receipt,
             )
         if p["model"].startswith("codex-cli/"):
             out = _shell_out_codex(prompt, p["model"].split("/", 1)[1])
@@ -942,6 +1194,7 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
                 model=p["model"],
                 prompt=prompt,
                 surface="planner_complete",
+                receipt=receipt,
             )
 
     if p["model"].startswith(LOCAL_MODEL_PREFIX):
@@ -953,6 +1206,7 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
             model=p["model"],
             prompt=prompt,
             surface="planner_complete",
+            receipt=receipt,
         )
 
     if not p["key"]:
@@ -980,6 +1234,7 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
             prompt=prompt,
             usage=_anthropic_usage(r),
             surface="planner_complete",
+            receipt=receipt,
         )
 
     OpenAI = _import_openai()
@@ -1000,6 +1255,7 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
         prompt=prompt,
         usage=_openai_usage(r),
         surface="planner_complete",
+        receipt=receipt,
     )
 
 

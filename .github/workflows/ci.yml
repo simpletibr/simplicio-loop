@@ -105,6 +105,36 @@ jobs:
       - name: Token/context budget guard (#111)
         run: python3 scripts/token_budget.py --check
 
+  windows-pipeline:
+    name: Windows token-budget + pipeline slice
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install simplicio-cli (editable, base only) + test tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+
+      - name: Token/context budget guard on Windows (#141)
+        run: python scripts/token_budget.py --check
+
+      - name: Run Windows-focused pipeline regression slice (#141)
+        run: >
+          pytest -q
+          tests/python/test_token_budget_gate.py
+          tests/python/test_pipeline_task_result.py
+          tests/python/test_pipeline_fixers.py
+          tests/python/test_prompt_retry_flow.py
+
   extras:
     name: Extras install (${{ matrix.extra }})
     needs: python

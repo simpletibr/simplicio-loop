@@ -7,7 +7,7 @@ import json
 import os
 import re
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -15,6 +15,7 @@ from typing import Any, cast
 BATCH_SCHEMA = "simplicio.dev-cli.task-batch/v1"
 TERMINAL = {"passed", "blocked"}
 VALID_STATES = {"pending", "running", "passed", "blocked"}
+ExecutorResult = Mapping[str, Any] | bool | None
 
 
 class BatchError(ValueError):
@@ -222,6 +223,7 @@ class TaskBatch:
         status: str,
         *,
         receipt: Mapping[str, Any] | None = None,
+        cost_usd: float | int | str | None = None,
         source_hash: str | None = None,
         plan_hash: str | None = None,
         base_sha: str | None = None,
@@ -249,8 +251,76 @@ class TaskBatch:
             task["receipt"] = dict(receipt)
             if "cost" in receipt:
                 task["cost"] = receipt["cost"]
+        if cost_usd is not None:
+            task["cost_usd"] = _coerce_cost(task.get("cost_usd", 0.0)) + _coerce_cost(cost_usd)
         self.save()
         return dict(task)
+
+    def _executor_outcome(self, result: ExecutorResult) -> tuple[str, Mapping[str, Any] | None, float]:
+        if isinstance(result, bool):
+            return ("passed" if result else "blocked"), None, 0.0
+        if result is None or not isinstance(result, Mapping):
+            raise BatchError("executor callback must return a bool or mapping")
+        status_value = result.get("status")
+        if status_value is None and "passed" in result:
+            status_value = "passed" if bool(result.get("passed")) else "blocked"
+        status = str(status_value or "").strip()
+        if status not in TERMINAL:
+            raise BatchError(f"executor callback returned unsupported status: {status or '<empty>'}")
+        receipt = result.get("receipt")
+        if receipt is not None and not isinstance(receipt, Mapping):
+            raise BatchError("executor callback receipt must be a mapping")
+        return status, cast(Mapping[str, Any] | None, receipt), _coerce_cost(result.get("cost_usd", 0.0))
+
+    def drain(
+        self,
+        executor: Callable[[dict[str, Any]], ExecutorResult],
+        *,
+        empty_rounds: int = 1,
+    ) -> dict[str, Any]:
+        if empty_rounds < 0:
+            raise BatchError("empty_rounds must be >= 0")
+        rounds = 0
+        consecutive_empty_rounds = 0
+        executed: list[str] = []
+        quarantined: list[str] = []
+        run_cost_usd = 0.0
+        while consecutive_empty_rounds < empty_rounds:
+            ready = self.ready()
+            rounds += 1
+            if not ready:
+                consecutive_empty_rounds += 1
+                continue
+            consecutive_empty_rounds = 0
+            for candidate in ready:
+                task_id = str(candidate["id"])
+                current = self.transition(task_id, "running")
+                executed.append(task_id)
+                try:
+                    status, receipt, cost_usd = self._executor_outcome(executor(dict(current)))
+                except Exception as exc:
+                    status = "blocked"
+                    receipt = {
+                        "status": "UNVERIFIED",
+                        "error": str(exc),
+                        "error_type": exc.__class__.__name__,
+                    }
+                    cost_usd = 0.0
+                self.transition(task_id, status, receipt=receipt, cost_usd=cost_usd)
+                run_cost_usd += cost_usd
+                if status == "blocked":
+                    quarantined.append(task_id)
+        payload = self.status()
+        payload.update(
+            {
+                "rounds": rounds,
+                "empty_rounds": consecutive_empty_rounds,
+                "executed": executed,
+                "quarantined": quarantined,
+                "run_cost_usd": round(run_cost_usd, 10),
+            }
+        )
+        return payload
 
     def status(self) -> dict[str, Any]:
         counts = {state: sum(task["status"] == state for task in self.tasks) for state in VALID_STATES}
@@ -260,7 +330,20 @@ class TaskBatch:
             "counts": counts,
             "tasks": self.tasks,
             "ready": [task["id"] for task in self.ready()],
+            "cost_usd": round(sum(_coerce_cost(task.get("cost_usd", 0.0)) for task in self.tasks), 10),
         }
+
+
+def _coerce_cost(value: object) -> float:
+    if value in (None, ""):
+        return 0.0
+    try:
+        cost = float(str(value))
+    except (TypeError, ValueError) as exc:
+        raise BatchError("cost_usd must be numeric") from exc
+    if cost < 0 or cost != cost or cost in (float("inf"), float("-inf")):
+        raise BatchError("cost_usd must be finite and >= 0")
+    return cost
 
 
 def _normalize_label(value: str) -> str:
