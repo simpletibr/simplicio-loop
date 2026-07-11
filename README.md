@@ -580,6 +580,8 @@ cost_usd, diff_summary, warnings}`. Repeat `--bound-paths <glob>` to reject
 diffs outside the allowed edit surface; violations are reported in `warnings`
 and the command exits non-zero.
 
+See [structured blocked-precondition receipts](docs/blocked-preconditions.md) for the JSON `status`, `blocked_preconditions`, `reason`, and `next_surface` contract.
+
 #### Path 3 example — standalone with API key
 
 ```bash
