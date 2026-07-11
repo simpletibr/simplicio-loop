@@ -15,6 +15,7 @@ def test_version_contract_exposes_canonical_capabilities(monkeypatch):
     assert "simplicio.task-spec/v2" in payload["capabilities"]
     assert "simplicio.dev-cli.patch-receipt/v1" in payload["capabilities"]
     assert "simplicio.dev-cli.task-batch/v1" in payload["capabilities"]
+    assert "simplicio.prompt-envelope/v1" in payload["capabilities"]
 
 
 def test_version_cli_supports_text_and_json(monkeypatch, capsys):

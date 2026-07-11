@@ -25,7 +25,7 @@ from .mapper import artifact_status, map_ask, map_handoff
 from .observability import emit_event, estimate_tokens, info, log_run
 from .orchestrator.cost_governor import _price as _estimate_price
 from .pipeline_fixers import try_static_fixers
-from .prompt import build_prompt
+from .prompt import build_prompt, latest_prompt_envelope, set_prompt_retry_delta
 from .providers import _provider_id, generate
 from .runtime_env import prepare_project_command
 from .transaction import VerificationReceipt, begin_transaction
@@ -756,6 +756,7 @@ def _task_result(
     blocked_preconditions=None,
     verify=None,
     impact=None,
+    prompt_envelope=None,
 ):
     files_changed = extract_changed_files(output)
     prompt_tokens = estimate_tokens(prompt)
@@ -789,6 +790,9 @@ def _task_result(
             ),
         },
     }
+    envelope = prompt_envelope or latest_prompt_envelope()
+    if envelope is not None:
+        result["prompt_envelope"] = envelope.receipt()
     if blocked_preconditions:
         result["blocked_preconditions"] = blocked_preconditions
     verify_receipt = _verify_receipt_payload(verify)
@@ -1036,6 +1040,12 @@ def run_task(
         if not quiet:
             info("failed: %s", log[:300])
         feedback = build_retry_feedback(t + 1, last_validation, log)
+        set_prompt_retry_delta(
+            reason="verification-failed",
+            failure_class=classify_failure(log).kind,
+            diagnostics=feedback,
+            affected_files=extract_changed_files(last_output),
+        )
     if not quiet:
         info("attempts exhausted — manual review needed.")
     warnings = []
