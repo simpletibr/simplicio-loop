@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [Unreleased]`n`n## [0.21.0] - 2026-07-11`n`n### Added`n`n- Incremental graph deltas, clustering metrics, and Mapper-to-Canvas compatibility fixtures.`n
 
 ## [0.20.0] - 2026-07-11
 
@@ -396,7 +396,7 @@ All notable changes to **LLM Project Mapper** are documented in this file.
 
 Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased]`n`n## [0.21.0] - 2026-07-11`n`n### Added`n`n- Incremental graph deltas, clustering metrics, and Mapper-to-Canvas compatibility fixtures.`n
 
 ### Changed
 - `simplicio-mapper endpoints` endpoint path normalization is now project-agnostic
