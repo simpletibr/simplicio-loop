@@ -11,6 +11,7 @@ retry loop just like any verify failure.
 
 import difflib
 import fnmatch
+import hashlib
 import os
 import re
 import shutil
@@ -39,6 +40,7 @@ _TEST_COMMAND_PLACEHOLDERS = {
 
 _DEFAULT_VERIFY_TIMEOUT_S = 120
 _LAST_VERIFY_RECEIPT: dict[str, Any] | None = None
+_LAST_PATCH_RECEIPT: dict[str, Any] | None = None
 
 
 def _configured_test_command() -> tuple[str | None, str | None]:
@@ -344,6 +346,32 @@ class PatchCandidate:
     reason: str = ""
 
 
+def _remember_patch_receipt(candidate: PatchCandidate | None, files: list[str] | None = None) -> None:
+    global _LAST_PATCH_RECEIPT
+    if candidate is None:
+        _LAST_PATCH_RECEIPT = None
+        return
+    requested_model = os.environ.get("SIMPLICIO_MODEL", "")
+    requested_effort = os.environ.get(
+        "SIMPLICIO_CODEX_EFFORT", os.environ.get("SIMPLICIO_REASONING_EFFORT", "")
+    )
+    requested_tier = os.environ.get("SIMPLICIO_MODEL_TIER", "")
+    _LAST_PATCH_RECEIPT = {
+        "schema": "simplicio.dev-cli.patch-receipt/v1",
+        "parser_strategy": candidate.strategy,
+        "fingerprint": hashlib.sha256(candidate.patch.encode("utf-8")).hexdigest(),
+        "files": list(files or []),
+        "capability": {
+            "requested": {"model": requested_model, "effort": requested_effort, "tier": requested_tier},
+            "effective": {
+                "model": os.environ.get("SIMPLICIO_EFFECTIVE_MODEL", requested_model),
+                "effort": os.environ.get("SIMPLICIO_EFFECTIVE_EFFORT", requested_effort),
+                "tier": os.environ.get("SIMPLICIO_EFFECTIVE_TIER", requested_tier),
+            },
+        },
+    }
+
+
 @dataclass
 class FailureClassification:
     kind: str
@@ -623,6 +651,7 @@ def _apply_and_test(output, root, bound_paths=None):
         return False, f"pre-apply validation failed: {validation.reason}"
     candidate = _extract_patch_candidate(output or "", root, bound_paths)
     patch = candidate.patch
+    _remember_patch_receipt(candidate, extract_changed_files(patch))
     if not patch:
         reason = candidate.reason or "no unified diff found"
         return False, f"pre-apply validation failed: {reason}"
@@ -650,6 +679,7 @@ def _apply_and_test(output, root, bound_paths=None):
                 )
             else:
                 apply_log = apply_log + "\nfull-file fallback failed:\n" + fallback_log
+    _remember_patch_receipt(candidate, changed_files)
     if not applied:
         receipt = tx.receipt(
             changed_files,
@@ -793,12 +823,15 @@ def _task_result(
             result["impact"]["status"] = impact["status"]
         else:
             result["impact"]["status"] = IMPACT_RESULT_UNVERIFIED
+    if _LAST_PATCH_RECEIPT is not None:
+        result["patch"] = dict(_LAST_PATCH_RECEIPT)
     return result
 
 
 def run_task(
     root, stack, goal, target, criteria, constraints, *, dry_run_task=False, bound_paths=None, quiet=False
 ):
+    _remember_patch_receipt(None)
     prompt = build_prompt(root, stack, goal, target, criteria, constraints)
     if dry_run_task:
         blockers = _dry_run_preconditions(root, target)
