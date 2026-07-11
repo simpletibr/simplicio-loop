@@ -44,6 +44,10 @@ def test_minimal_flow_standalone(sample_project, stub_local_provider, monkeypatc
     monkeypatch.setenv(
         "SIMPLICIO_TEST_CMD", '"' + __import__("sys").executable + '" -c "raise SystemExit(0)"'
     )
+    # The fixture contains mapper artifacts but no mapper executable.  Make
+    # the impact query's empty, measured response explicit rather than
+    # letting an unavailable external binary decide this standalone test.
+    monkeypatch.setattr("simplicio.pipeline.map_ask", lambda *args, **kwargs: [])
     code = cli.main(
         [
             "task",
