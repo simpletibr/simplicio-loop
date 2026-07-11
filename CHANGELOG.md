@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.14.1] — 2026-07-11
+
+### Added
+- Deterministic task-batch cancellation and integration/DoD completion gates (#119).
+- Persisted per-item anchors/contracts and provider cache outcome receipts.
+- Explicit Windows token-budget and pipeline regression lane.
+
+### Verification
+- Local gates are recorded in the release PR; hosted Actions remain blocked by account billing lock.
+
 ## [0.14.0] — 2026-07-11
 
 ### Added
