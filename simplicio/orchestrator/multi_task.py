@@ -74,6 +74,25 @@ class TaskBatch:
         identity = BatchIdentity(**payload["identity"])
         return cls(path, payload.get("tasks", []), identity)
 
+    @classmethod
+    def resume(
+        cls,
+        path: str | Path,
+        tasks: list[Mapping[str, Any]],
+        *,
+        source_hash: str,
+        plan_hash: str,
+        base_sha: str,
+    ) -> TaskBatch:
+        batch = cls.load(path)
+        batch.assert_resume_compatible(
+            tasks,
+            source_hash=source_hash,
+            plan_hash=plan_hash,
+            base_sha=base_sha,
+        )
+        return batch
+
     @staticmethod
     def _normalize(tasks: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
         result = []
@@ -154,6 +173,47 @@ class TaskBatch:
             if task["status"] == "pending"
             and all(by_id[dep]["status"] == "passed" for dep in task["depends_on"])
         ]
+
+    def assert_resume_compatible(
+        self,
+        tasks: list[Mapping[str, Any]],
+        *,
+        source_hash: str,
+        plan_hash: str,
+        base_sha: str,
+    ) -> None:
+        if (
+            source_hash != self.identity.source_hash
+            or plan_hash != self.identity.plan_hash
+            or base_sha != self.identity.base_sha
+        ):
+            raise StaleBatchError("resume identity does not match the frozen batch")
+        candidate_tasks = self._normalize(tasks)
+        frozen_ids = [task["id"] for task in self.tasks]
+        candidate_ids = [task["id"] for task in candidate_tasks]
+        late_arrivals = [task_id for task_id in candidate_ids if task_id not in set(frozen_ids)]
+        missing = [task_id for task_id in frozen_ids if task_id not in set(candidate_ids)]
+        if late_arrivals or missing:
+            details: list[str] = []
+            if late_arrivals:
+                details.append(f"late arrivals: {late_arrivals}")
+            if missing:
+                details.append(f"missing tasks: {missing}")
+            raise StaleBatchError("resume task inventory changed; " + ", ".join(details))
+        frozen_by_id = {task["id"]: task for task in self.tasks}
+        for candidate in candidate_tasks:
+            frozen = frozen_by_id[candidate["id"]]
+            if candidate["depends_on"] != frozen["depends_on"]:
+                raise StaleBatchError(
+                    f"resume dependencies changed for {candidate['id']}: "
+                    f"{frozen['depends_on']} -> {candidate['depends_on']}"
+                )
+            if candidate["source_hash"] != frozen["source_hash"]:
+                raise StaleBatchError(f"resume source changed for {candidate['id']}")
+            if candidate["plan_hash"] and candidate["plan_hash"] != frozen["plan_hash"]:
+                raise StaleBatchError(f"resume plan changed for {candidate['id']}")
+            if candidate["base_sha"] and candidate["base_sha"] != frozen["base_sha"]:
+                raise StaleBatchError(f"resume base changed for {candidate['id']}")
 
     def transition(
         self,

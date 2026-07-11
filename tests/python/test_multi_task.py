@@ -68,6 +68,75 @@ def test_batch_blocks_dependent_task_until_predecessor_passes(tmp_path):
         batch.transition("B", "running")
 
 
+def test_batch_resume_rejects_late_arrivals_and_changed_task_shape(tmp_path):
+    path = tmp_path / "resume.json"
+    TaskBatch.create(
+        path,
+        [
+            {"id": "A", "source_hash": "hash-a"},
+            {"id": "B", "depends_on": ["A"], "source_hash": "hash-b"},
+        ],
+        source_hash="source",
+        plan_hash="plan",
+        base_sha="base",
+    )
+
+    with pytest.raises(StaleBatchError, match="late arrivals"):
+        TaskBatch.resume(
+            path,
+            [
+                {"id": "A", "source_hash": "hash-a"},
+                {"id": "B", "depends_on": ["A"], "source_hash": "hash-b"},
+                {"id": "C", "source_hash": "hash-c"},
+            ],
+            source_hash="source",
+            plan_hash="plan",
+            base_sha="base",
+        )
+
+    with pytest.raises(StaleBatchError, match="dependencies changed for B"):
+        TaskBatch.resume(
+            path,
+            [
+                {"id": "A", "source_hash": "hash-a"},
+                {"id": "B", "source_hash": "hash-b"},
+            ],
+            source_hash="source",
+            plan_hash="plan",
+            base_sha="base",
+        )
+
+
+def test_batch_resume_allows_exact_frozen_inventory_and_passed_state(tmp_path):
+    path = tmp_path / "resume-ok.json"
+    batch = TaskBatch.create(
+        path,
+        [
+            {"id": "A", "source_hash": "hash-a"},
+            {"id": "B", "depends_on": ["A"], "source_hash": "hash-b"},
+        ],
+        source_hash="source",
+        plan_hash="plan",
+        base_sha="base",
+    )
+    batch.transition("A", "running")
+    batch.transition("A", "passed", receipt={"status": "MEASURED"})
+
+    resumed = TaskBatch.resume(
+        path,
+        [
+            {"id": "A", "source_hash": "hash-a"},
+            {"id": "B", "depends_on": ["A"], "source_hash": "hash-b"},
+        ],
+        source_hash="source",
+        plan_hash="plan",
+        base_sha="base",
+    )
+
+    assert resumed.status()["counts"]["passed"] == 1
+    assert resumed.status()["ready"] == ["B"]
+
+
 def test_build_batch_preview_infers_unique_dependencies_from_task_labels():
     preview = build_batch_preview(
         {
