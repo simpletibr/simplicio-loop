@@ -138,6 +138,25 @@ def _finalize_cache_receipt(receipt: dict[str, Any]) -> None:
         outcome = "cache_miss"
     receipt["outcome"] = outcome
     _remember_cache_receipt(receipt)
+    _log_cache_receipt(receipt)
+
+
+def _log_cache_receipt(receipt: dict[str, Any]) -> None:
+    """Persist the structured cache decision without ever logging the prompt.
+
+    Provider receipts contain cache keys and routing metadata, but not prompt or
+    completion content.  Keep persistence opt-in and fail-open like usage
+    logging so observability cannot break a provider call.
+    """
+    root = os.environ.get("SIMPLICIO_LOG_ROOT")
+    if not root:
+        return
+    from .observability import log_run
+
+    try:
+        log_run(root, {"mode": "provider_cache_receipt", "receipt": deepcopy(receipt)})
+    except OSError:
+        pass
 
 
 def _import_openai():

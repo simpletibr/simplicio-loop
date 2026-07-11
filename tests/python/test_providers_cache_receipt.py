@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -98,3 +99,22 @@ def test_generate_receipt_marks_known_bypass(monkeypatch):
     assert receipt["local_exact_lookup"]["reason"] == "cache_disabled"
     assert receipt["provider_lookup"]["status"] == "bypass"
     assert receipt["provider_write"]["status"] == "bypass"
+
+
+def test_generate_persists_structured_receipt_without_prompt(monkeypatch, tmp_path):
+    monkeypatch.setenv("SIMPLICIO_MODEL", "claude-cli/sonnet")
+    monkeypatch.setenv("SIMPLICIO_LOG_ROOT", str(tmp_path))
+    prompt = "secret prompt that must not be persisted"
+    ok = MagicMock(returncode=0, stdout="from cli", stderr="")
+
+    with patch("subprocess.run", return_value=ok):
+        assert providers.generate(prompt) == "from cli"
+
+    log_path = tmp_path / ".simplicio" / "runs.jsonl"
+    records = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()]
+    receipt_events = [record for record in records if record.get("mode") == "provider_cache_receipt"]
+
+    assert len(receipt_events) == 1
+    assert receipt_events[0]["receipt"]["schema"] == "simplicio.providers.cache-receipt/v1"
+    assert receipt_events[0]["receipt"]["outcome"] == "provider_cache_write"
+    assert prompt not in log_path.read_text(encoding="utf-8")
