@@ -1,0 +1,18 @@
+Here is the unified diff produced by Codex CLI (corrupt hunk header — missing comma in line count):
+
+```diff
+diff --git a/app.py b/app.py
+--- a/app.py
++++ b/app.py
+@@ -1 +1 @@
+ line1
++added
+```
+
+The complete corrected file is:
+
+```python
+fixed
+```
+
+TEST: python -c "from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text(encoding='utf-8') == 'fixed\n' else 1)"
