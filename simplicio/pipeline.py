@@ -145,7 +145,11 @@ def _dry_run_preconditions(root: str | Path, target: str) -> list[dict[str, Any]
                 }
             )
         else:
-            files = [str(item.get("path")) for item in pack.get("files", []) if isinstance(item, dict) and item.get("path")]
+            files = [
+                str(item.get("path"))
+                for item in pack.get("files", [])
+                if isinstance(item, dict) and item.get("path")
+            ]
             if pack.get("needs_broader_context"):
                 blockers.append(
                     {
@@ -581,8 +585,16 @@ def _apply_and_test(output, root, bound_paths=None):
         )
         _remember_verify_receipt(receipt)
     except subprocess.TimeoutExpired as exc:
-        stdout = exc.output if isinstance(exc.output, str) else (exc.output or b"").decode("utf-8", errors="replace")
-        stderr = exc.stderr if isinstance(exc.stderr, str) else (exc.stderr or b"").decode("utf-8", errors="replace")
+        stdout = (
+            exc.output
+            if isinstance(exc.output, str)
+            else (exc.output or b"").decode("utf-8", errors="replace")
+        )
+        stderr = (
+            exc.stderr
+            if isinstance(exc.stderr, str)
+            else (exc.stderr or b"").decode("utf-8", errors="replace")
+        )
         output_tail = (stdout + stderr)[-2000:]
         receipt = tx.receipt(
             extract_changed_files(output),

@@ -374,7 +374,7 @@ def test_apply_and_test_persists_receipt_when_git_apply_fails(tmp_path, monkeypa
             "TEST: pytest -q",
         ]
     )
-    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "python -c \"import sys; sys.exit(0)\"")
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", 'python -c "import sys; sys.exit(0)"')
 
     ok, log = pipeline._apply_and_test(output, str(tmp_path))
 
@@ -510,7 +510,7 @@ def test_apply_and_test_persists_timeout_receipt_and_preserves_worktree(tmp_path
 
     assert ok is False
     assert "timed out" in log
-    assert target.read_text(encoding='utf-8') == "old\n"
+    assert target.read_text(encoding="utf-8") == "old\n"
     journals = sorted((tmp_path / ".simplicio" / "transactions").glob("*.jsonl"))
     assert journals
     receipt_events = []
@@ -729,7 +729,7 @@ def test_pipeline_retry_restarts_from_last_promoted_state_not_failed_attempt(tmp
             if test_invocations["count"] == 1:
                 if isinstance(prepared, list):
                     return ["python", "-c", "import sys; sys.exit(1)"], False
-                return "python -c \"import sys; sys.exit(1)\"", True
+                return 'python -c "import sys; sys.exit(1)"', True
         return prepared, use_shell
 
     monkeypatch.setattr(pipeline, "prepare_project_command", wrapped_prepare)
