@@ -1,12 +1,12 @@
 """Ecosystem contract validator + ``doctor --contracts`` CLI (issue #164).
 
 Extends ``simplicio_mapper/contract.py`` (mapper-artifacts/v1, issue #157)
-with the two cross-repo payload shapes that flow through the ecosystem
-outside the mapper itself: the ``simplicio-loop`` run-journal/task-anchor
-execution record and the ``simplicio-dev-cli`` 6-layer executor contract
-record. Schemas + fixtures live in ``contracts/ecosystem/v1/`` -- see
-``contracts/ecosystem/v1/README.md`` for the (explicitly non-live,
-vendored-copy) cross-repo sync convention.
+with cross-repo payload shapes that flow through the ecosystem outside the
+mapper itself: the ``simplicio-loop`` run-journal/task-anchor execution record,
+the ``simplicio-dev-cli`` 6-layer executor contract record, and the renderer-
+neutral repository/evidence graph consumed by tools such as Simplicio Canvas.
+Schemas + fixtures live in ``contracts/ecosystem/v1/`` -- see that directory's
+README for the explicit ownership and cross-repo sync convention.
 
 This module reuses the validator engine from ``simplicio_mapper.contract``
 (no need to duplicate it inside the installed package -- the *portable*,
@@ -29,6 +29,7 @@ CONTRACT_VERSION = "v1"
 SCHEMA_FILENAMES = {
     "simplicio.loop-execution/v1": "loop-execution.schema.json",
     "simplicio.executor-contract/v1": "executor-contract.schema.json",
+    "simplicio.ecosystem-graph/v1": "ecosystem-graph.schema.json",
 }
 
 
@@ -167,7 +168,7 @@ def run_doctor_cli(argv: list[str]) -> int:
         print(f"::error::[mapper-artifacts/v1] {error}", flush=True)
         overall_ok = False
 
-    # 2. ecosystem/v1 (issue #164) -- new schemas + fixtures.
+    # 2. ecosystem/v1 -- cross-repository payload schemas + fixtures.
     try:
         eco_root = find_ecosystem_contract_root()
         eco_fixtures = os.path.join(eco_root, "fixtures")
