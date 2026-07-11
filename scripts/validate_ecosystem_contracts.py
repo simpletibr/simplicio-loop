@@ -4,16 +4,15 @@
 INTENTIONALLY SELF-CONTAINED / VENDORABLE: this file has zero imports outside
 the Python 3.8+ standard library and does NOT import ``simplicio_mapper``.
 That is on purpose -- see ``contracts/ecosystem/v1/README.md``. The point of
-this script is that ``simplicio-loop`` and ``simplicio-dev-cli`` (separate
-repos) can copy this single file into their own trees and validate their own
-fixtures/output against a vendored copy of the ecosystem schemas, without
-taking a dependency on ``simplicio-mapper`` being installed.
+this script is that separate ecosystem repositories can copy this single file
+into their own trees and validate their own fixtures/output against a vendored
+copy of the ecosystem schemas, without taking a dependency on
+``simplicio-mapper`` being installed.
 
 It duplicates (deliberately -- not a bug) the same small JSON-Schema subset
 engine as ``simplicio_mapper/contract.py``: ``type`` (including
 ``["string", "null"]`` unions), ``required``, ``properties``, ``items``,
-``enum``, ``minItems``. ``additionalProperties`` is always implicitly
-allowed.
+``enum``, ``minItems``. ``additionalProperties`` is always implicitly allowed.
 
 Usage
 -----
@@ -45,6 +44,7 @@ CONTRACT_VERSION = "v1"
 SCHEMA_FILENAMES = {
     "simplicio.loop-execution/v1": "loop-execution.schema.json",
     "simplicio.executor-contract/v1": "executor-contract.schema.json",
+    "simplicio.ecosystem-graph/v1": "ecosystem-graph.schema.json",
 }
 
 _PY_TYPE_NAMES = {
@@ -83,7 +83,7 @@ def find_default_schema_root(start: str | None = None) -> str:
         "could not locate contracts/ecosystem/v1/schemas from "
         f"{start or os.getcwd()} or its parents. Pass --schema-root explicitly "
         "when running this script outside a simplicio-mapper checkout "
-        "(e.g. from a vendored copy in simplicio-loop/simplicio-dev-cli)."
+        "(e.g. from a vendored copy in another ecosystem repository)."
     )
 
 
