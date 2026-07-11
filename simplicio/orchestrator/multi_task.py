@@ -109,6 +109,8 @@ class TaskBatch:
                     "source_hash": str(raw.get("source_hash", "")),
                     "plan_hash": str(raw.get("plan_hash", "")),
                     "base_sha": str(raw.get("base_sha", "")),
+                    "anchor": raw.get("anchor"),
+                    "contract": raw.get("contract"),
                     "status": str(raw.get("status", "pending")),
                     "attempts": int(raw.get("attempts", 0)),
                     "cost": raw.get("cost"),
@@ -333,6 +335,35 @@ class TaskBatch:
             "cost_usd": round(sum(_coerce_cost(task.get("cost_usd", 0.0)) for task in self.tasks), 10),
         }
 
+    def cancel(self, *, reason: str = "stop requested") -> dict[str, Any]:
+        """Cancel non-terminal items and persist a machine-readable receipt."""
+
+        for task in self.tasks:
+            if task["status"] in {"pending", "running"}:
+                task["status"] = "blocked"
+                task["receipt"] = {
+                    "status": "CANCELLED",
+                    "reason": reason,
+                }
+        self.save()
+        return self.status()
+
+    def finalize(self, integration_gate: Mapping[str, Any] | None = None) -> dict[str, Any]:
+        """Return a completion decision requiring terminal tasks and green gates."""
+
+        counts = self.status()["counts"]
+        terminal = counts["pending"] == 0 and counts["running"] == 0
+        gate = dict(integration_gate or {})
+        gates_green = bool(gate.get("passed", False)) and not bool(gate.get("failures"))
+        return {
+            "schema": "simplicio.dev-cli.task-batch-completion/v1",
+            "complete": terminal and gates_green and counts["blocked"] == 0,
+            "terminal": terminal,
+            "gates_green": gates_green,
+            "counts": counts,
+            "integration_gate": gate,
+        }
+
 
 def _coerce_cost(value: object) -> float:
     if value in (None, ""):
@@ -425,6 +456,8 @@ def _resolve_batch_tasks(tasks: list[Mapping[str, Any]]) -> list[dict[str, Any]]
                 "id": task_id,
                 "depends_on": list(dict.fromkeys(deps)),
                 "source_hash": str(task.get("source_hash", "")),
+                "anchor": task.get("anchor") or task_id,
+                "contract": task.get("contract"),
                 "status": "pending",
                 "attempts": 0,
                 "receipt": None,

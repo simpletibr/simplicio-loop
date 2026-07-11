@@ -290,3 +290,40 @@ def test_batch_drain_quarantines_failures_and_preserves_receipts(tmp_path):
     assert "boom" in tasks["B"]["receipt"]["error"]
     assert tasks["C"]["attempts"] == 0
     assert tasks["C"]["status"] == "pending"
+
+
+def test_batch_cancel_persists_stop_receipts_and_preserves_passed(tmp_path):
+    batch = TaskBatch.create(
+        tmp_path / "cancel.json",
+        [{"id": "A"}, {"id": "B"}],
+        source_hash="source",
+        plan_hash="plan",
+        base_sha="base",
+    )
+    batch.transition("A", "running")
+    batch.transition("A", "passed", receipt={"status": "MEASURED"})
+
+    summary = batch.cancel(reason="STOP file")
+    tasks = {task["id"]: task for task in summary["tasks"]}
+    assert summary["counts"]["blocked"] == 1
+    assert tasks["A"]["status"] == "passed"
+    assert tasks["B"]["status"] == "blocked"
+    assert tasks["B"]["receipt"] == {"status": "CANCELLED", "reason": "STOP file"}
+
+
+def test_batch_finalize_requires_green_integration_gate(tmp_path):
+    batch = TaskBatch.create(
+        tmp_path / "finalize.json",
+        [{"id": "A", "anchor": "ac-1", "contract": {"id": "c-1"}}],
+        source_hash="source",
+        plan_hash="plan",
+        base_sha="base",
+    )
+    batch.transition("A", "passed", receipt={"status": "MEASURED"})
+    blocked = batch.finalize({"passed": False, "failures": ["lint"]})
+    green = batch.finalize({"passed": True, "failures": []})
+
+    assert blocked["complete"] is False
+    assert green["complete"] is True
+    assert green["gates_green"] is True
+    assert green["counts"]["passed"] == 1
