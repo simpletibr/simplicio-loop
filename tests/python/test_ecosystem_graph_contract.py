@@ -29,6 +29,12 @@ class EcosystemGraphContractTest(unittest.TestCase):
     def setUp(self) -> None:
         self.graph = json.loads(GRAPH_FILE.read_text(encoding="utf-8"))
 
+    def validate_tampered(self, mutator) -> list[str]:
+        tampered = json.loads(json.dumps(self.graph))
+        mutator(tampered)
+        _, errors = validate_payload(tampered, str(CONTRACT_ROOT))
+        return errors
+
     def test_schema_loads_and_fixture_validates(self) -> None:
         schema = load_schema("simplicio.ecosystem-graph/v1", str(CONTRACT_ROOT))
         self.assertEqual(schema["title"], "simplicio.ecosystem-graph/v1")
@@ -51,13 +57,13 @@ class EcosystemGraphContractTest(unittest.TestCase):
                 self.assertTrue(edge["evidence"])
                 self.assertTrue(all(item["url"].startswith("https://") for item in edge["evidence"]))
 
-    def test_available_repository_revisions_are_immutable_sha1_ids(self) -> None:
+    def test_available_repository_revisions_are_immutable_sha_ids(self) -> None:
         for repo in self.graph["repositories"]:
             if repo["access"] != "available":
                 continue
             with self.subTest(repository=repo["name"]):
-                self.assertRegex(repo["revision"], re.compile(r"^[0-9a-f]{40}$"))
-                self.assertTrue(repo["url"].startswith("https://github.com/"))
+                self.assertRegex(repo["revision"], re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$"))
+                self.assertTrue(repo["url"].startswith("https://"))
 
     def test_research_references_keep_explicit_boundaries(self) -> None:
         references = {item["id"]: item for item in self.graph["references"]}
@@ -67,10 +73,56 @@ class EcosystemGraphContractTest(unittest.TestCase):
             self.assertTrue(item["url"].startswith("https://"))
 
     def test_unknown_status_is_rejected_by_schema(self) -> None:
-        tampered = json.loads(json.dumps(self.graph))
-        tampered["repositories"][0]["status"] = "everything-is-live"
-        _, errors = validate_payload(tampered, str(CONTRACT_ROOT))
+        errors = self.validate_tampered(
+            lambda graph: graph["repositories"][0].__setitem__("status", "everything-is-live")
+        )
         self.assertTrue(any("status" in error and "enum" in error for error in errors))
+
+    def test_duplicate_repository_id_is_rejected_semantically(self) -> None:
+        errors = self.validate_tampered(
+            lambda graph: graph["repositories"][1].__setitem__(
+                "id", graph["repositories"][0]["id"]
+            )
+        )
+        self.assertTrue(any("duplicate repository id" in error for error in errors))
+
+    def test_duplicate_edge_id_is_rejected_semantically(self) -> None:
+        errors = self.validate_tampered(
+            lambda graph: graph["edges"][1].__setitem__("id", graph["edges"][0]["id"])
+        )
+        self.assertTrue(any("duplicate edge id" in error for error in errors))
+
+    def test_dangling_edge_endpoint_is_rejected_semantically(self) -> None:
+        errors = self.validate_tampered(
+            lambda graph: graph["edges"][0].__setitem__("to", "missing-repository")
+        )
+        self.assertTrue(any("unknown repository id" in error for error in errors))
+
+    def test_available_repository_requires_full_immutable_revision(self) -> None:
+        errors = self.validate_tampered(
+            lambda graph: graph["repositories"][0].__setitem__("revision", "main")
+        )
+        self.assertTrue(any("immutable revision" in error for error in errors))
+
+    def test_evidence_urls_require_https(self) -> None:
+        errors = self.validate_tampered(
+            lambda graph: graph["edges"][0]["evidence"][0].__setitem__(
+                "url", "http://example.invalid/evidence"
+            )
+        )
+        self.assertTrue(any("evidence URL must use https" in error for error in errors))
+
+    def test_reference_ids_are_unique_and_boundaries_nonempty(self) -> None:
+        duplicate_errors = self.validate_tampered(
+            lambda graph: graph["references"][1].__setitem__(
+                "id", graph["references"][0]["id"]
+            )
+        )
+        boundary_errors = self.validate_tampered(
+            lambda graph: graph["references"][0].__setitem__("boundary", "")
+        )
+        self.assertTrue(any("duplicate reference id" in error for error in duplicate_errors))
+        self.assertTrue(any("boundary must not be empty" in error for error in boundary_errors))
 
 
 class CanvasCompatibilityProjectionTest(unittest.TestCase):
@@ -104,6 +156,24 @@ class CanvasCompatibilityProjectionTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("simplicio.ecosystem-graph/v1", result.stdout)
+
+    def test_standalone_validator_rejects_semantic_tamper(self) -> None:
+        tampered = json.loads(json.dumps(self.graph if hasattr(self, "graph") else json.loads(GRAPH_FILE.read_text(encoding="utf-8"))))
+        tampered["edges"][0]["to"] = "missing-repository"
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "tampered.json"
+            path.write_text(json.dumps(tampered), encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(STANDALONE), str(path)],
+                cwd=str(ROOT),
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unknown repository id", result.stdout)
 
 
 if __name__ == "__main__":
