@@ -22,7 +22,6 @@ Usage
 -----
 
     # validate every *.json fixture under contracts/ecosystem/v1/fixtures/
-    # (resolved by walking up from cwd, same convention as contract.py)
     python3 scripts/validate_ecosystem_contracts.py
 
     # validate specific file(s)/dir(s)
@@ -46,7 +45,6 @@ import sys
 
 CONTRACT_VERSION = "v1"
 
-# Maps a payload's own "schema" field to the schema file that describes it.
 SCHEMA_FILENAMES = {
     "simplicio.loop-execution/v1": "loop-execution.schema.json",
     "simplicio.executor-contract/v1": "executor-contract.schema.json",
@@ -71,13 +69,7 @@ class ContractError(RuntimeError):
 
 
 def find_default_schema_root(start: str | None = None) -> str:
-    """Locate ``contracts/ecosystem/v1/schemas`` by walking upward from ``start``.
-
-    Only used when ``--schema-root`` is not given -- i.e. when running this
-    script from within a ``simplicio-mapper`` checkout. A repo that vendors
-    this file should always pass ``--schema-root`` explicitly instead of
-    relying on this discovery.
-    """
+    """Locate ``contracts/ecosystem/v1/schemas`` by walking upward from ``start``."""
     here = os.path.abspath(start or os.getcwd())
     while True:
         candidate = os.path.join(here, "contracts", "ecosystem", CONTRACT_VERSION, "schemas")
@@ -115,9 +107,9 @@ def load_schema(schema_id: str, schema_root: str) -> dict:
 def _type_matches(value: object, expected: str) -> bool:
     py_type = _PY_TYPE_NAMES.get(expected)
     if py_type is None:
-        return True  # schema vocabulary is intentionally limited and additive
+        return True
     if expected in ("integer", "number") and isinstance(value, bool):
-        return False  # bool is technically an int subclass in Python
+        return False
     return isinstance(value, py_type)
 
 
@@ -152,7 +144,6 @@ def _validate_node(value: object, schema: dict, path: str, errors: list[str]) ->
 
 
 def validate_instance(instance: object, schema: dict) -> list[str]:
-    """Return a list of human-readable validation errors (empty = valid)."""
     errors: list[str] = []
     _validate_node(instance, schema, "$", errors)
     return errors
@@ -163,6 +154,11 @@ def _duplicate_ids(items: object, label: str) -> list[str]:
         return []
     errors: list[str] = []
     seen: set[str] = set()
+    singular = {
+        "repositories": "repository",
+        "edges": "edge",
+        "references": "reference",
+    }.get(label, label.rstrip("s"))
     for index, item in enumerate(items):
         if not isinstance(item, dict):
             continue
@@ -170,7 +166,7 @@ def _duplicate_ids(items: object, label: str) -> list[str]:
         if not isinstance(value, str) or not value.strip():
             continue
         if value in seen:
-            errors.append(f"$.{label}[{index}].id: duplicate {label[:-1]} id {value!r}")
+            errors.append(f"$.{label}[{index}].id: duplicate {singular} id {value!r}")
         seen.add(value)
     return errors
 
@@ -198,7 +194,6 @@ def _validate_evidence(items: object, path: str) -> list[str]:
 
 
 def validate_ecosystem_graph_semantics(payload: dict) -> list[str]:
-    """Validate unique identities, closed references and pinned evidence."""
     errors: list[str] = []
     repositories = payload.get("repositories")
     edges = payload.get("edges")
@@ -275,7 +270,6 @@ def validate_file(path: str, schema_root: str) -> tuple[str, list[str]]:
 
 
 def iter_json_files(paths: list[str]) -> list[str]:
-    """Expand a mix of file/directory paths into a sorted list of *.json files."""
     found: list[str] = []
     for raw_path in paths:
         if os.path.isdir(raw_path):
