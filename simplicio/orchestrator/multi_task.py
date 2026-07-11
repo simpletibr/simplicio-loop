@@ -110,6 +110,7 @@ class TaskBatch:
                     "base_sha": str(raw.get("base_sha", "")),
                     "status": str(raw.get("status", "pending")),
                     "attempts": int(raw.get("attempts", 0)),
+                    "cost": raw.get("cost"),
                     "receipt": raw.get("receipt"),
                 }
             )
@@ -246,6 +247,8 @@ class TaskBatch:
             task["attempts"] += 1
         if receipt is not None:
             task["receipt"] = dict(receipt)
+            if "cost" in receipt:
+                task["cost"] = receipt["cost"]
         self.save()
         return dict(task)
 

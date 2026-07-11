@@ -86,6 +86,49 @@ def test_store_topic_slugified():
     assert memory_store._slugify("   ") == "untitled"
 
 
+def test_validate_memory_reports_ok_for_initialized_store(tmp_path):
+    base = tmp_path / "mem"
+    memory_store.store_memory("auth flow", "OAuth device flow.", root=base, actor="codex")
+    payload = memory_store.validate_memory(root=base)
+    assert payload["ok"] is True
+    assert payload["notes"] == 1
+    assert payload["entries"] == 1
+
+
+def test_validate_memory_reports_missing_headers(tmp_path):
+    base = tmp_path / "mem"
+    notes = base / "notes"
+    notes.mkdir(parents=True)
+    (base / "README.md").write_text("ok\n", encoding="utf-8")
+    (notes / "broken.md").write_text("bad\n", encoding="utf-8")
+    payload = memory_store.validate_memory(root=base)
+    assert payload["ok"] is False
+    assert any(row["code"] == "missing_topic_header" for row in payload["errors"])
+
+
+def test_build_handoff_includes_validation_and_actor_metadata(tmp_path):
+    base = tmp_path / "mem"
+    memory_store.store_memory(
+        "release process",
+        "Ship via draft PR first.",
+        tags=["release", "workflow"],
+        root=base,
+        actor="claude-code",
+    )
+    payload = memory_store.build_handoff(
+        "draft PR",
+        root=base,
+        from_agent="codex",
+        to_agent="claude",
+    )
+    assert payload["schema"] == memory_store.MEMORY_HANDOFF_SCHEMA
+    assert payload["validation"]["ok"] is True
+    assert payload["from_agent"] == "codex"
+    assert payload["to_agent"] == "claude"
+    assert payload["results"][0]["actor"] == "claude-code"
+    assert payload["results"][0]["tags"] == "release, workflow"
+
+
 def test_cli_memory_init_store_recall(tmp_path, capsys):
     from simplicio import cli
 
@@ -114,3 +157,36 @@ def test_cli_memory_init_store_recall(tmp_path, capsys):
     assert code == 0
     recall_payload = json.loads(capsys.readouterr().out)
     assert len(recall_payload["results"]) == 1
+
+
+def test_cli_memory_validate_and_handoff(tmp_path, capsys):
+    from simplicio import cli
+
+    mem_dir = tmp_path / "mem"
+    cli.main(["memory", "store", "release process", "Ship via draft PR first.", "--dir", str(mem_dir)])
+    capsys.readouterr()
+
+    code = cli.main(["memory", "validate", "--dir", str(mem_dir), "--json"])
+    assert code == 0
+    validate_payload = json.loads(capsys.readouterr().out)
+    assert validate_payload["ok"] is True
+
+    code = cli.main(
+        [
+            "memory",
+            "handoff",
+            "draft PR",
+            "--dir",
+            str(mem_dir),
+            "--from-agent",
+            "codex",
+            "--to-agent",
+            "claude",
+            "--json",
+        ]
+    )
+    assert code == 0
+    handoff_payload = json.loads(capsys.readouterr().out)
+    assert handoff_payload["from_agent"] == "codex"
+    assert handoff_payload["to_agent"] == "claude"
+    assert len(handoff_payload["results"]) == 1

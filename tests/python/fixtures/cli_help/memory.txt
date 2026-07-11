@@ -1,10 +1,13 @@
-usage: simplicio-py memory [-h] {init,store,recall} ...
+usage: simplicio-py memory [-h] {init,store,recall,validate,handoff} ...
 
 positional arguments:
-  {init,store,recall}
-    init               create the memory store
-    store              append a note
-    recall             keyword search over stored notes
+  {init,store,recall,validate,handoff}
+    init                create the memory store
+    store               append a note
+    recall              keyword search over stored notes
+    validate            audit markdown memory store integrity
+    handoff             build a deterministic cross-vendor handoff packet from
+                        recall hits
 
 options:
-  -h, --help           show this help message and exit
+  -h, --help            show this help message and exit

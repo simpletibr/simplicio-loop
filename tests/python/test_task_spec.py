@@ -327,6 +327,42 @@ Dependências
     assert payload["task_batch"]["tasks"][1]["depends_on"] == [first_id]
 
 
+def test_intake_can_persist_frozen_batch_for_later_resume(tmp_path, capsys) -> None:
+    raw = """## Card 1
+Funcionalidade: Login
+Tipo: Evolução
+
+## Card 2
+Funcionalidade: Reports
+Tipo: Evolução
+
+Dependências
+- depends on: Login
+"""
+    batch_path = tmp_path / ".simplicio" / "task_batch.json"
+    code = intake_cmd.run(
+        ns(
+            text=raw,
+            file=None,
+            stdin=False,
+            source_url=None,
+            validate_only=False,
+            contract=True,
+            execution_mode=False,
+            plan_only=False,
+            batch_path=str(batch_path),
+            json=True,
+        )
+    )
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["batch_path"] == str(batch_path.resolve())
+    persisted = json.loads(batch_path.read_text(encoding="utf-8"))
+    assert persisted["schema"] == "simplicio.dev-cli.task-batch/v1"
+    assert [task["status"] for task in persisted["tasks"]] == ["pending", "pending"]
+
+
 def test_malformed_input_is_actionable_and_never_calls_generation(monkeypatch, capsys) -> None:
     called = False
 

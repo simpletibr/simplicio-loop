@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from ..execution_contract import ContractCompilationError, compile_execution_contracts
-from ..orchestrator.multi_task import BatchBuildError, build_batch_preview
+from ..orchestrator.multi_task import BatchBuildError, TaskBatch, build_batch_preview
 from ..plan_discovery import PlanDiscoveryError, build_plan_preview
 from ..task_spec import SourceRef, TaskSpecValidationError, parse_task_document
 
@@ -71,6 +71,17 @@ def run(a: argparse.Namespace) -> int:
         return 2
 
     payload = document.to_dict()
+    if getattr(a, "batch_path", None) and getattr(a, "plan_only", False):
+        diagnostic = "--batch-path mutates state and cannot be combined with --plan-only"
+        if a.json:
+            print(
+                json.dumps(
+                    {"schema": "simplicio.intake-validation/v1", "valid": False, "errors": [diagnostic]}
+                )
+            )
+        else:
+            print(f"{CLI_PROG} intake: {diagnostic}", file=sys.stderr)
+        return 2
     if getattr(a, "contract", False) or getattr(a, "plan_only", False):
         try:
             contracts = compile_execution_contracts(
@@ -114,6 +125,16 @@ def run(a: argparse.Namespace) -> int:
                     print(f"{CLI_PROG} intake: {diagnostic}", file=sys.stderr)
             return 2
         contracts_payload = [contract.to_dict() for contract in contracts]
+        if getattr(a, "batch_path", None):
+            identity = batch_preview["identity"]
+            batch = TaskBatch.create(
+                a.batch_path,
+                batch_preview["tasks"],
+                source_hash=identity["source_hash"],
+                plan_hash=identity["plan_hash"],
+                base_sha=identity["base_sha"],
+            )
+            batch_preview = batch.status()
         if getattr(a, "plan_only", False):
             try:
                 preview = (
@@ -155,6 +176,11 @@ def run(a: argparse.Namespace) -> int:
                 "task_spec": payload,
                 "contracts": contracts_payload,
                 "task_batch": batch_preview,
+                **(
+                    {"batch_path": str(Path(a.batch_path).resolve())}
+                    if getattr(a, "batch_path", None)
+                    else {}
+                ),
             }
         else:
             payload = {
@@ -162,6 +188,11 @@ def run(a: argparse.Namespace) -> int:
                 "task_spec": payload,
                 "contracts": contracts_payload,
                 "task_batch": batch_preview,
+                **(
+                    {"batch_path": str(Path(a.batch_path).resolve())}
+                    if getattr(a, "batch_path", None)
+                    else {}
+                ),
             }
     if a.validate_only:
         payload = {

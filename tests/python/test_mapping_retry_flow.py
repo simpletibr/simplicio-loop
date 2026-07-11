@@ -309,7 +309,7 @@ def test_run_task_rejects_missing_test_command_before_application(tmp_path, monk
     )
 
     assert result["applied"] is False
-    assert generated == [True]
+    assert generated == []
     assert target.read_text(encoding="utf-8") == "old\n"
     assert "verification command missing" in result["warnings"][0]
 

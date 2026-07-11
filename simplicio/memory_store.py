@@ -38,6 +38,8 @@ from pathlib import Path
 from typing import Any
 
 MEMORY_SCHEMA = "simplicio.memory-store/v1"
+MEMORY_VALIDATION_SCHEMA = "simplicio.memory-store-validation/v1"
+MEMORY_HANDOFF_SCHEMA = "simplicio.memory-handoff/v1"
 
 
 def memory_dir() -> Path:
@@ -151,6 +153,21 @@ def _tokenize(text: str) -> set[str]:
     return {t for t in re.findall(r"[a-zA-Z0-9_./-]+", text.lower()) if len(t) > 1}
 
 
+def _parse_entry_meta(section: str) -> dict[str, str | None]:
+    lines = [line.rstrip() for line in section.splitlines() if line.strip()]
+    ts = None
+    actor = None
+    tags = None
+    if lines and lines[0].startswith("## "):
+        match = re.match(r"^##\s+(.+?)\s+—\s+(.+?)\s*$", lines[0])
+        if match:
+            ts = match.group(1).strip()
+            actor = match.group(2).strip()
+    if len(lines) > 1 and lines[1].lower().startswith("tags: "):
+        tags = lines[1][6:].strip() or None
+    return {"ts": ts, "actor": actor, "tags": tags}
+
+
 def recall_memory(
     query: str,
     *,
@@ -195,6 +212,129 @@ def recall_memory(
             )
     results.sort(key=lambda item: -item[0])
     return [r for _score, r in results[:limit]]
+
+
+def validate_memory(
+    *,
+    root: str | os.PathLike[str] | None = None,
+) -> dict[str, Any]:
+    """Validate the deterministic markdown memory store shape.
+
+    This is the smallest honest HRM-adjacent slice for issue #89: a
+    structural high-level audit of the store plus low-level entry/header
+    checks. It does *not* claim external HRM model integration.
+    """
+    base = Path(root) if root is not None else memory_dir()
+    notes_dir = _notes_dir(base)
+    errors: list[dict[str, str]] = []
+    warnings: list[dict[str, str]] = []
+    note_count = 0
+    entry_count = 0
+
+    if not base.exists():
+        errors.append({"code": "missing_store", "message": f"memory store does not exist: {base}"})
+    readme = base / "README.md"
+    if base.exists() and not readme.exists():
+        errors.append({"code": "missing_readme", "message": f"missing README.md under {base}"})
+    if base.exists() and not notes_dir.is_dir():
+        errors.append({"code": "missing_notes_dir", "message": f"missing notes/ directory under {base}"})
+
+    if notes_dir.is_dir():
+        for path in sorted(notes_dir.glob("*.md")):
+            note_count += 1
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError as exc:
+                errors.append(
+                    {
+                        "code": "read_failed",
+                        "message": f"failed to read {path.name}: {exc}",
+                    }
+                )
+                continue
+            lines = text.splitlines()
+            if not lines or not lines[0].startswith("# "):
+                errors.append(
+                    {
+                        "code": "missing_topic_header",
+                        "message": f"{path.name} must start with '# <topic>'",
+                    }
+                )
+            sections = _split_sections(text)
+            note_entries = 0
+            for section in sections:
+                if not section.lstrip().startswith("## "):
+                    continue
+                note_entries += 1
+                entry_count += 1
+                meta = _parse_entry_meta(section)
+                if not meta["ts"] or not meta["actor"]:
+                    errors.append(
+                        {
+                            "code": "invalid_entry_header",
+                            "message": f"{path.name} has an entry without '## <timestamp> — <actor>'",
+                        }
+                    )
+            if note_entries == 0:
+                warnings.append(
+                    {
+                        "code": "no_entries",
+                        "message": f"{path.name} has no timestamped entries yet",
+                    }
+                )
+
+    return {
+        "schema": MEMORY_VALIDATION_SCHEMA,
+        "ok": not errors,
+        "dir": str(base),
+        "git_initialized": (base / ".git").is_dir(),
+        "notes": note_count,
+        "entries": entry_count,
+        "errors": errors,
+        "warnings": warnings,
+    }
+
+
+def build_handoff(
+    query: str,
+    *,
+    limit: int = 5,
+    root: str | os.PathLike[str] | None = None,
+    from_agent: str | None = None,
+    to_agent: str | None = None,
+) -> dict[str, Any]:
+    """Build a deterministic cross-vendor handoff packet from recall hits."""
+    base = Path(root) if root is not None else memory_dir()
+    validation = validate_memory(root=base)
+    matches = recall_memory(query, limit=limit, root=base)
+    items: list[dict[str, Any]] = []
+    for row in matches:
+        meta = _parse_entry_meta(row["snippet"])
+        items.append(
+            {
+                "topic": row["topic"],
+                "path": row["path"],
+                "score": row["score"],
+                "actor": meta["actor"],
+                "ts": meta["ts"],
+                "tags": meta["tags"],
+                "snippet": row["snippet"],
+            }
+        )
+    return {
+        "schema": MEMORY_HANDOFF_SCHEMA,
+        "dir": str(base),
+        "query": query,
+        "from_agent": from_agent or os.environ.get("SIMPLICIO_MEMORY_ACTOR") or "unknown",
+        "to_agent": to_agent or "unknown",
+        "validation": {
+            "schema": validation["schema"],
+            "ok": validation["ok"],
+            "errors": validation["errors"],
+            "warnings": validation["warnings"],
+        },
+        "results": items,
+    }
 
 
 def _split_sections(text: str) -> list[str]:

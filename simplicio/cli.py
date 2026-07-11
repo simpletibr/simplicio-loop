@@ -291,6 +291,10 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="emit a contract-backed plan preview without dispatch or mutation",
     )
+    p_intake.add_argument(
+        "--batch-path",
+        help="persist the frozen multi-task batch at this path (explicitly mutating)",
+    )
     p_intake.add_argument("--json", action="store_true", help="emit stable structured JSON")
 
     p_doctor = sub.add_parser(
@@ -460,6 +464,20 @@ def _build_parser() -> argparse.ArgumentParser:
     p_mem_recall.add_argument("--limit", type=int, default=5)
     p_mem_recall.add_argument("--dir", default=None)
     p_mem_recall.add_argument("--json", action="store_true")
+    p_mem_validate = memory_sub.add_parser("validate", help="audit markdown memory store integrity")
+    p_mem_validate.add_argument("--dir", default=None)
+    p_mem_validate.add_argument("--strict", action="store_true", help="exit 2 when validation fails")
+    p_mem_validate.add_argument("--json", action="store_true")
+    p_mem_handoff = memory_sub.add_parser(
+        "handoff",
+        help="build a deterministic cross-vendor handoff packet from recall hits",
+    )
+    p_mem_handoff.add_argument("query")
+    p_mem_handoff.add_argument("--limit", type=int, default=5)
+    p_mem_handoff.add_argument("--dir", default=None)
+    p_mem_handoff.add_argument("--from-agent", default=None)
+    p_mem_handoff.add_argument("--to-agent", default=None)
+    p_mem_handoff.add_argument("--json", action="store_true")
 
     return ap
 

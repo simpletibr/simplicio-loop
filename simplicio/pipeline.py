@@ -352,6 +352,21 @@ def run_task(
 ):
     _remember_patch_receipt(None)
     prompt = build_prompt(root, stack, goal, target, criteria, constraints)
+    primary_test_cmd = os.environ.get("SIMPLICIO_TEST_CMD", "").strip() or None
+    if not dry_run_task and primary_test_cmd is None:
+        blocker = {
+            "code": "verification_command_missing",
+            "message": "verification command missing; set SIMPLICIO_TEST_CMD before execution",
+        }
+        return _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[blocker["message"]],
+            blocked_preconditions=[blocker],
+        )
     if dry_run_task:
         blockers = _dry_run_preconditions(root, target)
         if blockers:
@@ -380,7 +395,6 @@ def run_task(
     last_validation = None
     last_log = ""
     last_verify_receipt: dict[str, Any] | None = None
-    primary_test_cmd = os.environ.get("SIMPLICIO_TEST_CMD", "").strip() or None
     # Issue #93: impact-test tracking across attempts
     impact_results: dict[str, Any] | None = None
     for t in range(1, MAX_ATTEMPTS + 1):

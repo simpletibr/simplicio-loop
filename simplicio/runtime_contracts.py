@@ -9,11 +9,24 @@ from typing import Any
 
 from . import __version__
 from .providers import LOCAL_DEFAULT_MODEL
+from .task_spec import TASK_SPEC_COMPATIBILITY
 
 DEV_CLI_PACKAGE = "simplicio-cli"
 PRIMARY_ADAPTER_COMMAND = "simplicio-dev-cli"
 PYTHON_ADAPTER_COMMAND = "simplicio-py"
 RUNTIME_COMMAND = "simplicio"
+RUNTIME_PRODUCT = "simplicio-runtime"
+DEV_CLI_PRODUCT = "simplicio-dev-cli"
+RUNTIME_CAPABILITIES = [
+    "simplicio.task-spec/v2",
+    "simplicio.execution-contract/v1",
+    "simplicio.orientation-plan/v1",
+    "simplicio.transaction/v1",
+    "simplicio.dev-cli.patch-receipt/v1",
+    "simplicio.dev-cli.evidence-ledger/v1",
+    "simplicio.dev-cli.task-batch/v1",
+    "simplicio.prompt-envelope/v1",
+]
 
 
 def version_contract() -> dict[str, Any]:
@@ -27,21 +40,31 @@ def version_contract() -> dict[str, Any]:
     return {
         "schema": "simplicio.dev-cli.version/v1",
         "package": {"name": DEV_CLI_PACKAGE, "version": __version__},
+        "identity": {
+            "product": DEV_CLI_PRODUCT,
+            "role": "adapter",
+            "family": "simplicio",
+            "canonical_entrypoint": PRIMARY_ADAPTER_COMMAND,
+        },
         "entrypoints": {
             "adapter": PRIMARY_ADAPTER_COMMAND,
             "python_adapter": PYTHON_ADAPTER_COMMAND,
             "reserved_runtime": RUNTIME_COMMAND,
         },
-        "capabilities": [
-            "simplicio.task-spec/v2",
-            "simplicio.execution-contract/v1",
-            "simplicio.orientation-plan/v1",
-            "simplicio.transaction/v1",
-            "simplicio.dev-cli.patch-receipt/v1",
-            "simplicio.dev-cli.evidence-ledger/v1",
-            "simplicio.dev-cli.task-batch/v1",
-            "simplicio.prompt-envelope/v1",
-        ],
+        "capabilities": RUNTIME_CAPABILITIES,
+        "compatibility": {
+            "task_spec": TASK_SPEC_COMPATIBILITY,
+            "runtime": {
+                "product": RUNTIME_PRODUCT,
+                "reserved_command": RUNTIME_COMMAND,
+                "reject_products": ["simplicio-agent", "hermes"],
+                "diagnostic": (
+                    "Expected Simplicio Runtime on `simplicio`; if PATH resolves to "
+                    "Agent/Desktop, use `simplicio-agent` for that binary and point "
+                    "runtime consumers at the Rust runtime explicitly."
+                ),
+            },
+        },
         "dependencies": {"simplicio-mapper": mapper},
     }
 
@@ -74,6 +97,12 @@ def doctor_contract(root: str | Path = ".") -> dict[str, Any]:
         "package": {
             "name": DEV_CLI_PACKAGE,
             "version": packages[DEV_CLI_PACKAGE]["version"],
+        },
+        "identity": {
+            "product": DEV_CLI_PRODUCT,
+            "role": "adapter",
+            "family": "simplicio",
+            "canonical_entrypoint": PRIMARY_ADAPTER_COMMAND,
         },
         "entrypoints": {
             "adapter": PRIMARY_ADAPTER_COMMAND,

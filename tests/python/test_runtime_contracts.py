@@ -12,10 +12,27 @@ def test_version_contract_exposes_canonical_capabilities(monkeypatch):
 
     assert payload["schema"] == "simplicio.dev-cli.version/v1"
     assert payload["package"] == {"name": "simplicio-cli", "version": "0.12.0"}
+    assert payload["identity"] == {
+        "product": "simplicio-dev-cli",
+        "role": "adapter",
+        "family": "simplicio",
+        "canonical_entrypoint": "simplicio-dev-cli",
+    }
     assert "simplicio.task-spec/v2" in payload["capabilities"]
     assert "simplicio.dev-cli.patch-receipt/v1" in payload["capabilities"]
     assert "simplicio.dev-cli.task-batch/v1" in payload["capabilities"]
     assert "simplicio.prompt-envelope/v1" in payload["capabilities"]
+    assert payload["compatibility"]["task_spec"]["minimum_consumer_major"] == 2
+    assert payload["compatibility"]["runtime"] == {
+        "product": "simplicio-runtime",
+        "reserved_command": "simplicio",
+        "reject_products": ["simplicio-agent", "hermes"],
+        "diagnostic": (
+            "Expected Simplicio Runtime on `simplicio`; if PATH resolves to "
+            "Agent/Desktop, use `simplicio-agent` for that binary and point "
+            "runtime consumers at the Rust runtime explicitly."
+        ),
+    }
 
 
 def test_version_cli_supports_text_and_json(monkeypatch, capsys):
@@ -27,6 +44,8 @@ def test_version_cli_supports_text_and_json(monkeypatch, capsys):
     assert cli.main(["version", "--json"]) == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["schema"] == "simplicio.dev-cli.version/v1"
+    assert payload["identity"]["product"] == "simplicio-dev-cli"
+    assert payload["compatibility"]["runtime"]["reserved_command"] == "simplicio"
 
 
 def test_doctor_contract_reports_ecosystem_tool_status(tmp_path, monkeypatch):
@@ -50,6 +69,12 @@ def test_doctor_contract_reports_ecosystem_tool_status(tmp_path, monkeypatch):
     assert "simplicio" not in result["tools"]
     assert result["packages"]["simplicio-cli"]["version"] == "1.2.3"
     assert result["package"]["version"] == "1.2.3"
+    assert result["identity"] == {
+        "product": "simplicio-dev-cli",
+        "role": "adapter",
+        "family": "simplicio",
+        "canonical_entrypoint": "simplicio-dev-cli",
+    }
     assert result["entrypoints"] == {
         "adapter": "simplicio-dev-cli",
         "python_adapter": "simplicio-py",

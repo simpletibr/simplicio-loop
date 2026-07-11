@@ -24,6 +24,11 @@ from typing import Any, cast
 
 SCHEMA = "simplicio.transaction/v1"
 _TAIL = 4000
+_COMMAND_PLACEHOLDERS = {
+    "",
+    "echo 'configure SIMPLICIO_TEST_CMD'",
+    'echo "configure SIMPLICIO_TEST_CMD"',
+}
 
 
 class TransactionError(RuntimeError):
@@ -44,6 +49,30 @@ class ConcurrentModificationError(TransactionError):
 
 class UnsafePathError(TransactionError):
     pass
+
+
+def _normalized_commands(commands: Iterable[object]) -> tuple[str, ...]:
+    return tuple(str(item).strip() for item in commands)
+
+
+def _validated_receipt_commands(
+    commands: Iterable[object],
+    exit_codes: Iterable[object],
+    *,
+    require_promotable: bool,
+) -> tuple[tuple[str, ...], tuple[int, ...]]:
+    normalized_commands = _normalized_commands(commands)
+    normalized_exit_codes = tuple(int(str(item).strip()) for item in exit_codes)
+    if len(normalized_commands) != len(normalized_exit_codes):
+        raise ReceiptError("transaction receipt commands/exit_codes length mismatch")
+    if any(not command for command in normalized_commands):
+        raise ReceiptError("transaction receipt contains an empty command")
+    if require_promotable:
+        if not normalized_commands:
+            raise ReceiptError("cannot promote without a verification command receipt")
+        if any(command in _COMMAND_PLACEHOLDERS for command in normalized_commands):
+            raise ReceiptError("cannot promote placeholder verification command")
+    return normalized_commands, normalized_exit_codes
 
 
 def sha256_bytes(data: bytes) -> str:
@@ -184,6 +213,11 @@ class VerificationReceipt:
                 raise TypeError("receipt arrays are malformed")
             if not isinstance(raw_exit_codes, list):
                 raise TypeError("receipt exit codes are malformed")
+            commands, exit_codes = _validated_receipt_commands(
+                raw_commands,
+                raw_exit_codes,
+                require_promotable=False,
+            )
             files = tuple(
                 FileReceipt(
                     path=_relative(str(cast(dict[str, Any], item)["path"])),
@@ -199,8 +233,8 @@ class VerificationReceipt:
                 base_sha=str(payload["base_sha"]),
                 candidate_sha=str(payload["candidate_sha"]),
                 files=files,
-                commands=tuple(str(item) for item in raw_commands),
-                exit_codes=tuple(int(item) for item in raw_exit_codes),
+                commands=commands,
+                exit_codes=exit_codes,
                 stdout_tail=str(payload.get("stdout_tail", "")),
                 stderr_tail=str(payload.get("stderr_tail", "")),
                 created_at=int(cast(int | str, payload.get("created_at", 0))),
@@ -238,6 +272,11 @@ class Transaction:
         stderr: str = "",
     ) -> VerificationReceipt:
         safe_paths = tuple(sorted({_relative(path) for path in paths}))
+        normalized_commands, normalized_exit_codes = _validated_receipt_commands(
+            commands,
+            exit_codes,
+            require_promotable=False,
+        )
         files = []
         for relative in safe_paths:
             before = _inside(self.root, relative)
@@ -256,8 +295,8 @@ class Transaction:
             self.base_sha,
             _tree_digest(self.candidate, safe_paths),
             tuple(files),
-            tuple(commands),
-            tuple(exit_codes),
+            normalized_commands,
+            normalized_exit_codes,
             stdout[-_TAIL:],
             stderr[-_TAIL:],
         )
@@ -272,6 +311,7 @@ class Transaction:
     def promote(self, receipt: VerificationReceipt) -> None:
         if receipt.transaction_id != self.transaction_id or receipt.base_sha != self.base_sha:
             raise ReceiptError("receipt is not bound to this transaction/base")
+        _validated_receipt_commands(receipt.commands, receipt.exit_codes, require_promotable=True)
         if any(code != 0 for code in receipt.exit_codes):
             raise ReceiptError("cannot promote a receipt with a failing command")
         paths = [item.path for item in receipt.files]

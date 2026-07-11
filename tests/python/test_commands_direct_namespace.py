@@ -148,6 +148,27 @@ def test_memory_run_init_store_recall(tmp_path, capsys):
     recall_payload = json.loads(capsys.readouterr().out)
     assert len(recall_payload["results"]) == 1
 
+    code = memory_cmd.run(ns(memory_cmd="validate", dir=mem_dir, strict=False, json=True))
+    assert code == 0
+    validate_payload = json.loads(capsys.readouterr().out)
+    assert validate_payload["ok"] is True
+
+    code = memory_cmd.run(
+        ns(
+            memory_cmd="handoff",
+            dir=mem_dir,
+            query="cross-vendor",
+            limit=5,
+            from_agent="codex",
+            to_agent="claude",
+            json=True,
+        )
+    )
+    assert code == 0
+    handoff_payload = json.loads(capsys.readouterr().out)
+    assert handoff_payload["from_agent"] == "codex"
+    assert handoff_payload["to_agent"] == "claude"
+
 
 def test_cache_run_stats(monkeypatch, capsys):
     class FakeCache:

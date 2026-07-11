@@ -14,7 +14,7 @@ CLI_PROG = "simplicio-py"
 
 
 def run(a: argparse.Namespace) -> int:
-    from ..memory_store import init_memory, recall_memory, store_memory
+    from ..memory_store import build_handoff, init_memory, recall_memory, store_memory, validate_memory
 
     if a.memory_cmd == "init":
         payload = init_memory(root=a.dir)
@@ -43,6 +43,39 @@ def run(a: argparse.Namespace) -> int:
                 print(f"{CLI_PROG} memory recall: no matches")
             for r in results:
                 print(f"[{r['score']}] {r['topic']}: {r['snippet'][:120]}")
+        return 0
+    if a.memory_cmd == "validate":
+        payload = validate_memory(root=a.dir)
+        if a.json:
+            print(json.dumps(payload, sort_keys=True))
+        else:
+            print(
+                f"{CLI_PROG} memory validate: ok={payload['ok']} "
+                f"notes={payload['notes']} entries={payload['entries']}"
+            )
+            for row in payload["errors"]:
+                print(f"ERROR {row['code']}: {row['message']}")
+            for row in payload["warnings"]:
+                print(f"WARN {row['code']}: {row['message']}")
+        return 0 if payload["ok"] or not getattr(a, "strict", False) else 2
+    if a.memory_cmd == "handoff":
+        payload = build_handoff(
+            a.query,
+            limit=a.limit,
+            root=a.dir,
+            from_agent=a.from_agent,
+            to_agent=a.to_agent,
+        )
+        if a.json:
+            print(json.dumps(payload, sort_keys=True))
+        else:
+            print(
+                f"{CLI_PROG} memory handoff: {len(payload['results'])} results "
+                f"from={payload['from_agent']} to={payload['to_agent']} "
+                f"validation_ok={payload['validation']['ok']}"
+            )
+            for row in payload["results"]:
+                print(f"[{row['score']}] {row['topic']}: {row['snippet'][:120]}")
         return 0
     print(f"{CLI_PROG} memory: unsupported command", file=sys.stderr)
     return 2

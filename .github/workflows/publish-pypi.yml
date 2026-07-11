@@ -1,15 +1,17 @@
-# Publish to PyPI — publishes the Python package automatically when master is updated.
-# Idempotent: compares the local version with the published one and only publishes on a diff.
-# Mirrors simplicio-mapper's publish-pypi.yml, adjusted for this repo's default branch (master).
+# Publish to PyPI — publish only after the CI workflow finishes green on master,
+# or on an explicit manual dispatch.
 #
-# Requirements:
-#   - PyPI Trusted Publishing configured for this repo/workflow.
-#   - `contents: write` permission (to create the release tag).
+# This keeps release publication behind the same release gate documented in
+# issue #121: pytest, docs drift, deterministic corpus, lint/type and clean
+# distributions must all pass before Trusted Publishing runs.
 
 name: Publish to PyPI
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
     branches:
       - master
   workflow_dispatch:
@@ -19,30 +21,37 @@ permissions:
   id-token: write
 
 concurrency:
-  group: publish-pypi-${{ github.ref }}
+  group: publish-pypi-${{ github.event.workflow_run.head_branch || github.ref }}
   cancel-in-progress: false
 
 jobs:
   publish:
     name: Publish Python package
     runs-on: ubuntu-latest
-    if: github.repository == 'wesleysimplicio/simplicio-dev-cli'
-    timeout-minutes: 15
+    if: >-
+      github.repository == 'wesleysimplicio/simplicio-dev-cli' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        github.event.workflow_run.conclusion == 'success'
+      )
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install build tooling
+      - name: Install build + release-gate tooling
         run: |
           python -m pip install --upgrade pip
           python -m pip install build twine
+          python -m pip install -e ".[dev]"
 
       - name: Read package metadata
         id: meta
@@ -71,22 +80,31 @@ jobs:
         run: |
           echo "::notice::Version ${{ steps.meta.outputs.local }} already published on PyPI. Skipping."
 
-      - name: Configure Git identity (for fixture commits)
+      - name: Configure Git identity (for release tag)
         if: steps.meta.outputs.should_publish == 'true'
         run: |
           git config --global user.email "ci@simplicio.dev"
           git config --global user.name "Simplicio CI"
           git config --global commit.gpgsign false
 
-      - name: Install package and pytest
-        if: steps.meta.outputs.should_publish == 'true'
-        run: |
-          python -m pip install -e .
-          python -m pip install pytest
-
       - name: Run pytest before publishing
         if: steps.meta.outputs.should_publish == 'true'
-        run: python -m pytest tests/python -q
+        run: python -m pytest
+
+      - name: Check generated docs drift before publishing
+        if: steps.meta.outputs.should_publish == 'true'
+        run: python scripts/gen_package_interdependence.py --check
+
+      - name: Run deterministic delivery corpus gate before publishing (#121)
+        if: steps.meta.outputs.should_publish == 'true'
+        run: python bench/run_delivery_corpus.py
+
+      - name: Run lint + type gates before publishing
+        if: steps.meta.outputs.should_publish == 'true'
+        run: |
+          ruff check .
+          ruff format --check .
+          mypy simplicio
 
       - name: Build distributions
         if: steps.meta.outputs.should_publish == 'true'
@@ -95,6 +113,25 @@ jobs:
       - name: Check distributions
         if: steps.meta.outputs.should_publish == 'true'
         run: python -m twine check dist/*
+
+      - name: Smoke built wheel identity in a clean venv
+        if: steps.meta.outputs.should_publish == 'true'
+        run: |
+          python -m venv .venv-wheel
+          . .venv-wheel/bin/activate
+          python -m pip install --upgrade pip
+          pip install dist/*.whl
+          SIMPLICIO_SKIP_AUTO_INIT=1 simplicio-py --version --json > version.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("version.json").read_text(encoding="utf-8"))
+          assert payload["schema"] == "simplicio.dev-cli.version/v1"
+          assert payload["identity"]["product"] == "simplicio-dev-cli"
+          assert payload["entrypoints"]["reserved_runtime"] == "simplicio"
+          assert payload["compatibility"]["runtime"]["product"] == "simplicio-runtime"
+          PY
 
       - name: Publish to PyPI
         if: steps.meta.outputs.should_publish == 'true'
@@ -115,6 +152,19 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
+
+      - name: Create GitHub Release
+        if: steps.meta.outputs.should_publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v${{ steps.meta.outputs.local }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "GitHub Release $TAG already exists, skipping."
+            exit 0
+          fi
+          gh release create "$TAG" --title "$TAG" --generate-notes
 
       - name: Summary
         if: always()

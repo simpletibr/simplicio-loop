@@ -32,6 +32,23 @@ def test_detect_json_contract(capsys):
     assert isinstance(payload["signals"], list)
 
 
+def test_version_json_contract(capsys, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+
+    code = cli.main(["version", "--json"])
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert_schema_id(payload, "simplicio.dev-cli.version/v1", where="version --json")
+    assert_has_keys(
+        payload,
+        {"package", "identity", "entrypoints", "capabilities", "compatibility", "dependencies"},
+        where="version --json",
+    )
+    assert payload["identity"]["product"] == "simplicio-dev-cli"
+    assert payload["compatibility"]["runtime"]["reserved_command"] == "simplicio"
+
+
 def test_doctor_json_contract_no_network(capsys):
     # --no-check-updates: the PyPI freshness check is a real HTTP call: the
     # #100 AC is "no external calls" for this suite, so it stays off here.
