@@ -1,3 +1,4 @@
+import subprocess
 import json
 
 from simplicio import bench, mapper, pipeline
@@ -890,3 +891,23 @@ def test_benchmark_writes_observability_log(tmp_path, monkeypatch):
     assert {event["mode"] for event in events} == {"baseline", "pipeline"}
     assert all(event["prompt_variant"] == "mapper-v1" for event in events)
     assert all("tokens_estimated" in event for event in events)
+
+
+def test_git_apply_patch_falls_back_to_three_way_recovery(tmp_path, monkeypatch):
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append(argv)
+        if "--3way" in argv:
+            return subprocess.CompletedProcess(argv, 0, b"", b"")
+        return subprocess.CompletedProcess(argv, 1, b"", b"rejected")
+
+    monkeypatch.setattr(pipeline.subprocess, "run", fake_run)
+    applied, error = pipeline._git_apply_patch(
+        str(tmp_path),
+        "diff --git a/app.py b/app.py\n--- a/app.py\n+++ b/app.py\n",
+    )
+
+    assert applied is True
+    assert error == ""
+    assert any("--3way" in argv for argv in calls)

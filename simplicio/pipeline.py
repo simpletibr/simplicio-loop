@@ -485,6 +485,7 @@ def _git_apply_patch(root, patch):
     attempts = [
         ([], "git apply"),
         (["--recount"], "git apply --recount"),
+        (["--recount", "--3way"], "git apply --recount --3way"),
     ]
     errors = []
     for extra_args, label in attempts:
