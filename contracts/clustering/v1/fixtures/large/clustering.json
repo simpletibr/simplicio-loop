@@ -1,0 +1,1437 @@
+{
+  "clusters": [
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:workspace:86fa3762d2eb6db6",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "workspace",
+      "language_mix": {
+        "python": 24
+      },
+      "member_count": 24,
+      "member_ids": [
+        "cluster:file:40ab510cd5ba402e",
+        "cluster:file:507dd5af3d43069e",
+        "cluster:file:02e064298d822d87",
+        "cluster:file:432f4802b4cf0532",
+        "cluster:file:033eb4a18f5453a5",
+        "cluster:file:c22dc81d76c3e78c",
+        "cluster:file:be203d4e524a6055",
+        "cluster:file:b9888e06dbe8ab3c",
+        "cluster:file:e7d90f890cc49050",
+        "cluster:file:210407b5dd3423fa",
+        "cluster:file:6342dbb7cc56b50b",
+        "cluster:file:bb33f8cc028b1387",
+        "cluster:file:b575d975c71c2e39",
+        "cluster:file:0c65f5fd20b50de2",
+        "cluster:file:c6ecc727ccc9e865",
+        "cluster:file:a29e2dacddb49635",
+        "cluster:file:527f5cdf734f5077",
+        "cluster:file:474f0809c8d34a46",
+        "cluster:file:e4ff52638cabff6b",
+        "cluster:file:f491e9a9f6989151",
+        "cluster:file:4814f62ebdf57a40",
+        "cluster:file:9487761ee76b1ac1",
+        "cluster:file:f4ce6fc093118e9f",
+        "cluster:file:d20d1155205d0926"
+      ],
+      "member_paths": [
+        "backend/module_0.py",
+        "backend/module_12.py",
+        "backend/module_15.py",
+        "backend/module_18.py",
+        "backend/module_21.py",
+        "backend/module_3.py",
+        "backend/module_6.py",
+        "backend/module_9.py",
+        "frontend/module_1.py",
+        "frontend/module_10.py",
+        "frontend/module_13.py",
+        "frontend/module_16.py",
+        "frontend/module_19.py",
+        "frontend/module_22.py",
+        "frontend/module_4.py",
+        "frontend/module_7.py",
+        "shared/module_11.py",
+        "shared/module_14.py",
+        "shared/module_17.py",
+        "shared/module_2.py",
+        "shared/module_20.py",
+        "shared/module_23.py",
+        "shared/module_5.py",
+        "shared/module_8.py"
+      ],
+      "name": ".",
+      "overlapping": true,
+      "recommended_collapse_level": "summary"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:directory:96d9863b61000436",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "directory",
+      "language_mix": {
+        "python": 8
+      },
+      "member_count": 8,
+      "member_ids": [
+        "cluster:file:40ab510cd5ba402e",
+        "cluster:file:507dd5af3d43069e",
+        "cluster:file:02e064298d822d87",
+        "cluster:file:432f4802b4cf0532",
+        "cluster:file:033eb4a18f5453a5",
+        "cluster:file:c22dc81d76c3e78c",
+        "cluster:file:be203d4e524a6055",
+        "cluster:file:b9888e06dbe8ab3c"
+      ],
+      "member_paths": [
+        "backend/module_0.py",
+        "backend/module_12.py",
+        "backend/module_15.py",
+        "backend/module_18.py",
+        "backend/module_21.py",
+        "backend/module_3.py",
+        "backend/module_6.py",
+        "backend/module_9.py"
+      ],
+      "name": "backend",
+      "overlapping": true,
+      "recommended_collapse_level": "members"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:directory:5472b26afd4e5bad",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "directory",
+      "language_mix": {
+        "python": 8
+      },
+      "member_count": 8,
+      "member_ids": [
+        "cluster:file:e7d90f890cc49050",
+        "cluster:file:210407b5dd3423fa",
+        "cluster:file:6342dbb7cc56b50b",
+        "cluster:file:bb33f8cc028b1387",
+        "cluster:file:b575d975c71c2e39",
+        "cluster:file:0c65f5fd20b50de2",
+        "cluster:file:c6ecc727ccc9e865",
+        "cluster:file:a29e2dacddb49635"
+      ],
+      "member_paths": [
+        "frontend/module_1.py",
+        "frontend/module_10.py",
+        "frontend/module_13.py",
+        "frontend/module_16.py",
+        "frontend/module_19.py",
+        "frontend/module_22.py",
+        "frontend/module_4.py",
+        "frontend/module_7.py"
+      ],
+      "name": "frontend",
+      "overlapping": true,
+      "recommended_collapse_level": "members"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:directory:d1316e30af51f482",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "directory",
+      "language_mix": {
+        "python": 8
+      },
+      "member_count": 8,
+      "member_ids": [
+        "cluster:file:527f5cdf734f5077",
+        "cluster:file:474f0809c8d34a46",
+        "cluster:file:e4ff52638cabff6b",
+        "cluster:file:f491e9a9f6989151",
+        "cluster:file:4814f62ebdf57a40",
+        "cluster:file:9487761ee76b1ac1",
+        "cluster:file:f4ce6fc093118e9f",
+        "cluster:file:d20d1155205d0926"
+      ],
+      "member_paths": [
+        "shared/module_11.py",
+        "shared/module_14.py",
+        "shared/module_17.py",
+        "shared/module_2.py",
+        "shared/module_20.py",
+        "shared/module_23.py",
+        "shared/module_5.py",
+        "shared/module_8.py"
+      ],
+      "name": "shared",
+      "overlapping": true,
+      "recommended_collapse_level": "members"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:package:27aa7d10ff1ff533",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "package",
+      "language_mix": {
+        "python": 8
+      },
+      "member_count": 8,
+      "member_ids": [
+        "cluster:file:40ab510cd5ba402e",
+        "cluster:file:507dd5af3d43069e",
+        "cluster:file:02e064298d822d87",
+        "cluster:file:432f4802b4cf0532",
+        "cluster:file:033eb4a18f5453a5",
+        "cluster:file:c22dc81d76c3e78c",
+        "cluster:file:be203d4e524a6055",
+        "cluster:file:b9888e06dbe8ab3c"
+      ],
+      "member_paths": [
+        "backend/module_0.py",
+        "backend/module_12.py",
+        "backend/module_15.py",
+        "backend/module_18.py",
+        "backend/module_21.py",
+        "backend/module_3.py",
+        "backend/module_6.py",
+        "backend/module_9.py"
+      ],
+      "name": "backend",
+      "overlapping": true,
+      "recommended_collapse_level": "members"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:package:af200dfd19402028",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "package",
+      "language_mix": {
+        "python": 8
+      },
+      "member_count": 8,
+      "member_ids": [
+        "cluster:file:e7d90f890cc49050",
+        "cluster:file:210407b5dd3423fa",
+        "cluster:file:6342dbb7cc56b50b",
+        "cluster:file:bb33f8cc028b1387",
+        "cluster:file:b575d975c71c2e39",
+        "cluster:file:0c65f5fd20b50de2",
+        "cluster:file:c6ecc727ccc9e865",
+        "cluster:file:a29e2dacddb49635"
+      ],
+      "member_paths": [
+        "frontend/module_1.py",
+        "frontend/module_10.py",
+        "frontend/module_13.py",
+        "frontend/module_16.py",
+        "frontend/module_19.py",
+        "frontend/module_22.py",
+        "frontend/module_4.py",
+        "frontend/module_7.py"
+      ],
+      "name": "frontend",
+      "overlapping": true,
+      "recommended_collapse_level": "members"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:package:e37436b362d02f97",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "package",
+      "language_mix": {
+        "python": 8
+      },
+      "member_count": 8,
+      "member_ids": [
+        "cluster:file:527f5cdf734f5077",
+        "cluster:file:474f0809c8d34a46",
+        "cluster:file:e4ff52638cabff6b",
+        "cluster:file:f491e9a9f6989151",
+        "cluster:file:4814f62ebdf57a40",
+        "cluster:file:9487761ee76b1ac1",
+        "cluster:file:f4ce6fc093118e9f",
+        "cluster:file:d20d1155205d0926"
+      ],
+      "member_paths": [
+        "shared/module_11.py",
+        "shared/module_14.py",
+        "shared/module_17.py",
+        "shared/module_2.py",
+        "shared/module_20.py",
+        "shared/module_23.py",
+        "shared/module_5.py",
+        "shared/module_8.py"
+      ],
+      "name": "shared",
+      "overlapping": true,
+      "recommended_collapse_level": "members"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:fb1b126beb29e336",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:40ab510cd5ba402e"
+      ],
+      "member_paths": [
+        "backend/module_0.py"
+      ],
+      "name": "module_0",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:159510aa9c762506",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:e7d90f890cc49050"
+      ],
+      "member_paths": [
+        "frontend/module_1.py"
+      ],
+      "name": "module_1",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:3ae5b1201f1340a7",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:210407b5dd3423fa"
+      ],
+      "member_paths": [
+        "frontend/module_10.py"
+      ],
+      "name": "module_10",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:14bd2d2650c14a2f",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:527f5cdf734f5077"
+      ],
+      "member_paths": [
+        "shared/module_11.py"
+      ],
+      "name": "module_11",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:f20d667627ea4404",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:507dd5af3d43069e"
+      ],
+      "member_paths": [
+        "backend/module_12.py"
+      ],
+      "name": "module_12",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:1206e40d0a01cfac",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:6342dbb7cc56b50b"
+      ],
+      "member_paths": [
+        "frontend/module_13.py"
+      ],
+      "name": "module_13",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:14d6cef31a9d3c60",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:474f0809c8d34a46"
+      ],
+      "member_paths": [
+        "shared/module_14.py"
+      ],
+      "name": "module_14",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:78c581e68d5b07d2",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:02e064298d822d87"
+      ],
+      "member_paths": [
+        "backend/module_15.py"
+      ],
+      "name": "module_15",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:d76afd75f0bdc398",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:bb33f8cc028b1387"
+      ],
+      "member_paths": [
+        "frontend/module_16.py"
+      ],
+      "name": "module_16",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:7acb8ad1f701fcb0",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:e4ff52638cabff6b"
+      ],
+      "member_paths": [
+        "shared/module_17.py"
+      ],
+      "name": "module_17",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:11b739222425fe32",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:432f4802b4cf0532"
+      ],
+      "member_paths": [
+        "backend/module_18.py"
+      ],
+      "name": "module_18",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:88503e17bc81f72c",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:b575d975c71c2e39"
+      ],
+      "member_paths": [
+        "frontend/module_19.py"
+      ],
+      "name": "module_19",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:7a08b13102b1dffa",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:f491e9a9f6989151"
+      ],
+      "member_paths": [
+        "shared/module_2.py"
+      ],
+      "name": "module_2",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:c1feaa65175218d9",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:4814f62ebdf57a40"
+      ],
+      "member_paths": [
+        "shared/module_20.py"
+      ],
+      "name": "module_20",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:ca88a12ae713dc2e",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:033eb4a18f5453a5"
+      ],
+      "member_paths": [
+        "backend/module_21.py"
+      ],
+      "name": "module_21",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:61fed2d34db0eb38",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:0c65f5fd20b50de2"
+      ],
+      "member_paths": [
+        "frontend/module_22.py"
+      ],
+      "name": "module_22",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:c4c510682d669e07",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:9487761ee76b1ac1"
+      ],
+      "member_paths": [
+        "shared/module_23.py"
+      ],
+      "name": "module_23",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:678f8e2940e0aac7",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:c22dc81d76c3e78c"
+      ],
+      "member_paths": [
+        "backend/module_3.py"
+      ],
+      "name": "module_3",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:d35a4d9bdc7a2425",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:c6ecc727ccc9e865"
+      ],
+      "member_paths": [
+        "frontend/module_4.py"
+      ],
+      "name": "module_4",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:1ac508e4d02de163",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:f4ce6fc093118e9f"
+      ],
+      "member_paths": [
+        "shared/module_5.py"
+      ],
+      "name": "module_5",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:24618279997899ff",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:be203d4e524a6055"
+      ],
+      "member_paths": [
+        "backend/module_6.py"
+      ],
+      "name": "module_6",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:c950e769f28795cd",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:a29e2dacddb49635"
+      ],
+      "member_paths": [
+        "frontend/module_7.py"
+      ],
+      "name": "module_7",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:e3babc75dee69767",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:d20d1155205d0926"
+      ],
+      "member_paths": [
+        "shared/module_8.py"
+      ],
+      "name": "module_8",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:namespace:aa8d583637d5bb26",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "namespace",
+      "language_mix": {
+        "python": 1
+      },
+      "member_count": 1,
+      "member_ids": [
+        "cluster:file:b9888e06dbe8ab3c"
+      ],
+      "member_paths": [
+        "backend/module_9.py"
+      ],
+      "name": "module_9",
+      "overlapping": true,
+      "recommended_collapse_level": "expanded"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:domain:f32006bc230af54a",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "domain",
+      "language_mix": {
+        "python": 8
+      },
+      "member_count": 8,
+      "member_ids": [
+        "cluster:file:40ab510cd5ba402e",
+        "cluster:file:507dd5af3d43069e",
+        "cluster:file:02e064298d822d87",
+        "cluster:file:432f4802b4cf0532",
+        "cluster:file:033eb4a18f5453a5",
+        "cluster:file:c22dc81d76c3e78c",
+        "cluster:file:be203d4e524a6055",
+        "cluster:file:b9888e06dbe8ab3c"
+      ],
+      "member_paths": [
+        "backend/module_0.py",
+        "backend/module_12.py",
+        "backend/module_15.py",
+        "backend/module_18.py",
+        "backend/module_21.py",
+        "backend/module_3.py",
+        "backend/module_6.py",
+        "backend/module_9.py"
+      ],
+      "name": "backend",
+      "overlapping": true,
+      "recommended_collapse_level": "members"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:domain:84bd05cf1cfaaeb1",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "domain",
+      "language_mix": {
+        "python": 8
+      },
+      "member_count": 8,
+      "member_ids": [
+        "cluster:file:e7d90f890cc49050",
+        "cluster:file:210407b5dd3423fa",
+        "cluster:file:6342dbb7cc56b50b",
+        "cluster:file:bb33f8cc028b1387",
+        "cluster:file:b575d975c71c2e39",
+        "cluster:file:0c65f5fd20b50de2",
+        "cluster:file:c6ecc727ccc9e865",
+        "cluster:file:a29e2dacddb49635"
+      ],
+      "member_paths": [
+        "frontend/module_1.py",
+        "frontend/module_10.py",
+        "frontend/module_13.py",
+        "frontend/module_16.py",
+        "frontend/module_19.py",
+        "frontend/module_22.py",
+        "frontend/module_4.py",
+        "frontend/module_7.py"
+      ],
+      "name": "frontend",
+      "overlapping": true,
+      "recommended_collapse_level": "members"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:domain:1342946d9b16f05a",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "domain",
+      "language_mix": {
+        "python": 8
+      },
+      "member_count": 8,
+      "member_ids": [
+        "cluster:file:527f5cdf734f5077",
+        "cluster:file:474f0809c8d34a46",
+        "cluster:file:e4ff52638cabff6b",
+        "cluster:file:f491e9a9f6989151",
+        "cluster:file:4814f62ebdf57a40",
+        "cluster:file:9487761ee76b1ac1",
+        "cluster:file:f4ce6fc093118e9f",
+        "cluster:file:d20d1155205d0926"
+      ],
+      "member_paths": [
+        "shared/module_11.py",
+        "shared/module_14.py",
+        "shared/module_17.py",
+        "shared/module_2.py",
+        "shared/module_20.py",
+        "shared/module_23.py",
+        "shared/module_5.py",
+        "shared/module_8.py"
+      ],
+      "name": "shared",
+      "overlapping": true,
+      "recommended_collapse_level": "members"
+    },
+    {
+      "cohesion": 0.0,
+      "coupling": 0.0,
+      "dependency_density": 0.0,
+      "edge_count": 0,
+      "external_edge_count": 0,
+      "id": "cluster:layer:516f842e3bcb51a5",
+      "importance": 0.2,
+      "internal_edge_count": 0,
+      "kind": "layer",
+      "language_mix": {
+        "python": 24
+      },
+      "member_count": 24,
+      "member_ids": [
+        "cluster:file:40ab510cd5ba402e",
+        "cluster:file:507dd5af3d43069e",
+        "cluster:file:02e064298d822d87",
+        "cluster:file:432f4802b4cf0532",
+        "cluster:file:033eb4a18f5453a5",
+        "cluster:file:c22dc81d76c3e78c",
+        "cluster:file:be203d4e524a6055",
+        "cluster:file:b9888e06dbe8ab3c",
+        "cluster:file:e7d90f890cc49050",
+        "cluster:file:210407b5dd3423fa",
+        "cluster:file:6342dbb7cc56b50b",
+        "cluster:file:bb33f8cc028b1387",
+        "cluster:file:b575d975c71c2e39",
+        "cluster:file:0c65f5fd20b50de2",
+        "cluster:file:c6ecc727ccc9e865",
+        "cluster:file:a29e2dacddb49635",
+        "cluster:file:527f5cdf734f5077",
+        "cluster:file:474f0809c8d34a46",
+        "cluster:file:e4ff52638cabff6b",
+        "cluster:file:f491e9a9f6989151",
+        "cluster:file:4814f62ebdf57a40",
+        "cluster:file:9487761ee76b1ac1",
+        "cluster:file:f4ce6fc093118e9f",
+        "cluster:file:d20d1155205d0926"
+      ],
+      "member_paths": [
+        "backend/module_0.py",
+        "backend/module_12.py",
+        "backend/module_15.py",
+        "backend/module_18.py",
+        "backend/module_21.py",
+        "backend/module_3.py",
+        "backend/module_6.py",
+        "backend/module_9.py",
+        "frontend/module_1.py",
+        "frontend/module_10.py",
+        "frontend/module_13.py",
+        "frontend/module_16.py",
+        "frontend/module_19.py",
+        "frontend/module_22.py",
+        "frontend/module_4.py",
+        "frontend/module_7.py",
+        "shared/module_11.py",
+        "shared/module_14.py",
+        "shared/module_17.py",
+        "shared/module_2.py",
+        "shared/module_20.py",
+        "shared/module_23.py",
+        "shared/module_5.py",
+        "shared/module_8.py"
+      ],
+      "name": "code",
+      "overlapping": true,
+      "recommended_collapse_level": "summary"
+    }
+  ],
+  "config": {
+    "community_min_size": 2,
+    "layout_hints": {
+      "enabled": true,
+      "lane_order": [
+        "workspace",
+        "package",
+        "directory",
+        "namespace",
+        "domain",
+        "layer",
+        "flow",
+        "graph-community"
+      ]
+    },
+    "max_clusters_per_strategy": 100,
+    "min_cluster_size": 1
+  },
+  "generated_at": "1970-01-01T00:00:00Z",
+  "layout_hints": [
+    {
+      "cluster_id": "cluster:workspace:86fa3762d2eb6db6",
+      "collapse_level": "summary",
+      "importance": 0.2,
+      "lane": "workspace",
+      "lane_index": 0,
+      "order": 0,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:96d9863b61000436",
+      "collapse_level": "members",
+      "importance": 0.2,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 1,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:5472b26afd4e5bad",
+      "collapse_level": "members",
+      "importance": 0.2,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 2,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:d1316e30af51f482",
+      "collapse_level": "members",
+      "importance": 0.2,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 3,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:package:27aa7d10ff1ff533",
+      "collapse_level": "members",
+      "importance": 0.2,
+      "lane": "package",
+      "lane_index": 1,
+      "order": 4,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:package:af200dfd19402028",
+      "collapse_level": "members",
+      "importance": 0.2,
+      "lane": "package",
+      "lane_index": 1,
+      "order": 5,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:package:e37436b362d02f97",
+      "collapse_level": "members",
+      "importance": 0.2,
+      "lane": "package",
+      "lane_index": 1,
+      "order": 6,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:fb1b126beb29e336",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 7,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:159510aa9c762506",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 8,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:3ae5b1201f1340a7",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 9,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:14bd2d2650c14a2f",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 10,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:f20d667627ea4404",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 11,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:1206e40d0a01cfac",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 12,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:14d6cef31a9d3c60",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 13,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:78c581e68d5b07d2",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 14,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:d76afd75f0bdc398",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 15,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:7acb8ad1f701fcb0",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 16,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:11b739222425fe32",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 17,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:88503e17bc81f72c",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 18,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:7a08b13102b1dffa",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 19,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:c1feaa65175218d9",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 20,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:ca88a12ae713dc2e",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 21,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:61fed2d34db0eb38",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 22,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:c4c510682d669e07",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 23,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:678f8e2940e0aac7",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 24,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:d35a4d9bdc7a2425",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 25,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:1ac508e4d02de163",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 26,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:24618279997899ff",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 27,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:c950e769f28795cd",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 28,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:e3babc75dee69767",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 29,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:aa8d583637d5bb26",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 30,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:domain:f32006bc230af54a",
+      "collapse_level": "members",
+      "importance": 0.2,
+      "lane": "domain",
+      "lane_index": 4,
+      "order": 31,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:domain:84bd05cf1cfaaeb1",
+      "collapse_level": "members",
+      "importance": 0.2,
+      "lane": "domain",
+      "lane_index": 4,
+      "order": 32,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:domain:1342946d9b16f05a",
+      "collapse_level": "members",
+      "importance": 0.2,
+      "lane": "domain",
+      "lane_index": 4,
+      "order": 33,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:layer:516f842e3bcb51a5",
+      "collapse_level": "summary",
+      "importance": 0.2,
+      "lane": "layer",
+      "lane_index": 5,
+      "order": 34,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    }
+  ],
+  "mapper_version": "0.20.0",
+  "project": {
+    "file_count": 24,
+    "root": "."
+  },
+  "provenance": {
+    "config": {
+      "community_min_size": 2,
+      "layout_hints": {
+        "enabled": true,
+        "lane_order": [
+          "workspace",
+          "package",
+          "directory",
+          "namespace",
+          "domain",
+          "layer",
+          "flow",
+          "graph-community"
+        ]
+      },
+      "max_clusters_per_strategy": 100,
+      "min_cluster_size": 1
+    },
+    "metrics": "directed call/import edges; cohesion=internal/incident; coupling=external/incident",
+    "strategies": [
+      "workspace",
+      "directory",
+      "package",
+      "namespace",
+      "domain",
+      "layer",
+      "flow",
+      "graph-community"
+    ]
+  },
+  "schema": "simplicio.clustering-metrics/v1",
+  "schema_version": "v1",
+  "version": 1
+}

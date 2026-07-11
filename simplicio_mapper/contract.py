@@ -32,6 +32,8 @@ SCHEMA_FILENAMES = {
     "simplicio.architecture-inventory/v1": "architecture-inventory.schema.json",
     "simplicio.symbol-index/v1": "symbol-index.schema.json",
     "simplicio.call-graph/v1": "call-graph.schema.json",
+    "simplicio.graph-delta/v1": "graph-delta.schema.json",
+    "simplicio.graph-snapshot/v1": "graph-snapshot.schema.json",
     "simplicio.task-intent/v1": "task-intent.schema.json",
     "simplicio.task-context/v1": "task-context.schema.json",
     "simplicio.task-batch/v1": "task-batch.schema.json",
@@ -39,6 +41,9 @@ SCHEMA_FILENAMES = {
     "simplicio.mapper-index/v1": "mapper-index.schema.json",
     "simplicio.visualization-bundle/v1": "visualization-bundle.schema.json",
     "simplicio.visualization-preview/v1": "visualization-preview.schema.json",
+    "simplicio.mapper-canvas-compatibility/v1": "compatibility-matrix.schema.json",
+    "simplicio.mapper-canvas-performance/v1": "performance-baseline.schema.json",
+    "simplicio.clustering-metrics/v1": "clustering-metrics.schema.json",
 }
 
 _PY_TYPE_NAMES = {
@@ -78,7 +83,7 @@ def find_contract_root(start: str | None = None) -> str:
     candidates.append(os.path.dirname(package_dir))
 
     for candidate in candidates:
-        for contract_name in ("mapper-artifacts", "visualization"):
+        for contract_name in ("mapper-artifacts", "visualization", "mapper-canvas", "clustering"):
             root = os.path.join(candidate, "contracts", contract_name, CONTRACT_VERSION)
             if os.path.isdir(os.path.join(root, "schemas")):
                 return root
@@ -108,6 +113,20 @@ def load_schema(schema_id: str, contract_root: str) -> dict:
         schema_dir = os.path.join(
             os.path.dirname(os.path.dirname(contract_root)),
             "visualization",
+            CONTRACT_VERSION,
+            "schemas",
+        )
+    if schema_id.startswith("simplicio.mapper-canvas-"):
+        schema_dir = os.path.join(
+            os.path.dirname(os.path.dirname(contract_root)),
+            "mapper-canvas",
+            CONTRACT_VERSION,
+            "schemas",
+        )
+    if schema_id.startswith("simplicio.clustering"):
+        schema_dir = os.path.join(
+            os.path.dirname(os.path.dirname(contract_root)),
+            "clustering",
             CONTRACT_VERSION,
             "schemas",
         )

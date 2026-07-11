@@ -1,0 +1,12 @@
+{
+  "schema": "simplicio.clustering-metrics/v1",
+  "version": 1,
+  "mapper_version": "0.19.0",
+  "schema_version": "v1",
+  "generated_at": "1970-01-01T00:00:00Z",
+  "project": {"root": ".", "file_count": 2},
+  "config": {"min_cluster_size": 1, "community_min_size": 2, "max_clusters_per_strategy": 100, "layout_hints": {"enabled": true}},
+  "clusters": [],
+  "layout_hints": [],
+  "provenance": {"config": {}, "strategies": [], "metrics": "directed call/import edges"}
+}

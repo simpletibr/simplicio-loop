@@ -1,0 +1,1122 @@
+{
+  "capabilities": [
+    "hierarchy",
+    "typed-edges",
+    "flows",
+    "provenance",
+    "source-preview",
+    "language-diagnostics",
+    "clustering-metrics",
+    "layout-hints"
+  ],
+  "clustering": {
+    "clusters": [
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 0.333333,
+        "edge_count": 2,
+        "external_edge_count": 0,
+        "id": "cluster:workspace:86fa3762d2eb6db6",
+        "importance": 0.416667,
+        "internal_edge_count": 2,
+        "kind": "workspace",
+        "language_mix": {
+          "python": 2,
+          "toml": 1
+        },
+        "member_count": 3,
+        "member_ids": [
+          "cluster:file:145bdf0adbfba8d6",
+          "cluster:file:0997a03a08f2c205",
+          "cluster:file:0ea01f10142a8497"
+        ],
+        "member_paths": [
+          "cli/commands.py",
+          "cli/main.py",
+          "pyproject.toml"
+        ],
+        "name": ".",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:directory:c22d9e7664332f0b",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "directory",
+        "language_mix": {
+          "toml": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:0ea01f10142a8497"
+        ],
+        "member_paths": [
+          "pyproject.toml"
+        ],
+        "name": ".",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 1.0,
+        "edge_count": 2,
+        "external_edge_count": 0,
+        "id": "cluster:directory:5a398612452386cb",
+        "importance": 0.465,
+        "internal_edge_count": 2,
+        "kind": "directory",
+        "language_mix": {
+          "python": 2
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:145bdf0adbfba8d6",
+          "cluster:file:0997a03a08f2c205"
+        ],
+        "member_paths": [
+          "cli/commands.py",
+          "cli/main.py"
+        ],
+        "name": "cli",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:package:710115d946c582c2",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "package",
+        "language_mix": {
+          "toml": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:0ea01f10142a8497"
+        ],
+        "member_paths": [
+          "pyproject.toml"
+        ],
+        "name": ".",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 1.0,
+        "edge_count": 2,
+        "external_edge_count": 0,
+        "id": "cluster:package:5100f3b43bf99e6b",
+        "importance": 0.465,
+        "internal_edge_count": 2,
+        "kind": "package",
+        "language_mix": {
+          "python": 2
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:145bdf0adbfba8d6",
+          "cluster:file:0997a03a08f2c205"
+        ],
+        "member_paths": [
+          "cli/commands.py",
+          "cli/main.py"
+        ],
+        "name": "cli",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 1.0,
+        "edge_count": 2,
+        "external_edge_count": 0,
+        "id": "cluster:namespace:573bc09864c61c52",
+        "importance": 0.465,
+        "internal_edge_count": 2,
+        "kind": "namespace",
+        "language_mix": {
+          "python": 2
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:145bdf0adbfba8d6",
+          "cluster:file:0997a03a08f2c205"
+        ],
+        "member_paths": [
+          "cli/commands.py",
+          "cli/main.py"
+        ],
+        "name": "cli",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:namespace:6e96551e62c19053",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "namespace",
+        "language_mix": {
+          "toml": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:0ea01f10142a8497"
+        ],
+        "member_paths": [
+          "pyproject.toml"
+        ],
+        "name": "pyproject",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 1.0,
+        "edge_count": 2,
+        "external_edge_count": 0,
+        "id": "cluster:domain:3767faca3ecde209",
+        "importance": 0.465,
+        "internal_edge_count": 2,
+        "kind": "domain",
+        "language_mix": {
+          "python": 2
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:145bdf0adbfba8d6",
+          "cluster:file:0997a03a08f2c205"
+        ],
+        "member_paths": [
+          "cli/commands.py",
+          "cli/main.py"
+        ],
+        "name": "cli",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:domain:883d523e9eba130e",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "domain",
+        "language_mix": {
+          "toml": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:0ea01f10142a8497"
+        ],
+        "member_paths": [
+          "pyproject.toml"
+        ],
+        "name": "unclassified",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:layer:516f842e3bcb51a5",
+        "importance": 0.2,
+        "internal_edge_count": 0,
+        "kind": "layer",
+        "language_mix": {
+          "python": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:145bdf0adbfba8d6"
+        ],
+        "member_paths": [
+          "cli/commands.py"
+        ],
+        "name": "code",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.0,
+        "coupling": 0.0,
+        "dependency_density": 0.0,
+        "edge_count": 0,
+        "external_edge_count": 0,
+        "id": "cluster:layer:c79aec78748b7816",
+        "importance": 0.32,
+        "internal_edge_count": 0,
+        "kind": "layer",
+        "language_mix": {
+          "toml": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:0ea01f10142a8497"
+        ],
+        "member_paths": [
+          "pyproject.toml"
+        ],
+        "name": "config",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 0.5,
+        "coupling": 0.5,
+        "dependency_density": 1.0,
+        "edge_count": 2,
+        "external_edge_count": 1,
+        "id": "cluster:layer:f333279cd5d5eb65",
+        "importance": 0.73,
+        "internal_edge_count": 1,
+        "kind": "layer",
+        "language_mix": {
+          "python": 1
+        },
+        "member_count": 1,
+        "member_ids": [
+          "cluster:file:0997a03a08f2c205"
+        ],
+        "member_paths": [
+          "cli/main.py"
+        ],
+        "name": "entrypoint",
+        "overlapping": true,
+        "recommended_collapse_level": "members"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 1.0,
+        "edge_count": 2,
+        "external_edge_count": 0,
+        "id": "cluster:flow:51db58830517456b",
+        "importance": 0.465,
+        "internal_edge_count": 2,
+        "kind": "flow",
+        "language_mix": {
+          "python": 2
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:145bdf0adbfba8d6",
+          "cluster:file:0997a03a08f2c205"
+        ],
+        "member_paths": [
+          "cli/commands.py",
+          "cli/main.py"
+        ],
+        "name": "cli.main",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      },
+      {
+        "cohesion": 1.0,
+        "coupling": 0.0,
+        "dependency_density": 1.0,
+        "edge_count": 2,
+        "external_edge_count": 0,
+        "id": "cluster:graph-community:a5fef1c9ab06e763",
+        "importance": 0.465,
+        "internal_edge_count": 2,
+        "kind": "graph-community",
+        "language_mix": {
+          "python": 2
+        },
+        "member_count": 2,
+        "member_ids": [
+          "cluster:file:145bdf0adbfba8d6",
+          "cluster:file:0997a03a08f2c205"
+        ],
+        "member_paths": [
+          "cli/commands.py",
+          "cli/main.py"
+        ],
+        "name": "cli/commands.py|cli/main.py",
+        "overlapping": true,
+        "recommended_collapse_level": "expanded"
+      }
+    ],
+    "config": {
+      "community_min_size": 2,
+      "layout_hints": {
+        "enabled": true,
+        "lane_order": [
+          "workspace",
+          "package",
+          "directory",
+          "namespace",
+          "domain",
+          "layer",
+          "flow",
+          "graph-community"
+        ]
+      },
+      "max_clusters_per_strategy": 100,
+      "min_cluster_size": 1
+    },
+    "generated_at": "1970-01-01T00:00:00.000Z",
+    "layout_hints": [
+      {
+        "cluster_id": "cluster:workspace:86fa3762d2eb6db6",
+        "collapse_level": "expanded",
+        "importance": 0.416667,
+        "lane": "workspace",
+        "lane_index": 0,
+        "order": 0,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:directory:c22d9e7664332f0b",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "directory",
+        "lane_index": 2,
+        "order": 1,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:directory:5a398612452386cb",
+        "collapse_level": "expanded",
+        "importance": 0.465,
+        "lane": "directory",
+        "lane_index": 2,
+        "order": 2,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:package:710115d946c582c2",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "package",
+        "lane_index": 1,
+        "order": 3,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:package:5100f3b43bf99e6b",
+        "collapse_level": "expanded",
+        "importance": 0.465,
+        "lane": "package",
+        "lane_index": 1,
+        "order": 4,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:namespace:573bc09864c61c52",
+        "collapse_level": "expanded",
+        "importance": 0.465,
+        "lane": "namespace",
+        "lane_index": 3,
+        "order": 5,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:namespace:6e96551e62c19053",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "namespace",
+        "lane_index": 3,
+        "order": 6,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:domain:3767faca3ecde209",
+        "collapse_level": "expanded",
+        "importance": 0.465,
+        "lane": "domain",
+        "lane_index": 4,
+        "order": 7,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:domain:883d523e9eba130e",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "domain",
+        "lane_index": 4,
+        "order": 8,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:layer:516f842e3bcb51a5",
+        "collapse_level": "expanded",
+        "importance": 0.2,
+        "lane": "layer",
+        "lane_index": 5,
+        "order": 9,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:layer:c79aec78748b7816",
+        "collapse_level": "expanded",
+        "importance": 0.32,
+        "lane": "layer",
+        "lane_index": 5,
+        "order": 10,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:layer:f333279cd5d5eb65",
+        "collapse_level": "members",
+        "importance": 0.73,
+        "lane": "layer",
+        "lane_index": 5,
+        "order": 11,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:flow:51db58830517456b",
+        "collapse_level": "expanded",
+        "importance": 0.465,
+        "lane": "flow",
+        "lane_index": 6,
+        "order": 12,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      },
+      {
+        "cluster_id": "cluster:graph-community:a5fef1c9ab06e763",
+        "collapse_level": "expanded",
+        "importance": 0.465,
+        "lane": "graph-community",
+        "lane_index": 7,
+        "order": 13,
+        "rationale": "stable strategy order; renderer chooses coordinates"
+      }
+    ],
+    "mapper_version": "0.20.0",
+    "project": {
+      "file_count": 3,
+      "root": "."
+    },
+    "provenance": {
+      "config": {
+        "community_min_size": 2,
+        "layout_hints": {
+          "enabled": true,
+          "lane_order": [
+            "workspace",
+            "package",
+            "directory",
+            "namespace",
+            "domain",
+            "layer",
+            "flow",
+            "graph-community"
+          ]
+        },
+        "max_clusters_per_strategy": 100,
+        "min_cluster_size": 1
+      },
+      "metrics": "directed call/import edges; cohesion=internal/incident; coupling=external/incident",
+      "strategies": [
+        "workspace",
+        "directory",
+        "package",
+        "namespace",
+        "domain",
+        "layer",
+        "flow",
+        "graph-community"
+      ]
+    },
+    "schema": "simplicio.clustering-metrics/v1",
+    "schema_version": "v1",
+    "version": 1
+  },
+  "diagnostics": [
+    {
+      "code": "heuristic-edge",
+      "count": 7
+    },
+    {
+      "code": "unresolved-relation",
+      "count": 0
+    }
+  ],
+  "edges": [
+    {
+      "confidence": 0.58,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "symbol:bf3a4422ae0a4ec9",
+      "source_location": {
+        "line": 4,
+        "path": "cli/main.py"
+      },
+      "target": "symbol:048a942b6c2bcc16",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "symbol:bf3a4422ae0a4ec9",
+      "source_location": {
+        "line": 3,
+        "path": "cli/main.py"
+      },
+      "target": "symbol:bf3a4422ae0a4ec9",
+      "type": "calls"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:0997a03a08f2c205",
+      "source_location": {
+        "line": 2,
+        "path": "cli/main.py"
+      },
+      "target": "symbol:bf3a4422ae0a4ec9",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:145bdf0adbfba8d6",
+      "source_location": {
+        "line": 1,
+        "path": "cli/commands.py"
+      },
+      "target": "symbol:048a942b6c2bcc16",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:26f9252a7a7e4177",
+      "source_location": {
+        "path": "cli/main.py"
+      },
+      "target": "file:0997a03a08f2c205",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:26f9252a7a7e4177",
+      "source_location": {
+        "path": "cli/commands.py"
+      },
+      "target": "file:145bdf0adbfba8d6",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "module:5a219264bc5d86e9",
+      "source_location": {
+        "path": "pyproject.toml"
+      },
+      "target": "file:0ea01f10142a8497",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:b7834093c9b07f5d",
+      "source_location": null,
+      "target": "flow:51db58830517456b",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:b7834093c9b07f5d",
+      "source_location": null,
+      "target": "module:26f9252a7a7e4177",
+      "type": "contains"
+    },
+    {
+      "confidence": 1.0,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:b7834093c9b07f5d",
+      "source_location": null,
+      "target": "module:5a219264bc5d86e9",
+      "type": "contains"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:b7834093c9b07f5d",
+      "source_location": null,
+      "target": "layer:516f842e3bcb51a5",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:b7834093c9b07f5d",
+      "source_location": null,
+      "target": "layer:c79aec78748b7816",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.7,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "repository:b7834093c9b07f5d",
+      "source_location": null,
+      "target": "layer:f333279cd5d5eb65",
+      "type": "groups"
+    },
+    {
+      "confidence": 0.5,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "file:0997a03a08f2c205",
+      "source_location": {
+        "line": 1,
+        "path": "cli/commands.py"
+      },
+      "target": "file:145bdf0adbfba8d6",
+      "type": "transitions-to"
+    },
+    {
+      "confidence": 0.5,
+      "direction": "forward",
+      "language": null,
+      "provenance": "static-mapper",
+      "source": "flow:51db58830517456b",
+      "source_location": {
+        "line": 2,
+        "path": "cli/main.py"
+      },
+      "target": "file:0997a03a08f2c205",
+      "type": "transitions-to"
+    }
+  ],
+  "flows": [
+    {
+      "confidence": "heuristic",
+      "effects": [],
+      "entry": {
+        "line": 2,
+        "path": "cli/main.py",
+        "symbol": "cli/main.py::main"
+      },
+      "generated_at": "1970-01-01T00:00:00.000Z",
+      "id": "cli.main",
+      "kind": "entrypoint",
+      "layers_touched": [
+        "code",
+        "entrypoint"
+      ],
+      "steps": [
+        {
+          "line": 2,
+          "module": "cli",
+          "path": "cli/main.py",
+          "symbol": "cli/main.py::main"
+        },
+        {
+          "line": 1,
+          "module": "cli",
+          "path": "cli/commands.py",
+          "symbol": "cli/commands.py::run"
+        }
+      ]
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "language_diagnostics": [
+    {
+      "confidence": 0.7,
+      "errors": [],
+      "language": "python",
+      "line_count": 2,
+      "parser_used": "builtin-regex",
+      "parser_version": "1",
+      "path": "cli/commands.py",
+      "skipped": false,
+      "unsupported_constructs": []
+    },
+    {
+      "confidence": 0.7,
+      "errors": [],
+      "language": "python",
+      "line_count": 7,
+      "parser_used": "builtin-regex",
+      "parser_version": "1",
+      "path": "cli/main.py",
+      "skipped": false,
+      "unsupported_constructs": []
+    },
+    {
+      "confidence": 1.0,
+      "errors": [],
+      "language": "toml",
+      "line_count": 3,
+      "parser_used": "builtin-text",
+      "parser_version": "1",
+      "path": "pyproject.toml",
+      "skipped": false,
+      "unsupported_constructs": []
+    }
+  ],
+  "layout_hints": [
+    {
+      "cluster_id": "cluster:workspace:86fa3762d2eb6db6",
+      "collapse_level": "expanded",
+      "importance": 0.416667,
+      "lane": "workspace",
+      "lane_index": 0,
+      "order": 0,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:c22d9e7664332f0b",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 1,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:directory:5a398612452386cb",
+      "collapse_level": "expanded",
+      "importance": 0.465,
+      "lane": "directory",
+      "lane_index": 2,
+      "order": 2,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:package:710115d946c582c2",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "package",
+      "lane_index": 1,
+      "order": 3,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:package:5100f3b43bf99e6b",
+      "collapse_level": "expanded",
+      "importance": 0.465,
+      "lane": "package",
+      "lane_index": 1,
+      "order": 4,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:573bc09864c61c52",
+      "collapse_level": "expanded",
+      "importance": 0.465,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 5,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:namespace:6e96551e62c19053",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "namespace",
+      "lane_index": 3,
+      "order": 6,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:domain:3767faca3ecde209",
+      "collapse_level": "expanded",
+      "importance": 0.465,
+      "lane": "domain",
+      "lane_index": 4,
+      "order": 7,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:domain:883d523e9eba130e",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "domain",
+      "lane_index": 4,
+      "order": 8,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:layer:516f842e3bcb51a5",
+      "collapse_level": "expanded",
+      "importance": 0.2,
+      "lane": "layer",
+      "lane_index": 5,
+      "order": 9,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:layer:c79aec78748b7816",
+      "collapse_level": "expanded",
+      "importance": 0.32,
+      "lane": "layer",
+      "lane_index": 5,
+      "order": 10,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:layer:f333279cd5d5eb65",
+      "collapse_level": "members",
+      "importance": 0.73,
+      "lane": "layer",
+      "lane_index": 5,
+      "order": 11,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:flow:51db58830517456b",
+      "collapse_level": "expanded",
+      "importance": 0.465,
+      "lane": "flow",
+      "lane_index": 6,
+      "order": 12,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    },
+    {
+      "cluster_id": "cluster:graph-community:a5fef1c9ab06e763",
+      "collapse_level": "expanded",
+      "importance": 0.465,
+      "lane": "graph-community",
+      "lane_index": 7,
+      "order": 13,
+      "rationale": "stable strategy order; renderer chooses coordinates"
+    }
+  ],
+  "mapper_version": "0.20.0",
+  "nodes": [
+    {
+      "canonical": "cli/commands.py",
+      "id": "file:145bdf0adbfba8d6",
+      "kind": "file",
+      "language": "python",
+      "metrics": {
+        "size_bytes": 43
+      },
+      "name": "commands.py",
+      "parent_id": "module:26f9252a7a7e4177",
+      "path": "cli/commands.py"
+    },
+    {
+      "canonical": "cli/main.py",
+      "id": "file:0997a03a08f2c205",
+      "kind": "file",
+      "language": "python",
+      "metrics": {
+        "size_bytes": 112
+      },
+      "name": "main.py",
+      "parent_id": "module:26f9252a7a7e4177",
+      "path": "cli/main.py"
+    },
+    {
+      "canonical": "pyproject.toml",
+      "id": "file:0ea01f10142a8497",
+      "kind": "file",
+      "language": "toml",
+      "metrics": {
+        "size_bytes": 51
+      },
+      "name": "pyproject.toml",
+      "parent_id": "module:5a219264bc5d86e9",
+      "path": "pyproject.toml"
+    },
+    {
+      "canonical": "cli.main",
+      "confidence": 0.5,
+      "id": "flow:51db58830517456b",
+      "kind": "flow",
+      "metrics": {},
+      "name": "cli.main",
+      "parent_id": "repository:b7834093c9b07f5d",
+      "path": null
+    },
+    {
+      "canonical": "code",
+      "confidence": 0.7,
+      "id": "layer:516f842e3bcb51a5",
+      "kind": "layer",
+      "metrics": {},
+      "name": "code",
+      "parent_id": "repository:b7834093c9b07f5d",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": "config",
+      "confidence": 0.7,
+      "id": "layer:c79aec78748b7816",
+      "kind": "layer",
+      "metrics": {},
+      "name": "config",
+      "parent_id": "repository:b7834093c9b07f5d",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": "entrypoint",
+      "confidence": 0.7,
+      "id": "layer:f333279cd5d5eb65",
+      "kind": "layer",
+      "metrics": {},
+      "name": "entrypoint",
+      "parent_id": "repository:b7834093c9b07f5d",
+      "path": null,
+      "rule_id": "mapper.layer-path"
+    },
+    {
+      "canonical": ".",
+      "id": "module:5a219264bc5d86e9",
+      "kind": "module",
+      "metrics": {},
+      "name": ".",
+      "parent_id": "repository:b7834093c9b07f5d",
+      "path": null
+    },
+    {
+      "canonical": "cli",
+      "id": "module:26f9252a7a7e4177",
+      "kind": "module",
+      "metrics": {},
+      "name": "cli",
+      "parent_id": "repository:b7834093c9b07f5d",
+      "path": null
+    },
+    {
+      "canonical": "canvas-cli",
+      "id": "repository:b7834093c9b07f5d",
+      "kind": "repository",
+      "metrics": {},
+      "name": "canvas-cli",
+      "parent_id": null,
+      "path": null
+    },
+    {
+      "canonical": "cli/commands.py\u0000cli/commands.py::run",
+      "id": "symbol:048a942b6c2bcc16",
+      "kind": "symbol",
+      "metrics": {
+        "line": 1
+      },
+      "name": "run",
+      "parent_id": "file:145bdf0adbfba8d6",
+      "path": "cli/commands.py"
+    },
+    {
+      "canonical": "cli/main.py\u0000cli/main.py::main",
+      "id": "symbol:bf3a4422ae0a4ec9",
+      "kind": "symbol",
+      "metrics": {
+        "line": 2
+      },
+      "name": "main",
+      "parent_id": "file:0997a03a08f2c205",
+      "path": "cli/main.py"
+    }
+  ],
+  "project": {
+    "id": "repository:b7834093c9b07f5d",
+    "name": "canvas-cli",
+    "root": "."
+  },
+  "provenance": {
+    "branch": null,
+    "clone_type": "plain-folder",
+    "clustering": {
+      "config": {
+        "community_min_size": 2,
+        "layout_hints": {
+          "enabled": true,
+          "lane_order": [
+            "workspace",
+            "package",
+            "directory",
+            "namespace",
+            "domain",
+            "layer",
+            "flow",
+            "graph-community"
+          ]
+        },
+        "max_clusters_per_strategy": 100,
+        "min_cluster_size": 1
+      },
+      "metrics": "directed call/import edges; cohesion=internal/incident; coupling=external/incident",
+      "strategies": [
+        "workspace",
+        "directory",
+        "package",
+        "namespace",
+        "domain",
+        "layer",
+        "flow",
+        "graph-community"
+      ]
+    },
+    "commit_sha": null,
+    "default_branch": null,
+    "dirty": false,
+    "host": null,
+    "monorepo_roots": [],
+    "owner": null,
+    "remote_url": null,
+    "remotes": [],
+    "repository": null,
+    "scan_root": ".",
+    "submodules": []
+  },
+  "schema": "simplicio.visualization-bundle/v1",
+  "schema_version": "v1",
+  "version": 1
+}

@@ -18,6 +18,7 @@ from pathlib import PurePosixPath
 from typing import Any
 
 from . import __version__
+from .clustering import build_clustering_metrics
 from .flows import build_flow_inventory
 
 VISUALIZATION_SCHEMA = "simplicio.visualization-bundle/v1"
@@ -29,6 +30,15 @@ DEFAULT_PREVIEW_LINES = 200
 _DENIED_PARTS = {".git", ".simplicio", "node_modules", "vendor", "vendors", "generated", "gen"}
 _SECRET_NAMES = re.compile(r"(^|[._-])(env|secret|secrets|credential|credentials|token|password|passwd|private|id_rsa)([._-]|$)", re.I)
 _DENIED_EXTENSIONS = {".pem", ".key", ".p12", ".pfx", ".crt", ".der", ".db", ".sqlite", ".sqlite3"}
+
+
+def _redacted_path(path: str) -> bool:
+    parts = path.replace("\\", "/").split("/")
+    return (
+        any(part in _DENIED_PARTS for part in parts)
+        or bool(_SECRET_NAMES.search(parts[-1]))
+        or os.path.splitext(parts[-1])[1].lower() in _DENIED_EXTENSIONS
+    )
 
 
 def _stable_id(kind: str, value: str) -> str:
@@ -267,6 +277,23 @@ def _canonical_language(path: str) -> str:
     return _language_for(path)
 
 
+def _stable_project_name(root: str, project: dict[str, Any]) -> str:
+    """Prefer a manifest identity when a plain clone has no Git remote."""
+    name = project.get("product", {}).get("name") or ""
+    if name and name != os.path.basename(root):
+        return name
+    pyproject = os.path.join(root, "pyproject.toml")
+    try:
+        with open(pyproject, encoding="utf-8") as handle:
+            for line in handle:
+                match = re.match(r"\s*name\s*=\s*['\"]([^'\"]+)['\"]", line)
+                if match:
+                    return match.group(1)
+    except OSError:
+        pass
+    return name or os.path.basename(root)
+
+
 def run_preview_cli(opts: dict[str, Any]) -> int:
     try:
         payload = preview_source(
@@ -291,7 +318,12 @@ def run_preview_cli(opts: dict[str, Any]) -> int:
     return 0
 
 
-def build_visualization_bundle(root: str, artifacts: dict[str, Any] | None = None, generated_at: str | None = None) -> dict[str, Any]:
+def build_visualization_bundle(
+    root: str,
+    artifacts: dict[str, Any] | None = None,
+    generated_at: str | None = None,
+    clustering_config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build a stable bundle from mapper artifacts without changing old outputs."""
     from .mapper import build_artifacts
 
@@ -309,8 +341,11 @@ def build_visualization_bundle(root: str, artifacts: dict[str, Any] | None = Non
     nodes: list[dict] = []
     edges: list[dict] = []
     provenance = _provenance(root)
-    repo_key = provenance.get("remote_url") or os.path.basename(root)
-    repo_id = _node(nodes, "repository", repo_key, provenance.get("repository") or os.path.basename(root), **{"parent_id": None})
+    # A plain-folder clone name is ephemeral. Prefer the mapper's stable
+    # product identity so Canvas IDs survive clone-to-clone imports.
+    project_name = _stable_project_name(root, project)
+    repo_key = provenance.get("remote_url") or project_name
+    repo_id = _node(nodes, "repository", repo_key, provenance.get("repository") or project_name, **{"parent_id": None})
     module_ids: dict[str, str] = {}
     file_ids: dict[str, str] = {}
     symbol_ids: dict[tuple[str, str], str] = {}
@@ -324,6 +359,8 @@ def build_visualization_bundle(root: str, artifacts: dict[str, Any] | None = Non
         _edge(edges, "groups", repo_id, layer_id, 0.7)
     for file_entry in project.get("files") or []:
         path = file_entry["path"]
+        if _redacted_path(path):
+            continue
         module = file_entry.get("module") or (path.split("/", 1)[0] if "/" in path else ".")
         file_ids[path] = _node(nodes, "file", path, PurePosixPath(path).name, path=path, parent_id=module_ids.get(module, repo_id), language=file_entry.get("language", "text"), metrics={"size_bytes": file_entry.get("size_bytes", 0)})
         _edge(edges, "contains", module_ids.get(module, repo_id), file_ids[path], 1.0, {"path": path})
@@ -351,18 +388,28 @@ def build_visualization_bundle(root: str, artifacts: dict[str, Any] | None = Non
             previous = target
     nodes.sort(key=lambda item: (item["kind"], item["canonical"]))
     edges.sort(key=lambda item: (item["type"], item["source"], item["target"], json.dumps(item.get("source_location"), sort_keys=True)))
-    language_diagnostics = [_language_diagnostic(root, entry) for entry in project.get("files") or []]
+    clustering_artifacts = dict(artifacts)
+    clustering_artifacts["flows"] = flows
+    clustering = build_clustering_metrics(root, clustering_artifacts, clustering_config, generated_at=bundle_time)
+    provenance["clustering"] = clustering["provenance"]
+    language_diagnostics = [
+        _language_diagnostic(root, entry)
+        for entry in project.get("files") or []
+        if not _redacted_path(entry["path"])
+    ]
     return {
         "schema": VISUALIZATION_SCHEMA,
         "version": VISUALIZATION_VERSION,
         "mapper_version": __version__,
         "schema_version": "v1",
-        "capabilities": ["hierarchy", "typed-edges", "flows", "provenance", "source-preview", "language-diagnostics"],
+        "capabilities": ["hierarchy", "typed-edges", "flows", "provenance", "source-preview", "language-diagnostics", "clustering-metrics", "layout-hints"],
         "generated_at": bundle_time,
         "provenance": provenance,
-        "project": {"id": repo_id, "name": project.get("product", {}).get("name") or os.path.basename(root), "root": "."},
+        "project": {"id": repo_id, "name": project_name, "root": "."},
         "nodes": nodes,
         "edges": edges,
+        "clustering": clustering,
+        "layout_hints": clustering["layout_hints"],
         "flows": flows.get("flows") or [],
         "language_diagnostics": language_diagnostics,
         "diagnostics": [{"code": "heuristic-edge", "count": sum(1 for edge in edges if edge["confidence"] < 1.0)}, {"code": "unresolved-relation", "count": sum(1 for node in nodes if node["kind"] == "external")}],

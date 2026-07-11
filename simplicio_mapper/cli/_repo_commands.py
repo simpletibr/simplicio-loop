@@ -57,16 +57,27 @@ def _run_flows(opts: dict) -> int:
 def _run_visualize(opts: dict) -> int:
     root = os.path.abspath(opts["root"])
     abs_out = os.path.abspath(os.path.join(root, opts["out"]))
-    payload = build_visualization_bundle(root)
+    clustering_config = None
+    if opts.get("clustering_config"):
+        config_path = opts["clustering_config"]
+        if not os.path.isabs(config_path):
+            config_path = os.path.join(root, config_path)
+        with open(config_path, encoding="utf-8") as handle:
+            clustering_config = json.load(handle)
+    payload = build_visualization_bundle(root, clustering_config=clustering_config)
     path = os.path.join(abs_out, "visualization-bundle.json")
     os.makedirs(abs_out, exist_ok=True)
     with open(f"{path}.tmp", "wb") as handle:
         handle.write(orjson.dumps(payload, option=orjson.OPT_INDENT_2 | orjson.OPT_APPEND_NEWLINE))
     os.replace(f"{path}.tmp", path)
+    clustering_path = os.path.join(abs_out, "clustering-metrics.json")
+    with open(f"{clustering_path}.tmp", "wb") as handle:
+        handle.write(orjson.dumps(payload["clustering"], option=orjson.OPT_INDENT_2 | orjson.OPT_APPEND_NEWLINE))
+    os.replace(f"{clustering_path}.tmp", clustering_path)
     if opts["json"]:
-        print(json.dumps({**payload, "path": path.replace(os.sep, "/")}, sort_keys=True))
+        print(json.dumps({**payload, "path": path.replace(os.sep, "/"), "clustering_path": clustering_path.replace(os.sep, "/")}, sort_keys=True))
     else:
-        print(f"nodes={len(payload['nodes'])} edges={len(payload['edges'])} flows={len(payload['flows'])} path={path}")
+        print(f"nodes={len(payload['nodes'])} edges={len(payload['edges'])} clusters={len(payload['clustering']['clusters'])} path={path}")
     return 0
 
 

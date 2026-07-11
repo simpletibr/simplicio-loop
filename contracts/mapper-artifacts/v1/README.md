@@ -14,6 +14,26 @@ else that reads `.simplicio/*.json`):
 | `index --json` result | (stdout of `simplicio-mapper index <path> --json`) | `simplicio.mapper-index/v1` |
 | Renderer-neutral visualization bundle | `.simplicio/visualization-bundle.json` / fixture | `simplicio.visualization-bundle/v1` |
 | Bounded read-only source preview | `simplicio-mapper preview <path>` JSON | `simplicio.visualization-preview/v1` |
+| Incremental graph delta | `simplicio-mapper delta <path> --json` | `simplicio.graph-delta/v1` |
+| Incremental graph snapshot | `.simplicio/graph-snapshot.json` | `simplicio.graph-snapshot/v1` |
+
+## Incremental graph delta (issue #191)
+
+`simplicio-mapper delta <path> --json` emits `initial_snapshot` on the first
+run, then deterministic `delta` events on later runs. Entity and edge IDs are
+content-independent deterministic identity based on kind and logical path, so an
+unchanged file or symbol keeps its ID when its content changes. A rename or
+move is intentionally `remove` plus `add` (there is no safe identity proof for
+a move); consumers should not silently merge those events.
+
+Events are ordered by operation, entity kind, and ID, and delta events carry a
+1-based `order`, scan revision, affected paths, and diagnostics. `update`
+events carry both `before` and `after`. `invalidate` is emitted only
+for reverse import dependents that were not themselves changed. Missing,
+malformed, incompatible, or wrong-root snapshots use `full-rescan` mode with
+`resync.required=true` and `action=replace_snapshot`; the consumer replaces
+its snapshot instead of applying partial events. The snapshot is written to
+`.simplicio/graph-snapshot.json` after the response is computed.
 
 Before this issue, that shape was implicit — whatever `simplicio_mapper/mapper.py`
 happened to emit. This directory makes it an explicit, versioned contract:
