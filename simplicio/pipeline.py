@@ -35,6 +35,12 @@ from .pipeline_stages import (
 from .pipeline_stages import (
     _git_apply_patch as _stage_git_apply_patch,
 )
+from .pipeline_task_result import (
+    _diff_summary,
+    _dry_run_preconditions,
+    _task_result,
+    _verify_receipt_payload,
+)
 from .prompt import build_prompt, latest_prompt_envelope, set_prompt_retry_delta
 from .providers import _provider_id, generate
 from .runtime_env import prepare_project_command
@@ -42,6 +48,10 @@ from .transaction import VerificationReceipt
 
 MAX_ATTEMPTS = 5
 
+# Live receipt state — written by the apply stage (``_apply_and_test_attempt``)
+# and read both here (for the patch receipt) and by ``_task_result`` in
+# ``pipeline_task_result.py``.  Kept in the coordinator module because it is
+# coordination state, not a self-contained feature (issue #141).
 _LAST_VERIFY_RECEIPT: dict[str, Any] | None = None
 _LAST_PATCH_RECEIPT: dict[str, Any] | None = None
 
@@ -54,138 +64,6 @@ def _remember_verify_receipt(receipt: VerificationReceipt | None) -> None:
 def _remember_patch_receipt(receipt: dict[str, Any] | None) -> None:
     global _LAST_PATCH_RECEIPT
     _LAST_PATCH_RECEIPT = None if receipt is None else dict(receipt)
-
-
-def _verify_receipt_payload(receipt: dict[str, Any] | None) -> dict[str, Any] | None:
-    if not receipt:
-        return None
-    commands = [str(item) for item in receipt.get("commands", [])]
-    exit_codes = [int(item) for item in receipt.get("exit_codes", [])]
-    payload = {
-        "transaction_id": receipt.get("transaction_id"),
-        "base_sha": receipt.get("base_sha"),
-        "candidate_sha": receipt.get("candidate_sha"),
-        "receipt_digest": receipt.get("receipt_digest"),
-        "commands": commands,
-        "exit_codes": exit_codes,
-        "command": commands[0] if commands else None,
-        "exit_code": exit_codes[0] if exit_codes else None,
-        "stdout_tail": receipt.get("stdout_tail", ""),
-        "stderr_tail": receipt.get("stderr_tail", ""),
-        "files": receipt.get("files", []),
-    }
-    return payload
-
-
-def _dry_run_preconditions(root: str | Path, target: str) -> list[dict[str, Any]]:
-    root_path = Path(root).resolve()
-    blockers: list[dict[str, Any]] = []
-
-    artifacts = artifact_status(root_path)
-    missing = [
-        name
-        for name in ("project_map", "precedent_index")
-        if not bool((artifacts.get(name) or {}).get("present"))
-    ]
-    if missing:
-        blockers.append(
-            {
-                "reason": "artifacts_missing",
-                "message": "mapper artifacts required for dry-run task are missing",
-                "next_surface": "mapper_artifacts",
-                "details": {"missing": missing},
-            }
-        )
-
-    inspection = artifacts.get("inspection") if isinstance(artifacts, dict) else None
-    warnings = inspection.get("warnings", []) if isinstance(inspection, dict) else []
-    stale_warnings = [str(item) for item in warnings if "stale" in str(item).lower()]
-    if stale_warnings:
-        blockers.append(
-            {
-                "reason": "artifacts_stale",
-                "message": "mapper artifacts are present but marked stale by inspection",
-                "next_surface": "mapper_inspection",
-                "details": {"warnings": stale_warnings},
-            }
-        )
-
-    target_path = root_path / Path(target)
-    target_exists = target_path.exists()
-    handoff = map_handoff(root_path)
-    if handoff is None:
-        blockers.append(
-            {
-                "reason": "no_handoff_targets",
-                "message": "mapper handoff context is unavailable for dry-run task",
-                "next_surface": "context_pack",
-                "details": {"target": target},
-            }
-        )
-    else:
-        pack = handoff.get("context_pack")
-        if not isinstance(pack, dict):
-            blockers.append(
-                {
-                    "reason": "no_handoff_targets",
-                    "message": "mapper handoff context pack is missing or malformed",
-                    "next_surface": "context_pack",
-                    "details": {"target": target},
-                }
-            )
-        else:
-            files = [
-                str(item.get("path"))
-                for item in pack.get("files", [])
-                if isinstance(item, dict) and item.get("path")
-            ]
-            if pack.get("needs_broader_context"):
-                blockers.append(
-                    {
-                        "reason": "broader_context_required",
-                        "message": "mapper handoff pack says broader context is required",
-                        "next_surface": "context_pack",
-                        "details": {"target": target},
-                    }
-                )
-            elif not files:
-                blockers.append(
-                    {
-                        "reason": "no_handoff_targets",
-                        "message": "mapper handoff pack has no targetable files",
-                        "next_surface": "context_pack",
-                        "details": {"target": target},
-                    }
-                )
-            elif target not in files:
-                blockers.append(
-                    {
-                        "reason": "target_resolution_failed",
-                        "message": "requested target is not present in mapper handoff files",
-                        "next_surface": "task_target" if not target_exists else "context_pack",
-                        "details": {"target": target, "known_targets": files[:12]},
-                    }
-                )
-
-    if not target_exists:
-        blockers.append(
-            {
-                "reason": "target_resolution_failed",
-                "message": "requested target does not exist under the repo root",
-                "next_surface": "task_target",
-                "details": {"target": target},
-            }
-        )
-
-    deduped: list[dict[str, Any]] = []
-    seen: set[tuple[str, str]] = set()
-    for blocker in blockers:
-        key = (str(blocker.get("reason")), str(blocker.get("next_surface")))
-        if key in seen:
-            continue
-        seen.add(key)
-        deduped.append(blocker)
-    return deduped
 
 
 # ---------------------------------------------------------------------------
