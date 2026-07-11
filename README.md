@@ -588,6 +588,7 @@ See [structured blocked-precondition receipts](docs/blocked-preconditions.md) fo
 See [patch receipts](docs/patch-receipts.md) for parser strategy, recovery fingerprint, and requested/effective capability evidence.
 See [the evidence ledger](docs/evidence-ledger.md) for append-only AC/RN receipts and stale-artifact gates.
 See [multi-task batches](docs/multi-task-batches.md) for deterministic DAG state and resumable transitions.
+See [prompt envelopes](docs/prompt-envelopes.md) for layer budgets, stable prefix hashes, and typed retry deltas.
 The deterministic delivery corpus is available with `python -m bench.run_delivery_corpus`.
 
 #### Path 3 example — standalone with API key

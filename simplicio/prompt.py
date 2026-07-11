@@ -7,7 +7,10 @@ from functools import lru_cache
 from .adaptive import build_adaptation_block
 from .mapper import build_mapper_context
 from .precedent import build_precedent_block
+from .prompt_envelope import PromptEnvelope
 from .skill_router import build_skill_block
+
+_LAST_PROMPT_ENVELOPE: PromptEnvelope | None = None
 
 # Optional Rust hot-path (issues #17/#18). If `simplicio_core` is installed
 # (built via `cd rust/simplicio-core && maturin develop --release`), the
@@ -64,6 +67,38 @@ def build_prompt(root, stack, goal, target, criteria, constraints):
     skill = build_skill_block(root, goal)
     target_block = f"{target}\n\nTarget context:\n{_mapper(root, target, goal=goal)}"
     adaptation = build_adaptation_block(goal)
+    global _LAST_PROMPT_ENVELOPE
+    envelope = PromptEnvelope.from_layers(
+        {
+            "policy": "Simplicio execution policy",
+            "goal": goal,
+            "target": target_block,
+            "precedent": prec,
+            "skill": skill,
+            "adaptation": adaptation,
+            "acceptance": criteria,
+            "constraints": constraints,
+        },
+        template_version="simplicio_prompt.md/v1",
+    )
+    _LAST_PROMPT_ENVELOPE = envelope
     if _rs_build is not None:
         return _rs_build(tpl, stack, goal, target_block, prec, skill, adaptation, criteria, constraints)
     return _assemble_python(tpl, stack, goal, target_block, prec, skill, adaptation, criteria, constraints)
+
+
+def latest_prompt_envelope() -> PromptEnvelope | None:
+    return _LAST_PROMPT_ENVELOPE
+
+
+def set_prompt_retry_delta(
+    *, reason: str, failure_class: str, diagnostics: str, affected_files: list[str]
+) -> None:
+    global _LAST_PROMPT_ENVELOPE
+    if _LAST_PROMPT_ENVELOPE is not None:
+        _LAST_PROMPT_ENVELOPE = _LAST_PROMPT_ENVELOPE.with_retry_delta(
+            reason=reason,
+            failure_class=failure_class,
+            diagnostics=diagnostics,
+            affected_files=affected_files,
+        )
