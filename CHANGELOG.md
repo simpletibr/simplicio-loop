@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.13.0] — 2026-07-11
+
+### Added
+- Canonical `simplicio-py --version --json` capability handshake (#113).
+- Append-only AC/RN evidence ledger with artifact hashes (#120).
+- Resumable multi-task DAG state with frozen identity checks (#119).
+- Patch capability receipts and deterministic delivery corpus gate (#121, #129).
+
+### Verification
+- Local: 897 passed, 5 skipped; ruff and mypy green.
+- Hosted Actions and PyPI publication remain externally blocked by the GitHub billing lock.
+- Live GPT-5.4/runtime/loop cross-repo evidence is intentionally not represented as complete by this release.
+
 ## [0.12.0] — 2026-07-11
 
 ### Added
