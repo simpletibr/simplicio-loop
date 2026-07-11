@@ -40,6 +40,7 @@ def version_contract() -> dict[str, Any]:
             "simplicio.dev-cli.patch-receipt/v1",
             "simplicio.dev-cli.evidence-ledger/v1",
             "simplicio.dev-cli.task-batch/v1",
+            "simplicio.prompt-envelope/v1",
         ],
         "dependencies": {"simplicio-mapper": mapper},
     }
