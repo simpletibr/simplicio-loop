@@ -1,0 +1,117 @@
+{
+  "$id": "simplicio.task-context/v1",
+  "title": "Deterministic task-to-repository context",
+  "type": "object",
+  "required": [
+    "schema",
+    "task",
+    "map",
+    "result_fingerprint",
+    "candidates",
+    "needs_broader_context",
+    "gaps"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": [
+        "simplicio.task-context/v1"
+      ]
+    },
+    "task": {
+      "type": "object",
+      "required": [
+        "schema",
+        "fingerprint"
+      ],
+      "properties": {
+        "schema": {
+          "type": "string",
+          "enum": [
+            "simplicio.task-intent/v1"
+          ]
+        },
+        "fingerprint": {
+          "type": "string"
+        }
+      }
+    },
+    "map": {
+      "type": "object",
+      "required": [
+        "schema",
+        "fingerprint"
+      ],
+      "properties": {
+        "schema": {
+          "type": "string"
+        },
+        "fingerprint": {
+          "type": "string"
+        }
+      }
+    },
+    "result_fingerprint": {
+      "type": "string"
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "kind",
+          "path",
+          "line",
+          "score",
+          "reason",
+          "confidence",
+          "evidence"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "score": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "evidence": {
+            "type": "object",
+            "required": [
+              "path",
+              "line"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "line": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
+    },
+    "needs_broader_context": {
+      "type": "boolean"
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

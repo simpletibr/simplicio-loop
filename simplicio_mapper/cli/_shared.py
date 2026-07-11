@@ -28,6 +28,8 @@ SERVICE_FLOWCHART_SCHEMA = "simplicio.service-flowchart/v1"
 
 FLOW_INVENTORY_SCHEMA = "simplicio.flow-inventory/v1"
 
+VISUALIZATION_SCHEMA = "simplicio.visualization-bundle/v1"
+
 DOCS_SYNC_SCHEMA = "simplicio.docs-sync/v1"
 
 DOC_HISTORY_SCHEMA = "simplicio.doc-history/v1"
@@ -61,24 +63,27 @@ USAGE
   simplicio-mapper scan <path> [--json] [--sync] [--await] [--timeout <s>]
   simplicio-mapper status <path> [--json] [--await] [--timeout <s>]
   simplicio-mapper inspect <path> [--json] [--for-llm toon] [--await] [--timeout <s>]
-  simplicio-mapper handoff <path> [--json] [--for-llm toon] [--await] [--timeout <s>]
+  simplicio-mapper handoff <path> [--goal <text>|--task-file <file>|--task-batch-file <file>] [--task-fingerprint <sha>] [--target <file>] [--minimum-query-coverage <0..1>] [--json] [--for-llm toon] [--await] [--timeout <s>]
+  simplicio-mapper orient <path> (--task-file <file>|--task-json <file>|--stdin) [--target <file>] [--limit <n>] [--json] [--for-llm toon]
   simplicio-mapper endpoints <path> [--against <server-root>] [--json]
   simplicio-mapper screens <path> [--json]
   simplicio-mapper flowchart <path> [--json]
   simplicio-mapper flows <path> [--json]
+  simplicio-mapper visualize <path> [--json]
+  simplicio-mapper preview <path> (--path <file>|--entity-id <id>) [--json]
   simplicio-mapper sync <path> [--range <spec>|--staged] [--check] [--json]
   simplicio-mapper history <path> [--json]
   simplicio-mapper diff <path> --from <id> --to <id> [--json]
   simplicio-mapper ask <path> <verb> [<arg>] [--depth N] [--limit N] [--effect T] [--category C] [--json] [--for-llm toon]
   simplicio-mapper business <path> [--json]
   simplicio-mapper survey <path> [--target <file>] [--json]
-  simplicio-mapper drift <path> [--check] [--threshold N] [--json]
+  simplicio-mapper drift <path> [--scope all|product|template] [--check] [--threshold N] [--json]
   simplicio-mapper docs <path> [--json]
   simplicio-mapper export-docs <path> --target <dir> [--json]
   simplicio-mapper map [--root <dir>] [--incremental] [--watch]
   simplicio-mapper update [--root <dir>] [--watch]
   simplicio-mapper contract validate <path> [<path> ...]
-  simplicio-mapper doctor --contracts [<path> ...]
+  simplicio-mapper doctor --contracts [--cross-repo] [<path> ...]
 
 OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
@@ -91,6 +96,8 @@ OPTIONS
   screens <path>        Extract frontend route/screen inventory.
   flowchart <path>      Render screen->service->backend mermaid flowchart docs.
   flows <path>          Derive stack-neutral end-to-end flows from the call graph.
+  visualize <path>      Write a versioned renderer-neutral visualization bundle.
+  preview <path>        Read a bounded, read-only source preview.
   sync <path>           Regenerate only the docs/flows a diff affects.
   history <path>        List .simplicio/history/ snapshots (created by map/sync).
   diff <path>           Semantic delta between two history snapshots.
@@ -115,7 +122,17 @@ OPTIONS
   --retention <n>       Max history snapshots kept (default 50, oldest GC'd first).
   --threshold <n>       drift: max findings allowed before --check fails (default 10).
   --against <dir>       Compare endpoint client calls against server routes.
-  --target <dir>        Local target directory for export-docs.
+  --target <file|dir>   handoff: required target hint; export-docs: destination.
+  --goal <text>         handoff: normalized task goal used for relevance ranking.
+  --task-file <file>    handoff: Markdown/Gherkin/JSON task parsed into task intent.
+  --task-batch-file <file>
+                        handoff: JSON list/object of tasks; emits plan-only batch envelope.
+  --task-json <file>    orient: JSON task input.
+  --stdin               orient: read the raw task from stdin.
+  --task-fingerprint <sha>
+                        handoff: stable upstream task identity for cache/hash keys.
+  --minimum-query-coverage <0..1>
+                        handoff: minimum lexical coverage before context is sufficient (default 0.2).
   --docs                Render markdown docs after map/index.
   --no-docs             Keep map/index JSON-only.
   --docs-only           Render markdown docs without refreshing JSON first.
@@ -146,6 +163,12 @@ OPTIONS
   --stack <name>        Stack hint when .starter-meta.json is absent.
   --product-name <name> Product name hint when .starter-meta.json is absent.
   --out <dir>           Artifact directory. Defaults to .simplicio.
+  --path <file>         Preview a validated path inside the mapped root.
+  --entity-id <id>      Preview a file or symbol addressed by bundle entity id.
+  --line <n>            Preview starting line (default 1).
+  --max-lines <n>       Preview line limit (default 200).
+  --max-bytes <n>       Preview byte limit (default 16384).
+  --allow-full-content  Explicitly opt in to full-content preview with warning.
   --incremental         Record changed files and update existing artifacts.
   --watch               Re-run mapping when local files change.
   --silent              Minimal output.

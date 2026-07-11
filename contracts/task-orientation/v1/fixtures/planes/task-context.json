@@ -1,0 +1,17 @@
+{
+  "schema": "simplicio.task-context/v1",
+  "task": {
+    "schema": "simplicio.task-intent/v1",
+    "fingerprint": "c5039e9d8e87828d80e1628353961dfe45ae2aa7d18608c972fe19a2b7c8a586"
+  },
+  "map": {
+    "schema": "simplicio.mapper-index/v1",
+    "fingerprint": "0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "result_fingerprint": "c5039e9d8e87828d80e1628353961dfe45ae2aa7d18608c972fe19a2b7c8a586",
+  "candidates": [],
+  "needs_broader_context": true,
+  "gaps": [
+    "repository map intentionally absent from the normalization-only fixture"
+  ]
+}

@@ -36,18 +36,18 @@ class QueryTest(unittest.TestCase):
         _write(
             self.dir,
             "src/main.py",
-            "from src.writer import persist\n"
-            "def main():\n"
-            "    persist()\n",
+            "from src.writer import persist\ndef main():\n    persist()\n",
         )
         _write(
             self.dir,
             "src/writer.py",
-            "def persist():\n"
-            "    with open('out.json', 'w') as handle:\n"
-            "        handle.write('{}')\n",
+            "def persist():\n    with open('out.json', 'w') as handle:\n        handle.write('{}')\n",
         )
-        _write(self.dir, "tests/test_writer.py", "from src.writer import persist\n\ndef test_persist():\n    persist()\n")
+        _write(
+            self.dir,
+            "tests/test_writer.py",
+            "from src.writer import persist\n\ndef test_persist():\n    persist()\n",
+        )
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
@@ -127,6 +127,7 @@ class PrecedentVerbTest(unittest.TestCase):
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=json.dumps(native_payload))
         with (
             mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
+            mock.patch("simplicio_mapper.query._validated_runtime_binary", return_value=(True, "validated")),
             mock.patch("simplicio_mapper.query.subprocess.run", return_value=completed) as run_mock,
         ):
             payload = run_query(str(self.dir), verb="precedent", arg="route")
@@ -152,6 +153,7 @@ class PrecedentVerbTest(unittest.TestCase):
     def test_fallback_on_subprocess_timeout(self) -> None:
         with (
             mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
+            mock.patch("simplicio_mapper.query._validated_runtime_binary", return_value=(True, "validated")),
             mock.patch(
                 "simplicio_mapper.query.subprocess.run",
                 side_effect=subprocess.TimeoutExpired(cmd="simplicio", timeout=10),
@@ -164,15 +166,32 @@ class PrecedentVerbTest(unittest.TestCase):
         completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="not-json{")
         with (
             mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
+            mock.patch("simplicio_mapper.query._validated_runtime_binary", return_value=(True, "validated")),
             mock.patch("simplicio_mapper.query.subprocess.run", return_value=completed),
         ):
             payload = run_query(str(self.dir), verb="precedent", arg="route")
         self.assertEqual(payload["source"], "local-tag-overlap")
 
+    def test_fallback_on_wrong_precedent_schema(self) -> None:
+        completed = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout=json.dumps({"schema": "simplicio.ask/v1", "candidates": []}),
+        )
+        with (
+            mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
+            mock.patch("simplicio_mapper.query._validated_runtime_binary", return_value=(True, "validated")),
+            mock.patch("simplicio_mapper.query.subprocess.run", return_value=completed),
+        ):
+            payload = run_query(str(self.dir), verb="precedent", arg="route")
+        self.assertEqual(payload["source"], "local-tag-overlap")
+        self.assertEqual(payload["delegation"]["reason"], "invalid_response_schema")
+
     def test_fallback_on_non_zero_exit(self) -> None:
         completed = subprocess.CompletedProcess(args=[], returncode=1, stdout="")
         with (
             mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
+            mock.patch("simplicio_mapper.query._validated_runtime_binary", return_value=(True, "validated")),
             mock.patch("simplicio_mapper.query.subprocess.run", return_value=completed),
         ):
             payload = run_query(str(self.dir), verb="precedent", arg="route")

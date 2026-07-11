@@ -185,14 +185,36 @@ def _check_orphan_code(architecture_inventory: dict, spec_paths: list[str], cwd:
     return findings
 
 
-def build_spec_drift(cwd: str, out_dir: str = ".simplicio", threshold: int = _DEFAULT_THRESHOLD) -> dict:
+def _scoped_paths(manifest: dict, all_paths: list[str], scope: str) -> tuple[list[str], set[str]]:
+    if scope not in {"all", "product", "template"}:
+        raise ValueError("scope must be all, product, or template")
+    if scope == "all":
+        return all_paths, set(manifest.get("generic_placeholder_paths") or [])
+    if scope == "product":
+        allowed = set(manifest.get("product_paths") or [])
+        return sorted(path for path in all_paths if path in allowed), set()
+    allowed = set(manifest.get("template_paths") or []) | set(manifest.get("generic_placeholder_paths") or [])
+    return sorted(path for path in all_paths if path in allowed), allowed
+
+
+def build_spec_drift(
+    cwd: str,
+    out_dir: str = ".simplicio",
+    threshold: int = _DEFAULT_THRESHOLD,
+    *,
+    scope: str = "all",
+) -> dict:
     abs_cwd = os.path.abspath(cwd)
     manifest = _load_manifest(abs_cwd)
     generic_paths = set(manifest.get("generic_placeholder_paths") or [])
 
     artifacts = build_artifacts(abs_cwd, output_dir=out_dir)
     known_files = {f["path"] for f in artifacts["project_map"].get("files") or []}
-    spec_paths = _spec_doc_paths(abs_cwd)
+    spec_paths, scope_generic_paths = _scoped_paths(manifest, _spec_doc_paths(abs_cwd), scope)
+    if scope == "template":
+        generic_paths = generic_paths - scope_generic_paths
+    elif scope == "product":
+        generic_paths = set()
 
     findings: list[dict] = []
     findings.extend(_check_placeholders(abs_cwd, spec_paths, generic_paths))
@@ -200,16 +222,20 @@ def build_spec_drift(cwd: str, out_dir: str = ".simplicio", threshold: int = _DE
     findings.extend(orphan_spec_findings)
     findings.extend(_check_orphan_code(artifacts["architecture_inventory"], spec_paths, abs_cwd))
 
-    sync_payload = build_docs_sync(abs_cwd, out_dir=out_dir, check=True)
-    for doc in sync_payload.get("stale_docs") or []:
-        findings.append({
-            "check": "doc-stale",
-            "severity": "warn",
-            "target": doc,
-            "line": None,
-            "message": "generated doc is stale relative to the working tree — run `sync`",
-            "evidence": doc,
-        })
+    # Generated-doc freshness has its own `sync --check` gate. Keep it out of
+    # the product/template ownership score so unrelated dirty artifacts do not
+    # change the classification of product content.
+    if scope == "all":
+        sync_payload = build_docs_sync(abs_cwd, out_dir=out_dir, check=True)
+        for doc in sync_payload.get("stale_docs") or []:
+            findings.append({
+                "check": "doc-stale",
+                "severity": "warn",
+                "target": doc,
+                "line": None,
+                "message": "generated doc is stale relative to the working tree — run `sync`",
+                "evidence": doc,
+            })
 
     traceability = {rel: links.get(rel, []) for rel in spec_paths if rel not in generic_paths}
     matrix_summary = {
@@ -223,6 +249,7 @@ def build_spec_drift(cwd: str, out_dir: str = ".simplicio", threshold: int = _DE
     return {
         "schema": SPEC_DRIFT_SCHEMA,
         "version": SPEC_DRIFT_VERSION,
+        "scope": scope,
         "findings": findings,
         "matrix_summary": matrix_summary,
         "traceability": traceability,

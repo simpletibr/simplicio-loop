@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-07-11
+
+### Added
+
+- Deterministic task orientation, task-aware handoff, task batches, and AC/RN traceability contracts.
+- Behavioral scorecard, cross-repository conformance, and product/template drift gates.
+- Versioned visualization bundles, provenance, safe previews, and normalized diagnostics.
+- Crash-safe index lock recovery and strict Runtime response validation.
+
 ## [0.19.0] - 2026-07-09
 
 ### Added

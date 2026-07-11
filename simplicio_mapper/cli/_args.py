@@ -37,6 +37,13 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "command": "map",
         "against": "",
         "target": "",
+        "goal": "",
+        "task_file": "",
+        "task_batch_file": "",
+        "task_json": "",
+        "stdin": False,
+        "task_fingerprint": "",
+        "minimum_query_coverage": 0.2,
         "range": "",
         "staged": False,
         "check": False,
@@ -50,10 +57,17 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "effect": "",
         "category": "",
         "threshold": 10,
+        "scope": "all",
         "for_llm": "",
         "tagged": False,
         "confidence": "",
         "geometry": False,
+        "path": "",
+        "entity_id": "",
+        "line": 1,
+        "max_lines": 200,
+        "max_bytes": 16384,
+        "allow_full_content": False,
     }
     commands = (
         "index",
@@ -64,12 +78,15 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "status",
         "inspect",
         "handoff",
+        "orient",
         "endpoints",
         "screens",
         "flowchart",
         "docs",
         "export-docs",
         "flows",
+        "visualize",
+        "preview",
         "sync",
         "history",
         "diff",
@@ -103,12 +120,15 @@ def _parse_args(argv: Sequence[str]) -> dict:
             "status",
             "inspect",
             "handoff",
+            "orient",
             "endpoints",
             "screens",
             "flowchart",
             "docs",
             "export-docs",
             "flows",
+            "visualize",
+            "preview",
             "sync",
             "history",
             "diff",
@@ -123,6 +143,54 @@ def _parse_args(argv: Sequence[str]) -> dict:
         elif arg == "--target":
             i += 1
             opts["target"] = argv[i]
+        elif arg == "--goal":
+            i += 1
+            try:
+                opts["goal"] = argv[i]
+            except IndexError:
+                print("--goal requires a value", file=sys.stderr)
+                sys.exit(2)
+        elif arg == "--task-file":
+            i += 1
+            try:
+                opts["task_file"] = argv[i]
+            except IndexError:
+                print("--task-file requires a value", file=sys.stderr)
+                sys.exit(2)
+        elif arg == "--task-batch-file":
+            i += 1
+            try:
+                opts["task_batch_file"] = argv[i]
+            except IndexError:
+                print("--task-batch-file requires a value", file=sys.stderr)
+                sys.exit(2)
+        elif arg == "--task-json":
+            i += 1
+            try:
+                opts["task_json"] = argv[i]
+            except IndexError:
+                print("--task-json requires a file", file=sys.stderr)
+                sys.exit(2)
+        elif arg == "--stdin":
+            opts["stdin"] = True
+        elif arg == "--task-fingerprint":
+            i += 1
+            try:
+                opts["task_fingerprint"] = argv[i]
+            except IndexError:
+                print("--task-fingerprint requires a value", file=sys.stderr)
+                sys.exit(2)
+        elif arg == "--minimum-query-coverage":
+            i += 1
+            try:
+                value = float(argv[i])
+            except (ValueError, IndexError):
+                print("--minimum-query-coverage requires a number between 0 and 1", file=sys.stderr)
+                sys.exit(2)
+            if not 0.0 <= value <= 1.0:
+                print("--minimum-query-coverage requires a number between 0 and 1", file=sys.stderr)
+                sys.exit(2)
+            opts["minimum_query_coverage"] = value
         elif arg == "--range":
             i += 1
             opts["range"] = argv[i]
@@ -157,6 +225,17 @@ def _parse_args(argv: Sequence[str]) -> dict:
             except (ValueError, IndexError):
                 print(f"Invalid --threshold value: {argv[i] if i < len(argv) else ''}", file=sys.stderr)
                 sys.exit(2)
+        elif arg == "--scope":
+            i += 1
+            try:
+                value = argv[i]
+            except IndexError:
+                print("--scope requires all, product, or template", file=sys.stderr)
+                sys.exit(2)
+            if value not in {"all", "product", "template"}:
+                print("--scope requires all, product, or template", file=sys.stderr)
+                sys.exit(2)
+            opts["scope"] = value
         elif arg == "--from":
             i += 1
             opts["from_id"] = argv[i]
@@ -249,6 +328,23 @@ def _parse_args(argv: Sequence[str]) -> dict:
             opts["tagged"] = True
         elif arg == "--geometry":
             opts["geometry"] = True
+        elif arg == "--path":
+            i += 1
+            opts["path"] = argv[i]
+        elif arg == "--entity-id":
+            i += 1
+            opts["entity_id"] = argv[i]
+        elif arg == "--line":
+            i += 1
+            opts["line"] = max(1, int(argv[i]))
+        elif arg == "--max-lines":
+            i += 1
+            opts["max_lines"] = max(1, int(argv[i]))
+        elif arg == "--max-bytes":
+            i += 1
+            opts["max_bytes"] = max(1, int(argv[i]))
+        elif arg == "--allow-full-content":
+            opts["allow_full_content"] = True
         elif arg == "--verbose":
             opts["verbose"] = True
             opts["silent"] = False

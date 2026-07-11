@@ -14,6 +14,7 @@ from ..history import diff_snapshots, list_snapshots, maybe_snapshot
 from ..mapper import _write_text_stable, build_artifacts, export_architecture_docs, write_architecture_docs
 from ..query import run_query
 from ..survey import build_survey, render_survey_markdown
+from ..visualization import build_visualization_bundle
 from ._index_engine import _print_toon
 from ._shared import DOC_HISTORY_SCHEMA
 
@@ -50,6 +51,22 @@ def _run_flows(opts: dict) -> int:
             f"entrypoints_with_flow={coverage['entrypoints_with_flow']} "
             f"doc={doc_path}"
         )
+    return 0
+
+
+def _run_visualize(opts: dict) -> int:
+    root = os.path.abspath(opts["root"])
+    abs_out = os.path.abspath(os.path.join(root, opts["out"]))
+    payload = build_visualization_bundle(root)
+    path = os.path.join(abs_out, "visualization-bundle.json")
+    os.makedirs(abs_out, exist_ok=True)
+    with open(f"{path}.tmp", "wb") as handle:
+        handle.write(orjson.dumps(payload, option=orjson.OPT_INDENT_2 | orjson.OPT_APPEND_NEWLINE))
+    os.replace(f"{path}.tmp", path)
+    if opts["json"]:
+        print(json.dumps({**payload, "path": path.replace(os.sep, "/")}, sort_keys=True))
+    else:
+        print(f"nodes={len(payload['nodes'])} edges={len(payload['edges'])} flows={len(payload['flows'])} path={path}")
     return 0
 
 
@@ -202,7 +219,9 @@ def _run_survey(opts: dict) -> int:
 def _run_drift(opts: dict) -> int:
     root = os.path.abspath(opts["root"])
     abs_out = os.path.abspath(os.path.join(root, opts["out"]))
-    payload = build_spec_drift(root, out_dir=opts["out"], threshold=opts["threshold"])
+    payload = build_spec_drift(
+        root, out_dir=opts["out"], threshold=opts["threshold"], scope=opts.get("scope", "all")
+    )
 
     if not opts["check"]:
         report_path = os.path.join(abs_out, "spec-drift.json")

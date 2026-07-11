@@ -30,6 +30,8 @@
         }
       }
     },
-    "verified": { "type": "boolean" }
+    "verified": { "type": "boolean" },
+    "task_id": { "type": "string" },
+    "traceability_ref": { "type": "string" }
   }
 }

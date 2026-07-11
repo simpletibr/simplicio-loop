@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 
 from .contract import ContractError, iter_json_files, validate_instance
 
@@ -141,7 +143,8 @@ def run_doctor_cli(argv: list[str]) -> int:
         )
         return 2
 
-    extra_paths = [arg for arg in argv if arg != "--contracts"]
+    cross_repo = "--cross-repo" in argv
+    extra_paths = [arg for arg in argv if arg not in {"--contracts", "--cross-repo"}]
 
     overall_ok = True
 
@@ -180,4 +183,19 @@ def run_doctor_cli(argv: list[str]) -> int:
         print(f"::error::[ecosystem/v1] {error}", flush=True)
         overall_ok = False
 
+    print(f"contract status: {'local-shape-valid' if overall_ok else 'local-shape-invalid'}", flush=True)
+    if cross_repo:
+        repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        runner = os.path.join(repo_root, "scripts", "cross_repo_conformance.py")
+        if not os.path.isfile(runner):
+            print("::error::cross-repo-conformant unavailable: runner missing", flush=True)
+            return 1
+        result = subprocess.run([sys.executable, runner], cwd=repo_root, check=False)
+        print(
+            f"contract status: {'cross-repo-conformant' if result.returncode == 0 else 'cross-repo-incompatible'}",
+            flush=True,
+        )
+        overall_ok = overall_ok and result.returncode == 0
+    else:
+        print("contract status: cross-repo-conformant=not-run (use --cross-repo)", flush=True)
     return 0 if overall_ok else 1

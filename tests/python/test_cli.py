@@ -35,6 +35,7 @@ from simplicio_mapper.cli import (  # noqa: E402
 # reaches into the submodule directly rather than growing __init__.py's
 # re-export list for a white-box unit test.
 from simplicio_mapper.cli._endpoints import _normalize_endpoint_path  # noqa: E402
+from simplicio_mapper.cli._index_engine import _process_is_alive  # noqa: E402
 from simplicio_mapper.mapper import (  # noqa: E402
     ARCHITECTURE_INVENTORY_SCHEMA,
     ARTIFACT_SCHEMA,
@@ -976,7 +977,7 @@ def load(api):
         _write(self.dir, "package.json", json.dumps({"name": "locked-host"}))
         lock = self.dir / ".simplicio" / "index.lock"
         lock.parent.mkdir(parents=True, exist_ok=True)
-        lock.write_text("123\n", encoding="utf-8")
+        lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
 
         out = StringIO()
         with redirect_stdout(out):
@@ -1019,6 +1020,11 @@ def load(api):
         mapped = json.loads(project_map.read_text())
         self.assertEqual(mapped["product"]["name"], "Background Host")
         self.assertEqual(mapped["product"]["stack"], "python")
+        for _ in range(100):
+            if not _process_is_alive(payload["pid"]):
+                break
+            time.sleep(0.05)
+        self.assertFalse(_process_is_alive(payload["pid"]), "background process did not terminate")
 
     def test_docs_only_renders_without_index_payload(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "docs-only-host"}))
@@ -1108,12 +1114,17 @@ def load(api):
                 break
             time.sleep(0.05)
         self.assertTrue(project_map.exists())
+        for _ in range(100):
+            if not _process_is_alive(payload["deep"]["pid"]):
+                break
+            time.sleep(0.05)
+        self.assertFalse(_process_is_alive(payload["deep"]["pid"]), "deep pass did not terminate")
 
     def test_scan_sync_lock_guarded(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "guard-host"}))
         lock = self.dir / ".simplicio" / "index.lock"
         lock.parent.mkdir(parents=True, exist_ok=True)
-        lock.write_text("123\n", encoding="utf-8")
+        lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
         out = StringIO()
         with redirect_stdout(out):
             code = main(["scan", str(self.dir), "--sync", "--json"])
@@ -1127,7 +1138,7 @@ def load(api):
         _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
         lock = self.dir / ".simplicio" / "index.lock"
         lock.parent.mkdir(parents=True, exist_ok=True)
-        lock.write_text("123\n", encoding="utf-8")
+        lock.write_text(f"{os.getpid()}\n", encoding="utf-8")
         out = StringIO()
         with redirect_stdout(out):
             self.assertEqual(main(["status", str(self.dir), "--json"]), 0)

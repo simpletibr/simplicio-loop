@@ -7,16 +7,22 @@ import os
 import time
 
 from ..context_cache import ContextCache
-from ..context_pack import build_context_pack
+from ..context_pack import build_context_pack, select_context_targets
 from ..mapper import build_macro_map
+from ..task_batch import build_task_batch
+from ..task_intent import parse_task_intent
+from ..task_traceability import build_task_traceability
 from ._args import _read_json_safe
 from ._background import _run_index, _spawn_background_index
 from ._index_engine import (
     _artifact_paths,
     _artifacts_exist,
     _freshness_signature,
+    _inspect_index_lock,
     _lock_path,
     _print_toon,
+    _process_is_alive,
+    _process_start_token,
     _read_index_state,
     _state_path,
 )
@@ -53,15 +59,32 @@ def _index_is_fresh(root: str, out: str) -> bool:
 
 def _deep_phase(root: str, out: str) -> str:
     """Derive the deep-pass phase: ``deep_running|complete|failed|unknown``."""
-    if os.path.exists(_lock_path(root, out)):
+    lock_status = _inspect_index_lock(root, out, recover=True)
+    if lock_status["active"]:
         return "deep_running"
     if _index_is_fresh(root, out):
         return "complete"
     job = _read_json_safe(_map_job_path(root, out))
-    if job.get("schema") == MAP_JOB_SCHEMA and not _artifacts_exist(_artifact_paths(root, out)):
-        # A deep pass was requested but produced no fresh artifacts and no lock
-        # is held: the background run is gone without finishing.
-        return "failed"
+    if job.get("schema") == MAP_JOB_SCHEMA:
+        deep = job.get("deep") if isinstance(job.get("deep"), dict) else {}
+        pid = deep.get("pid")
+        if job.get("phase") == "macro_done" and isinstance(pid, int) and _process_is_alive(pid):
+            expected_start = deep.get("process_start")
+            actual_start = _process_start_token(pid)
+            if (
+                not expected_start
+                or expected_start == "unknown"
+                or not actual_start
+                or expected_start == actual_start
+            ):
+                # Covers the short spawn -> lock creation window.
+                return "deep_running"
+        if job.get("phase") in ("macro_done", "deep_running") or not _artifacts_exist(
+            _artifact_paths(root, out)
+        ):
+            # The background owner is gone (or its PID was reused) without a
+            # fresh index, so status must become terminal rather than hang.
+            return "failed"
     return "unknown"
 
 
@@ -100,6 +123,7 @@ def _job_summary(root: str, out: str) -> dict | None:
         "sync": bool(job.get("sync")),
         "created_at": job.get("created_at"),
         "pid": deep.get("pid"),
+        "process_start": deep.get("process_start"),
         "log": deep.get("log"),
         "poll": deep.get("poll"),
     }
@@ -152,6 +176,7 @@ def _status_warnings(
 
 
 def _status_payload(root: str, out: str, *, phase: str | None = None) -> dict:
+    lock_status = _inspect_index_lock(root, out, recover=True)
     current_phase = phase or _deep_phase(root, out)
     state = _read_index_state(root, out)
     counts = state.get("counts") if isinstance(state.get("counts"), dict) else {}
@@ -163,7 +188,8 @@ def _status_payload(root: str, out: str, *, phase: str | None = None) -> dict:
         "out": os.path.abspath(os.path.join(root, out)).replace(os.sep, "/"),
         "phase": current_phase,
         "terminal": current_phase != "deep_running",
-        "lock": os.path.exists(_lock_path(root, out)),
+        "lock": lock_status["active"],
+        "lock_status": lock_status,
         "fresh": fresh,
         "artifacts_present": artifacts_present,
         "state_path": _state_path(root, out).replace(os.sep, "/"),
@@ -242,16 +268,70 @@ def _run_handoff(opts: dict) -> int:
     out = opts["out"]
     phase = _await_terminal(root, out, opts["timeout"]) if opts["await"] else _deep_phase(root, out)
     status_payload = _status_payload(root, out, phase=phase)
-    targets = _handoff_targets(root, out)
+    project_map = _read_json_safe(_project_map_path(root, out))
+    goal = str(opts.get("goal") or "")
+    task_intent = opts.get("task_intent") if isinstance(opts.get("task_intent"), dict) else None
+    task_file = str(opts.get("task_file") or "")
+    task_batch_file = str(opts.get("task_batch_file") or "")
+    task_batch = None
+    task_file_error = ""
+    if task_file and task_intent is None:
+        try:
+            with open(task_file, encoding="utf-8") as handle:
+                task_intent = parse_task_intent(handle.read())
+        except (OSError, ValueError, TypeError) as error:
+            task_file_error = f"task_file_error:{error}"
+    if task_batch_file:
+        try:
+            with open(task_batch_file, encoding="utf-8") as handle:
+                task_batch = build_task_batch(root, json.load(handle), project_map)
+        except (OSError, ValueError, TypeError, json.JSONDecodeError) as error:
+            task_file_error = f"task_batch_file_error:{error}"
+    task_fingerprint = str(opts.get("task_fingerprint") or "")
+    if not task_fingerprint and task_intent:
+        task_fingerprint = str(task_intent.get("fingerprint") or "")
+    requested_target = str(opts.get("target") or "")
+    minimum_coverage = float(opts.get("minimum_query_coverage", 0.2))
+    task_aware = bool(
+        goal.strip() or task_intent or task_file or task_fingerprint.strip() or requested_target.strip()
+    )
+
+    selection_started = time.perf_counter()
+    selection = None
+    if task_aware:
+        selection = select_context_targets(
+            root,
+            project_map,
+            goal=goal,
+            task_intent=task_intent,
+            task_fingerprint=task_fingerprint,
+            target=requested_target,
+        )
+        target_rows = selection["targets"]
+        targets = [row["path"] for row in target_rows]
+    else:
+        targets = _handoff_targets(root, out)
+        target_rows = [{"path": path} for path in targets]
+    selection_latency_ms = round((time.perf_counter() - selection_started) * 1000, 3)
+
     context_pack = build_context_pack(
         root=root,
-        targets=[{"path": path} for path in targets],
+        targets=target_rows,
+        project_map=project_map,
+        goal=goal,
+        task_intent=task_intent,
+        task_fingerprint=task_fingerprint,
+        target=requested_target,
+        query_terms=selection["query_terms"] if selection else None,
+        minimum_query_coverage=minimum_coverage,
     )
     cache = ContextCache(_context_cache_path(root, out))
     pack_hash = context_pack.get("pack_hash")
     reasons: list[str] = []
+    if task_file_error:
+        reasons.append(task_file_error)
     if not targets:
-        reasons.append("no_handoff_targets")
+        reasons.append("task_context_insufficient" if task_aware else "no_handoff_targets")
     if not status_payload["artifacts_present"]:
         reasons.append("artifacts_missing")
     if not status_payload["fresh"]:
@@ -275,6 +355,31 @@ def _run_handoff(opts: dict) -> int:
             "pack_cached": isinstance(pack_hash, str) and pack_hash in cache,
         },
     }
+    if selection is not None:
+        estimated_bytes = sum(
+            os.path.getsize(os.path.join(root, path))
+            for path in targets
+            if os.path.isfile(os.path.join(root, path))
+        )
+        payload["selection"] = selection
+        payload["metrics"] = {
+            **selection["metrics"],
+            "selection_latency_ms": selection_latency_ms,
+            "estimated_tokens": (estimated_bytes + 3) // 4,
+            "tokens_estimation_method": "utf8-bytes-div-4",
+            "coverage_ratio": selection["coverage"]["ratio"],
+        }
+        payload["evidence"]["query_fingerprint"] = selection["query_fingerprint"]
+    if task_batch is not None:
+        payload["task_batch"] = task_batch
+    if task_intent is not None:
+        payload["traceability"] = build_task_traceability(
+            root,
+            task_intent,
+            context_pack=context_pack,
+            project_map=project_map,
+            task_id=task_fingerprint,
+        )
     if opts.get("for_llm") == "toon":
         _print_toon(payload)
     elif opts["json"]:
@@ -337,6 +442,7 @@ def _run_scan(opts: dict) -> int:
     else:
         spawned = _spawn_background_index(opts)
         deep["pid"] = spawned["pid"]
+        deep["process_start"] = spawned["process_start"]
         deep["log"] = spawned["log"]
         phase = "macro_done"
 
@@ -374,9 +480,10 @@ def _run_status(opts: dict) -> int:
     out = opts["out"]
     if opts["await"]:
         phase = _await_terminal(root, out, opts["timeout"])
+        payload = _status_payload(root, out, phase=phase)
     else:
-        phase = _deep_phase(root, out)
-    payload = _status_payload(root, out, phase=phase)
+        payload = _status_payload(root, out)
+        phase = payload["phase"]
     if opts["json"]:
         print(json.dumps(payload, sort_keys=True))
     else:

@@ -3,9 +3,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import secrets
 import subprocess
 import sys
 import time
+from dataclasses import dataclass
 
 from ..history import append_changelog, create_snapshot
 from ..mapper import write_mapping_artifacts
@@ -74,25 +76,290 @@ def _lock_path(root: str, out: str) -> str:
     return os.path.join(os.path.abspath(os.path.join(root, out)), "index.lock")
 
 
-def _acquire_index_lock(root: str, out: str) -> str | None:
-    path = _lock_path(root, out)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+INDEX_LOCK_SCHEMA = "simplicio.index-lock/v1"
+INDEX_LOCK_TTL_ENV = "SIMPLICIO_MAPPER_LOCK_TTL_SECONDS"
+DEFAULT_INDEX_LOCK_TTL_SECONDS = 6 * 60 * 60
+MALFORMED_LOCK_GRACE_SECONDS = 2.0
+
+
+@dataclass(frozen=True)
+class _IndexLockHandle:
+    path: str
+    token: str
+
+
+def _index_lock_ttl_seconds() -> float:
+    raw = os.environ.get(INDEX_LOCK_TTL_ENV)
+    if raw is None:
+        return float(DEFAULT_INDEX_LOCK_TTL_SECONDS)
     try:
-        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-    except FileExistsError:
+        return max(0.0, float(raw))
+    except ValueError:
+        return float(DEFAULT_INDEX_LOCK_TTL_SECONDS)
+
+
+def _process_is_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    if pid == os.getpid():
+        return True
+    if os.name == "nt":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+            kernel32.OpenProcess.restype = wintypes.HANDLE
+            kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+            kernel32.GetExitCodeProcess.restype = wintypes.BOOL
+            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+            kernel32.CloseHandle.restype = wintypes.BOOL
+            process = kernel32.OpenProcess(0x1000, False, pid)
+            if not process:
+                # Access denied still means a process owns the PID.
+                return ctypes.get_last_error() == 5
+            try:
+                exit_code = wintypes.DWORD()
+                if not kernel32.GetExitCodeProcess(process, ctypes.byref(exit_code)):
+                    return True
+                return exit_code.value == 259  # STILL_ACTIVE
+            finally:
+                kernel32.CloseHandle(process)
+        except (AttributeError, OSError):
+            pass
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def _process_start_token(pid: int) -> str | None:
+    """Return an OS process-start identity, used to reject PID reuse."""
+    if pid <= 0:
         return None
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        handle.write(f"{os.getpid()}\n")
-    return path
+    if os.name == "nt":
+        try:
+            import ctypes
+            from ctypes import wintypes
 
-
-def _release_index_lock(path: str | None) -> None:
-    if not path:
-        return
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+            kernel32.OpenProcess.restype = wintypes.HANDLE
+            kernel32.GetProcessTimes.argtypes = [
+                wintypes.HANDLE,
+                ctypes.POINTER(wintypes.FILETIME),
+                ctypes.POINTER(wintypes.FILETIME),
+                ctypes.POINTER(wintypes.FILETIME),
+                ctypes.POINTER(wintypes.FILETIME),
+            ]
+            kernel32.GetProcessTimes.restype = wintypes.BOOL
+            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+            kernel32.CloseHandle.restype = wintypes.BOOL
+            process = kernel32.OpenProcess(0x1000, False, pid)
+            if not process:
+                return None
+            try:
+                created = wintypes.FILETIME()
+                exited = wintypes.FILETIME()
+                kernel = wintypes.FILETIME()
+                user = wintypes.FILETIME()
+                ok = kernel32.GetProcessTimes(
+                    process,
+                    ctypes.byref(created),
+                    ctypes.byref(exited),
+                    ctypes.byref(kernel),
+                    ctypes.byref(user),
+                )
+                if ok:
+                    return f"win-filetime:{(created.dwHighDateTime << 32) | created.dwLowDateTime}"
+            finally:
+                kernel32.CloseHandle(process)
+        except (AttributeError, OSError):
+            return None
+    proc_stat = f"/proc/{pid}/stat"
     try:
-        os.unlink(path)
+        with open(proc_stat, encoding="utf-8") as handle:
+            raw = handle.read()
+        # Field 22 is starttime; split after the parenthesized comm field.
+        fields = raw[raw.rfind(")") + 2 :].split()
+        if len(fields) > 19:
+            return f"proc-start:{fields[19]}"
     except OSError:
         pass
+    try:
+        result = subprocess.run(
+            ["ps", "-o", "lstart=", "-p", str(pid)],
+            capture_output=True,
+            text=True,
+            timeout=1,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    value = result.stdout.strip()
+    return f"ps-start:{value}" if result.returncode == 0 and value else None
+
+
+def _lock_file_snapshot(path: str) -> tuple[bytes, tuple[int, int, int]] | None:
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read()
+        stat = os.stat(path)
+    except OSError:
+        return None
+    return raw, (stat.st_mtime_ns, stat.st_size, getattr(stat, "st_ino", 0))
+
+
+def _remove_lock_snapshot(path: str, snapshot: tuple[bytes, tuple[int, int, int]]) -> bool:
+    if _lock_file_snapshot(path) != snapshot:
+        return False
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def _inspect_index_lock(root: str, out: str, *, recover: bool = False) -> dict:
+    """Classify a lock and optionally remove a proven orphan without races."""
+    path = _lock_path(root, out)
+    snapshot = _lock_file_snapshot(path)
+    if snapshot is None:
+        return {"exists": False, "active": False, "recovered": False, "reason": "absent"}
+    raw, stat_identity = snapshot
+    age = max(0.0, time.time() - (stat_identity[0] / 1_000_000_000))
+    stripped = raw.decode("utf-8", errors="replace").strip()
+    record: dict | None = None
+    legacy = False
+    try:
+        parsed = json.loads(stripped)
+        if isinstance(parsed, dict):
+            record = parsed
+        elif isinstance(parsed, int) and parsed > 0 and stripped.isdigit():
+            legacy = True
+            record = {"pid": parsed}
+    except ValueError:
+        if stripped.isdigit():
+            legacy = True
+            record = {"pid": int(stripped)}
+
+    reason = "malformed"
+    recoverable = age >= MALFORMED_LOCK_GRACE_SECONDS
+    pid = None
+    if record is not None:
+        pid = record.get("pid")
+        if not isinstance(pid, int) or pid <= 0:
+            reason = "malformed"
+            recoverable = age >= MALFORMED_LOCK_GRACE_SECONDS
+        else:
+            alive = _process_is_alive(pid)
+            acquired_at = record.get("acquired_at")
+            record_age = age
+            if isinstance(acquired_at, (int, float)):
+                record_age = max(0.0, time.time() - float(acquired_at))
+            if not alive:
+                reason = "dead_process"
+                recoverable = True
+            elif record_age > _index_lock_ttl_seconds():
+                reason = "ttl_expired"
+                recoverable = True
+            elif legacy:
+                reason = "legacy_live"
+                recoverable = False
+            elif (
+                record.get("schema") != INDEX_LOCK_SCHEMA
+                or not isinstance(record.get("token"), str)
+                or not record.get("token")
+                or not isinstance(record.get("process_start"), str)
+            ):
+                reason = "malformed"
+                recoverable = age >= MALFORMED_LOCK_GRACE_SECONDS
+            else:
+                actual_start = _process_start_token(pid)
+                expected_start = record["process_start"]
+                if (
+                    actual_start is not None
+                    and expected_start != "unknown"
+                    and actual_start != expected_start
+                ):
+                    reason = "pid_reused"
+                    recoverable = True
+                else:
+                    reason = "live"
+                    recoverable = False
+
+    recovered = False
+    if recover and recoverable:
+        recovered = _remove_lock_snapshot(path, snapshot)
+        if not recovered:
+            # A concurrent owner replaced the observed lock; never unlink it.
+            return _inspect_index_lock(root, out, recover=False)
+    return {
+        "exists": not recovered,
+        "active": not recovered and not recoverable,
+        "recovered": recovered,
+        "reason": reason,
+        "pid": pid,
+        "age_seconds": round(age, 3),
+        "legacy": legacy,
+    }
+
+
+def _acquire_index_lock(root: str, out: str) -> _IndexLockHandle | None:
+    path = _lock_path(root, out)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    for _attempt in range(4):
+        token = secrets.token_hex(16)
+        record = {
+            "schema": INDEX_LOCK_SCHEMA,
+            "pid": os.getpid(),
+            "process_start": _process_start_token(os.getpid()) or "unknown",
+            "token": token,
+            "acquired_at": time.time(),
+        }
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            status = _inspect_index_lock(root, out, recover=True)
+            if status["active"]:
+                return None
+            continue
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(record, handle, sort_keys=True)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+        except BaseException:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+            raise
+        return _IndexLockHandle(path=path, token=token)
+    return None
+
+
+def _release_index_lock(lock: _IndexLockHandle | None) -> None:
+    if not lock:
+        return
+    snapshot = _lock_file_snapshot(lock.path)
+    if snapshot is None:
+        return
+    try:
+        record = json.loads(snapshot[0].decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return
+    if not isinstance(record, dict) or record.get("token") != lock.token:
+        return
+    _remove_lock_snapshot(lock.path, snapshot)
 
 
 def _artifact_paths(root: str, out: str) -> dict[str, str]:
