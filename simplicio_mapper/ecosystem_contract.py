@@ -79,6 +79,11 @@ def _duplicate_ids(items: object, label: str) -> list[str]:
         return []
     errors: list[str] = []
     seen: set[str] = set()
+    singular = {
+        "repositories": "repository",
+        "edges": "edge",
+        "references": "reference",
+    }.get(label, label.rstrip("s"))
     for index, item in enumerate(items):
         if not isinstance(item, dict):
             continue
@@ -86,7 +91,7 @@ def _duplicate_ids(items: object, label: str) -> list[str]:
         if not isinstance(value, str) or not value.strip():
             continue
         if value in seen:
-            errors.append(f"$.{label}[{index}].id: duplicate {label[:-1]} id {value!r}")
+            errors.append(f"$.{label}[{index}].id: duplicate {singular} id {value!r}")
         seen.add(value)
     return errors
 
@@ -116,7 +121,7 @@ def _validate_evidence(items: object, path: str) -> list[str]:
 def validate_ecosystem_graph_semantics(payload: dict) -> list[str]:
     """Validate graph invariants that the intentionally small JSON-Schema subset cannot express.
 
-    The ecosystem contract is a navigable evidence graph, not merely a shape.  It
+    The ecosystem contract is a navigable evidence graph, not merely a shape. It
     must fail closed on identity duplication, dangling endpoints, unpinned
     available repositories, unsafe evidence links, and empty claim boundaries.
     """
@@ -259,8 +264,6 @@ def run_doctor_cli(argv: list[str]) -> int:
 
     overall_ok = True
 
-    # 1. mapper-artifacts/v1 (issue #157) -- reuse contract.py's own root/fixtures
-    #    AND its own validate_file (different SCHEMA_FILENAMES map than ecosystem/v1).
     try:
         from .contract import find_contract_root
         from .contract import validate_file as mapper_validate_file
@@ -278,7 +281,6 @@ def run_doctor_cli(argv: list[str]) -> int:
         print(f"::error::[mapper-artifacts/v1] {error}", flush=True)
         overall_ok = False
 
-    # 2. ecosystem/v1 -- cross-repository payload schemas + fixtures.
     try:
         eco_root = find_ecosystem_contract_root()
         eco_fixtures = os.path.join(eco_root, "fixtures")
