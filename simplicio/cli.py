@@ -497,6 +497,18 @@ def main(argv=None):
 
     configure_logging(quiet=quiet, verbose=verbose)
 
+    if argv and argv[0] in {"--version", "version"}:
+        import json
+
+        from .runtime_contracts import version_contract
+
+        payload = version_contract()
+        if "--json" in argv[1:]:
+            print(json.dumps(payload, sort_keys=True))
+        else:
+            print(f"{CLI_PROG} {payload['package']['version']}")
+        return 0
+
     try:
         # Session-start ecosystem-freshness check (closes the runtime gap where
         # pyproject pins >=X but the installed version is older). Idempotent +
