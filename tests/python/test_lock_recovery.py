@@ -60,6 +60,11 @@ class IndexLockRecoveryTest(unittest.TestCase):
         self.assertEqual(record["pid"], os.getpid())
         self.assertTrue(record["process_start"])
         self.assertEqual(record["token"], lock.token)
+        self.assertEqual(record["schema"], INDEX_LOCK_SCHEMA)
+        self.assertEqual(record["owner_token"], lock.token)
+        self.assertEqual(record["root_fingerprint"].__class__, str)
+        self.assertEqual(record["operation"], "index")
+        self.assertIn("heartbeat_at", record)
 
         _release_index_lock(_IndexLockHandle(str(self.path), "not-the-owner"))
         self.assertTrue(self.path.exists())
@@ -95,11 +100,12 @@ class IndexLockRecoveryTest(unittest.TestCase):
         self.assertNotEqual(json.loads(self.path.read_text(encoding="utf-8"))["token"], "owner")
         _release_index_lock(lock)
 
-    def test_ttl_expired_live_lock_is_recovered(self) -> None:
+    def test_ttl_expired_live_lock_is_never_recovered(self) -> None:
         start = _process_start_token(os.getpid()) or "unknown"
         self._write_json(pid=os.getpid(), process_start=start, acquired_at=0)
         status = _inspect_index_lock(str(self.root), self.out, recover=True)
-        self.assertTrue(status["recovered"])
+        self.assertFalse(status["recovered"])
+        self.assertTrue(status["active"])
         self.assertEqual(status["reason"], "ttl_expired")
 
     def test_pid_reuse_start_mismatch_is_recovered(self) -> None:
@@ -131,6 +137,19 @@ class IndexLockRecoveryTest(unittest.TestCase):
         lock = _acquire_index_lock(str(self.root), self.out)
         self.assertIsNotNone(lock)
         _release_index_lock(lock)
+
+    def test_old_malformed_record_with_live_pid_is_not_reclaimed(self) -> None:
+        self.path.write_text(
+            json.dumps({"pid": os.getpid(), "created_at": time.time() - 30}),
+            encoding="utf-8",
+        )
+        old = time.time() - MALFORMED_LOCK_GRACE_SECONDS - 1
+        os.utime(self.path, (old, old))
+        status = _inspect_index_lock(str(self.root), self.out, recover=True)
+        self.assertTrue(status["active"])
+        self.assertFalse(status["recovered"])
+        self.assertEqual(status["reason"], "malformed")
+        self.assertTrue(self.path.exists())
 
     @unittest.skipUnless(os.name == "nt", "Windows kill/recovery coverage")
     def test_windows_killed_owner_is_recovered(self) -> None:

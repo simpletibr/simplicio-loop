@@ -76,7 +76,8 @@ def _lock_path(root: str, out: str) -> str:
     return os.path.join(os.path.abspath(os.path.join(root, out)), "index.lock")
 
 
-INDEX_LOCK_SCHEMA = "simplicio.index-lock/v1"
+INDEX_LOCK_SCHEMA = "simplicio.mapper-index-lock/v1"
+LEGACY_INDEX_LOCK_SCHEMA = "simplicio.index-lock/v1"
 INDEX_LOCK_TTL_ENV = "SIMPLICIO_MAPPER_LOCK_TTL_SECONDS"
 DEFAULT_INDEX_LOCK_TTL_SECONDS = 6 * 60 * 60
 MALFORMED_LOCK_GRACE_SECONDS = 2.0
@@ -86,6 +87,32 @@ MALFORMED_LOCK_GRACE_SECONDS = 2.0
 class _IndexLockHandle:
     path: str
     token: str
+
+
+def _root_fingerprint(root: str) -> str:
+    return hashlib.sha256(os.path.normcase(os.path.abspath(root)).encode("utf-8")).hexdigest()[:24]
+
+
+def _mapper_version() -> str:
+    try:
+        from importlib.metadata import version
+
+        return version("simplicio-mapper")
+    except Exception:  # noqa: BLE001 - source checkouts may not be installed
+        return "unknown"
+
+
+def _lock_reason(reason: str) -> str:
+    return {
+        "live": "lock_live_owner",
+        "legacy_live": "lock_live_owner",
+        "dead_process": "lock_dead_owner_reclaimed",
+        "pid_reused": "lock_dead_owner_reclaimed",
+        "ttl_expired": "lock_expired_reclaimed",
+        "malformed": "lock_malformed_reclaimed",
+        "legacy": "lock_legacy_reclaimed",
+        "owner_mismatch": "lock_owner_mismatch",
+    }.get(reason, reason)
 
 
 def _index_lock_ttl_seconds() -> float:
@@ -261,6 +288,7 @@ def _inspect_index_lock(root: str, out: str, *, recover: bool = False) -> dict:
         else:
             alive = _process_is_alive(pid)
             acquired_at = record.get("acquired_at")
+            process_start = record.get("process_start_identity", record.get("process_start"))
             record_age = age
             if isinstance(acquired_at, (int, float)):
                 record_age = max(0.0, time.time() - float(acquired_at))
@@ -268,22 +296,28 @@ def _inspect_index_lock(root: str, out: str, *, recover: bool = False) -> dict:
                 reason = "dead_process"
                 recoverable = True
             elif record_age > _index_lock_ttl_seconds():
+                # Report expiration for operators, but retain the lock while
+                # the owner is alive. Reclaiming an active lock can permit two
+                # deep passes to mutate the same artifact set concurrently.
                 reason = "ttl_expired"
-                recoverable = True
+                recoverable = False
             elif legacy:
                 reason = "legacy_live"
                 recoverable = False
             elif (
-                record.get("schema") != INDEX_LOCK_SCHEMA
-                or not isinstance(record.get("token"), str)
-                or not record.get("token")
-                or not isinstance(record.get("process_start"), str)
+                record.get("schema") not in (INDEX_LOCK_SCHEMA, LEGACY_INDEX_LOCK_SCHEMA)
+                or not isinstance(record.get("owner_token", record.get("token")), str)
+                or not record.get("owner_token", record.get("token"))
+                or not isinstance(process_start, str)
             ):
                 reason = "malformed"
-                recoverable = age >= MALFORMED_LOCK_GRACE_SECONDS
+                # A partially-written record can still contain a valid PID.
+                # Never reclaim it while that process is alive; malformed
+                # metadata is not evidence that ownership ended.
+                recoverable = age >= MALFORMED_LOCK_GRACE_SECONDS and not alive
             else:
                 actual_start = _process_start_token(pid)
-                expected_start = record["process_start"]
+                expected_start = process_start
                 if (
                     actual_start is not None
                     and expected_start != "unknown"
@@ -293,6 +327,10 @@ def _inspect_index_lock(root: str, out: str, *, recover: bool = False) -> dict:
                     recoverable = True
                 else:
                     reason = "live"
+                    # A live owner is never reclaimed solely because its
+                    # heartbeat is old. This is the critical cross-platform
+                    # safety invariant; TTL only applies once the owner is
+                    # proven dead or unresolvable.
                     recoverable = False
 
     recovered = False
@@ -306,9 +344,11 @@ def _inspect_index_lock(root: str, out: str, *, recover: bool = False) -> dict:
         "active": not recovered and not recoverable,
         "recovered": recovered,
         "reason": reason,
+        "reason_code": _lock_reason(reason),
         "pid": pid,
         "age_seconds": round(age, 3),
         "legacy": legacy,
+        "owner": record if isinstance(record, dict) else None,
     }
 
 
@@ -323,6 +363,16 @@ def _acquire_index_lock(root: str, out: str) -> _IndexLockHandle | None:
             "process_start": _process_start_token(os.getpid()) or "unknown",
             "token": token,
             "acquired_at": time.time(),
+            # Canonical v1 fields. The short aliases above remain for readers
+            # of the pre-0.21 lock format.
+            "process_start_identity": _process_start_token(os.getpid()) or "unknown",
+            "host": os.environ.get("COMPUTERNAME") or os.environ.get("HOSTNAME") or "unknown",
+            "created_at": time.time(),
+            "heartbeat_at": time.time(),
+            "owner_token": token,
+            "root_fingerprint": _root_fingerprint(root),
+            "mapper_version": _mapper_version(),
+            "operation": "index",
         }
         try:
             fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
@@ -357,7 +407,7 @@ def _release_index_lock(lock: _IndexLockHandle | None) -> None:
         record = json.loads(snapshot[0].decode("utf-8"))
     except (UnicodeDecodeError, ValueError):
         return
-    if not isinstance(record, dict) or record.get("token") != lock.token:
+    if not isinstance(record, dict) or record.get("owner_token", record.get("token")) != lock.token:
         return
     _remove_lock_snapshot(lock.path, snapshot)
 

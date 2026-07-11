@@ -88,6 +88,20 @@ def _deep_phase(root: str, out: str) -> str:
     return "unknown"
 
 
+def _worker_failure_reason(root: str, out: str) -> str | None:
+    """Return a terminal reason when a recorded deep worker disappeared."""
+    job = _read_json_safe(_map_job_path(root, out))
+    if job.get("schema") != MAP_JOB_SCHEMA:
+        return None
+    deep = job.get("deep") if isinstance(job.get("deep"), dict) else {}
+    pid = deep.get("pid")
+    if not isinstance(pid, int) or _process_is_alive(pid):
+        return None
+    if job.get("phase") in ("macro_done", "deep_running"):
+        return "worker_died_before_terminal"
+    return None
+
+
 def _await_terminal(root: str, out: str, timeout: int, poll: float = 0.2) -> str:
     """Block until the deep phase leaves ``deep_running`` or the timeout fires.
 
@@ -178,6 +192,7 @@ def _status_warnings(
 def _status_payload(root: str, out: str, *, phase: str | None = None) -> dict:
     lock_status = _inspect_index_lock(root, out, recover=True)
     current_phase = phase or _deep_phase(root, out)
+    worker_failure = _worker_failure_reason(root, out)
     state = _read_index_state(root, out)
     counts = state.get("counts") if isinstance(state.get("counts"), dict) else {}
     artifacts_present = _artifacts_exist(_artifact_paths(root, out))
@@ -190,6 +205,14 @@ def _status_payload(root: str, out: str, *, phase: str | None = None) -> dict:
         "terminal": current_phase != "deep_running",
         "lock": lock_status["active"],
         "lock_status": lock_status,
+        "failure_reason": worker_failure if current_phase == "failed" else None,
+        "retry_guidance": (
+            "rerun scan; lock is owned by a live process"
+            if lock_status.get("reason_code") == "lock_live_owner"
+            else "rerun scan to recover and rebuild"
+            if current_phase == "failed"
+            else None
+        ),
         "fresh": fresh,
         "artifacts_present": artifacts_present,
         "state_path": _state_path(root, out).replace(os.sep, "/"),
