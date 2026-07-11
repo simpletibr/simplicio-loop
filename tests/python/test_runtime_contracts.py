@@ -3,7 +3,29 @@ from __future__ import annotations
 import json
 
 from simplicio import cli
-from simplicio.runtime_contracts import doctor_contract, task_contract
+from simplicio.runtime_contracts import doctor_contract, task_contract, version_contract
+
+
+def test_version_contract_exposes_canonical_capabilities(monkeypatch):
+    monkeypatch.setattr("simplicio.runtime_contracts.__version__", "0.12.0")
+    payload = version_contract()
+
+    assert payload["schema"] == "simplicio.dev-cli.version/v1"
+    assert payload["package"] == {"name": "simplicio-cli", "version": "0.12.0"}
+    assert "simplicio.task-spec/v2" in payload["capabilities"]
+    assert "simplicio.dev-cli.patch-receipt/v1" in payload["capabilities"]
+    assert "simplicio.dev-cli.task-batch/v1" in payload["capabilities"]
+
+
+def test_version_cli_supports_text_and_json(monkeypatch, capsys):
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+
+    assert cli.main(["--version"]) == 0
+    assert "simplicio-py 0.12.0" in capsys.readouterr().out
+
+    assert cli.main(["version", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["schema"] == "simplicio.dev-cli.version/v1"
 
 
 def test_doctor_contract_reports_ecosystem_tool_status(tmp_path, monkeypatch):

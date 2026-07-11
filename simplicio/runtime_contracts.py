@@ -16,6 +16,35 @@ PYTHON_ADAPTER_COMMAND = "simplicio-py"
 RUNTIME_COMMAND = "simplicio"
 
 
+def version_contract() -> dict[str, Any]:
+    """Return the canonical dev-cli identity and capability handshake."""
+    try:
+        from .mapper_api import mapper_version
+
+        mapper = mapper_version()
+    except Exception:
+        mapper = None
+    return {
+        "schema": "simplicio.dev-cli.version/v1",
+        "package": {"name": DEV_CLI_PACKAGE, "version": __version__},
+        "entrypoints": {
+            "adapter": PRIMARY_ADAPTER_COMMAND,
+            "python_adapter": PYTHON_ADAPTER_COMMAND,
+            "reserved_runtime": RUNTIME_COMMAND,
+        },
+        "capabilities": [
+            "simplicio.task-spec/v2",
+            "simplicio.execution-contract/v1",
+            "simplicio.orientation-plan/v1",
+            "simplicio.transaction/v1",
+            "simplicio.dev-cli.patch-receipt/v1",
+            "simplicio.dev-cli.evidence-ledger/v1",
+            "simplicio.dev-cli.task-batch/v1",
+        ],
+        "dependencies": {"simplicio-mapper": mapper},
+    }
+
+
 def doctor_contract(root: str | Path = ".") -> dict[str, Any]:
     root_path = Path(root)
     tools = {

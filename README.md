@@ -38,7 +38,11 @@ The new first screen is the doorway; the restored guide below is the workshop. T
 pip install -U simplicio-cli
 simplicio-py detect "hide the Delete button for non-admins"
 simplicio-py task "hide the Delete button for non-admins"
+simplicio-py --version --json
 ```
+
+The JSON version handshake is the canonical identity surface for runtime/agent consumers. It
+includes the package version, entrypoints, mapper version, and supported contract capabilities.
 
 Auto-upgrade is now opt-in: set `SIMPLICIO_AUTO_UPGRADE=1` for session-start upgrades, or run `simplicio-py doctor --upgrade` explicitly.
 Python consumers can expose the bundled mapper dependency directly with
