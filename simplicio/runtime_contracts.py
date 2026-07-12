@@ -72,7 +72,13 @@ def version_contract() -> dict[str, Any]:
 def doctor_contract(root: str | Path = ".") -> dict[str, Any]:
     root_path = Path(root)
     tools = {
-        name: _tool_status(name)
+        name: (
+            _tool_status_any("simplicio-prompt", "simplicio-subagents")
+            if name == "simplicio-prompt"
+            else _tool_status_any("simplicio-sprint", "sendsprint")
+            if name == "simplicio-sprint"
+            else _tool_status(name)
+        )
         for name in (
             "simplicio-mapper",
             PRIMARY_ADAPTER_COMMAND,
@@ -187,6 +193,14 @@ def _installed_or_local_package_version(name: str) -> str | None:
 def _tool_status(name: str) -> dict[str, Any]:
     path = shutil.which(name)
     return {"available": path is not None, "path": path}
+
+
+def _tool_status_any(*names: str) -> dict[str, Any]:
+    for name in names:
+        path = shutil.which(name)
+        if path is not None:
+            return {"available": True, "path": path, "resolved_command": name}
+    return {"available": False, "path": None, "resolved_command": None}
 
 
 def _package_version(name: str) -> str | None:

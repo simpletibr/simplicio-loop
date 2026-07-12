@@ -86,6 +86,7 @@ class PlanSlice:
     verify_command: str
     dependencies: tuple[str, ...]
     blast_radius: tuple[str, ...]
+    ordering_rationale: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -103,7 +104,63 @@ class PlanSlice:
             "verify_command": self.verify_command,
             "dependencies": list(self.dependencies),
             "blast_radius": list(self.blast_radius),
+            "ordering_rationale": self.ordering_rationale,
         }
+
+
+# Per-layer ordering rationale recorded on each slice so the frozen plan explains
+# *why* sorting/ordering happens at that specific layer. Issue #117:
+# "registra por que a ordenacao sera feita em cada camada".
+_LAYER_ORDER_RATIONALE: dict[str, str] = {
+    "ui": "UI renders the order produced by the state/backend layer; no local re-sort is applied.",
+    "frontend": "Frontend reflects the canonical order from the backend; ordering is not changed here.",
+    "state": "State layer propagates the backend order to the view so the UI stays consistent.",
+    "query": "Query layer applies the canonical backend order before the view consumes it.",
+    "api": "API/backend owns the canonical order; apply ordering here so all consumers agree.",
+    "backend": "Backend owns the canonical order; apply ordering here so all consumers agree.",
+    "service": "Service layer applies the canonical order upstream of the API boundary.",
+    "repository": "Repository layer persists the canonical order before it propagates upward.",
+}
+
+
+def _layer_order_rationale(layer: str) -> str:
+    return _LAYER_ORDER_RATIONALE.get(
+        layer,
+        "Layer ordering rationale not classified; review mapper evidence for this layer.",
+    )
+
+
+def _derive_full_stack_flow(
+    changed_frontend: Sequence[TargetEvidence],
+    changed_backend: Sequence[TargetEvidence],
+    flows: tuple[FlowEvidence, ...],
+) -> tuple[FlowEvidence, ...]:
+    """Auto-derive a UI -> state/query -> API/backend ordering flow when a full-stack
+    change exists but no mapper-supplied flow already connects both ends.
+
+    Returns ``flows`` unchanged when either side is missing or an existing flow already
+    covers the frontend/backend pair (issue #117: never shadow measured mapper evidence).
+    """
+    if not changed_frontend or not changed_backend:
+        return flows
+    frontend_paths = {item.path for item in changed_frontend}
+    backend_paths = {item.path for item in changed_backend}
+    already_covered = any(
+        frontend_paths & set(flow.targets) and backend_paths & set(flow.targets)
+        for flow in flows
+    )
+    if already_covered:
+        return flows
+    targets = tuple(item.path for item in (*changed_frontend, *changed_backend))
+    derived = FlowEvidence(
+        name="derived-ui-backend-ordering",
+        targets=targets,
+        rationale=(
+            "Auto-derived UI->state/query->API/backend ordering because full-stack change "
+            "targets exist without an explicit mapper flow connecting both ends."
+        ),
+    )
+    return (*flows, derived)
 
 
 @dataclass(frozen=True)
@@ -273,11 +330,15 @@ def build_execution_plan(
         if _signal_status(task_payload, signal) in {"yes", "possible"} and not candidates:
             diagnostics.append(f"impact signal {signal!r} was not measurably investigated")
 
-    changed_frontend = any(item.disposition == "change" for item in frontend)
-    changed_backend = any(item.disposition == "change" for item in backend)
-    flows = tuple(flow for repo in repositories for flow in repo.flows)
+    changed_frontend = tuple(item for item in frontend if item.disposition == "change")
+    changed_backend = tuple(item for item in backend if item.disposition == "change")
+    flows = _derive_full_stack_flow(
+        changed_frontend,
+        changed_backend,
+        tuple(flow for repo in repositories for flow in repo.flows),
+    )
     if changed_frontend and changed_backend:
-        changed_paths = {item.path for item in (*frontend, *backend) if item.disposition == "change"}
+        changed_paths = {item.path for item in (*changed_frontend, *changed_backend)}
         if not any(changed_paths.issubset(set(flow.targets)) for flow in flows):
             diagnostics.append("full-stack targets have no measured UI/state/API flow")
 
@@ -306,6 +367,7 @@ def build_execution_plan(
             verify_command=target.verify_command,
             dependencies=tuple(path_to_slice.get(item, item) for item in target.dependencies),
             blast_radius=target.blast_radius,
+            ordering_rationale=_layer_order_rationale(target.layer),
         )
         for target in ordered_targets
     )

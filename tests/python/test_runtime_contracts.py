@@ -6,6 +6,27 @@ from simplicio import cli
 from simplicio.runtime_contracts import doctor_contract, task_contract, version_contract
 
 
+def test_doctor_contract_resolves_published_prompt_and_sprint_entrypoints(tmp_path, monkeypatch):
+    def fake_which(name: str):
+        return {"simplicio-subagents": "/bin/simplicio-subagents", "sendsprint": "/bin/sendsprint"}.get(name)
+
+    monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", fake_which)
+    result = doctor_contract(tmp_path)
+
+    assert result["tools"]["simplicio-prompt"] == {
+        "available": True,
+        "path": "/bin/simplicio-subagents",
+        "resolved_command": "simplicio-subagents",
+    }
+    assert result["tools"]["simplicio-sprint"] == {
+        "available": True,
+        "path": "/bin/sendsprint",
+        "resolved_command": "sendsprint",
+    }
+
+
+
+
 def test_version_contract_exposes_canonical_capabilities(monkeypatch):
     monkeypatch.setattr("simplicio.runtime_contracts.__version__", "0.12.0")
     payload = version_contract()
