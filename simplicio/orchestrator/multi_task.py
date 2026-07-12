@@ -8,6 +8,7 @@ import os
 import re
 import tempfile
 from collections.abc import Callable, Mapping
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
@@ -16,6 +17,9 @@ BATCH_SCHEMA = "simplicio.dev-cli.task-batch/v1"
 TERMINAL = {"passed", "blocked"}
 VALID_STATES = {"pending", "running", "passed", "blocked"}
 ExecutorResult = Mapping[str, Any] | bool | None
+WorktreeFactory = Callable[[dict[str, Any]], Any]
+WorktreeCleanup = Callable[[dict[str, Any], Any], None]
+TaskSource = Callable[[], Any]
 
 
 class BatchError(ValueError):
@@ -258,6 +262,51 @@ class TaskBatch:
         self.save()
         return dict(task)
 
+    def admit(
+        self,
+        tasks: list[Mapping[str, Any]],
+        *,
+        source_hash: str | None = None,
+        plan_hash: str | None = None,
+        base_sha: str | None = None,
+    ) -> list[str]:
+        """Add unseen cards discovered while a drain is still active.
+
+        Existing cards are shape-checked before mutation, so a late source
+        cannot rewrite a completed item or its receipt.
+        """
+        candidate = self._normalize(tasks)
+        known = {task["id"] for task in self.tasks}
+        existing = [task for task in candidate if task["id"] in known]
+        if existing:
+            frozen = {task["id"]: task for task in self.tasks}
+            for task in existing:
+                previous = frozen[task["id"]]
+                if (
+                    task["depends_on"] != previous["depends_on"]
+                    or task["source_hash"] != previous["source_hash"]
+                ):
+                    raise StaleBatchError(f"late source changed existing task {task['id']}")
+        additions = [task for task in candidate if task["id"] not in known]
+        if not additions:
+            return []
+        combined = self.tasks + additions
+        TaskBatch(self.path, combined, self.identity)._validate_graph()
+        self.tasks = combined
+        self.identity = BatchIdentity(
+            source_hash or _stable_hash([task["source_hash"] for task in self.tasks]),
+            plan_hash
+            or _stable_hash(
+                [
+                    {"id": task["id"], "depends_on": task["depends_on"], "source_hash": task["source_hash"]}
+                    for task in self.tasks
+                ]
+            ),
+            self.identity.base_sha if base_sha is None else base_sha,
+        )
+        self.save()
+        return [task["id"] for task in additions]
+
     def _executor_outcome(self, result: ExecutorResult) -> tuple[str, Mapping[str, Any] | None, float]:
         if isinstance(result, bool):
             return ("passed" if result else "blocked"), None, 0.0
@@ -279,39 +328,99 @@ class TaskBatch:
         executor: Callable[[dict[str, Any]], ExecutorResult],
         *,
         empty_rounds: int = 1,
+        max_workers: int = 1,
+        worktree_factory: WorktreeFactory | None = None,
+        worktree_cleanup: WorktreeCleanup | None = None,
+        stop_requested: Callable[[], bool] | None = None,
+        task_source: TaskSource | None = None,
     ) -> dict[str, Any]:
+        """Drain ready cards, optionally in isolated parallel worktrees.
+
+        The factory/cleanup pair is deliberately injected: the runtime owns
+        git worktree creation while this state machine guarantees one context
+        per item and cleanup on both success and failure.  ``task_source`` is
+        polled before every empty round so late cards cannot be reported as a
+        globally complete drain.
+        """
         if empty_rounds < 0:
             raise BatchError("empty_rounds must be >= 0")
+        if max_workers < 1:
+            raise BatchError("max_workers must be >= 1")
         rounds = 0
         consecutive_empty_rounds = 0
         executed: list[str] = []
         quarantined: list[str] = []
         run_cost_usd = 0.0
         while consecutive_empty_rounds < empty_rounds:
+            if stop_requested and stop_requested():
+                self.cancel(reason="STOP requested during drain")
+                break
+            if task_source is not None:
+                discovered = task_source()
+                if discovered:
+                    if isinstance(discovered, Mapping):
+                        self.admit(
+                            discovered.get("tasks", []),
+                            source_hash=discovered.get("source_hash"),
+                            plan_hash=discovered.get("plan_hash"),
+                            base_sha=discovered.get("base_sha"),
+                        )
+                    else:
+                        self.admit(discovered)
             ready = self.ready()
             rounds += 1
             if not ready:
                 consecutive_empty_rounds += 1
                 continue
             consecutive_empty_rounds = 0
+            running: dict[str, tuple[dict[str, Any], Any]] = {}
             for candidate in ready:
+                if stop_requested and stop_requested():
+                    self.cancel(reason="STOP requested during drain")
+                    break
                 task_id = str(candidate["id"])
                 current = self.transition(task_id, "running")
+                worktree = worktree_factory(dict(current)) if worktree_factory else None
+                current["worktree"] = worktree
+                running[task_id] = (current, worktree)
                 executed.append(task_id)
+
+            def run_one(current: dict[str, Any]) -> tuple[str, Mapping[str, Any] | None, float]:
                 try:
-                    status, receipt, cost_usd = self._executor_outcome(executor(dict(current)))
+                    return self._executor_outcome(executor(dict(current)))
                 except Exception as exc:
-                    status = "blocked"
-                    receipt = {
-                        "status": "UNVERIFIED",
-                        "error": str(exc),
-                        "error_type": exc.__class__.__name__,
+                    return (
+                        "blocked",
+                        {
+                            "status": "UNVERIFIED",
+                            "error": str(exc),
+                            "error_type": exc.__class__.__name__,
+                        },
+                        0.0,
+                    )
+
+            results: dict[str, tuple[str, Mapping[str, Any] | None, float]] = {}
+            if max_workers == 1 or len(running) < 2:
+                for task_id, (current, _worktree) in running.items():
+                    results[task_id] = run_one(current)
+            else:
+                with ThreadPoolExecutor(max_workers=min(max_workers, len(running))) as pool:
+                    futures = {
+                        pool.submit(run_one, current): task_id
+                        for task_id, (current, _worktree) in running.items()
                     }
-                    cost_usd = 0.0
-                self.transition(task_id, status, receipt=receipt, cost_usd=cost_usd)
-                run_cost_usd += cost_usd
-                if status == "blocked":
-                    quarantined.append(task_id)
+                    for future in as_completed(futures):
+                        results[futures[future]] = future.result()
+            for task_id in [str(task["id"]) for task in ready if str(task["id"]) in running]:
+                status, receipt, cost_usd = results[task_id]
+                try:
+                    self.transition(task_id, status, receipt=receipt, cost_usd=cost_usd)
+                    run_cost_usd += cost_usd
+                    if status == "blocked":
+                        quarantined.append(task_id)
+                finally:
+                    if worktree_cleanup:
+                        worktree_cleanup(running[task_id][0], running[task_id][1])
         payload = self.status()
         payload.update(
             {
@@ -355,11 +464,15 @@ class TaskBatch:
         terminal = counts["pending"] == 0 and counts["running"] == 0
         gate = dict(integration_gate or {})
         gates_green = bool(gate.get("passed", False)) and not bool(gate.get("failures"))
+        receipts_complete = all(
+            task["status"] != "passed" or isinstance(task.get("receipt"), Mapping) for task in self.tasks
+        )
         return {
             "schema": "simplicio.dev-cli.task-batch-completion/v1",
-            "complete": terminal and gates_green and counts["blocked"] == 0,
+            "complete": terminal and gates_green and counts["blocked"] == 0 and receipts_complete,
             "terminal": terminal,
             "gates_green": gates_green,
+            "receipts_complete": receipts_complete,
             "counts": counts,
             "integration_gate": gate,
         }

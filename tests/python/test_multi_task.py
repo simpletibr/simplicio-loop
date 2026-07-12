@@ -327,3 +327,70 @@ def test_batch_finalize_requires_green_integration_gate(tmp_path):
     assert green["complete"] is True
     assert green["gates_green"] is True
     assert green["counts"]["passed"] == 1
+
+
+def test_batch_parallel_drain_isolates_worktrees_and_cleans_each_item(tmp_path):
+    batch = TaskBatch.create(
+        tmp_path / "parallel.json",
+        [{"id": "A"}, {"id": "B"}],
+        source_hash="source",
+        plan_hash="plan",
+        base_sha="base",
+    )
+    created = []
+    cleaned = []
+
+    def factory(task):
+        path = tmp_path / task["id"]
+        path.mkdir()
+        created.append((task["id"], path))
+        return path
+
+    def cleanup(task, worktree):
+        cleaned.append((task["id"], worktree))
+
+    summary = batch.drain(
+        lambda task: {
+            "status": "passed",
+            "receipt": {"status": "MEASURED", "worktree": str(task["worktree"])},
+        },
+        max_workers=2,
+        worktree_factory=factory,
+        worktree_cleanup=cleanup,
+        empty_rounds=1,
+    )
+
+    assert summary["counts"]["passed"] == 2
+    assert [item[0] for item in created] == ["A", "B"]
+    assert [item[0] for item in cleaned] == ["A", "B"]
+
+
+def test_batch_drain_admits_late_tasks_before_stabilizing(tmp_path):
+    batch = TaskBatch.create(
+        tmp_path / "late.json", [{"id": "A"}], source_hash="source", plan_hash="plan", base_sha="base"
+    )
+    source_calls = 0
+
+    def source():
+        nonlocal source_calls
+        source_calls += 1
+        return [{"id": "B", "depends_on": ["A"], "source_hash": "late"}] if source_calls == 2 else []
+
+    summary = batch.drain(
+        lambda task: {"status": "passed", "receipt": {"status": "MEASURED"}},
+        task_source=source,
+        empty_rounds=2,
+    )
+
+    assert summary["executed"] == ["A", "B"]
+    assert summary["counts"]["passed"] == 2
+
+
+def test_batch_finalize_requires_receipts_for_passed_items(tmp_path):
+    batch = TaskBatch.create(
+        tmp_path / "receipt.json", [{"id": "A"}], source_hash="source", plan_hash="plan", base_sha="base"
+    )
+    batch.transition("A", "passed")
+    result = batch.finalize({"passed": True, "failures": []})
+    assert result["complete"] is False
+    assert result["receipts_complete"] is False
