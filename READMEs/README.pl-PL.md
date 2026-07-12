@@ -46,7 +46,7 @@ simplicio-py task "hide the Delete button for non-admins"
 - Classifies the task before execution so small fixes stay small and sprint-scale work becomes a plan.
 - Loads simplicio-mapper artifacts before asking an LLM to edit.
 - Keeps a verification loop around generated diffs instead of trusting the first answer.
-- Works with local Simplicio1, OpenRouter, OpenAI, Anthropic, DeepSeek, Hermes, Codex and Claude-style hosts.
+- Works with local Simplicio1, OpenRouter, OpenAI, Anthropic, DeepSeek, Simplicio Agent, Codex and Claude-style hosts.
 
 ## Dlaczego ten README ma zdobywać uwagę
 

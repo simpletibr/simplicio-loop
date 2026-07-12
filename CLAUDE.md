@@ -40,7 +40,7 @@ Agent checklist:
 - [ ] Generate screenshot/video/trace for UI or end-to-end flows.
 - [ ] Report blockers with the command, log excerpt and likely cause.
 
-> Master instruction file lido por **Claude Code**, **Codex CLI**, **GitHub Copilot**, **Cursor**, **Windsurf**, **Gemini CLI**, **Kiro**, **AntiGravity**, **OpenCode**, **Hermes Agent** (Nous Research), **OpenClaw**, **Aider** e qualquer outro agent que respeite o padrão `AGENTS.md`. É o contrato entre humano e IA neste repositório.
+> Master instruction file lido por **Claude Code**, **Codex CLI**, **GitHub Copilot**, **Cursor**, **Windsurf**, **Gemini CLI**, **Kiro**, **AntiGravity**, **OpenCode**, **Simplicio Agent**, **OpenClaw**, **Aider** e qualquer outro agent que respeite o padrão `AGENTS.md`. É o contrato entre humano e IA neste repositório.
 >
 > Mudou algo aqui? Reflete em `CLAUDE.md` e `.github/copilot-instructions.md` (cópias regulares — Claude/Copilot não seguem symlink). Os espelhos `GEMINI.md`, `.windsurf/rules/agents.md` e `.kiro/steering/agents.md` são **symlinks → `AGENTS.md`**, então acompanham automaticamente.
 
@@ -271,7 +271,7 @@ Detalhes completos: `.skills/README.md`.
 
 ## Custom agents disponíveis
 
-Sub-agents customizados moram em `.agents/<slug>.agent.md` (padrão **AGENTS.md ecosystem**, lido por Claude Code, Codex, Hermes, OpenClaw, Cursor, Aider). Espelhados em `.github/copilot/agents/` para o GitHub Copilot Workspace. Lista atual:
+Sub-agents customizados moram em `.agents/<slug>.agent.md` (padrão **AGENTS.md ecosystem**, lido por Claude Code, Codex, Simplicio Agent, OpenClaw, Cursor, Aider). Espelhados em `.github/copilot/agents/` para o GitHub Copilot Workspace. Lista atual:
 
 - **`ralph-loop.agent.md`** — Ralph Loop (padrão autônomo, Ralph Wiggum technique). Loop `read → plan → execute → lint → unit → Playwright → fix → repeat` até DoD verde. **Mapeia para comando nativo de cada ferramenta**: Claude Code → `/ralph-loop "<prompt>"` (plugin oficial `claude-plugins-official`); Codex CLI ≥0.128 → `/goal <objective>`; GitHub Copilot CLI → `copilot --autopilot --max-autopilot-continues N`; VS Code Agent Mode → permission level "Autopilot"; Cursor ≥3.0 → Background Agent / `/multitask`. Aciona em **toda task técnica** com AC mensurável. Tools: `edit`, `terminal`, `search`.
 - **`simplicio-ralph.agent.md`** — Composição Ralph Loop + simplicio-cli. Loop autônomo onde o passo `execute` delega geração ao `simplicio-py task` (precedent + skill_router) em vez de edit direto. Aciona em task técnica que se beneficie do prompt afiado do simplicio-cli (stacks medidas no `bench/`). Aditivo: não modifica `simplicio/*.py`. Tools: `edit`, `terminal`, `search`.

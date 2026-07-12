@@ -505,7 +505,6 @@ declare -a CLI_OPTS=(
   "kimi|Kimi K2.6 (via aider --model openrouter/moonshotai/kimi-k2)|aider"
   "minimax|MiniMax M2.7 (via aider --model openrouter/minimax/minimax-text-01)|aider"
   "glm|GLM 5.1 (via aider --model openrouter/z-ai/glm-4.5)|aider"
-  "hermes|Hermes Agent (Nous Research)|hermes"
   "openclaw|OpenClaw|openclaw"
   "aider|Aider (pick model interactively)|aider"
   "other|Other / manual (copy prompt to clipboard)|"
@@ -647,11 +646,6 @@ case "$CLI_CHOICE" in
   glm)
     command -v aider >/dev/null 2>&1 || { echo "aider not installed: pipx install aider-chat"; exit 1; }
     exec aider --model openrouter/z-ai/glm-4.5 --message "$INIT_PROMPT"
-    ;;
-  hermes)
-    command -v hermes >/dev/null 2>&1 || { echo "Hermes Agent not installed: https://github.com/NousResearch/hermes-agent"; exit 1; }
-    copy_to_clipboard "$INIT_PROMPT" && echo "(prompt copied to clipboard as fallback)"
-    exec hermes "$INIT_PROMPT"
     ;;
   openclaw)
     command -v openclaw >/dev/null 2>&1 || { echo "OpenClaw not installed: npm install -g openclaw@latest"; exit 1; }
