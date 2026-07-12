@@ -1,0 +1,67 @@
+{
+  "$id": "simplicio.context-snapshot/v1",
+  "title": "simplicio-mapper ContextSnapshot (v1)",
+  "description": "Versioned, content-addressed, multi-scale context observation emitted by simplicio-mapper (issue #208). The mapper is the canonical observer of the Simplicio ecosystem: it emits this snapshot without deciding, planning, or executing changes. snapshot_id is a sha256 over the canonical serialization of the addressable payload, so it is deterministic per repo-revision+producer. Every graph node/edge carries a reversible source handle. Produced by simplicio_mapper.context_snapshot.build_context_snapshot.",
+  "type": "object",
+  "required": [
+    "schema",
+    "schema_version",
+    "snapshot_id",
+    "repository_id",
+    "revision",
+    "root_hash",
+    "producer",
+    "source_set",
+    "exclusions",
+    "reason_codes",
+    "graph",
+    "task",
+    "generated_at"
+  ],
+  "properties": {
+    "schema": { "type": "string", "enum": ["simplicio.context-snapshot/v1"] },
+    "schema_version": { "type": "string", "enum": ["v1"] },
+    "snapshot_id": { "type": "string" },
+    "repository_id": { "type": "string" },
+    "revision": { "type": "string" },
+    "root_hash": { "type": "string" },
+    "build_config_hash": { "type": "string" },
+    "producer": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "artifact_version": { "type": ["integer", "string", "null"] }
+      }
+    },
+    "source_set": { "type": "array", "items": { "type": "string" } },
+    "exclusions": { "type": "array", "items": { "type": "string" } },
+    "reason_codes": { "type": "object" },
+    "graph": {
+      "type": "object",
+      "required": ["schema", "version", "nodes", "edges"],
+      "properties": {
+        "schema": { "type": "string", "enum": ["simplicio.context-graph/v1"] },
+        "version": { "type": "integer", "enum": [1] },
+        "nodes": { "type": "array" },
+        "edges": { "type": "array" },
+        "counts": { "type": "object" }
+      }
+    },
+    "task": {
+      "type": "object",
+      "required": ["omissions"],
+      "properties": {
+        "query": { "type": "string" },
+        "selection_policy": { "type": "string" },
+        "budget_tokens": { "type": "integer" },
+        "omissions": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "confidence": { "type": "object" },
+    "fidelity": { "type": "object" },
+    "generated_at": { "type": "string" },
+    "needs_broader_context": { "type": "boolean" }
+  }
+}

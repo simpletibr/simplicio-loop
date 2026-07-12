@@ -1,0 +1,273 @@
+{
+  "build_config_hash": "",
+  "confidence": {},
+  "exclusions": [],
+  "fidelity": {
+    "gate": "pending",
+    "status": "not_evaluated"
+  },
+  "generated_at": "2026-07-12T20:14:29.458Z",
+  "graph": {
+    "counts": {
+      "edges": 9,
+      "macro": 4,
+      "meso": 7,
+      "micro": 4,
+      "nodes": 15
+    },
+    "edges": [
+      {
+        "confidence": 0.58,
+        "content_hash": "c944b8df17ad8f5a80efc176ceceb42378cc037f1253cf1ceac0b2d6dca537a8",
+        "id": "16936cb239d090de5d4f15111eeb14b1023a4775b66565ea6bfe16ec7318ff4f",
+        "kind": "calls",
+        "source": "file:src/app.py",
+        "source_handle": {
+          "file": "src/app.py",
+          "line": 9
+        },
+        "target": "symbol:src/app.py::main"
+      },
+      {
+        "content_hash": "fb06681b75f78d32f1f54ea070f97a260af6de91b076a398bbae83d75e379a1c",
+        "id": "2c2acd4c8b3ea43580b93cf3b699ef7ac9a7cdab926e965f3aef72177f356b77",
+        "kind": "member_of",
+        "source": "module:src",
+        "source_handle": {
+          "file": "layer:code"
+        },
+        "target": "subsystem:code"
+      },
+      {
+        "content_hash": "1db22fac0f9a0d1c097eb375eee200ad797a2abc48b07ab3f92e0a42d709c1bd",
+        "id": "3ee89c0f7d79ab20e0e9317b346a7b8cc3ef0aa37ff336aefab006a8e98af936",
+        "kind": "member_of",
+        "source": "module:.",
+        "source_handle": {
+          "file": "layer:config"
+        },
+        "target": "subsystem:config"
+      },
+      {
+        "confidence": 0.58,
+        "content_hash": "6713afd484d31a15fc17931b36e18d8299c3688152ea4f4dc7aa4093da52f84a",
+        "id": "76b3458519eeea3eb8a41a4fd0085b2cb224b4ad74c66b2cb76102e1b98140d2",
+        "kind": "calls",
+        "source": "file:tests/test_app.py",
+        "source_handle": {
+          "file": "tests/test_app.py",
+          "line": 5
+        },
+        "target": "symbol:src/app.py::greet"
+      },
+      {
+        "confidence": 0.58,
+        "content_hash": "233d545287a5c20d120f3c74e9ab7d8cda75dc114a6bc54ae0ce0c75b2dff94e",
+        "id": "8e9f6a006eab43234d1c9cac9c6bcf7b538911811a3d7f128ae541331420df6b",
+        "kind": "calls",
+        "source": "file:tests/test_app.py",
+        "source_handle": {
+          "file": "tests/test_app.py",
+          "line": 4
+        },
+        "target": "symbol:tests/test_app.py::test_greet"
+      },
+      {
+        "confidence": 0.58,
+        "content_hash": "9705baa295473cbed72b0bce8f44998136fc829aaa5b5ba4b57f216052f7f293",
+        "id": "925544f0997d120129c7ff9474cc3e224f5e77be8d4a748880dce0a991b131b2",
+        "kind": "calls",
+        "source": "file:src/app.py",
+        "source_handle": {
+          "file": "src/app.py",
+          "line": 4
+        },
+        "target": "symbol:src/app.py::greet"
+      },
+      {
+        "content_hash": "4ce618b4dacaeee9c13a3c16e7ab771c62214a01d698dbd809f19da0bc88c83c",
+        "id": "ce67e83fd673eb7b361c6b9a055c1a5b1ed1edee083012b2e0ae5d95af685afb",
+        "kind": "member_of",
+        "source": "module:src",
+        "source_handle": {
+          "file": "layer:entrypoint"
+        },
+        "target": "subsystem:entrypoint"
+      },
+      {
+        "content_hash": "d0949d7d2b920118b676759b87b29d65c051db64d4d8b30040d7159c222a4871",
+        "id": "d870af1998924ad3a9a966f0715e49829ad4b60a618baead17b699b03fad5390",
+        "kind": "member_of",
+        "source": "module:tests",
+        "source_handle": {
+          "file": "layer:test"
+        },
+        "target": "subsystem:test"
+      },
+      {
+        "confidence": 0.65,
+        "content_hash": "126c81bec5dd4df3121a0846ca407be1de9622d79ecc1d92ea97b9839fc2f941",
+        "id": "e8bcc95fd56c17978883fa68f278b68b81dd72b49ac55934c9e04b475b92ab7d",
+        "kind": "imports",
+        "source": "file:tests/test_app.py",
+        "source_handle": {
+          "file": "tests/test_app.py"
+        },
+        "target": "file:src/app.py"
+      }
+    ],
+    "nodes": [
+      {
+        "content_hash": "011f4f75ef2cc930a0e1c8004180c7bf56e37b380bd5a5b9e466313277decc56",
+        "id": "subsystem:code",
+        "scale": "macro",
+        "source": {
+          "file": "layer:code"
+        }
+      },
+      {
+        "content_hash": "523f2cc83eccb8dffe53d941e5782fa248e52c3219336dd7f9aeec0d4c806442",
+        "id": "subsystem:config",
+        "scale": "macro",
+        "source": {
+          "file": "layer:config"
+        }
+      },
+      {
+        "content_hash": "bd6d7bf604b9904fa1fab5ad8e78eb32dbafb4d6aa6df252906ec4cce865a4c9",
+        "id": "subsystem:entrypoint",
+        "scale": "macro",
+        "source": {
+          "file": "layer:entrypoint"
+        }
+      },
+      {
+        "content_hash": "5482c5ba1b910a6ceb2d8bcfe28a2e5d935ea022190f8d2b81722884fd92909c",
+        "id": "subsystem:test",
+        "scale": "macro",
+        "source": {
+          "file": "layer:test"
+        }
+      },
+      {
+        "content_hash": "6981cd392db06a6ec83dfeb5523ebc5f1d201699ecc513cc1469d365554fdc67",
+        "id": "file:pyproject.toml",
+        "scale": "meso",
+        "source": {
+          "file": "pyproject.toml"
+        }
+      },
+      {
+        "content_hash": "d54b0d788893bb4e28fd921a3c04230703649059fc4e3cba9516b0e082cc6567",
+        "id": "file:src/app.py",
+        "scale": "meso",
+        "source": {
+          "file": "src/app.py"
+        }
+      },
+      {
+        "content_hash": "1241ab6df894904403a35f3ef135e89ebdefefb58d9912c1657dc911efddb268",
+        "id": "file:src/util.py",
+        "scale": "meso",
+        "source": {
+          "file": "src/util.py"
+        }
+      },
+      {
+        "content_hash": "f99084ffc70337d7011b5ae2b014e795f6994940f9d71de79e1ce458904fa730",
+        "id": "file:tests/test_app.py",
+        "scale": "meso",
+        "source": {
+          "file": "tests/test_app.py"
+        }
+      },
+      {
+        "content_hash": "8c71a0645994d53b320ce8e73aa61efc113f76cc03d6228003c96e2277f190e6",
+        "id": "module:.",
+        "scale": "meso",
+        "source": {
+          "file": "module:."
+        }
+      },
+      {
+        "content_hash": "1b83e19e5684f0f2f5371042f47075b6e68ff87a992a4f2332e4316bbc9242c4",
+        "id": "module:src",
+        "scale": "meso",
+        "source": {
+          "file": "module:src"
+        }
+      },
+      {
+        "content_hash": "fd2c460c2f879f8ce77df504dde06b03a4142f9ac4c476503dfaaff581f7cd7e",
+        "id": "module:tests",
+        "scale": "meso",
+        "source": {
+          "file": "module:tests"
+        }
+      },
+      {
+        "content_hash": "44c72fa8f5efadc3b186afd405d6405a6361892876ae890594a8539351fbe42e",
+        "id": "symbol:src/app.py::greet",
+        "scale": "micro",
+        "source": {
+          "file": "src/app.py",
+          "line": 2
+        }
+      },
+      {
+        "content_hash": "f1a2a2848019ddd36203bdebba7bd558e9565fc8b741df527a4dbd137ba50ec8",
+        "id": "symbol:src/app.py::main",
+        "scale": "micro",
+        "source": {
+          "file": "src/app.py",
+          "line": 7
+        }
+      },
+      {
+        "content_hash": "3c6dbd187e36321f61026036a6a74fe645bb672349b11c5787457652a6bbce15",
+        "id": "symbol:src/util.py::add",
+        "scale": "micro",
+        "source": {
+          "file": "src/util.py",
+          "line": 1
+        }
+      },
+      {
+        "content_hash": "4c614a21b90b634dbb7483c7aa47b67580a335a9399593b45af77290a709aa5b",
+        "id": "symbol:tests/test_app.py::test_greet",
+        "scale": "micro",
+        "source": {
+          "file": "tests/test_app.py",
+          "line": 2
+        }
+      }
+    ],
+    "schema": "simplicio.context-graph/v1",
+    "version": 1
+  },
+  "needs_broader_context": false,
+  "producer": {
+    "artifact_version": 1,
+    "name": "simplicio-mapper",
+    "version": "0.22.0"
+  },
+  "reason_codes": {},
+  "repository_id": "source",
+  "revision": "fixture-rev-1",
+  "root_hash": "54aeca74c7eb343aaf17f8592440b7a31d0daf6aba04d41b2fef5f28fb96fb7c",
+  "schema": "simplicio.context-snapshot/v1",
+  "schema_version": "v1",
+  "snapshot_id": "f53bdc6dc1ca13c83072ef4df6d978729ac9d6b1fb35217f87b9b90e356407d2",
+  "source_set": [
+    "pyproject.toml",
+    "src/app.py",
+    "src/util.py",
+    "tests/test_app.py"
+  ],
+  "task": {
+    "budget_tokens": 0,
+    "omissions": [],
+    "query": "what does this module do",
+    "selection_policy": ""
+  }
+}

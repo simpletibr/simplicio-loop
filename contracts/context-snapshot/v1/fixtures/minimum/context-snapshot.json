@@ -1,0 +1,102 @@
+{
+  "build_config_hash": "",
+  "confidence": {},
+  "exclusions": [],
+  "fidelity": {
+    "gate": "pending",
+    "status": "not_evaluated"
+  },
+  "generated_at": "2026-07-12T20:14:40.015Z",
+  "graph": {
+    "counts": {
+      "edges": 2,
+      "macro": 1,
+      "meso": 2,
+      "micro": 1,
+      "nodes": 4
+    },
+    "edges": [
+      {
+        "confidence": 0.5,
+        "content_hash": "1bc0dc6bf027e9925890799dd968a9733cf442b95a745fe7a4e838a5703a64a9",
+        "id": "2ae3d23b6a32e595de863ddb169810ac0d3b8011bc72f9352401ea5650d42601",
+        "kind": "calls",
+        "source": "file:app.py",
+        "source_handle": {
+          "file": "app.py",
+          "line": 4
+        },
+        "target": "symbol:helper"
+      },
+      {
+        "content_hash": "cf93a95970f46eed26727ad2e2f770b68a24070db5b9c8dc7cdbcc13d7a3b10c",
+        "id": "de4c9e905c4bf4d8ac8e1e509b639294b9645403e98671027da04adb4b0e7a3a",
+        "kind": "member_of",
+        "source": "module:root",
+        "source_handle": {
+          "file": "layer:app"
+        },
+        "target": "subsystem:app"
+      }
+    ],
+    "nodes": [
+      {
+        "content_hash": "6d7f41e6475ea1a1e5dbcfac84cc364587cd4267f696fc5c7ff2738f29b901ed",
+        "id": "subsystem:app",
+        "scale": "macro",
+        "source": {
+          "file": "layer:app"
+        }
+      },
+      {
+        "content_hash": "7adecc50e87699e20bf94e0b7479c436fb68b4628782317e12dfaa2003ebeb71",
+        "id": "file:app.py",
+        "scale": "meso",
+        "source": {
+          "file": "app.py"
+        }
+      },
+      {
+        "content_hash": "8eb917fec99dd5854311709cf371f42296b91aac9dc631a0408f58f17f5bfe2b",
+        "id": "module:root",
+        "scale": "meso",
+        "source": {
+          "file": "module:root"
+        }
+      },
+      {
+        "content_hash": "6bf1349ce3c5cd0a05d2d3fe1b074ecc08075ba33fba791c69b10319cb12486b",
+        "id": "symbol:main",
+        "scale": "micro",
+        "source": {
+          "file": "app.py",
+          "line": 3
+        }
+      }
+    ],
+    "schema": "simplicio.context-graph/v1",
+    "version": 1
+  },
+  "needs_broader_context": false,
+  "producer": {
+    "artifact_version": 1,
+    "name": "simplicio-mapper",
+    "version": "0.22.0"
+  },
+  "reason_codes": {},
+  "repository_id": "minimum-example",
+  "revision": "r0",
+  "root_hash": "9978d902a30466f2766f3d1f2667448c325fea9f0b5f10ec0c44dd55b152aff1",
+  "schema": "simplicio.context-snapshot/v1",
+  "schema_version": "v1",
+  "snapshot_id": "e8abffe9ed8c1d08765f367ca29fb1d0437ac8af292312a23795ba09451502d2",
+  "source_set": [
+    "app.py"
+  ],
+  "task": {
+    "budget_tokens": 0,
+    "omissions": [],
+    "query": "smoke",
+    "selection_policy": ""
+  }
+}

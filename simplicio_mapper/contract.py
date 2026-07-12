@@ -44,6 +44,8 @@ SCHEMA_FILENAMES = {
     "simplicio.mapper-canvas-compatibility/v1": "compatibility-matrix.schema.json",
     "simplicio.mapper-canvas-performance/v1": "performance-baseline.schema.json",
     "simplicio.clustering-metrics/v1": "clustering-metrics.schema.json",
+    "simplicio.context-snapshot/v1": "context-snapshot.schema.json",
+    "simplicio.context-graph/v1": "context-graph.schema.json",
 }
 
 _PY_TYPE_NAMES = {
@@ -98,9 +100,7 @@ def find_contract_root(start: str | None = None) -> str:
 def load_schema(schema_id: str, contract_root: str) -> dict:
     filename = SCHEMA_FILENAMES.get(schema_id)
     if not filename:
-        raise ContractError(
-            f'unknown schema id "{schema_id}" (known: {sorted(SCHEMA_FILENAMES)})'
-        )
+        raise ContractError(f'unknown schema id "{schema_id}" (known: {sorted(SCHEMA_FILENAMES)})')
     schema_dir = os.path.join(contract_root, "schemas")
     if schema_id.startswith("simplicio.task-"):
         schema_dir = os.path.join(
@@ -130,6 +130,29 @@ def load_schema(schema_id: str, contract_root: str) -> dict:
             CONTRACT_VERSION,
             "schemas",
         )
+    if schema_id.startswith("simplicio.context-"):
+        # Shipped inside the installed package (issue #208): resolve from the
+        # vendored contracts dir, which exists even on a clean pip install.
+        package_dir = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "contracts",
+            "context-snapshot",
+            CONTRACT_VERSION,
+            "schemas",
+        )
+        if os.path.isfile(os.path.join(package_dir, filename)):
+            schema_dir = package_dir
+        else:
+            # Running from a checkout before install: fall back to the repo's
+            # source contracts dir (walked up from the package file).
+            repo_dir = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "contracts",
+                "context-snapshot",
+                CONTRACT_VERSION,
+                "schemas",
+            )
+            schema_dir = repo_dir
     path = os.path.join(schema_dir, filename)
     if not os.path.isfile(path):
         raise ContractError(f"schema file missing: {path}")

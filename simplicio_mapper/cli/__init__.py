@@ -75,9 +75,13 @@ def _run_delta(opts: dict) -> int:
         meta["stack"] = opts["stack"]
     if opts.get("product_name"):
         meta["product_name"] = opts["product_name"]
-    payload = run_incremental_scan(root, out=opts["out"], meta=meta,
-                                   full_rescan=opts.get("full_rescan", False),
-                                   changed_paths=opts.get("changed_paths") or None)
+    payload = run_incremental_scan(
+        root,
+        out=opts["out"],
+        meta=meta,
+        full_rescan=opts.get("full_rescan", False),
+        changed_paths=opts.get("changed_paths") or None,
+    )
     if opts.get("json"):
         print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     else:
@@ -86,6 +90,7 @@ def _run_delta(opts: dict) -> int:
             f"revision={payload['scan_revision']} full_rescan={payload['full_rescan']}"
         )
     return 0
+
 
 __all__ = [
     "main",
@@ -161,6 +166,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_drift(opts)
     if opts["command"] == "delta":
         return _run_delta(opts)
+    if opts["command"] == "snapshot":
+        from ._snapshot import run_snapshot_cli
+
+        # argv[0] is "snapshot"; pass the rest to the sub-command parser.
+        return run_snapshot_cli((sys.argv[1:] if argv is None else argv)[1:])
     if opts["command"] == "docs":
         return _run_docs(opts)
     if opts["command"] == "export-docs":
