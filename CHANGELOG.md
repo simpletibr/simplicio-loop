@@ -1,6 +1,18 @@
 # Changelog
 
-## [Unreleased]`n`n## [0.21.0] - 2026-07-11`n`n### Added`n`n- Incremental graph deltas, clustering metrics, and Mapper-to-Canvas compatibility fixtures.`n
+## [Unreleased]
+
+## [0.22.0] - 2026-07-12
+
+### Added
+
+- Persistent, token-budgeted retrieval indexing for task context selection (issue #199).
+- Stable retrieval-index receipts for downstream dev-cli consumers.
+
+### Fixed
+
+- Safe recovery of orphaned mapper index locks.
+
 
 ## [0.20.0] - 2026-07-11
 
