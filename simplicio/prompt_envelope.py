@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
@@ -97,6 +98,16 @@ def _trim(text: str, limit: int) -> str:
     if len(text) <= limit:
         return text
     return text[: max(0, limit - 1)] + "…"
+
+
+def _redact(text: str) -> str:
+    patterns = (
+        (r"(?i)(bearer\s+)[^\s,;]+", r"\1[REDACTED]"),
+        (r"(?i)(api[_-]?key|token|password|secret)(\s*[=:]\s*)[^\s,;]+", r"\1\2[REDACTED]"),
+    )
+    for pattern, replacement in patterns:
+        text = re.sub(pattern, replacement, text)
+    return text
 
 
 def _ordered_names(layers: dict[str, str]) -> list[str]:
@@ -249,6 +260,22 @@ class PromptEnvelope:
         return _hash(payload)
 
     @property
+    def cache_identity(self) -> str:
+        """Identity for reusable provider/local cache entries."""
+        return _hash(
+            {
+                "schema": PROMPT_ENVELOPE_SCHEMA,
+                "prefix_hash": self.prefix_hash,
+                "context_pack_hash": self.context_pack_hash,
+                "provider": self.provider,
+                "model": self.model,
+                "task_class": self.task_class,
+                "context_window": self.context_window,
+                "budgets": self.budgets,
+            }
+        )
+
+    @property
     def ledger(self) -> list[dict[str, Any]]:
         rows: list[dict[str, Any]] = []
         for name in self.ordered_layer_names:
@@ -320,7 +347,7 @@ class PromptEnvelope:
         if diagnostics:
             lines.append(f"- diagnostics_hash: {_hash(diagnostics)}")
             lines.append("- diagnostics_excerpt:")
-            lines.append(_trim(diagnostics, 600))
+            lines.append(_trim(_redact(diagnostics), 600))
         lines.append("- requested_correction: Return the full corrected DIFF + TEST block only.")
         return "\n".join(lines)
 
@@ -335,7 +362,7 @@ class PromptEnvelope:
             "affected_files": list(self.retry_delta.get("affected_files") or []),
             "diagnostics_hash": _hash(diagnostics),
             "diagnostics_tokens": _estimate(diagnostics),
-            "diagnostics_excerpt": _trim(diagnostics, 240),
+            "diagnostics_excerpt": _trim(_redact(diagnostics), 240),
             "requested_correction": "Return the full corrected DIFF + TEST block only.",
         }
 
@@ -360,9 +387,11 @@ class PromptEnvelope:
             },
             "prefix_hash": self.prefix_hash,
             "context_pack_hash": self.context_pack_hash,
+            "cache_identity": self.cache_identity,
             "delta_hash": self.delta_hash,
             "layers": self.ledger,
             "retry_delta": self._retry_receipt(),
             "needs_broader_context": self.needs_broader_context,
+            "context_mode": "full" if self.needs_broader_context else "budgeted",
             "cache_eligible": not self.needs_broader_context,
         }

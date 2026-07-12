@@ -28,6 +28,28 @@ def test_prompt_envelope_records_layers_budgets_and_stable_hashes(monkeypatch) -
     assert goal_layer["truncation"] == "needs_broader_context"
 
 
+def test_cache_identity_includes_provider_and_budget_inputs(monkeypatch) -> None:
+    envelope = PromptEnvelope.from_layers({"goal": "fix"}, template_version="v1")
+    baseline = envelope.cache_identity
+
+    monkeypatch.setenv("SIMPLICIO_MODEL", "codex-cli/model")
+    changed_provider = PromptEnvelope.from_layers({"goal": "fix"}, template_version="v1")
+    assert changed_provider.cache_identity != baseline
+
+    monkeypatch.setenv("SIMPLICIO_PROMPT_BUDGET_GOAL", "2")
+    changed_budget = PromptEnvelope.from_layers({"goal": "fix"}, template_version="v1")
+    assert changed_budget.cache_identity != changed_provider.cache_identity
+
+
+def test_receipt_exposes_budgeted_or_full_context_mode(monkeypatch) -> None:
+    envelope = PromptEnvelope.from_layers({"goal": "fix"}, template_version="v1")
+    assert envelope.receipt()["context_mode"] == "budgeted"
+
+    monkeypatch.setenv("SIMPLICIO_PROMPT_BUDGET_GOAL", "1")
+    overflow = PromptEnvelope.from_layers({"goal": "x" * 20}, template_version="v1")
+    assert overflow.receipt()["context_mode"] == "full"
+
+
 def test_prompt_envelope_orders_layers_deterministically_and_scales_profile_budget(monkeypatch) -> None:
     monkeypatch.delenv("SIMPLICIO_PROMPT_TASK_CLASS", raising=False)
     monkeypatch.setenv("SIMPLICIO_MODEL_CONTEXT_WINDOW", "16384")
@@ -70,3 +92,34 @@ def test_retry_delta_changes_only_delta_identity_and_redacts_receipt() -> None:
     assert receipt["schema"] == "simplicio.prompt-retry-delta/v1"
     assert receipt["affected_files"] == ["src/app.py"]
     assert receipt["diagnostics_excerpt"] == "expected 200 but got 500"
+
+
+def test_retry_render_is_delta_only_and_prefix_bytes_are_stable() -> None:
+    envelope = PromptEnvelope.from_layers(
+        {"policy": "safe", "goal": "fix", "target": "app.py"},
+        template_version="v1",
+    )
+    retry = envelope.with_retry_delta(
+        reason="verification-failed",
+        failure_class="syntax",
+        diagnostics="line 4: unexpected indent",
+        affected_files=["app.py"],
+    )
+
+    assert retry.prefix_hash == envelope.prefix_hash
+    assert retry.render() == envelope.render()
+    assert retry.render_retry_delta().startswith("Retry delta:")
+    assert envelope.render() not in retry.render_retry_delta()
+    assert "unexpected indent" in retry.render_retry_delta()
+
+
+def test_retry_receipt_redacts_secret_like_diagnostics() -> None:
+    retry = PromptEnvelope.from_layers({"goal": "fix"}, template_version="v1").with_retry_delta(
+        reason="verification-failed",
+        failure_class="provider",
+        diagnostics="Authorization: Bearer abc123 token=secret-value",
+    )
+
+    excerpt = retry.receipt()["retry_delta"]["diagnostics_excerpt"]
+    assert "secret-value" not in excerpt
+    assert "[REDACTED]" in excerpt
