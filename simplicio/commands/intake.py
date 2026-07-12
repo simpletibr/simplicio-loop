@@ -6,6 +6,9 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
+from urllib.request import Request, urlopen
 
 from ..execution_contract import ContractCompilationError, compile_execution_contracts
 from ..orchestrator.multi_task import BatchBuildError, TaskBatch, build_batch_preview
@@ -13,6 +16,8 @@ from ..plan_discovery import PlanDiscoveryError, build_plan_preview
 from ..task_spec import SourceRef, TaskSpecValidationError, parse_task_document
 
 CLI_PROG = "simplicio-py"
+_URL_TIMEOUT_SECONDS = 10
+_MAX_URL_BYTES = 2 * 1024 * 1024
 
 
 def _decode(raw: bytes) -> tuple[str, str]:
@@ -31,10 +36,31 @@ def _read_stdin() -> tuple[str, str]:
     return sys.stdin.read(), "utf-8"
 
 
+def _read_url(url: str) -> tuple[str, str]:
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise TaskSpecValidationError(["URL input must use an absolute http:// or https:// URL"])
+    request = Request(url, headers={"User-Agent": "simplicio-dev-cli/1"})
+    try:
+        with urlopen(request, timeout=_URL_TIMEOUT_SECONDS) as response:
+            raw = response.read(_MAX_URL_BYTES + 1)
+    except (HTTPError, URLError, TimeoutError, OSError) as exc:
+        raise TaskSpecValidationError([f"could not read URL input: {exc}"]) from exc
+    if len(raw) > _MAX_URL_BYTES:
+        raise TaskSpecValidationError([f"URL input exceeds {_MAX_URL_BYTES} bytes"])
+    return _decode(raw)
+
+
 def _read_input(a: argparse.Namespace) -> tuple[str, SourceRef]:
-    provided = int(a.text is not None) + int(a.file is not None) + int(a.stdin)
+    url = getattr(a, "url", None)
+    provided = int(a.text is not None) + int(a.file is not None) + int(a.stdin) + int(url is not None)
     if provided > 1:
-        raise TaskSpecValidationError(["choose exactly one input source: text argument, --file, or --stdin"])
+        raise TaskSpecValidationError(
+            ["choose exactly one input source: text argument, --file, --stdin, or --url"]
+        )
+    if url:
+        text, encoding = _read_url(url)
+        return text, SourceRef(kind="url", locator=url, encoding=encoding)
     if a.file:
         path = Path(a.file)
         if not path.is_file():
