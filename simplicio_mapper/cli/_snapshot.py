@@ -21,7 +21,9 @@ import os
 import sys
 from collections.abc import Sequence
 
-from ..context_snapshot import build_context_snapshot
+from .. import __version__
+from ..context_dag import update_context_dag
+from ..context_snapshot import ARTIFACT_VERSION, build_context_graph, build_context_snapshot
 from ..contract import ContractError, validate_file
 from ..mapper import (
     _parse_json_safe,
@@ -101,6 +103,49 @@ def _run_build(opts: dict) -> int:
     return 0
 
 
+def _run_dag_build(opts: dict) -> int:
+    root = os.path.abspath(opts["root"])
+    out = opts["out"]
+    abs_out = os.path.join(root, out)
+    if opts.get("full_rescan", False) or not os.path.isfile(os.path.join(abs_out, "project-map.json")):
+        write_mapping_artifacts(root, output_dir=out)
+    project_map = _load_json_safe(os.path.join(abs_out, "project-map.json"))
+    symbol_index = _load_json_safe(os.path.join(abs_out, "symbol-index.json"))
+    call_graph = _load_json_safe(os.path.join(abs_out, "call-graph.json"))
+    architecture_inventory = _load_json_safe(os.path.join(abs_out, "architecture-inventory.json"))
+    graph = build_context_graph(
+        project_map=project_map,
+        symbol_index=symbol_index,
+        call_graph=call_graph,
+        architecture_inventory=architecture_inventory,
+    )
+    revision = _git_revision(root) or project_map.get("generated_at", "")
+    result = update_context_dag(
+        root,
+        graph.to_dict(),
+        out=out,
+        build_config_hash=opts.get("build_config_hash", ""),
+        producer={"name": "simplicio-mapper", "version": __version__, "artifact_version": ARTIFACT_VERSION},
+        revision=revision,
+    )
+    diff = result["diff"]
+    counters = diff["counters"]
+    if opts.get("json"):
+        print(json.dumps(result["journal_entry"], ensure_ascii=False, sort_keys=True))
+    else:
+        print(f"dag {result['dag']['dag_id'][:16]}… revision={revision[:12] or '-'}")
+        if diff["full_invalidation"]:
+            print(f"  full_invalidation=true reason={diff['reason']}")
+        else:
+            print(
+                f"  invalidated={counters.get('invalidated')} added={counters.get('added')} "
+                f"removed={counters.get('removed')} of total_nodes={counters.get('total_nodes')}"
+            )
+        print(f"  -> wrote {os.path.relpath(os.path.join(abs_out, 'context-dag.json'))}")
+        print(f"  -> appended {os.path.relpath(os.path.join(abs_out, 'context-dag-journal.jsonl'))}")
+    return 0
+
+
 def _run_validate(opts: dict) -> int:
     paths = opts.get("validate_paths") or []
     if not paths:
@@ -172,12 +217,13 @@ def run_snapshot_cli(argv: Sequence[str]) -> int:
         "selection_policy": "deterministic",
         "token_budget": 0,
         "full_rescan": False,
+        "build_config_hash": "",
     }
     i = 0
     while i < len(rest):
         arg = rest[i]
         if arg in ("-h", "--help"):
-            print("usage: simplicio-mapper snapshot [build|validate|summary] [options] [paths]")
+            print("usage: simplicio-mapper snapshot [build|validate|summary|dag] [options] [paths]")
             return 0
         elif arg == "--root":
             i += 1
@@ -201,6 +247,9 @@ def run_snapshot_cli(argv: Sequence[str]) -> int:
             base["token_budget"] = int(rest[i])
         elif arg == "--refresh":
             base["full_rescan"] = True
+        elif arg == "--build-config-hash":
+            i += 1
+            base["build_config_hash"] = rest[i]
         elif arg.startswith("-"):
             print(f"unknown snapshot option: {arg}", file=sys.stderr)
             return 2
@@ -212,6 +261,8 @@ def run_snapshot_cli(argv: Sequence[str]) -> int:
         return _run_validate(base)
     if sub == "summary":
         return _run_summary(base)
+    if sub == "dag":
+        return _run_dag_build(base)
     # default / "build"
     return _run_build(base)
 
