@@ -99,6 +99,7 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "survey",
         "drift",
         "delta",
+        "snapshot",
     )
     command = argv[0] if argv and argv[0] in commands else "map"
     opts["command"] = command
@@ -118,6 +119,10 @@ def _parse_args(argv: Sequence[str]) -> dict:
             elif ask_positional == 2:
                 opts["query_arg"] = arg
             ask_positional += 1
+        elif command == "snapshot" and not arg.startswith("-"):
+            # `snapshot` parses its own sub-command + args in _snapshot.py;
+            # the top-level parser must not swallow its positionals.
+            break
         elif command in (
             "index",
             "macro",
