@@ -7,6 +7,10 @@ schema definitions and ``docs/plan-compiler.md`` for the contract writeup.
 from __future__ import annotations
 
 from simplicio.plan_compiler.canonical_hash import canonical_hash
+from simplicio.plan_compiler.compile_task_spec import (
+    PlanCompilationError,
+    compile_task_spec_to_plan,
+)
 from simplicio.plan_compiler.errors import (
     PlanCompilerError,
     PlanValidationError,
@@ -37,6 +41,7 @@ __all__ = [
     "ContextSnapshot",
     "EffectPlan",
     "GoalEnvelope",
+    "PlanCompilationError",
     "PlanCompilerError",
     "PlanDAG",
     "PlanNode",
@@ -44,4 +49,5 @@ __all__ = [
     "SchemaMismatchError",
     "VerificationPlan",
     "canonical_hash",
+    "compile_task_spec_to_plan",
 ]
