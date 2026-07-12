@@ -6,7 +6,7 @@ sidebar_position: 2
 > You are the **init agent**. The human has just run `./bootstrap.sh` (or `pwsh ./bootstrap.ps1`, or `npx @wesleysimplicio/llm-project-mapper`).
 > Your job: complete the setup by **reading the real project**, **asking only what is missing** and **merging** what already exists — never destroying the human's content.
 >
-> CLIs with a native agent loop: **Claude Code**, **Codex CLI**, **Cursor Agent**, **Hermes Agent**, **OpenClaw**, **Aider** (Deepseek/Kimi/MiniMax/GLM via `--model`).
+> CLIs with a native agent loop: **Claude Code**, **Codex CLI**, **Cursor Agent**, **Simplicio Agent** (canonical consumer of the mapper's ContextSnapshot), **Hermes Agent** (deprecated alias), **OpenClaw**, **Aider** (Deepseek/Kimi/MiniMax/GLM via `--model`).
 > No native loop (paste prompt manually): **GitHub Copilot CLI**.
 
 > 🇧🇷 Portuguese version: [INIT.md](https://github.com/wesleysimplicio/llm-project-mapper/blob/main/INIT.md).

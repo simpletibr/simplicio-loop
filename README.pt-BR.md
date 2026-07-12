@@ -130,7 +130,7 @@ A secao abaixo recupera o material especifico que existia em `README.pt-BR.md` a
 
 > 🇧🇷 Versão em português. Read this in English: [README.md](README.md).
 
-Esqueleto de repositório AI-friendly, neutro de stack. Joga em **qualquer** projeto — novo ou existente — e qualquer agente CLI (Claude Code, Codex, Cursor, GitHub Copilot, Aider com Deepseek/Kimi/MiniMax/GLM, Hermes, OpenClaw) ganha o contexto que precisa pra entregar trabalho no mesmo dia.
+Esqueleto de repositório AI-friendly, neutro de stack. Joga em **qualquer** projeto — novo ou existente — e qualquer agente CLI (Claude Code, Codex, Cursor, GitHub Copilot, Aider com Deepseek/Kimi/MiniMax/GLM, Simplicio Agent, OpenClaw) ganha o contexto que precisa pra entregar trabalho no mesmo dia.
 
 > Starter pack, não framework. Entrega estrutura, instruções, processo. A stack é sua.
 
@@ -357,7 +357,7 @@ npx @wesleysimplicio/llm-project-mapper --dry-run --yes
 | `-f, --force` | Sobrescreve arquivos do template do starter. **Nunca** toca arquivos de instrução do usuário (`AGENTS.md`, `CLAUDE.md`, `INIT.md`, `.github/copilot-instructions.md`, `.gitignore`) |
 | `--update` | Modo seguro para atualizar overlay existente: força arquivos do starter, deixa `.gitignore` intocado, pula handoff |
 | `--dry-run` | Imprime ações sem escrever |
-| `--cli <key>` | Escolhe CLI pro handoff do `INIT.md`: `claude`, `codex`, `copilot`, `cursor`, `deepseek`, `kimi`, `minimax`, `glm`, `hermes`, `openclaw`, `aider`, `other`, `skip` |
+| `--cli <key>` | Escolhe CLI pro handoff do `INIT.md`: `claude`, `codex`, `copilot`, `cursor`, `deepseek`, `kimi`, `minimax`, `glm`, `simplicio-agent`, `hermes`, `openclaw`, `aider`, `other`, `skip` (obs: `hermes` é alias depreciado de `simplicio-agent`) |
 | `--append-gitignore <yes\|no>` | Adiciona ignores recomendados ao `.gitignore` |
 | `--skip-meta` | Não escreve `.starter-meta.json` |
 | `--silent` | Saída mínima |
@@ -424,11 +424,12 @@ Após o scaffold e o mapeamento automático, o bootstrap pode lançar uma CLI/LL
 | 6 | **Kimi K2.6** (via Aider, OpenRouter) | sim | `pip install aider-chat` |
 | 7 | **MiniMax M2.7** (via Aider, OpenRouter) | sim | `pip install aider-chat` |
 | 8 | **GLM 5.1** (via Aider, OpenRouter) | sim | `pip install aider-chat` |
-| 9 | **Hermes Agent** (Nous Research) | sim | <https://github.com/NousResearch> |
-| 10 | **OpenClaw** | sim | <https://github.com/openclaw> |
-| 11 | **Aider** (escolhe modelo interativo) | sim | `pip install aider-chat` |
-| 12 | Outro / manual (clipboard) | — | — |
-| 13 | Pular — rodo `INIT.md` depois | — | — |
+| 9 | **Simplicio Agent** (integrador canônico) | sim | <https://github.com/wesleysimplicio/simplicio-agent> |
+| 10 | **Hermes Agent** (Nous Research) — *alias depreciado do Simplicio Agent* | sim | <https://github.com/NousResearch> |
+| 11 | **OpenClaw** | sim | <https://github.com/openclaw> |
+| 12 | **Aider** (escolhe modelo interativamente) | sim | `pip install aider-chat` |
+| 13 | Outro / manual (clipboard) | — | — |
+| 14 | Skip — roda `INIT.md` depois | — | — |
 
 Pra Copilot CLI (sem loop de agente nativo), o bootstrap copia o prompt pro clipboard (`pbcopy` no macOS, `xclip`/`wl-copy` no Linux, `clip.exe` no Windows/WSL) e você cola no Copilot Chat.
 

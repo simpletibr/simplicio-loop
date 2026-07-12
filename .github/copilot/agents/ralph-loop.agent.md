@@ -57,7 +57,7 @@ Sem pular etapa. Sem "bom o suficiente". Sem `--no-verify`. Sem `xit`/`skip`/`fi
 | **GitHub Copilot (VS Code Agent Mode)** | Agent mode → permission level **Autopilot** | UI dropdown. Continuous iteration: agent itera respondendo lint/test/erro até task complete. Combine com plan mode antes pra ter spec. |
 | **Cursor** (≥ 3.0) | Background Agent | Async, multi-repo, parallel. `/multitask` (3.2+) spawna sub-agents em paralelo. Cursor Automations dispara por evento (Slack, Linear, PR merge, PagerDuty). |
 | **Aider** | Bash wrapper Ralph script | Sem comando nativo. Use `while`-loop chamando `aider --message "$(cat prompt.md)" --auto-commits` até flag de completion em arquivo. |
-| **Hermes / OpenClaw** | Bash wrapper Ralph script | Sem comando nativo. Mesma técnica do Aider — script externo orquestra iterações. |
+| **Simplicio Agent / OpenClaw** | Bash wrapper Ralph script | Sem comando nativo. Mesma técnica do Aider — script externo orquestra iterações. |
 | **Genérico (snarktank/ralph, iannuttall/ralph)** | `ralph` CLI | Implementação portátil. PRD-driven: loop até `<promise>COMPLETE</promise>`. Memória via git history + `progress.txt` + `prd.json`. |
 
 ### Argumentos comuns (mesma semântica entre ferramentas)

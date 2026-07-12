@@ -156,7 +156,7 @@ export const STRINGS_WHY: Record<Lang, WhyStrings> = {
     multiAgent: {
       overline: "06 — Multi-agent",
       title: "Mesmo contrato. Qualquer agente.",
-      sub: "Claude, Codex, Copilot, Cursor, Aider, Hermes, OpenClaw — todos leem o mesmo AGENTS.md",
+      sub: "Claude, Codex, Copilot, Cursor, Aider, Simplicio Agent, OpenClaw — todos leem o mesmo AGENTS.md",
       centerLabel: "AGENTS.md",
     },
     cta: {
@@ -263,7 +263,7 @@ export const STRINGS_WHY: Record<Lang, WhyStrings> = {
     multiAgent: {
       overline: "06 — Multi-agent",
       title: "Same contract. Any agent.",
-      sub: "Claude, Codex, Copilot, Cursor, Aider, Hermes, OpenClaw — all read the same AGENTS.md",
+      sub: "Claude, Codex, Copilot, Cursor, Aider, Simplicio Agent, OpenClaw — all read the same AGENTS.md",
       centerLabel: "AGENTS.md",
     },
     cta: {

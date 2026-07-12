@@ -42,7 +42,7 @@ Agent checklist:
 - [ ] Generate screenshot/video/trace for UI or end-to-end flows.
 - [ ] Report blockers with the command, log excerpt and likely cause.
 
-> Master instruction file lido por **Claude Code**, **Codex CLI**, **GitHub Copilot**, **Hermes Agent** (Nous Research), **OpenClaw**, **Cursor**, **Aider** e qualquer outro agent que respeite o padrão `AGENTS.md`. É o contrato entre humano e IA neste repositório.
+> Master instruction file lido por **Claude Code**, **Codex CLI**, **GitHub Copilot**, **Simplicio Agent** (consumidor/integrador canônico — `simplicio-agent`), **Hermes Agent** (Nous Research, alias depreciado), **OpenClaw**, **Cursor**, **Aider** e qualquer outro agent que respeite o padrão `AGENTS.md`. É o contrato entre humano e IA neste repositório.
 >
 > Mudou algo aqui? **Este arquivo é a única fonte editada à mão** (issue #163). `CLAUDE.md` é **gerado** a partir dele — depois de editar, rode `node scripts/check-doc-sync.js sync` (CI roda `check` e falha se esquecer). `.github/copilot-instructions.md` não é mais um hand-copy: é um stub curto que aponta pra cá para tudo que não é específico de Copilot Agent Mode — só precisa de edição manual se a mudança afetar algo genuinamente específico do Copilot.
 
@@ -387,7 +387,7 @@ Detalhes completos: `.skills/README.md`.
 
 ## Custom agents disponíveis
 
-Sub-agents customizados moram em `.agents/<slug>.agent.md` (padrão **AGENTS.md ecosystem**, lido por Claude Code, Codex, Hermes, OpenClaw, Cursor, Aider). Espelhados em `.github/copilot/agents/` para o GitHub Copilot Workspace. Lista atual:
+Sub-agents customizados moram em `.agents/<slug>.agent.md` (padrão **AGENTS.md ecosystem**, lido por Claude Code, Codex, Simplicio Agent, Hermes, OpenClaw, Cursor, Aider). Espelhados em `.github/copilot/agents/` para o GitHub Copilot Workspace. Lista atual:
 
 - **`ralph-loop.agent.md`** — Ralph Loop (padrão autônomo, Ralph Wiggum technique). Loop `read → plan → execute → lint → unit → Playwright → fix → repeat` até DoD verde. **Mapeia para comando nativo de cada ferramenta**: Claude Code → `/ralph-loop "<prompt>"` (plugin oficial `claude-plugins-official`); Codex CLI ≥0.128 → `/goal <objective>`; GitHub Copilot CLI → `copilot --autopilot --max-autopilot-continues N`; VS Code Agent Mode → permission level "Autopilot"; Cursor ≥3.0 → Background Agent / `/multitask`. Aciona em **toda task técnica** com AC mensurável. Tools: `edit`, `terminal`, `search`.
 - **`tdd.agent.md`** — TDD Specialist. Escreve teste falhando antes do código. Loop red-green-refactor. Tools: `edit`, `terminal`, `search`. Aciona em feature/bugfix com cobertura nova.

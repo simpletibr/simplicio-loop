@@ -628,7 +628,8 @@ declare -a CLI_OPTS=(
   "kimi|Kimi K2.6 (via aider --model openrouter/moonshotai/kimi-k2)|aider"
   "minimax|MiniMax M2.7 (via aider --model openrouter/minimax/minimax-text-01)|aider"
   "glm|GLM 5.1 (via aider --model openrouter/z-ai/glm-4.5)|aider"
-  "hermes|Hermes Agent (Nous Research)|hermes"
+  "simplicio-agent|Simplicio Agent (canonical consumer of the mapper)|simplicio-agent"
+  "hermes|Hermes Agent (Nous Research) — deprecated alias of Simplicio Agent|hermes"
   "openclaw|OpenClaw|openclaw"
   "aider|Aider (pick model interactively)|aider"
   "other|Other / manual (copy prompt to clipboard)|"
@@ -772,9 +773,15 @@ case "$CLI_CHOICE" in
     exec aider --model openrouter/z-ai/glm-4.5 --message "$INIT_PROMPT"
     ;;
   hermes)
+    echo "[deprecated] 'hermes' is a deprecated alias of 'simplicio-agent' (Simplicio Agent). Use 'simplicio-agent' instead. The alias is retained for compatibility and will be removed after a release window." >&2
     command -v hermes >/dev/null 2>&1 || { echo "Hermes Agent not installed: https://github.com/NousResearch/hermes-agent"; exit 1; }
     copy_to_clipboard "$INIT_PROMPT" && echo "(prompt copied to clipboard as fallback)"
     exec hermes "$INIT_PROMPT"
+    ;;
+  simplicio-agent)
+    command -v simplicio-agent >/dev/null 2>&1 || { echo "Simplicio Agent not installed: https://github.com/wesleysimplicio/simplicio-agent"; exit 1; }
+    copy_to_clipboard "$INIT_PROMPT" && echo "(prompt copied to clipboard as fallback)"
+    exec simplicio-agent "$INIT_PROMPT"
     ;;
   openclaw)
     command -v openclaw >/dev/null 2>&1 || { echo "OpenClaw not installed: npm install -g openclaw@latest"; exit 1; }
