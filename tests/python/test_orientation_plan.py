@@ -12,6 +12,7 @@ from simplicio.orientation_plan import (
     PlanInvalidatedError,
     RepositoryEvidence,
     TargetEvidence,
+    _layer_order_rationale,
     build_execution_plan,
 )
 
@@ -138,6 +139,40 @@ def test_full_stack_requires_and_preserves_explicit_flow() -> None:
 
     assert plan.flows == (flow,)
     assert plan.slices[1].dependencies == ("slice-002",) or plan.slices[0].dependencies
+
+
+def test_full_stack_recorded_slices_carry_layer_ordering_rationale() -> None:
+    task = _task(backend="yes")
+    ui = _target("app", "src/ui.tsx", "ui")
+    api = _target("app", "src/api.py", "backend")
+
+    plan = build_execution_plan(task, _contract(task), [_repo("app", ui, api)])
+
+    by_id = {item.slice_id: item for item in plan.slices}
+    ui_slice = next(item for item in plan.slices if item.layer == "ui")
+    api_slice = next(item for item in plan.slices if item.layer == "backend")
+    assert ui_slice.ordering_rationale == _layer_order_rationale("ui")
+    assert api_slice.ordering_rationale == _layer_order_rationale("backend")
+    assert "no local re-sort" in ui_slice.ordering_rationale
+    assert "canonical order" in api_slice.ordering_rationale
+    assert "ordering_rationale" in by_id[ui_slice.slice_id].to_dict()
+
+
+def test_full_stack_without_flow_auto_derives_ui_backend_ordering() -> None:
+    task = _task(backend="yes")
+    ui = _target("app", "src/ui.tsx", "ui")
+    api = _target("app", "src/api.py", "backend")
+
+    plan = build_execution_plan(task, _contract(task), [_repo("app", ui, api)])
+
+    derived = [flow for flow in plan.flows if flow.name == "derived-ui-backend-ordering"]
+    assert derived, "expected an auto-derived full-stack ordering flow"
+    assert set(derived[0].targets) == {"src/ui.tsx", "src/api.py"}
+    # Existing mapper-supplied flows are preserved, not shadowed.
+    explicit = FlowEvidence("modeling", ("src/ui.tsx", "src/api.py"), "UI consumes API order")
+    plan2 = build_execution_plan(task, _contract(task), [_repo("app", ui, api, flows=(explicit,))])
+    assert plan2.flows == (explicit,)
+
 
 
 def test_monorepo_records_operator_and_anchor_per_repo() -> None:
