@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.15.0] — 2026-07-12
+
+### Changed
+- Raised the `simplicio-mapper` dependency floor to `>=0.22.0` after the correlated mapper release.
+- Consolidated the verified task, evidence, transaction, intake, memory, and runtime-contract improvements merged in this wave.
+
 ## [0.14.1] — 2026-07-11
 
 ### Added
