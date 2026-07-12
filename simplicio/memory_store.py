@@ -29,9 +29,12 @@ quality this module does not deliver.
 
 from __future__ import annotations
 
+import hashlib
+import math
 import os
 import re
 import shutil
+import sqlite3
 import subprocess
 import time
 from pathlib import Path
@@ -40,6 +43,7 @@ from typing import Any
 MEMORY_SCHEMA = "simplicio.memory-store/v1"
 MEMORY_VALIDATION_SCHEMA = "simplicio.memory-store-validation/v1"
 MEMORY_HANDOFF_SCHEMA = "simplicio.memory-handoff/v1"
+MEMORY_INDEX_SCHEMA = "simplicio.memory-index/v1"
 
 
 def memory_dir() -> Path:
@@ -52,6 +56,10 @@ def memory_dir() -> Path:
 
 def _notes_dir(base: Path) -> Path:
     return base / "notes"
+
+
+def _index_path(base: Path) -> Path:
+    return base / "index.sqlite3"
 
 
 def _slugify(topic: str) -> str:
@@ -139,6 +147,7 @@ def store_memory(
     committed = _git(base, "add", "-A") and _git(
         base, "commit", "-q", "-m", f"memory: store {slug} ({actor})"
     )
+    _rebuild_index(base)
     return {
         "schema": MEMORY_SCHEMA,
         "topic": topic,
@@ -168,11 +177,85 @@ def _parse_entry_meta(section: str) -> dict[str, str | None]:
     return {"ts": ts, "actor": actor, "tags": tags}
 
 
+def _vector(text: str, *, dimensions: int = 128) -> list[float]:
+    """Build a stable, dependency-free lexical embedding for offline recall."""
+    values = [0.0] * dimensions
+    for token in _tokenize(text):
+        digest = hashlib.blake2b(token.encode("utf-8"), digest_size=8).digest()
+        index = int.from_bytes(digest[:4], "big") % dimensions
+        values[index] += 1.0 if digest[4] & 1 else -1.0
+    norm = math.sqrt(sum(value * value for value in values))
+    return [value / norm for value in values] if norm else values
+
+
+def _rebuild_index(base: Path) -> None:
+    """Materialize markdown into SQLite FTS5; markdown remains source of truth."""
+    notes_dir = _notes_dir(base)
+    if not notes_dir.is_dir():
+        return
+    try:
+        with sqlite3.connect(_index_path(base)) as db:
+            db.execute("CREATE TABLE IF NOT EXISTS entries (id INTEGER PRIMARY KEY, path TEXT, snippet TEXT)")
+            db.execute(
+                "CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts "
+                "USING fts5(path, snippet, content='entries', content_rowid='id')"
+            )
+            db.execute("DELETE FROM entries")
+            db.execute("DELETE FROM entries_fts")
+            for path in sorted(notes_dir.glob("*.md")):
+                text = path.read_text(encoding="utf-8", errors="ignore")
+                for section in _split_sections(text):
+                    if section.lstrip().startswith("## "):
+                        db.execute(
+                            "INSERT INTO entries(path, snippet) VALUES (?, ?)",
+                            (str(path), section.strip()[:800]),
+                        )
+            db.execute("INSERT INTO entries_fts(entries_fts) VALUES ('rebuild')")
+            db.commit()
+    except (OSError, sqlite3.Error):
+        return
+
+
+def _indexed_recall(query: str, *, root: Path, limit: int, mode: str) -> list[dict[str, Any]]:
+    _rebuild_index(root)
+    tokens = _tokenize(query)
+    if not tokens or not _index_path(root).exists():
+        return []
+    try:
+        with sqlite3.connect(_index_path(root)) as db:
+            rows = db.execute(
+                "SELECT e.path, e.snippet, bm25(entries_fts) "
+                "FROM entries_fts JOIN entries e ON e.id = entries_fts.rowid "
+                "WHERE entries_fts MATCH ? ORDER BY bm25(entries_fts) LIMIT ?",
+                (" OR ".join('"' + token.replace('"', '""') + '"' for token in tokens), limit * 4),
+            ).fetchall()
+        qv = _vector(query)
+        results = []
+        for path, snippet, bm25_score in rows:
+            lexical = 1.0 / (1.0 + max(0.0, float(bm25_score)))
+            vector = sum(a * b for a, b in zip(qv, _vector(snippet)))  # noqa: B905
+            score = vector if mode == "vector" else lexical if mode == "fts5" else (lexical + vector) / 2
+            results.append(
+                {
+                    "topic": Path(path).stem,
+                    "path": path,
+                    "snippet": snippet,
+                    "score": round(score, 4),
+                    "mode": mode,
+                }
+            )
+        results.sort(key=lambda row: (-row["score"], row["path"]))
+        return results[:limit]
+    except sqlite3.Error:
+        return []
+
+
 def recall_memory(
     query: str,
     *,
     limit: int = 5,
     root: str | os.PathLike[str] | None = None,
+    mode: str = "hybrid",
 ) -> list[dict[str, Any]]:
     """Deterministic keyword search over every note under `notes/`.
 
@@ -181,9 +264,14 @@ def recall_memory(
     notes), this is the honest P0 slice.
     """
     base = Path(root) if root is not None else memory_dir()
+    if mode not in {"fts5", "vector", "hybrid"}:
+        raise ValueError("mode must be fts5, vector, or hybrid")
     notes_dir = _notes_dir(base)
     if not notes_dir.is_dir():
         return []
+    indexed = _indexed_recall(query, root=base, limit=limit, mode=mode)
+    if indexed:
+        return indexed
     query_tokens = _tokenize(query)
     if not query_tokens:
         return []
@@ -292,6 +380,11 @@ def validate_memory(
         "entries": entry_count,
         "errors": errors,
         "warnings": warnings,
+        "index": {
+            "schema": MEMORY_INDEX_SCHEMA,
+            "path": str(_index_path(base)),
+            "available": _index_path(base).exists(),
+        },
     }
 
 

@@ -57,6 +57,22 @@ def test_store_then_recall_roundtrip(tmp_path):
     assert results
     assert results[0]["topic"] == "auth-flow"
     assert "OAuth device flow" in results[0]["snippet"]
+    assert results[0]["mode"] == "hybrid"
+    assert (base / "index.sqlite3").exists()
+
+
+def test_recall_supports_fts5_and_vector_modes(tmp_path):
+    base = tmp_path / "mem"
+    memory_store.store_memory("release process", "Ship via a draft pull request.", root=base)
+    for mode in ("fts5", "vector", "hybrid"):
+        results = memory_store.recall_memory("draft pull request", root=base, mode=mode)
+        assert results
+        assert results[0]["mode"] == mode
+
+
+def test_recall_rejects_unknown_mode(tmp_path):
+    with pytest.raises(ValueError, match="mode"):
+        memory_store.recall_memory("anything", root=tmp_path / "mem", mode="llm")
 
 
 def test_recall_no_match_returns_empty(tmp_path):

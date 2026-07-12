@@ -462,6 +462,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_mem_recall = memory_sub.add_parser("recall", help="keyword search over stored notes")
     p_mem_recall.add_argument("query")
     p_mem_recall.add_argument("--limit", type=int, default=5)
+    p_mem_recall.add_argument("--mode", choices=("fts5", "vector", "hybrid"), default="hybrid")
     p_mem_recall.add_argument("--dir", default=None)
     p_mem_recall.add_argument("--json", action="store_true")
     p_mem_validate = memory_sub.add_parser("validate", help="audit markdown memory store integrity")
