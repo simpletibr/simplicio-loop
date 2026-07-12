@@ -10,13 +10,28 @@ from simplicio.evidence_ledger import ArtifactMismatchError, EvidenceLedger, Sta
 def test_ledger_records_measured_artifact_and_matrix(tmp_path):
     artifact = tmp_path / "result.json"
     artifact.write_text(json.dumps({"scenario": "ac1"}), encoding="utf-8")
-    ledger = EvidenceLedger(tmp_path / "evidence.jsonl", base_sha="base-1", plan_hash="plan-1")
+    trace = tmp_path / "trace.zip"
+    trace.write_bytes(b"trace")
+    ledger = EvidenceLedger(
+        tmp_path / "evidence.jsonl", base_sha="base-1", plan_hash="plan-1", commit_sha="commit-1"
+    )
 
-    row = ledger.record(criterion_id="AC1", command="pytest tests/e2e/ac1.py", exit_code=0, artifact=artifact)
+    row = ledger.record(
+        criterion_id="AC1",
+        command="pytest tests/e2e/ac1.py",
+        exit_code=0,
+        artifact=artifact,
+        prototype="fixtures/planes.json",
+        attachments=({"path": str(trace), "kind": "trace"},),
+    )
 
     assert row["status"] == "MEASURED"
+    assert row["commit_sha"] == "commit-1"
+    assert row["prototype"] == "fixtures/planes.json"
+    assert row["attachments"][0]["kind"] == "trace"
+    assert row["attachments"][0]["sha256"].startswith("sha256:")
     assert row["artifact_hash"].startswith("sha256:")
-    matrix = ledger.matrix(["AC1", "AC2"])
+    matrix = ledger.watch(["AC1", "AC2"])
     assert matrix["claims"]["AC1"]["status"] == "MEASURED"
     assert matrix["claims"]["AC2"]["status"] == "UNVERIFIED"
     assert matrix["watcher"]["ok"] is True
@@ -31,6 +46,17 @@ def test_ledger_rejects_stale_identity(tmp_path):
         ledger.record(
             criterion_id="AC1", command="pytest", exit_code=0, artifact=artifact, plan_hash="old-plan"
         )
+
+
+def test_ledger_rejects_stale_commit_identity(tmp_path):
+    artifact = tmp_path / "out.txt"
+    artifact.write_text("ok", encoding="utf-8")
+    ledger = EvidenceLedger(
+        tmp_path / "evidence.jsonl", base_sha="base-1", plan_hash="plan-1", commit_sha="new"
+    )
+
+    with pytest.raises(StaleEvidenceError):
+        ledger.record(criterion_id="AC1", command="pytest", exit_code=0, artifact=artifact, commit_sha="old")
 
 
 def test_ledger_rejects_changed_artifact_hash(tmp_path):
@@ -71,6 +97,33 @@ def test_matrix_demotes_measured_claim_when_artifact_changes_after_append(tmp_pa
     assert invalid[0]["watcher_reason"] == "artifact-hash-mismatch"
     assert matrix["watcher"]["ok"] is False
     assert matrix["watcher"]["failures"][0]["criterion_id"] == "AC-VISUAL"
+
+
+def test_watcher_rejects_stale_receipt_and_changed_attachment(tmp_path):
+    artifact = tmp_path / "result.json"
+    artifact.write_text("ok", encoding="utf-8")
+    attachment = tmp_path / "screenshot.png"
+    attachment.write_bytes(b"expected")
+    ledger = EvidenceLedger(
+        tmp_path / "evidence.jsonl", base_sha="base-1", plan_hash="plan-1", commit_sha="commit-1"
+    )
+    ledger.record(
+        criterion_id="AC-WATCH",
+        command="playwright test",
+        exit_code=0,
+        artifact=artifact,
+        attachments=({"path": str(attachment), "kind": "screenshot"},),
+    )
+    attachment.write_bytes(b"wrong-scenario")
+    matrix = ledger.watch(["AC-WATCH"])
+    assert matrix["claims"]["AC-WATCH"]["status"] == "UNVERIFIED"
+    assert matrix["watcher"]["failures"][0]["reason"] == "attachment-hash-mismatch"
+
+    stale = EvidenceLedger(
+        tmp_path / "evidence.jsonl", base_sha="new-base", plan_hash="plan-1", commit_sha="commit-1"
+    )
+    stale_matrix = stale.watch(["AC-WATCH"])
+    assert stale_matrix["watcher"]["failures"][0]["reason"] == "stale-identity"
 
 
 def test_matrix_demotes_measured_claim_when_artifact_disappears(tmp_path):

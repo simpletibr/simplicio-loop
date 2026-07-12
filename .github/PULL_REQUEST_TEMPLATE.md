@@ -45,6 +45,15 @@
 <!-- ![happy-path](url) -->
 <!-- ![error-state](url) -->
 
+## Matriz AC → receipt
+
+<!-- Cole a saída JSON de `EvidenceLedger.watch(...)`. Claims sem receipt permanecem
+     UNVERIFIED; lacunas não podem virar claims. -->
+
+```json
+{"schema":"simplicio.dev-cli.evidence-ledger/v1","claims":{},"watcher":{"revalidated":true}}
+```
+
 ## Cenários E2E cobertos
 
 - [ ] Caminho feliz

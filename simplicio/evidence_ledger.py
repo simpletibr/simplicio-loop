@@ -40,6 +40,19 @@ def artifact_digest(path: str | Path) -> str:
     return _sha256_bytes(Path(path).read_bytes())
 
 
+def _resolve_path(ledger_path: Path, value: str | Path) -> Path:
+    path = Path(value)
+    return path if path.is_absolute() else ledger_path.parent / path
+
+
+def _attachment_path(item: Mapping[str, Any]) -> str | None:
+    for key in ("path", "artifact", "file"):
+        value = item.get(key)
+        if value:
+            return str(value)
+    return None
+
+
 class EvidenceLedger:
     """Persist one immutable JSON record per AC/RN evidence claim.
 
@@ -48,11 +61,18 @@ class EvidenceLedger:
     """
 
     def __init__(
-        self, path: str | Path, *, base_sha: str, plan_hash: str, environment: Mapping[str, str] | None = None
+        self,
+        path: str | Path,
+        *,
+        base_sha: str,
+        plan_hash: str,
+        commit_sha: str = "unknown",
+        environment: Mapping[str, str] | None = None,
     ):
         self.path = Path(path)
         self.base_sha = str(base_sha)
         self.plan_hash = str(plan_hash)
+        self.commit_sha = str(commit_sha)
         self.environment = dict(environment or {"platform": platform.platform()})
 
     def append(self, receipt: Mapping[str, Any]) -> dict[str, Any]:
@@ -60,6 +80,7 @@ class EvidenceLedger:
         row.setdefault("schema", LEDGER_SCHEMA)
         row.setdefault("timestamp", _now())
         row.setdefault("environment", dict(self.environment))
+        row.setdefault("commit_sha", self.commit_sha)
         if row.get("schema") != LEDGER_SCHEMA:
             raise LedgerError("unsupported evidence ledger schema")
         criterion_id = str(row.get("criterion_id", "")).strip()
@@ -67,6 +88,8 @@ class EvidenceLedger:
             raise LedgerError("criterion_id is required")
         if str(row.get("base_sha", "")) != self.base_sha or str(row.get("plan_hash", "")) != self.plan_hash:
             raise StaleEvidenceError("receipt base_sha/plan_hash does not match the frozen ledger")
+        if str(row.get("commit_sha", "")) != self.commit_sha:
+            raise StaleEvidenceError("receipt commit_sha does not match the frozen ledger")
         status = str(row.get("status", UNVERIFIED)).upper()
         if status not in {MEASURED, UNVERIFIED}:
             raise LedgerError("status must be MEASURED or UNVERIFIED")
@@ -76,9 +99,7 @@ class EvidenceLedger:
                 raise LedgerError("MEASURED receipts require command and exit_code=0")
             if not artifact:
                 raise LedgerError("MEASURED receipts require an artifact")
-            artifact_path = Path(str(artifact))
-            if not artifact_path.is_absolute():
-                artifact_path = self.path.parent / artifact_path
+            artifact_path = _resolve_path(self.path, str(artifact))
             try:
                 actual = artifact_digest(artifact_path)
             except OSError as exc:
@@ -87,6 +108,28 @@ class EvidenceLedger:
             if expected and expected != actual:
                 raise ArtifactMismatchError(f"artifact hash mismatch for {artifact}")
             row["artifact_hash"] = actual
+            attachments = row.get("attachments", [])
+            if not isinstance(attachments, list):
+                raise LedgerError("attachments must be a list")
+            verified_attachments: list[dict[str, Any]] = []
+            for attachment in attachments:
+                if not isinstance(attachment, Mapping):
+                    raise LedgerError("each attachment must be an object")
+                item = dict(attachment)
+                attachment_value = _attachment_path(item)
+                if not attachment_value:
+                    raise LedgerError("each attachment requires path, artifact, or file")
+                try:
+                    attachment_actual = artifact_digest(_resolve_path(self.path, attachment_value))
+                except OSError as exc:
+                    raise ArtifactMismatchError(f"attachment is unavailable: {attachment_value}") from exc
+                expected_attachment = str(item.get("sha256", item.get("artifact_hash", ""))).strip()
+                if expected_attachment and expected_attachment != attachment_actual:
+                    raise ArtifactMismatchError(f"attachment hash mismatch for {attachment_value}")
+                item["sha256"] = attachment_actual
+                verified_attachments.append(item)
+            if attachments:
+                row["attachments"] = verified_attachments
         row["status"] = status
         encoded = json.dumps(row, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + chr(10)
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -105,9 +148,12 @@ class EvidenceLedger:
         artifact: str | Path,
         base_sha: str | None = None,
         plan_hash: str | None = None,
+        commit_sha: str | None = None,
         kind: str = "test-output",
         status: str = MEASURED,
         environment: Mapping[str, str] | None = None,
+        attachments: list[Mapping[str, Any]] | tuple[Mapping[str, Any], ...] | None = None,
+        prototype: str | Path | None = None,
     ) -> dict[str, Any]:
         artifact_path = Path(artifact)
         return self.append(
@@ -119,8 +165,11 @@ class EvidenceLedger:
                 "artifact": str(artifact_path),
                 "base_sha": self.base_sha if base_sha is None else base_sha,
                 "plan_hash": self.plan_hash if plan_hash is None else plan_hash,
+                "commit_sha": self.commit_sha if commit_sha is None else commit_sha,
                 "environment": dict(environment or self.environment),
                 "status": status,
+                **({"attachments": [dict(item) for item in attachments]} if attachments else {}),
+                **({"prototype": str(prototype)} if prototype is not None else {}),
             }
         )
 
@@ -140,9 +189,13 @@ class EvidenceLedger:
         artifact = row.get("artifact")
         if not artifact:
             return False, "missing-artifact-path"
-        artifact_path = Path(str(artifact))
-        if not artifact_path.is_absolute():
-            artifact_path = self.path.parent / artifact_path
+        if (
+            str(row.get("base_sha", "")) != self.base_sha
+            or str(row.get("plan_hash", "")) != self.plan_hash
+            or str(row.get("commit_sha", "")) != self.commit_sha
+        ):
+            return False, "stale-identity"
+        artifact_path = _resolve_path(self.path, str(artifact))
         try:
             actual = artifact_digest(artifact_path)
         except OSError:
@@ -152,6 +205,24 @@ class EvidenceLedger:
             return False, "missing-artifact-hash"
         if expected != actual:
             return False, "artifact-hash-mismatch"
+        attachments = row.get("attachments", [])
+        if not isinstance(attachments, list):
+            return False, "invalid-attachments"
+        for attachment in attachments:
+            if not isinstance(attachment, Mapping):
+                return False, "invalid-attachments"
+            attachment_value = _attachment_path(attachment)
+            if not attachment_value:
+                return False, "missing-attachment-path"
+            try:
+                attachment_actual = artifact_digest(_resolve_path(self.path, attachment_value))
+            except OSError:
+                return False, "attachment-missing"
+            attachment_expected = str(attachment.get("sha256", attachment.get("artifact_hash", ""))).strip()
+            if not attachment_expected:
+                return False, "missing-attachment-hash"
+            if attachment_expected != attachment_actual:
+                return False, "attachment-hash-mismatch"
         return True, None
 
     def matrix(self, criterion_ids: list[str] | tuple[str, ...]) -> dict[str, Any]:
@@ -190,6 +261,7 @@ class EvidenceLedger:
             "schema": LEDGER_SCHEMA,
             "base_sha": self.base_sha,
             "plan_hash": self.plan_hash,
+            "commit_sha": self.commit_sha,
             "claims": claims,
             "watcher": {
                 "revalidated": True,
@@ -197,3 +269,7 @@ class EvidenceLedger:
                 "failures": watcher_failures,
             },
         }
+
+    def watch(self, criterion_ids: list[str] | tuple[str, ...]) -> dict[str, Any]:
+        """Reread and rehash the ledger as an independent final success gate."""
+        return self.matrix(criterion_ids)

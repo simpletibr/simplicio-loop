@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
  * Configuração Playwright do starter.
  *
  * - Trace sempre ligado para auditoria de qualquer execução.
- * - Screenshots e vídeos só em falha (artefato menor em verde).
+ * - Screenshots, vídeos e traces são retidos também em sucesso para o evidence ledger.
  * - Reporters html/json/junit gerados em test-results/ para o gate de DoD.
  * - Projetos cobrindo Chromium, Firefox e WebKit (cross-browser baseline).
  */
@@ -33,10 +33,9 @@ export default defineConfig({
     // Base URL é opcional; sobrescreva via env BASE_URL.
     baseURL: process.env.BASE_URL,
     trace: 'on',
-    screenshot: 'only-on-failure',
-    // Evidence is screenshots-only for now: specs capture explicit PNGs.
-    // Flip to 'retain-on-failure' (or 'on') to re-enable video evidence.
-    video: 'off',
+    screenshot: 'on',
+    // Successful UI scenarios retain all required visual evidence.
+    video: 'on',
     actionTimeout: 10_000,
     navigationTimeout: 15_000,
   },
