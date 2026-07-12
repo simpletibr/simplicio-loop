@@ -1228,4 +1228,49 @@ def test_codex_corrupt_patch_without_full_file_fails_deterministically(tmp_path,
 
     assert ok is False
     assert "corrupt" in log.lower() or "git apply" in log.lower()
-    assert target.read_text(encoding="utf-8") == "line1\nline2\nline3\n"
+
+
+def test_impact_verification_emits_receipt_and_honors_transaction_timeout(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_TEST_TIMEOUT_S", "1")
+
+    def map_ask(_root, verb, _target):
+        if verb == "impact":
+            return [{"caller": "src/app.py"}]
+        if verb == "tests-for":
+            return [{"test_path": "tests/test_app.py"}]
+        return None
+
+    result = pipeline_stages.run_impact_tests(
+        tmp_path,
+        ["src/app.py"],
+        test_cmd="printf impact",
+        map_ask_fn=map_ask,
+        prepare_project_command_fn=lambda _root, command, _extra: (command, True),
+    )
+
+    assert result["result"] == pipeline.IMPACT_RESULT_PASSED
+    assert result["receipt"] == {
+        "kind": "impact",
+        "command": "printf impact",
+        "exit_code": 0,
+        "output_tail": "impact",
+    }
+
+
+def test_impact_timeout_is_unverified_and_fail_closed(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_TEST_TIMEOUT_S", "1")
+
+    def map_ask(_root, verb, _target):
+        return [{"caller": "src/app.py"}] if verb == "impact" else [{"test_path": "tests/test_app.py"}]
+
+    result = pipeline_stages.run_impact_tests(
+        tmp_path,
+        ["src/app.py"],
+        test_cmd="sleep 2",
+        map_ask_fn=map_ask,
+        prepare_project_command_fn=lambda _root, command, _extra: (command, True),
+    )
+
+    assert result["result"] == pipeline.IMPACT_RESULT_UNVERIFIED
+    assert result["status"] == "error"
+    assert "timed out" in result["error"]

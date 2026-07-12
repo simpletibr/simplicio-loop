@@ -206,14 +206,18 @@ def _task_result(
             "tests_run": impact.get("tests_run", []),
             "result": impact.get("result", IMPACT_RESULT_UNVERIFIED),
         }
-        receipt = {
-            "command": impact.get("command"),
-            "exit_code": impact.get("returncode"),
-            "output_tail": impact.get("output_tail", ""),
-            "status": impact.get("status"),
-        }
-        if any(value not in (None, "", []) for value in receipt.values()):
-            result["impact"]["receipt"] = receipt
+        receipt = impact.get("receipt")
+        if isinstance(receipt, dict):
+            result["impact"]["receipt"] = dict(receipt)
+        else:
+            receipt = {
+                "command": impact.get("command"),
+                "exit_code": impact.get("returncode"),
+                "output_tail": impact.get("output_tail", ""),
+                "status": impact.get("status"),
+            }
+            if any(value not in (None, "", []) for value in receipt.values()):
+                result["impact"]["receipt"] = receipt
         if impact.get("status") in ("ok", "passed"):
             result["impact"]["status"] = "verified"
         elif impact.get("status") in ("failed", "error"):

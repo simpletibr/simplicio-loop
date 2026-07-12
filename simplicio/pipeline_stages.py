@@ -193,7 +193,7 @@ def run_impact_tests(
             stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=_verification_timeout_seconds(),
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {
@@ -212,6 +212,12 @@ def run_impact_tests(
         "result": IMPACT_RESULT_PASSED if passed else IMPACT_RESULT_FAILED,
         "command": cmd_raw,
         "returncode": proc.returncode,
+        "receipt": {
+            "kind": "impact",
+            "command": cmd_raw,
+            "exit_code": proc.returncode,
+            "output_tail": (proc.stdout + proc.stderr)[-2000:],
+        },
         "output_tail": (proc.stdout + proc.stderr)[-2000:] if not passed else "",
     }
 
