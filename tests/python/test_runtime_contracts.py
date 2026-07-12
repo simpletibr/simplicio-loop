@@ -60,7 +60,7 @@ def test_version_cli_supports_text_and_json(monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
 
     assert cli.main(["--version"]) == 0
-    assert "simplicio-py 0.14.1" in capsys.readouterr().out
+    assert "simplicio-py 0.15.0" in capsys.readouterr().out
 
     assert cli.main(["version", "--json"]) == 0
     payload = json.loads(capsys.readouterr().out)
