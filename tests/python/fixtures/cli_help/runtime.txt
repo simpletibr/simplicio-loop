@@ -1,7 +1,9 @@
-usage: simplicio-py runtime [-h] {doctor} ...
+usage: simplicio-py runtime [-h] {doctor,verify} ...
 
 positional arguments:
-  {doctor}
+  {doctor,verify}
+    verify         verify the real reserved Simplicio Runtime identity and
+                   capabilities
 
 options:
-  -h, --help  show this help message and exit
+  -h, --help       show this help message and exit

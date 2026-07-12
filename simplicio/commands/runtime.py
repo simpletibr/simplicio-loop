@@ -14,7 +14,12 @@ CLI_PROG = "simplicio-py"
 
 
 def run(a: argparse.Namespace) -> int:
-    from ..runtime_contracts import doctor_contract
+    from ..runtime_contracts import doctor_contract, runtime_verify_contract
+
+    if a.runtime_cmd == "verify":
+        payload = runtime_verify_contract(timeout=a.timeout)
+        print(json.dumps(payload, sort_keys=True))
+        return 0 if payload["verified"] else 1
 
     if a.runtime_cmd == "doctor":
         payload = doctor_contract(a.root)

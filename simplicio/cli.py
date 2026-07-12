@@ -446,6 +446,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p_runtime_doctor = runtime_sub.add_parser("doctor")
     p_runtime_doctor.add_argument("--root", default=".")
     p_runtime_doctor.add_argument("--json", action="store_true")
+    p_runtime_verify = runtime_sub.add_parser(
+        "verify", help="verify the real reserved Simplicio Runtime identity and capabilities"
+    )
+    p_runtime_verify.add_argument("--timeout", type=int, default=30)
 
     p_memory = sub.add_parser(
         "memory", help="cross-vendor memory handoff (markdown + git under ~/.simplicio/memory)"

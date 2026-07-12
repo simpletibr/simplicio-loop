@@ -52,7 +52,13 @@ from pathlib import Path
 from typing import Any
 
 from simplicio.execution_contract import ContractCompilationError, compile_execution_contract
-from simplicio.runtime_contracts import RUNTIME_CAPABILITIES, RUNTIME_PRODUCT, RUNTIME_COMMAND
+from simplicio.runtime_contracts import (
+    RUNTIME_CAPABILITIES,
+    RUNTIME_COMMAND,
+    RUNTIME_PRODUCT,
+    validate_version_contract,
+    version_contract,
+)
 from simplicio.task_spec import SourceRef, TaskSpecValidationError, parse_task_document
 
 RESULTS_JSON = Path(__file__).resolve().parent / "results_release_gate.json"
@@ -426,6 +432,8 @@ def _classify_rejection(case: CorpusCase, error: str) -> str:
 def run_gate(cases: tuple[CorpusCase, ...] = CORPUS) -> dict[str, Any]:
     rows = [run_case(case) for case in cases]
     runtime = verify_runtime_identity()
+    version = version_contract()
+    version_problems = validate_version_contract(version)
     passed = sum(bool(row["outcome_ok"]) for row in rows)
     total = len(rows)
     expected_positive = sum(1 for c in cases if c.expected == "pass")
@@ -466,15 +474,23 @@ def run_gate(cases: tuple[CorpusCase, ...] = CORPUS) -> dict[str, Any]:
             "runtime_identity_verified": runtime["verified"],
         },
         "runtime_identity": runtime,
+        "version_contract": {
+            "schema": version.get("schema"),
+            "package": version.get("package"),
+            "valid": not version_problems,
+            "problems": version_problems,
+        },
         "release_gates": {
             "deterministic_corpus_complete": deterministic_complete,
             "field_preservation": field_preserved,
             "contract_execution_ready": contracts_ready,
+            "version_capability_contract": not version_problems,
             "runtime_identity_verified": runtime["verified"],
             "live_provider_matrix": False,
             "release_ready": deterministic_complete
             and field_preserved
             and contracts_ready
+            and not version_problems
             and runtime["verified"],
         },
         "missing_release_evidence": [
