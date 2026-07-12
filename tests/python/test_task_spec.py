@@ -9,6 +9,7 @@ import pytest
 from simplicio import pipeline
 from simplicio.cli import main
 from simplicio.commands import intake as intake_cmd
+from simplicio.commands import intake as intake_module
 from simplicio.task_spec import (
     TASK_SPEC_SCHEMA,
     SourceRef,
@@ -236,6 +237,63 @@ def test_file_input_supports_utf8_and_windows_encoding(tmp_path, capsys, encodin
     task = payload["task_spec"]["tasks"][0]
     assert task["functionality"] == "Revisão"
     assert task["source"]["encoding"] == ("utf-8" if encoding == "utf-8-sig" else "cp1252")
+
+
+def test_url_input_fetches_task_and_preserves_source_metadata(monkeypatch, capsys) -> None:
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, _limit):
+            return b"Funcionalidade: URL task\nTipo: Evolu\xe7\xe3o\n"
+
+    def fake_urlopen(request, *, timeout):
+        assert request.full_url == "https://example.invalid/task.md"
+        assert timeout == 10
+        return Response()
+
+    monkeypatch.setattr(intake_module, "urlopen", fake_urlopen)
+    code = intake_module.run(
+        ns(
+            text=None,
+            file=None,
+            stdin=False,
+            url="https://example.invalid/task.md",
+            source_url=None,
+            validate_only=True,
+            json=True,
+        )
+    )
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    task = payload["task_spec"]["tasks"][0]
+    assert task["functionality"] == "URL task"
+    assert task["source"]["kind"] == "url"
+    assert task["source"]["locator"] == "https://example.invalid/task.md"
+    assert task["source"]["encoding"] == "cp1252"
+
+
+def test_url_input_rejects_non_http_scheme(capsys) -> None:
+    code = intake_module.run(
+        ns(
+            text=None,
+            file=None,
+            stdin=False,
+            url="file:///tmp/task.md",
+            source_url=None,
+            validate_only=True,
+            json=True,
+        )
+    )
+
+    assert code == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["valid"] is False
+    assert "absolute http:// or https://" in payload["errors"][0]
 
 
 def test_cli_accepts_complete_task_without_target_criteria_or_stack(capsys) -> None:

@@ -1,7 +1,7 @@
 usage: simplicio-py intake [-h] [--root ROOT] [--file FILE] [--stdin]
-                           [--source-url SOURCE_URL] [--validate-only]
-                           [--contract] [--execution-mode] [--plan-only]
-                           [--batch-path BATCH_PATH] [--json]
+                           [--url URL] [--source-url SOURCE_URL]
+                           [--validate-only] [--contract] [--execution-mode]
+                           [--plan-only] [--batch-path BATCH_PATH] [--json]
                            [text]
 
 positional arguments:
@@ -12,6 +12,7 @@ options:
   --root ROOT           repository root used for plan-only mapper discovery
   --file FILE           read task Markdown/text from a file
   --stdin               read task Markdown/text from stdin
+  --url URL             fetch task Markdown/text from an HTTP(S) URL
   --source-url SOURCE_URL
                         preserve an external source URL without fetching it
   --validate-only       validate and wrap the TaskSpec in a validation result
