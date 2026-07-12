@@ -45,7 +45,7 @@ simplicio-py task "hide the Delete button for non-admins"
 - Classifies the task before execution so small fixes stay small and sprint-scale work becomes a plan.
 - Loads simplicio-mapper artifacts before asking an LLM to edit.
 - Keeps a verification loop around generated diffs instead of trusting the first answer.
-- Works with local Simplicio1, OpenRouter, OpenAI, Anthropic, DeepSeek, Hermes, Codex and Claude-style hosts.
+- Works with local Simplicio1, OpenRouter, OpenAI, Anthropic, DeepSeek, Simplicio Agent, Codex and Claude-style hosts.
 
 ## Por que este README foi feito para ganhar atenção
 
@@ -99,7 +99,7 @@ delivery status"]
 
 A secao abaixo recupera o README tecnico original do `simplicio-cli` antes da passada de globalizacao. Ela permanece em ingles quando a fonte original era ingles, para preservar benchmarks, comandos e nomes de modelos sem traducao acidental.
 
-**Your tasks with 99% accuracy using any LLM (Claude, DeepSeek, Codex, Gemini, Hermes, OpenClaw, Cursor).**
+**Your tasks with 99% accuracy using any LLM (Claude, DeepSeek, Codex, Gemini, Simplicio Agent, OpenClaw, Cursor).**
 
 [![PyPI](https://img.shields.io/pypi/v/simplicio-cli.svg)](https://pypi.org/project/simplicio-cli/)
 [![Python](https://img.shields.io/pypi/pyversions/simplicio-cli.svg)](https://pypi.org/project/simplicio-cli/)

@@ -422,7 +422,6 @@ $CliOpts = @(
   @{ Key="kimi";     Label="Kimi K2.6 (via aider --model openrouter/moonshotai/kimi-k2)";       Cmd="aider" },
   @{ Key="minimax";  Label="MiniMax M2.7 (via aider --model openrouter/minimax/minimax-text-01)"; Cmd="aider" },
   @{ Key="glm";      Label="GLM 5.1 (via aider --model openrouter/z-ai/glm-4.5)";               Cmd="aider" },
-  @{ Key="hermes";   Label="Hermes Agent (Nous Research)";                                      Cmd="hermes" },
   @{ Key="openclaw"; Label="OpenClaw";                                                          Cmd="openclaw" },
   @{ Key="aider";    Label="Aider (pick model interactively)";                                  Cmd="aider" },
   @{ Key="other";    Label="Other / manual (copy prompt to clipboard)";                         Cmd="" },
@@ -449,11 +448,11 @@ function Choose-Cli {
     Write-Host ("  [{0,2}] {1}{2}" -f ($i+1), $opt.Label, $mark)
   }
   Write-Host ""
-  $resp = Read-Host "Number [13]"
-  if ([string]::IsNullOrEmpty($resp)) { $resp = "13" }
+  $resp = Read-Host "Number [12]"
+  if ([string]::IsNullOrEmpty($resp)) { $resp = "12" }
   $idx = 0
-  if (-not [int]::TryParse($resp, [ref]$idx)) { $idx = 13 }
-  if ($idx -lt 1 -or $idx -gt $CliOpts.Count) { $idx = 13 }
+  if (-not [int]::TryParse($resp, [ref]$idx)) { $idx = 12 }
+  if ($idx -lt 1 -or $idx -gt $CliOpts.Count) { $idx = 12 }
   return $CliOpts[$idx-1].Key
 }
 
@@ -526,13 +525,6 @@ switch ($CliChoice) {
   "glm" {
     Require-Cmd "aider" "pipx install aider-chat"
     & aider --model openrouter/z-ai/glm-4.5 --message $InitPrompt
-    exit $LASTEXITCODE
-  }
-  "hermes" {
-    Require-Cmd "hermes" "https://github.com/NousResearch/hermes-agent"
-    Copy-ToClipboard $InitPrompt | Out-Null
-    Write-Host "(prompt copied to clipboard as fallback)"
-    & hermes $InitPrompt
     exit $LASTEXITCODE
   }
   "openclaw" {

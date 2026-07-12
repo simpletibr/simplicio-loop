@@ -53,7 +53,7 @@ Python consumers can expose the bundled mapper dependency directly with
 - Classifies the task before execution so small fixes stay small and sprint-scale work becomes a plan.
 - Loads simplicio-mapper artifacts before asking an LLM to edit.
 - Keeps a verification loop around generated diffs instead of trusting the first answer.
-- Works with local Simplicio1, OpenRouter, OpenAI, Anthropic, DeepSeek, Hermes, Codex and Claude-style hosts.
+- Works with local Simplicio1, OpenRouter, OpenAI, Anthropic, DeepSeek, Simplicio Agent, Codex and Claude-style hosts.
 
 ## Why this README is built to earn attention
 
@@ -112,7 +112,7 @@ delivery status"]
 
 The section below restores the project-specific README material that existed before the globalization pass. Keep this substance when refreshing the top-level narrative: add polish, do not erase operational memory.
 
-**Your tasks with 99% accuracy using any LLM (Claude, DeepSeek, Codex, Gemini, Hermes, OpenClaw, Cursor).**
+**Your tasks with 99% accuracy using any LLM (Claude, DeepSeek, Codex, Gemini, Simplicio Agent, OpenClaw, Cursor).**
 
 [![PyPI](https://img.shields.io/pypi/v/simplicio-cli.svg)](https://pypi.org/project/simplicio-cli/)
 [![Python](https://img.shields.io/pypi/pyversions/simplicio-cli.svg)](https://pypi.org/project/simplicio-cli/)

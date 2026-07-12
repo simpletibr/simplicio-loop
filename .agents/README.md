@@ -13,7 +13,7 @@ Padrão `.agents/` é lido por:
 - **GitHub Copilot Coding Agent** (workspace agents) — espelhado em `.github/copilot/agents/` por compat.
 - **Cursor** (via referência manual ou regra `.cursor/rules/`).
 - **Aider** (referenciado via `--read .agents/<arquivo>`).
-- **Claude Code / Codex / Hermes / OpenClaw** (lidos como contexto adicional pelo `AGENTS.md` master).
+- **Claude Code / Codex / Simplicio Agent / OpenClaw** (lidos como contexto adicional pelo `AGENTS.md` master).
 
 Cada ferramenta resolve seu próprio caminho, mas todos convergem no conteúdo de `.agents/`.
 
@@ -104,6 +104,6 @@ CI pode automatizar a sincronização via hook `pre-commit` se preferir manter u
 | Aider | qualquer (`--read`) | Carrega via flag |
 | Claude Code | `.claude/agents/` (opcional) ou contexto manual | Lê via `AGENTS.md` |
 | Codex CLI | contexto manual | Lê via `AGENTS.md` |
-| Hermes / OpenClaw | `AGENTS.md` master | Lê via `AGENTS.md` |
+| Simplicio Agent / OpenClaw | `AGENTS.md` master | Lê via `AGENTS.md` |
 
 `.agents/` é o ponto de verdade. Outros caminhos são adaptadores.

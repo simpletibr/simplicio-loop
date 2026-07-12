@@ -70,7 +70,7 @@ Dono / mantenedor: Wesley Simplicio.
 - **Cobertura maior sem inchaço.** Tasks fora do code-gen (review, refactor amplo, análise, arquitetura) ficam com ferramentas que já fazem isso bem — não precisa reimplementar.
 - **Trocabilidade.** Substituir `simplicio` por `aider`, `copilot`, edit direto, ou outro gerador é uma linha no agent spec. Substituir `ralph-loop` por `santa-loop` / `/goal` / autopilot idem.
 - **Benchmark estável.** Como não mexemos no CLI, `bench/results.md` permanece reproduzível com as mesmas versões.
-- **Adesão ao padrão `AGENTS.md`** — agent spec é lido por Claude Code, Codex, Copilot, Hermes, OpenClaw, Cursor, Aider igual.
+- **Adesão ao padrão `AGENTS.md`** — agent spec é lido por Claude Code, Codex, Copilot, Simplicio Agent, OpenClaw, Cursor, Aider igual.
 - **Manutenção barata.** Spec markdown é texto; não há código novo de orquestração pra manter.
 
 ### Negativas (-)
