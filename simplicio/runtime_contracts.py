@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import shutil
+import subprocess
 from importlib import metadata
 from pathlib import Path
 from typing import Any
@@ -27,6 +29,27 @@ RUNTIME_CAPABILITIES = [
     "simplicio.dev-cli.task-batch/v1",
     "simplicio.prompt-envelope/v1",
 ]
+
+
+def validate_version_contract(payload: dict[str, Any]) -> list[str]:
+    """Return actionable diagnostics for a malformed/incompatible handshake."""
+    problems: list[str] = []
+    if payload.get("schema") != "simplicio.dev-cli.version/v1":
+        problems.append("version contract schema must be simplicio.dev-cli.version/v1")
+    identity = payload.get("identity")
+    if not isinstance(identity, dict) or identity.get("product") != DEV_CLI_PRODUCT:
+        problems.append(f"expected product {DEV_CLI_PRODUCT!r}, not an agent/runtime binary")
+    entrypoints = payload.get("entrypoints")
+    if not isinstance(entrypoints, dict) or entrypoints.get("reserved_runtime") != RUNTIME_COMMAND:
+        problems.append(f"runtime command must remain reserved as {RUNTIME_COMMAND!r}")
+    capabilities = payload.get("capabilities")
+    if not isinstance(capabilities, list):
+        problems.append("capabilities must be a JSON list")
+    else:
+        missing = sorted(set(RUNTIME_CAPABILITIES) - set(capabilities))
+        if missing:
+            problems.append(f"missing capabilities: {', '.join(missing)}")
+    return problems
 
 
 def version_contract() -> dict[str, Any]:
@@ -66,6 +89,56 @@ def version_contract() -> dict[str, Any]:
             },
         },
         "dependencies": {"simplicio-mapper": mapper},
+    }
+
+
+def runtime_verify_contract(*, timeout: int = 30) -> dict[str, Any]:
+    """Probe the real reserved runtime without silently falling back."""
+    binary = shutil.which(RUNTIME_COMMAND)
+    base = {
+        "schema": "simplicio.dev-cli.runtime-verify/v1",
+        "expected_product": RUNTIME_PRODUCT,
+        "binary": binary,
+    }
+    if binary is None:
+        return {**base, "verified": False, "reason": "runtime-binary-not-found", "capabilities": []}
+    try:
+        completed = subprocess.run(
+            [binary, "runtime", "smoke", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {**base, "verified": False, "reason": f"runtime-probe-failed: {exc}", "capabilities": []}
+    try:
+        response = json.loads(completed.stdout or "{}")
+    except json.JSONDecodeError:
+        response = {}
+    product = str(response.get("runtime", ""))
+    names = sorted(
+        str(check.get("name", ""))
+        for check in response.get("checks", [])
+        if isinstance(check, dict) and check.get("name")
+    )
+    missing = sorted(cap for cap in RUNTIME_CAPABILITIES if not any(cap in name for name in names))
+    if product != RUNTIME_PRODUCT:
+        reason = "wrong-runtime-product"
+    elif response.get("status") != "passed":
+        reason = "runtime-status-failed"
+    elif missing:
+        reason = "capability-handshake-missing"
+    elif completed.returncode != 0:
+        reason = "runtime-probe-nonzero"
+    else:
+        reason = "ok"
+    return {
+        **base,
+        "verified": reason == "ok",
+        "reason": reason,
+        "product": product or None,
+        "capabilities": names,
+        "missing_capabilities": missing,
     }
 
 
