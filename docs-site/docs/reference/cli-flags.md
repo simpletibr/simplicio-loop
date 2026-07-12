@@ -11,7 +11,7 @@ sidebar_position: 1
 | `-f, --force` | Overwrite starter template files. **Never** touches user instruction files (`AGENTS.md`, `CLAUDE.md`, `INIT.md`, `.github/copilot-instructions.md`, `.gitignore`) |
 | `--update` | Safe update mode for an existing overlay: force starter files, leave `.gitignore` untouched, skip handoff |
 | `--dry-run` | Print actions without writing |
-| `--cli <key>` | Pick CLI for `INIT.md` handoff: `claude`, `codex`, `copilot`, `cursor`, `deepseek`, `kimi`, `minimax`, `glm`, `hermes`, `openclaw`, `aider`, `other`, `skip` |
+| `--cli <key>` | Pick CLI for `INIT.md` handoff: `claude`, `codex`, `copilot`, `cursor`, `deepseek`, `kimi`, `minimax`, `glm`, `simplicio-agent`, `hermes`, `openclaw`, `aider`, `other`, `skip` (note: `hermes` is a deprecated alias of `simplicio-agent`) |
 | `--append-gitignore <yes\|no>` | Append recommended ignores to `.gitignore` |
 | `--skip-meta` | Do not write `.starter-meta.json` |
 | `--silent` | Minimal output |

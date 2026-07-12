@@ -5,7 +5,7 @@
 > Você é o **agente de inicialização**. O humano acabou de rodar `./bootstrap.sh` (ou `pwsh ./bootstrap.ps1`, ou `npx llm-project-mapper init`).
 > Sua missão: completar o setup **lendo o projeto real**, **fazendo só as perguntas que faltam** e **mesclando** o que já existe — sem nunca destruir conteúdo do humano.
 >
-> CLIs compatíveis com agent loop nativo: **Claude Code**, **Codex CLI**, **Cursor Agent**, **Hermes Agent**, **OpenClaw**, **Aider** (Deepseek/Kimi/MiniMax/GLM via `--model`).
+> CLIs compatíveis com agent loop nativo: **Claude Code**, **Codex CLI**, **Cursor Agent**, **Simplicio Agent** (consumidor canônico do ContextSnapshot produzido pelo mapper), **Hermes Agent** (alias depreciado), **OpenClaw**, **Aider** (Deepseek/Kimi/MiniMax/GLM via `--model`).
 > Sem agent loop nativo (cole prompt manualmente): **GitHub Copilot CLI**.
 
 ---

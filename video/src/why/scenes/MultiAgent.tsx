@@ -16,7 +16,7 @@ const AGENTS = [
   "Copilot",
   "Cursor",
   "Aider",
-  "Hermes",
+  "Simplicio Agent",
 ];
 
 export const MultiAgent: React.FC = () => {

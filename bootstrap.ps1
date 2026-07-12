@@ -546,7 +546,8 @@ $CliOpts = @(
   @{ Key="kimi";     Label="Kimi K2.6 (via aider --model openrouter/moonshotai/kimi-k2)";       Cmd="aider" },
   @{ Key="minimax";  Label="MiniMax M2.7 (via aider --model openrouter/minimax/minimax-text-01)"; Cmd="aider" },
   @{ Key="glm";      Label="GLM 5.1 (via aider --model openrouter/z-ai/glm-4.5)";               Cmd="aider" },
-  @{ Key="hermes";   Label="Hermes Agent (Nous Research)";                                      Cmd="hermes" },
+  @{ Key="simplicio-agent"; Label="Simplicio Agent (canonical consumer of the mapper)";       Cmd="simplicio-agent" },
+  @{ Key="hermes";   Label="Hermes Agent (Nous Research) - deprecated alias of Simplicio Agent"; Cmd="hermes" },
   @{ Key="openclaw"; Label="OpenClaw";                                                          Cmd="openclaw" },
   @{ Key="aider";    Label="Aider (pick model interactively)";                                  Cmd="aider" },
   @{ Key="other";    Label="Other / manual (copy prompt to clipboard)";                         Cmd="" },
@@ -653,10 +654,18 @@ switch ($CliChoice) {
     exit $LASTEXITCODE
   }
   "hermes" {
+    Write-Warning "[deprecated] 'hermes' is a deprecated alias of 'simplicio-agent' (Simplicio Agent). Use 'simplicio-agent' instead. The alias is retained for compatibility and will be removed after a release window."
     Require-Cmd "hermes" "https://github.com/NousResearch/hermes-agent"
     Copy-ToClipboard $InitPrompt | Out-Null
     Write-Host "(prompt copied to clipboard as fallback)"
     & hermes $InitPrompt
+    exit $LASTEXITCODE
+  }
+  "simplicio-agent" {
+    Require-Cmd "simplicio-agent" "https://github.com/wesleysimplicio/simplicio-agent"
+    Copy-ToClipboard $InitPrompt | Out-Null
+    Write-Host "(prompt copied to clipboard as fallback)"
+    & simplicio-agent $InitPrompt
     exit $LASTEXITCODE
   }
   "openclaw" {

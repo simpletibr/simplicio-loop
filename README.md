@@ -150,7 +150,7 @@ The section below restores the project-specific README material that existed bef
 >
 > The npm package name `@wesleysimplicio/llm-project-mapper` is intentionally retained for historical npm consumers (see #87, formalized in [ADR-006](.specs/architecture/ADR-006-package-identity-channels.md) / issue #160). It is **not** a deprecated package — it remains the only way to run the starter scaffolder. Only its bundled copy of the *mapper engine* (`map`/`update`) is a fallback for Python-less hosts; new mapper engine features land on PyPI's `simplicio-mapper` first (see the "Install matrix" section above).
 
-AI-friendly, stack-neutral repository scaffold. Drop it into **any** project — new or existing — and any agent CLI (Claude Code, Codex, Cursor, GitHub Copilot, Aider with Deepseek/Kimi/MiniMax/GLM, Hermes, OpenClaw) gets the context it needs to ship work the same day.
+AI-friendly, stack-neutral repository scaffold. Drop it into **any** project — new or existing — and any agent CLI (Claude Code, Codex, Cursor, GitHub Copilot, Aider with Deepseek/Kimi/MiniMax/GLM, Simplicio Agent, OpenClaw) gets the context it needs to ship work the same day.
 
 > Starter pack, not a framework. Ships structure, instructions, process. Stack is yours.
 
@@ -415,7 +415,7 @@ npx @wesleysimplicio/llm-project-mapper --dry-run --yes
 | `-f, --force` | Overwrite starter template files. **Never** touches user instruction files (`AGENTS.md`, `CLAUDE.md`, `INIT.md`, `.github/copilot-instructions.md`, `.gitignore`) |
 | `--update` | Safe update mode for an existing overlay: force starter files, leave `.gitignore` untouched, skip handoff |
 | `--dry-run` | Print actions without writing |
-| `--cli <key>` | Pick CLI for `INIT.md` handoff: `claude`, `codex`, `copilot`, `cursor`, `deepseek`, `kimi`, `minimax`, `glm`, `hermes`, `openclaw`, `aider`, `other`, `skip` |
+| `--cli <key>` | Pick CLI for `INIT.md` handoff: `claude`, `codex`, `copilot`, `cursor`, `deepseek`, `kimi`, `minimax`, `glm`, `simplicio-agent`, `hermes`, `openclaw`, `aider`, `other`, `skip` (note: `hermes` is a deprecated alias of `simplicio-agent`) |
 | `--append-gitignore <yes\|no>` | Append recommended ignores to `.gitignore` |
 | `--skip-meta` | Do not write `.starter-meta.json` |
 | `--silent` | Minimal output |
@@ -500,11 +500,12 @@ After scaffolding and auto-mapping, the bootstrap can optionally launch a CLI/LL
 | 6 | **Kimi K2.6** (via Aider, OpenRouter) | yes | `pip install aider-chat` |
 | 7 | **MiniMax M2.7** (via Aider, OpenRouter) | yes | `pip install aider-chat` |
 | 8 | **GLM 5.1** (via Aider, OpenRouter) | yes | `pip install aider-chat` |
-| 9 | **Hermes Agent** (Nous Research) | yes | <https://github.com/NousResearch> |
-| 10 | **OpenClaw** | yes | <https://github.com/openclaw> |
-| 11 | **Aider** (pick model interactively) | yes | `pip install aider-chat` |
-| 12 | Other / manual (clipboard) | — | — |
-| 13 | Skip — run `INIT.md` later | — | — |
+| 9 | **Simplicio Agent** (canonical integrator) | yes | <https://github.com/wesleysimplicio/simplicio-agent> |
+| 10 | **Hermes Agent** (Nous Research) — *deprecated alias of Simplicio Agent* | yes | <https://github.com/NousResearch> |
+| 11 | **OpenClaw** | yes | <https://github.com/openclaw> |
+| 12 | **Aider** (pick model interactively) | yes | `pip install aider-chat` |
+| 13 | Other / manual (clipboard) | — | — |
+| 14 | Skip — run `INIT.md` later | — | — |
 
 For Copilot CLI (no native agent loop), the bootstrap copies the prompt to your clipboard (`pbcopy` on macOS, `xclip`/`wl-copy` on Linux, `clip.exe` on Windows/WSL) and you paste it into Copilot Chat.
 

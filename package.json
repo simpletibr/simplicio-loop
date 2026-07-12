@@ -1,7 +1,7 @@
 {
   "name": "@wesleysimplicio/llm-project-mapper",
   "version": "0.22.0",
-  "description": "AI-friendly project scaffold with AGENTS.md ecosystem (Claude Code, Codex, Copilot, Cursor, Aider, Hermes, OpenClaw). Specs as code, atomic tasks, automated Definition of Done, reusable skills, multi-agent ready.",
+  "description": "AI-friendly project scaffold with AGENTS.md ecosystem (Claude Code, Codex, Copilot, Cursor, Aider, Simplicio Agent, OpenClaw). Specs as code, atomic tasks, automated Definition of Done, reusable skills, multi-agent ready. Canonical consumer/integrator of the produced ContextSnapshot is Simplicio Agent.",
   "type": "commonjs",
   "bin": {
     "llm-project-mapper": "bin/cli.js",
@@ -54,8 +54,9 @@
     "copilot",
     "cursor",
     "aider",
-    "hermes",
     "openclaw",
+    "simplicio-agent",
+    "hermes",
     "scaffold",
     "starter",
     "bootstrap",

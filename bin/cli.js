@@ -267,7 +267,8 @@ const CLI_OPTS = [
   { key: 'kimi',     label: 'Kimi K2.6 (via aider --model openrouter/moonshotai/kimi-k2)',       cmd: 'aider' },
   { key: 'minimax',  label: 'MiniMax M2.7 (via aider --model openrouter/minimax/minimax-text-01)', cmd: 'aider' },
   { key: 'glm',      label: 'GLM 5.1 (via aider --model openrouter/z-ai/glm-4.5)',               cmd: 'aider' },
-  { key: 'hermes',   label: 'Hermes Agent (Nous Research)',                                      cmd: 'hermes' },
+  { key: 'simplicio-agent', label: 'Simplicio Agent (canonical consumer of the mapper)',        cmd: 'simplicio-agent' },
+  { key: 'hermes',   label: 'Hermes Agent (Nous Research) — deprecated alias of Simplicio Agent', cmd: 'hermes' },
   { key: 'openclaw', label: 'OpenClaw',                                                          cmd: 'openclaw' },
   { key: 'aider',    label: 'Aider (pick model interactively)',                                  cmd: 'aider' },
   { key: 'other',    label: 'Other / manual (copy prompt to clipboard)',                         cmd: '' },
@@ -443,7 +444,8 @@ OPTIONS
   --mcp-edge                  Create mcp/server.ts and mcp/server.py edge adapters
   --skip-meta                 Do not write .starter-meta.json
   --cli <key>                 Pick CLI for INIT.md handoff (claude|codex|copilot|cursor|
-                              deepseek|kimi|minimax|glm|hermes|openclaw|aider|other|skip)
+                              deepseek|kimi|minimax|glm|simplicio-agent|hermes|openclaw|aider|other|skip)
+                              Note: 'hermes' is a deprecated alias of 'simplicio-agent'.
   --append-gitignore <yes|no> Append recommended ignores to .gitignore (or create it)
   --preset <name>             Stack hint recorded in .starter-meta.json for INIT.md to use
                               (nextjs|dotnet|fastapi|go|rails|flutter). Use "--preset list"
@@ -1225,6 +1227,14 @@ function requireCmd(cmd, hint) {
   }
 }
 
+function warnDeprecatedAlias(legacy, canonical) {
+  // Once-per-process stderr warning (issue #209). Never emit to stdout/JSON.
+  if (global.__simplicio_deprecation_warned) return;
+  global.__simplicio_deprecation_warned = true;
+  err(`[deprecated] '${legacy}' is a deprecated alias of '${canonical}' (Simplicio Agent). ` +
+      `Use '--cli simplicio-agent' instead. The alias is retained for compatibility and will be removed after a release window.`);
+}
+
 function handoff(cliChoice) {
   log('');
   log('==========================================');
@@ -1263,10 +1273,16 @@ function handoff(cliChoice) {
       requireCmd('aider', 'pipx install aider-chat');
       return execHandoff('aider', ['--model', 'openrouter/z-ai/glm-4.5', '--message', INIT_PROMPT]);
     case 'hermes':
+      warnDeprecatedAlias('hermes', 'simplicio-agent');
       requireCmd('hermes', 'https://github.com/NousResearch/hermes-agent');
       copyToClipboard(INIT_PROMPT);
       log('(prompt copied to clipboard as fallback)');
       return execHandoff('hermes', [INIT_PROMPT]);
+    case 'simplicio-agent':
+      requireCmd('simplicio-agent', 'https://github.com/wesleysimplicio/simplicio-agent');
+      copyToClipboard(INIT_PROMPT);
+      log('(prompt copied to clipboard as fallback)');
+      return execHandoff('simplicio-agent', [INIT_PROMPT]);
     case 'openclaw':
       requireCmd('openclaw', 'npm install -g openclaw@latest');
       copyToClipboard(INIT_PROMPT);

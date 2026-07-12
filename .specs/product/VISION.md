@@ -7,7 +7,7 @@ quando a tese mudar; registrar versão anterior em ADR antes de reescrever.
 
 ## Problema
 
-Agentes de coding (Claude Code, Codex, Copilot, Cursor, Aider, Hermes) abrem
+Agentes de coding (Claude Code, Codex, Copilot, Cursor, Aider, Simplicio Agent) abrem
 qualquer repo sem contexto e gastam tokens redescobrindo a arquitetura, o
 naming, os entry points e os precedents toda execução. Em projetos médios e
 grandes, isso vira:
