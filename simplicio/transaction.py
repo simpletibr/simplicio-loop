@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -90,6 +91,10 @@ def sha256_file(path: Path) -> str:
 def _relative(path: str | os.PathLike[str]) -> str:
     value = str(path).replace("\\", "/")
     candidate = Path(value)
+    # pathlib follows the host OS; reject Windows drive/UNC paths explicitly
+    # so a Windows absolute path cannot become a relative POSIX path.
+    if re.match(r"^[A-Za-z]:", value) or value.startswith("//"):
+        raise UnsafePathError(f"absolute path is outside transaction scope: {path}")
     if candidate.is_absolute() or value.startswith("/"):
         raise UnsafePathError(f"absolute path is outside transaction scope: {path}")
     parts = [part for part in value.split("/") if part not in ("", ".")]

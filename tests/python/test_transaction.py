@@ -88,7 +88,18 @@ def test_promotion_ignores_unrelated_worktree_changes(tmp_path):
     assert (tmp_path / "notes.md").read_text(encoding="utf-8") == "updated draft\n"
 
 
-@pytest.mark.parametrize("relative", ["../escape.txt", "C:/escape.txt", "/tmp/escape.txt", ""])
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "../escape.txt",
+        "C:/escape.txt",
+        r"C:\\escape.txt",
+        r"\\server\share\escape.txt",
+        "C:relative.txt",
+        "/tmp/escape.txt",
+        "",
+    ],
+)
 def test_paths_cannot_escape_root(tmp_path, relative):
     tx = begin_transaction(tmp_path, dirty_policy="preserve")
     with pytest.raises(UnsafePathError):
