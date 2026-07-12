@@ -35,7 +35,7 @@ def run(a: argparse.Namespace) -> int:
             print(f"{CLI_PROG} memory store: {payload['path']} (committed={payload['committed']})")
         return 0
     if a.memory_cmd == "recall":
-        results = recall_memory(a.query, limit=a.limit, root=a.dir)
+        results = recall_memory(a.query, limit=a.limit, root=a.dir, mode=a.mode)
         if a.json:
             print(json.dumps({"results": results}, sort_keys=True))
         else:

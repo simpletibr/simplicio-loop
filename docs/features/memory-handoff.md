@@ -2,16 +2,18 @@
 
 ## Goal
 
-Entregar um slice real e determinístico da issue #89 sem depender de `ai-memory`
-ou HRM em Rust: armazenamento markdown+git, recall por keywords, auditoria da
-store e pacote de handoff entre agentes.
+Entregar um backend local, real e determinístico inspirado no `ai-memory`: armazenamento
+markdown+git, índice SQLite FTS5, ranking lexical/vectorial híbrido, auditoria HRM
+estrutural e pacote de handoff entre agentes. O Markdown continua sendo a fonte de
+verdade; nenhum modelo ou serviço externo é necessário.
 
 ## User Flow
 
 1. `simplicio-py memory init --dir <path>` cria `README.md` e `notes/`.
 2. `simplicio-py memory store "<topic>" "<content>"` anexa uma entrada append-only.
-3. `simplicio-py memory validate --json` audita integridade da store.
-4. `simplicio-py memory handoff "<query>" --from-agent codex --to-agent claude --json`
+3. `simplicio-py memory recall "<query>" --mode fts5|vector|hybrid` consulta o índice.
+4. `simplicio-py memory validate --json` audita integridade da store e do índice.
+5. `simplicio-py memory handoff "<query>" --from-agent codex --to-agent claude --json`
    gera um pacote determinístico com resultados do recall + status de validação.
 
 ## Main Files
@@ -24,10 +26,12 @@ store e pacote de handoff entre agentes.
 
 ## Business Rules
 
-- O slice atual é **Zero-LLM**: sem embeddings, sem rede, sem FTS5.
+- O backend é **Zero-LLM**: o modo `fts5` usa SQLite FTS5 e `vector` usa um vetor
+  lexical hashado estável; `hybrid` combina os dois scores.
 - `validate` só verifica invariantes locais da store; não afirma integração HRM externa.
 - `handoff` é derivado de `recall` + `validate`, então permanece determinístico e reproduzível.
-- Se integração com repositórios Rust externos for exigida, o estado correto é blocker explícito.
+- A integração é compatível por contrato e não shella um daemon Rust: isso mantém
+  instalação sem dependência nova e permite qualquer cliente consumir os arquivos.
 
 ## Test Scenarios
 
@@ -37,5 +41,7 @@ store e pacote de handoff entre agentes.
 
 ## Known Risks
 
-- Recall ainda é lexical; ranking semântico/FTS5 híbrido continua fora deste slice.
+- O vetor local é uma aproximação lexical determinística, não um embedding neural
+  treinado. Um modelo Rust/embedding externo pode ser adicionado atrás do mesmo
+  contrato sem alterar o formato Markdown.
 - `git` segue best-effort e nunca bloqueia a store.
