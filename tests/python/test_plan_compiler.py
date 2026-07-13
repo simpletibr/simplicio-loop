@@ -3,6 +3,7 @@ import pytest
 from simplicio.plan_compiler import (
     EFFECT_PLAN_SCHEMA,
     EffectPlan,
+    GoalEnvelope,
     PlanDAG,
     PlanNode,
     PlanValidationError,
@@ -205,3 +206,54 @@ def test_plan_dag_round_trip() -> None:
     restored = PlanDAG.from_dict(plan.to_dict())
     assert restored == plan
     assert restored.canonical_hash() == plan.canonical_hash()
+
+
+def test_goal_envelope_round_trip() -> None:
+    envelope = GoalEnvelope(
+        goal_id="goal-1",
+        revision="1",
+        context_snapshot_id="snap-1",
+        text="do the thing",
+        acceptance_criteria=["AC1"],
+        producer_id="simplicio-agent",
+        consumer_id="simplicio-dev-cli",
+    )
+    payload = envelope.to_dict()
+    assert payload["producer_id"] == "simplicio-agent"
+    assert GoalEnvelope.from_dict(payload) == envelope
+
+
+def test_goal_envelope_defaults_producer_and_consumer_id() -> None:
+    envelope = GoalEnvelope(
+        goal_id="goal-1",
+        revision="1",
+        context_snapshot_id="snap-1",
+        text="do the thing",
+    )
+    assert envelope.producer_id == ""
+    assert envelope.consumer_id == ""
+
+
+def test_validate_accepts_registered_consumer_id() -> None:
+    plan = PlanDAG(
+        plan_id="plan-1",
+        goal_id="goal-1",
+        context_snapshot_id="snap-1",
+        revision="1",
+        nodes=[],
+        consumer_id="simplicio-runtime",
+    )
+    plan.validate()
+
+
+def test_validate_rejects_unregistered_consumer_id() -> None:
+    plan = PlanDAG(
+        plan_id="plan-1",
+        goal_id="goal-1",
+        context_snapshot_id="snap-1",
+        revision="1",
+        nodes=[],
+        consumer_id="some-other-runtime",
+    )
+    with pytest.raises(PlanValidationError):
+        plan.validate()
