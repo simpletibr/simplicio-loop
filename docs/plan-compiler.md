@@ -210,3 +210,85 @@ execution instead of running them locally, and retiring the duplicate
 control-plane/retry logic (feature/sprint, global retry, operational
 memory) in favor of the `PlanDAG` are tracked as later slices of issue
 #166.
+
+## Control-plane ownership inventory (retry / feature-sprint scheduling)
+
+Issue #166's step 0 ("Caracterizar o pipeline atual") and step 5 ("Remover
+control plane duplicado") ask for an explicit map of every retry loop and
+feature/sprint scheduling call site before any of it can be migrated to the
+Runtime/Loop policy layer. This section is that map, current as of this
+slice. It is deliberately scoped to *retry and scheduling ownership* — the
+"zero-write outside the Effect API" half of step 5 is a separate, larger
+effort tracked against the Runtime's own Effect API (#3134/#3135) and is
+**not** covered here.
+
+### Retry-loop call sites
+
+| Owner | File:line | Attempts | Overridable today? | Notes |
+|---|---|---|---|---|
+| `pipeline.run_task` | `simplicio/pipeline.py:53,495-496` | `MAX_ATTEMPTS = 5` | **No** (before this slice) — now `SIMPLICIO_MAX_ATTEMPTS` (see below) | Innermost, most-invoked retry loop: generate → apply → test → static-fixer → retry, feeding back a validation diff each attempt. |
+| `orchestrator.feature.run_feature` | `simplicio/orchestrator/feature.py:76,104-182` | `max_iter = 3` (constructor default) replans, each replan re-running the *entire remaining task list* through `run_plan_task` | Yes — `max_iter` is a function parameter (CLI-controlled) | This is feature/sprint scheduling, not the AC's `run_task` loop, but it fully wraps `run_task` — see multiplication risk below. |
+| `scratch.planner.generate_plan` | `simplicio/scratch/planner.py:23,148-165` | `PLANNER_MAX_RETRIES = 3` (+1 first attempt) | Yes — `SIMPLICIO_PLANNER_MAX_RETRIES` env var already exists | Already follows the pattern this slice adds to `pipeline.run_task`; used as the precedent for the fix below. |
+| `orchestrator.multi_task.TaskBatch.drain` | `simplicio/orchestrator/multi_task.py:326-434` | **None** — `_executor_outcome` only accepts `{"passed", "blocked"}`, both terminal (`TERMINAL = {"passed", "blocked"}`); a blocked card is never automatically re-attempted by the batch itself | N/A | Confirms the batch scheduler is *already* single-atomic-attempt per card at its own layer — the duplication risk lives one layer down, inside whatever `executor` callback it is given (typically `run_task`/`run_feature`), not in `TaskBatch` itself. |
+
+### Feature/sprint scheduling call sites
+
+| File:line | Role |
+|---|---|
+| `simplicio/orchestrator/feature.py:71-196` (`run_feature`) | Owns feature-scope planning: generates a task plan, orders it, runs each task, and replans the *whole remaining plan* (not just the failed task) on failure, up to `max_iter` times. This is scheduling logic living in Dev CLI, matching the issue's "feature/sprint... se sobrepõem ao Loop e ao Runtime" complaint. Not migrated to `PlanDAG` in this slice — that migration is the literal AC #166 step 5.1 and is a large, separate effort (planning + replanning semantics need a `PlanDAG`-shaped replacement, not just a call-site swap). |
+| `simplicio/orchestrator/multi_task.py` (`TaskBatch`) | Owns cross-task DAG state (dependencies, resumability, parallel drain), but — per the table above — does **not** itself retry; it hands each ready card to an injected `executor` exactly once per round and treats the result as terminal. |
+| `simplicio/scratch/executor.py` (`execute_plan`, `_execute_one_task`) | Owns scratch/scaffold-mode task iteration (topological order, codegen-vs-LLM fallback); calls `run_task` at most once per task, no internal retry of its own. |
+
+### Double-retry risk: is it real, and where
+
+The concrete multiplication risk is **`pipeline.run_task`'s internal
+`MAX_ATTEMPTS` loop being invoked from inside an already-retrying caller**:
+
+- `simplicio-py task` (`simplicio/commands/task.py`) invokes `run_task` directly as
+  the CLI's single "atomic command" surface a host loop (e.g. simplicio-loop)
+  is expected to call once per its own retry/replan iteration. Before this
+  slice, every such invocation always ran up to 5 internal attempts with no
+  way to opt out, so an external loop that retries N times on failure would
+  produce `N × 5` total generate/apply/test attempts for what the external
+  loop believes is `N` attempts — a real duplication, not a hypothetical one.
+- `orchestrator.feature.run_feature` compounds this further for feature
+  scope: each of its `max_iter` replans re-runs every remaining task through
+  `run_task`, so a single `simplicio-py run --feature` invocation with default
+  settings could already trigger up to `3 × 5 = 15` generate attempts per
+  task before any external loop layer even gets involved.
+- `scratch.planner.generate_plan`, by contrast, already exposes
+  `SIMPLICIO_PLANNER_MAX_RETRIES` — an external caller that wants a single
+  planner attempt can already ask for it. `pipeline.run_task` had no
+  equivalent lever, which was the concrete, fixable gap.
+
+### What this slice changes (and what it deliberately does not)
+
+`pipeline.run_task` now reads an optional `SIMPLICIO_MAX_ATTEMPTS` env var
+(`simplicio/pipeline.py:_resolve_max_attempts`) and uses it instead of the
+hardcoded `MAX_ATTEMPTS` module constant when present. Setting
+`SIMPLICIO_MAX_ATTEMPTS=1` makes a single `run_task` invocation perform at
+most one atomic generate/apply/test attempt and return its classified
+observation — the exact behavior AC #166 step 5.3 asks for — for any caller
+(host loop, CI, `simplicio-py task`) that already owns its own retry policy
+and wants to opt out of Dev CLI's internal one. When the env var is unset,
+behavior is byte-for-byte unchanged (`MAX_ATTEMPTS = 5`, same as before).
+
+This is intentionally narrow. It does **not**:
+
+- Migrate `orchestrator.feature.run_feature`'s replan loop or
+  `orchestrator.multi_task.TaskBatch` scheduling to `PlanDAG` (AC #166 step
+  5.1) — that requires the compiled `PlanDAG`/`EffectPlan` to actually be the
+  thing an execution loop walks, which depends on the wiring work described
+  in "Scope of this slice" above (not yet done) and on the Runtime side of
+  #3134/#3135.
+- Change the default behavior for standalone use in any way.
+- Attempt to make Dev CLI "return a classified observation without starting
+  a new strategy" (AC #166 step 5.4) for `run_feature`'s replan loop — that
+  loop's replanning *is* a new strategy by design and removing it is exactly
+  the larger migration this slice does not attempt.
+
+Net: this slice closes the "no lever to prevent multiplication" gap for the
+single most duplicated retry loop (`pipeline.run_task`) and leaves the
+feature/sprint scheduler migration — the larger and riskier half of AC
+#166's "Retry global, feature/sprint scheduler e operational memory deixam
+de ter dois owners ativos" — open and explicitly documented as such.
