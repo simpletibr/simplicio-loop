@@ -56,6 +56,10 @@ class TaskAwareHandoffTest(unittest.TestCase):
         self.assertIn("matched_terms", selection["targets"][0]["relevance_reason"])
         self.assertFalse(selection["targets"][0]["recent_change_boost"])
         self.assertFalse(selection["abstained"])
+        self.assertIn("fidelity", selection)
+        self.assertIn("token_budget_fit", selection)
+        self.assertIn("score_components", selection["targets"][0])
+        self.assertIn("reason_codes", selection["targets"][0])
 
     def test_no_task_vocabulary_abstains_explicitly(self) -> None:
         selection = select_context_targets(
@@ -79,6 +83,17 @@ class TaskAwareHandoffTest(unittest.TestCase):
         self.assertEqual(included["target_resolution"]["status"], "included")
         self.assertEqual(missing["target_resolution"]["status"], "missing")
         self.assertIn("does not exist", missing["target_resolution"]["reason"])
+
+    def test_docs_query_can_select_docs_conditionally(self) -> None:
+        selection = select_context_targets(
+            str(self.root),
+            self.project_map,
+            goal="Update release notes documentation for dependency packaging",
+            limit=1,
+        )
+
+        self.assertEqual(selection["targets"][0]["path"], "docs/release-notes.md")
+        self.assertFalse(selection["abstained"])
 
     def test_query_changes_pack_hash_and_emits_relevance_metadata(self) -> None:
         selection = select_context_targets(
@@ -114,6 +129,9 @@ class TaskAwareHandoffTest(unittest.TestCase):
         self.assertNotEqual(first["pack_hash"], second["pack_hash"])
         self.assertIn("relevance_score", first["files"][0])
         self.assertIn("relevance_reason", first["files"][0])
+        self.assertIn("reason_codes", first["files"][0])
+        self.assertIn("serialization_budget", first)
+        self.assertIn("fidelity", first)
         self.assertFalse(first["needs_broader_context"])
         self.assertEqual(first["recent_changes"], [])
 
@@ -156,6 +174,30 @@ class TaskAwareHandoffTest(unittest.TestCase):
         self.assertTrue(pack["needs_broader_context"])
         self.assertIn("query coverage", pack["needs_broader_context_reason"])
         self.assertLess(pack["query_coverage"]["ratio"], 0.5)
+
+    def test_declared_serialized_output_budget_sets_broader_context(self) -> None:
+        pack = build_context_pack(
+            str(self.root),
+            [{
+                "path": "src/modeling/sort_lines.py",
+                "relevance_score": 1.0,
+                "relevance_reason": "explicit_target; matched_terms=structural",
+                "matched_terms": ["structural"],
+                "recent_change_boost": False,
+                "score_components": {"explicit_target": 5.0},
+                "reason_codes": ["explicit_target", "matched_terms=structural"],
+            }],
+            project_map=self.project_map,
+            symbol_index={"symbols": []},
+            call_graph={"edges": []},
+            goal="Keep the serialized output budget 10 tokens",
+            task_intent={"additional_information": ["serialized output budget 10"]},
+            query_terms=["structural"],
+        )
+
+        self.assertTrue(pack["needs_broader_context"])
+        self.assertFalse(pack["serialization_budget"]["within_budget"])
+        self.assertIn("serialized_output", pack["needs_broader_context_reason"])
 
 
 class TaskAwareHandoffEngineTest(unittest.TestCase):

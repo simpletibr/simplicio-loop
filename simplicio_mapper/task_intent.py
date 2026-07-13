@@ -11,6 +11,7 @@ import json
 import re
 import unicodedata
 from copy import deepcopy
+from collections.abc import Mapping
 from typing import Any
 
 TASK_INTENT_SCHEMA = "simplicio.task-intent/v1"
@@ -59,6 +60,11 @@ _IMPACT = {
 _RULE_REF = re.compile(r"\bRN\d+\b", re.IGNORECASE)
 _MARKDOWN_REF = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 _URL = re.compile(r"https?://\S+")
+_BUDGET_HINTS = (
+    re.compile(r"\b(?:serialized|seriali[sz]ed|output|context)\s+(?:token\s+)?budget\s*(?:[:=]|of|is|within|under|<=)?\s*(\d{2,6})\b", re.IGNORECASE),
+    re.compile(r"\btoken\s+budget\s*(?:[:=]|of|is|within|under|<=)?\s*(\d{2,6})\b", re.IGNORECASE),
+    re.compile(r"\bwithin\s+(\d{2,6})\s+tokens\b", re.IGNORECASE),
+)
 
 
 def _text(value: Any) -> str:
@@ -108,6 +114,66 @@ def _identifier(value: Any, prefix: str, index: int) -> str:
 def canonical_json(value: Any) -> str:
     """Return deterministic UTF-8-safe JSON text."""
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _flatten_strings(value: Any) -> list[str]:
+    if isinstance(value, str):
+        return [_text(value)] if _text(value) else []
+    if isinstance(value, Mapping):
+        chunks: list[str] = []
+        for key in sorted(value, key=str):
+            if key in {"fingerprint", "schema"}:
+                continue
+            chunks.extend(_flatten_strings(value[key]))
+        return chunks
+    if isinstance(value, (list, tuple, set)):
+        chunks: list[str] = []
+        for item in value:
+            chunks.extend(_flatten_strings(item))
+        return chunks
+    return []
+
+
+def extract_task_context_settings(
+    *,
+    goal: str = "",
+    task_intent: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Extract deterministic task-context hints without changing the v1 schema.
+
+    This keeps `parse_task_intent()` backward compatible while still allowing
+    the task-aware handoff path to honor inline budget directives such as
+    "serialized output budget 120" or "within 300 tokens".
+    """
+    text = "\n".join([goal, *_flatten_strings(task_intent or {})])
+    budget: int | None = None
+    for pattern in _BUDGET_HINTS:
+        match = pattern.search(text)
+        if match:
+            budget = int(match.group(1))
+            break
+    return {
+        "serialized_output_token_budget": budget,
+        "budget_declared": budget is not None,
+    }
+
+
+def build_task_query_plan(
+    *,
+    goal: str = "",
+    task_intent: Mapping[str, Any] | None = None,
+    target: str = "",
+    query_terms: list[str] | None = None,
+) -> dict[str, Any]:
+    """Return the normalized retrieval query plan used by task-aware selection."""
+    from .retrieval_index import build_query_plan
+
+    return build_query_plan(
+        goal,
+        task_intent=task_intent,
+        target=target,
+        query_terms=query_terms,
+    ).to_dict()
 
 
 def _scenario(value: Any, index: int) -> dict[str, Any]:
@@ -397,7 +463,9 @@ normalize_task_intent = parse_task_intent
 __all__ = [
     "TASK_CONTEXT_SCHEMA",
     "TASK_INTENT_SCHEMA",
+    "build_task_query_plan",
     "canonical_json",
+    "extract_task_context_settings",
     "normalize_task_intent",
     "parse_task_intent",
 ]
