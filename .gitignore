@@ -68,6 +68,14 @@ Thumbs.db
 .simplicio/cache/
 .simplicio/index-state.json
 .simplicio/index.lock
+.simplicio/runs/
+.simplicio/ops/
+.simplicio/worktrees/
+.simplicio/loop-runs/
+.orchestrator/loop/
+.orchestrator/runs/
+.orchestrator/worktrees/
+.claude/worktrees/
 .simplicio/history/
 
 # Claude / Codex (estado local, não vai pro repo)
