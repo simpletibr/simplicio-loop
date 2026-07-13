@@ -53,7 +53,7 @@ classifiers = [
 # (generated, `--check`-able) for the full graph and #99 for the audit.
 dependencies = [
   "numpy>=2.1.0",
-  "simplicio-mapper>=0.23.0",
+  "simplicio-mapper>=0.19.0",
   "simplicio-prompt>=1.14.1",
   "httpx>=0.28.1",
   "orjson>=3.11.9",

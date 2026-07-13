@@ -2,14 +2,18 @@
 
 ## [0.16.0] — 2026-07-12
 
+### Fixed
+- Corrected the `simplicio-mapper` dependency floor back to `>=0.19.0` (#166): a `>=0.23.0` bump landed in this release citing a "correlated mapper release" that was never published to PyPI (latest published release remains `0.19.0`), reintroducing the same drift already fixed once in `0.15.0`. No code in this repo depends on 0.20+-only mapper behavior.
+
 ### Changed
-- Raised the `simplicio-mapper` dependency floor to `>=0.23.0` after the correlated mapper release (v0.23.0).
 - Consolidated the plan-compiler N-1 compat adapter, trace_id verifiability, and deterministic PlanDAG compile merged in this wave.
 
 ## [0.15.0] — 2026-07-12
 
+### Fixed
+- Corrected the `simplicio-mapper` dependency floor back to `>=0.19.0` (#166): the prior `>=0.22.0` bump referenced a mapper release that was never published to PyPI (latest published release is `0.19.0`), which broke clean installs (`pip install -e ".[dev]"` could not resolve). No code in this repo depends on 0.20+-only mapper behavior.
+
 ### Changed
-- Raised the `simplicio-mapper` dependency floor to `>=0.22.0` after the correlated mapper release.
 - Consolidated the verified task, evidence, transaction, intake, memory, and runtime-contract improvements merged in this wave.
 
 ## [0.14.1] — 2026-07-11
