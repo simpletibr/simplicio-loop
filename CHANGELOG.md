@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.0] — 2026-07-12
+
+### Changed
+- Raised the `simplicio-mapper` dependency floor to `>=0.23.0` after the correlated mapper release (v0.23.0).
+- Consolidated the plan-compiler N-1 compat adapter, trace_id verifiability, and deterministic PlanDAG compile merged in this wave.
+
 ## [0.15.0] — 2026-07-12
 
 ### Changed
