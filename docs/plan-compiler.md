@@ -80,6 +80,28 @@ through `to_dict()`/`from_dict()` exactly like `producer_id`/`consumer_id` —
 a caller-supplied cost ceiling survives compile, serialize and reload
 unchanged, the same way `goal_id`/`plan_id`/`revision` already do.
 
+## Tracing an acceptance criterion to its verifier and evidence
+
+`VerificationPlan` already carries everything needed to answer "what proves
+AC X passed": `verifier`, `command_or_capability`, `timeout_s` and
+`expected_evidence` (plus `acceptance_criteria_refs`, the field `validate()`
+uses to reject an uncovered AC). `PlanDAG.verifications_for_acceptance_criterion()`
+is the lookup that makes this traceable per-AC instead of only "coverage
+exists":
+
+```python
+matches = plan.verifications_for_acceptance_criterion("AC1", verifications)
+matches[0].verifier                 # e.g. "pytest"
+matches[0].command_or_capability     # e.g. "pytest -q tests/test_ac1.py"
+matches[0].expected_evidence          # e.g. ["pytest-junit.xml"]
+```
+
+It takes the same `verifications` bundle passed to `validate()` and returns
+every `VerificationPlan` whose `acceptance_criteria_refs` includes the given
+AC id — `[]` for an AC with no coverage (a state `validate()` rejects when
+`verifications=` is passed to it, so this mainly surfaces on a bundle that
+hasn't been validated yet, or during debugging of *why* validation failed).
+
 ## Compiling a TaskSpec
 
 `compile_task_spec_to_plan()` deterministically compiles an existing
