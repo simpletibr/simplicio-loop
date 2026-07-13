@@ -269,6 +269,7 @@ class PlanDAG:
     producer_id: str = ""
     consumer_id: str = ""
     budget: float | None = None
+    trace_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -281,12 +282,14 @@ class PlanDAG:
             "producer_id": self.producer_id,
             "consumer_id": self.consumer_id,
             "budget": self.budget,
+            "trace_id": self.trace_id,
         }
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> PlanDAG:
         _check_schema(payload, expected=PLAN_DAG_SCHEMA)
         raw_budget = payload.get("budget")
+        raw_trace_id = payload.get("trace_id")
         return cls(
             plan_id=str(payload["plan_id"]),
             goal_id=str(payload["goal_id"]),
@@ -296,6 +299,7 @@ class PlanDAG:
             producer_id=str(payload.get("producer_id", "")),
             consumer_id=str(payload.get("consumer_id", "")),
             budget=float(raw_budget) if raw_budget is not None else None,
+            trace_id=str(raw_trace_id) if raw_trace_id is not None else None,
         )
 
     def canonical_hash(self) -> str:

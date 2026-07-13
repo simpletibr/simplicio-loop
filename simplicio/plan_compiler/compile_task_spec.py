@@ -55,6 +55,7 @@ def compile_task_spec_to_plan(
     context_snapshot_id: str,
     revision: str,
     budget: float | None = None,
+    trace_id: str | None = None,
 ) -> tuple[PlanDAG, list[EffectPlan], list[VerificationPlan]]:
     """Compile ``task_spec`` into a validated ``(PlanDAG, effects, verifications)``.
 
@@ -70,6 +71,12 @@ def compile_task_spec_to_plan(
     against the summed ``estimated_cost`` of every node) so a caller-supplied
     cost ceiling survives the compile step observably, the same way
     ``goal_id``/``revision`` already do.
+
+    ``trace_id``, when passed, is stored on the compiled ``PlanDAG`` and
+    round-trips through ``to_dict()``/``from_dict()`` unchanged, the same way
+    ``goal_id``/``revision``/``budget`` already do -- closing the previously
+    documented Golden E2E gap (issue #166 AC "Golden E2E preserva trace_id,
+    goal_id, plan_id, revision e budget").
     """
     diagnostics: list[str] = []
     if not task_spec.acceptance_criteria:
@@ -109,6 +116,7 @@ def compile_task_spec_to_plan(
         revision=revision,
         nodes=[edit_node, verify_node],
         budget=budget,
+        trace_id=trace_id,
     )
 
     effects = [
