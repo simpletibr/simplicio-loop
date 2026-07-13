@@ -80,6 +80,12 @@ through `to_dict()`/`from_dict()` exactly like `producer_id`/`consumer_id` —
 a caller-supplied cost ceiling survives compile, serialize and reload
 unchanged, the same way `goal_id`/`plan_id`/`revision` already do.
 
+`PlanDAG` also carries an optional `trace_id: str | None = None` field
+(default `None`, additive per the compatibility contract above) that
+round-trips through `to_dict()`/`from_dict()` the same way — a caller-supplied
+tracing correlation id survives compile, serialize and reload unchanged, the
+same way `goal_id`/`plan_id`/`revision`/`budget` already do.
+
 ## Tracing an acceptance criterion to its verifier and evidence
 
 `VerificationPlan` already carries everything needed to answer "what proves
@@ -117,6 +123,7 @@ plan, effects, verifications = compile_task_spec_to_plan(
     context_snapshot_id="snap-1",
     revision="1",
     budget=100.0,  # optional; defaults to None
+    trace_id="trace-1",  # optional; defaults to None
 )
 ```
 
@@ -129,14 +136,12 @@ passes `PlanDAG.validate(effects=..., verifications=...)`. It raises
 the TaskSpec has no acceptance criteria or no verification commands. Same
 TaskSpec + same ids/revision always yields the same
 `plan.canonical_hash()`. `goal_id`, `plan_id` (derived as
-`f"plan-{task_spec.task_id}"`), `revision` and the optional `budget` all
-survive the compile unchanged and observable on the returned `PlanDAG` — see
-`tests/python/test_plan_compiler_golden_e2e.py` for the golden E2E that
-locks this in (issue #166 AC "Golden E2E preserva trace_id, goal_id,
-plan_id, revision e budget"). `trace_id` is out of scope for that AC today:
-it is not a field anywhere in `GoalEnvelope`/`ContextSnapshot`/`TaskSpec`/
-`PlanDAG`, so there is nothing for this compiler to preserve yet — see the
-test module docstring for the full reasoning.
+`f"plan-{task_spec.task_id}"`), `revision`, the optional `budget` and the
+optional `trace_id` all survive the compile unchanged and observable on the
+returned `PlanDAG` — see `tests/python/test_plan_compiler_golden_e2e.py` for
+the golden E2E that locks this in (issue #166 AC "Golden E2E preserva
+trace_id, goal_id, plan_id, revision e budget"), now fully closed: all five
+fields are real, typed and round-trip through `to_dict()`/`from_dict()`.
 
 ## N-1 compatibility adapter (issue #167 slice 11/23)
 
