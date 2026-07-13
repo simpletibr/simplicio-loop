@@ -63,14 +63,29 @@ simplicio-py task "hide the Delete button for non-admins"
 
 ```mermaid
 flowchart LR
-  task["decided task"] --> mapper["simplicio-mapper
-repo context"]
-  mapper --> operator["simplicio-dev-cli
-focused operator"]
-  operator --> diff["bounded diff"]
-  operator --> tests["tests"]
-  diff --> receipt["evidence receipt"]
+  task(["decided task"])
+  subgraph context["CONTEXT"]
+    mapper["simplicio-mapper<br/>repo context + precedent"]
+  end
+  subgraph execution["EXECUTION"]
+    operator["simplicio-dev-cli<br/>focused operator"]
+    diff["bounded diff"]
+    tests["tests"]
+  end
+  subgraph proof["PROOF"]
+    receipt[("evidence receipt")]
+  end
+  task --> mapper --> operator
+  operator --> diff
+  operator --> tests
+  diff --> receipt
   tests --> receipt
+  classDef input fill:#13233f,stroke:#79d8ff,color:#ffffff
+  classDef action fill:#102e2a,stroke:#48e0ae,color:#ffffff
+  classDef proofNode fill:#3a244e,stroke:#ffb86b,color:#ffffff
+  class task input
+  class mapper,operator,diff,tests action
+  class receipt proofNode
 ```
 
 ## 증거와 검증
