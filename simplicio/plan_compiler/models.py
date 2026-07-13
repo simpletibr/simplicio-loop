@@ -83,6 +83,8 @@ class GoalEnvelope:
     text: str
     acceptance_criteria: list[str] = field(default_factory=list)
     constraints: dict[str, Any] = field(default_factory=dict)
+    producer_id: str = ""
+    consumer_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -93,6 +95,8 @@ class GoalEnvelope:
             "text": self.text,
             "acceptance_criteria": self.acceptance_criteria,
             "constraints": self.constraints,
+            "producer_id": self.producer_id,
+            "consumer_id": self.consumer_id,
         }
 
     @classmethod
@@ -105,6 +109,8 @@ class GoalEnvelope:
             text=str(payload["text"]),
             acceptance_criteria=list(payload.get("acceptance_criteria", [])),
             constraints=dict(payload.get("constraints", {})),
+            producer_id=str(payload.get("producer_id", "")),
+            consumer_id=str(payload.get("consumer_id", "")),
         )
 
 
@@ -260,6 +266,8 @@ class PlanDAG:
     context_snapshot_id: str
     revision: str
     nodes: list[PlanNode] = field(default_factory=list)
+    producer_id: str = ""
+    consumer_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -269,6 +277,8 @@ class PlanDAG:
             "context_snapshot_id": self.context_snapshot_id,
             "revision": self.revision,
             "nodes": [node.to_dict() for node in self.nodes],
+            "producer_id": self.producer_id,
+            "consumer_id": self.consumer_id,
         }
 
     @classmethod
@@ -280,6 +290,8 @@ class PlanDAG:
             context_snapshot_id=str(payload["context_snapshot_id"]),
             revision=str(payload["revision"]),
             nodes=[PlanNode.from_dict(node) for node in payload.get("nodes", [])],
+            producer_id=str(payload.get("producer_id", "")),
+            consumer_id=str(payload.get("consumer_id", "")),
         )
 
     def canonical_hash(self) -> str:
@@ -313,6 +325,12 @@ class PlanDAG:
 
         if not diagnostics and self._has_cycle():
             diagnostics.append("PlanDAG contains a dependency cycle")
+
+        if self.consumer_id and self.consumer_id not in PLAN_COMPILER_COMPATIBILITY["consumers"]:
+            diagnostics.append(
+                f"consumer_id {self.consumer_id!r} is not a registered consumer "
+                f"(expected one of {sorted(PLAN_COMPILER_COMPATIBILITY['consumers'])})"
+            )
 
         if budget is not None:
             total_cost = sum(node.estimated_cost for node in self.nodes)

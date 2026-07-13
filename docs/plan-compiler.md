@@ -52,6 +52,13 @@ a major version; consumers should reject a `schema` string whose major
 doesn't match what they expect via `SchemaMismatchError`, raised by every
 `from_dict()` when the `schema` field mismatches.
 
+`GoalEnvelope` and `PlanDAG` both carry optional `producer_id`/`consumer_id`
+fields (default `""`, so existing callers are unaffected — additive per the
+compatibility contract above). When a `PlanDAG.consumer_id` is set,
+`validate()` rejects it unless it appears in
+`PLAN_COMPILER_COMPATIBILITY["consumers"]`, so a plan can't silently target a
+runtime this contract doesn't know about.
+
 ## Validation
 
 `PlanDAG.validate()` always rejects duplicate node ids, orphan `depends_on`
