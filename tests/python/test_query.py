@@ -129,6 +129,7 @@ class PrecedentVerbTest(unittest.TestCase):
             mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
             mock.patch("simplicio_mapper.query._validated_runtime_binary", return_value=(True, "validated")),
             mock.patch("simplicio_mapper.query.subprocess.run", return_value=completed) as run_mock,
+            mock.patch("simplicio_mapper.query.build_artifacts", side_effect=AssertionError("should stay artifact-lazy")),
         ):
             payload = run_query(str(self.dir), verb="precedent", arg="route")
 
@@ -137,10 +138,45 @@ class PrecedentVerbTest(unittest.TestCase):
         self.assertEqual(payload["total"], 1)
         self.assertEqual(payload["results"][0]["precedent_id"], "p1")
         self.assertEqual(payload["results"][0]["reuse_level"], "high")
+        self.assertEqual(payload["cache"]["receipt"]["outcome"], "bypass")
         called_argv = run_mock.call_args[0][0]
         self.assertEqual(called_argv[0], "/usr/local/bin/simplicio")
         self.assertIn("--text", called_argv)
         self.assertIn("route", called_argv)
+
+    def test_native_impact_success_stays_artifact_lazy(self) -> None:
+        native_payload = {
+            "schema": ASK_SCHEMA,
+            "results": {"affected_symbols": [], "affected_flows": [], "needs_review": []},
+            "total": 0,
+        }
+        with (
+            mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
+            mock.patch("simplicio_mapper.query._validated_runtime_binary", return_value=(True, "validated")),
+            mock.patch(
+                "simplicio_mapper.query.subprocess.run",
+                return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout=json.dumps(native_payload)),
+            ),
+            mock.patch("simplicio_mapper.query.build_artifacts", side_effect=AssertionError("should stay artifact-lazy")),
+        ):
+            payload = run_query(str(self.dir), verb="impact", arg="src/api/routes.py")
+        self.assertEqual(payload["source"], "runtime-ask-impact")
+        self.assertEqual(payload["cache"]["receipt"]["outcome"], "bypass")
+
+    def test_native_tests_for_success_stays_artifact_lazy(self) -> None:
+        native_payload = {"schema": ASK_SCHEMA, "results": ["tests/test_routes.py"], "total": 1}
+        with (
+            mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
+            mock.patch("simplicio_mapper.query._validated_runtime_binary", return_value=(True, "validated")),
+            mock.patch(
+                "simplicio_mapper.query.subprocess.run",
+                return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout=json.dumps(native_payload)),
+            ),
+            mock.patch("simplicio_mapper.query.build_artifacts", side_effect=AssertionError("should stay artifact-lazy")),
+        ):
+            payload = run_query(str(self.dir), verb="tests-for", arg="src/api/routes.py")
+        self.assertEqual(payload["source"], "runtime-ask-tests-for")
+        self.assertEqual(payload["cache"]["receipt"]["outcome"], "bypass")
 
     def test_fallback_to_local_tag_overlap_when_binary_absent(self) -> None:
         with mock.patch("simplicio_mapper.query.shutil.which", return_value=None):
@@ -207,6 +243,19 @@ class PrecedentVerbTest(unittest.TestCase):
             self.assertEqual(payload["source"], "local-tag-overlap")
             self.assertEqual(payload["results"], [])
             self.assertEqual(payload["total"], 0)
+
+    def test_local_precedent_second_identical_request_hits_persisted_cache(self) -> None:
+        with mock.patch("simplicio_mapper.query.shutil.which", return_value=None):
+            first = run_query(str(self.dir), verb="precedent", arg="route")
+        self.assertEqual(first["cache"]["receipt"]["outcome"], "miss")
+        with (
+            mock.patch("simplicio_mapper.query.shutil.which", return_value=None),
+            mock.patch("simplicio_mapper.query.build_artifacts", side_effect=AssertionError("cache hit should skip artifacts")),
+        ):
+            second = run_query(str(self.dir), verb="precedent", arg="route")
+        self.assertEqual(second["source"], "local-tag-overlap")
+        self.assertEqual(second["cache"]["receipt"]["outcome"], "hit")
+        self.assertTrue(second["cache"]["diagnostics"]["present"])
 
 
 if __name__ == "__main__":
