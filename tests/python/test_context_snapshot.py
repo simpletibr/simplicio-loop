@@ -105,6 +105,8 @@ class ContextSnapshotTest(unittest.TestCase):
         d = graph.to_dict()
         scales = {n["scale"] for n in d["nodes"]}
         self.assertTrue({"micro", "meso", "macro"} <= scales)
+        self.assertTrue(d["drilldown"]["reversible"])
+        self.assertIn("micro", d["scale_semantics"])
         # every node carries a content hash + reversible source handle
         for node in d["nodes"]:
             self.assertTrue(node["content_hash"])
@@ -125,6 +127,16 @@ class ContextSnapshotTest(unittest.TestCase):
         kinds = {e["kind"] for e in d["edges"]}
         self.assertIn("calls", kinds)
         self.assertIn("member_of", kinds)
+        self.assertIn("defined_in", kinds)
+
+    def test_snapshot_carries_freshness_fidelity_and_drilldown_metadata(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        snap = build_context_snapshot("/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai)
+        self.assertIn("freshness", snap)
+        self.assertIn("artifact_hashes", snap["freshness"])
+        self.assertEqual(snap["fidelity"]["status"], "complete")
+        self.assertTrue(snap["drilldown"]["reversible"])
+        self.assertEqual(snap["scale_semantics"]["macro"]["kinds"], ["adr", "subsystem"])
 
     def test_from_package_resolves_shipped_schema(self):
         schema = from_package("simplicio.context-snapshot/v1")

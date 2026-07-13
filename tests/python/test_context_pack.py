@@ -49,6 +49,9 @@ class ContextPackBasicTest(unittest.TestCase):
         self.assertEqual(len(pack["pack_hash"]), 64)
         self.assertEqual(len(pack["files"]), 1)
         self.assertEqual(pack["files"][0]["language"], "python")
+        self.assertIn("freshness", pack)
+        self.assertIn("fidelity", pack)
+        self.assertIn("scales", pack)
 
     def test_multi_language_fixtures(self) -> None:
         pack = _pack(str(FIXTURE), [
@@ -73,6 +76,7 @@ class RangeExtractionTest(unittest.TestCase):
         self.assertEqual(len(ranges), 1)
         self.assertEqual(len(ranges[0]["range_hash"]), 64)
         self.assertTrue(ranges[0]["snippet"])
+        self.assertTrue(pack["files"][0]["drilldown"]["reversible"])
 
     def test_unstable_range_marks_needs_broader_context(self) -> None:
         pack = _pack(str(FIXTURE), [{"path": "sample.py", "ranges": [(1, 9999)]}])
@@ -94,6 +98,8 @@ class CallGraphAndDependencyTest(unittest.TestCase):
         entry = pack["files"][0]
         self.assertEqual(entry["imports"], ["shared/util.py"])
         self.assertEqual(entry["callers"], ["caller.py"])
+        self.assertIn("micro", entry["scale_context"])
+        self.assertIn("macro", entry["scale_context"])
 
     def test_tests_resolved_from_project_map(self) -> None:
         project_map = {"files": [
@@ -132,6 +138,11 @@ class DeterminismTest(unittest.TestCase):
         second = _pack(str(FIXTURE), targets)
         self.assertEqual(first["pack_hash"], second["pack_hash"])
         self.assertEqual(first, second)
+
+    def test_fidelity_marks_partial_when_broader_context_needed(self) -> None:
+        pack = _pack(str(FIXTURE), [{"path": "does-not-exist.py"}])
+        self.assertEqual(pack["fidelity"]["status"], "partial")
+        self.assertTrue(pack["fidelity"]["reasons"])
 
 
 class LargeFileCompactModeTest(unittest.TestCase):

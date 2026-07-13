@@ -172,6 +172,12 @@ class ContextGraph:
                 "meso": sum(1 for n in nodes if n["scale"] == "meso"),
                 "macro": sum(1 for n in nodes if n["scale"] == "macro"),
             },
+            "scale_semantics": _scale_semantics(),
+            "drilldown": {
+                "reversible": True,
+                "node_source_field": "source",
+                "edge_source_field": "source_handle",
+            },
         }
 
 
@@ -182,6 +188,43 @@ class ContextGraph:
 _MICRO_KINDS = {"symbol", "span"}
 _MESO_KINDS = {"module", "flow", "file"}
 _MACRO_KINDS = {"subsystem", "adr"}
+
+
+def _scale_semantics() -> dict[str, dict[str, Any]]:
+    return {
+        "micro": {
+            "kinds": sorted(_MICRO_KINDS),
+            "summary": "symbol- and span-level anchors used for reversible drill-down",
+        },
+        "meso": {
+            "kinds": sorted(_MESO_KINDS),
+            "summary": "file/module/flow relationships that stitch local behavior together",
+        },
+        "macro": {
+            "kinds": sorted(_MACRO_KINDS),
+            "summary": "subsystem and ADR level structure for coarse-grained navigation",
+        },
+    }
+
+
+def _artifact_fingerprint(payload: Mapping[str, Any] | None) -> str:
+    return _canonical_hash(payload or {})
+
+
+def _default_fidelity(omissions: list[str], graph_dict: Mapping[str, Any]) -> dict[str, Any]:
+    counts = dict(graph_dict.get("counts", {}))
+    return {
+        "status": "partial" if omissions else "complete",
+        "gate": "needs_broader_context" if omissions else "ready",
+        "omissions": list(omissions),
+        "coverage": {
+            "addressable_nodes": counts.get("nodes", 0),
+            "addressable_edges": counts.get("edges", 0),
+            "micro": counts.get("micro", 0),
+            "meso": counts.get("meso", 0),
+            "macro": counts.get("macro", 0),
+        },
+    }
 
 
 def build_context_graph(
@@ -223,6 +266,19 @@ def build_context_graph(
             },
             source=handle,
         )
+        if defined_in:
+            graph.add_edge(
+                kind="defined_in",
+                source_id=f"symbol:{symbol.get('qualified_name') or symbol.get('name')}",
+                target_id=f"file:{defined_in}",
+                content={
+                    "symbol": symbol.get("qualified_name") or symbol.get("name"),
+                    "defined_in": defined_in,
+                    "line": line,
+                },
+                source=handle,
+                confidence=1.0,
+            )
 
     # -- meso: files + modules ------------------------------------------
     for file_entry in project_map.get("files", []):
@@ -262,6 +318,21 @@ def build_context_graph(
                 "modules": layer.get("modules", []),
             },
             source=source_handle(f"layer:{name}"),
+        )
+    for adr in architecture_inventory.get("adrs", []):
+        adr_id = adr.get("id") or adr.get("path") or adr.get("title") or ""
+        if not adr_id:
+            continue
+        graph.add_node(
+            "macro",
+            f"adr:{adr_id}",
+            content={
+                "id": adr.get("id"),
+                "title": adr.get("title"),
+                "status": adr.get("status"),
+                "path": adr.get("path"),
+            },
+            source=source_handle(adr.get("path") or f"adr:{adr_id}"),
         )
 
     # -- edges: calls/imports (causal) ----------------------------------
@@ -365,6 +436,19 @@ def build_context_snapshot(
     graph_dict = graph.to_dict()
 
     repository_id = project_map.get("product", {}).get("name") or os.path.basename(abs_root)
+    freshness = {
+        "root_hash": root_hash,
+        "artifact_hashes": {
+            "project_map": _artifact_fingerprint(project_map),
+            "symbol_index": _artifact_fingerprint(symbol_index),
+            "call_graph": _artifact_fingerprint(call_graph),
+            "architecture_inventory": _artifact_fingerprint(architecture_inventory),
+        },
+        "source_count": len(sorted(source_set or [f["path"] for f in project_map.get("files", [])])),
+        "graph_hash": _canonical_hash(graph_dict),
+    }
+    fidelity_payload = _default_fidelity(omissions, graph_dict)
+    fidelity_payload.update(dict(fidelity or {}))
 
     payload: dict[str, Any] = {
         "schema": CONTEXT_SNAPSHOT_SCHEMA,
@@ -382,6 +466,12 @@ def build_context_snapshot(
         "exclusions": sorted(exclusions or []),
         "reason_codes": dict(reason_codes or {}),
         "graph": graph_dict,
+        "scale_semantics": _scale_semantics(),
+        "drilldown": {
+            "reversible": True,
+            "preferred_order": ["macro", "meso", "micro"],
+            "source_handle_contract": {"node": "source", "edge": "source_handle"},
+        },
         "task": {
             "query": task_query,
             "selection_policy": selection_policy,
@@ -389,7 +479,8 @@ def build_context_snapshot(
             "omissions": omissions,
         },
         "confidence": dict(confidence or {}),
-        "fidelity": dict(fidelity or {"status": "not_evaluated", "gate": "pending"}),
+        "fidelity": fidelity_payload,
+        "freshness": freshness,
         "generated_at": _now_iso(),
         "needs_broader_context": bool(omissions),
     }
