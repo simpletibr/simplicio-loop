@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-07-12
+
+### Added
+
+- Incremental Merkle DAG + change journal for context identity (issue #208, Step 2).
+- Context snapshot schema, identity and CLI (issue #208, Step 1 — AC 1-2).
+- Simplicio Agent as canonical mapper consumer; hermes kept as deprecated alias (issue #209).
+
 ## [0.22.0] - 2026-07-12
 
 ### Added
