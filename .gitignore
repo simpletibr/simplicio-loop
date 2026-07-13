@@ -120,6 +120,8 @@ docs/**
 !docs/toon-benchmark.md
 !docs/asolaria-integration.md
 !docs/toon-autoresearch-log.md
+!docs/issue-208-ac08-evaluation.md
+!docs/issue-208-ac08-evaluation.json
 scripts/**
 !scripts/build_hamt.py
 !scripts/coverage.js
@@ -143,6 +145,7 @@ scripts/**
 !scripts/token_budget_baseline.json
 !scripts/measure_verbs.py
 !scripts/measure_verbs_report.json
+!scripts/issue208_ac08_report.py
 playwright-report/**
 tests/**
 !tests/unit/
