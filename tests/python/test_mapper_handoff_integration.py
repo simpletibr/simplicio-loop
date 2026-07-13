@@ -45,6 +45,114 @@ def test_run_mapper_json_missing_binary_is_none(monkeypatch, tmp_path):
     assert mapper.run_mapper_json(tmp_path, "inspect") is None
 
 
+# ---------------------------------------------------------------------------
+# issue #166 AC: "Cache nunca cruza revision/snapshot_id" — the in-process
+# `_MAPPER_CLI_CACHE` memoization key must always include revision/
+# snapshot_id, so two different revisions/snapshots can never collide on the
+# same cache entry, and a lookup for one revision never returns a value that
+# was cached under another.
+# ---------------------------------------------------------------------------
+
+
+def _fake_mapper_binary(monkeypatch, responses):
+    """Stub `shutil.which`/`subprocess.run` so `run_mapper_json` "calls the
+    mapper binary" and returns the next queued response for each call,
+    recording every invocation in `calls`."""
+    calls: list[list[str]] = []
+
+    monkeypatch.setattr(mapper.shutil, "which", lambda _name: "/bin/simplicio-mapper")
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        payload = responses[len(calls) - 1]
+        return _FakeCompleted(returncode=0, stdout=json.dumps(payload))
+
+    monkeypatch.setattr(mapper.subprocess, "run", fake_run)
+    return calls
+
+
+def test_cache_key_includes_revision_and_snapshot_id(tmp_path):
+    """Same root/subcommand/extra but a different revision or snapshot_id
+    must produce distinct cache keys (never collide)."""
+    base = str(tmp_path.resolve())
+    key_a = (base, "inspect", "rev-1", "snap-1")
+    key_b = (base, "inspect", "rev-2", "snap-1")
+    key_c = (base, "inspect", "rev-1", "snap-2")
+    assert key_a != key_b
+    assert key_a != key_c
+    assert key_b != key_c
+
+
+def test_run_mapper_json_same_revision_snapshot_is_a_cache_hit(monkeypatch, tmp_path):
+    calls = _fake_mapper_binary(monkeypatch, [{"schema": "simplicio.map-inspection/v1", "call": 1}])
+
+    first = mapper.run_mapper_json(tmp_path, "inspect", revision="rev-1", snapshot_id="snap-1")
+    second = mapper.run_mapper_json(tmp_path, "inspect", revision="rev-1", snapshot_id="snap-1")
+
+    assert first == second == {"schema": "simplicio.map-inspection/v1", "call": 1}
+    # only one subprocess call: the second lookup was served from the cache.
+    assert len(calls) == 1
+
+
+def test_run_mapper_json_different_revision_is_a_cache_miss_not_stale_data(monkeypatch, tmp_path):
+    """A stale/wrong-revision cache read must never return data cached under
+    a different revision -- it must re-run the mapper binary and get the
+    fresh (possibly different) answer for the new revision."""
+    calls = _fake_mapper_binary(
+        monkeypatch,
+        [
+            {"schema": "simplicio.map-inspection/v1", "revision": "rev-1"},
+            {"schema": "simplicio.map-inspection/v1", "revision": "rev-2"},
+        ],
+    )
+
+    first = mapper.run_mapper_json(tmp_path, "inspect", revision="rev-1", snapshot_id="snap-1")
+    second = mapper.run_mapper_json(tmp_path, "inspect", revision="rev-2", snapshot_id="snap-1")
+
+    assert first == {"schema": "simplicio.map-inspection/v1", "revision": "rev-1"}
+    assert second == {"schema": "simplicio.map-inspection/v1", "revision": "rev-2"}
+    assert first != second
+    # both revisions triggered their own subprocess call -- no stale reuse.
+    assert len(calls) == 2
+
+
+def test_run_mapper_json_different_snapshot_id_is_a_cache_miss(monkeypatch, tmp_path):
+    calls = _fake_mapper_binary(
+        monkeypatch,
+        [
+            {"schema": "simplicio.map-inspection/v1", "snapshot_id": "snap-1"},
+            {"schema": "simplicio.map-inspection/v1", "snapshot_id": "snap-2"},
+        ],
+    )
+
+    first = mapper.run_mapper_json(tmp_path, "inspect", revision="rev-1", snapshot_id="snap-1")
+    second = mapper.run_mapper_json(tmp_path, "inspect", revision="rev-1", snapshot_id="snap-2")
+
+    assert first != second
+    assert len(calls) == 2
+
+
+def test_map_inspection_and_map_handoff_thread_revision_into_cache_key(monkeypatch, tmp_path):
+    calls = _fake_mapper_binary(
+        monkeypatch,
+        [
+            {"schema": "simplicio.map-inspection/v1", "revision": "rev-1"},
+            {"schema": "simplicio.map-inspection/v1", "revision": "rev-2"},
+            {"schema": "simplicio.map-handoff/v1", "revision": "rev-1"},
+            {"schema": "simplicio.map-handoff/v1", "revision": "rev-2"},
+        ],
+    )
+
+    insp_1 = mapper.map_inspection(tmp_path, revision="rev-1", snapshot_id="snap-1")
+    insp_2 = mapper.map_inspection(tmp_path, revision="rev-2", snapshot_id="snap-1")
+    handoff_1 = mapper.map_handoff(tmp_path, revision="rev-1", snapshot_id="snap-1")
+    handoff_2 = mapper.map_handoff(tmp_path, revision="rev-2", snapshot_id="snap-1")
+
+    assert insp_1 != insp_2
+    assert handoff_1 != handoff_2
+    assert len(calls) == 4
+
+
 def test_artifact_status_embeds_inspection_evidence(monkeypatch, tmp_path):
     _write_project_map(tmp_path)
     monkeypatch.setattr(
@@ -183,7 +291,7 @@ def test_map_ask_returns_results_list(monkeypatch, tmp_path):
     monkeypatch.setattr(
         mapper,
         "run_mapper_json",
-        lambda root, sub, *, extra=(), timeout=30: {
+        lambda root, sub, *, extra=(), timeout=30, revision="", snapshot_id="": {
             "schema": "simplicio.ask/v1",
             "query": {"verb": extra[0], "arg": extra[1] if len(extra) > 1 else None},
             "results": [{"path": "src/app.py", "symbol": "main"}, "not-a-dict"],

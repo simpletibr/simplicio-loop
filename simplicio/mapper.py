@@ -56,19 +56,31 @@ def run_mapper_json(
     *,
     extra: tuple[str, ...] = (),
     timeout: int = 30,
+    revision: str = "",
+    snapshot_id: str = "",
 ) -> dict[str, Any] | None:
     """Run `simplicio-mapper <subcommand> <root> [extra...] --json` fail-open.
 
     Returns the parsed JSON dict, or None on ANY failure (binary missing, env
     kill-switch SIMPLICIO_MAPPER_CLI=0, non-zero exit, timeout, bad JSON) —
     callers keep their artifact-file fallback. Results are memoized per
-    (root, subcommand, extra) for the process lifetime; the mapper verbs used
-    here (`inspect`, `handoff`, `ask`) are read-only and fast (~60ms).
+    (root, subcommand, revision, snapshot_id, extra) for the process
+    lifetime; the mapper verbs used here (`inspect`, `handoff`, `ask`) are
+    read-only and fast (~60ms).
+
+    ``revision``/``snapshot_id`` default to `""` for callers that don't carry
+    a `simplicio.plan_compiler.ContextSnapshot` (today's pipeline/CLI call
+    sites), which preserves the previous cache behavior for them. Callers
+    that DO have a `ContextSnapshot` (or an equivalent revision marker) must
+    pass it here: it is always folded into the cache key so a long-lived
+    process can never serve context cached under one revision/snapshot_id as
+    if it were another (issue #166 AC: "Cache nunca cruza revision/
+    snapshot_id").
     """
     if not _mapper_cli_enabled():
         return None
     base = str(Path(root).resolve())
-    key = (base, subcommand, *extra)
+    key = (base, subcommand, revision, snapshot_id, *extra)
     if key in _MAPPER_CLI_CACHE:
         return _MAPPER_CLI_CACHE[key]
     result: dict[str, Any] | None = None
@@ -92,20 +104,31 @@ def run_mapper_json(
     return result
 
 
-def map_inspection(root: str | os.PathLike[str]) -> dict[str, Any] | None:
+def map_inspection(
+    root: str | os.PathLike[str], *, revision: str = "", snapshot_id: str = ""
+) -> dict[str, Any] | None:
     """mapper 0.13 `inspect` — per-artifact on-disk evidence (simplicio.map-inspection/v1)."""
-    return run_mapper_json(root, "inspect")
+    return run_mapper_json(root, "inspect", revision=revision, snapshot_id=snapshot_id)
 
 
-def map_handoff(root: str | os.PathLike[str]) -> dict[str, Any] | None:
+def map_handoff(
+    root: str | os.PathLike[str], *, revision: str = "", snapshot_id: str = ""
+) -> dict[str, Any] | None:
     """mapper 0.13 `handoff` — compact context-pack for downstream agents (simplicio.map-handoff/v1)."""
-    return run_mapper_json(root, "handoff")
+    return run_mapper_json(root, "handoff", revision=revision, snapshot_id=snapshot_id)
 
 
 ASK_VERBS = ("callers", "callees", "reaches", "impact", "flows", "rules", "tests-for", "term")
 
 
-def map_ask(root: str | os.PathLike[str], verb: str, arg: str = "") -> list[dict[str, Any]] | None:
+def map_ask(
+    root: str | os.PathLike[str],
+    verb: str,
+    arg: str = "",
+    *,
+    revision: str = "",
+    snapshot_id: str = "",
+) -> list[dict[str, Any]] | None:
     """mapper 0.14 `ask` — low-token structured queries over the built artifacts.
 
     Returns the `results` list from `simplicio.ask/v1`, or None when the CLI is
@@ -115,7 +138,7 @@ def map_ask(root: str | os.PathLike[str], verb: str, arg: str = "") -> list[dict
     if verb not in ASK_VERBS:
         return None
     extra = (verb, arg) if arg else (verb,)
-    data = run_mapper_json(root, "ask", extra=extra)
+    data = run_mapper_json(root, "ask", extra=extra, revision=revision, snapshot_id=snapshot_id)
     if data is None:
         return None
     results = data.get("results")
