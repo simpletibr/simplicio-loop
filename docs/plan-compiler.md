@@ -138,6 +138,61 @@ it is not a field anywhere in `GoalEnvelope`/`ContextSnapshot`/`TaskSpec`/
 `PlanDAG`, so there is nothing for this compiler to preserve yet — see the
 test module docstring for the full reasoning.
 
+## N-1 compatibility adapter (issue #167 slice 11/23)
+
+`simplicio.plan_compiler.compat_adapter` is a narrow, one-hop compatibility
+edge between the current field set ("N") that `GoalEnvelope`/`PlanDAG` carry
+and the field set a caller stuck one generation behind still expects
+("N-1"). It builds directly on the `producer_id`/`consumer_id` versioning
+added to both types in #171 and the `budget` field added to `PlanDAG` after
+that: the `schema` string (`simplicio.plan-dag/v1` etc.) never bumps its
+major version for these additions — per
+`PLAN_COMPILER_COMPATIBILITY["contract"] == "additive-fields-within-major"`
+— so this module tracks the field-level generation separately, with its own
+small integer versions:
+
+- `GOAL_ENVELOPE_VERSION = 1` (current): has `producer_id`/`consumer_id`.
+  N-1 (`version 0`) predates both fields.
+- `PLAN_DAG_VERSION = 2` (current): has `producer_id`/`consumer_id` and
+  `budget`. N-1 (`version 1`) has the ids (#171) but not `budget`.
+
+```python
+from simplicio.plan_compiler.compat_adapter import (
+    PLAN_DAG_VERSION,
+    adapt_inbound,
+    adapt_outbound,
+)
+
+# Outbound: a current PlanDAG, translated for an N-1-only consumer.
+n_minus_1_payload = adapt_outbound(plan, PLAN_DAG_VERSION - 1)  # no "budget" key
+
+# Inbound: an N-1-shaped payload, upgraded into a current PlanDAG.
+plan = adapt_inbound(n_minus_1_payload, PLAN_DAG_VERSION - 1)  # plan.budget is None
+```
+
+`adapt_goal_envelope_outbound`/`adapt_goal_envelope_inbound` are the
+`GoalEnvelope` equivalents. Every function rejects anything other than the
+immediate N-1 boundary with `UnsupportedCompatVersionError` — this is
+deliberately not a general schema-migration framework; only one hop of
+rollback/rollforward is supported.
+
+**Fixtures**: `tests/fixtures/plan_compiler/n_minus_1/` holds genuine
+N-1-shaped payloads (`goal_envelope_n_minus_1.json`,
+`plan_dag_n_minus_1_simple.json`, `plan_dag_n_minus_1_no_ids.json`), used by
+`tests/python/test_plan_compiler_n_minus_1_adapter.py` for round-trip and
+rollback-scenario coverage.
+
+**Expiry**: this compat surface is explicitly not permanent (issue #167
+invariant 6, "Compatibilidade Hermes fica em uma borda registrada"; plan
+step 26, "Retirar alias só pela policy #193"). `GOAL_ENVELOPE_ADAPTER_EXPIRES_AT_VERSION`
+and `PLAN_DAG_ADAPTER_EXPIRES_AT_VERSION` are set to "current version + 2" —
+once `GOAL_ENVELOPE_VERSION`/`PLAN_DAG_VERSION` reaches that threshold (i.e.
+two more additive-field generations have shipped), every adapter call for
+that type raises `CompatAdapterExpiredError` instead of silently
+translating forever. Retiring the adapter at that point, and introducing a
+fresh N/N-1 pair if still needed, follows the alias-retirement policy in
+#193.
+
 ## Scope of this slice
 
 This slice adds the deterministic `TaskSpec -> PlanDAG` front-end; it is
