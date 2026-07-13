@@ -32,8 +32,12 @@ from simplicio_mapper.context_snapshot import (
 from simplicio_mapper.contract import validate_payload
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-FIXTURE_LATEST = os.path.join(REPO_ROOT, "contracts", "context-snapshot", "v1", "fixtures", "latest", "context-snapshot.json")
-FIXTURE_MINIMUM = os.path.join(REPO_ROOT, "contracts", "context-snapshot", "v1", "fixtures", "minimum", "context-snapshot.json")
+FIXTURE_LATEST = os.path.join(
+    REPO_ROOT, "contracts", "context-snapshot", "v1", "fixtures", "latest", "context-snapshot.json"
+)
+FIXTURE_MINIMUM = os.path.join(
+    REPO_ROOT, "contracts", "context-snapshot", "v1", "fixtures", "minimum", "context-snapshot.json"
+)
 
 
 def _load(path: str) -> dict:
@@ -43,20 +47,44 @@ def _load(path: str) -> dict:
 
 def _minimal_artifacts():
     project_map = {
-        "schema": "simplicio.project-map/v1", "version": 1,
+        "schema": "simplicio.project-map/v1",
+        "version": 1,
         "product": {"name": "minimum-example", "stack": "python"},
-        "files": [{"path": "app.py", "language": "python", "roles": ["source"], "imports": ["os"], "exports": ["main"]}],
+        "files": [
+            {
+                "path": "app.py",
+                "language": "python",
+                "roles": ["source"],
+                "imports": ["os"],
+                "exports": ["main"],
+            }
+        ],
     }
     symbol_index = {
-        "schema": "simplicio.symbol-index/v1", "version": 1,
-        "symbols": [{"name": "main", "kind": "function", "qualified_name": "main", "defined_in": "app.py", "line": 3}],
+        "schema": "simplicio.symbol-index/v1",
+        "version": 1,
+        "symbols": [
+            {"name": "main", "kind": "function", "qualified_name": "main", "defined_in": "app.py", "line": 3}
+        ],
     }
     call_graph = {
-        "schema": "simplicio.call-graph/v1", "version": 1,
-        "edges": [{"type": "calls", "source_file": "app.py", "source_symbol": "main", "target_file": "app.py", "target_symbol": "helper", "line": 4, "confidence": 0.5}],
+        "schema": "simplicio.call-graph/v1",
+        "version": 1,
+        "edges": [
+            {
+                "type": "calls",
+                "source_file": "app.py",
+                "source_symbol": "main",
+                "target_file": "app.py",
+                "target_symbol": "helper",
+                "line": 4,
+                "confidence": 0.5,
+            }
+        ],
     }
     architecture_inventory = {
-        "schema": "simplicio.architecture-inventory/v1", "version": 1,
+        "schema": "simplicio.architecture-inventory/v1",
+        "version": 1,
         "modules": [{"name": "root", "file_count": 1, "layers": ["app"]}],
         "layers": [{"name": "app", "file_count": 1, "modules": ["root"]}],
     }
@@ -70,29 +98,53 @@ class ContextSnapshotTest(unittest.TestCase):
 
     def test_snapshot_id_is_content_addressed_and_deterministic(self):
         pm, si, cg, ai = _minimal_artifacts()
-        a = build_context_snapshot("/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai, revision="r1")
-        b = build_context_snapshot("/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai, revision="r1")
+        a = build_context_snapshot(
+            "/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai, revision="r1"
+        )
+        b = build_context_snapshot(
+            "/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai, revision="r1"
+        )
         self.assertEqual(a["snapshot_id"], b["snapshot_id"])
         # one changed byte in a source artifact must change the id
         pm2 = json.loads(json.dumps(pm))
         pm2["files"][0]["path"] = "other.py"
-        c = build_context_snapshot("/repo", project_map=pm2, symbol_index=si, call_graph=cg, architecture_inventory=ai, revision="r1")
+        c = build_context_snapshot(
+            "/repo", project_map=pm2, symbol_index=si, call_graph=cg, architecture_inventory=ai, revision="r1"
+        )
         self.assertNotEqual(c["snapshot_id"], a["snapshot_id"])
 
     def test_snapshot_id_recomputed_matches_stored(self):
         pm, si, cg, ai = _minimal_artifacts()
-        snap = build_context_snapshot("/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai)
+        snap = build_context_snapshot(
+            "/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai
+        )
         self.assertEqual(snapshot_id_of(snap), snap["snapshot_id"])
 
     def test_snapshot_required_fields_present(self):
         pm, si, cg, ai = _minimal_artifacts()
         snap = build_context_snapshot(
-            "/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai,
+            "/repo",
+            project_map=pm,
+            symbol_index=si,
+            call_graph=cg,
+            architecture_inventory=ai,
             revision="r1",
         )
-        for key in ("schema", "schema_version", "snapshot_id", "repository_id", "revision",
-                    "root_hash", "producer", "source_set", "exclusions", "reason_codes",
-                    "graph", "task", "generated_at"):
+        for key in (
+            "schema",
+            "schema_version",
+            "snapshot_id",
+            "repository_id",
+            "revision",
+            "root_hash",
+            "producer",
+            "source_set",
+            "exclusions",
+            "reason_codes",
+            "graph",
+            "task",
+            "generated_at",
+        ):
             self.assertIn(key, snap, f"missing {key}")
         self.assertEqual(snap["schema"], "simplicio.context-snapshot/v1")
         self.assertEqual(snap["schema_version"], "v1")
@@ -131,7 +183,9 @@ class ContextSnapshotTest(unittest.TestCase):
 
     def test_snapshot_carries_freshness_fidelity_and_drilldown_metadata(self):
         pm, si, cg, ai = _minimal_artifacts()
-        snap = build_context_snapshot("/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai)
+        snap = build_context_snapshot(
+            "/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai
+        )
         self.assertIn("freshness", snap)
         self.assertIn("artifact_hashes", snap["freshness"])
         self.assertEqual(snap["fidelity"]["status"], "complete")
@@ -175,10 +229,16 @@ class ContextSnapshotTest(unittest.TestCase):
 
         proc = subprocess.run(
             [
-                "python3", "-m", "simplicio_mapper.cli", "snapshot", "validate",
-                FIXTURE_LATEST, FIXTURE_MINIMUM,
+                "python3",
+                "-m",
+                "simplicio_mapper.cli",
+                "snapshot",
+                "validate",
+                FIXTURE_LATEST,
+                FIXTURE_MINIMUM,
             ],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertIn("[ok]", proc.stdout)

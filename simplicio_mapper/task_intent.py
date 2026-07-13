@@ -10,8 +10,8 @@ import hashlib
 import json
 import re
 import unicodedata
-from copy import deepcopy
 from collections.abc import Mapping
+from copy import deepcopy
 from typing import Any
 
 TASK_INTENT_SCHEMA = "simplicio.task-intent/v1"
@@ -61,7 +61,10 @@ _RULE_REF = re.compile(r"\bRN\d+\b", re.IGNORECASE)
 _MARKDOWN_REF = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
 _URL = re.compile(r"https?://\S+")
 _BUDGET_HINTS = (
-    re.compile(r"\b(?:serialized|seriali[sz]ed|output|context)\s+(?:token\s+)?budget\s*(?:[:=]|of|is|within|under|<=)?\s*(\d{2,6})\b", re.IGNORECASE),
+    re.compile(
+        r"\b(?:serialized|seriali[sz]ed|output|context)\s+(?:token\s+)?budget\s*(?:[:=]|of|is|within|under|<=)?\s*(\d{2,6})\b",
+        re.IGNORECASE,
+    ),
     re.compile(r"\btoken\s+budget\s*(?:[:=]|of|is|within|under|<=)?\s*(\d{2,6})\b", re.IGNORECASE),
     re.compile(r"\bwithin\s+(\d{2,6})\s+tokens\b", re.IGNORECASE),
 )

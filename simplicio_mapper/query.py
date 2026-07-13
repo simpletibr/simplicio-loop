@@ -20,7 +20,7 @@ from collections import deque
 from functools import lru_cache
 from typing import Any
 
-from .context_cache import ContextCache, ContextCacheKey, LAYER_CONTEXT_SUMMARY, LAYER_RUNTIME_PROVIDER
+from .context_cache import LAYER_CONTEXT_SUMMARY, LAYER_RUNTIME_PROVIDER, ContextCache, ContextCacheKey
 from .docsync import _flows_touching, _scan_manual_docs_for_references, _symbols_for_files
 from .flows import build_flow_inventory
 from .mapper import _parse_json_safe, build_artifacts
@@ -116,9 +116,9 @@ def _query_cacheable_paths(root: str, out_dir: str) -> list[str]:
     rel_paths: list[str] = []
     for current_root, dirs, files in os.walk(abs_root):
         dirs[:] = [
-            d for d in dirs
-            if d not in _QUERY_CACHE_SKIP_DIRS
-            and os.path.abspath(os.path.join(current_root, d)) != abs_out
+            d
+            for d in dirs
+            if d not in _QUERY_CACHE_SKIP_DIRS and os.path.abspath(os.path.join(current_root, d)) != abs_out
         ]
         for filename in files:
             full = os.path.join(current_root, filename)
@@ -554,7 +554,9 @@ def run_query(
                 materialized = _artifacts()
                 impact = _impact(abs_cwd, materialized, [arg] if arg else [])
                 total = (
-                    len(impact["affected_symbols"]) + len(impact["affected_flows"]) + len(impact["needs_review"])
+                    len(impact["affected_symbols"])
+                    + len(impact["affected_flows"])
+                    + len(impact["needs_review"])
                 )
                 payload = {"results": impact, "total": total, "source": "local-python"}
                 cache.put(
@@ -564,9 +566,9 @@ def run_query(
                     bytes_avoided=len(json.dumps(payload, sort_keys=True).encode("utf-8")),
                 )
                 payload["cache"] = _cache_block(cache, cache_key.content_hash(), receipt.to_dict())
-                baseline = estimate_tokens(json.dumps(materialized.get("call_graph"), sort_keys=True)) + estimate_tokens(
-                    json.dumps(materialized.get("symbol_index"), sort_keys=True)
-                )
+                baseline = estimate_tokens(
+                    json.dumps(materialized.get("call_graph"), sort_keys=True)
+                ) + estimate_tokens(json.dumps(materialized.get("symbol_index"), sort_keys=True))
                 _record_ask_native_savings(
                     abs_cwd,
                     "impact",
@@ -632,7 +634,9 @@ def run_query(
                     bytes_avoided=len(json.dumps(payload, sort_keys=True).encode("utf-8")),
                 )
                 payload["cache"] = _cache_block(cache, cache_key.content_hash(), receipt.to_dict())
-                baseline = sum(estimate_tokens(_read_text(abs_cwd, f)) for f in project_map.get("test_files") or [])
+                baseline = sum(
+                    estimate_tokens(_read_text(abs_cwd, f)) for f in project_map.get("test_files") or []
+                )
                 _record_ask_native_savings(
                     abs_cwd,
                     "tests-for",

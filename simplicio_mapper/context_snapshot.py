@@ -409,14 +409,24 @@ def build_context_snapshot(
     emitting ``omissions`` and a ``needs_broader_context`` flag rather than
     fabricating a faithful snapshot.
     """
-    abs_root = os.path.abspath(root)
-    root_hash = _sha256_text(abs_root)
-
     omissions: list[str] = []
     project_map = project_map or {}
     symbol_index = symbol_index or {}
     call_graph = call_graph or {}
     architecture_inventory = architecture_inventory or {}
+
+    abs_root = os.path.abspath(root)
+    repository_id = project_map.get("product", {}).get("name") or os.path.basename(abs_root)
+    # A clone's absolute path is runtime metadata, not repository identity.
+    # Keep root_hash stable across worktrees and machines while still changing
+    # when the addressed source/revision changes.
+    root_hash = _canonical_hash(
+        {
+            "repository_id": repository_id,
+            "revision": revision or project_map.get("generated_at", ""),
+            "source_set": sorted(source_set or [f["path"] for f in project_map.get("files", [])]),
+        }
+    )
 
     if not project_map:
         omissions.append("project-map")
@@ -435,7 +445,6 @@ def build_context_snapshot(
     )
     graph_dict = graph.to_dict()
 
-    repository_id = project_map.get("product", {}).get("name") or os.path.basename(abs_root)
     freshness = {
         "root_hash": root_hash,
         "artifact_hashes": {
@@ -487,7 +496,7 @@ def build_context_snapshot(
 
     # Content-addressed identity: hash the canonical serialization of the
     # addressable payload (everything except snapshot_id), then stamp it in.
-    addressable = {k: v for k, v in payload.items() if k != "snapshot_id"}
+    addressable = {k: v for k, v in payload.items() if k not in {"snapshot_id", "generated_at"}}
     payload["snapshot_id"] = _sha256_text(_stable_json(addressable))
     return payload
 
@@ -536,7 +545,7 @@ def snapshot_id_of(payload: dict) -> str:
     Idempotent: stripping any existing ``snapshot_id`` and re-hashing yields the
     same value. Use this to verify a payload has not been tampered with.
     """
-    addressable = {k: v for k, v in dict(payload).items() if k != "snapshot_id"}
+    addressable = {k: v for k, v in dict(payload).items() if k not in {"snapshot_id", "generated_at"}}
     return _sha256_text(_stable_json(addressable))
 
 

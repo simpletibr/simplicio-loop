@@ -42,8 +42,9 @@ import json
 import os
 import tempfile
 import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 CONTEXT_CACHE_SCHEMA = "simplicio.context-cache/v1"
 CONTEXT_CACHE_STRUCTURED_VERSION = 1
@@ -148,13 +149,10 @@ class ContextCacheKey:
         token_budget: int = 0,
         renderer: str = "",
         output_format: str = "",
-    ) -> "ContextCacheKey":
+    ) -> ContextCacheKey:
         """Build a key by hashing the *current* content of ``rel_paths``."""
         paths = sorted(rel_paths)
-        hashes = tuple(
-            (p, _sha256_file(os.path.join(root, p)) or "")
-            for p in paths
-        )
+        hashes = tuple((p, _sha256_file(os.path.join(root, p)) or "") for p in paths)
         return cls(
             repo_identity=repo_identity,
             rel_paths=tuple(paths),
@@ -191,7 +189,7 @@ class ContextCacheEntry:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ContextCacheEntry":
+    def from_dict(cls, data: dict) -> ContextCacheEntry:
         return cls(
             key_hash=data.get("key_hash", ""),
             layer=data.get("layer", ""),
@@ -323,7 +321,9 @@ class ContextCache:
             return
         self._entries = dict(payload.get("entries", {})) if isinstance(payload.get("entries"), dict) else {}
         self._structured = {}
-        quarantined = list(payload.get("quarantined", [])) if isinstance(payload.get("quarantined"), list) else []
+        quarantined = (
+            list(payload.get("quarantined", [])) if isinstance(payload.get("quarantined"), list) else []
+        )
 
         structured = payload.get("structured")
         if isinstance(structured, dict) and structured.get("version") == CONTEXT_CACHE_STRUCTURED_VERSION:
@@ -425,6 +425,7 @@ class ContextCache:
         def _action() -> None:
             self._entries[key] = summary
             self._persist()
+
         self._with_lock(_action)
 
     def clear(self) -> None:
@@ -433,6 +434,7 @@ class ContextCache:
             self._structured = {}
             self._quarantined = []
             self._persist()
+
         self._with_lock(_action)
 
     def __contains__(self, key: str) -> bool:
@@ -512,7 +514,10 @@ class ContextCache:
             if entry.layer != layer:
                 # Same key hash but a different layer — treat as a layer miss.
                 receipt = self._receipt(
-                    OUTCOME_MISS, key_hash, layer, "layer_mismatch",
+                    OUTCOME_MISS,
+                    key_hash,
+                    layer,
+                    "layer_mismatch",
                     kind="context",
                 )
                 self._stats["misses"] += 1
@@ -520,7 +525,10 @@ class ContextCache:
             if not entry.is_valid():
                 self._quarantine(key_hash, entry, "checksum_mismatch")
                 receipt = self._receipt(
-                    OUTCOME_CORRUPT, key_hash, layer, "corrupt_entry_recomputed",
+                    OUTCOME_CORRUPT,
+                    key_hash,
+                    layer,
+                    "corrupt_entry_recomputed",
                     kind="context",
                 )
                 self._stats["misses"] += 1
@@ -547,9 +555,7 @@ class ContextCache:
             return entry.payload, receipt
 
         self._stats["misses"] += 1
-        reason = (
-            "cold" if not self._structured else "no_matching_identity"
-        )
+        reason = "cold" if not self._structured else "no_matching_identity"
         receipt = self._receipt(OUTCOME_MISS, key_hash, layer, reason, kind="context")
         self._push_receipt(receipt)
         return None, receipt
@@ -557,9 +563,7 @@ class ContextCache:
     def explain(self, key_hash: str) -> dict:
         """Return diagnostics for ``key_hash`` without leaking payloads."""
         entry = self._structured.get(key_hash)
-        quarantined = next(
-            (q for q in self._quarantined if q.get("key_hash") == key_hash), None
-        )
+        quarantined = next((q for q in self._quarantined if q.get("key_hash") == key_hash), None)
         if entry is not None:
             return {
                 "key_hash": key_hash,
@@ -583,7 +587,7 @@ class ContextCache:
         self,
         *,
         layer: str | None = None,
-        predicate: "Callable[[str, dict], bool] | None" = None,
+        predicate: Callable[[str, dict], bool] | None = None,
     ) -> int:
         """Remove entries, optionally scoped by ``layer`` or ``predicate``.
 
@@ -602,7 +606,7 @@ class ContextCache:
                 if not drop and predicate is not None:
                     try:
                         drop = bool(predicate(key_hash, entry))
-                    except Exception:  # pragma: no cover - defensive
+                    except (KeyError, OSError, TypeError, ValueError):  # pragma: no cover - defensive
                         drop = False
                 if drop:
                     removed += 1
@@ -638,8 +642,13 @@ class ContextCache:
         self._stats["tokens_avoided"] += int(tokens_avoided)
         self._stats["latency_avoided_ms"] += float(latency_avoided_ms)
         receipt = self._receipt(
-            OUTCOME_BYPASS, key_hash, layer, reason, kind=kind,
-            bytes_avoided=bytes_avoided, tokens_avoided=tokens_avoided,
+            OUTCOME_BYPASS,
+            key_hash,
+            layer,
+            reason,
+            kind=kind,
+            bytes_avoided=bytes_avoided,
+            tokens_avoided=tokens_avoided,
             latency_avoided_ms=latency_avoided_ms,
             baseline=baseline,
             method=method,
@@ -727,9 +736,7 @@ class ContextCache:
                 try:
                     import datetime as _dt
 
-                    dt = _dt.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").replace(
-                        tzinfo=_dt.timezone.utc
-                    )
+                    dt = _dt.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=_dt.timezone.utc)
                     if dt.timestamp() < cutoff:
                         self._structured.pop(key_hash, None)
                         self._stats["evicted"] += 1

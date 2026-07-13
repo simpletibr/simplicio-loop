@@ -165,7 +165,9 @@ class ContextDagDiffTest(unittest.TestCase):
 
     def test_plain_add_has_no_rename_hint(self):
         previous = build_context_dag({"nodes": [_node("file:a.py", "h1")], "edges": []})
-        current = build_context_dag({"nodes": [_node("file:a.py", "h1"), _node("file:b.py", "h2")], "edges": []})
+        current = build_context_dag(
+            {"nodes": [_node("file:a.py", "h1"), _node("file:b.py", "h2")], "edges": []}
+        )
         diff = diff_context_dag(previous, current)
         self.assertEqual(len(diff["events"]), 1)
         event = diff["events"][0]

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from ..history import append_changelog, create_snapshot
 from ..mapper import write_mapping_artifacts
+from ..retrieval_index import build_retrieval_index, write_retrieval_index
 from ..toon import encode_toon_with_report
 from ._args import _read_json_safe
 from ._shared import (
@@ -37,6 +38,20 @@ def _run_once(opts: dict) -> dict:
         output_dir=opts["out"],
         log=log,
     )
+    # Build the retrieval index during the normal scan/index pass so warm
+    # task-aware queries never scan candidate bodies. Keep it as a first-class
+    # artifact with the same source hashes used by incremental updates.
+    artifact_root = os.path.join(root, opts["out"])
+    project_map = _read_json_safe(os.path.join(artifact_root, "project-map.json"))
+    symbol_index = _read_json_safe(os.path.join(artifact_root, "symbol-index.json"))
+    call_graph = _read_json_safe(os.path.join(artifact_root, "call-graph.json"))
+    retrieval_index = build_retrieval_index(
+        project_map,
+        symbol_index=symbol_index,
+        call_graph=call_graph,
+        root=root,
+    )
+    write_retrieval_index(root, opts["out"], retrieval_index)
     # History snapshots (.simplicio/history/*.json) are always cheap JSON and
     # never create a docs/ directory on their own. The changelog markdown is
     # only appended when docs are actually being rendered for this run, so

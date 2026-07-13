@@ -1,22 +1,21 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 import threading
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-import sys
 
 sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper.context_cache import (  # noqa: E402
-    ContextCache,
-    ContextCacheEntry,
-    ContextCacheKey,
     LAYER_CONTEXT_SUMMARY,
     LAYER_RUNTIME_PROVIDER,
+    ContextCache,
+    ContextCacheKey,
 )
 
 
@@ -37,14 +36,20 @@ class ContextCacheQueryTest(unittest.TestCase):
         self._tmp.cleanup()
 
     def test_content_address_changes_when_file_changes(self) -> None:
-        first = ContextCacheKey.for_files(str(self.root), ["src/app.py"], repo_identity="repo", query_task_hash="q")
+        first = ContextCacheKey.for_files(
+            str(self.root), ["src/app.py"], repo_identity="repo", query_task_hash="q"
+        )
         _write(self.root, "src/app.py", "print('v2')\n")
-        second = ContextCacheKey.for_files(str(self.root), ["src/app.py"], repo_identity="repo", query_task_hash="q")
+        second = ContextCacheKey.for_files(
+            str(self.root), ["src/app.py"], repo_identity="repo", query_task_hash="q"
+        )
         self.assertNotEqual(first.content_hash(), second.content_hash())
 
     def test_corrupt_entry_is_quarantined_on_reload(self) -> None:
         cache = ContextCache(self.cache_path)
-        key = ContextCacheKey.for_files(str(self.root), ["src/app.py"], repo_identity="repo", query_task_hash="q")
+        key = ContextCacheKey.for_files(
+            str(self.root), ["src/app.py"], repo_identity="repo", query_task_hash="q"
+        )
         key_hash = cache.put(LAYER_CONTEXT_SUMMARY, key, {"results": ["ok"], "total": 1})
         payload = json.loads(self.cache_path.read_text(encoding="utf-8"))
         payload["structured"]["entries"][key_hash]["checksum"] = "bad"
@@ -59,8 +64,12 @@ class ContextCacheQueryTest(unittest.TestCase):
         self.assertEqual(explain["reason"], "checksum_mismatch")
 
     def test_concurrent_writers_merge_without_losing_entries(self) -> None:
-        first_key = ContextCacheKey.for_files(str(self.root), ["src/app.py"], repo_identity="repo", query_task_hash="q1")
-        second_key = ContextCacheKey.for_files(str(self.root), ["src/app.py"], repo_identity="repo", query_task_hash="q2")
+        first_key = ContextCacheKey.for_files(
+            str(self.root), ["src/app.py"], repo_identity="repo", query_task_hash="q1"
+        )
+        second_key = ContextCacheKey.for_files(
+            str(self.root), ["src/app.py"], repo_identity="repo", query_task_hash="q2"
+        )
         barrier = threading.Barrier(2)
         errors: list[Exception] = []
 

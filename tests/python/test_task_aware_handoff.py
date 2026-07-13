@@ -140,15 +140,23 @@ class TaskAwareHandoffTest(unittest.TestCase):
             str(self.root), self.project_map, goal="structural temporal modeling start date"
         )
         first = build_context_pack(
-            str(self.root), selection["targets"], project_map=self.project_map,
-            symbol_index={"symbols": []}, call_graph={"edges": []},
-            goal="structural temporal modeling start date", query_terms=selection["query_terms"],
+            str(self.root),
+            selection["targets"],
+            project_map=self.project_map,
+            symbol_index={"symbols": []},
+            call_graph={"edges": []},
+            goal="structural temporal modeling start date",
+            query_terms=selection["query_terms"],
         )
         changed_map = {**self.project_map, "dependencies": {"new": "dependency"}}
         second = build_context_pack(
-            str(self.root), selection["targets"], project_map=changed_map,
-            symbol_index={"symbols": []}, call_graph={"edges": []},
-            goal="structural temporal modeling start date", query_terms=selection["query_terms"],
+            str(self.root),
+            selection["targets"],
+            project_map=changed_map,
+            symbol_index={"symbols": []},
+            call_graph={"edges": []},
+            goal="structural temporal modeling start date",
+            query_terms=selection["query_terms"],
         )
         self.assertNotEqual(first["map_fingerprint"], second["map_fingerprint"])
         self.assertNotEqual(first["pack_hash"], second["pack_hash"])
@@ -156,18 +164,29 @@ class TaskAwareHandoffTest(unittest.TestCase):
     def test_low_query_coverage_requires_broader_context(self) -> None:
         pack = build_context_pack(
             str(self.root),
-            [{
-                "path": "src/modeling/sort_lines.py",
-                "relevance_score": 0.2,
-                "relevance_reason": "matched_terms=structural",
-                "matched_terms": ["structural"],
-                "recent_change_boost": False,
-            }],
+            [
+                {
+                    "path": "src/modeling/sort_lines.py",
+                    "relevance_score": 0.2,
+                    "relevance_reason": "matched_terms=structural",
+                    "matched_terms": ["structural"],
+                    "recent_change_boost": False,
+                }
+            ],
             project_map=self.project_map,
             symbol_index={"symbols": []},
             call_graph={"edges": []},
             goal="structural temporal modeling plant start date alphabetic screen",
-            query_terms=["structural", "temporal", "modeling", "plant", "start", "date", "alphabetic", "screen"],
+            query_terms=[
+                "structural",
+                "temporal",
+                "modeling",
+                "plant",
+                "start",
+                "date",
+                "alphabetic",
+                "screen",
+            ],
             minimum_query_coverage=0.5,
         )
 
@@ -178,15 +197,17 @@ class TaskAwareHandoffTest(unittest.TestCase):
     def test_declared_serialized_output_budget_sets_broader_context(self) -> None:
         pack = build_context_pack(
             str(self.root),
-            [{
-                "path": "src/modeling/sort_lines.py",
-                "relevance_score": 1.0,
-                "relevance_reason": "explicit_target; matched_terms=structural",
-                "matched_terms": ["structural"],
-                "recent_change_boost": False,
-                "score_components": {"explicit_target": 5.0},
-                "reason_codes": ["explicit_target", "matched_terms=structural"],
-            }],
+            [
+                {
+                    "path": "src/modeling/sort_lines.py",
+                    "relevance_score": 1.0,
+                    "relevance_reason": "explicit_target; matched_terms=structural",
+                    "matched_terms": ["structural"],
+                    "recent_change_boost": False,
+                    "score_components": {"explicit_target": 5.0},
+                    "reason_codes": ["explicit_target", "matched_terms=structural"],
+                }
+            ],
             project_map=self.project_map,
             symbol_index={"symbols": []},
             call_graph={"edges": []},
@@ -227,21 +248,23 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
     def _handoff(self, goal: str, target: str = "") -> dict:
         output = StringIO()
         with redirect_stdout(output):
-            code = _run_handoff({
-                "root": str(self.root),
-                "out": ".simplicio",
-                "await": False,
-                "timeout": 0,
-                "json": True,
-                "for_llm": "",
-                "goal": goal,
-                "task_intent": None,
-                "task_fingerprint": "task-planes",
-                "target": target,
-                "minimum_query_coverage": 0.2,
-                "token_budget": 8000,
-                "limit": 8,
-            })
+            code = _run_handoff(
+                {
+                    "root": str(self.root),
+                    "out": ".simplicio",
+                    "await": False,
+                    "timeout": 0,
+                    "json": True,
+                    "for_llm": "",
+                    "goal": goal,
+                    "task_intent": None,
+                    "task_fingerprint": "task-planes",
+                    "target": target,
+                    "minimum_query_coverage": 0.2,
+                    "token_budget": 8000,
+                    "limit": 8,
+                }
+            )
         self.assertEqual(code, 0)
         return json.loads(output.getvalue())
 
@@ -255,13 +278,18 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
         self.assertEqual(payload["targets"][0], "src/modeling/sort_lines.py")
         self.assertNotIn("docs/release-notes.md", payload["targets"])
         self.assertEqual(payload["selection"]["target_resolution"]["status"], "included")
-        self.assertEqual(payload["evidence"]["query_fingerprint"], payload["context_pack"]["query_fingerprint"])
+        self.assertEqual(
+            payload["evidence"]["query_fingerprint"], payload["context_pack"]["query_fingerprint"]
+        )
         self.assertGreaterEqual(payload["metrics"]["selection_latency_ms"], 0)
         self.assertGreater(payload["metrics"]["estimated_tokens"], 0)
         self.assertGreater(payload["metrics"]["precision_at_k"], 0)
         self.assertIn("token_budget_fit", payload["selection"])
         self.assertIn("fidelity", payload["selection"])
-        self.assertEqual(payload["metrics"]["estimated_tokens"], payload["selection"]["token_budget_fit"]["estimated_tokens"])
+        self.assertEqual(
+            payload["metrics"]["estimated_tokens"],
+            payload["selection"]["token_budget_fit"]["estimated_tokens"],
+        )
         self.assertEqual(
             payload["metrics"]["tokens_estimation_method"],
             payload["selection"]["token_budget_fit"]["tokenizer_policy"],
@@ -272,21 +300,23 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
     def test_engine_accepts_token_budget_and_limit_and_reports_budget_fit(self) -> None:
         output = StringIO()
         with redirect_stdout(output):
-            code = _run_handoff({
-                "root": str(self.root),
-                "out": ".simplicio",
-                "await": False,
-                "timeout": 0,
-                "json": True,
-                "for_llm": "",
-                "goal": "Order modeling lines: structural first, temporal and modeling by start date",
-                "task_intent": None,
-                "task_fingerprint": "task-planes",
-                "target": "src/modeling/sort_lines.py",
-                "minimum_query_coverage": 0.2,
-                "token_budget": 64,
-                "limit": 1,
-            })
+            code = _run_handoff(
+                {
+                    "root": str(self.root),
+                    "out": ".simplicio",
+                    "await": False,
+                    "timeout": 0,
+                    "json": True,
+                    "for_llm": "",
+                    "goal": "Order modeling lines: structural first, temporal and modeling by start date",
+                    "task_intent": None,
+                    "task_fingerprint": "task-planes",
+                    "target": "src/modeling/sort_lines.py",
+                    "minimum_query_coverage": 0.2,
+                    "token_budget": 64,
+                    "limit": 1,
+                }
+            )
         self.assertEqual(code, 0)
         payload = json.loads(output.getvalue())
         self.assertEqual(payload["selection"]["token_budget_fit"]["token_budget"], 64)
@@ -315,19 +345,21 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
         output = StringIO()
         with redirect_stdout(output):
             try:
-                code = main([
-                    "handoff",
-                    str(self.root),
-                    "--task-file",
-                    str(task_file),
-                    "--task-fingerprint",
-                    "task-planes-cli",
-                    "--target",
-                    "src/modeling/sort_lines.py",
-                    "--token-budget",
-                    "64",
-                    "--json",
-                ])
+                code = main(
+                    [
+                        "handoff",
+                        str(self.root),
+                        "--task-file",
+                        str(task_file),
+                        "--task-fingerprint",
+                        "task-planes-cli",
+                        "--target",
+                        "src/modeling/sort_lines.py",
+                        "--token-budget",
+                        "64",
+                        "--json",
+                    ]
+                )
             except SystemExit as error:
                 self.fail(f"task-aware handoff flags rejected with exit {error.code}")
         self.assertEqual(code, 0)

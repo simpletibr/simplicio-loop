@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from ..context_cache import ContextCache
 from ..context_pack import build_context_pack
 from ..mapper import build_macro_map
-from ..retrieval_index import DEFAULT_TOKEN_BUDGET, select_context_targets
+from ..retrieval_index import DEFAULT_TOKEN_BUDGET, load_retrieval_index, select_context_targets
 from ..task_batch import build_task_batch
 from ..task_intent import parse_task_intent
 from ..task_traceability import build_task_traceability
@@ -163,11 +163,13 @@ def _target_rows_from_selection(selection: Mapping[str, object]) -> list[dict]:
         path = str(row.get("path") or "").replace(os.sep, "/")
         if not path:
             continue
-        target_rows.append({
-            **dict(row),
-            "path": path,
-            "ranges": spans_by_path.get(path, []),
-        })
+        target_rows.append(
+            {
+                **dict(row),
+                "path": path,
+                "ranges": spans_by_path.get(path, []),
+            }
+        )
     return target_rows
 
 
@@ -386,6 +388,7 @@ def _run_handoff(opts: dict) -> int:
     selection_started = time.perf_counter()
     selection = None
     if task_aware:
+        persisted_retrieval_index = load_retrieval_index(root, out)
         selection = select_context_targets(
             root,
             project_map,
@@ -398,6 +401,7 @@ def _run_handoff(opts: dict) -> int:
             call_graph=call_graph,
             token_budget=token_budget,
             minimum_query_coverage=minimum_coverage,
+            retrieval_index=persisted_retrieval_index,
         )
         target_rows = _target_rows_from_selection(selection)
         targets = [row["path"] for row in target_rows]
@@ -427,7 +431,9 @@ def _run_handoff(opts: dict) -> int:
     )
     if selection is not None and isinstance(selection.get("query_fingerprint"), str):
         context_pack["query_fingerprint"] = selection["query_fingerprint"]
-    if explicit_target_override and str(context_pack.get("needs_broader_context_reason", "")).startswith("query coverage"):
+    if explicit_target_override and str(context_pack.get("needs_broader_context_reason", "")).startswith(
+        "query coverage"
+    ):
         context_pack["needs_broader_context"] = False
         context_pack["needs_broader_context_reason"] = ""
     cache = ContextCache(_context_cache_path(root, out))
@@ -458,7 +464,9 @@ def _run_handoff(opts: dict) -> int:
         "cache": {
             **status_payload["cache"],
             "pack_cached": isinstance(pack_hash, str) and pack_hash in cache,
-            "pack_diagnostics": cache.explain(pack_hash) if isinstance(pack_hash, str) else {"present": False},
+            "pack_diagnostics": cache.explain(pack_hash)
+            if isinstance(pack_hash, str)
+            else {"present": False},
         },
     }
     if selection is not None:

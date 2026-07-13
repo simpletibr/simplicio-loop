@@ -74,26 +74,118 @@ GENERIC_FILE_PENALTY = 0.4
 # Stop words: generic ecosystem / natural-language vocabulary that must not
 # dominate coverage. Augmented with the project's existing stop list.
 _STOP_WORDS = {
-    "about", "after", "antes", "apenas", "como", "com", "cada", "das", "dos",
-    "depois", "deve", "entre", "essa", "esse", "esta", "este", "for", "from",
-    "mais", "nao", "onde", "para", "pela", "pelo", "pode", "por", "primeiro",
-    "quando", "que", "sao", "sem", "ser", "that", "the", "then", "this", "tipo",
-    "task", "system", "uma", "uns", "with", "and", "the", "a", "an", "of", "to",
-    "in", "on", "for", "is", "are", "be", "by", "as", "at", "or", "it", "its",
-    "use", "using", "file", "files", "code", "function", "functions", "class",
-    "module", "project", "add", "update", "fix", "implement", "support",
-    "handle", "make", "set", "get", "new", "old", "via", "into", "when",
-    "please", "should", "want", "need", "change", "changes",
+    "about",
+    "after",
+    "antes",
+    "apenas",
+    "como",
+    "com",
+    "cada",
+    "das",
+    "dos",
+    "depois",
+    "deve",
+    "entre",
+    "essa",
+    "esse",
+    "esta",
+    "este",
+    "for",
+    "from",
+    "mais",
+    "nao",
+    "onde",
+    "para",
+    "pela",
+    "pelo",
+    "pode",
+    "por",
+    "primeiro",
+    "quando",
+    "que",
+    "sao",
+    "sem",
+    "ser",
+    "that",
+    "the",
+    "then",
+    "this",
+    "tipo",
+    "task",
+    "system",
+    "uma",
+    "uns",
+    "with",
+    "and",
+    "a",
+    "an",
+    "of",
+    "to",
+    "in",
+    "on",
+    "is",
+    "are",
+    "be",
+    "by",
+    "as",
+    "at",
+    "or",
+    "it",
+    "its",
+    "use",
+    "using",
+    "file",
+    "files",
+    "code",
+    "function",
+    "functions",
+    "class",
+    "module",
+    "project",
+    "add",
+    "update",
+    "fix",
+    "implement",
+    "support",
+    "handle",
+    "make",
+    "set",
+    "get",
+    "new",
+    "old",
+    "via",
+    "into",
+    "when",
+    "please",
+    "should",
+    "want",
+    "need",
+    "change",
+    "changes",
 }
 
 # Paths containing these fragments are treated as generated / vendor / archive
 # and penalized unless explicitly targeted.
 _GENERIC_PATH_FRAGMENTS = (
-    "/node_modules/", "/vendor/", "/.git/", "/dist/", "/build/", "/target/",
-    "/__pycache__/", "/.simplicio/", "/coverage/", "/.next/", "/out/",
+    "/node_modules/",
+    "/vendor/",
+    "/.git/",
+    "/dist/",
+    "/build/",
+    "/target/",
+    "/__pycache__/",
+    "/.simplicio/",
+    "/coverage/",
+    "/.next/",
+    "/out/",
 )
 _GENERATED_BASENAME_HINTS = (
-    ".min.", "lock.json", ".lock", "-lock.json", ".generated.", ".gen.",
+    ".min.",
+    "lock.json",
+    ".lock",
+    "-lock.json",
+    ".generated.",
+    ".gen.",
 )
 
 
@@ -148,8 +240,14 @@ class QueryPlan:
     """Weighted query fields produced from a task description."""
 
     __slots__ = (
-        "target_path", "exact_identifiers", "path_terms", "symbol_terms",
-        "ac_ids", "error_terms", "domain_terms", "generic_terms",
+        "target_path",
+        "exact_identifiers",
+        "path_terms",
+        "symbol_terms",
+        "ac_ids",
+        "error_terms",
+        "domain_terms",
+        "generic_terms",
     )
 
     def __init__(
@@ -177,8 +275,13 @@ class QueryPlan:
     def all_terms(self) -> list[str]:
         out: list[str] = []
         for group in (
-            self.exact_identifiers, self.path_terms, self.symbol_terms,
-            self.ac_ids, self.error_terms, self.domain_terms, self.generic_terms,
+            self.exact_identifiers,
+            self.path_terms,
+            self.symbol_terms,
+            self.ac_ids,
+            self.error_terms,
+            self.domain_terms,
+            self.generic_terms,
         ):
             out.extend(group)
         # de-dup preserving order
@@ -197,7 +300,9 @@ class QueryPlan:
                 "domain_terms": sorted(self.domain_terms),
                 "generic_terms": sorted(self.generic_terms),
             },
-            ensure_ascii=True, separators=(",", ":"), sort_keys=True,
+            ensure_ascii=True,
+            separators=(",", ":"),
+            sort_keys=True,
         )
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
@@ -346,6 +451,7 @@ def _document_fingerprint(entry: Mapping[str, Any], symbols: Sequence[Mapping[st
         "importance": float(entry.get("importance", 0.0) or 0.0),
         "size_bytes": int(entry.get("size_bytes", 0) or 0),
         "file_hash": str(entry.get("file_hash") or ""),
+        "content_hash": str(entry.get("content_hash") or ""),
         "summary": str(entry.get("summary") or ""),
         "imports": sorted(str(v) for v in _safe_get_list(entry, "imports")),
         "exports": sorted(str(v) for v in _safe_get_list(entry, "exports")),
@@ -358,11 +464,14 @@ def _document_fingerprint(entry: Mapping[str, Any], symbols: Sequence[Mapping[st
                 "start_line": _chunk_bounds(sym)[0],
                 "end_line": _chunk_bounds(sym)[1],
             }
-            for sym in sorted(symbols, key=lambda item: (
-                str(item.get("name") or ""),
-                str(item.get("qualified_name") or ""),
-                int(item.get("line", 0) or 0),
-            ))
+            for sym in sorted(
+                symbols,
+                key=lambda item: (
+                    str(item.get("name") or ""),
+                    str(item.get("qualified_name") or ""),
+                    int(item.get("line", 0) or 0),
+                ),
+            )
         ],
     }
     return _stable_hash(payload, size=24)
@@ -370,11 +479,14 @@ def _document_fingerprint(entry: Mapping[str, Any], symbols: Sequence[Mapping[st
 
 def _build_chunks(path: str, symbols: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     chunks: list[dict[str, Any]] = []
-    for sym in sorted(symbols, key=lambda item: (
-        int(item.get("line", 0) or 0),
-        str(item.get("name") or ""),
-        str(item.get("qualified_name") or ""),
-    )):
+    for sym in sorted(
+        symbols,
+        key=lambda item: (
+            int(item.get("line", 0) or 0),
+            str(item.get("name") or ""),
+            str(item.get("qualified_name") or ""),
+        ),
+    ):
         start, end = _chunk_bounds(sym)
         if start < 1:
             continue
@@ -389,29 +501,56 @@ def _build_chunks(path: str, symbols: Sequence[Mapping[str, Any]]) -> list[dict[
             "start_line": start,
             "end_line": end,
         }
-        chunks.append({
-            "chunk_id": f"chunk:{_stable_hash(chunk_identity, size=20)}",
-            "symbol": name,
-            "kind": kind,
-            "qualified_name": qualified,
-            "start_line": start,
-            "end_line": end,
-        })
+        chunks.append(
+            {
+                "chunk_id": f"chunk:{_stable_hash(chunk_identity, size=20)}",
+                "symbol": name,
+                "kind": kind,
+                "qualified_name": qualified,
+                "start_line": start,
+                "end_line": end,
+            }
+        )
     if not chunks:
-        chunks.append({
-            "chunk_id": f"chunk:{_stable_hash({'path': path, 'kind': 'file'}, size=20)}",
-            "symbol": "",
-            "kind": "file",
-            "qualified_name": path,
-            "start_line": 1,
-            "end_line": 1,
-        })
+        chunks.append(
+            {
+                "chunk_id": f"chunk:{_stable_hash({'path': path, 'kind': 'file'}, size=20)}",
+                "symbol": "",
+                "kind": "file",
+                "qualified_name": path,
+                "start_line": 1,
+                "end_line": 1,
+            }
+        )
     return chunks
 
 
-def _build_document(entry: Mapping[str, Any], symbols: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+def _source_text(root: str, path: str) -> str:
+    """Read source once while building/updating the index, never during ranking."""
+    if not root or not path:
+        return ""
+    root_abs = os.path.abspath(root)
+    candidate = os.path.abspath(os.path.join(root_abs, path.replace("/", os.sep)))
+    try:
+        if os.path.commonpath([root_abs, candidate]) != root_abs:
+            return ""
+        with open(candidate, encoding="utf-8", errors="replace") as handle:
+            return handle.read(1_048_576)
+    except (OSError, UnicodeError):
+        return ""
+
+
+def _build_document(
+    entry: Mapping[str, Any],
+    symbols: Sequence[Mapping[str, Any]],
+    *,
+    root: str = "",
+) -> dict[str, Any]:
     path = _normalized_path(str(entry.get("path") or ""))
+    source_text = _source_text(root, path)
     text_parts: list[str] = [path]
+    if source_text:
+        text_parts.append(source_text)
     text_parts.extend(_path_tokens(path))
     for sym in symbols:
         text_parts.append(str(sym.get("name") or ""))
@@ -440,6 +579,7 @@ def _build_document(entry: Mapping[str, Any], symbols: Sequence[Mapping[str, Any
         "importance": float(entry.get("importance", 0.0) or 0.0),
         "size_bytes": int(entry.get("size_bytes", 0) or 0),
         "file_hash": str(entry.get("file_hash") or ""),
+        "content_hash": str(entry.get("content_hash") or ""),
         "symbols": [str(s.get("name") or "") for s in symbols],
         "chunks": _build_chunks(path, symbols),
         "tf": tf,
@@ -464,10 +604,6 @@ def build_retrieval_index(
     symbol_index = symbol_index or {}
     call_graph = call_graph or {}
 
-    pm_files: list[Mapping[str, Any]] = [
-        item for item in project_map.get("files", []) if isinstance(item, Mapping)
-    ]
-
     # Map symbol -> file and file -> symbols.
     symbols_by_file: dict[str, list[dict]] = {}
     for sym in symbol_index.get("symbols", []):
@@ -481,8 +617,7 @@ def build_retrieval_index(
     for key in ("edges", "imports", "calls"):
         for edge in call_graph.get(key, []) or []:
             if isinstance(edge, Mapping) and edge.get("from") and edge.get("to"):
-                edges.append((str(edge["from"]).replace(os.sep, "/"),
-                              str(edge["to"]).replace(os.sep, "/")))
+                edges.append((str(edge["from"]).replace(os.sep, "/"), str(edge["to"]).replace(os.sep, "/")))
 
     return update_retrieval_index(
         None,
@@ -536,17 +671,17 @@ def update_retrieval_index(
         if not path:
             continue
         symbols = symbols_by_file.get(path, [])
-        fingerprint = _document_fingerprint(entry, symbols)
         prev_doc = prev_docs.get(path)
-        if (
-            prev_doc
-            and path not in changed
-            and str(prev_doc.get("source_fingerprint") or "") == fingerprint
-        ):
+        entry_for_index = dict(entry)
+        source_text = _source_text(root, path)
+        if source_text and not entry_for_index.get("content_hash"):
+            entry_for_index["content_hash"] = hashlib.sha256(source_text.encode("utf-8")).hexdigest()
+        fingerprint = _document_fingerprint(entry_for_index, symbols)
+        if prev_doc and path not in changed and str(prev_doc.get("source_fingerprint") or "") == fingerprint:
             file_docs.append(prev_doc)
             reused_paths.append(path)
             continue
-        file_docs.append(_build_document(entry, symbols))
+        file_docs.append(_build_document(entry_for_index, symbols, root=root))
         invalidated_paths.append(path)
 
     file_docs.sort(key=lambda doc: doc["path"])
@@ -677,8 +812,14 @@ def load_retrieval_index(root: str, out: str = ".simplicio") -> dict | None:
 # --------------------------------------------------------------------------- #
 # Stage C — candidate ranking (discriminative, explainable)
 # --------------------------------------------------------------------------- #
-def _bm25_score(tf: Mapping[str, int], query_terms: Sequence[str], df_counts: Mapping[str, int],
-                document_count: int, doc_len: int, avg_len: float) -> tuple[float, list[str], dict[str, float]]:
+def _bm25_score(
+    tf: Mapping[str, int],
+    query_terms: Sequence[str],
+    df_counts: Mapping[str, int],
+    document_count: int,
+    doc_len: int,
+    avg_len: float,
+) -> tuple[float, list[str], dict[str, float]]:
     """Deterministic BM25 (Robertson/Sparck-Jones) over the index vocabulary."""
     if document_count <= 0 or not query_terms:
         return 0.0, [], {}
@@ -758,8 +899,12 @@ def rank_candidates(
 
         # BM25 over the *discriminative* query terms (domain+symbol+identifiers).
         bm25, bm25_matched, idf_terms = _bm25_score(
-            tf, exact_query_terms, df_counts, document_count,
-            max(1, doc.get("token_count", 1) or 1), avg_len,
+            tf,
+            exact_query_terms,
+            df_counts,
+            document_count,
+            max(1, doc.get("token_count", 1) or 1),
+            avg_len,
         )
 
         # Exact target / path match (highest weight).
@@ -793,8 +938,7 @@ def rank_candidates(
         paired_tests = related_tests.get(path, [])
         test_matches = sorted(set(t for t in (paired_tests or [])) if (related & symbols) else set())
 
-        matched_terms = sorted(set(bm25_matched) | set(sym_matches) | set(path_matches)
-                               | set(test_matches))
+        matched_terms = sorted(set(bm25_matched) | set(sym_matches) | set(path_matches) | set(test_matches))
 
         # Relevance requires at least one discriminative match OR an exact target.
         has_relevance = bool(exact_target or matched_terms)
@@ -858,20 +1002,22 @@ def rank_candidates(
             # Never surface a penalized, non-target file with zero relevance.
             continue
 
-        ranked.append({
-            "path": path,
-            "relevance_score": score,
-            "score_components": {k: round(v, 6) for k, v in components.items()},
-            "idf_terms": idf_terms,
-            "reason_codes": reason_codes,
-            "matched_terms": matched_terms,
-            "symbol_matches": sym_matches,
-            "path_matches": path_matches,
-            "recent_change_boost": recent_boost,
-            "generated": generated,
-            "language": doc.get("language", ""),
-            "roles": roles,
-        })
+        ranked.append(
+            {
+                "path": path,
+                "relevance_score": score,
+                "score_components": {k: round(v, 6) for k, v in components.items()},
+                "idf_terms": idf_terms,
+                "reason_codes": reason_codes,
+                "matched_terms": matched_terms,
+                "symbol_matches": sym_matches,
+                "path_matches": path_matches,
+                "recent_change_boost": recent_boost,
+                "generated": generated,
+                "language": doc.get("language", ""),
+                "roles": roles,
+            }
+        )
 
     ranked.sort(key=lambda row: (-row["relevance_score"], row["path"]))
     return ranked[: max(1, limit)]
@@ -925,13 +1071,15 @@ def expand_spans(
         doc = docs_by_path.get(path, {})
         read = _read_lines(root, path)
         if read is None:
-            out.append({
-                "path": path,
-                "readable": False,
-                "spans": [],
-                "expand_handle": _expand_handle(root, path, None, kind="full"),
-                "line_count": 0,
-            })
+            out.append(
+                {
+                    "path": path,
+                    "readable": False,
+                    "spans": [],
+                    "expand_handle": _expand_handle(root, path, None, kind="full"),
+                    "line_count": 0,
+                }
+            )
             continue
         text, lines = read
         line_count = len(lines)
@@ -956,20 +1104,22 @@ def expand_spans(
             if key in chosen:
                 continue
             chosen.add(key)
-            chunk = "\n".join(lines[start - 1:end])
+            chunk = "\n".join(lines[start - 1 : end])
             chunk_id = ""
             for chunk_meta in chunks_here:
                 if str(chunk_meta.get("symbol") or "").lower() == sname:
                     chunk_id = str(chunk_meta.get("chunk_id") or "")
                     break
-            ranges.append({
-                "start_line": start,
-                "end_line": end,
-                "symbol": sym.get("name"),
-                "kind": sym.get("kind"),
-                "chunk_id": chunk_id,
-                "range_hash": hashlib.sha256(chunk.encode("utf-8")).hexdigest()[:16],
-            })
+            ranges.append(
+                {
+                    "start_line": start,
+                    "end_line": end,
+                    "symbol": sym.get("name"),
+                    "kind": sym.get("kind"),
+                    "chunk_id": chunk_id,
+                    "range_hash": hashlib.sha256(chunk.encode("utf-8")).hexdigest()[:16],
+                }
+            )
             picked += 1
             if picked >= max_spans_per_file:
                 break
@@ -981,48 +1131,61 @@ def expand_spans(
         # Stable handle for retrieving the full / adjacent content later.
         content_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
         expand_handle = _expand_handle(root, path, content_hash, kind="full")
-        omitted_ranges = [{
-            "kind": "full",
-            "start_line": 1,
-            "end_line": line_count,
-            "expand_handle": expand_handle,
-        }]
+        omitted_ranges = [
+            {
+                "kind": "full",
+                "start_line": 1,
+                "end_line": line_count,
+                "expand_handle": expand_handle,
+            }
+        ]
         for span in ranges:
             if span["start_line"] > 1:
-                omitted_ranges.append({
-                    "kind": "before",
-                    "start_line": 1,
-                    "end_line": span["start_line"] - 1,
-                    "expand_handle": _expand_handle(
-                        root, path, content_hash, kind="range", start_line=1, end_line=span["start_line"] - 1
-                    ),
-                })
+                omitted_ranges.append(
+                    {
+                        "kind": "before",
+                        "start_line": 1,
+                        "end_line": span["start_line"] - 1,
+                        "expand_handle": _expand_handle(
+                            root,
+                            path,
+                            content_hash,
+                            kind="range",
+                            start_line=1,
+                            end_line=span["start_line"] - 1,
+                        ),
+                    }
+                )
             if span["end_line"] < line_count:
-                omitted_ranges.append({
-                    "kind": "after",
-                    "start_line": span["end_line"] + 1,
-                    "end_line": line_count,
-                    "expand_handle": _expand_handle(
-                        root,
-                        path,
-                        content_hash,
-                        kind="range",
-                        start_line=span["end_line"] + 1,
-                        end_line=line_count,
-                    ),
-                })
+                omitted_ranges.append(
+                    {
+                        "kind": "after",
+                        "start_line": span["end_line"] + 1,
+                        "end_line": line_count,
+                        "expand_handle": _expand_handle(
+                            root,
+                            path,
+                            content_hash,
+                            kind="range",
+                            start_line=span["end_line"] + 1,
+                            end_line=line_count,
+                        ),
+                    }
+                )
 
-        out.append({
-            "path": path,
-            "readable": True,
-            "line_count": line_count,
-            "snapshot_hash": content_hash,
-            "spans": ranges,
-            "context_edges": context_edges,
-            "tests": tests,
-            "expand_handle": expand_handle,
-            "omitted_ranges": omitted_ranges,
-        })
+        out.append(
+            {
+                "path": path,
+                "readable": True,
+                "line_count": line_count,
+                "snapshot_hash": content_hash,
+                "spans": ranges,
+                "context_edges": context_edges,
+                "tests": tests,
+                "expand_handle": expand_handle,
+                "omitted_ranges": omitted_ranges,
+            }
+        )
     return out
 
 
@@ -1081,7 +1244,7 @@ def resolve_expand_handle(
     if max_lines is not None and max_lines > 0:
         end_line = min(end_line, start_line + max_lines - 1)
 
-    snippet = "\n".join(lines[start_line - 1:end_line]) if lines else ""
+    snippet = "\n".join(lines[start_line - 1 : end_line]) if lines else ""
     return {
         "path": path,
         "start_line": start_line,
@@ -1147,7 +1310,9 @@ def fit_token_budget(
         if is_required and used + cost > usable:
             overflow_required.append(path)
             continue
-        budgeted.append({**entry, "estimated_tokens": cost, "layer": "required" if is_required else "context"})
+        budgeted.append(
+            {**entry, "estimated_tokens": cost, "layer": "required" if is_required else "context"}
+        )
         used += cost
 
     # Layer 2/3: context edges + tests metadata (cheap, deterministic).
@@ -1162,9 +1327,7 @@ def fit_token_budget(
         broader_context.append(
             "required spans exceed token budget for: " + ", ".join(sorted(overflow_required))
         )
-        broader_context.append(
-            f"next_query: tighten target or raise --token-budget (current={token_budget})"
-        )
+        broader_context.append(f"next_query: tighten target or raise --token-budget (current={token_budget})")
 
     return {
         "token_budget": token_budget,
@@ -1197,7 +1360,7 @@ def _span_cost(root: str, path: str, span: Mapping[str, Any]) -> int:
         return estimate_tokens("x" * (end - start + 1) * 40)
     lines = read[1]
     end = min(end, len(lines))
-    return estimate_tokens("\n".join(lines[start - 1:end]))
+    return estimate_tokens("\n".join(lines[start - 1 : end]))
 
 
 # --------------------------------------------------------------------------- #
@@ -1226,10 +1389,23 @@ def fidelity_gate(
     disc_terms = [t for t in plan.all_terms if t.lower() not in _STOP_WORDS]
     disc_match = {t for t in disc_terms if t.lower() in all_matched}
     coverage_ratio = (len(disc_match) / len(disc_terms)) if disc_terms else 1.0
-    # A genuinely discriminative signal must exist (symbol/identifier/match),
-    # otherwise high generic lexical overlap must not pass as sufficient.
-    has_discriminative_signal = bool(plan.symbol_terms or plan.exact_identifiers
-                                       or ac_match or id_match)
+    # A genuinely discriminative signal must exist (symbol/identifier/AC or a
+    # multi-term domain match from indexed source text). A single generic word
+    # is not enough, but natural-language tasks without a named symbol still
+    # need a truthful route to their load-bearing source spans.
+    domain_terms = {t.lower() for t in plan.domain_terms}
+    domain_match = {t for t in disc_match if t.lower() in domain_terms}
+    non_documentation_route = any(
+        not ({str(role).lower() for role in (row.get("roles") or [])} & {"docs", "documentation"})
+        for row in ranked
+    )
+    has_discriminative_signal = bool(
+        plan.symbol_terms
+        or plan.exact_identifiers
+        or ac_match
+        or id_match
+        or (len(domain_match) >= 2 and non_documentation_route)
+    )
     # Dimension 5: verification/test route present when the task is executable.
     has_test_route = any("test" in (r.get("roles") or []) for r in ranked)
     # Dimension 6: stack/layer coverage.
@@ -1255,6 +1431,7 @@ def fidelity_gate(
         "verification_route_present": bool(has_test_route) if (plan.ac_ids or plan.symbol_terms) else None,
         "layer_count": len(layers),
         "has_discriminative_signal": has_discriminative_signal,
+        "matched_domain_terms": sorted(domain_match),
     }
 
     reasons: list[str] = []
@@ -1310,9 +1487,12 @@ def select_context_targets(
     that pass a prebuilt index never reopen source files.
     """
     abs_root = os.path.abspath(root)
-    index = retrieval_index or build_retrieval_index(
-        project_map, symbol_index=symbol_index, call_graph=call_graph, root=abs_root
-    )
+    # Warm task-aware queries consume the index persisted by scan/index. A
+    # direct library call without a persisted index gets metadata-only ranking;
+    # it must not reopen every candidate body just to answer one query.
+    index = retrieval_index or load_retrieval_index(abs_root)
+    if index is None:
+        index = build_retrieval_index(project_map, symbol_index=symbol_index, call_graph=call_graph, root="")
     plan = build_query_plan(goal, task_intent=task_intent, target=target)
     if not recent_paths:
         recent_paths = _recent_paths(project_map)
@@ -1323,15 +1503,18 @@ def select_context_targets(
     fit = fit_token_budget(expanded, abs_root, token_budget=token_budget, plan=plan)
     fidelity = fidelity_gate(ranked, expanded, plan, minimum_query_coverage=minimum_query_coverage)
 
-    targets = [{
-        "path": row["path"],
-        "relevance_score": row["relevance_score"],
-        "relevance_reason": "; ".join(row["reason_codes"]),
-        "matched_terms": row["matched_terms"],
-        "recent_change_boost": row["recent_change_boost"],
-        "score_components": row["score_components"],
-        "reason_codes": row["reason_codes"],
-    } for row in ranked]
+    targets = [
+        {
+            "path": row["path"],
+            "relevance_score": row["relevance_score"],
+            "relevance_reason": "; ".join(row["reason_codes"]),
+            "matched_terms": row["matched_terms"],
+            "recent_change_boost": row["recent_change_boost"],
+            "score_components": row["score_components"],
+            "reason_codes": row["reason_codes"],
+        }
+        for row in ranked
+    ]
 
     query_terms = plan.all_terms
     matched_union = sorted({t for row in ranked for t in row["matched_terms"]})
@@ -1356,9 +1539,7 @@ def select_context_targets(
         }
 
     needs_broader = bool(
-        fidelity["reasons"]
-        or fit["needs_broader_context"]
-        or target_resolution["status"] == "missing"
+        fidelity["reasons"] or fit["needs_broader_context"] or target_resolution["status"] == "missing"
     )
 
     return {

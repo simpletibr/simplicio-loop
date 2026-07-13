@@ -12,8 +12,14 @@ from .retrieval_index import (
     DEFAULT_TOKEN_BUDGET,
     TOKENIZER_POLICY,
     estimate_tokens,
+)
+from .retrieval_index import (
     select_context_targets as _select_context_targets,
+)
+from .retrieval_index import (
     task_query_fingerprint as _task_query_fingerprint,
+)
+from .retrieval_index import (
     task_query_terms as _task_query_terms,
 )
 from .task_intent import build_task_query_plan, extract_task_context_settings
@@ -128,9 +134,7 @@ def _fidelity_from_pack(
     if not target_ok:
         reasons.append(f"target_not_selected:{target.replace(os.sep, '/')}")
     if exact_identifiers and len(identifier_match) < len(exact_identifiers):
-        reasons.append(
-            "missing_identifiers:" + ",".join(sorted(exact_identifiers - identifier_match))
-        )
+        reasons.append("missing_identifiers:" + ",".join(sorted(exact_identifiers - identifier_match)))
     if ac_ids and len(ac_match) < len(ac_ids):
         reasons.append("missing_ac_ids:" + ",".join(sorted(ac_ids - ac_match)))
     explicit_target_selected = bool(target.strip()) and target_ok
@@ -154,13 +158,15 @@ def _fidelity_from_pack(
         "coverage_ratio": round(coverage_ratio, 6),
         "dimensions": {
             "target_preserved": target_ok,
-            "identifier_coverage_ratio": round(
-                len(identifier_match) / len(exact_identifiers), 6
-            ) if exact_identifiers else 1.0,
+            "identifier_coverage_ratio": round(len(identifier_match) / len(exact_identifiers), 6)
+            if exact_identifiers
+            else 1.0,
             "ac_coverage_ratio": round(len(ac_match) / len(ac_ids), 6) if ac_ids else 1.0,
             "discriminative_coverage_ratio": round(coverage_ratio, 6),
             "verification_route_present": has_test_route if requires_strong_signal else None,
-            "layer_count": len({file_entry.get("language", "") for file_entry in files if file_entry.get("language")}),
+            "layer_count": len(
+                {file_entry.get("language", "") for file_entry in files if file_entry.get("language")}
+            ),
             "has_discriminative_signal": requires_strong_signal,
         },
         "reasons": reasons,
@@ -179,7 +185,9 @@ def apply_task_context(
     query_terms: list[str] | None = None,
     minimum_query_coverage: float = 0.2,
 ) -> dict[str, Any]:
-    task_aware = bool(goal.strip() or task_intent or task_fingerprint.strip() or target.strip() or query_terms)
+    task_aware = bool(
+        goal.strip() or task_intent or task_fingerprint.strip() or target.strip() or query_terms
+    )
     if not task_aware:
         return pack
 
@@ -193,14 +201,16 @@ def apply_task_context(
         row = row_by_path.get(path, {})
         matched = sorted(query_set & set(row.get("matched_terms", [])))
         recent_boost = bool(row.get("recent_change_boost", False) and matched)
-        file_entry.update({
-            "relevance_score": float(row.get("relevance_score", 0.0) or 0.0),
-            "relevance_reason": str(row.get("relevance_reason", "")),
-            "matched_terms": matched,
-            "recent_change_boost": recent_boost,
-            "score_components": dict(row.get("score_components", {})),
-            "reason_codes": list(row.get("reason_codes", [])),
-        })
+        file_entry.update(
+            {
+                "relevance_score": float(row.get("relevance_score", 0.0) or 0.0),
+                "relevance_reason": str(row.get("relevance_reason", "")),
+                "matched_terms": matched,
+                "recent_change_boost": recent_boost,
+                "score_components": dict(row.get("score_components", {})),
+                "reason_codes": list(row.get("reason_codes", [])),
+            }
+        )
         matched_union.update(matched)
         if recent_boost:
             relevant_recent_paths.add(path)
@@ -235,11 +245,15 @@ def apply_task_context(
         "minimum": minimum_query_coverage,
     }
     recent_values = project_map.get("recent_changes") or project_map.get("changed_files") or []
-    pack["recent_changes"] = [
-        value
-        for value in recent_values
-        if (value.get("path") if isinstance(value, Mapping) else value) in relevant_recent_paths
-    ] if isinstance(recent_values, list) else []
+    pack["recent_changes"] = (
+        [
+            value
+            for value in recent_values
+            if (value.get("path") if isinstance(value, Mapping) else value) in relevant_recent_paths
+        ]
+        if isinstance(recent_values, list)
+        else []
+    )
 
     settings = extract_task_context_settings(goal=goal, task_intent=task_intent)
     token_budget = int(settings["serialized_output_token_budget"] or DEFAULT_TOKEN_BUDGET)
@@ -247,12 +261,8 @@ def apply_task_context(
     estimated_tokens = estimate_tokens(pre_budget_payload)
     budget_reasons: list[str] = []
     if estimated_tokens > token_budget:
-        budget_reasons.append(
-            f"serialized_output {estimated_tokens} exceeds budget {token_budget}"
-        )
-        budget_reasons.append(
-            f"next_query: tighten target or raise token budget (current={token_budget})"
-        )
+        budget_reasons.append(f"serialized_output {estimated_tokens} exceeds budget {token_budget}")
+        budget_reasons.append(f"next_query: tighten target or raise token budget (current={token_budget})")
     pack["serialization_budget"] = {
         "token_budget": token_budget,
         "tokenizer_policy": TOKENIZER_POLICY,
@@ -287,9 +297,7 @@ def apply_task_context(
     if reasons:
         pack["needs_broader_context"] = True
         previous = str(pack.get("needs_broader_context_reason", ""))
-        pack["needs_broader_context_reason"] = "; ".join(
-            piece for piece in [previous, *reasons] if piece
-        )
+        pack["needs_broader_context_reason"] = "; ".join(piece for piece in [previous, *reasons] if piece)
     return pack
 
 

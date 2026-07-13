@@ -54,12 +54,15 @@ class ContextPackBasicTest(unittest.TestCase):
         self.assertIn("scales", pack)
 
     def test_multi_language_fixtures(self) -> None:
-        pack = _pack(str(FIXTURE), [
-            {"path": "sample.ts"},
-            {"path": "sample.py"},
-            {"path": "sample.json"},
-            {"path": "sample.md"},
-        ])
+        pack = _pack(
+            str(FIXTURE),
+            [
+                {"path": "sample.ts"},
+                {"path": "sample.py"},
+                {"path": "sample.json"},
+                {"path": "sample.md"},
+            ],
+        )
         by_path = {entry["path"]: entry for entry in pack["files"]}
         self.assertEqual(by_path["sample.ts"]["language"], "typescript")
         self.assertEqual(by_path["sample.py"]["language"], "python")
@@ -86,10 +89,12 @@ class RangeExtractionTest(unittest.TestCase):
 
 class CallGraphAndDependencyTest(unittest.TestCase):
     def test_callers_and_imports_resolved(self) -> None:
-        call_graph = {"edges": [
-            {"from": "sample.py", "to": "shared/util.py"},
-            {"from": "caller.py", "to": "sample.py"},
-        ]}
+        call_graph = {
+            "edges": [
+                {"from": "sample.py", "to": "shared/util.py"},
+                {"from": "caller.py", "to": "sample.py"},
+            ]
+        }
         pack = _pack(
             str(FIXTURE),
             [{"path": "sample.py"}],
@@ -102,10 +107,12 @@ class CallGraphAndDependencyTest(unittest.TestCase):
         self.assertIn("macro", entry["scale_context"])
 
     def test_tests_resolved_from_project_map(self) -> None:
-        project_map = {"files": [
-            {"path": "sample.py", "roles": ["domain"]},
-            {"path": "tests/test_sample.py", "roles": ["test"]},
-        ]}
+        project_map = {
+            "files": [
+                {"path": "sample.py", "roles": ["domain"]},
+                {"path": "tests/test_sample.py", "roles": ["test"]},
+            ]
+        }
         pack = _pack(
             str(FIXTURE),
             [{"path": "sample.py"}],
@@ -198,6 +205,7 @@ class ContextCacheTest(unittest.TestCase):
         cache = ContextCache(self.cache_path)
         cache.set("abc", {"summary": "x"})
         import json as _json
+
         on_disk = _json.loads(self.cache_path.read_text())
         self.assertEqual(on_disk["schema"], CONTEXT_CACHE_SCHEMA)
         self.assertEqual(on_disk["entries"], {"abc": {"summary": "x"}})

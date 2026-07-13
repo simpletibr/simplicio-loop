@@ -129,7 +129,10 @@ class PrecedentVerbTest(unittest.TestCase):
             mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
             mock.patch("simplicio_mapper.query._validated_runtime_binary", return_value=(True, "validated")),
             mock.patch("simplicio_mapper.query.subprocess.run", return_value=completed) as run_mock,
-            mock.patch("simplicio_mapper.query.build_artifacts", side_effect=AssertionError("should stay artifact-lazy")),
+            mock.patch(
+                "simplicio_mapper.query.build_artifacts",
+                side_effect=AssertionError("should stay artifact-lazy"),
+            ),
         ):
             payload = run_query(str(self.dir), verb="precedent", arg="route")
 
@@ -155,9 +158,14 @@ class PrecedentVerbTest(unittest.TestCase):
             mock.patch("simplicio_mapper.query._validated_runtime_binary", return_value=(True, "validated")),
             mock.patch(
                 "simplicio_mapper.query.subprocess.run",
-                return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout=json.dumps(native_payload)),
+                return_value=subprocess.CompletedProcess(
+                    args=[], returncode=0, stdout=json.dumps(native_payload)
+                ),
             ),
-            mock.patch("simplicio_mapper.query.build_artifacts", side_effect=AssertionError("should stay artifact-lazy")),
+            mock.patch(
+                "simplicio_mapper.query.build_artifacts",
+                side_effect=AssertionError("should stay artifact-lazy"),
+            ),
         ):
             payload = run_query(str(self.dir), verb="impact", arg="src/api/routes.py")
         self.assertEqual(payload["source"], "runtime-ask-impact")
@@ -170,9 +178,14 @@ class PrecedentVerbTest(unittest.TestCase):
             mock.patch("simplicio_mapper.query._validated_runtime_binary", return_value=(True, "validated")),
             mock.patch(
                 "simplicio_mapper.query.subprocess.run",
-                return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout=json.dumps(native_payload)),
+                return_value=subprocess.CompletedProcess(
+                    args=[], returncode=0, stdout=json.dumps(native_payload)
+                ),
             ),
-            mock.patch("simplicio_mapper.query.build_artifacts", side_effect=AssertionError("should stay artifact-lazy")),
+            mock.patch(
+                "simplicio_mapper.query.build_artifacts",
+                side_effect=AssertionError("should stay artifact-lazy"),
+            ),
         ):
             payload = run_query(str(self.dir), verb="tests-for", arg="src/api/routes.py")
         self.assertEqual(payload["source"], "runtime-ask-tests-for")
@@ -250,7 +263,10 @@ class PrecedentVerbTest(unittest.TestCase):
         self.assertEqual(first["cache"]["receipt"]["outcome"], "miss")
         with (
             mock.patch("simplicio_mapper.query.shutil.which", return_value=None),
-            mock.patch("simplicio_mapper.query.build_artifacts", side_effect=AssertionError("cache hit should skip artifacts")),
+            mock.patch(
+                "simplicio_mapper.query.build_artifacts",
+                side_effect=AssertionError("cache hit should skip artifacts"),
+            ),
         ):
             second = run_query(str(self.dir), verb="precedent", arg="route")
         self.assertEqual(second["source"], "local-tag-overlap")

@@ -269,9 +269,16 @@ def diff_context_dag(previous: dict | None, current: dict) -> dict:
 
     events = []
     for node_id in removed_ids:
-        events.append({"op": "remove", "id": node_id, "reason": REASON_REMOVED, **_event_details(prev_nodes[node_id])})
+        events.append(
+            {"op": "remove", "id": node_id, "reason": REASON_REMOVED, **_event_details(prev_nodes[node_id])}
+        )
     for node_id in added_ids:
-        event: dict[str, Any] = {"op": "add", "id": node_id, "reason": REASON_ADDED, **_event_details(cur_nodes[node_id])}
+        event: dict[str, Any] = {
+            "op": "add",
+            "id": node_id,
+            "reason": REASON_ADDED,
+            **_event_details(cur_nodes[node_id]),
+        }
         if node_id in rename_hints:
             event["rename_hint"] = rename_hints[node_id]
             event["caused_by"] = [{"op": "rename", "id": rename_hints[node_id]}]

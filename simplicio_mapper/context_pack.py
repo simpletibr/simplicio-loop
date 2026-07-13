@@ -128,12 +128,14 @@ def _file_symbols(symbols: list[dict], path: str) -> list[dict]:
         if symbol.get("defined_in") != path:
             continue
         identity = symbol.get("qualified_name") or symbol.get("name") or ""
-        found.append({
-            "name": symbol.get("name"),
-            "kind": symbol.get("kind"),
-            "line": symbol.get("line"),
-            "hash": hashlib.sha256(f"{identity}|{path}".encode()).hexdigest()[:16],
-        })
+        found.append(
+            {
+                "name": symbol.get("name"),
+                "kind": symbol.get("kind"),
+                "line": symbol.get("line"),
+                "hash": hashlib.sha256(f"{identity}|{path}".encode()).hexdigest()[:16],
+            }
+        )
     return sorted(found, key=lambda entry: (entry.get("line") or 0, entry.get("name") or ""))
 
 
@@ -196,10 +198,18 @@ def _scale_summary(files_out: list[dict]) -> dict[str, Any]:
         "micro": {"symbol_count": sum(len(entry.get("symbols", [])) for entry in files_out)},
         "meso": {
             "file_count": len(files_out),
-            "dependency_edges": sum(len(entry.get("imports", [])) + len(entry.get("callers", [])) for entry in files_out),
+            "dependency_edges": sum(
+                len(entry.get("imports", [])) + len(entry.get("callers", [])) for entry in files_out
+            ),
         },
         "macro": {
-            "module_candidates": sorted({module for entry in files_out for module in entry.get("scale_context", {}).get("macro", {}).get("modules", [])}),
+            "module_candidates": sorted(
+                {
+                    module
+                    for entry in files_out
+                    for module in entry.get("scale_context", {}).get("macro", {}).get("modules", [])
+                }
+            ),
         },
     }
 
@@ -229,8 +239,12 @@ def build_context_pack(
     target_rows = list(targets)
     abs_root = os.path.abspath(root)
     base = os.path.join(abs_root, ".simplicio")
-    project_map = project_map if project_map is not None else _load_json(os.path.join(base, "project-map.json"))
-    symbol_index = symbol_index if symbol_index is not None else _load_json(os.path.join(base, "symbol-index.json"))
+    project_map = (
+        project_map if project_map is not None else _load_json(os.path.join(base, "project-map.json"))
+    )
+    symbol_index = (
+        symbol_index if symbol_index is not None else _load_json(os.path.join(base, "symbol-index.json"))
+    )
     call_graph = call_graph if call_graph is not None else _load_json(os.path.join(base, "call-graph.json"))
     architecture_inventory = (
         architecture_inventory
@@ -281,51 +295,53 @@ def build_context_pack(
                 reasons.append(f"unstable range {start}-{end} in {path}")
                 continue
             chunk = "\n".join(text.splitlines()[start - 1 : end])
-            selected_ranges.append({
-                "start_line": start,
-                "end_line": end,
-                "range_hash": _sha256_text(chunk),
-                "snippet": _range_snippet(text, start, end, compact),
-            })
-        callers = sorted({
-            edge["from"] for edge in cg_edges
-            if edge.get("to") == path and edge.get("from") != path
-        })
-        imports = sorted({
-            edge["to"] for edge in cg_edges
-            if edge.get("from") == path and edge.get("to") != path
-        })
+            selected_ranges.append(
+                {
+                    "start_line": start,
+                    "end_line": end,
+                    "range_hash": _sha256_text(chunk),
+                    "snippet": _range_snippet(text, start, end, compact),
+                }
+            )
+        callers = sorted(
+            {edge["from"] for edge in cg_edges if edge.get("to") == path and edge.get("from") != path}
+        )
+        imports = sorted(
+            {edge["to"] for edge in cg_edges if edge.get("from") == path and edge.get("to") != path}
+        )
         symbols = _file_symbols(si_symbols, path)
         modules = _module_candidates(path)
         macro_layers = sorted({layer for module in modules for layer in layer_by_module.get(module, [])})
         drilldown = _drilldown_handles(path.replace(os.sep, "/"), selected_ranges, symbols)
-        files_out.append({
-            "path": path.replace(os.sep, "/"),
-            "language": _language_for(abs_path, text),
-            "snapshot_hash": _sha256_text(text),
-            "line_count": line_count,
-            "compact": compact,
-            "ranges": selected_ranges,
-            "symbols": symbols,
-            "callers": callers,
-            "imports": imports,
-            "tests": _related_tests(pm_files, path),
-            "drilldown": {"reversible": True, "handles": drilldown},
-            "freshness": {
+        files_out.append(
+            {
+                "path": path.replace(os.sep, "/"),
+                "language": _language_for(abs_path, text),
                 "snapshot_hash": _sha256_text(text),
-                "range_hashes": [selected["range_hash"] for selected in selected_ranges],
-            },
-            "scale_context": {
-                "micro": {"symbols": symbols, "symbol_count": len(symbols)},
-                "meso": {
-                    "path": path.replace(os.sep, "/"),
-                    "imports": imports,
-                    "callers": callers,
-                    "tests": _related_tests(pm_files, path),
+                "line_count": line_count,
+                "compact": compact,
+                "ranges": selected_ranges,
+                "symbols": symbols,
+                "callers": callers,
+                "imports": imports,
+                "tests": _related_tests(pm_files, path),
+                "drilldown": {"reversible": True, "handles": drilldown},
+                "freshness": {
+                    "snapshot_hash": _sha256_text(text),
+                    "range_hashes": [selected["range_hash"] for selected in selected_ranges],
                 },
-                "macro": {"modules": modules, "layers": macro_layers},
-            },
-        })
+                "scale_context": {
+                    "micro": {"symbols": symbols, "symbol_count": len(symbols)},
+                    "meso": {
+                        "path": path.replace(os.sep, "/"),
+                        "imports": imports,
+                        "callers": callers,
+                        "tests": _related_tests(pm_files, path),
+                    },
+                    "macro": {"modules": modules, "layers": macro_layers},
+                },
+            }
+        )
 
     needs_broader = bool(reasons)
     files_out.sort(key=lambda entry: entry["path"])
@@ -361,14 +377,13 @@ def build_context_pack(
             "target_count": len(files_out),
         },
         "dependencies": project_map.get("dependencies", {}),
-        "recent_changes": (
-            project_map.get("recent_changes")
-            or project_map.get("changed_files")
-            or []
-        ),
+        "recent_changes": (project_map.get("recent_changes") or project_map.get("changed_files") or []),
         "needs_broader_context": needs_broader,
         "needs_broader_context_reason": "; ".join(reasons) if reasons else "",
-        "drilldown": {"reversible": True, "handles": [handle for entry in files_out for handle in entry["drilldown"]["handles"]]},
+        "drilldown": {
+            "reversible": True,
+            "handles": [handle for entry in files_out for handle in entry["drilldown"]["handles"]],
+        },
         "llm_directives": LLM_DIRECTIVES,
     }
     payload = apply_task_context(
@@ -385,7 +400,11 @@ def build_context_pack(
     payload["fidelity"] = {
         "status": "partial" if payload.get("needs_broader_context") else "sufficient",
         "gate": "needs_broader_context" if payload.get("needs_broader_context") else "ready",
-        "reasons": [piece.strip() for piece in str(payload.get("needs_broader_context_reason", "")).split(";") if piece.strip()],
+        "reasons": [
+            piece.strip()
+            for piece in str(payload.get("needs_broader_context_reason", "")).split(";")
+            if piece.strip()
+        ],
         "query_coverage": dict(payload.get("query_coverage", {})),
         "scale_coverage": _scale_summary(payload.get("files", [])),
     }

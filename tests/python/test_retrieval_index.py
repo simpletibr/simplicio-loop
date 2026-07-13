@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -51,10 +50,20 @@ def _sample_project_map() -> dict:
 def _sample_symbols() -> dict:
     return {
         "symbols": [
-            {"defined_in": "src/modeling/sort_lines.py", "name": "sort_power_plant_lines",
-             "kind": "function", "line": 1, "qualified_name": "src/modeling/sort_lines.py::sort_power_plant_lines"},
-            {"defined_in": "src/cache/token_cache.py", "name": "TokenCache",
-             "kind": "class", "line": 3, "qualified_name": "src/cache/token_cache.py::TokenCache"},
+            {
+                "defined_in": "src/modeling/sort_lines.py",
+                "name": "sort_power_plant_lines",
+                "kind": "function",
+                "line": 1,
+                "qualified_name": "src/modeling/sort_lines.py::sort_power_plant_lines",
+            },
+            {
+                "defined_in": "src/cache/token_cache.py",
+                "name": "TokenCache",
+                "kind": "class",
+                "line": 3,
+                "qualified_name": "src/cache/token_cache.py::TokenCache",
+            },
         ]
     }
 
@@ -312,9 +321,11 @@ class EndToEndSelectorTest(unittest.TestCase):
         (self.root / "src/cache").mkdir(parents=True)
         (self.root / "docs").mkdir()
         (self.root / "src/modeling/sort_lines.py").write_text(
-            "def sort_power_plant_lines(lines):\n    return sorted(lines)\n", encoding="utf-8")
+            "def sort_power_plant_lines(lines):\n    return sorted(lines)\n", encoding="utf-8"
+        )
         (self.root / "src/cache/token_cache.py").write_text(
-            "class TokenCache:\n    def get(self, k):\n        return None\n", encoding="utf-8")
+            "class TokenCache:\n    def get(self, k):\n        return None\n", encoding="utf-8"
+        )
         (self.root / "docs/release-notes.md").write_text("release notes\n", encoding="utf-8")
 
     def tearDown(self) -> None:
@@ -322,9 +333,11 @@ class EndToEndSelectorTest(unittest.TestCase):
 
     def test_selector_picks_specific_file_no_full_scan(self) -> None:
         selection = ri.select_context_targets(
-            str(self.root), _sample_project_map(),
+            str(self.root),
+            _sample_project_map(),
             goal="Fix TokenCache eviction in token cache implementation",
-            symbol_index=_sample_symbols(), call_graph=_sample_call_graph(),
+            symbol_index=_sample_symbols(),
+            call_graph=_sample_call_graph(),
         )
         paths = [t["path"] for t in selection["targets"]]
         self.assertIn("src/cache/token_cache.py", paths)
@@ -337,7 +350,9 @@ class EndToEndSelectorTest(unittest.TestCase):
         self.assertFalse(selection["fidelity"]["reasons"])
 
     def test_selector_abstains_on_no_vocabulary(self) -> None:
-        selection = ri.select_context_targets(str(self.root), _sample_project_map(), goal="quantum orbital photon")
+        selection = ri.select_context_targets(
+            str(self.root), _sample_project_map(), goal="quantum orbital photon"
+        )
         self.assertTrue(selection["abstained"])
         self.assertEqual(selection["abstention_reason"], "no_relevant_targets")
 
