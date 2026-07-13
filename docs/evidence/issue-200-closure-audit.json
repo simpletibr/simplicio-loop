@@ -1,0 +1,31 @@
+{
+  "schema": "simplicio.issue-closure-audit/v1",
+  "status": "audited",
+  "measurement_status": "MEASURED",
+  "repository": "wesleysimplicio/simplicio-mapper",
+  "issue": {
+    "number": 200,
+    "state": "closed",
+    "state_reason": "completed",
+    "closed_at": "2026-07-11T20:37:03Z",
+    "url": "https://github.com/wesleysimplicio/simplicio-mapper/issues/200"
+  },
+  "closure_event": {
+    "actor": "wesleysimplicio",
+    "closer_commit": "cda7db74405d60348313073ddf01335b6f873b55",
+    "timeline_source": "https://api.github.com/repos/wesleysimplicio/simplicio-mapper/issues/200/timeline"
+  },
+  "closing_pull_request": {
+    "number": 205,
+    "title": "fix: wire content-addressed context-cache lifecycle (rel #200)",
+    "body": "Relates to #200",
+    "state": "closed",
+    "merged_at": "2026-07-11T20:37:01Z",
+    "merge_commit": "251d53cb81c7fc0913104a9e7930e1c44384c86d",
+    "changed_files": 1,
+    "files": ["simplicio_mapper/context_cache.py"],
+    "url": "https://github.com/wesleysimplicio/simplicio-mapper/pull/205"
+  },
+  "historical_justification_proven": false,
+  "interpretation": "This receipt preserves the authoritative remote closure trail and its limitations. It does not retroactively claim that the original issue acceptance criteria were satisfied."
+}

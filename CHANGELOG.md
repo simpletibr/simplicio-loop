@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [0.23.1] - 2026-07-13
+
+### Fixed
+
+- Harden ContextSnapshot fidelity abstention and broader-context signaling.
+- Publish measured installed-consumer and historical closure audit receipts.
+- Keep retrieval budget, penalty, and acceptance-audit evidence synchronized.
+
 ## [0.23.0] - 2026-07-12
 
 ### Added

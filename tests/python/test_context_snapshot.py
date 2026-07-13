@@ -223,6 +223,28 @@ class ContextSnapshotTest(unittest.TestCase):
         self.assertIn("project-map", snap["task"]["omissions"])
         self.assertIn("symbol-index", snap["task"]["omissions"])
 
+    def test_fidelity_abstention_sets_needs_broader_context_without_fabricating_omissions(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        snap = build_context_snapshot(
+            "/repo",
+            project_map=pm,
+            symbol_index=si,
+            call_graph=cg,
+            architecture_inventory=ai,
+            fidelity={
+                "status": "insufficient",
+                "gate": "abstain",
+                "abstained": True,
+                "reasons": ["missing-required-span"],
+            },
+        )
+        self.assertTrue(snap["drilldown"]["reversible"])
+        self.assertTrue(snap["needs_broader_context"])
+        self.assertEqual(snap["task"]["omissions"], [])
+        self.assertEqual(snap["fidelity"]["status"], "insufficient")
+        self.assertTrue(snap["fidelity"]["abstained"])
+        self.assertEqual(snap["fidelity"]["reasons"], ["missing-required-span"])
+
     def test_cli_snapshot_validate_end_to_end(self):
         # `snapshot validate` must accept both fixtures and exit 0.
         import subprocess
