@@ -65,14 +65,12 @@ simplicio-py task "hide the Delete button for non-admins"
 
 ```mermaid
 flowchart LR
-  task(["decided task"])
-  subgraph context["CONTEXT"]
-    mapper["simplicio-mapper<br/>repo context + precedent"]
-  end
-  subgraph execution["EXECUTION"]
-    operator["simplicio-dev-cli<br/>focused operator"]
+  task(["bounded task"])
+  subgraph install["SIMPLICIO-DEV-CLI 0.16.1 INSTALL SURFACE"]
+    mapper["simplicio-mapper 0.23.1<br/>context + precedent"]
+    operator["focused operator"]
     diff["bounded diff"]
-    tests["tests"]
+    tests["tests + gates"]
   end
   subgraph proof["PROOF"]
     receipt[("evidence receipt")]
