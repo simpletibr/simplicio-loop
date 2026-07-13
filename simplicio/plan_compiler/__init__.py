@@ -24,6 +24,12 @@ from simplicio.plan_compiler.compile_task_spec import (
     PlanCompilationError,
     compile_task_spec_to_plan,
 )
+from simplicio.plan_compiler.effect_sink import (
+    EffectApplyResult,
+    EffectSink,
+    IntegratedModeRequiresSinkError,
+    RecordingEffectSink,
+)
 from simplicio.plan_compiler.errors import (
     PlanCompilerError,
     PlanValidationError,
@@ -58,13 +64,17 @@ __all__ = [
     "CompatAdapterError",
     "CompatAdapterExpiredError",
     "ContextSnapshot",
+    "EffectApplyResult",
     "EffectPlan",
+    "EffectSink",
     "GoalEnvelope",
+    "IntegratedModeRequiresSinkError",
     "PlanCompilationError",
     "PlanCompilerError",
     "PlanDAG",
     "PlanNode",
     "PlanValidationError",
+    "RecordingEffectSink",
     "SchemaMismatchError",
     "UnsupportedCompatVersionError",
     "VerificationPlan",

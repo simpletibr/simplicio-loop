@@ -12,13 +12,14 @@ retry loop just like any verify failure.
 import os
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from .adaptive import get_validation_mode
 from .mapper import artifact_status, map_ask, map_handoff
 from .observability import emit_event, estimate_tokens, info, log_run
 from .orchestrator.cost_governor import _price as _estimate_price
 from .pipeline_fixers import try_static_fixers
+from .pipeline_integrated import run_integrated
 from .pipeline_stages import (
     IMPACT_RESULT_FAILED,
     IMPACT_RESULT_NOT_NEEDED,
@@ -41,12 +42,19 @@ from .pipeline_task_result import (
     _task_result,
     _verify_receipt_payload,
 )
+from .plan_compiler.effect_sink import EffectSink
 from .prompt import build_prompt, latest_prompt_envelope, set_prompt_retry_delta
 from .providers import _provider_id, generate
 from .runtime_env import prepare_project_command
 from .transaction import VerificationReceipt
 
 MAX_ATTEMPTS = 5
+
+# mode="integrated" (issues #166, #167) delegates to pipeline_integrated.run_integrated
+# instead of housing the plan-compile/effect-sink logic here — see that
+# module's docstring for the full contract and pipeline.py's token-budget
+# rationale (issue #141 AC).
+PipelineMode = Literal["standalone", "integrated"]
 
 
 def _resolve_max_attempts() -> int:
@@ -255,11 +263,41 @@ def _task_result(
 
 
 def run_task(
-    root, stack, goal, target, criteria, constraints, *, dry_run_task=False, bound_paths=None, quiet=False
+    root,
+    stack,
+    goal,
+    target,
+    criteria,
+    constraints,
+    *,
+    dry_run_task=False,
+    bound_paths=None,
+    quiet=False,
+    mode: PipelineMode = "standalone",
+    effect_sink: EffectSink | None = None,
 ):
+    """Run one task through the pipeline.
+
+    ``mode="standalone"`` (the default, unchanged) applies the generated
+    patch directly against ``root`` via ``git apply`` and runs
+    ``SIMPLICIO_TEST_CMD`` locally, exactly as before this parameter existed
+    — see issue #166 plan step 4.5 ("Manter modo standalone apenas como
+    adaptador explícito e deprecável").
+
+    ``mode="integrated"`` (issues #166, #167) never applies anything itself:
+    it delegates to :func:`simplicio.pipeline_integrated.run_integrated`,
+    which compiles a ``PlanDAG``/``EffectPlan`` bundle from the task's
+    goal/criteria and hands each ``EffectPlan`` to ``effect_sink`` (required
+    in this mode). ``dry_run_task`` is not consulted in this mode since
+    nothing is ever applied to begin with.
+    """
     _remember_patch_receipt(None)
     prompt = build_prompt(root, stack, goal, target, criteria, constraints)
     primary_test_cmd = os.environ.get("SIMPLICIO_TEST_CMD", "").strip() or None
+    if mode == "integrated":
+        return run_integrated(
+            root, stack, goal, target, criteria, constraints, prompt, primary_test_cmd, effect_sink
+        )
     if not dry_run_task and primary_test_cmd is None:
         blocker = {
             "code": "verification_command_missing",

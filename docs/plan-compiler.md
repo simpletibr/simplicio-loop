@@ -226,7 +226,7 @@ effort tracked against the Runtime's own Effect API (#3134/#3135) and is
 
 | Owner | File:line | Attempts | Overridable today? | Notes |
 |---|---|---|---|---|
-| `pipeline.run_task` | `simplicio/pipeline.py:53,495-496` | `MAX_ATTEMPTS = 5` | **No** (before this slice) — now `SIMPLICIO_MAX_ATTEMPTS` (see below) | Innermost, most-invoked retry loop: generate → apply → test → static-fixer → retry, feeding back a validation diff each attempt. |
+| `pipeline.run_task` | `simplicio/pipeline.py:51,345-346` | `MAX_ATTEMPTS = 5` | **No** (before this slice) — now `SIMPLICIO_MAX_ATTEMPTS` (see below) | Innermost, most-invoked retry loop: generate → apply → test → static-fixer → retry, feeding back a validation diff each attempt. |
 | `orchestrator.feature.run_feature` | `simplicio/orchestrator/feature.py:76,104-182` | `max_iter = 3` (constructor default) replans, each replan re-running the *entire remaining task list* through `run_plan_task` | Yes — `max_iter` is a function parameter (CLI-controlled) | This is feature/sprint scheduling, not the AC's `run_task` loop, but it fully wraps `run_task` — see multiplication risk below. |
 | `scratch.planner.generate_plan` | `simplicio/scratch/planner.py:23,148-165` | `PLANNER_MAX_RETRIES = 3` (+1 first attempt) | Yes — `SIMPLICIO_PLANNER_MAX_RETRIES` env var already exists | Already follows the pattern this slice adds to `pipeline.run_task`; used as the precedent for the fix below. |
 | `orchestrator.multi_task.TaskBatch.drain` | `simplicio/orchestrator/multi_task.py:326-434` | **None** — `_executor_outcome` only accepts `{"passed", "blocked"}`, both terminal (`TERMINAL = {"passed", "blocked"}`); a blocked card is never automatically re-attempted by the batch itself | N/A | Confirms the batch scheduler is *already* single-atomic-attempt per card at its own layer — the duplication risk lives one layer down, inside whatever `executor` callback it is given (typically `run_task`/`run_feature`), not in `TaskBatch` itself. |
@@ -292,3 +292,104 @@ single most duplicated retry loop (`pipeline.run_task`) and leaves the
 feature/sprint scheduler migration — the larger and riskier half of AC
 #166's "Retry global, feature/sprint scheduler e operational memory deixam
 de ter dois owners ativos" — open and explicitly documented as such.
+
+## Integrated mode: the effect-sink boundary (issues #166, #167)
+
+Both #166 ("No modo integrado, zero escrita/commit fora da Effect API do
+Runtime") and #167 ("Modo integrado não executa writes diretamente") name
+the same unchecked acceptance criterion. Before this slice there was no
+"modo integrado" concept anywhere in the Dev CLI — `pipeline.run_task`
+always applied the generated patch directly (`git apply` against the
+worktree, then ran `SIMPLICIO_TEST_CMD`), which is exactly the "standalone"
+adapter issue #166 step 4.5 says must remain, explicit and deprecable, as
+the default. There was no alternative path to test the "zero write in
+integrated mode" invariant against, which is why both boxes stayed
+unchecked.
+
+This slice adds that alternative path as an explicit, opt-in mode:
+
+```python
+from simplicio import pipeline
+from simplicio.plan_compiler import RecordingEffectSink
+
+sink = RecordingEffectSink()  # reference stub; see below
+result = pipeline.run_task(
+    root, stack, goal, target, criteria, constraints,
+    mode="integrated",
+    effect_sink=sink,
+)
+```
+
+`run_task(..., mode="integrated", effect_sink=...)` delegates to
+`simplicio.pipeline_integrated.run_integrated`, which:
+
+1. builds a minimal `simplicio.task_spec.TaskSpec` from the raw
+   `goal`/`criteria`/`constraints` strings `run_task` already takes (each
+   non-blank `criteria` line becomes one acceptance criterion);
+2. compiles it with `compile_task_spec_to_plan()` into a validated
+   `(PlanDAG, list[EffectPlan], list[VerificationPlan])` bundle — the same
+   compiler documented earlier in this file, now finally wired into the
+   pipeline it was written for (see "Scope of this slice" above, which
+   flagged this exact gap);
+3. hands every compiled `EffectPlan` to the caller-supplied `effect_sink`
+   — a `Callable[[EffectPlan], EffectApplyResult]` defined in
+   `simplicio/plan_compiler/effect_sink.py` — and returns a result dict
+   carrying the compiled `plan`, `effects`, `verifications` and each sink's
+   `effect_sink_results`, with `applied` always `False` (nothing was
+   applied; a `status` of `"integrated_planned"` distinguishes this outcome
+   from standalone's `"applied"`/`"failed"`).
+
+At no point does `run_integrated` call `git apply`, `_apply_and_test`, or
+write to `root`. This is not merely a code-review claim:
+`tests/python/test_pipeline_integrated_mode.py` snapshots every file under
+the test worktree (excluding `.simplicio/`, which every mode legitimately
+writes as observability evidence per `emit_event`'s contract) before and
+after a `mode="integrated"` call and asserts the snapshot is byte-for-byte
+unchanged, alongside a matching standalone-mode test proving the same
+worktree *is* mutated by `git apply` in the unchanged default path.
+
+`effect_sink` is mandatory in integrated mode: passing `mode="integrated"`
+without one raises `IntegratedModeRequiresSinkError` instead of silently
+falling back to a direct write. This is deliberate — the alternative (an
+implicit standalone fallback) would silently reintroduce the exact
+violation both issues flag.
+
+### The sink is a local stub, not the Runtime
+
+`effect_sink` is not, and is not meant to be, `simplicio-runtime`'s Effect
+API — that API does not exist as importable code anywhere in this
+ecosystem yet (see `simplicio-dev-cli` issue #166's parent, Runtime
+#3134/#3135). `simplicio.plan_compiler.effect_sink` defines the local,
+typed boundary this Dev CLI calls into instead:
+
+- `EffectSink` — a `Protocol` any concrete sink must satisfy:
+  `__call__(self, effect: EffectPlan) -> EffectApplyResult`.
+- `EffectApplyResult` — what a sink reports back; `accepted=True` only
+  means the sink took custody of the effect (e.g. queued it for the
+  Runtime to authorize), never that it was applied to any worktree.
+- `RecordingEffectSink` — the reference no-op implementation this
+  repository's own tests use: it appends every `EffectPlan` it receives to
+  `self.received` and applies none of them. This is what lets the
+  integrated-mode contract be proven today, without needing the real
+  Runtime to exist.
+
+A production integration is expected to swap `RecordingEffectSink` for a
+sink that actually forwards to `simplicio-runtime`'s Effect API once it
+ships — that swap is the intended extension point, and this slice's job
+was to build the boundary the swap plugs into, not the Runtime side of it.
+
+### What this closes, and what it does not
+
+This closes the Dev-CLI-side half of both unchecked ACs: integrated mode,
+once opted into, never applies an effect itself and always routes through
+the sink. It does **not**:
+
+- Implement the real Runtime Effect API — that is Runtime #3134/#3135,
+  external to this repository.
+- Wire integrated mode into `cli.py`'s `simplicio-py task` command or any
+  other CLI entry point — `mode`/`effect_sink` are `pipeline.run_task`
+  parameters only in this slice, with no `--integrated` flag yet. A caller
+  (e.g. a future Runtime-aware wrapper) constructs a real sink and calls
+  `run_task(..., mode="integrated", effect_sink=...)` directly.
+- Change `mode="standalone"` (the default) in any way — every existing
+  `run_task`/`run` call site and test is unaffected.

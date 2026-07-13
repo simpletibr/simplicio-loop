@@ -13,6 +13,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from .plan_schema import Task
 from .stack_registry import Stack
@@ -40,7 +41,15 @@ def run_task(
 
         _ensure_git_repo(project_dir)
         os.chdir(project_dir)
-        pipeline_kwargs = {
+        # Explicitly typed `dict[str, Any]` (not the narrower `dict[str, str]`
+        # mypy would otherwise infer) so **kwargs-unpacking this dict into
+        # run_task's typed keyword-only parameters (e.g. `mode`, `effect_sink`,
+        # added for issue #166/#167's integrated mode) doesn't trip a spurious
+        # dict[str, str]-vs-Literal/EffectSink mismatch. Kept as **kwargs
+        # unpacking (not explicit positional args) because callers/tests rely
+        # on `pipeline.run`/`run_task` being invoked with keyword arguments
+        # here (see tests/python/test_scratch.py).
+        pipeline_kwargs: dict[str, Any] = {
             "root": str(project_dir),
             "stack": stack_label,
             "goal": task.goal,
