@@ -191,10 +191,11 @@ def _issue_199() -> dict[str, Any]:
             commands=["python -m unittest tests/python/test_retrieval_index.py"],
             patterns=[
                 {"path": "tests/python/test_retrieval_index.py", "match": "def test_generated_file_penalized"},
+                {"path": "tests/python/test_retrieval_index.py", "match": "def test_archive_and_large_generic_files_penalized_unless_targeted"},
                 {"path": "simplicio_mapper/retrieval_index.py", "match": "generated_or_vendor_penalty"},
+                {"path": "simplicio_mapper/retrieval_index.py", "match": "archive_penalty"},
+                {"path": "simplicio_mapper/retrieval_index.py", "match": "large_generic_penalty"},
             ],
-            status_if_all_found=STATUS_PARTIAL,
-            status_if_some_found=STATUS_PARTIAL,
         ),
         _criterion(
             issue=199,
@@ -235,9 +236,9 @@ def _issue_199() -> dict[str, Any]:
                 {"path": "simplicio_mapper/cli/_shared.py", "match": "--token-budget <n>"},
                 {"path": "tests/python/test_task_aware_handoff.py", "match": "def test_engine_accepts_token_budget_and_limit_and_reports_budget_fit"},
                 {"path": "tests/python/test_task_aware_handoff.py", "match": "tokens_estimation_method"},
+                {"path": "tests/python/test_task_aware_handoff.py", "match": "serialized_bytes"},
+                {"path": "simplicio_mapper/task_context.py", "match": "def enforce_serialized_budget("},
             ],
-            status_if_all_found=STATUS_PARTIAL,
-            status_if_some_found=STATUS_PARTIAL,
         ),
         _criterion(
             issue=199,
@@ -339,15 +340,17 @@ def _issue_199() -> dict[str, Any]:
             issue=199,
             criterion_id="199-AC20",
             text="Dev CLI and Loop consume the installed package in integration tests, not an in-tree mock.",
-            commands=["python scripts/dogfood.py --help"],
-            patterns=[
-                {"path": "scripts/dogfood.py", "match": "Cross-repo (dev-cli/loop) legs are intentionally left"},
-                {"path": "scripts/ecosystem-consumers.json", "match": '"name": "simplicio-dev-cli"'},
-                {"path": "scripts/ecosystem-consumers.json", "match": '"name": "simplicio-loop"'},
+            commands=[
+                "python scripts/installed_consumer_e2e.py --wheel <mapper-wheel> --dev-cli-wheel <dev-cli-wheel> --loop-wheel <loop-wheel>",
+                "python -m unittest tests/python/test_installed_consumer_integration.py",
             ],
-            status_if_all_found=STATUS_UNVERIFIED,
-            status_if_some_found=STATUS_UNVERIFIED,
-            boundary="Installed-package integration for simplicio-dev-cli and simplicio-loop is explicitly cross-repo and remains outside this mapper-only audit.",
+            patterns=[
+                {"path": "scripts/installed_consumer_e2e.py", "match": "Run the real installed Dev CLI/Loop consumer boundary"},
+                {"path": "docs/evidence/installed-consumer-e2e.json", "match": '"status": "pass"'},
+                {"path": "docs/evidence/installed-consumer-e2e.json", "match": '"schema": "simplicio.dev-cli.inspect/v1"'},
+                {"path": "docs/evidence/installed-consumer-e2e.json", "match": '"handoff_schema": "simplicio.map-handoff/v1"'},
+                {"path": "tests/python/test_installed_consumer_integration.py", "match": "def test_measured_installed_consumer_receipt"},
+            ],
         ),
         _criterion(
             issue=199,
