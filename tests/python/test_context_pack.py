@@ -49,14 +49,20 @@ class ContextPackBasicTest(unittest.TestCase):
         self.assertEqual(len(pack["pack_hash"]), 64)
         self.assertEqual(len(pack["files"]), 1)
         self.assertEqual(pack["files"][0]["language"], "python")
+        self.assertIn("freshness", pack)
+        self.assertIn("fidelity", pack)
+        self.assertIn("scales", pack)
 
     def test_multi_language_fixtures(self) -> None:
-        pack = _pack(str(FIXTURE), [
-            {"path": "sample.ts"},
-            {"path": "sample.py"},
-            {"path": "sample.json"},
-            {"path": "sample.md"},
-        ])
+        pack = _pack(
+            str(FIXTURE),
+            [
+                {"path": "sample.ts"},
+                {"path": "sample.py"},
+                {"path": "sample.json"},
+                {"path": "sample.md"},
+            ],
+        )
         by_path = {entry["path"]: entry for entry in pack["files"]}
         self.assertEqual(by_path["sample.ts"]["language"], "typescript")
         self.assertEqual(by_path["sample.py"]["language"], "python")
@@ -73,6 +79,7 @@ class RangeExtractionTest(unittest.TestCase):
         self.assertEqual(len(ranges), 1)
         self.assertEqual(len(ranges[0]["range_hash"]), 64)
         self.assertTrue(ranges[0]["snippet"])
+        self.assertTrue(pack["files"][0]["drilldown"]["reversible"])
 
     def test_unstable_range_marks_needs_broader_context(self) -> None:
         pack = _pack(str(FIXTURE), [{"path": "sample.py", "ranges": [(1, 9999)]}])
@@ -82,10 +89,12 @@ class RangeExtractionTest(unittest.TestCase):
 
 class CallGraphAndDependencyTest(unittest.TestCase):
     def test_callers_and_imports_resolved(self) -> None:
-        call_graph = {"edges": [
-            {"from": "sample.py", "to": "shared/util.py"},
-            {"from": "caller.py", "to": "sample.py"},
-        ]}
+        call_graph = {
+            "edges": [
+                {"from": "sample.py", "to": "shared/util.py"},
+                {"from": "caller.py", "to": "sample.py"},
+            ]
+        }
         pack = _pack(
             str(FIXTURE),
             [{"path": "sample.py"}],
@@ -94,12 +103,16 @@ class CallGraphAndDependencyTest(unittest.TestCase):
         entry = pack["files"][0]
         self.assertEqual(entry["imports"], ["shared/util.py"])
         self.assertEqual(entry["callers"], ["caller.py"])
+        self.assertIn("micro", entry["scale_context"])
+        self.assertIn("macro", entry["scale_context"])
 
     def test_tests_resolved_from_project_map(self) -> None:
-        project_map = {"files": [
-            {"path": "sample.py", "roles": ["domain"]},
-            {"path": "tests/test_sample.py", "roles": ["test"]},
-        ]}
+        project_map = {
+            "files": [
+                {"path": "sample.py", "roles": ["domain"]},
+                {"path": "tests/test_sample.py", "roles": ["test"]},
+            ]
+        }
         pack = _pack(
             str(FIXTURE),
             [{"path": "sample.py"}],
@@ -132,6 +145,11 @@ class DeterminismTest(unittest.TestCase):
         second = _pack(str(FIXTURE), targets)
         self.assertEqual(first["pack_hash"], second["pack_hash"])
         self.assertEqual(first, second)
+
+    def test_fidelity_marks_partial_when_broader_context_needed(self) -> None:
+        pack = _pack(str(FIXTURE), [{"path": "does-not-exist.py"}])
+        self.assertEqual(pack["fidelity"]["status"], "partial")
+        self.assertTrue(pack["fidelity"]["reasons"])
 
 
 class LargeFileCompactModeTest(unittest.TestCase):
@@ -187,6 +205,7 @@ class ContextCacheTest(unittest.TestCase):
         cache = ContextCache(self.cache_path)
         cache.set("abc", {"summary": "x"})
         import json as _json
+
         on_disk = _json.loads(self.cache_path.read_text())
         self.assertEqual(on_disk["schema"], CONTEXT_CACHE_SCHEMA)
         self.assertEqual(on_disk["entries"], {"abc": {"summary": "x"}})

@@ -61,6 +61,37 @@ def _dependency_map(graph_dict: dict) -> dict[str, list[str]]:
     return deps
 
 
+def _reverse_dependency_map(graph_dict: dict) -> dict[str, list[str]]:
+    reverse: dict[str, list[str]] = {node["id"]: [] for node in graph_dict.get("nodes", [])}
+    for edge in graph_dict.get("edges", []):
+        source = edge.get("source")
+        target = edge.get("target")
+        if source is None or target is None:
+            continue
+        reverse.setdefault(target, []).append(source)
+    return reverse
+
+
+def _scale_counters(nodes: list[dict]) -> dict[str, int]:
+    counters = {"micro": 0, "meso": 0, "macro": 0}
+    for node in nodes:
+        scale = node.get("scale")
+        if scale in counters:
+            counters[scale] += 1
+    return counters
+
+
+def _event_details(node: dict | None) -> dict[str, Any]:
+    if not node:
+        return {}
+    return {
+        "scale": node.get("scale"),
+        "source": node.get("source"),
+        "content_hash": node.get("content_hash"),
+        "merkle_hash": node.get("merkle_hash"),
+    }
+
+
 def compute_merkle_hashes(graph_dict: dict) -> tuple[dict[str, str], set[str]]:
     """Fold each node's content hash with its dependencies' merkle hashes.
 
@@ -125,6 +156,15 @@ def build_context_dag(
                 "merkle_hash": merkle[node["id"]],
                 "source": node["source"],
                 "degraded": node["id"] in degraded,
+                "freshness": {
+                    "revision": revision,
+                    "content_hash": node["content_hash"],
+                    "merkle_hash": merkle[node["id"]],
+                },
+                "fidelity": {
+                    "status": "degraded" if node["id"] in degraded else "exact",
+                    "reversible": bool(node.get("source")),
+                },
             }
         )
     nodes.sort(key=lambda item: (item["scale"], item["id"]))
@@ -139,7 +179,12 @@ def build_context_dag(
         "dag_id": dag_id,
         "nodes": nodes,
         "edges": edges,
-        "counts": {"nodes": len(nodes), "edges": len(edges)},
+        "counts": {"nodes": len(nodes), "edges": len(edges), **_scale_counters(nodes)},
+        "freshness": {
+            "revision": revision,
+            "build_config_hash": build_config_hash,
+            "dag_hash": dag_id,
+        },
     }
 
 
@@ -158,14 +203,18 @@ def diff_context_dag(previous: dict | None, current: dict) -> dict:
     """
     if previous is None:
         events = [
-            {"op": "add", "id": node["id"], "reason": REASON_NO_PREVIOUS}
+            {"op": "add", "id": node["id"], "reason": REASON_NO_PREVIOUS, **_event_details(node)}
             for node in sorted(current.get("nodes", []), key=lambda item: item["id"])
         ]
         return {
             "full_invalidation": True,
             "reason": REASON_NO_PREVIOUS,
             "events": events,
-            "counters": {"total_nodes": len(current.get("nodes", [])), "invalidated": len(events)},
+            "counters": {
+                "total_nodes": len(current.get("nodes", [])),
+                "invalidated": len(events),
+                **_scale_counters(current.get("nodes", [])),
+            },
         }
 
     prev_producer = previous.get("producer", {})
@@ -182,16 +231,24 @@ def diff_context_dag(previous: dict | None, current: dict) -> dict:
     cur_nodes = {node["id"]: node for node in current.get("nodes", [])}
     if full_reason is not None:
         events = [
-            {"op": "invalidate", "id": node_id, "reason": full_reason} for node_id in sorted(cur_nodes)
+            {"op": "invalidate", "id": node_id, "reason": full_reason, **_event_details(cur_nodes[node_id])}
+            for node_id in sorted(cur_nodes)
         ]
         return {
             "full_invalidation": True,
             "reason": full_reason,
             "events": events,
-            "counters": {"total_nodes": len(cur_nodes), "invalidated": len(cur_nodes)},
+            "counters": {
+                "total_nodes": len(cur_nodes),
+                "invalidated": len(cur_nodes),
+                **_scale_counters(list(cur_nodes.values())),
+            },
         }
 
     prev_nodes = {node["id"]: node for node in previous.get("nodes", [])}
+    prev_deps = _dependency_map(previous)
+    cur_deps = _dependency_map(current)
+    reverse_cur = _reverse_dependency_map(current)
     prev_by_hash: dict[str, list[str]] = {}
     for node_id, node in prev_nodes.items():
         prev_by_hash.setdefault(node["content_hash"], []).append(node_id)
@@ -212,11 +269,19 @@ def diff_context_dag(previous: dict | None, current: dict) -> dict:
 
     events = []
     for node_id in removed_ids:
-        events.append({"op": "remove", "id": node_id, "reason": REASON_REMOVED})
+        events.append(
+            {"op": "remove", "id": node_id, "reason": REASON_REMOVED, **_event_details(prev_nodes[node_id])}
+        )
     for node_id in added_ids:
-        event: dict[str, Any] = {"op": "add", "id": node_id, "reason": REASON_ADDED}
+        event: dict[str, Any] = {
+            "op": "add",
+            "id": node_id,
+            "reason": REASON_ADDED,
+            **_event_details(cur_nodes[node_id]),
+        }
         if node_id in rename_hints:
             event["rename_hint"] = rename_hints[node_id]
+            event["caused_by"] = [{"op": "rename", "id": rename_hints[node_id]}]
         events.append(event)
 
     invalidated = []
@@ -230,7 +295,54 @@ def diff_context_dag(previous: dict | None, current: dict) -> dict:
             if prev_node["content_hash"] != cur_node["content_hash"]
             else REASON_DEPENDENCY_CHANGED
         )
-        events.append({"op": "invalidate", "id": node_id, "reason": reason})
+        causes: list[dict[str, Any]] = []
+        if reason == REASON_CONTENT_CHANGED:
+            causes.append(
+                {
+                    "op": "content-change",
+                    "previous_content_hash": prev_node["content_hash"],
+                    "current_content_hash": cur_node["content_hash"],
+                }
+            )
+        else:
+            previous_dependencies = set(prev_deps.get(node_id, []))
+            current_dependencies = set(cur_deps.get(node_id, []))
+            for dep_id in sorted(previous_dependencies - current_dependencies):
+                causes.append({"op": "dependency-removed", "id": dep_id})
+            for dep_id in sorted(current_dependencies - previous_dependencies):
+                cause: dict[str, Any] = {"op": "dependency-added", "id": dep_id}
+                if dep_id in rename_hints:
+                    cause["rename_hint"] = rename_hints[dep_id]
+                causes.append(cause)
+            for dep_id in sorted(previous_dependencies & current_dependencies):
+                prev_dep = prev_nodes.get(dep_id)
+                cur_dep = cur_nodes.get(dep_id)
+                if prev_dep is None or cur_dep is None:
+                    continue
+                if prev_dep["merkle_hash"] != cur_dep["merkle_hash"]:
+                    causes.append(
+                        {
+                            "op": "dependency-invalidated",
+                            "id": dep_id,
+                            "reason": (
+                                REASON_CONTENT_CHANGED
+                                if prev_dep["content_hash"] != cur_dep["content_hash"]
+                                else REASON_DEPENDENCY_CHANGED
+                            ),
+                        }
+                    )
+            if not causes:
+                for parent_id in sorted(reverse_cur.get(node_id, [])):
+                    causes.append({"op": "reachable-from", "id": parent_id})
+        events.append(
+            {
+                "op": "invalidate",
+                "id": node_id,
+                "reason": reason,
+                "caused_by": causes,
+                **_event_details(cur_node),
+            }
+        )
 
     events.sort(key=lambda item: (item["op"], item["id"]))
     return {
@@ -242,6 +354,7 @@ def diff_context_dag(previous: dict | None, current: dict) -> dict:
             "invalidated": len(invalidated),
             "added": len(added_ids),
             "removed": len(removed_ids),
+            **_scale_counters(list(cur_nodes.values())),
         },
     }
 

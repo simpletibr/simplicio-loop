@@ -17,7 +17,9 @@ from simplicio_mapper.contract import validate_instance  # noqa: E402
 from simplicio_mapper.task_intent import (  # noqa: E402
     TASK_CONTEXT_SCHEMA,
     TASK_INTENT_SCHEMA,
+    build_task_query_plan,
     canonical_json,
+    extract_task_context_settings,
     parse_task_intent,
 )
 
@@ -82,6 +84,24 @@ class PlanesGoldenFixtureTest(unittest.TestCase):
 
 
 class ParserBehaviorTest(unittest.TestCase):
+    def test_query_plan_extracts_identifiers_symbol_and_target(self) -> None:
+        plan = build_task_query_plan(
+            goal="Fix TokenCache eviction in src/cache/token_cache.py for RN07",
+            task_intent={"additional_information": ["serialized output budget 120"]},
+            target="src/cache/token_cache.py",
+        )
+        self.assertEqual(plan["target_path"], "src/cache/token_cache.py")
+        self.assertIn("TokenCache", plan["symbol_terms"])
+        self.assertIn("RN07", [item.upper() for item in plan["ac_ids"]])
+
+    def test_context_settings_extract_declared_budget(self) -> None:
+        settings = extract_task_context_settings(
+            goal="Please keep the serialized output budget 120 tokens",
+            task_intent={"additional_information": ["within 120 tokens"]},
+        )
+        self.assertTrue(settings["budget_declared"])
+        self.assertEqual(settings["serialized_output_token_budget"], 120)
+
     def test_explicit_acceptance_ids_and_and_steps_are_preserved(self) -> None:
         raw = """
 Sistema: Demo

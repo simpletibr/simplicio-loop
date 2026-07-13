@@ -42,8 +42,9 @@ import json
 import os
 import tempfile
 import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 CONTEXT_CACHE_SCHEMA = "simplicio.context-cache/v1"
 CONTEXT_CACHE_STRUCTURED_VERSION = 1
@@ -148,13 +149,10 @@ class ContextCacheKey:
         token_budget: int = 0,
         renderer: str = "",
         output_format: str = "",
-    ) -> "ContextCacheKey":
+    ) -> ContextCacheKey:
         """Build a key by hashing the *current* content of ``rel_paths``."""
         paths = sorted(rel_paths)
-        hashes = tuple(
-            (p, _sha256_file(os.path.join(root, p)) or "")
-            for p in paths
-        )
+        hashes = tuple((p, _sha256_file(os.path.join(root, p)) or "") for p in paths)
         return cls(
             repo_identity=repo_identity,
             rel_paths=tuple(paths),
@@ -191,7 +189,7 @@ class ContextCacheEntry:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ContextCacheEntry":
+    def from_dict(cls, data: dict) -> ContextCacheEntry:
         return cls(
             key_hash=data.get("key_hash", ""),
             layer=data.get("layer", ""),
@@ -222,6 +220,8 @@ class CacheReceipt:
     tokens_avoided: int = 0
     latency_avoided_ms: float = 0.0
     consumed: bool = False
+    baseline: str = ""
+    method: str = ""
     created_at: str = field(default_factory=lambda: _now_iso())
 
     def to_dict(self) -> dict:
@@ -236,6 +236,8 @@ class CacheReceipt:
             "tokens_avoided": int(self.tokens_avoided),
             "latency_avoided_ms": round(float(self.latency_avoided_ms), 3),
             "consumed": bool(self.consumed),
+            "baseline": self.baseline,
+            "method": self.method,
             "created_at": self.created_at,
         }
 
@@ -280,6 +282,7 @@ class ContextCache:
         self._structured: dict[str, dict] = {}  # key_hash -> entry dict
         self._quarantined: list[dict] = []
         self._receipts: list[CacheReceipt] = []
+        self._last_disk_mtime_ns: int | None = None
         self._stats = {
             "lookups": 0,
             "hits": 0,
@@ -298,6 +301,15 @@ class ContextCache:
     # -- persistence ---------------------------------------------------------
 
     def _load(self) -> None:
+        self._load_from_disk(force=True)
+
+    def _load_from_disk(self, *, force: bool = False) -> None:
+        try:
+            stat = os.stat(self.path)
+        except OSError:
+            return
+        if not force and self._last_disk_mtime_ns == stat.st_mtime_ns:
+            return
         try:
             with open(self.path, encoding="utf-8") as handle:
                 payload = json.load(handle)
@@ -308,6 +320,10 @@ class ContextCache:
         if payload.get("schema") != CONTEXT_CACHE_SCHEMA:
             return
         self._entries = dict(payload.get("entries", {})) if isinstance(payload.get("entries"), dict) else {}
+        self._structured = {}
+        quarantined = (
+            list(payload.get("quarantined", [])) if isinstance(payload.get("quarantined"), list) else []
+        )
 
         structured = payload.get("structured")
         if isinstance(structured, dict) and structured.get("version") == CONTEXT_CACHE_STRUCTURED_VERSION:
@@ -319,10 +335,11 @@ class ContextCache:
                     entry = ContextCacheEntry.from_dict(entry_dict)
                     if not entry.is_valid():
                         # Corrupt entry: quarantine, never serve (invariant 3).
-                        self._quarantine(key_hash, entry, "checksum_mismatch")
+                        quarantined.append(self._quarantine_record(key_hash, entry, "checksum_mismatch"))
                         continue
                     self._structured[key_hash] = entry.to_dict()
-        self._quarantined = list(payload.get("quarantined", [])) if isinstance(payload.get("quarantined"), list) else []
+        self._quarantined = quarantined[-512:]
+        self._last_disk_mtime_ns = stat.st_mtime_ns
 
     def _lock_path(self) -> str:
         return self.path + ".lock"
@@ -331,44 +348,42 @@ class ContextCache:
         """Run ``action`` under an exclusive file lock; degrade to in-memory
         on contention or when file locking is unavailable."""
         lock_path = self._lock_path()
-        handle = None
+        lock_fd: int | None = None
         acquired = False
-        fcntl_mod = None
-        try:
-            import fcntl as _fcntl  # type: ignore
-
-            fcntl_mod = _fcntl
-        except ImportError:  # pragma: no cover - non-unix platforms
-            fcntl_mod = None
         try:
             directory = os.path.dirname(lock_path)
             if directory:
                 os.makedirs(directory, exist_ok=True)
-            handle = open(lock_path, "a+")
-            if fcntl_mod is not None:
-                deadline = time.monotonic() + self.lock_timeout
-                while True:
-                    try:
-                        fcntl_mod.flock(handle, fcntl_mod.LOCK_EX | fcntl_mod.LOCK_NB)
-                        acquired = True
+            deadline = time.monotonic() + self.lock_timeout
+            while True:
+                try:
+                    lock_fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+                    os.write(lock_fd, str(os.getpid()).encode("ascii", "ignore"))
+                    acquired = True
+                    break
+                except FileExistsError:
+                    if self._is_stale_lock(lock_path):
+                        try:
+                            os.unlink(lock_path)
+                            continue
+                        except OSError:
+                            pass
+                    if time.monotonic() >= deadline:
+                        self._stats["lock_contention"] += 1
                         break
-                    except OSError:
-                        if time.monotonic() >= deadline:
-                            self._stats["lock_contention"] += 1
-                            break
-                        time.sleep(0.02)
-            else:
-                acquired = True
+                    time.sleep(0.02)
+            if acquired:
+                self._load_from_disk(force=True)
             return action()
         finally:
-            if handle is not None:
+            if lock_fd is not None:
                 try:
-                    if acquired and fcntl_mod is not None:
-                        fcntl_mod.flock(handle, fcntl_mod.LOCK_UN)
-                except Exception:  # pragma: no cover
+                    os.close(lock_fd)
+                except OSError:  # pragma: no cover
                     pass
+            if acquired:
                 try:
-                    handle.close()
+                    os.unlink(lock_path)
                 except OSError:  # pragma: no cover
                     pass
 
@@ -393,6 +408,7 @@ class ContextCache:
                 handle.flush()
                 os.fsync(handle.fileno())
             os.replace(tmp_path, self.path)  # atomic swap
+            self._last_disk_mtime_ns = os.stat(self.path).st_mtime_ns
         except OSError:
             try:
                 os.unlink(tmp_path)
@@ -402,17 +418,24 @@ class ContextCache:
     # -- legacy opaque-string API (backward compatible) ---------------------
 
     def get(self, key: str) -> Any | None:
+        self._load_from_disk()
         return self._entries.get(key)
 
     def set(self, key: str, summary: Any) -> None:
-        self._entries[key] = summary
-        self._with_lock(self._persist)
+        def _action() -> None:
+            self._entries[key] = summary
+            self._persist()
+
+        self._with_lock(_action)
 
     def clear(self) -> None:
-        self._entries = {}
-        self._structured = {}
-        self._quarantined = []
-        self._with_lock(self._persist)
+        def _action() -> None:
+            self._entries = {}
+            self._structured = {}
+            self._quarantined = []
+            self._persist()
+
+        self._with_lock(_action)
 
     def __contains__(self, key: str) -> bool:
         return key in self._entries
@@ -483,6 +506,7 @@ class ContextCache:
         the avoided cost of a subsequent equivalent hit.
         """
         self._stats["lookups"] += 1
+        self._load_from_disk()
         key_hash = key.content_hash()
 
         if key_hash in self._structured:
@@ -490,7 +514,10 @@ class ContextCache:
             if entry.layer != layer:
                 # Same key hash but a different layer — treat as a layer miss.
                 receipt = self._receipt(
-                    OUTCOME_MISS, key_hash, layer, "layer_mismatch",
+                    OUTCOME_MISS,
+                    key_hash,
+                    layer,
+                    "layer_mismatch",
                     kind="context",
                 )
                 self._stats["misses"] += 1
@@ -498,7 +525,10 @@ class ContextCache:
             if not entry.is_valid():
                 self._quarantine(key_hash, entry, "checksum_mismatch")
                 receipt = self._receipt(
-                    OUTCOME_CORRUPT, key_hash, layer, "corrupt_entry_recomputed",
+                    OUTCOME_CORRUPT,
+                    key_hash,
+                    layer,
+                    "corrupt_entry_recomputed",
                     kind="context",
                 )
                 self._stats["misses"] += 1
@@ -525,9 +555,7 @@ class ContextCache:
             return entry.payload, receipt
 
         self._stats["misses"] += 1
-        reason = (
-            "cold" if not self._structured else "no_matching_identity"
-        )
+        reason = "cold" if not self._structured else "no_matching_identity"
         receipt = self._receipt(OUTCOME_MISS, key_hash, layer, reason, kind="context")
         self._push_receipt(receipt)
         return None, receipt
@@ -535,9 +563,7 @@ class ContextCache:
     def explain(self, key_hash: str) -> dict:
         """Return diagnostics for ``key_hash`` without leaking payloads."""
         entry = self._structured.get(key_hash)
-        quarantined = next(
-            (q for q in self._quarantined if q.get("key_hash") == key_hash), None
-        )
+        quarantined = next((q for q in self._quarantined if q.get("key_hash") == key_hash), None)
         if entry is not None:
             return {
                 "key_hash": key_hash,
@@ -561,7 +587,7 @@ class ContextCache:
         self,
         *,
         layer: str | None = None,
-        predicate: "Callable[[str, dict], bool] | None" = None,
+        predicate: Callable[[str, dict], bool] | None = None,
     ) -> int:
         """Remove entries, optionally scoped by ``layer`` or ``predicate``.
 
@@ -569,23 +595,28 @@ class ContextCache:
         diagnostics (issue #200 step 9).
         """
         removed = 0
-        keep: dict[str, dict] = {}
-        for key_hash, entry in self._structured.items():
-            drop = False
-            if layer is not None and entry.get("layer") == layer:
-                drop = True
-            if not drop and predicate is not None:
-                try:
-                    drop = bool(predicate(key_hash, entry))
-                except Exception:  # pragma: no cover - defensive
-                    drop = False
-            if drop:
-                removed += 1
-            else:
-                keep[key_hash] = entry
-        self._structured = keep
-        if removed:
-            self._with_lock(self._persist)
+
+        def _action() -> None:
+            nonlocal removed
+            keep: dict[str, dict] = {}
+            for key_hash, entry in self._structured.items():
+                drop = False
+                if layer is not None and entry.get("layer") == layer:
+                    drop = True
+                if not drop and predicate is not None:
+                    try:
+                        drop = bool(predicate(key_hash, entry))
+                    except (KeyError, OSError, TypeError, ValueError):  # pragma: no cover - defensive
+                        drop = False
+                if drop:
+                    removed += 1
+                else:
+                    keep[key_hash] = entry
+            self._structured = keep
+            if removed:
+                self._persist()
+
+        self._with_lock(_action)
         return removed
 
     # -- providers / receipts ------------------------------------------------
@@ -600,6 +631,8 @@ class ContextCache:
         bytes_avoided: int = 0,
         tokens_avoided: int = 0,
         latency_avoided_ms: float = 0.0,
+        baseline: str = "",
+        method: str = "",
     ) -> CacheReceipt:
         """Record that the (native) fast path was taken instead of building
         artifacts locally. ``kind`` is ``provider`` for runtime-native reuse
@@ -609,9 +642,16 @@ class ContextCache:
         self._stats["tokens_avoided"] += int(tokens_avoided)
         self._stats["latency_avoided_ms"] += float(latency_avoided_ms)
         receipt = self._receipt(
-            OUTCOME_BYPASS, key_hash, layer, reason, kind=kind,
-            bytes_avoided=bytes_avoided, tokens_avoided=tokens_avoided,
+            OUTCOME_BYPASS,
+            key_hash,
+            layer,
+            reason,
+            kind=kind,
+            bytes_avoided=bytes_avoided,
+            tokens_avoided=tokens_avoided,
             latency_avoided_ms=latency_avoided_ms,
+            baseline=baseline,
+            method=method,
         )
         self._push_receipt(receipt)
         return receipt
@@ -628,6 +668,8 @@ class ContextCache:
         tokens_avoided: int = 0,
         latency_avoided_ms: float = 0.0,
         consumed: bool = False,
+        baseline: str = "",
+        method: str = "",
     ) -> CacheReceipt:
         return CacheReceipt(
             outcome=outcome,
@@ -639,6 +681,8 @@ class ContextCache:
             tokens_avoided=tokens_avoided,
             latency_avoided_ms=latency_avoided_ms,
             consumed=consumed,
+            baseline=baseline,
+            method=method,
         )
 
     def _push_receipt(self, receipt: CacheReceipt) -> None:
@@ -649,15 +693,25 @@ class ContextCache:
 
     def _quarantine(self, key_hash: str, entry: ContextCacheEntry, reason: str) -> None:
         self._structured.pop(key_hash, None)
-        self._quarantined.append({
+        self._quarantined.append(self._quarantine_record(key_hash, entry, reason))
+        # Keep the quarantine list bounded.
+        if len(self._quarantined) > 512:
+            self._quarantined = self._quarantined[-512:]
+
+    def _quarantine_record(self, key_hash: str, entry: ContextCacheEntry, reason: str) -> dict:
+        return {
             "key_hash": key_hash,
             "layer": entry.layer,
             "reason": reason,
             "at": _now_iso(),
-        })
-        # Keep the quarantine list bounded.
-        if len(self._quarantined) > 512:
-            self._quarantined = self._quarantined[-512:]
+        }
+
+    def _is_stale_lock(self, lock_path: str) -> bool:
+        try:
+            age = time.time() - os.path.getmtime(lock_path)
+        except OSError:
+            return False
+        return age > max(1.0, self.lock_timeout * 2.0)
 
     def _evict_if_needed(self) -> None:
         if len(self._structured) <= self.max_entries:
@@ -682,9 +736,7 @@ class ContextCache:
                 try:
                     import datetime as _dt
 
-                    dt = _dt.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").replace(
-                        tzinfo=_dt.timezone.utc
-                    )
+                    dt = _dt.datetime.strptime(ts, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=_dt.timezone.utc)
                     if dt.timestamp() < cutoff:
                         self._structured.pop(key_hash, None)
                         self._stats["evicted"] += 1
@@ -712,6 +764,7 @@ class ContextCache:
         return out[: max(0, limit)]
 
     def has(self, layer: str, key: ContextCacheKey) -> bool:
+        self._load_from_disk()
         entry = self._structured.get(key.content_hash())
         return entry is not None and entry.get("layer") == layer
 

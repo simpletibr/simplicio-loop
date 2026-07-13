@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -51,10 +50,20 @@ def _sample_project_map() -> dict:
 def _sample_symbols() -> dict:
     return {
         "symbols": [
-            {"defined_in": "src/modeling/sort_lines.py", "name": "sort_power_plant_lines",
-             "kind": "function", "line": 1, "qualified_name": "src/modeling/sort_lines.py::sort_power_plant_lines"},
-            {"defined_in": "src/cache/token_cache.py", "name": "TokenCache",
-             "kind": "class", "line": 3, "qualified_name": "src/cache/token_cache.py::TokenCache"},
+            {
+                "defined_in": "src/modeling/sort_lines.py",
+                "name": "sort_power_plant_lines",
+                "kind": "function",
+                "line": 1,
+                "qualified_name": "src/modeling/sort_lines.py::sort_power_plant_lines",
+            },
+            {
+                "defined_in": "src/cache/token_cache.py",
+                "name": "TokenCache",
+                "kind": "class",
+                "line": 3,
+                "qualified_name": "src/cache/token_cache.py::TokenCache",
+            },
         ]
     }
 
@@ -87,11 +96,44 @@ class RetrievalIndexBuildTest(unittest.TestCase):
         # Path tokens are indexed.
         tf_cache = by_path["src/cache/token_cache.py"]["tf"]
         self.assertTrue(any("cache" in tok for tok in tf_cache))
+        self.assertTrue(by_path["src/cache/token_cache.py"]["document_id"].startswith("doc:"))
+        self.assertTrue(by_path["src/cache/token_cache.py"]["chunks"])
+        self.assertTrue(by_path["src/cache/token_cache.py"]["chunks"][0]["chunk_id"].startswith("chunk:"))
 
     def test_generated_vendor_flagged(self) -> None:
         idx = ri.build_retrieval_index(_sample_project_map())
         by_path = {d["path"]: d for d in idx["documents"]}
         self.assertTrue(by_path["node_modules/vendor/dep.js"]["generated"])
+
+    def test_incremental_update_reuses_unchanged_document_and_chunk_ids(self) -> None:
+        base_idx = ri.build_retrieval_index(
+            _sample_project_map(), symbol_index=_sample_symbols(), call_graph=_sample_call_graph()
+        )
+        updated_map = _sample_project_map()
+        updated_map["files"] = list(updated_map["files"])
+        updated_map["files"][0] = {
+            **updated_map["files"][0],
+            "exports": ["sort_power_plant_lines", "sort_power_plant_lines_v2"],
+        }
+        updated = ri.update_retrieval_index(
+            base_idx,
+            updated_map,
+            symbol_index=_sample_symbols(),
+            call_graph=_sample_call_graph(),
+            changed_paths=["src/modeling/sort_lines.py"],
+        )
+        base_docs = {d["path"]: d for d in base_idx["documents"]}
+        updated_docs = {d["path"]: d for d in updated["documents"]}
+        self.assertEqual(
+            base_docs["src/cache/token_cache.py"]["document_id"],
+            updated_docs["src/cache/token_cache.py"]["document_id"],
+        )
+        self.assertEqual(
+            base_docs["src/cache/token_cache.py"]["chunks"],
+            updated_docs["src/cache/token_cache.py"]["chunks"],
+        )
+        self.assertIn("src/modeling/sort_lines.py", updated["incremental"]["invalidated_paths"])
+        self.assertIn("src/cache/token_cache.py", updated["incremental"]["reused_paths"])
 
 
 class QueryPlanTest(unittest.TestCase):
@@ -157,10 +199,12 @@ class RankingTest(unittest.TestCase):
         self.assertTrue(ranked)
         row = ranked[0]
         self.assertIn("score_components", row)
+        self.assertIn("idf_terms", row)
         self.assertIn("reason_codes", row)
         self.assertGreater(row["relevance_score"], 0)
         # Reason codes are not a single opaque score.
         self.assertTrue(any(c.startswith("symbol_match") for c in row["reason_codes"]))
+        self.assertTrue(any(c.startswith("idf_terms=") for c in row["reason_codes"]))
 
 
 class SpanExpansionTest(unittest.TestCase):
@@ -192,9 +236,20 @@ class SpanExpansionTest(unittest.TestCase):
         span = entry["spans"][0]
         self.assertIn("range_hash", span)
         self.assertIn("start_line", span)
+        self.assertTrue(span["chunk_id"].startswith("chunk:"))
         # Stable expand handle present for omitted content.
         self.assertTrue(entry["expand_handle"].startswith("expand:"))
         self.assertIn("token_cache.py", entry["expand_handle"])
+        self.assertTrue(entry["omitted_ranges"])
+
+    def test_expand_handle_round_trip_reads_omitted_content(self) -> None:
+        ranked = ri.rank_candidates(self.idx, self.plan, limit=1)
+        expanded = ri.expand_spans(str(self.root), ranked, self.idx, symbol_index=_sample_symbols())
+        omitted = expanded[0]["omitted_ranges"][0]["expand_handle"]
+        resolved = ri.resolve_expand_handle(str(self.root), omitted)
+        self.assertEqual(resolved["path"], "src/cache/token_cache.py")
+        self.assertFalse(resolved["stale"])
+        self.assertIn("import functools", resolved["text"])
 
 
 class TokenBudgetTest(unittest.TestCase):
@@ -266,9 +321,11 @@ class EndToEndSelectorTest(unittest.TestCase):
         (self.root / "src/cache").mkdir(parents=True)
         (self.root / "docs").mkdir()
         (self.root / "src/modeling/sort_lines.py").write_text(
-            "def sort_power_plant_lines(lines):\n    return sorted(lines)\n", encoding="utf-8")
+            "def sort_power_plant_lines(lines):\n    return sorted(lines)\n", encoding="utf-8"
+        )
         (self.root / "src/cache/token_cache.py").write_text(
-            "class TokenCache:\n    def get(self, k):\n        return None\n", encoding="utf-8")
+            "class TokenCache:\n    def get(self, k):\n        return None\n", encoding="utf-8"
+        )
         (self.root / "docs/release-notes.md").write_text("release notes\n", encoding="utf-8")
 
     def tearDown(self) -> None:
@@ -276,9 +333,11 @@ class EndToEndSelectorTest(unittest.TestCase):
 
     def test_selector_picks_specific_file_no_full_scan(self) -> None:
         selection = ri.select_context_targets(
-            str(self.root), _sample_project_map(),
+            str(self.root),
+            _sample_project_map(),
             goal="Fix TokenCache eviction in token cache implementation",
-            symbol_index=_sample_symbols(), call_graph=_sample_call_graph(),
+            symbol_index=_sample_symbols(),
+            call_graph=_sample_call_graph(),
         )
         paths = [t["path"] for t in selection["targets"]]
         self.assertIn("src/cache/token_cache.py", paths)
@@ -291,7 +350,9 @@ class EndToEndSelectorTest(unittest.TestCase):
         self.assertFalse(selection["fidelity"]["reasons"])
 
     def test_selector_abstains_on_no_vocabulary(self) -> None:
-        selection = ri.select_context_targets(str(self.root), _sample_project_map(), goal="quantum orbital photon")
+        selection = ri.select_context_targets(
+            str(self.root), _sample_project_map(), goal="quantum orbital photon"
+        )
         self.assertTrue(selection["abstained"])
         self.assertEqual(selection["abstention_reason"], "no_relevant_targets")
 

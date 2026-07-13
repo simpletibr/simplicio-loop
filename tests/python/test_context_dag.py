@@ -80,6 +80,8 @@ class ContextDagBuildTest(unittest.TestCase):
         self.assertEqual(nodes1["a"]["content_hash"], nodes2["a"]["content_hash"])
         self.assertNotEqual(nodes1["a"]["merkle_hash"], nodes2["a"]["merkle_hash"])
         self.assertNotEqual(nodes1["b"]["merkle_hash"], nodes2["b"]["merkle_hash"])
+        self.assertIn("freshness", nodes1["a"])
+        self.assertEqual(nodes1["a"]["fidelity"]["status"], "exact")
 
     def test_cyclic_dependency_degrades_without_crashing(self):
         graph = {
@@ -110,9 +112,11 @@ class ContextDagDiffTest(unittest.TestCase):
         self.assertFalse(diff["full_invalidation"])
         self.assertEqual(diff["counters"]["invalidated"], 1)
         self.assertEqual(diff["counters"]["total_nodes"], 3)
+        self.assertEqual(diff["counters"]["micro"], 3)
         touched_ids = {event["id"] for event in diff["events"]}
         self.assertEqual(touched_ids, {"a"})
         self.assertEqual(diff["events"][0]["reason"], REASON_CONTENT_CHANGED)
+        self.assertEqual(diff["events"][0]["scale"], "micro")
 
     def test_dependent_invalidated_with_dependency_changed_reason(self):
         graph1 = {"nodes": [_node("a", "ha"), _node("b", "hb1")], "edges": [_edge("e1", "a", "b")]}
@@ -134,7 +138,17 @@ class ContextDagDiffTest(unittest.TestCase):
         self.assertEqual(len(remove_events), 1)
         self.assertEqual(add_events[0]["id"], "file:new.py")
         self.assertEqual(add_events[0]["rename_hint"], "file:old.py")
+        self.assertEqual(add_events[0]["caused_by"][0]["op"], "rename")
         self.assertEqual(remove_events[0]["reason"], REASON_REMOVED)
+
+    def test_dependency_invalidation_carries_causal_chain(self):
+        graph1 = {"nodes": [_node("a", "ha"), _node("b", "hb1")], "edges": [_edge("e1", "a", "b")]}
+        graph2 = {"nodes": [_node("a", "ha"), _node("b", "hb2")], "edges": [_edge("e1", "a", "b")]}
+        diff = diff_context_dag(build_context_dag(graph1), build_context_dag(graph2))
+        event = [row for row in diff["events"] if row["id"] == "a" and row["op"] == "invalidate"][0]
+        self.assertEqual(event["reason"], REASON_DEPENDENCY_CHANGED)
+        self.assertTrue(event["caused_by"])
+        self.assertEqual(event["caused_by"][0]["id"], "b")
 
     def test_plain_delete_has_no_rename_hint(self):
         previous = build_context_dag(
@@ -144,13 +158,23 @@ class ContextDagDiffTest(unittest.TestCase):
         diff = diff_context_dag(previous, current)
         self.assertEqual(len(diff["events"]), 1)
         event = diff["events"][0]
-        self.assertEqual(event, {"op": "remove", "id": "file:gone.py", "reason": REASON_REMOVED})
+        self.assertEqual(event["op"], "remove")
+        self.assertEqual(event["id"], "file:gone.py")
+        self.assertEqual(event["reason"], REASON_REMOVED)
+        self.assertEqual(event["scale"], "micro")
 
     def test_plain_add_has_no_rename_hint(self):
         previous = build_context_dag({"nodes": [_node("file:a.py", "h1")], "edges": []})
-        current = build_context_dag({"nodes": [_node("file:a.py", "h1"), _node("file:b.py", "h2")], "edges": []})
+        current = build_context_dag(
+            {"nodes": [_node("file:a.py", "h1"), _node("file:b.py", "h2")], "edges": []}
+        )
         diff = diff_context_dag(previous, current)
-        self.assertEqual(diff["events"], [{"op": "add", "id": "file:b.py", "reason": REASON_ADDED}])
+        self.assertEqual(len(diff["events"]), 1)
+        event = diff["events"][0]
+        self.assertEqual(event["op"], "add")
+        self.assertEqual(event["id"], "file:b.py")
+        self.assertEqual(event["reason"], REASON_ADDED)
+        self.assertEqual(event["scale"], "micro")
 
     def test_build_config_change_forces_full_invalidation(self):
         graph = {"nodes": [_node("a", "ha"), _node("b", "hb")], "edges": []}

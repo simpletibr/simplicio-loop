@@ -1,0 +1,29 @@
+{
+  "schema": "simplicio.consumer-dev-cli-receipt/v1",
+  "consumer": {
+    "name": "simplicio-dev-cli",
+    "shape": "dev-cli"
+  },
+  "install": {
+    "module_file": "C:/venv/Lib/site-packages/simplicio_mapper/__init__.py",
+    "site_packages": true
+  },
+  "retrieval": {
+    "index_schema": "simplicio.retrieval-index/v1",
+    "selection_schema": "simplicio.retrieval-selection/v1",
+    "index_id": "abc123",
+    "selected_paths": [
+      "src/cache/token_cache.py"
+    ],
+    "matched_terms": [
+      "TokenCache",
+      "eviction"
+    ]
+  },
+  "flags": {
+    "abstained": false,
+    "needs_broader_context": false,
+    "fidelity_sufficient": true,
+    "target_status": "included"
+  }
+}

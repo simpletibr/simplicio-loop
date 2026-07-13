@@ -52,11 +52,10 @@ class MeasureTest(unittest.TestCase):
         self.assertIn("CLAUDE.md", measurements)
         self.assertGreater(measurements["AGENTS.md"]["tokens"], 0)
 
-        fixture_rel = (
-            "contracts/mapper-artifacts/v1/fixtures/python-minimal/artifacts/project-map.json"
-        )
-        self.assertIn(fixture_rel, measurements)
-        self.assertGreater(measurements[fixture_rel]["tokens"], 0)
+        fixture_rel = "contracts/mapper-artifacts/v1/fixtures/python-minimal/artifacts/project-map.json"
+        normalized = {path.replace("\\", "/"): payload for path, payload in measurements.items()}
+        self.assertIn(fixture_rel, normalized)
+        self.assertGreater(normalized[fixture_rel]["tokens"], 0)
 
     def test_measure_skips_missing_artifacts_without_failing(self) -> None:
         module = _load_module()

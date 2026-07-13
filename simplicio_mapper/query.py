@@ -20,6 +20,7 @@ from collections import deque
 from functools import lru_cache
 from typing import Any
 
+from .context_cache import LAYER_CONTEXT_SUMMARY, LAYER_RUNTIME_PROVIDER, ContextCache, ContextCacheKey
 from .docsync import _flows_touching, _scan_manual_docs_for_references, _symbols_for_files
 from .flows import build_flow_inventory
 from .mapper import _parse_json_safe, build_artifacts
@@ -58,6 +59,20 @@ _ASK_NATIVE_VERBS = {
 _RUNTIME_VERSION_PREFIX = "Simplicio Runtime "
 _RUNTIME_CAPABILITY_SCHEMA = "simplicio.capability-list/v1"
 _RUNTIME_MAPPER_CAPABILITY = "simplicio-mapper"
+_QUERY_CACHE_POLICY_VERSION = "run-query-native-first/v2"
+_QUERY_CACHE_SKIP_DIRS = {
+    ".git",
+    ".hg",
+    ".svn",
+    ".simplicio",
+    "__pycache__",
+    ".pytest_cache",
+    "node_modules",
+    ".venv",
+    "venv",
+    "dist",
+    "build",
+}
 
 
 def _runtime_argv(binary: str, *args: str) -> list[str]:
@@ -77,6 +92,68 @@ def _json_object_from_output(text: str, schema: str) -> dict | None:
         if isinstance(payload, dict) and payload.get("schema") == schema:
             return payload
     return None
+
+
+def _normalize_relpath(path: str) -> str:
+    return path.replace(os.sep, "/")
+
+
+def _cache_path(root: str, out_dir: str) -> str:
+    return os.path.join(os.path.abspath(root), out_dir, "context-cache.json")
+
+
+def _repo_identity(root: str) -> str:
+    pkg = _parse_json_safe(os.path.join(root, "package.json")) or {}
+    name = pkg.get("name") if isinstance(pkg, dict) else None
+    if isinstance(name, str) and name.strip():
+        return name.strip()
+    return os.path.basename(root.rstrip("\\/")) or "."
+
+
+def _query_cacheable_paths(root: str, out_dir: str) -> list[str]:
+    abs_root = os.path.abspath(root)
+    abs_out = os.path.abspath(os.path.join(abs_root, out_dir))
+    rel_paths: list[str] = []
+    for current_root, dirs, files in os.walk(abs_root):
+        dirs[:] = [
+            d
+            for d in dirs
+            if d not in _QUERY_CACHE_SKIP_DIRS and os.path.abspath(os.path.join(current_root, d)) != abs_out
+        ]
+        for filename in files:
+            full = os.path.join(current_root, filename)
+            if os.path.abspath(full) == os.path.abspath(_cache_path(abs_root, out_dir)):
+                continue
+            try:
+                rel = os.path.relpath(full, abs_root)
+            except ValueError:
+                continue
+            rel_paths.append(_normalize_relpath(rel))
+    rel_paths.sort()
+    return rel_paths
+
+
+def _query_cache_key(root: str, out_dir: str, query: dict[str, Any]) -> ContextCacheKey:
+    return ContextCacheKey.for_files(
+        root,
+        _query_cacheable_paths(root, out_dir),
+        repo_identity=_repo_identity(root),
+        mapper_schema_version=ASK_SCHEMA,
+        parser_version=f"python-{sys.version_info.major}.{sys.version_info.minor}",
+        query_task_hash=json.dumps(query, sort_keys=True),
+        retrieval_policy_version=_QUERY_CACHE_POLICY_VERSION,
+        token_budget=int(query.get("limit") or 0),
+        renderer=query.get("verb", ""),
+        output_format=ASK_SCHEMA,
+    )
+
+
+def _cache_block(cache: ContextCache, key_hash: str, receipt: dict) -> dict:
+    return {
+        "key_hash": key_hash,
+        "receipt": receipt,
+        "diagnostics": cache.explain(key_hash),
+    }
 
 
 def _validated_runtime_binary(binary: str) -> tuple[bool, str]:
@@ -404,14 +481,19 @@ def run_query(
 
     abs_cwd = os.path.abspath(cwd)
     abs_out = os.path.abspath(os.path.join(abs_cwd, out_dir))
-    artifacts = build_artifacts(abs_cwd, output_dir=out_dir)
-    symbol_index = artifacts["symbol_index"]
-    call_graph = artifacts["call_graph"]
-    project_map = artifacts["project_map"]
+    cache = ContextCache(_cache_path(abs_cwd, out_dir))
+    artifacts: dict[str, Any] | None = None
+
+    def _artifacts() -> dict[str, Any]:
+        nonlocal artifacts
+        if artifacts is None:
+            artifacts = build_artifacts(abs_cwd, output_dir=out_dir)
+        return artifacts
 
     query: dict[str, Any] = {"verb": verb}
     if arg:
         query["arg"] = arg
+    query["limit"] = limit
     if verb == "reaches":
         query["depth"] = depth
     if verb == "flows" and effect:
@@ -421,44 +503,88 @@ def run_query(
 
     note = None
     if verb == "callers":
+        materialized = _artifacts()
+        symbol_index = materialized["symbol_index"]
+        call_graph = materialized["call_graph"]
         resolved = _resolve_symbol_name(symbol_index, arg or "")
         matches, total = _callers(call_graph, resolved, limit)
         payload = {"results": [_edge_view(e) for e in matches], "total": total}
     elif verb == "callees":
+        materialized = _artifacts()
+        symbol_index = materialized["symbol_index"]
+        call_graph = materialized["call_graph"]
         resolved = _resolve_symbol_name(symbol_index, arg or "")
         matches, total = _callees(call_graph, resolved, limit)
         payload = {"results": [_edge_view(e) for e in matches], "total": total}
     elif verb == "reaches":
+        materialized = _artifacts()
+        call_graph = materialized["call_graph"]
         matches, total = _reaches(call_graph, arg or "", depth, limit)
         payload = {"results": matches, "total": total}
     elif verb == "impact":
         native, delegation_reason = _runtime_ask_query(abs_cwd, "impact", arg or "", limit)
         if native is not None:
             payload = {"results": native["results"], "total": native["total"], "source": "runtime-ask-impact"}
-            baseline = estimate_tokens(
-                json.dumps(artifacts.get("call_graph"), sort_keys=True)
-            ) + estimate_tokens(json.dumps(artifacts.get("symbol_index"), sort_keys=True))
-            _record_ask_native_savings(
-                abs_cwd,
-                "impact",
-                baseline,
-                payload,
-                note="baseline=call_graph+symbol_index the LLM/loop would otherwise have to read "
-                "to answer 'what does changing this file affect' manually; method=heuristic:chars-div-4",
+            native_key = ContextCacheKey(
+                repo_identity=_repo_identity(abs_cwd),
+                mapper_schema_version=ASK_SCHEMA,
+                parser_version=f"python-{sys.version_info.major}.{sys.version_info.minor}",
+                query_task_hash=json.dumps(query, sort_keys=True),
+                retrieval_policy_version=_QUERY_CACHE_POLICY_VERSION,
+                token_budget=limit,
+                renderer=verb,
+                output_format=ASK_SCHEMA,
             )
+            receipt = cache.record_bypass(
+                LAYER_RUNTIME_PROVIDER,
+                native_key.content_hash(),
+                reason="native-first-satisfied",
+                kind="provider",
+                baseline="local build_artifacts + impact fallback",
+                method="runtime-native ask impact",
+            )
+            payload["cache"] = _cache_block(cache, native_key.content_hash(), receipt.to_dict())
         else:
-            impact = _impact(abs_cwd, artifacts, [arg] if arg else [])
-            total = (
-                len(impact["affected_symbols"]) + len(impact["affected_flows"]) + len(impact["needs_review"])
-            )
-            payload = {"results": impact, "total": total, "source": "local-python"}
+            cache_key = _query_cache_key(abs_cwd, out_dir, query)
+            cached_payload, receipt = cache.get_entry(LAYER_CONTEXT_SUMMARY, cache_key)
+            if cached_payload is not None:
+                payload = dict(cached_payload)
+                payload["cache"] = _cache_block(cache, cache_key.content_hash(), receipt.to_dict())
+            else:
+                materialized = _artifacts()
+                impact = _impact(abs_cwd, materialized, [arg] if arg else [])
+                total = (
+                    len(impact["affected_symbols"])
+                    + len(impact["affected_flows"])
+                    + len(impact["needs_review"])
+                )
+                payload = {"results": impact, "total": total, "source": "local-python"}
+                cache.put(
+                    LAYER_CONTEXT_SUMMARY,
+                    cache_key,
+                    payload,
+                    bytes_avoided=len(json.dumps(payload, sort_keys=True).encode("utf-8")),
+                )
+                payload["cache"] = _cache_block(cache, cache_key.content_hash(), receipt.to_dict())
+                baseline = estimate_tokens(
+                    json.dumps(materialized.get("call_graph"), sort_keys=True)
+                ) + estimate_tokens(json.dumps(materialized.get("symbol_index"), sort_keys=True))
+                _record_ask_native_savings(
+                    abs_cwd,
+                    "impact",
+                    baseline,
+                    payload,
+                    note="baseline=call_graph+symbol_index the LLM/loop would otherwise have to read "
+                    "to answer 'what does changing this file affect' manually; method=heuristic:chars-div-4",
+                )
         payload["delegation"] = {
             "runtime": "simplicio-runtime",
             "used": native is not None,
             "reason": delegation_reason,
         }
     elif verb == "flows":
-        flow_inventory = build_flow_inventory(abs_cwd, artifacts)
+        materialized = _artifacts()
+        flow_inventory = build_flow_inventory(abs_cwd, materialized)
         flows = flow_inventory["flows"]
         if effect:
             flows = [f for f in flows if any(e["type"] == effect for e in f["effects"])]
@@ -471,19 +597,54 @@ def run_query(
                 "total": native["total"],
                 "source": "runtime-ask-tests-for",
             }
-            test_files = project_map.get("test_files") or []
-            baseline = sum(estimate_tokens(_read_text(abs_cwd, f)) for f in test_files)
-            _record_ask_native_savings(
-                abs_cwd,
-                "tests-for",
-                baseline,
-                payload,
-                note="baseline=full text of every test file the local fallback would otherwise "
-                "read in full to find matches; method=heuristic:chars-div-4",
+            native_key = ContextCacheKey(
+                repo_identity=_repo_identity(abs_cwd),
+                mapper_schema_version=ASK_SCHEMA,
+                parser_version=f"python-{sys.version_info.major}.{sys.version_info.minor}",
+                query_task_hash=json.dumps(query, sort_keys=True),
+                retrieval_policy_version=_QUERY_CACHE_POLICY_VERSION,
+                token_budget=limit,
+                renderer=verb,
+                output_format=ASK_SCHEMA,
             )
+            receipt = cache.record_bypass(
+                LAYER_RUNTIME_PROVIDER,
+                native_key.content_hash(),
+                reason="native-first-satisfied",
+                kind="provider",
+                baseline="local build_artifacts + tests-for fallback",
+                method="runtime-native ask tests-for",
+            )
+            payload["cache"] = _cache_block(cache, native_key.content_hash(), receipt.to_dict())
         else:
-            matches, total = _tests_for(abs_cwd, project_map, arg or "", limit)
-            payload = {"results": matches, "total": total, "source": "local-python"}
+            cache_key = _query_cache_key(abs_cwd, out_dir, query)
+            cached_payload, receipt = cache.get_entry(LAYER_CONTEXT_SUMMARY, cache_key)
+            if cached_payload is not None:
+                payload = dict(cached_payload)
+                payload["cache"] = _cache_block(cache, cache_key.content_hash(), receipt.to_dict())
+            else:
+                materialized = _artifacts()
+                project_map = materialized["project_map"]
+                matches, total = _tests_for(abs_cwd, project_map, arg or "", limit)
+                payload = {"results": matches, "total": total, "source": "local-python"}
+                cache.put(
+                    LAYER_CONTEXT_SUMMARY,
+                    cache_key,
+                    payload,
+                    bytes_avoided=len(json.dumps(payload, sort_keys=True).encode("utf-8")),
+                )
+                payload["cache"] = _cache_block(cache, cache_key.content_hash(), receipt.to_dict())
+                baseline = sum(
+                    estimate_tokens(_read_text(abs_cwd, f)) for f in project_map.get("test_files") or []
+                )
+                _record_ask_native_savings(
+                    abs_cwd,
+                    "tests-for",
+                    baseline,
+                    payload,
+                    note="baseline=full text of every test file the local fallback would otherwise "
+                    "read in full to find matches; method=heuristic:chars-div-4",
+                )
         payload["delegation"] = {
             "runtime": "simplicio-runtime",
             "used": native is not None,
@@ -502,16 +663,50 @@ def run_query(
             payload = {"results": results, "total": len(candidates), "source": "runtime-precedent-search"}
             if not results and native.get("suggested_next_action"):
                 note = native["suggested_next_action"]
+            native_key = ContextCacheKey(
+                repo_identity=_repo_identity(abs_cwd),
+                mapper_schema_version=ASK_SCHEMA,
+                parser_version=f"python-{sys.version_info.major}.{sys.version_info.minor}",
+                query_task_hash=json.dumps(query, sort_keys=True),
+                retrieval_policy_version=_QUERY_CACHE_POLICY_VERSION,
+                token_budget=limit,
+                renderer=verb,
+                output_format=ASK_SCHEMA,
+            )
+            receipt = cache.record_bypass(
+                LAYER_RUNTIME_PROVIDER,
+                native_key.content_hash(),
+                reason="native-first-satisfied",
+                kind="provider",
+                baseline="local build_artifacts + precedent fallback",
+                method="runtime-native precedent search",
+            )
+            payload["cache"] = _cache_block(cache, native_key.content_hash(), receipt.to_dict())
         else:
-            items = artifacts["precedent_index"].get("items") or []
-            matches = _local_precedent_fallback(items, text, top_n)
-            payload = {"results": matches, "total": len(matches), "source": "local-tag-overlap"}
+            cache_key = _query_cache_key(abs_cwd, out_dir, query)
+            cached_payload, receipt = cache.get_entry(LAYER_CONTEXT_SUMMARY, cache_key)
+            if cached_payload is not None:
+                payload = dict(cached_payload)
+                payload["cache"] = _cache_block(cache, cache_key.content_hash(), receipt.to_dict())
+            else:
+                materialized = _artifacts()
+                items = materialized["precedent_index"].get("items") or []
+                matches = _local_precedent_fallback(items, text, top_n)
+                payload = {"results": matches, "total": len(matches), "source": "local-tag-overlap"}
+                cache.put(
+                    LAYER_CONTEXT_SUMMARY,
+                    cache_key,
+                    payload,
+                    bytes_avoided=len(json.dumps(payload, sort_keys=True).encode("utf-8")),
+                )
+                payload["cache"] = _cache_block(cache, cache_key.content_hash(), receipt.to_dict())
         payload["delegation"] = {
             "runtime": "simplicio-runtime",
             "used": native is not None,
             "reason": delegation_reason,
         }
     elif verb in ("rules", "term"):
+        _artifacts()
         rules_doc = _business_rules(abs_out)
         if rules_doc is None:
             note = "no business-rules.json found — run `simplicio-mapper business <path>` first"

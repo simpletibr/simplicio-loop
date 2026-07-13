@@ -1,0 +1,10 @@
+{
+  "system": "Segurança de sessão",
+  "functionality": "Proteção contra replay",
+  "goal": "Bloquear replay de sessão com nonce rotativo e invalidar token reutilizado.",
+  "acceptance_criteria": [
+    "nonce repetido invalida a sessão",
+    "nonce novo é aceito e armazenado",
+    "regra principal fica no guard de replay de sessão"
+  ]
+}

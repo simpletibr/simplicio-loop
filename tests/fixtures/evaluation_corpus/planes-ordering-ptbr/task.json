@@ -1,0 +1,10 @@
+{
+  "system": "PLANES",
+  "functionality": "Ordenação de linhas",
+  "goal": "Ordenar linhas com estruturais primeiro e temporais/modelagem por data de início.",
+  "acceptance_criteria": [
+    "linhas estruturais aparecem primeiro",
+    "linhas temporais aparecem depois, ordenadas por data de início",
+    "linhas de modelagem aparecem por data de início"
+  ]
+}

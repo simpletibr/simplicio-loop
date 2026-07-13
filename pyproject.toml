@@ -48,13 +48,11 @@ Issues = "https://github.com/wesleysimplicio/simplicio-mapper/issues"
 [tool.hatch.build.targets.wheel]
 packages = ["simplicio_mapper"]
 
-# Issue #208: ship the ContextSnapshot/ContextGraph JSON Schemas inside the
-# wheel so a clean `pip install simplicio-mapper` can validate snapshots
-# (AC: "Wheel e sdist incluem schemas; clean install consegue validá-los").
-# The source dir `contracts/context-snapshot` is vendored into the package as
-# `simplicio_mapper/contracts/context-snapshot`.
+# Distribution frontier (#199/#200/#208): ship the versioned contracts tree
+# inside the wheel so clean installs can validate schemas/fixtures without
+# requiring a source checkout.
 [tool.hatch.build.targets.wheel.force-include]
-"contracts/context-snapshot" = "simplicio_mapper/contracts/context-snapshot"
+"contracts" = "simplicio_mapper/contracts"
 
 [tool.ruff]
 line-length = 110
@@ -113,5 +111,5 @@ include = [
   "CHANGELOG.md",
   "LICENSE",
   "pyproject.toml",
-  "contracts/context-snapshot",
+  "contracts",
 ]
