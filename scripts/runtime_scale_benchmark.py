@@ -25,7 +25,6 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -76,7 +75,7 @@ class FixtureSpec:
     hot_files: list[HotFile]
     queries: list[QuerySpec]
 
-    def with_overrides(self, **overrides: Any) -> "FixtureSpec":
+    def with_overrides(self, **overrides: Any) -> FixtureSpec:
         payload = asdict(self)
         payload.update(overrides)
         if "targets" in overrides and isinstance(overrides["targets"], Mapping):
@@ -338,7 +337,7 @@ class _CountingReader:
     def __getattr__(self, name: str) -> Any:
         return getattr(self._handle, name)
 
-    def __enter__(self) -> "_CountingReader":
+    def __enter__(self) -> _CountingReader:
         self._handle.__enter__()
         return self
 
@@ -375,7 +374,7 @@ class FileOpenMeter:
         self.metrics["paths"].add(str(path))
         return _CountingReader(handle, self.metrics, str(path))
 
-    def __enter__(self) -> "FileOpenMeter":
+    def __enter__(self) -> FileOpenMeter:
         builtins.open = lambda file, mode="r", *args, **kwargs: self._wrap(  # type: ignore[assignment]
             self._orig_builtin, file, mode, *args, **kwargs
         )

@@ -21,6 +21,9 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+# The local imports intentionally follow the repository-path bootstrap below.
+# ruff: noqa: E402, I001
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent
 if str(REPO) not in sys.path:
@@ -229,7 +232,7 @@ def _scenario_concurrent_access(cwd: Path, workers: int) -> dict[str, Any]:
         try:
             barrier.wait(timeout=5)
             results[index] = _run_query(cwd, **plan)
-        except Exception as exc:  # pragma: no cover - surfaced in report/tests
+        except Exception as exc:  # noqa: BLE001  # pragma: no cover - surfaced in report/tests
             errors.append(f"{type(exc).__name__}: {exc}")
 
     threads = [threading.Thread(target=worker, args=(i,)) for i in range(max(1, workers))]
@@ -304,18 +307,18 @@ def main(argv: list[str] | None = None) -> int:
     scenarios: list[str] = []
     i = 0
     while i < len(argv):
-        token = argv[i]
-        if token == "--out":
+        argument = argv[i]
+        if argument == "--out":
             i += 1
             out_path = argv[i]
-        elif token == "--workers":
+        elif argument == "--workers":
             i += 1
             workers = max(1, int(argv[i]))
-        elif token == "--scenario":
+        elif argument == "--scenario":
             i += 1
             scenarios.append(argv[i])
         else:
-            print(f"unknown argument: {token}", file=sys.stderr)
+            print(f"unknown argument: {argument}", file=sys.stderr)
             return 2
         i += 1
 
