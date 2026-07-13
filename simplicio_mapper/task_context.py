@@ -176,7 +176,7 @@ def _fidelity_from_pack(
     }
 
 
-def _enforce_serialized_budget(
+def enforce_serialized_budget(
     pack: dict[str, Any],
     *,
     token_budget: int,
@@ -322,7 +322,7 @@ def apply_task_context(
     pre_budget_payload = json.dumps(pack, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     estimated_tokens = estimate_tokens(pre_budget_payload)
     budget_reasons: list[str] = []
-    pack = _enforce_serialized_budget(
+    pack = enforce_serialized_budget(
         pack,
         token_budget=effective_token_budget,
         estimated_tokens=estimated_tokens,
@@ -363,7 +363,7 @@ def apply_task_context(
         pack["needs_broader_context"] = True
         previous = str(pack.get("needs_broader_context_reason", ""))
         pack["needs_broader_context_reason"] = "; ".join(piece for piece in [previous, *reasons] if piece)
-    pack = _enforce_serialized_budget(
+    pack = enforce_serialized_budget(
         pack,
         token_budget=effective_token_budget,
         estimated_tokens=estimated_tokens,
