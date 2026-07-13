@@ -41,7 +41,12 @@ def _current_plan() -> PlanDAG:
         revision="1",
         nodes=[
             PlanNode(node_id="n1", capability="edit.apply", acceptance_criteria_refs=["AC1"]),
-            PlanNode(node_id="n2", capability="test.run", depends_on=["n1"]),
+            PlanNode(
+                node_id="n2",
+                capability="test.run",
+                depends_on=["n1"],
+                rollback_strategy="git revert",
+            ),
         ],
         producer_id="simplicio-runtime",
         consumer_id="simplicio-loop",
@@ -172,6 +177,76 @@ def test_plan_dag_rollback_scenario_n_only_fields_do_not_survive_n_minus_1_hop()
     assert restored.producer_id == plan.producer_id
     assert restored.consumer_id == plan.consumer_id
     assert restored.budget is None  # lost on the N-1 hop, by design
+
+
+def test_plan_dag_two_hop_rollback_round_trip_via_simulated_old_consumer() -> None:
+    """A more convincing rollback narrative than the single-hop test above.
+
+    The single-hop test round-trips the *same* downgraded dict straight back
+    through ``adapt_inbound`` in the same process, which only proves the
+    adapters are inverses of each other at the schema/dict layer — it never
+    proves anything about an actual old consumer's behavior in between.
+
+    This test inserts a second, independent hop: a small
+    ``_simulate_n_minus_1_consumer`` function stands in for "an old
+    consumer/producer that only understands the N-1 field set". It builds
+    its own fresh N-1-shaped response dict *from scratch*, touching only the
+    fields an N-1 party could legitimately know about (it never sees, and
+    could not have echoed, ``budget``) — it is not just re-serializing the
+    original payload. Adapting that independently-built response back
+    inbound is the "rollback" step: this compiler receiving data from a
+    party that never adopted the N budget field.
+
+    This still stands in for a *simulated* consumer, not the real
+    ``simplicio-runtime``/``simplicio-loop`` processes — see this module's
+    docstring and docs/plan-compiler.md for why full confidence still
+    requires exercising a real cross-repo consumer (issue #167's "Rollback
+    restaura compatibilidade" AC stays partially open until that happens).
+    """
+    plan = _current_plan()
+
+    # Hop 1 (N -> N-1): compile at current version, send to the old consumer.
+    outbound_payload = adapt_outbound(plan, PLAN_DAG_VERSION - 1)
+    assert "budget" not in outbound_payload
+
+    def _simulate_n_minus_1_consumer(payload: dict) -> dict:
+        """Stand-in for a real N-1-only consumer: reads only the fields it
+        understands and emits its own response record built from those
+        fields alone (the calling convention is reversed — the consumer
+        becomes the producer of the ack/response it sends back)."""
+        assert "budget" not in payload  # this consumer has never heard of budget
+        return {
+            "schema": payload["schema"],
+            "plan_id": payload["plan_id"],
+            "goal_id": payload["goal_id"],
+            "context_snapshot_id": payload["context_snapshot_id"],
+            "revision": payload["revision"],
+            "nodes": [dict(node) for node in payload["nodes"]],
+            "producer_id": payload["consumer_id"],
+            "consumer_id": payload["producer_id"],
+        }
+
+    old_consumer_response = _simulate_n_minus_1_consumer(outbound_payload)
+
+    # Hop 2 (N-1 -> N): rollback — receive the old consumer's independently
+    # built response back into this compiler's current PlanDAG shape.
+    restored = adapt_inbound(old_consumer_response, PLAN_DAG_VERSION - 1)
+
+    assert restored.plan_id == plan.plan_id
+    assert restored.goal_id == plan.goal_id
+    assert restored.context_snapshot_id == plan.context_snapshot_id
+    assert restored.revision == plan.revision
+    assert [node.node_id for node in restored.nodes] == [node.node_id for node in plan.nodes]
+    assert [node.rollback_strategy for node in restored.nodes] == [
+        node.rollback_strategy for node in plan.nodes
+    ]
+    # Roles inverted because the "response" flows the other direction.
+    assert restored.producer_id == plan.consumer_id
+    assert restored.consumer_id == plan.producer_id
+    # budget: unknown to the N-1 consumer, so it cannot round-trip — the
+    # adapter must default it gracefully rather than error or fabricate a
+    # value.
+    assert restored.budget is None
 
 
 def test_plan_dag_adapt_outbound_rejects_older_than_n_minus_1() -> None:
