@@ -48,6 +48,31 @@ from .transaction import VerificationReceipt
 
 MAX_ATTEMPTS = 5
 
+
+def _resolve_max_attempts() -> int:
+    """Read the per-call attempt budget, honoring an external opt-out.
+
+    Issue #166 (control-plane inventory, see
+    docs/plan-compiler.md#control-plane-ownership-inventory-retry--feature-sprint-scheduling)
+    flags this loop as a genuine double-retry risk: a host loop that already
+    owns retry policy (e.g. simplicio-loop) can invoke ``simplicio-py task``
+    once per its own attempt, and this internal loop would still retry
+    ``MAX_ATTEMPTS`` times underneath it, multiplying attempts.
+    ``SIMPLICIO_MAX_ATTEMPTS`` lets such a caller opt into a single atomic
+    attempt (set it to ``1``) without changing standalone use, which keeps
+    reading the ``MAX_ATTEMPTS`` module constant unchanged by default.
+    """
+
+    raw = os.environ.get("SIMPLICIO_MAX_ATTEMPTS", "").strip()
+    if not raw:
+        return MAX_ATTEMPTS
+    try:
+        value = int(raw)
+    except ValueError:
+        return MAX_ATTEMPTS
+    return value if value >= 1 else MAX_ATTEMPTS
+
+
 # Live receipt state — written by the apply stage (``_apply_and_test_attempt``)
 # and read both here (for the patch receipt) and by ``_task_result`` in
 # ``pipeline_task_result.py``.  Kept in the coordinator module because it is
@@ -279,7 +304,8 @@ def run_task(
     last_verify_receipt: dict[str, Any] | None = None
     # Issue #93: impact-test tracking across attempts
     impact_results: dict[str, Any] | None = None
-    for t in range(1, MAX_ATTEMPTS + 1):
+    attempts_limit = _resolve_max_attempts()
+    for t in range(1, attempts_limit + 1):
         if not quiet:
             _model = os.environ.get("SIMPLICIO_MODEL", "")
             _base = os.environ.get("SIMPLICIO_BASE_URL", "")
@@ -493,7 +519,7 @@ def run_task(
         warnings.append(last_log[:500])
     emit_event(
         "validation_fail",
-        {"target": target, "attempts": MAX_ATTEMPTS, "warnings": warnings[:1]},
+        {"target": target, "attempts": attempts_limit, "warnings": warnings[:1]},
         level="warning",
         root=root,
     )
