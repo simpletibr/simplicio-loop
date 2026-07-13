@@ -2,7 +2,10 @@
 
 PR #171 versioned ``producer_id``/``consumer_id`` onto ``GoalEnvelope`` and
 ``PlanDAG`` (see :mod:`simplicio.plan_compiler.models`); a later slice added
-``budget`` to ``PlanDAG``. Both additions follow the
+``budget`` to ``PlanDAG``, and a further slice added ``trace_id`` to
+``PlanDAG`` *without* bumping ``PLAN_DAG_VERSION`` again — so ``trace_id``
+is, for this adapter's purposes, part of the same "version 2" field set as
+``budget``. All these additions follow the
 ``PLAN_COMPILER_COMPATIBILITY["contract"] == "additive-fields-within-major"``
 rule: the ``schema`` string (``simplicio.plan-dag/v1`` etc.) never bumped its
 major version, but the *field set* a producer/consumer agrees on did grow.
@@ -17,9 +20,9 @@ per type — ``GOAL_ENVELOPE_VERSION`` / ``PLAN_DAG_VERSION`` below — so "N" a
     - version 1 (N, current): adds ``producer_id``/``consumer_id`` (#171).
 
 ``PlanDAG``:
-    - version 1 (N-1): has ``producer_id``/``consumer_id`` (#171), no
-      ``budget``.
-    - version 2 (N, current): adds ``budget``.
+    - version 1 (N-1): has ``producer_id``/``consumer_id`` (#171), neither
+      ``budget`` nor ``trace_id``.
+    - version 2 (N, current): adds both ``budget`` and ``trace_id``.
 
 Only the immediately-previous version (N-1) is supported by
 ``adapt_outbound``/``adapt_inbound`` below — this is a narrow compatibility
@@ -146,8 +149,10 @@ def adapt_outbound(plan: PlanDAG, target_version: int) -> dict[str, Any]:
     """Downgrade a current (N) ``PlanDAG`` to an N-1-shaped dict.
 
     N-1 for ``PlanDAG`` (version ``PLAN_DAG_VERSION - 1``) has
-    ``producer_id``/``consumer_id`` (#171) but not ``budget`` — so this
-    drops ``budget`` cleanly and keeps everything else. Rejects any
+    ``producer_id``/``consumer_id`` (#171) but neither ``budget`` nor
+    ``trace_id`` — both are additive fields that landed *within* the
+    current ``PLAN_DAG_VERSION`` (see ``models.PlanDAG``) without a version
+    bump of their own, so both drop cleanly here. Rejects any
     ``target_version`` other than ``PLAN_DAG_VERSION - 1`` with a clear
     error (only one hop of compatibility is supported).
     """
@@ -156,6 +161,7 @@ def adapt_outbound(plan: PlanDAG, target_version: int) -> dict[str, Any]:
         raise UnsupportedCompatVersionError("PlanDAG", target_version, PLAN_DAG_VERSION)
     payload = plan.to_dict()
     payload.pop("budget", None)
+    payload.pop("trace_id", None)
     return payload
 
 
@@ -163,14 +169,16 @@ def adapt_inbound(data: dict[str, Any], source_version: int) -> PlanDAG:
     """Upgrade an N-1-shaped ``PlanDAG`` dict into a current (N) instance.
 
     Rejects any ``source_version`` other than ``PLAN_DAG_VERSION - 1``.
-    ``budget`` (absent at N-1) is filled with its dataclass default
-    (``None``, meaning "no budget ceiling").
+    ``budget`` and ``trace_id`` (both absent at N-1) are filled with their
+    dataclass defaults (``None``, meaning "no budget ceiling" / "no trace
+    correlation id").
     """
     _check_plan_dag_not_expired()
     if source_version != PLAN_DAG_VERSION - 1:
         raise UnsupportedCompatVersionError("PlanDAG", source_version, PLAN_DAG_VERSION)
     upgraded = dict(data)
     upgraded.setdefault("budget", None)
+    upgraded.setdefault("trace_id", None)
     upgraded.setdefault("producer_id", "")
     upgraded.setdefault("consumer_id", "")
     return PlanDAG.from_dict(upgraded)
