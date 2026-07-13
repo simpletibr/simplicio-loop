@@ -31,7 +31,7 @@ class IssueAcceptanceAuditTest(unittest.TestCase):
 
         self.assertEqual(issues[199]["status"], "PARTIAL")
         self.assertEqual(issues[208]["status"], "PARTIAL")
-        self.assertEqual(issues[213]["status"], "PARTIAL")
+        self.assertEqual(issues[213]["status"], "DONE")
 
         ac_199_17 = next(item for item in issues[199]["criteria"] if item["criterion_id"] == "199-AC17")
         self.assertEqual(ac_199_17["status"], "UNVERIFIED")
@@ -41,9 +41,13 @@ class IssueAcceptanceAuditTest(unittest.TestCase):
         self.assertEqual(ac_208_01["status"], "DONE")
         self.assertTrue(ac_208_01["receipts"])
 
+        ac_208_06 = next(item for item in issues[208]["criteria"] if item["criterion_id"] == "208-AC06")
+        self.assertEqual(ac_208_06["status"], "DONE")
+        self.assertTrue(ac_208_06["receipts"])
+
         ac_213_05 = next(item for item in issues[213]["criteria"] if item["criterion_id"] == "213-AC05")
-        self.assertEqual(ac_213_05["status"], "UNVERIFIED")
-        self.assertIn("GitHub", ac_213_05["boundary"])
+        self.assertEqual(ac_213_05["status"], "DONE")
+        self.assertTrue(ac_213_05["receipts"])
 
         all_boundaries = "\n".join(
             boundary

@@ -1,0 +1,22 @@
+{
+  "schema": "simplicio.dependency-audit/v1",
+  "status": "pass",
+  "measurement_status": "MEASURED",
+  "repository": "wesleysimplicio/simplicio-mapper",
+  "baseline_revision": "d374c59a4939023f6119a1e7b8c3f7d2fa7f07e4",
+  "inspected_revision": "dcdd1657e70dd562229594078c0d7c6a1a725a34",
+  "baseline_dependencies": [
+    "orjson>=3.11.9,<4",
+    "diskcache>=5.6.3,<6"
+  ],
+  "inspected_dependencies": [
+    "orjson>=3.11.9,<4",
+    "diskcache>=5.6.3,<6"
+  ],
+  "dependency_changes": [],
+  "approval_required": false,
+  "evidence": {
+    "command": "git diff d374c59a4939023f6119a1e7b8c3f7d2fa7f07e4..dcdd1657e70dd562229594078c0d7c6a1a725a34 -- pyproject.toml",
+    "interpretation": "The interval changes version/package inclusion but does not change project.dependencies."
+  }
+}

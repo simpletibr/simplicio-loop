@@ -227,6 +227,18 @@ def _default_fidelity(omissions: list[str], graph_dict: Mapping[str, Any]) -> di
     }
 
 
+def _needs_broader_context(omissions: list[str], fidelity_payload: Mapping[str, Any]) -> bool:
+    if omissions:
+        return True
+    if bool(fidelity_payload.get("abstained")):
+        return True
+    gate = str(fidelity_payload.get("gate", "")).strip().casefold()
+    if gate and gate != "ready":
+        return True
+    status = str(fidelity_payload.get("status", "")).strip().casefold()
+    return status in {"partial", "insufficient", "abstained"}
+
+
 def build_context_graph(
     *,
     project_map: Mapping[str, Any] | None = None,
@@ -458,6 +470,7 @@ def build_context_snapshot(
     }
     fidelity_payload = _default_fidelity(omissions, graph_dict)
     fidelity_payload.update(dict(fidelity or {}))
+    needs_broader_context = _needs_broader_context(omissions, fidelity_payload)
 
     payload: dict[str, Any] = {
         "schema": CONTEXT_SNAPSHOT_SCHEMA,
@@ -491,7 +504,7 @@ def build_context_snapshot(
         "fidelity": fidelity_payload,
         "freshness": freshness,
         "generated_at": _now_iso(),
-        "needs_broader_context": bool(omissions),
+        "needs_broader_context": needs_broader_context,
     }
 
     # Content-addressed identity: hash the canonical serialization of the
