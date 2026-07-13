@@ -17,7 +17,10 @@
 </p>
 
 <p align="center">
-  <img src="../output/imagegen/simplicio-cli-readme-hero-web.png" alt="simplicio-cli preview" width="860" />
+  <img src="../output/imagegen/simplicio-cli-readme-hero-web.png" alt="צינור הביצוע של simplicio-dev-cli" width="860" />
+</p>
+<p align="center">
+  <img src="../output/imagegen/simplicio-cli-proof-receipt.png" alt="diff, בדיקות ואישור אימות" width="760" />
 </p>
 
 ---
@@ -31,7 +34,6 @@
 העמוד המקומי שומר על הדרך המהירה. המדריך הטכני המשוחזר נמצא ב-README הראשי כדי לשמור על הקול המקורי ופרטי ההפעלה של הפרויקט.
 
 - Full restored guide: [../README.md](../README.md)
-- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.
 
 ## התחלה מהירה
 
@@ -43,10 +45,10 @@ simplicio-py task "hide the Delete button for non-admins"
 
 ## מה זה עושה
 
-- Classifies the task before execution so small fixes stay small and sprint-scale work becomes a plan.
-- Loads simplicio-mapper artifacts before asking an LLM to edit.
-- Keeps a verification loop around generated diffs instead of trusting the first answer.
-- Works with local Simplicio1, OpenRouter, OpenAI, Anthropic, DeepSeek, Simplicio Agent, Codex and Claude-style hosts.
+- מקבל משימה ממוקדת מה-runtime, מסוכן או מהממשק של ה-CLI.
+- טוען את ההקשר של `simplicio-mapper` ואת התקדים הרלוונטי לפני עריכה.
+- מחיל diff מוגבל, מריץ בדיקות ומתעד קבלה ניתנת לבדיקה של האימות.
+- משאיר את התזמור, בחירת המודל ומצב הלולאה המתמשך לשכבות Simplicio שמסביב.
 
 ## למה ה-README הזה נבנה למשיכת תשומת לב
 
@@ -61,15 +63,14 @@ simplicio-py task "hide the Delete button for non-admins"
 
 ```mermaid
 flowchart LR
-  mapper["simplicio-mapper
-repo context"] --> current["simplicio-cli
-this project"]
-  prompt["simplicio-prompt
-reasoning runtime"] --> current
-  current --> evidence["validated evidence
-tests, docs, screenshots"]
-  current --> sprint["simplicio-sprint
-delivery loop"]
+  task["decided task"] --> mapper["simplicio-mapper
+repo context"]
+  mapper --> operator["simplicio-dev-cli
+focused operator"]
+  operator --> diff["bounded diff"]
+  operator --> tests["tests"]
+  diff --> receipt["evidence receipt"]
+  tests --> receipt
 ```
 
 ## הוכחות ואימות
