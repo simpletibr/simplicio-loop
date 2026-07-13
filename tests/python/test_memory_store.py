@@ -122,6 +122,27 @@ def test_validate_memory_reports_missing_headers(tmp_path):
     assert any(row["code"] == "missing_topic_header" for row in payload["errors"])
 
 
+def test_validate_memory_reports_corrupt_index(tmp_path):
+    base = tmp_path / "mem"
+    memory_store.store_memory("auth flow", "OAuth device flow.", root=base, actor="codex")
+    (base / "index.sqlite3").write_bytes(b"not-a-sqlite-db")
+    payload = memory_store.validate_memory(root=base)
+    assert payload["ok"] is False
+    assert any(row["code"] == "invalid_index" for row in payload["errors"])
+
+
+def test_validate_memory_reports_stale_index_entry_count(tmp_path):
+    base = tmp_path / "mem"
+    memory_store.store_memory("auth flow", "OAuth device flow.", root=base, actor="codex")
+    with memory_store.sqlite3.connect(base / "index.sqlite3") as db:
+        db.execute("DELETE FROM entries")
+        db.execute("INSERT INTO entries_fts(entries_fts) VALUES ('rebuild')")
+        db.commit()
+    payload = memory_store.validate_memory(root=base)
+    assert payload["ok"] is False
+    assert any(row["code"] == "stale_index" for row in payload["errors"])
+
+
 def test_build_handoff_includes_validation_and_actor_metadata(tmp_path):
     base = tmp_path / "mem"
     memory_store.store_memory(

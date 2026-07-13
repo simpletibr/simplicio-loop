@@ -27,7 +27,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ..runtime_bridge import discover_simplicio, record_delegation
+from ..runtime_bridge import delegated_command, discover_simplicio, record_delegation
 
 SCHEMA = "simplicio.test-run/v1"
 DEFAULT_CMD = "pytest"
@@ -72,11 +72,7 @@ def _run_via_runtime(a: argparse.Namespace, extra_args: list[str]) -> tuple[int 
     binary = discover_simplicio()
     if binary is None:
         return None, "binary-not-found"
-    binary_path = Path(binary)
-    if sys.platform == "win32" and binary_path.suffix.lower() not in {".exe", ".bat", ".cmd", ".ps1", ".py"}:
-        cmd = [sys.executable, binary, *_build_runtime_args(a, extra_args)]
-    else:
-        cmd = [binary, *_build_runtime_args(a, extra_args)]
+    cmd = delegated_command(binary, _build_runtime_args(a, extra_args))
     try:
         completed = subprocess.run(
             cmd,

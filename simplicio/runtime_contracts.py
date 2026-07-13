@@ -39,6 +39,15 @@ RUNTIME_CAPABILITIES = [
     "simplicio.prompt-envelope/v1",
 ]
 
+RUNTIME_VERIFY_CAPABILITIES = [
+    "simplicio.compatibility-matrix/v1",
+    "simplicio.context-pack/v1",
+    "simplicio.mechanical-edit/v1",
+    "simplicio.mechanical-edit-result/v1",
+    "simplicio.artifact-response/v1",
+    "simplicio.workflow-ledger/v1",
+]
+
 
 def validate_version_contract(payload: dict[str, Any]) -> list[str]:
     """Return actionable diagnostics for a malformed/incompatible handshake."""
@@ -115,7 +124,14 @@ def is_legacy_runtime_alias(product: str | None) -> bool:
 
 
 def runtime_verify_contract(*, timeout: int = 30) -> dict[str, Any]:
-    """Probe the real reserved runtime without silently falling back."""
+    """Probe the real reserved runtime without silently falling back.
+
+    Identity comes from the runtime's canonical ``version --json`` surface
+    (#113). Runtime-side contract capabilities come from
+    ``contracts smoke --json`` because that fast smoke publishes the schema
+    chain the runtime actually exposes/consumes; ``runtime smoke`` is broader
+    and heavier and its ``checks[]`` names are not the handshake surface.
+    """
     binary = shutil.which(RUNTIME_COMMAND)
     base = {
         "schema": "simplicio.dev-cli.runtime-verify/v1",
@@ -125,33 +141,103 @@ def runtime_verify_contract(*, timeout: int = 30) -> dict[str, Any]:
     if binary is None:
         return {**base, "verified": False, "reason": "runtime-binary-not-found", "capabilities": []}
     try:
-        completed = subprocess.run(
-            [binary, "runtime", "smoke", "--json"],
+        version_completed = subprocess.run(
+            [binary, "version", "--json"],
             capture_output=True,
             text=True,
             timeout=timeout,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return {**base, "verified": False, "reason": f"runtime-probe-failed: {exc}", "capabilities": []}
+        return {
+            **base,
+            "verified": False,
+            "reason": f"runtime-version-probe-failed: {exc}",
+            "capabilities": [],
+        }
     try:
-        response = json.loads(completed.stdout or "{}")
+        version_response = json.loads(version_completed.stdout or "{}")
     except json.JSONDecodeError:
-        response = {}
-    product = str(response.get("runtime", ""))
-    names = sorted(
-        str(check.get("name", ""))
-        for check in response.get("checks", [])
-        if isinstance(check, dict) and check.get("name")
-    )
-    missing = sorted(cap for cap in RUNTIME_CAPABILITIES if not any(cap in name for name in names))
+        version_response = {}
+
+    runtime_block = version_response.get("runtime")
+    if isinstance(runtime_block, dict):
+        product = str(runtime_block.get("name") or runtime_block.get("product") or "")
+        version = runtime_block.get("version")
+    else:
+        product = str(version_response.get("runtime") or version_response.get("product") or "")
+        version = version_response.get("version")
+
     if product != RUNTIME_PRODUCT:
         reason = "wrong-runtime-product"
-    elif response.get("status") != "passed":
-        reason = "runtime-status-failed"
+        return {
+            **base,
+            "verified": False,
+            "reason": reason,
+            "product": product or None,
+            "version": version,
+            "capabilities": [],
+            "missing_capabilities": [],
+            "legacy_alias": is_legacy_runtime_alias(product),
+        }
+
+    try:
+        contracts_completed = subprocess.run(
+            [binary, "contracts", "smoke", "--json"],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {
+            **base,
+            "verified": False,
+            "reason": f"runtime-contracts-probe-failed: {exc}",
+            "product": product or None,
+            "version": version,
+            "capabilities": [],
+            "missing_capabilities": RUNTIME_VERIFY_CAPABILITIES,
+            "legacy_alias": False,
+        }
+
+    try:
+        contracts_response = json.loads(contracts_completed.stdout or "{}")
+    except json.JSONDecodeError:
+        contracts_response = {}
+
+    names = sorted(
+        {
+            str(value)
+            for value in (contracts_response.get("schemas") or {}).values()
+            if isinstance(value, str) and value
+        }
+        | {
+            str(contracts_response.get("standard_io"))
+            if isinstance(contracts_response.get("standard_io"), str)
+            else ""
+        }
+        | {
+            str((contracts_response.get("compatibility") or {}).get("schema"))
+            if isinstance(contracts_response.get("compatibility"), dict)
+            and isinstance((contracts_response.get("compatibility") or {}).get("schema"), str)
+            else ""
+        }
+        - {""}
+    )
+    failed_checks = sorted(
+        str(check.get("name"))
+        for check in contracts_response.get("checks", [])
+        if isinstance(check, dict) and check.get("passed") is False and check.get("name")
+    )
+    blocking_checks = [name for name in failed_checks if not name.startswith("artifact:")]
+    missing = sorted(cap for cap in RUNTIME_VERIFY_CAPABILITIES if cap not in names)
+    if contracts_response.get("runtime") != RUNTIME_PRODUCT:
+        reason = "wrong-runtime-product"
+    elif blocking_checks:
+        reason = "runtime-contracts-status-failed"
     elif missing:
         reason = "capability-handshake-missing"
-    elif completed.returncode != 0:
-        reason = "runtime-probe-nonzero"
+    elif contracts_completed.returncode != 0 and (blocking_checks or missing or not names):
+        reason = "runtime-contracts-probe-nonzero"
     else:
         reason = "ok"
     return {
@@ -159,9 +245,11 @@ def runtime_verify_contract(*, timeout: int = 30) -> dict[str, Any]:
         "verified": reason == "ok",
         "reason": reason,
         "product": product or None,
+        "version": version,
         "capabilities": names,
         "missing_capabilities": missing,
-        "legacy_alias": is_legacy_runtime_alias(product),
+        "failed_checks": failed_checks,
+        "legacy_alias": False,
     }
 
 

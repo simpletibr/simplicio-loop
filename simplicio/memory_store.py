@@ -371,6 +371,62 @@ def validate_memory(
                     }
                 )
 
+    index_path = _index_path(base)
+    index_info: dict[str, Any] = {
+        "schema": MEMORY_INDEX_SCHEMA,
+        "path": str(index_path),
+        "available": index_path.exists(),
+    }
+    if index_path.exists():
+        try:
+            with sqlite3.connect(index_path) as db:
+                quick_check = db.execute("PRAGMA quick_check").fetchone()
+                if not quick_check or quick_check[0] != "ok":
+                    errors.append(
+                        {
+                            "code": "invalid_index",
+                            "message": f"index quick_check failed for {index_path.name}",
+                        }
+                    )
+                tables = {
+                    row[0]
+                    for row in db.execute(
+                        "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')"
+                    ).fetchall()
+                }
+                required_tables = {"entries", "entries_fts"}
+                missing_tables = sorted(required_tables - tables)
+                if missing_tables:
+                    errors.append(
+                        {
+                            "code": "invalid_index_schema",
+                            "message": (
+                                f"index is missing required tables: {', '.join(missing_tables)}"
+                            ),
+                        }
+                    )
+                elif not errors:
+                    indexed_entries = db.execute("SELECT COUNT(*) FROM entries").fetchone()
+                    indexed_count = int(indexed_entries[0]) if indexed_entries else 0
+                    index_info["entries"] = indexed_count
+                    if indexed_count != entry_count:
+                        errors.append(
+                            {
+                                "code": "stale_index",
+                                "message": (
+                                    f"index entry count {indexed_count} does not match "
+                                    f"markdown entry count {entry_count}"
+                                ),
+                            }
+                        )
+        except (OSError, sqlite3.Error) as exc:
+            errors.append(
+                {
+                    "code": "invalid_index",
+                    "message": f"failed to read {index_path.name}: {exc}",
+                }
+            )
+
     return {
         "schema": MEMORY_VALIDATION_SCHEMA,
         "ok": not errors,
@@ -380,11 +436,7 @@ def validate_memory(
         "entries": entry_count,
         "errors": errors,
         "warnings": warnings,
-        "index": {
-            "schema": MEMORY_INDEX_SCHEMA,
-            "path": str(_index_path(base)),
-            "available": _index_path(base).exists(),
-        },
+        "index": index_info,
     }
 
 

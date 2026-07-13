@@ -299,7 +299,7 @@ def _validate_repository(repo: RepositoryEvidence) -> list[str]:
             if not target.precedents:
                 missing.append("precedents")
             if not target.tests:
-                missing.append("tests")
+                missing.append("tests-for")
             if not target.verify_command.strip():
                 missing.append("verify command")
             if missing:

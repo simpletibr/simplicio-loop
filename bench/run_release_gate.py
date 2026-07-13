@@ -51,6 +51,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from simplicio.execution_contract import ContractCompilationError, compile_execution_contract
 from simplicio.runtime_contracts import (
     RUNTIME_CAPABILITIES,

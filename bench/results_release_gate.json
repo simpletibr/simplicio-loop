@@ -1,0 +1,234 @@
+{
+  "benchmark": "release-gate",
+  "cases": [
+    {
+      "ac_precision": 1.0,
+      "ac_recall": 0.0,
+      "case_id": "planes-ordering",
+      "contract_execution_ready": false,
+      "elapsed_ms": 2.99,
+      "error": "",
+      "expected": "pass",
+      "field_preservation_ok": true,
+      "field_problems": [],
+      "outcome_ok": false,
+      "rejection_kind": "",
+      "status": "passed"
+    },
+    {
+      "ac_precision": 1.0,
+      "ac_recall": 0.0,
+      "case_id": "minimal-explicit-target",
+      "contract_execution_ready": false,
+      "elapsed_ms": 0.545,
+      "error": "",
+      "expected": "pass",
+      "field_preservation_ok": true,
+      "field_problems": [],
+      "outcome_ok": false,
+      "rejection_kind": "",
+      "status": "passed"
+    },
+    {
+      "ac_precision": 1.0,
+      "ac_recall": 0.0,
+      "case_id": "full-stack-ambiguous",
+      "contract_execution_ready": false,
+      "elapsed_ms": 0.627,
+      "error": "",
+      "expected": "pass",
+      "field_preservation_ok": true,
+      "field_problems": [],
+      "outcome_ok": false,
+      "rejection_kind": "",
+      "status": "passed"
+    },
+    {
+      "ac_precision": 1.0,
+      "ac_recall": 0.0,
+      "case_id": "ui-prototype-attachment",
+      "contract_execution_ready": false,
+      "elapsed_ms": 0.889,
+      "error": "",
+      "expected": "pass",
+      "field_preservation_ok": true,
+      "field_problems": [],
+      "outcome_ok": false,
+      "rejection_kind": "",
+      "status": "passed"
+    },
+    {
+      "ac_precision": 1.0,
+      "ac_recall": 0.0,
+      "case_id": "backend-only",
+      "contract_execution_ready": false,
+      "elapsed_ms": 0.494,
+      "error": "",
+      "expected": "pass",
+      "field_preservation_ok": true,
+      "field_problems": [],
+      "outcome_ok": false,
+      "rejection_kind": "",
+      "status": "passed"
+    },
+    {
+      "ac_precision": 1.0,
+      "ac_recall": 0.0,
+      "case_id": "dag-batch",
+      "contract_execution_ready": false,
+      "elapsed_ms": 11.825,
+      "error": "",
+      "expected": "pass",
+      "field_preservation_ok": true,
+      "field_problems": [],
+      "outcome_ok": false,
+      "rejection_kind": "",
+      "status": "passed"
+    },
+    {
+      "ac_precision": 1.0,
+      "ac_recall": 0.0,
+      "case_id": "blocked-batch",
+      "contract_execution_ready": false,
+      "elapsed_ms": 0.713,
+      "error": "",
+      "expected": "pass",
+      "field_preservation_ok": true,
+      "field_problems": [],
+      "outcome_ok": false,
+      "rejection_kind": "",
+      "status": "passed"
+    },
+    {
+      "ac_precision": 1.0,
+      "ac_recall": 0.0,
+      "case_id": "nfr-missing-dependency",
+      "contract_execution_ready": false,
+      "elapsed_ms": 0.896,
+      "error": "",
+      "expected": "pass",
+      "field_preservation_ok": true,
+      "field_problems": [],
+      "outcome_ok": false,
+      "rejection_kind": "",
+      "status": "passed"
+    },
+    {
+      "ac_precision": 1.0,
+      "ac_recall": 0.0,
+      "case_id": "monorepo-multi-repo",
+      "contract_execution_ready": false,
+      "elapsed_ms": 0.676,
+      "error": "",
+      "expected": "pass",
+      "field_preservation_ok": true,
+      "field_problems": [],
+      "outcome_ok": false,
+      "rejection_kind": "",
+      "status": "passed"
+    },
+    {
+      "ac_precision": 0.0,
+      "ac_recall": 0.0,
+      "case_id": "contradictory-acceptance",
+      "contract_execution_ready": false,
+      "elapsed_ms": 0.081,
+      "error": "task starting at line 1 has no recognizable functionality, narrative, acceptance criteria, or business rules; add 'Funcionalidade:'/'Feature:', COMO/QUERO/PARA or AS A/I WANT/SO THAT, or an Acceptance Criteria section",
+      "expected": "fail",
+      "field_preservation_ok": true,
+      "field_problems": [],
+      "outcome_ok": true,
+      "rejection_kind": "structure",
+      "status": "failed"
+    },
+    {
+      "ac_precision": 1.0,
+      "ac_recall": 0.0,
+      "case_id": "invalid-date-ordering",
+      "contract_execution_ready": false,
+      "elapsed_ms": 0.571,
+      "error": "",
+      "expected": "fail",
+      "field_preservation_ok": true,
+      "field_problems": [],
+      "outcome_ok": false,
+      "rejection_kind": "",
+      "status": "passed"
+    },
+    {
+      "ac_precision": 1.0,
+      "ac_recall": 0.0,
+      "case_id": "no-tests-placeholder",
+      "contract_execution_ready": false,
+      "elapsed_ms": 0.841,
+      "error": "",
+      "expected": "fail",
+      "field_preservation_ok": true,
+      "field_problems": [],
+      "outcome_ok": false,
+      "rejection_kind": "",
+      "status": "passed"
+    }
+  ],
+  "date": "2026-07-13",
+  "environment": {
+    "platform": "Windows-11-10.0.26100-SP0",
+    "python": "3.14.5"
+  },
+  "matrix": {
+    "cases": 12,
+    "expected_positive": 9,
+    "positive_total": 9
+  },
+  "metrics": {
+    "ac_precision_avg": 1.0,
+    "ac_recall_avg": 0.0,
+    "cases_passed": 1,
+    "cases_total": 12,
+    "contract_execution_ready_rate": 0.1111111111111111,
+    "field_preservation_rate": 1.0,
+    "outcome_accuracy": 0.08333333333333333,
+    "runtime_identity_verified": false
+  },
+  "missing_release_evidence": [
+    "GPT-5.4 medium via Simplicio Runtime live lane",
+    "runtime+loop+dev-cli cross-repo receipts",
+    "Windows/Linux live matrix (deterministic corpus runs per-OS in CI)"
+  ],
+  "proof_kind": "deterministic-provider-free",
+  "provider": "none",
+  "release_gates": {
+    "contract_execution_ready": false,
+    "deterministic_corpus_complete": false,
+    "field_preservation": true,
+    "live_provider_matrix": false,
+    "release_ready": false,
+    "runtime_identity_verified": false,
+    "version_capability_contract": true
+  },
+  "runtime_identity": {
+    "binary": "C:\\Users\\Z0059V7A\\.local\\bin\\simplicio.CMD",
+    "capabilities": [
+      "adapter:llama-server",
+      "adapter:simplicio-dev-cli",
+      "adapter:simplicio-loop",
+      "adapter:simplicio-mapper",
+      "adapter:simplicio-prompt",
+      "runtime:simplicio-runtime"
+    ],
+    "expected_product": "simplicio-runtime",
+    "product": "simplicio-runtime",
+    "reason": "runtime-status-failed",
+    "verified": false
+  },
+  "schema": "simplicio.dev-cli.release-gate/v1",
+  "version_contract": {
+    "package": {
+      "name": "simplicio-cli",
+      "version": "0.16.0"
+    },
+    "problems": [],
+    "schema": "simplicio.dev-cli.version/v1",
+    "valid": true
+  }
+}

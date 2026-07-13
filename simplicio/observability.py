@@ -48,6 +48,26 @@ _logger = logging.getLogger(LOGGER_NAME)
 _configured = False
 
 
+def _refresh_stderr_handler_stream() -> None:
+    """Keep the singleton logger bound to the current live ``sys.stderr``.
+
+    Pytest capture and some Windows runners replace/close stderr between
+    invocations. Rebinding here avoids stale/closed handles that can surface
+    as ``WinError 6`` or other closed-stream logging errors.
+    """
+    for handler in _logger.handlers:
+        if not isinstance(handler, logging.StreamHandler):
+            continue
+        if not getattr(handler, "_simplicio_stderr_handler", False):
+            continue
+        if handler.stream is sys.stderr:
+            continue
+        try:
+            handler.setStream(sys.stderr)
+        except Exception:
+            handler.stream = sys.stderr
+
+
 def _level_from_env() -> int:
     raw = os.environ.get("SIMPLICIO_LOG_LEVEL", "").strip().upper()
     if raw:
@@ -75,10 +95,13 @@ def configure_logging(*, quiet: bool = False, verbose: bool = False) -> logging.
 
     if not _configured:
         handler = logging.StreamHandler(stream=sys.stderr)
+        handler._simplicio_stderr_handler = True
         handler.setFormatter(logging.Formatter("%(message)s"))
         _logger.addHandler(handler)
         _logger.propagate = False
         _configured = True
+    else:
+        _refresh_stderr_handler_stream()
     _logger.setLevel(level)
     return _logger
 

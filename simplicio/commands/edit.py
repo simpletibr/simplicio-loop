@@ -15,7 +15,7 @@ import shutil
 import subprocess
 import sys
 
-from ..runtime_bridge import record_delegation
+from ..runtime_bridge import delegated_command, record_delegation
 from ._shared import read_text_source
 
 CLI_PROG = "simplicio-py"
@@ -50,7 +50,7 @@ def _runtime_edit_binary() -> str | None:
 def run_edit(a: argparse.Namespace) -> int:
     runtime = None if a.no_runtime else _runtime_edit_binary()
     if runtime:
-        cmd = [runtime, "edit", "--plan", a.plan, "--repo", a.root]
+        cmd = delegated_command(runtime, ["edit", "--plan", a.plan, "--repo", a.root])
         if a.json:
             cmd.append("--json")
         if not a.apply:

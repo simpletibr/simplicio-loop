@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -73,7 +74,7 @@ def call_simplicio(
         raise RuntimeError(
             "simplicio (Rust binary) not found on PATH. Install the simplicio-runtime or set SIMPLICIO_BIN."
         )
-    cmd = [binary, *args]
+    cmd = delegated_command(binary, args)
     completed = subprocess.run(
         cmd,
         input=input_text,
@@ -82,6 +83,23 @@ def call_simplicio(
         timeout=timeout,
     )
     return completed
+
+
+def delegated_command(binary: str, args: list[str]) -> list[str]:
+    """Build a Windows-safe argv for invoking the native/runtime binary.
+
+    On Windows, test suites and local workflows often point ``SIMPLICIO_BIN``
+    at a Python stub or extensionless launcher script rather than a real
+    ``simplicio.exe``. Launch those via the current interpreter so
+    ``subprocess`` does not fail with ``WinError 193``.
+    """
+    binary_path = Path(binary)
+    cmd = [binary, *args]
+    if sys.platform != "win32":
+        return cmd
+    if binary_path.suffix.lower() in {".exe", ".bat", ".cmd", ".ps1"}:
+        return cmd
+    return [sys.executable, binary, *args]
 
 
 def use_native_implementation(

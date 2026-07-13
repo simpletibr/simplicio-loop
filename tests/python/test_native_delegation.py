@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -24,7 +25,7 @@ from simplicio import cli
 from simplicio.commands import edit as edit_cmd
 from simplicio.commands import file_read as file_read_cmd
 from simplicio.commands import test_run as test_run_cmd
-from simplicio.runtime_bridge import DELEGATION_ROUTES, record_delegation
+from simplicio.runtime_bridge import DELEGATION_ROUTES, delegated_command, record_delegation
 
 
 def _events(root) -> list[dict]:
@@ -137,6 +138,16 @@ def test_nest_build_records_native_when_binary_available(tmp_path, monkeypatch):
     assert events[0]["payload"] == {"verb": "nest", "route": "native"}
 
 
+def test_delegated_command_wraps_python_stub_on_windows():
+    cmd = delegated_command("C:/tmp/simplicio-stub.py", ["nest", "build", "2", "1"])
+
+    if sys.platform == "win32":
+        assert cmd[0] == sys.executable
+        assert cmd[1:] == ["C:/tmp/simplicio-stub.py", "nest", "build", "2", "1"]
+    else:
+        assert cmd == ["C:/tmp/simplicio-stub.py", "nest", "build", "2", "1"]
+
+
 def test_gate_help_does_not_record_delegation(tmp_path, monkeypatch, capsys):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
@@ -200,6 +211,30 @@ def test_run_edit_records_python_fallback_when_no_binary_on_path(tmp_path, monke
     assert events[0]["payload"]["reason"] == "binary-not-found"
 
 
+def test_run_edit_delegates_python_stub_via_interpreter_on_windows(tmp_path, monkeypatch):
+    monkeypatch.setattr(edit_cmd.shutil, "which", lambda name: "C:/tmp/simplicio-stub.py")
+    calls = []
+    monkeypatch.setattr(
+        edit_cmd.subprocess,
+        "run",
+        lambda argv, **kwargs: calls.append((argv, kwargs)) or SimpleNamespace(returncode=0),
+    )
+    monkeypatch.setattr("simplicio.commands.edit.record_delegation", lambda *args, **kwargs: None)
+
+    code = edit_cmd.run_edit(
+        argparse.Namespace(
+            root=str(tmp_path), plan=str(_plan_path(tmp_path)), apply=True, json=True, no_runtime=False
+        )
+    )
+
+    assert code == 0
+    argv = calls[0][0]
+    if sys.platform == "win32":
+        assert argv[:2] == [sys.executable, "C:/tmp/simplicio-stub.py"]
+    else:
+        assert argv[0] == "C:/tmp/simplicio-stub.py"
+
+
 # --------------------------------------------------------------------------- #
 # file read (commands/file_read.py::run)
 # --------------------------------------------------------------------------- #
@@ -222,6 +257,43 @@ def test_file_read_records_python_fallback_when_no_binary(tmp_path, monkeypatch,
     assert events[0]["payload"]["verb"] == "file"
     assert events[0]["payload"]["route"] == "python-fallback"
     assert events[0]["payload"]["reason"] == "binary-not-found"
+
+
+def test_file_read_runtime_wraps_python_stub_on_windows(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr("simplicio.commands.file_read.discover_simplicio", lambda: "C:/tmp/simplicio-stub.py")
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "schema": file_read_cmd.SCHEMA,
+                    "path": "hello.txt",
+                    "bytes": 3,
+                    "lines": 1,
+                    "truncated": False,
+                    "content": "hi\n",
+                }
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(file_read_cmd.subprocess, "run", fake_run)
+    code = file_read_cmd.run(
+        argparse.Namespace(
+            path="hello.txt", json=True, start=None, end=None, max_bytes=None, repo=str(tmp_path)
+        )
+    )
+
+    assert code == 0
+    capsys.readouterr()
+    argv = calls[0][0]
+    if sys.platform == "win32":
+        assert argv[:2] == [sys.executable, "C:/tmp/simplicio-stub.py"]
+    else:
+        assert argv[0] == "C:/tmp/simplicio-stub.py"
 
 
 # --------------------------------------------------------------------------- #
@@ -253,3 +325,44 @@ def test_test_run_records_python_fallback_when_no_binary(tmp_path, monkeypatch, 
     assert events[0]["payload"]["verb"] == "test-run"
     assert events[0]["payload"]["route"] == "python-fallback"
     assert events[0]["payload"]["reason"] == "binary-not-found"
+
+
+def test_test_run_runtime_wraps_python_stub_on_windows(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr("simplicio.commands.test_run.discover_simplicio", lambda: "C:/tmp/simplicio-stub.py")
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "schema": test_run_cmd.SCHEMA,
+                    "cmd": "pytest",
+                    "args": [],
+                    "exit_code": 0,
+                    "passed": 1,
+                    "failed": 0,
+                    "errors": 0,
+                    "duration_s": 0.01,
+                    "summary": "1 passed",
+                    "output_tail": "",
+                    "output_truncated": False,
+                }
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(test_run_cmd.subprocess, "run", fake_run)
+    code = test_run_cmd.run(
+        argparse.Namespace(cmd="pytest", json=True, repo=str(tmp_path), timeout=30.0),
+        [],
+    )
+
+    assert code == 0
+    capsys.readouterr()
+    argv = calls[0][0]
+    if sys.platform == "win32":
+        assert argv[:2] == [sys.executable, "C:/tmp/simplicio-stub.py"]
+    else:
+        assert argv[0] == "C:/tmp/simplicio-stub.py"

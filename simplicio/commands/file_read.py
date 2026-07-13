@@ -22,7 +22,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from ..runtime_bridge import discover_simplicio, record_delegation
+from ..runtime_bridge import delegated_command, discover_simplicio, record_delegation
 
 SCHEMA = "simplicio.file-read/v1"
 DEFAULT_MAX_BYTES = 2 * 1024 * 1024  # 2 MiB
@@ -57,7 +57,7 @@ def _run_via_runtime(a: argparse.Namespace) -> tuple[int | None, str | None]:
     binary = discover_simplicio()
     if binary is None:
         return None, "binary-not-found"
-    cmd = [binary, *_build_runtime_args(a)]
+    cmd = delegated_command(binary, _build_runtime_args(a))
     try:
         completed = subprocess.run(cmd, capture_output=True, text=True, timeout=RUNTIME_DELEGATION_TIMEOUT_S)
     except subprocess.TimeoutExpired:

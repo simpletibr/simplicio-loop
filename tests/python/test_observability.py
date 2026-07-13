@@ -205,6 +205,30 @@ def test_configure_logging_does_not_duplicate_handlers(monkeypatch):
     assert len(obs.get_logger().handlers) == after_first
 
 
+def test_configure_logging_rebinds_stderr_when_previous_stream_is_broken(monkeypatch):
+    class BrokenStream:
+        def write(self, _: str) -> int:
+            raise OSError(6, "The handle is invalid")
+
+        def flush(self) -> None:
+            raise OSError(6, "The handle is invalid")
+
+    handler = logging.StreamHandler(stream=BrokenStream())
+    handler._simplicio_stderr_handler = True
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    obs._logger.addHandler(handler)
+    obs._configured = True
+
+    buf = io.StringIO()
+    monkeypatch.setattr(obs.sys, "stderr", buf)
+    monkeypatch.delenv("SIMPLICIO_LOG_LEVEL", raising=False)
+
+    obs.configure_logging()
+    info("stderr rebound")
+
+    assert "stderr rebound" in buf.getvalue()
+
+
 def test_info_warn_error_never_write_to_stdout(monkeypatch):
     stdout_buf = io.StringIO()
     stderr_buf = io.StringIO()
