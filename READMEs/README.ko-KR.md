@@ -1,41 +1,14 @@
-<h1 align="center">simplicio-mapper</h1>
+# simplicio-mapper
 
-<p align="center">
-  <strong>모든 저장소를 AI가 읽을 수 있는 컨텍스트로 매핑합니다: project map, precedent index, architecture inventory, symbol index, call graph, docs.</strong><br />
-  <em>명령어는 정확히 복사할 수 있도록 영어로 유지합니다.</em>
-</p>
+> 저장소를 사람과 AI 에이전트가 신뢰할 수 있는, 경계가 명확하고 질의 가능한 컨텍스트로 바꿉니다.
 
-<p align="center">
-<a href="https://github.com/wesleysimplicio/simplicio-mapper/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/wesleysimplicio/simplicio-mapper?style=flat-square" /></a>
-<a href="https://pypi.org/project/simplicio-mapper/"><img alt="PyPI" src="https://img.shields.io/pypi/v/simplicio-mapper.svg?style=flat-square" /></a>
-<a href="https://www.npmjs.com/package/@wesleysimplicio/llm-project-mapper"><img alt="npm" src="https://img.shields.io/npm/v/%40wesleysimplicio%2Fllm-project-mapper.svg?style=flat-square" /></a>
-<a href="../LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-yellow?style=flat-square" /></a>
-</p>
+[![PyPI](https://img.shields.io/pypi/v/simplicio-mapper?color=0ea5e9&label=PyPI)](https://pypi.org/project/simplicio-mapper/)
 
-<p align="center">
-<a href="../README.md">English</a> | <a href="README.pt-BR.md">Português</a> | <a href="README.es-ES.md">Español</a> | <a href="README.ja-JP.md">日本語</a> | <a href="README.ko-KR.md">한국어</a> | <a href="README.zh-CN.md">简体中文</a> | <a href="README.it-IT.md">Italiano</a> | <a href="README.fr-FR.md">Français</a> | <a href="README.ru-RU.md">Русский</a> | <a href="README.pl-PL.md">Polski</a> | <a href="README.hi-IN.md">हिन्दी</a> | <a href="README.ar-SA.md">العربية</a> | <a href="README.he-IL.md">עברית</a> | <a href="README.ms-MY.md">Bahasa Melayu</a> | <a href="README.id-ID.md">Bahasa Indonesia</a>
-</p>
+[정식 README 및 모든 언어](../README.md)
 
-<p align="center">
-  <img src="../assets/llm-project-mapper-hero.png" alt="simplicio-mapper preview" width="860" />
-</p>
+<p align="center"><img src="../assets/llm-project-mapper-hero.png" alt="저장소가 증거 기반의 경계 있는 컨텍스트로 바뀌는 모습" width="100%"></p>
 
-<p align="center">
-  <img src="../assets/overlay-install.svg" alt="Overlay install flow" width="860" />
-</p>
-
----
-
-## 짧은 요약
-
-모든 저장소를 AI가 읽을 수 있는 컨텍스트로 매핑합니다: project map, precedent index, architecture inventory, symbol index, call graph, docs.
-
-## 프로젝트 DNA
-
-이 현지화 문서는 빠른 진입 경로를 유지합니다. 복원된 전체 기술 가이드는 루트 README에 있어 프로젝트의 원래 목소리와 운영 세부 정보를 보존합니다.
-
-- Full restored guide: [../README.md](../README.md)
-- Local project note: simplicio-mapper is the map before the plan. Its value is not only the artifact names; it is the habit it teaches agents: read the repository, preserve shared context, expose architecture, and make future work cheaper. The original guide explained that operational philosophy in detail, so this refresh restores it under the sharper global landing page.
+`simplicio-mapper`는 코드베이스를 `.simplicio/` 아래의 버전 관리 아티팩트로 변환합니다. 아키텍처, 심볼, 흐름, 규칙, 테스트, 작업별 컨텍스트 팩이 포함됩니다. Simplicio 생태계의 매핑 엔진으로서, 저장소 지식을 검사할 만큼 작고 감사할 만큼 명시적으로 만듭니다.
 
 ## 빠른 시작
 
@@ -43,68 +16,23 @@
 pip install -U simplicio-mapper
 simplicio-mapper index . --json
 simplicio-mapper docs . --json
-simplicio-mapper endpoints ./web --against ./api --json
+simplicio-mapper handoff . --goal "인증 흐름 추적" --token-budget 1200 --json
 ```
 
-## 무엇을 하나요
+## 차별점
 
-- Generates versioned .simplicio artifacts agents can read before planning.
-- Works as both Python CLI and npm starter package.
-- Builds architecture, symbol and call graph artifacts without forcing a framework.
-- Exports markdown docs for wiki/review workflows while keeping remote publishing opt-in.
+- **경계 있는 검색:** `handoff`와 `orient`는 저장소 전체를 조용히 프롬프트에 넣는 대신 관련성, 범위, 토큰 예산, 패널티, 충실도를 보고합니다.
+- **변화를 따라가는 컨텍스트:** `sync`, `history`, `diff`, `delta`는 변경과 세션 사이에서 ContextGraph를 유지합니다.
+- **증거 계약:** 공개 스키마, 검증, 신뢰도 태그, 동작 영수증, 증명서는 측정된 사실과 근거 없는 주장을 구분합니다.
+- **실용적인 출력:** 프로젝트 맵, 아키텍처 문서, 엔드포인트와 화면 인벤토리, 흐름, 비즈니스 규칙, 온보딩 조사, 그래프 질의.
 
-## 주목받는 README 구조
-
-- 첫 화면에서 가치를 명확히 전달
-- 설치 전에 언어 링크 제공
-- 배지와 hero 이미지로 신뢰 형성
-- 복사 가능한 quick start
-- 긴 설명보다 검증을 먼저 배치
-- 스타 히스토리로 social proof 제공
-
-## 작동 방식
-
-```mermaid
-flowchart LR
-  mapper["simplicio-mapper
-repo context"] --> current["simplicio-mapper
-this project"]
-  prompt["simplicio-prompt
-reasoning runtime"] --> current
-  current --> evidence["validated evidence
-tests, docs, screenshots"]
-  current --> sprint["simplicio-sprint
-delivery loop"]
+```bash
+simplicio-mapper ask . impact "UserService" --json
+simplicio-mapper sync . --check --json
+simplicio-mapper contract validate .simplicio
+simplicio-mapper doctor --contracts
 ```
 
-## 증거와 검증
+Python 패키지가 정식 매핑 엔진입니다. npm의 [`@wesleysimplicio/llm-project-mapper`](https://www.npmjs.com/package/@wesleysimplicio/llm-project-mapper)는 보완적인 프로젝트 스타터입니다.
 
-- Current local mapper version is 0.7.x with background indexing and docs-only modes.
-- This repo is the canonical standard for visible, versioned .simplicio artifacts.
-- It now carries the README globalization standard used across this workspace.
-
-## Simplicio 생태계
-
-- [simplicio-mapper](https://github.com/wesleysimplicio/simplicio-mapper) supplies repo context before interpretation.
-- [simplicio-cli](https://github.com/wesleysimplicio/simplicio-dev-cli) executes focused code tasks with verification.
-- [simplicio-prompt](https://github.com/wesleysimplicio/simplicio-prompt) provides fan-out and consensus runtime patterns.
-- [simplicio-sprint](https://github.com/wesleysimplicio/simplicio-sprint) turns cards into draft PR delivery loops.
-
-## 문서 표준
-
-- [SIMPLICIO_INTEGRATION.md](../SIMPLICIO_INTEGRATION.md)
-- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
-
-## 스타 히스토리
-
-<a href="https://www.star-history.com/#wesleysimplicio/simplicio-mapper&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=wesleysimplicio/simplicio-mapper&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=wesleysimplicio/simplicio-mapper&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=wesleysimplicio/simplicio-mapper&type=Date" />
-  </picture>
-</a>
-
-## 라이선스
-
-MIT. See [LICENSE](../LICENSE).
+[문서 사이트](https://wesleysimplicio.github.io/simplicio-mapper/), [계약](../contracts/), [통합 가이드](../SIMPLICIO_INTEGRATION.md), [v0.23.1 릴리스](https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.23.1)를 참조하세요. 라이선스는 [MIT](../LICENSE)입니다.

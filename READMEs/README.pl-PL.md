@@ -1,41 +1,14 @@
-<h1 align="center">simplicio-mapper</h1>
+# simplicio-mapper
 
-<p align="center">
-  <strong>Mapuje dowolne repozytorium na kontekst czytelny dla AI: project map, precedent index, inwentarz architektury, symbole, call graph i docs.</strong><br />
-  <em>Komendy zostają po angielsku, aby można je było dokładnie skopiować.</em>
-</p>
+> Zamień repozytorium w ograniczony, możliwy do zapytania i godny zaufania kontekst dla ludzi oraz agentów AI.
 
-<p align="center">
-<a href="https://github.com/wesleysimplicio/simplicio-mapper/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/wesleysimplicio/simplicio-mapper?style=flat-square" /></a>
-<a href="https://pypi.org/project/simplicio-mapper/"><img alt="PyPI" src="https://img.shields.io/pypi/v/simplicio-mapper.svg?style=flat-square" /></a>
-<a href="https://www.npmjs.com/package/@wesleysimplicio/llm-project-mapper"><img alt="npm" src="https://img.shields.io/npm/v/%40wesleysimplicio%2Fllm-project-mapper.svg?style=flat-square" /></a>
-<a href="../LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-yellow?style=flat-square" /></a>
-</p>
+[![PyPI](https://img.shields.io/pypi/v/simplicio-mapper?color=0ea5e9&label=PyPI)](https://pypi.org/project/simplicio-mapper/)
 
-<p align="center">
-<a href="../README.md">English</a> | <a href="README.pt-BR.md">Português</a> | <a href="README.es-ES.md">Español</a> | <a href="README.ja-JP.md">日本語</a> | <a href="README.ko-KR.md">한국어</a> | <a href="README.zh-CN.md">简体中文</a> | <a href="README.it-IT.md">Italiano</a> | <a href="README.fr-FR.md">Français</a> | <a href="README.ru-RU.md">Русский</a> | <a href="README.pl-PL.md">Polski</a> | <a href="README.hi-IN.md">हिन्दी</a> | <a href="README.ar-SA.md">العربية</a> | <a href="README.he-IL.md">עברית</a> | <a href="README.ms-MY.md">Bahasa Melayu</a> | <a href="README.id-ID.md">Bahasa Indonesia</a>
-</p>
+[Kanoniczny README i wszystkie języki](../README.md)
 
-<p align="center">
-  <img src="../assets/llm-project-mapper-hero.png" alt="simplicio-mapper preview" width="860" />
-</p>
+<p align="center"><img src="../assets/llm-project-mapper-hero.png" alt="Repozytorium przekształcone w ograniczony kontekst oparty na dowodach" width="100%"></p>
 
-<p align="center">
-  <img src="../assets/overlay-install.svg" alt="Overlay install flow" width="860" />
-</p>
-
----
-
-## Krótko
-
-Mapuje dowolne repozytorium na kontekst czytelny dla AI: project map, precedent index, inwentarz architektury, symbole, call graph i docs.
-
-## DNA projektu
-
-Ta zlokalizowana strona zachowuje szybka sciezke. Pelny odtworzony przewodnik techniczny znajduje sie w glownym README, aby zachowac pierwotny glos i szczegoly operacyjne projektu.
-
-- Full restored guide: [../README.md](../README.md)
-- Local project note: simplicio-mapper is the map before the plan. Its value is not only the artifact names; it is the habit it teaches agents: read the repository, preserve shared context, expose architecture, and make future work cheaper. The original guide explained that operational philosophy in detail, so this refresh restores it under the sharper global landing page.
+`simplicio-mapper` zamienia bazę kodu w wersjonowane artefakty w `.simplicio/`: architekturę, symbole, przepływy, reguły, testy i pakiety kontekstu zależne od zadania. To silnik mapowania ekosystemu Simplicio — wiedza o repozytorium jest wystarczająco mała do inspekcji i wystarczająco jawna do audytu.
 
 ## Szybki start
 
@@ -43,68 +16,23 @@ Ta zlokalizowana strona zachowuje szybka sciezke. Pelny odtworzony przewodnik te
 pip install -U simplicio-mapper
 simplicio-mapper index . --json
 simplicio-mapper docs . --json
-simplicio-mapper endpoints ./web --against ./api --json
+simplicio-mapper handoff . --goal "prześledź przepływ uwierzytelniania" --token-budget 1200 --json
 ```
 
-## Co robi
+## Co go wyróżnia
 
-- Generates versioned .simplicio artifacts agents can read before planning.
-- Works as both Python CLI and npm starter package.
-- Builds architecture, symbol and call graph artifacts without forcing a framework.
-- Exports markdown docs for wiki/review workflows while keeping remote publishing opt-in.
+- **Ograniczone wyszukiwanie:** `handoff` i `orient` pokazują trafność, pokrycie, budżet tokenów, kary i wierność zamiast po cichu wkładać całe repozytorium do promptu.
+- **Kontekst świadomy zmian:** `sync`, `history`, `diff` i `delta` utrzymują ContextGraph między zmianami i sesjami.
+- **Kontrakty dowodowe:** publiczne schematy, walidacja, etykiety pewności, potwierdzenia behawioralne i certyfikaty oddzielają zmierzone fakty od nieudokumentowanych twierdzeń.
+- **Praktyczne wyniki:** mapy projektu, dokumentacja architektury, inwentarze endpointów i ekranów, przepływy, reguły biznesowe, ankiety onboardingowe i zapytania do grafu.
 
-## Dlaczego ten README ma zdobywać uwagę
-
-- jasna obietnica na pierwszym ekranie
-- języki przed instalacją
-- badges i hero dla zaufania
-- kopiowalny quick start
-- dowody przed długimi detalami
-- historia gwiazdek jako social proof
-
-## Jak to działa
-
-```mermaid
-flowchart LR
-  mapper["simplicio-mapper
-repo context"] --> current["simplicio-mapper
-this project"]
-  prompt["simplicio-prompt
-reasoning runtime"] --> current
-  current --> evidence["validated evidence
-tests, docs, screenshots"]
-  current --> sprint["simplicio-sprint
-delivery loop"]
+```bash
+simplicio-mapper ask . impact "UserService" --json
+simplicio-mapper sync . --check --json
+simplicio-mapper contract validate .simplicio
+simplicio-mapper doctor --contracts
 ```
 
-## Dowody i walidacja
+Pakiet Python jest kanonicznym silnikiem. Pakiet npm [`@wesleysimplicio/llm-project-mapper`](https://www.npmjs.com/package/@wesleysimplicio/llm-project-mapper) jest uzupełniającym starterem.
 
-- Current local mapper version is 0.7.x with background indexing and docs-only modes.
-- This repo is the canonical standard for visible, versioned .simplicio artifacts.
-- It now carries the README globalization standard used across this workspace.
-
-## Ekosystem Simplicio
-
-- [simplicio-mapper](https://github.com/wesleysimplicio/simplicio-mapper) supplies repo context before interpretation.
-- [simplicio-cli](https://github.com/wesleysimplicio/simplicio-dev-cli) executes focused code tasks with verification.
-- [simplicio-prompt](https://github.com/wesleysimplicio/simplicio-prompt) provides fan-out and consensus runtime patterns.
-- [simplicio-sprint](https://github.com/wesleysimplicio/simplicio-sprint) turns cards into draft PR delivery loops.
-
-## Standard dokumentacji
-
-- [SIMPLICIO_INTEGRATION.md](../SIMPLICIO_INTEGRATION.md)
-- [docs/readme-globalization-standard.md](../docs/readme-globalization-standard.md)
-
-## Historia gwiazdek
-
-<a href="https://www.star-history.com/#wesleysimplicio/simplicio-mapper&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=wesleysimplicio/simplicio-mapper&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=wesleysimplicio/simplicio-mapper&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=wesleysimplicio/simplicio-mapper&type=Date" />
-  </picture>
-</a>
-
-## Licencja
-
-MIT. See [LICENSE](../LICENSE).
+Zobacz [stronę dokumentacji](https://wesleysimplicio.github.io/simplicio-mapper/), [kontrakty](../contracts/), [przewodnik integracji](../SIMPLICIO_INTEGRATION.md) oraz [release v0.23.1](https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.23.1). Licencja [MIT](../LICENSE).

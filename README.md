@@ -1,662 +1,192 @@
-<h1 align="center">simplicio-mapper</h1>
+# simplicio-mapper
+
+> Turn a repository into bounded, queryable context that people and AI agents can trust.
+
+[![PyPI](https://img.shields.io/pypi/v/simplicio-mapper?color=0ea5e9&label=PyPI)](https://pypi.org/project/simplicio-mapper/) [![Python](https://img.shields.io/pypi/pyversions/simplicio-mapper?color=22c55e&label=Python)](https://pypi.org/project/simplicio-mapper/) [![Release](https://img.shields.io/github/v/release/wesleysimplicio/simplicio-mapper?display_name=tag&color=f59e0b)](https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.23.1) [![License](https://img.shields.io/badge/license-MIT-a78bfa.svg)](LICENSE)
+
+**Languages:** [English](README.md) · [Português](READMEs/README.pt-BR.md) · [Español](READMEs/README.es-ES.md) · [Français](READMEs/README.fr-FR.md) · [Italiano](READMEs/README.it-IT.md) · [Polski](READMEs/README.pl-PL.md) · [Русский](READMEs/README.ru-RU.md) · [中文](READMEs/README.zh-CN.md) · [日本語](READMEs/README.ja-JP.md) · [한국어](READMEs/README.ko-KR.md) · [हिन्दी](READMEs/README.hi-IN.md) · [العربية](READMEs/README.ar-SA.md) · [עברית](READMEs/README.he-IL.md) · [Bahasa Indonesia](READMEs/README.id-ID.md) · [Bahasa Melayu](READMEs/README.ms-MY.md)
 
 <p align="center">
-  <strong>Map any repository into AI-readable context: project map, precedent index, architecture inventory, symbol index, call graph, and docs.</strong><br />
-  <em>Commands stay in English so they can be copied exactly.</em><br />
-  <a href="https://wesleysimplicio.github.io/simplicio-mapper/">Live docs: wesleysimplicio.github.io/simplicio-mapper</a>
+  <img src="assets/llm-project-mapper-hero.png" alt="A repository becoming a bounded, evidence-backed context snapshot" width="100%">
 </p>
 
-<p align="center">
-<a href="https://github.com/wesleysimplicio/simplicio-mapper/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/wesleysimplicio/simplicio-mapper?style=flat-square" /></a>
-<a href="https://pypi.org/project/simplicio-mapper/"><img alt="PyPI" src="https://img.shields.io/pypi/v/simplicio-mapper.svg?style=flat-square" /></a>
-<a href="https://www.npmjs.com/package/@wesleysimplicio/llm-project-mapper"><img alt="npm" src="https://img.shields.io/npm/v/%40wesleysimplicio%2Fllm-project-mapper.svg?style=flat-square" /></a>
-<a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-yellow?style=flat-square" /></a>
-</p>
+`simplicio-mapper` is the mapping engine in the Simplicio ecosystem. It reads a codebase once, produces versioned artifacts under `.simplicio/`, and gives a human or an agent a small, explainable context pack instead of an unbounded dump of files. The result is useful for orientation, implementation planning, review, impact analysis, onboarding, and handoffs.
 
-<p align="center">
-<a href="README.md">English</a> | <a href="READMEs/README.pt-BR.md">Português</a> | <a href="READMEs/README.es-ES.md">Español</a> | <a href="READMEs/README.ja-JP.md">日本語</a> | <a href="READMEs/README.ko-KR.md">한국어</a> | <a href="READMEs/README.zh-CN.md">简体中文</a> | <a href="READMEs/README.it-IT.md">Italiano</a> | <a href="READMEs/README.fr-FR.md">Français</a> | <a href="READMEs/README.ru-RU.md">Русский</a> | <a href="READMEs/README.pl-PL.md">Polski</a> | <a href="READMEs/README.hi-IN.md">हिन्दी</a> | <a href="READMEs/README.ar-SA.md">العربية</a> | <a href="READMEs/README.he-IL.md">עברית</a> | <a href="READMEs/README.ms-MY.md">Bahasa Melayu</a> | <a href="READMEs/README.id-ID.md">Bahasa Indonesia</a>
-</p>
+## What it delivers
 
-<p align="center">
-  <img src="assets/llm-project-mapper-hero.png" alt="simplicio-mapper preview" width="860" />
-</p>
+| Need | Mapper output |
+| --- | --- |
+| Understand a new repository | Project map, architecture inventory, symbols, routes, flows, business rules, and onboarding survey |
+| Find the smallest useful context | Task-aware `handoff` and `orient` packs with relevance, coverage, token budget, and fidelity diagnostics |
+| Keep context current | Incremental map/sync, history snapshots, semantic diffs, and deterministic graph deltas |
+| Verify a claim before relying on it | Versioned JSON contracts, artifact validation, confidence tags, behavioral receipts, and evidence certificates |
 
-<p align="center">
-  <img src="assets/overlay-install.svg" alt="Overlay install flow" width="860" />
-</p>
+The Mapper does not replace tests, code review, or judgment. It makes the evidence those practices need easier to locate, bounded enough to inspect, and explicit when the available context is not sufficient.
 
----
+## Quick start
 
-## The short version
-
-Map any repository into AI-readable context: project map, precedent index, architecture inventory, symbol index, call graph, and docs.
-
-## Project DNA
-
-simplicio-mapper is the map before the plan. Its value is not only the artifact names; it is the habit it teaches agents: read the repository, preserve shared context, expose architecture, and make future work cheaper. The original guide explained that operational philosophy in detail, so this refresh restores it under the sharper global landing page.
-
-The new first screen is the doorway; the restored guide below is the workshop. This README should help a stranger understand the promise quickly and still give an operator enough depth to run, validate, and extend the project.
-
-## Quick Start
+Requires Python 3.10 or newer.
 
 ```bash
 pip install -U simplicio-mapper
+
+# Create or refresh machine-readable artifacts in ./.simplicio
 simplicio-mapper index . --json
+
+# Produce architecture docs from the artifacts
 simplicio-mapper docs . --json
-simplicio-mapper endpoints ./web --against ./api --json
+
+# Build a compact, task-aware context handoff
+simplicio-mapper handoff . \
+  --goal "trace the authentication flow and its tests" \
+  --token-budget 1200 \
+  --json
 ```
 
-## Install matrix — I want X, so I install Y
+For a fast shallow skeleton before the deep pass, use `simplicio-mapper macro . --json`. For a repository whose files changed, use `simplicio-mapper sync . --check --json` to see whether artifacts are stale, then `simplicio-mapper sync . --json` to refresh only what the diff affects.
 
-This repo ships two distinct things under one name, on two package
-registries. Pick by what you actually want (formalized in
-[ADR-006](.specs/architecture/ADR-006-package-identity-channels.md), issue
-#160):
-
-| I want... | Install | Notes |
-|---|---|---|
-| **The mapper engine** (`map`/`index`/`ask`/`drift`/... commands, `.simplicio/*.json` artifacts) | `pip install -U simplicio-mapper` | **Canonical/live channel.** New mapper features land here first. |
-| **The starter scaffolder** (bootstrap `AGENTS.md`, `.skills/`, `.specs/`, etc. into a new/existing project) | `npx @wesleysimplicio/llm-project-mapper` | Node-only, no PyPI equivalent — this is the only way to run the scaffolder. Not deprecated, actively maintained. |
-| **Both, from a Node-only host** (no Python installed) | `npx @wesleysimplicio/llm-project-mapper` | `map`/`update` fall back to a Node reimplementation of the engine when Python isn't found (see [ADR-005](.specs/architecture/ADR-005-node-thin-shim.md), issue #158) — kept only as a Python-less fallback, not where new engine features land first. |
-| **Both, from a host with Python installed** | either — `npx @wesleysimplicio/llm-project-mapper map` shims straight to the Python engine automatically | Same underlying implementation runs either way once Python is on PATH. |
-
-The npm package name (`@wesleysimplicio/llm-project-mapper`) intentionally
-keeps its original name rather than renaming to match `simplicio-mapper` —
-see ADR-006 for why (short version: renaming would break every existing
-`npx @wesleysimplicio/llm-project-mapper` invocation in the wild for a
-cosmetic gain). It is **not** a deprecated package; only its bundled copy of
-the mapper *engine* (not the scaffolder) is a fallback rather than the
-canonical implementation.
-
-## What it does
-
-- Generates versioned .simplicio artifacts agents can read before planning.
-- Works as both Python CLI and npm starter package.
-- Builds architecture, symbol and call graph artifacts without forcing a framework.
-- Exports markdown docs for wiki/review workflows while keeping remote publishing opt-in.
-
-## Why this README is built to earn attention
-
-- clear first-screen promise
-- language links before installation
-- badges and a visual hero for fast trust
-- copy-ready quick start
-- proof before long reference material
-- star history for social proof
-
-## How it works
+## A map is more than a file list
 
 ```mermaid
 flowchart LR
-  mapper["simplicio-mapper
-repo context"] --> current["simplicio-mapper
-this project"]
-  prompt["simplicio-prompt
-reasoning runtime"] --> current
-  current --> evidence["validated evidence
-tests, docs, screenshots"]
-  current --> sprint["simplicio-sprint
-delivery loop"]
+  A[Repository] --> B[Map / index]
+  B --> C[.simplicio versioned artifacts]
+  C --> D[ContextSnapshot and ContextGraph]
+  D --> E[Task-aware retrieval]
+  E --> F[Human or AI agent]
+  F --> G[Tests, review, evidence, release]
+  G -. feedback .-> C
 ```
 
-## Proof and validation
+The diagram is deliberately a loop: mapping gives an agent a bounded starting point, while verified work returns new facts to the next map instead of turning an old prompt into assumed truth.
 
-- Current capabilities and release history are tracked in [CHANGELOG.md](CHANGELOG.md) rather than hardcoded here.
-- This repo is the canonical standard for visible, versioned .simplicio artifacts.
-- It now carries the README globalization standard used across this workspace.
+### Retrieval with an actual budget
 
-## Simplicio ecosystem
+<p align="center">
+  <img src="assets/llm-project-mapper-foundation.png" alt="Only the code and evidence needed for a task entering a compact context pack" width="100%">
+</p>
 
-- [simplicio-mapper](https://github.com/wesleysimplicio/simplicio-mapper) supplies repo context before interpretation.
-- [simplicio-cli](https://github.com/wesleysimplicio/simplicio-dev-cli) executes focused code tasks with verification.
-- [simplicio-prompt](https://github.com/wesleysimplicio/simplicio-prompt) provides fan-out and consensus runtime patterns.
-- [simplicio-sprint](https://github.com/wesleysimplicio/simplicio-sprint) turns cards into draft PR delivery loops.
+`handoff` ranks artifacts against an explicit goal or task file. Its output reports the selected context, coverage, token budget, penalties, and fidelity state. If the map cannot support the requested claim, the contract can abstain or mark the context as partial instead of manufacturing confidence.
 
-Who currently depends on this repo, and with what minimum version, is tracked
-in [SIMPLICIO_ECOSYSTEM.md](SIMPLICIO_ECOSYSTEM.md) — a **generated file**
-(`scripts/generate-ecosystem-doc.py`, issue #156); do not hand-edit it. The
-JSON shape of the `.simplicio/*.json` artifacts this repo produces is likewise
-a versioned, testable contract, not free-form output — see
-[contracts/mapper-artifacts/v1/](contracts/mapper-artifacts/v1/README.md)
-(issue #157).
+```mermaid
+sequenceDiagram
+  participant Operator as Human or agent
+  participant CLI as simplicio-mapper handoff
+  participant Artifacts as .simplicio artifacts
+  participant Ranker as Task-aware retrieval
 
-## See it in action on our own repos
-
-This repo dogfoods itself, explicitly and reproducibly (issue #165) —
-`python3 scripts/dogfood.py` runs the real, packaged `simplicio-mapper
-index . --json` CLI against this very repository, validates the result
-against the versioned mapper-artifacts contract, and publishes a stable,
-committed snapshot in
-[`examples/ecosystem-dogfood/`](examples/ecosystem-dogfood/README.md) —
-real `project-map.json`/`precedent-index.json`/`architecture-inventory.json`
-for this codebase, not a toy fixture. Run `python3 scripts/dogfood.py
---check` to verify the snapshot without regenerating it. The cross-repo
-leg of the full recipe (mapper + [simplicio-dev-cli](https://github.com/wesleysimplicio/simplicio-dev-cli)
-+ [simplicio-loop](https://github.com/wesleysimplicio/simplicio-loop) working
-together) is documented, not executed, in that directory's README — it
-needs separate checkouts of all three repos.
-
-## Documentation standard
-
-- [SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRATION.md)
-- [docs/readme-globalization-standard.md](docs/readme-globalization-standard.md)
-
-## Original Field Guide
-
-The section below restores the project-specific README material that existed before the globalization pass. Keep this substance when refreshing the top-level narrative: add polish, do not erase operational memory.
-
-> 🇺🇸 English. Leia em português: [README.pt-BR.md](README.pt-BR.md).
-> Live docs site: [wesleysimplicio.github.io/simplicio-mapper](https://wesleysimplicio.github.io/simplicio-mapper/)
->
-> The npm package name `@wesleysimplicio/llm-project-mapper` is intentionally retained for historical npm consumers (see #87, formalized in [ADR-006](.specs/architecture/ADR-006-package-identity-channels.md) / issue #160). It is **not** a deprecated package — it remains the only way to run the starter scaffolder. Only its bundled copy of the *mapper engine* (`map`/`update`) is a fallback for Python-less hosts; new mapper engine features land on PyPI's `simplicio-mapper` first (see the "Install matrix" section above).
-
-AI-friendly, stack-neutral repository scaffold. Drop it into **any** project — new or existing — and any agent CLI (Claude Code, Codex, Cursor, GitHub Copilot, Aider with Deepseek/Kimi/MiniMax/GLM, Simplicio Agent, OpenClaw) gets the context it needs to ship work the same day.
-
-> Starter pack, not a framework. Ships structure, instructions, process. Stack is yours.
-
-![LLM Project Mapper hero](assets/llm-project-mapper-hero.png)
-
-> Visual summary: drop the starter into a messy software project and it turns scattered context into structure, reusable skills, tests, docs, and guardrails for AI coding agents.
-
-#### Watch: why llm-project-mapper? (53s)
-
-[![Watch the video](video/assets/why-cover.png)](https://github.com/wesleysimplicio/llm-project-mapper/raw/main/video/assets/why-llm-project-mapper.mp4)
-
-> Click the cover to play. Direct link: [`video/assets/why-llm-project-mapper.mp4`](video/assets/why-llm-project-mapper.mp4) · English version: [`video/assets/why-llm-project-mapper-en.mp4`](video/assets/why-llm-project-mapper-en.mp4) · both renders now ship with narration plus burned-in captions.
-
----
-
-### Operational Docs For Agents
-
-This starter now includes generic, fill-in templates that make any project easier for agents to operate:
-
-- `docs/local-setup.md`: how to install, start, validate and access the project.
-- `docs/domain-map.md`: business concepts, critical rules and edge cases.
-- `docs/architecture-map.md`: system shape, request path and integrations.
-- `docs/features/README.md`: feature documentation template with files, endpoints, rules and evidence.
-- `docs/evidence/README.md`: screenshot/video/trace policy and artifact naming.
-- `docs/troubleshooting.md`: repeatable diagnosis and fixes.
-- `scripts/`: stack-neutral placeholders for start, test and evidence commands.
-- `tests/e2e/smoke.spec.ts`: generic Playwright smoke test driven by `BASE_URL`.
-
-Fill these files after installing the starter in a real project. The goal is to reduce discovery time for humans and agents without forcing a framework.
-
-### Machine-Readable Mapper Outputs
-
-The bootstrap also writes `.simplicio/project-map.json` and
-`.simplicio/precedent-index.json` for tools such as `simplicio-dev-cli` and
-`simplicio-sprint`.
-
-**New: Brown-Hilbert agent tree.** Since v0.12.0, every file in `project-map.json`
-carries a `bh_address` (Brown-Hilbert coordinate like `R.0.1.2`) and a deterministic
-`agent_id` (8-byte / 16-hex‑char identity). A top-level `agent_tree` field mirrors
-the full project hierarchy so agents can navigate the codebase by address.
-
-See [`SIMPLICIO_INTEGRATION.md`](SIMPLICIO_INTEGRATION.md) for the schema contract
-and [`examples/brown-hilbert-addresses.json`](examples/brown-hilbert-addresses.json)
-for a worked example.
-
-Refresh them without re-running the full starter:
+  Operator->>CLI: goal + token budget
+  CLI->>Artifacts: load map, graph, docs and evidence
+  CLI->>Ranker: rank relevant files and symbols
+  Ranker-->>CLI: bounded context + diagnostics
+  alt context is sufficient
+    CLI-->>Operator: ContextSnapshot with evidence
+  else coverage or fidelity is insufficient
+    CLI-->>Operator: partial result or explicit abstention
+  end
+```
 
 ```bash
-npx @wesleysimplicio/llm-project-mapper map
-npx @wesleysimplicio/llm-project-mapper map --incremental
-npx @wesleysimplicio/llm-project-mapper update
+# Inspect the mapped repository as structured data
+simplicio-mapper inspect . --json
+
+# Ask graph questions without loading the whole repository into a prompt
+simplicio-mapper ask . impact "UserService" --json
+simplicio-mapper ask . tests-for "authentication" --json
 ```
 
-#### New: standalone Python CLI
+### ContextGraph that stays current
 
-The mapper now ships as a Python package with lightweight performance
-dependencies (`orjson` for JSON serialization and `diskcache` for a persistent
-file-processing cache), so Python-first teams can generate the same artifacts
-without a Node toolchain:
+<p align="center">
+  <img src="assets/llm-project-mapper-multi-agent.png" alt="A versioned context graph showing a local change and its causal neighborhood" width="100%">
+</p>
+
+The artifacts are designed for change: snapshots keep history, `diff` compares two snapshot IDs semantically, and `delta` emits a deterministic update for downstream consumers. This lets separate agents or sessions share a stable view of a repository without repeatedly rediscovering the same files.
+
+```mermaid
+flowchart LR
+  A[Changed files] --> B[simplicio-mapper sync]
+  B --> C[Refresh affected artifacts]
+  C --> D[Versioned history snapshot]
+  D --> E[simplicio-mapper diff]
+  C --> F[simplicio-mapper delta]
+  E --> G[Human review or agent session]
+  F --> G
+  G --> H[Next task-aware handoff]
+```
 
 ```bash
-pip install simplicio-mapper
-
-simplicio-mapper map                 # write .simplicio/ artifacts
-simplicio-mapper update              # refresh and record changed files
-simplicio-mapper index . --json      # idempotent, scriptable SendSprint bootstrap
-simplicio-mapper index --update . --json
-simplicio-mapper endpoints . --against ../api --json
-simplicio-mapper docs . --json        # render .simplicio/docs markdown
-simplicio-mapper export-docs . --target ./wiki-export --json
-simplicio-mapper index . --docs --background
-simplicio-mapper map --watch         # re-map as files change locally
+simplicio-mapper history . --json
+simplicio-mapper diff . --from <snapshot-id> --to <snapshot-id> --json
+simplicio-mapper delta . --changed-paths src/auth.py,tests/test_auth.py --json
 ```
 
-Both `simplicio-mapper` and `llm-project-mapper` console scripts are installed.
-The Python engine is the canonical implementation; the Node fallback keeps the
-same base artifact schemas, but Brown-Hilbert-only fields such as
-`bh_address`, `agent_id`, and `agent_tree` currently remain Python-only.
+### Evidence that survives the handoff
 
-For orchestrators, `simplicio-mapper index <path>` is quiet by default. It
-returns `0` when artifacts are written/refreshed or already fresh, and `1` on
-failure. `--update` is accepted as a compatibility alias for refresh workflows.
-Add `--json` for a stable
-`simplicio.mapper-index/v1` payload containing artifact paths, item counts,
-changed files and the skipped reason. Add `--verbose` only when progress logs
-are useful.
+<p align="center">
+  <img src="assets/llm-project-mapper-transformation.png" alt="Repository evidence flowing through a context pack to verification and a release receipt" width="100%">
+</p>
 
-For architecture/wiki work, `simplicio-mapper map` now also writes
-`architecture-inventory.json`, `symbol-index.json`, and `call-graph.json`.
-Run `simplicio-mapper docs <path>` to render `.simplicio/docs/*.md`, or
-`simplicio-mapper index <path> --docs --json` to refresh JSON and Markdown in
-one deterministic pass. Use `--background` when the refresh should continue in
-a detached process, and `--docs-only` when only the Markdown view needs to be
-regenerated. `export-docs` copies those Markdown files to a local target; remote
-wiki publication remains opt-in.
+Artifacts are not just prompts. They have versioned schemas under [`contracts/`](contracts/), validation commands, compatibility fixtures, and evidence records. This makes it possible to distinguish a measured result from an operator assertion and to audit the path from repository facts to a release decision.
 
-Use `--watch` during long agent sessions to keep the map fresh. The schema and
-Python consumption example live in [SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRATION.md).
-
-#### Flow Documentation Engine — technical + business flows, sync, history, drift
+```mermaid
+stateDiagram-v2
+  [*] --> Collect: map repository and task
+  Collect --> Sufficient: coverage and fidelity pass
+  Collect --> Partial: some evidence is relevant
+  Collect --> Abstain: evidence cannot support the claim
+  Sufficient --> Verify: run contracts and tests
+  Partial --> Broaden: request more context or a narrower task
+  Abstain --> Broaden
+  Broaden --> Collect
+  Verify --> ReleaseEvidence: publish an auditable receipt
+  ReleaseEvidence --> [*]
+```
 
 ```bash
-simplicio-mapper flows .                          # stack-neutral flow-inventory + flows.md
-simplicio-mapper business .                       # observable rules, state machines, glossary
-simplicio-mapper survey .                         # onboarding.md — the "new dev, day one" report
-simplicio-mapper sync . --check                   # docs stale relative to the working tree?
-simplicio-mapper history . && simplicio-mapper diff . --from <a> --to <b>
-simplicio-mapper drift . --check --threshold 10   # placeholders, orphan specs/code, stale docs
-simplicio-mapper ask . callers <symbol>           # low-token structured queries over the map
+# Validate generated mapper artifacts against the public schemas
+simplicio-mapper contract validate .simplicio
+
+# Validate the repository contract fixtures
+simplicio-mapper doctor --contracts
 ```
 
-Every command above is documented in full (contracts, guarantees, known
-limitations) under "Flow Documentation Engine" in
-[SIMPLICIO_INTEGRATION.md](SIMPLICIO_INTEGRATION.md#flow-documentation-engine-epic-131).
-A reusable GitHub Action (`action.yml`) runs `sync`+`drift` on a PR's diff
-and comments the affected flows and doc/drift status.
+## Two complementary surfaces
 
-For cross-repo delivery, `simplicio-mapper endpoints <client-root> --against
-<server-root> --json` emits `simplicio.endpoint-inventory/v1`: normalized
-client HTTP calls, runtime server routes, contract-only route counts and
-`missing_from_server` entries with their demanding source files. This is the
-fast path for web/API and AI-agents/API alignment work. The extractor
-understands Python API clients and Angular
-HttpClient services that compose URLs from `baseUrl`, `environment.apiUrl`, and
-template-string path parameters. It also captures direct page-level Python
-calls such as `api.patch(...)` and ignores test files/route decorators when
-building client demand.
+- **Python package — `simplicio-mapper`:** the canonical, installable mapping engine and contract surface.
+- **npm package — [`@wesleysimplicio/llm-project-mapper`](https://www.npmjs.com/package/@wesleysimplicio/llm-project-mapper):** a project starter/scaffolder that can include Mapper in a new workflow.
 
----
+If you already have a repository, install the Python package. If you are bootstrapping a project, the npm starter is the convenient entry point; it is not a substitute for a fresh mapper index after the project evolves.
 
-### Patterns
+## Ecosystem
 
-- Canonical spec: [YOOL_TUPLE_HAMT.md](YOOL_TUPLE_HAMT.md)
-- Receipts schema and storage conventions: [Receipt schema](YOOL_TUPLE_HAMT.md#184-receipt-schema-reference)
+`mapper` provides grounded repository context to the rest of Simplicio:
 
-The yool / tuple / HAMT pattern is the capability-addressing model this scaffold is standardizing for multi-agent repos. Keep the root spec vendored so agents can reach it from the repository root in one click.
-
----
-
-### TL;DR — get going in 60 seconds
-
-Pick **one** of the install paths below and run it inside your project folder. The bootstrap now starts an automatic local mapping pass immediately; `INIT.md` becomes an optional refinement step for a stronger agent.
-
-| OS | Recommended one-liner |
-|---|---|
-| **macOS** | `npx @wesleysimplicio/llm-project-mapper` |
-| **Linux** | `npx @wesleysimplicio/llm-project-mapper` |
-| **Windows (PowerShell)** | `npx @wesleysimplicio/llm-project-mapper` |
-| **Windows (cmd.exe)** | `npx @wesleysimplicio/llm-project-mapper` |
-
-Same command everywhere. No bash dependency, no clone, no global install.
-
----
-
-### What LLM Project Mapper Changes
-
-The point of the starter is not “more files”. It is faster agent execution with less ambiguity, less tribal knowledge, and safer delivery loops.
-
-##### 01 · From project chaos to operational structure
-
-![Project transformation](assets/llm-project-mapper-transformation.png)
-
-> Drop the starter into an existing codebase and it converts scattered context into repeatable docs, validation, agent instructions, and delivery guardrails.
-
-##### 02 · Shared context for parallel agents
-
-![Multi-agent collaboration](assets/llm-project-mapper-multi-agent.png)
-
-> Agents stop working as isolated chat sessions and start collaborating around the same project map: architecture, tasks, checks, and output expectations.
-
-##### 03 · A stable foundation for safe speed
-
-![Operational foundation](assets/llm-project-mapper-foundation.png)
-
-> The end state is an agent-ready project foundation: domain context, architecture, workflow, quality gates, and evidence paths that make automation reliable instead of risky.
-
----
-
-### Prerequisites
-
-| Requirement | macOS | Linux | Windows |
-|---|---|---|---|
-| **Node.js >= 16.7** (for `npx`) | `brew install node` | `sudo apt install nodejs npm` (Debian/Ubuntu) · `sudo dnf install nodejs npm` (Fedora) · or [nvm](https://github.com/nvm-sh/nvm) | [nodejs.org installer](https://nodejs.org) or `winget install OpenJS.NodeJS.LTS` |
-| **Git** | preinstalled / `brew install git` | `sudo apt install git` / `sudo dnf install git` | [git-scm.com](https://git-scm.com) or `winget install Git.Git` |
-| **Bash 4+** (only if you use `bootstrap.sh`) | preinstalled (Bash 3.2 works too) | preinstalled | Git Bash (ships with Git for Windows) or WSL |
-| **PowerShell 5.1+ / pwsh 7+** (only for `bootstrap.ps1`) | `brew install --cask powershell` | `sudo snap install powershell --classic` | preinstalled |
-
-Pick **one** runtime: `npx` works everywhere; `bootstrap.sh` for Unix shells; `bootstrap.ps1` for native Windows.
-
----
-
-### What it ships
-
-```
-your-project/
-├── AGENTS.md                 # master agent instructions (read by every CLI)
-├── CLAUDE.md                 # mirror of AGENTS.md (Claude Code)
-├── INIT.md                   # one-shot prompt the agent runs after bootstrap
-├── .github/
-│   ├── copilot-instructions.md    # mirror of AGENTS.md (Copilot)
-│   ├── workflows/                  # CI + Definition-of-Done gate
-│   ├── PULL_REQUEST_TEMPLATE.md
-│   └── ISSUE_TEMPLATE/
-├── .specs/                   # canonical docs (specs as code)
-│   ├── product/              # VISION, DOMAIN, PERSONAS
-│   ├── architecture/         # DESIGN, PATTERNS, ADRs
-│   ├── workflow/             # WORKFLOW, CONTRIBUTING, RELEASE
-│   └── sprints/              # BACKLOG + sprint folders
-├── .skills/                  # reusable agent skills
-├── .agents/                  # custom sub-agents
-├── .claude/                  # Claude Code config + hooks
-├── .codex/                   # Codex CLI config
-├── playwright.config.ts      # default E2E
-└── presentation/             # method slides (Marp)
+```text
+simplicio-mapper → simplicio-runtime → simplicio-dev-cli → simplicio-loop
+      facts            execution          delivery           sustained work
 ```
 
-Stack-neutral: the bootstrap now fills the first pass automatically from the real project, and `INIT.md` remains available for deeper agent-driven refinement.
-
----
-
-### Install paths
-
-#### A. `npx` — recommended, cross-platform, zero clone
-
-```bash
-# inside your project folder (works on macOS, Linux, Windows)
-npx @wesleysimplicio/llm-project-mapper
-```
-
-Runs interactively. Asks **only**:
-
-1. **Which CLI/LLM to hand off to after the automatic mapping pass** (auto-detects which ones are installed and marks them `[installed]`).
-2. **Append recommended ignores to `.gitignore`?** (yes/no — never overwrites your existing `.gitignore`).
-
-Everything else — `PRODUCT_NAME`, stack, dependencies — auto-detected from `package.json` / `pyproject.toml` / `go.mod` / `*.csproj` / `Cargo.toml` / `pubspec.yaml` / `composer.json` / `Gemfile` / `mix.exs` / `pom.xml` / `build.gradle*`.
-
-##### Non-interactive (CI / scripts)
-
-```bash
-npx @wesleysimplicio/llm-project-mapper --yes --cli skip --append-gitignore no
-```
-
-##### Update an existing starter overlay
-
-```bash
-npx @wesleysimplicio/llm-project-mapper@latest --update
-```
-
-This is equivalent to `--yes --force --append-gitignore no --cli skip`: it refreshes starter-managed files, leaves `.gitignore` untouched unless explicitly requested, preserves existing instruction files, and does not launch an agent.
-
-##### Preview without writing
-
-```bash
-npx @wesleysimplicio/llm-project-mapper --dry-run --yes
-```
-
-##### Full flag list
-
-| Flag | Purpose |
-|---|---|
-| `-y, --yes` | Non-interactive (defaults: no `.gitignore` append, skip CLI handoff) |
-| `-f, --force` | Overwrite starter template files. **Never** touches user instruction files (`AGENTS.md`, `CLAUDE.md`, `INIT.md`, `.github/copilot-instructions.md`, `.gitignore`) |
-| `--update` | Safe update mode for an existing overlay: force starter files, leave `.gitignore` untouched, skip handoff |
-| `--dry-run` | Print actions without writing |
-| `--cli <key>` | Pick CLI for `INIT.md` handoff: `claude`, `codex`, `copilot`, `cursor`, `deepseek`, `kimi`, `minimax`, `glm`, `simplicio-agent`, `hermes`, `openclaw`, `aider`, `other`, `skip` (note: `hermes` is a deprecated alias of `simplicio-agent`) |
-| `--append-gitignore <yes\|no>` | Append recommended ignores to `.gitignore` |
-| `--skip-meta` | Do not write `.starter-meta.json` |
-| `--silent` | Minimal output |
-| `-v, --version` | Print version |
-| `-h, --help` | Show help |
-
-##### Python mapper flags
-
-| Flag | Purpose |
-|---|---|
-| `index <path>` | Scriptable mapper refresh. Returns `0` when updated, already fresh, or locked/skipped; returns `1` on failure |
-| `docs <path>` | Render `.simplicio/docs/*.md` from the architecture inventory |
-| `export-docs <path> --target <dir>` | Copy rendered Markdown docs to a local docs/wiki target |
-| `--docs` | Render Markdown docs after `map` or `index` |
-| `--no-docs` | Keep `map` / `index` JSON-only |
-| `--docs-only` | Render Markdown docs without emitting the index JSON payload |
-| `--json-only` | Compatibility alias for JSON-only refresh workflows |
-| `--changed-only` | Compatibility alias for incremental refresh workflows |
-| `--background` | Start a detached index refresh and log to `.simplicio/background-index.log` |
-| `--json` | Emit stable JSON contracts such as `simplicio.mapper-index/v1` |
-| `--update` | Compatibility alias for index refresh workflows |
-| `--verbose` | Show index refresh progress |
-| `--out <dir>` | Artifact directory, defaulting to `.simplicio` |
-
-#### B. `bootstrap.sh` — Unix shells (macOS / Linux / Git Bash / WSL)
-
-Clone the starter and run the script:
-
-```bash
-git clone --depth=1 https://github.com/wesleysimplicio/llm-project-mapper.git tmp-starter
-cp -R tmp-starter/. ./ && rm -rf tmp-starter
-chmod +x ./bootstrap.sh   # only the first time
-./bootstrap.sh
-```
-
-#### C. `bootstrap.ps1` — native Windows (PowerShell)
-
-```powershell
-git clone --depth=1 https://github.com/wesleysimplicio/llm-project-mapper.git tmp-starter
-Copy-Item -Recurse -Force tmp-starter\* .\
-Remove-Item -Recurse -Force tmp-starter
-
-# PowerShell 7+ (pwsh)
-pwsh -File .\bootstrap.ps1
-
-# PowerShell 5.1 (built-in on Windows 10/11)
-powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1
-```
-
-All three paths produce the same result and ask the same two questions.
-
-#### D. Overlay onto an existing project (private, gitignored)
-
-Want to drop the starter into a project that already has its own git, **without polluting the host repo**? Each dev installs locally, files stay gitignored. Full step-by-step in [INSTALL.md](INSTALL.md). Short version:
-
-<img src="assets/overlay-install.svg" alt="Animated terminal screencast showing the overlay install flow in a host project" width="100%">
-
-```bash
-# from inside the host project root
-git clone --depth=1 https://github.com/wesleysimplicio/llm-project-mapper.git /tmp/llm-project-mapper-src
-# --ignore-existing protects your host's package.json/README.md/etc from being overwritten
-rsync -av --ignore-existing --exclude='.git' /tmp/llm-project-mapper-src/ ./
-rm -rf /tmp/llm-project-mapper-src
-# append the "LLM Project Mapper (overlay privado)" block from INSTALL.md to your .gitignore FIRST
-# then run bootstrap
-./bootstrap.sh
-```
-
----
-
-### CLI handoff — supported agents
-
-After scaffolding and auto-mapping, the bootstrap can optionally launch a CLI/LLM with `INIT.md` for a second-pass refinement. Detected installs get a `[installed]` mark in the menu.
-
-| # | CLI / LLM | Native agent loop? | Install docs |
-|---|---|---|---|
-| 1 | **Claude Code** | yes | <https://docs.claude.com/claude-code> |
-| 2 | **Codex CLI** | yes | <https://github.com/openai/codex> |
-| 3 | **GitHub Copilot CLI** | no — paste prompt manually | `gh extension install github/gh-copilot` |
-| 4 | **Cursor Agent** | yes | `npm i -g cursor-agent` (or Cursor IDE) |
-| 5 | **Deepseek** (via Aider) | yes | `pip install aider-chat` |
-| 6 | **Kimi K2.6** (via Aider, OpenRouter) | yes | `pip install aider-chat` |
-| 7 | **MiniMax M2.7** (via Aider, OpenRouter) | yes | `pip install aider-chat` |
-| 8 | **GLM 5.1** (via Aider, OpenRouter) | yes | `pip install aider-chat` |
-| 9 | **Simplicio Agent** (canonical integrator) | yes | <https://github.com/wesleysimplicio/simplicio-agent> |
-| 10 | **Hermes Agent** (Nous Research) — *deprecated alias of Simplicio Agent* | yes | <https://github.com/NousResearch> |
-| 11 | **OpenClaw** | yes | <https://github.com/openclaw> |
-| 12 | **Aider** (pick model interactively) | yes | `pip install aider-chat` |
-| 13 | Other / manual (clipboard) | — | — |
-| 14 | Skip — run `INIT.md` later | — | — |
-
-For Copilot CLI (no native agent loop), the bootstrap copies the prompt to your clipboard (`pbcopy` on macOS, `xclip`/`wl-copy` on Linux, `clip.exe` on Windows/WSL) and you paste it into Copilot Chat.
-
----
-
-### What `INIT.md` does — the safety contract
-
-When the chosen CLI runs `INIT.md`, it reads `.starter-meta.json` and follows three hard rules:
-
-1. **`read_only_globs` are intouchable.** Any file matching these globs (`**/*.razor`, `**/*.cs`, `**/*.csproj`, `**/*.sln`, `package.json`, `pnpm-lock.yaml`, `yarn.lock`, `package-lock.json`, `**/*.py`, `**/*.go`, `**/*.rs`, `**/*.java`, `**/*.kt`, `**/*.dart`, `**/*.php`, `**/*.rb`) is read-only. The agent reads it for context but never writes. If `git status` shows any after init — that is a bug.
-2. **`init_must_merge` preserves your essence.** If `AGENTS.md` / `CLAUDE.md` / `.github/copilot-instructions.md` already existed before bootstrap, the agent **reads them**, **preserves the content**, and **merges** the starter structure on top. Never a clean rewrite.
-3. **`init_must_ask` only asks 4 things.** `team`, `domain`, `vision_oneliner`, `primary_personas` — once, in a single message. Everything else (`product_name`, `stack`) is auto-detected.
-
-The agent then writes — and only writes — inside the whitelist:
-
-```
-.specs/**          .agents/**         .skills/**
-.claude/**         .codex/**
-.github/copilot-instructions.md
-.github/copilot/**
-.github/PULL_REQUEST_TEMPLATE.md
-.github/ISSUE_TEMPLATE/**
-.github/workflows/ci.yml
-.github/workflows/dod.yml
-AGENTS.md  CLAUDE.md  README.md  README.pt-BR.md
-playwright.config.ts (only if missing or our template)
-```
-
-Anything outside this whitelist **and** not from the starter template = untouched.
-
----
-
-### Troubleshooting
-
-#### macOS / Linux
-
-| Symptom | Fix |
-|---|---|
-| `./bootstrap.sh: Permission denied` | `chmod +x ./bootstrap.sh` |
-| `command not found: npx` | Install Node.js (see Prerequisites) |
-| `Claude Code not installed` after pick | Install Claude Code or pick `[12] Other` to copy the prompt to clipboard |
-| Old Bash on macOS (`bash --version` shows 3.2) | Works — script is Bash 3.2-compatible. If problems, `brew install bash` for Bash 5+ |
-
-#### Windows
-
-| Symptom | Fix |
-|---|---|
-| `bootstrap.ps1 cannot be loaded ... execution policy` | Run with `powershell -ExecutionPolicy Bypass -File .\bootstrap.ps1` (per-session bypass, no permanent change) |
-| Line endings broken when running `.sh` from Git Bash | `git config --global core.autocrlf input` then re-clone |
-| `npx` not found in cmd.exe | Open new terminal after Node install (refreshes PATH), or use full path `C:\Program Files\nodejs\npx.cmd` |
-| `pwsh` not found | You have PowerShell 5.1 (built-in) — use the `powershell -ExecutionPolicy Bypass ...` form. To install pwsh 7: `winget install Microsoft.PowerShell` |
-
-#### Cross-platform
-
-| Symptom | Fix |
-|---|---|
-| Bootstrap exits with `aborting: existing files would be overwritten` | Re-run with `--force` (only overwrites starter template files, never your instruction files) |
-| `git status` shows `package.json` / source files modified after init | Stop. That is a `read_only_globs` violation. Open an issue with the file path |
-| `.gitignore` got rewritten | The starter never overwrites it — only appends if you said `yes`. If yours was replaced, you ran `--force`; restore from git |
-| Want to re-run `INIT.md` later | `claude "$(cat INIT.md)"` (or equivalent for your CLI). The handoff is just a launcher |
-
----
-
-### Suggested reading order (human)
-
-1. `README.md` (this file) — overview.
-2. `AGENTS.md` — agent master instruction.
-3. `.specs/README.md` — specs navigation map.
-4. `.specs/product/VISION.md` — product context.
-5. `.specs/architecture/DESIGN.md` — architecture.
-6. `.specs/workflow/WORKFLOW.md` — process.
-7. `.skills/README.md` — agent capabilities.
-
----
-
-### Quickstart for the agent (after `INIT.md`)
-
-1. Read `AGENTS.md` (root). That is the contract.
-2. Read `.specs/product/VISION.md` for the why.
-3. Read `.specs/architecture/DESIGN.md` and `PATTERNS.md` for the how.
-4. Pull the next task from `.specs/sprints/sprint-XX/`.
-5. Run the mandatory loop: read task → plan → edit → lint → unit → e2e → fix → commit.
-6. Validate Definition of Done before opening a PR.
-
----
-
-### Optional: clean up starter files
-
-After the agent finishes `INIT.md`, the bootstrap files are no longer needed.
-
-**macOS / Linux / Git Bash / WSL:**
-
-```bash
-rm _BOOTSTRAP.md INIT.md bootstrap.sh bootstrap.ps1
-git add -A && git commit -m "chore: remove starter bootstrap files"
-```
-
-**Windows PowerShell:**
-
-```powershell
-Remove-Item _BOOTSTRAP.md, INIT.md, bootstrap.sh, bootstrap.ps1
-git add -A; git commit -m "chore: remove starter bootstrap files"
-```
-
-`.starter-meta.json` stays as a reference for future re-runs.
-
----
-
-### Companion tooling
-
-- **SkillOpt optimizer** — `npx @wesleysimplicio/llm-project-mapper skillopt --suite <suite.json>` (or `node bin/skillopt.js`) optimizes a `SKILL.md`/prompt with the [SkillOpt](https://microsoft.github.io/SkillOpt/) loop (Rollout → Reflect → Edit → Gate). The skill document is the only trainable artifact; edits are accepted only when they improve a held-out task split. Outputs `best_skill.md` plus an optional report and receipt. See [.skills/skillopt/SKILL.md](.skills/skillopt/SKILL.md).
-- **VS Code extension** — `vscode-extension/` ships a sidebar TreeView for `.specs/sprints/`, plus commands to open the current task, create ADRs, and run the `INIT.md` handoff. See [vscode-extension/README.md](vscode-extension/README.md). Will be published to the Marketplace as `wesleysimplicio.llm-project-mapper-vscode`.
-- **Telemetry (opt-in)** — `bin/cli.js` accepts `--telemetry on|off`. Default is off. See [docs/PRIVACY.md](docs/PRIVACY.md) for the exact payload and how to deploy your own [`telemetry-worker.js`](.github/workflows-templates/telemetry-worker.js).
-
----
-
-### Philosophy
-
-- **Specs as code.** What is not in `.specs/`, the agent does not see.
-- **Atomic tasks.** One task = one small reviewable PR.
-- **Automated DoD.** What does not pass the gate, does not merge.
-- **Reusable skills.** A capability that becomes a pattern becomes a `SKILL.md`.
-- **Tight loop.** Edit, test, fix, repeat. Never accumulate invisible debt.
-- **Never destroy.** User files are read-only; starter files merge instead of overwrite.
-
----
-
-### License
-
-[MIT](LICENSE) © 2026 Wesley Simplicio.
-
----
-
-### Next steps
-
-- Run the bootstrap.
-- Let the agent execute `INIT.md`.
-- Fill specs with real product context (the agent does most of this from the code).
-- Run the first sprint using `.specs/sprints/sprint-01/`.
-- Watch `presentation/ai-agent-specialist.pdf` for the full method.
-
-## Star History
-
-<a href="https://www.star-history.com/#wesleysimplicio/simplicio-mapper&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=wesleysimplicio/simplicio-mapper&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=wesleysimplicio/simplicio-mapper&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=wesleysimplicio/simplicio-mapper&type=Date" />
-  </picture>
-</a>
+- [`simplicio-runtime`](https://github.com/wesleysimplicio/simplicio-runtime) executes governed agent work.
+- [`simplicio-dev-cli`](https://github.com/wesleysimplicio/simplicio-dev-cli) turns plans and checks into a developer workflow.
+- [`simplicio-loop`](https://github.com/wesleysimplicio/simplicio-loop) keeps a bounded body of work moving with receipts and stop conditions.
+
+## Documentation and release notes
+
+- [Documentation site](https://wesleysimplicio.github.io/simplicio-mapper/)
+- [Integration guide](SIMPLICIO_INTEGRATION.md)
+- [Artifact contracts](contracts/)
+- [Architecture and evidence docs](docs/)
+- [Changelog](CHANGELOG.md)
+- [PyPI publishing notes](PYPI.md)
+- [v0.23.1 release](https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.23.1)
 
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+<p align="center">
+  <a href="https://star-history.com/#wesleysimplicio/simplicio-mapper&Date">
+    <img src="https://api.star-history.com/svg?repos=wesleysimplicio/simplicio-mapper&type=Date" alt="Star history chart for simplicio-mapper">
+  </a>
+</p>
