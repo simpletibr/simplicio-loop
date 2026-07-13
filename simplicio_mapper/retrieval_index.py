@@ -57,7 +57,7 @@ from typing import Any
 RETRIEVAL_INDEX_SCHEMA = "simplicio.retrieval-index/v1"
 RETRIEVAL_SELECTION_SCHEMA = "simplicio.retrieval-selection/v1"
 RETRIEVAL_INDEX_VERSION = 1
-BUILDER_REVISION = "199.1"
+BUILDER_REVISION = "199.2"
 
 # Tokenizer policy recorded in every receipt so the serialized-budget estimate
 # is never silently mistaken for provider-measured usage.
@@ -319,6 +319,135 @@ def _safe_get_list(value: Any, key: str) -> list:
     return []
 
 
+def _normalized_path(path: str) -> str:
+    return str(path or "").replace(os.sep, "/")
+
+
+def _stable_hash(payload: Any, *, size: int = 16) -> str:
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    ).hexdigest()[:size]
+
+
+def _chunk_bounds(symbol: Mapping[str, Any]) -> tuple[int, int]:
+    line = int(symbol.get("line", 0) or 0)
+    start = max(1, line) if line else 0
+    end = int(symbol.get("end_line", 0) or 0)
+    if start and end < start:
+        end = start
+    return start, end or start
+
+
+def _document_fingerprint(entry: Mapping[str, Any], symbols: Sequence[Mapping[str, Any]]) -> str:
+    payload = {
+        "path": _normalized_path(str(entry.get("path") or "")),
+        "language": str(entry.get("language") or ""),
+        "roles": sorted(str(v) for v in _safe_get_list(entry, "roles")),
+        "importance": float(entry.get("importance", 0.0) or 0.0),
+        "size_bytes": int(entry.get("size_bytes", 0) or 0),
+        "file_hash": str(entry.get("file_hash") or ""),
+        "summary": str(entry.get("summary") or ""),
+        "imports": sorted(str(v) for v in _safe_get_list(entry, "imports")),
+        "exports": sorted(str(v) for v in _safe_get_list(entry, "exports")),
+        "tags": sorted(str(v) for v in _safe_get_list(entry, "tags")),
+        "symbols": [
+            {
+                "name": str(sym.get("name") or ""),
+                "qualified_name": str(sym.get("qualified_name") or ""),
+                "kind": str(sym.get("kind") or ""),
+                "start_line": _chunk_bounds(sym)[0],
+                "end_line": _chunk_bounds(sym)[1],
+            }
+            for sym in sorted(symbols, key=lambda item: (
+                str(item.get("name") or ""),
+                str(item.get("qualified_name") or ""),
+                int(item.get("line", 0) or 0),
+            ))
+        ],
+    }
+    return _stable_hash(payload, size=24)
+
+
+def _build_chunks(path: str, symbols: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    chunks: list[dict[str, Any]] = []
+    for sym in sorted(symbols, key=lambda item: (
+        int(item.get("line", 0) or 0),
+        str(item.get("name") or ""),
+        str(item.get("qualified_name") or ""),
+    )):
+        start, end = _chunk_bounds(sym)
+        if start < 1:
+            continue
+        name = str(sym.get("name") or "")
+        kind = str(sym.get("kind") or "")
+        qualified = str(sym.get("qualified_name") or "")
+        chunk_identity = {
+            "path": path,
+            "name": name,
+            "kind": kind,
+            "qualified_name": qualified,
+            "start_line": start,
+            "end_line": end,
+        }
+        chunks.append({
+            "chunk_id": f"chunk:{_stable_hash(chunk_identity, size=20)}",
+            "symbol": name,
+            "kind": kind,
+            "qualified_name": qualified,
+            "start_line": start,
+            "end_line": end,
+        })
+    if not chunks:
+        chunks.append({
+            "chunk_id": f"chunk:{_stable_hash({'path': path, 'kind': 'file'}, size=20)}",
+            "symbol": "",
+            "kind": "file",
+            "qualified_name": path,
+            "start_line": 1,
+            "end_line": 1,
+        })
+    return chunks
+
+
+def _build_document(entry: Mapping[str, Any], symbols: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    path = _normalized_path(str(entry.get("path") or ""))
+    text_parts: list[str] = [path]
+    text_parts.extend(_path_tokens(path))
+    for sym in symbols:
+        text_parts.append(str(sym.get("name") or ""))
+        text_parts.append(str(sym.get("qualified_name") or ""))
+    for key in ("language", "summary", "role", "roles"):
+        val = entry.get(key)
+        if isinstance(val, str):
+            text_parts.append(val)
+        elif isinstance(val, list):
+            text_parts.extend(str(v) for v in val)
+    text_parts.extend(str(v) for v in _safe_get_list(entry, "imports"))
+    text_parts.extend(str(v) for v in _safe_get_list(entry, "exports"))
+    text_parts.extend(str(v) for v in _safe_get_list(entry, "tags"))
+
+    tokens = [t for t in tokenize(" ".join(text_parts)) if len(t) >= 3]
+    tf: dict[str, int] = {}
+    for tok in tokens:
+        tf[tok] = tf.get(tok, 0) + 1
+
+    return {
+        "path": path,
+        "document_id": f"doc:{_stable_hash({'path': path}, size=20)}",
+        "source_fingerprint": _document_fingerprint(entry, symbols),
+        "language": str(entry.get("language") or ""),
+        "roles": _safe_get_list(entry, "roles"),
+        "importance": float(entry.get("importance", 0.0) or 0.0),
+        "size_bytes": int(entry.get("size_bytes", 0) or 0),
+        "file_hash": str(entry.get("file_hash") or ""),
+        "symbols": [str(s.get("name") or "") for s in symbols],
+        "chunks": _build_chunks(path, symbols),
+        "tf": tf,
+        "token_count": len(tokens),
+        "generated": _looks_generated(path),
+    }
+
+
 def build_retrieval_index(
     project_map: Mapping[str, Any],
     *,
@@ -355,65 +484,130 @@ def build_retrieval_index(
                 edges.append((str(edge["from"]).replace(os.sep, "/"),
                               str(edge["to"]).replace(os.sep, "/")))
 
-    df: dict[str, set[str]] = {}  # term -> set of doc paths (for IDF)
-    file_docs: list[dict] = []
+    return update_retrieval_index(
+        None,
+        project_map,
+        symbol_index=symbol_index,
+        call_graph=call_graph,
+        root=root,
+    )
+
+
+def update_retrieval_index(
+    previous_index: Mapping[str, Any] | None,
+    project_map: Mapping[str, Any],
+    *,
+    symbol_index: Mapping[str, Any] | None = None,
+    call_graph: Mapping[str, Any] | None = None,
+    changed_paths: Sequence[str] | None = None,
+    root: str = "",
+) -> dict[str, Any]:
+    """Incrementally rebuild only changed document/chunk state when possible."""
+    symbol_index = symbol_index or {}
+    call_graph = call_graph or {}
+    changed = {_normalized_path(path) for path in (changed_paths or []) if path}
+
+    pm_files: list[Mapping[str, Any]] = sorted(
+        (item for item in project_map.get("files", []) if isinstance(item, Mapping)),
+        key=lambda item: _normalized_path(str(item.get("path") or "")),
+    )
+
+    symbols_by_file: dict[str, list[dict]] = {}
+    for sym in symbol_index.get("symbols", []):
+        if not isinstance(sym, Mapping):
+            continue
+        dfn = _normalized_path(str(sym.get("defined_in") or ""))
+        symbols_by_file.setdefault(dfn, []).append(dict(sym))
+
+    prev_docs = {}
+    if isinstance(previous_index, Mapping) and previous_index.get("schema") == RETRIEVAL_INDEX_SCHEMA:
+        prev_docs = {
+            _normalized_path(str(doc.get("path") or "")): dict(doc)
+            for doc in previous_index.get("documents", [])
+            if isinstance(doc, Mapping) and doc.get("path")
+        }
+
+    file_docs: list[dict[str, Any]] = []
+    reused_paths: list[str] = []
+    invalidated_paths: list[str] = []
 
     for entry in pm_files:
-        path = str(entry.get("path") or "").replace(os.sep, "/")
+        path = _normalized_path(str(entry.get("path") or ""))
         if not path:
             continue
-        # Build the indexable text WITHOUT reading the file body: path tokens +
-        # symbols + summaries + imports + roles + tags. This is exactly what
-        # makes warm queries file-body-free.
-        text_parts: list[str] = [path]
-        text_parts.extend(_path_tokens(path))
-        for sym in symbols_by_file.get(path, []):
-            text_parts.append(str(sym.get("name") or ""))
-            text_parts.append(str(sym.get("qualified_name") or ""))
-        for key in ("language", "summary", "role", "roles"):
-            val = entry.get(key)
-            if isinstance(val, str):
-                text_parts.append(val)
-            elif isinstance(val, list):
-                text_parts.extend(str(v) for v in val)
-        text_parts.extend(str(v) for v in _safe_get_list(entry, "imports"))
-        text_parts.extend(str(v) for v in _safe_get_list(entry, "exports"))
-        text_parts.extend(str(v) for v in _safe_get_list(entry, "tags"))
+        symbols = symbols_by_file.get(path, [])
+        fingerprint = _document_fingerprint(entry, symbols)
+        prev_doc = prev_docs.get(path)
+        if (
+            prev_doc
+            and path not in changed
+            and str(prev_doc.get("source_fingerprint") or "") == fingerprint
+        ):
+            file_docs.append(prev_doc)
+            reused_paths.append(path)
+            continue
+        file_docs.append(_build_document(entry, symbols))
+        invalidated_paths.append(path)
 
-        tokens = [t for t in tokenize(" ".join(text_parts)) if len(t) >= 3]
-        tf: dict[str, int] = {}
-        for tok in tokens:
-            tf[tok] = tf.get(tok, 0) + 1
-        for tok in tf:
-            df.setdefault(tok, set()).add(path)
+    file_docs.sort(key=lambda doc: doc["path"])
+    live_paths = {doc["path"] for doc in file_docs}
+    removed_paths = sorted(set(prev_docs) - live_paths)
 
-        file_docs.append({
-            "path": path,
-            "language": str(entry.get("language") or ""),
-            "roles": _safe_get_list(entry, "roles"),
-            "importance": float(entry.get("importance", 0.0) or 0.0),
-            "size_bytes": int(entry.get("size_bytes", 0) or 0),
-            "file_hash": str(entry.get("file_hash") or ""),
-            "symbols": [str(s.get("name") or "") for s in symbols_by_file.get(path, [])],
-            "tf": tf,
-            "token_count": len(tokens),
-            "generated": _looks_generated(path),
-        })
-
-    # Document frequency as counts (deterministic, no set objects in JSON).
+    df: dict[str, set[str]] = {}
+    for doc in file_docs:
+        for tok in doc.get("tf", {}):
+            df.setdefault(tok, set()).add(doc["path"])
+    df_counts = {tok: len(docset) for tok, docset in sorted(df.items())}
     N = len(file_docs)
-    df_counts = {tok: len(docset) for tok, docset in df.items()}
 
-    # Dependency edges adjacency for call-graph proximity.
+    edges = []
+    for key in ("edges", "imports", "calls"):
+        for edge in call_graph.get(key, []) or []:
+            if isinstance(edge, Mapping) and edge.get("from") and edge.get("to"):
+                edges.append((_normalized_path(str(edge["from"])), _normalized_path(str(edge["to"]))))
+
     callees: dict[str, set[str]] = {}
     callers: dict[str, set[str]] = {}
     for src, dst in edges:
         callees.setdefault(src, set()).add(dst)
         callers.setdefault(dst, set()).add(src)
 
-    related_tests = _related_tests_map(project_map, {d["path"] for d in file_docs})
+    graph_dependents = set()
+    for path in invalidated_paths:
+        graph_dependents.update(callees.get(path, set()))
+        graph_dependents.update(callers.get(path, set()))
+    graph_dependents.difference_update(invalidated_paths)
 
-    index = {
+    related_tests = _related_tests_map(project_map, live_paths)
+    root_norm = _normalized_path(root)
+    index_payload = {
+        "documents": [
+            {
+                "path": doc["path"],
+                "document_id": doc.get("document_id", ""),
+                "source_fingerprint": doc.get("source_fingerprint", ""),
+                "chunks": [
+                    {
+                        "chunk_id": chunk.get("chunk_id", ""),
+                        "start_line": int(chunk.get("start_line", 0) or 0),
+                        "end_line": int(chunk.get("end_line", 0) or 0),
+                    }
+                    for chunk in doc.get("chunks", [])
+                ],
+            }
+            for doc in file_docs
+        ],
+        "df": df_counts,
+        "call_graph": {
+            "callees": {k: sorted(v) for k, v in callees.items()},
+            "callers": {k: sorted(v) for k, v in callers.items()},
+        },
+        "related_tests": related_tests,
+        "root": root_norm,
+        "rev": BUILDER_REVISION,
+    }
+
+    return {
         "schema": RETRIEVAL_INDEX_SCHEMA,
         "version": RETRIEVAL_INDEX_VERSION,
         "builder_revision": BUILDER_REVISION,
@@ -421,20 +615,19 @@ def build_retrieval_index(
         "document_count": N,
         "document_frequency": df_counts,
         "documents": file_docs,
-        "call_graph": {
-            "callees": {k: sorted(v) for k, v in callees.items()},
-            "callers": {k: sorted(v) for k, v in callers.items()},
-        },
+        "call_graph": index_payload["call_graph"],
         "related_tests": related_tests,
-        "root": root.replace(os.sep, "/"),
-        "index_id": hashlib.sha256(
-            json.dumps(
-                {"df": df_counts, "n": N, "rev": BUILDER_REVISION},
-                ensure_ascii=True, sort_keys=True,
-            ).encode("utf-8")
-        ).hexdigest()[:24],
+        "root": root_norm,
+        "index_id": _stable_hash(index_payload, size=24),
+        "incremental": {
+            "changed_paths": sorted(changed),
+            "invalidated_paths": sorted(set(invalidated_paths)),
+            "reused_paths": sorted(reused_paths),
+            "removed_paths": removed_paths,
+            "graph_dependent_paths": sorted(graph_dependents),
+            "reused_document_count": len(reused_paths),
+        },
     }
-    return index
 
 
 def _related_tests_map(project_map: Mapping[str, Any], paths: set[str]) -> dict[str, list[str]]:
@@ -485,13 +678,14 @@ def load_retrieval_index(root: str, out: str = ".simplicio") -> dict | None:
 # Stage C — candidate ranking (discriminative, explainable)
 # --------------------------------------------------------------------------- #
 def _bm25_score(tf: Mapping[str, int], query_terms: Sequence[str], df_counts: Mapping[str, int],
-                document_count: int, doc_len: int, avg_len: float) -> tuple[float, list[str]]:
+                document_count: int, doc_len: int, avg_len: float) -> tuple[float, list[str], dict[str, float]]:
     """Deterministic BM25 (Robertson/Sparck-Jones) over the index vocabulary."""
     if document_count <= 0 or not query_terms:
-        return 0.0, []
+        return 0.0, [], {}
     k1, b = 1.5, 0.75
     score = 0.0
     matched: list[str] = []
+    idf_terms: dict[str, float] = {}
     for term in query_terms:
         f = tf.get(term, 0)
         if f == 0:
@@ -499,9 +693,10 @@ def _bm25_score(tf: Mapping[str, int], query_terms: Sequence[str], df_counts: Ma
         matched.append(term)
         n_t = df_counts.get(term, 0)
         idf = math.log(1 + (document_count - n_t + 0.5) / (n_t + 0.5))
+        idf_terms[term] = round(idf, 6)
         denom = f + k1 * (1 - b + b * (doc_len / avg_len if avg_len else 1.0))
         score += idf * (f * (k1 + 1)) / denom
-    return score, matched
+    return score, matched, idf_terms
 
 
 def _avg_doc_len(index: Mapping[str, Any]) -> float:
@@ -552,7 +747,7 @@ def rank_candidates(
     related_tests = index.get("related_tests", {})
 
     target_path = plan.target_path
-    exact_query_terms = plan.all_terms
+    exact_query_terms = [term.lower() for term in plan.all_terms]
 
     ranked: list[dict[str, Any]] = []
     for doc in index.get("documents", []):
@@ -562,7 +757,7 @@ def rank_candidates(
         generated = bool(doc.get("generated"))
 
         # BM25 over the *discriminative* query terms (domain+symbol+identifiers).
-        bm25, bm25_matched = _bm25_score(
+        bm25, bm25_matched, idf_terms = _bm25_score(
             tf, exact_query_terms, df_counts, document_count,
             max(1, doc.get("token_count", 1) or 1), avg_len,
         )
@@ -625,6 +820,10 @@ def rank_candidates(
         if bm25 > 0:
             components["bm25"] = round(bm25, 6)
             reason_codes.append("bm25")
+        if idf_terms:
+            reason_codes.append(
+                "idf_terms=" + ",".join(f"{term}:{idf_terms[term]:.3f}" for term in sorted(idf_terms))
+            )
         if graph_dist is not None and graph_dist <= 2:
             components["call_graph_proximity"] = max(0.0, 1.5 - 0.5 * graph_dist)
             reason_codes.append(f"call_graph_proximity=dist{graph_dist}")
@@ -663,6 +862,7 @@ def rank_candidates(
             "path": path,
             "relevance_score": score,
             "score_components": {k: round(v, 6) for k, v in components.items()},
+            "idf_terms": idf_terms,
             "reason_codes": reason_codes,
             "matched_terms": matched_terms,
             "symbol_matches": sym_matches,
@@ -713,17 +913,23 @@ def expand_spans(
     callees = index.get("call_graph", {}).get("callees", {})
     callers = index.get("call_graph", {}).get("callers", {})
     related_tests = index.get("related_tests", {})
+    docs_by_path = {
+        _normalized_path(str(doc.get("path") or "")): doc
+        for doc in index.get("documents", [])
+        if isinstance(doc, Mapping) and doc.get("path")
+    }
 
     out: list[dict[str, Any]] = []
     for row in ranked:
         path = row["path"]
+        doc = docs_by_path.get(path, {})
         read = _read_lines(root, path)
         if read is None:
             out.append({
                 "path": path,
                 "readable": False,
                 "spans": [],
-                "expand_handle": _expand_handle(root, path, None),
+                "expand_handle": _expand_handle(root, path, None, kind="full"),
                 "line_count": 0,
             })
             continue
@@ -735,6 +941,7 @@ def expand_spans(
         chosen: set[tuple[int, int]] = set()
         symbol_names = list(row.get("symbol_matches", [])) or list(row.get("matched_terms", []))
         syms_here = sym_defs.get(path, [])
+        chunks_here = doc.get("chunks", []) if isinstance(doc, Mapping) else []
         picked = 0
         for sym in syms_here:
             sname = str(sym.get("name") or "").lower()
@@ -750,11 +957,17 @@ def expand_spans(
                 continue
             chosen.add(key)
             chunk = "\n".join(lines[start - 1:end])
+            chunk_id = ""
+            for chunk_meta in chunks_here:
+                if str(chunk_meta.get("symbol") or "").lower() == sname:
+                    chunk_id = str(chunk_meta.get("chunk_id") or "")
+                    break
             ranges.append({
                 "start_line": start,
                 "end_line": end,
                 "symbol": sym.get("name"),
                 "kind": sym.get("kind"),
+                "chunk_id": chunk_id,
                 "range_hash": hashlib.sha256(chunk.encode("utf-8")).hexdigest()[:16],
             })
             picked += 1
@@ -767,7 +980,37 @@ def expand_spans(
 
         # Stable handle for retrieving the full / adjacent content later.
         content_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
-        expand_handle = _expand_handle(root, path, content_hash)
+        expand_handle = _expand_handle(root, path, content_hash, kind="full")
+        omitted_ranges = [{
+            "kind": "full",
+            "start_line": 1,
+            "end_line": line_count,
+            "expand_handle": expand_handle,
+        }]
+        for span in ranges:
+            if span["start_line"] > 1:
+                omitted_ranges.append({
+                    "kind": "before",
+                    "start_line": 1,
+                    "end_line": span["start_line"] - 1,
+                    "expand_handle": _expand_handle(
+                        root, path, content_hash, kind="range", start_line=1, end_line=span["start_line"] - 1
+                    ),
+                })
+            if span["end_line"] < line_count:
+                omitted_ranges.append({
+                    "kind": "after",
+                    "start_line": span["end_line"] + 1,
+                    "end_line": line_count,
+                    "expand_handle": _expand_handle(
+                        root,
+                        path,
+                        content_hash,
+                        kind="range",
+                        start_line=span["end_line"] + 1,
+                        end_line=line_count,
+                    ),
+                })
 
         out.append({
             "path": path,
@@ -778,21 +1021,75 @@ def expand_spans(
             "context_edges": context_edges,
             "tests": tests,
             "expand_handle": expand_handle,
+            "omitted_ranges": omitted_ranges,
         })
     return out
 
 
-def _expand_handle(root: str, path: str, content_hash: str | None) -> str:
+def _expand_handle(
+    root: str,
+    path: str,
+    content_hash: str | None,
+    *,
+    kind: str = "full",
+    start_line: int | None = None,
+    end_line: int | None = None,
+) -> str:
     """Stable, deterministic handle for retrieving omitted adjacent/full content.
 
-    Format: ``expand:<root-fp>:<norm-path>:<content-hash>``. The content hash
+    Format: ``expand:<root-fp>:<norm-path>:<content-hash>:<kind>:<range>``. The content hash
     anchors to a specific revision so downstream never reruns whole-repo mapping
     to resolve it; it can stat the file and re-read the requested block.
     """
     root_fp = hashlib.sha256(os.path.normcase(os.path.abspath(root)).encode("utf-8")).hexdigest()[:16]
     norm = path.replace(os.sep, "/")
     ch = content_hash or "none"
-    return f"expand:{root_fp}:{norm}:{ch}"
+    if kind == "range" and start_line is not None and end_line is not None:
+        return f"expand:{root_fp}:{norm}:{ch}:range:{start_line}-{end_line}"
+    return f"expand:{root_fp}:{norm}:{ch}:{kind}:all"
+
+
+def resolve_expand_handle(
+    root: str,
+    expand_handle: str,
+    *,
+    max_lines: int | None = None,
+) -> dict[str, Any]:
+    """Resolve an expansion handle into real file content without rerunning mapping."""
+    parts = expand_handle.split(":")
+    if len(parts) < 6 or parts[0] != "expand":
+        raise ValueError(f"invalid expand handle: {expand_handle}")
+    _, root_fp, path, expected_hash, kind, payload = parts[:6]
+    actual_root_fp = hashlib.sha256(os.path.normcase(os.path.abspath(root)).encode("utf-8")).hexdigest()[:16]
+    if root_fp != actual_root_fp:
+        raise ValueError("expand handle belongs to a different root")
+    read = _read_lines(root, path)
+    if read is None:
+        raise FileNotFoundError(path)
+    text, lines = read
+    snapshot_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
+    stale = expected_hash not in {"", "none", snapshot_hash}
+
+    if kind == "range":
+        start_s, end_s = payload.split("-", 1)
+        start_line = max(1, int(start_s))
+        end_line = min(len(lines), int(end_s))
+    else:
+        start_line = 1
+        end_line = len(lines)
+
+    if max_lines is not None and max_lines > 0:
+        end_line = min(end_line, start_line + max_lines - 1)
+
+    snippet = "\n".join(lines[start_line - 1:end_line]) if lines else ""
+    return {
+        "path": path,
+        "start_line": start_line,
+        "end_line": end_line,
+        "snapshot_hash": snapshot_hash,
+        "stale": stale,
+        "text": snippet,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -915,7 +1212,7 @@ def fidelity_gate(
 ) -> dict[str, Any]:
     """Multi-dimensional fidelity coverage + honest sufficiency verdict (Stage F)."""
     selected_paths = {row["path"] for row in ranked}
-    all_matched = {t for row in ranked for t in row.get("matched_terms", [])}
+    all_matched = {str(t).lower() for row in ranked for t in row.get("matched_terms", [])}
 
     # Dimension 1: explicit target preserved.
     target_ok = bool(not plan.target_path or plan.target_path in selected_paths)
@@ -923,11 +1220,11 @@ def fidelity_gate(
     id_match = {i.lower() for i in plan.exact_identifiers if i.lower() in all_matched}
     identifier_ratio = (len(id_match) / len(plan.exact_identifiers)) if plan.exact_identifiers else 1.0
     # Dimension 3: AC/RN/NFR ids preserved.
-    ac_match = {a.upper() for a in plan.ac_ids if a.upper() in {t.upper() for t in all_matched}}
+    ac_match = {a.upper() for a in plan.ac_ids if a.lower() in all_matched}
     ac_ratio = (len(ac_match) / len(plan.ac_ids)) if plan.ac_ids else 1.0
     # Dimension 4: discriminative term coverage (BM25-style, not raw file count).
-    disc_terms = [t for t in plan.all_terms if t not in _STOP_WORDS]
-    disc_match = {t for t in disc_terms if t in all_matched}
+    disc_terms = [t for t in plan.all_terms if t.lower() not in _STOP_WORDS]
+    disc_match = {t for t in disc_terms if t.lower() in all_matched}
     coverage_ratio = (len(disc_match) / len(disc_terms)) if disc_terms else 1.0
     # A genuinely discriminative signal must exist (symbol/identifier/match),
     # otherwise high generic lexical overlap must not pass as sufficient.
@@ -973,7 +1270,7 @@ def fidelity_gate(
         reasons.append("missing_ac_ids:" + ",".join(missing))
     if not has_discriminative_signal and disc_terms and not abstained:
         reasons.append("no_discriminative_signal")
-    if coverage_ratio < minimum_query_coverage:
+    if coverage_ratio < minimum_query_coverage and not abstained:
         reasons.append(
             f"discriminative_coverage {coverage_ratio:.3f} below minimum {minimum_query_coverage:.3f}"
         )
@@ -1150,8 +1447,10 @@ __all__ = [
     "fit_token_budget",
     "load_retrieval_index",
     "rank_candidates",
+    "resolve_expand_handle",
     "select_context_targets",
     "task_query_fingerprint",
     "task_query_terms",
+    "update_retrieval_index",
     "write_retrieval_index",
 ]
