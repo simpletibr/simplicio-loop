@@ -118,6 +118,13 @@ simplicio = [
   "templates/stacks/**/*",
   "templates/stacks/*/tree/.gitignore",
   "templates/stacks/*/tree/.eslintrc.json",
+  # `score-skill` loads these builtin scenario fixtures at runtime from
+  # Path(__file__).resolve().parent / "scenarios" (see
+  # simplicio/commands/score_skill.py:_resolve_scenarios). Without this
+  # entry the wheel ships score_skill.py but not its data, so an installed
+  # `simplicio-py score-skill` with no --scenario silently fails outside the
+  # checkout (#167 AC "Package instalado contem docs/schemas esperados").
+  "commands/scenarios/*.json",
 ]
 
 [tool.pytest.ini_options]
