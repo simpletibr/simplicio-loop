@@ -1,0 +1,28 @@
+{
+  "schema": "simplicio.plan-dag/v1",
+  "plan_id": "plan-fixture-2",
+  "goal_id": "goal-fixture-2",
+  "context_snapshot_id": "snap-fixture-2",
+  "revision": "1",
+  "nodes": [
+    {
+      "node_id": "n1",
+      "capability": "edit.apply",
+      "inputs": [],
+      "outputs": [],
+      "depends_on": [],
+      "read_set": [],
+      "write_set": [],
+      "risk": "low",
+      "uncertainty": "low",
+      "estimated_cost": 2.0,
+      "reason_codes": [],
+      "acceptance_criteria_refs": [],
+      "requires_gate": false,
+      "checkpoint_required": false,
+      "rollback_strategy": null
+    }
+  ],
+  "producer_id": "",
+  "consumer_id": ""
+}
