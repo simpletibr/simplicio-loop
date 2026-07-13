@@ -2296,7 +2296,7 @@ wheels = [
 
 [[package]]
 name = "simplicio-cli"
-version = "0.14.1"
+version = "0.16.1"
 source = { editable = "." }
 dependencies = [
     { name = "diskcache" },
@@ -2365,7 +2365,7 @@ requires-dist = [
     { name = "simplicio-cli", extras = ["ml"], marker = "extra == 'all'" },
     { name = "simplicio-cli", extras = ["providers"], marker = "extra == 'all'" },
     { name = "simplicio-cli", extras = ["test"], marker = "extra == 'dev'" },
-    { name = "simplicio-mapper", specifier = ">=0.19.0" },
+    { name = "simplicio-mapper", specifier = ">=0.23.1" },
     { name = "simplicio-prompt", specifier = ">=1.14.1" },
     { name = "tomli", marker = "python_full_version < '3.11' and extra == 'test'", specifier = ">=2.0.1" },
 ]
@@ -2373,15 +2373,15 @@ provides-extras = ["providers", "ml", "bench", "local", "all", "test", "dev"]
 
 [[package]]
 name = "simplicio-mapper"
-version = "0.19.0"
+version = "0.23.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "diskcache" },
     { name = "orjson" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/91/c0/832101d9d81fa42c884d3e1f241e170f9c90d053199c1b1ec3e98ba096dc/simplicio_mapper-0.19.0.tar.gz", hash = "sha256:01808cde7dc3c91ea02e209993d97b8c69e1cd2d0b95f63b522a6269f63172a0", size = 178432, upload-time = "2026-07-09T17:38:41.835Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9b/6d/621a625a1d1272146af61e04784f8668e204d128426164d0785a1ede9671/simplicio_mapper-0.23.1.tar.gz", hash = "sha256:61d30a53552fc49aed14dfcde9f724f16e33cda3b87a3875639d885946e5617e", size = 316168, upload-time = "2026-07-13T21:44:30.295Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6e/33/5ecf6fc16ff8372279d17f12b9d4b082777a94a5d02eba2c2bdef2e994a1/simplicio_mapper-0.19.0-py3-none-any.whl", hash = "sha256:8e6cf72c213d385e744d556ccb3bc6b0e17c0dfc3d52aa3dcd67482c3f871ae0", size = 122118, upload-time = "2026-07-09T17:38:40.762Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/83/7ba09eebf6be19263486f7beb180fc62af3467cf4f7d0621316d04e8d56c/simplicio_mapper-0.23.1-py3-none-any.whl", hash = "sha256:44a116d2fedbfaa600b846a42b064917f1c0ada33c041f94595c6d5bdf862937", size = 335500, upload-time = "2026-07-13T21:44:28.784Z" },
 ]
 
 [[package]]
