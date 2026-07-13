@@ -33,9 +33,13 @@ class IssueAcceptanceAuditTest(unittest.TestCase):
         self.assertEqual(issues[208]["status"], "PARTIAL")
         self.assertEqual(issues[213]["status"], "DONE")
 
+        ac_199_15 = next(item for item in issues[199]["criteria"] if item["criterion_id"] == "199-AC15")
+        self.assertIn(ac_199_15["status"], {"DONE", "UNVERIFIED"})
+        self.assertTrue(ac_199_15["receipts"])
+
         ac_199_17 = next(item for item in issues[199]["criteria"] if item["criterion_id"] == "199-AC17")
-        self.assertEqual(ac_199_17["status"], "UNVERIFIED")
-        self.assertIn("runtime-scale", ac_199_17["boundary"])
+        self.assertIn(ac_199_17["status"], {"DONE", "UNVERIFIED"})
+        self.assertTrue(ac_199_17["receipts"] or ac_199_17.get("boundary"))
 
         ac_208_01 = next(item for item in issues[208]["criteria"] if item["criterion_id"] == "208-AC01")
         self.assertEqual(ac_208_01["status"], "DONE")

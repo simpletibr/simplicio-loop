@@ -35,6 +35,7 @@ from simplicio_mapper import retrieval_index as ri  # noqa: E402
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "runtime-scale"
 MANIFEST_PATH = FIXTURE_DIR / "manifest.json"
 SCHEMA = "simplicio.runtime-scale-benchmark/v1"
+JSON_DOC_PATH = ROOT / "docs" / "evidence" / "runtime-scale-benchmark.json"
 
 
 @dataclass(frozen=True)
@@ -667,6 +668,10 @@ def run_runtime_scale_benchmark(
                 "file_count": corpus["file_count"],
                 "symbol_count": corpus["symbol_count"],
                 "retrieval_index_path": corpus["retrieval_index_path"],
+                "measured_runs": spec.measured_runs,
+                "warmup_runs": spec.warmup_runs,
+                "limit": spec.limit,
+                "token_budget": spec.token_budget,
             },
             "queries": [asdict(query) for query in spec.queries],
             "indexed": {
@@ -711,10 +716,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--manifest", type=Path, default=MANIFEST_PATH)
     parser.add_argument("--json", action="store_true", help="Emit JSON instead of the compact text report.")
     parser.add_argument("--root", type=Path, help="Optional persistent root for the generated corpus.")
+    parser.add_argument("--write-json", action="store_true", help="Write docs/evidence/runtime-scale-benchmark.json.")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     spec = load_fixture_spec(args.manifest)
     payload = run_runtime_scale_benchmark(spec, root=args.root)
+    if args.write_json:
+        JSON_DOC_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
     else:

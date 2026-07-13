@@ -122,6 +122,9 @@ docs/**
 !docs/toon-autoresearch-log.md
 !docs/issue-208-ac08-evaluation.md
 !docs/issue-208-ac08-evaluation.json
+!docs/behavioral-scorecard.md
+!docs/evidence/
+!docs/evidence/*.json
 scripts/**
 !scripts/build_hamt.py
 !scripts/coverage.js
@@ -146,6 +149,9 @@ scripts/**
 !scripts/measure_verbs.py
 !scripts/measure_verbs_report.json
 !scripts/issue208_ac08_report.py
+!scripts/evaluation_scorecard.py
+!scripts/issue_acceptance_audit.py
+!scripts/runtime_scale_benchmark.py
 playwright-report/**
 tests/**
 !tests/unit/
