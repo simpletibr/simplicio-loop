@@ -44,6 +44,7 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "stdin": False,
         "task_fingerprint": "",
         "minimum_query_coverage": 0.2,
+        "token_budget": 8000,
         "range": "",
         "staged": False,
         "check": False,
@@ -202,6 +203,17 @@ def _parse_args(argv: Sequence[str]) -> dict:
                 print("--minimum-query-coverage requires a number between 0 and 1", file=sys.stderr)
                 sys.exit(2)
             opts["minimum_query_coverage"] = value
+        elif arg == "--token-budget":
+            i += 1
+            try:
+                value = int(argv[i])
+            except (ValueError, IndexError):
+                print("--token-budget requires a positive integer", file=sys.stderr)
+                sys.exit(2)
+            if value <= 0:
+                print("--token-budget requires a positive integer", file=sys.stderr)
+                sys.exit(2)
+            opts["token_budget"] = value
         elif arg == "--range":
             i += 1
             opts["range"] = argv[i]

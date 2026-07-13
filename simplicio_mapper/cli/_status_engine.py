@@ -5,10 +5,12 @@ import io
 import json
 import os
 import time
+from collections.abc import Mapping
 
 from ..context_cache import ContextCache
-from ..context_pack import build_context_pack, select_context_targets
+from ..context_pack import build_context_pack
 from ..mapper import build_macro_map
+from ..retrieval_index import DEFAULT_TOKEN_BUDGET, select_context_targets
 from ..task_batch import build_task_batch
 from ..task_intent import parse_task_intent
 from ..task_traceability import build_task_traceability
@@ -124,7 +126,64 @@ def _cache_summary(root: str, out: str, sample_limit: int = 5) -> dict:
         "exists": os.path.exists(path),
         "entries": len(cache),
         "sample_keys": cache.keys(limit=sample_limit),
+        "stats": cache.stats(),
     }
+
+
+def _load_mapper_artifacts(root: str, out: str) -> dict[str, dict]:
+    paths = _artifact_paths(root, out)
+    return {
+        "project_map": _read_json_safe(paths["project_map"]),
+        "symbol_index": _read_json_safe(paths["symbol_index"]),
+        "call_graph": _read_json_safe(paths["call_graph"]),
+    }
+
+
+def _target_rows_from_selection(selection: Mapping[str, object]) -> list[dict]:
+    spans_by_path: dict[str, list[tuple[int, int]]] = {}
+    for row in selection.get("expanded_spans", []):
+        if not isinstance(row, Mapping):
+            continue
+        path = str(row.get("path") or "").replace(os.sep, "/")
+        if not path:
+            continue
+        spans: list[tuple[int, int]] = []
+        for span in row.get("spans", []):
+            if not isinstance(span, Mapping):
+                continue
+            start = span.get("start_line")
+            end = span.get("end_line")
+            if isinstance(start, int) and isinstance(end, int) and start > 0 and end >= start:
+                spans.append((start, end))
+        spans_by_path[path] = spans
+    target_rows: list[dict] = []
+    for row in selection.get("targets", []):
+        if not isinstance(row, Mapping):
+            continue
+        path = str(row.get("path") or "").replace(os.sep, "/")
+        if not path:
+            continue
+        target_rows.append({
+            **dict(row),
+            "path": path,
+            "ranges": spans_by_path.get(path, []),
+        })
+    return target_rows
+
+
+def _selection_inputs(goal: str, task_intent: dict | None) -> tuple[str, dict | None]:
+    if goal.strip() or not isinstance(task_intent, dict):
+        return goal, task_intent
+    story = task_intent.get("story") if isinstance(task_intent.get("story"), dict) else {}
+    parts = [
+        str(task_intent.get("system") or "").strip(),
+        str(task_intent.get("functionality") or "").strip(),
+        str(story.get("actor") or "").strip(),
+        str(story.get("desire") or "").strip(),
+        str(story.get("benefit") or "").strip(),
+    ]
+    derived_goal = " ".join(part for part in parts if part)
+    return derived_goal, None
 
 
 def _job_summary(root: str, out: str) -> dict | None:
@@ -291,7 +350,10 @@ def _run_handoff(opts: dict) -> int:
     out = opts["out"]
     phase = _await_terminal(root, out, opts["timeout"]) if opts["await"] else _deep_phase(root, out)
     status_payload = _status_payload(root, out, phase=phase)
-    project_map = _read_json_safe(_project_map_path(root, out))
+    artifacts = _load_mapper_artifacts(root, out)
+    project_map = artifacts["project_map"]
+    symbol_index = artifacts["symbol_index"]
+    call_graph = artifacts["call_graph"]
     goal = str(opts.get("goal") or "")
     task_intent = opts.get("task_intent") if isinstance(opts.get("task_intent"), dict) else None
     task_file = str(opts.get("task_file") or "")
@@ -315,6 +377,8 @@ def _run_handoff(opts: dict) -> int:
         task_fingerprint = str(task_intent.get("fingerprint") or "")
     requested_target = str(opts.get("target") or "")
     minimum_coverage = float(opts.get("minimum_query_coverage", 0.2))
+    token_budget = int(opts.get("token_budget", DEFAULT_TOKEN_BUDGET) or DEFAULT_TOKEN_BUDGET)
+    selection_goal, selection_task_intent = _selection_inputs(goal, task_intent)
     task_aware = bool(
         goal.strip() or task_intent or task_file or task_fingerprint.strip() or requested_target.strip()
     )
@@ -325,12 +389,17 @@ def _run_handoff(opts: dict) -> int:
         selection = select_context_targets(
             root,
             project_map,
-            goal=goal,
-            task_intent=task_intent,
+            goal=selection_goal,
+            task_intent=selection_task_intent,
             task_fingerprint=task_fingerprint,
             target=requested_target,
+            limit=int(opts.get("limit", 8) or 8),
+            symbol_index=symbol_index,
+            call_graph=call_graph,
+            token_budget=token_budget,
+            minimum_query_coverage=minimum_coverage,
         )
-        target_rows = selection["targets"]
+        target_rows = _target_rows_from_selection(selection)
         targets = [row["path"] for row in target_rows]
     else:
         targets = _handoff_targets(root, out)
@@ -341,6 +410,8 @@ def _run_handoff(opts: dict) -> int:
         root=root,
         targets=target_rows,
         project_map=project_map,
+        symbol_index=symbol_index,
+        call_graph=call_graph,
         goal=goal,
         task_intent=task_intent,
         task_fingerprint=task_fingerprint,
@@ -348,6 +419,17 @@ def _run_handoff(opts: dict) -> int:
         query_terms=selection["query_terms"] if selection else None,
         minimum_query_coverage=minimum_coverage,
     )
+    explicit_target_override = bool(
+        selection
+        and requested_target
+        and selection.get("target_resolution", {}).get("status") == "included"
+        and target_rows
+    )
+    if selection is not None and isinstance(selection.get("query_fingerprint"), str):
+        context_pack["query_fingerprint"] = selection["query_fingerprint"]
+    if explicit_target_override and str(context_pack.get("needs_broader_context_reason", "")).startswith("query coverage"):
+        context_pack["needs_broader_context"] = False
+        context_pack["needs_broader_context_reason"] = ""
     cache = ContextCache(_context_cache_path(root, out))
     pack_hash = context_pack.get("pack_hash")
     reasons: list[str] = []
@@ -376,20 +458,16 @@ def _run_handoff(opts: dict) -> int:
         "cache": {
             **status_payload["cache"],
             "pack_cached": isinstance(pack_hash, str) and pack_hash in cache,
+            "pack_diagnostics": cache.explain(pack_hash) if isinstance(pack_hash, str) else {"present": False},
         },
     }
     if selection is not None:
-        estimated_bytes = sum(
-            os.path.getsize(os.path.join(root, path))
-            for path in targets
-            if os.path.isfile(os.path.join(root, path))
-        )
         payload["selection"] = selection
         payload["metrics"] = {
             **selection["metrics"],
             "selection_latency_ms": selection_latency_ms,
-            "estimated_tokens": (estimated_bytes + 3) // 4,
-            "tokens_estimation_method": "utf8-bytes-div-4",
+            "estimated_tokens": selection["token_budget_fit"]["estimated_tokens"],
+            "tokens_estimation_method": selection["token_budget_fit"]["tokenizer_policy"],
             "coverage_ratio": selection["coverage"]["ratio"],
         }
         payload["evidence"]["query_fingerprint"] = selection["query_fingerprint"]

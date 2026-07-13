@@ -239,6 +239,8 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
                 "task_fingerprint": "task-planes",
                 "target": target,
                 "minimum_query_coverage": 0.2,
+                "token_budget": 8000,
+                "limit": 8,
             })
         self.assertEqual(code, 0)
         return json.loads(output.getvalue())
@@ -257,6 +259,38 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
         self.assertGreaterEqual(payload["metrics"]["selection_latency_ms"], 0)
         self.assertGreater(payload["metrics"]["estimated_tokens"], 0)
         self.assertGreater(payload["metrics"]["precision_at_k"], 0)
+        self.assertIn("token_budget_fit", payload["selection"])
+        self.assertIn("fidelity", payload["selection"])
+        self.assertEqual(payload["metrics"]["estimated_tokens"], payload["selection"]["token_budget_fit"]["estimated_tokens"])
+        self.assertEqual(
+            payload["metrics"]["tokens_estimation_method"],
+            payload["selection"]["token_budget_fit"]["tokenizer_policy"],
+        )
+        self.assertIn("stats", payload["status"]["cache"])
+        self.assertIn("pack_diagnostics", payload["cache"])
+
+    def test_engine_accepts_token_budget_and_limit_and_reports_budget_fit(self) -> None:
+        output = StringIO()
+        with redirect_stdout(output):
+            code = _run_handoff({
+                "root": str(self.root),
+                "out": ".simplicio",
+                "await": False,
+                "timeout": 0,
+                "json": True,
+                "for_llm": "",
+                "goal": "Order modeling lines: structural first, temporal and modeling by start date",
+                "task_intent": None,
+                "task_fingerprint": "task-planes",
+                "target": "src/modeling/sort_lines.py",
+                "minimum_query_coverage": 0.2,
+                "token_budget": 64,
+                "limit": 1,
+            })
+        self.assertEqual(code, 0)
+        payload = json.loads(output.getvalue())
+        self.assertEqual(payload["selection"]["token_budget_fit"]["token_budget"], 64)
+        self.assertEqual(payload["selection"]["metrics"]["selected_count"], 1)
 
     def test_engine_abstains_when_repo_has_no_task_vocabulary(self) -> None:
         payload = self._handoff("quantum orbital photon")
@@ -290,6 +324,8 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
                     "task-planes-cli",
                     "--target",
                     "src/modeling/sort_lines.py",
+                    "--token-budget",
+                    "64",
                     "--json",
                 ])
             except SystemExit as error:
@@ -300,6 +336,7 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
         self.assertEqual(payload["context_pack"]["task_fingerprint"], "task-planes-cli")
         self.assertEqual(payload["selection"]["target_resolution"]["status"], "included")
         self.assertEqual(payload["selection"]["targets"][0]["path"], "src/modeling/sort_lines.py")
+        self.assertEqual(payload["selection"]["token_budget_fit"]["token_budget"], 64)
 
 
 if __name__ == "__main__":
