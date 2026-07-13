@@ -179,6 +179,85 @@ def test_validate_rejects_budget_overflow() -> None:
     plan.validate(budget=15.0)
 
 
+def test_verifications_for_acceptance_criterion_resolves_verifier_and_evidence() -> None:
+    plan = _simple_plan()
+    verifications = [
+        VerificationPlan(
+            verification_id="v1",
+            plan_node_id="n1",
+            verifier="pytest",
+            command_or_capability="pytest -q tests/test_ac1.py",
+            timeout_s=60.0,
+            acceptance_criteria_refs=["AC1"],
+            expected_evidence=["pytest-junit.xml"],
+        )
+    ]
+    plan.validate(verifications=verifications)
+
+    matches = plan.verifications_for_acceptance_criterion("AC1", verifications)
+
+    assert len(matches) == 1
+    assert matches[0].verifier == "pytest"
+    assert matches[0].command_or_capability == "pytest -q tests/test_ac1.py"
+    assert matches[0].expected_evidence == ["pytest-junit.xml"]
+
+
+def test_verifications_for_acceptance_criterion_resolves_multiple_verifiers() -> None:
+    plan = PlanDAG(
+        plan_id="plan-1",
+        goal_id="goal-1",
+        context_snapshot_id="snap-1",
+        revision="1",
+        nodes=[
+            PlanNode(node_id="n1", capability="edit.apply", acceptance_criteria_refs=["AC1"]),
+        ],
+    )
+    verifications = [
+        VerificationPlan(
+            verification_id="v1",
+            plan_node_id="n1",
+            verifier="pytest",
+            command_or_capability="pytest -q",
+            timeout_s=60.0,
+            acceptance_criteria_refs=["AC1"],
+            expected_evidence=["pytest-junit.xml"],
+        ),
+        VerificationPlan(
+            verification_id="v2",
+            plan_node_id="n1",
+            verifier="playwright",
+            command_or_capability="npx playwright test",
+            timeout_s=120.0,
+            acceptance_criteria_refs=["AC1"],
+            expected_evidence=["trace.zip", "screenshot.png"],
+        ),
+    ]
+
+    matches = plan.verifications_for_acceptance_criterion("AC1", verifications)
+
+    assert {match.verifier for match in matches} == {"pytest", "playwright"}
+    evidence = {ev for match in matches for ev in match.expected_evidence}
+    assert evidence == {"pytest-junit.xml", "trace.zip", "screenshot.png"}
+
+
+def test_verifications_for_acceptance_criterion_empty_for_uncovered_ac() -> None:
+    plan = _simple_plan()
+    verifications = [
+        VerificationPlan(
+            verification_id="v1",
+            plan_node_id="n1",
+            verifier="pytest",
+            command_or_capability="pytest -q",
+            timeout_s=60.0,
+            acceptance_criteria_refs=["AC1"],
+        )
+    ]
+
+    matches = plan.verifications_for_acceptance_criterion("AC_UNKNOWN", verifications)
+
+    assert matches == []
+
+
 def test_schema_mismatch_on_load() -> None:
     payload = _simple_plan().to_dict()
     payload["schema"] = "simplicio.wrong-schema/v1"

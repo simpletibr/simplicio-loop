@@ -381,6 +381,30 @@ class PlanDAG:
         if diagnostics:
             raise PlanValidationError(diagnostics)
 
+    def verifications_for_acceptance_criterion(
+        self,
+        acceptance_criterion_id: str,
+        verifications: Sequence[VerificationPlan],
+    ) -> list[VerificationPlan]:
+        """Trace an AC id to the ``VerificationPlan``(s) that cover it.
+
+        Given the same ``verifications`` bundle passed to
+        :meth:`validate`, returns every ``VerificationPlan`` whose
+        ``acceptance_criteria_refs`` includes ``acceptance_criterion_id`` —
+        so a caller can look up, for a single AC, exactly which verifier,
+        command/capability and expected evidence will prove it passed.
+        Returns an empty list for an AC with no coverage (structurally
+        possible on an unvalidated bundle; :meth:`validate` rejects this
+        when ``verifications`` is passed to it). Does not require the AC to
+        be referenced by any node in this PlanDAG — callers that need that
+        guarantee should call :meth:`validate` first.
+        """
+        return [
+            verification
+            for verification in verifications
+            if acceptance_criterion_id in verification.acceptance_criteria_refs
+        ]
+
     def _node_by_id(self, node_id: str) -> PlanNode | None:
         for node in self.nodes:
             if node.node_id == node_id:
