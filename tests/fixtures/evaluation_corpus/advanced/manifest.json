@@ -1,0 +1,28 @@
+{
+  "schema": "simplicio.hypothesis-corpus/v1",
+  "description": "Reviewer-labeled advanced selector corpus for H1/H2 benchmark extension.",
+  "cases": [
+    {
+      "id": "dispatch-priority-en",
+      "task_file": "task.md",
+      "task_json": "task.json",
+      "expected_targets": ["src/scheduling/dispatch_policy.py"],
+      "expected_tests": ["tests/test_dispatch_policy.py"],
+      "relevant_paths": [
+        "src/scheduling/dispatch_policy.py",
+        "tests/test_dispatch_policy.py"
+      ]
+    },
+    {
+      "id": "session-replay-ptbr",
+      "task_file": "task.md",
+      "task_json": "task.json",
+      "expected_targets": ["src/security/session_replay_guard.py"],
+      "expected_tests": ["tests/test_session_replay_guard.py"],
+      "relevant_paths": [
+        "src/security/session_replay_guard.py",
+        "tests/test_session_replay_guard.py"
+      ]
+    }
+  ]
+}
