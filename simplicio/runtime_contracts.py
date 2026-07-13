@@ -19,6 +19,15 @@ PYTHON_ADAPTER_COMMAND = "simplicio-py"
 RUNTIME_COMMAND = "simplicio"
 RUNTIME_PRODUCT = "simplicio-runtime"
 DEV_CLI_PRODUCT = "simplicio-dev-cli"
+
+# Issue #167 (ecosystem rebrand): products that used to occupy the
+# `simplicio` runtime command slot before the Hermes -> Simplicio Runtime
+# rename. `version_contract()` publishes this list so a runtime consumer can
+# reject a stale binary; `runtime_verify_contract()` reuses the same list to
+# flag when the probed binary specifically resolves to one of these known
+# legacy aliases (as opposed to some other unrelated/unknown product).
+LEGACY_RUNTIME_ALIASES = ["simplicio-agent", "hermes"]
+
 RUNTIME_CAPABILITIES = [
     "simplicio.task-spec/v2",
     "simplicio.execution-contract/v1",
@@ -80,7 +89,7 @@ def version_contract() -> dict[str, Any]:
             "runtime": {
                 "product": RUNTIME_PRODUCT,
                 "reserved_command": RUNTIME_COMMAND,
-                "reject_products": ["simplicio-agent", "hermes"],
+                "reject_products": LEGACY_RUNTIME_ALIASES,
                 "diagnostic": (
                     "Expected Simplicio Runtime on `simplicio`; if PATH resolves to "
                     "Agent/Desktop, use `simplicio-agent` for that binary and point "
@@ -90,6 +99,19 @@ def version_contract() -> dict[str, Any]:
         },
         "dependencies": {"simplicio-mapper": mapper},
     }
+
+
+def is_legacy_runtime_alias(product: str | None) -> bool:
+    """True when *product* is a known pre-rebrand alias (issue #167).
+
+    Reuses the same :data:`LEGACY_RUNTIME_ALIASES` list `version_contract()`
+    publishes as ``reject_products`` — this does not invent new detection
+    logic, it just names the existing check so callers (e.g. `simplicio-py
+    runtime verify`) can decide whether to surface a compat warning.
+    """
+    if not product:
+        return False
+    return product.strip().lower() in LEGACY_RUNTIME_ALIASES
 
 
 def runtime_verify_contract(*, timeout: int = 30) -> dict[str, Any]:
@@ -139,6 +161,7 @@ def runtime_verify_contract(*, timeout: int = 30) -> dict[str, Any]:
         "product": product or None,
         "capabilities": names,
         "missing_capabilities": missing,
+        "legacy_alias": is_legacy_runtime_alias(product),
     }
 
 

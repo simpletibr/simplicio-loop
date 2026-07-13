@@ -1,9 +1,36 @@
 from __future__ import annotations
 
 import json
+import logging
+import subprocess
+
+import pytest
 
 from simplicio import cli
-from simplicio.runtime_contracts import doctor_contract, task_contract, version_contract
+from simplicio import observability as obs
+from simplicio.runtime_contracts import (
+    doctor_contract,
+    is_legacy_runtime_alias,
+    runtime_verify_contract,
+    task_contract,
+    version_contract,
+)
+
+
+@pytest.fixture(autouse=True)
+def _reset_logging_state():
+    """Isolate each test from the module-level logger singleton (see
+    `test_observability.py`'s identical fixture) — `configure_logging`
+    deliberately only attaches its stderr handler once per process, so a
+    stale handler bound to an earlier test's `capsys` stream would silently
+    swallow/misroute stderr assertions here otherwise."""
+    obs._configured = False
+    obs._logger.handlers.clear()
+    obs._logger.setLevel(logging.NOTSET)
+    yield
+    obs._configured = False
+    obs._logger.handlers.clear()
+    obs._logger.setLevel(logging.NOTSET)
 
 
 def test_doctor_contract_resolves_published_prompt_and_sprint_entrypoints(tmp_path, monkeypatch):
@@ -253,3 +280,103 @@ def test_task_contract_impact_block_shows_unverified_when_unknown():
     assert "impact" in result
     assert result["impact"]["result"] == "unverified"
     assert result["impact"]["status"] == "unverified"
+
+
+# ── Issue #167: legacy alias (Hermes/Agent) compat warning ──────────────
+
+
+def test_is_legacy_runtime_alias_matches_known_reject_products():
+    assert is_legacy_runtime_alias("hermes") is True
+    assert is_legacy_runtime_alias("simplicio-agent") is True
+    assert is_legacy_runtime_alias("SIMPLICIO-AGENT") is True
+    assert is_legacy_runtime_alias("simplicio-runtime") is False
+    assert is_legacy_runtime_alias(None) is False
+    assert is_legacy_runtime_alias("") is False
+
+
+def _fake_completed(stdout: str) -> subprocess.CompletedProcess:
+    return subprocess.CompletedProcess(args=["stub"], returncode=0, stdout=stdout, stderr="")
+
+
+def test_runtime_verify_contract_flags_legacy_alias(monkeypatch):
+    monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(
+        "simplicio.runtime_contracts.subprocess.run",
+        lambda *a, **k: _fake_completed(json.dumps({"runtime": "hermes", "status": "passed", "checks": []})),
+    )
+
+    payload = runtime_verify_contract()
+
+    assert payload["reason"] == "wrong-runtime-product"
+    assert payload["product"] == "hermes"
+    assert payload["legacy_alias"] is True
+
+
+def test_runtime_verify_contract_does_not_flag_unknown_product(monkeypatch):
+    monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(
+        "simplicio.runtime_contracts.subprocess.run",
+        lambda *a, **k: _fake_completed(
+            json.dumps({"runtime": "some-other-tool", "status": "passed", "checks": []})
+        ),
+    )
+
+    payload = runtime_verify_contract()
+
+    assert payload["reason"] == "wrong-runtime-product"
+    assert payload["legacy_alias"] is False
+
+
+def test_runtime_verify_cli_warning_never_corrupts_json_stdout(monkeypatch, capsys):
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(
+        "simplicio.runtime_contracts.subprocess.run",
+        lambda *a, **k: _fake_completed(json.dumps({"runtime": "hermes", "status": "passed", "checks": []})),
+    )
+
+    code = cli.main(["runtime", "verify"])
+    captured = capsys.readouterr()
+
+    assert code == 1
+    # stdout must stay pure JSON — the warning must never land there.
+    payload = json.loads(captured.out)
+    assert payload["legacy_alias"] is True
+    assert "legacy runtime alias" not in captured.out
+    assert "legacy runtime alias" in captured.err
+
+
+def test_runtime_verify_cli_warning_omits_env_values_and_cli_args(monkeypatch, capsys):
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    secret_marker = "sk-super-secret-marker-should-never-leak-123"
+    monkeypatch.setenv("SIMPLICIO_SECRET_PROBE", secret_marker)
+    monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(
+        "simplicio.runtime_contracts.subprocess.run",
+        lambda *a, **k: _fake_completed(json.dumps({"runtime": "hermes", "status": "passed", "checks": []})),
+    )
+
+    code = cli.main(["runtime", "verify", "--timeout", "7"])
+    captured = capsys.readouterr()
+
+    assert code == 1
+    assert secret_marker not in captured.err
+    assert secret_marker not in captured.out
+    assert "--timeout" not in captured.err
+    assert "SIMPLICIO_SECRET_PROBE" not in captured.err
+
+
+def test_runtime_verify_cli_does_not_warn_for_real_runtime_product(monkeypatch, capsys):
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(
+        "simplicio.runtime_contracts.subprocess.run",
+        lambda *a, **k: _fake_completed(
+            json.dumps({"runtime": "simplicio-runtime", "status": "passed", "checks": []})
+        ),
+    )
+
+    cli.main(["runtime", "verify"])
+    captured = capsys.readouterr()
+
+    assert "legacy runtime alias" not in captured.err

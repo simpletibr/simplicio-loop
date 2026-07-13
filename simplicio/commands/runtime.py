@@ -12,12 +12,28 @@ import sys
 
 CLI_PROG = "simplicio-py"
 
+# Issue #167 (ecosystem rebrand), plan steps 16/17: a single static,
+# stderr-only compat warning emitted when `runtime verify` detects the
+# probed binary is a known pre-rebrand alias (Hermes/Agent) rather than the
+# real Simplicio Runtime. Deliberately static — no interpolated CLI args,
+# prompt content, or env values — so it can never leak local/sensitive data
+# and never corrupts stdout (the JSON contract below is the only thing this
+# command writes to stdout).
+LEGACY_RUNTIME_ALIAS_WARNING = (
+    "simplicio-py: detected a legacy runtime alias (Hermes/Agent) on the "
+    "reserved `simplicio` command; this is deprecated, see the ecosystem "
+    "migration guide (issue #167)."
+)
+
 
 def run(a: argparse.Namespace) -> int:
+    from ..observability import warn
     from ..runtime_contracts import doctor_contract, runtime_verify_contract
 
     if a.runtime_cmd == "verify":
         payload = runtime_verify_contract(timeout=a.timeout)
+        if payload.get("legacy_alias"):
+            warn(LEGACY_RUNTIME_ALIAS_WARNING)
         print(json.dumps(payload, sort_keys=True))
         return 0 if payload["verified"] else 1
 
