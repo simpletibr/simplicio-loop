@@ -422,6 +422,7 @@ def _run_handoff(opts: dict) -> int:
         target=requested_target,
         query_terms=selection["query_terms"] if selection else None,
         minimum_query_coverage=minimum_coverage,
+        token_budget=token_budget if task_aware else None,
     )
     explicit_target_override = bool(
         selection

@@ -188,6 +188,38 @@ class RankingTest(unittest.TestCase):
         if gen:
             self.assertIn("generated_or_vendor_penalty", gen[0]["reason_codes"])
 
+    def test_archive_and_large_generic_files_penalized_unless_targeted(self) -> None:
+        project_map = {
+            "files": [
+                {"path": "archive/old-dependency.py", "size_bytes": 100},
+                {"path": "src/large-generic.py", "size_bytes": ri.LARGE_GENERIC_FILE_THRESHOLD_BYTES + 1},
+                {"path": "src/current.py", "size_bytes": 20},
+            ]
+        }
+        index = ri.build_retrieval_index(project_map)
+        docs = {doc["path"]: doc for doc in index["documents"]}
+        self.assertIn("archive", docs["archive/old-dependency.py"]["generic_flags"])
+        self.assertTrue(docs["src/large-generic.py"]["large"])
+
+        ranked = ri.rank_candidates(index, ri.build_query_plan("old dependency large generic"), limit=5)
+        archive = next(row for row in ranked if row["path"] == "archive/old-dependency.py")
+        large = next(row for row in ranked if row["path"] == "src/large-generic.py")
+        self.assertIn("archive_penalty", archive["reason_codes"])
+        self.assertIn("large_generic_penalty", large["reason_codes"])
+
+        targeted = ri.rank_candidates(
+            index,
+            ri.build_query_plan("inspect archived dependency", target="archive/old-dependency.py"),
+            limit=3,
+        )
+        target = next(row for row in targeted if row["path"] == "archive/old-dependency.py")
+        self.assertNotIn("archive_penalty", target["reason_codes"])
+
+    def test_serialized_token_count_measures_canonical_utf8_bytes(self) -> None:
+        payload = {"text": "áé", "values": [1, 2]}
+        encoded = ri.serialized_json_bytes(payload)
+        self.assertEqual(ri.serialized_token_count(payload), (len(encoded) + 3) // 4)
+
     def test_no_match_abstains(self) -> None:
         plan = ri.build_query_plan("quantum orbital photon unrelated", target="")
         ranked = ri.rank_candidates(self.idx, plan, limit=3)

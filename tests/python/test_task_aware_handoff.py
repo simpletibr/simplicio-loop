@@ -11,6 +11,7 @@ import simplicio_mapper.context_pack as context_pack_module
 from simplicio_mapper.cli import main
 from simplicio_mapper.cli._status_engine import _run_handoff
 from simplicio_mapper.context_pack import build_context_pack
+from simplicio_mapper.retrieval_index import serialized_json_bytes, serialized_token_count
 
 
 def select_context_targets(*args, **kwargs):
@@ -219,6 +220,10 @@ class TaskAwareHandoffTest(unittest.TestCase):
         self.assertTrue(pack["needs_broader_context"])
         self.assertFalse(pack["serialization_budget"]["within_budget"])
         self.assertIn("serialized_output", pack["needs_broader_context_reason"])
+        encoded = serialized_json_bytes(pack)
+        self.assertEqual(pack["serialization_budget"]["serialized_bytes"], len(encoded))
+        self.assertEqual(pack["serialization_budget"]["serialized_tokens"], serialized_token_count(pack))
+        self.assertEqual(pack["serialization_budget"]["measurement"], "MEASURED")
 
 
 class TaskAwareHandoffEngineTest(unittest.TestCase):
@@ -275,6 +280,8 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
         )
 
         self.assertTrue(payload["ready"])
+        self.assertFalse(payload["context_pack"]["needs_broader_context"])
+        self.assertTrue(payload["context_pack"]["serialization_budget"]["within_budget"])
         self.assertEqual(payload["targets"][0], "src/modeling/sort_lines.py")
         self.assertNotIn("docs/release-notes.md", payload["targets"])
         self.assertEqual(payload["selection"]["target_resolution"]["status"], "included")
@@ -364,7 +371,9 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
                 self.fail(f"task-aware handoff flags rejected with exit {error.code}")
         self.assertEqual(code, 0)
         payload = json.loads(output.getvalue())
-        self.assertTrue(payload["ready"])
+        self.assertFalse(payload["ready"])
+        self.assertTrue(payload["context_pack"]["needs_broader_context"])
+        self.assertFalse(payload["context_pack"]["serialization_budget"]["within_budget"])
         self.assertEqual(payload["context_pack"]["task_fingerprint"], "task-planes-cli")
         self.assertEqual(payload["selection"]["target_resolution"]["status"], "included")
         self.assertEqual(payload["selection"]["targets"][0]["path"], "src/modeling/sort_lines.py")

@@ -28,7 +28,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from .mapper import LLM_DIRECTIVES
-from .task_context import apply_task_context, select_context_targets
+from .task_context import apply_task_context, enforce_serialized_budget, select_context_targets
 
 CONTEXT_PACK_SCHEMA = "simplicio.context-pack/v1"
 MAPPER_INDEX_SCHEMA = "simplicio.mapper-index/v1"
@@ -228,6 +228,7 @@ def build_context_pack(
     target: str = "",
     query_terms: list[str] | None = None,
     minimum_query_coverage: float = 0.2,
+    token_budget: int | None = None,
 ) -> dict[str, Any]:
     """Build a `simplicio.context-pack/v1` envelope.
 
@@ -396,6 +397,7 @@ def build_context_pack(
         target=target,
         query_terms=query_terms,
         minimum_query_coverage=minimum_query_coverage,
+        token_budget=token_budget,
     )
     payload["fidelity"] = {
         "status": "partial" if payload.get("needs_broader_context") else "sufficient",
@@ -408,6 +410,13 @@ def build_context_pack(
         "query_coverage": dict(payload.get("query_coverage", {})),
         "scale_coverage": _scale_summary(payload.get("files", [])),
     }
+    if "serialization_budget" in payload:
+        budget = payload["serialization_budget"]
+        payload = enforce_serialized_budget(
+            payload,
+            token_budget=int(budget["token_budget"]),
+            estimated_tokens=int(budget.get("estimated_tokens", 0)),
+        )
     return payload
 
 
