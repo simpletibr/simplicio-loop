@@ -1,0 +1,95 @@
+{
+  "$id": "simplicio.evidence-certificate/v1",
+  "title": "simplicio EvidenceCertificate (v1)",
+  "type": "object",
+  "required": [
+    "schema",
+    "schema_version",
+    "certificate_id",
+    "producer",
+    "observed_context",
+    "runtime_execution"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "enum": ["simplicio.evidence-certificate/v1"]
+    },
+    "schema_version": {
+      "type": "string",
+      "enum": ["v1"]
+    },
+    "certificate_id": {
+      "type": "string"
+    },
+    "producer": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    },
+    "observed_context": {
+      "type": "object",
+      "required": ["revision", "snapshot_id", "fidelity", "handles"],
+      "properties": {
+        "revision": { "type": "string" },
+        "snapshot_id": { "type": "string" },
+        "fidelity": {
+          "type": "object",
+          "required": ["status", "gate"],
+          "properties": {
+            "status": { "type": "string" },
+            "gate": { "type": "string" },
+            "omissions": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "coverage": {
+              "type": "object"
+            }
+          }
+        },
+        "handles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["file"],
+            "properties": {
+              "file": { "type": "string" },
+              "line": { "type": "integer" },
+              "span": {
+                "type": "array",
+                "items": { "type": "integer" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "runtime_execution": {
+      "type": "object",
+      "required": ["shape", "external_runtime"],
+      "properties": {
+        "shape": {
+          "type": "string",
+          "enum": ["simplicio-runtime-certificate"]
+        },
+        "external_runtime": {
+          "type": "object",
+          "required": ["status", "reason"],
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": ["UNVERIFIED"]
+            },
+            "reason": { "type": "string" },
+            "command": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}
