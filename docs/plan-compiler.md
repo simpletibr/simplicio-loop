@@ -68,8 +68,17 @@ references, and dependency cycles. Pass `effects=` to also reject an
 set `requires_gate`/`checkpoint_required`. Pass `verifications=` (even an
 empty list) to also reject any node whose `acceptance_criteria_refs` aren't
 covered by at least one `VerificationPlan`. Pass `budget=` to reject a node
-set whose summed `estimated_cost` exceeds it. All failures raise
+set whose summed `estimated_cost` exceeds it — or leave it `None` (the
+default) to fall back to `PlanDAG.budget` itself, so a plan compiled with a
+budget already enforces it on every later `validate()` call without the
+caller having to re-pass the same number. All failures raise
 `PlanValidationError` with one diagnostic string per problem found.
+
+`PlanDAG` carries an optional `budget: float | None = None` field (default
+`None`, additive per the compatibility contract above) that round-trips
+through `to_dict()`/`from_dict()` exactly like `producer_id`/`consumer_id` —
+a caller-supplied cost ceiling survives compile, serialize and reload
+unchanged, the same way `goal_id`/`plan_id`/`revision` already do.
 
 ## Compiling a TaskSpec
 
@@ -85,6 +94,7 @@ plan, effects, verifications = compile_task_spec_to_plan(
     goal_id="goal-1",
     context_snapshot_id="snap-1",
     revision="1",
+    budget=100.0,  # optional; defaults to None
 )
 ```
 
@@ -96,7 +106,15 @@ passes `PlanDAG.validate(effects=..., verifications=...)`. It raises
 `PlanCompilationError` (`NEEDS_CLARIFICATION: ...`) instead of guessing when
 the TaskSpec has no acceptance criteria or no verification commands. Same
 TaskSpec + same ids/revision always yields the same
-`plan.canonical_hash()`.
+`plan.canonical_hash()`. `goal_id`, `plan_id` (derived as
+`f"plan-{task_spec.task_id}"`), `revision` and the optional `budget` all
+survive the compile unchanged and observable on the returned `PlanDAG` — see
+`tests/python/test_plan_compiler_golden_e2e.py` for the golden E2E that
+locks this in (issue #166 AC "Golden E2E preserva trace_id, goal_id,
+plan_id, revision e budget"). `trace_id` is out of scope for that AC today:
+it is not a field anywhere in `GoalEnvelope`/`ContextSnapshot`/`TaskSpec`/
+`PlanDAG`, so there is nothing for this compiler to preserve yet — see the
+test module docstring for the full reasoning.
 
 ## Scope of this slice
 

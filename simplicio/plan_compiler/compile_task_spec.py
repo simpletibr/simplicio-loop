@@ -54,6 +54,7 @@ def compile_task_spec_to_plan(
     goal_id: str,
     context_snapshot_id: str,
     revision: str,
+    budget: float | None = None,
 ) -> tuple[PlanDAG, list[EffectPlan], list[VerificationPlan]]:
     """Compile ``task_spec`` into a validated ``(PlanDAG, effects, verifications)``.
 
@@ -63,6 +64,12 @@ def compile_task_spec_to_plan(
     :class:`~simplicio.plan_compiler.errors.PlanValidationError` if the
     compiled bundle itself is inconsistent (should not happen for a
     well-formed TaskSpec; kept as a defense-in-depth check).
+
+    ``budget``, when passed, is stored on the compiled ``PlanDAG`` (round-trips
+    through ``to_dict()``/``from_dict()`` and is enforced by ``plan.validate()``
+    against the summed ``estimated_cost`` of every node) so a caller-supplied
+    cost ceiling survives the compile step observably, the same way
+    ``goal_id``/``revision`` already do.
     """
     diagnostics: list[str] = []
     if not task_spec.acceptance_criteria:
@@ -101,6 +108,7 @@ def compile_task_spec_to_plan(
         context_snapshot_id=context_snapshot_id,
         revision=revision,
         nodes=[edit_node, verify_node],
+        budget=budget,
     )
 
     effects = [

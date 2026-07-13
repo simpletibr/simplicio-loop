@@ -268,6 +268,7 @@ class PlanDAG:
     nodes: list[PlanNode] = field(default_factory=list)
     producer_id: str = ""
     consumer_id: str = ""
+    budget: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -279,11 +280,13 @@ class PlanDAG:
             "nodes": [node.to_dict() for node in self.nodes],
             "producer_id": self.producer_id,
             "consumer_id": self.consumer_id,
+            "budget": self.budget,
         }
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> PlanDAG:
         _check_schema(payload, expected=PLAN_DAG_SCHEMA)
+        raw_budget = payload.get("budget")
         return cls(
             plan_id=str(payload["plan_id"]),
             goal_id=str(payload["goal_id"]),
@@ -292,6 +295,7 @@ class PlanDAG:
             nodes=[PlanNode.from_dict(node) for node in payload.get("nodes", [])],
             producer_id=str(payload.get("producer_id", "")),
             consumer_id=str(payload.get("consumer_id", "")),
+            budget=float(raw_budget) if raw_budget is not None else None,
         )
 
     def canonical_hash(self) -> str:
@@ -312,7 +316,14 @@ class PlanDAG:
         ``verifications`` is passed (including an empty list, meaning "no
         verifiers exist yet") — pass ``None`` (the default) to skip AC
         coverage entirely while compiling a bare PlanDAG.
+
+        ``budget`` here is an explicit override for this one call; when it is
+        left ``None`` (the default), the check falls back to ``self.budget``
+        — the value that was compiled onto the plan itself — so a caller
+        that never passes ``budget=`` still gets the check for free whenever
+        the plan carries one.
         """
+        effective_budget = budget if budget is not None else self.budget
         diagnostics: list[str] = []
         ids = [node.node_id for node in self.nodes]
         if len(ids) != len(set(ids)):
@@ -332,10 +343,10 @@ class PlanDAG:
                 f"(expected one of {sorted(PLAN_COMPILER_COMPATIBILITY['consumers'])})"
             )
 
-        if budget is not None:
+        if effective_budget is not None:
             total_cost = sum(node.estimated_cost for node in self.nodes)
-            if total_cost > budget:
-                diagnostics.append(f"estimated cost {total_cost} exceeds budget {budget}")
+            if total_cost > effective_budget:
+                diagnostics.append(f"estimated cost {total_cost} exceeds budget {effective_budget}")
 
         for effect in effects:
             if effect.plan_node_id not in known:
