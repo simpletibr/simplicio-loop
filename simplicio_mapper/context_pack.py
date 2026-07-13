@@ -228,6 +228,7 @@ def build_context_pack(
     target: str = "",
     query_terms: list[str] | None = None,
     minimum_query_coverage: float = 0.2,
+    token_budget: int | None = None,
 ) -> dict[str, Any]:
     """Build a `simplicio.context-pack/v1` envelope.
 
@@ -396,6 +397,7 @@ def build_context_pack(
         target=target,
         query_terms=query_terms,
         minimum_query_coverage=minimum_query_coverage,
+        token_budget=token_budget,
     )
     payload["fidelity"] = {
         "status": "partial" if payload.get("needs_broader_context") else "sufficient",

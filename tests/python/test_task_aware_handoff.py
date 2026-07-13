@@ -11,6 +11,7 @@ import simplicio_mapper.context_pack as context_pack_module
 from simplicio_mapper.cli import main
 from simplicio_mapper.cli._status_engine import _run_handoff
 from simplicio_mapper.context_pack import build_context_pack
+from simplicio_mapper.retrieval_index import serialized_json_bytes, serialized_token_count
 
 
 def select_context_targets(*args, **kwargs):
@@ -219,6 +220,10 @@ class TaskAwareHandoffTest(unittest.TestCase):
         self.assertTrue(pack["needs_broader_context"])
         self.assertFalse(pack["serialization_budget"]["within_budget"])
         self.assertIn("serialized_output", pack["needs_broader_context_reason"])
+        encoded = serialized_json_bytes(pack)
+        self.assertEqual(pack["serialization_budget"]["serialized_bytes"], len(encoded))
+        self.assertEqual(pack["serialization_budget"]["serialized_tokens"], serialized_token_count(pack))
+        self.assertEqual(pack["serialization_budget"]["measurement"], "MEASURED")
 
 
 class TaskAwareHandoffEngineTest(unittest.TestCase):

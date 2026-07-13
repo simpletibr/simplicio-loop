@@ -59,9 +59,13 @@ RETRIEVAL_SELECTION_SCHEMA = "simplicio.retrieval-selection/v1"
 RETRIEVAL_INDEX_VERSION = 1
 BUILDER_REVISION = "199.2"
 
-# Tokenizer policy recorded in every receipt so the serialized-budget estimate
+# Tokenizer policy recorded in every receipt so the serialized-byte measurement
 # is never silently mistaken for provider-measured usage.
 TOKENIZER_POLICY = "heuristic:chars-div-4"
+
+# The legacy chars/4 estimate remains available for span-cost compatibility.
+# Final pack enforcement uses the exact canonical UTF-8 JSON bytes instead.
+SERIALIZED_TOKEN_TOLERANCE = 0
 
 # Default serialized token budget for the context pack (Stage E). Measured on
 # the reference CI runner; overridable via --token-budget.
@@ -70,6 +74,7 @@ DEFAULT_TOKEN_BUDGET = 8000
 # Penalty applied to generated/vendor/archive/large generic files unless the
 # task explicitly targets them.
 GENERIC_FILE_PENALTY = 0.4
+LARGE_GENERIC_FILE_THRESHOLD_BYTES = 64 * 1024
 
 # Stop words: generic ecosystem / natural-language vocabulary that must not
 # dominate coverage. Augmented with the project's existing stop list.
@@ -179,6 +184,14 @@ _GENERIC_PATH_FRAGMENTS = (
     "/.next/",
     "/out/",
 )
+_ARCHIVE_PATH_FRAGMENTS = (
+    "/archive/",
+    "/archives/",
+    "/backup/",
+    "/backups/",
+    "/legacy/",
+    "/old/",
+)
 _GENERATED_BASENAME_HINTS = (
     ".min.",
     "lock.json",
@@ -187,6 +200,7 @@ _GENERATED_BASENAME_HINTS = (
     ".generated.",
     ".gen.",
 )
+_ARCHIVE_BASENAME_HINTS = ("archive", "backup", ".bak", ".old")
 
 
 # --------------------------------------------------------------------------- #
@@ -225,12 +239,26 @@ def _path_tokens(path: str) -> list[str]:
     return parts
 
 
-def _looks_generated(path: str) -> bool:
+def _generic_file_flags(path: str, size_bytes: int = 0) -> list[str]:
     norm = "/" + path.replace(os.sep, "/").lower().lstrip("/")
-    if any(frag in norm for frag in _GENERIC_PATH_FRAGMENTS):
-        return True
     base = os.path.basename(norm)
-    return any(hint in base for hint in _GENERATED_BASENAME_HINTS)
+    flags: list[str] = []
+    if any(frag in norm for frag in _GENERIC_PATH_FRAGMENTS):
+        flags.append("generated_or_vendor")
+    if any(frag in norm for frag in _ARCHIVE_PATH_FRAGMENTS) or any(
+        hint in base for hint in _ARCHIVE_BASENAME_HINTS
+    ):
+        flags.append("archive")
+    if any(hint in base for hint in _GENERATED_BASENAME_HINTS):
+        flags.append("generated_or_vendor")
+    if int(size_bytes or 0) > LARGE_GENERIC_FILE_THRESHOLD_BYTES:
+        flags.append("large")
+    return sorted(set(flags))
+
+
+def _looks_generated(path: str) -> bool:
+    """Backward-compatible generated/vendor/archive classification."""
+    return bool(_generic_file_flags(path))
 
 
 # --------------------------------------------------------------------------- #
@@ -584,7 +612,9 @@ def _build_document(
         "chunks": _build_chunks(path, symbols),
         "tf": tf,
         "token_count": len(tokens),
+        "generic_flags": _generic_file_flags(path, int(entry.get("size_bytes", 0) or 0)),
         "generated": _looks_generated(path),
+        "large": int(entry.get("size_bytes", 0) or 0) > LARGE_GENERIC_FILE_THRESHOLD_BYTES,
     }
 
 
@@ -896,6 +926,10 @@ def rank_candidates(
         tf = doc.get("tf", {})
         roles = doc.get("roles", []) or []
         generated = bool(doc.get("generated"))
+        generic_flags = set(
+            doc.get("generic_flags") or _generic_file_flags(path, int(doc.get("size_bytes", 0) or 0))
+        )
+        large = bool(doc.get("large") or "large" in generic_flags)
 
         # BM25 over the *discriminative* query terms (domain+symbol+identifiers).
         bm25, bm25_matched, idf_terms = _bm25_score(
@@ -993,6 +1027,11 @@ def rank_candidates(
         if generated and not exact_target:
             penalty += GENERIC_FILE_PENALTY
             reason_codes.append("generated_or_vendor_penalty")
+        if "archive" in generic_flags and not exact_target:
+            reason_codes.append("archive_penalty")
+        if large and not exact_target:
+            penalty += GENERIC_FILE_PENALTY
+            reason_codes.append("large_generic_penalty")
         if "docs" in roles and not exact_target and not sym_matches:
             penalty += 0.2
             reason_codes.append("generic_docs_penalty")
@@ -1014,6 +1053,8 @@ def rank_candidates(
                 "path_matches": path_matches,
                 "recent_change_boost": recent_boost,
                 "generated": generated,
+                "generic_flags": sorted(generic_flags),
+                "large": large,
                 "language": doc.get("language", ""),
                 "roles": roles,
             }
@@ -1263,6 +1304,17 @@ def estimate_tokens(text: str) -> int:
     if not text:
         return 0
     return max(1, len(text) // 4)
+
+
+def serialized_json_bytes(payload: Any) -> bytes:
+    """Return the canonical bytes that the CLI emits for a JSON payload."""
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def serialized_token_count(payload: Any) -> int:
+    """Measure the declared UTF-8-bytes/4 policy on exact JSON bytes."""
+    size = len(serialized_json_bytes(payload))
+    return 0 if size == 0 else (size + 3) // 4
 
 
 def fit_token_budget(
@@ -1629,6 +1681,8 @@ __all__ = [
     "load_retrieval_index",
     "rank_candidates",
     "resolve_expand_handle",
+    "serialized_json_bytes",
+    "serialized_token_count",
     "select_context_targets",
     "task_query_fingerprint",
     "task_query_terms",
