@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -50,8 +52,6 @@ def test_doctor_contract_resolves_published_prompt_and_sprint_entrypoints(tmp_pa
         "path": "/bin/sendsprint",
         "resolved_command": "sendsprint",
     }
-
-
 
 
 def test_version_contract_exposes_canonical_capabilities(monkeypatch):
@@ -380,3 +380,88 @@ def test_runtime_verify_cli_does_not_warn_for_real_runtime_product(monkeypatch, 
     captured = capsys.readouterr()
 
     assert "legacy runtime alias" not in captured.err
+
+
+# ── Issue #167: "Alias telemetry não contém conteúdo sensível" — repo-wide
+# audit, not just the one stderr warning above (PR #173's scope). Every
+# `emit_event`/`emit_data` call site in `simplicio/` that touches
+# alias/legacy/Hermes data must never interpolate raw CLI args, prompt text,
+# file contents, or env var *values* into the emitted payload/line. ──
+
+_SIMPLICIO_SRC = Path(__file__).resolve().parents[2] / "simplicio"
+
+# Terms that mark a source line as related to the Hermes/legacy-runtime-alias
+# rebrand (issue #167). Kept in sync with `LEGACY_RUNTIME_ALIASES` /
+# `is_legacy_runtime_alias` in `simplicio/runtime_contracts.py`.
+_ALIAS_TERMS = re.compile(
+    r"hermes|legacy_alias|legacy.?runtime.?alias|LEGACY_RUNTIME_ALIASES|reject_products", re.IGNORECASE
+)
+
+_EMIT_CALL = re.compile(r"\bemit_event\s*\(|\bemit_data\s*\(")
+
+
+def _iter_python_files(root: Path):
+    return sorted(p for p in root.rglob("*.py") if "__pycache__" not in p.parts)
+
+
+def test_alias_telemetry_audit_covers_every_emit_call_site_in_simplicio():
+    """Repo-wide grep, done once here and pinned so it regresses loudly.
+
+    As of issue #167 slice covering this AC, a full `grep -rniE
+    "hermes|legacy.?alias|reject_products"` over `simplicio/` (excluding
+    bytecode) turns up exactly two source files:
+
+    - `simplicio/runtime_contracts.py` (the `LEGACY_RUNTIME_ALIASES` list,
+      `is_legacy_runtime_alias()`, and the `reject_products`/`legacy_alias`
+      contract fields).
+    - `simplicio/commands/runtime.py` (the static
+      `LEGACY_RUNTIME_ALIAS_WARNING` stderr-only warning, covered end-to-end
+      by the tests above, including the secret-marker test).
+    - `simplicio/plan_compiler/compat_adapter.py` (a docstring reference to
+      the issue's invariant 6, "Compatibilidade Hermes fica em uma borda
+      registrada" — prose only, not a telemetry call site).
+
+    None of those three files calls `emit_event`/`emit_data` — the alias
+    signal never reaches the JSONL telemetry sink
+    (`simplicio/observability.py`'s `emit_event`), only a static,
+    non-interpolated stderr string. This test pins that fact: if a future
+    change adds alias/legacy/Hermes-related telemetry anywhere in
+    `simplicio/`, this test must be updated (and a new secret-marker
+    regression test added alongside it) rather than silently drifting.
+    """
+    hits: dict[str, list[int]] = {}
+    for path in _iter_python_files(_SIMPLICIO_SRC):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        matches = [i + 1 for i, line in enumerate(lines) if _ALIAS_TERMS.search(line)]
+        if matches:
+            hits[str(path.relative_to(_SIMPLICIO_SRC))] = matches
+
+    assert set(hits) == {
+        "runtime_contracts.py",
+        "commands/runtime.py",
+        "plan_compiler/compat_adapter.py",
+    }, (
+        f"alias/legacy/Hermes references found in unexpected files: {sorted(hits)}. "
+        "If this is a new, legitimate call site, audit whether it calls "
+        "emit_event/emit_data with sensitive interpolation and extend this test."
+    )
+
+    for relative_path in hits:
+        source = (_SIMPLICIO_SRC / relative_path).read_text(encoding="utf-8")
+        assert not _EMIT_CALL.search(source), (
+            f"{relative_path} references alias/legacy/Hermes data AND calls "
+            "emit_event/emit_data — this needs a dedicated secret-marker test "
+            "asserting no raw CLI args/prompt/file contents/env values leak "
+            "into the emitted record, per issue #167's "
+            "'Alias telemetry não contém conteúdo sensível' AC."
+        )
+
+
+def test_alias_telemetry_audit_finds_no_emit_event_or_emit_data_call_sites_at_all():
+    """Belt-and-suspenders: confirm neither of the two alias-aware modules
+    imports `emit_event`/`emit_data` from `observability` either, so the
+    absence of a direct call above isn't just a naming coincidence."""
+    for relative_path in ("runtime_contracts.py", "commands/runtime.py", "plan_compiler/compat_adapter.py"):
+        source = (_SIMPLICIO_SRC / relative_path).read_text(encoding="utf-8")
+        assert "emit_event" not in source
+        assert "emit_data" not in source
