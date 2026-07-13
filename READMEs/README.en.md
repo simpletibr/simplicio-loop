@@ -17,7 +17,11 @@
 </p>
 
 <p align="center">
-  <img src="../output/imagegen/simplicio-cli-readme-hero-web.png" alt="simplicio-cli preview" width="860" />
+  <img src="../output/imagegen/simplicio-cli-readme-hero-web.png" alt="simplicio-dev-cli execution pipeline" width="860" />
+</p>
+
+<p align="center">
+  <img src="../output/imagegen/simplicio-cli-proof-receipt.png" alt="diff, tests, and verification receipt" width="760" />
 </p>
 
 ---
@@ -26,12 +30,12 @@
 
 Turn a one-line task into a verified code change: mapper context, six-layer contract, diff, test, and evidence.
 
-## Project DNA
+## The operator boundary
 
 The localized page keeps the fast path. The full restored technical guide lives in the root README so the project keeps its original voice and operating detail.
 
 - Full restored guide: [../README.md](../README.md)
-- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.
+- `simplicio-dev-cli` is the focused implementation and verification operator. It receives a decided task, loads repository context, applies a bounded diff, runs tests, and emits inspectable evidence. It is not the runtime, mapper, or LLM; it is the disciplined execution layer between a plan and a trustworthy change.
 
 ## Quick Start
 
@@ -43,10 +47,10 @@ simplicio-py task "hide the Delete button for non-admins"
 
 ## What it does
 
-- Classifies the task before execution so small fixes stay small and sprint-scale work becomes a plan.
-- Loads simplicio-mapper artifacts before asking an LLM to edit.
-- Keeps a verification loop around generated diffs instead of trusting the first answer.
-- Works with local Simplicio1, OpenRouter, OpenAI, Anthropic, DeepSeek, Simplicio Agent, Codex and Claude-style hosts.
+- Accepts a focused task from the runtime, an agent, or the CLI.
+- Loads simplicio-mapper context and relevant precedent before an edit.
+- Applies a bounded diff, runs tests, and records a verification receipt.
+- Leaves orchestration, model choice, and durable loop state to the surrounding layers.
 
 ## Why this README is built to earn attention
 
@@ -61,22 +65,21 @@ simplicio-py task "hide the Delete button for non-admins"
 
 ```mermaid
 flowchart LR
-  mapper["simplicio-mapper
-repo context"] --> current["simplicio-cli
-this project"]
-  prompt["simplicio-prompt
-reasoning runtime"] --> current
-  current --> evidence["validated evidence
-tests, docs, screenshots"]
-  current --> sprint["simplicio-sprint
-delivery loop"]
+  task["decided task"] --> mapper["simplicio-mapper
+repo context"]
+  mapper --> operator["simplicio-dev-cli
+focused operator"]
+  operator --> diff["bounded diff"]
+  operator --> tests["tests"]
+  diff --> receipt["evidence receipt"]
+  tests --> receipt
 ```
 
 ## Proof and validation
 
-- Benchmark docs compare plain prompting vs the Simplicio contract on real code tasks.
-- Package metadata tests pin ecosystem dependency floors.
-- The CLI is the executor layer used by SendSprint and SimplicioCode flows.
+- Contract tests cover package metadata and mapper handoff.
+- Build, lint, test, and packaging gates are recorded with releases when available.
+- The operator can be called by simplicio-runtime, simplicio-loop, agents, or directly.
 
 ## Simplicio ecosystem
 

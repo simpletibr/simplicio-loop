@@ -17,7 +17,10 @@
 </p>
 
 <p align="center">
-  <img src="../output/imagegen/simplicio-cli-readme-hero-web.png" alt="simplicio-cli preview" width="860" />
+  <img src="../output/imagegen/simplicio-cli-readme-hero-web.png" alt="simplicio-dev-cli 실행 파이프라인" width="860" />
+</p>
+<p align="center">
+  <img src="../output/imagegen/simplicio-cli-proof-receipt.png" alt="diff, 테스트, 검증 영수증" width="760" />
 </p>
 
 ---
@@ -31,7 +34,6 @@
 이 현지화 문서는 빠른 진입 경로를 유지합니다. 복원된 전체 기술 가이드는 루트 README에 있어 프로젝트의 원래 목소리와 운영 세부 정보를 보존합니다.
 
 - Full restored guide: [../README.md](../README.md)
-- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.
 
 ## 빠른 시작
 
@@ -43,10 +45,10 @@ simplicio-py task "hide the Delete button for non-admins"
 
 ## 무엇을 하나요
 
-- Classifies the task before execution so small fixes stay small and sprint-scale work becomes a plan.
-- Loads simplicio-mapper artifacts before asking an LLM to edit.
-- Keeps a verification loop around generated diffs instead of trusting the first answer.
-- Works with local Simplicio1, OpenRouter, OpenAI, Anthropic, DeepSeek, Simplicio Agent, Codex and Claude-style hosts.
+- runtime, 에이전트 또는 CLI에서 범위가 분명한 작업을 받습니다.
+- 편집 전에 `simplicio-mapper` 컨텍스트와 관련 선례를 불러옵니다.
+- 제한된 diff를 적용하고 테스트를 실행한 뒤 검증 receipt를 기록합니다.
+- 오케스트레이션, 모델 선택, 지속적인 loop state는 주변 Simplicio 계층에 맡깁니다.
 
 ## 주목받는 README 구조
 
@@ -61,15 +63,14 @@ simplicio-py task "hide the Delete button for non-admins"
 
 ```mermaid
 flowchart LR
-  mapper["simplicio-mapper
-repo context"] --> current["simplicio-cli
-this project"]
-  prompt["simplicio-prompt
-reasoning runtime"] --> current
-  current --> evidence["validated evidence
-tests, docs, screenshots"]
-  current --> sprint["simplicio-sprint
-delivery loop"]
+  task["decided task"] --> mapper["simplicio-mapper
+repo context"]
+  mapper --> operator["simplicio-dev-cli
+focused operator"]
+  operator --> diff["bounded diff"]
+  operator --> tests["tests"]
+  diff --> receipt["evidence receipt"]
+  tests --> receipt
 ```
 
 ## 증거와 검증

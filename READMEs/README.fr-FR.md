@@ -17,7 +17,10 @@
 </p>
 
 <p align="center">
-  <img src="../output/imagegen/simplicio-cli-readme-hero-web.png" alt="simplicio-cli preview" width="860" />
+  <img src="../output/imagegen/simplicio-cli-readme-hero-web.png" alt="pipeline d’exécution de simplicio-dev-cli" width="860" />
+</p>
+<p align="center">
+  <img src="../output/imagegen/simplicio-cli-proof-receipt.png" alt="diff, tests et preuve de vérification" width="760" />
 </p>
 
 ---
@@ -31,7 +34,6 @@ Transforme une tâche d’une ligne en changement vérifié : contexte mapper, c
 Cette page localisee garde le chemin rapide. Le guide technique restaure se trouve dans le README racine afin de conserver la voix originale et les details operationnels du projet.
 
 - Full restored guide: [../README.md](../README.md)
-- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.
 
 ## Démarrage rapide
 
@@ -43,10 +45,10 @@ simplicio-py task "hide the Delete button for non-admins"
 
 ## Ce que ça fait
 
-- Classifies the task before execution so small fixes stay small and sprint-scale work becomes a plan.
-- Loads simplicio-mapper artifacts before asking an LLM to edit.
-- Keeps a verification loop around generated diffs instead of trusting the first answer.
-- Works with local Simplicio1, OpenRouter, OpenAI, Anthropic, DeepSeek, Simplicio Agent, Codex and Claude-style hosts.
+- Reçoit une tâche ciblée depuis le runtime, un agent ou la CLI.
+- Charge le contexte de `simplicio-mapper` et les précédents pertinents avant toute édition.
+- Applique un diff borné, exécute les tests et enregistre un reçu de vérification inspectable.
+- Laisse l’orchestration, le choix du modèle et l’état durable de la boucle aux couches Simplicio voisines.
 
 ## Pourquoi ce README est conçu pour attirer l’attention
 
@@ -61,15 +63,14 @@ simplicio-py task "hide the Delete button for non-admins"
 
 ```mermaid
 flowchart LR
-  mapper["simplicio-mapper
-repo context"] --> current["simplicio-cli
-this project"]
-  prompt["simplicio-prompt
-reasoning runtime"] --> current
-  current --> evidence["validated evidence
-tests, docs, screenshots"]
-  current --> sprint["simplicio-sprint
-delivery loop"]
+  task["decided task"] --> mapper["simplicio-mapper
+repo context"]
+  mapper --> operator["simplicio-dev-cli
+focused operator"]
+  operator --> diff["bounded diff"]
+  operator --> tests["tests"]
+  diff --> receipt["evidence receipt"]
+  tests --> receipt
 ```
 
 ## Preuves et validation

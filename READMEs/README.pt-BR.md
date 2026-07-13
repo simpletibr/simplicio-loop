@@ -17,7 +17,10 @@
 </p>
 
 <p align="center">
-  <img src="../output/imagegen/simplicio-cli-readme-hero-web.png" alt="simplicio-cli preview" width="860" />
+  <img src="../output/imagegen/simplicio-cli-readme-hero-web.png" alt="pipeline de execução do simplicio-dev-cli" width="860" />
+</p>
+<p align="center">
+  <img src="../output/imagegen/simplicio-cli-proof-receipt.png" alt="diff, testes e receipt de verificação" width="760" />
 </p>
 
 ---
@@ -36,10 +39,10 @@ simplicio-py task "hide the Delete button for non-admins"
 
 ## O que faz
 
-- Classifies the task before execution so small fixes stay small and sprint-scale work becomes a plan.
-- Loads simplicio-mapper artifacts before asking an LLM to edit.
-- Keeps a verification loop around generated diffs instead of trusting the first answer.
-- Works with local Simplicio1, OpenRouter, OpenAI, Anthropic, DeepSeek, Simplicio Agent, Codex and Claude-style hosts.
+- Recebe uma tarefa focada do runtime, de um agente ou da CLI.
+- Carrega o contexto do `simplicio-mapper` e precedentes relevantes antes de editar.
+- Aplica um diff limitado, executa os testes e registra um receipt de verificação inspecionável.
+- Deixa orquestração, escolha do modelo e estado durável do loop para as camadas Simplicio ao redor.
 
 ## Por que este README foi feito para ganhar atenção
 
@@ -54,15 +57,14 @@ simplicio-py task "hide the Delete button for non-admins"
 
 ```mermaid
 flowchart LR
-  mapper["simplicio-mapper
-repo context"] --> current["simplicio-cli
-this project"]
-  prompt["simplicio-prompt
-reasoning runtime"] --> current
-  current --> evidence["validated evidence
-tests, docs, screenshots"]
-  current --> sprint["simplicio-sprint
-delivery loop"]
+  task["decided task"] --> mapper["simplicio-mapper
+repo context"]
+  mapper --> operator["simplicio-dev-cli
+focused operator"]
+  operator --> diff["bounded diff"]
+  operator --> tests["tests"]
+  diff --> receipt["evidence receipt"]
+  tests --> receipt
 ```
 
 ## Prova e validação
@@ -103,4 +105,3 @@ MIT. See [LICENSE](../LICENSE).
 Esta pagina localizada preserva o caminho rapido. O guia tecnico restaurado fica no README principal para manter a voz original e os detalhes operacionais do projeto.
 
 - Full restored guide: [../README.pt-BR.md](../README.pt-BR.md)
-- Local project note: simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.

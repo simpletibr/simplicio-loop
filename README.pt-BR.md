@@ -17,7 +17,11 @@
 </p>
 
 <p align="center">
-  <img src="output/imagegen/simplicio-cli-readme-hero-web.png" alt="simplicio-cli preview" width="860" />
+  <img src="output/imagegen/simplicio-cli-readme-hero-web.png" alt="pipeline de execução do simplicio-dev-cli" width="860" />
+</p>
+
+<p align="center">
+  <img src="output/imagegen/simplicio-cli-proof-receipt.png" alt="diff, testes e receipt de verificação" width="760" />
 </p>
 
 ---
@@ -28,9 +32,13 @@ Transforme uma tarefa de uma linha em mudança verificada: contexto do mapper, c
 
 ## DNA do projeto
 
-simplicio-cli nao e apenas um wrapper de comando; ele e a camada medida de execucao do ecossistema. O README antigo carregava a prova dura: testes ocultos reais, tabelas de benchmark, comparacao de modelos, politica de provedores e o limite honesto entre melhorar o prompt e criar capacidade real. Essa evidencia precisa ficar ao lado da nova capa, nao escondida atras dela.
+simplicio-cli é o operador focado de implementação e verificação do ecossistema. Ele recebe uma tarefa decidida, carrega contexto do repositório, aplica uma mudança limitada, executa testes e deixa uma evidência inspecionável.
 
 A primeira tela nova e a porta de entrada; o guia restaurado abaixo e a oficina. Este README precisa convencer rapido sem perder a memoria operacional que ja existia no projeto.
+
+## O limite real do produto
+
+O `simplicio-dev-cli` é o operador focado de implementação e verificação do ecossistema Simplicio. Ele recebe uma tarefa decidida, carrega o contexto do repositório, aplica um diff limitado, executa testes e produz uma evidência que outro operador consegue inspecionar. Ele não é o runtime, o mapper nem o próprio LLM: é a camada disciplinada entre o plano e a mudança confiável.
 
 ## Começo rápido
 
@@ -42,10 +50,10 @@ simplicio-py task "hide the Delete button for non-admins"
 
 ## O que faz
 
-- Classifies the task before execution so small fixes stay small and sprint-scale work becomes a plan.
-- Loads simplicio-mapper artifacts before asking an LLM to edit.
-- Keeps a verification loop around generated diffs instead of trusting the first answer.
-- Works with local Simplicio1, OpenRouter, OpenAI, Anthropic, DeepSeek, Simplicio Agent, Codex and Claude-style hosts.
+- Recebe uma tarefa focada do runtime, de um agente ou da superfície CLI.
+- Carrega o contexto do `simplicio-mapper` e precedentes relevantes antes da edição.
+- Aplica um diff limitado, executa os testes solicitados e registra um receipt de verificação.
+- Deixa orquestração, escolha do modelo e estado durável para as camadas Simplicio ao redor.
 
 ## Por que este README foi feito para ganhar atenção
 
@@ -60,26 +68,21 @@ simplicio-py task "hide the Delete button for non-admins"
 
 ```mermaid
 flowchart LR
-  mapper["simplicio-mapper
-repo context"] --> runtime["simplicio-runtime
-task and MCP surface"]
-  loop["simplicio-loop
-proven task flow"] --> runtime
-  runtime --> current["simplicio-cli
-focused implementation"]
-  current --> edit["simplicio edit
-mechanical writes"]
-  current --> evidence["validated evidence
-tests, docs, screenshots"]
-  runtime --> sprint["simplicio-sprint
-delivery status"]
+  task["decided task"] --> mapper["simplicio-mapper
+repo context"]
+  mapper --> operator["simplicio-dev-cli
+focused operator"]
+  operator --> diff["bounded diff"]
+  operator --> tests["tests"]
+  diff --> receipt["evidence receipt"]
+  tests --> receipt
 ```
 
 ## Prova e validação
 
-- Benchmark docs compare plain prompting vs the Simplicio contract on real code tasks.
-- Package metadata tests pin ecosystem dependency floors.
-- The CLI is the executor layer used by SendSprint and SimplicioCode flows.
+- Testes de contrato cobrem metadata do pacote e handoff do mapper.
+- Gates de build, lint, testes e empacotamento são registrados nas releases quando disponíveis.
+- O operador pode ser chamado pelo `simplicio-runtime`, `simplicio-loop`, agentes ou diretamente pela CLI.
 
 ## Ecossistema Simplicio
 
@@ -99,13 +102,13 @@ delivery status"]
 
 A secao abaixo recupera o README tecnico original do `simplicio-cli` antes da passada de globalizacao. Ela permanece em ingles quando a fonte original era ingles, para preservar benchmarks, comandos e nomes de modelos sem traducao acidental.
 
-**Your tasks with 99% accuracy using any LLM (Claude, DeepSeek, Codex, Gemini, Simplicio Agent, OpenClaw, Cursor).**
+**Um operador de execução focado para transformar tarefas de engenharia decididas em mudanças verificadas, com diferentes provedores de LLM.**
 
 [![PyPI](https://img.shields.io/pypi/v/simplicio-cli.svg)](https://pypi.org/project/simplicio-cli/)
 [![Python](https://img.shields.io/pypi/pyversions/simplicio-cli.svg)](https://pypi.org/project/simplicio-cli/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[![simplicio-cli pipeline hero: one-line task to verified code change](https://raw.githubusercontent.com/wesleysimplicio/simplicio-cli/master/output/imagegen/simplicio-cli-readme-hero-web.png)](output/imagegen/simplicio-cli-readme-hero.png)
+[![pipeline do simplicio-dev-cli: tarefa até mudança verificada](https://raw.githubusercontent.com/wesleysimplicio/simplicio-dev-cli/master/output/imagegen/simplicio-cli-readme-hero-web.png)](output/imagegen/simplicio-cli-readme-hero.png)
 
 > *"hide the Delete button for non-admins"* → diff + test + applied + verified.
 > **Zero API key inside Claude Code** (auto-installs, uses your subscription) — or

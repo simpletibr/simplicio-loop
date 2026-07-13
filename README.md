@@ -17,7 +17,11 @@
 </p>
 
 <p align="center">
-  <img src="output/imagegen/simplicio-cli-readme-hero-web.png" alt="simplicio-cli preview" width="860" />
+  <img src="output/imagegen/simplicio-cli-readme-hero-web.png" alt="simplicio-dev-cli execution pipeline" width="860" />
+</p>
+
+<p align="center">
+  <img src="output/imagegen/simplicio-cli-proof-receipt.png" alt="diff, tests, and verification receipt" width="760" />
 </p>
 
 ---
@@ -28,7 +32,7 @@ Turn a one-line task into a verified code change: mapper context, six-layer cont
 
 ## Project DNA
 
-simplicio-cli is not just a command wrapper; it is the measured execution layer of the ecosystem. Its older README carried the hard proof: real hidden tests, benchmark tables, model comparisons, provider policy, and the honest boundary between better prompting and actual capability. That evidence belongs beside the new hero, not behind it.
+simplicio-dev-cli is the focused implementation and verification operator in the Simplicio ecosystem. It receives a decided task, loads repository context, applies a bounded diff, runs tests, and emits evidence that another operator can inspect. It is not the runtime, the mapper, or the LLM itself: it is the disciplined execution layer between a plan and a trustworthy change.
 
 The new first screen is the doorway; the restored guide below is the workshop. This README should help a stranger understand the promise quickly and still give an operator enough depth to run, validate, and extend the project.
 
@@ -50,44 +54,36 @@ Python consumers can expose the bundled mapper dependency directly with
 
 ## What it does
 
-- Classifies the task before execution so small fixes stay small and sprint-scale work becomes a plan.
-- Loads simplicio-mapper artifacts before asking an LLM to edit.
-- Keeps a verification loop around generated diffs instead of trusting the first answer.
-- Works with local Simplicio1, OpenRouter, OpenAI, Anthropic, DeepSeek, Simplicio Agent, Codex and Claude-style hosts.
+- Accepts a focused task from the runtime, agent, or CLI surface.
+- Loads simplicio-mapper context and relevant precedent before an edit is attempted.
+- Applies a bounded diff, runs the requested tests, and records a verification receipt.
+- Leaves orchestration, model choice, and long-lived loop state to the surrounding Simplicio layers.
 
-## Why this README is built to earn attention
+## The real product boundary
 
-- clear first-screen promise
-- language links before installation
-- badges and a visual hero for fast trust
-- copy-ready quick start
-- proof before long reference material
-- star history for social proof
+- The CLI turns an already-decided engineering intention into a controlled change.
+- The mapper supplies context; the operator supplies execution and proof.
+- A green-looking diff is not enough: tests and evidence are part of the result.
 
 ## How it works
 
 ```mermaid
 flowchart LR
-  mapper["simplicio-mapper
-repo context"] --> runtime["simplicio-runtime
-task and MCP surface"]
-  loop["simplicio-loop
-proven task flow"] --> runtime
-  runtime --> current["simplicio-cli
-focused implementation"]
-  current --> edit["simplicio edit
-mechanical writes"]
-  current --> evidence["validated evidence
-tests, docs, screenshots"]
-  runtime --> sprint["simplicio-sprint
-delivery status"]
+  task["decided task"] --> mapper["simplicio-mapper
+repo context"]
+  mapper --> operator["simplicio-dev-cli
+focused operator"]
+  operator --> diff["bounded diff"]
+  operator --> tests["tests"]
+  diff --> receipt["evidence receipt"]
+  tests --> receipt
 ```
 
 ## Proof and validation
 
-- Benchmark docs compare plain prompting vs the Simplicio contract on real code tasks.
-- Package metadata tests pin ecosystem dependency floors.
-- The CLI is the executor layer used by SendSprint and SimplicioCode flows.
+- The package metadata and mapper handoff are covered by contract tests.
+- Build, lint, test, and packaging gates are recorded with releases when available.
+- The operator is designed to be called by simplicio-runtime, simplicio-loop, agents, or directly from the CLI.
 
 ## Simplicio ecosystem
 
@@ -112,13 +108,13 @@ delivery status"]
 
 The section below restores the project-specific README material that existed before the globalization pass. Keep this substance when refreshing the top-level narrative: add polish, do not erase operational memory.
 
-**Your tasks with 99% accuracy using any LLM (Claude, DeepSeek, Codex, Gemini, Simplicio Agent, OpenClaw, Cursor).**
+**A focused execution operator for turning decided engineering tasks into verified changes across LLM providers.**
 
 [![PyPI](https://img.shields.io/pypi/v/simplicio-cli.svg)](https://pypi.org/project/simplicio-cli/)
 [![Python](https://img.shields.io/pypi/pyversions/simplicio-cli.svg)](https://pypi.org/project/simplicio-cli/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[![simplicio-cli pipeline hero: one-line task to verified code change](https://raw.githubusercontent.com/wesleysimplicio/simplicio-cli/master/output/imagegen/simplicio-cli-readme-hero-web.png)](output/imagegen/simplicio-cli-readme-hero.png)
+[![simplicio-dev-cli pipeline: task to verified code change](https://raw.githubusercontent.com/wesleysimplicio/simplicio-dev-cli/master/output/imagegen/simplicio-cli-readme-hero-web.png)](output/imagegen/simplicio-cli-readme-hero.png)
 
 > *"hide the Delete button for non-admins"* → diff + test + applied + verified.
 > **Zero API key inside Claude Code** (auto-installs, uses your subscription) — or
