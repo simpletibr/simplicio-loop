@@ -60,7 +60,7 @@ jobs:
           pip install -e ".[test]"
 
       - name: Run pytest (tests/python + tests/contracts, per pyproject.toml testpaths)
-        run: pytest
+        run: pytest --junit-xml=junit-${{ matrix.python-version }}.xml
 
       - name: Check generated docs haven't drifted from pyproject.toml (#101)
         run: python3 scripts/gen_package_interdependence.py --check
@@ -73,6 +73,59 @@ jobs:
             "$entry" --help
             echo "::endgroup::"
           done
+
+      - name: Upload pytest JUnit report (#202)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: junit-python-${{ matrix.python-version }}
+          path: junit-${{ matrix.python-version }}.xml
+          if-no-files-found: warn
+          retention-days: 14
+
+  coverage:
+    name: Coverage gate (85% global / 90% critical, #202)
+    needs: python
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install simplicio-cli (editable, base only) + test tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+
+      - name: Run pytest with coverage
+        run: >
+          pytest
+          --cov=simplicio
+          --cov-report=term-missing
+          --cov-report=xml:coverage.xml
+          --cov-report=html:htmlcov
+          --cov-report=json:coverage.json
+
+      - name: Enforce coverage gate (85% global, 90% critical modules)
+        run: python3 scripts/coverage_gate.py --report coverage.json
+
+      - name: Upload coverage reports (#202)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: |
+            coverage.xml
+            coverage.json
+            htmlcov/
+          if-no-files-found: warn
+          retention-days: 14
 
   lint:
     name: Lint + type gate (ruff, mypy)

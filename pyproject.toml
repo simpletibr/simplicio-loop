@@ -82,7 +82,13 @@ all = [
 ]
 # CI/dev-only, not a product extra: pytest to run tests/python, plus tomli
 # on 3.10 (tomllib is stdlib only from 3.11+; several tests parse this file).
-test = ["pytest>=8", "tomli>=2.0.1; python_version < '3.11'"]
+# pytest-cov (#202) backs the coverage gate: `scripts/coverage_gate.py`
+# consumes the `coverage.json` report this generates.
+test = [
+  "pytest>=8",
+  "pytest-cov>=7",
+  "tomli>=2.0.1; python_version < '3.11'",
+]
 # CI/dev-only lint+type gate (#102): never a base/product dependency.
 # `ruff format --check .` / `ruff check .` / `mypy simplicio` is the local
 # command (see CONTRIBUTING.md / AGENTS.md "Comandos importantes").
@@ -130,6 +136,48 @@ simplicio = [
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests/python", "tests/contracts"]
+
+# --------------------------------------------------------------------------- #
+# Coverage gate (#202): 85% global, 90% on the "critical" modules listed in
+# `[tool.coverage.simplicio_critical]` below. `scripts/coverage_gate.py`
+# enforces both numbers from the `coverage.json` report; the plain
+# `fail_under` here is a second, redundant floor so a local
+# `pytest --cov=simplicio --cov-fail-under=85` also fails fast without
+# needing the extra script.
+[tool.coverage.run]
+source = ["simplicio"]
+branch = true
+omit = [
+  "simplicio/templates/*",
+  "*/tests/*",
+]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+skip_covered = false
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+  "def __repr__",
+]
+
+# Not a standard coverage.py table -- read only by scripts/coverage_gate.py
+# to apply the stricter 90% floor from issue #202 ("coverage crítico") to
+# the modules an agent/task pipeline run always exercises: CLI entrypoint,
+# the pipeline/mechanical-edit/mapper core, and the doctor/execution
+# contracts that gate every run.
+[tool.coverage.simplicio_critical]
+threshold = 90
+modules = [
+  "simplicio/cli.py",
+  "simplicio/pipeline.py",
+  "simplicio/mechanical_edit.py",
+  "simplicio/mapper.py",
+  "simplicio/execution_contract.py",
+  "simplicio/doctor.py",
+]
 
 # --------------------------------------------------------------------------- #
 # Lint / type gate (#102). Dev-only tooling — see the `dev` extra above.
