@@ -10,6 +10,7 @@ from simplicio.plan_compiler import (
     SchemaMismatchError,
     VerificationPlan,
 )
+from simplicio.runtime_contracts import AGENT_FIRST_BOUNDARY_FORBIDDEN_FIELDS
 
 
 def _simple_plan() -> PlanDAG:
@@ -336,3 +337,44 @@ def test_validate_rejects_unregistered_consumer_id() -> None:
     )
     with pytest.raises(PlanValidationError):
         plan.validate()
+
+
+def test_compiled_runtime_handoff_payloads_exclude_agent_owned_control_plane_fields() -> None:
+    from simplicio.plan_compiler import compile_task_spec_to_plan
+    from simplicio.task_spec import TaskSpec
+
+    task_spec = TaskSpec(
+        task_id="src/app.py",
+        source={"kind": "argument"},
+        source_hash="deadbeef",
+        language="pt-BR",
+        acceptance_criteria=[{"id": "AC1"}],
+        verification_commands=[{"command": "pytest -q"}],
+    )
+
+    plan, effects, verifications = compile_task_spec_to_plan(
+        task_spec,
+        goal_id="goal-1",
+        context_snapshot_id="snap-1",
+        revision="rev-1",
+        trace_id="trace-1",
+    )
+
+    handoff_payloads = [plan.to_dict(), *(effect.to_dict() for effect in effects), *(v.to_dict() for v in verifications)]
+
+    def _walk_keys(value):
+        if isinstance(value, dict):
+            for key, nested in value.items():
+                yield key
+                yield from _walk_keys(nested)
+        elif isinstance(value, list):
+            for item in value:
+                yield from _walk_keys(item)
+
+    observed = {key for payload in handoff_payloads for key in _walk_keys(payload)}
+    forbidden = set(AGENT_FIRST_BOUNDARY_FORBIDDEN_FIELDS)
+
+    assert forbidden.isdisjoint(observed), (
+        "compiled Runtime handoff unexpectedly contains Agent-owned control-plane "
+        f"fields: {sorted(forbidden & observed)}"
+    )

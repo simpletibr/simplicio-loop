@@ -48,6 +48,23 @@ RUNTIME_VERIFY_CAPABILITIES = [
     "simplicio.workflow-ledger/v1",
 ]
 
+AGENT_FIRST_BOUNDARY_FORBIDDEN_FIELDS = [
+    "memory",
+    "memory_id",
+    "memory_ref",
+    "next_action",
+    "provider",
+    "provider_choice",
+    "provider_config",
+    "provider_selection",
+    "tool_choice",
+    "tool_choices",
+    "tool_selection",
+    "transcript",
+    "transcript_ref",
+    "transcript_sha256",
+]
+
 
 def validate_version_contract(payload: dict[str, Any]) -> list[str]:
     """Return actionable diagnostics for a malformed/incompatible handshake."""
@@ -68,6 +85,70 @@ def validate_version_contract(payload: dict[str, Any]) -> list[str]:
         if missing:
             problems.append(f"missing capabilities: {', '.join(missing)}")
     return problems
+
+
+def agent_first_boundary_contract() -> dict[str, Any]:
+    """Machine-readable ownership boundary for Runtime issue #3134.
+
+    This is intentionally narrow and additive: it does not attempt to solve
+    integration maturity (#3136), retention/erasure (#3137), quantum
+    scheduling (#3138), or crypto-agility (#3139). It only publishes the
+    agent-first ownership split the current cross-repo contracts already
+    imply, so runtime consumers can assert that dev-cli handoff payloads stay
+    effect-focused and never smuggle Agent-owned control-plane state.
+    """
+
+    return {
+        "schema": "simplicio.agent-first-boundary/v1",
+        "issues": {
+            "runtime_epic": "simplicio-runtime#3134",
+            "contracts_parent": "simplicio-runtime#3135",
+            "dev_cli_plan_compiler": "simplicio-dev-cli#166",
+        },
+        "owners": {
+            "simplicio-agent": {
+                "role": "session_driver",
+                "owns": [
+                    "transcript",
+                    "memory",
+                    "provider_selection",
+                    "tool_choice",
+                    "next_action",
+                ],
+            },
+            "simplicio-dev-cli": {
+                "role": "effect_free_plan_compiler",
+                "owns": [
+                    "goal_envelope",
+                    "plan_dag",
+                    "effect_plan",
+                    "verification_plan",
+                ],
+                "must_not_apply_effects": True,
+            },
+            "simplicio-runtime": {
+                "role": "deterministic_coprocessor",
+                "owns": [
+                    "gate_decision",
+                    "mechanical_edit",
+                    "validation",
+                    "effect_receipt",
+                ],
+                "must_not_own": [
+                    "transcript",
+                    "memory",
+                    "provider_selection",
+                    "tool_choice",
+                    "next_action",
+                ],
+            },
+        },
+        "runtime_handoff_forbidden_fields": list(AGENT_FIRST_BOUNDARY_FORBIDDEN_FIELDS),
+        "evidence": {
+            "dev_cli_integrated_mode": "compile plan -> hand EffectPlan to sink -> never write directly",
+            "runtime_handoff_scope": "PlanDAG/EffectPlan/VerificationPlan payloads stay effect-focused",
+        },
+    }
 
 
 def version_contract() -> dict[str, Any]:
@@ -106,6 +187,7 @@ def version_contract() -> dict[str, Any]:
                 ),
             },
         },
+        "ownership_boundary": agent_first_boundary_contract(),
         "dependencies": {"simplicio-mapper": mapper},
     }
 
