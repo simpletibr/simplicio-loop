@@ -12,6 +12,8 @@ import pytest
 from simplicio import cli
 from simplicio import observability as obs
 from simplicio.runtime_contracts import (
+    AGENT_FIRST_BOUNDARY_FORBIDDEN_FIELDS,
+    agent_first_boundary_contract,
     doctor_contract,
     is_legacy_runtime_alias,
     runtime_verify_contract,
@@ -82,6 +84,30 @@ def test_version_contract_exposes_canonical_capabilities(monkeypatch):
             "runtime consumers at the Rust runtime explicitly."
         ),
     }
+    assert payload["ownership_boundary"]["schema"] == "simplicio.agent-first-boundary/v1"
+    assert payload["ownership_boundary"]["owners"]["simplicio-runtime"]["role"] == "deterministic_coprocessor"
+    assert payload["ownership_boundary"]["runtime_handoff_forbidden_fields"] == AGENT_FIRST_BOUNDARY_FORBIDDEN_FIELDS
+
+
+def test_agent_first_boundary_contract_keeps_agent_owned_control_plane_out_of_runtime_scope():
+    payload = agent_first_boundary_contract()
+
+    assert payload["schema"] == "simplicio.agent-first-boundary/v1"
+    assert payload["owners"]["simplicio-agent"]["owns"] == [
+        "transcript",
+        "memory",
+        "provider_selection",
+        "tool_choice",
+        "next_action",
+    ]
+    assert payload["owners"]["simplicio-dev-cli"]["must_not_apply_effects"] is True
+    assert payload["owners"]["simplicio-runtime"]["must_not_own"] == [
+        "transcript",
+        "memory",
+        "provider_selection",
+        "tool_choice",
+        "next_action",
+    ]
 
 
 def test_version_cli_supports_text_and_json(monkeypatch, capsys):
