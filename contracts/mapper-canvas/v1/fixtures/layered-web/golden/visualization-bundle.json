@@ -623,7 +623,7 @@
         "rationale": "stable strategy order; renderer chooses coordinates"
       }
     ],
-    "mapper_version": "0.20.0",
+    "mapper_version": "0.0.0",
     "project": {
       "file_count": 4,
       "root": "."
@@ -1202,7 +1202,7 @@
       "rationale": "stable strategy order; renderer chooses coordinates"
     }
   ],
-  "mapper_version": "0.20.0",
+  "mapper_version": "0.0.0",
   "nodes": [
     {
       "canonical": "package.json",
@@ -1210,7 +1210,7 @@
       "kind": "file",
       "language": "json",
       "metrics": {
-        "size_bytes": 54
+        "size_bytes": 53
       },
       "name": "package.json",
       "parent_id": "module:5a219264bc5d86e9",
@@ -1222,7 +1222,7 @@
       "kind": "file",
       "language": "html",
       "metrics": {
-        "size_bytes": 59
+        "size_bytes": 57
       },
       "name": "index.html",
       "parent_id": "module:77af9af43a396f96",
@@ -1234,7 +1234,7 @@
       "kind": "file",
       "language": "javascript",
       "metrics": {
-        "size_bytes": 204
+        "size_bytes": 200
       },
       "name": "routes.js",
       "parent_id": "module:04164df2fbf7cf9b",
@@ -1246,7 +1246,7 @@
       "kind": "file",
       "language": "javascript",
       "metrics": {
-        "size_bytes": 117
+        "size_bytes": 114
       },
       "name": "server.js",
       "parent_id": "module:04164df2fbf7cf9b",

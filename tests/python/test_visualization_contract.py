@@ -1,11 +1,16 @@
 import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
 from simplicio_mapper.contract import find_contract_root, validate_payload
 from simplicio_mapper.mapper import build_artifacts
-from simplicio_mapper.visualization import build_visualization_bundle, preview_source
+from simplicio_mapper.visualization import _provenance, _safe_remote, build_visualization_bundle, preview_source
+
+
+def _run_git(root: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=str(root), check=True, capture_output=True, text=True)
 
 
 class VisualizationContractTests(unittest.TestCase):
@@ -65,6 +70,71 @@ class VisualizationContractTests(unittest.TestCase):
         self.assertEqual(payload["path"], "src/app.py")
         self.assertEqual(payload["sensitivity_warning"], "full-content export was explicitly requested")
         self.assertTrue(payload["read_only"])
+
+
+class ProvenanceGitTests(unittest.TestCase):
+    """`_provenance()` git-derived fields (issue #185) only exercise their
+    real branches against an actual `.git` worktree with a remote -- every
+    other visualization test in this module uses a plain (non-git) fixture,
+    so these branches were previously untested."""
+
+    def setUp(self) -> None:
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.root = Path(self.tempdir.name)
+        (self.root / "src").mkdir()
+        (self.root / "src" / "app.py").write_text("def greet():\n    return 'safe'\n", encoding="utf-8")
+        try:
+            _run_git(self.root, "init", "-q", "-b", "main")
+            _run_git(self.root, "config", "user.email", "test@example.com")
+            _run_git(self.root, "config", "user.name", "Test")
+            _run_git(self.root, "remote", "add", "origin", "https://github.com/acme/widgets.git")
+            _run_git(self.root, "add", "-A")
+            _run_git(self.root, "commit", "-q", "-m", "initial")
+        except (OSError, subprocess.CalledProcessError):
+            self.skipTest("git is unavailable in this environment")
+
+    def tearDown(self) -> None:
+        self.tempdir.cleanup()
+
+    def test_provenance_reports_remote_host_owner_and_repository(self) -> None:
+        provenance = _provenance(str(self.root))
+        self.assertEqual(provenance["remote_url"], "https://github.com/acme/widgets.git")
+        self.assertEqual(provenance["host"], "github.com")
+        self.assertEqual(provenance["owner"], "acme")
+        self.assertEqual(provenance["repository"], "widgets")
+        self.assertEqual(provenance["branch"], "main")
+        self.assertTrue(provenance["commit_sha"])
+        self.assertEqual(provenance["clone_type"], "git-clone")
+        self.assertFalse(provenance["dirty"])
+
+    def test_provenance_marks_dirty_when_worktree_has_uncommitted_changes(self) -> None:
+        (self.root / "src" / "app.py").write_text("def greet():\n    return 'changed'\n", encoding="utf-8")
+        provenance = _provenance(str(self.root))
+        self.assertTrue(provenance["dirty"])
+
+    def test_provenance_detects_monorepo_roots(self) -> None:
+        (self.root / "packages" / "core").mkdir(parents=True)
+        (self.root / "packages" / "core" / "package.json").write_text("{}", encoding="utf-8")
+        provenance = _provenance(str(self.root))
+        self.assertIn("packages/core", provenance["monorepo_roots"])
+
+    def test_bundle_from_a_git_worktree_uses_remote_derived_repo_identity(self) -> None:
+        bundle = build_visualization_bundle(str(self.root), generated_at="1970-01-01T00:00:00.000Z")
+        self.assertEqual(bundle["provenance"]["host"], "github.com")
+
+
+class SafeRemoteNormalizationTests(unittest.TestCase):
+    def test_scp_style_remote_is_normalized_to_https(self) -> None:
+        self.assertEqual(_safe_remote("git@github.com:acme/widgets.git"), "https://github.com/acme/widgets.git")
+
+    def test_ssh_scheme_remote_is_normalized_to_https(self) -> None:
+        self.assertEqual(_safe_remote("ssh://git@github.com/acme/widgets.git"), "https://github.com/acme/widgets.git")
+
+    def test_https_remote_strips_embedded_credentials_and_query(self) -> None:
+        self.assertEqual(
+            _safe_remote("https://user:pass@github.com/acme/widgets.git?x=1#frag"),
+            "https://github.com/acme/widgets.git",
+        )
 
 
 if __name__ == "__main__":

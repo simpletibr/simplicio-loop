@@ -512,7 +512,7 @@
         "rationale": "stable strategy order; renderer chooses coordinates"
       }
     ],
-    "mapper_version": "0.20.0",
+    "mapper_version": "0.0.0",
     "project": {
       "file_count": 3,
       "root": "."
@@ -934,7 +934,7 @@
       "rationale": "stable strategy order; renderer chooses coordinates"
     }
   ],
-  "mapper_version": "0.20.0",
+  "mapper_version": "0.0.0",
   "nodes": [
     {
       "canonical": "cli/commands.py",
@@ -942,7 +942,7 @@
       "kind": "file",
       "language": "python",
       "metrics": {
-        "size_bytes": 43
+        "size_bytes": 41
       },
       "name": "commands.py",
       "parent_id": "module:26f9252a7a7e4177",
@@ -954,7 +954,7 @@
       "kind": "file",
       "language": "python",
       "metrics": {
-        "size_bytes": 112
+        "size_bytes": 105
       },
       "name": "main.py",
       "parent_id": "module:26f9252a7a7e4177",
@@ -966,7 +966,7 @@
       "kind": "file",
       "language": "toml",
       "metrics": {
-        "size_bytes": 51
+        "size_bytes": 48
       },
       "name": "pyproject.toml",
       "parent_id": "module:5a219264bc5d86e9",

@@ -528,7 +528,7 @@
         "rationale": "stable strategy order; renderer chooses coordinates"
       }
     ],
-    "mapper_version": "0.20.0",
+    "mapper_version": "0.0.0",
     "project": {
       "file_count": 4,
       "root": "."
@@ -982,7 +982,7 @@
       "rationale": "stable strategy order; renderer chooses coordinates"
     }
   ],
-  "mapper_version": "0.20.0",
+  "mapper_version": "0.0.0",
   "nodes": [
     {
       "canonical": "package.json",
@@ -990,7 +990,7 @@
       "kind": "file",
       "language": "json",
       "metrics": {
-        "size_bytes": 51
+        "size_bytes": 50
       },
       "name": "package.json",
       "parent_id": "module:5a219264bc5d86e9",
@@ -1002,7 +1002,7 @@
       "kind": "file",
       "language": "javascript",
       "metrics": {
-        "size_bytes": 77
+        "size_bytes": 75
       },
       "name": "consumer.js",
       "parent_id": "module:04164df2fbf7cf9b",
@@ -1014,7 +1014,7 @@
       "kind": "file",
       "language": "json",
       "metrics": {
-        "size_bytes": 39
+        "size_bytes": 38
       },
       "name": "events.json",
       "parent_id": "module:04164df2fbf7cf9b",
@@ -1026,7 +1026,7 @@
       "kind": "file",
       "language": "javascript",
       "metrics": {
-        "size_bytes": 125
+        "size_bytes": 122
       },
       "name": "producer.js",
       "parent_id": "module:04164df2fbf7cf9b",

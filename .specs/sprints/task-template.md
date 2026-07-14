@@ -79,6 +79,12 @@ Checklist que precisa estar 100% antes de marcar como `done` no `BACKLOG.md`.
 - [ ] Mudanças de schema ou contrato registradas em ADR.
 - [ ] Status atualizado em `BACKLOG.md` e em `sprint-XX/SPRINT.md`.
 
+> Se a task tocar `simplicio_mapper/` (pacote Python): nenhuma issue/task
+> fecha sem cobrir as 7 dimensões — implementation, unit, integration,
+> system, regression, perf benchmark e coverage >= 85% (piso de CI real é
+> 88%, ver `.github/workflows/python-ci.yml` e a seção "DoD específico do
+> pacote Python" em `AGENTS.md`).
+
 ## Pegadinhas conhecidas
 
 Liste armadilhas, dívida técnica encostada, comportamentos não óbvios. Atualize conforme o time descobre durante a execução.

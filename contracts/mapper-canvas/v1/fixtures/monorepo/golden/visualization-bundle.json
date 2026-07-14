@@ -730,7 +730,7 @@
         "rationale": "stable strategy order; renderer chooses coordinates"
       }
     ],
-    "mapper_version": "0.20.0",
+    "mapper_version": "0.0.0",
     "project": {
       "file_count": 5,
       "root": "."
@@ -1296,7 +1296,7 @@
       "rationale": "stable strategy order; renderer chooses coordinates"
     }
   ],
-  "mapper_version": "0.20.0",
+  "mapper_version": "0.0.0",
   "nodes": [
     {
       "canonical": "apps/web/package.json",
@@ -1304,7 +1304,7 @@
       "kind": "file",
       "language": "json",
       "metrics": {
-        "size_bytes": 20
+        "size_bytes": 19
       },
       "name": "package.json",
       "parent_id": "module:dffca0b038d04d1c",
@@ -1316,7 +1316,7 @@
       "kind": "file",
       "language": "typescript",
       "metrics": {
-        "size_bytes": 122
+        "size_bytes": 120
       },
       "name": "index.ts",
       "parent_id": "module:dffca0b038d04d1c",
@@ -1328,7 +1328,7 @@
       "kind": "file",
       "language": "json",
       "metrics": {
-        "size_bytes": 65
+        "size_bytes": 64
       },
       "name": "package.json",
       "parent_id": "module:5a219264bc5d86e9",
@@ -1340,7 +1340,7 @@
       "kind": "file",
       "language": "json",
       "metrics": {
-        "size_bytes": 19
+        "size_bytes": 18
       },
       "name": "package.json",
       "parent_id": "module:a6a4aa90076b3d1f",
@@ -1352,7 +1352,7 @@
       "kind": "file",
       "language": "typescript",
       "metrics": {
-        "size_bytes": 75
+        "size_bytes": 74
       },
       "name": "index.ts",
       "parent_id": "module:a6a4aa90076b3d1f",

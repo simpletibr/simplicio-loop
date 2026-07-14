@@ -18,24 +18,21 @@
         "edge_count": 0,
         "external_edge_count": 0,
         "id": "cluster:workspace:86fa3762d2eb6db6",
-        "importance": 0.3025,
+        "importance": 0.363333,
         "internal_edge_count": 0,
         "kind": "workspace",
         "language_mix": {
           "javascript": 1,
           "json": 1,
-          "markdown": 1,
-          "text": 1
+          "markdown": 1
         },
-        "member_count": 4,
+        "member_count": 3,
         "member_ids": [
-          "cluster:file:56c17ad5d9463672",
           "cluster:file:a451623ea511a512",
           "cluster:file:d7f6204f00b61069",
           "cluster:file:f5ed0571f3d5e126"
         ],
         "member_paths": [
-          ".env",
           "README.md",
           "package.json",
           "src/app.js"
@@ -51,22 +48,19 @@
         "edge_count": 0,
         "external_edge_count": 0,
         "id": "cluster:directory:c22d9e7664332f0b",
-        "importance": 0.186667,
+        "importance": 0.22,
         "internal_edge_count": 0,
         "kind": "directory",
         "language_mix": {
           "json": 1,
-          "markdown": 1,
-          "text": 1
+          "markdown": 1
         },
-        "member_count": 3,
+        "member_count": 2,
         "member_ids": [
-          "cluster:file:56c17ad5d9463672",
           "cluster:file:a451623ea511a512",
           "cluster:file:d7f6204f00b61069"
         ],
         "member_paths": [
-          ".env",
           "README.md",
           "package.json"
         ],
@@ -105,22 +99,19 @@
         "edge_count": 0,
         "external_edge_count": 0,
         "id": "cluster:package:710115d946c582c2",
-        "importance": 0.186667,
+        "importance": 0.22,
         "internal_edge_count": 0,
         "kind": "package",
         "language_mix": {
           "json": 1,
-          "markdown": 1,
-          "text": 1
+          "markdown": 1
         },
-        "member_count": 3,
+        "member_count": 2,
         "member_ids": [
-          "cluster:file:56c17ad5d9463672",
           "cluster:file:a451623ea511a512",
           "cluster:file:d7f6204f00b61069"
         ],
         "member_paths": [
-          ".env",
           "README.md",
           "package.json"
         ],
@@ -151,30 +142,6 @@
         "name": "src",
         "overlapping": true,
         "recommended_collapse_level": "members"
-      },
-      {
-        "cohesion": 0.0,
-        "coupling": 0.0,
-        "dependency_density": 0.0,
-        "edge_count": 0,
-        "external_edge_count": 0,
-        "id": "cluster:namespace:ae7db4ac72c14b1f",
-        "importance": 0.12,
-        "internal_edge_count": 0,
-        "kind": "namespace",
-        "language_mix": {
-          "text": 1
-        },
-        "member_count": 1,
-        "member_ids": [
-          "cluster:file:56c17ad5d9463672"
-        ],
-        "member_paths": [
-          ".env"
-        ],
-        "name": "",
-        "overlapping": true,
-        "recommended_collapse_level": "expanded"
       },
       {
         "cohesion": 0.0,
@@ -255,53 +222,26 @@
         "edge_count": 0,
         "external_edge_count": 0,
         "id": "cluster:domain:883d523e9eba130e",
-        "importance": 0.3025,
+        "importance": 0.363333,
         "internal_edge_count": 0,
         "kind": "domain",
         "language_mix": {
           "javascript": 1,
           "json": 1,
-          "markdown": 1,
-          "text": 1
+          "markdown": 1
         },
-        "member_count": 4,
+        "member_count": 3,
         "member_ids": [
-          "cluster:file:56c17ad5d9463672",
           "cluster:file:a451623ea511a512",
           "cluster:file:d7f6204f00b61069",
           "cluster:file:f5ed0571f3d5e126"
         ],
         "member_paths": [
-          ".env",
           "README.md",
           "package.json",
           "src/app.js"
         ],
         "name": "unclassified",
-        "overlapping": true,
-        "recommended_collapse_level": "expanded"
-      },
-      {
-        "cohesion": 0.0,
-        "coupling": 0.0,
-        "dependency_density": 0.0,
-        "edge_count": 0,
-        "external_edge_count": 0,
-        "id": "cluster:layer:0db4f4feb847f612",
-        "importance": 0.12,
-        "internal_edge_count": 0,
-        "kind": "layer",
-        "language_mix": {
-          "text": 1
-        },
-        "member_count": 1,
-        "member_ids": [
-          "cluster:file:56c17ad5d9463672"
-        ],
-        "member_paths": [
-          ".env"
-        ],
-        "name": "asset",
         "overlapping": true,
         "recommended_collapse_level": "expanded"
       },
@@ -425,7 +365,7 @@
       {
         "cluster_id": "cluster:workspace:86fa3762d2eb6db6",
         "collapse_level": "expanded",
-        "importance": 0.3025,
+        "importance": 0.363333,
         "lane": "workspace",
         "lane_index": 0,
         "order": 0,
@@ -434,7 +374,7 @@
       {
         "cluster_id": "cluster:directory:c22d9e7664332f0b",
         "collapse_level": "expanded",
-        "importance": 0.186667,
+        "importance": 0.22,
         "lane": "directory",
         "lane_index": 2,
         "order": 1,
@@ -452,7 +392,7 @@
       {
         "cluster_id": "cluster:package:710115d946c582c2",
         "collapse_level": "expanded",
-        "importance": 0.186667,
+        "importance": 0.22,
         "lane": "package",
         "lane_index": 1,
         "order": 3,
@@ -468,7 +408,7 @@
         "rationale": "stable strategy order; renderer chooses coordinates"
       },
       {
-        "cluster_id": "cluster:namespace:ae7db4ac72c14b1f",
+        "cluster_id": "cluster:namespace:dc094dac44e7bb2e",
         "collapse_level": "expanded",
         "importance": 0.12,
         "lane": "namespace",
@@ -477,21 +417,12 @@
         "rationale": "stable strategy order; renderer chooses coordinates"
       },
       {
-        "cluster_id": "cluster:namespace:dc094dac44e7bb2e",
-        "collapse_level": "expanded",
-        "importance": 0.12,
-        "lane": "namespace",
-        "lane_index": 3,
-        "order": 6,
-        "rationale": "stable strategy order; renderer chooses coordinates"
-      },
-      {
         "cluster_id": "cluster:namespace:ad0eed0c5b9bdb9b",
         "collapse_level": "expanded",
         "importance": 0.32,
         "lane": "namespace",
         "lane_index": 3,
-        "order": 7,
+        "order": 6,
         "rationale": "stable strategy order; renderer chooses coordinates"
       },
       {
@@ -500,25 +431,16 @@
         "importance": 0.65,
         "lane": "namespace",
         "lane_index": 3,
-        "order": 8,
+        "order": 7,
         "rationale": "stable strategy order; renderer chooses coordinates"
       },
       {
         "cluster_id": "cluster:domain:883d523e9eba130e",
         "collapse_level": "expanded",
-        "importance": 0.3025,
+        "importance": 0.363333,
         "lane": "domain",
         "lane_index": 4,
-        "order": 9,
-        "rationale": "stable strategy order; renderer chooses coordinates"
-      },
-      {
-        "cluster_id": "cluster:layer:0db4f4feb847f612",
-        "collapse_level": "expanded",
-        "importance": 0.12,
-        "lane": "layer",
-        "lane_index": 5,
-        "order": 10,
+        "order": 8,
         "rationale": "stable strategy order; renderer chooses coordinates"
       },
       {
@@ -527,7 +449,7 @@
         "importance": 0.32,
         "lane": "layer",
         "lane_index": 5,
-        "order": 11,
+        "order": 9,
         "rationale": "stable strategy order; renderer chooses coordinates"
       },
       {
@@ -536,7 +458,7 @@
         "importance": 0.12,
         "lane": "layer",
         "lane_index": 5,
-        "order": 12,
+        "order": 10,
         "rationale": "stable strategy order; renderer chooses coordinates"
       },
       {
@@ -545,7 +467,7 @@
         "importance": 0.65,
         "lane": "layer",
         "lane_index": 5,
-        "order": 13,
+        "order": 11,
         "rationale": "stable strategy order; renderer chooses coordinates"
       },
       {
@@ -554,13 +476,13 @@
         "importance": 0.65,
         "lane": "flow",
         "lane_index": 6,
-        "order": 14,
+        "order": 12,
         "rationale": "stable strategy order; renderer chooses coordinates"
       }
     ],
-    "mapper_version": "0.20.0",
+    "mapper_version": "0.0.0",
     "project": {
-      "file_count": 4,
+      "file_count": 3,
       "root": "."
     },
     "provenance": {
@@ -601,7 +523,7 @@
   "diagnostics": [
     {
       "code": "heuristic-edge",
-      "count": 5
+      "count": 4
     },
     {
       "code": "unresolved-relation",
@@ -687,16 +609,6 @@
       "source_location": null,
       "target": "module:5a219264bc5d86e9",
       "type": "contains"
-    },
-    {
-      "confidence": 0.7,
-      "direction": "forward",
-      "language": null,
-      "provenance": "static-mapper",
-      "source": "repository:f39c4b97cb07d484",
-      "source_location": null,
-      "target": "layer:0db4f4feb847f612",
-      "type": "groups"
     },
     {
       "confidence": 0.7,
@@ -807,7 +719,7 @@
     {
       "cluster_id": "cluster:workspace:86fa3762d2eb6db6",
       "collapse_level": "expanded",
-      "importance": 0.3025,
+      "importance": 0.363333,
       "lane": "workspace",
       "lane_index": 0,
       "order": 0,
@@ -816,7 +728,7 @@
     {
       "cluster_id": "cluster:directory:c22d9e7664332f0b",
       "collapse_level": "expanded",
-      "importance": 0.186667,
+      "importance": 0.22,
       "lane": "directory",
       "lane_index": 2,
       "order": 1,
@@ -834,7 +746,7 @@
     {
       "cluster_id": "cluster:package:710115d946c582c2",
       "collapse_level": "expanded",
-      "importance": 0.186667,
+      "importance": 0.22,
       "lane": "package",
       "lane_index": 1,
       "order": 3,
@@ -850,7 +762,7 @@
       "rationale": "stable strategy order; renderer chooses coordinates"
     },
     {
-      "cluster_id": "cluster:namespace:ae7db4ac72c14b1f",
+      "cluster_id": "cluster:namespace:dc094dac44e7bb2e",
       "collapse_level": "expanded",
       "importance": 0.12,
       "lane": "namespace",
@@ -859,21 +771,12 @@
       "rationale": "stable strategy order; renderer chooses coordinates"
     },
     {
-      "cluster_id": "cluster:namespace:dc094dac44e7bb2e",
-      "collapse_level": "expanded",
-      "importance": 0.12,
-      "lane": "namespace",
-      "lane_index": 3,
-      "order": 6,
-      "rationale": "stable strategy order; renderer chooses coordinates"
-    },
-    {
       "cluster_id": "cluster:namespace:ad0eed0c5b9bdb9b",
       "collapse_level": "expanded",
       "importance": 0.32,
       "lane": "namespace",
       "lane_index": 3,
-      "order": 7,
+      "order": 6,
       "rationale": "stable strategy order; renderer chooses coordinates"
     },
     {
@@ -882,25 +785,16 @@
       "importance": 0.65,
       "lane": "namespace",
       "lane_index": 3,
-      "order": 8,
+      "order": 7,
       "rationale": "stable strategy order; renderer chooses coordinates"
     },
     {
       "cluster_id": "cluster:domain:883d523e9eba130e",
       "collapse_level": "expanded",
-      "importance": 0.3025,
+      "importance": 0.363333,
       "lane": "domain",
       "lane_index": 4,
-      "order": 9,
-      "rationale": "stable strategy order; renderer chooses coordinates"
-    },
-    {
-      "cluster_id": "cluster:layer:0db4f4feb847f612",
-      "collapse_level": "expanded",
-      "importance": 0.12,
-      "lane": "layer",
-      "lane_index": 5,
-      "order": 10,
+      "order": 8,
       "rationale": "stable strategy order; renderer chooses coordinates"
     },
     {
@@ -909,7 +803,7 @@
       "importance": 0.32,
       "lane": "layer",
       "lane_index": 5,
-      "order": 11,
+      "order": 9,
       "rationale": "stable strategy order; renderer chooses coordinates"
     },
     {
@@ -918,7 +812,7 @@
       "importance": 0.12,
       "lane": "layer",
       "lane_index": 5,
-      "order": 12,
+      "order": 10,
       "rationale": "stable strategy order; renderer chooses coordinates"
     },
     {
@@ -927,7 +821,7 @@
       "importance": 0.65,
       "lane": "layer",
       "lane_index": 5,
-      "order": 13,
+      "order": 11,
       "rationale": "stable strategy order; renderer chooses coordinates"
     },
     {
@@ -936,11 +830,11 @@
       "importance": 0.65,
       "lane": "flow",
       "lane_index": 6,
-      "order": 14,
+      "order": 12,
       "rationale": "stable strategy order; renderer chooses coordinates"
     }
   ],
-  "mapper_version": "0.20.0",
+  "mapper_version": "0.0.0",
   "nodes": [
     {
       "canonical": "README.md",
@@ -948,7 +842,7 @@
       "kind": "file",
       "language": "markdown",
       "metrics": {
-        "size_bytes": 70
+        "size_bytes": 69
       },
       "name": "README.md",
       "parent_id": "module:5a219264bc5d86e9",
@@ -960,7 +854,7 @@
       "kind": "file",
       "language": "json",
       "metrics": {
-        "size_bytes": 50
+        "size_bytes": 49
       },
       "name": "package.json",
       "parent_id": "module:5a219264bc5d86e9",
@@ -972,7 +866,7 @@
       "kind": "file",
       "language": "javascript",
       "metrics": {
-        "size_bytes": 88
+        "size_bytes": 86
       },
       "name": "app.js",
       "parent_id": "module:04164df2fbf7cf9b",
@@ -987,17 +881,6 @@
       "name": "src.app",
       "parent_id": "repository:f39c4b97cb07d484",
       "path": null
-    },
-    {
-      "canonical": "asset",
-      "confidence": 0.7,
-      "id": "layer:0db4f4feb847f612",
-      "kind": "layer",
-      "metrics": {},
-      "name": "asset",
-      "parent_id": "repository:f39c4b97cb07d484",
-      "path": null,
-      "rule_id": "mapper.layer-path"
     },
     {
       "canonical": "config",

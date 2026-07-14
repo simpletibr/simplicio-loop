@@ -422,6 +422,34 @@ def _runtime_ask_query(cwd: str, verb: str, arg: str, limit: int) -> tuple[dict 
     return payload, "delegated"
 
 
+_NATIVE_BASELINE_SKIP_DIRS = {".git", "node_modules", ".simplicio", "venv", ".venv", "dist", "build", "__pycache__"}
+_NATIVE_BASELINE_SOURCE_EXTS = {".py", ".js", ".jsx", ".ts", ".tsx", ".go", ".rs", ".java", ".rb"}
+
+
+def _cheap_repo_baseline_tokens(abs_cwd: str, *, test_files_only: bool) -> int:
+    """Cheap, artifact-lazy estimate of what the local fallback would have
+    had to read for `impact` (whole-repo call_graph/symbol_index proxy) or
+    `tests-for` (every test file's full text). A raw `os.walk` + file-size
+    sum, deliberately NOT `build_artifacts()` -- a native hit must stay
+    artifact-lazy (see `test_native_impact_success_stays_artifact_lazy` /
+    `test_native_tests_for_success_stays_artifact_lazy` in test_query.py),
+    so this baseline can only ever be a rough, declared-estimate proxy, not
+    the exact bytes the fallback would have parsed."""
+    total_bytes = 0
+    for dirpath, dirnames, filenames in os.walk(abs_cwd):
+        dirnames[:] = [d for d in dirnames if d not in _NATIVE_BASELINE_SKIP_DIRS and not d.startswith(".")]
+        for name in filenames:
+            if test_files_only and "test" not in name.lower():
+                continue
+            if os.path.splitext(name)[1] not in _NATIVE_BASELINE_SOURCE_EXTS:
+                continue
+            try:
+                total_bytes += os.path.getsize(os.path.join(dirpath, name))
+            except OSError:
+                continue
+    return max(1, total_bytes // 4)
+
+
 def _record_ask_native_savings(cwd: str, verb: str, baseline_tokens: int, payload: dict, note: str) -> None:
     """Best-effort savings-ledger receipt for a native `ask` hit. Never
     raises -- a ledger write failure must never break the query path."""
@@ -544,6 +572,20 @@ def run_query(
                 method="runtime-native ask impact",
             )
             payload["cache"] = _cache_block(cache, native_key.content_hash(), receipt.to_dict())
+            # Savings are recorded on the native HIT, not the local fallback:
+            # a native hit is precisely the call that *avoided* paying the
+            # per-verb marginal cost this baseline estimates. Must stay
+            # artifact-lazy (no `_artifacts()`/`build_artifacts()` call) --
+            # see `_cheap_repo_baseline_tokens`.
+            baseline = _cheap_repo_baseline_tokens(abs_cwd, test_files_only=False)
+            _record_ask_native_savings(
+                abs_cwd,
+                "impact",
+                baseline,
+                payload,
+                note="baseline=call_graph+symbol_index the LLM/loop would otherwise have to read "
+                "to answer 'what does changing this file affect' manually; method=heuristic:chars-div-4",
+            )
         else:
             cache_key = _query_cache_key(abs_cwd, out_dir, query)
             cached_payload, receipt = cache.get_entry(LAYER_CONTEXT_SUMMARY, cache_key)
@@ -566,17 +608,6 @@ def run_query(
                     bytes_avoided=len(json.dumps(payload, sort_keys=True).encode("utf-8")),
                 )
                 payload["cache"] = _cache_block(cache, cache_key.content_hash(), receipt.to_dict())
-                baseline = estimate_tokens(
-                    json.dumps(materialized.get("call_graph"), sort_keys=True)
-                ) + estimate_tokens(json.dumps(materialized.get("symbol_index"), sort_keys=True))
-                _record_ask_native_savings(
-                    abs_cwd,
-                    "impact",
-                    baseline,
-                    payload,
-                    note="baseline=call_graph+symbol_index the LLM/loop would otherwise have to read "
-                    "to answer 'what does changing this file affect' manually; method=heuristic:chars-div-4",
-                )
         payload["delegation"] = {
             "runtime": "simplicio-runtime",
             "used": native is not None,
@@ -616,6 +647,18 @@ def run_query(
                 method="runtime-native ask tests-for",
             )
             payload["cache"] = _cache_block(cache, native_key.content_hash(), receipt.to_dict())
+            # Savings are recorded on the native HIT (see the matching
+            # comment in the `impact` branch above for why; must stay
+            # artifact-lazy here too).
+            baseline = _cheap_repo_baseline_tokens(abs_cwd, test_files_only=True)
+            _record_ask_native_savings(
+                abs_cwd,
+                "tests-for",
+                baseline,
+                payload,
+                note="baseline=full text of every test file the local fallback would otherwise "
+                "read in full to find matches; method=heuristic:chars-div-4",
+            )
         else:
             cache_key = _query_cache_key(abs_cwd, out_dir, query)
             cached_payload, receipt = cache.get_entry(LAYER_CONTEXT_SUMMARY, cache_key)
@@ -634,17 +677,6 @@ def run_query(
                     bytes_avoided=len(json.dumps(payload, sort_keys=True).encode("utf-8")),
                 )
                 payload["cache"] = _cache_block(cache, cache_key.content_hash(), receipt.to_dict())
-                baseline = sum(
-                    estimate_tokens(_read_text(abs_cwd, f)) for f in project_map.get("test_files") or []
-                )
-                _record_ask_native_savings(
-                    abs_cwd,
-                    "tests-for",
-                    baseline,
-                    payload,
-                    note="baseline=full text of every test file the local fallback would otherwise "
-                    "read in full to find matches; method=heuristic:chars-div-4",
-                )
         payload["delegation"] = {
             "runtime": "simplicio-runtime",
             "used": native is not None,
