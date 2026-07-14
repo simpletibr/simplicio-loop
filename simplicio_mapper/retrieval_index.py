@@ -366,6 +366,43 @@ def _symbol_tokens(text: str) -> list[str]:
     return [t for t in _SYMBOL_TOKEN_RE.findall(text) if len(t) >= 4]
 
 
+_TASK_INTENT_NOISE_KEYS = {"schema", "fingerprint"}
+
+
+def _task_intent_text(value: Any) -> list[str]:
+    """Collect only the free-text *values* of a normalized task-intent
+    object, skipping its own reserved schema key names (`schema`,
+    `fingerprint`) and skipping key names generally.
+
+    `parse_task_intent()` always returns the full normalized schema shape
+    (`story`, `acceptance_criteria`, `business_rules`,
+    `non_functional_requirements`, `additional_information`, ... - see
+    `task_intent.py`), most of which are empty for any given task. Naively
+    `json.dumps()`-ing that whole object and tokenizing it (as this used to
+    do) fed every one of those field *names* into `domain_terms` as if they
+    were part of the task's own vocabulary, on every single task -- diluting
+    `coverage_ratio` (matched_count / query_term_count) so badly that a
+    task with real, present evidence in the repo (e.g. the word "temporal"
+    verbatim in a source comment) could still fail the minimum-coverage gate
+    and get an incorrect `needs_broader_context: true`/abstention, because
+    the denominator was inflated by ~15+ schema-noise tokens that can never
+    match anything.
+    """
+    texts: list[str] = []
+    if isinstance(value, Mapping):
+        for key, sub_value in value.items():
+            if key in _TASK_INTENT_NOISE_KEYS:
+                continue
+            texts.extend(_task_intent_text(sub_value))
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            texts.extend(_task_intent_text(item))
+    elif isinstance(value, str):
+        if value:
+            texts.append(value)
+    return texts
+
+
 def build_query_plan(
     goal: str = "",
     *,
@@ -376,7 +413,7 @@ def build_query_plan(
     """Normalize a task into weighted query fields (Stage B)."""
     chunks = [goal]
     if task_intent:
-        chunks.append(json.dumps(task_intent, ensure_ascii=False, sort_keys=True))
+        chunks.extend(_task_intent_text(task_intent))
     text = " ".join(chunks)
     norm = _normalized_text(text)
 

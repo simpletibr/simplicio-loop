@@ -11,6 +11,7 @@ from unittest.mock import patch
 from simplicio_mapper.cli import main
 from simplicio_mapper.contract import validate_instance
 from simplicio_mapper.orient import build_orientation
+from simplicio_mapper.retrieval_index import build_retrieval_index, write_retrieval_index
 from simplicio_mapper.toon import decode_toon
 
 
@@ -27,17 +28,30 @@ class OrientContractTest(unittest.TestCase):
             encoding="utf-8",
         )
         (self.root / "docs.md").write_text("unrelated release notes\n", encoding="utf-8")
+        project_map = {
+            "schema": "simplicio.project-map/v1",
+            "files": [
+                {"path": "src/order_lines.py", "importance": 0.4},
+                {"path": "docs.md", "importance": 0.9},
+            ],
+        }
         (self.root / ".simplicio/project-map.json").write_text(
-            json.dumps(
-                {
-                    "schema": "simplicio.project-map/v1",
-                    "files": [
-                        {"path": "src/order_lines.py", "importance": 0.4},
-                        {"path": "docs.md", "importance": 0.9},
-                    ],
-                }
-            ),
+            json.dumps(project_map),
             encoding="utf-8",
+        )
+        # `build_orientation` -> `select_context_targets` only does
+        # content-aware (not just path/metadata) matching against a
+        # *persisted* retrieval index (the warm path populated by the real
+        # `scan`/`index` CLI flow) -- a cold, unindexed call is deliberately
+        # metadata-only so an ad hoc query never has to reopen every
+        # candidate file body (see retrieval_index.py::select_context_targets
+        # and test_task_context_selection.py's
+        # test_selector_does_not_open_irrelevant_candidate_files). Persist
+        # a real retrieval index here so this test exercises the supported
+        # warm path instead of asserting content-match behavior that the
+        # cold path intentionally does not provide.
+        write_retrieval_index(
+            str(self.root), ".simplicio", build_retrieval_index(project_map, root=str(self.root))
         )
 
     def tearDown(self) -> None:

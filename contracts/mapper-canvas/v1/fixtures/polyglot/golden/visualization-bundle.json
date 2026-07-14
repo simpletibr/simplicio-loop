@@ -681,7 +681,7 @@
         "rationale": "stable strategy order; renderer chooses coordinates"
       }
     ],
-    "mapper_version": "0.20.0",
+    "mapper_version": "0.0.0",
     "project": {
       "file_count": 4,
       "root": "."
@@ -1217,7 +1217,7 @@
       "rationale": "stable strategy order; renderer chooses coordinates"
     }
   ],
-  "mapper_version": "0.20.0",
+  "mapper_version": "0.0.0",
   "nodes": [
     {
       "canonical": "go/main.go",
@@ -1225,7 +1225,7 @@
       "kind": "file",
       "language": "go",
       "metrics": {
-        "size_bytes": 53
+        "size_bytes": 50
       },
       "name": "main.go",
       "parent_id": "module:3800de2487085eba",
@@ -1237,7 +1237,7 @@
       "kind": "file",
       "language": "json",
       "metrics": {
-        "size_bytes": 28
+        "size_bytes": 27
       },
       "name": "package.json",
       "parent_id": "module:5a219264bc5d86e9",
@@ -1249,7 +1249,7 @@
       "kind": "file",
       "language": "python",
       "metrics": {
-        "size_bytes": 35
+        "size_bytes": 33
       },
       "name": "app.py",
       "parent_id": "module:8dbe8155e679c240",
@@ -1261,7 +1261,7 @@
       "kind": "file",
       "language": "rust",
       "metrics": {
-        "size_bytes": 41
+        "size_bytes": 40
       },
       "name": "lib.rs",
       "parent_id": "module:42b5302cd11f1a60",

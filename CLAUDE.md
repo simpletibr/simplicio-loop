@@ -328,6 +328,26 @@ PR só faz merge quando **todos** os itens abaixo estão marcados:
 
 CI bloqueia merge se DoD falhar (`.github/workflows/dod.yml`).
 
+### DoD específico do pacote Python (`simplicio_mapper/`)
+
+O checklist acima é o DoD genérico do scaffold (Node/npm). Para trabalho dentro
+de `simplicio_mapper/` (o pacote Python canônico), nenhuma issue/task fecha
+sem cobrir as **7 dimensões** abaixo — regra explícita, não é opcional:
+
+- [ ] **Implementation** — o código de produção que a task pede, sem escopo extra.
+- [ ] **Unit** — cobre a lógica isolada do módulo tocado (`tests/python/test_*.py`).
+- [ ] **Integration** — cobre a interação entre módulos/CLI (ex.: dispatch via `main()`, `cli/_repo_commands.py`).
+- [ ] **System** — cobre o fluxo ponta-a-ponta via entry point real (ex.: `simplicio-mapper snapshot ...` contra um repo de verdade), não só unidades isoladas.
+- [ ] **Regression** — todo bug real corrigido ganha um teste que trava a regressão (não só o fix).
+- [ ] **Perf benchmark** — quando a mudança toca caminho quente (retrieval, indexação, parsing em escala), roda `python3 scripts/runtime_scale_benchmark.py` (ou o benchmark relevante em `scripts/*_benchmark.py`) e reporta o número; não é "achismo".
+- [ ] **Coverage >= 85%** — piso do pacote Python. O gate real de CI (`.github/workflows/python-ci.yml`, job `python-tests`) já roda `python -m pytest tests/python -q --cov=simplicio_mapper --cov-report=term --cov-fail-under=88`, ou seja, o piso de CI (88%) é mais estrito que este mínimo (85%) — nunca reduzir o `--cov-fail-under` do workflow para acomodar uma task.
+
+Comando de verificação local (mesmo usado no CI):
+
+```bash
+python -m pytest tests/python -q --cov=simplicio_mapper --cov-report=term --cov-fail-under=88
+```
+
 ---
 
 ## Padrões de código

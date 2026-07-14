@@ -74,20 +74,36 @@ def _safe_remote(value: str) -> str:
 
 
 def _provenance(root: str) -> dict[str, Any]:
-    remotes = []
-    for line in _git(root, "remote", "-v").splitlines():
-        parts = line.split()
-        if len(parts) >= 2:
-            url = _safe_remote(parts[1])
-            if url and url not in [item["url"] for item in remotes]:
-                remotes.append({"name": parts[0], "url": url})
-    primary = remotes[0]["url"] if remotes else None
-    match = re.match(r"https?://([^/]+)/([^/]+)/([^/]+?)(?:\.git)?$", primary or "")
-    head = _git(root, "symbolic-ref", "--short", "HEAD")
-    default_ref = _git(root, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
-    default_branch = default_ref.split("/", 1)[1] if "/" in default_ref else None
+    # `git -C <root> ...` discovers the nearest ancestor `.git` unless `root`
+    # itself owns one -- so a fixture/subdirectory with no `.git` of its own
+    # (e.g. contracts/*/fixtures/*/source nested inside this very repo) would
+    # otherwise silently inherit the enclosing repo's remote/branch/commit as
+    # if it were the fixture's own provenance. Only query git when `root` is
+    # actually a git worktree root, so a genuine plain-folder clone reports
+    # `remote_url`/`branch`/`commit_sha` as null instead of leaking ambient
+    # ancestor-repo state.
     git_dir = os.path.join(root, ".git")
     is_git = os.path.exists(git_dir)
+    remotes: list[dict[str, str]] = []
+    primary = None
+    head = ""
+    default_ref = ""
+    commit_sha = ""
+    dirty = False
+    if is_git:
+        for line in _git(root, "remote", "-v").splitlines():
+            parts = line.split()
+            if len(parts) >= 2:
+                url = _safe_remote(parts[1])
+                if url and url not in [item["url"] for item in remotes]:
+                    remotes.append({"name": parts[0], "url": url})
+        primary = remotes[0]["url"] if remotes else None
+        head = _git(root, "symbolic-ref", "--short", "HEAD")
+        default_ref = _git(root, "symbolic-ref", "--short", "refs/remotes/origin/HEAD")
+        commit_sha = _git(root, "rev-parse", "HEAD")
+        dirty = bool(_git(root, "status", "--porcelain"))
+    match = re.match(r"https?://([^/]+)/([^/]+)/([^/]+?)(?:\.git)?$", primary or "")
+    default_branch = default_ref.split("/", 1)[1] if "/" in default_ref else None
     submodules = []
     gitmodules = os.path.join(root, ".gitmodules")
     if os.path.isfile(gitmodules):
@@ -108,9 +124,9 @@ def _provenance(root: str) -> dict[str, Any]:
         "owner": match.group(2) if match else None,
         "repository": match.group(3) if match else None,
         "branch": head or None,
-        "commit_sha": _git(root, "rev-parse", "HEAD") or None,
+        "commit_sha": commit_sha or None,
         "default_branch": default_branch,
-        "dirty": bool(_git(root, "status", "--porcelain")),
+        "dirty": dirty,
         "scan_root": ".",
         "clone_type": "git-worktree" if os.path.isfile(git_dir) else ("git-clone" if is_git else "plain-folder"),
         "submodules": submodules,
@@ -172,9 +188,16 @@ def _safe_relative_path(root: str, requested: str) -> tuple[str, str]:
         raise ValueError("path is required")
     root_real = os.path.realpath(root)
     candidate = os.path.abspath(os.path.join(root, requested.replace("/", os.sep)))
-    if os.path.commonpath([root_real, candidate]) != root_real:
+    # Compare resolved paths on both sides: on macOS `root` is commonly
+    # itself a symlink (e.g. tmp dirs under `/var/folders` -> `/private/var/
+    # folders`), and `os.path.realpath(root)` resolves that while `candidate`
+    # (built from the unresolved `root`) does not -- an unresolved `candidate`
+    # can never share `root_real`'s resolved prefix, so every request was
+    # incorrectly rejected as "outside mapped root" on those platforms.
+    candidate_real = os.path.realpath(candidate)
+    if os.path.commonpath([root_real, candidate_real]) != root_real:
         raise ValueError("path is outside mapped root")
-    relative = os.path.relpath(candidate, root_real)
+    relative = os.path.relpath(candidate_real, root_real)
     parts = relative.replace(os.sep, "/").split("/")
     if any(part in {"", ".", ".."} for part in parts) or any(part in _DENIED_PARTS for part in parts[:-1]):
         raise ValueError("path is denied by preview policy")
