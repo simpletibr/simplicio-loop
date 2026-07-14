@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from simplicio_mapper.contract import validate_instance
+from simplicio_mapper.retrieval_index import build_retrieval_index, write_retrieval_index
 from simplicio_mapper.task_batch import TASK_BATCH_SCHEMA, build_task_batch
 from simplicio_mapper.task_intent import parse_task_intent
 from simplicio_mapper.task_traceability import apply_receipts, build_task_traceability
@@ -23,6 +24,7 @@ class TaskBatchAndTraceabilityTest(unittest.TestCase):
             {"path": "src/model.py", "roles": ["frontend", "backend"]},
             {"path": "tests/test_model.py", "roles": ["test"]},
         ]}
+        write_retrieval_index(str(self.root), ".simplicio", build_retrieval_index(self.project_map, root=str(self.root)))
 
     def tearDown(self) -> None:
         self.tmp.cleanup()
