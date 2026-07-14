@@ -40,6 +40,16 @@ class RuntimeScaleBenchmarkTest(unittest.TestCase):
         self.assertGreater(calibration["normalized_budget"]["indexed_p95_vs_target"], 1.0)
         self.assertTrue(calibration["reasons"])
 
+    def test_write_json_persists_receipt(self) -> None:
+        spec = rsb.load_fixture_spec().with_overrides(total_files=64, measured_runs=2, warmup_runs=1)
+        with tempfile.TemporaryDirectory() as tmp:
+            payload = rsb.run_runtime_scale_benchmark(spec, root=Path(tmp))
+            target = Path(tmp) / "runtime-scale-benchmark.json"
+            target.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+            persisted = json.loads(target.read_text(encoding="utf-8"))
+        self.assertEqual(persisted["schema"], "simplicio.runtime-scale-benchmark/v1")
+        self.assertIn("calibration", persisted)
+
     def test_benchmark_payload_reports_indexed_and_legacy_sections(self) -> None:
         spec = rsb.load_fixture_spec().with_overrides(
             total_files=96,

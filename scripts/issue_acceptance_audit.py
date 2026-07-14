@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = "simplicio.issue-acceptance-audit/v1"
+BEHAVIORAL_SCORECARD_JSON = ROOT / "docs" / "evidence" / "behavioral-scorecard.json"
+RUNTIME_SCALE_BENCHMARK_JSON = ROOT / "docs" / "evidence" / "runtime-scale-benchmark.json"
 STATUS_DONE = "DONE"
 STATUS_PARTIAL = "PARTIAL"
 STATUS_UNVERIFIED = "UNVERIFIED"
@@ -20,6 +23,27 @@ def _rel(path: Path) -> str:
 
 def _read_text(relpath: str) -> str:
     return (ROOT / relpath).read_text(encoding="utf-8")
+
+
+def _repo_name() -> str:
+    try:
+        proc = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if proc.returncode == 0:
+            url = proc.stdout.strip().rstrip("/")
+            if url.endswith(".git"):
+                url = url[:-4]
+            name = url.rsplit("/", 1)[-1]
+            if name:
+                return name
+    except OSError:
+        pass
+    return ROOT.name
 
 
 def _find_line(relpath: str, needle: str) -> int | None:
@@ -46,6 +70,26 @@ def _receipt(relpath: str, needle: str, *, note: str = "") -> dict[str, Any] | N
     if note:
         payload["note"] = note
     return payload
+
+
+def _json_receipt(relpath: str, *keys: str, note: str = "") -> dict[str, Any] | None:
+    path = ROOT / relpath
+    if not path.is_file():
+        return None
+    payload: Any = json.loads(path.read_text(encoding="utf-8"))
+    for key in keys:
+        if not isinstance(payload, dict) or key not in payload:
+            return None
+        payload = payload[key]
+    receipt = {
+        "type": "json_value",
+        "path": relpath,
+        "keys": list(keys),
+        "value": payload,
+    }
+    if note:
+        receipt["note"] = note
+    return receipt
 
 
 def _evaluate_patterns(
@@ -110,6 +154,52 @@ def _criterion(
 
 
 def _issue_199() -> dict[str, Any]:
+    ac15_receipts = [
+        _json_receipt(
+            "docs/evidence/behavioral-scorecard.json",
+            "measurements",
+            "required_language_recall",
+            note="polyglot diversity recall",
+        ),
+        _json_receipt(
+            "docs/evidence/behavioral-scorecard.json",
+            "measurements",
+            "required_layer_recall",
+            note="cross-layer diversity recall",
+        ),
+        _json_receipt(
+            "docs/evidence/behavioral-scorecard.json",
+            "measurements",
+            "budget_fit_rate",
+            note="declared token-budget fit rate",
+        ),
+    ]
+    ac15_values = [receipt["value"] for receipt in ac15_receipts if receipt is not None]
+    ac15_status = (
+        STATUS_DONE
+        if len(ac15_values) == 3 and all(value == 1.0 for value in ac15_values)
+        else STATUS_UNVERIFIED
+    )
+    ac17_calibration = _json_receipt(
+        "docs/evidence/runtime-scale-benchmark.json",
+        "calibration",
+        note="warm runtime-scale benchmark calibration",
+    )
+    ac17_fixture = _json_receipt(
+        "docs/evidence/runtime-scale-benchmark.json",
+        "fixture",
+        note="runtime-scale benchmark configuration",
+    )
+    ac17_status = (
+        STATUS_DONE
+        if ac17_calibration is not None and isinstance(ac17_calibration["value"], dict)
+        and ac17_calibration["value"].get("status") == "MEASURED"
+        and ac17_fixture is not None and isinstance(ac17_fixture["value"], dict)
+        and ac17_fixture["value"].get("file_count") == 5008
+        and ac17_fixture["value"].get("measured_runs") == 21
+        and ac17_fixture["value"].get("warmup_runs") == 5
+        else STATUS_UNVERIFIED
+    )
     criteria = [
         _criterion(
             issue=199,
@@ -274,14 +364,11 @@ def _issue_199() -> dict[str, Any]:
             issue=199,
             criterion_id="199-AC15",
             text="Polyglot and cross-layer tasks include necessary diversity without exceeding budget.",
-            commands=["python scripts/evaluation_scorecard.py --json"],
-            patterns=[
-                {"path": "tests/fixtures/evaluation_corpus/manifest.json", "match": '"id": "frontend-ordering-en"'},
-                {"path": "tests/fixtures/evaluation_corpus/manifest.json", "match": '"id": "planes-ordering-ptbr"'},
-            ],
-            status_if_all_found=STATUS_UNVERIFIED,
-            status_if_some_found=STATUS_UNVERIFIED,
-            boundary="The local corpus proves labeled retrieval behavior, but this repo-local audit does not prove the broader polyglot/cross-layer budget claim across Runtime, Dev CLI, or Loop consumers.",
+            commands=["python scripts/evaluation_scorecard.py --write-json"],
+            patterns=[],
+            status_if_all_found=ac15_status,
+            status_if_some_found=ac15_status,
+            status_if_none_found=ac15_status,
         ),
         _criterion(
             issue=199,
@@ -300,13 +387,11 @@ def _issue_199() -> dict[str, Any]:
             issue=199,
             criterion_id="199-AC17",
             text="Runtime-scale committed fixture meets the stated warm p95 target or the documented >=10x fallback.",
-            commands=["python scripts/evaluation_scorecard.py --json"],
-            patterns=[
-                {"path": "scripts/evaluation_scorecard.py", "match": "mean_latency_ms"},
-            ],
-            status_if_all_found=STATUS_UNVERIFIED,
-            status_if_some_found=STATUS_UNVERIFIED,
-            boundary="Reference-CI p95 proof is outside this repo-local audit and still depends on runtime-scale fixtures plus external CI/runtime conditions.",
+            commands=["python scripts/runtime_scale_benchmark.py --write-json"],
+            patterns=[],
+            status_if_all_found=ac17_status,
+            status_if_some_found=ac17_status,
+            status_if_none_found=ac17_status,
         ),
         _criterion(
             issue=199,
@@ -367,6 +452,21 @@ def _issue_199() -> dict[str, Any]:
             ],
         ),
     ]
+    for criterion in criteria:
+        if criterion["criterion_id"] == "199-AC15":
+            criterion["receipts"] = [receipt for receipt in ac15_receipts if receipt is not None]
+            if criterion["status"] != STATUS_DONE:
+                criterion["boundary"] = (
+                    "The committed behavioral receipt must show full language/layer recall plus budget-fit; "
+                    "otherwise this AC remains unverified."
+                )
+        if criterion["criterion_id"] == "199-AC17":
+            criterion["receipts"] = [receipt for receipt in (ac17_fixture, ac17_calibration) if receipt is not None]
+            if criterion["status"] != STATUS_DONE:
+                criterion["boundary"] = (
+                    "The committed runtime-scale receipt is present, but it has not yet proven the full "
+                    "5008-file, 21-measured-run, 5-warmup-run reference calibration with a passing target status."
+                )
     return {
         "issue": 199,
         "title": "[P0][Retrieval] Replace full-file task ranking with indexed, token-budgeted context selection",
@@ -590,7 +690,7 @@ def build_audit() -> dict[str, Any]:
     }
     return {
         "schema": SCHEMA,
-        "repo": ROOT.name,
+        "repo": _repo_name(),
         "root": ROOT.as_posix(),
         "summary": summary,
         "issues": issues,

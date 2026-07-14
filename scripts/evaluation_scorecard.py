@@ -18,6 +18,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 CORPUS_PATH = ROOT / "tests" / "fixtures" / "evaluation_corpus" / "manifest.json"
 DOC_PATH = ROOT / "docs" / "behavioral-scorecard.md"
+JSON_DOC_PATH = ROOT / "docs" / "evidence" / "behavioral-scorecard.json"
 SCHEMA = "simplicio.behavioral-scorecard/v1"
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -31,6 +32,36 @@ def _json_dump(payload: Any) -> str:
 
 def _estimate_tokens_from_bytes(byte_count: int) -> int:
     return max(1, math.ceil(byte_count / 4))
+
+
+def _infer_language(path: str) -> str:
+    suffix = Path(path).suffix.lower()
+    return {
+        ".py": "python",
+        ".ts": "typescript",
+        ".tsx": "typescript",
+        ".js": "javascript",
+        ".jsx": "javascript",
+        ".md": "markdown",
+        ".json": "json",
+    }.get(suffix, "other")
+
+
+def _infer_layers(path: str) -> set[str]:
+    normalized = path.replace("\\", "/").lower()
+    parts = set(piece for piece in normalized.split("/") if piece)
+    layers: set[str] = set()
+    if "tests" in parts or Path(normalized).name.startswith(("test_",)) or ".test." in normalized:
+        layers.add("test")
+    if {"frontend", "components", "ui", "web"} & parts:
+        layers.add("frontend")
+    if {"api", "backend", "server"} & parts:
+        layers.add("backend")
+    if {"state", "store"} & parts:
+        layers.add("state")
+    if not layers and normalized.startswith("src/"):
+        layers.add("implementation")
+    return layers
 
 
 def _measure_tree_bytes(root: Path) -> int:
@@ -116,21 +147,47 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
             raise RuntimeError(f"scan failed for {case['id']}: {stderr.strip()}")
 
         first_code, first_stdout, first_stderr, handoff_latency_ms = _run_cli(
-            ["handoff", str(tempdir), "--task-file", str(tempdir / case["task_file"]), "--json", "--await"],
+            [
+                "handoff",
+                str(tempdir),
+                "--task-file",
+                str(tempdir / case["task_file"]),
+                "--json",
+                "--await",
+                "--token-budget",
+                str(case.get("token_budget", 8000)),
+            ],
             ROOT,
         )
         if first_code != 0:
             raise RuntimeError(f"handoff failed for {case['id']}: {first_stderr.strip()}")
 
         second_code, second_stdout, second_stderr, _ = _run_cli(
-            ["handoff", str(tempdir), "--task-file", str(tempdir / case["task_file"]), "--json", "--await"],
+            [
+                "handoff",
+                str(tempdir),
+                "--task-file",
+                str(tempdir / case["task_file"]),
+                "--json",
+                "--await",
+                "--token-budget",
+                str(case.get("token_budget", 8000)),
+            ],
             ROOT,
         )
         if second_code != 0:
             raise RuntimeError(f"handoff(second pass) failed for {case['id']}: {second_stderr.strip()}")
 
         orient_code, orient_stdout, orient_stderr, orient_latency_ms = _run_cli(
-            ["orient", str(tempdir), "--task-json", str(tempdir / case["task_json"]), "--json"],
+            [
+                "orient",
+                str(tempdir),
+                "--task-json",
+                str(tempdir / case["task_json"]),
+                "--json",
+                "--token-budget",
+                str(case.get("token_budget", 8000)),
+            ],
             ROOT,
         )
         if orient_code != 0:
@@ -145,6 +202,8 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
             candidate.get("path", "") for candidate in orient.get("candidates", []) if candidate.get("path")
         ]
         covered_paths = set(selected_paths) | set(orient_candidate_paths)
+        covered_languages = {_infer_language(path) for path in covered_paths if path}
+        covered_layers = set().union(*(_infer_layers(path) for path in covered_paths if path)) if covered_paths else set()
         relevant_set = set(case["relevant_paths"])
         selected_hits = sum(1 for path in selected_paths if path in relevant_set)
         precision_at_k = round(selected_hits / len(selected_paths), 6) if selected_paths else None
@@ -177,6 +236,22 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
 
         abstained = bool(first_handoff.get("selection", {}).get("abstained"))
         needs_broader_context = bool(first_handoff.get("context_pack", {}).get("needs_broader_context"))
+        token_budget_fit = dict(first_handoff.get("selection", {}).get("token_budget_fit", {}))
+        serialization_budget = dict(first_handoff.get("context_pack", {}).get("serialization_budget", {}))
+        declared_budget = int(case.get("token_budget", token_budget_fit.get("token_budget", 8000)))
+        budget_within_limit = bool(serialization_budget.get("within_budget"))
+        required_languages = {str(item).lower() for item in case.get("required_languages", [])}
+        required_layers = {str(item).lower() for item in case.get("required_layers", [])}
+        required_language_recall = (
+            round(sum(1 for item in required_languages if item in covered_languages) / len(required_languages), 6)
+            if required_languages
+            else None
+        )
+        required_layer_recall = (
+            round(sum(1 for item in required_layers if item in covered_layers) / len(required_layers), 6)
+            if required_layers
+            else None
+        )
 
         if case["expect_abstain"]:
             sufficiency = 1.0 if abstained and not selected_paths else 0.0
@@ -189,6 +264,9 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
                     and target_recall == 1.0
                     and test_recall == 1.0
                     and required_span_recall == 1.0
+                    and (required_language_recall is None or required_language_recall == 1.0)
+                    and (required_layer_recall is None or required_layer_recall == 1.0)
+                    and budget_within_limit
                     and nonexistent_paths == 0
                     and not needs_broader_context
                 )
@@ -212,10 +290,18 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
             "context_pack_bytes": context_pack_bytes,
             "handoff_payload_bytes": len(first_stdout.encode("utf-8")),
             "estimated_tokens": _estimate_tokens_from_bytes(context_pack_bytes),
+            "budget_token_limit": declared_budget,
+            "budget_estimated_tokens": int(token_budget_fit.get("estimated_tokens", 0)),
+            "budget_serialized_bytes": int(serialization_budget.get("serialized_bytes", 0)),
+            "budget_within_limit": budget_within_limit,
             "precision_at_k": precision_at_k,
             "target_recall_at_k": target_recall,
             "test_recall_at_k": test_recall,
             "required_span_recall": required_span_recall,
+            "required_language_recall": required_language_recall,
+            "required_layer_recall": required_layer_recall,
+            "selected_language_count": len(covered_languages),
+            "selected_layer_count": len(covered_layers),
             "sufficiency": sufficiency,
             "task_success": task_success,
             "nonexistent_paths": nonexistent_paths,
@@ -228,10 +314,18 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
             "context_pack_bytes": "MEASURED",
             "handoff_payload_bytes": "MEASURED",
             "estimated_tokens": "ESTIMATED",
+            "budget_token_limit": "MEASURED",
+            "budget_estimated_tokens": "ESTIMATED",
+            "budget_serialized_bytes": "MEASURED",
+            "budget_within_limit": "ESTIMATED",
             "precision_at_k": "MEASURED" if precision_at_k is not None else "UNVERIFIED",
             "target_recall_at_k": "MEASURED" if target_recall is not None else "UNVERIFIED",
             "test_recall_at_k": "MEASURED" if test_recall is not None else "UNVERIFIED",
             "required_span_recall": "MEASURED" if required_span_recall is not None else "UNVERIFIED",
+            "required_language_recall": "MEASURED" if required_language_recall is not None else "UNVERIFIED",
+            "required_layer_recall": "MEASURED" if required_layer_recall is not None else "UNVERIFIED",
+            "selected_language_count": "MEASURED",
+            "selected_layer_count": "MEASURED",
             "sufficiency": "MEASURED",
             "task_success": "MEASURED",
             "nonexistent_paths": "MEASURED",
@@ -272,6 +366,21 @@ def _aggregate(cases: list[dict[str, Any]]) -> dict[str, Any]:
         for case in positive_cases
         if case["metrics"]["required_span_recall"] is not None
     ]
+    language_recalls = [
+        case["metrics"]["required_language_recall"]
+        for case in cases
+        if case["metrics"]["required_language_recall"] is not None
+    ]
+    layer_recalls = [
+        case["metrics"]["required_layer_recall"]
+        for case in cases
+        if case["metrics"]["required_layer_recall"] is not None
+    ]
+    budget_fit = [
+        1.0 if case["metrics"]["budget_within_limit"] else 0.0
+        for case in cases
+        if case["metrics"]["budget_token_limit"] > 0
+    ]
     precisions = [
         case["metrics"]["precision_at_k"] for case in cases if case["metrics"]["precision_at_k"] is not None
     ]
@@ -294,6 +403,9 @@ def _aggregate(cases: list[dict[str, Any]]) -> dict[str, Any]:
         "target_recall_at_k": round(sum(target_recalls) / len(target_recalls), 6) if target_recalls else None,
         "test_recall_at_k": round(sum(test_recalls) / len(test_recalls), 6) if test_recalls else None,
         "required_span_recall": round(sum(span_recalls) / len(span_recalls), 6) if span_recalls else None,
+        "required_language_recall": round(sum(language_recalls) / len(language_recalls), 6) if language_recalls else None,
+        "required_layer_recall": round(sum(layer_recalls) / len(layer_recalls), 6) if layer_recalls else None,
+        "budget_fit_rate": round(sum(budget_fit) / len(budget_fit), 6) if budget_fit else None,
         "mean_precision_at_k": round(sum(precisions) / len(precisions), 6) if precisions else None,
         "sufficiency": round(sum(sufficiency) / len(sufficiency), 6) if sufficiency else None,
         "task_success": round(sum(task_success) / len(task_success), 6) if task_success else None,
@@ -318,6 +430,9 @@ def _aggregate(cases: list[dict[str, Any]]) -> dict[str, Any]:
         "target_recall_at_k": "MEASURED",
         "test_recall_at_k": "MEASURED",
         "required_span_recall": "MEASURED",
+        "required_language_recall": "MEASURED" if language_recalls else "UNVERIFIED",
+        "required_layer_recall": "MEASURED" if layer_recalls else "UNVERIFIED",
+        "budget_fit_rate": "ESTIMATED" if budget_fit else "UNVERIFIED",
         "mean_precision_at_k": "MEASURED",
         "sufficiency": "MEASURED",
         "task_success": "MEASURED",
@@ -378,7 +493,9 @@ def _render_markdown(payload: dict[str, Any]) -> str:
             "Notes:",
             "",
             "- `estimated_tokens` uses `utf8-bytes-div-4`, so it is labeled `ESTIMATED` rather than `MEASURED`.",
+            "- `budget_within_limit` and `budget_fit_rate` depend on that declared tokenizer policy, so they are also labeled `ESTIMATED` even though the serialized bytes themselves are `MEASURED`.",
             "- `required_span_recall` is line-aware and comes from `orient` candidate evidence against reviewer-owned spans.",
+            "- `required_language_recall` / `required_layer_recall` prove the selected retrieval surface kept the requested polyglot/cross-layer diversity for labeled cases.",
             "- `target_recall_at_k` and `test_recall_at_k` use the combined retrieval surface from `handoff` targets plus `orient` candidates.",
             "- `task_success` is the benchmark verdict for each labeled case; it is not a claim about end-to-end downstream code generation outside this harness.",
             "",
@@ -391,6 +508,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Behavioral scorecard for issues #199 and #208.")
     parser.add_argument("--json", action="store_true", help="Emit JSON to stdout.")
     parser.add_argument("--write", action="store_true", help="Write docs/behavioral-scorecard.md.")
+    parser.add_argument("--write-json", action="store_true", help="Write docs/evidence/behavioral-scorecard.json.")
     args = parser.parse_args()
 
     corpus = _load_json(CORPUS_PATH.read_text(encoding="utf-8"), "corpus manifest")
@@ -410,8 +528,10 @@ def main() -> int:
 
     if args.write:
         DOC_PATH.write_text(_render_markdown(payload) + "\n", encoding="utf-8")
+    if args.write_json:
+        JSON_DOC_PATH.write_text(json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
 
-    if args.json or not args.write:
+    if args.json or (not args.write and not args.write_json):
         json.dump(payload, sys.stdout, indent=2, ensure_ascii=False, sort_keys=True)
         sys.stdout.write("\n")
 

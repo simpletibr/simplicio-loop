@@ -1,0 +1,291 @@
+{
+  "calibration": {
+    "indexed_p95_ms": 48145.081,
+    "indexed_vs_legacy_speedup_ratio": 0.005032,
+    "legacy_p95_ms": 242.262,
+    "normalized_budget": {
+      "indexed_p95_vs_target": 1375.573743,
+      "speedup_vs_target": 0.004376
+    },
+    "reasons": [
+      "indexed p95 48145.081ms exceeds target 35.000ms",
+      "legacy/indexed speedup 0.005x below target 1.150x"
+    ],
+    "status": "UNVERIFIED"
+  },
+  "fixture": {
+    "file_count": 5008,
+    "limit": 8,
+    "manifest": "tests/fixtures/runtime-scale/manifest.json",
+    "measured_runs": 5,
+    "retrieval_index_path": "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-runtime-scale-ijhbfi7a\\.simplicio\\retrieval-index.json",
+    "root": "C:\\Users\\Z0059V7A\\AppData\\Local\\Temp\\simplicio-runtime-scale-ijhbfi7a",
+    "symbol_count": 4802,
+    "token_budget": 8000,
+    "warmup_runs": 2
+  },
+  "indexed": {
+    "aggregate": {
+      "bytes_read": {
+        "mean": 10774657.333,
+        "p95": 10775282.2,
+        "total": 32323972
+      },
+      "duration_ms": {
+        "max": 50065.572,
+        "mean": 27281.8,
+        "min": 919.167,
+        "p95": 48145.081
+      },
+      "files_opened": {
+        "mean": 10.667,
+        "p95": 12.0,
+        "total": 32
+      },
+      "result_tokens": {
+        "mean": 2328.0,
+        "p95": 2887.4,
+        "total": 6984
+      },
+      "runs": 3,
+      "top_targets": [
+        "src/runtime_scale/indexed_dispatch.py",
+        "src/runtime_scale/indexed_dispatch.py",
+        "tests/test_runtime_scale_budget.py"
+      ]
+    },
+    "per_query": [
+      {
+        "bytes_read": {
+          "mean": 10775212.0,
+          "p95": 10775212.0,
+          "total": 53876060
+        },
+        "duration_ms": {
+          "max": 51670.707,
+          "mean": 44441.406,
+          "min": 41409.955,
+          "p95": 50065.572
+        },
+        "files_opened": {
+          "mean": 12.0,
+          "p95": 12.0,
+          "total": 60
+        },
+        "name": "explicit_target_symbol",
+        "result_tokens": {
+          "mean": 2941.0,
+          "p95": 2941.0,
+          "total": 14705
+        },
+        "runs": 5,
+        "top_targets": [
+          "src/runtime_scale/indexed_dispatch.py",
+          "src/runtime_scale/indexed_dispatch.py",
+          "src/runtime_scale/indexed_dispatch.py"
+        ]
+      },
+      {
+        "bytes_read": {
+          "mean": 10775290.0,
+          "p95": 10775290.0,
+          "total": 53876450
+        },
+        "duration_ms": {
+          "max": 944.582,
+          "mean": 798.494,
+          "min": 631.92,
+          "p95": 919.167
+        },
+        "files_opened": {
+          "mean": 12.0,
+          "p95": 12.0,
+          "total": 60
+        },
+        "name": "natural_language_budget",
+        "result_tokens": {
+          "mean": 2405.0,
+          "p95": 2405.0,
+          "total": 12025
+        },
+        "runs": 5,
+        "top_targets": [
+          "src/runtime_scale/indexed_dispatch.py",
+          "src/runtime_scale/indexed_dispatch.py",
+          "src/runtime_scale/indexed_dispatch.py"
+        ]
+      },
+      {
+        "bytes_read": {
+          "mean": 10773470.0,
+          "p95": 10773470.0,
+          "total": 53867350
+        },
+        "duration_ms": {
+          "max": 31738.125,
+          "mean": 25835.363,
+          "min": 22587.198,
+          "p95": 30860.662
+        },
+        "files_opened": {
+          "mean": 8.0,
+          "p95": 8.0,
+          "total": 40
+        },
+        "name": "test_route",
+        "result_tokens": {
+          "mean": 1638.0,
+          "p95": 1638.0,
+          "total": 8190
+        },
+        "runs": 5,
+        "top_targets": [
+          "tests/test_runtime_scale_budget.py",
+          "tests/test_runtime_scale_budget.py",
+          "tests/test_runtime_scale_budget.py"
+        ]
+      }
+    ]
+  },
+  "legacy_metadata": {
+    "aggregate": {
+      "bytes_read": {
+        "mean": 2169753.0,
+        "p95": 2169753.0,
+        "total": 6509259
+      },
+      "duration_ms": {
+        "max": 250.346,
+        "mean": 185.186,
+        "min": 135.707,
+        "p95": 242.262
+      },
+      "files_opened": {
+        "mean": 2.0,
+        "p95": 2.0,
+        "total": 6
+      },
+      "result_tokens": {
+        "mean": 235.667,
+        "p95": 394.9,
+        "total": 707
+      },
+      "runs": 3,
+      "top_targets": [
+        "src/runtime_scale/indexed_dispatch.py",
+        "docs/runtime-scale.md",
+        "tests/test_runtime_scale_budget.py"
+      ]
+    },
+    "per_query": [
+      {
+        "bytes_read": {
+          "mean": 2169753.0,
+          "p95": 2169753.0,
+          "total": 10848765
+        },
+        "duration_ms": {
+          "max": 261.53,
+          "mean": 188.978,
+          "min": 139.364,
+          "p95": 250.346
+        },
+        "files_opened": {
+          "mean": 2.0,
+          "p95": 2.0,
+          "total": 10
+        },
+        "name": "explicit_target_symbol",
+        "result_tokens": {
+          "mean": 420.0,
+          "p95": 420.0,
+          "total": 2100
+        },
+        "runs": 5,
+        "top_targets": [
+          "src/runtime_scale/indexed_dispatch.py",
+          "src/runtime_scale/indexed_dispatch.py",
+          "src/runtime_scale/indexed_dispatch.py"
+        ]
+      },
+      {
+        "bytes_read": {
+          "mean": 2169753.0,
+          "p95": 2169753.0,
+          "total": 10848765
+        },
+        "duration_ms": {
+          "max": 141.185,
+          "mean": 100.431,
+          "min": 65.444,
+          "p95": 135.707
+        },
+        "files_opened": {
+          "mean": 2.0,
+          "p95": 2.0,
+          "total": 10
+        },
+        "name": "natural_language_budget",
+        "result_tokens": {
+          "mean": 118.0,
+          "p95": 118.0,
+          "total": 590
+        },
+        "runs": 5,
+        "top_targets": [
+          "docs/runtime-scale.md",
+          "docs/runtime-scale.md",
+          "docs/runtime-scale.md"
+        ]
+      },
+      {
+        "bytes_read": {
+          "mean": 2169753.0,
+          "p95": 2169753.0,
+          "total": 10848765
+        },
+        "duration_ms": {
+          "max": 170.135,
+          "mean": 125.574,
+          "min": 70.13,
+          "p95": 169.506
+        },
+        "files_opened": {
+          "mean": 2.0,
+          "p95": 2.0,
+          "total": 10
+        },
+        "name": "test_route",
+        "result_tokens": {
+          "mean": 169.0,
+          "p95": 169.0,
+          "total": 845
+        },
+        "runs": 5,
+        "top_targets": [
+          "tests/test_runtime_scale_budget.py",
+          "tests/test_runtime_scale_budget.py",
+          "tests/test_runtime_scale_budget.py"
+        ]
+      }
+    ]
+  },
+  "queries": [
+    {
+      "goal": "Fix IndexedDispatchPlanner token budget regression in src/runtime_scale/indexed_dispatch.py and keep the warm benchmark deterministic.",
+      "name": "explicit_target_symbol",
+      "target": "src/runtime_scale/indexed_dispatch.py"
+    },
+    {
+      "goal": "Investigate why the runtime scale budget opens too many files during indexed dispatch planning and verify the deterministic path still wins.",
+      "name": "natural_language_budget",
+      "target": ""
+    },
+    {
+      "goal": "Update test_plan_runtime_scale_budget so the verification route follows IndexedDispatchPlanner instead of the legacy metadata path.",
+      "name": "test_route",
+      "target": "tests/test_runtime_scale_budget.py"
+    }
+  ],
+  "schema": "simplicio.runtime-scale-benchmark/v1"
+}

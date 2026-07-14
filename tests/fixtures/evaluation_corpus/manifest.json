@@ -29,6 +29,36 @@
       "expect_abstain": false
     },
     {
+      "id": "polyglot-cross-layer-en",
+      "task_file": "task.md",
+      "task_json": "task.json",
+      "token_budget": 4000,
+      "expected_targets": [
+        "src/frontend/order_form.ts",
+        "src/api/order_controller.py"
+      ],
+      "expected_tests": [
+        "tests/order_form.test.ts",
+        "tests/test_order_controller.py"
+      ],
+      "relevant_paths": [
+        "src/frontend/order_form.ts",
+        "src/api/order_controller.py",
+        "tests/order_form.test.ts",
+        "tests/test_order_controller.py",
+        "task.md",
+        "task.json"
+      ],
+      "required_spans": [
+        {"path": "src/frontend/order_form.ts", "start_line": 1, "end_line": 8},
+        {"path": "src/api/order_controller.py", "start_line": 1, "end_line": 10}
+      ],
+      "required_languages": ["typescript", "python"],
+      "required_layers": ["frontend", "backend", "test"],
+      "expect_ready": true,
+      "expect_abstain": false
+    },
+    {
       "id": "no-match-abstention",
       "task_file": "task.md",
       "task_json": "task.json",
