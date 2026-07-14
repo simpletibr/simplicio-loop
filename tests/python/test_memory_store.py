@@ -227,3 +227,118 @@ def test_cli_memory_validate_and_handoff(tmp_path, capsys):
     assert handoff_payload["from_agent"] == "codex"
     assert handoff_payload["to_agent"] == "claude"
     assert len(handoff_payload["results"]) == 1
+
+
+def test_cli_memory_validate_strict_exits_2_on_failure(tmp_path, capsys):
+    """`simplicio/commands/memory.py`'s ``validate`` handler only maps a
+    failing audit to a non-zero exit when ``--strict`` is passed (see
+    ``return 0 if payload["ok"] or not getattr(a, "strict", False) else 2``);
+    without it, a broken store still reports 0 so a script has to opt in to
+    treating validation problems as fatal. Neither branch had CLI-level
+    coverage before this test — `memory_store.validate_memory` itself was
+    tested directly, but never through `cli.main(["memory", "validate", ...])`.
+    """
+    from simplicio import cli
+
+    mem_dir = tmp_path / "mem"
+    notes_dir = mem_dir / "notes"
+    notes_dir.mkdir(parents=True)
+    (mem_dir / "README.md").write_text("# memory\n", encoding="utf-8")
+    # Missing the required leading "# <topic>" header -> validate_memory()
+    # appends a "missing_topic_header" error, so ok=False.
+    (notes_dir / "broken.md").write_text("not a topic header\n", encoding="utf-8")
+
+    lenient_code = cli.main(["memory", "validate", "--dir", str(mem_dir), "--json"])
+    lenient_payload = json.loads(capsys.readouterr().out)
+    assert lenient_code == 0
+    assert lenient_payload["ok"] is False
+
+    strict_code = cli.main(["memory", "validate", "--dir", str(mem_dir), "--json", "--strict"])
+    capsys.readouterr()
+    assert strict_code == 2
+
+
+def test_cli_memory_validate_text_mode_prints_error_and_warning_rows(tmp_path, capsys):
+    from simplicio import cli
+
+    mem_dir = tmp_path / "mem"
+    notes_dir = mem_dir / "notes"
+    notes_dir.mkdir(parents=True)
+    (mem_dir / "README.md").write_text("# memory\n", encoding="utf-8")
+    (notes_dir / "broken.md").write_text("not a topic header\n", encoding="utf-8")
+
+    code = cli.main(["memory", "validate", "--dir", str(mem_dir)])
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "simplicio-py memory validate: ok=False" in captured.out
+    assert "ERROR missing_topic_header:" in captured.out
+
+
+def test_cli_memory_init_text_mode_reports_dir_and_flags(tmp_path, capsys):
+    from simplicio import cli
+
+    mem_dir = tmp_path / "mem"
+
+    code = cli.main(["memory", "init", "--dir", str(mem_dir)])
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert f"simplicio-py memory init: {mem_dir}" in captured.out
+    assert "created=True" in captured.out
+
+
+def test_cli_memory_store_text_mode_reports_path(tmp_path, capsys):
+    from simplicio import cli
+
+    mem_dir = tmp_path / "mem"
+
+    code = cli.main(
+        ["memory", "store", "release process", "Ship via draft PR first.", "--dir", str(mem_dir)]
+    )
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "simplicio-py memory store:" in captured.out
+    assert "release-process" in captured.out
+
+
+def test_cli_memory_recall_text_mode_reports_no_matches(tmp_path, capsys):
+    from simplicio import cli
+
+    mem_dir = tmp_path / "mem"
+    cli.main(["memory", "init", "--dir", str(mem_dir)])
+    capsys.readouterr()
+
+    code = cli.main(["memory", "recall", "nothing stored yet", "--dir", str(mem_dir)])
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "no matches" in captured.out
+
+
+def test_cli_memory_handoff_text_mode_reports_summary_line(tmp_path, capsys):
+    from simplicio import cli
+
+    mem_dir = tmp_path / "mem"
+    cli.main(["memory", "store", "release process", "Ship via draft PR first.", "--dir", str(mem_dir)])
+    capsys.readouterr()
+
+    code = cli.main(
+        [
+            "memory",
+            "handoff",
+            "draft PR",
+            "--dir",
+            str(mem_dir),
+            "--from-agent",
+            "codex",
+            "--to-agent",
+            "claude",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert code == 0
+    assert "simplicio-py memory handoff:" in captured.out
+    assert "from=codex to=claude" in captured.out
