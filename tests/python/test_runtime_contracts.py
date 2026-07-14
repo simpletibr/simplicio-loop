@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+import re
 import subprocess
+from pathlib import Path
 
 import pytest
 
 from simplicio import cli
 from simplicio import observability as obs
 from simplicio.runtime_contracts import (
+    AGENT_FIRST_BOUNDARY_FORBIDDEN_FIELDS,
+    agent_first_boundary_contract,
     doctor_contract,
     is_legacy_runtime_alias,
     runtime_verify_contract,
@@ -52,8 +57,6 @@ def test_doctor_contract_resolves_published_prompt_and_sprint_entrypoints(tmp_pa
     }
 
 
-
-
 def test_version_contract_exposes_canonical_capabilities(monkeypatch):
     monkeypatch.setattr("simplicio.runtime_contracts.__version__", "0.12.0")
     payload = version_contract()
@@ -81,13 +84,37 @@ def test_version_contract_exposes_canonical_capabilities(monkeypatch):
             "runtime consumers at the Rust runtime explicitly."
         ),
     }
+    assert payload["ownership_boundary"]["schema"] == "simplicio.agent-first-boundary/v1"
+    assert payload["ownership_boundary"]["owners"]["simplicio-runtime"]["role"] == "deterministic_coprocessor"
+    assert payload["ownership_boundary"]["runtime_handoff_forbidden_fields"] == AGENT_FIRST_BOUNDARY_FORBIDDEN_FIELDS
+
+
+def test_agent_first_boundary_contract_keeps_agent_owned_control_plane_out_of_runtime_scope():
+    payload = agent_first_boundary_contract()
+
+    assert payload["schema"] == "simplicio.agent-first-boundary/v1"
+    assert payload["owners"]["simplicio-agent"]["owns"] == [
+        "transcript",
+        "memory",
+        "provider_selection",
+        "tool_choice",
+        "next_action",
+    ]
+    assert payload["owners"]["simplicio-dev-cli"]["must_not_apply_effects"] is True
+    assert payload["owners"]["simplicio-runtime"]["must_not_own"] == [
+        "transcript",
+        "memory",
+        "provider_selection",
+        "tool_choice",
+        "next_action",
+    ]
 
 
 def test_version_cli_supports_text_and_json(monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
 
     assert cli.main(["--version"]) == 0
-    assert "simplicio-py 0.16.0" in capsys.readouterr().out
+    assert f"simplicio-py {version_contract()['package']['version']}" in capsys.readouterr().out
 
     assert cli.main(["version", "--json"]) == 0
     payload = json.loads(capsys.readouterr().out)
@@ -298,11 +325,32 @@ def _fake_completed(stdout: str) -> subprocess.CompletedProcess:
     return subprocess.CompletedProcess(args=["stub"], returncode=0, stdout=stdout, stderr="")
 
 
+def _fake_runtime_run_by_command(payloads: dict[tuple[str, ...], str], *, returncodes: dict[tuple[str, ...], int] | None = None):
+    returncodes = returncodes or {}
+
+    def _runner(args, **kwargs):
+        command = tuple(args[1:])
+        if command not in payloads:
+            raise AssertionError(f"unexpected subprocess args: {args!r}")
+        return subprocess.CompletedProcess(
+            args=args,
+            returncode=returncodes.get(command, 0),
+            stdout=payloads[command],
+            stderr="",
+        )
+
+    return _runner
+
+
 def test_runtime_verify_contract_flags_legacy_alias(monkeypatch):
     monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
     monkeypatch.setattr(
         "simplicio.runtime_contracts.subprocess.run",
-        lambda *a, **k: _fake_completed(json.dumps({"runtime": "hermes", "status": "passed", "checks": []})),
+        _fake_runtime_run_by_command(
+            {
+                ("version", "--json"): json.dumps({"runtime": {"name": "hermes", "version": "0.0.1"}}),
+            }
+        ),
     )
 
     payload = runtime_verify_contract()
@@ -316,8 +364,10 @@ def test_runtime_verify_contract_does_not_flag_unknown_product(monkeypatch):
     monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
     monkeypatch.setattr(
         "simplicio.runtime_contracts.subprocess.run",
-        lambda *a, **k: _fake_completed(
-            json.dumps({"runtime": "some-other-tool", "status": "passed", "checks": []})
+        _fake_runtime_run_by_command(
+            {
+                ("version", "--json"): json.dumps({"runtime": {"name": "some-other-tool", "version": "0.0.1"}}),
+            }
         ),
     )
 
@@ -332,7 +382,11 @@ def test_runtime_verify_cli_warning_never_corrupts_json_stdout(monkeypatch, caps
     monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
     monkeypatch.setattr(
         "simplicio.runtime_contracts.subprocess.run",
-        lambda *a, **k: _fake_completed(json.dumps({"runtime": "hermes", "status": "passed", "checks": []})),
+        _fake_runtime_run_by_command(
+            {
+                ("version", "--json"): json.dumps({"runtime": {"name": "hermes", "version": "0.0.1"}}),
+            }
+        ),
     )
 
     code = cli.main(["runtime", "verify"])
@@ -353,7 +407,11 @@ def test_runtime_verify_cli_warning_omits_env_values_and_cli_args(monkeypatch, c
     monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
     monkeypatch.setattr(
         "simplicio.runtime_contracts.subprocess.run",
-        lambda *a, **k: _fake_completed(json.dumps({"runtime": "hermes", "status": "passed", "checks": []})),
+        _fake_runtime_run_by_command(
+            {
+                ("version", "--json"): json.dumps({"runtime": {"name": "hermes", "version": "0.0.1"}}),
+            }
+        ),
     )
 
     code = cli.main(["runtime", "verify", "--timeout", "7"])
@@ -371,8 +429,26 @@ def test_runtime_verify_cli_does_not_warn_for_real_runtime_product(monkeypatch, 
     monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
     monkeypatch.setattr(
         "simplicio.runtime_contracts.subprocess.run",
-        lambda *a, **k: _fake_completed(
-            json.dumps({"runtime": "simplicio-runtime", "status": "passed", "checks": []})
+        _fake_runtime_run_by_command(
+            {
+                ("version", "--json"): json.dumps({"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}),
+                ("contracts", "smoke", "--json"): json.dumps(
+                    {
+                        "runtime": "simplicio-runtime",
+                        "status": "passed",
+                        "standard_io": "simplicio.io/v1",
+                        "schemas": {
+                            "compatibility_matrix": "simplicio.compatibility-matrix/v1",
+                            "context_pack": "simplicio.context-pack/v1",
+                            "mechanical_edit": "simplicio.mechanical-edit/v1",
+                            "mechanical_edit_result": "simplicio.mechanical-edit-result/v1",
+                            "artifact_response": "simplicio.artifact-response/v1",
+                            "workflow_ledger": "simplicio.workflow-ledger/v1",
+                        },
+                        "compatibility": {"schema": "simplicio.evidence-ledger/v1"},
+                    }
+                ),
+            }
         ),
     )
 
@@ -380,3 +456,213 @@ def test_runtime_verify_cli_does_not_warn_for_real_runtime_product(monkeypatch, 
     captured = capsys.readouterr()
 
     assert "legacy runtime alias" not in captured.err
+
+
+def test_runtime_verify_contract_uses_version_and_contracts_smoke(monkeypatch):
+    monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(
+        "simplicio.runtime_contracts.subprocess.run",
+        _fake_runtime_run_by_command(
+            {
+                ("version", "--json"): json.dumps({"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}),
+                ("contracts", "smoke", "--json"): json.dumps(
+                    {
+                        "runtime": "simplicio-runtime",
+                        "status": "passed",
+                        "standard_io": "simplicio.io/v1",
+                        "schemas": {
+                            "compatibility_matrix": "simplicio.compatibility-matrix/v1",
+                            "context_pack": "simplicio.context-pack/v1",
+                            "mechanical_edit": "simplicio.mechanical-edit/v1",
+                            "mechanical_edit_result": "simplicio.mechanical-edit-result/v1",
+                            "artifact_response": "simplicio.artifact-response/v1",
+                            "workflow_ledger": "simplicio.workflow-ledger/v1",
+                        },
+                        "compatibility": {"schema": "simplicio.evidence-ledger/v1"},
+                    }
+                ),
+            }
+        ),
+    )
+
+    payload = runtime_verify_contract()
+
+    assert payload["verified"] is True
+    assert payload["reason"] == "ok"
+    assert payload["product"] == "simplicio-runtime"
+    assert payload["version"] == "3.5.0"
+    assert "simplicio.context-pack/v1" in payload["capabilities"]
+    assert payload["missing_capabilities"] == []
+    assert payload["failed_checks"] == []
+
+
+def test_runtime_verify_contract_reports_missing_runtime_contract_schemas(monkeypatch):
+    monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(
+        "simplicio.runtime_contracts.subprocess.run",
+        _fake_runtime_run_by_command(
+            {
+                ("version", "--json"): json.dumps({"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}),
+                ("contracts", "smoke", "--json"): json.dumps(
+                    {
+                        "runtime": "simplicio-runtime",
+                        "status": "passed",
+                        "schemas": {
+                            "context_pack": "simplicio.context-pack/v1",
+                        },
+                    }
+                ),
+            }
+        ),
+    )
+
+    payload = runtime_verify_contract()
+
+    assert payload["verified"] is False
+    assert payload["reason"] == "capability-handshake-missing"
+    assert "simplicio.mechanical-edit/v1" in payload["missing_capabilities"]
+
+
+def test_runtime_verify_contract_reports_contract_probe_timeout_with_identity(monkeypatch):
+    monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
+
+    def fake_run(args, **kwargs):
+        command = tuple(args[1:])
+        if command == ("version", "--json"):
+            return _fake_completed(json.dumps({"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}))
+        if command == ("contracts", "smoke", "--json"):
+            raise subprocess.TimeoutExpired(args, kwargs.get("timeout", 30))
+        raise AssertionError(f"unexpected subprocess args: {args!r}")
+
+    monkeypatch.setattr("simplicio.runtime_contracts.subprocess.run", fake_run)
+
+    payload = runtime_verify_contract(timeout=7)
+
+    assert payload["verified"] is False
+    assert payload["product"] == "simplicio-runtime"
+    assert payload["version"] == "3.5.0"
+    assert payload["reason"].startswith("runtime-contracts-probe-failed:")
+
+
+def test_runtime_verify_contract_ignores_repo_local_artifact_failures_when_contracts_exist(monkeypatch):
+    monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(
+        "simplicio.runtime_contracts.subprocess.run",
+        _fake_runtime_run_by_command(
+            {
+                ("version", "--json"): json.dumps({"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}),
+                ("contracts", "smoke", "--json"): json.dumps(
+                    {
+                        "runtime": "simplicio-runtime",
+                        "status": "failed",
+                        "checks": [
+                            {"name": "artifact:docs/SIMPLICIO_OPERATIONAL_MANUAL.md", "passed": False},
+                            {"name": "runtime:simplicio-runtime", "passed": True},
+                        ],
+                        "standard_io": "simplicio.io/v1",
+                        "schemas": {
+                            "compatibility_matrix": "simplicio.compatibility-matrix/v1",
+                            "context_pack": "simplicio.context-pack/v1",
+                            "mechanical_edit": "simplicio.mechanical-edit/v1",
+                            "mechanical_edit_result": "simplicio.mechanical-edit-result/v1",
+                            "artifact_response": "simplicio.artifact-response/v1",
+                            "workflow_ledger": "simplicio.workflow-ledger/v1",
+                        },
+                    }
+                ),
+            }
+        ),
+    )
+
+    payload = runtime_verify_contract()
+
+    assert payload["verified"] is True
+    assert payload["reason"] == "ok"
+    assert payload["failed_checks"] == ["artifact:docs/SIMPLICIO_OPERATIONAL_MANUAL.md"]
+
+
+# ── Issue #167: "Alias telemetry não contém conteúdo sensível" — repo-wide
+# audit, not just the one stderr warning above (PR #173's scope). Every
+# `emit_event`/`emit_data` call site in `simplicio/` that touches
+# alias/legacy/Hermes data must never interpolate raw CLI args, prompt text,
+# file contents, or env var *values* into the emitted payload/line. ──
+
+_SIMPLICIO_SRC = Path(__file__).resolve().parents[2] / "simplicio"
+
+# Terms that mark a source line as related to the Hermes/legacy-runtime-alias
+# rebrand (issue #167). Kept in sync with `LEGACY_RUNTIME_ALIASES` /
+# `is_legacy_runtime_alias` in `simplicio/runtime_contracts.py`.
+_ALIAS_TERMS = re.compile(
+    r"hermes|legacy_alias|legacy.?runtime.?alias|LEGACY_RUNTIME_ALIASES|reject_products", re.IGNORECASE
+)
+
+_EMIT_CALL = re.compile(r"\bemit_event\s*\(|\bemit_data\s*\(")
+
+
+def _iter_python_files(root: Path):
+    return sorted(p for p in root.rglob("*.py") if "__pycache__" not in p.parts)
+
+
+def test_alias_telemetry_audit_covers_every_emit_call_site_in_simplicio():
+    """Repo-wide grep, done once here and pinned so it regresses loudly.
+
+    As of issue #167 slice covering this AC, a full `grep -rniE
+    "hermes|legacy.?alias|reject_products"` over `simplicio/` (excluding
+    bytecode) turns up exactly two source files:
+
+    - `simplicio/runtime_contracts.py` (the `LEGACY_RUNTIME_ALIASES` list,
+      `is_legacy_runtime_alias()`, and the `reject_products`/`legacy_alias`
+      contract fields).
+    - `simplicio/commands/runtime.py` (the static
+      `LEGACY_RUNTIME_ALIAS_WARNING` stderr-only warning, covered end-to-end
+      by the tests above, including the secret-marker test).
+    - `simplicio/plan_compiler/compat_adapter.py` (a docstring reference to
+      the issue's invariant 6, "Compatibilidade Hermes fica em uma borda
+      registrada" — prose only, not a telemetry call site).
+
+    None of those three files calls `emit_event`/`emit_data` — the alias
+    signal never reaches the JSONL telemetry sink
+    (`simplicio/observability.py`'s `emit_event`), only a static,
+    non-interpolated stderr string. This test pins that fact: if a future
+    change adds alias/legacy/Hermes-related telemetry anywhere in
+    `simplicio/`, this test must be updated (and a new secret-marker
+    regression test added alongside it) rather than silently drifting.
+    """
+    hits: dict[str, list[int]] = {}
+    for path in _iter_python_files(_SIMPLICIO_SRC):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        matches = [i + 1 for i, line in enumerate(lines) if _ALIAS_TERMS.search(line)]
+        if matches:
+            hits[str(path.relative_to(_SIMPLICIO_SRC))] = matches
+
+    normalized_hits = {relative_path.replace(os.sep, "/") for relative_path in hits}
+
+    assert normalized_hits == {
+        "runtime_contracts.py",
+        "commands/runtime.py",
+        "plan_compiler/compat_adapter.py",
+    }, (
+        f"alias/legacy/Hermes references found in unexpected files: {sorted(hits)}. "
+        "If this is a new, legitimate call site, audit whether it calls "
+        "emit_event/emit_data with sensitive interpolation and extend this test."
+    )
+
+    for relative_path in hits:
+        source = (_SIMPLICIO_SRC / relative_path).read_text(encoding="utf-8")
+        assert not _EMIT_CALL.search(source), (
+            f"{relative_path} references alias/legacy/Hermes data AND calls "
+            "emit_event/emit_data — this needs a dedicated secret-marker test "
+            "asserting no raw CLI args/prompt/file contents/env values leak "
+            "into the emitted record, per issue #167's "
+            "'Alias telemetry não contém conteúdo sensível' AC."
+        )
+
+
+def test_alias_telemetry_audit_finds_no_emit_event_or_emit_data_call_sites_at_all():
+    """Belt-and-suspenders: confirm neither of the two alias-aware modules
+    imports `emit_event`/`emit_data` from `observability` either, so the
+    absence of a direct call above isn't just a naming coincidence."""
+    for relative_path in ("runtime_contracts.py", "commands/runtime.py", "plan_compiler/compat_adapter.py"):
+        source = (_SIMPLICIO_SRC / relative_path).read_text(encoding="utf-8")
+        assert "emit_event" not in source
+        assert "emit_data" not in source

@@ -5,10 +5,11 @@
   separate "Simplicio Agent" product (the Hermes successor).
 - "Docs/bootstrap usam Simplicio Agent canônico" — every doc/bootstrap
   reference to the Hermes-successor product says "Simplicio Agent", and no
-  stray "Hermes" mention leaks back in outside the two documented
-  exceptions: the CHANGELOG's historical entry and the
-  `runtime_contracts.py` legacy-alias detection list (plus its direct
-  test/comment cross-references).
+  stray "Hermes" mention leaks back in outside the documented exceptions:
+  the CHANGELOG's historical entry, the `runtime_contracts.py` legacy-alias
+  detection list (plus its direct test/comment cross-references), and the
+  N-1 `compat_adapter.py`/`docs/plan-compiler.md` pair that quotes issue
+  #167's invariant 6 by name.
 """
 
 from __future__ import annotations
@@ -32,29 +33,20 @@ ALLOWED_HERMES_FILES = {
     REPO_ROOT / "simplicio" / "commands" / "runtime.py",
     REPO_ROOT / "bench" / "run_release_gate.py",
     REPO_ROOT / "tests" / "python" / "test_runtime_contracts.py",
-    # Documented references to issue #167's invariant 6 ("Compatibilidade
-    # Hermes fica em uma borda registrada") — the plan-compiler's Hermes
-    # compat boundary, not a rebrand miss.
-    REPO_ROOT / "docs" / "plan-compiler.md",
+    # PR #171/#183's N-1 compat adapter quotes issue #167 invariant 6
+    # ("Compatibilidade Hermes fica em uma borda registrada") in its
+    # docstring/doc to explain *why* the adapter exists at all — same
+    # documented-compat-surface exception as runtime_contracts.py above.
     REPO_ROOT / "simplicio" / "plan_compiler" / "compat_adapter.py",
+    REPO_ROOT / "docs" / "plan-compiler.md",
+    # The artifact-scanner script/docs/tests (#167 AC "Artifacts passam
+    # scanner") name "Hermes" explicitly because scanning for exactly that
+    # string is their job — see scripts/scan_artifacts.py's own docstring.
+    REPO_ROOT / "scripts" / "scan_artifacts.py",
+    REPO_ROOT / "scripts" / "README.md",
+    REPO_ROOT / "tests" / "python" / "test_scan_artifacts.py",
     # This file itself documents the compat surface in its docstrings/comments.
     Path(__file__).resolve(),
-}
-
-# Directories that hold vendored/generated/build content, not repo source —
-# excluded from the stray-"hermes" scan (e.g. numpy's "hermite" polynomials,
-# huggingface_hub's "Hermes" model references, generated caches).
-EXCLUDED_DIR_NAMES = {
-    ".venv",
-    "venv",
-    "node_modules",
-    ".git",
-    "dist",
-    "build",
-    ".simplicio",
-    "playwright-report",
-    "test-results",
-    "simplicio_cli.egg-info",
 }
 
 DOC_GLOBS = [
@@ -102,11 +94,15 @@ def test_entrypoints_keep_cli_dev_cli_naming() -> None:
 def test_no_stray_hermes_outside_documented_compat_surface() -> None:
     """Every remaining "hermes" mention in the repo's docs/scripts must live
     in one of the documented exceptions (CHANGELOG historical entry, the
-    runtime_contracts.py legacy-alias detection list and its direct
-    call sites/tests). Anything else is a leftover rebrand miss."""
+    runtime_contracts.py legacy-alias detection list, the N-1 compat_adapter
+    pair, and their direct call sites/tests). Anything else is a leftover
+    rebrand miss."""
+    excluded_dirs = {".git", "node_modules", ".venv", "venv", "dist", "build", ".mypy_cache", ".ruff_cache", ".simplicio"}
     candidates: list[Path] = []
     for pattern in ("*.md", "*.sh", "*.ps1", "*.py"):
-        candidates.extend(p for p in REPO_ROOT.rglob(pattern) if not EXCLUDED_DIR_NAMES & set(p.parts))
+        candidates.extend(
+            p for p in REPO_ROOT.rglob(pattern) if excluded_dirs.isdisjoint(p.parts)
+        )
 
     offenders: list[str] = []
     for path in candidates:

@@ -229,7 +229,11 @@ def test_maybe_run_session_start_only_once_per_process(monkeypatch):
     assert calls == [True]
 
 
-def test_maybe_run_session_start_logs_when_upgraded(monkeypatch, caplog):
+def test_maybe_run_session_start_logs_when_upgraded(monkeypatch, capsys):
+    # simplicio.observability configures the "simplicio" logger with
+    # propagate=False (stderr-only by design, see CLAUDE.md "stdout vs
+    # stderr") — caplog attaches to the root logger, so it never sees these
+    # records. Assert on the actual stderr output instead.
     module = _reload()
     monkeypatch.delenv("SIMPLICIO_HOOK_GUARD", raising=False)
     monkeypatch.delenv("SIMPLICIO_SKIP_AUTO_INIT", raising=False)
@@ -237,10 +241,9 @@ def test_maybe_run_session_start_logs_when_upgraded(monkeypatch, caplog):
     monkeypatch.setenv("SIMPLICIO_AUTO_UPGRADE", "1")
     monkeypatch.setattr(module, "ensure_latest", lambda: ["simplicio-prompt"])
 
-    with caplog.at_level("INFO", logger="simplicio"):
-        module.maybe_run_session_start()
+    module.maybe_run_session_start()
 
-    assert "auto-upgraded" in caplog.text
+    assert "auto-upgraded" in capsys.readouterr().err
 
 
 # ---------------------------------------------------------------------------

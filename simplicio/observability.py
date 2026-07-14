@@ -110,6 +110,8 @@ def get_logger() -> logging.Logger:
     """Return the shared ``simplicio`` logger, configuring it if needed."""
     if not _configured:
         configure_logging()
+    else:
+        _refresh_stderr_handler_stream()
     return _logger
 
 

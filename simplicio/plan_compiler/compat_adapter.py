@@ -20,9 +20,12 @@ per type — ``GOAL_ENVELOPE_VERSION`` / ``PLAN_DAG_VERSION`` below — so "N" a
     - version 1 (N, current): adds ``producer_id``/``consumer_id`` (#171).
 
 ``PlanDAG``:
-    - version 1 (N-1): has ``producer_id``/``consumer_id`` (#171), neither
-      ``budget`` nor ``trace_id``.
-    - version 2 (N, current): adds both ``budget`` and ``trace_id``.
+    - version 1 (N-1): has ``producer_id``/``consumer_id`` (#171), no
+      ``budget``. ``trace_id`` (#166) is an untouched passthrough field —
+      it survives every hop by design (Golden E2E AC "preserva trace_id")
+      and is not part of this version's field-set contract.
+    - version 2 (N, current): adds ``budget``; ``trace_id`` was already
+      passthrough at N-1 and keeps flowing unchanged.
 
 Only the immediately-previous version (N-1) is supported by
 ``adapt_outbound``/``adapt_inbound`` below — this is a narrow compatibility
@@ -149,19 +152,20 @@ def adapt_outbound(plan: PlanDAG, target_version: int) -> dict[str, Any]:
     """Downgrade a current (N) ``PlanDAG`` to an N-1-shaped dict.
 
     N-1 for ``PlanDAG`` (version ``PLAN_DAG_VERSION - 1``) has
-    ``producer_id``/``consumer_id`` (#171) but neither ``budget`` nor
-    ``trace_id`` — both are additive fields that landed *within* the
-    current ``PLAN_DAG_VERSION`` (see ``models.PlanDAG``) without a version
-    bump of their own, so both drop cleanly here. Rejects any
-    ``target_version`` other than ``PLAN_DAG_VERSION - 1`` with a clear
-    error (only one hop of compatibility is supported).
+    ``producer_id``/``consumer_id`` (#171) but no ``budget`` — an additive
+    field that landed *within* the current ``PLAN_DAG_VERSION`` (see
+    ``models.PlanDAG``) without a version bump of its own, so it drops
+    cleanly here. ``trace_id`` (#166) is an untouched passthrough field that
+    survives every hop by design (Golden E2E AC "preserva trace_id") and is
+    kept as-is. Rejects any ``target_version`` other than
+    ``PLAN_DAG_VERSION - 1`` with a clear error (only one hop of
+    compatibility is supported).
     """
     _check_plan_dag_not_expired()
     if target_version != PLAN_DAG_VERSION - 1:
         raise UnsupportedCompatVersionError("PlanDAG", target_version, PLAN_DAG_VERSION)
     payload = plan.to_dict()
     payload.pop("budget", None)
-    payload.pop("trace_id", None)
     return payload
 
 
@@ -169,9 +173,10 @@ def adapt_inbound(data: dict[str, Any], source_version: int) -> PlanDAG:
     """Upgrade an N-1-shaped ``PlanDAG`` dict into a current (N) instance.
 
     Rejects any ``source_version`` other than ``PLAN_DAG_VERSION - 1``.
-    ``budget`` and ``trace_id`` (both absent at N-1) are filled with their
-    dataclass defaults (``None``, meaning "no budget ceiling" / "no trace
-    correlation id").
+    ``budget`` (absent at N-1) is filled with its dataclass default
+    (``None``, meaning "no budget ceiling"). ``trace_id`` is a passthrough
+    field already present at N-1; the ``setdefault`` below only covers a
+    caller that omitted it.
     """
     _check_plan_dag_not_expired()
     if source_version != PLAN_DAG_VERSION - 1:
