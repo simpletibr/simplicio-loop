@@ -118,11 +118,11 @@ def test_run_auto_task_infers_target_from_goal(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     monkeypatch.setattr("simplicio.pipeline.generate", lambda *a, **k: _diff("src/auth.py"))
     monkeypatch.setattr(
-        "simplicio.pipeline.artifact_status",
+        "simplicio.pipeline_task_result.artifact_status",
         lambda _root: {"project_map": {"present": True}, "precedent_index": {"present": True}},
     )
     monkeypatch.setattr(
-        "simplicio.pipeline.map_handoff",
+        "simplicio.pipeline_task_result.map_handoff",
         lambda _root: {"context_pack": {"files": [{"path": "src/auth.py"}]}},
     )
     code = cli.main(

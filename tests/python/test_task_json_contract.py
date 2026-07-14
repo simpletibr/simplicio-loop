@@ -34,11 +34,11 @@ def test_task_dry_run_json_does_not_touch_worktree(tmp_path, monkeypatch, capsys
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     monkeypatch.setattr("simplicio.pipeline.generate", lambda *a, **k: _diff("frontend/app.ts"))
     monkeypatch.setattr(
-        "simplicio.pipeline.artifact_status",
+        "simplicio.pipeline_task_result.artifact_status",
         lambda _root: {"project_map": {"present": True}, "precedent_index": {"present": True}},
     )
     monkeypatch.setattr(
-        "simplicio.pipeline.map_handoff",
+        "simplicio.pipeline_task_result.map_handoff",
         lambda _root: {"context_pack": {"files": [{"path": "frontend/app.ts"}]}},
     )
     code = cli.main(
@@ -139,6 +139,12 @@ def test_task_bound_paths_refuses_out_of_scope_diff(tmp_path, monkeypatch, capsy
 def test_task_non_json_propagates_failed_pipeline_exit_code(tmp_path, monkeypatch, capsys):
     _write(tmp_path / "frontend" / "app.ts", "old\n")
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    # Non-dry-run task execution fails closed with "verification command
+    # missing" before it ever calls generate() unless a real test command is
+    # configured — set one (as the sibling tests in this file do) so this
+    # test actually exercises the generate/validate-output failure path it
+    # targets, rather than the earlier fail-closed precondition.
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", _true_cmd())
     monkeypatch.setattr("simplicio.pipeline.MAX_ATTEMPTS", 1)
     monkeypatch.setattr("simplicio.pipeline.generate", lambda *a, **k: "TEST:\nassert True\n")
 
@@ -166,13 +172,13 @@ def test_task_dry_run_json_fails_closed_with_structured_blocked_preconditions(tm
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     monkeypatch.setattr("simplicio.pipeline.build_prompt", lambda *a, **k: "prompt")
     monkeypatch.setattr(
-        "simplicio.pipeline.artifact_status",
+        "simplicio.pipeline_task_result.artifact_status",
         lambda _root: {
             "project_map": {"present": False},
             "precedent_index": {"present": False},
         },
     )
-    monkeypatch.setattr("simplicio.pipeline.map_handoff", lambda _root: None)
+    monkeypatch.setattr("simplicio.pipeline_task_result.map_handoff", lambda _root: None)
     called = {"generate": 0}
 
     def fail_if_called(*_args, **_kwargs):
@@ -210,7 +216,7 @@ def test_task_dry_run_json_distinguishes_broader_context_and_target_resolution(t
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     monkeypatch.setattr("simplicio.pipeline.build_prompt", lambda *a, **k: "prompt")
     monkeypatch.setattr(
-        "simplicio.pipeline.artifact_status",
+        "simplicio.pipeline_task_result.artifact_status",
         lambda _root: {
             "project_map": {"present": True},
             "precedent_index": {"present": True},
@@ -218,7 +224,7 @@ def test_task_dry_run_json_distinguishes_broader_context_and_target_resolution(t
         },
     )
     monkeypatch.setattr(
-        "simplicio.pipeline.map_handoff",
+        "simplicio.pipeline_task_result.map_handoff",
         lambda _root: {
             "context_pack": {
                 "needs_broader_context": True,

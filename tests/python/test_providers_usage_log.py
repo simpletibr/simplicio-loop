@@ -28,7 +28,12 @@ def _read_events(root):
     path = root / ".simplicio" / "runs.jsonl"
     if not path.exists():
         return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+    events = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+    # runs.jsonl also carries "provider_cache_receipt" diagnostics events
+    # (a separate cache-provenance feature) alongside the per-call
+    # "provider_call" usage events this suite targets — filter to the ones
+    # under test so cache-receipt logging doesn't inflate the count.
+    return [event for event in events if event.get("mode") == "provider_call"]
 
 
 def test_no_log_root_means_no_event(monkeypatch, tmp_path):

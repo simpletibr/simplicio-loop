@@ -18,30 +18,35 @@ from ._cache import cache
 
 
 def _cmd_stats(args: argparse.Namespace) -> int:
+    # cache().stats() returns a plain dict (see _cache.py's Cache.stats):
+    # entries/bytes/root/enabled/bust/oldest_age_s, not an object with
+    # attributes — accessing it as `s.entries` etc. raised AttributeError
+    # on every invocation of this command.
     s = cache().stats()
+    oldest_age_days = round(s["oldest_age_s"] / 86400, 2) if s["oldest_age_s"] is not None else None
     if args.json:
         print(
             json.dumps(
                 {
-                    "entries": s.entries,
-                    "size_bytes": s.size_bytes,
-                    "size_mb": round(s.size_bytes / (1024 * 1024), 2),
-                    "oldest_age_days": s.oldest_age_days,
-                    "enabled": s.enabled,
-                    "bust_active": s.bust_active,
-                    "root": s.root,
+                    "entries": s["entries"],
+                    "size_bytes": s["bytes"],
+                    "size_mb": s["mb"],
+                    "oldest_age_days": oldest_age_days,
+                    "enabled": s["enabled"],
+                    "bust_active": s["bust"],
+                    "root": s["root"],
                 },
                 indent=2,
             )
         )
         return 0
     print("simplicio-py cache stats")
-    print(f"  root              {s.root}")
-    print(f"  enabled           {'yes' if s.enabled else 'no (SIMPLICIO_CACHE=0)'}")
-    print(f"  bust active       {'YES (SIMPLICIO_BUST_CACHE=1)' if s.bust_active else 'no'}")
-    print(f"  entries           {s.entries}")
-    print(f"  size              {s.size_bytes / (1024 * 1024):.2f} MB")
-    print(f"  oldest entry      {s.oldest_age_days} days")
+    print(f"  root              {s['root']}")
+    print(f"  enabled           {'yes' if s['enabled'] else 'no (SIMPLICIO_CACHE=0)'}")
+    print(f"  bust active       {'YES (SIMPLICIO_BUST_CACHE=1)' if s['bust'] else 'no'}")
+    print(f"  entries           {s['entries']}")
+    print(f"  size              {s['mb']:.2f} MB")
+    print(f"  oldest entry      {oldest_age_days} days")
     return 0
 
 

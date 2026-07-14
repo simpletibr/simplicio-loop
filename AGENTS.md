@@ -165,6 +165,7 @@ Toda task técnica passa por esses passos. Não pula etapa.
 PR só faz merge quando **todos** os itens abaixo estão marcados:
 
 - [ ] `pytest` verde (ou falhas pré-existentes documentadas explicitamente, sem relação com o diff)
+- [ ] **Nenhuma issue ou task fecha sem: implementação + unit + integration + system + regression + benchmark de performance + 85%+ de coverage.** Os 7 pilares são obrigatórios — não existe "TRIVIAL/SMALL" que pule algum. `pytest --cov=simplicio --cov-report=term-missing` reporta o número; abaixo de 85%, a task não fecha até fechar a lacuna com teste novo (não com exceção de config).
 - [ ] `ruff check .` e `ruff format --check .` verdes
 - [ ] `mypy simplicio` verde no rigor documentado em `pyproject.toml` (`[tool.mypy]`)
 - [ ] `python3 scripts/gen_package_interdependence.py --check` verde se `pyproject.toml` mudou (#101)
@@ -180,6 +181,8 @@ PR só faz merge quando **todos** os itens abaixo estão marcados:
 - [ ] Sem TODO sem dono e sem prazo
 
 CI (`.github/workflows/ci.yml`, job `python` + `lint`) bloqueia merge se o gate falhar.
+
+> **Gap conhecido**: o job `python` do CI roda `pytest` mas não passa `--cov` nem falha sob um piso de coverage — o gate de 85%+ acima é hoje aplicado manualmente (revisão/agent), não mecanicamente pelo CI. Não existe `.github/workflows` "cobertura" nem `--cov-fail-under` configurado em `pyproject.toml`. Enquanto esse gap não for fechado com um passo de CI dedicado, tratar o item de coverage do DoD acima como obrigatório mesmo sem enforcement automático.
 
 ---
 

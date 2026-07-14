@@ -783,4 +783,8 @@ Backend: ✓
     assert code == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "blocked"
-    assert any("tests-for" in item for item in payload["blockers"])
+    # orientation_plan.py's diagnostic renders the missing mapper "tests-for"
+    # evidence with the human-readable label "tests" (see
+    # build_execution_plan's `missing.append("tests")`), not the raw verb
+    # name — assert on the label that's actually emitted.
+    assert any("missing" in item and "tests" in item for item in payload["blockers"])

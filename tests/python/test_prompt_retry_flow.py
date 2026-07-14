@@ -19,9 +19,11 @@ def test_run_task_reuses_stable_prefix_and_sends_only_retry_delta(monkeypatch, t
         "simplicio.pipeline.validate_generated_output",
         lambda *args, **kwargs: SimpleNamespace(ok=True, reason=""),
     )
-    monkeypatch.setattr(
-        "simplicio.pipeline._configured_test_command", lambda: ("pytest -q", None), raising=False
-    )
+    # run_task fails closed with "verification command missing" unless
+    # SIMPLICIO_TEST_CMD is set — it reads the env var directly, there is no
+    # _configured_test_command hook (this monkeypatch was a no-op vestige of
+    # an older implementation).
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
     monkeypatch.setattr("simplicio.pipeline.log_run", lambda *args, **kwargs: None)
     monkeypatch.setattr("simplicio.pipeline.emit_event", lambda *args, **kwargs: None)
 

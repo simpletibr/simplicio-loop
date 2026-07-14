@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import re
 import subprocess
@@ -109,6 +110,13 @@ def run_benchmark(
     old_apply_and_test = pipeline._apply_and_test
     old_try_static_fixers = pipeline.try_static_fixers
     old_run_impact_tests = pipeline._run_impact_tests
+    # run_task() fails closed with "verification command missing" unless
+    # SIMPLICIO_TEST_CMD is set, but this harness supplies its own fake
+    # _apply_and_test as the verification stand-in — set a placeholder so
+    # that fail-closed precondition doesn't short-circuit every case before
+    # the fixer/retry logic under benchmark ever runs.
+    old_test_cmd = os.environ.get("SIMPLICIO_TEST_CMD")
+    os.environ["SIMPLICIO_TEST_CMD"] = "true"
 
     rows: list[dict[str, Any]] = []
     t0 = time.perf_counter()
@@ -130,6 +138,10 @@ def run_benchmark(
         pipeline._apply_and_test = old_apply_and_test
         pipeline.try_static_fixers = old_try_static_fixers
         pipeline._run_impact_tests = old_run_impact_tests
+        if old_test_cmd is None:
+            os.environ.pop("SIMPLICIO_TEST_CMD", None)
+        else:
+            os.environ["SIMPLICIO_TEST_CMD"] = old_test_cmd
 
     real_probe_rows = (
         run_real_package_manager_probe(

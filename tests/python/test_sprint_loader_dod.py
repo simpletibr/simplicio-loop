@@ -85,7 +85,11 @@ def test_run_dod_gates_blocks_shell_metacharacters_by_default(tmp_path):
 
 def test_run_dod_gates_allows_shell_opt_in(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DOD_ALLOW_SHELL", "1")
-    gates = parse_dod("- [ ] Shell (`echo ok | findstr ok`)\n")
+    # `findstr` is Windows-only; use `grep`, the portable Unix equivalent
+    # (this suite runs on macOS/Linux), so the piped-shell gate actually
+    # exercises the metacharacter opt-in rather than failing on a missing
+    # binary.
+    gates = parse_dod("- [ ] Shell (`echo ok | grep ok`)\n")
 
     results = run_dod_gates(tmp_path, gates)
 

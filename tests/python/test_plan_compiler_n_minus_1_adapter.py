@@ -159,6 +159,11 @@ def test_plan_dag_rollback_scenario_n_only_fields_do_not_survive_n_minus_1_hop()
     n_minus_1_payload = adapt_outbound(plan, PLAN_DAG_VERSION - 1)
 
     # An N-1-only consumer sees a plain dict with no budget key at all.
+    # trace_id (issue #166, added after this N/N-1 pair was carved out) is
+    # not part of the versioned producer_id/consumer_id/budget contract that
+    # adapt_outbound tracks — it is an untouched passthrough field that
+    # survives every hop by design (Golden E2E AC "preserva trace_id"), so
+    # it stays in the N-1 payload alongside the fields N-1 always knew.
     assert set(n_minus_1_payload) == {
         "schema",
         "plan_id",
@@ -168,6 +173,7 @@ def test_plan_dag_rollback_scenario_n_only_fields_do_not_survive_n_minus_1_hop()
         "nodes",
         "producer_id",
         "consumer_id",
+        "trace_id",
     }
 
     # Rolling back into this compiler's own current PlanDAG still works and
