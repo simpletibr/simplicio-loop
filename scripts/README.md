@@ -107,6 +107,21 @@ and does not import `simplicio_mapper` — it is meant to be copy-pasted into
 at a vendored copy of the schemas) rather than shared as an installed
 package dependency.
 
+## `critical_coverage_gate.py` / `perf_regression_gate.py` (issue #222)
+
+The CI Quality Gate (`.github/workflows/quality-gate.yml`) blocks merges
+that regress precision, contract compatibility, or performance. See
+[`docs/ci/quality-gate.md`](../docs/ci/quality-gate.md) for the full
+breakdown of what's checked and the documented regression tolerances.
+
+```bash
+python -m pytest tests/python -q --cov=simplicio_mapper --cov-report=json:coverage.json
+python scripts/critical_coverage_gate.py --coverage-json coverage.json   # 85% global / 90% critical-path
+
+python scripts/perf_regression_gate.py --json               # precision + latency + size + throughput vs docs/evidence/*.json baselines
+python scripts/perf_regression_gate.py --skip-runtime-scale  # fast path, skips the ~5000-file throughput benchmark
+```
+
 ## `check-doc-sync.js` / `check-readme-sync.js` (issue #163)
 
 Two checks that replace manual doc mirroring with either a generated file or

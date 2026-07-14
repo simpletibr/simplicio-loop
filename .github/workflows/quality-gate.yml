@@ -1,0 +1,118 @@
+# CI Quality Gate (issue #222): blocks merges that regress mapper precision,
+# contract compatibility, or performance.
+#
+# This complements python-ci.yml/python-lint.yml rather than duplicating them:
+#   * golden-file conformance   -> scripts/toon_contract_runner.py (TOON-CONTRACT §6)
+#   * schema/contract compat    -> scripts/regen_contract_fixtures.py check +
+#                                  `simplicio-mapper doctor --contracts`
+#   * coverage gate (85%/90%)   -> scripts/critical_coverage_gate.py
+#   * precision/perf regression -> scripts/perf_regression_gate.py, diffed
+#                                  against the committed docs/evidence/*.json
+#                                  baselines with documented tolerances
+#
+# All reports/diffs are uploaded as workflow artifacts (acceptance criterion:
+# "Relatórios e diffs ficam anexados ao workflow"). This job's name
+# ("Quality Gate") is the status check that should be marked required in
+# branch protection for `main` (acceptance criterion: "Branch principal
+# exige todos os checks verdes").
+
+name: Quality Gate
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: quality-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install package and test tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pytest pytest-cov
+
+      - name: Golden fixture conformance (TOON-CONTRACT)
+        id: golden
+        run: |
+          python scripts/toon_contract_runner.py | tee golden-fixture-report.txt
+
+      - name: mapper-artifacts schema/contract compatibility
+        id: contracts
+        run: |
+          python scripts/regen_contract_fixtures.py check | tee contract-schema-report.txt
+
+      - name: Cross-repo ecosystem contract compatibility
+        run: |
+          python -m simplicio_mapper.cli doctor --contracts | tee ecosystem-contract-report.txt
+
+      - name: Detect unexpected diffs in committed golden/contract fixtures
+        if: always()
+        run: |
+          git status --porcelain -- fixtures/toon-golden contracts/ > fixture-diff.txt || true
+          if [ -s fixture-diff.txt ]; then
+            echo "Unexpected working-tree changes under golden/contract fixtures:"
+            cat fixture-diff.txt
+            git diff -- fixtures/toon-golden contracts/ > fixture-diff.patch || true
+            exit 1
+          fi
+          echo "no unexpected fixture diffs" > fixture-diff.txt
+
+      - name: Run tests with coverage (global + critical-path gate)
+        run: |
+          python -m pytest tests/python -q \
+            --cov=simplicio_mapper --cov-report=json:coverage.json --cov-report=term
+          python scripts/critical_coverage_gate.py \
+            --coverage-json coverage.json \
+            --global-min 85 \
+            --critical-min 90 \
+            --report-out coverage-gate-report.json
+
+      - name: Precision / contract-size / performance regression gate
+        run: |
+          python scripts/perf_regression_gate.py \
+            --json \
+            --report-out quality-gate-report.json \
+            > quality-gate-report.txt
+
+      - name: Upload quality gate reports and diffs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-gate-reports
+          path: |
+            golden-fixture-report.txt
+            contract-schema-report.txt
+            ecosystem-contract-report.txt
+            fixture-diff.txt
+            fixture-diff.patch
+            coverage.json
+            coverage-gate-report.json
+            quality-gate-report.json
+            quality-gate-report.txt
+          if-no-files-found: warn
+          retention-days: 30

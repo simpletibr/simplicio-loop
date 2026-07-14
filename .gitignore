@@ -125,6 +125,8 @@ docs/**
 !docs/behavioral-scorecard.md
 !docs/evidence/
 !docs/evidence/*.json
+!docs/ci/
+!docs/ci/quality-gate.md
 scripts/**
 !scripts/build_hamt.py
 !scripts/coverage.js
@@ -152,6 +154,8 @@ scripts/**
 !scripts/evaluation_scorecard.py
 !scripts/issue_acceptance_audit.py
 !scripts/runtime_scale_benchmark.py
+!scripts/critical_coverage_gate.py
+!scripts/perf_regression_gate.py
 playwright-report/**
 tests/**
 !tests/unit/
