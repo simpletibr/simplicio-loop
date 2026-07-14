@@ -92,6 +92,7 @@ flowchart LR
 - [simplicio-cli](https://github.com/wesleysimplicio/simplicio-dev-cli) executes focused code tasks with verification.
 - [simplicio-prompt](https://github.com/wesleysimplicio/simplicio-prompt) provides fan-out and consensus runtime patterns.
 - [simplicio-sprint](https://github.com/wesleysimplicio/simplicio-sprint) turns cards into draft PR delivery loops.
+- [Simplicio Agent](https://github.com/wesleysimplicio/simplicio-agent) is the desktop/CLI host that runs this ecosystem's skills and tools end to end.
 
 ## Padrão de documentação
 

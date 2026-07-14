@@ -129,6 +129,6 @@ tower = { version = "0.5", features = ["util"] }
         [cargo, "test", "--manifest-path", str(project / "Cargo.toml")],
         capture_output=True,
         text=True,
-        timeout=180,
+        timeout=300,  # fresh cargo compile under parallel-suite CPU contention can exceed 180s
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr

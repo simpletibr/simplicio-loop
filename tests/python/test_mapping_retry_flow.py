@@ -1,5 +1,6 @@
 import json
 import subprocess
+import sys
 from pathlib import Path
 
 from simplicio import bench, mapper, pipeline, pipeline_stages
@@ -376,7 +377,7 @@ def test_apply_and_test_builds_diff_from_full_file_artifact(tmp_path, monkeypatc
     )
     monkeypatch.setenv(
         "SIMPLICIO_TEST_CMD",
-        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
+        f"{sys.executable} -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
     )
 
     ok, log = pipeline._apply_and_test(output, str(tmp_path), bound_paths=["app.py"])
@@ -410,7 +411,7 @@ def test_apply_and_test_recovers_stale_patch_from_full_file_artifact(tmp_path, m
     )
     monkeypatch.setenv(
         "SIMPLICIO_TEST_CMD",
-        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'fixed\\n' else 1)\"",
+        f"{sys.executable} -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'fixed\\n' else 1)\"",
     )
 
     ok, log = pipeline._apply_and_test(output, str(tmp_path), bound_paths=["app.py"])
@@ -505,7 +506,7 @@ def test_apply_and_test_persists_transaction_receipt_for_failed_verification(tmp
             "TEST: pytest -q",
         ]
     )
-    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "python -c \"import sys; print('boom'); sys.exit(3)\"")
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", f"{sys.executable} -c \"import sys; print('boom'); sys.exit(3)\"")
 
     ok, _log = pipeline._apply_and_test(output, str(tmp_path))
 
@@ -543,7 +544,7 @@ def test_apply_and_test_preserves_unrelated_dirty_worktree_files(tmp_path, monke
     )
     monkeypatch.setenv(
         "SIMPLICIO_TEST_CMD",
-        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
+        f"{sys.executable} -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
     )
 
     ok, log = pipeline._apply_and_test(output, str(tmp_path))
@@ -571,7 +572,7 @@ def test_apply_and_test_persists_timeout_receipt_and_preserves_worktree(tmp_path
     monkeypatch.setenv("SIMPLICIO_TEST_TIMEOUT_S", "1")
     monkeypatch.setenv(
         "SIMPLICIO_TEST_CMD",
-        "python -c \"import time; print('start'); time.sleep(2)\"",
+        f"{sys.executable} -c \"import time; print('start'); time.sleep(2)\"",
     )
 
     ok, log = pipeline._apply_and_test(output, str(tmp_path))
@@ -732,7 +733,7 @@ def test_pipeline_retry_restarts_from_last_promoted_state_not_failed_attempt(tmp
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
     monkeypatch.setenv(
         "SIMPLICIO_TEST_CMD",
-        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
+        f"{sys.executable} -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
     )
     target = tmp_path / "app.py"
     target.write_text("old\n", encoding="utf-8")
@@ -792,7 +793,7 @@ def test_pipeline_retry_restarts_from_last_promoted_state_not_failed_attempt(tmp
 
     def wrapped_prepare(root, cmd, extra_args=None):
         prepared, use_shell = real_prepare(root, cmd, extra_args)
-        if "python -c" in cmd:
+        if f"{sys.executable} -c" in cmd:
             test_invocations["count"] += 1
             if test_invocations["count"] == 1:
                 if isinstance(prepared, list):
@@ -829,7 +830,7 @@ def test_run_task_surfaces_primary_verify_receipt_from_transaction(tmp_path, mon
     monkeypatch.setenv("SIMPLICIO_EFFECTIVE_TIER", "fast")
     monkeypatch.setenv(
         "SIMPLICIO_TEST_CMD",
-        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
+        f"{sys.executable} -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
     )
     target = tmp_path / "app.py"
     target.write_text("old\n", encoding="utf-8")
@@ -874,7 +875,7 @@ def test_run_task_surfaces_primary_verify_receipt_from_transaction(tmp_path, mon
 
     assert result["applied"] is True
     assert result["verify"]["status"] == "verified"
-    assert "python -c" in result["verify"]["receipt"]["command"]
+    assert f"{sys.executable} -c" in result["verify"]["receipt"]["command"]
     assert result["verify"]["receipt"]["exit_code"] == 0
     assert result["verify"]["receipt"]["receipt_digest"]
     assert result["verify"]["receipt"]["files"][0]["path"] == "app.py"
@@ -892,7 +893,7 @@ def test_run_task_keeps_worktree_clean_when_impact_verification_is_unavailable(t
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
     monkeypatch.setenv(
         "SIMPLICIO_TEST_CMD",
-        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
+        f"{sys.executable} -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
     )
     target = tmp_path / "app.py"
     target.write_text("old\n", encoding="utf-8")
@@ -946,7 +947,7 @@ def test_pipeline_retry_after_impact_failure_restarts_from_unpromoted_state(tmp_
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
     monkeypatch.setenv(
         "SIMPLICIO_TEST_CMD",
-        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() in {'mid\\n', 'new\\n'} else 1)\"",
+        f"{sys.executable} -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() in {'mid\\n', 'new\\n'} else 1)\"",
     )
     target = tmp_path / "app.py"
     target.write_text("old\n", encoding="utf-8")
@@ -1159,7 +1160,7 @@ def test_codex_corrupt_patch_recovers_from_full_file_fixture(tmp_path, monkeypat
 
     monkeypatch.setenv(
         "SIMPLICIO_TEST_CMD",
-        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text(encoding='utf-8') == 'fixed\\n' else 1)\"",
+        f"{sys.executable} -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text(encoding='utf-8') == 'fixed\\n' else 1)\"",
     )
     ok, log = pipeline._apply_and_test(output, str(tmp_path), bound_paths=["app.py"])
 
@@ -1188,7 +1189,7 @@ def test_codex_patch_does_not_apply_recovers_from_full_file_fixture(tmp_path, mo
 
     monkeypatch.setenv(
         "SIMPLICIO_TEST_CMD",
-        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text(encoding='utf-8') == 'fixed\\n' else 1)\"",
+        f"{sys.executable} -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text(encoding='utf-8') == 'fixed\\n' else 1)\"",
     )
     ok, log = pipeline._apply_and_test(output, str(tmp_path), bound_paths=["app.py"])
 

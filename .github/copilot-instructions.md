@@ -95,6 +95,7 @@ Em Copilot Workspace/Agent Mode, todo plano de execução segue esse loop. Não 
 PR só faz merge quando todos os itens abaixo estão marcados:
 
 - [ ] `pytest` verde (ou falhas pré-existentes documentadas, sem relação com o diff)
+- [ ] **Nenhuma issue ou task fecha sem: implementação + unit + integration + system + regression + benchmark de performance + 85%+ de coverage.** `pytest --cov=simplicio --cov-report=term-missing` reporta o número; abaixo de 85%, fecha a lacuna com teste novo antes de declarar a task feita.
 - [ ] `ruff check .` e `ruff format --check .` verdes
 - [ ] `mypy simplicio` verde no rigor documentado em `pyproject.toml`
 - [ ] E2E Playwright, quando a mudança tocar o starter/harness, **com evidência anexada** — `playwright-report/index.html` + `test-results/<spec>/trace.zip` + screenshots por cenário + video. Hard rule quando aplicável: sem evidência, sem merge.
@@ -108,6 +109,8 @@ PR só faz merge quando todos os itens abaixo estão marcados:
 - [ ] Sem TODO sem dono e sem prazo
 
 CI (`.github/workflows/ci.yml`, jobs `python` + `lint`) bloqueia merge se o gate falhar.
+
+> **Gap conhecido**: o CI não passa `--cov` nem falha sob piso de coverage hoje — o item de 85%+ acima é enforced manualmente, não pelo pipeline. Não inventar um workflow de coverage novo sem alinhar antes; só registrar o gap.
 
 ---
 

@@ -97,10 +97,11 @@ def test_no_stray_hermes_outside_documented_compat_surface() -> None:
     runtime_contracts.py legacy-alias detection list, the N-1 compat_adapter
     pair, and their direct call sites/tests). Anything else is a leftover
     rebrand miss."""
+    excluded_dirs = {".git", "node_modules", ".venv", "venv", "dist", "build", ".mypy_cache", ".ruff_cache", ".simplicio"}
     candidates: list[Path] = []
     for pattern in ("*.md", "*.sh", "*.ps1", "*.py"):
         candidates.extend(
-            p for p in REPO_ROOT.rglob(pattern) if ".git" not in p.parts and "node_modules" not in p.parts
+            p for p in REPO_ROOT.rglob(pattern) if excluded_dirs.isdisjoint(p.parts)
         )
 
     offenders: list[str] = []

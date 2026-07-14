@@ -6,16 +6,16 @@
        python3 scripts/gen_package_interdependence.py --check
 -->
 
-Source of truth: this repo's `pyproject.toml` (`simplicio-cli` v0.16.0).
+Source of truth: this repo's `pyproject.toml` (`simplicio-cli` v0.16.1).
 
 ## Current Graph
 
 ```text
-simplicio-mapper >=0.19.0
+simplicio-mapper >=0.23.1
 simplicio-prompt >=1.14.1
   ^          ^
   |          |
-simplicio-cli 0.16.0
+simplicio-cli 0.16.1
   ^
   |
 simplicio-sprint (downstream, depends on this package)
@@ -26,7 +26,7 @@ simplicio-sprint (downstream, depends on this package)
 ### Base (always installed — `pip install simplicio-cli`)
 
 - `numpy>=2.1.0`
-- `simplicio-mapper>=0.19.0`
+- `simplicio-mapper>=0.23.1`
 - `simplicio-prompt>=1.14.1`
 - `httpx>=0.28.1`
 - `orjson>=3.11.9`
@@ -40,7 +40,7 @@ simplicio-sprint (downstream, depends on this package)
 - **`simplicio-cli[bench]`**: `fpdf2>=2.8.7`
 - **`simplicio-cli[local]`**: `llama-cpp-python>=0.3.32`, `huggingface-hub>=1.21.0`
 - **`simplicio-cli[all]`**: `simplicio-cli[providers]`, `simplicio-cli[ml]`, `simplicio-cli[bench]`, `simplicio-cli[local]`
-- **`simplicio-cli[test]`**: `pytest>=8`, `tomli>=2.0.1; python_version < '3.11'`
+- **`simplicio-cli[test]`**: `pytest>=8`, `pytest-cov>=7`, `tomli>=2.0.1; python_version < '3.11'`
 - **`simplicio-cli[dev]`**: `simplicio-cli[test]`, `ruff>=0.15.8`, `mypy>=1.19.1`
 
 ## Rules

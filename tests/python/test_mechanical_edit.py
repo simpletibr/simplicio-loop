@@ -237,10 +237,15 @@ def test_validation_failure_restores_bytes_exactly(tmp_path):
 
 
 def test_refuses_symlink_escape_outside_root(tmp_path, monkeypatch):
+    # The symlink target must live genuinely outside the edit root for this
+    # to exercise the escape guard; placing it under tmp_path (as a sibling
+    # of the root) rather than inside it is what makes this an "escape".
+    root = tmp_path / "root"
+    root.mkdir()
     outside = tmp_path / "outside.txt"
     outside.write_text("secret\n", encoding="utf-8")
     try:
-        (tmp_path / "link.txt").symlink_to(outside)
+        (root / "link.txt").symlink_to(outside)
     except OSError as exc:
         pytest.skip(f"symlinks unavailable on this machine: {exc}")
     plan = _plan(
@@ -255,7 +260,7 @@ def test_refuses_symlink_escape_outside_root(tmp_path, monkeypatch):
     )
     monkeypatch.setenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT", "1")
 
-    result = execute_plan(plan, root=tmp_path, apply=True)
+    result = execute_plan(plan, root=root, apply=True)
 
     assert result["status"] == "refused"
     assert result["errors"][0]["code"] == "unsafe_path"
