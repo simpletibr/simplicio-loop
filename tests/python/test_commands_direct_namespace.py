@@ -31,6 +31,9 @@ from simplicio.commands import (
     env_export as env_export_cmd,
 )
 from simplicio.commands import (
+    file as file_cmd,
+)
+from simplicio.commands import (
     index as index_cmd,
 )
 from simplicio.commands import (
@@ -50,6 +53,9 @@ from simplicio.commands import (
 )
 from simplicio.commands import (
     task as task_cmd,
+)
+from simplicio.commands import (
+    test as test_cmd,
 )
 from simplicio.commands import (
     token as token_cmd,
@@ -143,7 +149,9 @@ def test_memory_run_init_store_recall(tmp_path, capsys):
     store_payload = json.loads(capsys.readouterr().out)
     assert store_payload["committed"] in (True, False)
 
-    code = memory_cmd.run(ns(memory_cmd="recall", dir=mem_dir, query="cross-vendor", limit=5, json=True))
+    code = memory_cmd.run(
+        ns(memory_cmd="recall", dir=mem_dir, query="cross-vendor", limit=5, mode="hybrid", json=True)
+    )
     assert code == 0
     recall_payload = json.loads(capsys.readouterr().out)
     assert len(recall_payload["results"]) == 1
@@ -292,14 +300,14 @@ def test_token_run_log_summary(tmp_path, capsys):
 def test_task_run_dry_run_task(tmp_path, monkeypatch, capsys):
     (tmp_path / "app.py").write_text("old\n", encoding="utf-8")
     monkeypatch.setattr(
-        "simplicio.pipeline.artifact_status",
+        "simplicio.pipeline_task_result.artifact_status",
         lambda _root: {
             "project_map": {"present": True},
             "precedent_index": {"present": True},
         },
     )
     monkeypatch.setattr(
-        "simplicio.pipeline.map_handoff",
+        "simplicio.pipeline_task_result.map_handoff",
         lambda _root: {"context_pack": {"needs_broader_context": False, "files": [{"path": "app.py"}]}},
     )
     monkeypatch.setattr(
@@ -323,3 +331,43 @@ def test_task_run_dry_run_task(tmp_path, monkeypatch, capsys):
     assert code == 0
     payload = json.loads(capsys.readouterr().out)
     assert "diff_summary" in payload
+
+
+def test_file_run_delegates_read(monkeypatch):
+    seen = {}
+
+    def fake_run(args):
+        seen["args"] = args
+        return 7
+
+    monkeypatch.setattr("simplicio.commands.file_read.run", fake_run)
+    args = ns(file_cmd="read", path="README.md")
+
+    assert file_cmd.run(args) == 7
+    assert seen["args"] is args
+
+
+def test_file_run_rejects_unsupported_command(capsys):
+    assert file_cmd.run(ns(file_cmd="write")) == 2
+    assert "unsupported command" in capsys.readouterr().err
+
+
+def test_test_run_normalizes_and_delegates(monkeypatch):
+    seen = {}
+
+    def fake_run(args, extra_args):
+        seen["args"] = args
+        seen["extra_args"] = extra_args
+        return 9
+
+    monkeypatch.setattr("simplicio.commands.test_run.run", fake_run)
+    args = ns(test_cmd="run", test_program="pytest", extra_args=["--", "-q"])
+
+    assert test_cmd.run(args) == 9
+    assert seen == {"args": args, "extra_args": ["-q"]}
+    assert args.cmd == "pytest"
+
+
+def test_test_run_rejects_unsupported_command(capsys):
+    assert test_cmd.run(ns(test_cmd="watch")) == 2
+    assert "unsupported command" in capsys.readouterr().err
