@@ -1,4 +1,4 @@
-# ADR-008: Async mapping pipeline with bounded concurrency (`AsyncMappingPipeline`)
+# ADR-009: Async mapping pipeline with bounded concurrency (`AsyncMappingPipeline`)
 
 > Addresses https://github.com/wesleysimplicio/simplicio-mapper/issues/235
 > ("[Performance] Arquitetar pipeline assíncrono e concorrência limitada

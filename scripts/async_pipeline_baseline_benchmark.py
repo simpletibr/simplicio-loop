@@ -352,7 +352,7 @@ def _render_markdown(results: list[dict[str, Any]], generated_at: str, python_ve
             "",
             "This script only *measures* the current pipeline (issue #235 "
             "plan steps 1-2). See "
-            "`.specs/architecture/ADR-008-async-mapping-pipeline.md` for the "
+            "`.specs/architecture/ADR-009-async-mapping-pipeline.md` for the "
             "proposed `AsyncMappingPipeline` design and the remaining plan "
             "steps (3-10), tracked as follow-up work against issue #235.",
         ]

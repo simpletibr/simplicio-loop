@@ -19,4 +19,4 @@ Python: `3.14.5`. Tool: `scripts/async_pipeline_baseline_benchmark.py`. Cold = f
 
 ## Follow-up (not done here)
 
-This script only *measures* the current pipeline (issue #235 plan steps 1-2). See `.specs/architecture/ADR-008-async-mapping-pipeline.md` for the proposed `AsyncMappingPipeline` design and the remaining plan steps (3-10), tracked as follow-up work against issue #235.
+This script only *measures* the current pipeline (issue #235 plan steps 1-2). See `.specs/architecture/ADR-009-async-mapping-pipeline.md` for the proposed `AsyncMappingPipeline` design and the remaining plan steps (3-10), tracked as follow-up work against issue #235.
