@@ -24,6 +24,10 @@ notice the split.
 
 from __future__ import annotations
 
+from .async_pipeline import (
+    build_artifacts_async,
+    build_file_inventory_async,
+)
 from .emit import (
     _build_agent_tree,
     _call_graph_file_graph,
@@ -222,6 +226,8 @@ __all__ = [
     "_write_json_stable",
     "_write_text_stable",
     "build_artifacts",
+    "build_artifacts_async",
+    "build_file_inventory_async",
     "build_macro_map",
     "export_architecture_docs",
     "write_architecture_docs",
