@@ -74,11 +74,17 @@ bench = ["fpdf2>=2.8.7"]
 # Offline fallback in-process inference. Pulls the llama.cpp Python bindings
 # plus huggingface-hub to fetch MiniCPM5-1B-Q4_K_M.gguf.
 local = ["llama-cpp-python>=0.3.32", "huggingface-hub>=1.21.0"]
+# Opt-in faster asyncio event loop for the structured-concurrency runtime
+# (simplicio.runtime_async, issue #212). Never required: `install_uvloop()`
+# no-ops on Windows or when this extra is absent, falling back to stdlib
+# asyncio.
+performance = ["uvloop>=0.21.0; sys_platform != 'win32'"]
 all = [
   "simplicio-cli[providers]",
   "simplicio-cli[ml]",
   "simplicio-cli[bench]",
   "simplicio-cli[local]",
+  "simplicio-cli[performance]",
 ]
 # CI/dev-only, not a product extra: pytest to run tests/python, plus tomli
 # on 3.10 (tomllib is stdlib only from 3.11+; several tests parse this file).
