@@ -945,9 +945,13 @@ def test_run_task_keeps_worktree_clean_when_impact_verification_is_unavailable(t
 
 def test_pipeline_retry_after_impact_failure_restarts_from_unpromoted_state(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
+    check_command = (
+        "from pathlib import Path; import sys; "
+        "sys.exit(0 if Path('app.py').read_text() in {'mid\\n', 'new\\n'} else 1)"
+    )
     monkeypatch.setenv(
         "SIMPLICIO_TEST_CMD",
-        f"{sys.executable} -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() in {'mid\\n', 'new\\n'} else 1)\"",
+        f'{sys.executable} -c "{check_command}"',
     )
     target = tmp_path / "app.py"
     target.write_text("old\n", encoding="utf-8")
@@ -1241,10 +1245,11 @@ def test_impact_verification_emits_receipt_and_honors_transaction_timeout(tmp_pa
             return [{"test_path": "tests/test_app.py"}]
         return None
 
+    test_cmd = f'{sys.executable} -c "import sys; sys.stdout.write(\'impact\')"'
     result = pipeline_stages.run_impact_tests(
         tmp_path,
         ["src/app.py"],
-        test_cmd="printf impact",
+        test_cmd=test_cmd,
         map_ask_fn=map_ask,
         prepare_project_command_fn=lambda _root, command, _extra: (command, True),
     )
@@ -1252,7 +1257,7 @@ def test_impact_verification_emits_receipt_and_honors_transaction_timeout(tmp_pa
     assert result["result"] == pipeline.IMPACT_RESULT_PASSED
     assert result["receipt"] == {
         "kind": "impact",
-        "command": "printf impact",
+        "command": test_cmd,
         "exit_code": 0,
         "output_tail": "impact",
     }
@@ -1264,10 +1269,11 @@ def test_impact_timeout_is_unverified_and_fail_closed(tmp_path, monkeypatch):
     def map_ask(_root, verb, _target):
         return [{"caller": "src/app.py"}] if verb == "impact" else [{"test_path": "tests/test_app.py"}]
 
+    test_cmd = f'{sys.executable} -c "import time; time.sleep(2)"'
     result = pipeline_stages.run_impact_tests(
         tmp_path,
         ["src/app.py"],
-        test_cmd="sleep 2",
+        test_cmd=test_cmd,
         map_ask_fn=map_ask,
         prepare_project_command_fn=lambda _root, command, _extra: (command, True),
     )
