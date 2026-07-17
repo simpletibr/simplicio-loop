@@ -15,6 +15,7 @@ import os
 import httpx
 
 _client: httpx.Client | None = None
+_aclient: httpx.AsyncClient | None = None
 
 
 def _config() -> dict:
@@ -52,6 +53,30 @@ def _close() -> None:
         _client = None
 
 
+def aclient() -> httpx.AsyncClient:
+    """Return the shared async client (issue #212), building it on first use.
+
+    Mirrors `client()`'s pooling rationale for the async pipeline path.
+    There is no `atexit` hook here — `httpx.AsyncClient.aclose()` is a
+    coroutine, so async callers close it explicitly via `aclose()` (see
+    `simplicio.runtime_async.RuntimeContext.aclose`).
+    """
+    global _aclient
+    if _aclient is None:
+        _aclient = httpx.AsyncClient(**_config())
+    return _aclient
+
+
+async def aclose() -> None:
+    global _aclient
+    if _aclient is not None:
+        try:
+            await _aclient.aclose()
+        except Exception:
+            pass
+        _aclient = None
+
+
 def post_json(url: str, payload: dict, *, headers: dict | None = None, timeout: float | None = None) -> dict:
     """POST a JSON body and decode the JSON response. Uses the shared client.
 
@@ -63,6 +88,24 @@ def post_json(url: str, payload: dict, *, headers: dict | None = None, timeout: 
     headers = dict(headers or {})
     headers.setdefault("Content-Type", "application/json")
     response = client().post(
+        url,
+        content=dumps(payload),
+        headers=headers,
+        timeout=timeout if timeout is not None else None,
+    )
+    response.raise_for_status()
+    return loads(response.content)
+
+
+async def apost_json(
+    url: str, payload: dict, *, headers: dict | None = None, timeout: float | None = None
+) -> dict:
+    """Async counterpart of `post_json` — same contract, shared async client."""
+    from .serialization import dumps, loads
+
+    headers = dict(headers or {})
+    headers.setdefault("Content-Type", "application/json")
+    response = await aclient().post(
         url,
         content=dumps(payload),
         headers=headers,

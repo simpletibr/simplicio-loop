@@ -577,3 +577,37 @@ def run(root, stack, goal, target, criteria, constraints, bound_paths=None):
     if result["applied"]:
         return result
     return None
+
+
+async def run_tasks_async(
+    task_specs: list[dict[str, Any]],
+    *,
+    concurrency: int | None = None,
+) -> list[dict[str, Any]]:
+    """Run several INDEPENDENT tasks concurrently (issue #212).
+
+    ``task_specs`` is a list of kwargs dicts accepted by :func:`run_task`
+    (``root``, ``stack``, ``goal``, ``target``, ``criteria``,
+    ``constraints``, and any of its optional keyword arguments). Each task
+    runs ``run_task`` unchanged inside a bounded worker thread — see
+    :mod:`simplicio.runtime_async` for why the pipeline internals are not
+    rewritten as native async. Concurrency defaults to
+    ``SIMPLICIO_ASYNC_CONCURRENCY`` (or
+    :data:`simplicio.runtime_async.DEFAULT_CONCURRENCY`) when not given
+    explicitly.
+
+    This function never applies anything by itself and never mutates
+    shared retry state across tasks — each ``run_task`` call is fully
+    independent, which is what makes concurrent dispatch safe here. A
+    failing task's exception is returned in place of its result (never
+    raised out of this call), so a batch failure never loses the results
+    of its siblings; callers should check each entry with
+    ``isinstance(entry, BaseException)``.
+    """
+    from .runtime_async import gather_bounded, run_sync_in_thread
+
+    def _make_thunk(spec: dict[str, Any]) -> Any:
+        return lambda: run_sync_in_thread(run_task, **spec)
+
+    thunks = [_make_thunk(spec) for spec in task_specs]
+    return await gather_bounded(thunks, concurrency=concurrency)
