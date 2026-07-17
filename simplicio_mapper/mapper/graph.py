@@ -277,7 +277,36 @@ def _strip_known_ext(rel: str) -> str:
     root, ext = posixpath.splitext(rel)
     return root if ext else rel
 
-def _candidate_import_targets(import_name: str, source_file: str, known_paths: set[str]) -> list[str]:
+def _known_path_suffix_index(known_paths: set[str]) -> dict[str, list[tuple[str, str]]]:
+    """Bucket ``known_paths`` for the suffix-match fallback below, built once
+    per :func:`_build_call_graph` call instead of re-derived per import.
+
+    ``_candidate_import_targets``'s fallback keeps a candidate ``known`` path
+    only when ``known_base.endswith(f"/{normalized}")`` or
+    ``known_base == normalized`` (``known_base`` = extension-stripped
+    ``known``). Either condition can only hold when the *final path segment*
+    of ``known_base`` equals the final path segment of ``normalized`` -- an
+    ``endswith("/" + normalized)`` match necessarily ends the string with
+    ``normalized``'s last component, and an exact-equality match trivially
+    shares it. Bucketing by that last segment therefore preserves the exact
+    same matches as the original full scan while letting each import target
+    only inspect its own bucket instead of every known path in the project
+    (issue #235 follow-up -- fixes the profiled ``O(n^2)`` scan; see
+    ADR-009).
+    """
+    index: dict[str, list[tuple[str, str]]] = {}
+    for known in known_paths:
+        known_base = _strip_known_ext(known)
+        bucket_key = known_base.rsplit("/", 1)[-1]
+        index.setdefault(bucket_key, []).append((known, known_base))
+    return index
+
+def _candidate_import_targets(
+    import_name: str,
+    source_file: str,
+    known_paths: set[str],
+    known_path_index: dict[str, list[tuple[str, str]]] | None = None,
+) -> list[str]:
     if not import_name or import_name.startswith("@"):
         return []
     if import_name.startswith("."):
@@ -304,12 +333,14 @@ def _candidate_import_targets(import_name: str, source_file: str, known_paths: s
     if direct:
         return direct
 
-    suffix_matches = []
     normalized = _strip_known_ext(base).lstrip("/")
-    for known in known_paths:
-        known_base = _strip_known_ext(known)
-        if known_base.endswith(f"/{normalized}") or known_base == normalized:
-            suffix_matches.append(known)
+    bucket_key = normalized.rsplit("/", 1)[-1]
+    index = known_path_index if known_path_index is not None else _known_path_suffix_index(known_paths)
+    suffix_matches = [
+        known
+        for known, known_base in index.get(bucket_key, ())
+        if known_base.endswith(f"/{normalized}") or known_base == normalized
+    ]
     return sorted(suffix_matches)
 
 _CALL_SKIP_NAMES = {
@@ -346,6 +377,7 @@ def _build_call_graph(
     contents: dict[str, str] | None = None,
 ) -> dict:
     known_paths = {file.path for file in files}
+    known_path_index = _known_path_suffix_index(known_paths)
     symbols = list(symbol_index.get("symbols") or [])
     symbols_by_name: dict[str, list[dict]] = {}
     for symbol in symbols:
@@ -368,7 +400,7 @@ def _build_call_graph(
 
     for file in files:
         for imported in file.imports:
-            targets = _candidate_import_targets(imported, file.path, known_paths)
+            targets = _candidate_import_targets(imported, file.path, known_paths, known_path_index)
             for target in targets[:3]:
                 if target == file.path:
                     continue
