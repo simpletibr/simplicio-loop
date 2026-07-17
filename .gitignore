@@ -158,6 +158,7 @@ scripts/**
 !scripts/critical_coverage_gate.py
 !scripts/perf_regression_gate.py
 !scripts/async_pipeline_baseline_benchmark.py
+!scripts/async_inventory_benchmark.py
 playwright-report/**
 tests/**
 !tests/unit/
