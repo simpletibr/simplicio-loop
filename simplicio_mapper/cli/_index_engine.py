@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass
 
 from ..history import append_changelog, create_snapshot
-from ..mapper import write_mapping_artifacts
+from ..mapper import _is_internal_worktree_dir, write_mapping_artifacts
 from ..retrieval_index import build_retrieval_index, write_retrieval_index
 from ..toon import encode_toon_with_report
 from ._args import _read_json_safe
@@ -71,7 +71,9 @@ def _signature(root: str, out: str) -> tuple:
         dirs[:] = [
             d
             for d in dirs
-            if d not in FRESHNESS_SKIP_DIRS and os.path.abspath(os.path.join(current, d)) != abs_out
+            if d not in FRESHNESS_SKIP_DIRS
+            and os.path.abspath(os.path.join(current, d)) != abs_out
+            and not _is_internal_worktree_dir(current, d)
         ]
         for name in files:
             path = os.path.join(current, name)
@@ -102,6 +104,12 @@ MALFORMED_LOCK_GRACE_SECONDS = 2.0
 class _IndexLockHandle:
     path: str
     token: str
+    # ``lock_acquired`` is the success-path counterpart to the reclaim reason
+    # codes returned by ``_inspect_index_lock`` below (issue #201's proposed
+    # contract lists it as one of the minimum reason codes). Callers that want
+    # to surface acquisition as evidence in CLI output can read it straight
+    # off the handle instead of re-deriving it.
+    reason_code: str = "lock_acquired"
 
 
 def _root_fingerprint(root: str) -> str:
@@ -497,7 +505,9 @@ def _tree_signature(root: str, out: str) -> dict:
         dirs[:] = [
             d
             for d in dirs
-            if d not in FRESHNESS_SKIP_DIRS and os.path.abspath(os.path.join(current, d)) != abs_out
+            if d not in FRESHNESS_SKIP_DIRS
+            and os.path.abspath(os.path.join(current, d)) != abs_out
+            and not _is_internal_worktree_dir(current, d)
         ]
         for name in sorted(files):
             path = os.path.join(current, name)

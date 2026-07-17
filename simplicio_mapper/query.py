@@ -23,7 +23,7 @@ from typing import Any
 from .context_cache import LAYER_CONTEXT_SUMMARY, LAYER_RUNTIME_PROVIDER, ContextCache, ContextCacheKey
 from .docsync import _flows_touching, _scan_manual_docs_for_references, _symbols_for_files
 from .flows import build_flow_inventory
-from .mapper import _parse_json_safe, build_artifacts
+from .mapper import _is_internal_worktree_dir, _parse_json_safe, build_artifacts
 from .savings import estimate_tokens, record_savings_event
 
 ASK_SCHEMA = "simplicio.ask/v1"
@@ -118,7 +118,9 @@ def _query_cacheable_paths(root: str, out_dir: str) -> list[str]:
         dirs[:] = [
             d
             for d in dirs
-            if d not in _QUERY_CACHE_SKIP_DIRS and os.path.abspath(os.path.join(current_root, d)) != abs_out
+            if d not in _QUERY_CACHE_SKIP_DIRS
+            and os.path.abspath(os.path.join(current_root, d)) != abs_out
+            and not _is_internal_worktree_dir(current_root, d)
         ]
         for filename in files:
             full = os.path.join(current_root, filename)

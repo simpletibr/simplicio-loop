@@ -188,8 +188,30 @@ def _walk(root: str):
         elif entry.is_file(follow_symlinks=False):
             yield entry.path
 
+def _is_internal_worktree_dir(parent: str, name: str) -> bool:
+    """True when ``name`` is a nested worktree container directory (e.g.
+    ``.claude/worktrees/<agent>/...``) that duplicates the primary checkout
+    and must be excluded from the mapped file universe (issue #234).
+
+    Scoped narrowly to ``worktrees`` directories living directly under a
+    ``.claude`` directory so legitimate root-level configuration --
+    ``.claude/settings.json``, ``.claude/skills/*.md`` -- is never touched.
+    Symlinks/junctions are handled by the caller's ``follow_symlinks=False``,
+    not here.
+    """
+    if name != "worktrees":
+        return False
+    # Normalize separators explicitly (rather than os.path.basename, which
+    # is platform-dependent) so the check behaves identically regardless of
+    # which OS produced `parent` -- tests exercise both "/" and "\\" forms.
+    normalized = parent.replace("\\", "/").rstrip("/")
+    parent_name = normalized.rsplit("/", 1)[-1] if normalized else ""
+    return parent_name == ".claude"
+
 def _should_skip_dir(entry: os.DirEntry[str]) -> bool:
     if entry.name in SKIP_DIRS:
+        return True
+    if _is_internal_worktree_dir(os.path.dirname(entry.path), entry.name):
         return True
     if entry.name == "bin":
         try:

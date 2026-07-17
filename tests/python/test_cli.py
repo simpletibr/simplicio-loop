@@ -35,7 +35,11 @@ from simplicio_mapper.cli import (  # noqa: E402
 # reaches into the submodule directly rather than growing __init__.py's
 # re-export list for a white-box unit test.
 from simplicio_mapper.cli._endpoints import _normalize_endpoint_path  # noqa: E402
-from simplicio_mapper.cli._index_engine import _process_is_alive  # noqa: E402
+from simplicio_mapper.cli._index_engine import (  # noqa: E402
+    _process_is_alive,
+    _signature,
+    _tree_signature,
+)
 from simplicio_mapper.mapper import (  # noqa: E402
     ARCHITECTURE_INVENTORY_SCHEMA,
     ARTIFACT_SCHEMA,
@@ -89,6 +93,41 @@ class FileProcessingCacheTest(unittest.TestCase):
 
         self.assertFalse(hasattr(project_file, "__dict__"))
         self.assertFalse(hasattr(entity, "__dict__"))
+
+
+class FreshnessSignatureWorktreeExclusionTest(unittest.TestCase):
+    """Issue #234: the incremental-refresh freshness signatures must not
+    hash nested `.claude/worktrees/<name>/...` agent worktrees -- both the
+    fast entry-based `_signature` and the git-fallback `_tree_signature`
+    must agree with the mapper's own `_walk`/`SKIP_DIRS` scope so a
+    duplicated worktree checkout never triggers spurious "stale" detection
+    or gets counted twice."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self._tmp.name)
+        _write(self.dir, "src/keep.py", "x = 1\n")
+        _write(self.dir, ".claude/settings.json", "{}\n")
+        _write(self.dir, ".claude/worktrees/worker/src.py", "print('dup')\n")
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_signature_excludes_claude_worktrees_but_keeps_root_config(self) -> None:
+        entries = _signature(str(self.dir), ".simplicio")
+        paths = {os.path.relpath(p, str(self.dir)).replace(os.sep, "/") for p, _mtime, _size in entries}
+        self.assertIn("src/keep.py", paths)
+        self.assertIn(".claude/settings.json", paths)
+        self.assertTrue(all(".claude/worktrees" not in p for p in paths))
+
+    def test_tree_signature_is_stable_when_worktree_content_changes(self) -> None:
+        # A duplicated worktree's own churn (new/changed files under
+        # .claude/worktrees) must not affect the freshness hash of the
+        # primary project -- proves the exclusion, not just its presence.
+        before = _tree_signature(str(self.dir), ".simplicio")
+        _write(self.dir, ".claude/worktrees/worker/new_file.py", "print('more dup')\n")
+        after = _tree_signature(str(self.dir), ".simplicio")
+        self.assertEqual(before, after)
 
 
 class MapperArtifactsTest(unittest.TestCase):

@@ -28,6 +28,7 @@ from simplicio_mapper.mapper.parse import (  # noqa: E402
     _cached_parse_file,
     _collect_text_files,
     _importance_for,
+    _is_internal_worktree_dir,
     _language_for,
     _normalize_rel,
     _parse_imports,
@@ -105,6 +106,17 @@ class HelperFunctionTest(unittest.TestCase):
         self.assertIn("account", words)
         self.assertIn("service", words)
         self.assertIn("helper", words)
+
+    def test_is_internal_worktree_dir_matches_nested_claude_worktrees_only(self) -> None:
+        # Issue #234: only "worktrees" directly under ".claude" is a
+        # managed-worktree container; siblings and lookalikes must not
+        # match so root .claude config keeps being walked normally.
+        self.assertTrue(_is_internal_worktree_dir("/repo/.claude", "worktrees"))
+        self.assertTrue(_is_internal_worktree_dir("C:\\repo\\.claude", "worktrees"))
+        self.assertFalse(_is_internal_worktree_dir("/repo", "worktrees"))
+        self.assertFalse(_is_internal_worktree_dir("/repo/.claude", "skills"))
+        self.assertFalse(_is_internal_worktree_dir("/repo/.claude", "settings.json"))
+        self.assertFalse(_is_internal_worktree_dir("/repo/notclaude", "worktrees"))
 
 
 class BuildFileInventoryTest(unittest.TestCase):
@@ -189,6 +201,35 @@ class ExclusionAndSkipDirTest(unittest.TestCase):
         # raising and aborting the whole scan.
         missing = self.dir / "does-not-exist"
         self.assertEqual(list(_walk(str(missing))), [])
+
+    def test_walk_excludes_claude_worktrees_but_keeps_root_config(self) -> None:
+        # Issue #234: nested agent worktrees under .claude/worktrees/<name>
+        # duplicate the primary checkout and inflate the mapped file
+        # universe, but legitimate root-level .claude configuration
+        # (settings.json, skills/*.md) must still be discovered.
+        _write(self.dir, "src/keep.py", "x = 1\n")
+        _write(self.dir, ".claude/settings.json", "{}\n")
+        _write(self.dir, ".claude/skills/foo/SKILL.md", "# foo\n")
+        _write(self.dir, ".claude/worktrees/worker/src.py", "print('duplicated')\n")
+        found = {Path(p).relative_to(self.dir).as_posix() for p in _walk(str(self.dir))}
+        self.assertIn("src/keep.py", found)
+        self.assertIn(".claude/settings.json", found)
+        self.assertIn(".claude/skills/foo/SKILL.md", found)
+        self.assertTrue(all(".claude/worktrees" not in p for p in found))
+
+    def test_walk_no_worktree_fixture_has_no_regression(self) -> None:
+        # A normal fixture without any nested worktree must see all of its
+        # files discovered -- the new exclusion must not touch unrelated
+        # directories named anything else, including a bare "worktrees"
+        # dir that isn't nested under .claude.
+        _write(self.dir, "src/keep.py", "x = 1\n")
+        _write(self.dir, "docs/readme.md", "hello\n")
+        _write(self.dir, "worktrees/not-claude.py", "x = 1\n")
+        found = {Path(p).relative_to(self.dir).as_posix() for p in _walk(str(self.dir))}
+        self.assertEqual(
+            found,
+            {"src/keep.py", "docs/readme.md", "worktrees/not-claude.py"},
+        )
 
 
 class InvalidAndUnreadableFileTest(unittest.TestCase):

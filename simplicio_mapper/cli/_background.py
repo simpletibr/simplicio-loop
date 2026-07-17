@@ -15,6 +15,7 @@ from ._index_engine import (
     _emit_index_json,
     _freshness_signature,
     _index_result,
+    _inspect_index_lock,
     _lock_path,
     _process_start_token,
     _read_index_state,
@@ -101,34 +102,41 @@ def _run_index(opts: dict) -> int:
     out = opts["out"]
     lock = _acquire_index_lock(root, out)
     if lock is None:
-        _emit_index_json(
-            opts,
-            _index_result(
-                root,
-                out,
-                status="skipped",
-                skipped_reason="locked",
-                counts={
-                    "files": 0,
-                    "precedents": 0,
-                    "changed_files": 0,
-                    "modules": 0,
-                    "layers": 0,
-                    "symbols": 0,
-                    "relationships": 0,
-                },
-            ),
+        # A live owner still holds the lock (or a reclaim is provably unsafe,
+        # e.g. a fresh-but-malformed write). Surface the classification here
+        # too -- not just via ``status`` -- so ``index --json`` alone carries
+        # owner/age/reason evidence for diagnosis (issue #201).
+        lock_status = _inspect_index_lock(root, out)
+        result = _index_result(
+            root,
+            out,
+            status="skipped",
+            skipped_reason="locked",
+            counts={
+                "files": 0,
+                "precedents": 0,
+                "changed_files": 0,
+                "modules": 0,
+                "layers": 0,
+                "symbols": 0,
+                "relationships": 0,
+            },
         )
+        result["lock_status"] = lock_status
+        _emit_index_json(opts, result)
         if not opts["json"]:
-            print(f"index skipped: lock already exists at {_lock_path(root, out)}")
+            print(
+                f"index skipped: lock already exists at {_lock_path(root, out)} "
+                f"({lock_status.get('reason_code')})"
+            )
         return 0
     try:
-        return _run_index_locked(opts, root, out)
+        return _run_index_locked(opts, root, out, lock)
     finally:
         _release_index_lock(lock)
 
 
-def _run_index_locked(opts: dict, root: str, out: str) -> int:
+def _run_index_locked(opts: dict, root: str, out: str, lock) -> int:
     paths = _artifact_paths(root, out)
     state = _read_index_state(root, out)
     current_signature = _freshness_signature(root, out)
@@ -145,6 +153,7 @@ def _run_index_locked(opts: dict, root: str, out: str) -> int:
             skipped_reason="already_fresh",
             counts=state.get("counts") if isinstance(state.get("counts"), dict) else None,
         )
+        payload["lock_reason_code"] = lock.reason_code
         if opts["docs"]:
             docs_payload = write_architecture_docs(root, output_dir=out)
             payload["paths"]["docs_root"] = docs_payload["docs_root"].replace(os.sep, "/")
@@ -162,6 +171,7 @@ def _run_index_locked(opts: dict, root: str, out: str) -> int:
     )
     refreshed_signature = _freshness_signature(root, out)
     payload = _index_result(root, out, status="updated", run_result=run_result)
+    payload["lock_reason_code"] = lock.reason_code
     if opts["docs"]:
         docs_payload = write_architecture_docs(root, output_dir=out)
         payload["paths"]["docs_root"] = docs_payload["docs_root"].replace(os.sep, "/")

@@ -19,13 +19,36 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper.cli import main  # noqa: E402
-from simplicio_mapper.query import ASK_SCHEMA, run_query  # noqa: E402
+from simplicio_mapper.query import ASK_SCHEMA, _query_cacheable_paths, run_query  # noqa: E402
 
 
 def _write(base: Path, rel: str, content: str) -> None:
     target = base / rel
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(content, encoding="utf-8")
+
+
+class QueryCacheablePathsWorktreeExclusionTest(unittest.TestCase):
+    """Issue #234: the context-cache path enumeration must not include
+    nested `.claude/worktrees/<name>/...` agent worktrees, while root
+    `.claude` configuration (settings.json, skills/*.md) stays cacheable."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self._tmp.name)
+        _write(self.dir, "src/keep.py", "x = 1\n")
+        _write(self.dir, ".claude/settings.json", "{}\n")
+        _write(self.dir, ".claude/skills/foo/SKILL.md", "# foo\n")
+        _write(self.dir, ".claude/worktrees/worker/src.py", "print('dup')\n")
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_excludes_worktrees_but_keeps_root_claude_config(self) -> None:
+        rel_paths = set(_query_cacheable_paths(str(self.dir), ".simplicio"))
+        self.assertIn("src/keep.py", rel_paths)
+        self.assertIn(str(Path(".claude") / "settings.json").replace("\\", "/"), {p.replace("\\", "/") for p in rel_paths})
+        self.assertTrue(all(".claude/worktrees" not in p.replace("\\", "/") for p in rel_paths))
 
 
 class QueryTest(unittest.TestCase):
