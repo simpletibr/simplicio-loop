@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.24.0] - 2026-07-17
 
 ### Fixed
 
@@ -18,6 +18,10 @@
   crash/kill of a real background worker never wedges `status --await`, and
   two concurrent `index` invocations against the same root never both run
   the deep pass (issue #201).
+- Exclude nested `.claude/worktrees/` checkouts from the mapped file
+  universe across the main walk, freshness signatures, and query cache
+  path scan, while preserving root-level `.claude/` configuration such as
+  `settings.json` and `skills/*.md` (issue #234).
 
 ## [0.23.1] - 2026-07-13
 
