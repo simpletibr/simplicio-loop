@@ -33,18 +33,18 @@
     },
     "AGENTS.md": {
       "label": "AGENTS.md",
-      "tokens": 5589,
-      "words": 3026
+      "tokens": 5800,
+      "words": 3159
     },
     "CLAUDE.md": {
       "label": "CLAUDE.md",
-      "tokens": 5648,
-      "words": 3058
+      "tokens": 5859,
+      "words": 3191
     },
     "simplicio/cli.py": {
       "label": "cli.py",
-      "tokens": 5438,
-      "words": 1674
+      "tokens": 6210,
+      "words": 1902
     },
     "simplicio/commands/claims.py": {
       "label": "commands/claims.py",
@@ -58,8 +58,8 @@
     },
     "simplicio/mapper.py": {
       "label": "mapper.py",
-      "tokens": 6570,
-      "words": 2496
+      "tokens": 7227,
+      "words": 2805
     },
     "simplicio/mechanical_edit.py": {
       "label": "mechanical_edit.py",
@@ -68,26 +68,26 @@
     },
     "simplicio/observability.py": {
       "label": "observability.py",
-      "tokens": 4399,
-      "words": 1926
+      "tokens": 4620,
+      "words": 2001
     },
     "simplicio/pipeline.py": {
       "label": "pipeline.py",
-      "tokens": 5555,
-      "words": 1946
+      "tokens": 7680,
+      "words": 2567
     },
     "simplicio/pipeline_stages.py": {
       "label": "pipeline_stages.py",
-      "tokens": 5437,
-      "words": 1829
+      "tokens": 6975,
+      "words": 2529
     },
     "simplicio/providers.py": {
       "label": "providers.py",
-      "tokens": 8841,
-      "words": 3158
+      "tokens": 11400,
+      "words": 3897
     }
   },
   "estimator": "heuristic:chars-div-4",
-  "generated_at": "2026-07-11T00:00:00Z",
+  "generated_at": "2026-07-17T23:48:48Z",
   "threshold_growth": 0.25
 }

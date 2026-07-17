@@ -414,7 +414,78 @@ def _extract_patch_candidate(output: str, root: str, bound_paths=None) -> PatchC
     return PatchCandidate(patch=patch, strategy="full_file_artifact")
 
 
-def validate_generated_output(output, bound_paths=None, mode=None) -> ValidationResult:
+# Issue #219: flag a diff that deletes ~all of a pre-existing bound file as a
+# likely destructive full-file replacement. Off below _DESTRUCTIVE_MIN_FILE_LINES
+# so small legitimate full-file rewrites (see issue-129 fixtures) aren't flagged.
+_DESTRUCTIVE_MIN_FILE_LINES = 5
+_DESTRUCTIVE_DELETE_RATIO = 0.9
+_DESTRUCTIVE_CONTEXT_RATIO = 0.1
+
+
+def _diff_section_for_file(patch: str, target: str) -> str:
+    """Return the slice of *patch* covering *target*'s hunks, or ``""``."""
+    marker = f"diff --git a/{target} b/{target}"
+    idx = patch.find(marker)
+    if idx == -1:
+        marker = f"+++ b/{target}"
+        idx = patch.find(marker)
+        if idx == -1:
+            return ""
+    end = patch.find("\ndiff --git ", idx + 1)
+    return patch[idx:] if end == -1 else patch[idx : end + 1]
+
+
+def _full_file_replacement_hints(text: str, root: str | os.PathLike | None, bound_paths) -> list[str]:
+    """Flag a diff deleting ~all of a pre-existing single bound file.
+
+    No-op without ``root`` (no pre-image to compare) or without exactly one
+    concrete bound path (nothing to call "the whole file").
+    """
+    if root is None or not text:
+        return []
+    target = _single_bound_path(bound_paths)
+    if not target:
+        return []
+    try:
+        original_lines = (Path(root) / target.replace("/", os.sep)).read_text(encoding="utf-8").splitlines()
+    except (OSError, UnicodeDecodeError):
+        return []
+    total = len(original_lines)
+    if total < _DESTRUCTIVE_MIN_FILE_LINES:
+        return []
+    section = _diff_section_for_file(text, target)
+    if not section:
+        return []
+    deleted = 0
+    context = 0
+    old_start: int | None = None
+    for line in section.splitlines():
+        header = re.match(r"^@@ -(\d+)(?:,\d+)? \+", line)
+        if header:
+            if old_start is None:
+                old_start = int(header.group(1))
+            continue
+        if line.startswith("---") or line.startswith("+++"):
+            continue
+        if line.startswith("-"):
+            deleted += 1
+        elif line.startswith(" "):
+            context += 1
+    if old_start not in (0, 1):
+        return []
+    if deleted < max(1, int(total * _DESTRUCTIVE_DELETE_RATIO)):
+        return []
+    if context > max(1, int(total * _DESTRUCTIVE_CONTEXT_RATIO)):
+        return []
+    return [
+        f"diff replaces the entire pre-existing file {target} "
+        f"({deleted}/{total} lines deleted, only {context} kept as context) — this looks like "
+        "a destructive full-file rewrite for what was requested as a localized change; return "
+        "a minimal, targeted diff instead (or confirm a full rewrite is genuinely required)"
+    ]
+
+
+def validate_generated_output(output, bound_paths=None, mode=None, root=None) -> ValidationResult:
     text = output or ""
     if mode is None:
         mode = get_validation_mode()
@@ -432,6 +503,8 @@ def validate_generated_output(output, bound_paths=None, mode=None) -> Validation
     if not has_external_test and re.search(r"(?i)\b(pseudocode|placeholder|todo: implement)\b", text):
         hints.append("replace placeholders with executable code")
     hints.extend(_bound_path_warnings(extract_changed_files(output), bound_paths))
+    # Issue #219: unconditional (not mode-gated) — a destructive rewrite is a safety concern.
+    hints.extend(_full_file_replacement_hints(text, root, bound_paths))
     return ValidationResult(
         ok=not hints,
         reason="ok" if not hints else "; ".join(hints),
@@ -562,7 +635,7 @@ def run_apply_stage(
     simplicio_dir.mkdir(parents=True, exist_ok=True)
     (simplicio_dir / "last_output.txt").write_text(output or "", encoding="utf-8")
 
-    validation = validate_generated_output(output, bound_paths)
+    validation = validate_generated_output(output, bound_paths, root=root)
     if not validation.ok:
         return ApplyStageResult(False, f"pre-apply validation failed: {validation.reason}", None, None)
 

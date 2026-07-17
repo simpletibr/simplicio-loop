@@ -9,8 +9,10 @@ and runs their tests too.  When impact tests fail, the failure enters the
 retry loop just like any verify failure.
 """
 
+import hashlib
 import os
 import subprocess
+import time
 from pathlib import Path
 from typing import Any, Literal
 
@@ -81,6 +83,37 @@ def _resolve_max_attempts() -> int:
     except ValueError:
         return MAX_ATTEMPTS
     return value if value >= 1 else MAX_ATTEMPTS
+
+
+# Issue #219: opt-in whole-task wall-clock deadline (0 = disabled), on top
+# of #210's per-provider-call bound.
+def _task_deadline_s() -> float:
+    raw = os.environ.get("SIMPLICIO_TASK_DEADLINE_S", "").strip()
+    if not raw:
+        return 0.0
+    try:
+        value = float(raw)
+    except ValueError:
+        return 0.0
+    return value if value > 0 else 0.0
+
+
+# Issue #219: consecutive same-fingerprint failures before retry feedback escalates.
+def _retry_escalation_after() -> int:
+    raw = os.environ.get("SIMPLICIO_RETRY_ESCALATION_AFTER", "").strip()
+    if not raw:
+        return 2
+    try:
+        value = int(raw)
+    except ValueError:
+        return 2
+    return value if value >= 1 else 2
+
+
+def _failure_fingerprint(log: str | None) -> str:
+    kind = classify_failure(log).kind
+    digest = hashlib.sha256((log or "").encode("utf-8", errors="replace")).hexdigest()[:16]
+    return f"{kind}:{digest}"
 
 
 # Live receipt state — written by the apply stage (``_apply_and_test_attempt``)
@@ -334,7 +367,7 @@ def run_task(
         bound_path_baseline = snapshot_bound_paths(root, bound_paths)
         output = generate(prompt)
         drift_warnings = bound_path_drift(root, bound_paths, bound_path_baseline)
-        validation = validate_generated_output(output, bound_paths, mode=get_validation_mode())
+        validation = validate_generated_output(output, bound_paths, mode=get_validation_mode(), root=root)
         warnings = list(drift_warnings)
         if not validation.ok:
             warnings.append(validation.reason)
@@ -353,6 +386,11 @@ def run_task(
     # Issue #93: impact-test tracking across attempts
     impact_results: dict[str, Any] | None = None
     attempts_limit = _resolve_max_attempts()
+    # Issue #219: whole-attempt (not just provider-shell-out) progress/deadline tracking.
+    task_started_at = time.monotonic()
+    task_deadline = _task_deadline_s()
+    last_failure_fingerprint: str | None = None
+    consecutive_same_failure = 0
     for t in range(1, attempts_limit + 1):
         if not quiet:
             _model = os.environ.get("SIMPLICIO_MODEL", "")
@@ -363,6 +401,39 @@ def run_task(
                 else os.environ.get("SIMPLICIO_PROVIDER", "unknown")
             )
             info(f"--- attempt {t} (provider={_prov}, validation={get_validation_mode()}) ---")
+        elapsed_before_attempt = time.monotonic() - task_started_at
+        emit_event(
+            "task_progress",
+            {
+                "target": target,
+                "attempt": t,
+                "stage": "generate",
+                "elapsed_s": round(elapsed_before_attempt, 2),
+            },
+            root=root,
+        )
+        if task_deadline and elapsed_before_attempt >= task_deadline:
+            reason = (
+                f"task exceeded its configured deadline ({task_deadline:.0f}s, "
+                f"SIMPLICIO_TASK_DEADLINE_S) with no successful attempt; stopping after "
+                f"{t - 1} attempt(s) instead of hanging indefinitely"
+            )
+            emit_event(
+                "task_no_progress",
+                {"target": target, "attempts": t - 1, "elapsed_s": round(elapsed_before_attempt, 2)},
+                level="warning",
+                root=root,
+            )
+            return _task_result(
+                target,
+                prompt,
+                last_output,
+                applied=False,
+                status="stalled",
+                warnings=[reason],
+                verify=last_verify_receipt,
+                impact=impact_results,
+            )
         # Issue #210 AC6/AC5: snapshot bound paths right before this attempt's
         # generate() call. If the provider subprocess stalls or is killed by
         # the bounded-timeout path in providers._shell_out and a bound file
@@ -370,7 +441,28 @@ def run_task(
         # — before any apply is attempted against a corrupted worktree — and
         # regardless of what the (possibly empty) returned diff claims.
         bound_path_baseline = snapshot_bound_paths(root, bound_paths)
-        output = generate(prompt, feedback)
+        try:
+            output = generate(prompt, feedback)
+        except SystemExit as exc:
+            # Issue #219: #210's bounded shell-out raises SystemExit on a stall;
+            # previously that crashed run_task uncaught with no receipt at all.
+            reason = str(exc) or "provider produced no progress before its bounded deadline"
+            emit_event(
+                "task_no_progress",
+                {"target": target, "attempt": t, "reason": reason},
+                level="warning",
+                root=root,
+            )
+            return _task_result(
+                target,
+                prompt,
+                last_output,
+                applied=False,
+                status="stalled",
+                warnings=[reason],
+                verify=last_verify_receipt,
+                impact=impact_results,
+            )
         drift_warnings = bound_path_drift(root, bound_paths, bound_path_baseline)
         if drift_warnings:
             emit_event(
@@ -394,7 +486,7 @@ def run_task(
                 ],
             )
         last_output = output or ""
-        last_validation = validate_generated_output(output, bound_paths)
+        last_validation = validate_generated_output(output, bound_paths, root=root)
         if getattr(_apply_and_test, "__module__", __name__) != __name__:
             legacy_ok, legacy_log = _apply_and_test(output, root, bound_paths)
             attempt = ApplyStageResult(legacy_ok, legacy_log, None, None)
@@ -578,6 +670,13 @@ def run_task(
                     )
         if not quiet:
             info("failed: %s", log[:300])
+        # Issue #219: escalate once the same failure fingerprint repeats.
+        fingerprint = _failure_fingerprint(log)
+        if fingerprint == last_failure_fingerprint:
+            consecutive_same_failure += 1
+        else:
+            last_failure_fingerprint = fingerprint
+            consecutive_same_failure = 1
         feedback = build_retry_feedback(t + 1, last_validation, log)
         retry_feedback = set_prompt_retry_delta(
             reason="verification-failed",
@@ -587,6 +686,19 @@ def run_task(
         )
         if retry_feedback:
             feedback = retry_feedback
+        if consecutive_same_failure >= _retry_escalation_after():
+            emit_event(
+                "retry_escalated",
+                {"target": target, "attempt": t, "consecutive_same_failure": consecutive_same_failure},
+                level="warning",
+                root=root,
+            )
+            feedback = (
+                f"{feedback}\n\nESCALATION: the last {consecutive_same_failure} attempts failed with "
+                "the same failure signature. Do not repeat the previous diff verbatim. Narrow the "
+                "change to the smallest possible localized edit (a single hunk touching the minimum "
+                "number of lines) and use a different approach than the previous attempt."
+            )
     if not quiet:
         info("attempts exhausted — manual review needed.")
     warnings = []
