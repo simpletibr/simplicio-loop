@@ -311,6 +311,76 @@ def test_map_ask_none_when_cli_unavailable(monkeypatch, tmp_path):
     assert mapper.map_ask(tmp_path, "impact", "src/app.py") is None
 
 
+def test_map_ask_normalizes_structured_results(monkeypatch, tmp_path):
+    """Issue #218: mapper >=0.23 `ask` returns a structured `results` object
+    (affected_symbols/affected_flows/needs_review) instead of a flat list.
+    `map_ask` must normalize it rather than returning None."""
+    monkeypatch.setattr(
+        mapper,
+        "run_mapper_json",
+        lambda root, sub, *, extra=(), timeout=30, revision="", snapshot_id="": {
+            "schema": "simplicio.ask/v1",
+            "query": {"verb": extra[0], "arg": extra[1] if len(extra) > 1 else None},
+            "results": {
+                "affected_symbols": [{"path": "src/app.py", "symbol": "main"}],
+                "affected_flows": [{"path": "src/flow.py", "flow": "checkout"}],
+                "needs_review": [{"path": "src/risky.py", "reason": "low confidence"}],
+            },
+            "total": 3,
+        },
+    )
+    results = mapper.map_ask(tmp_path, "impact", "src/app.py")
+    assert results == [
+        {"category": "affected_symbols", "path": "src/app.py", "symbol": "main"},
+        {"category": "affected_flows", "path": "src/flow.py", "flow": "checkout"},
+        {"category": "needs_review", "path": "src/risky.py", "reason": "low confidence"},
+    ]
+
+
+def test_map_ask_structured_empty_results_is_empty_list_not_none(monkeypatch, tmp_path):
+    """A structured answer with no findings still proves the mapper
+    responded — it must return ``[]``, not ``None`` (None means unavailable,
+    per run_impact_tests' mapper_responded/mapper_unavailable distinction)."""
+    monkeypatch.setattr(
+        mapper,
+        "run_mapper_json",
+        lambda root, sub, *, extra=(), timeout=30, revision="", snapshot_id="": {
+            "schema": "simplicio.ask/v1",
+            "results": {"affected_symbols": [], "affected_flows": [], "needs_review": []},
+        },
+    )
+    assert mapper.map_ask(tmp_path, "impact", "src/app.py") == []
+
+
+def test_map_ask_structured_ignores_unknown_keys_and_non_dict_items(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        mapper,
+        "run_mapper_json",
+        lambda root, sub, *, extra=(), timeout=30, revision="", snapshot_id="": {
+            "results": {
+                "affected_symbols": ["not-a-dict", {"path": "a.py"}],
+                "some_future_category": [{"path": "b.py"}],
+            },
+        },
+    )
+    results = mapper.map_ask(tmp_path, "impact", "a.py")
+    assert results == [
+        {"category": "affected_symbols", "value": "not-a-dict"},
+        {"category": "affected_symbols", "path": "a.py"},
+    ]
+
+
+def test_map_ask_missing_results_key_returns_none(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        mapper,
+        "run_mapper_json",
+        lambda root, sub, *, extra=(), timeout=30, revision="", snapshot_id="": {
+            "schema": "simplicio.ask/v1"
+        },
+    )
+    assert mapper.map_ask(tmp_path, "impact", "src/app.py") is None
+
+
 def test_inspect_target_embeds_impact_and_affected_tests(monkeypatch, tmp_path):
     _write_project_map(tmp_path)
     monkeypatch.setattr(mapper, "map_inspection", lambda _root: None)

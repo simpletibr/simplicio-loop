@@ -121,6 +121,41 @@ def map_handoff(
 ASK_VERBS = ("callers", "callees", "reaches", "impact", "flows", "rules", "tests-for", "term")
 
 
+# Issue #218: mapper >=0.23 replaced the flat `results: list[dict]` shape
+# with a structured object keyed by category (`affected_symbols`,
+# `affected_flows`, `needs_review`, ...). Both shapes are normalized to one
+# flat list here so `run_impact_tests` (pipeline_stages.py) never has to know
+# which mapper version produced the answer.
+_ASK_RESULT_LIST_KEYS = ("affected_symbols", "affected_flows", "needs_review")
+
+
+def _normalize_ask_results(results: Any) -> list[dict[str, Any]] | None:
+    """Normalize `simplicio.ask/v1` `results` into a flat list of dict entries.
+
+    Accepts the legacy list shape unchanged (non-dict items dropped, same as
+    before), and the current structured-object shape, where each recognized
+    category's entries are flattened and tagged with ``category`` so a
+    structured answer with genuinely no impact still returns ``[]`` (not
+    ``None`` — the caller uses ``None`` vs ``[]`` to distinguish "mapper
+    unavailable" from "mapper responded, nothing found").
+    """
+    if isinstance(results, list):
+        return [item for item in results if isinstance(item, dict)]
+    if isinstance(results, dict):
+        normalized: list[dict[str, Any]] = []
+        for key in _ASK_RESULT_LIST_KEYS:
+            entries = results.get(key)
+            if not isinstance(entries, list):
+                continue
+            for item in entries:
+                if isinstance(item, dict):
+                    normalized.append({"category": key, **item})
+                elif item is not None:
+                    normalized.append({"category": key, "value": item})
+        return normalized
+    return None
+
+
 def map_ask(
     root: str | os.PathLike[str],
     verb: str,
@@ -129,11 +164,13 @@ def map_ask(
     revision: str = "",
     snapshot_id: str = "",
 ) -> list[dict[str, Any]] | None:
-    """mapper 0.14 `ask` — low-token structured queries over the built artifacts.
+    """mapper 0.14+ `ask` — low-token structured queries over the built artifacts.
 
-    Returns the `results` list from `simplicio.ask/v1`, or None when the CLI is
-    unavailable/fails or the verb is unknown — callers treat None as "no data",
-    never as an empty answer.
+    Returns the `results` from `simplicio.ask/v1` normalized to a flat list —
+    handling both the legacy list shape and the current structured-object
+    shape (issue #218) — or None when the CLI is unavailable/fails or the
+    verb is unknown. Callers treat None as "no data", never as an empty
+    answer.
     """
     if verb not in ASK_VERBS:
         return None
@@ -141,8 +178,7 @@ def map_ask(
     data = run_mapper_json(root, "ask", extra=extra, revision=revision, snapshot_id=snapshot_id)
     if data is None:
         return None
-    results = data.get("results")
-    return [item for item in results if isinstance(item, dict)] if isinstance(results, list) else None
+    return _normalize_ask_results(data.get("results"))
 
 
 def _safe_json(path: Path) -> dict[str, Any] | None:

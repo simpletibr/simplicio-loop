@@ -244,6 +244,34 @@ def test_run_impact_tests_mapper_returns_no_callers(tmp_path, monkeypatch):
     assert result["result"] == IMPACT_RESULT_NOT_NEEDED
 
 
+def test_run_impact_tests_structured_mapper_response_is_not_unavailable(tmp_path, monkeypatch):
+    """Issue #218 integration: mapper >=0.23 answers `ask` with a structured
+    `results` object (not a flat list). Going through the real
+    `mapper.map_ask` (not a pipeline.map_ask mock), `_run_impact_tests` must
+    treat this as a valid response — not `mapper_unavailable` — and surface
+    the caller it found."""
+    from simplicio import mapper as mapper_module
+
+    def fake_run_mapper_json(root, sub, *, extra=(), timeout=30, revision="", snapshot_id=""):
+        verb = extra[0] if extra else ""
+        if verb == "impact":
+            return {
+                "schema": "simplicio.ask/v1",
+                "results": {"affected_symbols": [{"path": "src/caller.py", "symbol": "some_func"}]},
+            }
+        if verb == "tests-for":
+            return {"schema": "simplicio.ask/v1", "results": {"affected_symbols": []}}
+        return None
+
+    monkeypatch.setattr(mapper_module, "run_mapper_json", fake_run_mapper_json)
+    monkeypatch.setattr("simplicio.pipeline.map_ask", mapper_module.map_ask)
+
+    result = _run_impact_tests(tmp_path, ["src/lib.py"])
+
+    assert result["status"] != "mapper_unavailable"
+    assert result["callers"] == ["src/caller.py"]
+
+
 def test_run_impact_tests_finds_callers_but_no_tests(tmp_path, monkeypatch):
     def fake_map_ask(root, verb, arg=""):
         if verb == "impact":
