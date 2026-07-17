@@ -59,6 +59,7 @@ def _terminate_index_worker(child: subprocess.Popen) -> None:
                 ["taskkill", "/PID", str(child.pid), "/T", "/F"],
                 check=False,
                 capture_output=True,
+                stdin=subprocess.DEVNULL,
                 timeout=5,
             )
         except (OSError, subprocess.SubprocessError):

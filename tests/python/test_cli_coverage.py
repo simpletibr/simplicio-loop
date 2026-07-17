@@ -17,9 +17,11 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -233,6 +235,159 @@ class SynchronousScanTimeoutTest(unittest.TestCase):
         self.assertEqual(status["phase"], "failed")
         self.assertTrue(status["terminal"])
         self.assertEqual(status["failure_reason"], "scan_timeout")
+
+
+class BackgroundWorkerNeverInheritsStdinTest(unittest.TestCase):
+    """Regression coverage for issue #231 (WinError 6 on inherited stdin).
+
+    On Windows, ``subprocess.Popen``/``subprocess.run`` inherit the parent's
+    stdin handle unless told otherwise. When the parent stdin is captured or
+    closed (pytest, some Codex/PowerShell hosts), that inheritance attempt
+    raises ``OSError: [WinError 6]`` from ``_winapi.DuplicateHandle`` *before*
+    the child process is even created. Every subprocess call on the
+    background/index worker path must pass an explicit non-inheriting stdin
+    so the worker never depends on (or blocks on) the host's stdin.
+    """
+
+    def test_spawn_index_process_pins_stdin_devnull(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        target = Path(tmp.name)
+        _write(target, "package.json", json.dumps({"name": "stdin-host"}))
+
+        opts = {
+            "root": str(target),
+            "out": ".simplicio",
+            "stack": None,
+            "product_name": None,
+            "docs": False,
+            "incremental": False,
+            "verbose": False,
+        }
+
+        real_popen = subprocess.Popen
+        captured: dict = {}
+
+        class _FakeChild:
+            pid = 123456
+
+            def wait(self, timeout=None):
+                return 0
+
+            def poll(self):
+                return 0
+
+        def _fake_popen(*args, **kwargs):
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+            return _FakeChild()
+
+        with mock.patch.object(subprocess, "Popen", side_effect=_fake_popen):
+            payload, child = cli_background._spawn_index_process(opts)
+
+        self.assertIs(subprocess.Popen, real_popen)  # patch scoped, no leakage
+        self.assertEqual(captured["kwargs"].get("stdin"), subprocess.DEVNULL)
+        self.assertEqual(payload["pid"], 123456)
+        self.assertIsInstance(child, _FakeChild)
+
+    def test_spawn_background_index_survives_closed_os_stdin(self) -> None:
+        """End-to-end proof: closing the real OS stdin handle (fd 0) before
+        spawning the worker must not raise. This is the literal repro
+        described in issue #231 -- a host with an invalid/closed inherited
+        stdin handle -- reproduced in a child interpreter so the current
+        process's own stdin (needed by the test runner) is left untouched.
+        """
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        target = Path(tmp.name)
+        _write(target, "package.json", json.dumps({"name": "closed-stdin-host"}))
+
+        script = (
+            "import sys, os, json;"
+            f"sys.path.insert(0, {str(ROOT)!r});"
+            "os.close(0);"
+            "from simplicio_mapper.cli._background import _spawn_background_index;"
+            "opts = {"
+            f"'root': {str(target)!r}, 'out': '.simplicio', 'stack': None,"
+            "'product_name': None, 'docs': False, 'incremental': False, 'verbose': False"
+            "};"
+            "payload = _spawn_background_index(opts);"
+            "print(json.dumps(payload))"
+        )
+        # NOTE: this harness's own subprocess.run call also needs an explicit
+        # non-inheriting stdin -- test hosts (this one included) can already
+        # have an invalid/captured stdin handle at the OS level, which is
+        # exactly the class of host issue #231 describes. Without this, the
+        # harness call itself (not the code under test) raises WinError 6.
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            stdin=subprocess.DEVNULL,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        payload = json.loads(result.stdout.strip())
+        self.assertEqual(payload["schema"], "simplicio.background-index/v1")
+        self.assertEqual(payload["status"], "started")
+        self.assertGreater(payload["pid"], 0)
+
+        # The worker keeps running detached from the child interpreter above
+        # (which already exited). Wait for it to finish writing artifacts
+        # before the TemporaryDirectory cleanup runs, otherwise cleanup races
+        # a still-open log file handle on Windows.
+        project_map = target / ".simplicio" / "project-map.json"
+        for _ in range(100):
+            if project_map.exists():
+                break
+            time.sleep(0.05)
+        self.assertTrue(project_map.exists(), "background worker never produced artifacts")
+
+        # Artifact presence means the worker is done computing, but the
+        # detached process can still hold its log file open for a moment
+        # while exiting. Poll for the handle to release so cleanup doesn't
+        # race a live file lock on Windows.
+        log_path = target / ".simplicio" / "background-index.log"
+        for _ in range(60):
+            try:
+                with open(log_path, "a", encoding="utf-8"):
+                    pass
+                os.rename(log_path, log_path)  # exclusive-open probe
+                break
+            except OSError:
+                time.sleep(0.05)
+
+
+class TerminateIndexWorkerNeverInheritsStdinTest(unittest.TestCase):
+    def test_taskkill_invocation_pins_stdin_devnull_on_windows(self) -> None:
+        class _AliveThenDeadChild:
+            pid = 987654
+            _polled = False
+
+            def poll(self):
+                if self._polled:
+                    return 0
+                self._polled = True
+                return None
+
+            def wait(self, timeout=None):
+                return 0
+
+        captured: dict = {}
+
+        def _fake_run(*args, **kwargs):
+            captured["args"] = args
+            captured["kwargs"] = kwargs
+            return subprocess.CompletedProcess(args, 0)
+
+        with (
+            mock.patch.object(status_engine.os, "name", "nt"),
+            mock.patch.object(subprocess, "run", side_effect=_fake_run),
+        ):
+            status_engine._terminate_index_worker(_AliveThenDeadChild())
+
+        self.assertIn("taskkill", captured["args"][0])
+        self.assertEqual(captured["kwargs"].get("stdin"), subprocess.DEVNULL)
 
 
 if __name__ == "__main__":
