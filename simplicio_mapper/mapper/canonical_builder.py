@@ -1,0 +1,360 @@
+"""Builder for a real ``CanonicalMapManifest`` (issue #236, ADR-008 step 3).
+
+This module implements *only* migration-plan step 3 from
+``.specs/architecture/ADR-008-canonical-map-overlays.md``: materializing the
+mapping artifacts (project-map/precedent-index/symbol-index/call-graph) for
+the resolved default-branch **commit** -- never for a worktree's current
+(possibly dirty) state -- and wrapping the result in a populated
+:class:`simplicio_mapper.mapper.canonical.CanonicalMapManifest`.
+
+It deliberately reuses, rather than reimplements, the existing single
+mapping pipeline (:func:`simplicio_mapper.mapper.emit.build_artifacts`), the
+identity resolution from :mod:`simplicio_mapper.mapper.canonical_identity`
+(ADR-008 step 2), and the path arithmetic from
+:mod:`simplicio_mapper.mapper.canonical_storage` (ADR-008 step 3, path slice,
+already merged) for where a manifest's content-addressed directory and its
+``.tmp-<token>`` staging sibling live. The only new mechanism here is: get a
+clean checkout of the exact default-branch commit without touching the
+caller's real working tree, via ``git worktree add --detach`` against a
+throwaway temp path, then clean that temp worktree back up unconditionally.
+
+Storage layout: ``<storage_root>/canonical/<CanonicalMapKey.digest()>/`` --
+shape and staging-path arithmetic come from
+:func:`canonical_storage.canonical_manifest_dir` /
+:func:`canonical_storage.canonical_manifest_tmp_dir`. The ``storage_root``
+argument here is whatever cache root the caller resolved (ADR-008 section 3:
+normally ``<common_git_dir>/simplicio`` or the
+``SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR`` override, via
+:func:`canonical_storage.resolve_canonical_cache_root` -- resolving *that*
+default is the caller's job, not this module's).
+
+Idempotency: if ``<storage_root>/canonical/<digest>/manifest.json`` already
+exists, this is treated as authoritative and the manifest is loaded and
+returned without rebuilding the pipeline (reuse-not-rebuild -- content
+addressed by ``CanonicalMapKey.digest()``, so a hit here means every input
+that could affect the mapping output is provably unchanged). This mirrors
+the general "never recompute a cache hit" pattern used by
+:class:`simplicio_mapper.cache.FileProcessingCache`.
+
+Fail-closed: any resolution or build failure returns ``None`` -- never a
+partial or corrupt manifest -- matching the pattern already established by
+:func:`simplicio_mapper.mapper.canonical_identity.resolve_repo_identity_bundle`.
+
+No production code path calls this yet; wiring into ``index``/``scan``/the
+lock (`_index_engine.py`) is out of scope here, tracked as later steps in the
+ADR's migration plan.
+"""
+
+from __future__ import annotations
+
+import os
+import shutil
+import socket
+import subprocess
+import tempfile
+from typing import Any
+
+import orjson
+
+from .canonical import (
+    CANONICAL_MAP_SCHEMA,
+    CANONICAL_MAP_SCHEMA_VERSION,
+    CanonicalMapKey,
+    CanonicalMapManifest,
+)
+from .canonical_identity import resolve_repo_identity_bundle
+from .canonical_storage import canonical_manifest_dir, canonical_manifest_tmp_dir
+from .emit import build_artifacts
+from .parse import _JSON_WRITE_OPTIONS, _now_iso
+
+_GIT_TIMEOUT_SECONDS = 30.0
+_MANIFEST_FILE_NAME = "manifest.json"
+
+#: Logical artifact name -> filename inside the digest directory. Kept in
+#: sync with the artifact set ``write_mapping_artifacts`` would normally
+#: write under ``.simplicio/`` for a live worktree (architecture-inventory is
+#: derived documentation, not one of the four canonical artifacts the ADR's
+#: manifest tracks, so it is intentionally excluded here).
+_ARTIFACT_FILE_NAMES: dict[str, str] = {
+    "project_map": "project-map.json",
+    "precedent_index": "precedent-index.json",
+    "symbol_index": "symbol-index.json",
+    "call_graph": "call-graph.json",
+}
+
+
+def _mapper_version() -> str:
+    try:
+        from importlib.metadata import version
+
+        return version("simplicio-mapper")
+    except Exception:  # noqa: BLE001 - source checkouts may not be installed
+        return "unknown"
+
+
+def _run_git(args: list[str], cwd: str) -> subprocess.CompletedProcess | None:
+    try:
+        return subprocess.run(
+            ["git", *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=_GIT_TIMEOUT_SECONDS,
+            stdin=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def _write_json_stable(path: str, data: Any) -> None:
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    tmp = f"{path}.tmp"
+    with open(tmp, "wb") as handle:
+        handle.write(orjson.dumps(data, option=_JSON_WRITE_OPTIONS))
+    os.replace(tmp, path)
+
+
+def _read_json(path: str) -> dict | None:
+    try:
+        with open(path, "rb") as handle:
+            return orjson.loads(handle.read())
+    except (OSError, orjson.JSONDecodeError):
+        return None
+
+
+def _compute_file_manifest_digest(root: str, commit_sha: str) -> str | None:
+    """Stable digest of the ``(path, blob_sha)`` set tracked at ``commit_sha``.
+
+    Uses ``git ls-tree -r`` against the *main* repository (any worktree of it
+    can read any commit's tree without checking it out) -- this never touches
+    the detached temp checkout, so it is safe to compute before or after that
+    checkout exists.
+    """
+    result = _run_git(["ls-tree", "-r", commit_sha], root)
+    if not result or result.returncode != 0:
+        return None
+    entries: list[str] = []
+    for line in result.stdout.splitlines():
+        # format: "<mode> <type> <sha>\t<path>"
+        meta, _, path = line.partition("\t")
+        if not path:
+            continue
+        parts = meta.split()
+        if len(parts) < 3:
+            continue
+        blob_sha = parts[2]
+        entries.append(f"{path}:{blob_sha}")
+    entries.sort()
+    import hashlib
+
+    raw = "\x1f".join(entries).encode("utf-8")
+    return hashlib.blake2b(raw, digest_size=24).hexdigest()
+
+
+def _create_detached_checkout(root: str, commit_sha: str) -> tuple[str, str] | None:
+    """Create a throwaway ``git worktree`` checked out at ``commit_sha``.
+
+    Returns ``(base_tmp_dir, worktree_path)`` on success -- caller is
+    responsible for cleanup via :func:`_remove_detached_checkout`. Returns
+    ``None`` on any failure; nothing is left behind in that case.
+    """
+    base_tmp = tempfile.mkdtemp(prefix="simplicio-canonical-")
+    worktree_path = os.path.join(base_tmp, "wt")
+    result = _run_git(["worktree", "add", "--detach", worktree_path, commit_sha], root)
+    if not result or result.returncode != 0:
+        shutil.rmtree(base_tmp, ignore_errors=True)
+        return None
+    return base_tmp, worktree_path
+
+
+def _remove_detached_checkout(root: str, base_tmp: str, worktree_path: str) -> None:
+    """Best-effort cleanup: never leaves a stray ``git worktree`` entry."""
+    result = _run_git(["worktree", "remove", "--force", worktree_path], root)
+    if not result or result.returncode != 0:
+        # Directory may already be gone, or removal raced with something
+        # holding a file open (e.g. AV scanners on Windows) -- fall back to
+        # a manual prune so `git worktree list` never keeps a dangling entry.
+        shutil.rmtree(worktree_path, ignore_errors=True)
+        _run_git(["worktree", "prune"], root)
+    shutil.rmtree(base_tmp, ignore_errors=True)
+
+
+def _load_existing_manifest(digest_dir: str) -> CanonicalMapManifest | None:
+    manifest_path = os.path.join(digest_dir, _MANIFEST_FILE_NAME)
+    if not os.path.isfile(manifest_path):
+        return None
+    raw = _read_json(manifest_path)
+    if not raw:
+        return None
+    try:
+        key_raw = raw["key"]
+        key = CanonicalMapKey(
+            repo_identity=key_raw["repo_identity"],
+            default_branch=key_raw["default_branch"],
+            commit_sha=key_raw["commit_sha"],
+            tree_sha=key_raw["tree_sha"],
+            schema_version=key_raw["schema_version"],
+            mapper_version=key_raw["mapper_version"],
+            config_fingerprint=key_raw["config_fingerprint"],
+            platform_tag=key_raw.get("platform_tag"),
+        )
+        return CanonicalMapManifest(
+            schema=raw["schema"],
+            schema_version=raw["schema_version"],
+            key=key,
+            storage_root=raw["storage_root"],
+            artifact_paths=raw["artifact_paths"],
+            file_manifest_digest=raw["file_manifest_digest"],
+            counts=raw["counts"],
+            created_at=raw["created_at"],
+            builder=raw["builder"],
+            generation=raw["generation"],
+        )
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def build_canonical_manifest(
+    root: str, storage_root: str, config_fingerprint: str
+) -> CanonicalMapManifest | None:
+    """Build (or reuse) a :class:`CanonicalMapManifest` for ``root``'s default branch.
+
+    Materializes the mapping artifacts for the resolved default-branch
+    **commit** -- via a detached ``git worktree add`` temp checkout, never
+    against ``root``'s own (possibly dirty) working tree -- and stores them
+    content-addressed under
+    ``storage_root/canonical/<CanonicalMapKey.digest()>/`` (path shape from
+    :func:`canonical_storage.canonical_manifest_dir`).
+
+    Idempotent: if that digest directory already has a ``manifest.json``, it
+    is loaded and returned as-is (no rebuild) -- see the module docstring for
+    why a cache hit here is always safe to trust.
+
+    Returns ``None`` (never a partial manifest) when identity resolution
+    fails, the detached checkout cannot be created, or the underlying
+    mapping pipeline raises.
+    """
+    identity = resolve_repo_identity_bundle(root)
+    if identity is None:
+        return None
+
+    key = CanonicalMapKey(
+        repo_identity=identity.repo_identity,
+        default_branch=identity.default_branch,
+        commit_sha=identity.commit_sha,
+        tree_sha=identity.tree_sha,
+        schema_version=CANONICAL_MAP_SCHEMA_VERSION,
+        mapper_version=_mapper_version(),
+        config_fingerprint=config_fingerprint,
+        platform_tag=None,
+    )
+    digest = key.digest()
+    cache_root = os.path.abspath(storage_root)
+    digest_dir = os.path.normpath(canonical_manifest_dir(cache_root, digest))
+
+    existing = _load_existing_manifest(digest_dir)
+    if existing is not None and existing.key == key:
+        return existing
+
+    file_manifest_digest = _compute_file_manifest_digest(root, identity.commit_sha)
+    if file_manifest_digest is None:
+        return None
+
+    checkout = _create_detached_checkout(root, identity.commit_sha)
+    if checkout is None:
+        return None
+    base_tmp, worktree_path = checkout
+    try:
+        artifacts = build_artifacts(worktree_path, meta=None, incremental=False)
+    except Exception:  # noqa: BLE001 - any pipeline failure must fail closed
+        return None
+    finally:
+        _remove_detached_checkout(root, base_tmp, worktree_path)
+
+    project_map = artifacts["project_map"]
+    precedent_index = artifacts["precedent_index"]
+    symbol_index = artifacts["symbol_index"]
+    call_graph = artifacts["call_graph"]
+
+    # Relative to `cache_root` (e.g. "canonical/<digest>") -- matches the
+    # shape `canonical_storage.canonical_manifest_dir` describes, per
+    # `CanonicalMapManifest.storage_root`'s docstring ("relative to common
+    # git dir" -- `cache_root` here is whatever the caller resolved that to).
+    storage_root_field = os.path.relpath(digest_dir, cache_root).replace(os.sep, "/")
+
+    tmp_digest_dir = os.path.normpath(
+        canonical_manifest_tmp_dir(cache_root, digest, str(os.getpid()))
+    )
+    shutil.rmtree(tmp_digest_dir, ignore_errors=True)
+    try:
+        artifact_paths: dict[str, str] = {}
+        for logical_name, file_name in _ARTIFACT_FILE_NAMES.items():
+            _write_json_stable(os.path.join(tmp_digest_dir, file_name), artifacts[logical_name])
+            artifact_paths[logical_name] = file_name
+
+        counts = {
+            "files": len(project_map.get("files") or []),
+            "precedents": len(precedent_index.get("items") or []),
+            "symbols": (symbol_index.get("counts") or {}).get("symbols", 0),
+            "relationships": (call_graph.get("counts") or {}).get("edges", 0),
+        }
+        created_at = _now_iso()
+        builder = {
+            "pid": str(os.getpid()),
+            "host": socket.gethostname(),
+            "mapper_version": key.mapper_version,
+        }
+        manifest_payload = {
+            "schema": CANONICAL_MAP_SCHEMA,
+            "schema_version": CANONICAL_MAP_SCHEMA_VERSION,
+            "key": {
+                "repo_identity": key.repo_identity,
+                "default_branch": key.default_branch,
+                "commit_sha": key.commit_sha,
+                "tree_sha": key.tree_sha,
+                "schema_version": key.schema_version,
+                "mapper_version": key.mapper_version,
+                "config_fingerprint": key.config_fingerprint,
+                "platform_tag": key.platform_tag,
+            },
+            "storage_root": storage_root_field,
+            "artifact_paths": artifact_paths,
+            "file_manifest_digest": file_manifest_digest,
+            "counts": counts,
+            "created_at": created_at,
+            "builder": builder,
+            "generation": 1,
+        }
+        _write_json_stable(os.path.join(tmp_digest_dir, _MANIFEST_FILE_NAME), manifest_payload)
+
+        # Atomic promotion: only a fully-written temp dir ever becomes the
+        # real digest dir (mirrors the write-then-rename pattern already
+        # used by `_write_index_state` / `_write_json_stable`).
+        if os.path.isdir(digest_dir):
+            # Another process/call already promoted the same digest while we
+            # were building (content-addressed -> byte-identical outcome
+            # expected); prefer the existing promoted copy and discard ours.
+            shutil.rmtree(tmp_digest_dir, ignore_errors=True)
+            reused = _load_existing_manifest(digest_dir)
+            if reused is not None and reused.key == key:
+                return reused
+        else:
+            os.makedirs(os.path.dirname(digest_dir), exist_ok=True)
+            os.replace(tmp_digest_dir, digest_dir)
+    finally:
+        shutil.rmtree(tmp_digest_dir, ignore_errors=True)
+
+    return CanonicalMapManifest(
+        schema=CANONICAL_MAP_SCHEMA,
+        schema_version=CANONICAL_MAP_SCHEMA_VERSION,
+        key=key,
+        storage_root=storage_root_field,
+        artifact_paths=artifact_paths,
+        file_manifest_digest=file_manifest_digest,
+        counts=counts,
+        created_at=created_at,
+        builder=builder,
+        generation=1,
+    )
