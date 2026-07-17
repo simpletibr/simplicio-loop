@@ -1,32 +1,27 @@
 #!/usr/bin/env python3
-"""Baseline benchmark for the current synchronous mapping pipeline (issue #235,
-steps 1-2 of the "async pipeline" epic plan).
+"""Historical baseline benchmark for the synchronous mapping pipeline (issue #235).
 
-This measures the *existing* ``simplicio_mapper.mapper.build_artifacts`` path
-(sequential file walk -> per-file blocking read + regex parse -> disk cache
-get/set -> single-threaded artifact write) against small/medium/large trees,
-so a future ``AsyncMappingPipeline`` has a real, reproducible before/after
-target instead of an assumed win.
+This script is valid only on a revision where
+``simplicio_mapper.mapper.build_artifacts`` executes the synchronous pipeline.
+After the async adapter landed, invoking that public function measures the
+current async pipeline instead. Publishing those results as a synchronous
+"before" baseline would be false.
+
+The guard below refuses to run on an async-adapter revision. To produce a
+before/after report, run this script from a pre-async Git revision and compare
+it with a separately recorded current-pipeline receipt. For the current
+inventory-level sync/async comparison, use
+``scripts/async_inventory_benchmark.py``.
 
 Metrics captured per size, cold (empty cache) and warm (populated cache):
 
 - wall time: median and p95 across repeated runs (``time.perf_counter``)
 - CPU time: ``time.process_time()`` delta (single-process CPU seconds spent)
 - peak RSS: sampled via a background thread at ~20ms resolution
-  (``psutil.Process().memory_info().rss``), since the parent process only
-  sees before/after snapshots otherwise
-- files/sec: files walked (see ``_collect_text_files``) divided by median
-  wall time
-- cache hit ratio: warm run is expected to hit the disk cache for every
-  unchanged file; verified by inspecting ``FileProcessingCache`` before/after
-  counts is not exposed publicly, so this script infers it indirectly from
-  the warm/cold speedup ratio and documents that as the true today's proxy
+- files/sec: files walked divided by median wall time
+- cache proxy: warm/cold ratio; cache hit counts are not publicly exposed
 
-The synthetic medium/large trees are generated deterministically (fixed
-seed) into a temp dir at run time -- nothing large is committed to the repo,
-matching the existing pattern in ``scripts/runtime_scale_benchmark.py``.
-
-Usage:
+Usage (on a pre-async revision only):
     python3 scripts/async_pipeline_baseline_benchmark.py [--write] [--runs N]
 
 ``--write`` writes the Markdown report to
@@ -34,10 +29,10 @@ Usage:
 ``docs/evidence/async-pipeline-baseline-benchmark.json``. Without it, the
 script only prints the report to stdout (dry run).
 """
-
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import shutil
 import statistics
@@ -360,6 +355,16 @@ def _render_markdown(results: list[dict[str, Any]], generated_at: str, python_ve
     return "\n".join(lines) + "\n"
 
 
+
+def _assert_historical_sync_baseline() -> None:
+    """Reject mislabeled baseline runs after the async adapter is active."""
+    source = inspect.getsource(build_artifacts)
+    if "build_artifacts_async" in source:
+        raise RuntimeError(
+            "refusing to publish a synchronous baseline from the current async "
+            "adapter; run this script from a pre-async Git revision and use "
+            "scripts/async_inventory_benchmark.py for current comparisons"
+        )
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -371,6 +376,8 @@ def main() -> int:
         help="Number of cold+warm iterations per size (default: 3)",
     )
     args = parser.parse_args()
+
+    _assert_historical_sync_baseline()
 
     if psutil is None:
         print("psutil not importable; RSS numbers will be 0. Install psutil to fix.", file=sys.stderr)
