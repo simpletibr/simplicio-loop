@@ -56,6 +56,7 @@ def _git(root: str, *args: str) -> str:
             timeout=5,
             encoding="utf-8",
             errors="replace",
+            stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return ""
@@ -207,6 +208,7 @@ def _safe_relative_path(root: str, requested: str) -> tuple[str, str]:
         ignored = subprocess.run(
             ["git", "-C", root, "check-ignore", "--no-index", "--quiet", "--", relative],
             check=False,
+            stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             timeout=2,

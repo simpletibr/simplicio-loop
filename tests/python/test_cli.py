@@ -309,7 +309,7 @@ module.exports = { findUsers };
         self.assertIn("src/index.js", project_map["changed_files"])
 
     def test_git_status_marks_untracked_files_inside_new_dirs(self) -> None:
-        subprocess.run(["git", "init"], cwd=self.dir, check=True, capture_output=True)
+        subprocess.run(["git", "init"], cwd=self.dir, check=True, capture_output=True, stdin=subprocess.DEVNULL)
         _write(self.dir, "package.json", json.dumps({"name": "untracked-host"}))
         _write(self.dir, "src/new/index.js", "export function run() { return 1; }\n")
 
@@ -325,7 +325,7 @@ module.exports = { findUsers };
         )
 
     def test_build_artifacts_emits_deterministic_degraded_shape(self) -> None:
-        subprocess.run(["git", "init"], cwd=self.dir, check=True, capture_output=True)
+        subprocess.run(["git", "init"], cwd=self.dir, check=True, capture_output=True, stdin=subprocess.DEVNULL)
         _write(self.dir, "package.json", json.dumps({"name": "degraded-host"}))
         _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
 
@@ -989,13 +989,23 @@ def load(api):
         self.assertIn("src/index.js", payload["changed_files"])
 
     def test_index_refreshes_when_dirty_file_changes_again(self) -> None:
-        subprocess.run(["git", "init"], cwd=self.dir, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=self.dir, check=True)
-        subprocess.run(["git", "config", "user.name", "Test User"], cwd=self.dir, check=True)
+        subprocess.run(["git", "init"], cwd=self.dir, check=True, capture_output=True, stdin=subprocess.DEVNULL)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"],
+            cwd=self.dir, check=True, capture_output=True, stdin=subprocess.DEVNULL,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test User"],
+            cwd=self.dir, check=True, capture_output=True, stdin=subprocess.DEVNULL,
+        )
         _write(self.dir, "package.json", json.dumps({"name": "dirty-refresh-host"}))
         _write(self.dir, "src/index.js", "export function run() { return 1; }\n")
-        subprocess.run(["git", "add", "."], cwd=self.dir, check=True, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "init"], cwd=self.dir, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "add", "."], cwd=self.dir, check=True, capture_output=True, stdin=subprocess.DEVNULL
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "init"], cwd=self.dir, check=True, capture_output=True, stdin=subprocess.DEVNULL
+        )
 
         with redirect_stdout(StringIO()):
             self.assertEqual(main(["index", str(self.dir), "--json"]), 0)

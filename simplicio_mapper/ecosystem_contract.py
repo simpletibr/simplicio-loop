@@ -303,7 +303,7 @@ def run_doctor_cli(argv: list[str]) -> int:
         if not os.path.isfile(runner):
             print("::error::cross-repo-conformant unavailable: runner missing", flush=True)
             return 1
-        result = subprocess.run([sys.executable, runner], cwd=repo_root, check=False)
+        result = subprocess.run([sys.executable, runner], cwd=repo_root, check=False, stdin=subprocess.DEVNULL)
         print(
             f"contract status: {'cross-repo-conformant' if result.returncode == 0 else 'cross-repo-incompatible'}",
             flush=True,

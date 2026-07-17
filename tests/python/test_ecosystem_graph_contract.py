@@ -154,6 +154,7 @@ class CanvasCompatibilityProjectionTest(unittest.TestCase):
             capture_output=True,
             text=True,
             check=False,
+            stdin=subprocess.DEVNULL,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("simplicio.ecosystem-graph/v1", result.stdout)
@@ -171,6 +172,7 @@ class CanvasCompatibilityProjectionTest(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 check=False,
+                stdin=subprocess.DEVNULL,
             )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("unknown repository id", result.stdout)

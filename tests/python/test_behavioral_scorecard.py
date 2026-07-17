@@ -14,8 +14,12 @@ class BehavioralScorecardTest(unittest.TestCase):
         # scripts/behavioral_scorecard.py never existed in this repo; this test was
         # written against a name that was never landed. Point it at the real script.
         command = [sys.executable, "scripts/evaluation_scorecard.py", "--json"]
-        first = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
-        second = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False)
+        first = subprocess.run(
+            command, cwd=ROOT, capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL
+        )
+        second = subprocess.run(
+            command, cwd=ROOT, capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL
+        )
         self.assertEqual(first.returncode, 0, first.stderr)
         self.assertEqual(second.returncode, 0, second.stderr)
         left = json.loads(first.stdout)

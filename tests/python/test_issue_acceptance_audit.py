@@ -15,6 +15,7 @@ class IssueAcceptanceAuditTest(unittest.TestCase):
             capture_output=True,
             text=True,
             check=False,
+            stdin=subprocess.DEVNULL,
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
         return json.loads(proc.stdout)

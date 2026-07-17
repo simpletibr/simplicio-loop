@@ -10,7 +10,9 @@ from simplicio_mapper.visualization import _provenance, _safe_remote, build_visu
 
 
 def _run_git(root: Path, *args: str) -> None:
-    subprocess.run(["git", *args], cwd=str(root), check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", *args], cwd=str(root), check=True, capture_output=True, text=True, stdin=subprocess.DEVNULL
+    )
 
 
 class VisualizationContractTests(unittest.TestCase):

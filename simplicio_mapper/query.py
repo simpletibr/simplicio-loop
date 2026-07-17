@@ -166,6 +166,7 @@ def _validated_runtime_binary(binary: str) -> tuple[bool, str]:
             capture_output=True,
             text=True,
             timeout=3,
+            stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return False, "identity_probe_failed"
@@ -177,6 +178,7 @@ def _validated_runtime_binary(binary: str) -> tuple[bool, str]:
             capture_output=True,
             text=True,
             timeout=5,
+            stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return False, "capability_probe_failed"
@@ -370,6 +372,7 @@ def _runtime_precedent_search(cwd: str, text: str, top_n: int) -> tuple[dict | N
             capture_output=True,
             text=True,
             timeout=10,
+            stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return None, "command_failed"
@@ -408,6 +411,7 @@ def _runtime_ask_query(cwd: str, verb: str, arg: str, limit: int) -> tuple[dict 
             capture_output=True,
             text=True,
             timeout=10,
+            stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return None, "command_failed"

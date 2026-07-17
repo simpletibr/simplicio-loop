@@ -78,6 +78,7 @@ class ContextCacheBenchmarkTest(unittest.TestCase):
                 check=True,
                 capture_output=True,
                 text=True,
+                stdin=subprocess.DEVNULL,
             )
             report = json.loads(completed.stdout)
             written = json.loads(out_path.read_text(encoding="utf-8"))

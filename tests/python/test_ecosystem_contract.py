@@ -167,6 +167,7 @@ class StandaloneVendorableScriptTest(unittest.TestCase):
             capture_output=True,
             text=True,
             check=False,
+            stdin=subprocess.DEVNULL,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("simplicio.loop-execution/v1", result.stdout)
@@ -188,6 +189,7 @@ class StandaloneVendorableScriptTest(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 check=False,
+                stdin=subprocess.DEVNULL,
             )
             self.assertEqual(result.returncode, 1)
             self.assertIn("goal", result.stdout)
@@ -213,6 +215,7 @@ class StandaloneVendorableScriptTest(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 check=False,
+                stdin=subprocess.DEVNULL,
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 

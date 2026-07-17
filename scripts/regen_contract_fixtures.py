@@ -78,6 +78,7 @@ def _run_map(source_dir: str, out_dir: str) -> None:
         cwd=ROOT,
         capture_output=True,
         text=True,
+        stdin=subprocess.DEVNULL,
     )
 
 
@@ -91,6 +92,7 @@ def _run_index_json(source_dir: str, out_dir: str) -> dict:
         cwd=ROOT,
         capture_output=True,
         text=True,
+        stdin=subprocess.DEVNULL,
     )
     return json.loads(result.stdout)
 

@@ -61,7 +61,9 @@ class InstalledWheelConsumerIntegrationTest(unittest.TestCase):
         return venv_dir / "bin" / "python"
 
     def _run(self, argv: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
-        return subprocess.run(argv, cwd=str(cwd), capture_output=True, text=True, check=False)
+        return subprocess.run(
+            argv, cwd=str(cwd), capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL
+        )
 
     def _build_and_install(self, tmp: Path) -> Path:
         dist_dir = tmp / "dist"
@@ -92,6 +94,7 @@ class InstalledWheelConsumerIntegrationTest(unittest.TestCase):
             text=True,
             check=False,
             env=env,
+            stdin=subprocess.DEVNULL,
         )
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
         return json.loads(proc.stdout)

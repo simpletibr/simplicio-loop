@@ -583,19 +583,19 @@ def _macro_git(cwd: str) -> dict:
     try:
         inside = subprocess.run(
             ["git", "rev-parse", "--is-inside-work-tree"],
-            cwd=cwd, capture_output=True, text=True, timeout=2,
+            cwd=cwd, capture_output=True, text=True, timeout=2, stdin=subprocess.DEVNULL,
         )
         if inside.returncode != 0 or inside.stdout.strip() != "true":
             return {"head": "", "dirty": False, "degraded": False}
         rev = subprocess.run(
             ["git", "rev-parse", "HEAD"],
-            cwd=cwd, capture_output=True, text=True, timeout=2,
+            cwd=cwd, capture_output=True, text=True, timeout=2, stdin=subprocess.DEVNULL,
         )
         if rev.returncode == 0:
             head = rev.stdout.strip()
         status = subprocess.run(
             ["git", "status", "--porcelain", "--untracked-files=all"],
-            cwd=cwd, capture_output=True, text=True, timeout=3,
+            cwd=cwd, capture_output=True, text=True, timeout=3, stdin=subprocess.DEVNULL,
         )
         if status.returncode == 0:
             dirty = bool(status.stdout.strip())

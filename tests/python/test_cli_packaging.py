@@ -21,6 +21,7 @@ class DistributionContractsTest(unittest.TestCase):
                 text=True,
                 check=False,
                 timeout=180,
+                stdin=subprocess.DEVNULL,
             )
             if proc.returncode != 0:
                 self.skipTest(f"python -m build unavailable in test env: {proc.stderr.strip()}")

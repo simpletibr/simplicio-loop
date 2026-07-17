@@ -219,6 +219,13 @@ def _should_skip_dir(entry: os.DirEntry[str]) -> bool:
             return any(name.endswith(".csproj") for name in os.listdir(parent))
         except OSError:
             return False
+    if entry.name == "worktrees" and os.path.basename(os.path.dirname(entry.path)) == ".claude":
+        # Nested worktrees under .claude/worktrees/<name>/ are full checkouts
+        # of an agent's own working copy, not project source (issue #234).
+        # Skipping the "worktrees" directory itself (rather than ".claude")
+        # keeps legitimate root config like .claude/settings.json and
+        # .claude/skills/*.md in scope.
+        return True
     return False
 
 def _language_for(file: str, text: str | None = None) -> str:
@@ -246,6 +253,7 @@ def _git_status_map(cwd: str, degraded: dict[str, Any] | None = None) -> dict[st
             capture_output=True,
             text=True,
             timeout=3,
+            stdin=subprocess.DEVNULL,
         )
     except subprocess.TimeoutExpired:
         if degraded is not None:

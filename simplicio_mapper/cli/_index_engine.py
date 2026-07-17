@@ -248,6 +248,7 @@ def _process_start_token(pid: int) -> str | None:
             capture_output=True,
             text=True,
             timeout=1,
+            stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -460,6 +461,7 @@ def _git_signature(root: str, out: str) -> dict | None:
             capture_output=True,
             text=True,
             timeout=2,
+            stdin=subprocess.DEVNULL,
         )
         if inside.returncode != 0 or inside.stdout.strip() != "true":
             return None
@@ -469,6 +471,7 @@ def _git_signature(root: str, out: str) -> dict | None:
             capture_output=True,
             text=True,
             timeout=2,
+            stdin=subprocess.DEVNULL,
         )
         status = subprocess.run(
             [
@@ -484,6 +487,7 @@ def _git_signature(root: str, out: str) -> dict | None:
             capture_output=True,
             text=True,
             timeout=3,
+            stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return None

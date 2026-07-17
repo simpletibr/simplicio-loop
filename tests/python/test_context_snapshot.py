@@ -261,6 +261,7 @@ class ContextSnapshotTest(unittest.TestCase):
             ],
             capture_output=True,
             text=True,
+            stdin=subprocess.DEVNULL,
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertIn("[ok]", proc.stdout)

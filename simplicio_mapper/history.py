@@ -60,7 +60,12 @@ def _hash_obj(data: Any) -> str:
 def _git_head(cwd: str) -> str | None:
     try:
         result = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"], cwd=cwd, capture_output=True, text=True, timeout=3,
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=3,
+            stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return None

@@ -60,6 +60,7 @@ class NodePythonParityTest(unittest.TestCase):
             text=True,
             check=False,
             timeout=60,
+            stdin=subprocess.DEVNULL,
         )
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         return json.loads((self.node_root / ".simplicio" / "project-map.json").read_text())
@@ -174,6 +175,7 @@ class NodeThinShimTest(unittest.TestCase):
             check=False,
             timeout=60,
             env=env,
+            stdin=subprocess.DEVNULL,
         )
 
     def test_shim_runs_python_by_default_when_available(self) -> None:

@@ -22,6 +22,10 @@
   universe across the main walk, freshness signatures, and query cache
   path scan, while preserving root-level `.claude/` configuration such as
   `settings.json` and `skills/*.md` (issue #234).
+- Extend the stdin=DEVNULL fix to every remaining git/CLI/runtime
+  subprocess call in the package (not just the background index worker and
+  the taskkill path above), fixing the same WinError 6 on any host with a
+  captured/closed stdin (issue #231).
 
 ## [0.23.1] - 2026-07-13
 

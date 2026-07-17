@@ -33,7 +33,9 @@ _MANUAL_DOC_EXCLUDE_DIRS = {".simplicio", "node_modules", ".git", "__pycache__"}
 
 def _run_git(cwd: str, args: list[str]) -> str | None:
     try:
-        result = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, timeout=5)
+        result = subprocess.run(
+            ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=5, stdin=subprocess.DEVNULL
+        )
     except (OSError, subprocess.SubprocessError):
         return None
     if result.returncode != 0:

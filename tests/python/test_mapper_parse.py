@@ -211,6 +211,7 @@ class ExclusionAndSkipDirTest(unittest.TestCase):
         _write(self.dir, ".claude/settings.json", "{}\n")
         _write(self.dir, ".claude/skills/foo/SKILL.md", "# foo\n")
         _write(self.dir, ".claude/worktrees/worker/src.py", "print('duplicated')\n")
+        _write(self.dir, ".claude/worktrees/worker with spaces/src.py", "print('dup2')\n")
         found = {Path(p).relative_to(self.dir).as_posix() for p in _walk(str(self.dir))}
         self.assertIn("src/keep.py", found)
         self.assertIn(".claude/settings.json", found)
@@ -225,10 +226,16 @@ class ExclusionAndSkipDirTest(unittest.TestCase):
         _write(self.dir, "src/keep.py", "x = 1\n")
         _write(self.dir, "docs/readme.md", "hello\n")
         _write(self.dir, "worktrees/not-claude.py", "x = 1\n")
+        _write(self.dir, "docs/worktrees/notes.md", "# notes\n")
         found = {Path(p).relative_to(self.dir).as_posix() for p in _walk(str(self.dir))}
         self.assertEqual(
             found,
-            {"src/keep.py", "docs/readme.md", "worktrees/not-claude.py"},
+            {
+                "src/keep.py",
+                "docs/readme.md",
+                "worktrees/not-claude.py",
+                "docs/worktrees/notes.md",
+            },
         )
 
 
