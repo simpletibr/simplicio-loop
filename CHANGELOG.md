@@ -11,6 +11,13 @@
 - Pin `stdin=DEVNULL` on the Windows `taskkill` call used to recover a
   timed-out/orphaned index worker, closing the same inherited-stdin failure
   class on the kill path (issue #231).
+- Surface lock evidence (`lock_status`/`lock_reason_code`, including the new
+  `lock_acquired` reason code) directly on `index --json` output, not only
+  via `status`, and close out issue #201's remaining acceptance criteria with
+  process-level regression coverage: live full-schema lock never stolen,
+  crash/kill of a real background worker never wedges `status --await`, and
+  two concurrent `index` invocations against the same root never both run
+  the deep pass (issue #201).
 
 ## [0.23.1] - 2026-07-13
 

@@ -293,6 +293,7 @@ class IndexLockCrashRecoveryIntegrationTest(unittest.TestCase):
             cwd=str(ROOT),
             capture_output=True,
             text=True,
+            stdin=subprocess.DEVNULL,
             timeout=timeout,
         )
         self.assertTrue(result.stdout.strip(), result.stderr)
@@ -314,6 +315,7 @@ class IndexLockCrashRecoveryIntegrationTest(unittest.TestCase):
                         ["taskkill", "/PID", str(pid), "/T", "/F"],
                         check=False,
                         capture_output=True,
+                        stdin=subprocess.DEVNULL,
                         timeout=5,
                     )
                 else:
@@ -365,8 +367,15 @@ class IndexLockConcurrentProcessRaceTest(unittest.TestCase):
         # for the same lock file and prove exactly one performs the write
         # while the other observes it locked -- never both "updated".
         args = [sys.executable, "-m", "simplicio_mapper.cli", "index", str(self.root), "--json"]
-        first = subprocess.Popen(args, cwd=str(ROOT), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        second = subprocess.Popen(args, cwd=str(ROOT), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        popen_kwargs = {
+            "cwd": str(ROOT),
+            "stdin": subprocess.DEVNULL,
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
+            "text": True,
+        }
+        first = subprocess.Popen(args, **popen_kwargs)
+        second = subprocess.Popen(args, **popen_kwargs)
         out1, err1 = first.communicate(timeout=60)
         out2, err2 = second.communicate(timeout=60)
         self.assertEqual(first.returncode, 0, err1)
