@@ -1,10 +1,17 @@
 import json
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from simplicio import providers
 from simplicio._cache import CacheEntry, cache, make_key, reset_for_tests
+from simplicio.task_operator import PHASE_COMPLETED, BoundedRunResult
+
+
+def _ok(stdout="from cli"):
+    return BoundedRunResult(
+        phase=PHASE_COMPLETED, elapsed_s=0.01, returncode=0, stdout=stdout, stderr="", recovery=""
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -72,8 +79,7 @@ def test_generate_receipt_marks_provider_cache_read(monkeypatch):
 def test_generate_receipt_marks_provider_cache_write(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_MODEL", "claude-cli/sonnet")
 
-    ok = MagicMock(returncode=0, stdout="from cli", stderr="")
-    with patch("subprocess.run", return_value=ok):
+    with patch("simplicio.task_operator.run_bounded_subprocess", return_value=_ok()):
         assert providers.generate("cache me") == "from cli"
 
     receipt = providers.last_cache_receipt()
@@ -88,8 +94,7 @@ def test_generate_receipt_marks_known_bypass(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_MODEL", "claude-cli/sonnet")
     monkeypatch.setenv("SIMPLICIO_CACHE", "0")
 
-    ok = MagicMock(returncode=0, stdout="from cli", stderr="")
-    with patch("subprocess.run", return_value=ok):
+    with patch("simplicio.task_operator.run_bounded_subprocess", return_value=_ok()):
         assert providers.generate("cache me") == "from cli"
 
     receipt = providers.last_cache_receipt()
@@ -105,9 +110,8 @@ def test_generate_persists_structured_receipt_without_prompt(monkeypatch, tmp_pa
     monkeypatch.setenv("SIMPLICIO_MODEL", "claude-cli/sonnet")
     monkeypatch.setenv("SIMPLICIO_LOG_ROOT", str(tmp_path))
     prompt = "secret prompt that must not be persisted"
-    ok = MagicMock(returncode=0, stdout="from cli", stderr="")
 
-    with patch("subprocess.run", return_value=ok):
+    with patch("simplicio.task_operator.run_bounded_subprocess", return_value=_ok()):
         assert providers.generate(prompt) == "from cli"
 
     log_path = tmp_path / ".simplicio" / "runs.jsonl"

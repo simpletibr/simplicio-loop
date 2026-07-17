@@ -41,10 +41,14 @@ def test_no_log_root_means_no_event(monkeypatch, tmp_path):
     monkeypatch.setenv("SIMPLICIO_MODEL", "claude-cli/sonnet")
     monkeypatch.delenv("SIMPLICIO_API_KEY", raising=False)
 
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import patch
 
-    r = MagicMock(returncode=0, stdout="ok", stderr="")
-    with patch("subprocess.run", return_value=r):
+    from simplicio.task_operator import PHASE_COMPLETED, BoundedRunResult
+
+    r = BoundedRunResult(
+        phase=PHASE_COMPLETED, elapsed_s=0.01, returncode=0, stdout="ok", stderr="", recovery=""
+    )
+    with patch("simplicio.task_operator.run_bounded_subprocess", return_value=r):
         providers.generate("x")
 
     assert not (tmp_path / ".simplicio" / "runs.jsonl").exists()
@@ -55,10 +59,14 @@ def test_shell_out_call_logs_estimated_usage_event(monkeypatch, tmp_path):
     monkeypatch.setenv("SIMPLICIO_MODEL", "claude-cli/sonnet")
     monkeypatch.delenv("SIMPLICIO_API_KEY", raising=False)
 
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import patch
 
-    r = MagicMock(returncode=0, stdout="ok", stderr="")
-    with patch("subprocess.run", return_value=r):
+    from simplicio.task_operator import PHASE_COMPLETED, BoundedRunResult
+
+    r = BoundedRunResult(
+        phase=PHASE_COMPLETED, elapsed_s=0.01, returncode=0, stdout="ok", stderr="", recovery=""
+    )
+    with patch("simplicio.task_operator.run_bounded_subprocess", return_value=r):
         providers.generate("write hello")
 
     events = _read_events(tmp_path)
@@ -77,10 +85,14 @@ def test_cache_hit_logs_cache_hit_true(monkeypatch, tmp_path):
     monkeypatch.delenv("SIMPLICIO_BUST_CACHE", raising=False)  # need the real cache here
     reset_for_tests()
 
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import patch
 
-    r = MagicMock(returncode=0, stdout="ok", stderr="")
-    with patch("subprocess.run", return_value=r):
+    from simplicio.task_operator import PHASE_COMPLETED, BoundedRunResult
+
+    r = BoundedRunResult(
+        phase=PHASE_COMPLETED, elapsed_s=0.01, returncode=0, stdout="ok", stderr="", recovery=""
+    )
+    with patch("simplicio.task_operator.run_bounded_subprocess", return_value=r):
         monkeypatch.delenv("SIMPLICIO_LOG_ROOT", raising=False)
         providers.generate("write hello")  # populates the cache, no log root yet
 

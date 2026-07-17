@@ -513,35 +513,59 @@ def _provider_id(model, base):
     return "anthropic-native"
 
 
-def _shell_out(cmd, label, stdin_text=None):
+def _shell_out(cmd, label, stdin_text=None, cancel_event=None):
     """Run a subprocess that uses an OAuth session instead of an API key.
 
     SIMPLICIO_HOOK_GUARD=1 + SIMPLICIO_SKIP_AUTO_INIT=1 are injected so the
     inner CLI does not recursively fire simplicio's UserPromptSubmit hook nor
     re-run the first-run bootstrap.
+
+    Issue #210: delegates the actual spawn/wait to
+    :func:`simplicio.task_operator.run_bounded_subprocess`, which adds
+    heartbeats, a startup-vs-total timeout split, process-tree kill on
+    timeout/cancellation, and cooperative cancellation via *cancel_event*.
+    The public contract here is unchanged: on any non-success phase this
+    still raises ``SystemExit`` with a human-readable message — the message
+    now names which phase the stall was classified as, instead of a bare
+    "timed out".
     """
-    import subprocess
+    from .task_operator import (
+        PHASE_CANCELLED,
+        PHASE_FAILED,
+        PHASE_STARTUP_TIMEOUT,
+        PHASE_TOTAL_TIMEOUT,
+        run_bounded_subprocess,
+        startup_timeout_s,
+        total_timeout_s,
+    )
 
     env = {**os.environ, "SIMPLICIO_HOOK_GUARD": "1", "SIMPLICIO_SKIP_AUTO_INIT": "1"}
-    try:
-        result = subprocess.run(
-            cmd,
-            env=env,
-            input=stdin_text,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=600,
-            check=False,
-        )
-    except FileNotFoundError as exc:
+    root = os.environ.get("SIMPLICIO_LOG_ROOT")
+    result = run_bounded_subprocess(
+        cmd,
+        label=label,
+        env=env,
+        stdin_text=stdin_text,
+        cancel_event=cancel_event,
+        root=root,
+    )
+
+    if result.phase == PHASE_FAILED and result.returncode is None:
+        # Popen itself could not find the executable.
+        raise SystemExit(f"simplicio: {result.stderr} {result.recovery}".strip())
+    if result.phase == PHASE_STARTUP_TIMEOUT:
         raise SystemExit(
-            f"simplicio: `{cmd[0]}` CLI not on PATH. Install {label} first, then re-run."
-        ) from exc
-    except subprocess.TimeoutExpired as exc:
-        raise SystemExit(f"simplicio: {label} timed out (>600s)") from exc
-    if result.returncode != 0:
+            f"simplicio: {label} never started producing output "
+            f"(>{startup_timeout_s():.0f}s startup deadline). {result.recovery}"
+        )
+    if result.phase == PHASE_TOTAL_TIMEOUT:
+        raise SystemExit(
+            f"simplicio: {label} timed out (>{total_timeout_s():.0f}s total deadline, "
+            f"ran {result.elapsed_s:.0f}s). {result.recovery}"
+        )
+    if result.phase == PHASE_CANCELLED:
+        raise SystemExit(f"simplicio: {label} was cancelled after {result.elapsed_s:.0f}s. {result.recovery}")
+    if result.phase == PHASE_FAILED:
         stderr = (result.stderr or "").strip()
         raise SystemExit(f"simplicio: {label} failed (exit {result.returncode}): {stderr[:500]}")
     return result.stdout
@@ -575,14 +599,14 @@ def _codex_supports_effort_flag() -> bool:
     return "--effort" in help_text
 
 
-def _shell_out_claude(prompt, model):
+def _shell_out_claude(prompt, model, cancel_event=None):
     cmd = [_cli_command("claude"), "-p", prompt]
     if model and model not in ("default", "auto"):
         cmd += ["--model", model]
-    return _shell_out(cmd, "Claude Code CLI (`claude -p`)")
+    return _shell_out(cmd, "Claude Code CLI (`claude -p`)", cancel_event=cancel_event)
 
 
-def _shell_out_codex(prompt, model):
+def _shell_out_codex(prompt, model, cancel_event=None):
     with tempfile.TemporaryDirectory(prefix="simplicio-codex-") as temp_dir:
         output_path = str(Path(temp_dir) / "last-message.txt")
         cmd = [_cli_command("codex"), "exec"]
@@ -594,7 +618,7 @@ def _shell_out_codex(prompt, model):
         if effort and _codex_supports_effort_flag():
             cmd += ["--effort", effort]
         cmd.append("-")
-        _shell_out(cmd, "Codex CLI (`codex exec`)", stdin_text=prompt)
+        _shell_out(cmd, "Codex CLI (`codex exec`)", stdin_text=prompt, cancel_event=cancel_event)
         try:
             return Path(output_path).read_text(encoding="utf-8")
         except OSError as exc:

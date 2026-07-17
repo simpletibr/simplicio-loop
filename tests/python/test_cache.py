@@ -1,7 +1,7 @@
 import json
 import os
 import threading
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -185,13 +185,18 @@ def test_planner_cache_short_circuits_missing_api_key(monkeypatch):
 
 
 def test_provider_writes_shell_out_completion_to_cache(monkeypatch):
+    from simplicio.task_operator import PHASE_COMPLETED, BoundedRunResult
+
     monkeypatch.setenv("SIMPLICIO_MODEL", "claude-cli/sonnet")
-    with patch("subprocess.run") as run:
-        ok = MagicMock()
-        ok.returncode = 0
-        ok.stdout = "from cli"
-        ok.stderr = ""
-        run.return_value = ok
+    with patch("simplicio.task_operator.run_bounded_subprocess") as run:
+        run.return_value = BoundedRunResult(
+            phase=PHASE_COMPLETED,
+            elapsed_s=0.01,
+            returncode=0,
+            stdout="from cli",
+            stderr="",
+            recovery="",
+        )
 
         assert providers.generate("cache me") == "from cli"
         assert providers.generate("cache me") == "from cli"

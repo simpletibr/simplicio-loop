@@ -11,6 +11,13 @@ import pytest
 
 from simplicio import providers
 from simplicio._cache import reset_for_tests
+from simplicio.task_operator import PHASE_COMPLETED, BoundedRunResult
+
+
+def _ok(stdout="ok"):
+    return BoundedRunResult(
+        phase=PHASE_COMPLETED, elapsed_s=0.01, returncode=0, stdout=stdout, stderr="", recovery=""
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -47,12 +54,7 @@ def test_generate_prepends_directives_on_shellout(monkeypatch) -> None:
     monkeypatch.setenv("SIMPLICIO_MODEL", "claude-cli/sonnet")
     monkeypatch.delenv("SIMPLICIO_API_KEY", raising=False)
 
-    class _R:
-        returncode = 0
-        stdout = "ok"
-        stderr = ""
-
-    with patch("subprocess.run", return_value=_R()) as run:
+    with patch("simplicio.task_operator.run_bounded_subprocess", return_value=_ok()) as run:
         providers.generate("write hello")
 
     sent = run.call_args[0][0][2]
@@ -65,12 +67,7 @@ def test_generate_opt_out_sends_raw_prompt(monkeypatch) -> None:
     monkeypatch.setenv("SIMPLICIO_NO_LLM_DIRECTIVES", "1")
     monkeypatch.delenv("SIMPLICIO_API_KEY", raising=False)
 
-    class _R:
-        returncode = 0
-        stdout = "ok"
-        stderr = ""
-
-    with patch("subprocess.run", return_value=_R()) as run:
+    with patch("simplicio.task_operator.run_bounded_subprocess", return_value=_ok()) as run:
         providers.generate("write hello")
 
     assert run.call_args[0][0][2] == "write hello"

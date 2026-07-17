@@ -258,6 +258,74 @@ def _bound_path_warnings(files: list[str], bound_paths) -> list[str]:
     ]
 
 
+def _bound_path_files(root: str, bound_paths) -> list[Path]:
+    """Resolve concrete (non-glob) ``bound_paths`` entries to absolute paths.
+
+    Glob-style bound patterns (containing ``*``/``?``/``[``) are skipped —
+    there is nothing on disk to snapshot for a pattern until a concrete diff
+    names an actual file, and that is already covered by
+    :func:`_bound_path_warnings` acting on the generated diff.
+    """
+    files = []
+    for raw in bound_paths or []:
+        normalized = str(raw).replace(os.sep, "/").lstrip("./")
+        if any(ch in normalized for ch in "*?["):
+            continue
+        files.append(Path(root) / normalized.replace("/", os.sep))
+    return files
+
+
+def snapshot_bound_paths(root: str, bound_paths) -> dict[str, tuple[bool, int, int]]:
+    """Record identity (exists, size, mtime_ns) for each concrete bound path.
+
+    Issue #210 AC6: bound-path enforcement must be checked *before* and
+    *after* generation, not only against the returned diff. The generated
+    diff is validated by :func:`_bound_path_warnings`/`validate_generated_
+    output` (the "after" half); this snapshot plus :func:`bound_path_drift`
+    is the "before" half — it detects an out-of-band mutation of a bound
+    file that happened while the provider subprocess was running, even if
+    the returned diff never mentions that path.
+    """
+    snapshot: dict[str, tuple[bool, int, int]] = {}
+    for path in _bound_path_files(root, bound_paths):
+        try:
+            stat = path.stat()
+            snapshot[str(path)] = (True, stat.st_size, stat.st_mtime_ns)
+        except OSError:
+            snapshot[str(path)] = (False, 0, 0)
+    return snapshot
+
+
+def bound_path_drift(root: str, bound_paths, baseline: dict[str, tuple[bool, int, int]]) -> list[str]:
+    """Compare the current on-disk state of bound paths against *baseline*.
+
+    Returns a list of human-readable warnings (empty when nothing drifted).
+    Only reports paths that were snapshotted (i.e. present in *baseline*) —
+    this is a targeted "did something touch a file we were told not to
+    touch" check, not a general worktree diff.
+    """
+    warnings: list[str] = []
+    for path in _bound_path_files(root, bound_paths):
+        key = str(path)
+        if key not in baseline:
+            continue
+        was_present, was_size, was_mtime = baseline[key]
+        try:
+            stat = path.stat()
+            now_present, now_size, now_mtime = True, stat.st_size, stat.st_mtime_ns
+        except OSError:
+            now_present, now_size, now_mtime = False, 0, 0
+        if (was_present, was_size, was_mtime) == (now_present, now_size, now_mtime):
+            continue
+        if was_present and not now_present:
+            warnings.append(f"bound path deleted out-of-band during generation: {path}")
+        elif not was_present and now_present:
+            warnings.append(f"bound path created out-of-band during generation: {path}")
+        else:
+            warnings.append(f"bound path mutated out-of-band during generation: {path}")
+    return warnings
+
+
 def extract_patch(output: str | None) -> str:
     text = output or ""
     fenced = re.search(r"```(?:diff|patch)?\s*\n(.*?)(?:\n```|$)", text, flags=re.S)

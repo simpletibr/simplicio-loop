@@ -26,11 +26,13 @@ from .pipeline_stages import (
     IMPACT_RESULT_PASSED,
     IMPACT_RESULT_UNVERIFIED,
     ApplyStageResult,
+    bound_path_drift,
     build_retry_feedback,
     classify_failure,
     extract_changed_files,
     run_apply_stage,
     run_impact_tests,
+    snapshot_bound_paths,
     validate_generated_output,
 )
 from .pipeline_stages import (
@@ -325,9 +327,17 @@ def run_task(
                 warnings=warnings,
                 blocked_preconditions=blockers,
             )
+        # Issue #210 AC6: snapshot bound paths BEFORE generate() so an
+        # out-of-band mutation that happens while the provider subprocess is
+        # running (e.g. the target deleted mid-stall) is caught even though
+        # nothing in the returned diff would ever mention it.
+        bound_path_baseline = snapshot_bound_paths(root, bound_paths)
         output = generate(prompt)
+        drift_warnings = bound_path_drift(root, bound_paths, bound_path_baseline)
         validation = validate_generated_output(output, bound_paths, mode=get_validation_mode())
-        warnings = [] if validation.ok else [validation.reason]
+        warnings = list(drift_warnings)
+        if not validation.ok:
+            warnings.append(validation.reason)
         return _task_result(target, prompt, output, applied=False, status="dry_run", warnings=warnings)
 
     # Issue #107: structured "task_start" event — the dev-cli side of the
@@ -353,7 +363,36 @@ def run_task(
                 else os.environ.get("SIMPLICIO_PROVIDER", "unknown")
             )
             info(f"--- attempt {t} (provider={_prov}, validation={get_validation_mode()}) ---")
+        # Issue #210 AC6/AC5: snapshot bound paths right before this attempt's
+        # generate() call. If the provider subprocess stalls or is killed by
+        # the bounded-timeout path in providers._shell_out and a bound file
+        # is deleted/mutated out-of-band in the meantime, this is caught here
+        # — before any apply is attempted against a corrupted worktree — and
+        # regardless of what the (possibly empty) returned diff claims.
+        bound_path_baseline = snapshot_bound_paths(root, bound_paths)
         output = generate(prompt, feedback)
+        drift_warnings = bound_path_drift(root, bound_paths, bound_path_baseline)
+        if drift_warnings:
+            emit_event(
+                "validation_fail",
+                {"target": target, "attempt": t, "warnings": drift_warnings},
+                level="warning",
+                root=root,
+            )
+            return _task_result(
+                target,
+                prompt,
+                output,
+                applied=False,
+                status="blocked",
+                warnings=drift_warnings,
+                blocked_preconditions=[
+                    {
+                        "code": "bound_path_out_of_band_mutation",
+                        "message": "; ".join(drift_warnings),
+                    }
+                ],
+            )
         last_output = output or ""
         last_validation = validate_generated_output(output, bound_paths)
         if getattr(_apply_and_test, "__module__", __name__) != __name__:
