@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import contextlib
-import io
 import json
 import os
+import signal
+import subprocess
 import time
 from collections.abc import Mapping
 
@@ -15,7 +15,7 @@ from ..task_batch import build_task_batch
 from ..task_intent import parse_task_intent
 from ..task_traceability import build_task_traceability
 from ._args import _read_json_safe
-from ._background import _run_index, _spawn_background_index
+from ._background import _spawn_background_index, _spawn_index_process
 from ._index_engine import (
     _artifact_paths,
     _artifacts_exist,
@@ -39,6 +39,40 @@ from ._shared import (
 
 def _map_job_path(root: str, out: str) -> str:
     return os.path.join(os.path.abspath(os.path.join(root, out)), "map-job.json")
+
+
+def _write_map_job(root: str, out: str, envelope: dict) -> None:
+    abs_out = os.path.abspath(os.path.join(root, out))
+    os.makedirs(abs_out, exist_ok=True)
+    with open(_map_job_path(root, out), "w", encoding="utf-8") as handle:
+        json.dump(envelope, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+
+
+def _terminate_index_worker(child: subprocess.Popen) -> None:
+    """Stop an index worker and its descendants after a bounded timeout."""
+    if child.poll() is not None:
+        return
+    if os.name == "nt":
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(child.pid), "/T", "/F"],
+                check=False,
+                capture_output=True,
+                timeout=5,
+            )
+        except (OSError, subprocess.SubprocessError):
+            child.kill()
+    else:
+        try:
+            os.killpg(child.pid, signal.SIGTERM)
+        except (OSError, ProcessLookupError):
+            child.terminate()
+    try:
+        child.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        child.kill()
+        child.wait(timeout=5)
 
 
 def _project_map_path(root: str, out: str) -> str:
@@ -70,7 +104,7 @@ def _deep_phase(root: str, out: str) -> str:
     if job.get("schema") == MAP_JOB_SCHEMA:
         deep = job.get("deep") if isinstance(job.get("deep"), dict) else {}
         pid = deep.get("pid")
-        if job.get("phase") == "macro_done" and isinstance(pid, int) and _process_is_alive(pid):
+        if job.get("phase") in ("macro_done", "deep_running") and isinstance(pid, int) and _process_is_alive(pid):
             expected_start = deep.get("process_start")
             actual_start = _process_start_token(pid)
             if (
@@ -81,7 +115,7 @@ def _deep_phase(root: str, out: str) -> str:
             ):
                 # Covers the short spawn -> lock creation window.
                 return "deep_running"
-        if job.get("phase") in ("macro_done", "deep_running") or not _artifacts_exist(
+        if job.get("phase") in ("macro_done", "deep_running", "failed", "timeout") or not _artifacts_exist(
             _artifact_paths(root, out)
         ):
             # The background owner is gone (or its PID was reused) without a
@@ -99,6 +133,10 @@ def _worker_failure_reason(root: str, out: str) -> str | None:
     pid = deep.get("pid")
     if not isinstance(pid, int) or _process_is_alive(pid):
         return None
+    if job.get("phase") == "timeout":
+        return str(deep.get("failure_reason") or "scan_timeout")
+    if job.get("phase") == "failed" and deep.get("failure_reason"):
+        return str(deep["failure_reason"])
     if job.get("phase") in ("macro_done", "deep_running"):
         return "worker_died_before_terminal"
     return None
@@ -200,6 +238,9 @@ def _job_summary(root: str, out: str) -> dict | None:
         "pid": deep.get("pid"),
         "process_start": deep.get("process_start"),
         "log": deep.get("log"),
+        "exit_code": deep.get("exit_code"),
+        "failure_reason": deep.get("failure_reason"),
+        "timeout_seconds": deep.get("timeout_seconds"),
         "poll": deep.get("poll"),
     }
 
@@ -541,14 +582,36 @@ def _run_scan(opts: dict) -> int:
         "poll": "simplicio-mapper status " + root,
     }
     if synchronous:
-        pre_locked = os.path.exists(_lock_path(root, out))
-        with contextlib.redirect_stdout(io.StringIO()):
-            _run_index({**opts, "json": False})
-        phase = "complete" if _index_is_fresh(root, out) else "failed"
-        if phase == "failed" and pre_locked:
-            # Deep pass was skipped because another run holds the lock; record
-            # the reason so the envelope is not a bare, unexplained "failed".
-            deep["skipped_reason"] = "locked"
+        spawned, child = _spawn_index_process(opts)
+        deep.update({key: spawned[key] for key in ("pid", "process_start", "log")})
+        deep["timeout_seconds"] = max(0, int(opts["timeout"]))
+        initial_envelope = {
+            "schema": MAP_JOB_SCHEMA,
+            "phase": "deep_running",
+            "sync": True,
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "macro": macro,
+            "deep": deep,
+        }
+        _write_map_job(root, out, initial_envelope)
+        try:
+            exit_code = child.wait(timeout=max(0, int(opts["timeout"])))
+        except subprocess.TimeoutExpired:
+            _terminate_index_worker(child)
+            deep["failure_reason"] = "scan_timeout"
+            deep["exit_code"] = child.poll()
+            phase = "timeout"
+        else:
+            deep["exit_code"] = exit_code
+            phase = "complete" if exit_code == 0 and _index_is_fresh(root, out) else "failed"
+
+        if phase != "complete":
+            # A killed worker cannot execute its finally block reliably on all
+            # platforms. Recover only a lock proven to belong to the dead
+            # worker; never remove a live owner's lock.
+            deep["lock_status"] = _inspect_index_lock(root, out, recover=True)
+            if phase == "failed" and deep.get("failure_reason") is None:
+                deep["failure_reason"] = "worker_failed_before_terminal"
     else:
         spawned = _spawn_background_index(opts)
         deep["pid"] = spawned["pid"]
@@ -567,11 +630,7 @@ def _run_scan(opts: dict) -> int:
         "macro": macro,
         "deep": deep,
     }
-    abs_out = os.path.abspath(os.path.join(root, out))
-    os.makedirs(abs_out, exist_ok=True)
-    with open(_map_job_path(root, out), "w", encoding="utf-8") as handle:
-        json.dump(envelope, handle, indent=2, sort_keys=True)
-        handle.write("\n")
+    _write_map_job(root, out, envelope)
 
     if opts["json"]:
         print(json.dumps(envelope, sort_keys=True))
@@ -582,7 +641,7 @@ def _run_scan(opts: dict) -> int:
             f"scan phase={envelope['phase']} files={counts['files']} "
             f"modules={counts['modules']} stack={macro['product']['stack']}{suffix}"
         )
-    return 0
+    return 1 if phase == "timeout" else 0
 
 
 def _run_status(opts: dict) -> int:

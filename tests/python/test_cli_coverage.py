@@ -17,6 +17,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -27,6 +28,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper import cli as cli_module  # noqa: E402
+from simplicio_mapper.cli import _status_engine as status_engine  # noqa: E402
 
 # `time` moved into cli/_background.py as part of the issue #159 god-file
 # split (cli.py -> cli/ package) -- __init__.py itself no longer imports the
@@ -185,6 +187,52 @@ class WatchLoopExitsOnInterruptTest(unittest.TestCase):
             # Should return cleanly without raising — that is the contract.
             with contextlib.redirect_stdout(io.StringIO()):
                 cli_module._watch(opts)
+
+
+class SynchronousScanTimeoutTest(unittest.TestCase):
+    def test_sync_scan_timeout_is_terminal_and_nonzero(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        target = Path(tmp.name)
+        _write(target, "package.json", json.dumps({"name": "timeout-host"}))
+        _write(target, "src/index.js", "export function run(){}\n")
+
+        class StuckWorker:
+            pid = 424242
+
+            def wait(self, timeout=None):
+                raise subprocess.TimeoutExpired(["fake-index"], timeout)
+
+            def poll(self):
+                return None
+
+        spawned = {
+            "pid": 424242,
+            "process_start": "fake-start",
+            "log": str(target / ".simplicio" / "background-index.log"),
+        }
+        with (
+            mock.patch.object(status_engine, "_spawn_index_process", return_value=(spawned, StuckWorker())),
+            mock.patch.object(status_engine, "_terminate_index_worker"),
+        ):
+            code, stdout, _ = _run([
+                "scan", str(target), "--sync", "--timeout", "1", "--json",
+            ])
+
+        self.assertEqual(code, 1)
+        payload = json.loads(stdout.strip())
+        self.assertEqual(payload["phase"], "timeout")
+        self.assertTrue(payload["sync"])
+        self.assertEqual(payload["deep"]["failure_reason"], "scan_timeout")
+        self.assertEqual(payload["deep"]["timeout_seconds"], 1)
+
+        status_out = io.StringIO()
+        with contextlib.redirect_stdout(status_out):
+            self.assertEqual(cli_module.main(["status", str(target), "--json"]), 0)
+        status = json.loads(status_out.getvalue().strip())
+        self.assertEqual(status["phase"], "failed")
+        self.assertTrue(status["terminal"])
+        self.assertEqual(status["failure_reason"], "scan_timeout")
 
 
 if __name__ == "__main__":

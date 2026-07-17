@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Make synchronous scans run in a bounded worker with terminal timeout
+  receipts and safe dead-owner lock recovery (issues #201 and #230).
+- Prevent Windows background/index workers from inheriting invalid stdin
+  handles under pytest and non-interactive hosts (issue #231).
+
 ## [0.23.1] - 2026-07-13
 
 ### Fixed

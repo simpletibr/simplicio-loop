@@ -26,8 +26,14 @@ from ._index_engine import (
 from ._shared import INDEX_STATE_SCHEMA
 
 
-def _spawn_background_index(opts: dict) -> dict:
-    """Spawn a detached ``index`` refresh; return its ``pid``/``log`` payload."""
+def _spawn_index_process(opts: dict) -> tuple[dict, subprocess.Popen]:
+    """Spawn an index worker and return its receipt plus live process handle.
+
+    Keeping the process handle available lets ``scan --sync`` enforce its
+    timeout instead of running the deep pass in the CLI process forever. The
+    background entrypoint below deliberately discards the handle after
+    installing a reaper thread.
+    """
     root = os.path.abspath(opts["root"])
     out = opts["out"]
     abs_out = os.path.abspath(os.path.join(root, out))
@@ -53,6 +59,7 @@ def _spawn_background_index(opts: dict) -> dict:
             args,
             cwd=root,
             env=env,
+            stdin=subprocess.DEVNULL,
             stdout=log,
             stderr=subprocess.STDOUT,
             start_new_session=True,
@@ -60,14 +67,24 @@ def _spawn_background_index(opts: dict) -> dict:
     # Keep the Popen object alive until the detached child exits. Besides
     # reaping it, this prevents Python's Windows ResourceWarning from closing
     # a still-active process handle during object finalization.
-    threading.Thread(target=child.wait, name=f"simplicio-index-{child.pid}", daemon=True).start()
-    return {
+    payload = {
         "schema": "simplicio.background-index/v1",
         "status": "started",
         "pid": child.pid,
         "process_start": _process_start_token(child.pid) or "unknown",
         "log": log_path.replace(os.sep, "/"),
     }
+    return payload, child
+
+
+def _spawn_background_index(opts: dict) -> dict:
+    """Spawn a detached ``index`` refresh; return its ``pid``/``log`` payload."""
+    payload, child = _spawn_index_process(opts)
+    # Keep the Popen object alive until the detached child exits. Besides
+    # reaping it, this prevents Python's Windows ResourceWarning from closing
+    # a still-active process handle during object finalization.
+    threading.Thread(target=child.wait, name=f"simplicio-index-{child.pid}", daemon=True).start()
+    return payload
 
 
 def _run_background(opts: dict) -> int:
