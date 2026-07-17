@@ -127,6 +127,7 @@ docs/**
 !docs/evidence/*.json
 !docs/ci/
 !docs/ci/quality-gate.md
+!docs/async-pipeline-baseline-benchmark.md
 scripts/**
 !scripts/build_hamt.py
 !scripts/coverage.js
@@ -156,6 +157,7 @@ scripts/**
 !scripts/runtime_scale_benchmark.py
 !scripts/critical_coverage_gate.py
 !scripts/perf_regression_gate.py
+!scripts/async_pipeline_baseline_benchmark.py
 playwright-report/**
 tests/**
 !tests/unit/
