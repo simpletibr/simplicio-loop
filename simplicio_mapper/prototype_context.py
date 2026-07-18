@@ -70,9 +70,26 @@ import sys
 import time
 from typing import Any
 
-from .mapper import build_artifacts
+from .mapper import _build_architecture_inventory, build_artifacts, get_effective_map_view
+from .mapper.canonical import EffectiveMapView
+from .mapper.canonical_reuse import (
+    _overlay_is_trivial as _canonical_overlay_is_trivial,
+)
+from .mapper.canonical_reuse import (
+    _project_files_from_entries as _canonical_project_files_from_entries,
+)
+from .mapper.canonical_reuse import (
+    _read_json as _read_canonical_json,
+)
 from .query import _impact, _local_precedent_fallback, _resolve_symbol_name, _tests_for, _tokenize
 from .savings import estimate_tokens
+
+#: Kill-switch env var (same pattern as the F10 `ask` native-delegation
+#: kill-switches, issue #174) -- setting this to any truthy value forces
+#: `build_prototype_context` back to its pre-issue-#286-canonical-reuse
+#: behavior (always a full fresh `build_artifacts()` resolve), regardless of
+#: whether a usable canonical manifest/overlay exists.
+CANONICAL_REUSE_KILL_SWITCH = "SIMPLICIO_MAPPER_NO_CANONICAL_PROTOTYPE_CONTEXT"
 
 PROTOTYPE_CONTEXT_SCHEMA = "simplicio.prototype-context/v1"
 
@@ -369,6 +386,130 @@ def _hash_bound_payload(payload: dict[str, Any]) -> dict[str, Any]:
     return final_payload
 
 
+def _canonical_reuse_enabled(explicit: bool | None) -> bool:
+    """Resolve whether the canonical-map reuse path should be attempted.
+
+    ``explicit`` (the ``use_canonical`` parameter of `build_prototype_context`)
+    always wins when given -- callers/tests that need a deterministic ON/OFF
+    branch (issue #286 follow-up) never have to fight the environment. When
+    omitted, `CANONICAL_REUSE_KILL_SWITCH` can force it off repo-wide, mirroring
+    the F10 `ask` native-delegation kill-switch pattern (`AGENTS.md`/`CLAUDE.md`
+    "Delegação nativa" section).
+    """
+    if explicit is not None:
+        return explicit
+    return not bool(os.environ.get(CANONICAL_REUSE_KILL_SWITCH))
+
+
+#: Canonical artifact logical names this module reuses verbatim from the
+#: manifest -- same four names/order as `canonical_reuse._REUSED_ARTIFACT_NAMES`
+#: (issue #269's opt-in `index`/`scan` adapter), reused here rather than
+#: re-declared so the two call sites can never silently drift apart.
+_REUSED_ARTIFACT_NAMES = ("project_map", "precedent_index", "symbol_index", "call_graph")
+
+
+def _overlay_is_worktree_identical(view: EffectiveMapView, out_dir: str) -> bool:
+    """Whether *view*'s overlay proves the worktree is safe to serve from canonical.
+
+    Delegates to `canonical_reuse._overlay_is_trivial` -- the same
+    already-tested "no delta outside `out_dir`" check issue #269's opt-in
+    `index`/`scan` adapter uses -- rather than a stricter from-scratch
+    check, specifically so a freshly-created `.simplicio/` output directory
+    (untracked cache files, lock files, etc. written by this very process)
+    never counts as worktree drift and starves the reuse path on an
+    otherwise-clean checkout. Any change to a real source file -- committed
+    drift from the canonical base commit, or an uncommitted edit anywhere
+    outside `out_dir` -- still returns ``False``, matching the "genuinely
+    worktree-local, not yet in any overlay" case ADR-012 called out as out
+    of scope for canonical reuse (steps 1/7/8's remaining boundary).
+    """
+    overlay = view.overlay
+    if overlay is None:
+        return True
+    return _canonical_overlay_is_trivial(overlay, view.canonical.key.commit_sha, out_dir)
+
+
+def _load_artifacts_from_canonical_view(abs_root: str, out_dir: str, view: EffectiveMapView) -> dict[str, Any] | None:
+    """Best-effort reconstruction of the `build_artifacts()` return shape,
+    sourced from an already-built canonical manifest instead of re-running
+    the full parse/graph pipeline.
+
+    Returns ``None`` (never a partial/guessed result) whenever reuse is not
+    provably safe (`_overlay_is_worktree_identical` is False) or any artifact
+    fails to load/parse -- the caller always falls back to a fresh
+    `build_artifacts()` call in that case, so a `None` here is never a
+    behavior change, only a missed performance opportunity.
+
+    `architecture_inventory` is not one of the four artifacts the canonical
+    builder stores (see `canonical_builder.py`'s `_ARTIFACT_FILE_NAMES`
+    docstring), so it is rebuilt here via `_build_architecture_inventory` --
+    reusing the exact same derivation `canonical_reuse._materialize_hit`
+    already relies on for the `index`/`scan` adapter -- pure in-memory
+    derivation over already-computed `project_map`/`symbol_index`/
+    `call_graph` data (no source file re-parse, no re-walk of the tree),
+    which is what makes this genuinely cheaper than a fresh
+    `build_artifacts()` call while still producing an equivalent result.
+    """
+    if not _overlay_is_worktree_identical(view, out_dir):
+        return None
+    canonical = view.canonical
+    try:
+        artifacts: dict[str, Any] = {}
+        for name in _REUSED_ARTIFACT_NAMES:
+            relative = canonical.artifact_paths.get(name)
+            if not relative:
+                return None
+            data = _read_canonical_json(os.path.join(canonical.storage_root, relative))
+            if data is None:
+                return None
+            artifacts[name] = data
+        project_map = artifacts["project_map"]
+        symbol_index = artifacts["symbol_index"]
+        call_graph = artifacts["call_graph"]
+        files = _canonical_project_files_from_entries(list(project_map.get("files") or []))
+        architecture_inventory = _build_architecture_inventory(
+            abs_root,
+            project_map,
+            files,
+            symbol_index,
+            call_graph,
+            project_map.get("generated_at") or "",
+        )
+    except Exception:  # noqa: BLE001 - reuse path must never crash the caller, only decline to help
+        return None
+    return {
+        "project_map": project_map,
+        "precedent_index": artifacts["precedent_index"],
+        "architecture_inventory": architecture_inventory,
+        "symbol_index": symbol_index,
+        "call_graph": call_graph,
+    }
+
+
+def _resolve_artifacts(abs_root: str, out_dir: str, use_canonical: bool | None) -> tuple[dict[str, Any], bool]:
+    """Return ``(artifacts, served_from_canonical)`` for *abs_root*.
+
+    Tries the canonical-reuse path first when enabled (`_canonical_reuse_enabled`);
+    falls back to a full fresh `build_artifacts()` resolve whenever
+    `get_effective_map_view` returns ``None`` for ANY reason (non-git dir,
+    identity failure, overlay incompatibility, ...) or the loaded canonical
+    artifacts fail any validation -- see `_load_artifacts_from_canonical_view`.
+    Never raises on the canonical path itself; only `build_artifacts()` (the
+    pre-existing, unchanged fallback) can raise, exactly as before this
+    feature existed.
+    """
+    if _canonical_reuse_enabled(use_canonical):
+        try:
+            view = get_effective_map_view(abs_root, out=out_dir)
+        except Exception:  # noqa: BLE001 - reuse path must never crash the caller
+            view = None
+        if view is not None:
+            artifacts = _load_artifacts_from_canonical_view(abs_root, out_dir, view)
+            if artifacts is not None:
+                return artifacts, True
+    return build_artifacts(abs_root, output_dir=out_dir), False
+
+
 def build_prototype_context(
     root: str,
     out_dir: str = ".simplicio",
@@ -377,10 +518,26 @@ def build_prototype_context(
     limit: int = DEFAULT_LIMIT,
     token_budget: int = DEFAULT_TOKEN_BUDGET,
     plan_hash: str = "",
+    use_canonical: bool | None = None,
 ) -> dict[str, Any]:
     """Build the ``simplicio.prototype-context/v1`` envelope for *arg* under
     query *type_*. Raises `PrototypeContextError` for an unknown type or an
     empty target -- never silently defaults either.
+
+    ``use_canonical`` controls the issue #286 canonical-map-reuse
+    optimization (ADR-012 addendum): when ``True``/``None`` (default), this
+    first tries to serve the underlying mapper artifacts from a canonical
+    manifest via `mapper.canonical_api.get_effective_map_view` instead of
+    running a full fresh `build_artifacts()` resolve, but ONLY when that view
+    proves the current worktree is byte-identical to the canonical base
+    commit (see `_overlay_is_worktree_identical`); it falls back to the exact
+    pre-existing fresh-resolve behavior whenever the canonical view is
+    unavailable, stale, or fails to load for any reason. ``False`` forces the
+    fresh-resolve path unconditionally (used by tests proving behavior
+    parity, and by `CANONICAL_REUSE_KILL_SWITCH` when ``use_canonical`` is
+    left at its default ``None``). Either way, the returned envelope's
+    content and schema are identical -- this parameter only ever changes
+    internal performance, never the observable result.
     """
     if type_ not in ALLOWED_TYPES:
         raise PrototypeContextError(
@@ -391,7 +548,7 @@ def build_prototype_context(
 
     abs_root = os.path.abspath(root)
     started = time.perf_counter()
-    artifacts = build_artifacts(abs_root, output_dir=out_dir)
+    artifacts, served_from_canonical = _resolve_artifacts(abs_root, out_dir, use_canonical)
     full_remap_seconds = round(time.perf_counter() - started, 6)
     extraction_started = time.perf_counter()
     project_map = artifacts["project_map"]
@@ -483,7 +640,7 @@ def build_prototype_context(
         "canonical_reuse": {
             "eligible": not source_binding["dirty"],
             "mode": "worktree-local-effective-context",
-            "note": "context pack is hash-bound to source_sha and affected_shards; canonical reuse can supply artifacts before this extraction when index/scan opt in",
+            "note": "context pack is hash-bound to source_sha and affected_shards; when a canonical manifest exists and the worktree is byte-identical to its base commit, the underlying project-map/symbol-index/precedent-index/call-graph artifacts are served from that canonical manifest instead of a fresh build_artifacts() resolve (issue #286 follow-up, ADR-012 addendum) -- purely a performance optimization, never a change to this envelope's content",
         },
         "excluded_context": {
             "paths": sorted(set(excluded_target_files + excluded_tests + excluded_symbol_paths)),
@@ -493,6 +650,7 @@ def build_prototype_context(
             "full_remap_seconds": full_remap_seconds,
             "prototype_extraction_seconds": extraction_seconds,
             "comparison": "full-remap-build-artifacts-vs-prototype-context-extraction",
+            "artifacts_source": "canonical-manifest" if served_from_canonical else "fresh-resolve",
         },
     }
     if plan_hash:
@@ -503,7 +661,8 @@ def build_prototype_context(
 
 def run_prototype_context_cli(argv: list[str]) -> int:
     """Entry point for ``simplicio-mapper prototype-context <root> --type
-    <type> --arg <target> [--json] [--limit N] [--token-budget N]``.
+    <type> --arg <target> [--json] [--limit N] [--token-budget N]
+    [--no-canonical-reuse]``.
     """
     root = os.getcwd()
     type_ = ""
@@ -512,6 +671,7 @@ def run_prototype_context_cli(argv: list[str]) -> int:
     token_budget = DEFAULT_TOKEN_BUDGET
     plan_hash = ""
     as_json = "--json" in argv
+    use_canonical = False if "--no-canonical-reuse" in argv else None
 
     positionals = []
     i = 0
@@ -564,7 +724,13 @@ def run_prototype_context_cli(argv: list[str]) -> int:
 
     try:
         payload = build_prototype_context(
-            root, type_=type_, arg=arg, limit=limit, token_budget=token_budget, plan_hash=plan_hash
+            root,
+            type_=type_,
+            arg=arg,
+            limit=limit,
+            token_budget=token_budget,
+            plan_hash=plan_hash,
+            use_canonical=use_canonical,
         )
     except PrototypeContextError as error:
         print(f"::error::{error}", file=sys.stderr)

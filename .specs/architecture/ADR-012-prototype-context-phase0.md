@@ -283,3 +283,104 @@ provenance, exclusão de secrets/binários, source-drift por shards e medição
 full-remap vs context extraction. Continuam fora de escopo por dependerem de
 outros contratos/repositórios: materialização real de protótipos pelo Dev CLI,
 receipts Loop/Runtime cross-repo e validação E2E contra o Loop completo.
+
+---
+
+## Addendum — consumo do mapa canônico (issue #286 follow-up, 2026-07-18)
+
+A dependência explicitamente documentada acima ("Mapa canônico compartilhado
+/ overlays por worktree (passos 1, 7, 8) -- depende de #236/#263 primeiro")
+está resolvida: a issue #236/#263 (epic de mapa canônico/overlay) fechou
+completamente, incluindo a API pública síncrona/assíncrona
+`simplicio_mapper.mapper.canonical_api.get_effective_map_view`. Esta fatia
+seguinte fecha **parcialmente** os passos 1/7/8 para `prototype-context`,
+como uma camada de performance opt-in e fallback-safe -- nunca uma mudança
+de comportamento do envelope `simplicio.prototype-context/v1`.
+
+### O que fecha
+
+`build_prototype_context()` (`simplicio_mapper/prototype_context.py`) agora
+tenta, antes de rodar `build_artifacts()` do zero, resolver
+`get_effective_map_view(root, out=out_dir)` e, quando essa view resolve
+(manifesto canônico + overlay compatível) **e** o overlay prova que o
+worktree está byte-idêntico ao commit base canônico
+(`_overlay_is_worktree_identical`, que reusa
+`canonical_reuse._overlay_is_trivial` -- o mesmo critério "sem delta fora de
+`out_dir`" já usado pelo adapter opt-in de `index`/`scan` da issue #269), lê
+os quatro artefatos (`project_map`, `symbol_index`, `precedent_index`,
+`call_graph`) verbatim do manifesto canônico em vez de reconstruir tudo via
+parse/walk completo. `architecture_inventory` -- o único dos cinco artefatos
+que o builder canônico não persiste (ver `canonical_builder.py`) -- é
+recomputado localmente via `_build_architecture_inventory` a partir dos
+dados já carregados, sem reler nem reparsear nenhum arquivo fonte (mesma
+técnica que `canonical_reuse._materialize_hit` já usa para `index`/`scan`).
+
+Fallback-safe em qualquer ponto: `get_effective_map_view` retornando `None`
+por qualquer motivo (diretório não-git, falha de identidade, overlay
+incompatível, manifesto corrompido, ...), qualquer artefato canônico
+faltando/corrompido, ou um overlay não-trivial (drift comitado ou edição não
+commitada em um arquivo real fora de `out_dir`) -- tudo cai de volta,
+silenciosamente, para o `build_artifacts()` fresco de sempre. Um kill-switch
+(`SIMPLICIO_MAPPER_NO_CANONICAL_PROTOTYPE_CONTEXT`) e um parâmetro explícito
+(`use_canonical`) permitem forçar o caminho antigo determinísticamente (usado
+pelos testes de prova de paridade de comportamento e pela flag CLI
+`--no-canonical-reuse`).
+
+**Prova de paridade de comportamento**: `tests/python/test_prototype_context_canonical_reuse.py`
+roda a mesma query com `use_canonical=True` e `use_canonical=False` contra o
+mesmo repositório real (com um manifesto canônico real construído via
+`canonical_builder.build_canonical_manifest`) e assevera que o envelope
+retornado é idêntico campo-a-campo, exceto os campos inerentemente
+variáveis por natureza (timing em `measurements`, `context_hash`/
+`tokens_estimated`/`truncated`/`omitted_counts` derivados dele, e
+`source_binding.dirty`/`canonical_reuse.eligible`, que refletem um efeito
+colateral pré-existente e não relacionado -- o `FileProcessingCache` que
+`build_artifacts()` já persistia em `<out>/cache/` antes desta fatia, e que
+só o caminho fresh-resolve aciona). O mesmo teste cobre unit (helpers puros
+isolados), integração (manifesto canônico real + consumo real), sistema (CLI
+real `prototype-context ... --json`, com e sem `--no-canonical-reuse`) e
+regressão (um diretório não-git continua resolvendo pelo caminho
+fresh-resolve pré-existente, exatamente como antes).
+
+**Benchmark honesto (não um achismo)**: medido neste ambiente (Windows,
+`git` via subprocess), o caminho canônico só compensa a partir de um volume
+de arquivos relativamente grande. Em um fixture pequeno (~43 arquivos), o
+caminho canônico foi **mais lento** (~0.2-0.3x, i.e. ~3-5x mais lento) que o
+`build_artifacts()` fresco -- o custo fixo dos múltiplos subprocessos `git`
+que `get_effective_map_view` dispara (resolução de identidade + overlay)
+supera o tempo que uma árvore pequena levaria para ser reparseada do zero.
+Em ~300 arquivos o gap encolhe (~1.8x mais lento) e em ~900 arquivos o
+caminho canônico já vira o mais rápido (~1.9x mais rápido, medição ad-hoc,
+não incluída na suíte de CI para não pesar o tempo de execução) -- um
+crossover consistente com o mesmo limiar de ~600 arquivos já documentado em
+`mapper/emit.py` para o dispatch síncrono/assíncrono do pipeline
+(`_DEFAULT_ASYNC_PIPELINE_MIN_FILES`). Ou seja: esta otimização é
+genuinamente um ganho de performance apenas para árvores maiores /
+monorepos, não para o caso comum de um fixture pequeno testado
+isoladamente -- reportado aqui honestamente em vez de assumido.
+
+### O que continua fresh-resolve (ainda em aberto, e por quê)
+
+- **Overlay não-trivial nunca é mesclado.** Exatamente como o adapter de
+  `index`/`scan` da issue #269, um overlay com qualquer mudança real fora de
+  `out_dir` (edição não commitada, ou HEAD divergente do commit base
+  canônico) sempre cai para o fresh-resolve completo -- mesclar um overlay
+  parcial em `symbol-index.json`/`call-graph.json` exigiria re-derivar
+  relações cross-arquivo a partir de um patch parcial, um trabalho maior e
+  de risco mais alto do que o escopo cirúrgico desta fatia.
+- **Persistência cross-worktree de um manifesto canônico não é acionada por
+  este comando** -- `prototype-context` apenas *consome* um manifesto que
+  já exista (construído por outro caller, tipicamente `index`/`scan` com
+  `--canonical-reuse`/`SIMPLICIO_MAPPER_CANONICAL_REUSE` ativado, ou por
+  `simplicio-mapper canonical build`); ele não decide sozinho construir um
+  manifesto na ausência de um (isso invocaria o checkout `git worktree
+  add --detach` completo do `canonical_builder`, um custo que este comando
+  não deveria pagar silenciosamente por uma única query).
+- **Receipts/hash integrados ao Loop/Runtime** (passo 11) e o **benchmark
+  full-read/remap em golden repos multi-linguagem** (passo 12) continuam
+  fora de escopo, sem mudança nesta fatia.
+
+Implementação: `simplicio_mapper/prototype_context.py`
+(`_canonical_reuse_enabled`, `_overlay_is_worktree_identical`,
+`_load_artifacts_from_canonical_view`, `_resolve_artifacts`), testes em
+`tests/python/test_prototype_context_canonical_reuse.py`.
