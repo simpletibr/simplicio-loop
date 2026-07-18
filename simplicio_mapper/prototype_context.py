@@ -175,6 +175,21 @@ def _precedent_candidates(precedent_items: list[dict], query_text: str, limit: i
     return candidates
 
 
+def _skeletons(type_: str, target_files: list[str], goal: str) -> list[dict[str, Any]]:
+    """Return deterministic, non-production skeleton descriptors."""
+    names = {
+        "ui": "wireframe", "api": "schema", "data-model": "data_model",
+        "bug": "failing_test", "benchmark": "benchmark_spike",
+        "prompt": "prompt_candidate", "workflow": "vertical_slice",
+    }
+    return [{
+        "type": names[type_],
+        "path_hint": target_files[0] if target_files else "prototype",
+        "goal": goal,
+        "provenance": "simplicio-mapper/prototype-context/v1",
+    }]
+
+
 def _truncate_to_budget(payload: dict, token_budget: int) -> dict:
     """Trim the largest of `_TRUNCATABLE_FIELDS` first, tracking omitted
     counts per field, until the serialized payload fits `token_budget` or no
@@ -224,6 +239,7 @@ def build_prototype_context(
     arg: str = "",
     limit: int = DEFAULT_LIMIT,
     token_budget: int = DEFAULT_TOKEN_BUDGET,
+    plan_hash: str = "",
 ) -> dict[str, Any]:
     """Build the ``simplicio.prototype-context/v1`` envelope for *arg* under
     query *type_*. Raises `PrototypeContextError` for an unknown type or an
@@ -291,14 +307,15 @@ def build_prototype_context(
             "relevance score, and this envelope never shells out to the native "
             "runtime the way `ask precedent` itself can"
         ),
-        "skeletons": [],
-        "skeletons_note": (
-            "skeleton generation (issue #286 step 5) is out of scope for this "
-            "Phase-0 increment; this field is always empty rather than a "
-            "fake/placeholder skeleton"
-        ),
+        "skeletons": _skeletons(type_, target_files, arg),
+        "skeletons_note": "descriptors only; materialization belongs to an isolated Dev CLI candidate",
         "token_budget": token_budget,
     }
+    if plan_hash:
+        payload["plan_hash"] = plan_hash
+    payload["context_hash"] = __import__("hashlib").sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
     return _truncate_to_budget(payload, token_budget)
 
 
@@ -311,6 +328,7 @@ def run_prototype_context_cli(argv: list[str]) -> int:
     arg = ""
     limit = DEFAULT_LIMIT
     token_budget = DEFAULT_TOKEN_BUDGET
+    plan_hash = ""
     as_json = "--json" in argv
 
     positionals = []
@@ -341,6 +359,15 @@ def run_prototype_context_cli(argv: list[str]) -> int:
                 return 2
             i += 2
             continue
+        if arg_token == "--plan" and i + 1 < len(argv):
+            try:
+                plan_payload = json.loads(open(argv[i + 1], encoding="utf-8").read())
+                plan_hash = str(plan_payload.get("plan_hash") or "")
+            except (OSError, ValueError):
+                print("--plan requires a readable JSON plan", file=sys.stderr)
+                return 2
+            i += 2
+            continue
         if arg_token == "--json":  # noqa: S105 - CLI flag literal, not a credential
             i += 1
             continue
@@ -354,7 +381,7 @@ def run_prototype_context_cli(argv: list[str]) -> int:
             arg = positionals[1]
 
     try:
-        payload = build_prototype_context(root, type_=type_, arg=arg, limit=limit, token_budget=token_budget)
+        payload = build_prototype_context(root, type_=type_, arg=arg, limit=limit, token_budget=token_budget, plan_hash=plan_hash)
     except PrototypeContextError as error:
         print(f"::error::{error}", file=sys.stderr)
         return 1

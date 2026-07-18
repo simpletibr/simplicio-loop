@@ -104,7 +104,8 @@ class BuildPrototypeContextTest(unittest.TestCase):
             "omitted_counts",
         ):
             self.assertIn(key, payload)
-        self.assertEqual(payload["skeletons"], [])
+        self.assertEqual(payload["skeletons"][0]["type"], "failing_test")
+        self.assertIn("context_hash", payload)
 
     def test_precedents_are_shaped_with_confidence_and_provenance(self) -> None:
         payload = build_prototype_context(self.root, type_="bug", arg="src/app.py")
