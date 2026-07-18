@@ -288,6 +288,8 @@ EVENT_SCHEMA = "simplicio.dev-cli-event/v1"
 EVENT_TYPES = (
     "task_start",
     "task_complete",
+    "task_terminal",
+    "provider_terminal",
     "evidence_captured",
     "token_usage",
     "edit_applied",

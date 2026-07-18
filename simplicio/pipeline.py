@@ -48,7 +48,7 @@ from .pipeline_task_result import (
 )
 from .plan_compiler.effect_sink import EffectSink
 from .prompt import build_prompt, latest_prompt_envelope, set_prompt_retry_delta
-from .providers import _provider_id, generate
+from .providers import ProviderExecutionError, _provider_id, generate
 from .runtime_env import prepare_project_command
 from .transaction import VerificationReceipt
 
@@ -443,6 +443,36 @@ def run_task(
         bound_path_baseline = snapshot_bound_paths(root, bound_paths)
         try:
             output = generate(prompt, feedback)
+        except ProviderExecutionError as exc:
+            receipt = dict(exc.receipt)
+            emit_event("provider_terminal", receipt, level="warning", root=root)
+            emit_event(
+                "task_terminal",
+                {
+                    "target": target,
+                    "attempt": t,
+                    "status": receipt.get("status", "failed"),
+                    "reason_code": receipt.get("reason_code", "provider_failure"),
+                    "provider_terminal": receipt,
+                },
+                level="warning",
+                root=root,
+            )
+            result = _task_result(
+                target,
+                prompt,
+                "",
+                applied=False,
+                status=receipt.get("status", "failed"),
+                warnings=[receipt.get("message", "provider execution failed")],
+                blocked_preconditions=[{
+                    "reason": receipt.get("reason_code", "provider_failure"),
+                    "message": receipt.get("message", "provider execution failed"),
+                    "next_surface": "provider",
+                }],
+            )
+            result["provider_terminal"] = receipt
+            return result
         except SystemExit as exc:
             # Issue #219: #210's bounded shell-out raises SystemExit on a stall;
             # previously that crashed run_task uncaught with no receipt at all.

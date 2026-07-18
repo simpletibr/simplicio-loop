@@ -40,6 +40,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -47,6 +48,14 @@ from typing import Any
 from ._cache import CacheEntry, cache, make_key
 
 _LAST_CACHE_RECEIPT: dict[str, Any] | None = None
+
+
+class ProviderExecutionError(SystemExit):
+    """Terminal provider failure carrying a machine-readable receipt."""
+
+    def __init__(self, receipt: dict[str, Any]):
+        self.receipt = dict(receipt)
+        super().__init__(self.receipt.get("message", self.receipt.get("reason_code", "provider failure")))
 
 
 def _cache_bypass_reason() -> str | None:
@@ -513,7 +522,7 @@ def _provider_id(model, base):
     return "anthropic-native"
 
 
-def _shell_out(cmd, label, stdin_text=None, cancel_event=None):
+def _shell_out(cmd, label, stdin_text=None, cancel_event=None, *, provider="unknown", model="", effort=""):
     """Run a subprocess that uses an OAuth session instead of an API key.
 
     SIMPLICIO_HOOK_GUARD=1 + SIMPLICIO_SKIP_AUTO_INIT=1 are injected so the
@@ -531,12 +540,10 @@ def _shell_out(cmd, label, stdin_text=None, cancel_event=None):
     """
     from .task_operator import (
         PHASE_CANCELLED,
-        PHASE_FAILED,
+        PHASE_COMPLETED,
         PHASE_STARTUP_TIMEOUT,
         PHASE_TOTAL_TIMEOUT,
         run_bounded_subprocess,
-        startup_timeout_s,
-        total_timeout_s,
     )
 
     env = {**os.environ, "SIMPLICIO_HOOK_GUARD": "1", "SIMPLICIO_SKIP_AUTO_INIT": "1"}
@@ -550,24 +557,45 @@ def _shell_out(cmd, label, stdin_text=None, cancel_event=None):
         root=root,
     )
 
-    if result.phase == PHASE_FAILED and result.returncode is None:
-        # Popen itself could not find the executable.
-        raise SystemExit(f"simplicio: {result.stderr} {result.recovery}".strip())
-    if result.phase == PHASE_STARTUP_TIMEOUT:
-        raise SystemExit(
-            f"simplicio: {label} never started producing output "
-            f"(>{startup_timeout_s():.0f}s startup deadline). {result.recovery}"
-        )
-    if result.phase == PHASE_TOTAL_TIMEOUT:
-        raise SystemExit(
-            f"simplicio: {label} timed out (>{total_timeout_s():.0f}s total deadline, "
-            f"ran {result.elapsed_s:.0f}s). {result.recovery}"
-        )
-    if result.phase == PHASE_CANCELLED:
-        raise SystemExit(f"simplicio: {label} was cancelled after {result.elapsed_s:.0f}s. {result.recovery}")
-    if result.phase == PHASE_FAILED:
+    started = time.monotonic()
+
+    def terminal(status, reason_code, *, exit_code=None, detail=""):
+        return {
+            "schema": "simplicio.provider-terminal/v1",
+            "status": status,
+            "reason_code": reason_code,
+            "attempt": 1,
+            "duration_ms": int((time.monotonic() - started) * 1000),
+            "exit_code": exit_code,
+            "provider": provider,
+            "model": model or "redacted",
+            "effort": effort or "redacted",
+            "detail": str(detail)[:500],
+            "message": f"{label}: {reason_code}",
+        }
+
+    if result.phase != PHASE_COMPLETED or result.returncode != 0:
         stderr = (result.stderr or "").strip()
-        raise SystemExit(f"simplicio: {label} failed (exit {result.returncode}): {stderr[:500]}")
+        combined = f"{stderr}\n{result.stdout or ''}".lower()
+        capacity_terms = ("credit", "quota", "rate limit", "rate_limit", "billing", "insufficient", "usage limit")
+        if result.phase == PHASE_STARTUP_TIMEOUT:
+            reason = "provider_startup_timeout"
+        elif result.phase == PHASE_TOTAL_TIMEOUT:
+            reason = "provider_timeout"
+        elif result.phase == PHASE_CANCELLED:
+            reason = "provider_cancelled"
+        elif result.returncode is None:
+            reason = "provider_not_installed"
+        else:
+            reason = "provider_capacity_unavailable" if any(term in combined for term in capacity_terms) else (
+                "provider_child_exit_silent" if not combined.strip() else "provider_process_failed"
+            )
+        raise ProviderExecutionError(terminal(
+            "blocked" if reason in {"provider_capacity_unavailable", "provider_startup_timeout", "provider_timeout", "provider_cancelled", "provider_not_installed"} else "failed",
+            reason,
+            exit_code=result.returncode,
+            detail=stderr or result.recovery or (result.stdout or "").strip(),
+        ))
     return result.stdout
 
 
@@ -603,7 +631,7 @@ def _shell_out_claude(prompt, model, cancel_event=None):
     cmd = [_cli_command("claude"), "-p", prompt]
     if model and model not in ("default", "auto"):
         cmd += ["--model", model]
-    return _shell_out(cmd, "Claude Code CLI (`claude -p`)", cancel_event=cancel_event)
+    return _shell_out(cmd, "Claude Code CLI (`claude -p`)", cancel_event=cancel_event, provider="claude-cli", model=model)
 
 
 def _shell_out_codex(prompt, model, cancel_event=None):
@@ -618,7 +646,14 @@ def _shell_out_codex(prompt, model, cancel_event=None):
         if effort and _codex_supports_effort_flag():
             cmd += ["--effort", effort]
         cmd.append("-")
-        _shell_out(cmd, "Codex CLI (`codex exec`)", stdin_text=prompt, cancel_event=cancel_event)
+        _shell_out(
+            cmd,
+            "Codex CLI (`codex exec`)",
+            stdin_text=prompt,
+            provider="codex-cli",
+            model=model,
+            effort=effort,
+        )
         try:
             return Path(output_path).read_text(encoding="utf-8")
         except OSError as exc:
