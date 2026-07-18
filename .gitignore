@@ -129,6 +129,8 @@ docs/**
 !docs/ci/quality-gate.md
 !docs/async-pipeline-baseline-benchmark.md
 !docs/async-pipeline-after-benchmark.md
+!docs/async-pipeline-after-benchmark-linux-container.md
+!docs/async-pipeline-operations.md
 scripts/**
 !scripts/build_hamt.py
 !scripts/async_pipeline_after_benchmark.py

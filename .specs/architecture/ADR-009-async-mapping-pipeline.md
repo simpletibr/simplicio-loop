@@ -9,6 +9,14 @@
 > every `index`/`map`/`scan` command. See "Plano de adoção" below for the
 > complete, updated status and the "Decisão de fechamento" note for the
 > honest remaining gaps.
+>
+> **Issue #264 update**: the operator-facing configuration/rollback/
+> troubleshooting guide referenced throughout this ADR as a gap now exists
+> at `docs/async-pipeline-operations.md`. A second, independent after-
+> benchmark run was also executed on Linux (this ADR's benchmarks were
+> Windows-only until now) -- see `docs/async-pipeline-after-benchmark-linux-container.md`
+> and the "Decisão de fechamento" section below for exactly what that run
+> does and does not close.
 
 ---
 
@@ -435,16 +443,28 @@ implement the pipeline in this PR** (see "Plano de adoção").
    - **Regressão determinística**: ✅ `OutputEquivalenceTest` (byte-for-byte
      equality, sync vs. async, with and without a shared cache; full
      `build_artifacts()` JSON-artifact equivalence too).
-   - **Windows/Linux/macOS**: ⚠️ **Windows-verified only in this sandbox.**
+   - **Windows/Linux/macOS**: ⚠️ **Windows-verified since PR #260;
+     Linux-verified since issue #264 (partial); macOS still untested.**
      Every test above (including the two new system-level classes) was run
-     and passed on this machine (Windows, Python 3.14.5). Linux/macOS are
-     NOT independently verified here -- there is no Linux/macOS runner
-     available in this sandbox to actually execute the suite on, so this is
-     documented as an untested platform gap rather than claimed as
-     cross-platform-verified. The `uvloop` opt-in path in particular
-     (Linux/macOS only by design) has only ever been exercised via mocked
-     `sys.platform`/`sys.modules`, never against a real Linux/macOS process
-     with `uvloop` actually installed.
+     and passed on Windows (Python 3.14.5) at the time this ADR's plan
+     steps were closed out. Issue #264 additionally ran the full focused
+     suite (`tests/python/test_async_pipeline.py` +
+     `tests/python/test_mapper_async_inventory.py`) on a real Linux
+     container (Python 3.11.15): **26 passed, 1 skipped** -- the 1 skip is
+     `UvloopSelectionTest::test_build_artifacts_never_calls_uvloop_installer_on_windows`,
+     correctly platform-gated to skip on non-Windows. This closes the
+     "Linux untested" gap for (a) the full test matrix and (b) a real,
+     non-mocked run of `build_artifacts()` completing successfully across
+     small/medium/large trees on Linux (see
+     `docs/async-pipeline-after-benchmark-linux-container.md`). It does
+     **not** close the uvloop-active sub-gap: `uvloop` itself is not
+     installed in that container, so `_install_uvloop_if_available()`
+     genuinely (not mocked) exercises the "not available, fall back to
+     stdlib asyncio" branch on Linux, but the branch where
+     `uvloop.EventLoopPolicy()` is actually installed and driving the
+     event loop remains verified only via `unittest.mock` in
+     `UvloopSelectionTest`. macOS remains entirely untested in any sandbox
+     available to date -- no macOS runner exists here either.
 10. ✅ After/before benchmark comparison -- issue #235 plan step 10.
     `scripts/async_pipeline_after_benchmark.py` (new, added in the issue
     #235 finalization pass) re-runs the same sizes/methodology as
@@ -494,32 +514,67 @@ partial gaps rather than silent omissions:
 
 - **Low-memory system test**: proxy only (minimum-concurrency, not a real
   memory ceiling), documented as infeasible in this sandbox without
-  dedicated Linux cgroup infra.
+  dedicated Linux cgroup infra. Still open as of issue #264 -- unchanged,
+  out of scope for that issue (it is a docs/evidence issue, not a new-infra
+  issue).
 - **Windows/Linux/macOS**: Windows-verified only; Linux/macOS untested in
-  this sandbox (no runner available).
+  this sandbox (no runner available). **Partially closed by issue #264**:
+  see the updated "Testes obrigatórios -- Windows/Linux/macOS" bullet
+  above -- Linux is now verified for the full test matrix and a real
+  after-benchmark run; the uvloop-active branch and macOS remain
+  unverified.
 
 Given issue #235's own acceptance criteria are about the pipeline's design
 and safety properties (bounded concurrency, no orphaned tasks, atomic
 writes, optional uvloop, sync API preservation) -- all of which are now
-implemented and unit/integration/system-tested on the one platform
-available here -- and given the after-benchmark provides a genuine,
-un-cherry-picked before/after number (including the honest small/medium
-regression), the recommendation is that issue #235 is **closable** with
-these two gaps recorded as known follow-ups (a dedicated low-memory CI job,
-and Linux/macOS CI execution of the same test suite) rather than blockers,
-since neither gap is a correctness or safety defect in the shipped code --
-they are verification-coverage gaps specific to this sandbox's platform and
-tooling limits. The coordinating session should make the final call on
-closing the GitHub issue.
+implemented and unit/integration/system-tested on two platforms (Windows
+and, since issue #264, Linux) -- and given the after-benchmark provides a
+genuine, un-cherry-picked before/after number (including the honest
+small/medium regression) on both platforms, the recommendation is that
+issue #235 is **closable** with the low-memory-test gap and the
+macOS/uvloop-active gap recorded as known follow-ups (a dedicated
+low-memory CI job, a macOS CI runner, and a CI job with `uvloop` actually
+installed) rather than blockers, since none of these gaps is a correctness
+or safety defect in the shipped code -- they are verification-coverage gaps
+specific to available sandbox/CI infra. The coordinating session should
+make the final call on closing the GitHub issue.
+
+### Issue #264 closure note (evidence + operational guide)
+
+Issue #264 asked for four things this ADR did not yet have in one place:
+(1) reconciled ADR status/checklist -- done above; (2) reproducible
+before/after measurements for small/medium/large trees -- the existing
+Windows numbers already covered this; a second, independent Linux
+measurement was added for this issue
+(`docs/async-pipeline-after-benchmark-linux-container.md` /
+`docs/evidence/async-pipeline-after-benchmark-linux-container.json`),
+with an explicit caveat that cross-machine (Windows vs. Linux-container)
+comparisons are informational only, not a controlled experiment; (3)
+configuration/rollback/troubleshooting documentation -- new,
+`docs/async-pipeline-operations.md`; (4) tests asserting the docs/receipt
+schema stay in sync with the code -- new,
+`tests/python/test_async_pipeline_docs.py`. No production code changed for
+this issue, per its own non-goals ("Rewriting the async pipeline").
 
 ---
 
 ## Links
 
 - Issue: https://github.com/wesleysimplicio/simplicio-mapper/issues/235
+- Follow-up issue: https://github.com/wesleysimplicio/simplicio-mapper/issues/264
+  (evidence + operational guide)
 - Baseline benchmark: `docs/async-pipeline-baseline-benchmark.md`,
   `docs/evidence/async-pipeline-baseline-benchmark.json`,
   `scripts/async_pipeline_baseline_benchmark.py`
+- After benchmark (Windows): `docs/async-pipeline-after-benchmark.md`,
+  `docs/evidence/async-pipeline-after-benchmark.json`,
+  `scripts/async_pipeline_after_benchmark.py`
+- After benchmark (Linux container, issue #264):
+  `docs/async-pipeline-after-benchmark-linux-container.md`,
+  `docs/evidence/async-pipeline-after-benchmark-linux-container.json`
+- Operational guide (issue #264): `docs/async-pipeline-operations.md`
+  (configuration, rollback/disable, troubleshooting)
+- Doc/schema drift guard (issue #264): `tests/python/test_async_pipeline_docs.py`
 - Related ADR: `ADR-003-two-tier-async-mapper.md` (fast/deep split at the
   `scan`/`status` command layer -- orthogonal to this ADR, which is about
   parallelism *inside* the deep pass itself)
