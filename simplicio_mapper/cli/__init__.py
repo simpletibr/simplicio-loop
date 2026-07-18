@@ -117,6 +117,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ..ecosystem_contract import run_doctor_cli
 
         return run_doctor_cli(argv[1:])
+    # `canonical build|status` similarly takes a sub-command + a single root
+    # path, not the usual `<command> <root>` shape (issue #266, ADR-008 step
+    # 6): dispatched before `_parse_args` for the same reason `contract` and
+    # `doctor` are.
+    if argv and argv[0] == "canonical":
+        from ._canonical import run_canonical_cli
+
+        return run_canonical_cli(argv[1:])
     opts = _parse_args(argv)
     if opts["background"] and opts["command"] in ("index", "map", "update"):
         return _run_background(opts)
