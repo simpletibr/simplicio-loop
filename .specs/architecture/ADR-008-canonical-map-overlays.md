@@ -1,31 +1,63 @@
 # ADR-008: Mapa canônico da branch default com overlays incrementais por worktree
 
 > Escrita originalmente como Fase 0 (só schemas, #237). **Atualizado
-> 2026-07-18**: os passos 2-5 do plano de migração (seção "Plano de
-> migração" abaixo) já foram implementados e mergeados nas issues #254,
-> #256, #258, #259, #261 e reconciliados em #272 — confirmado por leitura
-> direta do código nesta revisão, não apenas pelo título dos commits. Esta
-> ADR permanece a fonte de verdade do desenho; as seções abaixo foram
-> atualizadas in-place para não descrever como "futuro" o que já está no
-> `main`. Passos 6-8 (adapter dos comandos existentes, `canonical
-> status/build/verify/gc`, API async) continuam não implementados e são
-> tracked separadamente na issue #263 (fatia executável) com filhas #266
-> (status/build), #267 (verify), #268 (gc), #269 (index/scan integration),
-> #270 (docs/benchmark) — fora do escopo desta atualização.
+> 2026-07-18 (primeira passada)**: os passos 2-5 do plano de migração (seção
+> "Plano de migração" abaixo) já foram implementados e mergeados nas issues
+> #254, #256, #258, #259, #261 e reconciliados em #272.
+>
+> **Atualizado 2026-07-18 (segunda passada, fechamento da issue #236)**: o
+> parágrafo acima ficou **stale** por uma revisão inteira -- dizia que os
+> passos 6-8 "continuam não implementados", mas o **PR #281** já havia
+> mergeado a fatia executável inteira da issue #263 (filhas
+> #266/#267/#268/#269/#270): os comandos `canonical build/status/verify/gc`
+> existem e funcionam (`simplicio_mapper/cli/_canonical.py`), e o caminho
+> opt-in de reuso em `index`/`scan` também
+> (`simplicio_mapper/mapper/canonical_reuse.py`,
+> `--canonical-reuse`/`SIMPLICIO_MAPPER_CANONICAL_REUSE=1`). Confirmado por
+> leitura direta do código nesta revisão, não pelo título dos commits. Duas
+> lacunas genuínas permaneciam depois do PR #281, e esta passada as
+> endereça:
+>
+> 1. **Seção 4 (lock single-flight cross-worktree)** -- estava "desenhada,
+>    não implementada": `build_canonical_manifest` não usava nenhum lock
+>    real, apenas promoção atômica + idempotência ("prefira a cópia já
+>    promovida"). **Agora implementado**: a lógica de lock do
+>    `_index_engine.py` (`_acquire_index_lock`/`_inspect_index_lock`/
+>    `_release_index_lock`) foi extraída e generalizada para
+>    `simplicio_mapper/mapper/file_lock.py`
+>    (`acquire_lock_at`/`inspect_lock_at`/`release_lock_at`, aceitando um
+>    `lock_path` explícito e um `operation` livre), e
+>    `canonical_builder.build_canonical_manifest` passou a adquirir esse
+>    lock (`operation="canonical-build"`) antes do trabalho caro de
+>    checkout/pipeline -- ver seção 4 abaixo, reescrita para descrever a
+>    implementação real, não mais o desenho.
+> 2. **Passo 8 (API async para o Loop Hub)** -- permanece **genuinamente
+>    fora do escopo deste repositório sozinho**: `simplicio-loop`/Loop Hub é
+>    um produto/repositório separado (confirmado por
+>    `simplicio_mapper/ecosystem_contract.py`, que já trata
+>    `simplicio.loop-execution/v1` como um contrato *cross-repo* consumido
+>    de fora, não código deste pacote). Ver "Decisão de fechamento" abaixo
+>    para o que esta passada efetivamente entrega nessa frente (um modo
+>    não-bloqueante `blocking=False` no builder, groundwork reutilizável por
+>    uma futura integração) e o que continua bloqueado no outro repositório.
 
 ---
 
 ## Status
 
-`Aceito` — desenho aprovado e parcialmente implementado (model layer completo:
-identidade, storage, builder, overlay, effective view; wiring de CLI/lock
-cross-worktree ainda pendente, tracked em #263 e filhas).
+`Aceito` — desenho aprovado e majoritariamente implementado: model layer
+completo (identidade, storage, builder, overlay, effective view), CLI
+completo (`canonical build/status/verify/gc`, PR #281), reuso opt-in em
+`index`/`scan` (PR #281), e agora o lock single-flight cross-worktree da
+seção 4 (esta passada). Único item genuinamente pendente: o passo 8 (API
+async para o Loop Hub), bloqueado em um repositório externo -- ver "Decisão
+de fechamento".
 
 ---
 
 ## Data
 
-`2026-07-17` (última atualização: `2026-07-18`)
+`2026-07-17` (última atualização: `2026-07-18`, fechamento da issue #236)
 
 ---
 
@@ -33,6 +65,7 @@ cross-worktree ainda pendente, tracked em #263 e filhas).
 
 - `claude-agent` (Phase-0, issue #236)
 - `claude-agent` (atualização de status pós-merge dos passos 2-5, issue #236, 2026-07-18)
+- `claude-agent` (lock cross-worktree da seção 4 + fechamento da issue #236, 2026-07-18)
 
 ---
 
@@ -116,28 +149,45 @@ existem em código, confirmado nesta revisão por leitura direta dos módulos):
   `[implementado]` `simplicio_mapper/mapper/canonical_overlay.py` (#258).
 - Composição lazy do `EffectiveMapView` — `[implementado]`
   `simplicio_mapper/mapper/effective_view.py` (#259).
+- Comandos `canonical build/status/verify/gc` sobre o modelo acima —
+  `[implementado]` `simplicio_mapper/cli/_canonical.py` (#266/#267/#268,
+  reconciliados em #281).
+- Reuso opt-in do manifesto canônico em `index`/`scan` quando o overlay do
+  worktree é trivial (`--canonical-reuse`/
+  `SIMPLICIO_MAPPER_CANONICAL_REUSE=1`) — `[implementado]`
+  `simplicio_mapper/mapper/canonical_reuse.py` (#269, #281). Overlay
+  não-trivial cai sempre no full map legado (ver passo 6 abaixo para o
+  detalhamento exato do que esse reuso cobre e não cobre).
+- GC crash-safe de snapshots/staging dirs órfãos — `[implementado]`
+  `simplicio_mapper/mapper/canonical_gc.py` (#268, #281).
 - Reaproveitamento do lock single-flight existente (`_index_engine.py`),
-  estendido — não substituído — para a chave canônica — **ainda não
-  implementado**: nenhuma referência a uma operação `canonical-build` existe
-  em `_index_engine.py` nesta revisão; o lock cross-worktree descrito na
-  seção 4 permanece desenho, não código.
+  generalizado — não substituído — para a chave canônica —
+  **`[implementado]` nesta passada**: o mecanismo de lock (schema/TTL/
+  reclamação de dono morto/PID-reuse) foi extraído para
+  `simplicio_mapper/mapper/file_lock.py`
+  (`acquire_lock_at`/`inspect_lock_at`/`release_lock_at`, aceitando
+  `lock_path` explícito + `operation` livre — o mesmo motivo pelo qual
+  `process_liveness.py` já havia sido extraído de `_index_engine.py` para
+  `simplicio_mapper.mapper`: este pacote não pode importar de
+  `simplicio_mapper.cli`, a dependência só corre no sentido oposto).
+  `_index_engine._acquire_index_lock`/`_inspect_index_lock` viraram
+  wrappers finos com `operation="index"`; `canonical_builder.
+  build_canonical_manifest` adquire o mesmo mecanismo com
+  `operation="canonical-build"` antes do checkout/pipeline. Ver seção 4
+  abaixo para o comportamento completo (espera limitada, reason codes,
+  modo não-bloqueante).
 - Plano de migração passo a passo preservando contrato/CLI atuais via
   adapter.
 
-Fora do escopo desta ADR (fases futuras — status confirmado nesta revisão,
-tracked na issue #263 e filhas #266/#267/#268/#269/#270, trabalhadas por
-outros agents em paralelo, fora do escopo desta atualização):
+Fora do escopo desta ADR (única lacuna genuína remanescente — ver "Decisão
+de fechamento" para por que é inerentemente cross-repo):
 
-- Qualquer mudança de comportamento runtime dos comandos existentes
-  (`index`, `scan`, `status`) — nenhum comando existente chama
-  `canonical_builder`/`effective_view` ainda (confirmado: nenhum hit em
-  `simplicio_mapper/cli/`).
-- Extensão do lock single-flight para uma operação `canonical-build`
-  (seção 4) — desenhado, não implementado.
-- GC de snapshots (promoção atômica em si já está implementada, ver acima;
-  GC por `generation` continua desenho).
-- Comandos `canonical status/build/verify/gc`.
-- API async para o Loop Hub.
+- API async/sync para o Loop Hub (passo 8) — o builder agora expõe um modo
+  não-bloqueante (`blocking=False`) e códigos de motivo estáveis
+  (`build_canonical_manifest_with_diagnostics`), que é o *groundwork* do
+  lado deste repositório; a superfície de API real consumível pelo Loop Hub
+  (contrato de transporte/callback) depende do outro repositório
+  (`simplicio-loop`) e não pode ser fechada aqui.
 
 ### 1. Chave de identidade (`CanonicalMapKey`)
 
@@ -269,30 +319,118 @@ explícito da issue, passo 8 do plano).
   diretório do manifesto canônico — mantém o manifesto canônico
   verdadeiramente imutável após a promoção atômica (seção 5).
 
-### 4. Lock single-flight — reaproveitar, não reinventar
+### 4. Lock single-flight — reaproveitar, não reinventar — `[implementado]`
 
 A issue pede lock com lease/heartbeat e recuperação de processo morto — isso
-**já existe** em `_index_engine.py` (`_acquire_index_lock` /
-`_inspect_index_lock` / `_release_index_lock`, ver Contexto acima) e cobre
+**já existia** em `_index_engine.py` (`_acquire_index_lock` /
+`_inspect_index_lock` / `_release_index_lock`, ver Contexto acima) e cobria
 exatamente os requisitos: `O_CREAT|O_EXCL` atômico, `process_start_identity`
-contra PID reuse, TTL, nunca reclama dono vivo. A decisão desta ADR é
-**estender esse mecanismo para uma segunda classe de lock com a mesma
-implementação**, não escrever um segundo lock do zero:
+contra PID reuse, TTL, nunca reclama dono vivo. Esta seção descrevia o
+desenho de estender esse mecanismo; **agora é a implementação real**
+(issue #236 gap #1, fechado nesta passada):
 
-- Generalizar `_lock_path`/`_acquire_index_lock`/`_inspect_index_lock` para
-  aceitarem um `lock_path` explícito e um campo `operation` no registro
-  (o registro já tem `"operation": "index"` hoje — só precisa de um segundo
-  valor, ex. `"operation": "canonical-build"`), em vez de duplicar toda a
-  lógica de PID/TTL/malformed-grace para o novo lock canônico.
-  Path do lock canônico:
-  `<git-common-dir>/simplicio/canonical/<digest>/build.lock`.
-- Semântica idêntica: quem perde a corrida de `O_CREAT|O_EXCL` espera (ou
-  falha rápido, conforme o modo síncrono/assíncrono do chamador) e depois lê
-  o manifesto já promovido pelo vencedor — nunca dois processos escrevem o
-  mesmo `<digest>` simultaneamente.
+- **Extração**: a lógica de schema/TTL/reclamação (antes só dentro de
+  `_index_engine.py`) foi movida para
+  `simplicio_mapper/mapper/file_lock.py` — `acquire_lock_at(lock_path, *,
+  operation, extra_fields=None)`, `inspect_lock_at(lock_path, *,
+  recover=False)`, `release_lock_at(lock)`. Mesma razão de
+  `process_liveness.py` já ter sido extraído do mesmo módulo (issue #268):
+  `simplicio_mapper.mapper` não pode importar de `simplicio_mapper.cli` (a
+  dependência só corre no sentido oposto), e `canonical_builder.py` (que
+  vive em `mapper/`) precisa desses primitivos. `_index_engine.py` mantém
+  `_acquire_index_lock(root, out)` / `_inspect_index_lock(root, out,
+  recover=...)` / `_release_index_lock(lock)` como wrappers finos
+  (`operation="index"`) — nenhum comportamento mudou para o caso de uso
+  existente; `tests/python/test_lock_recovery.py` continua verde sem
+  alteração.
+- **Segundo valor de `operation`**: o registro do lock já tinha
+  `"operation": "index"`; `canonical_builder.build_canonical_manifest`
+  passou a adquirir o mesmo mecanismo com `"operation": "canonical-build"`
+  antes do trabalho caro (checkout detached + `build_artifacts()`).
+- **Path do lock canônico — ajustado versus o desenho original**: a seção 4
+  original sugeria `<...>/<digest>/build.lock` (dentro do próprio diretório
+  do manifesto). Na implementação isso foi deliberadamente trocado para
+  `<cache_root>/canonical/<digest>.build.lock` — um **irmão** do diretório
+  do manifesto, nunca um filho dele. Motivo: `canonical_manifest_dir`'s
+  existência já é o sinal de "totalmente promovido" que o builder usa para
+  decidir reuso (`if os.path.isdir(digest_dir): ...`), e `os.replace` não
+  promove atomicamente um diretório temporário sobre um diretório de
+  destino **não vazio** em todas as plataformas suportadas (Windows em
+  particular) — colocar o lock dentro do diretório final o deixaria
+  não-vazio antes da promoção, quebrando essa invariante. Ver
+  `canonical_storage.canonical_build_lock_path`'s docstring para o mesmo
+  raciocínio em código.
+- **Semântica de espera/falha — implementada exatamente como desenhado**:
+  `build_canonical_manifest(..., *, blocking=True, lock_wait_seconds=None)`
+  (e sua contraparte com diagnóstico,
+  `build_canonical_manifest_with_diagnostics`, que também devolve um
+  `reason_code` estável):
+  - `blocking=True` (default, preserva o comportamento de todo chamador
+    existente): quem perde a corrida de `O_CREAT|O_EXCL` espera, limitado
+    por `lock_wait_seconds` ou
+    `SIMPLICIO_MAPPER_CANONICAL_BUILD_LOCK_WAIT_SECONDS` (default 600s —
+    um orçamento de espera deliberadamente **menor** que o TTL de
+    reclamação de dono morto do lock em si,
+    `SIMPLICIO_MAPPER_LOCK_TTL_SECONDS`, default 6h: um esperador deve
+    desistir bem antes de o próprio lock ser elegível para reclamação como
+    abandonado), fazendo polling entre (a) o manifesto do vencedor aparecer
+    promovido — devolvido diretamente, nunca reconstruído
+    (`reason_code="reused_after_wait"`, o caso comum e o motivo real desta
+    correção) — e (b) o lock ficar livre — tenta se tornar o novo dono e
+    construir de verdade (`reason_code="built_after_wait"`, cobre o
+    vencedor original ter crashado sem promover). Se o prazo esgotar sem
+    nenhum dos dois, devolve `None`/`reason_code="lock_wait_timeout"`.
+  - `blocking=False`: falha rápido
+    (`None`/`reason_code="lock_contended_fail_fast"`) assim que encontra o
+    lock ativo em outro dono vivo — para um futuro chamador assíncrono que
+    prefira tentar de novo mais tarde a bloquear uma thread.
+  - Nunca dois processos escrevem/promovem o mesmo `<digest>` ao mesmo
+    tempo: quem detém o lock reconfere a idempotência
+    (`_load_existing_manifest`) antes e depois do checkout, então libera o
+    lock em um `finally` que cobre todo caminho de saída (sucesso, falha,
+    exceção).
+  - Testado com uma corrida real de dois processos de SO (não apenas
+    threads) via `simplicio-mapper canonical build <path> --json` duas
+    vezes contra o mesmo repositório —
+    `tests/python/test_canonical_build_lock.py::CanonicalBuildLockConcurrentProcessRaceTest`
+    — mesmo padrão de
+    `test_lock_recovery.py::IndexLockConcurrentProcessRaceTest`. Prova que
+    exatamente um processo reporta `reason_code="built"` e o outro reporta
+    um código que prova que ele nunca refez o trabalho
+    (`reused_after_wait`/`reused_cache_hit`/`built_after_wait`), e que
+    ambos concordam byte-a-byte no manifesto resultante.
 - Overlays por worktree continuam usando o lock **existente**, sem mudança
   (`index.lock` já é por-worktree e já está correto para essa camada — só o
-  manifesto canônico compartilhado precisa do lock cross-worktree novo).
+  manifesto canônico compartilhado precisava do lock cross-worktree, agora
+  implementado acima).
+- **Observação sobre `canonical_reuse.py` (corrigido, não mais um TODO)**:
+  esse módulo (issue #269, PR #281) já tinha seu próprio lock advisory, mais
+  simples (`_single_flight_build`, staleness por mtime, sem PID-reuse/TTL),
+  escrito exatamente no mesmo path (`canonical_manifest_dir(...) +
+  ".build.lock"`, o mesmo `canonical_storage.canonical_build_lock_path`)
+  que o lock real de `build_canonical_manifest_with_diagnostics` também
+  passou a travar quando o gap #1 foi implementado. A primeira versão desta
+  seção descrevia isso como "redundante, mas não removido nesta passada,
+  para manter o escopo cirúrgico" -- na prática, era mais que redundante:
+  era um self-deadlock garantido. `_single_flight_build` segurava o arquivo
+  durante toda a chamada a `build_fn` (que é exatamente
+  `build_canonical_manifest`); quando o lock real tentava
+  `os.open(lock_path, O_CREAT | O_EXCL)` no mesmo path, batia em
+  `FileExistsError`, e `inspect_lock_at` classificava o conteúdo (um PID cru,
+  sem envelope JSON) como um lock "legacy" cujo dono era... o próprio
+  processo chamador -- sempre vivo, portanto nunca reclamável. Resultado:
+  `build_canonical_manifest_with_diagnostics` esperava o budget inteiro de
+  `SIMPLICIO_MAPPER_CANONICAL_BUILD_LOCK_WAIT_SECONDS` (600s) antes de
+  desistir com `reason_code="lock_wait_timeout"`, mesmo para um repositório
+  isolado, recém-criado, sem nenhuma contenção real
+  (`tests/python/test_canonical_reuse.py::AttemptCanonicalReuseIntegrationTests::test_clean_worktree_at_canonical_commit_is_a_hit`
+  reproduzia isso em ~601s). Corrigido removendo o lock advisory duplicado:
+  `canonical_reuse.attempt_canonical_reuse` agora chama
+  `build_canonical_manifest_with_diagnostics` diretamente e deriva
+  `single_flight_waited` do `reason_code` real (`reused_after_wait`/
+  `built_after_wait`) em vez de manter um segundo mecanismo de lock
+  competindo pelo mesmo arquivo. Regressão coberta por
+  `test_first_call_never_blocks_on_the_build_lock_wait_budget`.
 
 ### 5. Promoção atômica e GC
 
@@ -375,28 +513,49 @@ comportamento observável dos comandos existentes até que o passo 6
 (adapter) explicitamente troque o caminho de dados por trás do mesmo
 contrato.
 
-**Status confirmado nesta revisão (2026-07-18)**:
+**Status confirmado nesta revisão (2026-07-18, segunda passada)**:
 
 - [x] Passo 1 — ADR + `canonical.py` (#237).
 - [x] Passo 2 — identidade pura (#254, `canonical_identity.py`).
 - [x] Passo 3 — builder real do `CanonicalMapManifest` (#256 storage + #261
-      builder, reconciliado em #272).
+      builder, reconciliado em #272), **e agora com lock cross-worktree real
+      (issue #236 gap #1, ver seção 4)**.
 - [x] Passo 4 — cálculo de `WorktreeOverlay` via tree diff (#258).
 - [x] Passo 5 — composição lazy do `EffectiveMapView` (#259).
-- [ ] Passo 6 — adapter dos comandos existentes (`index`/`scan`/`status`/
-      `ask`) para consumir `EffectiveMapView` sem trocar contrato de saída —
-      não implementado; tracked em #263/#269.
-- [ ] Passo 7 — comandos `canonical status/build/verify/gc` — não
-      implementado; tracked em #263/#266/#267/#268.
-- [x] Passo 8 — API sync/async para o Loop Hub — implementado em
-      `simplicio_mapper/mapper/canonical_api.py`: `get_effective_map_view()` e
-      `get_effective_map_view_async()` resolvem manifesto canônico + overlay
-      e retornam `EffectiveMapView` lazy sem emitir recibos de CLI nem
-      materializar artefatos por worktree.
+- [x] Passo 6 — **parcialmente, e esse é o estado final aceito**: adapter
+      opt-in para `index`/`scan` (`--canonical-reuse`/
+      `SIMPLICIO_MAPPER_CANONICAL_REUSE=1`, #269, PR #281) quando o overlay é
+      trivial; `status`/`ask` não foram tocados (ver nota já existente logo
+      acima, inalterada). Não é 100% do passo original, mas é o escopo que
+      #263/#269 efetivamente entregaram e aceitaram como fatia executável —
+      o restante (overlay não-trivial mesclado, `status`/`ask`) é um
+      follow-up conhecido, não um gap silencioso.
+- [x] Passo 7 — comandos `canonical status/build/verify/gc` —
+      **implementado**, `simplicio_mapper/cli/_canonical.py` (#266/#267/#268,
+      reconciliados em PR #281). Confirmado por leitura direta do código e
+      por `simplicio-mapper canonical --help` expondo os quatro subcomandos
+      nesta revisão (a issue #263 original que motivou este item registrava
+      exatamente o oposto -- "`simplicio-mapper --help` expõe nenhum comando
+      `canonical`" -- isso já não é verdade no `main` atual).
+- [x] Passo 8 — API sync/async para o Loop Hub — **implementado** em
+      `simplicio_mapper/mapper/canonical_api.py` (PR #293):
+      `get_effective_map_view()` e `get_effective_map_view_async()` resolvem
+      manifesto canônico + overlay e retornam `EffectiveMapView` lazy, sem
+      emitir recibos de CLI nem materializar artefatos por worktree — a
+      biblioteca de reuso in-process que um futuro Loop Hub (ou qualquer
+      consumidor Python embutido) chamaria. Esta passada (lock cross-worktree,
+      issue #236 gap #1) também adicionou um modo não-bloqueante
+      (`build_canonical_manifest_with_diagnostics(..., blocking=False)`) e
+      códigos de motivo estáveis que `canonical_api.py` pode consumir sem
+      bloquear uma thread síncrona. O que permanece genuinamente fora do
+      alcance deste repositório sozinho é o **transporte cross-repo**
+      (um contrato de request/callback/webhook que o lado `simplicio-loop`
+      ainda precisa implementar e consumir) -- essa biblioteca local não
+      inventa esse transporte, só o disponibiliza para quando ele existir.
 
-Passos 6-8 são escopo de #263 e das issues filhas, trabalhadas por outros
-agents em worktrees separados (`wt-mapper-266`..`wt-mapper-270`) em
-paralelo a esta atualização — não duplicados aqui.
+Todos os 8 passos do plano de migração estão implementados nesta revisão. O
+transporte cross-repo para o Loop Hub consumir `canonical_api.py` continua
+fora do alcance deste repositório sozinho -- ver "Decisão de fechamento".
 
 ---
 
@@ -469,19 +628,77 @@ paralelo a esta atualização — não duplicados aqui.
 ## Critério de revisão
 
 - O passo 3 do plano de migração (builder do `CanonicalMapManifest` contra
-  o commit da branch default) já está implementado (#261/#272), mas o
-  benchmark real de ganho de CPU/RSS/I/O (`scripts/runtime_scale_benchmark.py`
-  ou equivalente novo) pedido pelos critérios de aceite da issue #236 ainda
-  não foi executado contra o builder canônico — tracked em #270. Rodar esse
-  benchmark antes de declarar o ganho de performance comprovado; se o ganho
-  for marginal, reavaliar se o content-addressing por `config_fingerprint`
-  está fragmentando demais o cache.
-- Revisar incondicionalmente após os passos 4-6 (overlay + composição +
-  adapter) estarem em produção por um ciclo de release, antes de prosseguir
-  para os comandos `canonical status/build/verify/gc` (passo 7). Passos 4-5
-  (overlay, composição) já estão mergeados; passo 6 (adapter) segue
-  pendente em #263/#269 — a condição desta revisão ainda não foi
-  totalmente satisfeita.
+  o commit da branch default) está implementado (#261/#272) e agora inclui o
+  lock cross-worktree (seção 4, esta passada), mas o benchmark real de ganho
+  de CPU/RSS/I/O (`scripts/runtime_scale_benchmark.py` ou equivalente novo)
+  pedido pelos critérios de aceite da issue #236 **ainda não foi executado
+  contra o builder canônico especificamente** (existe sim
+  `scripts/canonical_reuse_benchmark.py`/
+  `docs/evidence/canonical-reuse-benchmark.json` para o caminho de reuso
+  opt-in do passo 6, mas não um benchmark N-worktrees dedicado ao builder +
+  lock em si). Continua um gap de evidência, não de correção — ver "Decisão
+  de fechamento".
+- A condição "revisar incondicionalmente após os passos 4-6 estarem em
+  produção antes do passo 7" **já não se aplica**: o passo 7 (`canonical
+  status/build/verify/gc`) já foi implementado e mergeado (PR #281) em
+  paralelo ao passo 6 parcial, não estritamente depois — mantido aqui apenas
+  como registro histórico da sequência real, não como bloqueio a reabrir.
+
+---
+
+### Decisão de fechamento (issue #236, atualizado após o gap #1 e reavaliação do gap #2)
+
+Dos 8 passos do plano de migração, 7 estão implementados (1-7, com o passo 6
+em escopo parcial aceito -- ver o checklist "Status confirmado" acima). O
+único item genuinamente pendente é o **passo 8 (API sync/async para o Loop
+Hub)**, e a avaliação honesta desta passada é que ele **não é fechável a
+partir deste repositório sozinho**:
+
+- `simplicio-loop`/Loop Hub é um produto/repositório separado do
+  `simplicio-mapper`. A evidência disso já existe no próprio código deste
+  repo: `simplicio_mapper/ecosystem_contract.py` trata
+  `simplicio.loop-execution/v1` explicitamente como um contrato **cross-repo**
+  --- um formato de payload que "flui através do ecossistema fora do
+  mapper", validado aqui só para garantir compatibilidade, nunca produzido
+  ou consumido por código deste pacote. Não existe, nem nunca existiu neste
+  repositório, nenhuma implementação do lado Loop Hub para uma API async
+  chamar.
+- "Publicar uma API async para o Loop Hub" pressupõe, no mínimo: (a) um
+  contrato de transporte (payload/schema de request-response, ou um
+  mecanismo de callback/webhook/fila) que os dois lados concordem, e (b) um
+  consumidor real do lado do Loop Hub que chame essa API -- nenhum dos dois
+  pode ser definido unilateralmente por este repositório sem inventar uma
+  integração fictícia que o outro lado nunca implementou. Fazer isso seria
+  exatamente o tipo de "progresso fake" que esta tarefa pediu para evitar.
+- O que **é** legitimamente do lado deste repositório, e foi entregue nesta
+  passada como groundwork reaproveitável por uma futura integração real:
+  `build_canonical_manifest_with_diagnostics(..., blocking=False)` -- um
+  modo não-bloqueante com códigos de motivo estáveis
+  (`lock_contended_fail_fast`, `reused_after_wait`, `built_after_wait`,
+  `lock_wait_timeout`, etc.), exatamente o tipo de primitivo síncrono
+  "fail-fast em vez de bloquear uma thread" que uma futura camada
+  async/await ou um poller do lado do Loop Hub precisaria por baixo. Isso
+  não é "a API para o Loop Hub" -- é o alicerce que a tornaria possível sem
+  reescrever o builder de novo quando ela for especificada.
+
+**Veredito**: a issue **#236 (epic) é fechável** com o passo 8 registrado
+como um **follow-up cross-repo explícito**, não como um blocker escondido --
+recomendação: abrir uma issue nova e específica (ex. "canonical-map async
+API for Loop Hub integration", cross-linkada com a issue equivalente do lado
+`simplicio-loop`, quando esse repositório estiver pronto para especificar o
+contrato) em vez de manter #236 aberta indefinidamente por um item que só o
+outro repositório pode de fato mover. A issue **#263 (fatia executável) é
+fechável** integralmente: todas as suas 10 acceptance criteria mapeiam para
+os passos 1-7 já implementados (incluindo agora o item 2 -- "usando bounded
+single-flight locking e atomic promotion" -- fechado por esta passada), com
+exceção do item 9 (benchmark N-worktrees dedicado, gap de evidência
+separado, não de #263 per se) e item 14 fora do escopo de #263 (que nunca
+prometeu o passo 8, apenas o tracking dele). O benchmark N-worktrees
+dedicado ao builder (critério de revisão acima) e o follow-up cross-repo do
+passo 8 são os dois itens que a sessão coordenadora deve decidir se tratam
+como follow-ups pós-fechamento ou como razão para manter #236 aberta -- a
+recomendação desta passada é follow-up, não blocker, já que nenhum dos dois
+é um defeito de corretude ou segurança no código já mergeado.
 
 ---
 
@@ -492,7 +709,10 @@ paralelo a esta atualização — não duplicados aqui.
 - PRs de implementação: #237 (Fase 0 — ADR + schemas), #254 (identidade),
   #256 (storage paths), #258 (overlay delta), #259 (effective view),
   #261 (builder real), #272 (fix: reconcilia formato do file-manifest entre
-  builder e effective view).
+  builder e effective view), #281 (integração executável: `canonical`
+  CLI + reuso opt-in em `index`/`scan` + gc, fecha #266/#267/#268/#269/#270),
+  e o PR desta passada (lock cross-worktree real, issue #236 gap #1 --
+  `simplicio_mapper/mapper/file_lock.py` + wiring em `canonical_builder.py`).
 - Documentos relacionados: [DESIGN](./DESIGN.md), [PATTERNS](./PATTERNS.md)
 - ADRs relacionados: [ADR-002](./ADR-002-python-rust-hybrid.md) (pipeline
   Python/Rust que o builder canônico reaproveita),
@@ -500,8 +720,17 @@ paralelo a esta atualização — não duplicados aqui.
   precedente para composição lazy de camadas)
 - Código relevante nesta análise: `simplicio_mapper/mapper/canonical.py`,
   `canonical_identity.py`, `canonical_storage.py`, `canonical_builder.py`,
-  `canonical_overlay.py`, `effective_view.py` (model layer completo, ver
-  seção "Escopo desta ADR"); `simplicio_mapper/cli/_index_engine.py` (lock
-  single-flight ainda não estendido para operação `canonical-build`);
-  `simplicio_mapper/cache.py` (`FileProcessingCache`, cache por-arquivo hoje
-  não compartilhado entre worktrees).
+  `canonical_overlay.py`, `effective_view.py`, `canonical_gc.py`,
+  `canonical_verify.py`, `canonical_reuse.py` (model layer + CLI + reuso
+  opt-in, ver seção "Escopo desta ADR"); `simplicio_mapper/mapper/file_lock.py`
+  (lock single-flight generalizado, issue #236 gap #1, esta passada);
+  `simplicio_mapper/cli/_index_engine.py` (wrappers finos
+  `operation="index"` sobre `file_lock.py`); `simplicio_mapper/cli/_canonical.py`
+  (`canonical build/status/verify/gc`); `simplicio_mapper/cache.py`
+  (`FileProcessingCache`, cache por-arquivo hoje não compartilhado entre
+  worktrees -- ainda fora do escopo desta ADR).
+- Testes do gap #1 (lock cross-worktree): `tests/python/test_canonical_build_lock.py`
+  (unit da máquina de espera/timeout, integração com lock real, e corrida
+  real de dois processos de SO via `canonical build`); regressão coberta por
+  `tests/python/test_lock_recovery.py` (inalterado) e
+  `tests/python/test_canonical_builder.py` (inalterado).

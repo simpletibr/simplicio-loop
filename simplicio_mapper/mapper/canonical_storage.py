@@ -89,3 +89,28 @@ def canonical_manifest_dir_for_key(cache_root: str, key: CanonicalMapKey) -> str
     (``mapper.canonical`` and this one) compose end-to-end -- still no I/O.
     """
     return canonical_manifest_dir(cache_root, key.digest())
+
+
+def canonical_build_lock_path(cache_root: str, key_digest: str) -> str:
+    """Return the cross-worktree single-flight lock path for a build of ``key_digest``.
+
+    ADR-008 section 4 originally sketched this path as
+    ``<digest>/build.lock`` (i.e. *inside* the eventual manifest directory).
+    That shape was deliberately not used here: :func:`canonical_manifest_dir`
+    is only ever supposed to exist once fully promoted (the builder's own
+    ``if os.path.isdir(digest_dir): ...`` idempotency check treats its mere
+    existence as "already promoted" -- see
+    ``simplicio_mapper.mapper.canonical_builder``), and ``os.replace`` cannot
+    atomically promote a temp directory onto a *non-empty* existing
+    directory on every platform this project supports (Windows in
+    particular). Putting the lock file inside the digest directory before
+    promotion would make that directory non-empty ahead of time and break
+    the atomic-promotion invariant the builder already relies on.
+
+    Shape used instead: ``<cache_root>/canonical/<key_digest>.build.lock`` --
+    a sibling of :func:`canonical_manifest_dir`'s result (same directory
+    ``os.replace`` already promotes into), never a child of it. Two
+    worktrees building the same digest resolve to the same lock path with no
+    additional coordination, exactly like the manifest directory itself.
+    """
+    return os.path.join(cache_root, _CANONICAL_SUBDIR, f"{key_digest}.build.lock")

@@ -56,6 +56,7 @@ ADR's migration plan.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import random
 import secrets
@@ -64,7 +65,7 @@ import socket
 import subprocess
 import tempfile
 import time
-from typing import Any
+from typing import Any, NamedTuple
 
 import orjson
 
@@ -75,12 +76,37 @@ from .canonical import (
     CanonicalMapManifest,
 )
 from .canonical_identity import resolve_repo_identity_bundle
-from .canonical_storage import canonical_manifest_dir, canonical_manifest_tmp_dir
+from .canonical_storage import (
+    canonical_build_lock_path,
+    canonical_manifest_dir,
+    canonical_manifest_tmp_dir,
+)
 from .emit import build_artifacts
+from .file_lock import acquire_lock_at, inspect_lock_at, release_lock_at
 from .parse import _JSON_WRITE_OPTIONS, _now_iso
 
 _GIT_TIMEOUT_SECONDS = 30.0
 _MANIFEST_FILE_NAME = "manifest.json"
+
+#: ``operation`` value stamped into the cross-worktree build lock's record
+#: (ADR-008 section 4) -- the existing index lock stamps ``"index"``; this is
+#: the second value the ADR calls for, distinguishing the two use cases in
+#: any lock-file inspection/diagnostics without needing a second lock
+#: implementation.
+_BUILD_LOCK_OPERATION = "canonical-build"
+
+#: Environment override for how long a losing builder blocks waiting for the
+#: winner to finish and promote, before giving up (``blocking=True`` mode,
+#: the default -- see :func:`build_canonical_manifest`). Deliberately a
+#: separate knob from ``SIMPLICIO_MAPPER_LOCK_TTL_SECONDS`` (the lock's own
+#: dead-owner-reclaim TTL, reused as-is per ADR-008 section 4): the TTL is
+#: "how long before we consider the owner dead", this is "how long a waiter
+#: is willing to sit idle before falling back to fail-fast", and the two are
+#: allowed to differ (a waiter should usually give up long before the lock
+#: itself would be reclaimed as abandoned).
+_BUILD_LOCK_WAIT_ENV = "SIMPLICIO_MAPPER_CANONICAL_BUILD_LOCK_WAIT_SECONDS"
+_DEFAULT_BUILD_LOCK_WAIT_SECONDS = 600.0
+_BUILD_LOCK_POLL_SECONDS = 0.2
 
 #: Bounded retry for the throwaway detached checkout below (issue #236/#263
 #: acceptance criterion: "dez ou mais processos solicitando o mesmo mapa
@@ -91,6 +117,13 @@ _MANIFEST_FILE_NAME = "manifest.json"
 #: known-transient race.
 _DETACHED_CHECKOUT_MAX_ATTEMPTS = 4
 _DETACHED_CHECKOUT_RETRY_BASE_SECONDS = 0.05
+
+
+class CanonicalBuildResult(NamedTuple):
+    """Additive diagnostics wrapper -- see :func:`build_canonical_manifest_with_diagnostics`."""
+
+    manifest: CanonicalMapManifest | None
+    reason_code: str
 
 #: Logical artifact name -> filename inside the digest directory. Kept in
 #: sync with the artifact set ``write_mapping_artifacts`` would normally
@@ -358,8 +391,29 @@ def _load_existing_manifest(digest_dir: str) -> CanonicalMapManifest | None:
         return None
 
 
+def _root_fingerprint(root: str) -> str:
+    return hashlib.sha256(os.path.normcase(os.path.abspath(root)).encode("utf-8")).hexdigest()[:24]
+
+
+def _build_lock_wait_seconds(override: float | None) -> float:
+    if override is not None:
+        return max(0.0, override)
+    raw = os.environ.get(_BUILD_LOCK_WAIT_ENV)
+    if raw is None:
+        return _DEFAULT_BUILD_LOCK_WAIT_SECONDS
+    try:
+        return max(0.0, float(raw))
+    except ValueError:
+        return _DEFAULT_BUILD_LOCK_WAIT_SECONDS
+
+
 def build_canonical_manifest(
-    root: str, storage_root: str, config_fingerprint: str
+    root: str,
+    storage_root: str,
+    config_fingerprint: str,
+    *,
+    blocking: bool = True,
+    lock_wait_seconds: float | None = None,
 ) -> CanonicalMapManifest | None:
     """Build (or reuse) a :class:`CanonicalMapManifest` for ``root``'s default branch.
 
@@ -374,13 +428,77 @@ def build_canonical_manifest(
     is loaded and returned as-is (no rebuild) -- see the module docstring for
     why a cache hit here is always safe to trust.
 
+    Cross-worktree single-flight (issue #236, ADR-008 section 4): before
+    doing the expensive detached-checkout-and-pipeline-run work, this
+    acquires the same battle-tested lock primitive the per-worktree index
+    lock uses (:mod:`simplicio_mapper.mapper.file_lock`, generalized from
+    ``simplicio_mapper.cli._index_engine``), keyed at
+    :func:`canonical_storage.canonical_build_lock_path` with
+    ``operation="canonical-build"``. A loser of the race never redoes the
+    full pipeline blindly:
+
+    * ``blocking=True`` (the default): waits, bounded by ``lock_wait_seconds``
+      (or ``SIMPLICIO_MAPPER_CANONICAL_BUILD_LOCK_WAIT_SECONDS``, default 600s),
+      polling for either the winner's promoted manifest to appear (returned
+      directly, no rebuild) or the lock to free up (tries to become the new
+      owner itself -- covers the winner crashing mid-build). Returns ``None``
+      if the deadline passes with neither outcome.
+    * ``blocking=False``: fails fast (returns ``None``) the instant the lock
+      is found held by another live owner -- for callers (e.g. a future async
+      Loop Hub caller) that would rather retry later than block a thread.
+
+    Use :func:`build_canonical_manifest_with_diagnostics` for a version of
+    this same contract that also reports *why* (a stable reason code) --
+    this function's ``Optional[CanonicalMapManifest]`` return type is kept
+    exactly as before for every existing caller.
+
     Returns ``None`` (never a partial manifest) when identity resolution
-    fails, the detached checkout cannot be created, or the underlying
-    mapping pipeline raises.
+    fails, the detached checkout cannot be created, the underlying mapping
+    pipeline raises, or the lock-wait deadline above is exceeded.
+    """
+    return build_canonical_manifest_with_diagnostics(
+        root,
+        storage_root,
+        config_fingerprint,
+        blocking=blocking,
+        lock_wait_seconds=lock_wait_seconds,
+    ).manifest
+
+
+def build_canonical_manifest_with_diagnostics(
+    root: str,
+    storage_root: str,
+    config_fingerprint: str,
+    *,
+    blocking: bool = True,
+    lock_wait_seconds: float | None = None,
+) -> CanonicalBuildResult:
+    """Same contract as :func:`build_canonical_manifest`, plus a reason code.
+
+    Reason codes (stable, safe to match on):
+
+    * ``identity_unresolved`` -- repo/default-branch/commit identity could
+      not be resolved (non-git directory, git unavailable, ...).
+    * ``reused_cache_hit`` -- a promoted manifest for this exact key already
+      existed before this call did anything else; no lock was needed.
+    * ``lock_contended_fail_fast`` -- ``blocking=False`` and another live
+      owner already holds the build lock for this digest.
+    * ``lock_wait_timeout`` -- ``blocking=True``, waited the full budget, and
+      neither a promoted manifest appeared nor did the lock ever free up for
+      us to acquire.
+    * ``reused_after_wait`` -- waited for a concurrent builder, then found
+      its promoted manifest (the common, intended win-condition of this
+      fix: exactly one process does the real work).
+    * ``file_manifest_digest_failed`` / ``checkout_failed`` /
+      ``pipeline_failed`` -- fail-closed at the corresponding build step.
+    * ``built`` -- this call acquired the lock uncontended and built fresh.
+    * ``built_after_wait`` -- this call waited first (lock briefly held by
+      another process that released without promoting, e.g. it errored out),
+      then itself acquired the lock and built fresh.
     """
     identity = resolve_repo_identity_bundle(root)
     if identity is None:
-        return None
+        return CanonicalBuildResult(None, "identity_unresolved")
 
     key = CanonicalMapKey(
         repo_identity=identity.repo_identity,
@@ -398,135 +516,184 @@ def build_canonical_manifest(
 
     existing = _load_existing_manifest(digest_dir)
     if existing is not None and existing.key == key:
-        return existing
+        return CanonicalBuildResult(existing, "reused_cache_hit")
 
-    file_manifest_digest = _compute_file_manifest_digest(root, identity.commit_sha)
-    if file_manifest_digest is None:
-        return None
+    lock_path = canonical_build_lock_path(cache_root, digest)
+    lock_extra = {"root_fingerprint": _root_fingerprint(root), "digest": digest}
+    lock = acquire_lock_at(lock_path, operation=_BUILD_LOCK_OPERATION, extra_fields=lock_extra)
+    waited = False
 
-    checkout = _create_detached_checkout(root, identity.commit_sha)
-    if checkout is None:
-        return None
-    base_tmp, worktree_path = checkout
+    if lock is None:
+        if not blocking:
+            return CanonicalBuildResult(None, "lock_contended_fail_fast")
+        waited = True
+        deadline = time.monotonic() + _build_lock_wait_seconds(lock_wait_seconds)
+        while time.monotonic() < deadline:
+            existing = _load_existing_manifest(digest_dir)
+            if existing is not None and existing.key == key:
+                return CanonicalBuildResult(existing, "reused_after_wait")
+            if not inspect_lock_at(lock_path)["active"]:
+                break
+            time.sleep(_BUILD_LOCK_POLL_SECONDS)
+
+        # Either the lock looks free now (owner released/crashed/expired) or
+        # we ran out of patience -- re-check the cheap idempotent path once
+        # more before trying to become the new owner ourselves.
+        existing = _load_existing_manifest(digest_dir)
+        if existing is not None and existing.key == key:
+            return CanonicalBuildResult(existing, "reused_after_wait")
+        lock = acquire_lock_at(lock_path, operation=_BUILD_LOCK_OPERATION, extra_fields=lock_extra)
+        if lock is None:
+            return CanonicalBuildResult(None, "lock_wait_timeout")
+
     try:
-        artifacts = build_artifacts(worktree_path, meta=None, incremental=False)
-    except Exception:  # noqa: BLE001 - any pipeline failure must fail closed
-        return None
-    finally:
-        _remove_detached_checkout(root, base_tmp, worktree_path)
+        # Re-check idempotency now that we actually hold the lock -- closes
+        # the race window between the pre-lock check above and acquiring it
+        # (another process could have promoted between those two moments).
+        existing = _load_existing_manifest(digest_dir)
+        if existing is not None and existing.key == key:
+            return CanonicalBuildResult(
+                existing, "reused_after_wait" if waited else "reused_cache_hit"
+            )
 
-    project_map = artifacts["project_map"]
-    precedent_index = artifacts["precedent_index"]
-    symbol_index = artifacts["symbol_index"]
-    call_graph = artifacts["call_graph"]
+        file_manifest_digest = _compute_file_manifest_digest(root, identity.commit_sha)
+        if file_manifest_digest is None:
+            return CanonicalBuildResult(None, "file_manifest_digest_failed")
 
-    # Absolute path to the digest directory itself -- not merely relative to
-    # `cache_root` -- so any consumer (in particular
-    # `effective_view._canonical_file_manifest_path`, which does
-    # `os.path.join(canonical.storage_root, artifact_paths[name])` with no
-    # other context about where the cache root lives) can resolve an
-    # artifact's real on-disk path from the manifest alone, regardless of the
-    # resolving process's current working directory. `test_effective_view.py`
-    # already exercises this exact contract (its fixtures always pass an
-    # absolute directory as `storage_root`) -- this was a second, real
-    # interoperability gap alongside the missing `file_manifest` artifact key
-    # (issue #236): a cache-root-relative string here left every artifact
-    # unresolvable by `effective_view.py` even after `file_manifest` existed.
-    storage_root_field = digest_dir
+        checkout = _create_detached_checkout(root, identity.commit_sha)
+        if checkout is None:
+            return CanonicalBuildResult(None, "checkout_failed")
+        base_tmp, worktree_path = checkout
+        try:
+            artifacts = build_artifacts(worktree_path, meta=None, incremental=False)
+        except Exception:  # noqa: BLE001 - any pipeline failure must fail closed
+            return CanonicalBuildResult(None, "pipeline_failed")
+        finally:
+            _remove_detached_checkout(root, base_tmp, worktree_path)
 
-    # The staging token must be unique per *call*, not just per process: two
-    # threads in the same process (same PID) racing to build the same digest
-    # would otherwise stomp on one another's tmp dir mid-write (issue #263
-    # Windows-validation gap -- reproduced via a real threading test, not
-    # just multiple processes).
-    tmp_digest_dir = os.path.normpath(
-        canonical_manifest_tmp_dir(cache_root, digest, f"{os.getpid()}-{secrets.token_hex(8)}")
-    )
-    shutil.rmtree(tmp_digest_dir, ignore_errors=True)
-    try:
-        artifact_paths: dict[str, str] = {}
-        for logical_name, file_name in _ARTIFACT_FILE_NAMES.items():
-            _write_json_stable(os.path.join(tmp_digest_dir, file_name), artifacts[logical_name])
-            artifact_paths[logical_name] = file_name
+        project_map = artifacts["project_map"]
+        precedent_index = artifacts["precedent_index"]
+        symbol_index = artifacts["symbol_index"]
+        call_graph = artifacts["call_graph"]
 
-        _write_file_manifest_jsonl(
-            os.path.join(tmp_digest_dir, _FILE_MANIFEST_FILE_NAME),
-            list(project_map.get("files") or []),
+        # Absolute path to the digest directory itself -- not merely relative
+        # to `cache_root` -- so any consumer (in particular
+        # `effective_view._canonical_file_manifest_path`, which does
+        # `os.path.join(canonical.storage_root, artifact_paths[name])` with no
+        # other context about where the cache root lives) can resolve an
+        # artifact's real on-disk path from the manifest alone, regardless of
+        # the resolving process's current working directory.
+        # `test_effective_view.py` already exercises this exact contract (its
+        # fixtures always pass an absolute directory as `storage_root`) --
+        # this was a second, real interoperability gap alongside the missing
+        # `file_manifest` artifact key (issue #236): a cache-root-relative
+        # string here left every artifact unresolvable by `effective_view.py`
+        # even after `file_manifest` existed.
+        storage_root_field = digest_dir
+
+        # The staging token must be unique per *call*, not just per process:
+        # two threads in the same process (same PID) racing to build the same
+        # digest would otherwise stomp on one another's tmp dir mid-write
+        # (issue #263 Windows-validation gap -- reproduced via a real
+        # threading test, not just multiple processes).
+        tmp_digest_dir = os.path.normpath(
+            canonical_manifest_tmp_dir(cache_root, digest, f"{os.getpid()}-{secrets.token_hex(8)}")
         )
-        artifact_paths["file_manifest"] = _FILE_MANIFEST_FILE_NAME
-
-        counts = {
-            "files": len(project_map.get("files") or []),
-            "precedents": len(precedent_index.get("items") or []),
-            "symbols": (symbol_index.get("counts") or {}).get("symbols", 0),
-            "relationships": (call_graph.get("counts") or {}).get("edges", 0),
-        }
-        created_at = _now_iso()
-        builder = {
-            "pid": str(os.getpid()),
-            "host": socket.gethostname(),
-            "mapper_version": key.mapper_version,
-        }
-        manifest_payload = {
-            "schema": CANONICAL_MAP_SCHEMA,
-            "schema_version": CANONICAL_MAP_SCHEMA_VERSION,
-            "key": {
-                "repo_identity": key.repo_identity,
-                "default_branch": key.default_branch,
-                "commit_sha": key.commit_sha,
-                "tree_sha": key.tree_sha,
-                "schema_version": key.schema_version,
-                "mapper_version": key.mapper_version,
-                "config_fingerprint": key.config_fingerprint,
-                "platform_tag": key.platform_tag,
-            },
-            "storage_root": storage_root_field,
-            "artifact_paths": artifact_paths,
-            "file_manifest_digest": file_manifest_digest,
-            "counts": counts,
-            "created_at": created_at,
-            "builder": builder,
-            "generation": 1,
-        }
-        _write_json_stable(os.path.join(tmp_digest_dir, _MANIFEST_FILE_NAME), manifest_payload)
-
-        # Atomic promotion: only a fully-written temp dir ever becomes the
-        # real digest dir (mirrors the write-then-rename pattern already
-        # used by `_write_index_state` / `_write_json_stable`).
-        if os.path.isdir(digest_dir):
-            # Another process/call already promoted the same digest while we
-            # were building (content-addressed -> byte-identical outcome
-            # expected); prefer the existing promoted copy and discard ours.
-            shutil.rmtree(tmp_digest_dir, ignore_errors=True)
-            reused = _load_existing_manifest(digest_dir)
-            if reused is not None and reused.key == key:
-                return reused
-        else:
-            os.makedirs(os.path.dirname(digest_dir), exist_ok=True)
-            _promote_digest_dir(tmp_digest_dir, digest_dir)
-            reused = _load_existing_manifest(digest_dir)
-            if reused is not None and reused.key != key:
-                # The dir that landed at this digest doesn't match our key --
-                # a genuinely different build content-addressed to the same
-                # digest (should be unreachable in practice, since the digest
-                # is a hash of the key, but never silently serve a mismatch).
-                shutil.rmtree(tmp_digest_dir, ignore_errors=True)
-                raise RuntimeError(
-                    f"canonical manifest at {digest_dir!r} does not match the "
-                    "expected CanonicalMapKey after promotion"
-                )
-    finally:
         shutil.rmtree(tmp_digest_dir, ignore_errors=True)
+        try:
+            artifact_paths: dict[str, str] = {}
+            for logical_name, file_name in _ARTIFACT_FILE_NAMES.items():
+                _write_json_stable(os.path.join(tmp_digest_dir, file_name), artifacts[logical_name])
+                artifact_paths[logical_name] = file_name
 
-    return CanonicalMapManifest(
-        schema=CANONICAL_MAP_SCHEMA,
-        schema_version=CANONICAL_MAP_SCHEMA_VERSION,
-        key=key,
-        storage_root=storage_root_field,
-        artifact_paths=artifact_paths,
-        file_manifest_digest=file_manifest_digest,
-        counts=counts,
-        created_at=created_at,
-        builder=builder,
-        generation=1,
-    )
+            _write_file_manifest_jsonl(
+                os.path.join(tmp_digest_dir, _FILE_MANIFEST_FILE_NAME),
+                list(project_map.get("files") or []),
+            )
+            artifact_paths["file_manifest"] = _FILE_MANIFEST_FILE_NAME
+
+            counts = {
+                "files": len(project_map.get("files") or []),
+                "precedents": len(precedent_index.get("items") or []),
+                "symbols": (symbol_index.get("counts") or {}).get("symbols", 0),
+                "relationships": (call_graph.get("counts") or {}).get("edges", 0),
+            }
+            created_at = _now_iso()
+            builder = {
+                "pid": str(os.getpid()),
+                "host": socket.gethostname(),
+                "mapper_version": key.mapper_version,
+            }
+            manifest_payload = {
+                "schema": CANONICAL_MAP_SCHEMA,
+                "schema_version": CANONICAL_MAP_SCHEMA_VERSION,
+                "key": {
+                    "repo_identity": key.repo_identity,
+                    "default_branch": key.default_branch,
+                    "commit_sha": key.commit_sha,
+                    "tree_sha": key.tree_sha,
+                    "schema_version": key.schema_version,
+                    "mapper_version": key.mapper_version,
+                    "config_fingerprint": key.config_fingerprint,
+                    "platform_tag": key.platform_tag,
+                },
+                "storage_root": storage_root_field,
+                "artifact_paths": artifact_paths,
+                "file_manifest_digest": file_manifest_digest,
+                "counts": counts,
+                "created_at": created_at,
+                "builder": builder,
+                "generation": 1,
+            }
+            _write_json_stable(os.path.join(tmp_digest_dir, _MANIFEST_FILE_NAME), manifest_payload)
+
+            # Atomic promotion: only a fully-written temp dir ever becomes the
+            # real digest dir (mirrors the write-then-rename pattern already
+            # used by `_write_index_state` / `_write_json_stable`). Uses
+            # `_promote_digest_dir` (bounded retry on transient Windows
+            # PermissionError, issue #263) rather than a bare `os.replace`.
+            if os.path.isdir(digest_dir):
+                # Another process/call already promoted the same digest
+                # while we were building under our own lock -- should not
+                # happen now that the build lock serializes builders, but
+                # kept as defense-in-depth matching the pre-lock idempotency
+                # contract (content-addressed -> byte-identical outcome
+                # expected either way). Prefer the existing promoted copy and
+                # discard ours.
+                shutil.rmtree(tmp_digest_dir, ignore_errors=True)
+                reused = _load_existing_manifest(digest_dir)
+                if reused is not None and reused.key == key:
+                    return CanonicalBuildResult(reused, "reused_after_wait")
+            else:
+                os.makedirs(os.path.dirname(digest_dir), exist_ok=True)
+                _promote_digest_dir(tmp_digest_dir, digest_dir)
+                reused = _load_existing_manifest(digest_dir)
+                if reused is not None and reused.key != key:
+                    # The dir that landed at this digest doesn't match our
+                    # key -- a genuinely different build content-addressed to
+                    # the same digest (should be unreachable in practice,
+                    # since the digest is a hash of the key, but never
+                    # silently serve a mismatch).
+                    shutil.rmtree(tmp_digest_dir, ignore_errors=True)
+                    raise RuntimeError(
+                        f"canonical manifest at {digest_dir!r} does not match "
+                        "the expected CanonicalMapKey after promotion"
+                    )
+        finally:
+            shutil.rmtree(tmp_digest_dir, ignore_errors=True)
+
+        manifest = CanonicalMapManifest(
+            schema=CANONICAL_MAP_SCHEMA,
+            schema_version=CANONICAL_MAP_SCHEMA_VERSION,
+            key=key,
+            storage_root=storage_root_field,
+            artifact_paths=artifact_paths,
+            file_manifest_digest=file_manifest_digest,
+            counts=counts,
+            created_at=created_at,
+            builder=builder,
+            generation=1,
+        )
+        return CanonicalBuildResult(manifest, "built_after_wait" if waited else "built")
+    finally:
+        release_lock_at(lock)

@@ -22,6 +22,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -168,6 +169,51 @@ class AttemptCanonicalReuseIntegrationTests(unittest.TestCase):
         self.assertEqual(outcome.receipt["files_reused"], 2)
         self.assertEqual(outcome.receipt["files_remapped"], 0)
         self.assertEqual(outcome.run_result["project_map"]["files"].__len__(), 2)
+
+    def test_first_call_never_blocks_on_the_build_lock_wait_budget(self) -> None:
+        """Regression for a self-deadlock between two independent locks at
+        the same path (issue #236 cross-worktree lock generalization).
+
+        ``attempt_canonical_reuse`` used to wrap
+        ``build_canonical_manifest`` in its own ad-hoc advisory single-flight
+        lock (``_single_flight_build``), written directly at
+        ``canonical_storage.canonical_build_lock_path``'s path -- the exact
+        same file :func:`~simplicio_mapper.mapper.canonical_builder.build_canonical_manifest_with_diagnostics`
+        also locks via ``file_lock.acquire_lock_at``. Because the outer
+        advisory lock held that file for the whole duration of the call, the
+        inner lock's ``os.open(..., O_CREAT | O_EXCL)`` always raised
+        ``FileExistsError`` against its own caller's PID, which
+        ``inspect_lock_at`` then classified as a live, non-reclaimable
+        "legacy" owner -- since the PID belonged to the very process asking,
+        it was always alive, so the lock could never free up. The result was
+        a guaranteed, single-process self-deadlock: `build_canonical_manifest`
+        polled for the full `SIMPLICIO_MAPPER_CANONICAL_BUILD_LOCK_WAIT_SECONDS`
+        budget (600s default) before giving up with
+        ``fallback_reason="canonical_build_failed"``, even for a totally
+        uncontended, freshly created repo with no other process anywhere
+        near it.
+
+        A completely isolated, single-process, single-call scenario like
+        this one must never come anywhere close to the lock-wait budget --
+        bounding the wall-clock duration here at a small fraction of that
+        budget catches any future reintroduction of a second, colliding lock
+        implementation at the same path, not just this specific one.
+        """
+        repo = self.base / "repo-no-self-deadlock"
+        _init_repo(repo)
+        start = time.monotonic()
+        outcome = attempt_canonical_reuse(str(repo), ".simplicio", {})
+        elapsed = time.monotonic() - start
+        self.assertTrue(outcome.receipt["hit"], outcome.receipt)
+        self.assertLess(
+            elapsed,
+            10.0,
+            f"attempt_canonical_reuse took {elapsed:.1f}s -- expected a few "
+            "seconds at most for an uncontended, freshly created repo; a "
+            "duration anywhere near the lock-wait budget indicates the "
+            "build lock is self-blocked again",
+        )
+        self.assertLess(outcome.receipt["duration_s"], 10.0, outcome.receipt)
 
     def test_uncommitted_change_is_a_non_trivial_fallback(self) -> None:
         repo = self.base / "repo-dirty"

@@ -56,10 +56,10 @@ import orjson
 
 from ..models import ProjectFile
 from .canonical import CanonicalMapManifest, WorktreeOverlay
-from .canonical_builder import _mapper_version, build_canonical_manifest
+from .canonical_builder import build_canonical_manifest_with_diagnostics
 from .canonical_identity import resolve_repo_identity_bundle
 from .canonical_overlay import compute_worktree_overlay
-from .canonical_storage import canonical_manifest_dir, resolve_canonical_cache_root
+from .canonical_storage import resolve_canonical_cache_root
 from .effective_view import compose_effective_view
 from .graph import _build_architecture_inventory
 from .parse import _JSON_WRITE_OPTIONS, _now_iso
@@ -70,18 +70,11 @@ from .parse import _JSON_WRITE_OPTIONS, _now_iso
 #: (case-insensitive) -- same convention ``_run_scan``'s ``CI`` check uses.
 CANONICAL_REUSE_ENV_VAR = "SIMPLICIO_MAPPER_CANONICAL_REUSE"
 
-#: Bounded wait for the advisory single-flight lock below. Never required
-#: for correctness (see :func:`_single_flight_build`'s docstring) -- purely
-#: a perf optimization, so a short default is safe.
-SINGLE_FLIGHT_TIMEOUT_ENV = "SIMPLICIO_MAPPER_CANONICAL_SINGLE_FLIGHT_TIMEOUT_S"
-_DEFAULT_SINGLE_FLIGHT_TIMEOUT_S = 30.0
-_SINGLE_FLIGHT_POLL_S = 0.05
-#: A lock file older than this is assumed to belong to a crashed builder and
-#: is reclaimed -- keeps the optimization available indefinitely instead of
-#: wedging shut after one crash. Canonical builds are a handful of seconds
-#: at most (see ``canonical_builder.py``), so a multi-minute TTL is ample
-#: headroom without risking reclaiming a live builder's lock.
-_SINGLE_FLIGHT_STALE_SECONDS = 180.0
+#: Reason codes from :func:`build_canonical_manifest_with_diagnostics` that
+#: indicate this call waited for a concurrent builder (winner or loser of
+#: the race) before getting a manifest. Anything else means it never had to
+#: wait (cache hit before the lock, or acquired the lock uncontended).
+_WAITED_REASON_CODES = frozenset({"reused_after_wait", "built_after_wait"})
 
 RECEIPT_SCHEMA = "simplicio.canonical-reuse-receipt/v1"
 RECEIPT_SCHEMA_VERSION = 1
@@ -136,68 +129,6 @@ def compute_config_fingerprint(meta: dict | None, out: str) -> str:
     }
     raw = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
     return hashlib.blake2b(raw, digest_size=24).hexdigest()
-
-
-def _single_flight_timeout_seconds() -> float:
-    raw = os.environ.get(SINGLE_FLIGHT_TIMEOUT_ENV)
-    if raw is None:
-        return _DEFAULT_SINGLE_FLIGHT_TIMEOUT_S
-    try:
-        return max(0.0, float(raw))
-    except ValueError:
-        return _DEFAULT_SINGLE_FLIGHT_TIMEOUT_S
-
-
-def _single_flight_build(lock_path: str, build_fn):
-    """Best-effort single-flight wrapper around ``build_fn`` (takes no args).
-
-    Advisory only: :func:`~simplicio_mapper.mapper.canonical_builder.build_canonical_manifest`
-    is already race-safe on its own (idempotent digest check + atomic
-    ``os.replace`` promotion -- see that module's docstring), so losing this
-    lock, timing out while waiting, or the lock file going stale never
-    causes incorrect output, only possible duplicate detached-checkout work
-    across concurrently racing worktrees. Returns ``(result, waited)``.
-    """
-    lock_dir = os.path.dirname(lock_path)
-    if lock_dir:
-        os.makedirs(lock_dir, exist_ok=True)
-
-    acquired = False
-    try:
-        fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-    except FileExistsError:
-        try:
-            age = time.time() - os.path.getmtime(lock_path)
-        except OSError:
-            age = 0.0
-        if age > _SINGLE_FLIGHT_STALE_SECONDS:
-            try:
-                os.unlink(lock_path)
-            except OSError:
-                pass
-        waited = True
-    else:
-        try:
-            os.write(fd, str(os.getpid()).encode("utf-8"))
-        finally:
-            os.close(fd)
-        acquired = True
-        waited = False
-
-    if not acquired:
-        deadline = time.monotonic() + _single_flight_timeout_seconds()
-        while os.path.exists(lock_path) and time.monotonic() < deadline:
-            time.sleep(_SINGLE_FLIGHT_POLL_S)
-
-    try:
-        result = build_fn()
-    finally:
-        if acquired:
-            try:
-                os.unlink(lock_path)
-            except OSError:
-                pass
-    return result, waited
 
 
 def _out_dir_prefix(out: str) -> str:
@@ -345,31 +276,25 @@ def attempt_canonical_reuse(root: str, out: str, meta: dict | None) -> Canonical
         receipt_base["config_fingerprint"] = config_fingerprint
         cache_root = resolve_canonical_cache_root(identity.common_git_dir)
 
-        # Pre-resolve the digest only to place the advisory single-flight
-        # lock next to where the manifest will land -- `build_canonical_manifest`
-        # re-resolves identity/key itself (see its docstring); duplicating
-        # that resolution here is deliberate to keep this module decoupled
-        # from that function's internals, at the cost of a few extra cheap
-        # read-only `git` calls.
-        from .canonical import CANONICAL_MAP_SCHEMA_VERSION, CanonicalMapKey
-
-        probe_key = CanonicalMapKey(
-            repo_identity=identity.repo_identity,
-            default_branch=identity.default_branch,
-            commit_sha=identity.commit_sha,
-            tree_sha=identity.tree_sha,
-            schema_version=CANONICAL_MAP_SCHEMA_VERSION,
-            mapper_version=_mapper_version(),
-            config_fingerprint=config_fingerprint,
+        # `build_canonical_manifest_with_diagnostics` owns the single real
+        # cross-worktree single-flight lock for this digest (see
+        # `canonical_builder.py` / `canonical_storage.canonical_build_lock_path`
+        # / `file_lock.py`). This module used to additionally wrap the call in
+        # its own ad-hoc advisory lock at that exact same path -- a second,
+        # incompatible lock implementation racing the first one for the same
+        # file. Since both locks lived at an identical path, the outer
+        # advisory lock (held for the whole duration of this call) made the
+        # inner lock observe its *own* PID as a live, non-reclaimable "legacy"
+        # owner and spin for the full `lock_wait_seconds` budget every single
+        # time -- a guaranteed self-deadlock, not a real contention scenario.
+        # Calling the real builder directly removes the redundant lock and
+        # the collision with it; `build_canonical_manifest_with_diagnostics`'s
+        # own reason codes already report whether this call had to wait.
+        build_result = build_canonical_manifest_with_diagnostics(
+            abs_root, cache_root, config_fingerprint
         )
-        lock_path = os.path.join(
-            os.path.normpath(canonical_manifest_dir(cache_root, probe_key.digest())) + ".build.lock"
-        )
-
-        manifest, waited = _single_flight_build(
-            lock_path, lambda: build_canonical_manifest(abs_root, cache_root, config_fingerprint)
-        )
-        receipt_base["single_flight_waited"] = waited
+        manifest = build_result.manifest
+        receipt_base["single_flight_waited"] = build_result.reason_code in _WAITED_REASON_CODES
         if manifest is None:
             return _fallback(receipt_base, "canonical_build_failed")
 

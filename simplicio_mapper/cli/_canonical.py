@@ -8,12 +8,20 @@ Four verbs over the already-merged canonical-map machinery
 * ``canonical build <path> --json`` (issue #266, migration-plan step 7) --
   resolves the default branch via git, builds the full ``CanonicalMapKey``,
   and calls the existing
-  :func:`simplicio_mapper.mapper.canonical_builder.build_canonical_manifest`
+  :func:`simplicio_mapper.mapper.canonical_builder.build_canonical_manifest_with_diagnostics`
   builder (never reimplemented here). That builder already writes to a
   ``.tmp-<token>/`` staging directory and promotes atomically via
   ``os.replace`` (see its module docstring) -- this CLI adds **no** second,
-  competing write path and holds no lock of its own; a reader can never
-  observe a partially-promoted manifest.
+  competing write path. Since issue #236 gap #1 (ADR-008 section 4), the
+  builder itself also holds a cross-worktree single-flight lock
+  (``operation="canonical-build"``, reusing
+  :mod:`simplicio_mapper.mapper.file_lock`) around the expensive
+  checkout-and-pipeline-run work, so two concurrent ``canonical build``
+  invocations against the same digest never both do that work: the loser
+  waits (bounded) and reads the winner's promoted manifest. This CLI surfaces
+  that outcome verbatim via the receipt's ``reason_code``/``waited_for_lock``
+  fields; a reader can never observe a partially-promoted manifest either
+  way.
 * ``canonical status <path> --json`` (issue #266) -- **read-only**. Never
   calls ``build_canonical_manifest`` (and therefore never builds/writes
   anything). Reports redacted digest/key material, freshness against the
@@ -86,7 +94,7 @@ from ..mapper.canonical import CANONICAL_MAP_SCHEMA_VERSION, CanonicalMapKey
 from ..mapper.canonical_builder import (
     _load_existing_manifest,
     _mapper_version,
-    build_canonical_manifest,
+    build_canonical_manifest_with_diagnostics,
 )
 from ..mapper.canonical_gc import _relativize, scan_canonical_gc
 from ..mapper.canonical_identity import (
@@ -286,13 +294,15 @@ def _run_build(opts: dict) -> dict:
         key, cache_root, digest_dir = resolved
         reused_existing = os.path.isfile(os.path.join(digest_dir, "manifest.json"))
 
-        manifest = build_canonical_manifest(root, cache_root, _DEFAULT_CONFIG_FINGERPRINT)
+        result = build_canonical_manifest_with_diagnostics(root, cache_root, _DEFAULT_CONFIG_FINGERPRINT)
+        manifest = result.manifest
         if manifest is None:
             return _error_receipt(
                 CANONICAL_BUILD_SCHEMA,
                 CANONICAL_BUILD_SCHEMA_VERSION,
                 "canonical_build_failed",
-                "the canonical manifest builder returned no manifest (see stderr of the underlying mapping pipeline, if any)",
+                f"the canonical manifest builder returned no manifest (reason_code={result.reason_code}; "
+                "see stderr of the underlying mapping pipeline, if any)",
             )
         return {
             "schema": CANONICAL_BUILD_SCHEMA,
@@ -300,6 +310,13 @@ def _run_build(opts: dict) -> dict:
             "generated_at": _now_iso(),
             "status": "ok",
             "reused_existing": reused_existing,
+            # issue #236 gap #1 (ADR-008 section 4): which of the two
+            # processes racing to build the same digest actually ran the
+            # pipeline vs. waited for the other one's promotion. See
+            # `build_canonical_manifest_with_diagnostics`'s docstring for the
+            # full reason-code catalog.
+            "reason_code": result.reason_code,
+            "waited_for_lock": result.reason_code in ("reused_after_wait", "built_after_wait"),
             "key": _redacted_key(key),
             "manifest": {
                 # Relative to the cache root (never the absolute path

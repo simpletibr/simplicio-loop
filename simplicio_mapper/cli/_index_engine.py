@@ -3,11 +3,9 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import secrets
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
 
 from ..history import append_changelog, create_snapshot
 from ..mapper import _is_internal_worktree_dir, write_mapping_artifacts
@@ -18,6 +16,46 @@ from ..mapper.canonical_reuse import (
 from ..mapper.canonical_reuse import (
     write_receipt as _write_canonical_reuse_receipt,
 )
+
+# The lock schema/TTL constants and `_IndexLockHandle` are re-exported here
+# under their original pre-extraction names purely for backward
+# compatibility -- `_background.py`/`_status_engine.py`/
+# `tests/python/test_lock_recovery.py` still import them from this module
+# (see the comment further below, next to `_inspect_index_lock`). They are
+# genuinely unused *within this file* now that the lock logic itself lives in
+# `simplicio_mapper.mapper.file_lock`; listed in `__all__` below instead of an
+# unused-import suppression comment on each, so `ruff --fix` never silently
+# drops them again.
+from ..mapper.file_lock import (
+    DEFAULT_LOCK_TTL_SECONDS as DEFAULT_INDEX_LOCK_TTL_SECONDS,
+)
+from ..mapper.file_lock import (
+    LEGACY_LOCK_SCHEMA as LEGACY_INDEX_LOCK_SCHEMA,
+)
+from ..mapper.file_lock import (
+    LOCK_SCHEMA as INDEX_LOCK_SCHEMA,
+)
+from ..mapper.file_lock import (
+    LOCK_TTL_ENV as INDEX_LOCK_TTL_ENV,
+)
+from ..mapper.file_lock import (
+    MALFORMED_LOCK_GRACE_SECONDS,
+)
+from ..mapper.file_lock import (
+    LockHandle as _IndexLockHandle,
+)
+from ..mapper.file_lock import (
+    acquire_lock_at as _acquire_lock_at,
+)
+from ..mapper.file_lock import (
+    inspect_lock_at as _inspect_lock_at,
+)
+from ..mapper.file_lock import (
+    release_lock_at as _release_lock_at,
+)
+
+# Same re-export rationale as above: `_status_engine.py` imports
+# `_process_is_alive`/`_process_start_token` from this module.
 from ..mapper.process_liveness import process_is_alive as _process_is_alive
 from ..mapper.process_liveness import process_start_token as _process_start_token
 from ..retrieval_index import build_retrieval_index, write_retrieval_index
@@ -30,6 +68,20 @@ from ._shared import (
     INDEX_RESULT_SCHEMA,
     INDEX_STATE_SCHEMA,
 )
+
+# Names re-exported for backward compatibility only (genuinely unused within
+# this file after the file_lock.py extraction) -- listed explicitly so
+# `ruff`'s unused-import check (F401) never flags, and never silently
+# removes, a name another module still imports from here.
+__all__ = [
+    "DEFAULT_INDEX_LOCK_TTL_SECONDS",
+    "LEGACY_INDEX_LOCK_SCHEMA",
+    "INDEX_LOCK_SCHEMA",
+    "INDEX_LOCK_TTL_ENV",
+    "MALFORMED_LOCK_GRACE_SECONDS",
+    "_process_is_alive",
+    "_process_start_token",
+]
 
 
 def _run_once(opts: dict) -> dict:
@@ -126,247 +178,50 @@ def _lock_path(root: str, out: str) -> str:
     return os.path.join(os.path.abspath(os.path.join(root, out)), "index.lock")
 
 
-INDEX_LOCK_SCHEMA = "simplicio.mapper-index-lock/v1"
-LEGACY_INDEX_LOCK_SCHEMA = "simplicio.index-lock/v1"
-INDEX_LOCK_TTL_ENV = "SIMPLICIO_MAPPER_LOCK_TTL_SECONDS"
-DEFAULT_INDEX_LOCK_TTL_SECONDS = 6 * 60 * 60
-MALFORMED_LOCK_GRACE_SECONDS = 2.0
-
-
-@dataclass(frozen=True)
-class _IndexLockHandle:
-    path: str
-    token: str
-    # ``lock_acquired`` is the success-path counterpart to the reclaim reason
-    # codes returned by ``_inspect_index_lock`` below (issue #201's proposed
-    # contract lists it as one of the minimum reason codes). Callers that want
-    # to surface acquisition as evidence in CLI output can read it straight
-    # off the handle instead of re-deriving it.
-    reason_code: str = "lock_acquired"
+# The lock's schema/TTL constants, ``_IndexLockHandle``, and its
+# acquire/inspect/release logic used to be defined inline here. They now live
+# in ``simplicio_mapper.mapper.file_lock`` (issue #236, ADR-008 section 4) so
+# ``canonical_builder.py`` can reuse the exact same PID-reuse-safe,
+# TTL-aware, dead-owner-reclaiming lock for the cross-worktree
+# ``canonical-build`` operation instead of a second lock implementation --
+# see that module's docstring. Every name below is re-exported unchanged so
+# every existing call site in this repo (``_background.py``,
+# ``_status_engine.py``, ``tests/python/test_lock_recovery.py``, etc.) keeps
+# working without modification; only ``_inspect_index_lock``/
+# ``_acquire_index_lock`` below became thin ``operation="index"`` wrappers
+# around the generalized ``inspect_lock_at``/``acquire_lock_at``.
 
 
 def _root_fingerprint(root: str) -> str:
     return hashlib.sha256(os.path.normcase(os.path.abspath(root)).encode("utf-8")).hexdigest()[:24]
 
 
-def _mapper_version() -> str:
-    try:
-        from importlib.metadata import version
-
-        return version("simplicio-mapper")
-    except Exception:  # noqa: BLE001 - source checkouts may not be installed
-        return "unknown"
-
-
-def _lock_reason(reason: str) -> str:
-    return {
-        "live": "lock_live_owner",
-        "legacy_live": "lock_live_owner",
-        "dead_process": "lock_dead_owner_reclaimed",
-        "pid_reused": "lock_dead_owner_reclaimed",
-        "ttl_expired": "lock_expired_reclaimed",
-        "malformed": "lock_malformed_reclaimed",
-        "legacy": "lock_legacy_reclaimed",
-        "owner_mismatch": "lock_owner_mismatch",
-    }.get(reason, reason)
-
-
-def _index_lock_ttl_seconds() -> float:
-    raw = os.environ.get(INDEX_LOCK_TTL_ENV)
-    if raw is None:
-        return float(DEFAULT_INDEX_LOCK_TTL_SECONDS)
-    try:
-        return max(0.0, float(raw))
-    except ValueError:
-        return float(DEFAULT_INDEX_LOCK_TTL_SECONDS)
-
-
-# `_process_is_alive` / `_process_start_token` used to be defined inline
-# here; they now live in `simplicio_mapper.mapper.process_liveness` (issue
-# #268) so `canonical_gc.py` can reuse the exact same primitives without
-# `simplicio_mapper.mapper` importing from `simplicio_mapper.cli` (see that
-# module's docstring for why). Imported above, re-exported under their
-# original names so every existing call site in this file is unchanged.
-
-
-def _lock_file_snapshot(path: str) -> tuple[bytes, tuple[int, int, int]] | None:
-    try:
-        with open(path, "rb") as handle:
-            raw = handle.read()
-        stat = os.stat(path)
-    except OSError:
-        return None
-    return raw, (stat.st_mtime_ns, stat.st_size, getattr(stat, "st_ino", 0))
-
-
-def _remove_lock_snapshot(path: str, snapshot: tuple[bytes, tuple[int, int, int]]) -> bool:
-    if _lock_file_snapshot(path) != snapshot:
-        return False
-    try:
-        os.unlink(path)
-    except FileNotFoundError:
-        return True
-    except OSError:
-        return False
-    return True
-
-
 def _inspect_index_lock(root: str, out: str, *, recover: bool = False) -> dict:
-    """Classify a lock and optionally remove a proven orphan without races."""
-    path = _lock_path(root, out)
-    snapshot = _lock_file_snapshot(path)
-    if snapshot is None:
-        return {"exists": False, "active": False, "recovered": False, "reason": "absent"}
-    raw, stat_identity = snapshot
-    age = max(0.0, time.time() - (stat_identity[0] / 1_000_000_000))
-    stripped = raw.decode("utf-8", errors="replace").strip()
-    record: dict | None = None
-    legacy = False
-    try:
-        parsed = json.loads(stripped)
-        if isinstance(parsed, dict):
-            record = parsed
-        elif isinstance(parsed, int) and parsed > 0 and stripped.isdigit():
-            legacy = True
-            record = {"pid": parsed}
-    except ValueError:
-        if stripped.isdigit():
-            legacy = True
-            record = {"pid": int(stripped)}
+    """Classify the per-worktree index lock and optionally reclaim an orphan.
 
-    reason = "malformed"
-    recoverable = age >= MALFORMED_LOCK_GRACE_SECONDS
-    pid = None
-    if record is not None:
-        pid = record.get("pid")
-        if not isinstance(pid, int) or pid <= 0:
-            reason = "malformed"
-            recoverable = age >= MALFORMED_LOCK_GRACE_SECONDS
-        else:
-            alive = _process_is_alive(pid)
-            acquired_at = record.get("acquired_at")
-            process_start = record.get("process_start_identity", record.get("process_start"))
-            record_age = age
-            if isinstance(acquired_at, (int, float)):
-                record_age = max(0.0, time.time() - float(acquired_at))
-            if not alive:
-                reason = "dead_process"
-                recoverable = True
-            elif record_age > _index_lock_ttl_seconds():
-                # Report expiration for operators, but retain the lock while
-                # the owner is alive. Reclaiming an active lock can permit two
-                # deep passes to mutate the same artifact set concurrently.
-                reason = "ttl_expired"
-                recoverable = False
-            elif legacy:
-                reason = "legacy_live"
-                recoverable = False
-            elif (
-                record.get("schema") not in (INDEX_LOCK_SCHEMA, LEGACY_INDEX_LOCK_SCHEMA)
-                or not isinstance(record.get("owner_token", record.get("token")), str)
-                or not record.get("owner_token", record.get("token"))
-                or not isinstance(process_start, str)
-            ):
-                reason = "malformed"
-                # A partially-written record can still contain a valid PID.
-                # Never reclaim it while that process is alive; malformed
-                # metadata is not evidence that ownership ended.
-                recoverable = age >= MALFORMED_LOCK_GRACE_SECONDS and not alive
-            else:
-                actual_start = _process_start_token(pid)
-                expected_start = process_start
-                if (
-                    actual_start is not None
-                    and expected_start != "unknown"
-                    and actual_start != expected_start
-                ):
-                    reason = "pid_reused"
-                    recoverable = True
-                else:
-                    reason = "live"
-                    # A live owner is never reclaimed solely because its
-                    # heartbeat is old. This is the critical cross-platform
-                    # safety invariant; TTL only applies once the owner is
-                    # proven dead or unresolvable.
-                    recoverable = False
-
-    recovered = False
-    if recover and recoverable:
-        recovered = _remove_lock_snapshot(path, snapshot)
-        if not recovered:
-            # A concurrent owner replaced the observed lock; never unlink it.
-            return _inspect_index_lock(root, out, recover=False)
-    return {
-        "exists": not recovered,
-        "active": not recovered and not recoverable,
-        "recovered": recovered,
-        "reason": reason,
-        "reason_code": _lock_reason(reason),
-        "pid": pid,
-        "age_seconds": round(age, 3),
-        "legacy": legacy,
-        "owner": record if isinstance(record, dict) else None,
-    }
+    Thin ``operation="index"`` wrapper around
+    :func:`simplicio_mapper.mapper.file_lock.inspect_lock_at` -- no behavior
+    change versus the pre-extraction inline implementation.
+    """
+    return _inspect_lock_at(_lock_path(root, out), recover=recover)
 
 
 def _acquire_index_lock(root: str, out: str) -> _IndexLockHandle | None:
-    path = _lock_path(root, out)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    for _attempt in range(4):
-        token = secrets.token_hex(16)
-        record = {
-            "schema": INDEX_LOCK_SCHEMA,
-            "pid": os.getpid(),
-            "process_start": _process_start_token(os.getpid()) or "unknown",
-            "token": token,
-            "acquired_at": time.time(),
-            # Canonical v1 fields. The short aliases above remain for readers
-            # of the pre-0.21 lock format.
-            "process_start_identity": _process_start_token(os.getpid()) or "unknown",
-            "host": os.environ.get("COMPUTERNAME") or os.environ.get("HOSTNAME") or "unknown",
-            "created_at": time.time(),
-            "heartbeat_at": time.time(),
-            "owner_token": token,
-            "root_fingerprint": _root_fingerprint(root),
-            "mapper_version": _mapper_version(),
-            "operation": "index",
-        }
-        try:
-            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError:
-            status = _inspect_index_lock(root, out, recover=True)
-            if status["active"]:
-                return None
-            continue
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as handle:
-                json.dump(record, handle, sort_keys=True)
-                handle.write("\n")
-                handle.flush()
-                os.fsync(handle.fileno())
-        except BaseException:
-            try:
-                os.unlink(path)
-            except OSError:
-                pass
-            raise
-        return _IndexLockHandle(path=path, token=token)
-    return None
+    """Acquire the per-worktree index lock (``operation="index"``).
+
+    Thin wrapper around
+    :func:`simplicio_mapper.mapper.file_lock.acquire_lock_at` -- no behavior
+    change versus the pre-extraction inline implementation.
+    """
+    return _acquire_lock_at(
+        _lock_path(root, out),
+        operation="index",
+        extra_fields={"root_fingerprint": _root_fingerprint(root)},
+    )
 
 
 def _release_index_lock(lock: _IndexLockHandle | None) -> None:
-    if not lock:
-        return
-    snapshot = _lock_file_snapshot(lock.path)
-    if snapshot is None:
-        return
-    try:
-        record = json.loads(snapshot[0].decode("utf-8"))
-    except (UnicodeDecodeError, ValueError):
-        return
-    if not isinstance(record, dict) or record.get("owner_token", record.get("token")) != lock.token:
-        return
-    _remove_lock_snapshot(lock.path, snapshot)
+    _release_lock_at(lock)
 
 
 def _artifact_paths(root: str, out: str) -> dict[str, str]:
