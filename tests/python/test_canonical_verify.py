@@ -420,7 +420,7 @@ class CanonicalVerifyCliIntegrationTests(unittest.TestCase):
             timeout=30,
         )
         self.assertEqual(result.returncode, 2)
-        self.assertIn("unknown canonical sub-command", result.stderr)
+        self.assertIn("unknown canonical subcommand", result.stderr)
 
 
 if __name__ == "__main__":
