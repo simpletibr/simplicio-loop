@@ -73,6 +73,7 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "snapshot": "",
         "clustering_config": "",
         "changed_paths": [],
+        "canonical_reuse": False,
     }
     commands = (
         "index",
@@ -301,6 +302,10 @@ def _parse_args(argv: Sequence[str]) -> dict:
             opts["docs_only"] = True
         elif arg == "--changed-only":
             opts["incremental"] = True
+        elif arg == "--canonical-reuse":
+            opts["canonical_reuse"] = True
+        elif arg == "--no-canonical-reuse":
+            opts["canonical_reuse"] = False
         elif arg == "--background":
             opts["background"] = True
         elif arg == "--sync":

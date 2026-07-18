@@ -163,6 +163,13 @@ OPTIONS
                          citizenIdentity addressing per artifact path
                          (Algorithms of Asolaria addressing geometry).
   --update              Compatibility alias for index refresh workflows.
+  --canonical-reuse      index/scan: opt in to reusing a validated canonical
+                         default-branch manifest (issue #269, ADR-008) when
+                         this worktree's HEAD matches it and is clean. Falls
+                         back to the full legacy map on any miss/mismatch
+                         (never serves stale data). Default off; also
+                         settable via SIMPLICIO_MAPPER_CANONICAL_REUSE=1.
+  --no-canonical-reuse   Explicitly disable canonical reuse (default).
   --verbose             Show progress during index refreshes.
   --root <dir>          Project root to map. Defaults to cwd.
   --stack <name>        Stack hint when .starter-meta.json is absent.

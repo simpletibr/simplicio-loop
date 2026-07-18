@@ -1,0 +1,106 @@
+{
+  "canonical_reuse": {
+    "note": "Only reuse_measurements[0] pays the real canonical-build cost (detached checkout + full pipeline once); every subsequent entry hits the same content-addressed manifest.",
+    "runs": [
+      {
+        "cpu_s": 0.3784,
+        "files_mapped": 151,
+        "label": "canonical-reuse",
+        "peak_rss_kb": 33328,
+        "wall_s": 0.4322,
+        "worktree_index": 0
+      },
+      {
+        "cpu_s": 0.0143,
+        "files_mapped": 151,
+        "label": "canonical-reuse",
+        "peak_rss_kb": 33564,
+        "wall_s": 0.0546,
+        "worktree_index": 1
+      },
+      {
+        "cpu_s": 0.0131,
+        "files_mapped": 151,
+        "label": "canonical-reuse",
+        "peak_rss_kb": 33692,
+        "wall_s": 0.0556,
+        "worktree_index": 2
+      },
+      {
+        "cpu_s": 0.0225,
+        "files_mapped": 151,
+        "label": "canonical-reuse",
+        "peak_rss_kb": 33692,
+        "wall_s": 0.065,
+        "worktree_index": 3
+      },
+      {
+        "cpu_s": 0.0148,
+        "files_mapped": 151,
+        "label": "canonical-reuse",
+        "peak_rss_kb": 33692,
+        "wall_s": 0.0567,
+        "worktree_index": 4
+      }
+    ],
+    "total_wall_s": 0.6641
+  },
+  "caveats": [
+    "Wall time is a real perf_counter() measurement on this machine, this fixture size, this one run -- not averaged over multiple runs and not a guarantee of the same ratio at a different repo size.",
+    "cpu_s is time.process_time() for the main process only; it does not include time spent in the `git worktree add` subprocess calls used to set up the fixture (those are outside the measured window) but does include the in-process `git` subprocess calls issued by the mapper pipeline itself (git status/diff, invoked via subprocess.run from this same process).",
+    "peak_rss_kb is the whole process's cumulative peak-so-far (ru_maxrss), not an isolated delta for one call -- later measurements in the same process run never show a lower number than an earlier one even if that call itself used less memory.",
+    "No I/O-specific counters (page cache hits, syscall counts) are collected here -- only wall/CPU/RSS, as documented in the module docstring's 'whatever CPU/RSS is feasible in this container' scope note."
+  ],
+  "fixture": {
+    "files_per_worktree": 150,
+    "worktrees": 5
+  },
+  "full_remap": {
+    "runs": [
+      {
+        "cpu_s": 0.3415,
+        "files_mapped": 151,
+        "label": "full",
+        "peak_rss_kb": 30392,
+        "wall_s": 0.3352,
+        "worktree_index": 0
+      },
+      {
+        "cpu_s": 0.3613,
+        "files_mapped": 151,
+        "label": "full",
+        "peak_rss_kb": 31044,
+        "wall_s": 0.3236,
+        "worktree_index": 1
+      },
+      {
+        "cpu_s": 0.3504,
+        "files_mapped": 151,
+        "label": "full",
+        "peak_rss_kb": 31172,
+        "wall_s": 0.3221,
+        "worktree_index": 2
+      },
+      {
+        "cpu_s": 0.3518,
+        "files_mapped": 151,
+        "label": "full",
+        "peak_rss_kb": 31172,
+        "wall_s": 0.3298,
+        "worktree_index": 3
+      },
+      {
+        "cpu_s": 0.3442,
+        "files_mapped": 151,
+        "label": "full",
+        "peak_rss_kb": 31172,
+        "wall_s": 0.3045,
+        "worktree_index": 4
+      }
+    ],
+    "total_wall_s": 1.6152
+  },
+  "generated_at": "2026-07-18T00:48:01Z",
+  "schema": "simplicio.canonical-reuse-benchmark/v1",
+  "wall_time_speedup_ratio": 2.432
+}
