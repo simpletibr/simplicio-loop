@@ -11,6 +11,7 @@ import argparse
 import json
 import sys
 
+from .commands.versions import versions_report
 from .ecosystem import check as eco_check
 from .ecosystem import ensure_latest as eco_ensure_latest
 from .ecosystem import tracked_packages
@@ -124,6 +125,27 @@ def _render_events(summary: dict) -> None:
         print(f"  - [{record.get('ts', '?')}] {record.get('event', '?')}: {record.get('payload', {})}")
 
 
+def _render_mapper_versions(payload: dict) -> None:
+    """Issue #232: surface the Mapper installed/declared/tested versions and
+    drift result (`simplicio.component_manifest.detect_drift`) so `doctor`
+    shows this without a separate `simplicio-cli versions` call. Read-only —
+    never raises, never touches a running task's state (see
+    `simplicio/component_manifest.py`'s `DriftResult` docstring)."""
+    print()
+    print("mapper component versions (issue #232):")
+    mapper = payload["mapper"]
+    print(f"  installed        {mapper['installed'] or '(not installed)'}")
+    print(f"  declared_range   {mapper['declared_range'] or '(none declared)'}")
+    tested = mapper["tested_against"] or f"null ({mapper['tested_against_reason']})"
+    print(f"  tested_against   {tested}")
+    print(f"  latest_known     null ({mapper['unavailable_reason']})")
+    drift = payload["drift"]
+    if drift["has_drift"]:
+        print(f"  drift            {drift['kind']}: {drift['reason']}")
+    else:
+        print("  drift            none")
+
+
 def _render_native_delegation(summary: dict) -> None:
     """Issue #111: surface the native-vs-python routing telemetry
     (`native_delegation` events, `simplicio.runtime_bridge.record_delegation`)
@@ -221,6 +243,14 @@ def main(argv: list[str] | None = None) -> int:
     events = events_summary(args.root, limit=args.events_limit)
     delegation = native_delegation_summary(args.root)
     hub_status = HubTaskAdapter.create().doctor_status()
+    # Issue #232: read-only, cannot interrupt/block an in-flight `run_task` —
+    # see `simplicio/component_manifest.py`'s `DriftResult` docstring and
+    # `tests/python/test_versions_command.py::test_versions_report_does_not_interfere_with_active_task`.
+    # Deliberately does NOT forward `args.root` (the *target project* root
+    # for `.simplicio/events.jsonl`) — the Mapper version/manifest state is
+    # about the `simplicio-cli` checkout itself, a different root entirely
+    # (see `commands/versions.py::versions_report`'s docstring).
+    mapper_versions = versions_report()
 
     if args.json:
         payload = result.to_dict()
@@ -233,12 +263,14 @@ def main(argv: list[str] | None = None) -> int:
         payload["observability_events"] = events
         payload["native_delegation"] = delegation
         payload["hub"] = hub_status
+        payload["mapper_versions"] = mapper_versions
         print(json.dumps(payload, indent=2))
         return 0
 
     _render_human(result, profile)
     if check_updates:
         _render_ecosystem(eco_statuses, eco_upgraded)
+    _render_mapper_versions(mapper_versions)
     _render_events(events)
     _render_native_delegation(delegation)
     _render_hub_status(hub_status)

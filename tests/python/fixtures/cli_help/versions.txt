@@ -1,0 +1,9 @@
+usage: simplicio-py versions [-h] [--root ROOT] [--json]
+
+options:
+  -h, --help   show this help message and exit
+  --root ROOT  simplicio-cli checkout to introspect for
+               pyproject.toml/uv.lock/git commit (NOT the target project
+               root); default: auto-detect (cwd, then this installed package's
+               own directory)
+  --json       machine-readable output
