@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.24.1] - 2026-07-18
+
+### Fixed
+
+- Cut an actual tagged/published release containing the `0.24.0` timeout
+  fix (bounded synchronous scans, terminal `phase=timeout` receipts with
+  `failure_reason=scan_timeout`, `exit_code=1`, and dead-owner lock
+  recovery — `simplicio_mapper/cli/_status_engine.py`,
+  `simplicio_mapper/cli/_background.py`) and the additional canonical-map
+  and async-pipeline work merged since (issues #235, #236) that had piled
+  up on top of the untagged `0.24.0` version bump (issue #233).
+
+### Release process notes (issue #233)
+
+- **Root cause of the drift**: the `0.24.0` version bump (commit
+  `caa54aa`, "release: simplicio-mapper v0.24.0 (#253)") updated
+  `package.json`/`pyproject.toml`/`simplicio_mapper/__init__.py` and the
+  changelog, but **no `v0.24.0` git tag was ever created and no PyPI
+  publish ran** for it — `git tag -l` on this repo stops at `v0.23.1`.
+  Thirteen further commits (issues #235, #236, plus a perf fix) landed on
+  `main` afterward without another version bump, so any operator who
+  installed `simplicio-mapper` from PyPI was still resolving `0.23.1`,
+  exactly as reported in issue #233, even though `origin/main`'s source
+  tree had long since carried the PR #232 timeout fix (and more).
+- **How to detect a stale install**: compare `simplicio-mapper --version`
+  (or `pip show simplicio-mapper`) against the latest tag in
+  `git tag -l 'v*' --sort=-v:refname | head -1` / the latest GitHub
+  Release. A mismatch — especially an installed version at or below
+  `0.23.1` — means the operator does not have the PR #232 timeout fix and
+  must reinstall.
+- **How to upgrade**: `pip install --upgrade simplicio-mapper==0.24.1`
+  (or `pip install --force-reinstall simplicio-mapper==0.24.1` if the
+  environment previously pinned `0.23.1`). Verify with
+  `simplicio-mapper --version` and `pip show simplicio-mapper` reporting
+  the same `0.24.1`, then confirm the fix behaviorally: a bounded
+  `scan --json --sync --timeout <n>` against a slow/blocked root
+  surfaces `phase=timeout`, `failure_reason=scan_timeout`, `exit_code=1`,
+  and leaves no orphaned lock (`status --json` shows `lock=false` on the
+  next run); a normal `scan --json --sync --timeout 30` produces
+  `phase=complete`, `exit_code=0`, and `status --json` reports
+  `terminal=true`, `fresh=true`, `lock=false`, `warnings=[]`.
+- **Rollback**: `pip install simplicio-mapper==0.23.1` restores the prior
+  published release if `0.24.1` regresses in the field; there is no
+  `0.24.0` PyPI artifact to roll back to, since it was never published.
+- This entry intentionally does not reopen or modify the PR #232
+  implementation itself — the fix already lives in
+  `simplicio_mapper/cli/_status_engine.py` /
+  `simplicio_mapper/cli/_background.py` and is covered by
+  `tests/python/test_cli_coverage.py`; this release only closes the
+  publish/tag/install gap around it.
+
 ## [0.24.0] - 2026-07-17
 
 ### Fixed
