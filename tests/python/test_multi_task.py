@@ -365,6 +365,42 @@ def test_batch_parallel_drain_isolates_worktrees_and_cleans_each_item(tmp_path):
     assert [item[0] for item in cleaned] == ["A", "B"]
 
 
+def test_batch_drain_disallow_local_pool_blocks_explicit_parallelism(tmp_path):
+    """Issue #231 AC 1: a Hub-driven run must not let TaskBatch open its own
+    ThreadPoolExecutor on top of whatever concurrency the Hub already owns."""
+    batch = TaskBatch.create(
+        tmp_path / "hub.json",
+        [{"id": "A"}, {"id": "B"}],
+        source_hash="source",
+        plan_hash="plan",
+        base_sha="base",
+    )
+    with pytest.raises(BatchError, match="local ThreadPoolExecutor"):
+        batch.drain(
+            lambda task: {"status": "passed", "receipt": {"status": "MEASURED"}},
+            max_workers=2,
+            disallow_local_pool=True,
+        )
+
+
+def test_batch_drain_disallow_local_pool_permits_default_single_worker(tmp_path):
+    """The guard only fires on an explicit max_workers > 1 — the default
+    (max_workers=1, never opens a pool) is unaffected either way."""
+    batch = TaskBatch.create(
+        tmp_path / "hub_single.json",
+        [{"id": "A"}, {"id": "B"}],
+        source_hash="source",
+        plan_hash="plan",
+        base_sha="base",
+    )
+    summary = batch.drain(
+        lambda task: {"status": "passed", "receipt": {"status": "MEASURED"}},
+        disallow_local_pool=True,
+        empty_rounds=1,
+    )
+    assert summary["counts"]["passed"] == 2
+
+
 def test_batch_drain_admits_late_tasks_before_stabilizing(tmp_path):
     batch = TaskBatch.create(
         tmp_path / "late.json", [{"id": "A"}], source_hash="source", plan_hash="plan", base_sha="base"

@@ -15,6 +15,7 @@ from .ecosystem import check as eco_check
 from .ecosystem import ensure_latest as eco_ensure_latest
 from .ecosystem import tracked_packages
 from .hardware import detect
+from .hub_adapter import HubTaskAdapter
 from .local_models import (
     RECOMMENDATIONS,
     ensure_recommended,
@@ -143,6 +144,17 @@ def _render_native_delegation(summary: dict) -> None:
         print(f"  - {verb:12s} {counts['native_pct']:5.1f}% native  ({counts['total']} total: {routes})")
 
 
+def _render_hub_status(status: dict) -> None:
+    """Issue #231: surface the resolved Hub adapter mode/identity so a
+    Hub-driven run's misconfiguration (mode=on with no propagated identity)
+    is visible without reading env vars by hand."""
+    print()
+    print("hub adapter (issue #231):")
+    print(f"  mode                    {status['mode']}")
+    print(f"  identity complete       {status['identity_complete']}")
+    print(f"  local scheduler allowed {status['local_scheduler_allowed']}")
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="simplicio-py doctor")
     p.add_argument(
@@ -208,6 +220,7 @@ def main(argv: list[str] | None = None) -> int:
 
     events = events_summary(args.root, limit=args.events_limit)
     delegation = native_delegation_summary(args.root)
+    hub_status = HubTaskAdapter.create().doctor_status()
 
     if args.json:
         payload = result.to_dict()
@@ -219,6 +232,7 @@ def main(argv: list[str] | None = None) -> int:
             }
         payload["observability_events"] = events
         payload["native_delegation"] = delegation
+        payload["hub"] = hub_status
         print(json.dumps(payload, indent=2))
         return 0
 
@@ -227,4 +241,5 @@ def main(argv: list[str] | None = None) -> int:
         _render_ecosystem(eco_statuses, eco_upgraded)
     _render_events(events)
     _render_native_delegation(delegation)
+    _render_hub_status(hub_status)
     return 0

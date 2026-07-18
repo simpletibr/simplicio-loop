@@ -764,7 +764,7 @@ async def run_tasks_async(
     task_specs: list[dict[str, Any]],
     *,
     concurrency: int | None = None,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any] | BaseException]:
     """Run several INDEPENDENT tasks concurrently (issue #212).
 
     ``task_specs`` is a list of kwargs dicts accepted by :func:`run_task`

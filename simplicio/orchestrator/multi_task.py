@@ -333,6 +333,7 @@ class TaskBatch:
         worktree_cleanup: WorktreeCleanup | None = None,
         stop_requested: Callable[[], bool] | None = None,
         task_source: TaskSource | None = None,
+        disallow_local_pool: bool = False,
     ) -> dict[str, Any]:
         """Drain ready cards, optionally in isolated parallel worktrees.
 
@@ -341,11 +342,26 @@ class TaskBatch:
         per item and cleanup on both success and failure.  ``task_source`` is
         polled before every empty round so late cards cannot be reported as a
         globally complete drain.
+
+        ``disallow_local_pool`` (issue #231 AC 1 / plan step 12): when a Hub
+        already owns concurrency for this run, ``TaskBatch`` must not open a
+        second, duplicate scheduler. Default ``False`` preserves today's
+        standalone behavior unchanged; a caller that resolved
+        ``simplicio.hub_adapter.HubTaskAdapter.mode == "on"`` passes
+        ``not adapter.local_scheduler_allowed`` here instead of silently
+        allowing ``max_workers > 1`` to spin up a local
+        ``ThreadPoolExecutor``.
         """
         if empty_rounds < 0:
             raise BatchError("empty_rounds must be >= 0")
         if max_workers < 1:
             raise BatchError("max_workers must be >= 1")
+        if disallow_local_pool and max_workers > 1:
+            raise BatchError(
+                "max_workers > 1 requires a local ThreadPoolExecutor, which "
+                "is disallowed here (issue #231: a Hub-driven run owns "
+                "concurrency — TaskBatch must not open a second scheduler)"
+            )
         rounds = 0
         consecutive_empty_rounds = 0
         executed: list[str] = []
