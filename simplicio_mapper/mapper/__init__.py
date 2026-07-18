@@ -28,6 +28,10 @@ from .async_pipeline import (
     build_artifacts_async,
     build_file_inventory_async,
 )
+from .canonical_api import (
+    get_effective_map_view,
+    get_effective_map_view_async,
+)
 from .emit import (
     _build_agent_tree,
     _call_graph_file_graph,
@@ -133,6 +137,8 @@ from .parse import (
 )
 
 __all__ = [
+    "get_effective_map_view",
+    "get_effective_map_view_async",
     "ARCHITECTURE_INVENTORY_SCHEMA",
     "ARTIFACT_SCHEMA",
     "ARTIFACT_VERSION",

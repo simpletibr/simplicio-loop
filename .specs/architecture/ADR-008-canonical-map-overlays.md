@@ -359,6 +359,16 @@ implementação**, não escrever um segundo lock do zero:
    comandos atuais.
 8. API sync/async para o Loop Hub — depois que 1-7 estiverem estáveis e com
    benchmark comprovando o ganho pedido pela issue.
+   > **Status (issue #236, API de biblioteca): implementado.**
+   > `simplicio_mapper/mapper/canonical_api.py` expõe
+   > `get_effective_map_view()` e `get_effective_map_view_async()` para
+   > consumidores in-process/Loop Hub. A API compartilha o mesmo fingerprint
+   > do adapter `index`/`scan` quando o caller não informa um fingerprint
+   > explícito, constrói/reusa o manifesto canônico, calcula o overlay do
+   > worktree atual e retorna a composição lazy. Falhas de identidade, build,
+   > overlay ou compatibilidade retornam `None` (fail-closed), nunca uma visão
+   > parcial/obsoleta.
+
 
 Cada passo acima é um PR próprio, sequenciado, cada um preservando o
 comportamento observável dos comandos existentes até que o passo 6
@@ -378,8 +388,11 @@ contrato.
       não implementado; tracked em #263/#269.
 - [ ] Passo 7 — comandos `canonical status/build/verify/gc` — não
       implementado; tracked em #263/#266/#267/#268.
-- [ ] Passo 8 — API sync/async para o Loop Hub — não implementado, depende
-      de 1-7 estarem estáveis com benchmark.
+- [x] Passo 8 — API sync/async para o Loop Hub — implementado em
+      `simplicio_mapper/mapper/canonical_api.py`: `get_effective_map_view()` e
+      `get_effective_map_view_async()` resolvem manifesto canônico + overlay
+      e retornam `EffectiveMapView` lazy sem emitir recibos de CLI nem
+      materializar artefatos por worktree.
 
 Passos 6-8 são escopo de #263 e das issues filhas, trabalhadas por outros
 agents em worktrees separados (`wt-mapper-266`..`wt-mapper-270`) em
