@@ -59,6 +59,7 @@ from ..mapper.file_lock import (
 from ..mapper.process_liveness import process_is_alive as _process_is_alive
 from ..mapper.process_liveness import process_start_token as _process_start_token
 from ..retrieval_index import build_retrieval_index, write_retrieval_index
+from ..savings import estimate_tokens
 from ..toon import encode_toon_with_report
 from ._args import _read_json_safe
 from ._shared import (
@@ -496,6 +497,40 @@ def _apply_geometry(payload: dict, root: str) -> dict:
     return payload
 
 
+def _reconcile_toon_token_estimate(payload: dict, fallbacks: list[dict]) -> dict:
+    """Make ``payload["metrics"]["estimated_tokens"]`` honest when some
+    container fell back to embedded JSON instead of the compact TOON shape.
+
+    ``estimated_tokens`` (see ``retrieval_index.fit_token_budget`` /
+    ``cli/_status_engine.py``) is computed *before* ``--for-llm toon``
+    serialization happens, on the assumption that every array takes the
+    token-lean tabular/inline path. When ``encode_toon_with_report`` reports
+    one or more ``toon_fallbacks`` (issue #308), that assumption is false for
+    this payload — the real emitted text is bigger than the pre-serialization
+    estimate accounted for. Recompute the figure from the actual serialized
+    text (TOON + any embedded-JSON fallbacks, exactly as printed) so the
+    reported estimate never understates what is really on the wire.
+    """
+    if not fallbacks:
+        return payload
+    metrics = payload.get("metrics")
+    if not isinstance(metrics, dict) or "estimated_tokens" not in metrics:
+        return payload
+    text, _fallbacks = encode_toon_with_report(payload)
+    real_tokens = estimate_tokens(text)
+    if real_tokens <= metrics["estimated_tokens"]:
+        return payload
+    payload = dict(payload)
+    metrics = dict(metrics)
+    metrics["estimated_tokens"] = real_tokens
+    previous_method = str(metrics.get("tokens_estimation_method", ""))
+    metrics["tokens_estimation_method"] = (
+        f"{previous_method}+toon_fallback_actual" if previous_method else "toon_fallback_actual"
+    )
+    payload["metrics"] = metrics
+    return payload
+
+
 def _print_toon(payload: dict) -> None:
     """Print ``payload`` as TOON on stdout; log any fallbacks to stderr.
 
@@ -504,8 +539,17 @@ def _print_toon(payload: dict) -> None:
     embedded-JSON fallback — issue #148's "log do motivo" requirement.
     ``toon_fallbacks`` mirrors the machine-readable shape used elsewhere in
     the ecosystem (see TOON-CONTRACT.md).
+
+    When fallbacks occur and the payload carries a ``metrics.estimated_tokens``
+    figure, that figure is reconciled against the real serialized size before
+    printing (issue #308) — otherwise the reported estimate silently assumes
+    full TOON compression even though part of the payload fell back to JSON.
     """
     text, fallbacks = encode_toon_with_report(payload)
+    if fallbacks:
+        reconciled = _reconcile_toon_token_estimate(payload, fallbacks)
+        if reconciled is not payload:
+            text, fallbacks = encode_toon_with_report(reconciled)
     print(text)
     if fallbacks:
         print(json.dumps({"toon_fallbacks": fallbacks}, sort_keys=True), file=sys.stderr)

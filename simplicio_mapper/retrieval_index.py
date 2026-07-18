@@ -1292,6 +1292,73 @@ def _expand_handle(
     return f"expand:{root_fp}:{norm}:{ch}:{kind}:all"
 
 
+def fill_full_content_spans(
+    root: str,
+    ranked: Sequence[Mapping[str, Any]],
+    expanded: list[dict[str, Any]],
+    fit: dict[str, Any],
+    plan: QueryPlan,
+) -> int:
+    """Attach real, bounded source content to high-relevance targets (issue #308).
+
+    Without this, ``expanded_spans[].spans`` stays empty for any file whose
+    only match was lexical/BM25 (no symbol-name hit), leaving downstream
+    consumers with only an ``expand_handle`` pointer + ``omitted_ranges`` even
+    when the file's whole content would have fit comfortably inside the
+    requested token budget. This fills ``spans`` with the same bounded,
+    read-only content ``simplicio-mapper preview`` already produces
+    (``preview_source``, capped at ``DEFAULT_PREVIEW_LINES``/``DEFAULT_PREVIEW_BYTES``)
+    for the top-ranked target and the explicit ``--target`` (when included),
+    but only while the remaining token budget after selection/reasoning
+    metadata allows it -- otherwise the existing pointer-only behavior is kept.
+
+    Returns the number of tokens consumed by the content that was attached,
+    so callers can keep ``estimated_tokens`` honest about what was actually
+    delivered, not just what was reasoned about.
+    """
+    if not expanded or not ranked:
+        return 0
+    usable = int(fit.get("token_budget", 0)) - int(fit.get("safety_margin_tokens", 0))
+    remaining = usable - int(fit.get("estimated_tokens", 0))
+    if remaining <= 0:
+        return 0
+    added_tokens = 0
+    from .visualization import preview_source
+
+    for index, (row, entry) in enumerate(zip(ranked, expanded, strict=False)):
+        if not entry.get("readable") or entry.get("spans"):
+            continue
+        is_top_relevance = index == 0
+        is_explicit_target = bool(plan.target_path) and row.get("path") == plan.target_path
+        if not (is_top_relevance or is_explicit_target):
+            continue
+        try:
+            preview = preview_source(root, path=entry["path"], allow_full_content=False)
+        except (OSError, ValueError):
+            continue
+        content = str(preview.get("content") or "")
+        if not content:
+            continue
+        cost = estimate_tokens(content)
+        if cost > remaining:
+            continue
+        entry["spans"] = [
+            {
+                "start_line": preview.get("line_start", 1),
+                "end_line": preview.get("line_end", entry.get("line_count", 0)),
+                "symbol": None,
+                "kind": "full_content",
+                "chunk_id": "",
+                "range_hash": hashlib.sha256(content.encode("utf-8")).hexdigest()[:16],
+                "text": content,
+                "truncated": bool(preview.get("truncated", False)),
+            }
+        ]
+        remaining -= cost
+        added_tokens += cost
+    return added_tokens
+
+
 def resolve_expand_handle(
     root: str,
     expand_handle: str,
@@ -1584,6 +1651,9 @@ def select_context_targets(
 
     expanded = expand_spans(abs_root, ranked, index, symbol_index=symbol_index)
     fit = fit_token_budget(expanded, abs_root, token_budget=token_budget, plan=plan)
+    added_content_tokens = fill_full_content_spans(abs_root, ranked, expanded, fit, plan)
+    if added_content_tokens:
+        fit["estimated_tokens"] = int(fit["estimated_tokens"]) + added_content_tokens
     fidelity = fidelity_gate(ranked, expanded, plan, minimum_query_coverage=minimum_query_coverage)
 
     targets = [
@@ -1708,6 +1778,7 @@ __all__ = [
     "build_retrieval_index",
     "expand_spans",
     "fidelity_gate",
+    "fill_full_content_spans",
     "fit_token_budget",
     "load_retrieval_index",
     "rank_candidates",
