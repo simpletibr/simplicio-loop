@@ -372,9 +372,23 @@ class LargeRepositorySystemTest(unittest.TestCase):
     docs is deliberately not duplicated here to keep the unit-test suite
     fast; that scale is covered by the benchmark scripts instead (see
     ``scripts/async_pipeline_after_benchmark.py``).
+
+    Issue #235 follow-up (size-based dispatch, ADR-009 plan step 11): this
+    test's ~320-file tree is below the shipped dispatch default (600
+    files), so ``build_artifacts()`` would now route it through the
+    synchronous path by default. Since this test's whole purpose is
+    exercising the real, wired-in ASYNC pipeline through the CLI, the
+    dispatch threshold is forced down to 1 here so it keeps testing what it
+    always tested, regardless of the new default -- the dispatcher's own
+    routing logic has its own dedicated coverage in
+    ``tests/python/test_pipeline_dispatch.py``.
     """
 
     def setUp(self) -> None:
+        self._env_patch = mock.patch.dict(
+            os.environ, {"SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES": "1"}
+        )
+        self._env_patch.start()
         self._tmp = tempfile.TemporaryDirectory()
         self.root = Path(self._tmp.name) / "large-repo"
         self.root.mkdir()
@@ -388,6 +402,7 @@ class LargeRepositorySystemTest(unittest.TestCase):
 
     def tearDown(self) -> None:
         self._tmp.cleanup()
+        self._env_patch.stop()
 
     def test_real_cli_index_end_to_end_over_a_large_tree(self) -> None:
         out = StringIO()

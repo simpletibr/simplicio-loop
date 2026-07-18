@@ -129,6 +129,7 @@ docs/**
 !docs/ci/quality-gate.md
 !docs/async-pipeline-baseline-benchmark.md
 !docs/async-pipeline-after-benchmark.md
+!docs/async-pipeline-dispatch-benchmark.md
 scripts/**
 !scripts/build_hamt.py
 !scripts/async_pipeline_after_benchmark.py
@@ -161,6 +162,7 @@ scripts/**
 !scripts/perf_regression_gate.py
 !scripts/async_pipeline_baseline_benchmark.py
 !scripts/async_inventory_benchmark.py
+!scripts/async_pipeline_dispatch_benchmark.py
 playwright-report/**
 tests/**
 !tests/unit/
