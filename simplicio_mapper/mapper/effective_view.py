@@ -36,16 +36,16 @@ Assumed on-disk shape of the canonical file-manifest artifact
 
 ``CanonicalMapManifest.artifact_paths`` is a ``dict[str, str]`` of logical
 name -> path relative to ``storage_root`` (see ``canonical.py``'s
-docstring). The actual builder that populates this dict is migration-plan
-step 3 and does not exist yet at the time of writing. This module assumes
-(and documents here, so the future builder can match it, or this module can
-be adjusted once the builder lands) that the logical name
-``"file_manifest"`` points at a **JSON Lines** file -- one JSON object per
-line, each with at least a ``"path"`` key -- rather than a single JSON
-document holding the entire inventory as one array/object. JSON Lines is
-chosen deliberately: it lets a lookup stop reading as soon as it finds a
-matching line, instead of parsing (and materializing) every entry in the
-file, which is what a single top-level JSON array/object would force.
+docstring). The builder that populates this dict
+(:func:`simplicio_mapper.mapper.canonical_builder.build_canonical_manifest`,
+migration-plan step 3) writes the logical name ``"file_manifest"`` as a
+**JSON Lines** file -- one JSON object per line, each with at least a
+``"path"`` key, re-serialized from ``project_map["files"]`` at build time --
+rather than a single JSON document holding the entire inventory as one
+array/object (see ``canonical_builder._write_file_manifest_jsonl``). JSON
+Lines is chosen deliberately: it lets a lookup stop reading as soon as it
+finds a matching line, instead of parsing (and materializing) every entry in
+the file, which is what a single top-level JSON array/object would force.
 
 Shape chosen for the accessor
 ------------------------------

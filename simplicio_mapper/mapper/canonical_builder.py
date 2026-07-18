@@ -7,6 +7,15 @@ the resolved default-branch **commit** -- never for a worktree's current
 (possibly dirty) state -- and wrapping the result in a populated
 :class:`simplicio_mapper.mapper.canonical.CanonicalMapManifest`.
 
+In addition to those four artifacts, the builder also writes a
+``file_manifest`` JSON Lines side-artifact (one line per entry from
+``project_map["files"]``, re-serialized verbatim -- no new computation) so
+that :mod:`simplicio_mapper.mapper.effective_view`'s ``LazyFileResolver`` has
+something real to read lazily when a path falls through the overlay to the
+canonical base. This closes a documented interoperability gap (issue #236):
+``effective_view.py`` was written against an assumed ``"file_manifest"``
+artifact key that this builder did not originally populate.
+
 It deliberately reuses, rather than reimplements, the existing single
 mapping pipeline (:func:`simplicio_mapper.mapper.emit.build_artifacts`), the
 identity resolution from :mod:`simplicio_mapper.mapper.canonical_identity`
@@ -75,12 +84,35 @@ _MANIFEST_FILE_NAME = "manifest.json"
 #: write under ``.simplicio/`` for a live worktree (architecture-inventory is
 #: derived documentation, not one of the four canonical artifacts the ADR's
 #: manifest tracks, so it is intentionally excluded here).
+#:
+#: ``file_manifest`` is deliberately *not* listed here: unlike the four
+#: entries above (each a single JSON document, written verbatim via
+#: :func:`_write_json_stable`), it is a JSON Lines side-artifact -- see
+#: :func:`_write_file_manifest_jsonl` -- so it gets its own write step rather
+#: than going through the generic per-name loop in
+#: :func:`build_canonical_manifest`.
 _ARTIFACT_FILE_NAMES: dict[str, str] = {
     "project_map": "project-map.json",
     "precedent_index": "precedent-index.json",
     "symbol_index": "symbol-index.json",
     "call_graph": "call-graph.json",
 }
+
+#: Filename (inside the digest directory) for the JSON Lines file-manifest
+#: side-artifact that :mod:`simplicio_mapper.mapper.effective_view`'s
+#: ``LazyFileResolver`` reads lazily, one line at a time, when a path falls
+#: through the overlay to the canonical base (issue #236 interoperability
+#: gap between this builder and ``effective_view.py`` -- see both modules'
+#: docstrings). One JSON object per line, each carrying at least the
+#: ``"path"`` key ``effective_view.py`` requires, plus every other field
+#: already present on the corresponding entry in ``project_map["files"]``
+#: (``language``, ``size_bytes``, ``last_modified``, ``file_hash``,
+#: ``git_status``, ``roles``, ``imports``, ``exports``, ``importance``, and,
+#: when non-empty, ``bh_address``/``agent_id`` -- see
+#: ``simplicio_mapper.models.ProjectFile.to_dict``) so a resolver lookup
+#: never needs to consult ``project_map.json`` itself to get a usable
+#: per-file record.
+_FILE_MANIFEST_FILE_NAME = "file-manifest.jsonl"
 
 
 def _mapper_version() -> str:
@@ -113,6 +145,35 @@ def _write_json_stable(path: str, data: Any) -> None:
     tmp = f"{path}.tmp"
     with open(tmp, "wb") as handle:
         handle.write(orjson.dumps(data, option=_JSON_WRITE_OPTIONS))
+    os.replace(tmp, path)
+
+
+def _write_file_manifest_jsonl(path: str, file_entries: list[dict]) -> None:
+    """Write ``file_entries`` as a JSON Lines file, one object per line.
+
+    Re-serializes entries ``build_artifacts`` already produced (``project_map
+    ["files"]``) -- no new computation, just a different on-disk shape so
+    :func:`simplicio_mapper.mapper.effective_view._iter_canonical_file_entries`
+    can stream matches one line at a time instead of parsing a single large
+    JSON document. Entries are sorted by ``path`` first so the file is
+    byte-for-byte reproducible across builds of the same commit (matches this
+    builder's idempotency contract -- two builds of the same digest must
+    agree on every artifact, not just the manifest's own fields).
+    """
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    ordered = sorted(file_entries, key=lambda entry: entry.get("path") or "")
+    tmp = f"{path}.tmp"
+    with open(tmp, "wb") as handle:
+        for entry in ordered:
+            # Deliberately *not* `_JSON_WRITE_OPTIONS` (that constant includes
+            # `OPT_INDENT_2`, which would pretty-print each entry across
+            # multiple lines and break the one-object-per-line JSON Lines
+            # contract `effective_view._iter_canonical_file_entries` relies
+            # on to stream matches without parsing the whole file).
+            handle.write(orjson.dumps(entry))
+            handle.write(b"\n")
     os.replace(tmp, path)
 
 
@@ -278,11 +339,19 @@ def build_canonical_manifest(
     symbol_index = artifacts["symbol_index"]
     call_graph = artifacts["call_graph"]
 
-    # Relative to `cache_root` (e.g. "canonical/<digest>") -- matches the
-    # shape `canonical_storage.canonical_manifest_dir` describes, per
-    # `CanonicalMapManifest.storage_root`'s docstring ("relative to common
-    # git dir" -- `cache_root` here is whatever the caller resolved that to).
-    storage_root_field = os.path.relpath(digest_dir, cache_root).replace(os.sep, "/")
+    # Absolute path to the digest directory itself -- not merely relative to
+    # `cache_root` -- so any consumer (in particular
+    # `effective_view._canonical_file_manifest_path`, which does
+    # `os.path.join(canonical.storage_root, artifact_paths[name])` with no
+    # other context about where the cache root lives) can resolve an
+    # artifact's real on-disk path from the manifest alone, regardless of the
+    # resolving process's current working directory. `test_effective_view.py`
+    # already exercises this exact contract (its fixtures always pass an
+    # absolute directory as `storage_root`) -- this was a second, real
+    # interoperability gap alongside the missing `file_manifest` artifact key
+    # (issue #236): a cache-root-relative string here left every artifact
+    # unresolvable by `effective_view.py` even after `file_manifest` existed.
+    storage_root_field = digest_dir
 
     tmp_digest_dir = os.path.normpath(
         canonical_manifest_tmp_dir(cache_root, digest, str(os.getpid()))
@@ -293,6 +362,12 @@ def build_canonical_manifest(
         for logical_name, file_name in _ARTIFACT_FILE_NAMES.items():
             _write_json_stable(os.path.join(tmp_digest_dir, file_name), artifacts[logical_name])
             artifact_paths[logical_name] = file_name
+
+        _write_file_manifest_jsonl(
+            os.path.join(tmp_digest_dir, _FILE_MANIFEST_FILE_NAME),
+            list(project_map.get("files") or []),
+        )
+        artifact_paths["file_manifest"] = _FILE_MANIFEST_FILE_NAME
 
         counts = {
             "files": len(project_map.get("files") or []),

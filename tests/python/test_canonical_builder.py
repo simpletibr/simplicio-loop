@@ -75,6 +75,7 @@ class BuildCanonicalManifestTests(unittest.TestCase):
         self.assertIn("precedent_index", manifest.artifact_paths)
         self.assertIn("symbol_index", manifest.artifact_paths)
         self.assertIn("call_graph", manifest.artifact_paths)
+        self.assertIn("file_manifest", manifest.artifact_paths)
         # __post_init__ validation already ran during construction (frozen
         # dataclass) -- re-run it explicitly here so a future refactor that
         # bypasses the constructor (e.g. building via `object.__new__`) still
@@ -183,6 +184,46 @@ class BuildCanonicalManifestTests(unittest.TestCase):
             self.assertEqual(manifest_a, manifest_b)
         finally:
             _run(["worktree", "remove", "--force", str(second_worktree)], repo)
+
+    def test_file_manifest_is_jsonl_reserialized_from_project_map_files(self) -> None:
+        """Unit coverage for the #236 builder/effective-view reconciliation.
+
+        The builder must write a real ``file_manifest`` JSON Lines artifact --
+        one JSON object per line, each carrying at least ``path`` -- derived
+        from ``project_map["files"]`` without recomputing anything, so
+        ``effective_view.LazyFileResolver`` (which assumes exactly this shape)
+        can actually find real files from a real builder manifest.
+        """
+        import json
+
+        import orjson
+
+        repo = self.base / "repo-file-manifest"
+        _init_repo(repo)
+        manifest = self._build(repo, config_fingerprint="cfg-file-manifest")
+
+        digest_dir = _digest_dir(self.storage_root, manifest.key.digest())
+        project_map = orjson.loads(
+            (digest_dir / manifest.artifact_paths["project_map"]).read_bytes()
+        )
+        file_manifest_path = digest_dir / manifest.artifact_paths["file_manifest"]
+        self.assertTrue(file_manifest_path.is_file())
+
+        lines = file_manifest_path.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(lines), len(project_map["files"]))
+
+        entries_by_path = {}
+        for line in lines:
+            entry = json.loads(line)  # must be one full JSON object per line
+            self.assertIn("path", entry)
+            entries_by_path[entry["path"]] = entry
+
+        project_map_paths = {entry["path"] for entry in project_map["files"]}
+        self.assertEqual(set(entries_by_path), project_map_paths)
+        # Re-serialized verbatim, not recomputed -- every field on the
+        # project_map entry must survive into the file-manifest entry.
+        for entry in project_map["files"]:
+            self.assertEqual(entries_by_path[entry["path"]], entry)
 
     def test_returns_none_for_non_git_directory(self) -> None:
         plain_dir = self.base / "plain"
