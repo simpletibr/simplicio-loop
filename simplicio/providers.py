@@ -548,6 +548,7 @@ def _shell_out(cmd, label, stdin_text=None, cancel_event=None, *, provider="unkn
 
     env = {**os.environ, "SIMPLICIO_HOOK_GUARD": "1", "SIMPLICIO_SKIP_AUTO_INIT": "1"}
     root = os.environ.get("SIMPLICIO_LOG_ROOT")
+    started = time.monotonic()
     result = run_bounded_subprocess(
         cmd,
         label=label,
@@ -556,8 +557,6 @@ def _shell_out(cmd, label, stdin_text=None, cancel_event=None, *, provider="unkn
         cancel_event=cancel_event,
         root=root,
     )
-
-    started = time.monotonic()
 
     def terminal(status, reason_code, *, exit_code=None, detail=""):
         return {

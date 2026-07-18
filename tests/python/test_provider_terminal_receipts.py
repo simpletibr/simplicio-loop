@@ -34,6 +34,7 @@ def test_shell_out_maps_credit_exhaustion_to_terminal_receipt(monkeypatch):
     assert receipt["provider"] == "codex-cli"
     assert receipt["model"] == "gpt-5.6-luna"
     assert receipt["effort"] == "high"
+    assert receipt["duration_ms"] >= 0
 
 
 def test_shell_out_maps_silent_child_exit_without_fabricating_success(monkeypatch):
