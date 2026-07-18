@@ -27,11 +27,21 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 from simplicio import cli
+
+# `sys.executable`, not a hardcoded "python3": the validator commands below
+# are shell strings that actually run (see test_validate_runs_real_validator_
+# and_captures_evidence's docstring intent), and "python3" is not guaranteed
+# on every platform (notably plain Windows installs, which expose "python"
+# but not "python3") — see simplicio/commands/prototype.py's module
+# docstring on the shell=True portability boundary this exercises for real.
+PYTHON = f'"{sys.executable}"'
 
 
 def _tree_hash(root: Path) -> str:
@@ -176,7 +186,7 @@ def test_validate_runs_real_validator_and_captures_evidence(tmp_path, capsys):
         tmp_path,
         capsys,
         goal="run a real command",
-        validators=["python3 -c \"print('validator ran for real')\""],
+        validators=[f"{PYTHON} -c \"print('validator ran for real')\""],
     )
     cli.main(["prototype", "scaffold", "--root", str(tmp_path), "--plan", str(plan_path), "--json"])
     capsys.readouterr()
@@ -194,7 +204,7 @@ def test_validate_runs_real_validator_and_captures_evidence(tmp_path, capsys):
 
 def test_validate_captures_a_real_failure_not_a_stub_pass(tmp_path, capsys):
     plan_path = _plan_from_input(
-        tmp_path, capsys, goal="fail on purpose", validators=['python3 -c "import sys; sys.exit(7)"']
+        tmp_path, capsys, goal="fail on purpose", validators=[f'{PYTHON} -c "import sys; sys.exit(7)"']
     )
     cli.main(["prototype", "scaffold", "--root", str(tmp_path), "--plan", str(plan_path)])
     capsys.readouterr()
@@ -208,7 +218,7 @@ def test_validate_captures_a_real_failure_not_a_stub_pass(tmp_path, capsys):
 
 
 def test_promote_refuses_without_any_decision_file(tmp_path, capsys):
-    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=['python3 -c "pass"'])
+    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=[f'{PYTHON} -c "pass"'])
     target = tmp_path / "promoted"
 
     code = cli.main(
@@ -234,7 +244,7 @@ def test_promote_refuses_without_any_decision_file(tmp_path, capsys):
 
 
 def test_promote_refuses_a_forged_decision_file(tmp_path, capsys):
-    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=['python3 -c "pass"'])
+    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=[f'{PYTHON} -c "pass"'])
     target = tmp_path / "promoted"
 
     forged = _artifacts_dir(tmp_path) / "forged-decision.json"
@@ -275,7 +285,7 @@ def test_promote_refuses_a_forged_decision_file(tmp_path, capsys):
 
 
 def test_promote_succeeds_with_a_valid_accept_decision_and_revalidates(tmp_path, capsys):
-    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=['python3 -c "pass"'])
+    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=[f'{PYTHON} -c "pass"'])
     # Promotion target lives OUTSIDE --root deliberately: promoting into the
     # tracked source tree would itself change that tree's hash, which the
     # post-promotion revalidation step below would then (correctly) flag as
@@ -361,7 +371,7 @@ def test_stale_candidate_is_detected_and_rejected_at_validate(tmp_path, capsys):
 
 def test_stale_candidate_is_detected_and_rejected_at_promote(tmp_path, capsys):
     (tmp_path / "src.py").write_text("value = 1\n", encoding="utf-8")
-    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=['python3 -c "pass"'])
+    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=[f'{PYTHON} -c "pass"'])
     receipt = json.loads((candidate / ".prototype-receipt.json").read_text(encoding="utf-8"))
     decision_path = _artifacts_dir(tmp_path) / "decision.json"
     decision_path.write_text(
@@ -406,7 +416,7 @@ def test_stale_candidate_is_detected_and_rejected_at_promote(tmp_path, capsys):
 
 def test_reject_writes_a_reject_decision(tmp_path, capsys):
     plan_path, candidate = _scaffold_and_validate(
-        tmp_path, capsys, validators=['python3 -c "import sys; sys.exit(1)"']
+        tmp_path, capsys, validators=[f'{PYTHON} -c "import sys; sys.exit(1)"']
     )
 
     code = cli.main(
@@ -430,12 +440,171 @@ def test_reject_writes_a_reject_decision(tmp_path, capsys):
     assert decision_on_disk["decision"] == "REJECT"
 
 
+def _scaffold(tmp_path: Path, capsys, *, prototype_type: str, goal: str = "prove the scaffold") -> Path:
+    """Plan + scaffold `prototype_type`, returning the candidate directory."""
+    _, plan_path = _make_plan(tmp_path, capsys, prototype_type=prototype_type, goal=goal)
+    code = cli.main(["prototype", "scaffold", "--root", str(tmp_path), "--plan", str(plan_path), "--json"])
+    assert code == 0
+    receipt = json.loads(capsys.readouterr().out)
+    return Path(receipt["candidate"])
+
+
+def test_scaffold_schema_produces_json_schema_skeleton(tmp_path, capsys):
+    candidate = _scaffold(tmp_path, capsys, prototype_type="schema", goal="model the order payload")
+    files = list(candidate.glob("*.schema.json"))
+    assert len(files) == 1
+    payload = json.loads(files[0].read_text(encoding="utf-8"))
+
+    assert payload["$schema"] == "https://json-schema.org/draft/2020-12/schema"
+    assert payload["type"] == "object"
+    assert "properties" in payload
+
+
+def test_scaffold_failing_reproducer_produces_a_failing_test(tmp_path, capsys):
+    candidate = _scaffold(tmp_path, capsys, prototype_type="failing_reproducer")
+    text = (candidate / "test_prototype.py").read_text(encoding="utf-8")
+
+    assert "def test_prototype_reproducer():" in text
+    assert "raise AssertionError" in text
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", str(candidate / "test_prototype.py")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode != 0, "reproducer must fail until implemented, never fake-pass"
+
+
+def test_scaffold_wireframe_produces_screens_regions_interactions(tmp_path, capsys):
+    candidate = _scaffold(tmp_path, capsys, prototype_type="wireframe")
+    text = (candidate / "WIREFRAME.md").read_text(encoding="utf-8")
+
+    assert "## Screens" in text
+    assert "Regions:" in text
+    assert "Interactions:" in text
+    assert "Provenance:" in text
+
+
+def test_scaffold_architecture_diagram_produces_mermaid_skeleton(tmp_path, capsys):
+    candidate = _scaffold(tmp_path, capsys, prototype_type="architecture_diagram", goal="draw the payments flow")
+    text = (candidate / "ARCHITECTURE.md").read_text(encoding="utf-8")
+
+    assert "```mermaid" in text
+    assert "flowchart TD" in text
+    assert "draw the payments flow" in text
+    assert "Provenance:" in text
+
+
+def test_scaffold_data_model_produces_entity_field_table(tmp_path, capsys):
+    candidate = _scaffold(tmp_path, capsys, prototype_type="data_model")
+    text = (candidate / "MODEL.md").read_text(encoding="utf-8")
+
+    assert "## Entities" in text
+    assert "## Relationships" in text
+    assert "| Field | Type | Constraints | Notes |" in text
+    assert "Provenance:" in text
+
+
+def test_scaffold_benchmark_spike_produces_runnable_timeit_stub(tmp_path, capsys):
+    candidate = _scaffold(tmp_path, capsys, prototype_type="benchmark_spike")
+    path = candidate / "benchmark.py"
+    text = path.read_text(encoding="utf-8")
+
+    assert "import timeit" in text
+    assert "def workload():" in text
+    assert "NotImplementedError" in text
+    assert "Provenance:" in text
+
+    proc = subprocess.run([sys.executable, str(path)], capture_output=True, text=True, check=False)
+    assert proc.returncode != 0
+    assert "NotImplementedError" in proc.stderr
+
+
+def test_scaffold_mock_or_fake_is_a_real_contract_only_adapter(tmp_path, capsys):
+    candidate = _scaffold(tmp_path, capsys, prototype_type="mock_or_fake")
+    text = (candidate / "mock_adapter.py").read_text(encoding="utf-8")
+
+    assert "class PrototypeAdapter" in text
+    assert "NotImplementedError" in text
+
+
+def test_scaffold_code_spike_produces_bounded_spike_stub(tmp_path, capsys):
+    candidate = _scaffold(tmp_path, capsys, prototype_type="code_spike", goal="spike the retry backoff")
+    text = (candidate / "spike.py").read_text(encoding="utf-8")
+
+    assert "spike the retry backoff" in text
+    assert "def run():" in text
+    assert "NotImplementedError" in text
+
+
+def test_scaffold_vertical_slice_produces_entrypoint_and_test(tmp_path, capsys):
+    candidate = _scaffold(tmp_path, capsys, prototype_type="vertical_slice")
+
+    slice_doc = (candidate / "SLICE.md").read_text(encoding="utf-8")
+    entrypoint = (candidate / "slice_entrypoint.py").read_text(encoding="utf-8")
+    test_file = (candidate / "test_slice.py").read_text(encoding="utf-8")
+
+    assert "## Layers touched" in slice_doc
+    assert "Provenance:" in slice_doc
+    assert "def run_slice(" in entrypoint
+    assert "def test_vertical_slice_runs_end_to_end():" in test_file
+
+
+def test_scaffold_prompt_candidate_matches_variant_field_shape(tmp_path, capsys):
+    candidate = _scaffold(tmp_path, capsys, prototype_type="prompt_candidate")
+
+    manifest = json.loads((candidate / "prompt_candidate.json").read_text(encoding="utf-8"))
+    doc = (candidate / "PROMPT_CANDIDATE.md").read_text(encoding="utf-8")
+
+    for key in (
+        "task_class",
+        "index",
+        "persona_slug",
+        "instruction",
+        "expected_output_shape",
+        "stable_prefix_hash",
+        "dynamic_suffix_hash",
+        "creator_identity",
+    ):
+        assert key in manifest
+    assert "golden-case" in doc
+    assert "Provenance:" in doc
+
+
+def test_scaffold_workflow_simulation_produces_nodes_and_edges(tmp_path, capsys):
+    candidate = _scaffold(tmp_path, capsys, prototype_type="workflow_simulation")
+    text = (candidate / "WORKFLOW.md").read_text(encoding="utf-8")
+
+    assert "## Nodes" in text
+    assert "## Edges" in text
+    assert "->" in text
+    assert "Provenance:" in text
+
+
+def test_scaffold_storyboard_produces_scene_shot_copy_duration_table(tmp_path, capsys):
+    candidate = _scaffold(tmp_path, capsys, prototype_type="storyboard")
+    text = (candidate / "STORYBOARD.md").read_text(encoding="utf-8")
+
+    assert "| Scene | Shot | Copy | Duration (s) |" in text
+    assert "Provenance:" in text
+
+
+def test_scaffold_policy_or_security_model_produces_threat_mitigation_table(tmp_path, capsys):
+    candidate = _scaffold(tmp_path, capsys, prototype_type="policy_or_security_model")
+    text = (candidate / "THREAT_MODEL.md").read_text(encoding="utf-8")
+
+    assert "## Assets" in text
+    assert "| Asset | Threat | Likelihood | Impact | Mitigation |" in text
+    assert "Provenance:" in text
+
+
 def test_diff_reports_added_and_removed_files_between_target_and_candidate(tmp_path, capsys):
     target = tmp_path / "target"
     target.mkdir()
     (target / "existing.py").write_text("existing = True\n", encoding="utf-8")
 
-    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=['python3 -c "pass"'])
+    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=[f'{PYTHON} -c "pass"'])
 
     code = cli.main(
         [
