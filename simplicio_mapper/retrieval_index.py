@@ -51,6 +51,8 @@ import unicodedata
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from .savings import ESTIMATOR_LABEL, estimate_tokens
+
 # --------------------------------------------------------------------------- #
 # Schema / version constants
 # --------------------------------------------------------------------------- #
@@ -61,7 +63,7 @@ BUILDER_REVISION = "199.2"
 
 # Tokenizer policy recorded in every receipt so the serialized-byte measurement
 # is never silently mistaken for provider-measured usage.
-TOKENIZER_POLICY = "heuristic:chars-div-4"
+TOKENIZER_POLICY = ESTIMATOR_LABEL
 
 # The legacy chars/4 estimate remains available for span-cost compatibility.
 # Final pack enforcement uses the exact canonical UTF-8 JSON bytes instead.
@@ -1336,22 +1338,14 @@ def resolve_expand_handle(
 # --------------------------------------------------------------------------- #
 # Stage E — token-budget fitting
 # --------------------------------------------------------------------------- #
-def estimate_tokens(text: str) -> int:
-    """Declared tokenizer policy: ~4 chars/token heuristic (NOT provider-measured)."""
-    if not text:
-        return 0
-    return max(1, len(text) // 4)
-
-
 def serialized_json_bytes(payload: Any) -> bytes:
     """Return the canonical bytes that the CLI emits for a JSON payload."""
     return json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
 def serialized_token_count(payload: Any) -> int:
-    """Measure the declared UTF-8-bytes/4 policy on exact JSON bytes."""
-    size = len(serialized_json_bytes(payload))
-    return 0 if size == 0 else (size + 3) // 4
+    """Measure the exact serialized JSON with the declared BPE tokenizer."""
+    return estimate_tokens(serialized_json_bytes(payload).decode("utf-8"))
 
 
 def fit_token_budget(

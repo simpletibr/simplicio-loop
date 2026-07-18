@@ -40,10 +40,9 @@ from typing import Any
 
 SAVINGS_EVENT_SCHEMA = "simplicio.savings-event/v1"
 
-#: stdlib-only heuristic, ~4 characters per token -- the same default
-#: estimator `scripts/token_budget.py` uses, so figures produced by either
-#: module in this repo are directly comparable without a hidden unit switch.
-ESTIMATOR_LABEL = "heuristic:chars-div-4"
+#: Local BPE estimate. Provider usage remains the only ``measured`` source;
+#: this label makes the locally computed metric explicit in every receipt.
+ESTIMATOR_LABEL = "tiktoken:o200k_base"
 
 _DISABLE_ENV = "SIMPLICIO_DISABLE_RUN_LOG"
 
@@ -51,7 +50,14 @@ _DISABLE_ENV = "SIMPLICIO_DISABLE_RUN_LOG"
 def estimate_tokens(text: str | None) -> int:
     if not text:
         return 0
-    return max(1, len(text) // 4)
+    try:
+        import tiktoken
+
+        return len(tiktoken.get_encoding("o200k_base").encode(text, disallowed_special=()))
+    except Exception:
+        # Ledger creation and context selection must remain available if a
+        # constrained install cannot load the optional native tokenizer.
+        return max(1, len(text) // 4)
 
 
 def _append_jsonl(path: Path, record: dict[str, Any]) -> None:
