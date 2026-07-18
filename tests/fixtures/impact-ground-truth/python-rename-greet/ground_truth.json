@@ -1,0 +1,29 @@
+{
+  "schema": "simplicio.impact-ground-truth-fixture/v1",
+  "description": "Hand-authored ground truth for one concrete code change: renaming greet -> greet_person in src/greeter.py. Every file listed in impacted_files genuinely imports/calls greet (verified by reading the fixture source, not inferred). non_impacted_files never reference greet at all and exist to catch false positives (precision noise).",
+  "change": {
+    "target_file": "src/greeter.py",
+    "symbol": "greet",
+    "rename_to": "greet_person",
+    "query_type": "bug",
+    "query_arg": "src/greeter.py"
+  },
+  "impacted_files": [
+    "src/caller_a.py",
+    "src/caller_b.py",
+    "tests/test_greeter.py",
+    "tests/test_caller_a.py"
+  ],
+  "impacted_files_rationale": {
+    "src/caller_a.py": "imports greet directly (`from src.greeter import greet`) and calls it",
+    "src/caller_b.py": "imports the greeter module and calls greeter.greet(...)",
+    "tests/test_greeter.py": "calls greet(...) directly in an assertion",
+    "tests/test_caller_a.py": "exercises caller_a.announce, which calls greet transitively -- a real, indirect impact"
+  },
+  "non_impacted_files": [
+    "src/unrelated.py"
+  ],
+  "non_impacted_files_rationale": {
+    "src/unrelated.py": "does not import or reference greeter/greet anywhere"
+  }
+}

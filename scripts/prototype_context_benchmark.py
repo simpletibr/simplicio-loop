@@ -12,9 +12,17 @@ starting a prototype for a given query:
     query and measure the serialized envelope it returns.
 
 Remapping-cost and missed-impact-rate measurement (the other two metrics
-step 12 names) are explicitly deferred -- they need a corpus of prototypes
-with known "correct" impact sets to score misses against, which does not
-exist yet; this script only ever reports the token-cost axis, and says so.
+step 12 names) are now covered by two sibling scripts instead of here:
+
+- ``scripts/prototype_remap_cost_benchmark.py`` -- real wall-clock cost of a
+  full remap vs the canonical-map/overlay path for a small (one-file)
+  change, using the now-existing ``canonical_builder.py``/
+  ``canonical_overlay.py``/``effective_view.py`` APIs (issue #236/#263).
+- ``scripts/prototype_impact_accuracy_benchmark.py`` -- recall/precision of
+  ``build_prototype_context()``'s impact set against a hand-labeled ground
+  truth fixture (``tests/fixtures/impact-ground-truth/python-rename-greet``).
+
+This script only ever reports the token-cost axis.
 
 Two scenarios, both real (no synthetic data):
 
@@ -148,9 +156,10 @@ def run(
             "'Token savings report' rule): only real provider-reported usage earns "
             "'measured'"
         ),
-        "deferred": [
-            "remapping-cost comparison (needs a canonical-map/overlay lifecycle, issue #236/#263)",
-            "missed-impact-rate scoring (needs a labeled corpus of known-correct impact sets)",
+        "deferred": [],
+        "see_also": [
+            "scripts/prototype_remap_cost_benchmark.py (remapping-cost comparison)",
+            "scripts/prototype_impact_accuracy_benchmark.py (missed-impact-rate scoring)",
         ],
     }
 
@@ -190,6 +199,8 @@ def main(argv: list[str]) -> int:
         print(f"proof_kind:         {report['proof_kind']}")
         for item in report["deferred"]:
             print(f"deferred:           {item}")
+        for item in report["see_also"]:
+            print(f"see_also:           {item}")
     return 0
 
 

@@ -175,6 +175,8 @@ scripts/**
 !scripts/check_schema_registry_sync.py
 !scripts/schema_registry_baseline.json
 !scripts/prototype_context_benchmark.py
+!scripts/prototype_remap_cost_benchmark.py
+!scripts/prototype_impact_accuracy_benchmark.py
 playwright-report/**
 tests/**
 !tests/unit/

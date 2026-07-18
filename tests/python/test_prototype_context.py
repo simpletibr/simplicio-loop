@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -89,6 +91,7 @@ class BuildPrototypeContextTest(unittest.TestCase):
             "needs_review",
             "negative_space",
             "precedents",
+            "precedents_delegation",
             "precedents_note",
             "skeletons",
             "skeletons_note",
@@ -109,7 +112,8 @@ class BuildPrototypeContextTest(unittest.TestCase):
         self.assertEqual(payload["context_hash_algorithm"], "sha256:canonical-json-without-context_hash")
 
     def test_precedents_are_shaped_with_confidence_and_provenance(self) -> None:
-        payload = build_prototype_context(self.root, type_="bug", arg="src/app.py")
+        with mock.patch("simplicio_mapper.query.shutil.which", return_value=None):
+            payload = build_prototype_context(self.root, type_="bug", arg="src/app.py")
         for entry in payload["precedents"]:
             self.assertIn("precedent_id", entry)
             self.assertIn("path", entry)
@@ -117,13 +121,70 @@ class BuildPrototypeContextTest(unittest.TestCase):
             self.assertIsInstance(entry["confidence"], int)
             self.assertEqual(entry["provenance"], "local-keyword-overlap:precedent-index")
 
-    def test_precedents_never_calls_native_runtime(self) -> None:
-        # The `precedents` field is documented (module docstring + ADR-012
-        # addendum) as local-only -- unlike `ask precedent`, it must never
-        # shell out to the native `simplicio` runtime binary.
-        payload = build_prototype_context(self.root, type_="bug", arg="src/app.py")
+    def test_precedents_fall_back_to_local_when_native_runtime_absent(self) -> None:
+        # No `simplicio` runtime binary is installed in this test environment
+        # (and shutil.which is mocked out to guarantee that regardless of the
+        # host), so the native-first `precedents` field (issue #286 step 6)
+        # must fall back to the local keyword-overlap ranking, and label it
+        # honestly via `provenance` and `precedents_delegation`.
+        with mock.patch("simplicio_mapper.query.shutil.which", return_value=None):
+            payload = build_prototype_context(self.root, type_="bug", arg="src/app.py")
         for entry in payload["precedents"]:
-            self.assertNotEqual(entry["provenance"], "runtime-ask-precedent")
+            self.assertEqual(entry["provenance"], "local-keyword-overlap:precedent-index")
+        self.assertFalse(payload["precedents_delegation"]["used"])
+        self.assertEqual(payload["precedents_delegation"]["runtime"], "simplicio-runtime")
+
+    def test_precedents_use_native_runtime_when_available(self) -> None:
+        # Same native-first delegation path `ask precedent` uses
+        # (`query._runtime_precedent_search`): when the runtime binary is
+        # present and its response validates, the envelope must use it
+        # instead of the local fallback, and label every candidate with a
+        # genuine native provenance/confidence (never presented as a local
+        # keyword-overlap count).
+        native_payload = {
+            "schema": "simplicio.precedent-search/v1",
+            "candidates": [
+                {
+                    "precedent_id": "p1",
+                    "path": "src/app.py",
+                    "summary": "greet precedent",
+                    "tags": ["greet"],
+                    "score": 0.87,
+                    "reuse_level": "high",
+                    "suggested_next_action": "reuse as-is",
+                }
+            ],
+        }
+        completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=json.dumps(native_payload))
+        with (
+            mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
+            mock.patch("simplicio_mapper.query._validated_runtime_binary", return_value=(True, "validated")),
+            mock.patch("simplicio_mapper.query.subprocess.run", return_value=completed),
+        ):
+            payload = build_prototype_context(self.root, type_="bug", arg="src/app.py")
+        self.assertTrue(payload["precedents_delegation"]["used"])
+        self.assertEqual(payload["precedents_delegation"]["runtime"], "simplicio-runtime")
+        self.assertTrue(payload["precedents"])
+        entry = payload["precedents"][0]
+        self.assertEqual(entry["precedent_id"], "p1")
+        self.assertEqual(entry["provenance"], "runtime-precedent-search")
+        self.assertEqual(entry["confidence"], 0.87)
+        self.assertEqual(entry["reuse_level"], "high")
+
+    def test_precedents_fall_back_on_native_runtime_failure(self) -> None:
+        # Non-zero exit from a present-but-broken binary must still fall
+        # back honestly, never fake a native pass.
+        completed = subprocess.CompletedProcess(args=[], returncode=1, stdout="")
+        with (
+            mock.patch("simplicio_mapper.query.shutil.which", return_value="/usr/local/bin/simplicio"),
+            mock.patch("simplicio_mapper.query._validated_runtime_binary", return_value=(True, "validated")),
+            mock.patch("simplicio_mapper.query.subprocess.run", return_value=completed),
+        ):
+            payload = build_prototype_context(self.root, type_="bug", arg="src/app.py")
+        self.assertFalse(payload["precedents_delegation"]["used"])
+        self.assertEqual(payload["precedents_delegation"]["reason"], "command_failed")
+        for entry in payload["precedents"]:
+            self.assertEqual(entry["provenance"], "local-keyword-overlap:precedent-index")
 
     def test_resolves_existing_path_directly(self) -> None:
         payload = build_prototype_context(self.root, type_="bug", arg="src/app.py")
@@ -245,8 +306,13 @@ class NegativeSpaceHelperTest(unittest.TestCase):
 
 
 class PrecedentCandidatesHelperTest(unittest.TestCase):
-    """Unit: `_precedent_candidates()` in isolation (issue #286 step 6
-    follow-up -- crafted precedent-index items, no repo build needed)."""
+    """Unit: `_precedent_candidates()` in isolation (issue #286 step 6,
+    native-first delegation with local fallback -- crafted precedent-index
+    items, no repo build needed). The native `simplicio` runtime binary is
+    explicitly mocked absent in every case here so these tests exercise the
+    local fallback deterministically, regardless of the host; the native
+    branch itself is covered by `BuildPrototypeContextTest`'s
+    `test_precedents_use_native_runtime_when_available` above."""
 
     def setUp(self) -> None:
         self.items = [
@@ -269,36 +335,99 @@ class PrecedentCandidatesHelperTest(unittest.TestCase):
                 "tags": ["misc"],
             },
         ]
+        self._which_patch = mock.patch("simplicio_mapper.query.shutil.which", return_value=None)
+        self._which_patch.start()
+        self.addCleanup(self._which_patch.stop)
 
     def test_ranks_by_keyword_overlap(self) -> None:
-        candidates = _precedent_candidates(self.items, "checkout orders flow", limit=5)
+        candidates, delegation = _precedent_candidates(".", self.items, "checkout orders flow", limit=5)
         self.assertTrue(candidates)
         self.assertEqual(candidates[0]["precedent_id"], "p1")
+        self.assertFalse(delegation["used"])
 
     def test_every_candidate_has_confidence_and_provenance(self) -> None:
-        candidates = _precedent_candidates(self.items, "checkout billing", limit=5)
+        candidates, _delegation = _precedent_candidates(".", self.items, "checkout billing", limit=5)
         for entry in candidates:
             self.assertGreaterEqual(entry["confidence"], 1)
             self.assertEqual(entry["provenance"], "local-keyword-overlap:precedent-index")
 
     def test_no_overlap_returns_no_candidates(self) -> None:
-        candidates = _precedent_candidates(self.items, "completely nonmatching query text", limit=5)
+        candidates, _delegation = _precedent_candidates(
+            ".", self.items, "completely nonmatching query text", limit=5
+        )
         self.assertEqual(candidates, [])
 
     def test_respects_limit(self) -> None:
-        candidates = _precedent_candidates(self.items, "python precedent", limit=1)
+        candidates, _delegation = _precedent_candidates(".", self.items, "python precedent", limit=1)
         self.assertLessEqual(len(candidates), 1)
 
     def test_empty_query_text_returns_no_candidates(self) -> None:
-        candidates = _precedent_candidates(self.items, "", limit=5)
+        candidates, delegation = _precedent_candidates(".", self.items, "", limit=5)
         self.assertEqual(candidates, [])
+        self.assertEqual(delegation["reason"], "missing_argument")
 
     def test_carries_summary_and_tags_through(self) -> None:
-        candidates = _precedent_candidates(self.items, "checkout", limit=5)
+        candidates, _delegation = _precedent_candidates(".", self.items, "checkout", limit=5)
         entry = next(c for c in candidates if c["precedent_id"] == "p1")
         self.assertEqual(entry["path"], "src/orders/checkout.py")
         self.assertEqual(entry["summary"], "checkout flow precedent")
         self.assertIn("checkout", entry["tags"])
+
+
+class PrecedentCandidatesContradictoryTest(unittest.TestCase):
+    """Unit: contradictory/stale precedents must not crash ranking and must
+    produce a documented, deterministic tie-break (issue #286 mapper-scale
+    follow-up). Two precedent entries recommend opposite things for the same
+    overlap score -- ranking must still return a fully-ordered, stable
+    result, not raise and not silently drop one arbitrarily each run."""
+
+    def setUp(self) -> None:
+        self._which_patch = mock.patch("simplicio_mapper.query.shutil.which", return_value=None)
+        self._which_patch.start()
+        self.addCleanup(self._which_patch.stop)
+        # Both items have IDENTICAL tags/summary text -- and therefore an
+        # identical keyword-overlap score against the same query -- but
+        # contradictory recommendations, simulating two precedents from
+        # different eras of the same feature that disagree on approach.
+        self.items = [
+            {
+                "id": "stale-approach-a",
+                "path": "src/checkout/v1.py",
+                "summary": "checkout flow precedent: use synchronous payment capture",
+                "tags": ["checkout", "payment", "sync"],
+            },
+            {
+                "id": "stale-approach-b",
+                "path": "src/checkout/v2.py",
+                "summary": "checkout flow precedent: use async payment capture",
+                "tags": ["checkout", "payment", "sync"],
+            },
+        ]
+
+    def test_tied_contradictory_precedents_do_not_crash_ranking(self) -> None:
+        candidates, delegation = _precedent_candidates(".", self.items, "checkout payment sync", limit=5)
+        self.assertEqual(len(candidates), 2)
+        self.assertFalse(delegation["used"])
+
+    def test_tie_break_is_deterministic_across_repeated_calls(self) -> None:
+        # Same input, called repeatedly: the tie-break (stable sort, original
+        # index order preserved for equal overlap scores -- documented on
+        # `query._local_precedent_fallback`) must return candidates in the
+        # exact same order every time, never a random/unstable ordering.
+        orders = []
+        for _ in range(5):
+            candidates, _delegation = _precedent_candidates(".", self.items, "checkout payment sync", limit=5)
+            orders.append(tuple(c["precedent_id"] for c in candidates))
+        self.assertEqual(len(set(orders)), 1)
+        # The documented tie-break is stable-sort-preserves-input-order: the
+        # first item in `self.items` must stay first in every ranked result.
+        self.assertEqual(orders[0], ("stale-approach-a", "stale-approach-b"))
+
+    def test_contradictory_summaries_both_carry_confidence_and_provenance(self) -> None:
+        candidates, _delegation = _precedent_candidates(".", self.items, "checkout payment sync", limit=5)
+        for entry in candidates:
+            self.assertGreaterEqual(entry["confidence"], 1)
+            self.assertEqual(entry["provenance"], "local-keyword-overlap:precedent-index")
 
 
 class TruncateToBudgetTest(unittest.TestCase):

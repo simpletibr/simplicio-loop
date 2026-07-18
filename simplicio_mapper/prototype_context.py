@@ -31,33 +31,52 @@ already answers from, see `simplicio_mapper/query.py`):
 - a stable `simplicio.prototype-context/v1` envelope exposed via
   `simplicio-mapper prototype-context <root> --type <type> --arg <target>
   --json` (step 10, partial -- only this one entry point);
-- **precedent ranking integrated into the envelope** (step 6, follow-up
-  landed in this same slice): the `precedents` field reuses
+- **precedent ranking integrated into the envelope** (step 6, extended to
+  close issue #286's "Integrar precedent ranking e registrar
+  provenance/confidence" checklist item): the `precedents` field is
+  **native-first**, reusing the *exact same* delegation path F10 `ask
+  precedent` uses (`query._runtime_precedent_search` --
+  `SIMPLICIO_MAPPER_NO_RUNTIME_PRECEDENT` kill-switch, identity-validated
+  `simplicio` runtime binary, 10s timeout, `simplicio.precedent-search/v1`
+  envelope validation) with automatic, silent-never fallback to
   `query._local_precedent_fallback` -- the same local keyword-overlap
-  ranking `ask precedent` already falls back to when the native
-  `simplicio` runtime binary is absent -- against `precedent-index.json`,
-  annotated with a `confidence` (token-overlap count) and `provenance`
-  string on every entry. This is explicitly a **local, estimated** ranking:
-  it does not shell out to the native runtime the way `ask precedent`
-  itself can, and `confidence` is never presented as a measured relevance
-  score, only a keyword-overlap count.
+  ranking `ask precedent` itself falls back to -- against
+  `precedent-index.json` on any failure. Every entry carries a `confidence`
+  and a `provenance` string that names its real source
+  (`runtime-precedent-search` or `local-keyword-overlap:precedent-index`);
+  the envelope also carries a `precedents_delegation` block mirroring `ask
+  precedent`'s own `delegation` field.
+- **canonical default-branch map reuse / per-worktree overlays** (steps 1,
+  7, 8, issue #236/ADR-008): `build_prototype_context`'s `use_canonical`
+  parameter (on by default, `CANONICAL_REUSE_KILL_SWITCH`-gated) resolves
+  artifacts via `get_effective_map_view` -- the shared canonical manifest
+  plus this worktree's own incremental overlay -- instead of a from-scratch
+  full remap, whenever the worktree's overlay is safe to serve from
+  (fails closed to a full local `build_artifacts()` remap on any
+  identity/build/overlay/compatibility failure).
+- **remap-cost and missed-impact-rate benchmarks** (step 12, the two
+  metrics `scripts/prototype_context_benchmark.py`'s token-cost benchmark
+  explicitly deferred): `scripts/prototype_remap_cost_benchmark.py` times a
+  full canonical rebuild against an incremental overlay update, and
+  `scripts/prototype_impact_accuracy_benchmark.py` scores this module's
+  impact graph against a hand-labeled ground-truth fixture
+  (`tests/fixtures/impact-ground-truth/`) for real recall/precision -- both
+  always `proof_kind: estimated`, never presented as a universal accuracy
+  claim.
 
 Explicitly out of scope here (left for follow-up issues once the
-cross-repo/canonical-map pieces they depend on exist):
+cross-repo pieces they depend on exist):
 
-- Canonical default-branch map reuse / per-worktree overlays (steps 1, 7, 8)
-  -- depends on issue #236/#263 landing an operational canonical lifecycle
-  first; this command always resolves from the worktree it is run in.
 - Deterministic skeleton generation for schemas/data models/failing tests/
   vertical slices (step 5) -- a separate, larger feature; the envelope's
   `skeletons` field is always an empty list with a `note` saying so, never a
   fake/placeholder skeleton.
-- Native-runtime delegation for the `precedents` field above -- unlike `ask
-  precedent`, this envelope never shells out to the `simplicio` runtime
-  binary; it only ever uses the local fallback ranking.
-- Receipt/hash integration with the Loop/Runtime (step 11) and the
-  full-read/remap benchmark across golden repos (step 12, benchmark) --
-  both require infrastructure/consumers this repo does not own.
+- Receipt/hash integration with the Loop/Runtime (step 11) -- requires a
+  receipt contract that does not exist yet on the Loop/Runtime side.
+- The full-read/remap token-cost benchmark across golden repos in four
+  languages plus a monorepo (step 12) -- `scripts/prototype_context_benchmark.py`
+  covers one Python fixture at one repo scale, not the full four-language/
+  monorepo matrix; extending it is a separate, larger effort.
 """
 
 from __future__ import annotations
@@ -81,7 +100,14 @@ from .mapper.canonical_reuse import (
 from .mapper.canonical_reuse import (
     _read_json as _read_canonical_json,
 )
-from .query import _impact, _local_precedent_fallback, _resolve_symbol_name, _tests_for, _tokenize
+from .query import (
+    _impact,
+    _local_precedent_fallback,
+    _resolve_symbol_name,
+    _runtime_precedent_search,
+    _tests_for,
+    _tokenize,
+)
 from .savings import estimate_tokens
 
 #: Kill-switch env var (same pattern as the F10 `ask` native-delegation
@@ -231,16 +257,14 @@ def _negative_space(
     return candidates[:limit]
 
 
-def _precedent_candidates(precedent_items: list[dict], query_text: str, limit: int) -> list[dict]:
-    """Rank `precedent-index.json` items relevant to *query_text* (issue #286
-    step 6, follow-up to the `ask precedent` local fallback).
+_PRECEDENT_DELEGATION_RUNTIME = "simplicio-runtime"
 
-    Reuses `query._local_precedent_fallback` for the actual ranking/ordering
-    -- the same keyword-overlap logic `ask precedent` already falls back to
-    locally -- then re-derives a per-item `confidence` (the raw token-overlap
-    count) using the same `_tokenize` helper, since the shared fallback
-    returns only the ranked items, not their scores. `confidence` is always
-    an estimated overlap count, never a claimed measured relevance score.
+
+def _local_precedent_candidates(precedent_items: list[dict], query_text: str, limit: int) -> list[dict]:
+    """Local keyword-overlap ranking (the same fallback `ask precedent` uses
+    when the native runtime is unavailable). Returns candidates shaped like
+    `_precedent_candidates`'s native branch so callers see one uniform shape
+    regardless of which path answered.
     """
     ranked = _local_precedent_fallback(precedent_items, query_text, limit)
     query_tokens = _tokenize(query_text)
@@ -259,6 +283,56 @@ def _precedent_candidates(precedent_items: list[dict], query_text: str, limit: i
             }
         )
     return candidates
+
+
+def _precedent_candidates(
+    cwd: str, precedent_items: list[dict], query_text: str, limit: int
+) -> tuple[list[dict], dict[str, Any]]:
+    """Rank precedents relevant to *query_text* (issue #286 step 6) via the
+    SAME native-first delegation path F10 `ask precedent` uses
+    (`query._runtime_precedent_search`): shell out to the identity-validated
+    `simplicio` runtime binary (10s timeout, `SIMPLICIO_MAPPER_NO_RUNTIME_PRECEDENT`
+    kill-switch, `simplicio.precedent-search/v1` envelope validation), and on
+    ANY failure -- binary missing, kill-switch set, non-zero exit, timeout,
+    malformed JSON, or schema mismatch -- fall back automatically to
+    `query._local_precedent_fallback`, the same local keyword-overlap ranking
+    `ask precedent` itself falls back to. Never raises, never fakes a native
+    hit: a fallback is always labeled as one via `provenance` and the
+    returned delegation block.
+
+    Returns ``(candidates, delegation)`` where every candidate carries a
+    `provenance` naming its real source (`runtime-precedent-search` -- a
+    genuine native relevance score, never presented as a keyword-overlap
+    count -- or `local-keyword-overlap:precedent-index` -- an estimated
+    token-overlap count, never presented as measured) and `delegation` is
+    shaped like `ask precedent`'s own `payload["delegation"]`
+    (`runtime`/`used`/`reason`).
+    """
+    if not query_text:
+        return [], {"runtime": _PRECEDENT_DELEGATION_RUNTIME, "used": False, "reason": "missing_argument"}
+
+    native, delegation_reason = _runtime_precedent_search(cwd, query_text, limit)
+    if native is not None:
+        raw_candidates = native.get("candidates") or []
+        candidates = [
+            {
+                "precedent_id": item.get("precedent_id"),
+                "path": item.get("path"),
+                "summary": item.get("summary"),
+                "tags": item.get("tags") or [],
+                "confidence": item.get("score"),
+                "provenance": "runtime-precedent-search",
+                "reuse_level": item.get("reuse_level"),
+                "suggested_next_action": item.get("suggested_next_action"),
+            }
+            for item in raw_candidates[:limit]
+        ]
+        delegation = {"runtime": _PRECEDENT_DELEGATION_RUNTIME, "used": True, "reason": delegation_reason}
+        return candidates, delegation
+
+    candidates = _local_precedent_candidates(precedent_items, query_text, limit)
+    delegation = {"runtime": _PRECEDENT_DELEGATION_RUNTIME, "used": False, "reason": delegation_reason}
+    return candidates, delegation
 
 
 def _skeletons(type_: str, target_files: list[str], goal: str) -> list[dict[str, Any]]:
@@ -597,10 +671,17 @@ def build_prototype_context(
             ],
         )
     )
+    precedents_raw, precedents_delegation = _precedent_candidates(
+        abs_root, precedent_index.get("items") or [], precedent_query_text, limit
+    )
     precedents = [
         item
-        for item in _precedent_candidates(precedent_index.get("items") or [], precedent_query_text, limit)
-        if not _is_forbidden_context_path(str(item.get("path") or ""))
+        for item in precedents_raw
+        # A native candidate may have no `path` at all (the runtime's
+        # precedent-search envelope identifies precedents by ID, not always
+        # a repo-relative file path) -- absence of a path is not itself
+        # forbidden, only a path that resolves to a forbidden one is.
+        if not item.get("path") or not _is_forbidden_context_path(str(item.get("path")))
     ]
     negative_space = _negative_space(project_map, target_files, affected_paths, limit)
     context_paths = (
@@ -624,13 +705,17 @@ def build_prototype_context(
         "needs_review": impact["needs_review"],
         "negative_space": negative_space,
         "precedents": precedents,
+        "precedents_delegation": precedents_delegation,
         "precedents_note": (
-            "local keyword-overlap ranking against precedent-index.json (issue "
-            "#286 step 6, follow-up slice) -- the same fallback `ask precedent` "
-            "uses when the native `simplicio` runtime binary is unavailable; "
-            "`confidence` is an estimated token-overlap count, never a measured "
-            "relevance score, and this envelope never shells out to the native "
-            "runtime the way `ask precedent` itself can"
+            "native-first precedent ranking (issue #286 step 6) -- the SAME "
+            "delegation path F10 `ask precedent` uses: the identity-validated "
+            "`simplicio` runtime binary's precedent search when reachable "
+            "(`provenance=runtime-precedent-search`, `confidence` a genuine "
+            "native relevance score), falling back automatically to local "
+            "keyword-overlap ranking against precedent-index.json on any "
+            "failure (`provenance=local-keyword-overlap:precedent-index`, "
+            "`confidence` an estimated token-overlap count, never presented "
+            "as measured); see `precedents_delegation` for which path answered"
         ),
         "skeletons": _skeletons(type_, target_files, arg),
         "skeletons_note": "deterministic descriptors only; materialization belongs to an isolated Dev CLI candidate and never claims implementation",
