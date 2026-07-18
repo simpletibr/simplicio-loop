@@ -1,0 +1,69 @@
+{
+  "schema": "simplicio.async-pipeline-after-benchmark/v1",
+  "generated_at": "2026-07-18T00:02:30.170006+00:00",
+  "python_version": "3.14.5",
+  "seed": 20260717,
+  "results": [
+    {
+      "size": "small",
+      "file_count": 4,
+      "runs": 3,
+      "cold": {
+        "wall_median_s": 0.1288,
+        "wall_p95_s": 0.1325,
+        "cpu_median_s": 0.0156,
+        "peak_rss_mb": 33.69,
+        "files_per_sec": 31.06
+      },
+      "warm": {
+        "wall_median_s": 0.0764,
+        "wall_p95_s": 0.0793,
+        "cpu_median_s": 0.0312,
+        "peak_rss_mb": 33.66,
+        "files_per_sec": 52.35
+      },
+      "warm_vs_cold_speedup_ratio": 1.69
+    },
+    {
+      "size": "medium",
+      "file_count": 220,
+      "runs": 3,
+      "cold": {
+        "wall_median_s": 1.6082,
+        "wall_p95_s": 2.258,
+        "cpu_median_s": 0.8281,
+        "peak_rss_mb": 40.79,
+        "files_per_sec": 136.8
+      },
+      "warm": {
+        "wall_median_s": 0.3426,
+        "wall_p95_s": 0.4764,
+        "cpu_median_s": 0.8594,
+        "peak_rss_mb": 41.13,
+        "files_per_sec": 642.23
+      },
+      "warm_vs_cold_speedup_ratio": 4.69
+    },
+    {
+      "size": "large",
+      "file_count": 1650,
+      "runs": 3,
+      "cold": {
+        "wall_median_s": 13.8028,
+        "wall_p95_s": 14.4471,
+        "cpu_median_s": 9.1875,
+        "peak_rss_mb": 53.93,
+        "files_per_sec": 119.54
+      },
+      "warm": {
+        "wall_median_s": 5.2692,
+        "wall_p95_s": 5.4196,
+        "cpu_median_s": 9.0469,
+        "peak_rss_mb": 55.44,
+        "files_per_sec": 313.14
+      },
+      "warm_vs_cold_speedup_ratio": 2.62
+    }
+  ],
+  "baseline_reference": "docs\\evidence\\async-pipeline-baseline-benchmark.json"
+}

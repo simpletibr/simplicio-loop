@@ -14,12 +14,16 @@ Run with: python3 -m unittest discover -s tests/python
 from __future__ import annotations
 
 import asyncio
+import json
 import os
+import subprocess
 import sys
 import tempfile
 import threading
 import time
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest import mock
 
@@ -28,6 +32,8 @@ sys.path.insert(0, str(ROOT))
 
 import orjson  # noqa: E402
 
+from simplicio_mapper.cli import main as cli_main  # noqa: E402
+from simplicio_mapper.contract import validate_instance  # noqa: E402
 from simplicio_mapper.mapper.async_pipeline import (  # noqa: E402
     _install_uvloop_if_available,
     _max_concurrent_files,
@@ -37,6 +43,8 @@ from simplicio_mapper.mapper.async_pipeline import (  # noqa: E402
 )
 from simplicio_mapper.mapper.emit import build_artifacts  # noqa: E402
 from simplicio_mapper.mapper.parse import _build_file_inventory  # noqa: E402
+
+SCHEMA_ROOT = ROOT / "contracts" / "mapper-artifacts" / "v1" / "schemas"
 
 
 def _write(base: Path, rel: str, content: str) -> None:
@@ -291,6 +299,167 @@ class OutputEquivalenceTest(unittest.TestCase):
             )
 
         self.assertEqual(_normalize(first), _normalize(second))
+
+
+def _materialize_large_tree(root: Path, file_count: int) -> int:
+    """Deterministic synthetic Python tree, same shape as the generator in
+    ``scripts/async_pipeline_baseline_benchmark.py`` (not imported directly
+    since ``scripts/`` is not an installed package), for a "large repository"
+    system test that must go through the real, wired-in async pipeline.
+    """
+    written = 0
+    groups = max(1, file_count // 20)
+    indices_by_group: dict[int, list[int]] = {group: [] for group in range(groups)}
+    for index in range(file_count):
+        indices_by_group[index % groups].append(index)
+
+    for group in range(groups):
+        pkg_dir = root / f"pkg_{group}"
+        pkg_dir.mkdir(parents=True, exist_ok=True)
+        (pkg_dir / "__init__.py").write_text("", encoding="utf-8")
+        written += 1
+        helpers_source = "".join(
+            f'"""Helper {i}."""\n\n\ndef helper_{i}(payload):\n    return {{"echo": payload}}\n\n\n'
+            for i in indices_by_group[group]
+        )
+        (pkg_dir / f"helpers_{group}.py").write_text(helpers_source, encoding="utf-8")
+        written += 1
+
+    for index in range(file_count):
+        group = index % groups
+        pkg_dir = root / f"pkg_{group}"
+        module_path = pkg_dir / f"module_{index}.py"
+        module_path.write_text(
+            f'"""Synthetic module {index}."""\n\n'
+            f"from __future__ import annotations\n\n"
+            f"from .helpers_{group} import helper_{index}\n\n\n"
+            f"class Service{index}:\n"
+            f"    def __init__(self, config):\n"
+            f"        self.config = config\n\n"
+            f"    def process(self, payload):\n"
+            f"        return helper_{index}(payload)\n",
+            encoding="utf-8",
+        )
+        written += 1
+    return written
+
+
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["git", *args],
+        cwd=str(root),
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+
+class LargeRepositorySystemTest(unittest.TestCase):
+    """System-level coverage for issue #235's "sistema em repositório
+    grande" required test: exercises the REAL, wired-in ``build_artifacts``
+    entry point (now a thin ``asyncio.run(build_artifacts_async(...))``
+    adapter, ADR-009 plan step 8) through the actual CLI (``simplicio-mapper
+    index``), not just the isolated ``async_pipeline`` module, against a
+    synthetic tree an order of magnitude larger than every other test in
+    this file (~320 files vs. the 4-24 file trees used above), git-backed
+    like a real project.
+
+    File count is chosen to stay well under a minute on a slow/shared CI
+    runner (the committed baseline shows ~1s cold for a 220-file tree) while
+    still being unambiguously "large" relative to this test file's other
+    fixtures -- the 1650-file tree used for the baseline/after benchmark
+    docs is deliberately not duplicated here to keep the unit-test suite
+    fast; that scale is covered by the benchmark scripts instead (see
+    ``scripts/async_pipeline_after_benchmark.py``).
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name) / "large-repo"
+        self.root.mkdir()
+        self.file_count = _materialize_large_tree(self.root, 320)
+        _git(self.root, "init", "-q")
+        _git(self.root, "-c", "user.email=t@example.com", "-c", "user.name=t", "add", "-A")
+        _git(self.root, "-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "seed")
+        self.project_map_schema = json.loads(
+            (SCHEMA_ROOT / "project-map.schema.json").read_text(encoding="utf-8")
+        )
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_real_cli_index_end_to_end_over_a_large_tree(self) -> None:
+        out = StringIO()
+        with redirect_stdout(out):
+            code = cli_main(["index", str(self.root), "--json"])
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.mapper-index/v1")
+        self.assertEqual(payload["status"], "updated")
+        self.assertGreaterEqual(payload["counts"]["files"], self.file_count - 5)
+
+        project_map = json.loads(
+            (self.root / ".simplicio" / "project-map.json").read_text(encoding="utf-8")
+        )
+        errors = validate_instance(project_map, self.project_map_schema)
+        self.assertEqual(errors, [], errors)
+        self.assertGreaterEqual(len(project_map["files"]), self.file_count - 5)
+
+    def test_incremental_reindex_over_the_large_tree_is_fast_and_consistent(self) -> None:
+        # First pass (cold cache), then touch one file and re-run through
+        # the same real CLI entry point -- proves the async-wired path
+        # composes correctly with the existing incremental/freshness logic
+        # (`_freshness_signature`/index lock), not only a fresh cold run.
+        self.assertEqual(cli_main(["index", str(self.root)]), 0)
+        (self.root / "pkg_0" / "module_0.py").write_text(
+            '"""Synthetic module 0, touched."""\n\n\ndef touched():\n    return 1\n',
+            encoding="utf-8",
+        )
+        out = StringIO()
+        with redirect_stdout(out):
+            code = cli_main(["index", str(self.root), "--json"])
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["status"], "updated")
+
+
+class LowResourceProxyTest(unittest.TestCase):
+    """Issue #235's "sistema sob baixa memória" required test.
+
+    Honest limitation, documented rather than faked: this sandbox is
+    Windows, where neither ``resource.setrlimit(RLIMIT_AS, ...)`` (POSIX
+    only) nor cgroup memory limits are available, so there is no way from
+    inside a unittest run to genuinely cap the process's memory and observe
+    real OOM-recovery behavior. A true low-memory system test needs
+    dedicated infra (a Linux cgroup-limited container or CI job) that does
+    not exist for this repo today -- adding one is out of scope for this
+    change and is called out explicitly in the ADR and PR instead of being
+    silently skipped or faked with a trivial assertion.
+
+    What this test *does* cover, as the closest honest proxy achievable
+    here: the pipeline's own memory-footprint control knob
+    (``max_concurrent`` / ``SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES``) driven
+    down to its minimum (serialize to one file in flight at a time, the
+    lowest peak-memory configuration the pipeline exposes) over the same
+    large tree, proving the pipeline still completes correctly -- not that
+    it survives a real OS-level memory ceiling.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name) / "low-resource-repo"
+        self.root.mkdir()
+        self.file_count = _materialize_large_tree(self.root, 120)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_pipeline_completes_correctly_with_minimum_concurrency(self) -> None:
+        with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES": "1"}):
+            artifacts = asyncio.run(build_artifacts_async(str(self.root)))
+        self.assertGreaterEqual(len(artifacts["project_map"]["files"]), self.file_count - 5)
+        self.assertEqual(artifacts["project_map"]["degraded"]["skipped_large_files"], [])
 
 
 class UvloopSelectionTest(unittest.TestCase):

@@ -128,8 +128,10 @@ docs/**
 !docs/ci/
 !docs/ci/quality-gate.md
 !docs/async-pipeline-baseline-benchmark.md
+!docs/async-pipeline-after-benchmark.md
 scripts/**
 !scripts/build_hamt.py
+!scripts/async_pipeline_after_benchmark.py
 !scripts/coverage.js
 !scripts/check-placeholders.sh
 !scripts/toon_benchmark.py
