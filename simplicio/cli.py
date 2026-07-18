@@ -469,12 +469,20 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_runtime_verify.add_argument("--timeout", type=int, default=30)
 
-    p_prototype = sub.add_parser("prototype", help="Prototype-First plan, scaffold, validate and promotion gate")
+    p_prototype = sub.add_parser(
+        "prototype", help="Prototype-First plan, scaffold, validate and promotion gate"
+    )
     prototype_sub = p_prototype.add_subparsers(dest="prototype_cmd", required=True)
     p_proto_plan = prototype_sub.add_parser("plan")
     p_proto_plan.add_argument("--input", help="Loop/Mapper prototype-plan JSON")
     p_proto_plan.add_argument("--goal", default="")
-    p_proto_plan.add_argument("--type", dest="prototype_type", default="code_spike", choices=("schema", "data_model", "failing_test", "mock", "code_spike", "vertical_slice"))
+    p_proto_plan.add_argument(
+        "--type",
+        dest="prototype_type",
+        default="code-spike",
+        choices=("schema", "data-model", "failing-test", "mock", "code-spike", "vertical-slice"),
+    )
+    p_proto_plan.add_argument("--root", default=".", help="source tree the plan's source_sha is anchored to")
     p_proto_plan.add_argument("--output", default=".simplicio/prototype-plan.json")
     p_proto_plan.add_argument("--json", action="store_true")
     for name in ("scaffold", "dry-run", "validate", "diff", "promote", "reject"):
