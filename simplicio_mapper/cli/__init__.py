@@ -150,6 +150,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ..schema_compat import run_schema_compat_cli
 
         return run_schema_compat_cli(argv[1:])
+    # `prototype-context <root> --type <type> --arg <target>` similarly takes
+    # a root + flags rather than plain `<command> <root>` (issue #286
+    # Phase-0: bounded context pack for Prototype-First -- see
+    # `simplicio_mapper/prototype_context.py` module docstring for scope).
+    if argv and argv[0] == "prototype-context":
+        from ..prototype_context import run_prototype_context_cli
+
+        return run_prototype_context_cli(argv[1:])
     opts = _parse_args(argv)
     if opts["background"] and opts["command"] in ("index", "map", "update"):
         return _run_background(opts)
