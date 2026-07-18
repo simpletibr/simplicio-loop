@@ -2,12 +2,17 @@
 
 > Turn a repository into bounded, queryable context that people and AI agents can trust.
 
-[![PyPI](https://img.shields.io/pypi/v/simplicio-mapper?color=0ea5e9&label=PyPI)](https://pypi.org/project/simplicio-mapper/) [![Python](https://img.shields.io/pypi/pyversions/simplicio-mapper?color=22c55e&label=Python)](https://pypi.org/project/simplicio-mapper/) [![Release](https://img.shields.io/github/v/release/wesleysimplicio/simplicio-mapper?display_name=tag&color=f59e0b)](https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.23.1) [![License](https://img.shields.io/badge/license-MIT-a78bfa.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/simplicio-mapper?color=0ea5e9&label=PyPI)](https://pypi.org/project/simplicio-mapper/) [![Python](https://img.shields.io/pypi/pyversions/simplicio-mapper?color=22c55e&label=Python)](https://pypi.org/project/simplicio-mapper/) [![Release](https://img.shields.io/github/v/release/wesleysimplicio/simplicio-mapper?display_name=tag&color=f59e0b)](https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.24.1) [![License](https://img.shields.io/badge/license-MIT-a78bfa.svg)](LICENSE)
+
+[Docs site](https://wesleysimplicio.github.io/simplicio-mapper/)
 
 **Languages:** [English](README.md) · [Português](READMEs/README.pt-BR.md) · [Español](READMEs/README.es-ES.md) · [Français](READMEs/README.fr-FR.md) · [Italiano](READMEs/README.it-IT.md) · [Polski](READMEs/README.pl-PL.md) · [Русский](READMEs/README.ru-RU.md) · [中文](READMEs/README.zh-CN.md) · [日本語](READMEs/README.ja-JP.md) · [한국어](READMEs/README.ko-KR.md) · [हिन्दी](READMEs/README.hi-IN.md) · [العربية](READMEs/README.ar-SA.md) · [עברית](READMEs/README.he-IL.md) · [Bahasa Indonesia](READMEs/README.id-ID.md) · [Bahasa Melayu](READMEs/README.ms-MY.md)
 
 <p align="center">
   <img src="assets/llm-project-mapper-hero.png" alt="A repository becoming a bounded, evidence-backed context snapshot" width="100%">
+</p>
+<p align="center">
+  <img src="assets/overlay-install.svg" alt="Overlay install screencast" width="100%">
 </p>
 
 `simplicio-mapper` is the mapping engine in the Simplicio ecosystem. It reads a codebase once, produces versioned artifacts under `.simplicio/`, and gives a human or an agent a small, explainable context pack instead of an unbounded dump of files. The result is useful for orientation, implementation planning, review, impact analysis, onboarding, and handoffs.
@@ -179,7 +184,7 @@ simplicio-mapper → simplicio-runtime → simplicio-dev-cli → simplicio-loop
 - [Architecture and evidence docs](docs/)
 - [Changelog](CHANGELOG.md)
 - [PyPI publishing notes](PYPI.md)
-- [v0.23.1 release](https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.23.1)
+- [v0.24.1 release](https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.24.1)
 
 ## License
 

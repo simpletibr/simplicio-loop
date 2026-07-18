@@ -91,6 +91,40 @@ each.
 - Fix: `await build_artifacts_async(...)` directly instead of the sync
   wrapper.
 
+## Stale global `simplicio-mapper` install after a release
+
+- Symptom: a checkout contains a mapper fix, but `simplicio-loop` or an
+  operator shell still runs an older globally installed mapper (for issue
+  #233, `simplicio-mapper --version` returned `0.23.1` even though the
+  timeout fix from PR #232 was already merged on `main`).
+- Diagnose: compare all three version sources and the executable location:
+
+```bash
+simplicio-mapper --version
+python -m pip show simplicio-mapper
+python -c "import shutil; print(shutil.which('simplicio-mapper'))"
+python -c "from importlib.metadata import version; print(version('simplicio-mapper'))"
+```
+
+- Fix: upgrade or force-reinstall the published mapper version that contains
+  the fix, then rerun the same probes from the environment that launches the
+  Loop:
+
+```bash
+python -m pip install --upgrade simplicio-mapper==0.24.1
+# If the environment was pinned or shadowed by an older install:
+python -m pip install --force-reinstall simplicio-mapper==0.24.1
+```
+
+- Verify the issue #233 timeout fix behaviorally with a real bounded scan:
+  `simplicio-mapper scan <repo> --json --sync --timeout <n>` must return
+  within `timeout + operational margin`; a timeout path emits
+  `"phase":"timeout"`, `"failure_reason":"scan_timeout"`,
+  `"exit_code":1`, and a follow-up `simplicio-mapper status <repo> --json`
+  reports `"lock":false`. A normal scan should emit `"phase":"complete"`
+  and the follow-up status should report `"terminal":true`, `"fresh":true`,
+  `"lock":false`, `"warnings":[]`.
+
 ## Add Project-Specific Issues
 
 ### `<SYMPTOM>`
