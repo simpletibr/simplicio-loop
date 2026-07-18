@@ -102,6 +102,7 @@ USAGE
   simplicio-mapper canonical gc <path> [--apply] [--json]
   simplicio-mapper benchmark pipeline-threshold [path] [--sizes N,N,N] [--runs N] [--out <dir>] [--json]
   simplicio-mapper benchmark shadow-rollout [path] [--out <dir>] [--json]
+  simplicio-mapper version [--json] [--root <dir>]
   simplicio-mapper release-manifest [--json] [--root <dir>] [--check-registry] [--update-registry-baseline]
 
 OPTIONS
@@ -171,6 +172,9 @@ OPTIONS
                         result. Writes a receipt to
                         <out>/pipeline-shadow.json (issue #279 plan step
                         15, ADR-011).
+  version [--json]      Show mapper version. With --json, emit the
+                        machine-readable release identity, artifact digest,
+                        protocols and schema versions required by issue #280.
   release-manifest      Phase-0, local, offline generator for the
                         simplicio.component-release/v1 manifest: version,
                         commit SHA, and every schema-version constant this

@@ -132,8 +132,11 @@ SBOM/network calls:
 
 ```bash
 simplicio-mapper release-manifest --json     # simplicio.component-release/v1 manifest:
-                                              # version, commit SHA, every schema-version
-                                              # constant this package publishes
+                                              # version, commit SHA, every schema-version,
+                                              # release protocol list and artifact_digest
+simplicio-mapper version --json              # compact release identity for consumers:
+                                              # version, commit SHA, artifact_digest, protocols
+                                              # schema versions
 python3 scripts/check_schema_registry_sync.py                  # CI gate: registry vs committed baseline
 python3 scripts/check_schema_registry_sync.py --update-baseline # regenerate baseline after a
                                                                   # deliberate, reviewed schema bump

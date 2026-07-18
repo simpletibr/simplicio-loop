@@ -30,6 +30,7 @@ from simplicio_mapper.release_manifest import (  # noqa: E402
     ReleaseManifestError,
     _git_commit_sha,
     build_release_manifest,
+    build_version_payload,
     check_registry_baseline,
     collect_schema_versions,
     run_release_manifest_cli,
@@ -143,12 +144,30 @@ class BuildReleaseManifestTest(unittest.TestCase):
         # Must round-trip without error -- this is what the CLI --json path relies on.
         json.dumps(manifest)
 
+    def test_manifest_includes_digest_and_protocols(self) -> None:
+        manifest = build_release_manifest(root=str(ROOT))
+        self.assertRegex(manifest["artifact_digest"], r"^sha256:[0-9a-f]{64}$")
+        self.assertIn(RELEASE_MANIFEST_SCHEMA, manifest["protocols"])
+        self.assertIn("simplicio.mapper-artifacts/v1", manifest["protocols"])
+
     def test_manifest_is_deterministic_given_same_checkout(self) -> None:
         first = build_release_manifest(root=str(ROOT))
         second = build_release_manifest(root=str(ROOT))
         first.pop("generated_at")
         second.pop("generated_at")
         self.assertEqual(first, second)
+
+
+class VersionPayloadTest(unittest.TestCase):
+    """Unit: issue #280 version --json payload identity fields."""
+
+    def test_version_payload_exposes_digest_protocols_and_schemas(self) -> None:
+        payload = build_version_payload(root=str(ROOT))
+        self.assertEqual(payload["schema"], "simplicio.mapper-version/v1")
+        self.assertEqual(payload["version"], PACKAGE_VERSION)
+        self.assertRegex(payload["artifact_digest"], r"^sha256:[0-9a-f]{64}$")
+        self.assertIn("simplicio.component-release/v1", payload["protocols"])
+        self.assertEqual(len(payload["schema_versions"]), len(SCHEMA_VERSION_REGISTRY))
 
 
 class RegistryBaselineTest(unittest.TestCase):
@@ -234,6 +253,23 @@ class ReleaseManifestCliTest(unittest.TestCase):
         payload = json.loads(buffer.getvalue())
         self.assertEqual(payload["schema"], RELEASE_MANIFEST_SCHEMA)
         self.assertEqual(payload["version"], PACKAGE_VERSION)
+
+    def test_version_json_command_emits_release_identity(self) -> None:
+        buffer = StringIO()
+        with redirect_stdout(buffer):
+            exit_code = main(["version", "--json", "--root", str(ROOT)])
+        self.assertEqual(exit_code, 0)
+        payload = json.loads(buffer.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.mapper-version/v1")
+        self.assertEqual(payload["version"], PACKAGE_VERSION)
+        self.assertRegex(payload["artifact_digest"], r"^sha256:[0-9a-f]{64}$")
+
+    def test_version_command_without_json_preserves_plain_version_output(self) -> None:
+        buffer = StringIO()
+        with redirect_stdout(buffer):
+            exit_code = main(["version"])
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(buffer.getvalue().strip(), PACKAGE_VERSION)
 
     def test_human_readable_output_without_json_flag(self) -> None:
         buffer = StringIO()

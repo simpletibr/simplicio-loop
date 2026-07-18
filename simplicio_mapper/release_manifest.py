@@ -36,6 +36,7 @@ see ``scripts/check_schema_registry_sync.py`` for the CLI wrapper.
 from __future__ import annotations
 
 import datetime
+import hashlib
 import importlib
 import json
 import os
@@ -48,6 +49,15 @@ RELEASE_MANIFEST_SCHEMA = "simplicio.component-release/v1"
 
 PYPI_PACKAGE = "simplicio-mapper"
 NPM_PACKAGE = "@wesleysimplicio/llm-project-mapper"
+
+RELEASE_PROTOCOLS = (
+    RELEASE_MANIFEST_SCHEMA,
+    "simplicio.mapper-artifacts/v1",
+    "simplicio.precedent-index/v1",
+    "simplicio.context-snapshot/v1",
+    "simplicio.canonical-map/v1",
+    "simplicio.worktree-overlay/v1",
+)
 
 _PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(_PACKAGE_DIR)
@@ -164,7 +174,7 @@ def build_release_manifest(root: str | None = None) -> dict:
     resolved_root = os.path.abspath(root or REPO_ROOT)
     commit_sha, commit_sha_source = _git_commit_sha(resolved_root)
     schema_versions = collect_schema_versions()
-    return {
+    manifest = {
         "schema": RELEASE_MANIFEST_SCHEMA,
         "component": "simplicio-mapper",
         "version": __version__,
@@ -178,6 +188,8 @@ def build_release_manifest(root: str | None = None) -> dict:
             "npm_package": NPM_PACKAGE,
         },
         "schema_versions": dict(sorted(schema_versions.items())),
+        "protocols": list(RELEASE_PROTOCOLS),
+        "artifact_digest": None,
         "signing": {
             "status": "not-implemented",
             "digest": None,
@@ -202,7 +214,46 @@ def build_release_manifest(root: str | None = None) -> dict:
             ),
         },
     }
+    manifest["artifact_digest"] = build_release_artifact_digest(manifest)
+    return manifest
 
+
+def build_release_artifact_digest(manifest: dict) -> str:
+    """Return a stable sha256 digest for the release identity payload.
+
+    The digest intentionally excludes volatile presentation fields
+    (``generated_at``) and the ``signing`` block that will eventually carry
+    attestations *about* this payload, avoiding a self-referential digest.
+    """
+    payload = {
+        "schema": manifest["schema"],
+        "component": manifest["component"],
+        "version": manifest["version"],
+        "commit_sha": manifest["commit_sha"],
+        "distribution": manifest["distribution"],
+        "schema_versions": manifest["schema_versions"],
+        "protocols": manifest["protocols"],
+    }
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
+        "utf-8"
+    )
+    return "sha256:" + hashlib.sha256(encoded).hexdigest()
+
+
+def build_version_payload(root: str | None = None) -> dict:
+    """Build the machine-readable ``simplicio-mapper version --json`` payload."""
+    manifest = build_release_manifest(root=root)
+    return {
+        "schema": "simplicio.mapper-version/v1",
+        "component": manifest["component"],
+        "version": manifest["version"],
+        "commit_sha": manifest["commit_sha"],
+        "artifact_digest": manifest["artifact_digest"],
+        "protocols": manifest["protocols"],
+        "release_manifest_schema": manifest["schema"],
+        "schema_versions": manifest["schema_versions"],
+        "distribution": manifest["distribution"],
+    }
 
 def check_registry_baseline(
     baseline_path: str = DEFAULT_REGISTRY_BASELINE_PATH,
@@ -271,6 +322,29 @@ def write_registry_baseline(baseline_path: str = DEFAULT_REGISTRY_BASELINE_PATH)
         handle.write("\n")
     return doc
 
+
+
+def run_version_cli(argv: list[str]) -> int:
+    """Entry point for ``simplicio-mapper version [--json] [--root <dir>]``."""
+    as_json = "--json" in argv
+    root = REPO_ROOT
+    if "--root" in argv:
+        idx = argv.index("--root")
+        try:
+            root = argv[idx + 1]
+        except IndexError:
+            print("--root requires a directory", file=sys.stderr)
+            return 2
+    try:
+        payload = build_version_payload(root=root)
+    except ReleaseManifestError as error:
+        print(f"::error::{error}", file=sys.stderr)
+        return 1
+    if as_json:
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    else:
+        print(payload["version"])
+    return 0
 
 def run_release_manifest_cli(argv: list[str]) -> int:
     """Entry point for ``simplicio-mapper release-manifest [--json] [--root <dir>]``.

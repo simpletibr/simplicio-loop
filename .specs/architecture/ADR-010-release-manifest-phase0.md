@@ -136,6 +136,8 @@ de 12 passos da issue #280:
        "npm_package": "@wesleysimplicio/llm-project-mapper"
      },
      "schema_versions": { "<modulo>:<constante>": "<valor>", "...": "..." },
+     "protocols": ["simplicio.component-release/v1", "simplicio.mapper-artifacts/v1", "..."],
+     "artifact_digest": "sha256:<digest-estavel-da-identidade-de-release>",
      "signing": {
        "status": "not-implemented",
        "digest": null,

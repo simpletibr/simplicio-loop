@@ -137,6 +137,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ._benchmark import run_benchmark_cli
 
         return run_benchmark_cli(argv[1:])
+    # `version` exposes issue #280's machine-readable release identity.
+    if argv and argv[0] == "version":
+        from ..release_manifest import run_version_cli
+
+        return run_version_cli(argv[1:])
     # `release-manifest` similarly takes flags rather than the usual
     # `<command> <root>` shape (issue #280, Phase-0 local release manifest).
     if argv and argv[0] == "release-manifest":
