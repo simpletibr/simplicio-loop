@@ -22,10 +22,27 @@ rule):
 - Every number printed/written is a real ``time.perf_counter()`` measurement
   over this exact fixture on this exact machine -- never an assumption or
   extrapolation.
-- CPU time (``time.process_time()``, main-process only -- it does not sum
-  child/thread CPU) and peak RSS (``resource.getrusage`` on POSIX,
-  ``None`` on platforms without ``resource``) are reported alongside wall
-  time, each labeled with exactly what it does and does not cover.
+- CPU time and peak RSS are reported for **both** the measured Python
+  process (``resource.getrusage(RUSAGE_SELF)`` / ``time.process_time()``)
+  *and* its child processes (``resource.getrusage(RUSAGE_CHILDREN)``) --
+  schema v2 (issue #236 epic closure). The distinction matters here: both
+  the ``full`` and ``canonical-reuse`` code paths shell out to real ``git``
+  subprocesses (``simplicio_mapper/mapper/canonical_builder.py::_run_git``,
+  invoked via ``subprocess.run`` for ``ls-tree``/``worktree add`` on a
+  canonical-build cache miss), so a self-only measurement silently drops
+  that cost. ``None`` on platforms without the stdlib ``resource`` module
+  (POSIX-only; see the "Limitations" section in
+  ``docs/features/canonical-map-lifecycle.md`` for the Windows/macOS gap
+  this implies).
+- I/O is approximated with the stdlib-only proxy ``resource.getrusage``
+  already exposes: ``ru_inblock``/``ru_oublock`` (block input/output
+  operations), reported as a delta across the measured call, for both self
+  and children. This is a real kernel-reported counter, not a new
+  dependency (no ``psutil`` -- see the repo-wide "never add a dependency
+  without asking" rule) and not a fabricated number, but it is coarser than
+  a full strace-level I/O trace: it counts block I/O operations, not bytes,
+  and on some kernels/filesystems reads served entirely from page cache may
+  not increment it. Documented as exactly that, not oversold.
 - The synthetic fixture is intentionally small (documented file count/size
   below) so the benchmark runs in seconds inside CI/local dev, not minutes --
   the ratio this measures is the *shape* of the reuse-vs-remap tradeoff for
@@ -68,7 +85,7 @@ try:
 except ImportError:  # pragma: no cover - resource is POSIX-only
     _HAS_RESOURCE = False
 
-SCHEMA = "simplicio.canonical-reuse-benchmark/v1"
+SCHEMA = "simplicio.canonical-reuse-benchmark/v2"
 JSON_DOC_PATH = ROOT / "docs" / "evidence" / "canonical-reuse-benchmark.json"
 
 
@@ -125,20 +142,55 @@ class RunMeasurement:
     cpu_s: float | None
     peak_rss_kb: int | None
     files_mapped: int
+    # -- schema v2 (issue #236 epic closure) --------------------------------
+    # Child-process CPU/RSS: the mapper pipeline shells out to real `git`
+    # subprocesses (canonical_builder._run_git); RUSAGE_SELF alone silently
+    # drops that cost, so it is measured separately here rather than folded
+    # into cpu_s/peak_rss_kb (keeps the v1 fields' meaning unchanged).
+    cpu_s_children: float | None = None
+    peak_rss_kb_children: int | None = None
+    # I/O proxy: block input/output op counts (not bytes), delta across the
+    # call, self and children. Coarser than a full I/O trace -- see the
+    # module docstring's caveat on what this does/doesn't capture.
+    io_in_blocks: int | None = None
+    io_out_blocks: int | None = None
+    io_in_blocks_children: int | None = None
+    io_out_blocks_children: int | None = None
 
 
 def _measure(label: str, worktree_index: int, fn) -> RunMeasurement:
     cpu_before = time.process_time() if _HAS_RESOURCE else None
+    rusage_self_before = resource.getrusage(resource.RUSAGE_SELF) if _HAS_RESOURCE else None
+    rusage_children_before = resource.getrusage(resource.RUSAGE_CHILDREN) if _HAS_RESOURCE else None
     wall_before = time.perf_counter()
     result = fn()
     wall_after = time.perf_counter()
     cpu_after = time.process_time() if _HAS_RESOURCE else None
     peak_rss_kb = None
+    cpu_s_children = None
+    peak_rss_kb_children = None
+    io_in_blocks = None
+    io_out_blocks = None
+    io_in_blocks_children = None
+    io_out_blocks_children = None
     if _HAS_RESOURCE:
-        # ru_maxrss is cumulative peak-so-far for the whole process on Linux
-        # (KB) -- reported as-is, not a per-call delta; see the docstring
-        # above for what this does/doesn't isolate.
-        peak_rss_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        rusage_self_after = resource.getrusage(resource.RUSAGE_SELF)
+        rusage_children_after = resource.getrusage(resource.RUSAGE_CHILDREN)
+        # ru_maxrss is cumulative peak-so-far for the whole process (and,
+        # separately, for its children) on Linux (KB) -- reported as-is, not
+        # a per-call delta; see the module docstring for what this does/
+        # doesn't isolate.
+        peak_rss_kb = rusage_self_after.ru_maxrss
+        peak_rss_kb_children = rusage_children_after.ru_maxrss
+        cpu_s_children = round(
+            (rusage_children_after.ru_utime + rusage_children_after.ru_stime)
+            - (rusage_children_before.ru_utime + rusage_children_before.ru_stime),
+            4,
+        )
+        io_in_blocks = rusage_self_after.ru_inblock - rusage_self_before.ru_inblock
+        io_out_blocks = rusage_self_after.ru_oublock - rusage_self_before.ru_oublock
+        io_in_blocks_children = rusage_children_after.ru_inblock - rusage_children_before.ru_inblock
+        io_out_blocks_children = rusage_children_after.ru_oublock - rusage_children_before.ru_oublock
     return RunMeasurement(
         label=label,
         worktree_index=worktree_index,
@@ -146,6 +198,12 @@ def _measure(label: str, worktree_index: int, fn) -> RunMeasurement:
         cpu_s=round(cpu_after - cpu_before, 4) if cpu_before is not None else None,
         peak_rss_kb=peak_rss_kb,
         files_mapped=result,
+        cpu_s_children=cpu_s_children,
+        peak_rss_kb_children=peak_rss_kb_children,
+        io_in_blocks=io_in_blocks,
+        io_out_blocks=io_out_blocks,
+        io_in_blocks_children=io_in_blocks_children,
+        io_out_blocks_children=io_out_blocks_children,
     )
 
 
@@ -240,10 +298,23 @@ def run_benchmark(*, worktrees: int, files: int) -> dict[str, Any]:
                 "measurements in the same process run never show a lower "
                 "number than an earlier one even if that call itself used "
                 "less memory.",
-                "No I/O-specific counters (page cache hits, syscall counts) "
-                "are collected here -- only wall/CPU/RSS, as documented in "
-                "the module docstring's 'whatever CPU/RSS is feasible in "
-                "this container' scope note.",
+                "schema v2 (issue #236): cpu_s_children/peak_rss_kb_children "
+                "are resource.getrusage(RUSAGE_CHILDREN) deltas covering the "
+                "real `git` subprocesses the pipeline shells out to "
+                "(canonical_builder._run_git) -- this is what v1 silently "
+                "dropped by only measuring RUSAGE_SELF.",
+                "io_in_blocks/io_out_blocks(_children) are "
+                "resource.getrusage ru_inblock/ru_oublock deltas (block "
+                "I/O operation counts, not bytes) -- a real stdlib-reported "
+                "kernel counter, not a byte-accurate I/O trace; reads fully "
+                "served from page cache may not increment it on every "
+                "kernel/filesystem. No syscall-level tracing or page-cache "
+                "hit/miss counters are collected here.",
+                "All new v2 fields are POSIX-only (None on platforms "
+                "without the stdlib `resource` module, e.g. Windows) -- "
+                "this benchmark has only ever been run inside a Linux "
+                "container; macOS/Windows numbers do not exist and this "
+                "script cannot produce them from here.",
             ],
         }
     finally:
