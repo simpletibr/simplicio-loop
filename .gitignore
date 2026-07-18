@@ -163,6 +163,7 @@ scripts/**
 !scripts/perf_regression_gate.py
 !scripts/async_pipeline_baseline_benchmark.py
 !scripts/async_inventory_benchmark.py
+!scripts/canonical_reuse_benchmark.py
 playwright-report/**
 tests/**
 !tests/unit/
@@ -180,3 +181,4 @@ coverage/**
 bootstrap.ps1
 bootstrap.sh
 playwright.config.ts
+.coverage
