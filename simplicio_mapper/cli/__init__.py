@@ -117,6 +117,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ..ecosystem_contract import run_doctor_cli
 
         return run_doctor_cli(argv[1:])
+    # `canonical build|status` takes a sub-verb + path, same shape as
+    # `snapshot`/`contract`/`doctor` above -- dispatched before `_parse_args`
+    # (issue #266, ADR-008 migration step 7: read-safe canonical-map CLI
+    # surface, isolated from `index`/`scan`'s existing path).
+    if argv and argv[0] == "canonical":
+        from ._canonical import run_canonical_cli
+
+        return run_canonical_cli(argv[1:])
     opts = _parse_args(argv)
     if opts["background"] and opts["command"] in ("index", "map", "update"):
         return _run_background(opts)

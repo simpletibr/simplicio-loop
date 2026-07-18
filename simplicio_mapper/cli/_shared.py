@@ -40,6 +40,17 @@ ONBOARDING_SCHEMA = "simplicio.onboarding/v1"
 
 SPEC_DRIFT_SCHEMA = "simplicio.spec-drift/v1"
 
+# Canonical-map read-safe CLI surface (issue #266, ADR-008 migration step 7).
+# Net-new, isolated schemas -- `canonical build`/`canonical status` never
+# reuse `INDEX_RESULT_SCHEMA`/`MAP_STATUS_SCHEMA` because they describe a
+# different artifact family (the cross-worktree canonical manifest, not the
+# per-worktree `.simplicio/` index) with its own versioning lifecycle.
+CANONICAL_BUILD_SCHEMA = "simplicio.canonical-build/v1"
+CANONICAL_BUILD_SCHEMA_VERSION = 1
+
+CANONICAL_STATUS_SCHEMA = "simplicio.canonical-status/v1"
+CANONICAL_STATUS_SCHEMA_VERSION = 1
+
 FRESHNESS_SKIP_DIRS = {
     ".git",
     "node_modules",
@@ -85,6 +96,8 @@ USAGE
   simplicio-mapper update [--root <dir>] [--watch]
   simplicio-mapper contract validate <path> [<path> ...]
   simplicio-mapper doctor --contracts [--cross-repo] [<path> ...]
+  simplicio-mapper canonical build <path> [--json]
+  simplicio-mapper canonical status <path> [--json]
 
 OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
@@ -117,6 +130,16 @@ OPTIONS
   doctor --contracts    Validate contracts/mapper-artifacts/v1/ and
                         contracts/ecosystem/v1/ fixtures against their
                         schemas; exit 0 when all valid (issue #164).
+  canonical build <path>
+                        Build (or reuse, content-addressed) the canonical
+                        default-branch manifest via the existing builder
+                        (issue #266). Isolated from index/scan -- does not
+                        read or write .simplicio/.
+  canonical status <path>
+                        Read-only: redacted key/digest, freshness against
+                        the current default-branch commit, build-in-progress
+                        state, and worktree-overlay counts. Never builds or
+                        writes anything (issue #266).
   --range <spec>        sync: git diff range (e.g. main..HEAD) instead of the working tree.
   --staged              sync: diff staged changes instead of the working tree.
   --check               sync: report staleness without writing (exit 1 if stale).
