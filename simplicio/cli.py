@@ -498,6 +498,19 @@ def _build_parser() -> argparse.ArgumentParser:
         p.add_argument("--json", action="store_true")
     p_proto_doctor = prototype_sub.add_parser("doctor")
     p_proto_doctor.add_argument("--json", action="store_true")
+    p_proto_batch = prototype_sub.add_parser(
+        "batch", help="scaffold+validate many plans concurrently, bounded by --concurrency"
+    )
+    p_proto_batch.add_argument("--root", default=".")
+    p_proto_batch.add_argument(
+        "--plans", required=True, help="directory of plan JSON files, or a glob pattern"
+    )
+    p_proto_batch.add_argument(
+        "--concurrency", type=int, default=4, help="max concurrent scaffold+validate workers"
+    )
+    p_proto_batch.add_argument("--force", action="store_true")
+    p_proto_batch.add_argument("--timeout", type=float, default=60.0)
+    p_proto_batch.add_argument("--json", action="store_true")
 
     p_memory = sub.add_parser(
         "memory", help="cross-vendor memory handoff (markdown + git under ~/.simplicio/memory)"
