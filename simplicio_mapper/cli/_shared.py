@@ -98,6 +98,7 @@ USAGE
   simplicio-mapper doctor --contracts [--cross-repo] [<path> ...]
   simplicio-mapper canonical build <path> [--json]
   simplicio-mapper canonical status <path> [--json]
+  simplicio-mapper canonical gc <path> [--apply] [--json]
 
 OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
@@ -140,6 +141,11 @@ OPTIONS
                         the current default-branch commit, build-in-progress
                         state, and worktree-overlay counts. Never builds or
                         writes anything (issue #266).
+  canonical gc <path>   Conservative, crash-safe GC of interrupted
+                        promotions and stale canonical-map snapshots under
+                        the ADR-008 content-addressed storage root. Dry-run
+                        by default; pass --apply to actually delete
+                        (issue #268).
   --range <spec>        sync: git diff range (e.g. main..HEAD) instead of the working tree.
   --staged              sync: diff staged changes instead of the working tree.
   --check               sync: report staleness without writing (exit 1 if stale).

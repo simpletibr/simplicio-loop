@@ -11,6 +11,8 @@ from dataclasses import dataclass
 
 from ..history import append_changelog, create_snapshot
 from ..mapper import _is_internal_worktree_dir, write_mapping_artifacts
+from ..mapper.process_liveness import process_is_alive as _process_is_alive
+from ..mapper.process_liveness import process_start_token as _process_start_token
 from ..retrieval_index import build_retrieval_index, write_retrieval_index
 from ..toon import encode_toon_with_report
 from ._args import _read_json_safe
@@ -148,112 +150,12 @@ def _index_lock_ttl_seconds() -> float:
         return float(DEFAULT_INDEX_LOCK_TTL_SECONDS)
 
 
-def _process_is_alive(pid: int) -> bool:
-    if pid <= 0:
-        return False
-    if pid == os.getpid():
-        return True
-    if os.name == "nt":
-        try:
-            import ctypes
-            from ctypes import wintypes
-
-            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-            kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
-            kernel32.OpenProcess.restype = wintypes.HANDLE
-            kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
-            kernel32.GetExitCodeProcess.restype = wintypes.BOOL
-            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-            kernel32.CloseHandle.restype = wintypes.BOOL
-            process = kernel32.OpenProcess(0x1000, False, pid)
-            if not process:
-                # Access denied still means a process owns the PID.
-                return ctypes.get_last_error() == 5
-            try:
-                exit_code = wintypes.DWORD()
-                if not kernel32.GetExitCodeProcess(process, ctypes.byref(exit_code)):
-                    return True
-                return exit_code.value == 259  # STILL_ACTIVE
-            finally:
-                kernel32.CloseHandle(process)
-        except (AttributeError, OSError):
-            pass
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    except OSError:
-        return False
-    return True
-
-
-def _process_start_token(pid: int) -> str | None:
-    """Return an OS process-start identity, used to reject PID reuse."""
-    if pid <= 0:
-        return None
-    if os.name == "nt":
-        try:
-            import ctypes
-            from ctypes import wintypes
-
-            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-            kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
-            kernel32.OpenProcess.restype = wintypes.HANDLE
-            kernel32.GetProcessTimes.argtypes = [
-                wintypes.HANDLE,
-                ctypes.POINTER(wintypes.FILETIME),
-                ctypes.POINTER(wintypes.FILETIME),
-                ctypes.POINTER(wintypes.FILETIME),
-                ctypes.POINTER(wintypes.FILETIME),
-            ]
-            kernel32.GetProcessTimes.restype = wintypes.BOOL
-            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-            kernel32.CloseHandle.restype = wintypes.BOOL
-            process = kernel32.OpenProcess(0x1000, False, pid)
-            if not process:
-                return None
-            try:
-                created = wintypes.FILETIME()
-                exited = wintypes.FILETIME()
-                kernel = wintypes.FILETIME()
-                user = wintypes.FILETIME()
-                ok = kernel32.GetProcessTimes(
-                    process,
-                    ctypes.byref(created),
-                    ctypes.byref(exited),
-                    ctypes.byref(kernel),
-                    ctypes.byref(user),
-                )
-                if ok:
-                    return f"win-filetime:{(created.dwHighDateTime << 32) | created.dwLowDateTime}"
-            finally:
-                kernel32.CloseHandle(process)
-        except (AttributeError, OSError):
-            return None
-    proc_stat = f"/proc/{pid}/stat"
-    try:
-        with open(proc_stat, encoding="utf-8") as handle:
-            raw = handle.read()
-        # Field 22 is starttime; split after the parenthesized comm field.
-        fields = raw[raw.rfind(")") + 2 :].split()
-        if len(fields) > 19:
-            return f"proc-start:{fields[19]}"
-    except OSError:
-        pass
-    try:
-        result = subprocess.run(
-            ["ps", "-o", "lstart=", "-p", str(pid)],
-            capture_output=True,
-            text=True,
-            timeout=1,
-            stdin=subprocess.DEVNULL,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-    value = result.stdout.strip()
-    return f"ps-start:{value}" if result.returncode == 0 and value else None
+# `_process_is_alive` / `_process_start_token` used to be defined inline
+# here; they now live in `simplicio_mapper.mapper.process_liveness` (issue
+# #268) so `canonical_gc.py` can reuse the exact same primitives without
+# `simplicio_mapper.mapper` importing from `simplicio_mapper.cli` (see that
+# module's docstring for why). Imported above, re-exported under their
+# original names so every existing call site in this file is unchanged.
 
 
 def _lock_file_snapshot(path: str) -> tuple[bytes, tuple[int, int, int]] | None:

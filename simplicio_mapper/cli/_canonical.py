@@ -1,56 +1,73 @@
-"""``simplicio-mapper canonical build|status`` -- read-safe CLI surface (issue #266).
+"""``simplicio-mapper canonical build|status|gc`` -- canonical-map CLI surface.
 
-Parent: #263; epic: #236; migration-plan step 7 of
-``.specs/architecture/ADR-008-canonical-map-overlays.md``.
+Parent: #263; epic: #236; ADR-008 (``.specs/architecture/ADR-008-canonical-map-overlays.md``).
 
-This module exposes exactly two verbs over the already-merged canonical-map
-machinery (``simplicio_mapper.mapper.canonical*`` / ``effective_view.py``):
+Three verbs over the already-merged canonical-map machinery
+(``simplicio_mapper.mapper.canonical*`` / ``effective_view.py``):
 
-* ``canonical build <path> --json``  -- resolves the default branch via git,
-  builds the full ``CanonicalMapKey``, and calls the existing
+* ``canonical build <path> --json`` (issue #266, migration-plan step 7) --
+  resolves the default branch via git, builds the full ``CanonicalMapKey``,
+  and calls the existing
   :func:`simplicio_mapper.mapper.canonical_builder.build_canonical_manifest`
   builder (never reimplemented here). That builder already writes to a
   ``.tmp-<token>/`` staging directory and promotes atomically via
   ``os.replace`` (see its module docstring) -- this CLI adds **no** second,
   competing write path and holds no lock of its own; a reader can never
   observe a partially-promoted manifest.
-* ``canonical status <path> --json`` -- **read-only**. Never calls
-  ``build_canonical_manifest`` (and therefore never builds/writes anything).
-  Reports redacted digest/key material, freshness against the current
-  resolved default-branch commit, whether a build looks in-progress (a
-  ``<digest>.tmp-*`` staging directory is present), and worktree-overlay
+* ``canonical status <path> --json`` (issue #266) -- **read-only**. Never
+  calls ``build_canonical_manifest`` (and therefore never builds/writes
+  anything). Reports redacted digest/key material, freshness against the
+  current resolved default-branch commit, whether a build looks in-progress
+  (a ``<digest>.tmp-*`` staging directory is present), and worktree-overlay
   counts (files reused/remapped) when the worktree's key matches an existing
   canonical manifest.
+* ``canonical gc <path> [--apply] [--json]`` (issue #268, ADR-008 section 5)
+  -- conservative, crash-safe garbage collection of interrupted-promotion
+  temp dirs and stale canonical manifests under the same content-addressed
+  storage root ``build``/``status`` read from. Dry-run by default; ``--apply``
+  opts into actually deleting anything. See
+  :mod:`simplicio_mapper.mapper.canonical_gc` for the full scan/reclaim
+  logic and its documented heuristic limitations.
 
-Both commands degrade to a stable, versioned error receipt -- never a raw
-traceback -- for: a non-git directory, git being unavailable, a corrupt/
+``build``/``status`` degrade to a stable, versioned error receipt -- never a
+raw traceback -- for: a non-git directory, git being unavailable, a corrupt/
 invalid manifest already on disk. A detached ``HEAD`` is **not** an error
 case: :func:`canonical_identity.resolve_repo_identity_bundle` resolves the
 default branch via ``refs/remotes/origin/HEAD``/``refs/heads/<branch>``, not
 via the worktree's current ``HEAD``, so identity resolution (and therefore
 both commands) works the same whether or not the calling worktree is
-currently on the default branch.
+currently on the default branch. ``gc`` reports its own
+``simplicio.canonical-gc/v1`` receipt (see ``canonical_gc.py``) rather than
+this module's ``build``/``status`` error-receipt shape, since its
+candidates/removed/preserved/recovered structure doesn't fit the
+single-manifest ``build``/``status`` payload.
 
-Privacy (issue #266 acceptance criteria): no output field here ever carries
-an absolute filesystem path or a raw remote URL. ``CanonicalMapKey.repo_identity``
-is already a one-way hash of the normalized origin URL (or, lacking a
-remote, of the absolute common git dir) computed by
-``canonical_identity.resolve_repo_identity`` -- this module never re-resolves
-or echoes the raw remote URL, and never emits ``WorktreeOverlay.worktree_path``
-(an absolute path by construction) or any internally-resolved cache-root
-path.
+Privacy (issue #266 acceptance criteria, honored by ``gc`` too): no output
+field here ever carries an absolute filesystem path or a raw remote URL.
+``CanonicalMapKey.repo_identity`` is already a one-way hash of the
+normalized origin URL (or, lacking a remote, of the absolute common git dir)
+computed by ``canonical_identity.resolve_repo_identity`` -- this module
+never re-resolves or echoes the raw remote URL, and never emits
+``WorktreeOverlay.worktree_path`` (an absolute path by construction) or any
+internally-resolved cache-root path. ``canonical_gc.scan_canonical_gc``
+relativizes every path in its own receipt for the same reason.
 
 This is a **net-new, isolated CLI surface**: it does not read, write, or
 otherwise touch ``.simplicio/`` (the per-worktree index/scan artifacts) and
 is not called by ``index``/``scan``'s existing code paths. Wiring the
 canonical map into those commands is migration-plan step 6 and explicitly
-out of scope here (see the issue's "Não objetivos").
+out of scope here (see issue #266's "Não objetivos"). Both issue #266
+(``build``/``status``) and issue #268 (``gc``) landed as independent PRs
+against the same ``canonical`` subcommand skeleton; this file is the
+reconciled result -- see the git history of this module for how the two
+were merged.
 """
 
 from __future__ import annotations
 
 import glob
 import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -63,6 +80,7 @@ from ..mapper.canonical_builder import (
     _mapper_version,
     build_canonical_manifest,
 )
+from ..mapper.canonical_gc import scan_canonical_gc
 from ..mapper.canonical_identity import (
     is_git_repository,
     resolve_repo_identity_bundle,
@@ -84,7 +102,8 @@ _GIT_TIMEOUT_SECONDS = 5.0
 
 _USAGE = (
     "usage: simplicio-mapper canonical build <path> [--json]\n"
-    "       simplicio-mapper canonical status <path> [--json]"
+    "       simplicio-mapper canonical status <path> [--json]\n"
+    "       simplicio-mapper canonical gc <path> [--apply] [--json]"
 )
 
 # This isolated CLI surface takes no mapping-config overrides (filters,
@@ -397,22 +416,51 @@ def _print_human(payload: dict) -> None:
     print(payload)
 
 
-def run_canonical_cli(argv: Sequence[str]) -> int:
-    """Entry point for ``simplicio-mapper canonical <build|status> <path> ...``."""
-    import json
+def _run_gc(opts: dict) -> int:
+    """``canonical gc`` (issue #268) -- see ``canonical_gc.scan_canonical_gc``.
 
+    Distinct from ``_run_build``/``_run_status`` above: it returns an exit
+    code directly (its own ``simplicio.canonical-gc/v1`` receipt shape does
+    not fit the single-manifest ``status``/``error`` payload those two
+    verbs share), and prints its own human-readable summary.
+    """
+    report = scan_canonical_gc(opts["root"], apply=opts["apply"])
+    payload = report.to_dict()
+    if opts.get("json"):
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    else:
+        mode = "apply" if report.apply else "dry-run"
+        print(
+            f"canonical gc ({mode}): candidates={len(report.candidates)} "
+            f"removed={len(report.removed)} recovered={len(report.recovered)} "
+            f"preserved={len(report.preserved)}"
+        )
+        for candidate in report.candidates:
+            print(f"  candidate [{candidate.kind}] {candidate.relative_path} reason={candidate.reason}")
+        for candidate in report.removed:
+            print(f"  removed   [{candidate.kind}] {candidate.relative_path}")
+        for candidate in report.recovered:
+            print(f"  recovered [{candidate.kind}] {candidate.relative_path}")
+        for error in report.errors:
+            print(f"  error: {error}", file=sys.stderr)
+    return 1 if report.errors else 0
+
+
+def run_canonical_cli(argv: Sequence[str]) -> int:
+    """Entry point for ``simplicio-mapper canonical <build|status|gc> <path> ...``."""
     if not argv or argv[0] in ("-h", "--help"):
         print(_USAGE)
         return 0
     sub = argv[0]
     rest = argv[1:]
-    if sub not in ("build", "status"):
+    if sub not in ("build", "status", "gc"):
         print(f"unknown canonical subcommand: {sub}", file=sys.stderr)
         print(_USAGE, file=sys.stderr)
         return 2
 
     root = os.getcwd()
     json_mode = False
+    apply_mode = False
     positional: list[str] = []
     i = 0
     while i < len(rest):
@@ -429,6 +477,8 @@ def run_canonical_cli(argv: Sequence[str]) -> int:
             except IndexError:
                 print("--root requires a value", file=sys.stderr)
                 return 2
+        elif arg == "--apply" and sub == "gc":
+            apply_mode = True
         elif arg.startswith("-"):
             print(f"unknown canonical {sub} option: {arg}", file=sys.stderr)
             print(_USAGE, file=sys.stderr)
@@ -439,14 +489,16 @@ def run_canonical_cli(argv: Sequence[str]) -> int:
     if positional:
         root = positional[0]
 
-    opts = {"root": root, "json": json_mode}
-    payload = _run_build(opts) if sub == "build" else _run_status(opts)
+    opts = {"root": root, "json": json_mode, "apply": apply_mode}
 
+    if sub == "gc":
+        return _run_gc(opts)
+
+    payload = _run_build(opts) if sub == "build" else _run_status(opts)
     if json_mode:
         print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     else:
         _print_human(payload)
-
     return 1 if payload.get("status") == "error" else 0
 
 
