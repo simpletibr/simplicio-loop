@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import glob as glob_module
 import hashlib
 import json
 import os
@@ -9,6 +10,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
@@ -134,9 +136,14 @@ def _assert_not_stale(args: Any, plan: dict[str, Any]) -> None:
 
 
 def _candidate_dir(args: Any, plan: dict[str, Any]) -> Path:
+    # `batch` has no meaningful single `--candidate` override (it fans out
+    # over many plans, each keyed by its own plan_hash), so its parser omits
+    # the flag entirely; getattr keeps this helper shared without forcing a
+    # dead argument onto that subcommand.
+    candidate_override = getattr(args, "candidate", None)
     return (
-        Path(args.candidate).resolve()
-        if args.candidate
+        Path(candidate_override).resolve()
+        if candidate_override
         else Path(args.root).resolve() / ".simplicio" / "prototypes" / plan["plan_hash"][:16]
     )
 
@@ -168,6 +175,163 @@ def _skeleton(plan: dict[str, Any]) -> dict[str, str]:
     return {"PROTOTYPE.md": f"# {kind}: {name}\n\nGoal: {plan['goal']}\n\n- [ ] implement one bounded, reversible candidate\n"}
 
 
+def _scaffold_candidate(candidate: Path, plan: dict[str, Any], *, force: bool) -> dict[str, Any]:
+    """Write the plan's skeleton into an isolated candidate dir and return the
+    scaffold receipt payload. Shared by the single-candidate `scaffold`
+    command and the `batch` fan-out so both stay byte-identical."""
+    if candidate.exists() and any(candidate.iterdir()) and not force:
+        raise PrototypeError(f"candidate exists; use --force explicitly: {candidate}")
+    candidate.mkdir(parents=True, exist_ok=True)
+    for relative, content in _skeleton(plan).items():
+        target = candidate / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8", newline="\n")
+    tree = _tree(candidate)
+    payload = {
+        "schema": SCHEMA_RECEIPT,
+        "kind": "scaffold",
+        "plan_hash": plan["plan_hash"],
+        "candidate": str(candidate),
+        "candidate_tree": tree,
+        "candidate_hash": _sha(tree),
+    }
+    _write_json(candidate / ".prototype-receipt.json", payload)
+    return payload
+
+
+def _validate_candidate(args: Any, plan: dict[str, Any], candidate: Path) -> dict[str, Any]:
+    """Run the plan's validators inside the candidate sandbox and return the
+    validation receipt payload. Shared by the single-candidate `validate`
+    command and the `batch` fan-out."""
+    _assert_not_stale(args, plan)
+    results = []
+    for command_line in plan.get("validators", []):
+        proc = subprocess.run(
+            command_line,
+            cwd=candidate,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=args.timeout,
+            check=False,
+        )
+        results.append(
+            {
+                "command": command_line,
+                "exit_code": proc.returncode,
+                "stdout": proc.stdout[-4000:],
+                "stderr": proc.stderr[-4000:],
+            }
+        )
+    tree = _tree(candidate)
+    payload = {
+        "schema": SCHEMA_RECEIPT,
+        "kind": "validation",
+        "plan_hash": plan["plan_hash"],
+        "candidate": str(candidate),
+        "candidate_tree": tree,
+        "candidate_hash": _sha(tree),
+        "validators": results,
+        "valid": all(x["exit_code"] == 0 for x in results),
+    }
+    _write_json(candidate / ".prototype-receipt.json", payload)
+    return payload
+
+
+def _load_bound_plan(plan_path: str | os.PathLike[str]) -> dict[str, Any]:
+    """Read a plan file and verify its self-describing hash/schema, the same
+    check every non-`plan` prototype command performs before trusting it."""
+    plan = _read_json(plan_path)
+    if plan.get("schema") != SCHEMA_PLAN or plan.get("plan_hash") != _sha(
+        {k: v for k, v in plan.items() if k != "plan_hash"}
+    ):
+        raise PrototypeError(f"plan hash/schema mismatch: {plan_path}")
+    return plan
+
+
+def _discover_plan_paths(plans_arg: str) -> list[Path]:
+    """Resolve `--plans` (a directory of plan JSONs, or a glob pattern) into a
+    deterministic, sorted list of plan files. Never silently returns an empty
+    batch — an empty match is a configuration error, not a no-op success."""
+    base = Path(plans_arg)
+    if base.is_dir():
+        paths = sorted(base.glob("*.json"))
+    else:
+        paths = sorted(Path(p) for p in glob_module.glob(plans_arg))
+    if not paths:
+        raise PrototypeError(f"no plan files matched --plans {plans_arg!r}")
+    return paths
+
+
+def _process_one_plan(plan_path: Path, args: Any) -> dict[str, Any]:
+    """Scaffold + validate a single plan file for the `batch` fan-out.
+
+    Deliberately swallows every exception into an `error` status instead of
+    propagating: one candidate's validator crashing (bad command, malformed
+    plan, OS error) must never abort or corrupt sibling candidates running
+    concurrently in the same batch (issue #236 AC: failure isolation).
+    """
+    try:
+        plan = _load_bound_plan(plan_path)
+        candidate = _candidate_dir(args, plan)
+        _scaffold_candidate(candidate, plan, force=args.force)
+        receipt = _validate_candidate(args, plan, candidate)
+        return {
+            "plan": str(plan_path),
+            "plan_hash": plan.get("plan_hash"),
+            "candidate": receipt["candidate"],
+            "status": "ok" if receipt["valid"] else "failed",
+            "valid": receipt["valid"],
+            "validators": receipt["validators"],
+        }
+    except Exception as exc:  # noqa: BLE001 - batch isolation boundary, see docstring
+        return {
+            "plan": str(plan_path),
+            "plan_hash": None,
+            "candidate": None,
+            "status": "error",
+            "valid": False,
+            "error": str(exc),
+            "error_type": exc.__class__.__name__,
+        }
+
+
+def _run_batch(args: Any) -> dict[str, Any]:
+    """Scaffold+validate every plan under `--plans`, bounded to `--concurrency`
+    concurrent workers (backpressure): later plans queue behind the
+    ThreadPoolExecutor's fixed worker count rather than spawning unbounded
+    threads/processes. Mirrors the bounded-fan-out pattern already used by
+    `simplicio/orchestrator/multi_task.py::TaskBatch.drain`
+    (`ThreadPoolExecutor(max_workers=min(concurrency, len(plans)))`).
+    """
+    concurrency = args.concurrency
+    if concurrency < 1:
+        raise PrototypeError("--concurrency must be >= 1")
+    plan_paths = _discover_plan_paths(args.plans)
+
+    if concurrency == 1 or len(plan_paths) < 2:
+        results = {str(p): _process_one_plan(p, args) for p in plan_paths}
+    else:
+        results = {}
+        with ThreadPoolExecutor(max_workers=min(concurrency, len(plan_paths))) as pool:
+            futures = {pool.submit(_process_one_plan, p, args): p for p in plan_paths}
+            for future in as_completed(futures):
+                results[str(futures[future])] = future.result()
+
+    ordered = [results[str(p)] for p in plan_paths]
+    return {
+        "schema": SCHEMA_RECEIPT,
+        "kind": "batch",
+        "plans": str(args.plans),
+        "concurrency": concurrency,
+        "total": len(ordered),
+        "ok": sum(1 for r in ordered if r["status"] == "ok"),
+        "failed": sum(1 for r in ordered if r["status"] == "failed"),
+        "errored": sum(1 for r in ordered if r["status"] == "error"),
+        "results": ordered,
+    }
+
+
 def run(args: Any) -> int:
     try:
         command = args.prototype_cmd
@@ -187,30 +351,13 @@ def run(args: Any) -> int:
                     "ok": True,
                 },
             )
-        plan = _read_json(args.plan)
-        if plan.get("schema") != SCHEMA_PLAN or plan.get("plan_hash") != _sha(
-            {k: v for k, v in plan.items() if k != "plan_hash"}
-        ):
-            raise PrototypeError("plan hash/schema mismatch")
+        if command == "batch":
+            payload = _run_batch(args)
+            return _emit(args, payload, status=0 if payload["failed"] == 0 and payload["errored"] == 0 else 1)
+        plan = _load_bound_plan(args.plan)
         candidate = _candidate_dir(args, plan)
         if command == "scaffold":
-            if candidate.exists() and any(candidate.iterdir()) and not args.force:
-                raise PrototypeError(f"candidate exists; use --force explicitly: {candidate}")
-            candidate.mkdir(parents=True, exist_ok=True)
-            for relative, content in _skeleton(plan).items():
-                target = candidate / relative
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_text(content, encoding="utf-8", newline="\n")
-            tree = _tree(candidate)
-            payload = {
-                "schema": SCHEMA_RECEIPT,
-                "kind": "scaffold",
-                "plan_hash": plan["plan_hash"],
-                "candidate": str(candidate),
-                "candidate_tree": tree,
-                "candidate_hash": _sha(tree),
-            }
-            _write_json(candidate / ".prototype-receipt.json", payload)
+            payload = _scaffold_candidate(candidate, plan, force=args.force)
             return _emit(args, payload)
         if not candidate.is_dir():
             raise PrototypeError(f"candidate does not exist: {candidate}")
@@ -239,38 +386,7 @@ def run(args: Any) -> int:
                 },
             )
         if command == "validate":
-            _assert_not_stale(args, plan)
-            results = []
-            for command_line in plan.get("validators", []):
-                proc = subprocess.run(
-                    command_line,
-                    cwd=candidate,
-                    shell=True,
-                    capture_output=True,
-                    text=True,
-                    timeout=args.timeout,
-                    check=False,
-                )
-                results.append(
-                    {
-                        "command": command_line,
-                        "exit_code": proc.returncode,
-                        "stdout": proc.stdout[-4000:],
-                        "stderr": proc.stderr[-4000:],
-                    }
-                )
-            tree = _tree(candidate)
-            payload = {
-                "schema": SCHEMA_RECEIPT,
-                "kind": "validation",
-                "plan_hash": plan["plan_hash"],
-                "candidate": str(candidate),
-                "candidate_tree": tree,
-                "candidate_hash": _sha(tree),
-                "validators": results,
-                "valid": all(x["exit_code"] == 0 for x in results),
-            }
-            _write_json(candidate / ".prototype-receipt.json", payload)
+            payload = _validate_candidate(args, plan, candidate)
             return _emit(args, payload, status=0 if payload["valid"] else 1)
         if command in {"promote", "reject"}:
             receipt = _read_json(args.receipt or candidate / ".prototype-receipt.json")
