@@ -309,6 +309,24 @@ def _build_parser() -> argparse.ArgumentParser:
     p_doctor.add_argument("--refresh", action="store_true")
     p_doctor.add_argument("--upgrade", action="store_true")
 
+    p_versions = sub.add_parser(
+        "versions",
+        help=(
+            "report simplicio-mapper installed/declared/tested versions, drift, "
+            "and this repo's own component-release manifest (issue #232)"
+        ),
+    )
+    p_versions.add_argument(
+        "--root",
+        default=None,
+        help=(
+            "simplicio-cli checkout to introspect for pyproject.toml/uv.lock/git commit "
+            "(NOT the target project root); default: auto-detect (cwd, then this "
+            "installed package's own directory)"
+        ),
+    )
+    p_versions.add_argument("--json", action="store_true", help="machine-readable output")
+
     p_env_export = sub.add_parser(
         "env-export",
         help="print shell-safe exports from a dotenv file without sourcing it",
@@ -505,6 +523,7 @@ _COMMAND_MODULES = {
     "inspect": "inspect",
     "intake": "intake",
     "doctor": "doctor",
+    "versions": "versions",
     "env-export": "env_export",
     "file": "file",
     "test": "test",
