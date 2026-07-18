@@ -19,6 +19,7 @@ from simplicio.observability import (
     emit_event,
     error,
     estimate_tokens,
+    estimate_token_details,
     events_summary,
     info,
     native_delegation_summary,
@@ -51,6 +52,23 @@ def test_estimate_tokens_empty_is_zero():
 
 def test_estimate_tokens_positive_for_text():
     assert estimate_tokens("hello world this is a prompt") > 0
+
+
+def test_estimate_token_details_uses_tiktoken_for_unknown_model(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_MODEL", "provider/unknown-model")
+    text = "Olá 👋\\nconst value = { key: 1 };"
+    details = estimate_token_details(text)
+    assert details["source"] == "tiktoken"
+    assert details["encoding"] == "o200k_base"
+    assert details["tokens"] == estimate_tokens(text)
+
+
+def test_estimate_token_details_fails_open_when_tokenizer_fails(monkeypatch):
+    monkeypatch.setattr(obs, "_heuristic_token_count", lambda _: 7)
+    monkeypatch.setitem(__import__("sys").modules, "tiktoken", None)
+    details = estimate_token_details("fallback text")
+    assert details["tokens"] == 7
+    assert details["source"] == "heuristic-fallback"
 
 
 def test_record_savings_event_writes_ledger(tmp_path, monkeypatch):

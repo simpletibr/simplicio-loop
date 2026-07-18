@@ -146,22 +146,58 @@ def emit_data(payload: Any, *, stream: Any = None) -> None:
     out.flush()
 
 
-# The single canonical token estimator for this repo (issue #88 AC4). Every
-# other module that needs an approximate token count — including
-# `orchestrator/cost_governor.py`, which used to run its own `chars/4`
-# formula and could diverge from this one by ~30% on the same text — imports
-# and calls THIS function instead of rolling its own. It is a words*4/3
-# heuristic (roughly matches BPE tokenizers on English/code prose); anywhere
-# it is reported, label it explicitly as "estimated" (see
-# `record_savings_event` and `providers.generate`/`planner_complete`), never
-# as a real provider-reported count.
-ESTIMATOR_LABEL = "observability.estimate_tokens (words*4/3)"
+# The single canonical local token estimator for this repo. Provider-reported
+# usage remains the source of truth; this function is used only when usage is
+# absent or when a local comparison is needed. Prefer the model's registered
+# tiktoken encoding and use o200k_base when a provider/model is unknown.
+ESTIMATOR_LABEL = "observability.estimate_token_details (tiktoken BPE; fallback labelled)"
+_TOKENIZER_FALLBACK_ENCODING = "o200k_base"
+
+
+def _heuristic_token_count(text: str) -> int:
+    return max(1, len(text.split()) * 4 // 3)
+
+
+def _tokenizer_model() -> str:
+    return os.environ.get("SIMPLICIO_MODEL") or os.environ.get("MODEL") or ""
+
+
+def estimate_token_details(text: str | None) -> dict[str, Any]:
+    """Return a fail-open local token estimate without retaining text.
+
+    ``source`` is ``tiktoken`` when the BPE count succeeded and
+    ``heuristic-fallback`` only when the runtime tokenizer could not be used.
+    This is an estimate, never provider-reported usage.
+    """
+    if not text:
+        return {"tokens": 0, "source": "tiktoken", "encoding": None, "model": _tokenizer_model()}
+
+    model = _tokenizer_model()
+    try:
+        import tiktoken
+
+        try:
+            encoding = tiktoken.encoding_for_model(model) if model else tiktoken.get_encoding(_TOKENIZER_FALLBACK_ENCODING)
+        except KeyError:
+            encoding = tiktoken.get_encoding(_TOKENIZER_FALLBACK_ENCODING)
+        return {
+            "tokens": len(encoding.encode(text, disallowed_special=())),
+            "source": "tiktoken",
+            "encoding": encoding.name,
+            "model": model,
+        }
+    except Exception:  # observability must never affect a provider call
+        return {
+            "tokens": _heuristic_token_count(text),
+            "source": "heuristic-fallback",
+            "encoding": None,
+            "model": model,
+        }
 
 
 def estimate_tokens(text: str | None) -> int:
-    if not text:
-        return 0
-    return max(1, len(text.split()) * 4 // 3)
+    """Return the canonical local estimate; use estimate_token_details for provenance."""
+    return int(estimate_token_details(text)["tokens"])
 
 
 def _append_jsonl(path: Path, record: dict[str, Any]) -> None:

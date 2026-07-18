@@ -713,16 +713,26 @@ def _log_usage_event(*, provider_id, model, prompt, completion, cache_hit, usage
     root = os.environ.get("SIMPLICIO_LOG_ROOT")
     if not root:
         return
-    from .observability import estimate_tokens, log_run
+    from .observability import estimate_token_details, log_run
 
     if usage:
         prompt_tokens = int(usage.get("prompt_tokens") or 0)
         completion_tokens = int(usage.get("completion_tokens") or 0)
         usage_source = "provider"
+        token_estimate = {"source": "provider", "encoding": None}
     else:
-        prompt_tokens = estimate_tokens(prompt)
-        completion_tokens = estimate_tokens(completion)
-        usage_source = "estimated"
+        prompt_estimate = estimate_token_details(prompt)
+        completion_estimate = estimate_token_details(completion)
+        prompt_tokens = int(prompt_estimate["tokens"])
+        completion_tokens = int(completion_estimate["tokens"])
+        usage_source = str(prompt_estimate["source"])
+        token_estimate = {
+            "source": usage_source,
+            "encoding": prompt_estimate["encoding"],
+            "model": prompt_estimate["model"],
+            "completion_source": completion_estimate["source"],
+            "completion_encoding": completion_estimate["encoding"],
+        }
     try:
         log_run(
             root,
@@ -733,6 +743,7 @@ def _log_usage_event(*, provider_id, model, prompt, completion, cache_hit, usage
                 "model": model or "",
                 "cache_hit": bool(cache_hit),
                 "usage_source": usage_source,
+                "token_estimate": token_estimate,
                 "tokens": {"prompt": prompt_tokens, "completion": completion_tokens},
                 "tokens_estimated": prompt_tokens + completion_tokens,
             },
