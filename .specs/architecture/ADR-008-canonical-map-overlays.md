@@ -335,6 +335,25 @@ implementação**, não escrever um segundo lock do zero:
    o adapter materializa `EffectiveMapView` para o formato atual quando um
    comando pede um artefato concreto, preservando 100% de compatibilidade
    de output.
+
+   > **Status (issue #269): parcialmente implementado.** `index`/`scan`
+   > ganharam um caminho opt-in (`--canonical-reuse` /
+   > `SIMPLICIO_MAPPER_CANONICAL_REUSE=1`, ver
+   > `simplicio_mapper/mapper/canonical_reuse.py`) que reaproveita o
+   > `CanonicalMapManifest` quando o overlay do worktree é **trivial**
+   > (`HEAD` == commit canônico, sem staged/unstaged/untracked fora do
+   > próprio `out`) — hit verbatim dos quatro artefatos canônicos +
+   > `architecture-inventory` recomputado localmente (barato, derivado). Lock
+   > single-flight é *advisory* (best-effort, nunca requerido pra
+   > corretude — `build_canonical_manifest` já é idempotente/atômico).
+   > Overlay não-trivial (dirty ou divergente) cai sempre no full map legado
+   > (`fallback_reason="overlay_not_trivial"`), nunca é mesclado — mesclar um
+   > overlay parcial em `symbol-index.json`/`call-graph.json` exigiria
+   > re-derivar relações cross-file de um patch parcial, escopo maior que
+   > esta issue; fica como follow-up (`status`/`ask` deste passo 6 também não
+   > foram tocados, só `index`/`scan`). Benchmark real:
+   > `scripts/canonical_reuse_benchmark.py` /
+   > `docs/evidence/canonical-reuse-benchmark.json`.
 7. Comandos novos `canonical status/build/verify/gc` — camada de
    observabilidade/operação por cima do que já existe, sem substituir os
    comandos atuais.
