@@ -26,6 +26,7 @@ from simplicio_mapper.prototype_context import (  # noqa: E402
     ALLOWED_TYPES,
     PROTOTYPE_CONTEXT_SCHEMA,
     PrototypeContextError,
+    _is_forbidden_context_path,
     _negative_space,
     _precedent_candidates,
     _truncate_to_budget,
@@ -39,20 +40,13 @@ def _write_fixture(root: str) -> None:
     os.makedirs(os.path.join(root, "tests"), exist_ok=True)
     with open(os.path.join(root, "src", "app.py"), "w", encoding="utf-8") as handle:
         handle.write(
-            "def greet(name):\n"
-            "    return f'hello {name}'\n"
-            "\n"
-            "def main():\n"
-            "    print(greet('world'))\n"
+            "def greet(name):\n    return f'hello {name}'\n\ndef main():\n    print(greet('world'))\n"
         )
     with open(os.path.join(root, "src", "util.py"), "w", encoding="utf-8") as handle:
         handle.write("def unrelated():\n    return 1\n")
     with open(os.path.join(root, "tests", "test_app.py"), "w", encoding="utf-8") as handle:
         handle.write(
-            "from src.app import greet\n"
-            "\n"
-            "def test_greet():\n"
-            "    assert greet('world') == 'hello world'\n"
+            "from src.app import greet\n\ndef test_greet():\n    assert greet('world') == 'hello world'\n"
         )
     with open(os.path.join(root, "README.md"), "w", encoding="utf-8") as handle:
         handle.write("# fixture\n")
@@ -102,10 +96,17 @@ class BuildPrototypeContextTest(unittest.TestCase):
             "tokens_estimated",
             "truncated",
             "omitted_counts",
+            "source_binding",
+            "canonical_reuse",
+            "excluded_context",
+            "measurements",
+            "budget_policy",
+            "context_hash_algorithm",
         ):
             self.assertIn(key, payload)
         self.assertEqual(payload["skeletons"][0]["type"], "failing_test")
         self.assertIn("context_hash", payload)
+        self.assertEqual(payload["context_hash_algorithm"], "sha256:canonical-json-without-context_hash")
 
     def test_precedents_are_shaped_with_confidence_and_provenance(self) -> None:
         payload = build_prototype_context(self.root, type_="bug", arg="src/app.py")
@@ -143,6 +144,36 @@ class BuildPrototypeContextTest(unittest.TestCase):
         payload = build_prototype_context(self.root, type_="bug", arg="src/app.py")
         self.assertIn("tests/test_app.py", payload["affected_tests"])
 
+    def test_context_pack_is_bound_to_source_and_affected_shards(self) -> None:
+        payload = build_prototype_context(self.root, type_="bug", arg="src/app.py")
+        binding = payload["source_binding"]
+        self.assertRegex(binding["source_sha"], r"^[0-9a-f]{40,64}$")
+        self.assertIn("src", binding["affected_shards"])
+        self.assertIn("tests", binding["affected_shards"])
+        self.assertEqual(binding["invalidation"], "invalidate-only-listed-shards-on-source-drift")
+
+    def test_measurements_compare_full_remap_and_extraction(self) -> None:
+        payload = build_prototype_context(self.root, type_="benchmark", arg="src/app.py")
+        measurements = payload["measurements"]
+        self.assertGreaterEqual(measurements["full_remap_seconds"], 0)
+        self.assertGreaterEqual(measurements["prototype_extraction_seconds"], 0)
+        self.assertEqual(
+            measurements["comparison"],
+            "full-remap-build-artifacts-vs-prototype-context-extraction",
+        )
+
+    def test_secret_and_binary_paths_are_excluded_from_context(self) -> None:
+        payload = build_prototype_context(self.root, type_="bug", arg="src/app.py")
+        serialized = json.dumps(payload, sort_keys=True)
+        self.assertNotIn(".env", serialized)
+        self.assertNotIn("secret-plan.md", serialized)
+        self.assertNotIn("image.png", serialized)
+        self.assertTrue(payload["excluded_context"]["paths"] or payload["excluded_context"]["policy"])
+
+    def test_forbidden_target_is_rejected(self) -> None:
+        with self.assertRaises(PrototypeContextError):
+            build_prototype_context(self.root, type_="bug", arg=".env")
+
     def test_negative_space_excludes_touched_dirs(self) -> None:
         payload = build_prototype_context(self.root, type_="bug", arg="src/app.py")
         # src/ (target) and tests/ (a found test) must never appear in
@@ -170,6 +201,18 @@ class BuildPrototypeContextTest(unittest.TestCase):
         # never silently drops the schema/type identity fields
         self.assertEqual(payload["schema"], PROTOTYPE_CONTEXT_SCHEMA)
         self.assertEqual(payload["type"], "bug")
+
+
+class ForbiddenContextPathTest(unittest.TestCase):
+    """Unit: path-only exclusion policy for secret/binary context."""
+
+    def test_rejects_common_secret_and_binary_paths(self) -> None:
+        for path in (".env", ".env.local", "config/secrets.yml", "id_rsa", "assets/logo.png"):
+            self.assertTrue(_is_forbidden_context_path(path), path)
+
+    def test_allows_normal_source_and_docs_paths(self) -> None:
+        for path in ("src/app.py", "tests/test_app.py", "docs/readme.md"):
+            self.assertFalse(_is_forbidden_context_path(path), path)
 
 
 class NegativeSpaceHelperTest(unittest.TestCase):
@@ -262,7 +305,12 @@ class TruncateToBudgetTest(unittest.TestCase):
     """Unit: `_truncate_to_budget()` in isolation."""
 
     def test_under_budget_untouched(self) -> None:
-        payload = {"affected_symbols": [1, 2, 3], "affected_tests": [], "needs_review": [], "negative_space": []}
+        payload = {
+            "affected_symbols": [1, 2, 3],
+            "affected_tests": [],
+            "needs_review": [],
+            "negative_space": [],
+        }
         result = _truncate_to_budget(dict(payload), token_budget=10_000)
         self.assertEqual(result["affected_symbols"], [1, 2, 3])
         self.assertFalse(result["truncated"])
@@ -375,7 +423,9 @@ class CliDispatchTest(unittest.TestCase):
     def test_main_dispatches_prototype_context(self) -> None:
         buf = StringIO()
         with redirect_stdout(buf):
-            code = main(["prototype-context", self.root, "--type", "workflow", "--arg", "src/app.py", "--json"])
+            code = main(
+                ["prototype-context", self.root, "--type", "workflow", "--arg", "src/app.py", "--json"]
+            )
         self.assertEqual(code, 0)
         payload = json.loads(buf.getvalue())
         self.assertEqual(payload["schema"], PROTOTYPE_CONTEXT_SCHEMA)

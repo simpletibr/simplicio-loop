@@ -62,9 +62,12 @@ cross-repo/canonical-map pieces they depend on exist):
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import subprocess
 import sys
+import time
 from typing import Any
 
 from .mapper import build_artifacts
@@ -88,6 +91,34 @@ ALLOWED_TYPES = (
 
 DEFAULT_LIMIT = 20
 DEFAULT_TOKEN_BUDGET = 8000
+
+_SECRET_BASENAME_MARKERS = (".env", "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519")
+_SECRET_SUBSTRINGS = ("secret", "token", "password", "passwd", "credential", "private-key", "private_key")
+_BINARY_EXTENSIONS = (
+    ".7z",
+    ".bin",
+    ".bmp",
+    ".class",
+    ".dll",
+    ".dylib",
+    ".exe",
+    ".gif",
+    ".ico",
+    ".jar",
+    ".jpeg",
+    ".jpg",
+    ".lockb",
+    ".mp4",
+    ".o",
+    ".pdf",
+    ".png",
+    ".pyc",
+    ".so",
+    ".wasm",
+    ".webp",
+    ".zip",
+)
+
 _MIN_TRUNCATE_ITEMS = 1
 _MAX_TRUNCATE_ITERATIONS = 20
 
@@ -102,6 +133,42 @@ _TRUNCATABLE_FIELDS = (
 
 class PrototypeContextError(RuntimeError):
     """Raised for invalid input (unknown type, missing/empty target)."""
+
+
+def _is_forbidden_context_path(path: str) -> bool:
+    """Return True for paths that must not enter a prototype context pack.
+
+    This command is a boundary for downstream prototype generation. Even if a
+    lower-level mapper artifact contains a sensitive-looking path, the context
+    pack refuses to surface it as target/impact/negative-space/precedent
+    evidence. The check is intentionally conservative and path-only: it avoids
+    reading file contents while still catching common secret names and binary
+    artifacts requested by issue #286's acceptance criteria.
+    """
+    normalized = path.replace("\\", "/").strip("/").lower()
+    if not normalized:
+        return True
+    basename = normalized.rsplit("/", 1)[-1]
+    if basename in _SECRET_BASENAME_MARKERS or basename.startswith(".env."):
+        return True
+    if any(marker in normalized for marker in _SECRET_SUBSTRINGS):
+        return True
+    return normalized.endswith(_BINARY_EXTENSIONS)
+
+
+def _filter_paths(paths: list[str]) -> tuple[list[str], list[str]]:
+    kept: list[str] = []
+    excluded: list[str] = []
+    seen: set[str] = set()
+    for path in paths:
+        if not path or path in seen:
+            continue
+        seen.add(path)
+        if _is_forbidden_context_path(path):
+            excluded.append(path)
+        else:
+            kept.append(path)
+    return kept, excluded
 
 
 def _resolve_target_files(project_map: dict, symbol_index: dict, arg: str) -> tuple[list[str], str]:
@@ -123,7 +190,9 @@ def _resolve_target_files(project_map: dict, symbol_index: dict, arg: str) -> tu
     return [arg], "unresolved-literal"
 
 
-def _negative_space(project_map: dict, target_files: list[str], affected_paths: set[str], limit: int) -> list[str]:
+def _negative_space(
+    project_map: dict, target_files: list[str], affected_paths: set[str], limit: int
+) -> list[str]:
     """Best-effort "do not touch" hint (issue #286 step 4): files under a
     top-level directory that neither the target nor the impact set touches
     at all. This is a coarse heuristic, not a proof of non-impact -- callers
@@ -136,7 +205,7 @@ def _negative_space(project_map: dict, target_files: list[str], affected_paths: 
     candidates = []
     for entry in project_map.get("files", []):
         path = entry.get("path")
-        if not path:
+        if not path or _is_forbidden_context_path(path):
             continue
         top = path.split("/", 1)[0] if "/" in path else path
         if top not in touched_dirs:
@@ -178,16 +247,22 @@ def _precedent_candidates(precedent_items: list[dict], query_text: str, limit: i
 def _skeletons(type_: str, target_files: list[str], goal: str) -> list[dict[str, Any]]:
     """Return deterministic, non-production skeleton descriptors."""
     names = {
-        "ui": "wireframe", "api": "schema", "data-model": "data_model",
-        "bug": "failing_test", "benchmark": "benchmark_spike",
-        "prompt": "prompt_candidate", "workflow": "vertical_slice",
+        "ui": "wireframe",
+        "api": "schema",
+        "data-model": "data_model",
+        "bug": "failing_test",
+        "benchmark": "benchmark_spike",
+        "prompt": "prompt_candidate",
+        "workflow": "vertical_slice",
     }
-    return [{
-        "type": names[type_],
-        "path_hint": target_files[0] if target_files else "prototype",
-        "goal": goal,
-        "provenance": "simplicio-mapper/prototype-context/v1",
-    }]
+    return [
+        {
+            "type": names[type_],
+            "path_hint": target_files[0] if target_files else "prototype",
+            "goal": goal,
+            "provenance": "simplicio-mapper/prototype-context/v1",
+        }
+    ]
 
 
 def _truncate_to_budget(payload: dict, token_budget: int) -> dict:
@@ -232,6 +307,68 @@ def _truncate_to_budget(payload: dict, token_budget: int) -> dict:
     return payload
 
 
+def _run_git(args: list[str], root: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", *args],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            stdin=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    value = result.stdout.strip()
+    return value or None
+
+
+def _tree_source_sha(root: str, project_map: dict) -> str:
+    digest = hashlib.sha256()
+    for entry in sorted(project_map.get("files", []), key=lambda item: item.get("path") or ""):
+        path = entry.get("path") or ""
+        if not path or _is_forbidden_context_path(path):
+            continue
+        digest.update(path.encode("utf-8", errors="surrogateescape"))
+        digest.update(b"\0")
+        digest.update(str(entry.get("hash") or entry.get("sha256") or "").encode("utf-8"))
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _source_binding(root: str, project_map: dict, context_paths: list[str]) -> dict[str, Any]:
+    head = _run_git(["rev-parse", "HEAD"], root)
+    tree = _run_git(["rev-parse", "HEAD^{tree}"], root)
+    status = _run_git(["status", "--porcelain", "--untracked-files=all"], root)
+    source_sha = head or _tree_source_sha(root, project_map)
+    shard_digest = hashlib.sha256()
+    shards: set[str] = set()
+    for path in sorted({p for p in context_paths if p and not _is_forbidden_context_path(p)}):
+        shards.add(path.split("/", 1)[0] if "/" in path else path)
+        shard_digest.update(path.encode("utf-8", errors="surrogateescape"))
+        shard_digest.update(b"\0")
+    return {
+        "source_sha": source_sha,
+        "tree_sha": tree or "",
+        "dirty": bool(status),
+        "source_kind": "git" if head else "tree-digest",
+        "affected_shards": sorted(shards),
+        "affected_shards_hash": shard_digest.hexdigest(),
+        "invalidation": "invalidate-only-listed-shards-on-source-drift",
+    }
+
+
+def _hash_bound_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    final_payload = dict(payload)
+    final_payload.pop("context_hash", None)
+    canonical = json.dumps(final_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    final_payload["context_hash"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    final_payload["context_hash_algorithm"] = "sha256:canonical-json-without-context_hash"
+    return final_payload
+
+
 def build_prototype_context(
     root: str,
     out_dir: str = ".simplicio",
@@ -253,11 +390,17 @@ def build_prototype_context(
         raise PrototypeContextError("prototype-context requires a non-empty target (--arg)")
 
     abs_root = os.path.abspath(root)
+    started = time.perf_counter()
     artifacts = build_artifacts(abs_root, output_dir=out_dir)
+    full_remap_seconds = round(time.perf_counter() - started, 6)
+    extraction_started = time.perf_counter()
     project_map = artifacts["project_map"]
     symbol_index = artifacts["symbol_index"]
 
     target_files, resolution_note = _resolve_target_files(project_map, symbol_index, arg)
+    target_files, excluded_target_files = _filter_paths(target_files)
+    if not target_files:
+        raise PrototypeContextError("prototype-context target resolves only to forbidden/secret/binary paths")
     impact = _impact(abs_root, artifacts, target_files)
 
     tests: list[str] = []
@@ -269,6 +412,17 @@ def build_prototype_context(
                 seen_tests.add(match)
                 tests.append(match)
     tests.sort()
+    tests, excluded_tests = _filter_paths(tests)
+
+    filtered_symbols = []
+    excluded_symbol_paths = []
+    for sym in impact["affected_symbols"]:
+        path = sym.get("path") or ""
+        if _is_forbidden_context_path(path):
+            excluded_symbol_paths.append(path)
+            continue
+        filtered_symbols.append(sym)
+    impact["affected_symbols"] = filtered_symbols
 
     affected_paths = {sym["path"] for sym in impact["affected_symbols"] if sym.get("path")}
     affected_paths.update(target_files)
@@ -286,7 +440,21 @@ def build_prototype_context(
             ],
         )
     )
-    precedents = _precedent_candidates(precedent_index.get("items") or [], precedent_query_text, limit)
+    precedents = [
+        item
+        for item in _precedent_candidates(precedent_index.get("items") or [], precedent_query_text, limit)
+        if not _is_forbidden_context_path(str(item.get("path") or ""))
+    ]
+    negative_space = _negative_space(project_map, target_files, affected_paths, limit)
+    context_paths = (
+        target_files
+        + [sym.get("path", "") for sym in impact["affected_symbols"]]
+        + tests
+        + negative_space
+        + [str(item.get("path") or "") for item in precedents]
+    )
+    source_binding = _source_binding(abs_root, project_map, context_paths)
+    extraction_seconds = round(time.perf_counter() - extraction_started, 6)
 
     payload: dict[str, Any] = {
         "schema": PROTOTYPE_CONTEXT_SCHEMA,
@@ -297,7 +465,7 @@ def build_prototype_context(
         "affected_flows": impact["affected_flows"],
         "affected_tests": tests[:limit],
         "needs_review": impact["needs_review"],
-        "negative_space": _negative_space(project_map, target_files, affected_paths, limit),
+        "negative_space": negative_space,
         "precedents": precedents,
         "precedents_note": (
             "local keyword-overlap ranking against precedent-index.json (issue "
@@ -308,15 +476,29 @@ def build_prototype_context(
             "runtime the way `ask precedent` itself can"
         ),
         "skeletons": _skeletons(type_, target_files, arg),
-        "skeletons_note": "descriptors only; materialization belongs to an isolated Dev CLI candidate",
+        "skeletons_note": "deterministic descriptors only; materialization belongs to an isolated Dev CLI candidate and never claims implementation",
         "token_budget": token_budget,
+        "budget_policy": {"estimator": "heuristic:chars-div-4", "semantic_truncation": "largest-list-first"},
+        "source_binding": source_binding,
+        "canonical_reuse": {
+            "eligible": not source_binding["dirty"],
+            "mode": "worktree-local-effective-context",
+            "note": "context pack is hash-bound to source_sha and affected_shards; canonical reuse can supply artifacts before this extraction when index/scan opt in",
+        },
+        "excluded_context": {
+            "paths": sorted(set(excluded_target_files + excluded_tests + excluded_symbol_paths)),
+            "policy": "exclude secret-like names and binary extensions from prototype-context",
+        },
+        "measurements": {
+            "full_remap_seconds": full_remap_seconds,
+            "prototype_extraction_seconds": extraction_seconds,
+            "comparison": "full-remap-build-artifacts-vs-prototype-context-extraction",
+        },
     }
     if plan_hash:
         payload["plan_hash"] = plan_hash
-    payload["context_hash"] = __import__("hashlib").sha256(
-        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
-    return _truncate_to_budget(payload, token_budget)
+    bounded = _truncate_to_budget(payload, token_budget)
+    return _hash_bound_payload(bounded)
 
 
 def run_prototype_context_cli(argv: list[str]) -> int:
@@ -359,7 +541,7 @@ def run_prototype_context_cli(argv: list[str]) -> int:
                 return 2
             i += 2
             continue
-        if arg_token == "--plan" and i + 1 < len(argv):
+        if arg_token == "--plan" and i + 1 < len(argv):  # noqa: S105 - CLI flag literal, not a credential
             try:
                 plan_payload = json.loads(open(argv[i + 1], encoding="utf-8").read())
                 plan_hash = str(plan_payload.get("plan_hash") or "")
@@ -381,7 +563,9 @@ def run_prototype_context_cli(argv: list[str]) -> int:
             arg = positionals[1]
 
     try:
-        payload = build_prototype_context(root, type_=type_, arg=arg, limit=limit, token_budget=token_budget, plan_hash=plan_hash)
+        payload = build_prototype_context(
+            root, type_=type_, arg=arg, limit=limit, token_budget=token_budget, plan_hash=plan_hash
+        )
     except PrototypeContextError as error:
         print(f"::error::{error}", file=sys.stderr)
         return 1

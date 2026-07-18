@@ -252,3 +252,34 @@ mais limpo e não arrisca quebrar consumidores de `ask`.
 - ADRs relacionados: [ADR-008](./ADR-008-canonical-map-overlays.md),
   [ADR-010](./ADR-010-release-manifest-phase0.md),
   [ADR-011](./ADR-011-adaptive-pipeline-threshold-calibration.md)
+
+---
+
+## Addendum — fechamento Mapper-owned da issue #286 (2026-07-18)
+
+Uma fatia seguinte removeu o principal ponto fraco operacional do envelope
+local sem assumir contratos cross-repo que o Mapper não controla sozinho. O
+comando `prototype-context` agora inclui, dentro do próprio
+`simplicio.prototype-context/v1`:
+
+- `source_binding`: `source_sha`, `tree_sha` quando disponível, estado `dirty`,
+  `affected_shards`, hash dos shards e política de invalidação
+  `invalidate-only-listed-shards-on-source-drift`.
+- `context_hash` calculado sobre o payload final bounded/truncado, com
+  `context_hash_algorithm = sha256:canonical-json-without-context_hash`.
+- `excluded_context`: filtro path-only para nomes secret-like e extensões
+  binárias antes de expor targets, símbolos, testes, negative-space ou
+  precedentes.
+- `measurements`: comparação local honesta entre o tempo do full remap via
+  `build_artifacts()` e o tempo de extração do `prototype-context`.
+- `canonical_reuse`: metadados de elegibilidade/hash-binding para consumir
+  artefatos vindos do caminho canônico quando `index`/`scan` já tiverem feito
+  esse opt-in, sem prometer merge parcial de overlay que este comando não faz.
+
+Isso fecha os critérios que são responsabilidade direta do Mapper nesta issue:
+context pack bounded/hash-bound, impacto com teste/contrato/artefato via
+artefatos existentes, negative-space explícito, skeleton descriptors com
+provenance, exclusão de secrets/binários, source-drift por shards e medição
+full-remap vs context extraction. Continuam fora de escopo por dependerem de
+outros contratos/repositórios: materialização real de protótipos pelo Dev CLI,
+receipts Loop/Runtime cross-repo e validação E2E contra o Loop completo.
