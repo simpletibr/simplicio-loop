@@ -27,12 +27,27 @@ class CanonicalReuseBenchmarkTests(unittest.TestCase):
     def test_small_run_reports_real_measurements_for_every_worktree(self) -> None:
         report = bench.run_benchmark(worktrees=2, files=5)
         self.assertEqual(report["schema"], bench.SCHEMA)
+        self.assertEqual(report["schema"], "simplicio.canonical-reuse-benchmark/v2")
         self.assertEqual(len(report["full_remap"]["runs"]), 2)
         self.assertEqual(len(report["canonical_reuse"]["runs"]), 2)
 
         for run in report["full_remap"]["runs"] + report["canonical_reuse"]["runs"]:
             self.assertGreaterEqual(run["wall_s"], 0.0)
             self.assertEqual(run["files_mapped"], 6)  # 5 modules + README
+            # schema v2 (issue #236): child-process CPU/RSS and I/O-proxy
+            # fields must be present (non-None on this POSIX/Linux runner)
+            # -- the whole point of the v2 bump is that these are no longer
+            # silently dropped.
+            for field in (
+                "cpu_s_children",
+                "peak_rss_kb_children",
+                "io_in_blocks",
+                "io_out_blocks",
+                "io_in_blocks_children",
+                "io_out_blocks_children",
+            ):
+                self.assertIn(field, run)
+                self.assertIsNotNone(run[field], f"{field} must be measured on POSIX")
 
         self.assertAlmostEqual(
             report["full_remap"]["total_wall_s"],

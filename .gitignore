@@ -136,6 +136,7 @@ docs/**
 !docs/async-pipeline-operations.md
 !docs/async-inventory-benchmark.md
 !docs/async-pipeline-dispatch-benchmark.md
+!docs/canonical-reuse-benchmark.md
 scripts/**
 !scripts/build_hamt.py
 !scripts/async_pipeline_after_benchmark.py
