@@ -85,6 +85,8 @@ USAGE
   simplicio-mapper update [--root <dir>] [--watch]
   simplicio-mapper contract validate <path> [<path> ...]
   simplicio-mapper doctor --contracts [--cross-repo] [<path> ...]
+  simplicio-mapper canonical build <path> [--json] [--config-fingerprint <value>]
+  simplicio-mapper canonical status <path> [--json] [--config-fingerprint <value>]
 
 OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
@@ -117,6 +119,24 @@ OPTIONS
   doctor --contracts    Validate contracts/mapper-artifacts/v1/ and
                         contracts/ecosystem/v1/ fixtures against their
                         schemas; exit 0 when all valid (issue #164).
+  canonical build <path>
+                        Resolve the default branch via git and build (or
+                        idempotently reuse) the canonical-map manifest for
+                        that commit (schema simplicio.canonical-build/v1).
+                        Does not touch index/scan/status (issue #266).
+  canonical status <path>
+                        Read-only report over an existing canonical-map
+                        manifest: digest/redacted key, freshness,
+                        cache/single-flight diagnostics, overlay counts and
+                        invalidation reason (schema
+                        simplicio.canonical-status/v1). Never builds,
+                        never writes, never includes an absolute path, a
+                        remote URL or file content (issue #266).
+  --config-fingerprint <value>
+                        canonical build/status: override the mapping-config
+                        fingerprint segment of the canonical key (default is
+                        a stable placeholder -- no config knobs are exposed
+                        at this surface yet).
   --range <spec>        sync: git diff range (e.g. main..HEAD) instead of the working tree.
   --staged              sync: diff staged changes instead of the working tree.
   --check               sync: report staleness without writing (exit 1 if stale).
