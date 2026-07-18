@@ -474,7 +474,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_proto_plan = prototype_sub.add_parser("plan")
     p_proto_plan.add_argument("--input", help="Loop/Mapper prototype-plan JSON")
     p_proto_plan.add_argument("--goal", default="")
-    p_proto_plan.add_argument("--type", dest="prototype_type", default="code_spike", choices=("schema", "data_model", "failing_test", "mock", "code_spike", "vertical_slice"))
+    p_proto_plan.add_argument("--type", dest="prototype_type", default="code_spike", choices=("wireframe", "architecture_diagram", "schema", "data_model", "failing_reproducer", "benchmark_spike", "mock_or_fake", "code_spike", "vertical_slice", "prompt_candidate", "workflow_simulation", "storyboard", "policy_or_security_model"))
     p_proto_plan.add_argument("--output", default=".simplicio/prototype-plan.json")
     p_proto_plan.add_argument("--json", action="store_true")
     for name in ("scaffold", "dry-run", "validate", "diff", "promote", "reject"):
