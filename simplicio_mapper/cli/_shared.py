@@ -101,6 +101,7 @@ USAGE
   simplicio-mapper canonical verify <path> [--json] [--storage-root <dir>] [--config-fingerprint <value>] [--limit <n>]
   simplicio-mapper canonical gc <path> [--apply] [--json]
   simplicio-mapper benchmark pipeline-threshold [path] [--sizes N,N,N] [--runs N] [--out <dir>] [--json]
+  simplicio-mapper benchmark shadow-rollout [path] [--out <dir>] [--json]
   simplicio-mapper release-manifest [--json] [--root <dir>] [--check-registry] [--update-registry-baseline]
 
 OPTIONS
@@ -161,6 +162,15 @@ OPTIONS
                         default when present. Purely opt-in -- absent this
                         file, dispatch behavior is unchanged (issue #279
                         Phase-0, ADR-011).
+  benchmark shadow-rollout [path]
+                        Run the CONFIGURED sync/async pipeline profile for
+                        real, shadow-run the other profile in an isolated
+                        temp dir, and compare wall time + output
+                        equivalence -- never promotes the candidate; the
+                        real caller always gets the configured profile's
+                        result. Writes a receipt to
+                        <out>/pipeline-shadow.json (issue #279 plan step
+                        15, ADR-011).
   release-manifest      Phase-0, local, offline generator for the
                         simplicio.component-release/v1 manifest: version,
                         commit SHA, and every schema-version constant this
