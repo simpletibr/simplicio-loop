@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper.cli import main  # noqa: E402
+from simplicio_mapper.savings import estimate_tokens  # noqa: E402
 from simplicio_mapper.toon import decode_toon  # noqa: E402
 
 
@@ -103,6 +104,46 @@ class ForLlmToonWiringTest(unittest.TestCase):
         # index's counts-only payload has no non-uniform arrays -> no
         # toon_fallbacks line.
         self.assertEqual(err.getvalue(), "")
+
+    def test_handoff_toon_fallback_reconciles_estimated_tokens(self) -> None:
+        """Issue #308: when the retrieval selection's ``targets``/
+        ``expanded_spans`` (score components, differing keys, ...) force a
+        ``toon_fallbacks`` (nested containers can't take the tabular shape),
+        the ``metrics.estimated_tokens`` figure must reflect the real
+        serialized size actually printed — not the pre-serialization
+        estimate computed as if TOON had covered every field. Before the
+        fix, that estimate stayed a tiny span-cost number (e.g. ~12) while
+        the real emitted TOON+JSON-fallback text ran into the thousands of
+        tokens: a silent ~10x+ undercount.
+        """
+        with redirect_stdout(StringIO()):
+            self.assertEqual(main(["map", "--root", str(self.dir), "--silent"]), 0)
+        with redirect_stdout(StringIO()):
+            self.assertEqual(main(["scan", str(self.dir), "--sync", "--json"]), 0)
+        out = StringIO()
+        err = StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = main(
+                ["handoff", str(self.dir), "--goal", "fix run function", "--for-llm", "toon"]
+            )
+        self.assertEqual(code, 0)
+        text = out.getvalue()
+        fallback_report = json.loads(err.getvalue())
+        self.assertTrue(
+            fallback_report["toon_fallbacks"], "expected a non-empty toon_fallbacks report"
+        )
+        payload = decode_toon(text)
+        reported = payload["metrics"]["estimated_tokens"]
+        real = estimate_tokens(text)
+        # Reported estimate must track the real emitted size (small slack for
+        # the digit-count of the number itself shifting the re-encoded text
+        # length by a few tokens), never silently understate it the way the
+        # pre-fallback-aware estimate did (that bug reported ~12 tokens here
+        # while the real payload runs into the thousands).
+        self.assertGreaterEqual(reported, real - 20)
+        self.assertLessEqual(reported, real + 20)
+        self.assertGreater(reported, 1000)
+        self.assertIn("toon_fallback_actual", payload["metrics"]["tokens_estimation_method"])
 
 
 class AsolariaTaggingTest(unittest.TestCase):
