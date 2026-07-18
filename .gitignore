@@ -126,6 +126,7 @@ docs/**
 !docs/issue-208-ac08-evaluation.md
 !docs/issue-208-ac08-evaluation.json
 !docs/behavioral-scorecard.md
+!docs/windows-verification-issue-233.md
 !docs/evidence/
 !docs/evidence/*.json
 !docs/ci/

@@ -50,6 +50,21 @@
   `simplicio_mapper/cli/_background.py` and is covered by
   `tests/python/test_cli_coverage.py`; this release only closes the
   publish/tag/install gap around it.
+- **Local pre-publish validation performed** (no PyPI credentials
+  required): `python -m build` produces a clean `simplicio_mapper-0.24.1`
+  sdist + wheel, and `twine check dist/*` reports `PASSED` for both
+  artifacts against an up-to-date `packaging`/`twine` toolchain (an
+  ancient system-installed `packaging` release can misreport the wheel's
+  `License-File` metadata field as invalid — that is a local toolchain
+  issue, not a defect in the built artifact, and does not block the real
+  upload).
+- **Windows-only verification still pending real Windows access**: the
+  `stdin=DEVNULL`/`WinError 6` fix (issue #231) and the `taskkill`
+  recovery path cannot be exercised from a Linux sandbox. A precise,
+  runnable checklist for an operator with Windows + the published
+  `0.24.1` install is documented in
+  `docs/windows-verification-issue-233.md` so that final verification is
+  a checklist, not a research task.
 
 ## [0.24.0] - 2026-07-17
 
