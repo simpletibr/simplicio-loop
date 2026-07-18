@@ -20,6 +20,7 @@ import orjson
 from ..cache import FileProcessingCache
 from ..diagrams import render_flowchart, render_flowchart_svg, to_image_markdown, to_markdown_block
 from ..models import ProjectFile
+from .execution_planner import ExecutionProfile, plan_execution
 from .graph import (
     _build_architecture_inventory,
     _build_call_graph,
@@ -327,8 +328,12 @@ def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = Fals
     """
     abs_cwd = os.path.abspath(cwd or os.getcwd())
     threshold = _async_pipeline_min_files(abs_cwd, output_dir)
-    if _fast_file_count(abs_cwd, threshold) < threshold:
-        return _build_artifacts_sync(abs_cwd, meta, incremental, output_dir)
+    file_count = _fast_file_count(abs_cwd, threshold)
+    plan = plan_execution(file_count, threshold)
+    if plan.selected_profile == ExecutionProfile.SYNC.value:
+        artifacts = _build_artifacts_sync(abs_cwd, meta, incremental, output_dir)
+        artifacts["execution_plan"] = plan.to_receipt()
+        return artifacts
 
     # Local import: `async_pipeline` imports `_build_agent_tree` from this
     # module only inside its own function body, so importing it here (also
@@ -337,7 +342,9 @@ def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = Fals
     from .async_pipeline import _install_uvloop_if_available, build_artifacts_async
 
     _install_uvloop_if_available()
-    return asyncio.run(build_artifacts_async(abs_cwd, meta, incremental, output_dir))
+    artifacts = asyncio.run(build_artifacts_async(abs_cwd, meta, incremental, output_dir))
+    artifacts["execution_plan"] = plan.to_receipt()
+    return artifacts
 
 def _write_json_stable(file: str, data: Any) -> None:
     directory = os.path.dirname(file)
@@ -356,6 +363,7 @@ def write_mapping_artifacts(cwd: str, meta: dict | None = None, incremental: boo
     abs_out = os.path.abspath(os.path.join(abs_cwd, output_dir))
     artifacts = build_artifacts(abs_cwd, meta, incremental, output_dir)
     project_map = artifacts["project_map"]
+    execution_plan = artifacts.get("execution_plan")
     precedent_index = artifacts["precedent_index"]
     architecture_inventory = artifacts["architecture_inventory"]
     symbol_index = artifacts["symbol_index"]
@@ -365,11 +373,14 @@ def write_mapping_artifacts(cwd: str, meta: dict | None = None, incremental: boo
     architecture_inventory_path = os.path.join(abs_out, "architecture-inventory.json")
     symbol_index_path = os.path.join(abs_out, "symbol-index.json")
     call_graph_path = os.path.join(abs_out, "call-graph.json")
+    execution_plan_path = os.path.join(abs_out, "execution-plan.json")
     _write_json_stable(project_map_path, project_map)
     _write_json_stable(precedent_path, precedent_index)
     _write_json_stable(architecture_inventory_path, architecture_inventory)
     _write_json_stable(symbol_index_path, symbol_index)
     _write_json_stable(call_graph_path, call_graph)
+    if execution_plan:
+        _write_json_stable(execution_plan_path, execution_plan)
     log(f"-> wrote {os.path.relpath(project_map_path, abs_cwd)} "
         f"({len(project_map['files'])} files, {len(project_map['changed_files'])} changed)")
     log(f"-> wrote {os.path.relpath(precedent_path, abs_cwd)} "
@@ -380,17 +391,22 @@ def write_mapping_artifacts(cwd: str, meta: dict | None = None, incremental: boo
         f"({symbol_index['counts']['symbols']} symbols)")
     log(f"-> wrote {os.path.relpath(call_graph_path, abs_cwd)} "
         f"({call_graph['counts']['edges']} relationships)")
+    if execution_plan:
+        log(f"-> wrote {os.path.relpath(execution_plan_path, abs_cwd)} "
+            f"({execution_plan['selected_profile']} profile)")
     return {
         "project_map_path": project_map_path,
         "precedent_path": precedent_path,
         "architecture_inventory_path": architecture_inventory_path,
         "symbol_index_path": symbol_index_path,
         "call_graph_path": call_graph_path,
+        "execution_plan_path": execution_plan_path if execution_plan else None,
         "project_map": project_map,
         "precedent_index": precedent_index,
         "architecture_inventory": architecture_inventory,
         "symbol_index": symbol_index,
         "call_graph": call_graph,
+        "execution_plan": execution_plan,
     }
 
 def _slugify(value: str) -> str:

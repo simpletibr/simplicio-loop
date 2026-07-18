@@ -157,6 +157,8 @@ def run_shadow_comparison(
 
     diffs: dict[str, list[str]] = {}
     for key in configured_artifacts:
+        if key == "execution_plan":
+            continue
         left = _strip_volatile(configured_artifacts[key])
         right = _strip_volatile(candidate_artifacts.get(key))
         path_diffs = _diff_paths(left, right, path=f"${key}")
