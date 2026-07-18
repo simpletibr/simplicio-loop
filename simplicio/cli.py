@@ -469,6 +469,28 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_runtime_verify.add_argument("--timeout", type=int, default=30)
 
+    p_prototype = sub.add_parser("prototype", help="Prototype-First plan, scaffold, validate and promotion gate")
+    prototype_sub = p_prototype.add_subparsers(dest="prototype_cmd", required=True)
+    p_proto_plan = prototype_sub.add_parser("plan")
+    p_proto_plan.add_argument("--input", help="Loop/Mapper prototype-plan JSON")
+    p_proto_plan.add_argument("--goal", default="")
+    p_proto_plan.add_argument("--type", dest="prototype_type", default="code_spike", choices=("schema", "data_model", "failing_test", "mock", "code_spike", "vertical_slice"))
+    p_proto_plan.add_argument("--output", default=".simplicio/prototype-plan.json")
+    p_proto_plan.add_argument("--json", action="store_true")
+    for name in ("scaffold", "dry-run", "validate", "diff", "promote", "reject"):
+        p = prototype_sub.add_parser(name)
+        p.add_argument("--root", default=".")
+        p.add_argument("--plan", required=True)
+        p.add_argument("--candidate")
+        p.add_argument("--target")
+        p.add_argument("--receipt")
+        p.add_argument("--decision")
+        p.add_argument("--force", action="store_true")
+        p.add_argument("--timeout", type=float, default=60.0)
+        p.add_argument("--json", action="store_true")
+    p_proto_doctor = prototype_sub.add_parser("doctor")
+    p_proto_doctor.add_argument("--json", action="store_true")
+
     p_memory = sub.add_parser(
         "memory", help="cross-vendor memory handoff (markdown + git under ~/.simplicio/memory)"
     )
@@ -529,6 +551,7 @@ _COMMAND_MODULES = {
     "test": "test",
     "token": "token",
     "runtime": "runtime",
+    "prototype": "prototype",
     "memory": "memory",
 }
 
