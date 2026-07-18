@@ -117,6 +117,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ..ecosystem_contract import run_doctor_cli
 
         return run_doctor_cli(argv[1:])
+    # `canonical <verb> <root>` (issue #267, ADR-008 step 7) takes a verb
+    # before the usual `<command> <root>` shape, same reason as `contract`.
+    if argv and argv[0] == "canonical":
+        from ._canonical import run_canonical_cli
+
+        return run_canonical_cli(argv[1:])
     opts = _parse_args(argv)
     if opts["background"] and opts["command"] in ("index", "map", "update"):
         return _run_background(opts)

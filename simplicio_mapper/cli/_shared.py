@@ -85,6 +85,7 @@ USAGE
   simplicio-mapper update [--root <dir>] [--watch]
   simplicio-mapper contract validate <path> [<path> ...]
   simplicio-mapper doctor --contracts [--cross-repo] [<path> ...]
+  simplicio-mapper canonical verify <path> [--json] [--storage-root <dir>] [--config-fingerprint <value>] [--limit <n>]
 
 OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
@@ -117,6 +118,11 @@ OPTIONS
   doctor --contracts    Validate contracts/mapper-artifacts/v1/ and
                         contracts/ecosystem/v1/ fixtures against their
                         schemas; exit 0 when all valid (issue #164).
+  canonical verify <path>
+                        Independent parity proof between the composed
+                        EffectiveMapView (canonical manifest + worktree
+                        overlay) and a full remap of the same worktree;
+                        exit 0 on match, 1 on mismatch/failure (issue #267).
   --range <spec>        sync: git diff range (e.g. main..HEAD) instead of the working tree.
   --staged              sync: diff staged changes instead of the working tree.
   --check               sync: report staleness without writing (exit 1 if stale).
