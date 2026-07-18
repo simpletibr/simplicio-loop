@@ -137,6 +137,40 @@ class BuildCanonicalManifestTests(unittest.TestCase):
         readme_entry = entries_by_path["README.md"]
         self.assertNotEqual(readme_entry.get("git_status"), "modified")
 
+    def test_concurrent_builds_of_same_digest_never_raise(self) -> None:
+        # Windows regression (issue #263 Windows-validation gap): two
+        # threads racing to promote the SAME content-addressed digest dir
+        # via os.replace() can hit PermissionError ("Access is denied")
+        # instead of the FileExistsError a reader might expect -- unlike
+        # POSIX rename(2), Windows' MoveFileEx does not give concurrent
+        # directory renames onto the same destination a clean winner/loser
+        # outcome. The loser must detect the winner's already-promoted
+        # digest and reuse it instead of propagating the OSError.
+        import threading
+
+        repo = self.base / "repo-concurrent-build"
+        _init_repo(repo)
+
+        results: list[CanonicalMapManifest | None] = [None] * 8
+        errors: list[BaseException] = []
+
+        def _worker(index: int) -> None:
+            try:
+                results[index] = self._build(repo, config_fingerprint="cfg-race")
+            except BaseException as exc:  # noqa: BLE001 - captured for the assertion below
+                errors.append(exc)
+
+        threads = [threading.Thread(target=_worker, args=(i,)) for i in range(8)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(errors, [], f"concurrent build(s) raised: {errors!r}")
+        self.assertTrue(all(r is not None for r in results))
+        digests = {r.key.digest() for r in results if r is not None}
+        self.assertEqual(len(digests), 1, "all racing builds must converge on one digest")
+
     def test_two_builds_of_same_commit_are_idempotent(self) -> None:
         repo = self.base / "repo-idempotent"
         _init_repo(repo)

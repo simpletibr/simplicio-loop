@@ -58,6 +58,7 @@ from __future__ import annotations
 
 import os
 import random
+import secrets
 import shutil
 import socket
 import subprocess
@@ -283,6 +284,45 @@ def _remove_detached_checkout(root: str, base_tmp: str, worktree_path: str) -> N
     shutil.rmtree(base_tmp, ignore_errors=True)
 
 
+def _promote_digest_dir(tmp_digest_dir: str, digest_dir: str) -> None:
+    """Atomically rename ``tmp_digest_dir`` to ``digest_dir``, tolerating the
+    two distinct Windows failure modes a POSIX ``rename(2)`` wouldn't hit
+    (issue #263 Windows-validation gap, reproduced with a real threading
+    test, not just multiple processes):
+
+    1. Two callers racing to promote the SAME content-addressed digest can
+       have the loser observe ``PermissionError``/``FileExistsError``
+       instead of a clean POSIX-style winner/loser outcome, even though the
+       digest guarantees a byte-identical result either way.
+    2. A transient sharing violation (commonly Windows Defender or the
+       Search Indexer briefly holding a handle open on a directory that was
+       just written to) can make ``os.replace`` fail with
+       ``PermissionError`` even with no other caller involved at all --
+       this is a genuinely transient condition that clears on retry, not a
+       race to detect and reuse.
+
+    Never silently loses data: if the destination is genuinely absent and
+    every retry still fails, the last error propagates.
+    """
+    last_error: OSError | None = None
+    for attempt in range(6):
+        if attempt:
+            time.sleep(min(0.05 * (2**attempt), 1.0))
+        try:
+            os.replace(tmp_digest_dir, digest_dir)
+            return
+        except OSError as exc:
+            last_error = exc
+            if os.path.isdir(digest_dir):
+                # A sibling call already won the promotion race; discard our
+                # copy of the (content-addressed, expected byte-identical)
+                # tmp dir and let the caller reuse what's already there.
+                shutil.rmtree(tmp_digest_dir, ignore_errors=True)
+                return
+    assert last_error is not None
+    raise last_error
+
+
 def _load_existing_manifest(digest_dir: str) -> CanonicalMapManifest | None:
     manifest_path = os.path.join(digest_dir, _MANIFEST_FILE_NAME)
     if not os.path.isfile(manifest_path):
@@ -394,8 +434,13 @@ def build_canonical_manifest(
     # unresolvable by `effective_view.py` even after `file_manifest` existed.
     storage_root_field = digest_dir
 
+    # The staging token must be unique per *call*, not just per process: two
+    # threads in the same process (same PID) racing to build the same digest
+    # would otherwise stomp on one another's tmp dir mid-write (issue #263
+    # Windows-validation gap -- reproduced via a real threading test, not
+    # just multiple processes).
     tmp_digest_dir = os.path.normpath(
-        canonical_manifest_tmp_dir(cache_root, digest, str(os.getpid()))
+        canonical_manifest_tmp_dir(cache_root, digest, f"{os.getpid()}-{secrets.token_hex(8)}")
     )
     shutil.rmtree(tmp_digest_dir, ignore_errors=True)
     try:
@@ -458,7 +503,18 @@ def build_canonical_manifest(
                 return reused
         else:
             os.makedirs(os.path.dirname(digest_dir), exist_ok=True)
-            os.replace(tmp_digest_dir, digest_dir)
+            _promote_digest_dir(tmp_digest_dir, digest_dir)
+            reused = _load_existing_manifest(digest_dir)
+            if reused is not None and reused.key != key:
+                # The dir that landed at this digest doesn't match our key --
+                # a genuinely different build content-addressed to the same
+                # digest (should be unreachable in practice, since the digest
+                # is a hash of the key, but never silently serve a mismatch).
+                shutil.rmtree(tmp_digest_dir, ignore_errors=True)
+                raise RuntimeError(
+                    f"canonical manifest at {digest_dir!r} does not match the "
+                    "expected CanonicalMapKey after promotion"
+                )
     finally:
         shutil.rmtree(tmp_digest_dir, ignore_errors=True)
 
