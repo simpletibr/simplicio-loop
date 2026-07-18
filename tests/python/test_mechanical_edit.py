@@ -792,3 +792,197 @@ def test_execute_plan_real_native_binary_activates_when_installed(tmp_path):
     assert result["files"][0]["path"] == "app.py"
     assert result["files"][0]["before_sha256"] != result["files"][0]["after_sha256"]
     assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\nkeep\n"
+
+
+def test_translate_create_file_plan_for_native_translates_every_op(tmp_path):
+    from simplicio.commands.edit import _translate_create_file_plan_for_native
+
+    plan = {
+        "schema": "simplicio.mechanical-edit/v1",
+        "operations": [
+            {"op": "create_file", "path": "a.py", "text": "print(1)\n"},
+            {"op": "create_file", "path": "b.py", "text": "print(2)\n"},
+        ],
+    }
+
+    native_plans = _translate_create_file_plan_for_native(plan)
+
+    assert native_plans == [
+        {"file": "a.py", "operations": [{"op": "append", "text": "print(1)\n"}]},
+        {"file": "b.py", "operations": [{"op": "append", "text": "print(2)\n"}]},
+    ]
+
+
+def test_translate_create_file_plan_for_native_refuses_mixed_operations(tmp_path):
+    """A single non-create_file op anywhere in the plan must refuse
+    translation entirely -- this repo's op vocabulary (replace_range,
+    json_patch, ast_patch, move_file, delete_file) has no safe mapping to
+    the native binary's vocabulary (replace_all/insert_before/insert_after/
+    replace_line/delete_line/append/prepend), so guessing would risk a
+    silent mistranslation rather than a clean fallback."""
+    from simplicio.commands.edit import _translate_create_file_plan_for_native
+
+    plan = {
+        "operations": [
+            {"op": "create_file", "path": "a.py", "text": "print(1)\n"},
+            {"op": "replace_range", "path": "b.py", "start_line": 1, "end_line": 1, "text": "x\n"},
+        ]
+    }
+
+    assert _translate_create_file_plan_for_native(plan) is None
+
+
+def test_translate_create_file_plan_for_native_refuses_empty_or_missing_operations(tmp_path):
+    from simplicio.commands.edit import _translate_create_file_plan_for_native
+
+    assert _translate_create_file_plan_for_native({}) is None
+    assert _translate_create_file_plan_for_native({"operations": []}) is None
+    assert _translate_create_file_plan_for_native({"operations": "not-a-list"}) is None
+
+
+def test_cli_edit_alias_translates_multi_file_create_plan_to_native_calls(tmp_path, monkeypatch):
+    """The exact regression this closes: a multi-file create_file plan (the
+    shape `simplicio-py prototype scaffold`-style callers naturally produce)
+    used to fail outright against the native binary ('edit plan must
+    specify a target "file"'). Proves it now issues one native subprocess
+    call per file instead."""
+    from simplicio import cli
+    from simplicio.commands import edit as edit_cmd
+
+    plan_path = tmp_path / "plan.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema": "simplicio.mechanical-edit/v1",
+                "operations": [
+                    {"op": "create_file", "path": "a.py", "text": "print(1)\n"},
+                    {"op": "create_file", "path": "b.py", "text": "print(2)\n"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    calls = []
+
+    class Completed:
+        returncode = 0
+        stderr = ""
+
+        def __init__(self, path):
+            self.stdout = json.dumps(
+                {
+                    "schema": "simplicio.edit-result/v1",
+                    "status": "ok",
+                    "file": path,
+                    "before_sha256": "before",
+                    "after_sha256": "after",
+                }
+            )
+
+    def fake_run(cmd, input=None, text=False, capture_output=False):
+        calls.append({"cmd": cmd, "input": input})
+        native_plan = json.loads(input)
+        return Completed(native_plan["file"])
+
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.delenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT", raising=False)
+    monkeypatch.setattr(
+        edit_cmd.shutil, "which", lambda name: "/bin/simplicio" if name == "simplicio" else None
+    )
+    monkeypatch.setattr(edit_cmd.subprocess, "run", fake_run)
+
+    code = cli.main(
+        ["edit", "--root", str(tmp_path), "--plan", str(plan_path), "--apply", "--json"]
+    )
+
+    assert code == 0
+    assert len(calls) == 2, "one native subprocess call per file, not one call for the whole plan"
+    called_files = {json.loads(c["input"])["file"] for c in calls}
+    assert called_files == {"a.py", "b.py"}
+    for call in calls:
+        native_plan = json.loads(call["input"])
+        assert native_plan["operations"] == [
+            {"op": "append", "text": {"a.py": "print(1)\n", "b.py": "print(2)\n"}[native_plan["file"]]}
+        ]
+
+
+def test_cli_edit_alias_falls_back_when_plan_has_non_create_file_ops(tmp_path, monkeypatch):
+    """A plan mixing create_file with any other op type must NOT be
+    translated -- it should hit the untranslated pass-through path (single
+    `simplicio edit --plan <path>` call), not be silently dropped or
+    mistranslated."""
+    from simplicio import cli
+    from simplicio.commands import edit as edit_cmd
+
+    plan_path = tmp_path / "plan.json"
+    plan_path.write_text(
+        json.dumps(
+            _plan(
+                "app.py",
+                {
+                    "op": "replace_range",
+                    "path": "app.py",
+                    "start_line": 1,
+                    "end_line": 1,
+                    "text": "new\n",
+                },
+            )
+        ),
+        encoding="utf-8",
+    )
+    calls = []
+
+    class Completed:
+        returncode = 0
+
+    def fake_run(cmd, input=None, text=False):
+        calls.append(cmd)
+        return Completed()
+
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.delenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT", raising=False)
+    monkeypatch.setattr(
+        edit_cmd.shutil, "which", lambda name: "/bin/simplicio" if name == "simplicio" else None
+    )
+    monkeypatch.setattr(edit_cmd.subprocess, "run", fake_run)
+
+    code = cli.main(["edit", "--root", str(tmp_path), "--plan", str(plan_path), "--apply", "--json"])
+
+    assert code == 0
+    assert len(calls) == 1, "untranslatable plans pass straight through as one call, unchanged"
+    assert "--plan" in calls[0] and str(plan_path) in calls[0]
+
+
+def test_cli_edit_alias_real_native_binary_translates_create_file_plan(tmp_path):
+    """End-to-end against the REAL installed `simplicio` binary -- proves
+    the translation genuinely works today against the real binary's own
+    operation vocabulary, not just a hand-written fake payload. Skips
+    cleanly if the binary isn't on PATH (e.g. CI)."""
+    import shutil as _shutil
+
+    from simplicio import cli
+
+    if _shutil.which("simplicio") is None:
+        pytest.skip("simplicio binary not on PATH")
+
+    plan_path = tmp_path / "plan.json"
+    plan_path.write_text(
+        json.dumps(
+            {
+                "schema": "simplicio.mechanical-edit/v1",
+                "operations": [
+                    {"op": "create_file", "path": "snake.py", "text": "print('snake')\n"},
+                    {"op": "create_file", "path": "test_snake.py", "text": "def test_x():\n    pass\n"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    code = cli.main(
+        ["edit", "--root", str(tmp_path), "--plan", str(plan_path), "--apply", "--json"]
+    )
+
+    assert code == 0
+    assert (tmp_path / "snake.py").read_text(encoding="utf-8") == "print('snake')\n"
+    assert (tmp_path / "test_snake.py").read_text(encoding="utf-8") == "def test_x():\n    pass\n"

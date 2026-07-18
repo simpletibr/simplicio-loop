@@ -214,11 +214,25 @@ def test_run_edit_records_python_fallback_when_no_binary_on_path(tmp_path, monke
 def test_run_edit_delegates_python_stub_via_interpreter_on_windows(tmp_path, monkeypatch):
     monkeypatch.setattr(edit_cmd.shutil, "which", lambda name: "C:/tmp/simplicio-stub.py")
     calls = []
-    monkeypatch.setattr(
-        edit_cmd.subprocess,
-        "run",
-        lambda argv, **kwargs: calls.append((argv, kwargs)) or SimpleNamespace(returncode=0),
-    )
+
+    def fake_run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        native_plan = json.loads(kwargs["input"])
+        return SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "schema": "simplicio.edit-result/v1",
+                    "status": "ok",
+                    "file": native_plan["file"],
+                    "before_sha256": "before",
+                    "after_sha256": "after",
+                }
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(edit_cmd.subprocess, "run", fake_run)
     monkeypatch.setattr("simplicio.commands.edit.record_delegation", lambda *args, **kwargs: None)
 
     code = edit_cmd.run_edit(
