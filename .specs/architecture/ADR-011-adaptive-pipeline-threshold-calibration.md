@@ -191,6 +191,101 @@ inventing any Hub infrastructure that does not exist.
 
 ---
 
+---
+
+## Atualização: `ExecutionProfile` decision layer (issue #279, follow-up slice)
+
+> Adds a second, independently landed increment on top of the Phase-0
+> calibration slice above. Both slices are additive and compose: this one
+> does not change calibration's file format or precedence rules, it only
+> centralizes the sync/async *decision* that already consumed calibration
+> data inline inside `emit.py::build_artifacts`.
+
+**Gap this closes**: before this increment, `build_artifacts` computed the
+threshold (`_async_pipeline_min_files`) and then compared it against
+`file_count` with a bare `if file_count >= threshold` inline in `emit.py`.
+That inline comparison was correct but not reusable, not independently
+testable without going through the whole artifact-building pipeline, and
+left no single place for future profiles (Hub-governed routing, additional
+local profiles) to hook into without editing `emit.py`'s dispatch body
+again.
+
+**What shipped** (`simplicio_mapper/mapper/execution_planner.py`):
+
+- `ExecutionProfile` (`StrEnum`): `auto`, `sync`, `async` are the profiles
+  this repo actually executes. `thread`, `process`, `hub` are also declared
+  as enum members -- **explicitly reserved, not-yet-implemented** vocabulary
+  matching the target design already described earlier in this ADR ("3.
+  `ExecutionProfile` enum (deferred, plan step 4)"). Declaring them as enum
+  values lets `SIMPLICIO_MAPPER_EXECUTION_PROFILE` accept and recognize
+  those names today (so a caller/operator can start writing config for them
+  now) while `plan_execution` deterministically routes any of the three
+  reserved values to the same `auto` sync/async decision, never fabricating
+  thread-pool, process-pool, or Hub-backed execution that does not exist.
+  This is the same "no fictional Hub client" discipline the ADR's original
+  "Alternativa B" already rejected -- extended to say the same about
+  `thread`/`process` too.
+- `plan_execution(file_count: int, threshold: int) -> ExecutionPlan` -- a
+  pure function, no I/O, no environment reads beyond
+  `SIMPLICIO_MAPPER_EXECUTION_PROFILE` / the async kill switch (both read
+  once, synchronously, at call time): given a file count and an
+  already-resolved threshold (still produced by
+  `_async_pipeline_min_files`, calibration file included, unchanged), it
+  returns an `ExecutionPlan` recording `requested_profile`,
+  `selected_profile`, a human-readable `reason`, and `source` (`env` /
+  `auto` / `fallback` / `kill-switch`). Every branch (explicit sync,
+  explicit async, reserved-profile fallback, kill-switch override, auto
+  above/below threshold) is unit-tested independently of any file I/O or
+  pipeline execution -- see `tests/python/test_execution_planner.py`,
+  100% branch coverage on this module in isolation.
+- `ExecutionPlan.to_receipt()` -- closes plan step 14 ("Publicar route
+  receipt com perfil escolhido e motivo") for the sync/async case: every
+  `build_artifacts()` call now attaches an `execution_plan` key to its
+  returned artifact dict (schema `simplicio.execution-plan/v1`), so any
+  caller/receipt consumer can see which profile was selected and why
+  without re-deriving the decision. This was listed as an open "Não
+  escopo" item earlier in this ADR; it is implemented now, for the
+  sync/async profiles only -- Hub-issued receipts remain out of scope,
+  since no Hub exists to issue them.
+- **Wiring**: `emit.py::build_artifacts` now computes
+  `threshold = _async_pipeline_min_files(...)` and
+  `file_count = _fast_file_count(...)` exactly as before, then calls
+  `plan_execution(file_count, threshold)` once and dispatches on
+  `plan.selected_profile` instead of re-deriving the sync/async choice
+  inline. This is a behavior-preserving refactor: the same threshold
+  precedence chain (env var > calibration file > hardcoded default), the
+  same `_fast_file_count` probe, and the same two code paths
+  (`_build_artifacts_sync` / `async_pipeline.build_artifacts_async`) are
+  invoked under the same conditions as before -- proven by the existing
+  `tests/python/test_pipeline_dispatch.py` suite passing unchanged (see
+  "Testes" below) plus the new
+  `ExecutionPlannerIntegrationTest.test_build_artifacts_publishes_route_receipt`
+  /`test_kill_switch_routes_large_tree_to_sync` integration tests.
+- **New operational controls**: `SIMPLICIO_MAPPER_EXECUTION_PROFILE`
+  (explicit override: `sync`/`async` take effect immediately; `auto`,
+  unset, or unrecognized values fall through to the calibrated/hardcoded
+  auto decision) and `SIMPLICIO_MAPPER_NO_ASYNC_PIPELINE` (async kill
+  switch: forces `sync` unconditionally, even overriding an explicit
+  `async` request -- the one setting nothing else can override, by
+  design, for an operational rollback that must always win). Documented in
+  `docs/local-setup.md`.
+
+**Still not implemented** (unchanged from this ADR's original "Não
+escopo", restated precisely so this update does not overclaim): `thread`
+and `process` profiles have no real thread-pool/process-pool backing code
+yet -- they are recognized configuration vocabulary that currently no-ops
+to the `auto` sync/async decision, not working execution modes. `hub` has
+no Hub client to call, same as before. Cross-platform calibration corpus,
+structured cancellation quarantine beyond ADR-009's existing coverage,
+single-flight/global permits, and versioned autotuning policy remain fully
+unimplemented, exactly as this ADR already said. Shadow-rollout comparison
+between profiles (plan step 15) is now implemented separately in
+`simplicio_mapper/mapper/pipeline_shadow.py` (`benchmark shadow-rollout`
+CLI verb) -- it deliberately never auto-promotes a candidate profile and is
+not wired into `plan_execution`'s decision.
+
+---
+
 ## Consequências
 
 ### Positivas (+)
@@ -293,7 +388,10 @@ inventing any Hub infrastructure that does not exist.
 
 Per issue #279's own 16-step plan and acceptance criteria, the following
 remain **open, unimplemented follow-up work**, tracked here rather than
-hidden:
+hidden. Two items below (marked **DONE**) were closed by the
+"`ExecutionProfile` decision layer" update above and are kept in this list,
+struck through rather than deleted, so the history of what got closed and
+when stays visible in this ADR:
 
 - Frozen per-platform benchmark corpus (plan step 1) and Linux/macOS
   dispatch-threshold measurements (only Windows is calibrated/verified by
@@ -301,17 +399,26 @@ hidden:
 - I/O-bound vs. CPU-bound vs. single-writer stage separation beyond what
   ADR-009 already documents (plan step 2 -- ADR-009's own profiling already
   covers most of this; no new stage-separation work in this PR).
-- `ExecutionProfile` enum with `thread`/`process`/`hub` profiles (plan step
-  4) -- today's dispatch remains binary (`sync`/`async`) with the
-  calibration file only tuning *where* that binary line sits.
+- ~~`ExecutionProfile` enum with `thread`/`process`/`hub` profiles (plan
+  step 4)~~ -- **DONE (partially)**: the enum now exists
+  (`simplicio_mapper/mapper/execution_planner.py`) with all six values
+  recognized as configuration vocabulary, but only `sync`/`async` have real
+  execution behind them; `thread`/`process`/`hub` deterministically
+  fall back to the `auto` sync/async decision and remain genuinely
+  unimplemented (no thread pool, no process pool, no Hub client) -- see the
+  update section above for the exact honesty boundary.
 - Any real Hub integration (plan steps 9-11): global permits, single-flight
   result handles across worktrees, canonical-map/overlay composition tied
   to Hub-issued execution decisions. **No Hub client exists in this repo.**
 - Structured cancellation quarantine beyond what ADR-009's
   `CancellationTest` already covers (plan step 13).
-- Route receipts publishing the chosen profile + reason (plan step 14) --
-  the calibration file itself is a receipt of the calibration run, but no
-  per-invocation "this run chose async because X" receipt exists yet.
+- ~~Route receipts publishing the chosen profile + reason (plan step
+  14)~~ -- **DONE**: `ExecutionPlan.to_receipt()` attaches an
+  `execution_plan` (schema `simplicio.execution-plan/v1`) entry to every
+  `build_artifacts()` result, recording `requested_profile`,
+  `selected_profile`, and `reason`. Scoped to the sync/async profiles this
+  repo actually runs -- there is still no Hub to publish a receipt to
+  external governance.
 - Shadow rollout comparing a candidate profile without promoting it (plan
   step 15).
 - Versioned, reproducible autotuning policy (plan step 16) -- there is no
@@ -404,3 +511,29 @@ hidden:
   `tests/python/test_cli_benchmark.py` (new),
   `tests/python/test_pipeline_dispatch.py` (`CalibrationOverrideTest`,
   extended)
+
+### Links (execution-profile decision-layer update)
+
+- Files added/changed: `simplicio_mapper/mapper/execution_planner.py`
+  (new -- `ExecutionProfile`, `ExecutionPlan`, `plan_execution`),
+  `simplicio_mapper/mapper/emit.py` (`build_artifacts` now dispatches via
+  `plan_execution` instead of an inline threshold comparison),
+  `simplicio_mapper/mapper/pipeline_shadow.py` (doc cross-reference only),
+  `docs/local-setup.md` (`SIMPLICIO_MAPPER_EXECUTION_PROFILE` /
+  `SIMPLICIO_MAPPER_NO_ASYNC_PIPELINE` documented).
+- Tests: `tests/python/test_execution_planner.py` (new --
+  `ExecutionPlannerUnitTest` covers every `plan_execution` branch including
+  the unrecognized-env-value fallback; `ExecutionPlannerIntegrationTest`
+  covers the real `build_artifacts()`/`write_mapping_artifacts()` route
+  receipt and kill-switch dispatch end to end). 100% branch coverage on
+  `execution_planner.py` in isolation
+  (`python -m pytest tests/python/test_execution_planner.py
+  --cov=simplicio_mapper.mapper.execution_planner --cov-report=term-missing`).
+  Full pre-existing `tests/python/test_pipeline_dispatch.py`,
+  `test_pipeline_calibration.py`, and `test_pipeline_shadow.py` suites pass
+  unchanged, confirming this was a behavior-preserving refactor.
+- Perf benchmark: not applicable -- this is a pure refactor of an existing
+  inline comparison into a named, independently testable decision function.
+  No new I/O, no new timing-sensitive code path, and no change to which
+  branch (`sync`/`async`) is selected for any given `(file_count,
+  threshold)` pair, so there is nothing new to benchmark.

@@ -65,6 +65,13 @@ class ExecutionPlannerUnitTest(unittest.TestCase):
         self.assertEqual(plan.selected_profile, "sync")
         self.assertEqual(plan.source, "fallback")
 
+    def test_unknown_profile_value_falls_back_to_auto(self) -> None:
+        with mock.patch.dict(os.environ, {EXECUTION_PROFILE_ENV: "not-a-real-profile"}, clear=True):
+            plan = plan_execution(file_count=999, threshold=5)
+        self.assertEqual(plan.requested_profile, ExecutionProfile.AUTO.value)
+        self.assertEqual(plan.selected_profile, ExecutionProfile.ASYNC.value)
+        self.assertEqual(plan.source, "env")
+
 
 class ExecutionPlannerIntegrationTest(unittest.TestCase):
     def setUp(self) -> None:
