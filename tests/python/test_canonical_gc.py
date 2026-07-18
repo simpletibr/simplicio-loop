@@ -224,6 +224,19 @@ class TempDirLivenessTests(CanonicalGcTestBase):
         self.assertEqual(applied.recovered[0].reason, "temp_dir_builder_pid_dead")
         self.assertFalse(tmp_dir.exists(), "apply must actually reclaim the dead temp dir")
 
+    def test_temp_dir_with_dead_builder_pid_and_random_suffix_is_reclaimed(self) -> None:
+        dead_pid = _spawn_and_reap()
+        tmp_dir = self._canonical_dir() / f"digest-dead.tmp-{dead_pid}-abc123"
+        tmp_dir.mkdir()
+        past = time.time() - 1000
+        os.utime(tmp_dir, (past, past))
+
+        applied = scan_canonical_gc(str(self.repo), apply=True)
+        self.assertEqual(len(applied.recovered), 1)
+        self.assertEqual(applied.recovered[0].reason, "temp_dir_builder_pid_dead")
+        self.assertEqual(applied.recovered[0].detail["pid"], dead_pid)
+        self.assertFalse(tmp_dir.exists())
+
     def test_temp_dir_within_grace_window_is_preserved_even_with_dead_pid(self) -> None:
         dead_pid = _spawn_and_reap()
         tmp_dir = self._canonical_dir() / f"digest-recent.tmp-{dead_pid}"

@@ -136,10 +136,10 @@ OPTIONS
   doctor --contracts    Validate contracts/mapper-artifacts/v1/ and
                         contracts/ecosystem/v1/ fixtures against their
                         schemas; exit 0 when all valid (issue #164).
+  canonical build <path>
                         Build (or reuse, content-addressed) the canonical
                         default-branch manifest via the existing builder
-                        (issue #266). Isolated from index/scan -- does not
-                        read or write .simplicio/.
+                        (issue #266).
   canonical status <path>
                         Read-only: redacted key/digest, freshness against
                         the current default-branch commit, build-in-progress

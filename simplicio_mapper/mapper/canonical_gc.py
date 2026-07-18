@@ -157,8 +157,9 @@ def _dir_last_activity(path: str) -> float:
 
 
 def _parse_pid(token: str) -> int | None:
+    pid_text = token.split("-", 1)[0]
     try:
-        pid = int(token)
+        pid = int(pid_text)
     except ValueError:
         return None
     return pid if pid > 0 else None
@@ -299,9 +300,9 @@ def _classify_temp_dir(
         )
 
     # No companion lock file (the common case today -- see module docstring)
-    # -- fall back to the pid embedded in the tmp-dir's own name
+    # -- fall back to the pid embedded at the start of the tmp-dir token
     # (`canonical_builder.build_canonical_manifest` names it
-    # `str(os.getpid())`) plus the same `process_is_alive` primitive the
+    # `<pid>-<random>` today) plus the same `process_is_alive` primitive the
     # index lock uses. A live builder PID is never reclaimed regardless of
     # age; a dead/unparseable one still gets a grace window before removal
     # to avoid racing a promotion that finished moments ago.

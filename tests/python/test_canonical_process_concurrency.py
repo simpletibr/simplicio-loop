@@ -32,7 +32,6 @@ Run with: python3 -m unittest discover -s tests/python
 from __future__ import annotations
 
 import os
-import signal
 import subprocess
 import sys
 import tempfile
@@ -55,7 +54,6 @@ from simplicio_mapper.mapper.canonical_gc import scan_canonical_gc  # noqa: E402
 from simplicio_mapper.mapper.canonical_identity import resolve_repo_identity_bundle  # noqa: E402
 from simplicio_mapper.mapper.canonical_storage import (  # noqa: E402
     canonical_manifest_dir,
-    canonical_manifest_tmp_dir,
 )
 
 
@@ -271,16 +269,26 @@ class CrashDuringBuildRecoveryTests(unittest.TestCase):
         final_dir = Path(canonical_manifest_dir(self.storage_root, digest))
 
         proc = self._spawn_builder(config_fingerprint)
-        tmp_dir = Path(canonical_manifest_tmp_dir(self.storage_root, digest, str(proc.pid)))
+        canonical_tmp_glob = final_dir.parent / f"{digest}.tmp-*"
+        tmp_dir: Path | None = None
 
         deadline = time.monotonic() + 20.0
         caught_mid_write = False
         while time.monotonic() < deadline:
-            if tmp_dir.is_dir():
+            tmp_candidates = sorted(final_dir.parent.glob(canonical_tmp_glob.name))
+            if tmp_candidates:
+                tmp_dir = tmp_candidates[0]
                 # Genuinely mid-write: real builder process, killed the
                 # instant its real staging directory is observed, before it
-                # could reach the atomic ``os.replace`` promotion.
-                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+                # could reach the atomic ``os.replace`` promotion. The builder
+                # appends an intra-process random suffix to the PID token, so
+                # the test discovers the actual staging dir by digest-prefixed
+                # glob instead of reconstructing a now-intentionally-incomplete
+                # private token. `Popen.kill()` is the portable equivalent of
+                # `killpg(SIGKILL)` here (`os.killpg`/`os.getpgid` don't exist
+                # on Windows) -- the builder has no children of its own to
+                # worry about leaking.
+                proc.kill()
                 caught_mid_write = True
                 break
             if final_dir.is_dir():
@@ -288,11 +296,12 @@ class CrashDuringBuildRecoveryTests(unittest.TestCase):
         proc.wait(timeout=10)
 
         self.assertTrue(
-            caught_mid_write,
+            caught_mid_write and tmp_dir is not None,
             "builder finished before the staging directory could be observed -- "
             "widen file_count in setUp if this becomes flaky",
         )
         self.assertFalse(final_dir.is_dir(), "a killed builder must never have promoted a manifest")
+        assert tmp_dir is not None
         self.assertTrue(tmp_dir.is_dir(), "the killed builder's staging dir must still be on disk")
         # Real crash artifact: an incomplete write, not a fully-formed
         # manifest -- `manifest.json` is written last, so its absence proves
