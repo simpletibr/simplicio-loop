@@ -234,6 +234,14 @@ def build_precedent_block(root, stack, task, k=2):
     if stack_key is None:
         return f"[PRECEDENT]\n(no scanner {stack!r})"
 
+    if not _embedding_index_enabled():
+        # Embedding indexing is off (default on a fresh repo / without
+        # SIMPLICIO_ENABLE_EMBED_INDEX set): index_repo() never populates the
+        # cache in that case, so falling through to cache.lookup() below
+        # would KeyError on every candidate. Fall back to the textual
+        # no-match message instead of assuming the cache is warm.
+        return f"[PRECEDENT]\n(no match for {stack!r})"
+
     cache, cands = index_repo(root, stack_key, verbose=False)
     if not cands:
         return f"[PRECEDENT]\n(no match for {stack!r})"

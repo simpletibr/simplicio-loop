@@ -15,6 +15,14 @@ import os
 import numpy as np
 
 
+class EmbeddingCacheMissError(KeyError):
+    """Raised by EmbeddingCache.lookup() when one or more texts have no cached
+    vector yet (e.g. embedding indexing was skipped/disabled). Callers should
+    check whether indexing is enabled before calling lookup(); this exists as
+    a defensive guard so a miss surfaces as a clear, actionable error instead
+    of a raw KeyError on an opaque hash string."""
+
+
 class EmbeddingCache:
     def __init__(self, root):
         self.dir = os.path.join(root, ".simplicio")
@@ -54,7 +62,21 @@ class EmbeddingCache:
             self.index[self.h(t)] = base + i
 
     def lookup(self, texts):
-        """Returns a matrix of vectors in the texts' order (all already cached)."""
+        """Returns a matrix of vectors in the texts' order (all already cached).
+
+        Raises EmbeddingCacheMissError (a KeyError subclass) instead of a raw
+        KeyError when a text's hash isn't cached yet, so callers get an
+        actionable message instead of an opaque hash lookup failure.
+        """
+        missing = [t for t in texts if self.h(t) not in self.index]
+        if missing:
+            raise EmbeddingCacheMissError(
+                f"{len(missing)} of {len(texts)} text block(s) are not in the "
+                "embedding cache yet. This usually means embedding indexing "
+                "was skipped (SIMPLICIO_ENABLE_EMBED_INDEX not set) or the "
+                "cache is stale. Enable indexing and re-run index_repo(), or "
+                "avoid calling lookup() when indexing is disabled."
+            )
         rows = [self.index[self.h(t)] for t in texts]
         return self.vectors[rows]
 
