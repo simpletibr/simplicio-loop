@@ -1,462 +1,430 @@
-"""``simplicio-mapper canonical build|status|verify|gc`` -- issues #266/#267/#268 (ADR-008 step 6, partial).
+"""``simplicio-mapper canonical build|status|verify|gc`` -- canonical-map CLI surface.
 
-Exposes a public, read-safe surface over the canonical-map model built in
-issue #236 (``simplicio_mapper.mapper.canonical*`` / ``effective_view.py``):
-create a real ``CanonicalMapManifest`` for a repository's resolved default
-branch, report on one that may already exist, and garbage-collect stale
-storage -- without wiring any path into the existing ``index``/``scan``/
-``status`` commands (explicitly out of scope, per the issues' "Nao
-objetivos").
+Parent: #263; epic: #236; ADR-008 (``.specs/architecture/ADR-008-canonical-map-overlays.md``).
 
-Sub-commands:
+Four verbs over the already-merged canonical-map machinery
+(``simplicio_mapper.mapper.canonical*`` / ``effective_view.py``):
 
-* ``canonical build <root> [--json]``  -- resolves the default branch via
-  git, builds (or reuses, idempotently) the full ``CanonicalMapKey`` and
-  calls :func:`simplicio_mapper.mapper.canonical_builder.build_canonical_manifest`,
-  which already performs the atomic promotion (write-to-tmp + ``os.replace``)
-  described in ADR-008 section 5. Readers of the promoted digest directory
-  never observe a partial manifest -- either the ``manifest.json`` exists and
-  is complete, or it does not exist yet.
-* ``canonical status <root> [--json]`` -- **read-only**: never calls the
-  builder, never writes anything under ``storage_root``. Reports only
-  redaction-safe fields -- a content-addressed digest, the redacted key
-  summary (short SHAs, not full paths), freshness, cache/single-flight
-  diagnostics (as already computed by
-  :func:`simplicio_mapper.mapper.effective_view.compose_effective_view`),
-  overlay counts, and an explicit invalidation/fallback reason. Per the
-  issue's privacy requirement, the receipt **never** includes an absolute
-  path, a raw remote URL, or file content -- see :func:`_redacted_key_summary`
-  and :func:`_status_receipt` below for exactly which fields are omitted.
-* ``canonical verify <root> [--json] [--storage-root DIR]
-  [--config-fingerprint VALUE] [--limit N]`` -- independent parity proof
-  (issue #267) between the composed ``EffectiveMapView`` and a bounded full
-  remap, talking to ``simplicio_mapper.mapper.canonical_verify`` directly.
-* ``canonical gc [<root>] [--json] [--apply] [--storage-root DIR]
-  [--ttl-seconds N] [--grace-seconds N]`` -- crash-safe, conservative removal
-  of temporary/expired/unreferenced canonical-map snapshots (issue #268).
-  Dry-run is the default; mutation requires the explicit ``--apply`` opt-in.
-  See :mod:`simplicio_mapper.mapper.canonical_gc` for the actual candidate
-  classification and crash-safe removal logic -- this module only parses
-  argv, resolves options, and prints the resulting receipt.
+* ``canonical build <path> --json`` (issue #266, migration-plan step 7) --
+  resolves the default branch via git, builds the full ``CanonicalMapKey``,
+  and calls the existing
+  :func:`simplicio_mapper.mapper.canonical_builder.build_canonical_manifest`
+  builder (never reimplemented here). That builder already writes to a
+  ``.tmp-<token>/`` staging directory and promotes atomically via
+  ``os.replace`` (see its module docstring) -- this CLI adds **no** second,
+  competing write path and holds no lock of its own; a reader can never
+  observe a partially-promoted manifest.
+* ``canonical status <path> --json`` (issue #266) -- **read-only**. Never
+  calls ``build_canonical_manifest`` (and therefore never builds/writes
+  anything). Reports redacted digest/key material, freshness against the
+  current resolved default-branch commit, whether a build looks in-progress
+  (a ``<digest>.tmp-*`` staging directory is present), and worktree-overlay
+  counts (files reused/remapped) when the worktree's key matches an existing
+  canonical manifest.
+* ``canonical verify <path> --json`` (issue #267) -- independent parity
+  proof between the composed ``EffectiveMapView`` (canonical manifest +
+  worktree overlay) and a bounded full remap, via
+  :func:`simplicio_mapper.mapper.canonical_verify.verify_canonical_parity`.
+  Exit 0 on match, 1 on mismatch/failure. Read-only, like ``status``.
+* ``canonical gc <path> [--apply] [--json]`` (issue #268, ADR-008 section 5)
+  -- conservative, crash-safe garbage collection of interrupted-promotion
+  temp dirs and stale canonical manifests under the same content-addressed
+  storage root ``build``/``status`` read from. Dry-run by default; ``--apply``
+  opts into actually deleting anything. See
+  :mod:`simplicio_mapper.mapper.canonical_gc` for the full scan/reclaim
+  logic and its documented heuristic limitations.
 
-``build``/``status`` degrade to a stable, schema-shaped fallback receipt
-(never a traceback) for: a non-git directory, a detached ``HEAD`` worktree
-(which this module -- unlike ``index``/``scan`` -- does not treat as an error
-at all, since default-branch resolution and overlay computation both work
-correctly against a detached checkout; see the "detached HEAD" tests), a
-missing/unavailable ``git`` executable, and a corrupt ``manifest.json`` on
-disk.
+``build``/``status`` degrade to a stable, versioned error receipt -- never a
+raw traceback -- for: a non-git directory, git being unavailable, a corrupt/
+invalid manifest already on disk. A detached ``HEAD`` is **not** an error
+case: :func:`canonical_identity.resolve_repo_identity_bundle` resolves the
+default branch via ``refs/remotes/origin/HEAD``/``refs/heads/<branch>``, not
+via the worktree's current ``HEAD``, so identity resolution (and therefore
+both commands) works the same whether or not the calling worktree is
+currently on the default branch. ``gc`` reports its own
+``simplicio.canonical-gc/v1`` receipt (see ``canonical_gc.py``) rather than
+this module's ``build``/``status`` error-receipt shape, since its
+candidates/removed/preserved/recovered structure doesn't fit the
+single-manifest ``build``/``status`` payload. ``verify`` similarly reports
+its own ``verify_canonical_parity`` receipt shape (result/counts/mismatches),
+not the ``build``/``status`` error-receipt shape.
+
+Privacy (issue #266 acceptance criteria, honored by ``gc``/``verify`` too):
+no output field here ever carries an absolute filesystem path or a raw
+remote URL. ``CanonicalMapKey.repo_identity`` is already a one-way hash of
+the normalized origin URL (or, lacking a remote, of the absolute common git
+dir) computed by ``canonical_identity.resolve_repo_identity`` -- this module
+never re-resolves or echoes the raw remote URL, and never emits
+``WorktreeOverlay.worktree_path`` (an absolute path by construction) or any
+internally-resolved cache-root path. ``canonical_gc.scan_canonical_gc``
+relativizes every path in its own receipt for the same reason.
+
+This is a **net-new, isolated CLI surface**: it does not read, write, or
+otherwise touch ``.simplicio/`` (the per-worktree index/scan artifacts) and
+is not called by ``index``/``scan``'s existing code paths. Wiring the
+canonical map into those commands is migration-plan step 6 and explicitly
+out of scope here (see issue #266's "Não objetivos"). Issue #266
+(``build``/``status``), issue #268 (``gc``), and issue #267 (``verify``)
+landed as independent PRs against the same ``canonical`` subcommand
+skeleton; this file is the reconciled result -- see the git history of this
+module for how they were merged.
 """
 
 from __future__ import annotations
 
+import glob
 import hashlib
 import json
 import os
+import subprocess
 import sys
 from collections.abc import Sequence
+from datetime import datetime, timezone
 
-from ..mapper.canonical import CanonicalMapKey
-from ..mapper.canonical_builder import _load_existing_manifest, build_canonical_manifest
-from ..mapper.canonical_gc import run_canonical_gc
+from ..mapper.canonical import CANONICAL_MAP_SCHEMA_VERSION, CanonicalMapKey
+from ..mapper.canonical_builder import (
+    _load_existing_manifest,
+    _mapper_version,
+    build_canonical_manifest,
+)
+from ..mapper.canonical_gc import scan_canonical_gc
 from ..mapper.canonical_identity import (
     is_git_repository,
-    resolve_common_git_dir,
     resolve_repo_identity_bundle,
 )
-from ..mapper.canonical_verify import DEFAULT_FILE_LIMIT, verify_canonical_parity
 from ..mapper.canonical_overlay import compute_worktree_overlay
-from ..mapper.canonical_storage import canonical_manifest_dir, resolve_canonical_cache_root
+from ..mapper.canonical_storage import (
+    canonical_manifest_dir,
+    resolve_canonical_cache_root,
+)
+from ..mapper.canonical_verify import DEFAULT_FILE_LIMIT, verify_canonical_parity
 from ..mapper.effective_view import compose_effective_view
+from ._shared import (
+    CANONICAL_BUILD_SCHEMA,
+    CANONICAL_BUILD_SCHEMA_VERSION,
+    CANONICAL_STATUS_SCHEMA,
+    CANONICAL_STATUS_SCHEMA_VERSION,
+)
 
-CANONICAL_STATUS_SCHEMA = "simplicio.canonical-status/v1"
-CANONICAL_STATUS_SCHEMA_VERSION = 1
+_GIT_TIMEOUT_SECONDS = 5.0
 
-CANONICAL_BUILD_SCHEMA = "simplicio.canonical-build/v1"
-CANONICAL_BUILD_SCHEMA_VERSION = 1
+_USAGE = (
+    "usage: simplicio-mapper canonical build <path> [--json]\n"
+    "       simplicio-mapper canonical status <path> [--json]\n"
+    "       simplicio-mapper canonical verify <path> [--json] [--storage-root <dir>]\n"
+    "                                     [--config-fingerprint <value>] [--limit <n>]\n"
+    "       simplicio-mapper canonical gc <path> [--apply] [--json] [--storage-root <dir>]\n"
+    "                                     [--ttl-seconds N] [--grace-seconds N]"
+)
 
-#: Documented v1 default for ``CanonicalMapKey.config_fingerprint`` at this
-#: CLI surface. No mapping-parameter knobs (filters/ignore-rules/parser
-#: mode/embeddings mode) are exposed yet by ``canonical build``/``status`` --
-#: this constant is a stable placeholder so every caller of this module today
-#: shares one ``CanonicalMapKey`` (and thus one on-disk digest) for the same
-#: commit, per ADR-008's identity rule. Bump the literal string (not just the
-#: constant name) the day a real per-invocation config fingerprint is wired
-#: in here -- that is a deliberate cache invalidation, not a rename.
-_DEFAULT_CONFIG_FINGERPRINT = "simplicio-mapper-canonical-cli/v1-no-knobs"
-
-#: Reasons a fallback receipt can carry -- every one of these is a stable,
-#: documented state, never a raised exception surfacing to the caller.
-_REASON_GIT_UNAVAILABLE = "git_unavailable"
-_REASON_NOT_A_GIT_REPOSITORY = "not_a_git_repository"
-_REASON_GIT_IDENTITY_UNAVAILABLE = "git_identity_unavailable"
-_REASON_NO_CANONICAL_MANIFEST = "no_canonical_manifest"
-_REASON_INVALID_MANIFEST = "invalid_manifest"
-_REASON_OVERLAY_UNAVAILABLE = "overlay_unavailable"
-_REASON_BUILD_FAILED = "build_failed"
-
-
-def _git_available() -> bool:
-    import shutil
-
-    return shutil.which("git") is not None
+# This isolated CLI surface takes no mapping-config overrides (filters,
+# ignore rules, embedding mode -- the flags the real `config_fingerprint`
+# is supposed to hash per ADR-008 section 1). Threading those through is
+# migration-plan step 6 (the index/scan adapter), explicitly out of scope
+# for this issue. Both `build` and `status` use this same fixed sentinel so
+# a `status` call always reports freshness against exactly the key a `build`
+# call from this CLI would (or did) use -- never a false invalidation.
+_DEFAULT_CONFIG_FINGERPRINT = hashlib.blake2b(
+    b"simplicio-mapper canonical-cli/v1: no config overrides", digest_size=24
+).hexdigest()
 
 
-def _short_sha(sha: str | None) -> str | None:
-    if not sha:
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _run_git(args: list[str], cwd: str) -> subprocess.CompletedProcess | None:
+    try:
+        return subprocess.run(
+            ["git", *args],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=_GIT_TIMEOUT_SECONDS,
+            stdin=subprocess.DEVNULL,
+        )
+    except (OSError, subprocess.SubprocessError):
         return None
-    return sha[:12]
 
 
-def _fingerprint_digest(config_fingerprint: str) -> str:
-    """Digest of the config fingerprint -- never the raw value, defensively.
+def _detached_head(root: str) -> bool:
+    """Return whether ``root`` is currently on a detached HEAD.
 
-    The default fingerprint here carries no secret, but a caller-supplied one
-    (once this surface grows real knobs) might embed local filter paths --
-    hashing it keeps the receipt shape safe regardless of what a future
-    caller passes.
+    Purely diagnostic -- never gates identity resolution (see module
+    docstring): the default branch is resolved independent of the current
+    ``HEAD``.
     """
-    return hashlib.blake2b(config_fingerprint.encode("utf-8"), digest_size=16).hexdigest()
+    result = _run_git(["symbolic-ref", "-q", "HEAD"], root)
+    if result is None:
+        return False
+    return result.returncode != 0
 
 
-def _redacted_key_summary(key: CanonicalMapKey) -> dict:
-    """Redacted, privacy-safe summary of a ``CanonicalMapKey``.
+def _redacted_key(key: CanonicalMapKey) -> dict:
+    """Serialize a ``CanonicalMapKey`` with no absolute path / raw remote URL.
 
-    Deliberately omits ``key.repo_identity`` (already a hash, but still not
-    needed by any consumer of this receipt) and never carries a full
-    ``commit_sha``/``tree_sha`` or any filesystem path -- only the
-    content-addressed digest and short (12-char) SHA prefixes, which is
-    already the convention ``git log --oneline`` / GitHub UI use for a
-    human-safe commit reference.
+    Every field on ``CanonicalMapKey`` is already safe to emit as-is:
+    ``repo_identity`` is a one-way hash (never the raw origin URL or a raw
+    path), ``default_branch``/``commit_sha``/``tree_sha``/``mapper_version``
+    are non-sensitive identifiers, and ``config_fingerprint`` is itself a
+    hash. Nothing here reaches for ``common_git_dir`` or any worktree path.
     """
     return {
-        "key_digest": key.digest(),
+        "repo_identity": key.repo_identity,
         "default_branch": key.default_branch,
-        "commit_sha_short": _short_sha(key.commit_sha),
-        "tree_sha_short": _short_sha(key.tree_sha),
-        "key_schema_version": key.schema_version,
+        "commit_sha": key.commit_sha,
+        "tree_sha": key.tree_sha,
+        "schema_version": key.schema_version,
         "mapper_version": key.mapper_version,
-        "config_fingerprint_digest": _fingerprint_digest(key.config_fingerprint),
+        "config_fingerprint": key.config_fingerprint,
         "platform_tag": key.platform_tag,
+        "digest": key.digest(),
     }
 
 
-def _fallback_receipt(schema: str, schema_version: int, reason: str, *, key: CanonicalMapKey | None = None) -> dict:
-    receipt: dict = {
+def _error_receipt(schema: str, schema_version: int, reason: str, detail: str = "") -> dict:
+    payload = {
         "schema": schema,
         "schema_version": schema_version,
-        "status": "fallback",
-        "reason": reason,
+        "generated_at": _now_iso(),
+        "status": "error",
+        "error": {"reason": reason},
     }
-    if key is not None:
-        receipt["key"] = _redacted_key_summary(key)
-    return receipt
+    if detail:
+        payload["error"]["detail"] = detail
+    return payload
 
 
-def _resolve_key(root: str, config_fingerprint: str) -> tuple[CanonicalMapKey | None, str | None]:
-    """Resolve a ``CanonicalMapKey`` for ``root``, or a stable fallback reason.
+def _git_diagnostics(root: str) -> dict:
+    return {
+        "is_git_repository": is_git_repository(root),
+        "detached_head": _detached_head(root),
+    }
 
-    Returns ``(key, None)`` on success, or ``(None, reason)`` -- one of
-    ``_REASON_GIT_UNAVAILABLE``/``_REASON_NOT_A_GIT_REPOSITORY``/
-    ``_REASON_GIT_IDENTITY_UNAVAILABLE`` -- on any failure. Never raises.
+
+def _resolve_key_and_paths(root: str):
+    """Resolve identity + build the CanonicalMapKey + cache-root paths.
+
+    Returns ``(key, cache_root, digest_dir)`` or ``None`` when identity
+    cannot be resolved (non-git directory, git unavailable, no default
+    branch resolvable) -- fail-closed, matching
+    ``resolve_repo_identity_bundle``'s own contract. ``cache_root``/
+    ``digest_dir`` are absolute paths used only internally for file lookups;
+    callers must never emit them verbatim.
     """
-    if not _git_available():
-        return None, _REASON_GIT_UNAVAILABLE
-    if not is_git_repository(root):
-        return None, _REASON_NOT_A_GIT_REPOSITORY
     identity = resolve_repo_identity_bundle(root)
     if identity is None:
-        return None, _REASON_GIT_IDENTITY_UNAVAILABLE
+        return None
     key = CanonicalMapKey(
         repo_identity=identity.repo_identity,
         default_branch=identity.default_branch,
         commit_sha=identity.commit_sha,
         tree_sha=identity.tree_sha,
-        schema_version=1,
+        schema_version=CANONICAL_MAP_SCHEMA_VERSION,
         mapper_version=_mapper_version(),
-        config_fingerprint=config_fingerprint,
+        config_fingerprint=_DEFAULT_CONFIG_FINGERPRINT,
         platform_tag=None,
     )
-    return key, None
+    cache_root = os.path.abspath(resolve_canonical_cache_root(identity.common_git_dir))
+    digest_dir = os.path.normpath(canonical_manifest_dir(cache_root, key.digest()))
+    return key, cache_root, digest_dir
 
 
-def _mapper_version() -> str:
-    try:
-        from importlib.metadata import version
-
-        return version("simplicio-mapper")
-    except Exception:  # noqa: BLE001 - source checkouts may not be installed
-        return "unknown"
-
-
-def _resolve_storage_root(root: str) -> str | None:
-    common_git_dir = resolve_common_git_dir(root)
-    if not common_git_dir:
-        return None
-    return resolve_canonical_cache_root(common_git_dir)
-
-
-def _build_receipt(root: str, config_fingerprint: str) -> dict:
-    """Build (or reuse) the canonical manifest and return a stable receipt.
-
-    Never raises: any resolution/build failure collapses to a fallback
-    receipt with a documented ``reason``, matching
-    ``build_canonical_manifest``'s own fail-closed contract (returns
-    ``None`` rather than a partial manifest).
-    """
-    key, reason = _resolve_key(root, config_fingerprint)
-    if key is None:
-        return _fallback_receipt(CANONICAL_BUILD_SCHEMA, CANONICAL_BUILD_SCHEMA_VERSION, reason)
-
-    storage_root = _resolve_storage_root(root)
-    if storage_root is None:
-        return _fallback_receipt(
-            CANONICAL_BUILD_SCHEMA, CANONICAL_BUILD_SCHEMA_VERSION, _REASON_GIT_IDENTITY_UNAVAILABLE, key=key
-        )
-
-    digest_dir = canonical_manifest_dir(os.path.abspath(storage_root), key.digest())
-    already_existed = os.path.isfile(os.path.join(digest_dir, "manifest.json"))
-
-    try:
-        manifest = build_canonical_manifest(root, storage_root, config_fingerprint)
-    except Exception:  # noqa: BLE001 - CLI boundary must report a stable failure, never a traceback
-        return _fallback_receipt(
-            CANONICAL_BUILD_SCHEMA, CANONICAL_BUILD_SCHEMA_VERSION, _REASON_BUILD_FAILED, key=key
-        )
-    if manifest is None:
-        return _fallback_receipt(
-            CANONICAL_BUILD_SCHEMA, CANONICAL_BUILD_SCHEMA_VERSION, _REASON_BUILD_FAILED, key=key
-        )
-
-    return {
-        "schema": CANONICAL_BUILD_SCHEMA,
-        "schema_version": CANONICAL_BUILD_SCHEMA_VERSION,
-        "status": "ok",
-        "reused": already_existed,
-        "key": _redacted_key_summary(manifest.key),
-        "counts": dict(manifest.counts),
-        "created_at": manifest.created_at,
-    }
-
-
-def _status_receipt(root: str, config_fingerprint: str) -> dict:
-    """Read-only status receipt -- never builds, never writes.
-
-    See the module docstring for the exact privacy contract this receipt
-    must uphold (no absolute path, no raw remote URL, no file content).
-    """
-    key, reason = _resolve_key(root, config_fingerprint)
-    if key is None:
-        return _fallback_receipt(CANONICAL_STATUS_SCHEMA, CANONICAL_STATUS_SCHEMA_VERSION, reason)
-
-    storage_root = _resolve_storage_root(root)
-    if storage_root is None:
-        return _fallback_receipt(
-            CANONICAL_STATUS_SCHEMA, CANONICAL_STATUS_SCHEMA_VERSION, _REASON_GIT_IDENTITY_UNAVAILABLE, key=key
-        )
-
-    digest_dir = canonical_manifest_dir(os.path.abspath(storage_root), key.digest())
-    manifest_path = os.path.join(digest_dir, "manifest.json")
-    manifest_file_exists = os.path.isfile(manifest_path)
-    manifest = _load_existing_manifest(digest_dir) if manifest_file_exists else None
-
-    if manifest is None:
-        reason = _REASON_INVALID_MANIFEST if manifest_file_exists else _REASON_NO_CANONICAL_MANIFEST
-        return _fallback_receipt(CANONICAL_STATUS_SCHEMA, CANONICAL_STATUS_SCHEMA_VERSION, reason, key=key)
-
-    overlay = compute_worktree_overlay(root, manifest.key, config_fingerprint)
-    if overlay is None:
-        return _fallback_receipt(
-            CANONICAL_STATUS_SCHEMA, CANONICAL_STATUS_SCHEMA_VERSION, _REASON_OVERLAY_UNAVAILABLE, key=key
-        )
-
-    try:
-        view = compose_effective_view(manifest, overlay)
-    except ValueError:
-        # overlay/base incompatibility (config fingerprint drift, stale base
-        # key, etc.) -- a stable receipt, not a crash.
-        return _fallback_receipt(
-            CANONICAL_STATUS_SCHEMA, CANONICAL_STATUS_SCHEMA_VERSION, _REASON_OVERLAY_UNAVAILABLE, key=key
-        )
-
-    diagnostics = view.diagnostics
-    return {
-        "schema": CANONICAL_STATUS_SCHEMA,
-        "schema_version": CANONICAL_STATUS_SCHEMA_VERSION,
-        "status": "ok",
-        "key": _redacted_key_summary(manifest.key),
-        "counts": dict(manifest.counts),
-        "freshness": {
-            "canonical_created_at": manifest.created_at,
-            "worktree_head_sha_short": _short_sha(overlay.worktree_commit_sha),
-            "worktree_dirty": overlay.dirty,
-            "worktree_same_commit_as_canonical": overlay.worktree_commit_sha == manifest.key.commit_sha,
-        },
-        "cache": {
-            "cache_hit": diagnostics.cache_hit,
-            "single_flight_waited": diagnostics.single_flight_waited,
-        },
-        "overlay": {
-            "present": True,
-            "changed_files_count": len(overlay.changed_files),
-            "tombstones_count": len(overlay.tombstones),
-            "dirty": overlay.dirty,
-        },
-        "invalidation_reason": diagnostics.invalidation_reason,
-    }
-
-
-def _print_build_summary(receipt: dict) -> None:
-    if receipt["status"] != "ok":
-        print(f"canonical build: {receipt['status']} ({receipt['reason']})", file=sys.stderr)
-        return
-    key = receipt["key"]
-    verb = "reused" if receipt["reused"] else "built"
-    print(f"canonical build: {verb} {key['key_digest'][:16]}... branch={key['default_branch']} commit={key['commit_sha_short']}")
-    counts = receipt["counts"]
-    print(
-        f"  files={counts.get('files')} symbols={counts.get('symbols')} "
-        f"precedents={counts.get('precedents')} relationships={counts.get('relationships')}"
-    )
-
-
-def _print_status_summary(receipt: dict) -> None:
-    if receipt["status"] != "ok":
-        print(f"canonical status: {receipt['status']} ({receipt['reason']})", file=sys.stderr)
-        return
-    key = receipt["key"]
-    freshness = receipt["freshness"]
-    overlay = receipt["overlay"]
-    print(f"canonical status: {key['key_digest'][:16]}... branch={key['default_branch']}")
-    print(f"  worktree_head={freshness['worktree_head_sha_short']} dirty={freshness['worktree_dirty']}")
-    print(
-        f"  overlay changed_files={overlay['changed_files_count']} tombstones={overlay['tombstones_count']}"
-    )
-    print(f"  cache_hit={receipt['cache']['cache_hit']} invalidation_reason={receipt['invalidation_reason']}")
-
-
-def _run_gc(opts: dict) -> int:
+def _run_build(opts: dict) -> dict:
     root = os.path.abspath(opts["root"])
-    receipt = run_canonical_gc(
-        root,
-        storage_root=opts.get("storage_root") or None,
-        apply=opts.get("apply", False),
-        ttl_seconds=opts.get("ttl_seconds"),
-        promoted_grace_seconds=opts.get("grace_seconds"),
-    )
-    if opts.get("json"):
-        print(json.dumps(receipt, sort_keys=True))
-    else:
-        candidates = receipt["candidates"]
-        removed = receipt["removed"]
-        preserved = receipt["preserved"]
-        print(f"canonical gc mode={receipt['mode']} candidates={len(candidates)}")
-        print(f"  removed={len(removed)} preserved={len(preserved)}")
-        for entry in candidates:
-            marker = "removed" if entry in removed else ("would-remove" if entry["action"] == "remove" else "keep")
-            print(f"  [{marker}] {entry['location']} reason={entry['reason']}")
-        if not opts.get("apply", False) and any(c["action"] == "remove" for c in candidates):
-            print("  (dry-run: pass --apply to actually remove the entries above)")
-    return 0
+    try:
+        if not is_git_repository(root):
+            return _error_receipt(
+                CANONICAL_BUILD_SCHEMA,
+                CANONICAL_BUILD_SCHEMA_VERSION,
+                "not_a_git_repository_or_git_unavailable",
+                "root is not inside a git working tree, or git could not be invoked",
+            )
+        resolved = _resolve_key_and_paths(root)
+        if resolved is None:
+            return _error_receipt(
+                CANONICAL_BUILD_SCHEMA,
+                CANONICAL_BUILD_SCHEMA_VERSION,
+                "identity_unresolved",
+                "could not resolve default branch / commit / tree identity",
+            )
+        key, cache_root, digest_dir = resolved
+        reused_existing = os.path.isfile(os.path.join(digest_dir, "manifest.json"))
+
+        manifest = build_canonical_manifest(root, cache_root, _DEFAULT_CONFIG_FINGERPRINT)
+        if manifest is None:
+            return _error_receipt(
+                CANONICAL_BUILD_SCHEMA,
+                CANONICAL_BUILD_SCHEMA_VERSION,
+                "canonical_build_failed",
+                "the canonical manifest builder returned no manifest (see stderr of the underlying mapping pipeline, if any)",
+            )
+        return {
+            "schema": CANONICAL_BUILD_SCHEMA,
+            "schema_version": CANONICAL_BUILD_SCHEMA_VERSION,
+            "generated_at": _now_iso(),
+            "status": "ok",
+            "reused_existing": reused_existing,
+            "key": _redacted_key(key),
+            "manifest": {
+                "storage_root": manifest.storage_root,
+                "artifact_paths": manifest.artifact_paths,
+                "file_manifest_digest": manifest.file_manifest_digest,
+                "counts": manifest.counts,
+                "created_at": manifest.created_at,
+                "builder": manifest.builder,
+                "generation": manifest.generation,
+            },
+        }
+    except Exception as error:  # noqa: BLE001 - CLI boundary must never raise a raw traceback
+        return _error_receipt(
+            CANONICAL_BUILD_SCHEMA,
+            CANONICAL_BUILD_SCHEMA_VERSION,
+            "unexpected_error",
+            str(error),
+        )
 
 
-_HELP = """usage: simplicio-mapper canonical build <path> [--json] [--config-fingerprint <value>]
-       simplicio-mapper canonical status <path> [--json] [--config-fingerprint <value>]
-       simplicio-mapper canonical verify <path> [--json] [--storage-root DIR]
-                                     [--config-fingerprint <value>] [--limit <n>]
-       simplicio-mapper canonical gc [<path>] [--json] [--apply] [--storage-root DIR]
-                                     [--ttl-seconds N] [--grace-seconds N]
+def _run_status(opts: dict) -> dict:
+    root = os.path.abspath(opts["root"])
+    try:
+        git_diag = _git_diagnostics(root)
+        if not git_diag["is_git_repository"]:
+            payload = _error_receipt(
+                CANONICAL_STATUS_SCHEMA,
+                CANONICAL_STATUS_SCHEMA_VERSION,
+                "not_a_git_repository_or_git_unavailable",
+                "root is not inside a git working tree, or git could not be invoked",
+            )
+            payload["git"] = git_diag
+            return payload
 
-canonical build   Resolve the default branch via git and build (or reuse) the
-                  canonical map manifest for that commit. Atomic promotion --
-                  readers never observe a partial manifest.
-canonical status  Read-only. Reports digest/redacted key, freshness,
-                  cache/single-flight diagnostics and overlay counts. Never
-                  builds or writes anything. Never includes an absolute
-                  path, a remote URL, or file content.
-canonical verify  Independent parity proof between the composed effective
-                  view (manifest+overlay) and a bounded full remap.
-canonical gc      Crash-safe, conservative removal of temporary/expired/
-                  unreferenced canonical-map snapshots. Dry-run by default;
-                  pass --apply to actually remove entries.
-"""
+        resolved = _resolve_key_and_paths(root)
+        if resolved is None:
+            payload = _error_receipt(
+                CANONICAL_STATUS_SCHEMA,
+                CANONICAL_STATUS_SCHEMA_VERSION,
+                "identity_unresolved",
+                "could not resolve default branch / commit / tree identity",
+            )
+            payload["git"] = git_diag
+            return payload
 
+        key, cache_root, digest_dir = resolved
+        manifest_path = os.path.join(digest_dir, "manifest.json")
+        manifest_exists = os.path.isfile(manifest_path)
+        loaded = _load_existing_manifest(digest_dir) if manifest_exists else None
 
-def _parse_build_status_opts(rest: list[str], sub: str) -> tuple[dict, int | None]:
-    root = os.getcwd()
-    as_json = False
-    config_fingerprint = _DEFAULT_CONFIG_FINGERPRINT
-    i = 0
-    positional_taken = False
-    while i < len(rest):
-        arg = rest[i]
-        if arg in ("-h", "--help"):
-            print(_HELP)
-            return {}, 0
-        elif arg == "--json":
-            as_json = True
-        elif arg == "--config-fingerprint":
-            i += 1
-            try:
-                config_fingerprint = rest[i]
-            except IndexError:
-                print("--config-fingerprint requires a value", file=sys.stderr)
-                return {}, 2
-        elif arg == "--root":
-            i += 1
-            try:
-                root = rest[i]
-            except IndexError:
-                print("--root requires a value", file=sys.stderr)
-                return {}, 2
-        elif not arg.startswith("-") and not positional_taken:
-            root = arg
-            positional_taken = True
+        invalidation_reason: str | None = None
+        matches = False
+        if not manifest_exists:
+            invalidation_reason = "no_manifest_for_current_key"
+        elif loaded is None:
+            invalidation_reason = "corrupt_manifest"
+        elif loaded.key != key:
+            # Should not happen (the digest dir is keyed by key.digest()),
+            # but never silently trust a mismatched key on disk.
+            invalidation_reason = "key_mismatch"
         else:
-            print(f"unknown canonical {sub} option: {arg}", file=sys.stderr)
-            return {}, 2
-        i += 1
-    return {"root": os.path.abspath(root), "json": as_json, "config_fingerprint": config_fingerprint}, None
+            matches = True
+
+        canonical_subdir = os.path.join(cache_root, "canonical")
+        tmp_pattern = os.path.join(canonical_subdir, f"{key.digest()}.tmp-*")
+        in_progress_dirs = [p for p in glob.glob(tmp_pattern) if os.path.isdir(p)]
+
+        overlay_summary = None
+        if matches:
+            overlay = compute_worktree_overlay(root, key, _DEFAULT_CONFIG_FINGERPRINT)
+            if overlay is not None:
+                view = compose_effective_view(loaded, overlay)
+                overlay_summary = {
+                    "present": True,
+                    "dirty": overlay.dirty,
+                    "worktree_commit_sha": overlay.worktree_commit_sha,
+                    "changed_files_count": len(overlay.changed_files),
+                    "tombstones_count": len(overlay.tombstones),
+                    "files_reused": view.diagnostics.files_reused,
+                    "files_remapped": view.diagnostics.files_remapped,
+                }
+            else:
+                overlay_summary = {
+                    "present": False,
+                    "reason": "overlay_computation_failed",
+                }
+
+        return {
+            "schema": CANONICAL_STATUS_SCHEMA,
+            "schema_version": CANONICAL_STATUS_SCHEMA_VERSION,
+            "generated_at": _now_iso(),
+            "status": "ok",
+            "git": git_diag,
+            "key": _redacted_key(key),
+            "freshness": {
+                "manifest_exists": manifest_exists,
+                "matches_current_key": matches,
+                "invalidation_reason": invalidation_reason,
+            },
+            "build_state": {
+                "in_progress": bool(in_progress_dirs),
+                "staging_dir_count": len(in_progress_dirs),
+            },
+            "overlay": overlay_summary,
+        }
+    except Exception as error:  # noqa: BLE001 - CLI boundary must never raise a raw traceback
+        return _error_receipt(
+            CANONICAL_STATUS_SCHEMA,
+            CANONICAL_STATUS_SCHEMA_VERSION,
+            "unexpected_error",
+            str(error),
+        )
 
 
-def _parse_gc_opts(rest: list[str]) -> tuple[dict, int | None]:
-    opts: dict = {
-        "root": os.getcwd(),
-        "json": False,
-        "apply": False,
-        "storage_root": "",
-        "ttl_seconds": None,
-        "grace_seconds": None,
-    }
-    positionals: list[str] = []
-    i = 0
-    while i < len(rest):
-        arg = rest[i]
-        if arg in ("-h", "--help"):
-            print(_HELP)
-            return {}, 0
-        elif arg == "--json":
-            opts["json"] = True
-        elif arg == "--apply":
-            opts["apply"] = True
-        elif arg == "--storage-root":
-            i += 1
-            opts["storage_root"] = rest[i]
-        elif arg == "--ttl-seconds":
-            i += 1
-            opts["ttl_seconds"] = float(rest[i])
-        elif arg == "--grace-seconds":
-            i += 1
-            opts["grace_seconds"] = float(rest[i])
-        elif arg.startswith("-"):
-            print(f"unknown canonical option: {arg}", file=sys.stderr)
-            return {}, 2
-        else:
-            positionals.append(arg)
-        i += 1
-    if positionals:
-        opts["root"] = positionals[0]
-    return opts, None
+def _print_human(payload: dict) -> None:
+    schema = payload.get("schema", "?")
+    status = payload.get("status", "?")
+    if status == "error":
+        error = payload.get("error", {})
+        print(f"canonical {schema} status=error reason={error.get('reason')}", file=sys.stderr)
+        detail = error.get("detail")
+        if detail:
+            print(f"  detail: {detail}", file=sys.stderr)
+        return
+    if schema == CANONICAL_BUILD_SCHEMA:
+        manifest = payload.get("manifest", {})
+        key = payload.get("key", {})
+        print(
+            f"canonical build ok digest={key.get('digest', '')[:16]}… "
+            f"branch={key.get('default_branch')} commit={key.get('commit_sha', '')[:12]} "
+            f"reused_existing={payload.get('reused_existing')}"
+        )
+        counts = manifest.get("counts", {})
+        print(f"  files={counts.get('files')} symbols={counts.get('symbols')} relationships={counts.get('relationships')}")
+        return
+    if schema == CANONICAL_STATUS_SCHEMA:
+        key = payload.get("key", {})
+        freshness = payload.get("freshness", {})
+        build_state = payload.get("build_state", {})
+        print(
+            f"canonical status digest={key.get('digest', '')[:16]}… "
+            f"branch={key.get('default_branch')} commit={key.get('commit_sha', '')[:12]}"
+        )
+        print(
+            f"  manifest_exists={freshness.get('manifest_exists')} "
+            f"matches_current_key={freshness.get('matches_current_key')} "
+            f"invalidation_reason={freshness.get('invalidation_reason')}"
+        )
+        print(f"  build_in_progress={build_state.get('in_progress')}")
+        overlay = payload.get("overlay")
+        if overlay:
+            if overlay.get("present"):
+                print(
+                    f"  overlay dirty={overlay.get('dirty')} files_reused={overlay.get('files_reused')} "
+                    f"files_remapped={overlay.get('files_remapped')}"
+                )
+            else:
+                print(f"  overlay unavailable ({overlay.get('reason')})")
+        return
+    print(payload)
 
 
 def _print_verify_human_receipt(receipt: dict) -> None:
@@ -543,44 +511,130 @@ def _run_verify(argv: Sequence[str]) -> int:
     return 0 if receipt["result"] == "match" else 1
 
 
+def _run_gc(opts: dict) -> int:
+    """``canonical gc`` (issue #268) -- see ``canonical_gc.scan_canonical_gc``.
+
+    Distinct from ``_run_build``/``_run_status`` above: it returns an exit
+    code directly (its own ``simplicio.canonical-gc/v1`` receipt shape does
+    not fit the single-manifest ``status``/``error`` payload those two
+    verbs share), and prints its own human-readable summary.
+    """
+    report = scan_canonical_gc(
+        opts["root"],
+        apply=opts["apply"],
+        storage_root=opts.get("storage_root") or None,
+        ttl_seconds=opts.get("ttl_seconds"),
+        promoted_grace_seconds=opts.get("grace_seconds"),
+    )
+    payload = report.to_dict()
+    if opts.get("json"):
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    else:
+        mode = "apply" if report.apply else "dry-run"
+        print(
+            f"canonical gc ({mode}): candidates={len(report.candidates)} "
+            f"removed={len(report.removed)} recovered={len(report.recovered)} "
+            f"preserved={len(report.preserved)}"
+        )
+        for candidate in report.candidates:
+            print(f"  candidate [{candidate.kind}] {candidate.relative_path} reason={candidate.reason}")
+        for candidate in report.removed:
+            print(f"  removed   [{candidate.kind}] {candidate.relative_path}")
+        for candidate in report.recovered:
+            print(f"  recovered [{candidate.kind}] {candidate.relative_path}")
+        for error in report.errors:
+            print(f"  error: {error}", file=sys.stderr)
+    return 1 if report.errors else 0
+
+
 def run_canonical_cli(argv: Sequence[str]) -> int:
-    """Entry point for ``simplicio-mapper canonical <build|status|verify|gc> ...``."""
+    """Entry point for ``simplicio-mapper canonical <build|status|verify|gc> <path> ...``."""
     if not argv or argv[0] in ("-h", "--help"):
-        print(_HELP)
+        print(_USAGE)
         return 0
     sub = argv[0]
-    rest = list(argv[1:])
-
-    if sub in ("build", "status"):
-        opts, early_exit = _parse_build_status_opts(rest, sub)
-        if early_exit is not None:
-            return early_exit
-        if sub == "build":
-            receipt = _build_receipt(opts["root"], opts["config_fingerprint"])
-            if opts["json"]:
-                print(json.dumps(receipt, ensure_ascii=False, sort_keys=True))
-            else:
-                _print_build_summary(receipt)
-        else:
-            receipt = _status_receipt(opts["root"], opts["config_fingerprint"])
-            if opts["json"]:
-                print(json.dumps(receipt, ensure_ascii=False, sort_keys=True))
-            else:
-                _print_status_summary(receipt)
-        return 0 if receipt["status"] == "ok" else 1
+    rest = argv[1:]
+    if sub not in ("build", "status", "verify", "gc"):
+        print(f"unknown canonical subcommand: {sub}", file=sys.stderr)
+        print(_USAGE, file=sys.stderr)
+        return 2
 
     if sub == "verify":
         return _run_verify(rest)
 
+    root = os.getcwd()
+    json_mode = False
+    apply_mode = False
+    storage_root: str = ""
+    ttl_seconds: float | None = None
+    grace_seconds: float | None = None
+    positional: list[str] = []
+    i = 0
+    while i < len(rest):
+        arg = rest[i]
+        if arg in ("-h", "--help"):
+            print(_USAGE)
+            return 0
+        elif arg == "--json":
+            json_mode = True
+        elif arg == "--root":
+            i += 1
+            try:
+                root = rest[i]
+            except IndexError:
+                print("--root requires a value", file=sys.stderr)
+                return 2
+        elif arg == "--apply" and sub == "gc":
+            apply_mode = True
+        elif arg == "--storage-root" and sub == "gc":
+            i += 1
+            try:
+                storage_root = rest[i]
+            except IndexError:
+                print("--storage-root requires a value", file=sys.stderr)
+                return 2
+        elif arg == "--ttl-seconds" and sub == "gc":
+            i += 1
+            try:
+                ttl_seconds = float(rest[i])
+            except (IndexError, ValueError):
+                print("--ttl-seconds requires a number", file=sys.stderr)
+                return 2
+        elif arg == "--grace-seconds" and sub == "gc":
+            i += 1
+            try:
+                grace_seconds = float(rest[i])
+            except (IndexError, ValueError):
+                print("--grace-seconds requires a number", file=sys.stderr)
+                return 2
+        elif arg.startswith("-"):
+            print(f"unknown canonical {sub} option: {arg}", file=sys.stderr)
+            print(_USAGE, file=sys.stderr)
+            return 2
+        else:
+            positional.append(arg)
+        i += 1
+    if positional:
+        root = positional[0]
+
+    opts = {
+        "root": root,
+        "json": json_mode,
+        "apply": apply_mode,
+        "storage_root": storage_root,
+        "ttl_seconds": ttl_seconds,
+        "grace_seconds": grace_seconds,
+    }
+
     if sub == "gc":
-        opts, early_exit = _parse_gc_opts(rest)
-        if early_exit is not None:
-            return early_exit
         return _run_gc(opts)
 
-    print(f"unknown canonical sub-command: {sub}", file=sys.stderr)
-    print(_HELP, file=sys.stderr)
-    return 2
+    payload = _run_build(opts) if sub == "build" else _run_status(opts)
+    if json_mode:
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    else:
+        _print_human(payload)
+    return 1 if payload.get("status") == "error" else 0
 
 
-__all__ = ["run_canonical_cli", "CANONICAL_STATUS_SCHEMA", "CANONICAL_BUILD_SCHEMA"]
+__all__ = ["run_canonical_cli"]

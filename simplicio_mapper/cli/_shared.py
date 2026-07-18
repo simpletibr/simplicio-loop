@@ -40,6 +40,17 @@ ONBOARDING_SCHEMA = "simplicio.onboarding/v1"
 
 SPEC_DRIFT_SCHEMA = "simplicio.spec-drift/v1"
 
+# Canonical-map read-safe CLI surface (issue #266, ADR-008 migration step 7).
+# Net-new, isolated schemas -- `canonical build`/`canonical status` never
+# reuse `INDEX_RESULT_SCHEMA`/`MAP_STATUS_SCHEMA` because they describe a
+# different artifact family (the cross-worktree canonical manifest, not the
+# per-worktree `.simplicio/` index) with its own versioning lifecycle.
+CANONICAL_BUILD_SCHEMA = "simplicio.canonical-build/v1"
+CANONICAL_BUILD_SCHEMA_VERSION = 1
+
+CANONICAL_STATUS_SCHEMA = "simplicio.canonical-status/v1"
+CANONICAL_STATUS_SCHEMA_VERSION = 1
+
 FRESHNESS_SKIP_DIRS = {
     ".git",
     "node_modules",
@@ -85,10 +96,10 @@ USAGE
   simplicio-mapper update [--root <dir>] [--watch]
   simplicio-mapper contract validate <path> [<path> ...]
   simplicio-mapper doctor --contracts [--cross-repo] [<path> ...]
-  simplicio-mapper canonical build <path> [--json] [--config-fingerprint <value>]
-  simplicio-mapper canonical status <path> [--json] [--config-fingerprint <value>]
+  simplicio-mapper canonical build <path> [--json]
+  simplicio-mapper canonical status <path> [--json]
   simplicio-mapper canonical verify <path> [--json] [--storage-root <dir>] [--config-fingerprint <value>] [--limit <n>]
-  simplicio-mapper canonical gc [<path>] [--json] [--apply] [--storage-root <dir>] [--ttl-seconds N] [--grace-seconds N]
+  simplicio-mapper canonical gc <path> [--apply] [--json]
 
 OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
@@ -121,34 +132,30 @@ OPTIONS
   doctor --contracts    Validate contracts/mapper-artifacts/v1/ and
                         contracts/ecosystem/v1/ fixtures against their
                         schemas; exit 0 when all valid (issue #164).
-  canonical build <path>
-                        Resolve the default branch via git and build (or
-                        idempotently reuse) the canonical-map manifest for
-                        that commit (schema simplicio.canonical-build/v1).
-                        Does not touch index/scan/status (issue #266).
+                        Build (or reuse, content-addressed) the canonical
+                        default-branch manifest via the existing builder
+                        (issue #266). Isolated from index/scan -- does not
+                        read or write .simplicio/.
   canonical status <path>
-                        Read-only report over an existing canonical-map
-                        manifest: digest/redacted key, freshness,
-                        cache/single-flight diagnostics, overlay counts and
-                        invalidation reason (schema
-                        simplicio.canonical-status/v1). Never builds,
-                        never writes, never includes an absolute path, a
-                        remote URL or file content (issue #266).
+                        Read-only: redacted key/digest, freshness against
+                        the current default-branch commit, build-in-progress
+                        state, and worktree-overlay counts. Never builds or
+                        writes anything (issue #266).
   canonical verify <path>
                         Independent parity proof between the composed
                         EffectiveMapView (canonical manifest + worktree
                         overlay) and a full remap of the same worktree;
                         exit 0 on match, 1 on mismatch/failure (issue #267).
-  canonical gc [<path>]
-                        Crash-safe, conservative removal of temporary/
-                        expired/unreferenced canonical-map snapshots.
-                        Dry-run by default; pass --apply to mutate
+  canonical gc <path>   Conservative, crash-safe GC of interrupted
+                        promotions and stale canonical-map snapshots under
+                        the ADR-008 content-addressed storage root. Dry-run
+                        by default; pass --apply to actually delete
                         (issue #268).
   --config-fingerprint <value>
-                        canonical build/status/verify: override the
-                        mapping-config fingerprint segment of the canonical
-                        key (default is a stable placeholder -- no config
-                        knobs are exposed at this surface yet).
+                        canonical verify: override the mapping-config
+                        fingerprint segment of the canonical key (default is
+                        a stable placeholder -- no config knobs are exposed
+                        at this surface yet).
   --range <spec>        sync: git diff range (e.g. main..HEAD) instead of the working tree.
   --staged              sync: diff staged changes instead of the working tree.
   --check               sync: report staleness without writing (exit 1 if stale).

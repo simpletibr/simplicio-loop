@@ -15,6 +15,8 @@ Use this file to make local execution reproducible for humans and agents.
 | Variable | Required | Example | Notes |
 |---|---:|---|---|
 | `<ENV_NAME>` | yes | `<VALUE>` | `<NOTES>` |
+| `SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES` | no | `8` | Caps in-flight file read+parse tasks in the async mapping pipeline (`index`/`map`/`scan`). Default `min(32, os.cpu_count() * 4)`. See `docs/async-pipeline-operations.md`. |
+| `SIMPLICIO_MAPPER_FILE_TIMEOUT_S` | no | `10` | Per-file timeout (seconds) for the async mapping pipeline; a file exceeding it is recorded as `degraded` and skipped, run continues. Default `30.0`. See `docs/async-pipeline-operations.md`. |
 
 ## Install
 

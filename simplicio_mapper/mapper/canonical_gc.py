@@ -1,57 +1,54 @@
-"""Crash-safe, conservative GC for canonical-map storage (issue #268).
+"""Conservative, crash-safe GC for canonical-map content-addressed snapshots.
 
-Scope: reclaim disk space under a canonical-map cache root
-(``<cache_root>/canonical/`` -- see :mod:`.canonical_storage`) by removing
-only what is provably safe to remove:
+Issue #268 (parent #263, epic #236). Scans the canonical-map storage root
+(ADR-008 section 3, :mod:`simplicio_mapper.mapper.canonical_storage`) for:
 
-* ``<digest>.tmp-<token>/`` staging directories left behind by an
-  interrupted :func:`simplicio_mapper.mapper.canonical_builder.build_canonical_manifest`
-  call -- reclaimed only once the owning process is proven dead (PID check)
-  or the staging directory has outlived a lease TTL.
-* ``<digest>.deleting-<token>/`` directories -- the crash-safe intermediate
-  name this module itself uses during removal (see below); these are never
-  a valid target for anything else, so a leftover one is always safe to
-  finish deleting on any later GC run, regardless of age or PID.
-* Promoted ``<digest>/`` manifest directories that are either missing a
-  parseable ``manifest.json`` (broken/corrupt -- never a valid promotion)
-  or are a superseded generation of the *same repository* GC was invoked
-  against (an older ``commit_sha`` for a repo whose current default-branch
-  digest is resolved fresh on every GC call) -- never the current digest,
-  never a manifest still inside its post-promotion grace window, and never
-  a manifest belonging to a different repository (GC only judges the one
-  repo it was asked about; see the module docstring's non-goals).
+* interrupted-promotion temp directories (``<digest>.tmp-<token>/``, written
+  by :func:`simplicio_mapper.mapper.canonical_builder.build_canonical_manifest`
+  before its atomic ``os.replace`` promotion) whose builder process is
+  provably dead, and
+* promoted manifest directories (``<digest>/manifest.json``) that no longer
+  match the CURRENT default-branch commit for the repo at the given path.
 
-Non-goals (explicitly out of scope, matching issue #268's parent #263):
-this module never enables reuse in ``index``/``scan``, never alters any
-existing artifact format, and never touches ``overlays/`` promoted
-directories (no builder writes real overlay content there yet -- see
-:mod:`.canonical_overlay`'s module docstring -- so there is nothing safe to
-reclaim there beyond the same tmp/deleting staging convention).
+Never removes anything without a "provably dead" (or "provably stale, past
+grace + TTL") reason, reusing the SAME liveness primitives already
+battle-tested in ``simplicio_mapper.cli._index_engine``'s lock-reclaim logic
+(:mod:`simplicio_mapper.mapper.process_liveness`) rather than inventing a new
+mechanism.
 
-Crash-safety / concurrent-read-safety design: removing a directory is never
-a single ``shutil.rmtree`` on its live name. Instead, the target is first
+Honest heuristic disclosure (issue #268 explicitly asks for this instead of
+overclaiming precision): there is no cross-worktree registry of "currently
+referenced" canonical digests yet -- ADR-008's migration plan has not reached
+that step. A promoted manifest is therefore treated as "live" only when its
+key's ``(repo_identity, default_branch, commit_sha)`` matches the CURRENT
+default-branch commit resolved from the ``root`` path passed to
+``canonical gc``. Any other promoted manifest is a GC candidate once it
+clears the grace window and the TTL below -- this is a conservative
+approximation of "unreferenced by every worktree", not a proof of it, and
+every :class:`GcReport` this module produces documents the reason per item
+so the approximation is never silently overclaimed as precise.
+
+Crash-safety of the removal step itself: a candidate directory is never
+handed straight to ``shutil.rmtree`` on its live name. It is first
 atomically renamed (``os.replace``, a single filesystem operation) to a
-sibling ``<name>.deleting-<token>`` name, *then* recursively deleted. On
-POSIX (Linux/macOS), a process that already has a file open inside the
-directory keeps a valid file descriptor even after the containing directory
-is renamed out from under it -- so the ten-concurrent-readers scenario this
-issue's acceptance criteria calls out never observes a torn read, only
-"the digest doesn't exist under its original name anymore" if it queries
+sibling ``<name>.deleting-<token>`` name, then recursively deleted. On
+POSIX, a process that already has a file open inside the directory keeps a
+valid file descriptor even after the containing directory is renamed out
+from under it, so a concurrent reader never observes a torn read -- only
+"the digest doesn't exist under its original name anymore" if it looks
 again afterward. If the process crashes between the rename and the
-``rmtree``, the next GC invocation finds the ``.deleting-`` directory and
-always finishes removing it (see :func:`_classify_deleting_entry`) --
-that is what makes this GC crash-safe rather than merely "safe when it runs
-to completion".
+``rmtree``, the next GC invocation finds the leftover ``.deleting-``
+directory and (being a name only this module's removal path ever writes)
+always finishes removing it unconditionally, regardless of age -- this is
+what makes the removal step crash-safe rather than merely "safe when it
+runs to completion". On Windows, ``os.replace`` on a directory another
+process holds open files under can fail with ``PermissionError`` (no
+POSIX-style "rename over open handles" guarantee); this is treated as a
+fail-closed, retryable condition -- the candidate is left untouched and
+reported as an error for that entry, picked up again on the next GC run.
 
-Windows note (documented gap, not verified on a live Windows checkout --
-this repo's dev/CI environment here is Linux): ``os.replace`` on a
-directory that another process holds open files under can fail with
-``PermissionError`` on Windows (no POSIX-style "rename over open handles"
-guarantee). This module treats that as a fail-closed, retryable condition:
-the candidate is left untouched, reported as ``"removed": false`` with
-``"reason": "rename_failed"``, and picked up again on the next GC run. This
-never corrupts or partially deletes live content -- it just means Windows
-GC may need one extra run once contending readers close their handles.
+Nothing here is wired into any existing CLI command besides
+``simplicio-mapper canonical gc`` (``simplicio_mapper/cli/_canonical.py``).
 """
 
 from __future__ import annotations
@@ -60,129 +57,72 @@ import os
 import secrets
 import shutil
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
 
 import orjson
 
-from .canonical_identity import resolve_repo_identity_bundle
-from .canonical_storage import resolve_canonical_cache_root
+from .canonical_identity import ResolvedRepoIdentity, resolve_repo_identity_bundle
+from .canonical_storage import CANONICAL_CACHE_DIR_ENV_VAR, resolve_canonical_cache_root
+from .process_liveness import process_is_alive, process_start_token
 
-GC_RECEIPT_SCHEMA = "simplicio.canonical-gc-receipt/v1"
-GC_RECEIPT_SCHEMA_VERSION = 1
+CANONICAL_GC_SCHEMA = "simplicio.canonical-gc/v1"
+CANONICAL_GC_SCHEMA_VERSION = 1
 
-#: Overridable via env var, mirrors the existing index-lock TTL convention
-#: (``simplicio_mapper.cli._index_engine.INDEX_LOCK_TTL_ENV``) but scoped to
-#: canonical-map GC so the two knobs can be tuned independently.
-GC_TTL_ENV = "SIMPLICIO_MAPPER_CANONICAL_GC_TTL_SECONDS"
-DEFAULT_GC_TTL_SECONDS = 6 * 60 * 60
+#: Never touch anything (tmp dir or promoted manifest) whose last activity is
+#: more recent than this many seconds -- avoids racing a build that JUST
+#: finished its atomic promotion (issue #268 requirement #2).
+GC_GRACE_SECONDS_ENV = "SIMPLICIO_MAPPER_CANONICAL_GC_GRACE_SECONDS"
+DEFAULT_GC_GRACE_SECONDS = 60.0
 
-#: Grace window after a manifest's ``created_at`` during which it is never
-#: eligible for "superseded generation" removal, even if a newer commit on
-#: the same repo has already been resolved -- protects a manifest that just
-#: finished promoting and may still be in use by a reader that resolved it
-#: moments ago (issue #268 AC: "nunca remove ... snapshot recém-promovido").
-GC_PROMOTED_GRACE_ENV = "SIMPLICIO_MAPPER_CANONICAL_GC_GRACE_SECONDS"
-DEFAULT_GC_PROMOTED_GRACE_SECONDS = 5 * 60
+#: TTL a promoted manifest that is no longer the current default-branch
+#: commit must clear before it becomes a removal candidate -- mirrors the
+#: ``SIMPLICIO_MAPPER_LOCK_TTL_SECONDS`` env-var pattern used by the index
+#: lock (``simplicio_mapper.cli._index_engine.INDEX_LOCK_TTL_ENV``), applied
+#: here to canonical snapshots instead of locks.
+GC_TTL_SECONDS_ENV = "SIMPLICIO_MAPPER_CANONICAL_GC_TTL_SECONDS"
+DEFAULT_GC_TTL_SECONDS = float(7 * 24 * 60 * 60)  # 7 days
 
-#: Minimum age before a *malformed* tmp/broken entry (no readable PID, or no
-#: parseable manifest) is even considered -- guards against a race with a
-#: writer that has not finished ``os.open``/first ``write`` yet.
-MALFORMED_GRACE_SECONDS = 2.0
-
-#: Must match ``simplicio_mapper.mapper.canonical_storage._TMP_INFIX``. Not
-#: imported directly (that name is private to its module); every test in
-#: ``tests/python/test_canonical_gc.py`` builds fixtures via
-#: ``canonical_manifest_tmp_dir`` itself, so any drift between the two
-#: literals is caught immediately by the test suite rather than silently
-#: skipping real staging directories.
 _TMP_INFIX = ".tmp-"
 _DELETING_INFIX = ".deleting-"
 _MANIFEST_FILE_NAME = "manifest.json"
-
-_CANONICAL_SUBDIR = "canonical"
-_OVERLAYS_SUBDIR = "overlays"
-
-
-def _process_is_alive(pid: int) -> bool:
-    """Cross-platform, dependency-free liveness check for ``pid``.
-
-    Deliberately self-contained (not imported from
-    ``simplicio_mapper.cli._index_engine``): ``cli`` depends on ``mapper``,
-    never the reverse, so importing the CLI's lock helpers from here would
-    invert that layering for a two-branch liveness check that is easy to
-    keep in sync by inspection alone.
-    """
-    if pid <= 0:
-        return False
-    if pid == os.getpid():
-        return True
-    if os.name == "nt":
-        try:
-            import ctypes
-            from ctypes import wintypes
-
-            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-            kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
-            kernel32.OpenProcess.restype = wintypes.HANDLE
-            kernel32.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
-            kernel32.GetExitCodeProcess.restype = wintypes.BOOL
-            kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-            kernel32.CloseHandle.restype = wintypes.BOOL
-            process = kernel32.OpenProcess(0x1000, False, pid)
-            if not process:
-                return ctypes.get_last_error() == 5  # ERROR_ACCESS_DENIED
-            try:
-                exit_code = wintypes.DWORD()
-                if not kernel32.GetExitCodeProcess(process, ctypes.byref(exit_code)):
-                    return True
-                return exit_code.value == 259  # STILL_ACTIVE
-            finally:
-                kernel32.CloseHandle(process)
-        except (AttributeError, OSError):
-            pass
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    except OSError:
-        return False
-    return True
+#: Not written by any production code path yet (``canonical_builder.py``
+#: does not create a companion lock next to its tmp dir today) -- this is
+#: forward-compatible detection only, per ADR-008 section 4's plan to
+#: generalize the index-lock machinery to a ``canonical-build`` operation.
+#: When absent (the current, common case) the temp-dir's own
+#: ``<digest>.tmp-<token>`` name -- whose token is the builder's own PID,
+#: see ``canonical_builder.build_canonical_manifest`` -- is the liveness
+#: signal instead (see :func:`_classify_temp_dir`).
+_BUILD_LOCK_FILE_NAME = "build.lock"
 
 
-def _gc_ttl_seconds() -> float:
-    raw = os.environ.get(GC_TTL_ENV)
+def _read_float_env(name: str, default: float) -> float:
+    raw = os.environ.get(name)
     if raw is None:
-        return float(DEFAULT_GC_TTL_SECONDS)
+        return float(default)
     try:
         return max(0.0, float(raw))
     except ValueError:
-        return float(DEFAULT_GC_TTL_SECONDS)
+        return float(default)
 
 
-def _gc_promoted_grace_seconds() -> float:
-    raw = os.environ.get(GC_PROMOTED_GRACE_ENV)
-    if raw is None:
-        return float(DEFAULT_GC_PROMOTED_GRACE_SECONDS)
+def _grace_seconds(override: float | None = None) -> float:
+    if override is not None:
+        return max(0.0, float(override))
+    return _read_float_env(GC_GRACE_SECONDS_ENV, DEFAULT_GC_GRACE_SECONDS)
+
+
+def _ttl_seconds(override: float | None = None) -> float:
+    if override is not None:
+        return max(0.0, float(override))
+    return _read_float_env(GC_TTL_SECONDS_ENV, DEFAULT_GC_TTL_SECONDS)
+
+
+def _read_json(path: str) -> dict | None:
     try:
-        return max(0.0, float(raw))
-    except ValueError:
-        return float(DEFAULT_GC_PROMOTED_GRACE_SECONDS)
-
-
-def _dir_age_seconds(path: str, now: float) -> float:
-    try:
-        stat = os.stat(path)
-    except OSError:
-        return 0.0
-    return max(0.0, now - stat.st_mtime)
-
-
-def _read_manifest(digest_dir: str) -> dict | None:
-    manifest_path = os.path.join(digest_dir, _MANIFEST_FILE_NAME)
-    try:
-        with open(manifest_path, "rb") as handle:
+        with open(path, "rb") as handle:
             raw = handle.read()
     except OSError:
         return None
@@ -190,418 +130,412 @@ def _read_manifest(digest_dir: str) -> dict | None:
         parsed = orjson.loads(raw)
     except orjson.JSONDecodeError:
         return None
-    if not isinstance(parsed, dict):
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _relativize(path: str, base: str) -> str:
+    return os.path.relpath(path, base).replace(os.sep, "/")
+
+
+def _dir_last_activity(path: str) -> float:
+    """Latest mtime of ``path`` or anything inside it -- "last write" proxy.
+
+    Never raises: an unreadable entry contributes nothing and the directory's
+    own mtime is always included as a floor.
+    """
+    try:
+        latest = os.stat(path).st_mtime
+    except OSError:
+        latest = 0.0
+    for dirpath, _dirnames, filenames in os.walk(path):
+        for name in filenames:
+            try:
+                latest = max(latest, os.stat(os.path.join(dirpath, name)).st_mtime)
+            except OSError:
+                continue
+    return latest
+
+
+def _parse_pid(token: str) -> int | None:
+    try:
+        pid = int(token)
+    except ValueError:
         return None
-    return parsed
+    return pid if pid > 0 else None
+
+
+def _age_from_iso(value: str, now: float) -> float | None:
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return None
+    return max(0.0, now - parsed.timestamp())
+
+
+def _classify_lock_record(record: dict) -> str:
+    """Mirror ``_index_engine._inspect_index_lock``'s dead/live/pid_reused bar.
+
+    Only used when a ``build.lock`` file is actually present (see module
+    docstring -- no production writer exists yet, this is forward-compat).
+    """
+    pid = record.get("pid")
+    if not isinstance(pid, int) or pid <= 0:
+        return "malformed"
+    if not process_is_alive(pid):
+        return "dead"
+    expected_start = record.get("process_start_identity")
+    if isinstance(expected_start, str) and expected_start not in ("", "unknown"):
+        actual_start = process_start_token(pid)
+        if actual_start is not None and actual_start != expected_start:
+            return "pid_reused"
+    return "live"
 
 
 @dataclass(frozen=True)
-class GCCandidate:
-    """One directory entry GC inspected under ``canonical/`` or ``overlays/``.
+class GcCandidate:
+    """One scanned item -- a temp dir, a ``.deleting-`` leftover, or a promoted manifest dir.
 
-    ``name`` is a directory *basename* (a content-addressed digest, or a
-    digest plus a ``.tmp-``/``.deleting-`` suffix) -- never an absolute path,
-    matching the receipt's no-absolute-path-leak requirement.
+    ``relative_path`` is always relative to the canonical cache root -- never
+    an absolute filesystem path (issue #268 requirement #6: no absolute paths
+    or remote URLs leaked into the receipt).
     """
 
-    subdir: str
-    name: str
-    kind: str
-    action: str
+    relative_path: str
+    kind: str  # "temp_dir" | "manifest_dir" | "deleting_leftover"
     reason: str
-    age_seconds: float
-    pid: int | None = None
-    removed: bool | None = None
-    error: str | None = None
+    detail: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
-        payload = {
-            "location": f"{self.subdir}/{self.name}",
-            "kind": self.kind,
-            "action": self.action,
-            "reason": self.reason,
-            "age_seconds": round(self.age_seconds, 3),
-        }
-        if self.pid is not None:
-            payload["pid"] = self.pid
-        if self.removed is not None:
-            payload["removed"] = self.removed
-        if self.error is not None:
-            payload["error"] = self.error
+        payload = {"path": self.relative_path, "kind": self.kind, "reason": self.reason}
+        if self.detail:
+            payload["detail"] = dict(self.detail)
         return payload
 
 
-def _classify_deleting_entry(subdir: str, name: str, age_seconds: float) -> GCCandidate:
-    # A `.deleting-` name is written only by this module's own removal path,
+@dataclass(frozen=True)
+class GcReport:
+    """Versioned receipt for one ``canonical gc`` invocation."""
+
+    schema: str
+    schema_version: int
+    apply: bool
+    candidates: list[GcCandidate]
+    removed: list[GcCandidate]
+    recovered: list[GcCandidate]
+    preserved: list[GcCandidate]
+    errors: list[str]
+
+    def to_dict(self) -> dict:
+        return {
+            "schema": self.schema,
+            "schema_version": self.schema_version,
+            "apply": self.apply,
+            "candidates": [c.to_dict() for c in self.candidates],
+            "removed": [c.to_dict() for c in self.removed],
+            "recovered": [c.to_dict() for c in self.recovered],
+            "preserved": [c.to_dict() for c in self.preserved],
+            "errors": list(self.errors),
+        }
+
+
+def _empty_report(apply: bool, errors: list[str]) -> GcReport:
+    return GcReport(
+        schema=CANONICAL_GC_SCHEMA,
+        schema_version=CANONICAL_GC_SCHEMA_VERSION,
+        apply=apply,
+        candidates=[],
+        removed=[],
+        recovered=[],
+        preserved=[],
+        errors=errors,
+    )
+
+
+def _classify_deleting_leftover(rel: str) -> GcCandidate:
+    # A `.deleting-` name is written only by `_reclaim`'s own removal path,
     # immediately before an unconditional `rmtree`. Nothing else ever reads
-    # or writes it, so finding one always means a prior GC run (or the
-    # builder, which never uses this infix) crashed mid-delete -- always
-    # safe to finish, regardless of age or any PID embedded in the token.
-    return GCCandidate(
-        subdir=subdir,
-        name=name,
-        kind="deleting_leftover",
-        action="remove",
-        reason="crash_leftover_deleting",
-        age_seconds=age_seconds,
-    )
+    # or writes it, so finding one always means a prior GC `--apply` run (or
+    # the builder, which never uses this infix) crashed mid-delete -- always
+    # safe to finish, regardless of age or any PID embedded in the name.
+    return GcCandidate(rel, "deleting_leftover", "crash_leftover_deleting", {})
 
 
-def _classify_tmp_entry(
-    subdir: str, name: str, entry_path: str, age_seconds: float, ttl_seconds: float
-) -> GCCandidate:
-    token = name.rsplit(_TMP_INFIX, 1)[-1]
-    pid: int | None = None
-    if token.isdigit():
-        try:
-            pid = int(token)
-        except ValueError:
-            pid = None
+def _classify_temp_dir(
+    entry_path: str, entry_name: str, rel: str, now: float, *, grace_seconds: float
+) -> tuple[GcCandidate, bool]:
+    """Classify a ``<digest>.tmp-<token>`` interrupted-promotion directory.
 
+    Returns ``(candidate, is_gc_candidate)`` -- ``is_gc_candidate`` is
+    ``False`` whenever the directory could still belong to a live/in-progress
+    build, per the "never guess-remove based on directory age alone"
+    requirement.
+    """
+    _, _, token = entry_name.partition(_TMP_INFIX)
+    age = max(0.0, now - _dir_last_activity(entry_path))
+
+    lock_record = _read_json(os.path.join(entry_path, _BUILD_LOCK_FILE_NAME))
+    if lock_record is not None:
+        verdict = _classify_lock_record(lock_record)
+        if verdict == "live":
+            return (
+                GcCandidate(rel, "temp_dir", "temp_dir_build_lock_live", {"token": token}),
+                False,
+            )
+        if verdict == "malformed" and age < grace_seconds:
+            return (
+                GcCandidate(
+                    rel, "temp_dir", "temp_dir_build_lock_malformed_within_grace", {"token": token}
+                ),
+                False,
+            )
+        return (
+            GcCandidate(
+                rel,
+                "temp_dir",
+                f"temp_dir_build_lock_{verdict}",
+                {"token": token, "age_seconds": round(age, 3)},
+            ),
+            True,
+        )
+
+    # No companion lock file (the common case today -- see module docstring)
+    # -- fall back to the pid embedded in the tmp-dir's own name
+    # (`canonical_builder.build_canonical_manifest` names it
+    # `str(os.getpid())`) plus the same `process_is_alive` primitive the
+    # index lock uses. A live builder PID is never reclaimed regardless of
+    # age; a dead/unparseable one still gets a grace window before removal
+    # to avoid racing a promotion that finished moments ago.
+    pid = _parse_pid(token)
+    if pid is not None and process_is_alive(pid):
+        return GcCandidate(rel, "temp_dir", "temp_dir_builder_pid_alive", {"pid": pid}), False
+    if age < grace_seconds:
+        return (
+            GcCandidate(rel, "temp_dir", "temp_dir_within_grace_window", {"age_seconds": round(age, 3)}),
+            False,
+        )
+    reason = "temp_dir_builder_pid_dead" if pid is not None else "temp_dir_token_unparseable_stale"
+    detail: dict[str, Any] = {"age_seconds": round(age, 3)}
     if pid is not None:
-        if age_seconds < MALFORMED_GRACE_SECONDS:
-            return GCCandidate(
-                subdir=subdir,
-                name=name,
-                kind="tmp_staging",
-                action="preserve",
-                reason="too_young_to_judge",
-                age_seconds=age_seconds,
-                pid=pid,
-            )
-        if _process_is_alive(pid):
-            return GCCandidate(
-                subdir=subdir,
-                name=name,
-                kind="tmp_staging",
-                action="preserve",
-                reason="owner_alive",
-                age_seconds=age_seconds,
-                pid=pid,
-            )
-        return GCCandidate(
-            subdir=subdir,
-            name=name,
-            kind="tmp_staging",
-            action="remove",
-            reason="dead_process_owner",
-            age_seconds=age_seconds,
-            pid=pid,
-        )
-
-    # No parseable PID in the staging token: the only remaining proof of
-    # abandonment is lease expiry (issue #268 AC: "prova de lease expirado
-    # ou identidade de PID morta" -- either suffices on its own).
-    if age_seconds > ttl_seconds:
-        return GCCandidate(
-            subdir=subdir,
-            name=name,
-            kind="tmp_staging",
-            action="remove",
-            reason="lease_expired",
-            age_seconds=age_seconds,
-        )
-    return GCCandidate(
-        subdir=subdir,
-        name=name,
-        kind="tmp_staging",
-        action="preserve",
-        reason="lease_not_expired",
-        age_seconds=age_seconds,
-    )
+        detail["pid"] = pid
+    return GcCandidate(rel, "temp_dir", reason, detail), True
 
 
-def _classify_promoted_entry(
-    name: str,
+def _classify_manifest_dir(
     entry_path: str,
-    age_seconds: float,
+    rel: str,
+    identity: ResolvedRepoIdentity | None,
+    now: float,
     *,
-    promoted_grace_seconds: float,
+    grace_seconds: float,
     ttl_seconds: float,
-    current_repo_identity: str | None,
-    current_digest: str | None,
-) -> GCCandidate:
-    manifest = _read_manifest(entry_path)
-    if manifest is None:
-        if age_seconds <= max(MALFORMED_GRACE_SECONDS, ttl_seconds):
-            reason = "too_young_to_judge" if age_seconds <= MALFORMED_GRACE_SECONDS else "lease_not_expired"
-            return GCCandidate(
-                subdir=_CANONICAL_SUBDIR,
-                name=name,
-                kind="promoted_manifest",
-                action="preserve",
-                reason=reason,
-                age_seconds=age_seconds,
+) -> tuple[GcCandidate, bool]:
+    """Classify a promoted ``<digest>/manifest.json`` directory."""
+    raw = _read_json(os.path.join(entry_path, _MANIFEST_FILE_NAME))
+    dir_age = max(0.0, now - _dir_last_activity(entry_path))
+
+    if raw is None:
+        if dir_age < grace_seconds:
+            return (
+                GcCandidate(
+                    rel, "manifest_dir", "manifest_missing_within_grace", {"age_seconds": round(dir_age, 3)}
+                ),
+                False,
             )
-        return GCCandidate(
-            subdir=_CANONICAL_SUBDIR,
-            name=name,
-            kind="promoted_manifest",
-            action="remove",
-            reason="broken_manifest_expired",
-            age_seconds=age_seconds,
+        return (
+            GcCandidate(
+                rel, "manifest_dir", "manifest_missing_or_corrupt", {"age_seconds": round(dir_age, 3)}
+            ),
+            True,
         )
 
-    key = manifest.get("key") if isinstance(manifest.get("key"), dict) else {}
-    repo_identity = key.get("repo_identity")
+    key_raw = raw.get("key") if isinstance(raw.get("key"), dict) else {}
+    manifest_commit_sha = key_raw.get("commit_sha")
+    created_at = raw.get("created_at")
+    age = created_at and _age_from_iso(created_at, now)
+    if age is None:
+        age = dir_age
 
-    if current_repo_identity is None or repo_identity != current_repo_identity:
-        return GCCandidate(
-            subdir=_CANONICAL_SUBDIR,
-            name=name,
-            kind="promoted_manifest",
-            action="preserve",
-            reason="other_repo_out_of_scope",
-            age_seconds=age_seconds,
+    if identity is None:
+        # Cannot prove anything is stale without knowing the current
+        # default-branch commit -- conservative: preserve unconditionally.
+        return (
+            GcCandidate(rel, "manifest_dir", "unable_to_resolve_current_identity", {}),
+            False,
         )
 
-    if name == current_digest:
-        return GCCandidate(
-            subdir=_CANONICAL_SUBDIR,
-            name=name,
-            kind="promoted_manifest",
-            action="preserve",
-            reason="current_reference",
-            age_seconds=age_seconds,
+    is_current = (
+        key_raw.get("repo_identity") == identity.repo_identity
+        and key_raw.get("default_branch") == identity.default_branch
+        and manifest_commit_sha == identity.commit_sha
+    )
+    if is_current:
+        return (
+            GcCandidate(
+                rel, "manifest_dir", "current_default_branch_manifest", {"commit_sha": manifest_commit_sha}
+            ),
+            False,
         )
 
-    if age_seconds < promoted_grace_seconds:
-        return GCCandidate(
-            subdir=_CANONICAL_SUBDIR,
-            name=name,
-            kind="promoted_manifest",
-            action="preserve",
-            reason="recently_promoted",
-            age_seconds=age_seconds,
+    if age < grace_seconds:
+        return (
+            GcCandidate(
+                rel,
+                "manifest_dir",
+                "within_grace_window_recent_promotion",
+                {"age_seconds": round(age, 3), "commit_sha": manifest_commit_sha},
+            ),
+            False,
         )
-
-    return GCCandidate(
-        subdir=_CANONICAL_SUBDIR,
-        name=name,
-        kind="promoted_manifest",
-        action="remove",
-        reason="superseded_generation",
-        age_seconds=age_seconds,
+    if age < ttl_seconds:
+        return (
+            GcCandidate(
+                rel,
+                "manifest_dir",
+                "stale_commit_within_ttl_retention",
+                {"age_seconds": round(age, 3), "commit_sha": manifest_commit_sha},
+            ),
+            False,
+        )
+    return (
+        GcCandidate(
+            rel,
+            "manifest_dir",
+            "expired_unreferenced_snapshot",
+            {"age_seconds": round(age, 3), "commit_sha": manifest_commit_sha},
+        ),
+        True,
     )
 
 
-def _remove_directory(parent_dir: str, name: str) -> tuple[bool, str | None]:
+def _remove_reclaimable(cache_root: str, candidate: GcCandidate) -> tuple[bool, str | None]:
     """Crash-safe removal: atomic rename to a ``.deleting-`` sibling, then rmtree.
 
     Returns ``(removed, error)``. ``removed`` is only ``True`` once the
-    rename succeeded -- from that point on, the directory's original name is
+    rename succeeded -- from that point on the directory's original name is
     already vacated (safe for a new build to reuse the digest, and safe for
     the caller to report as gone) even if the subsequent ``rmtree`` itself
     is incomplete (a later GC run finishes it via
-    :func:`_classify_deleting_entry`).
+    :func:`_classify_deleting_leftover`).
     """
-    src = os.path.join(parent_dir, name)
+    abs_path = os.path.normpath(os.path.join(cache_root, candidate.relative_path))
+    parent_dir, name = os.path.split(abs_path)
     deleting_name = f"{name}{_DELETING_INFIX}{secrets.token_hex(8)}"
-    dst = os.path.join(parent_dir, deleting_name)
+    deleting_path = os.path.join(parent_dir, deleting_name)
     try:
-        os.replace(src, dst)
+        os.replace(abs_path, deleting_path)
     except OSError as error:
-        return False, f"rename_failed: {error.__class__.__name__}"
-    shutil.rmtree(dst, ignore_errors=True)
+        return False, f"rename_failed: {error.__class__.__name__}: {error}"
+    shutil.rmtree(deleting_path, ignore_errors=True)
     return True, None
 
 
-def _resolve_current_reference(root: str, storage_root: str) -> tuple[str | None, str | None]:
-    """Best-effort ``(repo_identity, digest)`` for the repo's current default branch.
-
-    Returns ``(None, None)`` when identity resolution fails for any reason
-    (non-git directory, detached-without-remote edge cases, etc.) -- GC still
-    runs in that case, it just never classifies any promoted manifest as
-    "superseded" (falls back to ``other_repo_out_of_scope``/preserve), which
-    is the conservative direction to fail in.
-    """
-    identity = resolve_repo_identity_bundle(root)
-    if identity is None:
-        return None, None
-    # The digest also depends on `schema_version`/`mapper_version`/
-    # `config_fingerprint`, which this function has no way to know without
-    # rebuilding -- so instead of recomputing a digest, scan already-promoted
-    # manifests for one whose key matches this repo's resolved
-    # (repo_identity, default_branch, commit_sha, tree_sha) tuple. That is
-    # exactly the information GC needs ("is this repo's current commit
-    # represented by some promoted digest") without ever invoking the
-    # builder or requiring a config fingerprint as an extra GC argument.
-    canonical_dir = os.path.join(storage_root, _CANONICAL_SUBDIR)
-    try:
-        entries = os.listdir(canonical_dir)
-    except OSError:
-        return identity.repo_identity, None
-    for entry_name in entries:
-        if _TMP_INFIX in entry_name or _DELETING_INFIX in entry_name:
-            continue
-        manifest = _read_manifest(os.path.join(canonical_dir, entry_name))
-        if manifest is None:
-            continue
-        key = manifest.get("key") if isinstance(manifest.get("key"), dict) else {}
-        if (
-            key.get("repo_identity") == identity.repo_identity
-            and key.get("default_branch") == identity.default_branch
-            and key.get("commit_sha") == identity.commit_sha
-            and key.get("tree_sha") == identity.tree_sha
-        ):
-            return identity.repo_identity, entry_name
-    return identity.repo_identity, None
-
-
-def run_canonical_gc(
+def scan_canonical_gc(
     root: str,
     *,
-    storage_root: str | None = None,
     apply: bool = False,
+    now: float | None = None,
+    storage_root: str | None = None,
     ttl_seconds: float | None = None,
     promoted_grace_seconds: float | None = None,
-) -> dict:
-    """Inspect (and, if ``apply``, reclaim) canonical-map GC candidates for ``root``.
+) -> GcReport:
+    """Scan (and optionally reclaim) the canonical-map storage root for ``root``.
 
-    Dry-run by default (``apply=False``): every candidate is classified and
-    reported, nothing on disk changes. Passing ``apply=True`` is the explicit
-    opt-in this issue's acceptance criteria requires for any mutation.
+    Dry-run by default (``apply=False``): returns every candidate found
+    without deleting anything. Pass ``apply=True`` to actually remove
+    proven-reclaimable temp dirs / stale manifest dirs / crash-leftover
+    ``.deleting-`` directories.
 
-    Idempotent: a second call (dry-run or apply) against the same, unchanged
-    on-disk state reaches the same classification for every remaining entry
-    -- an ``apply`` run that already removed everything reclaimable leaves a
-    following run with zero removable candidates.
+    ``storage_root``/``ttl_seconds``/``promoted_grace_seconds`` are optional
+    explicit overrides (used by ``simplicio-mapper canonical gc``'s
+    ``--storage-root``/``--ttl-seconds``/``--grace-seconds`` flags and by
+    tests); when omitted, the storage root is resolved from ``root`` the same
+    way ``canonical build``/``status`` do, and the TTL/grace window fall back
+    to ``GC_TTL_SECONDS_ENV``/``GC_GRACE_SECONDS_ENV`` (or their defaults).
+
+    Idempotent: given no concurrent writers, calling this twice with the same
+    ``now`` (or a slightly later one, since nothing here shrinks the grace
+    window) produces the same candidate set; after an ``apply=True`` run
+    actually removes something, a second run no longer finds it.
     """
-    now = time.time()
-    ttl = _gc_ttl_seconds() if ttl_seconds is None else max(0.0, ttl_seconds)
-    grace = _gc_promoted_grace_seconds() if promoted_grace_seconds is None else max(0.0, promoted_grace_seconds)
-
+    now = now if now is not None else time.time()
+    errors: list[str] = []
     abs_root = os.path.abspath(root)
+    grace = _grace_seconds(promoted_grace_seconds)
+    ttl = _ttl_seconds(ttl_seconds)
+
+    identity = resolve_repo_identity_bundle(abs_root)
+    override = storage_root or os.environ.get(CANONICAL_CACHE_DIR_ENV_VAR)
+    if identity is None and not override:
+        errors.append(
+            "root is not a git repository and neither --storage-root nor "
+            f"{CANONICAL_CACHE_DIR_ENV_VAR} is set; nothing to scan"
+        )
+        return _empty_report(apply, errors)
+
     if storage_root is not None:
         cache_root = os.path.abspath(storage_root)
     else:
-        common_git_dir = None
-        try:
-            from .canonical_identity import resolve_common_git_dir
+        cache_root = resolve_canonical_cache_root(identity.common_git_dir if identity else "")
+    canonical_root = os.path.normpath(os.path.join(cache_root, "canonical"))
 
-            common_git_dir = resolve_common_git_dir(abs_root)
-        except Exception:  # noqa: BLE001 - identity resolution must never crash GC
-            common_git_dir = None
-        cache_root = resolve_canonical_cache_root(common_git_dir or abs_root)
+    if not os.path.isdir(canonical_root):
+        return _empty_report(apply, errors)
 
-    current_repo_identity, current_digest = _resolve_current_reference(abs_root, cache_root)
-
-    candidates: list[GCCandidate] = []
-
-    canonical_dir = os.path.join(cache_root, _CANONICAL_SUBDIR)
+    scanned: list[tuple[GcCandidate, bool]] = []
     try:
-        canonical_entries = sorted(os.listdir(canonical_dir))
-    except OSError:
-        canonical_entries = []
+        entries = sorted(os.listdir(canonical_root))
+    except OSError as error:
+        errors.append(f"failed to list canonical storage root: {error}")
+        return _empty_report(apply, errors)
 
-    for name in canonical_entries:
-        entry_path = os.path.join(canonical_dir, name)
+    for entry in entries:
+        entry_path = os.path.join(canonical_root, entry)
         if not os.path.isdir(entry_path):
             continue
-        age = _dir_age_seconds(entry_path, now)
-        if _DELETING_INFIX in name:
-            candidates.append(_classify_deleting_entry(_CANONICAL_SUBDIR, name, age))
-        elif _TMP_INFIX in name:
-            candidates.append(_classify_tmp_entry(_CANONICAL_SUBDIR, name, entry_path, age, ttl))
+        rel = _relativize(entry_path, cache_root)
+        if _DELETING_INFIX in entry:
+            scanned.append((_classify_deleting_leftover(rel), True))
+        elif _TMP_INFIX in entry:
+            scanned.append(_classify_temp_dir(entry_path, entry, rel, now, grace_seconds=grace))
         else:
-            candidates.append(
-                _classify_promoted_entry(
-                    name,
-                    entry_path,
-                    age,
-                    promoted_grace_seconds=grace,
-                    ttl_seconds=ttl,
-                    current_repo_identity=current_repo_identity,
-                    current_digest=current_digest,
-                )
+            scanned.append(
+                _classify_manifest_dir(entry_path, rel, identity, now, grace_seconds=grace, ttl_seconds=ttl)
             )
 
-    overlays_dir = os.path.join(cache_root, _OVERLAYS_SUBDIR)
-    try:
-        overlay_entries = sorted(os.listdir(overlays_dir))
-    except OSError:
-        overlay_entries = []
+    candidates = [c for c, is_gc in scanned if is_gc]
+    preserved = [c for c, is_gc in scanned if not is_gc]
+    removed: list[GcCandidate] = []
+    recovered: list[GcCandidate] = []
 
-    for name in overlay_entries:
-        entry_path = os.path.join(overlays_dir, name)
-        if not os.path.isdir(entry_path):
-            continue
-        age = _dir_age_seconds(entry_path, now)
-        if _DELETING_INFIX in name:
-            candidates.append(_classify_deleting_entry(_OVERLAYS_SUBDIR, name, age))
-        elif _TMP_INFIX in name:
-            candidates.append(_classify_tmp_entry(_OVERLAYS_SUBDIR, name, entry_path, age, ttl))
-        else:
-            # No builder promotes real overlay content today (see module
-            # docstring) -- nothing here is ever judged reclaimable, only
-            # reported, so a future overlay-promotion feature cannot be
-            # silently broken by this GC reclaiming its output ahead of that
-            # feature actually landing.
-            candidates.append(
-                GCCandidate(
-                    subdir=_OVERLAYS_SUBDIR,
-                    name=name,
-                    kind="promoted_overlay",
-                    action="preserve",
-                    reason="overlay_removal_not_implemented",
-                    age_seconds=age,
-                )
-            )
+    if apply:
+        for candidate in candidates:
+            ok, error = _remove_reclaimable(cache_root, candidate)
+            if not ok:
+                errors.append(f"failed to remove {candidate.relative_path}: {error}")
+                continue
+            if candidate.kind == "temp_dir":
+                recovered.append(candidate)
+            else:
+                removed.append(candidate)
 
-    removed: list[GCCandidate] = []
-    preserved: list[GCCandidate] = []
-    for candidate in candidates:
-        if candidate.action != "remove":
-            preserved.append(candidate)
-            continue
-        if not apply:
-            preserved.append(
-                GCCandidate(
-                    subdir=candidate.subdir,
-                    name=candidate.name,
-                    kind=candidate.kind,
-                    action="remove",
-                    reason=candidate.reason,
-                    age_seconds=candidate.age_seconds,
-                    pid=candidate.pid,
-                    removed=False,
-                    error="dry_run",
-                )
-            )
-            continue
-        parent_dir = os.path.join(cache_root, candidate.subdir)
-        ok, error = _remove_directory(parent_dir, candidate.name)
-        outcome = GCCandidate(
-            subdir=candidate.subdir,
-            name=candidate.name,
-            kind=candidate.kind,
-            action="remove",
-            reason=candidate.reason,
-            age_seconds=candidate.age_seconds,
-            pid=candidate.pid,
-            removed=ok,
-            error=error,
-        )
-        if ok:
-            removed.append(outcome)
-        else:
-            preserved.append(outcome)
-
-    return {
-        "schema": GC_RECEIPT_SCHEMA,
-        "schema_version": GC_RECEIPT_SCHEMA_VERSION,
-        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now)),
-        "mode": "apply" if apply else "dry_run",
-        "ttl_seconds": ttl,
-        "promoted_grace_seconds": grace,
-        "candidates": [candidate.to_dict() for candidate in candidates],
-        "removed": [candidate.to_dict() for candidate in removed],
-        "preserved": [candidate.to_dict() for candidate in preserved],
-    }
+    return GcReport(
+        schema=CANONICAL_GC_SCHEMA,
+        schema_version=CANONICAL_GC_SCHEMA_VERSION,
+        apply=apply,
+        candidates=candidates,
+        removed=removed,
+        recovered=recovered,
+        preserved=preserved,
+        errors=errors,
+    )
 
 
 __all__ = [
-    "GC_RECEIPT_SCHEMA",
-    "GC_RECEIPT_SCHEMA_VERSION",
-    "run_canonical_gc",
+    "CANONICAL_GC_SCHEMA",
+    "CANONICAL_GC_SCHEMA_VERSION",
+    "GC_GRACE_SECONDS_ENV",
+    "GC_TTL_SECONDS_ENV",
+    "GcCandidate",
+    "GcReport",
+    "scan_canonical_gc",
 ]

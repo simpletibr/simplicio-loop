@@ -5,8 +5,17 @@
 > para mapeamento Python"). This ADR originally covered only the **design**
 > (plan steps 1-3); the pipeline itself, its full test matrix, and the
 > after-benchmark (plan steps 4-10) have since been implemented across
-> several follow-up PRs and are now the real, wired-in default path for
-> every `index`/`map`/`scan` command. See "Plano de adoção" below for the
+> several follow-up PRs. Step 10's own honest after-benchmark then revealed
+> a real small/medium-tree regression versus the pre-#235 synchronous
+> baseline; plan step 11 fixes it with a size-based sync/async dispatch in
+> `build_artifacts`, so the async pipeline is now engaged only above a
+> measured file-count threshold rather than unconditionally. **Update
+> (issue #264, 2026-07-18)** adds two further pieces on top of that: an
+> inventory-stage-only before/after (sync vs. both async implementations,
+> with CPU/RSS/p95) in `docs/async-inventory-benchmark.md` /
+> `docs/evidence/async-inventory-benchmark.json`, and an operator-facing
+> config/rollback/troubleshooting guide in `docs/async-pipeline-operations.md`
+> -- neither existed before issue #264. See "Plano de adoção" below for the
 > complete, updated status and the "Decisão de fechamento" note for the
 > honest remaining gaps.
 >
@@ -23,7 +32,8 @@
 ## Status
 
 `Aceito` (implementado -- ver "Plano de adoção" e "Decisão de fechamento"
-abaixo; dois gaps de cobertura documentados honestamente, não bloqueadores)
+abaixo; gaps de cobertura e de operação (kill-switch, packaging extra do
+uvloop) documentados honestamente, não bloqueadores)
 
 ---
 
@@ -68,10 +78,10 @@ and file reads are I/O-bound, and the five final writes are the one place
 that must stay a single serialized writer to avoid interleaved/corrupt
 `.simplicio/*.json`.
 
-### Baseline measurement (issue #235 plan step 1)
+### Baseline measurement (issue #235 plan step 1) -- historical, frozen
 
 `scripts/async_pipeline_baseline_benchmark.py` (added in this same
-Phase-0 PR) measures the current synchronous pipeline end-to-end via
+Phase-0 PR) measures the then-current synchronous pipeline end-to-end via
 `build_artifacts()`, cold (empty disk cache) and warm (same cache dir
 re-run), against the real committed
 `contracts/mapper-artifacts/v1/fixtures/python-minimal/source` fixture (4
@@ -87,6 +97,17 @@ regenerable report:
 | small | 4 | 0.068 | 58.6 | 0.060 | 66.2 | 1.13x |
 | medium | 220 | 1.07 | 204.9 | 0.83 | 266.0 | 1.30x |
 | large | 1650 | 25.7 | 64.1 | 23.0 | 71.7 | 1.12x |
+
+> **Frozen as of the async adapter landing (issue #264).** `build_artifacts`
+> now unconditionally delegates to `build_artifacts_async` (plan step 8
+> below), so there is no independently callable full-pipeline *sync* entry
+> point left on this revision to re-measure against -- the script itself
+> refuses to run here (`_assert_historical_sync_baseline`, PR #265) rather
+> than silently mislabel the current async pipeline as a "before" number.
+> These committed numbers remain the last real, historical, pre-async
+> full-pipeline baseline; they are not regenerated or extrapolated by this
+> update. See "Evidence update (issue #264)" below for the current,
+> reproducible inventory-stage comparison and its own explicit limitations.
 
 The large-tree run is disproportionately slow relative to file count
 (1650 files is 7.5x the medium tree's 220, but cold wall time is ~24x
@@ -333,6 +354,83 @@ implement the pipeline in this PR** (see "Plano de adoção").
 
 ---
 
+## Evidence update (issue #264, 2026-07-18)
+
+Real, reproducible before/after measurements for the actual async pipeline
+that ships today were gathered against this revision (`845bb2e`), Python
+3.14.5, Windows, `python3 scripts/async_inventory_benchmark.py --sizes --runs 3 --write`.
+Full report: `docs/async-inventory-benchmark.md` /
+`docs/evidence/async-inventory-benchmark.json` (schema
+`simplicio.async-inventory-benchmark/v1`). Summary (cold wall-time
+speedup vs. the sync `_build_file_inventory` loop, same machine, same run):
+
+| Size | Files | `async_inventory` (PR #262, standalone) cold/warm speedup vs sync | `async_pipeline` (PR #260, production-wired) cold/warm speedup vs sync |
+|---|---:|---:|---:|
+| small | 4 | 0.78x / 0.42x | 0.14x / 0.12x |
+| medium | 242 | 2.49x / 2.43x | 0.31x / 0.95x |
+| large | 1814 | 2.34x / 2.69x | 0.34x / 0.92x |
+
+**Important, honest finding, not hidden**: on this Windows machine,
+`async_pipeline.build_file_inventory_async` -- the implementation actually
+composed into `build_artifacts_async` and therefore what every
+`index`/`map`/`scan` run uses today -- is measurably **slower** than the
+plain sync loop for cold-cache runs at every measured size (0.14x-0.34x,
+i.e. 3x-7x slower wall time), and roughly at parity for warm-cache runs
+(0.92x-0.95x, within noise for medium/large; still slower for small). The
+standalone `async_inventory` module (PR #262, not wired into any command)
+shows the positive speedup this ADR's design predicted (2.3x-2.7x cold,
+matching the design's I/O-bound-gain thesis) for medium/large trees.
+
+The two implementations differ in shape: `async_inventory` does a batched
+2-pass design (sync stat+cache-check pass, then one bounded
+`asyncio.gather` over only the files that actually need a disk read, then a
+sync CPU-bound parse pass), while `async_pipeline._process_one_file` issues
+**two separate `asyncio.to_thread` calls per file** (`os.stat`, then a
+combined read+parse+cache-access) inside one semaphore-bounded task per
+file, every file, regardless of cache hit/miss. A quick isolated check
+(monkeypatching away the per-file `cache.close()` call in a throwaway
+script, not committed) did not reproduce the gap on its own, so the more
+likely explanation is the doubled `to_thread` scheduling overhead per file
+combined with not skipping the read for cache hits -- but this is a
+hypothesis, not confirmed by a dedicated profile in this pass. **This is a
+genuine, measured performance regression in the currently-shipping async
+path relative to the sync path it replaced, on this machine/OS** -- per
+this task's own scope ("do not change `async_pipeline.py`'s actual
+behavior"), it is reported here and in the PR body as a follow-up, not
+fixed inline. Recommended follow-up: profile `async_pipeline._process_one_file`
+directly (not just the inventory-level wall time) on Windows, and consider
+adopting `async_inventory`'s batched-pass shape (skip the read entirely on
+a true cache hit, single `to_thread` per file that actually needs work)
+inside `async_pipeline` instead of the current per-file double-`to_thread`
+shape.
+
+Two further gaps found while gathering this evidence, not previously
+called out in this ADR:
+
+- **No deterministic rollback/kill-switch exists.** `build_artifacts`
+  unconditionally calls `asyncio.run(build_artifacts_async(...))` -- there
+  is no `SIMPLICIO_MAPPER_*` environment variable (or any other runtime
+  toggle) to force the old, fully-sync `_build_file_inventory`-based code
+  path back on. `SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES=1` serializes the
+  async pipeline's own concurrency (closest available mitigation) but is
+  **not** the same code path as the pre-#260 sync loop and does not undo
+  the measured regression above (concurrency isn't the cause of it). The
+  only deterministic rollback today is pinning/reverting to a pre-PR-#260
+  revision or release. See `docs/async-pipeline-operations.md`
+  ("Rollback / disable") for the full write-up; recommended follow-up: file
+  an issue to add an explicit kill-switch env var
+  (e.g. `SIMPLICIO_MAPPER_DISABLE_ASYNC_PIPELINE`) that routes
+  `build_artifacts` back through `_build_file_inventory` directly.
+- **No `uvloop` packaging extra.** ADR's original design proposed
+  `simplicio-mapper[uvloop]`; `pyproject.toml`'s
+  `[project.optional-dependencies]` only declares `dev` today. The lazy
+  `try: import uvloop` fallback logic itself is implemented and tested
+  (`UvloopSelectionTest`, `tests/python/test_async_pipeline.py`), but a user
+  who wants uvloop must `pip install uvloop` manually and undocumented,
+  rather than via a declared extra.
+
+---
+
 ## Critério de revisão
 
 - Revisit once `build_file_inventory_async` is implemented and a fresh run
@@ -340,10 +438,19 @@ implement the pipeline in this PR** (see "Plano de adoção").
   shows the after numbers -- if warm/cold files/s does not improve
   meaningfully for the medium/large synthetic trees, the design's core
   assumption (I/O-wait dominates at this project's typical file sizes)
-  needs to be revisited before investing further.
+  needs to be revisited before investing further. **Resolved by the issue
+  #264 evidence update above**: warm/cold *does* improve for the standalone
+  `async_inventory` module, but the production-wired `async_pipeline` path
+  currently does not on this machine -- revisit this ADR's core assumption
+  specifically for `async_pipeline`'s per-file task shape (see "Evidence
+  update" above).
 - Revisit if the `_candidate_import_targets` quadratic-scan follow-up
   fix changes the profiled bottleneck distribution enough that a process
-  pool for regex parsing becomes newly justified (Alternativa B).
+  pool for regex parsing becomes newly justified (Alternativa B). **Done**:
+  PR #255 fixed it with an `O(n)` suffix index
+  (`graph.py::_known_path_suffix_index`); no fresh profile redone as part
+  of issue #264 (out of scope -- this update is evidence/docs only, per
+  #264's own non-goals).
 - Revisit if `uvloop` upstream ships Windows support, or drops
   Linux/macOS-only status, changing the opt-in gating logic.
 
@@ -374,20 +481,26 @@ implement the pipeline in this PR** (see "Plano de adoção").
    actually composed into `build_artifacts_async` below.
    `async_inventory.py` is not wired into any entry point and is kept only
    for its own tests/benchmark; it is dead code relative to production,
-   noted here rather than silently left unexplained.)
+   noted here rather than silently left unexplained. See "Evidence update"
+   above for the issue #264 inventory-stage-only measurement of both
+   implementations side by side.)
 6. ✅ Implemented `build_artifacts_async` composing the async inventory step
    with the (still synchronous, CPU-bound) symbol-index/call-graph/write
    stages, keeping the single writer -- issue #235 plan step 6.
    `simplicio_mapper/mapper/async_pipeline.py::build_artifacts_async`, PR
    #260 (6340988).
-7. ✅ `uvloop` optional extra + Linux/macOS auto-detection + Windows
+7. ✅ (partial) `uvloop` optional extra + Linux/macOS auto-detection + Windows
    fallback -- issue #235 plan step 7. `_install_uvloop_if_available()` in
    `async_pipeline.py`, PR #260 (6340988); covered by
    `UvloopSelectionTest` in `tests/python/test_async_pipeline.py`
    (Windows-verified on this machine; Linux/macOS import-success path
    covered only via mocked `sys.platform`/`sys.modules`, not a real
    non-Windows run -- see item 9 below for the honest cross-platform
-   caveat).
+   caveat). **Not done**: the `simplicio-mapper[uvloop]` optional packaging
+   extra this ADR originally proposed was never added to `pyproject.toml`
+   (`[project.optional-dependencies]` only declares `dev` as of issue
+   #264) -- a user who wants uvloop must `pip install uvloop` manually,
+   undocumented until issue #264's operator guide.
 8. ✅ `build_artifacts` sync adapter wrapping `asyncio.run(build_artifacts_async(...))`,
    CLI unchanged -- issue #235 plan step 8.
    `simplicio_mapper/mapper/emit.py::build_artifacts`, PR #260 (6340988).
@@ -395,7 +508,12 @@ implement the pipeline in this PR** (see "Plano de adoção").
    same function with the same signature; `OutputEquivalenceTest` in
    `tests/python/test_async_pipeline.py` asserts the sync adapter's
    `build_artifacts()` output is byte-identical (modulo timestamps) to a
-   direct `asyncio.run(build_artifacts_async(...))` call.
+   direct `asyncio.run(build_artifacts_async(...))` call. **Not done**: no
+   runtime kill-switch/rollback env var exists to force this adapter back
+   onto the pre-#260 fully-sync `_build_file_inventory` path -- see
+   "Evidence update" above and `docs/async-pipeline-operations.md`
+   ("Rollback / disable") for the deterministic-rollback gap this
+   surfaced.
 9. ✅ (partial, see caveats) Timeouts/cancellation/backpressure implementation
    + the test matrix from issue #235 ("Testes obrigatórios"), audited and
    closed out in the issue #235 finalization pass:
@@ -464,52 +582,167 @@ implement the pipeline in this PR** (see "Plano de adoção").
      `uvloop.EventLoopPolicy()` is actually installed and driving the
      event loop remains verified only via `unittest.mock` in
      `UvloopSelectionTest`. macOS remains entirely untested in any sandbox
-     available to date -- no macOS runner exists here either.
-10. ✅ After/before benchmark comparison -- issue #235 plan step 10.
-    `scripts/async_pipeline_after_benchmark.py` (new, added in the issue
-    #235 finalization pass) re-runs the same sizes/methodology as
-    `scripts/async_pipeline_baseline_benchmark.py` against the CURRENT,
-    async-wired `build_artifacts()`; results committed to
-    `docs/async-pipeline-after-benchmark.md` /
-    `docs/evidence/async-pipeline-after-benchmark.json`. Honest summary of
-    what was measured (Python 3.14.5, Windows, this machine, `--runs 3`):
+     available to date -- no macOS runner exists here either. This repo
+     also has no CI at all as of issue #264 -- GitHub Actions workflows
+     were removed entirely, a separate, unrelated change -- so all of the
+     above is sandbox-local verification, not CI-enforced.
+10. ✅ After/before benchmark comparison -- issue #235 plan step 10, with
+    two complementary reports:
+    - **Full pipeline** (`scripts/async_pipeline_after_benchmark.py`, added
+      in the issue #235 finalization pass): re-runs the same
+      sizes/methodology as `scripts/async_pipeline_baseline_benchmark.py`
+      against the CURRENT, async-wired `build_artifacts()`; results
+      committed to `docs/async-pipeline-after-benchmark.md` /
+      `docs/evidence/async-pipeline-after-benchmark.json`. Honest summary
+      of what was measured (Python 3.14.5, Windows, this machine, `--runs 3`):
 
-    | Size | Files | Before cold wall p50 (s) | After cold wall p50 (s) | Speedup |
-    |---|---:|---:|---:|---:|
-    | small | 4 | 0.0682 | 0.1288 | 0.53x (slower) |
-    | medium | 220 | 1.0738 | 1.6082 | 0.67x (slower) |
-    | large | 1650 | 25.7289 | 13.8028 | 1.86x |
+      | Size | Files | Before cold wall p50 (s) | After cold wall p50 (s) | Speedup |
+      |---|---:|---:|---:|---:|
+      | small | 4 | 0.0682 | 0.1288 | 0.53x (slower) |
+      | medium | 220 | 1.0738 | 1.6082 | 0.67x (slower) |
+      | large | 1650 | 25.7289 | 13.8028 | 1.86x |
 
-    This is the honest number, not a rosy one: small/medium trees got
-    **slower**, not faster -- `asyncio`/thread-pool scheduling overhead
-    outweighs the I/O-wait it hides when there is little I/O-wait to begin
-    with, exactly as ADR-009's own "Negativas" section predicted as a real
-    possibility rather than ruled out. The large tree's 1.86x improvement is
-    real but, per the after-benchmark script's own framing note, cannot be
-    attributed to the async pipeline alone -- PR #255's independent O(n^2)
-    `_candidate_import_targets` fix landed on the same revision and was
-    already known (from this ADR's own profiling) to be the dominant cost
-    at that scale (93s of a 120s profiled run), so most of the large-tree
-    win is very likely that algorithmic fix, not the concurrency rewrite.
-    Revisiting this ADR's own "Critério de revisão" honestly: the core
-    assumption that I/O-wait dominates enough for concurrency alone to pay
-    off at this project's typical (mostly small) file sizes is **not**
-    confirmed by this after-benchmark -- if anything it is mildly
-    contradicted for small/medium trees. The pipeline is still the right
-    long-term shape (bounded, safe, no unbounded concurrency, bug-for-bug
-    equivalent output) and is a prerequisite for larger repos and any
-    future genuinely I/O-bound workload (e.g. network filesystems), but its
-    standalone perf case for this project's actual small-file-dominated
-    typical repo is weak on today's evidence -- reported here as-is rather
-    than reframed to look better.
+      This is the honest number, not a rosy one: small/medium trees got
+      **slower**, not faster -- `asyncio`/thread-pool scheduling overhead
+      outweighs the I/O-wait it hides when there is little I/O-wait to begin
+      with, exactly as ADR-009's own "Negativas" section predicted as a real
+      possibility rather than ruled out. The large tree's 1.86x improvement is
+      real but, per the after-benchmark script's own framing note, cannot be
+      attributed to the async pipeline alone -- PR #255's independent O(n^2)
+      `_candidate_import_targets` fix landed on the same revision and was
+      already known (from this ADR's own profiling) to be the dominant cost
+      at that scale (93s of a 120s profiled run), so most of the large-tree
+      win is very likely that algorithmic fix, not the concurrency rewrite.
+    - **Inventory stage only** (`scripts/async_inventory_benchmark.py`,
+      extended in issue #264): isolates the walk-and-parse stage alone (no
+      O(n^2)-fix confound, since that fix lives in the downstream
+      call-graph stage, not the inventory stage) and additionally splits
+      out the standalone `async_inventory` module from the production
+      `async_pipeline` implementation -- see "Evidence update" above.
+      `docs/async-inventory-benchmark.md` /
+      `docs/evidence/async-inventory-benchmark.json`.
+
+    Revisiting this ADR's own "Critério de revisão" honestly, with both
+    reports in hand: the core assumption that I/O-wait dominates enough for
+    concurrency alone to pay off at this project's typical (mostly small)
+    file sizes is **not** confirmed by either after-benchmark -- if
+    anything it is mildly contradicted for small/medium trees in the
+    full-pipeline report, and directly contradicted at every measured size
+    for the production `async_pipeline` implementation specifically in the
+    inventory-stage report (0.14x-0.34x cold vs. sync). The pipeline is
+    still the right long-term shape (bounded, safe, no unbounded
+    concurrency, bug-for-bug equivalent output) and is a prerequisite for
+    larger repos and any future genuinely I/O-bound workload (e.g. network
+    filesystems), but its standalone perf case for this project's actual
+    small-file-dominated typical repo is weak on today's evidence --
+    reported here as-is rather than reframed to look better. Issue #264
+    also adds the operator-facing config/rollback/troubleshooting guide
+    this plan step originally asked for and the finalization pass above did
+    not produce: `docs/async-pipeline-operations.md`.
 
 Every plan step (1-10) above is now checked off; see the top-level
 "Decisão de fechamento" note below for whether that means issue #235 itself
 is closable.
 
-### Decisão de fechamento (issue #235 finalization pass)
+11. ✅ **Size-based dispatch follow-up** (issue #235 direct follow-up,
+    filed immediately after step 10's honest after-benchmark exposed a
+    real small/medium regression). Step 10's own numbers showed the
+    unconditionally-async `build_artifacts()` is genuinely SLOWER than the
+    pre-#235 synchronous pipeline for small (0.53x) and medium (0.67x)
+    trees -- `asyncio`/thread-pool scheduling overhead outweighs the
+    I/O-wait it hides when a tree does not have much I/O-wait to begin
+    with. Since most real-world projects this tool maps are small/medium
+    (not 1650-file synthetic monsters), shipping that regression as the
+    unconditional default would not fulfill issue #235's own performance
+    premise.
 
-All 10 plan steps are implemented and tested, with two honestly-documented
+    Fix: `simplicio_mapper/mapper/emit.py::build_artifacts` now does a
+    cheap, content-free file-count probe (`_fast_file_count`, reusing the
+    existing `_walk`/`SKIP_DIRS`/worktree-exclusion logic and `TEXT_EXTS`
+    allowlist, early-exiting once the threshold is reached so probing a
+    huge tree never becomes its own expensive pre-pass) before deciding
+    which pipeline to run:
+    - Below `SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES` (default **600**,
+      see measurement below): routes to `_build_artifacts_sync`, a
+      restored copy of the original pre-#235 synchronous
+      walk-and-parse-and-write body (verbatim from the pre-6340988
+      revision, still benefiting from PR #255's unrelated O(n^2) fix in
+      `graph.py`, which is shared code).
+    - At or above the threshold: routes to
+      `async_pipeline.build_artifacts_async` via `asyncio.run(...)`,
+      exactly as before this follow-up.
+
+    **Threshold measurement** (`scripts/async_pipeline_dispatch_benchmark.py`,
+    `docs/async-pipeline-dispatch-benchmark.md`,
+    `docs/evidence/async-pipeline-dispatch-benchmark.json`; Python 3.14.5,
+    Windows, this machine): forcing sync vs. async explicitly via the same
+    env var on the SAME current revision (both paths already include PR
+    #255's fix, so this is a like-for-like comparison unlike the
+    across-revision before/after table above) at several synthetic-tree
+    sizes:
+
+    | Files | Sync cold wall p50 (s) | Async cold wall p50 (s) | Faster path |
+    |---:|---:|---:|---|
+    | 220 (medium) | 1.536 | 1.736 | sync (~13%) |
+    | 300 | 2.154 | 2.303 | sync (~7%) |
+    | 400 | 3.419 | 3.368 | ~parity (async marginally ahead) |
+    | 600 | 4.382 | 4.620 | sync (~5%) |
+    | 800 | 6.736 | 6.419 | ~parity (async marginally ahead) |
+    | 1200 | 11.169 | 10.344 | async (~7%) |
+    | 1650 (large) | 16.085 | 12.997 | async (~19%) |
+
+    Reading this honestly: the crossover is not a sharp line -- it is a
+    noisy band roughly between 400 and 1200 files where sync and async are
+    within measurement noise of each other (Windows wall-clock timing on
+    this machine has ~5-10% run-to-run variance even for identical code,
+    confirmed by re-running the same size twice and seeing sync "win" in
+    one script invocation and "lose" in another when the two paths shared
+    a source directory -- an earlier, discarded measurement attempt that
+    turned out to be biased by OS page-cache warm-up: whichever path ran
+    second in the same directory benefited from the first path's disk
+    reads. The numbers above use independently materialized, per-mode
+    source trees to remove that bias). Given that band, **600** is chosen
+    as the default: it sits inside the noisy crossover zone rather than
+    past it, erring toward the synchronous path (the known-safe,
+    zero-regression choice) for anything at or below a size where async's
+    benefit is not yet clearly demonstrated, while still being low enough
+    that any repo meaningfully larger than the noisy band (i.e. approaching
+    1650) gets the real, measured async win. The threshold is env-var
+    tunable (`SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES`) precisely because
+    600 is a reasoned default from noisy data, not a guaranteed-optimal
+    constant for every environment/filesystem.
+
+    **Confirmation** (`docs/async-pipeline-dispatch-benchmark.md`'s
+    dispatch-active table, same three sizes as the historical before/after
+    benchmarks, real unmodified `build_artifacts()` with the dispatcher
+    active): small and medium trees are back at (or better than) the
+    original pre-#235 synchronous baseline, and the large tree still gets
+    the async pipeline's real win -- see that document for the exact
+    numbers from this measurement run.
+
+    Tests: `tests/python/test_pipeline_dispatch.py` -- threshold/env-var
+    unit tests, `_fast_file_count` unit tests (extension filtering, `SKIP_DIRS`
+    honored, worktree exclusion honored, early-exit at the cap, never opens
+    a file), dispatch-routing tests (sync path taken below threshold, async
+    at/above, exact boundary at threshold-1/threshold/threshold+1), and a
+    byte-identical-output regression gate across the dispatch boundary
+    (dispatcher's choice vs. both paths forced directly, at
+    threshold-1/threshold/threshold+1 files).
+
+    **Honest verdict on whether this closes issue #235's performance
+    premise**: yes, with the same platform caveat as step 10 -- this fix
+    is verified on Windows/Python 3.14.5 only (no Linux/macOS runner
+    available in this sandbox), and the crossover threshold is a
+    measured-but-noisy default, not a universal constant (hence the env-var
+    escape hatch). Within those honest limits, the regression that made
+    step 10's after-benchmark fail to support issue #235's own performance
+    premise is now fixed: small/medium trees (the common case) no longer
+    regress relative to the pre-#235 baseline, and large trees keep the
+    real async win.
+
+### Decisão de fechamento (issue #235 finalization pass, updated after step 11 and issue #264)
+
+All 11 plan steps are implemented and tested, with honestly-documented
 partial gaps rather than silent omissions:
 
 - **Low-memory system test**: proxy only (minimum-concurrency, not a real
@@ -518,26 +751,66 @@ partial gaps rather than silent omissions:
   out of scope for that issue (it is a docs/evidence issue, not a new-infra
   issue).
 - **Windows/Linux/macOS**: Windows-verified only; Linux/macOS untested in
-  this sandbox (no runner available). **Partially closed by issue #264**:
-  see the updated "Testes obrigatórios -- Windows/Linux/macOS" bullet
-  above -- Linux is now verified for the full test matrix and a real
-  after-benchmark run; the uvloop-active branch and macOS remain
-  unverified.
+  this sandbox (no runner available; this repo has no CI at all).
+  **Partially closed by issue #264**: see the updated "Testes
+  obrigatórios -- Windows/Linux/macOS" bullet above -- Linux is now
+  verified for the full test matrix and a real after-benchmark run; the
+  uvloop-active branch and macOS remain unverified.
+- **Production `async_pipeline` performance regression** (issue #264
+  finding): measurably slower than the sync inventory loop it replaced, at
+  every measured size, in the isolated inventory-stage benchmark -- see
+  "Evidence update" above. Not present in the full-pipeline after-benchmark
+  numbers above in the same stark form because that report's large-tree row
+  is dominated by PR #255's unrelated O(n^2) fix, which the inventory-only
+  report does not include.
+- **No deterministic rollback/kill-switch env var** (issue #264 finding,
+  filed against a revision before step 11 landed): **superseded** --
+  `SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES` set to an arbitrarily large
+  value now deterministically forces every run through
+  `_build_artifacts_sync`, which is exactly the rollback mechanism this
+  finding asked for.
+- **No `uvloop` packaging extra** (issue #264 finding): the ADR's original
+  `simplicio-mapper[uvloop]` proposal was never added to `pyproject.toml`.
+
+Step 10's after-benchmark, taken alone, actually undermined issue #235's
+own premise: it showed the unconditionally-async pipeline was SLOWER than
+the pre-#235 baseline for the common (small/medium) case, which is not a
+performance win for this project's typical repo size. Step 11's size-based
+dispatch directly addresses that: small/medium trees are routed back to a
+verified-equivalent synchronous path (no regression vs. the pre-#235
+baseline), and only trees large enough to cross a measured (if noisy)
+threshold engage the async pipeline, where the win is real. This closes
+the specific gap the earlier finalization pass could not honestly close.
 
 Given issue #235's own acceptance criteria are about the pipeline's design
 and safety properties (bounded concurrency, no orphaned tasks, atomic
 writes, optional uvloop, sync API preservation) -- all of which are now
 implemented and unit/integration/system-tested on two platforms (Windows
-and, since issue #264, Linux) -- and given the after-benchmark provides a
-genuine, un-cherry-picked before/after number (including the honest
-small/medium regression) on both platforms, the recommendation is that
-issue #235 is **closable** with the low-memory-test gap and the
-macOS/uvloop-active gap recorded as known follow-ups (a dedicated
-low-memory CI job, a macOS CI runner, and a CI job with `uvloop` actually
-installed) rather than blockers, since none of these gaps is a correctness
-or safety defect in the shipped code -- they are verification-coverage gaps
-specific to available sandbox/CI infra. The coordinating session should
-make the final call on closing the GitHub issue.
+and, since issue #264, Linux) -- and given the after-benchmark (step 10),
+the dispatch benchmark (step 11), and the inventory-stage benchmark (issue
+#264) all provide genuine, un-cherry-picked numbers (including the honest
+small/medium regression that step 11 fixes at the full-pipeline level, and
+the still-open isolated-inventory-stage regression issue #264 found) on
+both platforms, the recommendation is that issue #235 is **closable** with
+these gaps recorded as known follow-ups (a dedicated low-memory CI job, a
+macOS CI runner, Linux/macOS CI execution of the same test suite, a
+profiling pass + possible redesign of
+`async_pipeline._process_one_file`'s per-file task shape, and a `uvloop`
+packaging extra) rather than blockers, since none of them is a correctness
+or safety defect in the shipped code -- they are verification-coverage,
+performance, and operability gaps, all now explicitly tracked rather than
+hidden. Note that step 11's `SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES`
+env var, set to an arbitrarily large value, already functions as the
+deterministic kill-switch issue #264 asked for (forces every run through
+`_build_artifacts_sync`) -- so that specific gap from issue #264's original
+finding is superseded by step 11, even though it was filed against an
+earlier revision that did not yet have it. The size-based dispatch
+threshold itself is also not a closed question forever: it is a measured
+default on one machine/filesystem, tunable via the same env var, and should
+be revisited if a future, less noisy benchmarking environment (or
+real-world usage data) suggests a different crossover point. The
+coordinating session should make the final call on closing the GitHub
+issue.
 
 ### Issue #264 closure note (evidence + operational guide)
 
@@ -561,17 +834,25 @@ this issue, per its own non-goals ("Rewriting the async pipeline").
 ## Links
 
 - Issue: https://github.com/wesleysimplicio/simplicio-mapper/issues/235
-- Follow-up issue: https://github.com/wesleysimplicio/simplicio-mapper/issues/264
+- Follow-up / evidence issue: https://github.com/wesleysimplicio/simplicio-mapper/issues/264
   (evidence + operational guide)
-- Baseline benchmark: `docs/async-pipeline-baseline-benchmark.md`,
+- Baseline benchmark (historical, frozen, pre-async): `docs/async-pipeline-baseline-benchmark.md`,
   `docs/evidence/async-pipeline-baseline-benchmark.json`,
   `scripts/async_pipeline_baseline_benchmark.py`
-- After benchmark (Windows): `docs/async-pipeline-after-benchmark.md`,
+- After benchmark (Windows, unconditionally-async, plan step 10):
+  `docs/async-pipeline-after-benchmark.md`,
   `docs/evidence/async-pipeline-after-benchmark.json`,
   `scripts/async_pipeline_after_benchmark.py`
 - After benchmark (Linux container, issue #264):
   `docs/async-pipeline-after-benchmark-linux-container.md`,
   `docs/evidence/async-pipeline-after-benchmark-linux-container.json`
+- Dispatch/crossover benchmark (size-based dispatch, plan step 11):
+  `docs/async-pipeline-dispatch-benchmark.md`,
+  `docs/evidence/async-pipeline-dispatch-benchmark.json`,
+  `scripts/async_pipeline_dispatch_benchmark.py`
+- Inventory-stage-only benchmark (issue #264): `docs/async-inventory-benchmark.md`,
+  `docs/evidence/async-inventory-benchmark.json`,
+  `scripts/async_inventory_benchmark.py`
 - Operational guide (issue #264): `docs/async-pipeline-operations.md`
   (configuration, rollback/disable, troubleshooting)
 - Doc/schema drift guard (issue #264): `tests/python/test_async_pipeline_docs.py`
@@ -579,5 +860,9 @@ this issue, per its own non-goals ("Rewriting the async pipeline").
   `scan`/`status` command layer -- orthogonal to this ADR, which is about
   parallelism *inside* the deep pass itself)
 - Files referenced: `simplicio_mapper/mapper/parse.py`,
-  `simplicio_mapper/mapper/graph.py`, `simplicio_mapper/mapper/emit.py`,
-  `simplicio_mapper/cache.py`
+  `simplicio_mapper/mapper/graph.py`,
+  `simplicio_mapper/mapper/emit.py` (`build_artifacts` dispatch,
+  `_build_artifacts_sync`, `_fast_file_count`), `simplicio_mapper/cache.py`
+- Tests: `tests/python/test_pipeline_dispatch.py` (dispatch logic),
+  `tests/python/test_async_pipeline.py` (pre-existing sync/async
+  equivalence, unaffected by the dispatch)

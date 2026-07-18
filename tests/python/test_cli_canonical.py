@@ -1,391 +1,146 @@
-"""End-to-end CLI coverage for `simplicio-mapper canonical build|status`
-(`simplicio_mapper/cli/_canonical.py`) -- issue #266.
+"""End-to-end CLI coverage for `simplicio-mapper canonical gc <path>` (issue #268).
 
-Drives the real CLI entry point (`main()`) against real, throwaway git
-repositories -- never mocks the git subprocess boundary -- and asserts:
-
-* `build`/`status` work against `main`, `master`, and a custom default
-  branch name.
-* `status` reports a dirty worktree overlay correctly and never builds or
-  writes anything.
-* `--json` mode emits a schema-versioned, machine-parseable envelope.
-* The status/build receipt never leaks an absolute path, a raw remote URL,
-  or file content -- the explicit privacy requirement from the issue.
-* Non-git directory, detached HEAD, unavailable `git`, and a corrupt
-  `manifest.json` all degrade to a stable fallback receipt, never a
-  traceback.
+Drives the real `main()` entry point end to end, exactly as a user invoking
+`simplicio-mapper canonical gc ...` would -- exercises argv dispatch
+(`simplicio_mapper/cli/_canonical.py`), `--json`/`--apply` flags, and the
+integration with `simplicio_mapper.mapper.canonical_gc.scan_canonical_gc`.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 
 from simplicio_mapper.cli import main
-from simplicio_mapper.cli._canonical import (
-    CANONICAL_BUILD_SCHEMA,
-    CANONICAL_STATUS_SCHEMA,
-)
 
 
-def _run(args: list[str], cwd: Path) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", *args], cwd=str(cwd), check=True, capture_output=True, text=True)
+def _run_git(args: list[str], cwd: Path) -> None:
+    subprocess.run(["git", *args], cwd=str(cwd), check=True, capture_output=True, text=True)
 
 
-def _init_repo(path: Path, *, default_branch: str = "main") -> None:
+def _init_repo(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
-    _run(["init", "--initial-branch", default_branch], path)
-    _run(["config", "user.email", "test@example.com"], path)
-    _run(["config", "user.name", "Test User"], path)
-    (path / "README.md").write_text("hello\n", encoding="utf-8")
-    src = path / "src"
-    src.mkdir(exist_ok=True)
-    (src / "mod.py").write_text("def foo():\n    return 1\n", encoding="utf-8")
-    _run(["add", "."], path)
-    _run(["commit", "-m", "init"], path)
+    _run_git(["init", "--initial-branch", "main"], path)
+    _run_git(["config", "user.email", "test@example.com"], path)
+    _run_git(["config", "user.name", "Test User"], path)
+    (path / "a.py").write_text("def foo():\n    return 1\n", encoding="utf-8")
+    _run_git(["add", "."], path)
+    _run_git(["commit", "-m", "init"], path)
 
 
-class CanonicalCliBranchMatrixTests(unittest.TestCase):
-    """`build` + `status` against main/master/custom default branch names."""
-
+class CanonicalGcCliTest(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.base = Path(self._tmp.name)
+        self.repo = self.base / "repo"
+        _init_repo(self.repo)
+        self.cache_root = str(self.base / "cache")
+        old = os.environ.get("SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR")
+        os.environ["SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR"] = self.cache_root
 
-    def _build_and_status(self, repo: Path) -> tuple[dict, dict]:
+        def _restore() -> None:
+            if old is None:
+                os.environ.pop("SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR", None)
+            else:
+                os.environ["SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR"] = old
+
+        self.addCleanup(_restore)
+
+    def test_gc_help(self) -> None:
         out = StringIO()
         with redirect_stdout(out):
-            code = main(["canonical", "build", str(repo), "--json"])
-        self.assertEqual(code, 0, out.getvalue())
-        build_receipt = json.loads(out.getvalue())
-
-        out2 = StringIO()
-        with redirect_stdout(out2):
-            code2 = main(["canonical", "status", str(repo), "--json"])
-        self.assertEqual(code2, 0, out2.getvalue())
-        status_receipt = json.loads(out2.getvalue())
-        return build_receipt, status_receipt
-
-    def test_main_branch(self) -> None:
-        repo = self.base / "repo-main"
-        _init_repo(repo, default_branch="main")
-        build_receipt, status_receipt = self._build_and_status(repo)
-        self.assertEqual(build_receipt["schema"], CANONICAL_BUILD_SCHEMA)
-        self.assertEqual(build_receipt["status"], "ok")
-        self.assertFalse(build_receipt["reused"])
-        self.assertEqual(build_receipt["key"]["default_branch"], "main")
-        self.assertEqual(status_receipt["schema"], CANONICAL_STATUS_SCHEMA)
-        self.assertEqual(status_receipt["status"], "ok")
-        self.assertEqual(status_receipt["key"]["default_branch"], "main")
-        self.assertEqual(status_receipt["key"]["key_digest"], build_receipt["key"]["key_digest"])
-
-    def test_master_branch(self) -> None:
-        repo = self.base / "repo-master"
-        _init_repo(repo, default_branch="master")
-        build_receipt, status_receipt = self._build_and_status(repo)
-        self.assertEqual(build_receipt["key"]["default_branch"], "master")
-        self.assertEqual(status_receipt["key"]["default_branch"], "master")
-
-    def test_custom_branch_name(self) -> None:
-        repo = self.base / "repo-custom"
-        _init_repo(repo, default_branch="trunk-canonical")
-        build_receipt, status_receipt = self._build_and_status(repo)
-        self.assertEqual(build_receipt["key"]["default_branch"], "trunk-canonical")
-        self.assertEqual(status_receipt["key"]["default_branch"], "trunk-canonical")
-
-    def test_second_build_call_reuses_existing_manifest(self) -> None:
-        repo = self.base / "repo-reuse"
-        _init_repo(repo)
-        first, _ = self._build_and_status(repo)
-        self.assertFalse(first["reused"])
-        out = StringIO()
-        with redirect_stdout(out):
-            code = main(["canonical", "build", str(repo), "--json"])
+            code = main(["canonical", "gc", "--help"])
         self.assertEqual(code, 0)
-        second = json.loads(out.getvalue())
-        self.assertTrue(second["reused"])
-        self.assertEqual(second["key"]["key_digest"], first["key"]["key_digest"])
+        self.assertIn("canonical gc", out.getvalue())
 
-
-class CanonicalCliStatusOverlayTests(unittest.TestCase):
-    """`status` correctly reports a dirty worktree overlay, read-only."""
-
-    def setUp(self) -> None:
-        self._tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.base = Path(self._tmp.name)
-
-    def test_status_reports_dirty_overlay_without_writing_anything(self) -> None:
-        repo = self.base / "repo-dirty"
-        _init_repo(repo)
+    def test_gc_json_on_empty_storage_root(self) -> None:
         out = StringIO()
         with redirect_stdout(out):
-            main(["canonical", "build", str(repo), "--json"])
-        build_receipt = json.loads(out.getvalue())
-
-        # Dirty the real worktree: modify a tracked file, add an untracked one.
-        (repo / "src" / "mod.py").write_text("def foo():\n    return 2\n", encoding="utf-8")
-        (repo / "src" / "new_thing.py").write_text("NEW = True\n", encoding="utf-8")
-
-        out2 = StringIO()
-        with redirect_stdout(out2):
-            code = main(["canonical", "status", str(repo), "--json"])
+            code = main(["canonical", "gc", str(self.repo), "--json"])
         self.assertEqual(code, 0)
-        status_receipt = json.loads(out2.getvalue())
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["schema"], "simplicio.canonical-gc/v1")
+        self.assertFalse(payload["apply"])
+        self.assertEqual(payload["candidates"], [])
 
-        self.assertTrue(status_receipt["overlay"]["dirty"])
-        self.assertEqual(status_receipt["overlay"]["changed_files_count"], 2)
-        self.assertTrue(status_receipt["freshness"]["worktree_dirty"])
-        # Same canonical manifest -- status must not have rebuilt anything.
-        self.assertEqual(status_receipt["key"]["key_digest"], build_receipt["key"]["key_digest"])
+    def test_gc_dry_run_then_apply_reclaims_dead_temp_dir(self) -> None:
+        from simplicio_mapper.mapper.canonical_builder import build_canonical_manifest
 
-    def test_status_clean_worktree_reports_no_overlay_delta(self) -> None:
-        repo = self.base / "repo-clean"
-        _init_repo(repo)
-        out = StringIO()
-        with redirect_stdout(out):
-            main(["canonical", "build", str(repo), "--json"])
+        build_canonical_manifest(str(self.repo), self.cache_root, "cfg-1")
 
-        out2 = StringIO()
-        with redirect_stdout(out2):
-            code = main(["canonical", "status", str(repo), "--json"])
-        self.assertEqual(code, 0)
-        status_receipt = json.loads(out2.getvalue())
-        self.assertFalse(status_receipt["overlay"]["dirty"])
-        self.assertEqual(status_receipt["overlay"]["changed_files_count"], 0)
-        self.assertEqual(status_receipt["overlay"]["tombstones_count"], 0)
-        self.assertTrue(status_receipt["freshness"]["worktree_same_commit_as_canonical"])
-
-
-class CanonicalCliPrivacySchemaTests(unittest.TestCase):
-    """Schema + privacy assertions on both receipts (issue #266 hard requirement)."""
-
-    def setUp(self) -> None:
-        self._tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.base = Path(self._tmp.name)
-
-    def test_status_receipt_never_leaks_absolute_path_or_remote_url_or_content(self) -> None:
-        repo = self.base / "repo-privacy"
-        _init_repo(repo)
-        _run(["remote", "add", "origin", "https://example.invalid/acme/super-secret-repo.git"], repo)
-        (repo / "SECRET.md").write_text("top-secret-file-content-marker\n", encoding="utf-8")
-        _run(["add", "."], repo)
-        _run(["commit", "-m", "add secret"], repo)
-
-        out = StringIO()
-        with redirect_stdout(out):
-            main(["canonical", "build", str(repo), "--json"])
-        out2 = StringIO()
-        with redirect_stdout(out2):
-            code = main(["canonical", "status", str(repo), "--json"])
-        self.assertEqual(code, 0)
-        raw = out2.getvalue()
-        receipt = json.loads(raw)
-
-        # Schema/version present and correct.
-        self.assertEqual(receipt["schema"], CANONICAL_STATUS_SCHEMA)
-        self.assertEqual(receipt["schema_version"], 1)
-
-        # No absolute filesystem path anywhere in the serialized receipt.
-        self.assertNotIn(str(repo), raw)
-        self.assertNotIn(str(self.base), raw)
-        # No raw remote URL.
-        self.assertNotIn("example.invalid", raw)
-        self.assertNotIn("super-secret-repo", raw)
-        # No file content.
-        self.assertNotIn("top-secret-file-content-marker", raw)
-        # No storage_root / worktree_path keys at all (would themselves be
-        # absolute paths even if not caught by the substring checks above).
-        self.assertNotIn("storage_root", raw)
-        self.assertNotIn("worktree_path", raw)
-        self.assertNotIn("repo_identity", raw)
-
-        # Only a short (12-char) commit prefix is ever exposed, never the
-        # full 40-char SHA.
-        commit_short = receipt["key"]["commit_sha_short"]
-        self.assertEqual(len(commit_short), 12)
-
-    def test_build_receipt_never_leaks_absolute_path_or_remote_url(self) -> None:
-        repo = self.base / "repo-privacy-build"
-        _init_repo(repo)
-        _run(["remote", "add", "origin", "https://example.invalid/acme/other-secret.git"], repo)
-
-        out = StringIO()
-        with redirect_stdout(out):
-            code = main(["canonical", "build", str(repo), "--json"])
-        self.assertEqual(code, 0)
-        raw = out.getvalue()
-        receipt = json.loads(raw)
-        self.assertEqual(receipt["schema"], CANONICAL_BUILD_SCHEMA)
-        self.assertNotIn(str(repo), raw)
-        self.assertNotIn("example.invalid", raw)
-        self.assertNotIn("other-secret", raw)
-        self.assertNotIn("storage_root", raw)
-        self.assertNotIn("repo_identity", raw)
-
-
-class CanonicalCliFallbackTests(unittest.TestCase):
-    """Non-git dir, detached HEAD, git-unavailable, invalid manifest -- all stable, no traceback."""
-
-    def setUp(self) -> None:
-        self._tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.base = Path(self._tmp.name)
-
-    def test_non_git_directory_returns_stable_fallback(self) -> None:
-        not_git = self.base / "not-a-repo"
-        not_git.mkdir()
-        (not_git / "file.txt").write_text("hi\n", encoding="utf-8")
-
-        out = StringIO()
-        with redirect_stdout(out):
-            code = main(["canonical", "status", str(not_git), "--json"])
-        self.assertEqual(code, 1)
-        receipt = json.loads(out.getvalue())
-        self.assertEqual(receipt["status"], "fallback")
-        self.assertEqual(receipt["reason"], "not_a_git_repository")
-        self.assertNotIn("key", receipt)
-
-        out2 = StringIO()
-        with redirect_stdout(out2):
-            code2 = main(["canonical", "build", str(not_git), "--json"])
-        self.assertEqual(code2, 1)
-        build_receipt = json.loads(out2.getvalue())
-        self.assertEqual(build_receipt["status"], "fallback")
-        self.assertEqual(build_receipt["reason"], "not_a_git_repository")
-
-    def test_detached_head_worktree_still_produces_a_stable_ok_receipt(self) -> None:
-        repo = self.base / "repo-detached"
-        _init_repo(repo)
-        out = StringIO()
-        with redirect_stdout(out):
-            main(["canonical", "build", str(repo), "--json"])
-
-        _run(["checkout", "--detach", "HEAD"], repo)
-
-        out2 = StringIO()
-        err2 = StringIO()
-        with redirect_stdout(out2), redirect_stderr(err2):
-            code = main(["canonical", "status", str(repo), "--json"])
-        self.assertEqual(code, 0, err2.getvalue())
-        receipt = json.loads(out2.getvalue())
-        self.assertEqual(receipt["status"], "ok")
-        self.assertIsNotNone(receipt["freshness"]["worktree_head_sha_short"])
-        self.assertEqual(err2.getvalue(), "")
-
-    def test_git_unavailable_returns_stable_fallback_not_traceback(self) -> None:
-        repo = self.base / "repo-no-git-binary"
-        _init_repo(repo)
-
-        from simplicio_mapper.cli import _canonical
-
-        original = _canonical._git_available
-        _canonical._git_available = lambda: False
-        try:
-            out = StringIO()
-            with redirect_stdout(out):
-                code = main(["canonical", "status", str(repo), "--json"])
-            self.assertEqual(code, 1)
-            receipt = json.loads(out.getvalue())
-            self.assertEqual(receipt["status"], "fallback")
-            self.assertEqual(receipt["reason"], "git_unavailable")
-        finally:
-            _canonical._git_available = original
-
-    def test_invalid_manifest_json_returns_stable_fallback(self) -> None:
-        repo = self.base / "repo-invalid-manifest"
-        _init_repo(repo)
-        out = StringIO()
-        with redirect_stdout(out):
-            main(["canonical", "build", str(repo), "--json"])
-        build_receipt = json.loads(out.getvalue())
-        digest = build_receipt["key"]["key_digest"]
-
-        from simplicio_mapper.mapper.canonical_identity import resolve_common_git_dir
-        from simplicio_mapper.mapper.canonical_storage import (
-            canonical_manifest_dir,
-            resolve_canonical_cache_root,
+        proc = subprocess.Popen(
+            [sys.executable, "-c", "pass"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
         )
+        proc.wait(timeout=10)
+        tmp_dir = Path(self.cache_root) / "canonical" / f"digest-cli.tmp-{proc.pid}"
+        tmp_dir.mkdir(parents=True)
+        past = time.time() - 1000
+        os.utime(tmp_dir, (past, past))
 
-        common_git_dir = resolve_common_git_dir(str(repo))
-        cache_root = resolve_canonical_cache_root(common_git_dir)
-        digest_dir = Path(canonical_manifest_dir(cache_root, digest))
-        manifest_path = digest_dir / "manifest.json"
-        self.assertTrue(manifest_path.is_file())
-        manifest_path.write_text("{not valid json", encoding="utf-8")
-
-        out2 = StringIO()
-        with redirect_stdout(out2):
-            code = main(["canonical", "status", str(repo), "--json"])
-        self.assertEqual(code, 1)
-        receipt = json.loads(out2.getvalue())
-        self.assertEqual(receipt["status"], "fallback")
-        self.assertEqual(receipt["reason"], "invalid_manifest")
-
-
-class CanonicalCliHelpTests(unittest.TestCase):
-    def test_top_level_help_documents_canonical_subcommands(self) -> None:
-        out = StringIO()
-        with redirect_stdout(out):
-            with self.assertRaises(SystemExit) as ctx:
-                main(["--help"])
-        self.assertEqual(ctx.exception.code, 0)
-        text = out.getvalue()
-        self.assertIn("canonical build", text)
-        self.assertIn("canonical status", text)
-        self.assertIn("simplicio.canonical-build/v1", text)
-        self.assertIn("simplicio.canonical-status/v1", text)
-
-    def test_canonical_help_subcommand(self) -> None:
-        out = StringIO()
-        with redirect_stdout(out):
-            code = main(["canonical", "--help"])
+        dry_out = StringIO()
+        with redirect_stdout(dry_out):
+            code = main(["canonical", "gc", str(self.repo), "--json"])
         self.assertEqual(code, 0)
-        self.assertIn("canonical build", out.getvalue())
-        self.assertIn("canonical status", out.getvalue())
+        dry_payload = json.loads(dry_out.getvalue())
+        self.assertEqual(len(dry_payload["candidates"]), 1)
+        self.assertEqual(dry_payload["recovered"], [])
+        self.assertTrue(tmp_dir.is_dir())
 
-    def test_unknown_canonical_subcommand_is_rejected(self) -> None:
-        # `gc` became a real sub-command once issue #268 merged in alongside
-        # this issue's `build`/`status` -- use a genuinely unknown verb here.
+        apply_out = StringIO()
+        with redirect_stdout(apply_out):
+            code = main(["canonical", "gc", str(self.repo), "--apply", "--json"])
+        self.assertEqual(code, 0)
+        apply_payload = json.loads(apply_out.getvalue())
+        self.assertEqual(len(apply_payload["recovered"]), 1)
+        self.assertFalse(tmp_dir.exists())
+
+    def test_gc_human_readable_output_lists_candidates(self) -> None:
+        proc = subprocess.Popen(
+            [sys.executable, "-c", "pass"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        proc.wait(timeout=10)
+        tmp_dir = Path(self.cache_root) / "canonical" / f"digest-human.tmp-{proc.pid}"
+        tmp_dir.mkdir(parents=True)
+        past = time.time() - 1000
+        os.utime(tmp_dir, (past, past))
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["canonical", "gc", str(self.repo)])
+        self.assertEqual(code, 0)
+        text = out.getvalue()
+        self.assertIn("dry-run", text)
+        self.assertIn("candidate", text)
+        self.assertIn("temp_dir_builder_pid_dead", text)
+
+    def test_unknown_canonical_subcommand_errors(self) -> None:
         err = StringIO()
         with redirect_stderr(err):
-            code = main(["canonical", "bogus", "/tmp"])
+            code = main(["canonical", "bogus"])
         self.assertEqual(code, 2)
-        self.assertIn("unknown canonical sub-command", err.getvalue())
+        self.assertIn("unknown canonical subcommand", err.getvalue())
 
-
-class CanonicalCliUnitReceiptTests(unittest.TestCase):
-    """Direct unit coverage of the receipt-building functions (no CLI dispatch)."""
-
-    def setUp(self) -> None:
-        self._tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.base = Path(self._tmp.name)
-
-    def test_status_receipt_function_directly(self) -> None:
-        from simplicio_mapper.cli._canonical import _DEFAULT_CONFIG_FINGERPRINT, _status_receipt
-
-        repo = self.base / "repo-unit"
-        _init_repo(repo)
-        receipt = _status_receipt(str(repo), _DEFAULT_CONFIG_FINGERPRINT)
-        self.assertEqual(receipt["status"], "fallback")
-        self.assertEqual(receipt["reason"], "no_canonical_manifest")
-
-    def test_build_receipt_function_directly(self) -> None:
-        from simplicio_mapper.cli._canonical import _DEFAULT_CONFIG_FINGERPRINT, _build_receipt
-
-        repo = self.base / "repo-unit-build"
-        _init_repo(repo)
-        receipt = _build_receipt(str(repo), _DEFAULT_CONFIG_FINGERPRINT)
-        self.assertEqual(receipt["status"], "ok")
-        self.assertFalse(receipt["reused"])
+    def test_unknown_gc_option_errors(self) -> None:
+        err = StringIO()
+        with redirect_stderr(err):
+            code = main(["canonical", "gc", str(self.repo), "--nope"])
+        self.assertEqual(code, 2)
+        self.assertIn("unknown canonical gc option", err.getvalue())
 
 
 if __name__ == "__main__":

@@ -17,13 +17,35 @@ from typing import Any
 
 import orjson
 
+from ..cache import FileProcessingCache
 from ..diagrams import render_flowchart, render_flowchart_svg, to_image_markdown, to_markdown_block
 from ..models import ProjectFile
+from .graph import (
+    _build_architecture_inventory,
+    _build_call_graph,
+    _build_symbol_index,
+    _collect_architecture_signals,
+)
 from .parse import (
     _JSON_WRITE_OPTIONS,
+    ARTIFACT_SCHEMA,
+    ARTIFACT_VERSION,
+    LLM_DIRECTIVES,
+    PRECEDENT_SCHEMA,
+    TEXT_EXTS,
     _agent_id_from_seed,
+    _build_brown_hilbert_map,
+    _build_file_inventory,
+    _build_precedent_items,
+    _collect_entities,
+    _detect_changed_files,
+    _git_status_map,
+    _group_modules,
+    _load_previous_map,
     _module_name_for_path,
+    _now_iso,
     _parse_json_safe,
+    _walk,
 )
 
 
@@ -71,21 +93,222 @@ def _build_agent_tree(
 
     return root_node
 
+#: Env var overriding the file-count threshold below which `build_artifacts`
+#: routes through the plain synchronous pipeline instead of the async one
+#: (issue #235 follow-up: size-based dispatch). See
+#: `docs/async-pipeline-dispatch-benchmark.md` for the measurement behind
+#: the default below -- small/medium trees were measurably SLOWER under the
+#: async pipeline (asyncio/thread-pool scheduling overhead outweighs I/O-wait
+#: savings when there is little I/O-wait to hide), so the async path is now
+#: opt-in above this file count, not the unconditional default.
+_ASYNC_PIPELINE_MIN_FILES_ENV = "SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES"
+_DEFAULT_ASYNC_PIPELINE_MIN_FILES = 600
+
+
+def _async_pipeline_min_files() -> int:
+    """Threshold (inclusive-exclusive: async engages at >= this count).
+
+    Tunable via ``SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES`` for
+    benchmarking/tests; any non-positive or non-integer override is ignored
+    in favor of the measured default rather than silently disabling one of
+    the two pipelines.
+    """
+    override = os.environ.get(_ASYNC_PIPELINE_MIN_FILES_ENV)
+    if override:
+        try:
+            value = int(override)
+        except ValueError:
+            value = 0
+        if value > 0:
+            return value
+    return _DEFAULT_ASYNC_PIPELINE_MIN_FILES
+
+
+def _fast_file_count(cwd: str, cap: int) -> int:
+    """Cheap, content-free file-count probe used only to pick a pipeline.
+
+    Reuses the exact same directory walk/skip logic as
+    ``parse._collect_text_files`` (``_walk`` -> ``SKIP_DIRS``/worktree
+    exclusions) and the same extension allowlist (``TEXT_EXTS``), but never
+    opens a file or calls ``os.path.getsize`` -- this must stay a fast
+    pre-pass, not a second expensive walk. Early-exits as soon as ``cap``
+    matching files have been seen, so probing a very large tree costs
+    O(cap) directory entries touched, not O(total files) -- a repo with
+    100k files and a threshold of 600 still only walks until the 600th
+    match, then immediately routes to the async pipeline.
+    """
+    count = 0
+    for file in _walk(cwd):
+        ext = os.path.splitext(file)[1].lower()
+        if ext not in TEXT_EXTS:
+            continue
+        count += 1
+        if count >= cap:
+            return count
+    return count
+
+
+def _build_artifacts_sync(cwd: str, meta: dict | None = None, incremental: bool = False,
+                           output_dir: str = ".simplicio") -> dict:
+    """Original, fully-synchronous pipeline (pre-issue-#235 behavior).
+
+    Kept side-by-side with the async pipeline (`async_pipeline.build_artifacts_async`)
+    rather than removed: the after-benchmark (ADR-009 plan step 10,
+    `docs/async-pipeline-after-benchmark.md`) showed small/medium synthetic
+    trees are genuinely SLOWER end-to-end under the async pipeline than this
+    plain loop, because `asyncio`/thread-pool scheduling overhead outweighs
+    the I/O-wait it hides when there is little I/O-wait to begin with.
+    `build_artifacts` dispatches to this function for trees below
+    `_async_pipeline_min_files()`.
+    """
+    meta = meta or {}
+    abs_cwd = os.path.abspath(cwd or os.getcwd())
+    abs_out = os.path.abspath(os.path.join(abs_cwd, output_dir))
+    pkg = _parse_json_safe(os.path.join(abs_cwd, "package.json"))
+    contents: dict[str, str] = {}
+    skipped_large_files: list[str] = []
+    degraded = {
+        "git_timeout": False,
+        "git_status_unavailable": False,
+        "skipped_large_files": [],
+        "large_file_limit_bytes": 250000,
+    }
+    status_map = _git_status_map(abs_cwd, degraded=degraded)
+    previous_map = _load_previous_map(abs_out)
+    cache_dir = os.path.join(abs_out, "cache")
+    with FileProcessingCache(cache_dir) as file_cache:
+        files = _build_file_inventory(
+            abs_cwd,
+            pkg,
+            status_map,
+            file_cache,
+            contents=contents,
+            skipped_large_files=skipped_large_files,
+        )
+    degraded["skipped_large_files"] = sorted(skipped_large_files)
+    file_entries = [file.to_dict() for file in files]
+    corpus = "\n".join(file.text_preview for file in files[:80])
+    changed_files = _detect_changed_files(files, previous_map, status_map, incremental)
+    stack = meta.get("stack") or pkg.get("type") or "unknown"
+    product_name = meta.get("product_name") or pkg.get("name") or os.path.basename(abs_cwd)
+    architecture_signals = _collect_architecture_signals(pkg, corpus, stack)
+    generated_at = _now_iso()
+
+    if os.path.exists(os.path.join(abs_cwd, "pnpm-lock.yaml")):
+        package_manager = "pnpm"
+    elif os.path.exists(os.path.join(abs_cwd, "yarn.lock")):
+        package_manager = "yarn"
+    else:
+        package_manager = "npm"
+
+    web_signal = "react" in architecture_signals or "nextjs" in architecture_signals
+    if meta.get("project_mode") == "monorepo":
+        system_type = "monorepo"
+    else:
+        system_type = "web" if web_signal else "library-or-service"
+
+    project_map = {
+        "schema": ARTIFACT_SCHEMA,
+        "version": ARTIFACT_VERSION,
+        "generated_at": generated_at,
+        "update_mode": "incremental" if incremental else "full",
+        "product": {
+            "name": product_name,
+            "stack": stack,
+            "project_mode": meta.get("project_mode", "root"),
+        },
+        "files": file_entries,
+        "entry_points": [f.path for f in files if "entrypoint" in f.roles],
+        "test_files": [f.path for f in files if "test" in f.roles],
+        "config_files": [f.path for f in files if "config" in f.roles],
+        "modules": _group_modules(files),
+        "entities": _collect_entities(files),
+        "architecture": {
+            "signals": architecture_signals,
+            "system_type": system_type,
+        },
+        "dependencies": {
+            "package_manager": package_manager,
+            "manifest": "package.json" if pkg.get("name") else None,
+            "runtime": sorted((pkg.get("dependencies") or {}).keys()),
+            "dev": sorted((pkg.get("devDependencies") or {}).keys()),
+        },
+        "recent_changes": [
+            {"path": file, "status": status_map.get(file, "modified")} for file in changed_files
+        ],
+        "changed_files": changed_files,
+        "integration": {
+            "dev_cli_mapper": "read .simplicio/project-map.json, then use .simplicio/precedent-index.json for task-specific examples",
+            "contract": "SIMPLICIO_INTEGRATION.md",
+            "llm_directives": LLM_DIRECTIVES,
+        },
+        "degraded": degraded,
+    }
+
+    precedent_index = {
+        "schema": PRECEDENT_SCHEMA,
+        "version": ARTIFACT_VERSION,
+        "generated_at": generated_at,
+        "source_project_map": ".simplicio/project-map.json",
+        "items": _build_precedent_items(abs_cwd, files, contents=contents),
+    }
+
+    symbol_index = _build_symbol_index(abs_cwd, files, generated_at, contents=contents)
+    call_graph = _build_call_graph(abs_cwd, files, symbol_index, generated_at, contents=contents)
+    architecture_inventory = _build_architecture_inventory(
+        abs_cwd,
+        project_map,
+        files,
+        symbol_index,
+        call_graph,
+        generated_at,
+    )
+
+    bh_map = _build_brown_hilbert_map(files)
+    agent_tree = _build_agent_tree(files, bh_map)
+
+    project_map["agent_tree"] = agent_tree
+    contents.clear()
+
+    return {
+        "project_map": project_map,
+        "precedent_index": precedent_index,
+        "architecture_inventory": architecture_inventory,
+        "symbol_index": symbol_index,
+        "call_graph": call_graph,
+    }
+
+
 def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = False,
                     output_dir: str = ".simplicio") -> dict:
     """Build every `.simplicio/*.json` artifact for *cwd*.
 
-    Thin sync adapter (ADR-009, issue #235 plan step 8) over the native
-    async pipeline: when no event loop is already running, this drives
-    ``async_pipeline.build_artifacts_async`` to completion via
-    ``asyncio.run`` and returns its result unchanged, preserving this
-    function's exact historical signature and return value. Callers that
-    are themselves already inside an event loop (a future async CLI, or an
-    embedding host) should ``await build_artifacts_async(...)`` directly
-    instead of calling this sync wrapper -- ``asyncio.run`` raises
+    Size-based dispatch (issue #235 follow-up, ADR-009 plan step 10's
+    honest after-benchmark): a cheap, content-free file-count probe
+    (`_fast_file_count`) decides whether this run goes through the plain
+    synchronous pipeline (`_build_artifacts_sync`, restored pre-#235
+    behavior) or the bounded-concurrency async pipeline
+    (`async_pipeline.build_artifacts_async`, driven to completion via
+    `asyncio.run`). The after-benchmark showed the async pipeline is a real
+    win only at large scale (>= roughly 600 files on this measurement) --
+    below that, `asyncio`/thread-pool scheduling overhead measurably
+    outweighs the I/O-wait it hides, so small/medium trees (the common
+    case for this tool) now default back to the faster synchronous path.
+    See `docs/async-pipeline-dispatch-benchmark.md` for the crossover
+    measurement and `_DEFAULT_ASYNC_PIPELINE_MIN_FILES` for the chosen
+    default.
+
+    Callers that are themselves already inside an event loop (a future
+    async CLI, or an embedding host) should ``await build_artifacts_async(...)``
+    directly instead of calling this sync wrapper -- ``asyncio.run`` raises
     ``RuntimeError`` if invoked from a running loop, by design, rather than
     silently nesting event loops.
     """
+    abs_cwd = os.path.abspath(cwd or os.getcwd())
+    threshold = _async_pipeline_min_files()
+    if _fast_file_count(abs_cwd, threshold) < threshold:
+        return _build_artifacts_sync(abs_cwd, meta, incremental, output_dir)
+
     # Local import: `async_pipeline` imports `_build_agent_tree` from this
     # module only inside its own function body, so importing it here (also
     # deferred to call time) keeps the dependency a call-time-only cycle,
@@ -93,7 +316,7 @@ def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = Fals
     from .async_pipeline import _install_uvloop_if_available, build_artifacts_async
 
     _install_uvloop_if_available()
-    return asyncio.run(build_artifacts_async(cwd, meta, incremental, output_dir))
+    return asyncio.run(build_artifacts_async(abs_cwd, meta, incremental, output_dir))
 
 def _write_json_stable(file: str, data: Any) -> None:
     directory = os.path.dirname(file)

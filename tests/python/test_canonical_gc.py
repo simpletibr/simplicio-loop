@@ -1,31 +1,21 @@
-"""Tests for simplicio_mapper.mapper.canonical_gc (issue #268).
+"""Unit/integration tests for simplicio_mapper.mapper.canonical_gc (issue #268).
 
-Covers the acceptance criteria from issue #268 ("[#263] Implementar
-canonical gc crash-safe e conservador"):
-
-* dry-run by default, mutation only with explicit opt-in (``apply=True``)
-* never removes a valid/referenced manifest, a live "lock" (here: a tmp
-  staging dir owned by a live PID), or a recently-promoted manifest
-* recovers interrupted temp/promotion dirs only with proof of a dead PID or
-  an expired lease -- never merely because a directory "looks old"
-* receipt is versioned, lists candidates/removed/preserved with reasons, and
-  never leaks an absolute path
-* ten concurrent readers of the still-current manifest observe no
-  interference while GC runs and removes unrelated stale entries
-* a dead process holding a staging dir is reclaimed; an interrupted
-  promotion (same shape) is reclaimed; repeated GC is idempotent
+Exercises the conservative, crash-safe canonical-map GC against real
+temporary git repositories and real subprocesses (never a mocked
+filesystem/lock seam) -- covers concurrent "readers" that must never be
+reclaimed, a dead process's abandoned temp dir that IS reclaimed, an
+interrupted promotion cleaned up only after proving staleness, running GC
+twice in a row (idempotent), and dry-run vs ``--apply`` behavior.
 
 Run with: python3 -m unittest discover -s tests/python
 """
 
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 import sys
 import tempfile
-import threading
 import time
 import unittest
 from pathlib import Path
@@ -33,16 +23,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-import orjson  # noqa: E402
-
 from simplicio_mapper.mapper.canonical_builder import build_canonical_manifest  # noqa: E402
 from simplicio_mapper.mapper.canonical_gc import (  # noqa: E402
-    GC_RECEIPT_SCHEMA,
-    run_canonical_gc,
-)
-from simplicio_mapper.mapper.canonical_storage import (  # noqa: E402
-    canonical_manifest_dir,
-    canonical_manifest_tmp_dir,
+    CANONICAL_GC_SCHEMA,
+    CANONICAL_GC_SCHEMA_VERSION,
+    scan_canonical_gc,
 )
 
 
@@ -55,314 +40,334 @@ def _init_repo(path: Path, *, default_branch: str = "main") -> None:
     _run(["init", "--initial-branch", default_branch], path)
     _run(["config", "user.email", "test@example.com"], path)
     _run(["config", "user.name", "Test User"], path)
-    (path / "README.md").write_text("hello\n", encoding="utf-8")
-    src = path / "src"
-    src.mkdir(exist_ok=True)
-    (src / "mod.py").write_text("def foo():\n    return 1\n", encoding="utf-8")
+    (path / "a.py").write_text("def foo():\n    return 1\n", encoding="utf-8")
     _run(["add", "."], path)
     _run(["commit", "-m", "init"], path)
 
 
-def _dead_pid() -> int:
-    """Spawn and wait on a trivial subprocess, returning its (now-dead) pid."""
-    proc = subprocess.Popen([sys.executable, "-c", "pass"])
-    proc.wait()
+def _spawn_sleeper() -> subprocess.Popen:
+    """Spawn a real subprocess that stays alive until terminated."""
+    return subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(120)"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def _spawn_and_reap() -> int:
+    """Spawn and wait for a real subprocess to exit; return its now-dead pid."""
+    proc = subprocess.Popen(
+        [sys.executable, "-c", "pass"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    proc.wait(timeout=10)
     return proc.pid
 
 
-def _backdate(path: Path, seconds_ago: float) -> None:
-    stamp = time.time() - seconds_ago
-    os.utime(path, (stamp, stamp))
-
-
-class CanonicalGCTestCase(unittest.TestCase):
+class CanonicalGcTestBase(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.base = Path(self._tmp.name)
         self.repo = self.base / "repo"
         _init_repo(self.repo)
-        self.storage_root = str(self.base / "storage")
+        self.cache_root = str(self.base / "cache")
+        self._env_patch = {"SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR": self.cache_root}
+        self._old_env = {k: os.environ.get(k) for k in self._env_patch}
+        os.environ.update(self._env_patch)
+        self.addCleanup(self._restore_env)
 
-    def _build(self, config_fingerprint: str = "cfg-1"):
-        manifest = build_canonical_manifest(str(self.repo), self.storage_root, config_fingerprint)
+    def _restore_env(self) -> None:
+        for key, value in self._old_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+    def _canonical_dir(self) -> Path:
+        path = Path(self.cache_root) / "canonical"
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+
+class ReportShapeTests(CanonicalGcTestBase):
+    def test_empty_storage_root_yields_empty_report(self) -> None:
+        report = scan_canonical_gc(str(self.repo))
+        self.assertEqual(report.schema, CANONICAL_GC_SCHEMA)
+        self.assertEqual(report.schema_version, CANONICAL_GC_SCHEMA_VERSION)
+        self.assertFalse(report.apply)
+        self.assertEqual(report.candidates, [])
+        self.assertEqual(report.removed, [])
+        self.assertEqual(report.recovered, [])
+        self.assertEqual(report.preserved, [])
+        self.assertEqual(report.errors, [])
+
+    def test_receipt_never_contains_absolute_paths(self) -> None:
+        build_canonical_manifest(str(self.repo), self.cache_root, "cfg-1")
+        report = scan_canonical_gc(str(self.repo))
+        payload = report.to_dict()
+        blob = str(payload)
+        # No leaked absolute filesystem path from this test's own tempdir.
+        self.assertNotIn(str(self.base), blob)
+        self.assertNotIn(self.cache_root, blob)
+
+    def test_non_git_root_without_override_reports_error_not_crash(self) -> None:
+        old = os.environ.pop("SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR", None)
+        try:
+            plain = self.base / "plain"
+            plain.mkdir()
+            report = scan_canonical_gc(str(plain))
+            self.assertTrue(report.errors)
+            self.assertEqual(report.candidates, [])
+        finally:
+            if old is not None:
+                os.environ["SIMPLICIO_MAPPER_CANONICAL_CACHE_DIR"] = old
+
+
+class CurrentManifestPreservationTests(CanonicalGcTestBase):
+    def test_current_default_branch_manifest_is_never_a_candidate(self) -> None:
+        manifest = build_canonical_manifest(str(self.repo), self.cache_root, "cfg-1")
         self.assertIsNotNone(manifest)
-        return manifest
+        report = scan_canonical_gc(str(self.repo))
+        self.assertEqual(report.candidates, [])
+        self.assertEqual(len(report.preserved), 1)
+        self.assertEqual(report.preserved[0].reason, "current_default_branch_manifest")
 
-    def _gc(self, **kwargs) -> dict:
-        return run_canonical_gc(str(self.repo), storage_root=self.storage_root, **kwargs)
+    def test_ten_concurrent_readers_never_see_their_snapshot_removed(self) -> None:
+        """Simulate 10 concurrent readers of the same current manifest.
 
-
-class NoAbsolutePathLeakAndSchemaTests(CanonicalGCTestCase):
-    def test_receipt_is_versioned_and_leaks_no_absolute_paths(self) -> None:
-        self._build()
-        receipt = self._gc()
-        self.assertEqual(receipt["schema"], GC_RECEIPT_SCHEMA)
-        self.assertIn("schema_version", receipt)
-        self.assertIn("candidates", receipt)
-        self.assertIn("removed", receipt)
-        self.assertIn("preserved", receipt)
-        serialized = json.dumps(receipt)
-        self.assertNotIn(str(self.base), serialized)
-        self.assertNotIn(self.storage_root, serialized)
-        self.assertNotIn(str(self.repo), serialized)
-
-    def test_dry_run_is_the_default_and_never_mutates(self) -> None:
-        manifest = self._build()
-        digest_dir = Path(canonical_manifest_dir(self.storage_root, manifest.key.digest()))
-        tmp_dir = Path(
-            canonical_manifest_tmp_dir(self.storage_root, "stale-digest", str(_dead_pid()))
-        )
-        tmp_dir.mkdir(parents=True)
-        _backdate(tmp_dir, 10)
-
-        receipt = self._gc()  # apply defaults to False
-        self.assertEqual(receipt["mode"], "dry_run")
-        self.assertTrue(digest_dir.is_dir())
-        self.assertTrue(tmp_dir.is_dir(), "dry-run must never remove anything")
-        self.assertEqual(receipt["removed"], [])
-        remove_candidates = [c for c in receipt["candidates"] if c["action"] == "remove"]
-        self.assertEqual(len(remove_candidates), 1)
-        self.assertEqual(remove_candidates[0]["reason"], "dead_process_owner")
-
-
-class NeverRemovesLiveOrCurrentTests(CanonicalGCTestCase):
-    def test_never_removes_the_current_valid_manifest(self) -> None:
-        manifest = self._build()
-        digest_dir = Path(canonical_manifest_dir(self.storage_root, manifest.key.digest()))
-        receipt = self._gc(apply=True)
-        self.assertTrue(digest_dir.is_dir())
-        self.assertEqual(receipt["removed"], [])
-        preserved_reasons = {c["reason"] for c in receipt["preserved"]}
-        self.assertIn("current_reference", preserved_reasons)
-
-    def test_never_removes_a_tmp_dir_owned_by_a_live_process(self) -> None:
-        self._build()
-        # Our own pid is alive for the whole test.
-        tmp_dir = Path(
-            canonical_manifest_tmp_dir(self.storage_root, "in-progress-digest", str(os.getpid()))
-        )
-        tmp_dir.mkdir(parents=True)
-        _backdate(tmp_dir, 10)  # old enough to pass the malformed-grace check
-
-        receipt = self._gc(apply=True)
-        self.assertTrue(tmp_dir.is_dir(), "a live owner's staging dir must never be reclaimed")
-        reasons = {c["reason"] for c in receipt["preserved"]}
-        self.assertIn("owner_alive", reasons)
-
-    def test_never_removes_a_recently_promoted_superseded_generation(self) -> None:
-        first = self._build(config_fingerprint="cfg-a")
-        # New commit -> new digest, becomes the "current" one.
-        (self.repo / "src" / "mod2.py").write_text("def bar():\n    return 2\n", encoding="utf-8")
-        _run(["add", "."], self.repo)
-        _run(["commit", "-m", "second"], self.repo)
-        self._build(config_fingerprint="cfg-a")
-
-        old_digest_dir = Path(canonical_manifest_dir(self.storage_root, first.key.digest()))
-        self.assertTrue(old_digest_dir.is_dir())
-
-        receipt = self._gc(apply=True)  # default grace window (5 min) not elapsed
-        self.assertTrue(old_digest_dir.is_dir(), "must not remove a manifest still inside its grace window")
-        reasons = {c["reason"] for c in receipt["preserved"]}
-        self.assertIn("recently_promoted", reasons)
-
-    def test_removes_superseded_generation_once_grace_window_elapses(self) -> None:
-        first = self._build(config_fingerprint="cfg-a")
-        (self.repo / "src" / "mod2.py").write_text("def bar():\n    return 2\n", encoding="utf-8")
-        _run(["add", "."], self.repo)
-        _run(["commit", "-m", "second"], self.repo)
-        self._build(config_fingerprint="cfg-a")
-
-        old_digest_dir = Path(canonical_manifest_dir(self.storage_root, first.key.digest()))
-        _backdate(old_digest_dir, 3600)
-
-        receipt = self._gc(apply=True, promoted_grace_seconds=1.0)
-        self.assertFalse(old_digest_dir.is_dir())
-        removed_reasons = {c["reason"] for c in receipt["removed"]}
-        self.assertIn("superseded_generation", removed_reasons)
-
-
-class DeadProcessAndInterruptedPromotionTests(CanonicalGCTestCase):
-    def test_dead_process_holding_staging_dir_is_reclaimed(self) -> None:
-        self._build()
-        dead_pid = _dead_pid()
-        tmp_dir = Path(canonical_manifest_tmp_dir(self.storage_root, "crashed-digest", str(dead_pid)))
-        tmp_dir.mkdir(parents=True)
-        (tmp_dir / "project-map.json").write_text("{}", encoding="utf-8")
-        _backdate(tmp_dir, 10)
-
-        receipt = self._gc(apply=True)
-        self.assertFalse(tmp_dir.exists())
-        removed = {c["location"]: c for c in receipt["removed"]}
-        self.assertTrue(any(v["reason"] == "dead_process_owner" for v in removed.values()))
-        self.assertTrue(any(v.get("pid") == dead_pid for v in removed.values()))
-
-    def test_interrupted_promotion_directory_is_reclaimed(self) -> None:
-        """A promotion crashing mid-write leaves a `.tmp-<pid>` dir behind.
-
-        Same shape as the dead-process case above (the builder's staging
-        directory *is* the in-progress promotion) -- covered separately per
-        issue #268's explicit "promoção interrompida" test-plan bullet, using
-        a partially-written artifact set to stand in for the interruption.
+        Each "reader" is a real thread calling scan_canonical_gc(apply=True)
+        concurrently while the manifest is the current default-branch
+        snapshot -- none of them may ever remove it, and the manifest must
+        still be on disk (and reusable) after all of them finish.
         """
-        self._build()
-        dead_pid = _dead_pid()
-        tmp_dir = Path(
-            canonical_manifest_tmp_dir(self.storage_root, "interrupted-digest", str(dead_pid))
-        )
-        tmp_dir.mkdir(parents=True)
-        # Partial write: only one of the real artifacts landed before the
-        # (simulated) crash -- no manifest.json at all.
-        (tmp_dir / "project-map.json").write_text('{"files": []}', encoding="utf-8")
-        _backdate(tmp_dir, 10)
-        final_dir = Path(canonical_manifest_dir(self.storage_root, "interrupted-digest"))
-        self.assertFalse(final_dir.exists(), "interrupted promotion must never have been promoted")
+        import threading
 
-        receipt = self._gc(apply=True)
-        self.assertFalse(tmp_dir.exists())
-        self.assertFalse(final_dir.exists())
-        removed_locations = {c["location"] for c in receipt["removed"]}
-        self.assertIn(f"canonical/{tmp_dir.name}", removed_locations)
+        manifest = build_canonical_manifest(str(self.repo), self.cache_root, "cfg-1")
+        self.assertIsNotNone(manifest)
+        digest_dir = self._canonical_dir() / manifest.key.digest()
+        self.assertTrue(digest_dir.is_dir())
 
-    def test_malformed_tmp_token_only_reclaimed_after_lease_expiry(self) -> None:
-        self._build()
-        tmp_dir = Path(self.storage_root) / "canonical" / "weird-digest.tmp-not-a-pid"
-        tmp_dir.mkdir(parents=True)
-
-        # Not yet expired: preserved.
-        receipt = self._gc(apply=True, ttl_seconds=3600)
-        self.assertTrue(tmp_dir.is_dir())
-        reasons = {c["reason"] for c in receipt["preserved"]}
-        self.assertIn("lease_not_expired", reasons)
-
-        # Backdate past a short TTL: now reclaimable.
-        _backdate(tmp_dir, 100)
-        receipt = self._gc(apply=True, ttl_seconds=1)
-        self.assertFalse(tmp_dir.exists())
-        removed_reasons = {c["reason"] for c in receipt["removed"]}
-        self.assertIn("lease_expired", removed_reasons)
-
-    def test_crash_leftover_deleting_dir_is_always_finished(self) -> None:
-        self._build()
-        leftover = Path(self.storage_root) / "canonical" / "orphan-digest.deleting-abc123"
-        leftover.mkdir(parents=True)
-        (leftover / "partial.json").write_text("{}", encoding="utf-8")
-        # No backdating at all -- must be reclaimed unconditionally.
-
-        receipt = self._gc(apply=True)
-        self.assertFalse(leftover.exists())
-        removed_reasons = {c["reason"] for c in receipt["removed"]}
-        self.assertIn("crash_leftover_deleting", removed_reasons)
-
-
-class RepeatedGCIsIdempotentTests(CanonicalGCTestCase):
-    def test_repeated_gc_converges_to_no_further_removals(self) -> None:
-        self._build()
-        tmp_dir = Path(
-            canonical_manifest_tmp_dir(self.storage_root, "stale-digest", str(_dead_pid()))
-        )
-        tmp_dir.mkdir(parents=True)
-        _backdate(tmp_dir, 10)
-
-        first = self._gc(apply=True)
-        self.assertEqual(len(first["removed"]), 1)
-
-        second = self._gc(apply=True)
-        self.assertEqual(second["removed"], [])
-        third = self._gc(apply=True)
-        self.assertEqual(third["removed"], [])
-        # `age_seconds` ticks forward between calls -- idempotency here means
-        # the same *set* of locations/reasons/actions converges, not
-        # byte-identical receipts.
-        def _strip_age(entries: list[dict]) -> list[dict]:
-            return [{k: v for k, v in entry.items() if k != "age_seconds"} for entry in entries]
-
-        self.assertEqual(_strip_age(third["preserved"]), _strip_age(second["preserved"]))
-        self.assertEqual(_strip_age(third["candidates"]), _strip_age(second["candidates"]))
-
-
-class ConcurrentReadsDuringGCTests(CanonicalGCTestCase):
-    def test_ten_concurrent_readers_see_no_interference(self) -> None:
-        manifest = self._build()
-        digest_dir = Path(canonical_manifest_dir(self.storage_root, manifest.key.digest()))
-        manifest_path = digest_dir / "manifest.json"
-
-        # Unrelated, genuinely stale entries GC should reclaim concurrently.
-        for index in range(3):
-            tmp_dir = Path(
-                canonical_manifest_tmp_dir(self.storage_root, f"stale-{index}", str(_dead_pid()))
-            )
-            tmp_dir.mkdir(parents=True)
-            _backdate(tmp_dir, 10)
-
+        results: list[dict] = []
         errors: list[Exception] = []
-        stop = threading.Event()
+        barrier = threading.Barrier(10)
 
         def _reader() -> None:
-            while not stop.is_set():
-                try:
-                    with open(manifest_path, "rb") as handle:
-                        payload = orjson.loads(handle.read())
-                    assert payload["schema"]
-                except Exception as error:  # noqa: BLE001 - captured for the assertion below
-                    errors.append(error)
-                    return
+            try:
+                barrier.wait(timeout=10)
+                report = scan_canonical_gc(str(self.repo), apply=True)
+                results.append(report.to_dict())
+            except Exception as error:  # noqa: BLE001 - surfaced via `errors`
+                errors.append(error)
 
         threads = [threading.Thread(target=_reader) for _ in range(10)]
         for thread in threads:
             thread.start()
-        try:
-            for _ in range(5):
-                self._gc(apply=True)
-        finally:
-            stop.set()
-            for thread in threads:
-                thread.join(timeout=5)
+        for thread in threads:
+            thread.join(timeout=15)
 
         self.assertEqual(errors, [])
-        self.assertTrue(digest_dir.is_dir())
-        self.assertTrue(manifest_path.is_file())
+        self.assertEqual(len(results), 10)
+        for result in results:
+            self.assertEqual(result["removed"], [])
+            self.assertEqual(result["recovered"], [])
+        self.assertTrue(digest_dir.is_dir(), "current manifest must survive concurrent GC runs")
+        self.assertTrue((digest_dir / "manifest.json").is_file())
+
+    def test_unable_to_resolve_identity_preserves_everything(self) -> None:
+        build_canonical_manifest(str(self.repo), self.cache_root, "cfg-1")
+        plain = self.base / "plain-root"
+        plain.mkdir()
+        # `root` passed to scan_canonical_gc is not itself a git repo, but the
+        # cache-root override still points at real canonical storage.
+        report = scan_canonical_gc(str(plain))
+        self.assertEqual(report.candidates, [])
+        self.assertEqual(len(report.preserved), 1)
+        self.assertEqual(report.preserved[0].reason, "unable_to_resolve_current_identity")
 
 
-class OtherRepoOutOfScopeTests(CanonicalGCTestCase):
-    def test_manifest_for_a_different_repo_identity_is_never_touched(self) -> None:
-        self._build()
-        other_repo = self.base / "other-repo"
-        _init_repo(other_repo, default_branch="main")
-        other_manifest = build_canonical_manifest(str(other_repo), self.storage_root, "cfg-1")
-        self.assertIsNotNone(other_manifest)
-        other_digest_dir = Path(canonical_manifest_dir(self.storage_root, other_manifest.key.digest()))
-        _backdate(other_digest_dir, 3600)
+class TempDirLivenessTests(CanonicalGcTestBase):
+    def test_temp_dir_with_alive_builder_pid_is_preserved(self) -> None:
+        proc = _spawn_sleeper()
+        self.addCleanup(lambda: (proc.terminate(), proc.wait(timeout=10)))
+        tmp_dir = self._canonical_dir() / f"digest-alive.tmp-{proc.pid}"
+        tmp_dir.mkdir()
 
-        receipt = self._gc(apply=True, promoted_grace_seconds=0.0)
-        self.assertTrue(other_digest_dir.is_dir())
-        reasons = {c["reason"] for c in receipt["preserved"]}
-        self.assertIn("other_repo_out_of_scope", reasons)
+        report = scan_canonical_gc(str(self.repo))
+        self.assertEqual(report.candidates, [])
+        self.assertEqual(len(report.preserved), 1)
+        self.assertEqual(report.preserved[0].reason, "temp_dir_builder_pid_alive")
+        self.assertTrue(tmp_dir.is_dir())
+
+    def test_temp_dir_with_dead_builder_pid_past_grace_is_reclaimed_on_apply(self) -> None:
+        dead_pid = _spawn_and_reap()
+        tmp_dir = self._canonical_dir() / f"digest-dead.tmp-{dead_pid}"
+        tmp_dir.mkdir()
+        project_map = tmp_dir / "project-map.json"
+        project_map.write_text("{}", encoding="utf-8")
+        past = time.time() - 1000
+        os.utime(project_map, (past, past))
+        os.utime(tmp_dir, (past, past))
+
+        dry_run = scan_canonical_gc(str(self.repo), apply=False)
+        self.assertEqual(len(dry_run.candidates), 1)
+        self.assertEqual(dry_run.candidates[0].reason, "temp_dir_builder_pid_dead")
+        self.assertEqual(dry_run.removed, [])
+        self.assertEqual(dry_run.recovered, [])
+        self.assertTrue(tmp_dir.is_dir(), "dry-run must never delete")
+
+        applied = scan_canonical_gc(str(self.repo), apply=True)
+        self.assertEqual(len(applied.recovered), 1)
+        self.assertEqual(applied.recovered[0].reason, "temp_dir_builder_pid_dead")
+        self.assertFalse(tmp_dir.exists(), "apply must actually reclaim the dead temp dir")
+
+    def test_temp_dir_within_grace_window_is_preserved_even_with_dead_pid(self) -> None:
+        dead_pid = _spawn_and_reap()
+        tmp_dir = self._canonical_dir() / f"digest-recent.tmp-{dead_pid}"
+        tmp_dir.mkdir()
+        # No os.utime() call -- mtime is "now", well inside the default
+        # 60s grace window, simulating a build that JUST crashed/finished.
+        report = scan_canonical_gc(str(self.repo))
+        self.assertEqual(report.candidates, [])
+        self.assertEqual(report.preserved[0].reason, "temp_dir_within_grace_window")
+        self.assertTrue(tmp_dir.is_dir())
+
+    def test_temp_dir_with_unparseable_token_past_grace_is_reclaimed(self) -> None:
+        tmp_dir = self._canonical_dir() / "digest-weird.tmp-not-a-pid"
+        tmp_dir.mkdir()
+        past = time.time() - 1000
+        os.utime(tmp_dir, (past, past))
+
+        applied = scan_canonical_gc(str(self.repo), apply=True)
+        self.assertEqual(len(applied.recovered), 1)
+        self.assertEqual(applied.recovered[0].reason, "temp_dir_token_unparseable_stale")
+        self.assertFalse(tmp_dir.exists())
 
 
-class BrokenManifestTests(CanonicalGCTestCase):
-    def test_broken_manifest_directory_is_reclaimed_after_grace(self) -> None:
-        self._build()
-        broken_dir = Path(self.storage_root) / "canonical" / "broken-digest"
-        broken_dir.mkdir(parents=True)
-        (broken_dir / "manifest.json").write_text("not-json{{{", encoding="utf-8")
-        _backdate(broken_dir, 3600)
+class IdempotencyTests(CanonicalGcTestBase):
+    def test_running_gc_twice_in_a_row_is_idempotent(self) -> None:
+        dead_pid = _spawn_and_reap()
+        tmp_dir = self._canonical_dir() / f"digest-idem.tmp-{dead_pid}"
+        tmp_dir.mkdir()
+        past = time.time() - 1000
+        os.utime(tmp_dir, (past, past))
 
-        receipt = self._gc(apply=True, ttl_seconds=1)
-        self.assertFalse(broken_dir.exists())
-        removed_reasons = {c["reason"] for c in receipt["removed"]}
-        self.assertIn("broken_manifest_expired", removed_reasons)
+        first = scan_canonical_gc(str(self.repo), apply=True)
+        self.assertEqual(len(first.recovered), 1)
+        self.assertFalse(tmp_dir.exists())
 
-    def test_freshly_created_broken_manifest_is_preserved(self) -> None:
-        self._build()
-        broken_dir = Path(self.storage_root) / "canonical" / "broken-digest-fresh"
-        broken_dir.mkdir(parents=True)
-        (broken_dir / "manifest.json").write_text("not-json{{{", encoding="utf-8")
+        second = scan_canonical_gc(str(self.repo), apply=True)
+        self.assertEqual(second.recovered, [])
+        self.assertEqual(second.candidates, [])
+        self.assertEqual(second.errors, [])
 
-        receipt = self._gc(apply=True)
-        self.assertTrue(broken_dir.is_dir())
-        reasons = {c["reason"] for c in receipt["preserved"]}
-        self.assertTrue({"too_young_to_judge", "lease_not_expired"} & reasons)
+    def test_dry_run_twice_with_nothing_reclaimable_reports_same_empty_result(self) -> None:
+        build_canonical_manifest(str(self.repo), self.cache_root, "cfg-1")
+        first = scan_canonical_gc(str(self.repo), apply=False)
+        second = scan_canonical_gc(str(self.repo), apply=False)
+        self.assertEqual(first.to_dict()["candidates"], second.to_dict()["candidates"])
+        self.assertEqual(first.to_dict()["candidates"], [])
+
+
+class StaleManifestTests(CanonicalGcTestBase):
+    def test_manifest_for_superseded_commit_within_ttl_is_preserved(self) -> None:
+        first = build_canonical_manifest(str(self.repo), self.cache_root, "cfg-1")
+        self.assertIsNotNone(first)
+        (self.repo / "b.py").write_text("def bar():\n    return 2\n", encoding="utf-8")
+        _run(["add", "."], self.repo)
+        _run(["commit", "-m", "second"], self.repo)
+        second = build_canonical_manifest(str(self.repo), self.cache_root, "cfg-1")
+        self.assertIsNotNone(second)
+        self.assertNotEqual(first.key.digest(), second.key.digest())
+
+        report = scan_canonical_gc(str(self.repo))
+        self.assertEqual(report.candidates, [])
+        reasons = {c.reason for c in report.preserved}
+        self.assertIn("current_default_branch_manifest", reasons)
+        self.assertIn("within_grace_window_recent_promotion", reasons)
+
+    def test_manifest_for_superseded_commit_past_ttl_is_gc_candidate(self) -> None:
+        first = build_canonical_manifest(str(self.repo), self.cache_root, "cfg-1")
+        self.assertIsNotNone(first)
+        first_digest_dir = self._canonical_dir() / first.key.digest()
+
+        (self.repo / "b.py").write_text("def bar():\n    return 2\n", encoding="utf-8")
+        _run(["add", "."], self.repo)
+        _run(["commit", "-m", "second"], self.repo)
+        second = build_canonical_manifest(str(self.repo), self.cache_root, "cfg-1")
+        self.assertIsNotNone(second)
+
+        old_env = os.environ.get("SIMPLICIO_MAPPER_CANONICAL_GC_TTL_SECONDS")
+        os.environ["SIMPLICIO_MAPPER_CANONICAL_GC_TTL_SECONDS"] = "1"
+        try:
+            import orjson
+
+            past = time.time() - 100
+            manifest_path = first_digest_dir / "manifest.json"
+            manifest_payload = orjson.loads(manifest_path.read_bytes())
+            manifest_payload["created_at"] = "2020-01-01T00:00:00.000Z"
+            manifest_path.write_bytes(orjson.dumps(manifest_payload))
+            os.utime(first_digest_dir, (past, past))
+            for name in os.listdir(first_digest_dir):
+                os.utime(first_digest_dir / name, (past, past))
+
+            report = scan_canonical_gc(str(self.repo), apply=True)
+            removed_paths = {c.relative_path for c in report.removed}
+            self.assertIn(f"canonical/{first.key.digest()}", removed_paths)
+            self.assertFalse(first_digest_dir.exists())
+            second_digest_dir = self._canonical_dir() / second.key.digest()
+            self.assertTrue(second_digest_dir.exists(), "current manifest must survive")
+        finally:
+            if old_env is None:
+                os.environ.pop("SIMPLICIO_MAPPER_CANONICAL_GC_TTL_SECONDS", None)
+            else:
+                os.environ["SIMPLICIO_MAPPER_CANONICAL_GC_TTL_SECONDS"] = old_env
+
+
+class BuildLockRecordTests(CanonicalGcTestBase):
+    """Forward-compat coverage for an optional `build.lock` inside a temp dir.
+
+    No production writer creates this file yet (see canonical_gc.py module
+    docstring) -- these tests only prove the detection path itself is
+    correct so a future `canonical_builder.py` change can start writing one
+    without `canonical gc` needing changes.
+    """
+
+    def test_live_build_lock_preserves_temp_dir_even_with_dead_token_pid(self) -> None:
+        import orjson
+
+        alive_proc = _spawn_sleeper()
+        self.addCleanup(lambda: (alive_proc.terminate(), alive_proc.wait(timeout=10)))
+        dead_pid = _spawn_and_reap()
+        tmp_dir = self._canonical_dir() / f"digest-lock.tmp-{dead_pid}"
+        tmp_dir.mkdir()
+        past = time.time() - 1000
+        os.utime(tmp_dir, (past, past))
+        (tmp_dir / "build.lock").write_bytes(
+            orjson.dumps({"pid": alive_proc.pid, "process_start_identity": "unknown"})
+        )
+
+        report = scan_canonical_gc(str(self.repo))
+        self.assertEqual(report.candidates, [])
+        self.assertEqual(report.preserved[0].reason, "temp_dir_build_lock_live")
+
+    def test_dead_build_lock_pid_is_reclaimed_past_grace(self) -> None:
+        import orjson
+
+        dead_pid = _spawn_and_reap()
+        tmp_dir = self._canonical_dir() / "digest-deadlock.tmp-999999"
+        tmp_dir.mkdir()
+        past = time.time() - 1000
+        os.utime(tmp_dir, (past, past))
+        (tmp_dir / "build.lock").write_bytes(orjson.dumps({"pid": dead_pid}))
+
+        applied = scan_canonical_gc(str(self.repo), apply=True)
+        self.assertEqual(len(applied.recovered), 1)
+        self.assertEqual(applied.recovered[0].reason, "temp_dir_build_lock_dead")
+        self.assertFalse(tmp_dir.exists())
 
 
 if __name__ == "__main__":

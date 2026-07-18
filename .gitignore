@@ -134,6 +134,8 @@ docs/**
 !docs/async-pipeline-after-benchmark.md
 !docs/async-pipeline-after-benchmark-linux-container.md
 !docs/async-pipeline-operations.md
+!docs/async-inventory-benchmark.md
+!docs/async-pipeline-dispatch-benchmark.md
 scripts/**
 !scripts/build_hamt.py
 !scripts/async_pipeline_after_benchmark.py
@@ -167,6 +169,7 @@ scripts/**
 !scripts/async_pipeline_baseline_benchmark.py
 !scripts/async_inventory_benchmark.py
 !scripts/canonical_reuse_benchmark.py
+!scripts/async_pipeline_dispatch_benchmark.py
 playwright-report/**
 tests/**
 !tests/unit/
