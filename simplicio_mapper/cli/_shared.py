@@ -104,6 +104,7 @@ USAGE
   simplicio-mapper benchmark shadow-rollout [path] [--out <dir>] [--json]
   simplicio-mapper version [--json] [--root <dir>]
   simplicio-mapper release-manifest [--json] [--root <dir>] [--check-registry] [--update-registry-baseline]
+  simplicio-mapper changelog [--json] [--version X.Y.Z] [--root <dir>] [--no-migration]
 
 OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
@@ -183,6 +184,15 @@ OPTIONS
                         --update-registry-baseline maintain the committed
                         schema-version-registry baseline used to catch
                         unintentional schema-version drift.
+  changelog              Machine-readable extraction of CHANGELOG.md
+                        (simplicio.changelog-report/v1): version, date and
+                        sections copied verbatim, plus a rollback_hint
+                        (pip install simplicio-mapper==<previous>) per
+                        entry and a migration cross-reference against
+                        `schema-compat` for the current/latest entry
+                        (issue #280 step 9). --version filters to one
+                        entry; --no-migration skips the schema-compat
+                        cross-reference.
   --config-fingerprint <value>
                         canonical verify: override the mapping-config
                         fingerprint segment of the canonical key (default is

@@ -163,6 +163,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ..prototype_context import run_prototype_context_cli
 
         return run_prototype_context_cli(argv[1:])
+    # `changelog [--json] [--version X.Y.Z]` similarly takes flags rather
+    # than plain `<command> <root>` (issue #280 step 9: machine-readable
+    # changelog extraction with a schema-compat-derived migration signal
+    # and a pip-pin rollback hint -- see
+    # `simplicio_mapper/changelog_parser.py` module docstring for scope).
+    if argv and argv[0] == "changelog":
+        from ..changelog_parser import run_changelog_cli
+
+        return run_changelog_cli(argv[1:])
     opts = _parse_args(argv)
     if opts["background"] and opts["command"] in ("index", "map", "update"):
         return _run_background(opts)
