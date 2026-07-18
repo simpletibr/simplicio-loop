@@ -389,5 +389,76 @@ class EndToEndSelectorTest(unittest.TestCase):
         self.assertEqual(selection["abstention_reason"], "no_relevant_targets")
 
 
+class FullContentFallbackTest(unittest.TestCase):
+    """Regression coverage for issue #308: handoff must deliver real source
+    content, not just an `expand_handle` pointer, for the most relevant
+    target when it fits inside the token budget."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        (self.root / "src/pricing").mkdir(parents=True)
+        (self.root / "src/pricing/discount_calculator.py").write_text(
+            "def apply_discount(price, pct):\n    return price - (price * pct / 100)\n",
+            encoding="utf-8",
+        )
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _project_map(self) -> dict:
+        return {
+            "files": [
+                {
+                    "path": "src/pricing/discount_calculator.py",
+                    "roles": ["domain"],
+                    "importance": 0.6,
+                    "language": "python",
+                    "size_bytes": 100,
+                },
+            ]
+        }
+
+    def test_explicit_high_relevance_target_gets_real_content_when_it_fits_budget(self) -> None:
+        # No symbol_index/call_graph passed -> no symbol-name lexical match,
+        # so before the fix `spans` stayed empty (pointer-only) here.
+        selection = ri.select_context_targets(
+            str(self.root),
+            self._project_map(),
+            goal="apply_discount pricing calculator",
+            target="src/pricing/discount_calculator.py",
+            token_budget=8000,
+        )
+        self.assertEqual(
+            selection["target_resolution"]["status"],
+            "included",
+            selection["target_resolution"],
+        )
+        expanded_by_path = {entry["path"]: entry for entry in selection["expanded_spans"]}
+        entry = expanded_by_path["src/pricing/discount_calculator.py"]
+        self.assertTrue(entry["spans"], "expected real content spans for the explicit high-relevance target")
+        span = entry["spans"][0]
+        self.assertEqual(span["kind"], "full_content")
+        self.assertIn("apply_discount", span["text"])
+        # The pointer-only mechanism must still be present alongside the content.
+        self.assertTrue(entry["expand_handle"].startswith("expand:"))
+        self.assertTrue(entry["omitted_ranges"])
+
+    def test_content_omitted_when_it_does_not_fit_remaining_budget(self) -> None:
+        # A near-zero token budget leaves no room for any real content: the
+        # exception (pointer-only) must remain the behavior, not the rule.
+        selection = ri.select_context_targets(
+            str(self.root),
+            self._project_map(),
+            goal="apply_discount pricing calculator",
+            target="src/pricing/discount_calculator.py",
+            token_budget=1,
+        )
+        expanded_by_path = {entry["path"]: entry for entry in selection["expanded_spans"]}
+        entry = expanded_by_path["src/pricing/discount_calculator.py"]
+        self.assertEqual(entry["spans"], [])
+        self.assertTrue(entry["expand_handle"].startswith("expand:"))
+
+
 if __name__ == "__main__":
     unittest.main()
