@@ -117,10 +117,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ..ecosystem_contract import run_doctor_cli
 
         return run_doctor_cli(argv[1:])
-    # `canonical build|status` similarly takes a sub-command + a single root
-    # path, not the usual `<command> <root>` shape (issue #266, ADR-008 step
-    # 6): dispatched before `_parse_args` for the same reason `contract` and
-    # `doctor` are.
+    # `canonical build|status|verify|gc` similarly takes a sub-command + its
+    # own flag set, not the usual `<command> <root>` shape (issues #266/#267/
+    # #268, ADR-008 step 6): dispatched before `_parse_args` for the same
+    # reason `contract` and `doctor` are.
     if argv and argv[0] == "canonical":
         from ._canonical import run_canonical_cli
 

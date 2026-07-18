@@ -1,13 +1,14 @@
-"""``simplicio-mapper canonical build|status`` -- issue #266 (ADR-008 step 6, partial).
+"""``simplicio-mapper canonical build|status|gc`` -- issues #266/#268 (ADR-008 step 6, partial).
 
 Exposes a public, read-safe surface over the canonical-map model built in
 issue #236 (``simplicio_mapper.mapper.canonical*`` / ``effective_view.py``):
 create a real ``CanonicalMapManifest`` for a repository's resolved default
-branch, and report on one that may already exist -- without wiring either
-path into the existing ``index``/``scan``/``status`` commands (explicitly out
-of scope, per the issue's "Nao objetivos").
+branch, report on one that may already exist, and garbage-collect stale
+storage -- without wiring any path into the existing ``index``/``scan``/
+``status`` commands (explicitly out of scope, per the issues' "Nao
+objetivos").
 
-Two sub-commands:
+Sub-commands:
 
 * ``canonical build <root> [--json]``  -- resolves the default branch via
   git, builds (or reuses, idempotently) the full ``CanonicalMapKey`` and
@@ -26,11 +27,18 @@ Two sub-commands:
   issue's privacy requirement, the receipt **never** includes an absolute
   path, a raw remote URL, or file content -- see :func:`_redacted_key_summary`
   and :func:`_status_receipt` below for exactly which fields are omitted.
+* ``canonical gc [<root>] [--json] [--apply] [--storage-root DIR]
+  [--ttl-seconds N] [--grace-seconds N]`` -- crash-safe, conservative removal
+  of temporary/expired/unreferenced canonical-map snapshots (issue #268).
+  Dry-run is the default; mutation requires the explicit ``--apply`` opt-in.
+  See :mod:`simplicio_mapper.mapper.canonical_gc` for the actual candidate
+  classification and crash-safe removal logic -- this module only parses
+  argv, resolves options, and prints the resulting receipt.
 
-Both sub-commands degrade to a stable, schema-shaped fallback receipt (never
-a traceback) for: a non-git directory, a detached ``HEAD`` worktree (which
-this module -- unlike ``index``/``scan`` -- does not treat as an error at
-all, since default-branch resolution and overlay computation both work
+``build``/``status`` degrade to a stable, schema-shaped fallback receipt
+(never a traceback) for: a non-git directory, a detached ``HEAD`` worktree
+(which this module -- unlike ``index``/``scan`` -- does not treat as an error
+at all, since default-branch resolution and overlay computation both work
 correctly against a detached checkout; see the "detached HEAD" tests), a
 missing/unavailable ``git`` executable, and a corrupt ``manifest.json`` on
 disk.
@@ -46,6 +54,7 @@ from collections.abc import Sequence
 
 from ..mapper.canonical import CanonicalMapKey
 from ..mapper.canonical_builder import _load_existing_manifest, build_canonical_manifest
+from ..mapper.canonical_gc import run_canonical_gc
 from ..mapper.canonical_identity import (
     is_git_repository,
     resolve_common_git_dir,
@@ -321,8 +330,35 @@ def _print_status_summary(receipt: dict) -> None:
     print(f"  cache_hit={receipt['cache']['cache_hit']} invalidation_reason={receipt['invalidation_reason']}")
 
 
+def _run_gc(opts: dict) -> int:
+    root = os.path.abspath(opts["root"])
+    receipt = run_canonical_gc(
+        root,
+        storage_root=opts.get("storage_root") or None,
+        apply=opts.get("apply", False),
+        ttl_seconds=opts.get("ttl_seconds"),
+        promoted_grace_seconds=opts.get("grace_seconds"),
+    )
+    if opts.get("json"):
+        print(json.dumps(receipt, sort_keys=True))
+    else:
+        candidates = receipt["candidates"]
+        removed = receipt["removed"]
+        preserved = receipt["preserved"]
+        print(f"canonical gc mode={receipt['mode']} candidates={len(candidates)}")
+        print(f"  removed={len(removed)} preserved={len(preserved)}")
+        for entry in candidates:
+            marker = "removed" if entry in removed else ("would-remove" if entry["action"] == "remove" else "keep")
+            print(f"  [{marker}] {entry['location']} reason={entry['reason']}")
+        if not opts.get("apply", False) and any(c["action"] == "remove" for c in candidates):
+            print("  (dry-run: pass --apply to actually remove the entries above)")
+    return 0
+
+
 _HELP = """usage: simplicio-mapper canonical build <path> [--json] [--config-fingerprint <value>]
        simplicio-mapper canonical status <path> [--json] [--config-fingerprint <value>]
+       simplicio-mapper canonical gc [<path>] [--json] [--apply] [--storage-root DIR]
+                                     [--ttl-seconds N] [--grace-seconds N]
 
 canonical build   Resolve the default branch via git and build (or reuse) the
                   canonical map manifest for that commit. Atomic promotion --
@@ -331,21 +367,13 @@ canonical status  Read-only. Reports digest/redacted key, freshness,
                   cache/single-flight diagnostics and overlay counts. Never
                   builds or writes anything. Never includes an absolute
                   path, a remote URL, or file content.
+canonical gc      Crash-safe, conservative removal of temporary/expired/
+                  unreferenced canonical-map snapshots. Dry-run by default;
+                  pass --apply to actually remove entries.
 """
 
 
-def run_canonical_cli(argv: Sequence[str]) -> int:
-    """Entry point for ``simplicio-mapper canonical <build|status> ...``."""
-    if not argv or argv[0] in ("-h", "--help"):
-        print(_HELP)
-        return 0
-    sub = argv[0]
-    rest = argv[1:]
-    if sub not in ("build", "status"):
-        print(f"unknown canonical sub-command: {sub}", file=sys.stderr)
-        print(_HELP, file=sys.stderr)
-        return 2
-
+def _parse_build_status_opts(rest: list[str], sub: str) -> tuple[dict, int | None]:
     root = os.getcwd()
     as_json = False
     config_fingerprint = _DEFAULT_CONFIG_FINGERPRINT
@@ -355,7 +383,7 @@ def run_canonical_cli(argv: Sequence[str]) -> int:
         arg = rest[i]
         if arg in ("-h", "--help"):
             print(_HELP)
-            return 0
+            return {}, 0
         elif arg == "--json":
             as_json = True
         elif arg == "--config-fingerprint":
@@ -364,38 +392,99 @@ def run_canonical_cli(argv: Sequence[str]) -> int:
                 config_fingerprint = rest[i]
             except IndexError:
                 print("--config-fingerprint requires a value", file=sys.stderr)
-                return 2
+                return {}, 2
         elif arg == "--root":
             i += 1
             try:
                 root = rest[i]
             except IndexError:
                 print("--root requires a value", file=sys.stderr)
-                return 2
+                return {}, 2
         elif not arg.startswith("-") and not positional_taken:
             root = arg
             positional_taken = True
         else:
             print(f"unknown canonical {sub} option: {arg}", file=sys.stderr)
-            return 2
+            return {}, 2
         i += 1
+    return {"root": os.path.abspath(root), "json": as_json, "config_fingerprint": config_fingerprint}, None
 
-    root = os.path.abspath(root)
 
-    if sub == "build":
-        receipt = _build_receipt(root, config_fingerprint)
-        if as_json:
-            print(json.dumps(receipt, ensure_ascii=False, sort_keys=True))
+def _parse_gc_opts(rest: list[str]) -> tuple[dict, int | None]:
+    opts: dict = {
+        "root": os.getcwd(),
+        "json": False,
+        "apply": False,
+        "storage_root": "",
+        "ttl_seconds": None,
+        "grace_seconds": None,
+    }
+    positionals: list[str] = []
+    i = 0
+    while i < len(rest):
+        arg = rest[i]
+        if arg in ("-h", "--help"):
+            print(_HELP)
+            return {}, 0
+        elif arg == "--json":
+            opts["json"] = True
+        elif arg == "--apply":
+            opts["apply"] = True
+        elif arg == "--storage-root":
+            i += 1
+            opts["storage_root"] = rest[i]
+        elif arg == "--ttl-seconds":
+            i += 1
+            opts["ttl_seconds"] = float(rest[i])
+        elif arg == "--grace-seconds":
+            i += 1
+            opts["grace_seconds"] = float(rest[i])
+        elif arg.startswith("-"):
+            print(f"unknown canonical option: {arg}", file=sys.stderr)
+            return {}, 2
         else:
-            _print_build_summary(receipt)
+            positionals.append(arg)
+        i += 1
+    if positionals:
+        opts["root"] = positionals[0]
+    return opts, None
+
+
+def run_canonical_cli(argv: Sequence[str]) -> int:
+    """Entry point for ``simplicio-mapper canonical <build|status|gc> ...``."""
+    if not argv or argv[0] in ("-h", "--help"):
+        print(_HELP)
+        return 0
+    sub = argv[0]
+    rest = list(argv[1:])
+
+    if sub in ("build", "status"):
+        opts, early_exit = _parse_build_status_opts(rest, sub)
+        if early_exit is not None:
+            return early_exit
+        if sub == "build":
+            receipt = _build_receipt(opts["root"], opts["config_fingerprint"])
+            if opts["json"]:
+                print(json.dumps(receipt, ensure_ascii=False, sort_keys=True))
+            else:
+                _print_build_summary(receipt)
+        else:
+            receipt = _status_receipt(opts["root"], opts["config_fingerprint"])
+            if opts["json"]:
+                print(json.dumps(receipt, ensure_ascii=False, sort_keys=True))
+            else:
+                _print_status_summary(receipt)
         return 0 if receipt["status"] == "ok" else 1
 
-    receipt = _status_receipt(root, config_fingerprint)
-    if as_json:
-        print(json.dumps(receipt, ensure_ascii=False, sort_keys=True))
-    else:
-        _print_status_summary(receipt)
-    return 0 if receipt["status"] == "ok" else 1
+    if sub == "gc":
+        opts, early_exit = _parse_gc_opts(rest)
+        if early_exit is not None:
+            return early_exit
+        return _run_gc(opts)
+
+    print(f"unknown canonical sub-command: {sub}", file=sys.stderr)
+    print(_HELP, file=sys.stderr)
+    return 2
 
 
 __all__ = ["run_canonical_cli", "CANONICAL_STATUS_SCHEMA", "CANONICAL_BUILD_SCHEMA"]
