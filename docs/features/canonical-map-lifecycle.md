@@ -265,36 +265,61 @@ Garantias de desenho já refletidas nos dataclasses implementados:
   alternativa mais barata (`git cat-file --batch`) foi considerada e
   adiada por complexidade de integração com o parser atual, que espera
   arquivos no disco.
+- **Status final honesto (epic #236, 2026-07-18)**: o benchmark de
+  wall/CPU/RSS/I/O agora existe e roda de verdade (ver seção "Benchmark"
+  acima) — isso fecha a parte mensurável do critério de aceite do epic.
+  A parte de plataforma **não fecha**: nenhuma sessão que trabalhou neste
+  epic (incluindo esta) teve acesso a macOS ou Windows, só a um container
+  Linux. Isso não é um detalhe a resolver com mais código — é uma
+  limitação de ambiente desta sessão/ferramenta que só uma sessão humana
+  ou de agente com acesso real a essas plataformas pode fechar. Os epics
+  #236 e #263 devem permanecer abertos até que isso aconteça, ou até que
+  alguém com autoridade sobre o escopo decida explicitamente que
+  "Linux only" é um estado final aceitável.
 
 ## Benchmark
 
-**Bloqueado nesta issue, não fabricado.** O critério de aceite de #270 pede
-um benchmark versionado (1/N worktrees, caminho canônico opt-in vs. full
-remap, medindo wall/CPU/RSS/I/O/cache hit-miss/waits, com raw JSON +
-Markdown gerados pelo mesmo comando, ambiente/versão/fixture/data/
-variabilidade declarados). Isso depende de:
+> **Atualizado (2026-07-18, epic #236 closure work, worktree
+> `issue-236-close-work`)**: o bloqueio descrito abaixo (texto original da
+> issue #270) foi resolvido pelas issues filhas #266/#267/#268/#269, todas
+> mescladas — o benchmark real existe e roda contra o path opt-in de
+> verdade. O que segue documenta o estado atual, não mais um bloqueio.
 
-1. Um comando `canonical status`/`build` real para medir (#266/#268/#269) —
-   não existe neste worktree (`simplicio-mapper --help` não lista
-   `canonical` como subcomando).
-2. O opt-in de consumo (#269) para comparar "canônico ligado" vs.
-   "full remap" no mesmo processo, não apenas o builder isolado.
-3. O lock single-flight cross-worktree (#266/#267) para medir `waits` de
-   verdade sob concorrência entre worktrees.
+Benchmark real: [`scripts/canonical_reuse_benchmark.py`](../../scripts/canonical_reuse_benchmark.py)
+/ [`docs/canonical-reuse-benchmark.md`](../canonical-reuse-benchmark.md) /
+[`docs/evidence/canonical-reuse-benchmark.json`](../evidence/canonical-reuse-benchmark.json)
+(schema `simplicio.canonical-reuse-benchmark/v2`). Mede, para N worktrees
+reais (`git worktree add --detach`), o caminho `full` (pipeline completo,
+sem reuse) vs. `canonical-reuse` (opt-in, `attempt_canonical_reuse`) —
+wall time, CPU (processo principal e filhos via
+`resource.getrusage(RUSAGE_CHILDREN)`, cobrindo os subprocessos `git` reais
+que `canonical_builder._run_git` invoca), peak RSS (idem, principal e
+filhos) e um proxy de I/O (`ru_inblock`/`ru_oublock` — contagem de
+operações de bloco, não bytes; ver caveats do próprio script para o que
+isso não cobre). Rodado de verdade nesta sessão em duas escalas:
 
-Nenhum desses três está presente neste worktree — rodar qualquer script de
-benchmark contra o estado atual só mediria o builder isolado
-(`canonical_builder.build_canonical_manifest`) chamado fora do fluxo real
-de comando, o que não corresponde ao que o critério de aceite pede
-("caminho canônico opt-in" vs "full remap", ambos via comando real). Este
-guia registra o bloqueio explicitamente em vez de inventar números — ver a
-mensagem de commit desta mudança para o mesmo registro. Quando #266/#267/
-#268/#269 estiverem mesclados neste worktree (ou num worktree subsequente
-que já os tenha), o bundle de benchmark deve seguir o padrão já
-estabelecido em `scripts/runtime_scale_benchmark.py` (fixture
-determinística versionada em `tests/fixtures/`, schema
-`simplicio.<nome>-benchmark/v1`, JSON + Markdown emitidos pelo mesmo
-comando, sem duplicar lógica de medição entre os dois formatos de saída).
+- 4 worktrees x 40 arquivos: canonical-reuse foi **mais lento** em wall
+  time (0.335s vs 0.210s do full) — nesta escala pequena o custo fixo do
+  canonical-build (pago uma vez pelo primeiro worktree) não é amortizado.
+- 5 worktrees x 300 arquivos: canonical-reuse foi **1.403x mais rápido**
+  em wall time, com CPU do processo principal 54.6% menor e I/O out-blocks
+  63.1% menor que o full remap.
+
+Os dois números são reais e não foram editados — a leitura honesta é que o
+ganho depende da forma `(arquivos por worktree, N worktrees)`, não é uma
+constante universal; ver `docs/canonical-reuse-benchmark.md` para a tabela
+completa e a discussão de quando esse tradeoff ajuda ou não.
+
+**O que ainda falta, genuinamente, e não é fabricável nesta sessão**: o
+critério de aceite do epic #236 também pede validação em Linux, macOS e
+Windows. Esta sessão — como todas as sessões anteriores que trabalharam
+neste epic — só teve acesso a um container Linux. O benchmark acima (e o
+resto da superfície `canonical status/build/verify/gc`) nunca foi rodado em
+macOS ou Windows, e não há como simular esse resultado de forma honesta a
+partir daqui. Este é um critério de aceite do epic #236 que permanece em
+aberto e depende de uma sessão humana ou de agente com acesso real a essas
+plataformas — não é algo que este trabalho resolveu nem finge ter
+resolvido.
 
 ## Onde encontrar o código (nesta issue)
 
