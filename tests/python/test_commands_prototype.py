@@ -79,7 +79,7 @@ def _make_plan(
 def _plan_from_input(tmp_path: Path, capsys, *, goal: str, validators: list[str]) -> Path:
     input_path = _artifacts_dir(tmp_path) / "input.json"
     input_path.write_text(
-        json.dumps({"goal": goal, "prototype_type": "code-spike", "validators": validators}),
+        json.dumps({"goal": goal, "prototype_type": "code_spike", "validators": validators}),
         encoding="utf-8",
     )
     plan_path = _artifacts_dir(tmp_path) / "plan.json"
@@ -110,14 +110,14 @@ def test_doctor_reports_schemas_and_isolation_default(capsys):
 
 
 def test_plan_accepts_every_documented_prototype_type(tmp_path, capsys):
-    for prototype_type in ("schema", "data-model", "failing-test", "mock", "code-spike", "vertical-slice"):
+    for prototype_type in ("schema", "data_model", "failing_reproducer", "mock_or_fake", "code_spike", "vertical_slice"):
         plan, _ = _make_plan(
             tmp_path, capsys, prototype_type=prototype_type, goal=f"goal for {prototype_type}"
         )
         assert plan["prototype_type"] == prototype_type
 
 
-@pytest.mark.parametrize("prototype_type", ["schema", "failing-test", "code-spike"])
+@pytest.mark.parametrize("prototype_type", ["schema", "failing_reproducer", "code_spike"])
 def test_scaffold_writes_only_inside_isolated_candidate_dir(tmp_path, capsys, prototype_type):
     source_file = tmp_path / "src.py"
     source_file.write_text("print('real working tree file')\n", encoding="utf-8")
@@ -140,7 +140,7 @@ def test_scaffold_writes_only_inside_isolated_candidate_dir(tmp_path, capsys, pr
 
 
 def test_scaffold_refuses_to_overwrite_existing_candidate_without_force(tmp_path, capsys):
-    _, plan_path = _make_plan(tmp_path, capsys, prototype_type="code-spike")
+    _, plan_path = _make_plan(tmp_path, capsys, prototype_type="code_spike")
     cli.main(["prototype", "scaffold", "--root", str(tmp_path), "--plan", str(plan_path)])
     capsys.readouterr()
 
@@ -153,7 +153,7 @@ def test_scaffold_refuses_to_overwrite_existing_candidate_without_force(tmp_path
 
 def test_dry_run_proves_zero_working_tree_change(tmp_path, capsys):
     (tmp_path / "src.py").write_text("value = 1\n", encoding="utf-8")
-    plan, plan_path = _make_plan(tmp_path, capsys, prototype_type="code-spike")
+    plan, plan_path = _make_plan(tmp_path, capsys, prototype_type="code_spike")
     assert plan["source_sha"]
 
     code = cli.main(["prototype", "scaffold", "--root", str(tmp_path), "--plan", str(plan_path), "--json"])
@@ -343,7 +343,7 @@ def test_promote_succeeds_with_a_valid_accept_decision_and_revalidates(tmp_path,
 
 def test_stale_candidate_is_detected_and_rejected_at_validate(tmp_path, capsys):
     (tmp_path / "src.py").write_text("value = 1\n", encoding="utf-8")
-    plan, plan_path = _make_plan(tmp_path, capsys, prototype_type="code-spike")
+    plan, plan_path = _make_plan(tmp_path, capsys, prototype_type="code_spike")
     assert plan["source_sha"]  # sanity: a real baseline was recorded
 
     cli.main(["prototype", "scaffold", "--root", str(tmp_path), "--plan", str(plan_path)])

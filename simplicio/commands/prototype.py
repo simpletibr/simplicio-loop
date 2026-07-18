@@ -15,7 +15,7 @@ from typing import Any
 SCHEMA_PLAN = "simplicio.prototype-plan/v1"
 SCHEMA_RECEIPT = "simplicio.prototype-receipt/v1"
 SCHEMA_DECISION = "simplicio.prototype-decision/v1"
-TYPES = ("schema", "data-model", "failing-test", "mock", "code-spike", "vertical-slice")
+TYPES = ("wireframe", "architecture_diagram", "schema", "data_model", "failing_reproducer", "benchmark_spike", "mock_or_fake", "code_spike", "vertical_slice", "prompt_candidate", "workflow_simulation", "storyboard", "policy_or_security_model")
 # Bookkeeping directories the prototype adapter itself writes into (candidate
 # sandboxes, receipts, decisions). Excluded from the source-tree hash so that
 # scaffolding/validating a candidate never perturbs the very source_sha it is
@@ -157,34 +157,15 @@ def _skeleton(plan: dict[str, Any]) -> dict[str, str]:
             )
             + "\n"
         }
-    if kind == "data-model":
+    if kind == "data_model":
         return {"MODEL.md": f"# {name}\n\nData model prototype.\n\nGoal: {plan['goal']}\n"}
-    if kind == "failing-test":
-        reproducer = (
-            "def test_prototype_reproducer():\n"
-            "    raise AssertionError('prototype reproducer: implement expected behavior')\n"
-        )
-        return {"test_prototype.py": reproducer}
-    if kind == "mock":
-        adapter = (
-            "class PrototypeAdapter:\n"
-            '    """Contract-only adapter; no production side effects."""\n'
-            "\n"
-            "    def call(self, *args, **kwargs):\n"
-            "        raise NotImplementedError('prototype adapter')\n"
-        )
-        return {"mock_adapter.py": adapter}
-    if kind == "code-spike":
-        spike = (
-            f'"""Bounded code spike for: {plan["goal"]}"""\n'
-            "\n\n"
-            "def run():\n"
-            "    raise NotImplementedError('prototype spike')\n"
-        )
-        return {"spike.py": spike}
-    goal = plan["goal"]
-    slice_doc = f"# Vertical slice: {name}\n\nGoal: {goal}\n\n- [ ] implement one reversible real path\n"
-    return {"VERTICAL_SLICE.md": slice_doc}
+    if kind in {"failing_test", "failing_reproducer"}:
+        return {"test_prototype.py": "def test_prototype_reproducer():\n    raise AssertionError('prototype reproducer: implement expected behavior')\n"}
+    if kind in {"mock", "mock_or_fake"}:
+        return {"mock_adapter.py": "class PrototypeAdapter:\n    \"\"\"Contract-only adapter; no production side effects.\"\"\"\n\n    def call(self, *args, **kwargs):\n        raise NotImplementedError('prototype adapter')\n"}
+    if kind in {"code_spike", "benchmark_spike"}:
+        return {"spike.py": f"\"\"\"Bounded code spike for: {plan['goal']}\"\"\"\n\n\ndef run():\n    raise NotImplementedError('prototype spike')\n"}
+    return {"PROTOTYPE.md": f"# {kind}: {name}\n\nGoal: {plan['goal']}\n\n- [ ] implement one bounded, reversible candidate\n"}
 
 
 def run(args: Any) -> int:

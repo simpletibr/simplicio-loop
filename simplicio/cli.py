@@ -479,8 +479,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p_proto_plan.add_argument(
         "--type",
         dest="prototype_type",
-        default="code-spike",
-        choices=("schema", "data-model", "failing-test", "mock", "code-spike", "vertical-slice"),
+        default="code_spike",
+        choices=("wireframe", "architecture_diagram", "schema", "data_model", "failing_reproducer", "benchmark_spike", "mock_or_fake", "code_spike", "vertical_slice", "prompt_candidate", "workflow_simulation", "storyboard", "policy_or_security_model"),
     )
     p_proto_plan.add_argument("--root", default=".", help="source tree the plan's source_sha is anchored to")
     p_proto_plan.add_argument("--output", default=".simplicio/prototype-plan.json")
