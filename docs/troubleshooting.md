@@ -43,6 +43,17 @@ npx playwright install
 npx playwright install ffmpeg
 ```
 
+## Async mapping pipeline (`index`/`map`/`scan`)
+
+- Symptom: a mapper run seems slow/hung, files missing from
+  `project-map.json`, a Windows "file still in use" error on
+  `.simplicio/cache`, or `asyncio.run() cannot be called from a running
+  event loop`.
+- Diagnose/fix: see `docs/async-pipeline-operations.md` (config knobs
+  `SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES`/`SIMPLICIO_MAPPER_FILE_TIMEOUT_S`,
+  rollback/disable, and a dedicated troubleshooting section for each of
+  these symptoms).
+
 ## Add Project-Specific Issues
 
 ### `<SYMPTOM>`
