@@ -170,6 +170,8 @@ scripts/**
 !scripts/async_inventory_benchmark.py
 !scripts/canonical_reuse_benchmark.py
 !scripts/async_pipeline_dispatch_benchmark.py
+!scripts/check_schema_registry_sync.py
+!scripts/schema_registry_baseline.json
 playwright-report/**
 tests/**
 !tests/unit/

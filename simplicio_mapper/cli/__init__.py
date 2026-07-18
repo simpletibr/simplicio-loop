@@ -126,6 +126,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ._canonical import run_canonical_cli
 
         return run_canonical_cli(argv[1:])
+    # `release-manifest` similarly takes flags rather than the usual
+    # `<command> <root>` shape (issue #280, Phase-0 local release manifest).
+    if argv and argv[0] == "release-manifest":
+        from ..release_manifest import run_release_manifest_cli
+
+        return run_release_manifest_cli(argv[1:])
     opts = _parse_args(argv)
     if opts["background"] and opts["command"] in ("index", "map", "update"):
         return _run_background(opts)

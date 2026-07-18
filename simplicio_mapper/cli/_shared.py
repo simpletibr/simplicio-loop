@@ -100,6 +100,7 @@ USAGE
   simplicio-mapper canonical status <path> [--json]
   simplicio-mapper canonical verify <path> [--json] [--storage-root <dir>] [--config-fingerprint <value>] [--limit <n>]
   simplicio-mapper canonical gc <path> [--apply] [--json]
+  simplicio-mapper release-manifest [--json] [--root <dir>] [--check-registry] [--update-registry-baseline]
 
 OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
@@ -151,6 +152,14 @@ OPTIONS
                         the ADR-008 content-addressed storage root. Dry-run
                         by default; pass --apply to actually delete
                         (issue #268).
+  release-manifest      Phase-0, local, offline generator for the
+                        simplicio.component-release/v1 manifest: version,
+                        commit SHA, and every schema-version constant this
+                        package publishes. No signing/SBOM/network calls
+                        (issue #280, ADR-010). --check-registry /
+                        --update-registry-baseline maintain the committed
+                        schema-version-registry baseline used to catch
+                        unintentional schema-version drift.
   --config-fingerprint <value>
                         canonical verify: override the mapping-config
                         fingerprint segment of the canonical key (default is

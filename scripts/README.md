@@ -122,6 +122,35 @@ python scripts/perf_regression_gate.py --json               # precision + latenc
 python scripts/perf_regression_gate.py --skip-runtime-scale  # fast path, skips the ~5000-file throughput benchmark
 ```
 
+## `simplicio-mapper release-manifest` / `scripts/check_schema_registry_sync.py` (issue #280)
+
+Phase-0 slice of the cross-repo "release train" epic
+(wesleysimplicio/simplicio-loop#558; see
+[`.specs/architecture/ADR-010-release-manifest-phase0.md`](../.specs/architecture/ADR-010-release-manifest-phase0.md)
+for the full scoping decision). Two pieces, both local/offline, no signing/
+SBOM/network calls:
+
+```bash
+simplicio-mapper release-manifest --json     # simplicio.component-release/v1 manifest:
+                                              # version, commit SHA, every schema-version
+                                              # constant this package publishes
+python3 scripts/check_schema_registry_sync.py                  # CI gate: registry vs committed baseline
+python3 scripts/check_schema_registry_sync.py --update-baseline # regenerate baseline after a
+                                                                  # deliberate, reviewed schema bump
+```
+
+This is a sibling to `scripts/check-version-sync.js` (which keeps
+`package.json`/`pyproject.toml`/`simplicio_mapper/__init__.py` aligned) --
+`check-version-sync.js` itself is unchanged; the new script covers the
+separate, previously-uncovered surface of per-artifact schema-version
+constants (`ARTIFACT_VERSION`, `CANONICAL_MAP_SCHEMA_VERSION`,
+`CONTRACT_VERSION`, etc. -- full inventory in
+`simplicio_mapper/release_manifest.py::SCHEMA_VERSION_REGISTRY`).
+Cross-repo release events, canary channels, automatic downstream
+(simplicio-dev-cli/simplicio-loop) version bumps, and any actual
+signing/SBOM step remain explicitly out of scope here -- they need
+coordinated infrastructure this repo does not own alone.
+
 ## `check-doc-sync.js` / `check-readme-sync.js` (issue #163)
 
 Two checks that replace manual doc mirroring with either a generated file or
