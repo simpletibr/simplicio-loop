@@ -207,6 +207,58 @@ não possui/controla sozinho:
 
 ---
 
+### Adendo (mesma ADR, mesma issue #280): digests reais de artefatos `dist/`
+
+Depois da versão original desta ADR, ficou claro que existe uma fatia
+adicional, honesta e ainda de baixo risco dentro do passo 3 da issue #280
+("digests, signatures, SBOM"): um **digest SHA256** dos arquivos
+`dist/*.whl`/`dist/*.tar.gz` já construídos é **apenas um checksum de bytes
+que já existem em disco** -- diferente de uma **assinatura criptográfica**,
+que continua exigindo uma autoridade de assinatura que este repo não possui
+(decisão original desta ADR, inalterada). Este adendo documenta a extensão:
+
+- `simplicio_mapper/release_manifest.py::compute_artifact_digests()` calcula
+  `sha256:<hex>` real dos artefatos encontrados em um `dist_dir` (default
+  `dist/` na raiz do repo, `--dist-dir <path>` na CLI). Quando o diretório
+  ou os arquivos não existem, o campo correspondente fica `None`/ausente
+  com uma `note` honesta -- nunca um placeholder fabricado. Se houver mais
+  de um arquivo `.whl`/`.tar.gz` no diretório (build ambígua), a função se
+  recusa a adivinhar qual é "o" artefato do release e retorna `None` com
+  nota explicando a ambiguidade.
+- O manifest ganha um campo **novo e distinto** de `signing`:
+  `artifact_digests: {"whl": {"filename": ..., "digest": "sha256:..."},
+  "sdist": {...}}`. O bloco `signing` permanece com `status:
+  "not-implemented"` e `digest: null` para a *assinatura* em si -- o
+  checksum honesto não é apresentado como, nem substitui, uma assinatura.
+- `simplicio_mapper/release_manifest.py::verify_artifact_digests()` (exposto
+  via `simplicio-mapper release-manifest --verify-digests <manifest.json>
+  --dist-dir <path>`) compara os digests gravados num manifest já gerado
+  contra os arquivos reais em `dist_dir` -- reporta `match`/`mismatch`/
+  `missing-on-disk`/`missing-in-manifest` por artefato. Isso é a fatia
+  "impedir tag se ... divergirem" do passo 8 que é verificável **puramente
+  localmente** (integridade artefato-vs-manifest) -- **não** é a checagem de
+  divergência PyPI/npm real do passo 8 (que exigiria chamadas de rede à API
+  de registry, permanece fora de escopo, ver seção "Fora de escopo" acima,
+  inalterada por este adendo).
+- Escolha de teste documentada em `tests/python/test_release_manifest.py`
+  (classe `ArtifactDigestsTest`): a suíte usa arquivos `.whl`/`.tar.gz`
+  fake-mas-reais (bytes conhecidos, digest esperado calculado
+  independentemente via `hashlib.sha256` no próprio teste) para a maioria
+  dos casos, porque um `python -m build` completo é lento (ambiente de build
+  isolado) para um teste que só precisa provar "bytes reais em disco ->
+  sha256 real". Um teste de integração único (`test_real_python_build_
+  produces_verifiable_digests`) roda um `python -m build --wheel` de
+  verdade contra o wheel real do próprio repo, para provar o caminho
+  completo contra um artefato genuíno -- pulado (`skipTest`) caso o pacote
+  `build` não esteja disponível no ambiente.
+
+Este adendo não reabre nenhuma das decisões "fora de escopo" originais desta
+ADR: assinatura criptográfica real, SBOM, eventos cross-repo, canal canary e
+detecção de divergência PyPI/npm ao vivo continuam fora de escopo, pelas
+mesmas razões já documentadas.
+
+---
+
 ## Consequências
 
 ### Positivas (+)

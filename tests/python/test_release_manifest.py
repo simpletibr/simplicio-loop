@@ -13,7 +13,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from unittest import mock
@@ -33,7 +33,9 @@ from simplicio_mapper.release_manifest import (  # noqa: E402
     build_version_payload,
     check_registry_baseline,
     collect_schema_versions,
+    compute_artifact_digests,
     run_release_manifest_cli,
+    verify_artifact_digests,
     write_registry_baseline,
 )
 
@@ -241,6 +243,163 @@ class RegistryBaselineTest(unittest.TestCase):
             self.assertTrue(ok)
 
 
+class ArtifactDigestsTest(unittest.TestCase):
+    """Unit + integration: real SHA256 digests of built dist/ artifacts (issue
+    #280 step 3, honest sub-slice -- checksums of real bytes, not signatures).
+
+    Test-artifact choice (documented per task instructions): a full
+    ``python -m build`` invocation is slow (spins up an isolated build env)
+    and would make this suite noticeably heavier for a check that only
+    cares about "does the digest of these exact bytes match a known
+    hash" -- so these tests construct small fake ``.whl``/``.tar.gz``-named
+    files with deterministic content and assert against a digest computed
+    independently via ``hashlib.sha256`` directly in the test, which proves
+    the same thing (real bytes on disk -> real sha256) without needing a
+    real wheel build. The CLI system test further down does exercise a real
+    ``python -m build`` end to end once, to prove the whole path against
+    genuine build output.
+    """
+
+    def test_missing_dist_dir_returns_none_with_honest_note(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = os.path.join(tmp, "does-not-exist")
+            result = compute_artifact_digests(dist_dir=missing)
+            self.assertIsNone(result["whl"])
+            self.assertIsNone(result["sdist"])
+            self.assertIsNotNone(result["note"])
+            self.assertIn("no dist/*.whl or dist/*.tar.gz found", result["note"])
+
+    def test_empty_dist_dir_returns_none_with_honest_note(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            result = compute_artifact_digests(dist_dir=tmp)
+            self.assertIsNone(result["whl"])
+            self.assertIsNone(result["sdist"])
+            self.assertIsNotNone(result["note"])
+
+    def test_real_digest_of_fake_whl_and_sdist_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            whl_path = os.path.join(tmp, "simplicio_mapper-9.9.9-py3-none-any.whl")
+            sdist_path = os.path.join(tmp, "simplicio_mapper-9.9.9.tar.gz")
+            whl_bytes = b"fake wheel bytes for digest test"
+            sdist_bytes = b"fake sdist bytes for digest test"
+            with open(whl_path, "wb") as handle:
+                handle.write(whl_bytes)
+            with open(sdist_path, "wb") as handle:
+                handle.write(sdist_bytes)
+
+            import hashlib
+
+            expected_whl = "sha256:" + hashlib.sha256(whl_bytes).hexdigest()
+            expected_sdist = "sha256:" + hashlib.sha256(sdist_bytes).hexdigest()
+
+            result = compute_artifact_digests(dist_dir=tmp)
+            self.assertEqual(result["whl"]["digest"], expected_whl)
+            self.assertEqual(result["whl"]["filename"], os.path.basename(whl_path))
+            self.assertEqual(result["sdist"]["digest"], expected_sdist)
+            self.assertEqual(result["sdist"]["filename"], os.path.basename(sdist_path))
+            self.assertIsNone(result["note"])
+
+    def test_only_whl_present_reports_missing_sdist_note(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            whl_path = os.path.join(tmp, "pkg-1.0.0-py3-none-any.whl")
+            with open(whl_path, "wb") as handle:
+                handle.write(b"only a wheel")
+            result = compute_artifact_digests(dist_dir=tmp)
+            self.assertIsNotNone(result["whl"])
+            self.assertIsNone(result["sdist"])
+            self.assertIn(".tar.gz", result["note"])
+
+    def test_ambiguous_multiple_whl_files_refuses_to_guess(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            for name in ("pkg-1.0.0-py3-none-any.whl", "pkg-2.0.0-py3-none-any.whl"):
+                with open(os.path.join(tmp, name), "wb") as handle:
+                    handle.write(b"x")
+            result = compute_artifact_digests(dist_dir=tmp)
+            self.assertIsNone(result["whl"])
+
+    def test_manifest_includes_artifact_digests_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = build_release_manifest(root=str(ROOT), dist_dir=tmp)
+            self.assertIn("artifact_digests", manifest)
+            self.assertIsNone(manifest["artifact_digests"]["whl"])
+            # Never a fabricated placeholder for the signature itself either.
+            self.assertEqual(manifest["signing"]["status"], "not-implemented")
+            self.assertIsNone(manifest["signing"]["digest"])
+
+    def test_manifest_with_real_dist_artifacts_carries_real_digests(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            whl_path = os.path.join(tmp, "pkg-1.0.0-py3-none-any.whl")
+            sdist_path = os.path.join(tmp, "pkg-1.0.0.tar.gz")
+            with open(whl_path, "wb") as handle:
+                handle.write(b"real-ish wheel bytes")
+            with open(sdist_path, "wb") as handle:
+                handle.write(b"real-ish sdist bytes")
+            manifest = build_release_manifest(root=str(ROOT), dist_dir=tmp)
+            self.assertRegex(
+                manifest["artifact_digests"]["whl"]["digest"], r"^sha256:[0-9a-f]{64}$"
+            )
+            self.assertRegex(
+                manifest["artifact_digests"]["sdist"]["digest"], r"^sha256:[0-9a-f]{64}$"
+            )
+
+
+class VerifyArtifactDigestsTest(unittest.TestCase):
+    """Unit: local artifact-vs-manifest integrity check (issue #280 step 8,
+    "impedir tag se ... divergirem" -- artifact-digest half only, not the
+    PyPI/npm live-registry divergence check, which stays out of scope)."""
+
+    def _manifest_with_dist(self, tmp: str) -> dict:
+        whl_path = os.path.join(tmp, "pkg-1.0.0-py3-none-any.whl")
+        sdist_path = os.path.join(tmp, "pkg-1.0.0.tar.gz")
+        with open(whl_path, "wb") as handle:
+            handle.write(b"verify test wheel bytes")
+        with open(sdist_path, "wb") as handle:
+            handle.write(b"verify test sdist bytes")
+        return build_release_manifest(root=str(ROOT), dist_dir=tmp)
+
+    def test_matching_digests_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = self._manifest_with_dist(tmp)
+            ok, messages = verify_artifact_digests(manifest, dist_dir=tmp)
+            self.assertTrue(ok, msg="\n".join(messages))
+            self.assertTrue(any("[ok]" in m for m in messages))
+
+    def test_tampered_artifact_is_detected_as_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = self._manifest_with_dist(tmp)
+            whl_path = os.path.join(tmp, "pkg-1.0.0-py3-none-any.whl")
+            with open(whl_path, "wb") as handle:
+                handle.write(b"tampered bytes, different content entirely")
+            ok, messages = verify_artifact_digests(manifest, dist_dir=tmp)
+            self.assertFalse(ok)
+            self.assertTrue(any("[mismatch]" in m for m in messages))
+
+    def test_missing_artifact_on_disk_is_detected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = self._manifest_with_dist(tmp)
+            os.remove(os.path.join(tmp, "pkg-1.0.0-py3-none-any.whl"))
+            ok, messages = verify_artifact_digests(manifest, dist_dir=tmp)
+            self.assertFalse(ok)
+            self.assertTrue(any("[missing-on-disk]" in m for m in messages))
+
+    def test_no_recorded_digests_and_no_files_is_a_no_op_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = build_release_manifest(root=str(ROOT), dist_dir=tmp)
+            ok, messages = verify_artifact_digests(manifest, dist_dir=tmp)
+            self.assertTrue(ok)
+            self.assertTrue(any("[skip]" in m for m in messages))
+
+    def test_artifact_present_but_not_recorded_in_manifest_is_detected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = build_release_manifest(root=str(ROOT), dist_dir=tmp)
+            # A file shows up in dist/ after the manifest was generated.
+            with open(os.path.join(tmp, "pkg-1.0.0-py3-none-any.whl"), "wb") as handle:
+                handle.write(b"new artifact appeared after manifest generation")
+            ok, messages = verify_artifact_digests(manifest, dist_dir=tmp)
+            self.assertFalse(ok)
+            self.assertTrue(any("[missing-in-manifest]" in m for m in messages))
+
+
 class ReleaseManifestCliTest(unittest.TestCase):
     """System: real CLI invocation via `simplicio_mapper.cli.main` (dispatch
     before `_parse_args`, same shape as `contract`/`doctor`/`canonical`)."""
@@ -362,6 +521,135 @@ class ReleaseManifestCliTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         payload = json.loads(result.stdout)
         self.assertEqual(payload["schema"], RELEASE_MANIFEST_SCHEMA)
+
+    def test_dist_dir_flag_without_value_exits_with_usage_error(self) -> None:
+        buffer = StringIO()
+        with redirect_stdout(buffer):
+            exit_code = main(["release-manifest", "--dist-dir"])
+        self.assertEqual(exit_code, 2)
+
+    def test_verify_digests_flag_without_value_exits_with_usage_error(self) -> None:
+        buffer = StringIO()
+        with redirect_stdout(buffer):
+            exit_code = main(["release-manifest", "--verify-digests"])
+        self.assertEqual(exit_code, 2)
+
+    def test_verify_digests_missing_manifest_file_is_reported_not_raised(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = os.path.join(tmp, "no-such-manifest.json")
+            stderr_buffer = StringIO()
+            with redirect_stdout(StringIO()), redirect_stderr(stderr_buffer):
+                exit_code = main(["release-manifest", "--verify-digests", missing])
+            self.assertEqual(exit_code, 1)
+            self.assertIn("::error::", stderr_buffer.getvalue())
+
+    def test_verify_digests_malformed_json_is_reported_not_raised(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            bad_manifest = os.path.join(tmp, "bad.json")
+            with open(bad_manifest, "w", encoding="utf-8") as handle:
+                handle.write("{not valid json")
+            stderr_buffer = StringIO()
+            with redirect_stdout(StringIO()), redirect_stderr(stderr_buffer):
+                exit_code = main(["release-manifest", "--verify-digests", bad_manifest])
+            self.assertEqual(exit_code, 1)
+            self.assertIn("::error::", stderr_buffer.getvalue())
+
+    def test_cli_json_output_with_dist_dir_includes_real_digests(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            whl_path = os.path.join(tmp, "pkg-1.0.0-py3-none-any.whl")
+            with open(whl_path, "wb") as handle:
+                handle.write(b"cli integration test wheel bytes")
+            buffer = StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    ["release-manifest", "--json", "--root", str(ROOT), "--dist-dir", tmp]
+                )
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(buffer.getvalue())
+            self.assertRegex(
+                payload["artifact_digests"]["whl"]["digest"], r"^sha256:[0-9a-f]{64}$"
+            )
+
+    def test_cli_human_readable_output_reports_artifacts_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            buffer = StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    ["release-manifest", "--root", str(ROOT), "--dist-dir", tmp]
+                )
+            self.assertEqual(exit_code, 0)
+            self.assertIn("artifacts:", buffer.getvalue())
+
+    def test_cli_generate_then_verify_digests_round_trip(self) -> None:
+        # System: real CLI generate -> write manifest.json -> real CLI verify,
+        # against real files on disk (fake-but-real bytes, see
+        # ArtifactDigestsTest docstring for why a full `python -m build` isn't
+        # used here).
+        with tempfile.TemporaryDirectory() as tmp:
+            whl_path = os.path.join(tmp, "pkg-1.0.0-py3-none-any.whl")
+            sdist_path = os.path.join(tmp, "pkg-1.0.0.tar.gz")
+            with open(whl_path, "wb") as handle:
+                handle.write(b"round trip wheel bytes")
+            with open(sdist_path, "wb") as handle:
+                handle.write(b"round trip sdist bytes")
+
+            buffer = StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    ["release-manifest", "--json", "--root", str(ROOT), "--dist-dir", tmp]
+                )
+            self.assertEqual(exit_code, 0)
+            manifest_path = os.path.join(tmp, "manifest.json")
+            with open(manifest_path, "w", encoding="utf-8") as handle:
+                handle.write(buffer.getvalue())
+
+            buffer = StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    ["release-manifest", "--verify-digests", manifest_path, "--dist-dir", tmp]
+                )
+            self.assertEqual(exit_code, 0)
+            self.assertIn("[ok]", buffer.getvalue())
+
+            # Now tamper with the artifact and confirm verify fails closed.
+            with open(whl_path, "wb") as handle:
+                handle.write(b"TAMPERED after manifest generation")
+            buffer = StringIO()
+            with redirect_stdout(buffer):
+                exit_code = main(
+                    ["release-manifest", "--verify-digests", manifest_path, "--dist-dir", tmp]
+                )
+            self.assertEqual(exit_code, 1)
+            self.assertIn("[mismatch]", buffer.getvalue())
+
+    def test_real_python_build_produces_verifiable_digests(self) -> None:
+        # Integration: exercises a genuine `python -m build --wheel` (skipped
+        # if the `build` package isn't importable in this environment, e.g. a
+        # slim CI image without it) to prove the whole path against a real
+        # wheel, not just fake-but-real bytes -- see ArtifactDigestsTest
+        # docstring for why this is the only test that pays the real-build
+        # cost rather than every digest test doing so.
+        try:
+            import build  # noqa: F401
+        except ImportError:
+            self.skipTest("`build` package not importable in this environment")
+
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run(
+                [sys.executable, "-m", "build", "--wheel", "--outdir", tmp, str(ROOT)],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+                stdin=subprocess.DEVNULL,
+            )
+            if result.returncode != 0:
+                self.skipTest(f"real `python -m build` failed in this environment: {result.stderr[-2000:]}")
+
+            manifest = build_release_manifest(root=str(ROOT), dist_dir=tmp)
+            self.assertIsNotNone(manifest["artifact_digests"]["whl"])
+            ok, messages = verify_artifact_digests(manifest, dist_dir=tmp)
+            self.assertTrue(ok, msg="\n".join(messages))
 
 
 if __name__ == "__main__":

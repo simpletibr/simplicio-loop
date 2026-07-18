@@ -31,6 +31,20 @@ registry values above are compared against a checked-in baseline
 so an *unintentional* schema-version bump is caught the same way
 ``scripts/check-version-sync.js`` catches a partial package-version bump --
 see ``scripts/check_schema_registry_sync.py`` for the CLI wrapper.
+
+**Artifact digests (this change, still issue #280 step 3, honest sub-slice
+only)**: a cryptographic *signature* needs a signing authority this repo
+does not own (still deferred, see ``signing.status`` above, which stays
+``"not-implemented"`` for the signature itself). A SHA256 *digest* of the
+actual built ``dist/*.whl``/``dist/*.tar.gz`` files is different: it is a
+plain checksum of bytes already on disk, computable unilaterally, with zero
+external dependency and zero new infrastructure. :func:`compute_artifact_digests`
+and the manifest's new ``artifact_digests`` field carry that honest data;
+:func:`verify_artifact_digests` (and ``--verify-digests`` on the CLI) check a
+previously generated manifest against a ``dist/`` directory, matching the
+"impedir tag se ... divergirem" spirit of step 8 for the one thing checkable
+purely locally: artifact-vs-manifest integrity, not PyPI/npm-registry
+divergence (still out of scope, see ADR-010).
 """
 
 from __future__ import annotations
@@ -164,16 +178,105 @@ def _git_commit_sha(root: str) -> tuple[str | None, str]:
     return result.stdout.strip(), "git rev-parse HEAD"
 
 
-def build_release_manifest(root: str | None = None) -> dict:
+_DIGEST_CHUNK_SIZE = 1024 * 1024
+
+DEFAULT_DIST_DIR = os.path.join(REPO_ROOT, "dist")
+
+
+def _sha256_file(path: str) -> str:
+    """Return ``sha256:<hex>`` for the real bytes at ``path``."""
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(_DIGEST_CHUNK_SIZE), b""):
+            digest.update(chunk)
+    return "sha256:" + digest.hexdigest()
+
+
+def _find_dist_artifact(dist_dir: str, suffix: str) -> str | None:
+    """Return the path of the single file in ``dist_dir`` ending in ``suffix``.
+
+    Returns ``None`` if the directory does not exist, has no matching file,
+    or has more than one match (ambiguous -- refuse to guess which build is
+    "the" release artifact rather than silently picking one).
+    """
+    if not os.path.isdir(dist_dir):
+        return None
+    matches = sorted(
+        name for name in os.listdir(dist_dir) if name.endswith(suffix)
+    )
+    if len(matches) != 1:
+        return None
+    return os.path.join(dist_dir, matches[0])
+
+
+def compute_artifact_digests(dist_dir: str | None = None) -> dict:
+    """Return real SHA256 digests of the built ``dist/*.whl``/``dist/*.tar.gz``.
+
+    This is a plain checksum of bytes that already exist on disk after a real
+    ``python -m build`` -- not a stand-in for cryptographic signing (see
+    module docstring / ADR-010: signing itself stays ``"not-implemented"``).
+    When ``dist_dir`` (or the individual artifact) does not exist, the
+    corresponding entry is ``None`` with an honest ``note`` -- never a
+    fabricated placeholder digest.
+    """
+    resolved_dist_dir = os.path.abspath(dist_dir or DEFAULT_DIST_DIR)
+    whl_path = _find_dist_artifact(resolved_dist_dir, ".whl")
+    sdist_path = _find_dist_artifact(resolved_dist_dir, ".tar.gz")
+
+    result: dict = {
+        "dist_dir": resolved_dist_dir,
+        "whl": None,
+        "sdist": None,
+        "note": None,
+    }
+    if whl_path is None and sdist_path is None:
+        result["note"] = (
+            f"no dist/*.whl or dist/*.tar.gz found under {resolved_dist_dir} "
+            "-- run `python -m build` first if you want real artifact "
+            "digests in the manifest; this field stays absent rather than "
+            "a fabricated placeholder."
+        )
+        return result
+
+    if whl_path is not None:
+        result["whl"] = {
+            "filename": os.path.basename(whl_path),
+            "digest": _sha256_file(whl_path),
+        }
+    if sdist_path is not None:
+        result["sdist"] = {
+            "filename": os.path.basename(sdist_path),
+            "digest": _sha256_file(sdist_path),
+        }
+    missing = []
+    if whl_path is None:
+        missing.append(".whl")
+    if sdist_path is None:
+        missing.append(".tar.gz")
+    if missing:
+        result["note"] = (
+            f"no {' or '.join(missing)} found under {resolved_dist_dir} -- "
+            "digest(s) for the missing artifact type stay absent rather "
+            "than fabricated."
+        )
+    return result
+
+
+def build_release_manifest(root: str | None = None, dist_dir: str | None = None) -> dict:
     """Build the ``simplicio.component-release/v1`` manifest for the current checkout.
 
-    Purely local and deterministic given (checkout state, package version):
-    no signing, no SBOM, no network calls -- see the module docstring and
-    ADR-010 for why those remain explicitly out of scope for this repo alone.
+    Purely local and deterministic given (checkout state, package version,
+    dist/ contents): no signing, no SBOM, no network calls -- see the module
+    docstring and ADR-010 for why those remain explicitly out of scope for
+    this repo alone. ``dist_dir`` (default ``dist/`` at the repo root) is
+    scanned for real built artifacts to compute honest SHA256 digests for
+    (see :func:`compute_artifact_digests`); when absent, ``artifact_digests``
+    stays a structured "not found" note, never a fake value.
     """
     resolved_root = os.path.abspath(root or REPO_ROOT)
     commit_sha, commit_sha_source = _git_commit_sha(resolved_root)
     schema_versions = collect_schema_versions()
+    artifact_digests = compute_artifact_digests(dist_dir=dist_dir)
     manifest = {
         "schema": RELEASE_MANIFEST_SCHEMA,
         "component": "simplicio-mapper",
@@ -190,16 +293,20 @@ def build_release_manifest(root: str | None = None) -> dict:
         "schema_versions": dict(sorted(schema_versions.items())),
         "protocols": list(RELEASE_PROTOCOLS),
         "artifact_digest": None,
+        "artifact_digests": artifact_digests,
         "signing": {
             "status": "not-implemented",
             "digest": None,
             "signature": None,
             "sbom": None,
             "note": (
-                "Phase-0 local generator only (issue #280). Signing, digest "
-                "computation and SBOM generation require a signing authority "
+                "Phase-0 local generator only (issue #280). Cryptographic "
+                "signing and SBOM generation require a signing authority "
                 "this repo does not unilaterally own -- see ADR-010 for the "
-                "explicit scoping decision and follow-up plan."
+                "explicit scoping decision and follow-up plan. Real SHA256 "
+                "digests of built dist/ artifacts, when available, live in "
+                "the separate `artifact_digests` field -- a checksum is not "
+                "a signature."
             ),
         },
         "downstream_events": {
@@ -324,6 +431,72 @@ def write_registry_baseline(baseline_path: str = DEFAULT_REGISTRY_BASELINE_PATH)
 
 
 
+def verify_artifact_digests(manifest: dict, dist_dir: str | None = None) -> tuple[bool, list[str]]:
+    """Check a previously generated manifest's ``artifact_digests`` against real files.
+
+    Scoped, honest sibling of :func:`check_registry_baseline`: this is the
+    "impedir tag se ... divergirem" spirit of issue #280 step 8 for the one
+    thing checkable purely locally -- does the artifact on disk in
+    ``dist_dir`` still hash to what the manifest recorded. It is *not* the
+    PyPI/npm live-registry divergence check described in the issue (that
+    needs real network calls to a registry API and stays out of scope, see
+    ADR-010).
+
+    Returns ``(ok, messages)``. A manifest with no recorded digests (both
+    ``whl``/``sdist`` ``None``) is treated as "nothing to verify" -- ``ok``
+    is ``True`` with an explanatory message, not a silent pass mistaken for
+    a real check.
+    """
+    recorded = manifest.get("artifact_digests") or {}
+    fresh = compute_artifact_digests(dist_dir=dist_dir)
+
+    messages: list[str] = []
+    ok = True
+    checked_any = False
+
+    for key, label in (("whl", ".whl"), ("sdist", ".tar.gz")):
+        recorded_entry = recorded.get(key)
+        fresh_entry = fresh.get(key)
+        if recorded_entry is None and fresh_entry is None:
+            continue
+        checked_any = True
+        if recorded_entry is None:
+            ok = False
+            messages.append(
+                f"[missing-in-manifest] {label} artifact found in "
+                f"{fresh['dist_dir']} ({fresh_entry['filename']}) but the "
+                "manifest has no recorded digest for it"
+            )
+            continue
+        if fresh_entry is None:
+            ok = False
+            messages.append(
+                f"[missing-on-disk] manifest records a {label} digest for "
+                f"{recorded_entry['filename']} but no matching file was "
+                f"found in {fresh['dist_dir']}"
+            )
+            continue
+        if recorded_entry["digest"] != fresh_entry["digest"]:
+            ok = False
+            messages.append(
+                f"[mismatch] {label} artifact {fresh_entry['filename']} "
+                f"digest {fresh_entry['digest']} does not match manifest-"
+                f"recorded digest {recorded_entry['digest']} for "
+                f"{recorded_entry['filename']}"
+            )
+        else:
+            messages.append(f"[ok] {label} artifact digest matches: {fresh_entry['filename']}")
+
+    if not checked_any:
+        messages.append(
+            "[skip] manifest has no recorded artifact digests and no "
+            f"dist/*.whl or dist/*.tar.gz found in {fresh['dist_dir']} -- "
+            "nothing to verify"
+        )
+
+    return ok, messages
+
+
 def run_version_cli(argv: list[str]) -> int:
     """Entry point for ``simplicio-mapper version [--json] [--root <dir>]``."""
     as_json = "--json" in argv
@@ -347,11 +520,14 @@ def run_version_cli(argv: list[str]) -> int:
     return 0
 
 def run_release_manifest_cli(argv: list[str]) -> int:
-    """Entry point for ``simplicio-mapper release-manifest [--json] [--root <dir>]``.
+    """Entry point for ``simplicio-mapper release-manifest [--json] [--root <dir>] [--dist-dir <dir>]``.
 
     Also supports the registry-baseline maintenance flags documented in the
     module docstring: ``--check-registry`` / ``--update-registry-baseline``
-    (issue #280 step 8, schema-version-divergence half only).
+    (issue #280 step 8, schema-version-divergence half only), and
+    ``--verify-digests <manifest.json> [--dist-dir <dir>]`` to check a
+    previously generated manifest's ``artifact_digests`` against real files
+    on disk (issue #280 step 8, artifact-vs-manifest integrity half).
     """
     as_json = "--json" in argv
     root = REPO_ROOT
@@ -361,6 +537,15 @@ def run_release_manifest_cli(argv: list[str]) -> int:
             root = argv[idx + 1]
         except IndexError:
             print("--root requires a directory", file=sys.stderr)
+            return 2
+
+    dist_dir = None
+    if "--dist-dir" in argv:
+        idx = argv.index("--dist-dir")
+        try:
+            dist_dir = argv[idx + 1]
+        except IndexError:
+            print("--dist-dir requires a directory", file=sys.stderr)
             return 2
 
     if "--check-registry" in argv:
@@ -382,8 +567,29 @@ def run_release_manifest_cli(argv: list[str]) -> int:
         print(f"[ok] wrote {len(doc['entries'])} entries to {DEFAULT_REGISTRY_BASELINE_PATH}")
         return 0
 
+    if "--verify-digests" in argv:
+        idx = argv.index("--verify-digests")
+        try:
+            manifest_path = argv[idx + 1]
+        except IndexError:
+            print("--verify-digests requires a manifest file path", file=sys.stderr)
+            return 2
+        try:
+            with open(manifest_path, encoding="utf-8") as handle:
+                manifest = json.load(handle)
+        except OSError as error:
+            print(f"::error::could not read manifest at {manifest_path}: {error}", file=sys.stderr)
+            return 1
+        except json.JSONDecodeError as error:
+            print(f"::error::{manifest_path} is not valid JSON: {error}", file=sys.stderr)
+            return 1
+        ok, messages = verify_artifact_digests(manifest, dist_dir=dist_dir)
+        for message in messages:
+            print(message)
+        return 0 if ok else 1
+
     try:
-        manifest = build_release_manifest(root=root)
+        manifest = build_release_manifest(root=root, dist_dir=dist_dir)
     except ReleaseManifestError as error:
         print(f"::error::{error}", file=sys.stderr)
         return 1
@@ -396,6 +602,14 @@ def run_release_manifest_cli(argv: list[str]) -> int:
         print(f"commit_sha:    {manifest['commit_sha'] or '(unavailable)'} ({manifest['commit_sha_source']})")
         print(f"schema count:  {len(manifest['schema_versions'])}")
         print(f"signing:       {manifest['signing']['status']} -- {manifest['signing']['note']}")
+        digests = manifest["artifact_digests"]
+        if digests.get("whl") or digests.get("sdist"):
+            whl_note = digests["whl"]["digest"] if digests.get("whl") else "(not found)"
+            sdist_note = digests["sdist"]["digest"] if digests.get("sdist") else "(not found)"
+            print(f"artifact whl:  {whl_note}")
+            print(f"artifact sdist:{sdist_note}")
+        else:
+            print(f"artifacts:     {digests.get('note') or '(none found)'}")
     return 0
 
 
