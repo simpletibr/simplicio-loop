@@ -125,7 +125,7 @@ def test_batch_no_cross_candidate_artifact_corruption(tmp_path, capsys):
             plans_dir,
             name=name,
             goal=f"unique goal for {name}",
-            prototype_type="wireframe",  # falls into the default PROTOTYPE.md skeleton
+            prototype_type="wireframe",
         )
 
     code = cli.main(
@@ -151,7 +151,7 @@ def test_batch_no_cross_candidate_artifact_corruption(tmp_path, capsys):
     by_plan = {Path(r["plan"]).stem: r for r in payload["results"]}
     for name in names:
         candidate = Path(by_plan[name]["candidate"])
-        proto_md = candidate / "PROTOTYPE.md"
+        proto_md = candidate / "WIREFRAME.md"
         assert proto_md.is_file()
         content = proto_md.read_text(encoding="utf-8")
         # each candidate's artifact contains ONLY its own goal, never a
