@@ -143,6 +143,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ..release_manifest import run_release_manifest_cli
 
         return run_release_manifest_cli(argv[1:])
+    # `schema-compat` similarly takes flags rather than the usual
+    # `<command> <root>` shape (issue #280, compatible/breaking schema-change
+    # classifier for project-map/precedent-index/context-snapshot/overlays).
+    if argv and argv[0] == "schema-compat":
+        from ..schema_compat import run_schema_compat_cli
+
+        return run_schema_compat_cli(argv[1:])
     opts = _parse_args(argv)
     if opts["background"] and opts["command"] in ("index", "map", "update"):
         return _run_background(opts)
