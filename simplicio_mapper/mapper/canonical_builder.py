@@ -57,10 +57,12 @@ ADR's migration plan.
 from __future__ import annotations
 
 import os
+import random
 import shutil
 import socket
 import subprocess
 import tempfile
+import time
 from typing import Any
 
 import orjson
@@ -78,6 +80,16 @@ from .parse import _JSON_WRITE_OPTIONS, _now_iso
 
 _GIT_TIMEOUT_SECONDS = 30.0
 _MANIFEST_FILE_NAME = "manifest.json"
+
+#: Bounded retry for the throwaway detached checkout below (issue #236/#263
+#: acceptance criterion: "dez ou mais processos solicitando o mesmo mapa
+#: simultaneamente"). Under real concurrent load, `git worktree add` itself
+#: can transiently fail even against unique target paths -- see
+#: `_create_detached_checkout`'s docstring -- so a short, jittered retry is
+#: the correct fix rather than failing the whole build closed on a
+#: known-transient race.
+_DETACHED_CHECKOUT_MAX_ATTEMPTS = 4
+_DETACHED_CHECKOUT_RETRY_BASE_SECONDS = 0.05
 
 #: Logical artifact name -> filename inside the digest directory. Kept in
 #: sync with the artifact set ``write_mapping_artifacts`` would normally
@@ -219,15 +231,44 @@ def _create_detached_checkout(root: str, commit_sha: str) -> tuple[str, str] | N
 
     Returns ``(base_tmp_dir, worktree_path)`` on success -- caller is
     responsible for cleanup via :func:`_remove_detached_checkout`. Returns
-    ``None`` on any failure; nothing is left behind in that case.
+    ``None`` (after :data:`_DETACHED_CHECKOUT_MAX_ATTEMPTS` retries) on
+    persistent failure; nothing is left behind in that case.
+
+    Two concurrency fixes, both found by actually running ten real
+    concurrent build processes against one repository (issue #236/#263
+    acceptance criterion "dez ou mais processos solicitando o mesmo mapa
+    simultaneamente" -- not previously covered by any real multi-process
+    test):
+
+    1. The worktree directory's basename is unique per attempt
+       (``wt-<pid>-<attempt>``, not a fixed ``"wt"``): ``git worktree add``
+       derives its own internal administrative directory name
+       (``<common-git-dir>/worktrees/<name>/``) from the *basename* of the
+       target path, not the full path -- ``base_tmp`` being unique per call
+       is not enough on its own. Every worker using the literal basename
+       ``"wt"`` made git race on allocating that shared administrative
+       directory name.
+    2. Even with a unique basename, ``git worktree add`` can still
+       transiently fail under heavy concurrency against the same
+       repository -- observed failure: ``fatal: failed to read
+       .git/worktrees/<some-other-worker's-name>/commondir: Success`` --
+       i.e. git's own worktree-registration bookkeeping is not fully
+       concurrency-safe even across worktrees with distinct names. This is
+       transient (a moment later, the same repository is healthy again),
+       so a short, jittered, bounded retry is the correct fix rather than
+       letting the whole build fail closed on a race that resolves itself.
     """
-    base_tmp = tempfile.mkdtemp(prefix="simplicio-canonical-")
-    worktree_path = os.path.join(base_tmp, "wt")
-    result = _run_git(["worktree", "add", "--detach", worktree_path, commit_sha], root)
-    if not result or result.returncode != 0:
+    for attempt in range(_DETACHED_CHECKOUT_MAX_ATTEMPTS):
+        base_tmp = tempfile.mkdtemp(prefix="simplicio-canonical-")
+        worktree_path = os.path.join(base_tmp, f"wt-{os.getpid()}-{attempt}")
+        result = _run_git(["worktree", "add", "--detach", worktree_path, commit_sha], root)
+        if result and result.returncode == 0:
+            return base_tmp, worktree_path
         shutil.rmtree(base_tmp, ignore_errors=True)
-        return None
-    return base_tmp, worktree_path
+        if attempt < _DETACHED_CHECKOUT_MAX_ATTEMPTS - 1:
+            backoff = _DETACHED_CHECKOUT_RETRY_BASE_SECONDS * (attempt + 1)
+            time.sleep(backoff + random.random() * _DETACHED_CHECKOUT_RETRY_BASE_SECONDS)
+    return None  # fail-closed after exhausting retries, per module docstring
 
 
 def _remove_detached_checkout(root: str, base_tmp: str, worktree_path: str) -> None:
