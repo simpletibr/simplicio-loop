@@ -173,6 +173,65 @@ class TimeoutTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(_per_file_timeout_s(), 30.0)
 
 
+class QuarantineTest(unittest.IsolatedAsyncioTestCase):
+    """Task quarantine (issue #279 step 13): a genuine parse/read failure
+    that is not a timeout must not crash the entire in-flight pipeline for
+    one bad file -- it is recorded (path + error) and skipped, and every
+    other file's result is preserved, exactly like the existing
+    ``timed_out_files``/``skipped_large_files`` fail-soft diagnostics.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self._tmp.name)
+        for i in range(6):
+            _write(self.dir, f"src/ok_{i}.py", f"def f_{i}():\n    return {i}\n")
+        _write(self.dir, "src/corrupt.py", "def broken():\n    pass\n")
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    async def test_one_file_repeatedly_failing_to_parse_is_quarantined_not_fatal(self) -> None:
+        def flaky_parse(cwd, abs_path, rel, stat, cache, contents=None):
+            if rel == "src/corrupt.py":
+                raise ValueError("simulated corrupt/undecodable file")
+            return {
+                "language": "python",
+                "file_hash": f"hash:{rel}",
+                "imports": [],
+                "exports": [],
+                "text_preview": "",
+            }
+
+        degraded: dict = {}
+        with mock.patch(
+            "simplicio_mapper.mapper.async_pipeline._cached_parse_file",
+            side_effect=flaky_parse,
+        ):
+            files = await build_file_inventory_async(
+                str(self.dir),
+                {"name": "fixture"},
+                {},
+                None,
+                max_concurrent=8,
+                degraded=degraded,
+            )
+
+        paths = {f.path for f in files}
+        # The whole run completed -- it was not aborted by the one bad file.
+        self.assertNotIn("src/corrupt.py", paths)
+        for i in range(6):
+            self.assertIn(f"src/ok_{i}.py", paths)
+
+        # Surfaced as a diagnostic, matching the timed_out_files shape.
+        self.assertIn("quarantined_files", degraded)
+        entries = degraded["quarantined_files"]
+        self.assertEqual(len(entries), 1)
+        self.assertEqual(entries[0]["path"], "src/corrupt.py")
+        self.assertIn("ValueError", entries[0]["error"])
+        self.assertIn("simulated corrupt/undecodable file", entries[0]["error"])
+
+
 class CancellationTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()

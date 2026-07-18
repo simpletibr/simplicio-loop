@@ -132,6 +132,7 @@ async def _process_one_file(
     timeout_s: float,
     abs_path: str,
     timed_out: list[str],
+    quarantined: list[dict[str, str]],
 ) -> ProjectFile | None:
     """Read+parse a single file under the bounded semaphore.
 
@@ -142,6 +143,21 @@ async def _process_one_file(
     (surfaced by the caller as a ``degraded`` entry, matching the existing
     large-file-skip pattern) and dropped from the inventory rather than
     aborting the whole run.
+
+    Task quarantine (issue #279 step 13): a genuine parse/read failure that
+    is *not* a timeout -- e.g. a corrupted file, a mid-read permission
+    error, a decode failure the file-level ``_read_safe`` guard did not
+    anticipate -- previously propagated straight out of this task, through
+    ``asyncio.gather`` in ``build_file_inventory_async``, and crashed the
+    *entire* run (every other file's already-computed result discarded)
+    for a single bad file. That single file is now quarantined instead:
+    recorded in ``quarantined`` with its path and the error, dropped from
+    the inventory, and the run continues for every other file -- the same
+    fail-soft shape the timeout path already had, extended to cover
+    non-timeout exceptions too. ``asyncio.CancelledError`` (a
+    ``BaseException``, not ``Exception``) is deliberately not caught here
+    and continues to propagate so external cancellation (see
+    ``CancellationTest``) is unaffected by this change.
 
     ``contents`` is a single dict shared across every in-flight file task;
     each task only ever writes its own ``rel`` key (paths are unique per
@@ -191,6 +207,9 @@ async def _process_one_file(
             # pipeline waiting for it either way -- fail soft and move on.
             timed_out.append(rel)
             return None
+        except Exception as exc:  # noqa: BLE001 -- deliberately broad: quarantine, never crash the whole run for one bad file (issue #279 step 13)
+            quarantined.append({"path": rel, "error": f"{type(exc).__name__}: {exc}"})
+            return None
     finally:
         semaphore.release()
 
@@ -235,10 +254,20 @@ async def build_file_inventory_async(
     single ``asyncio.Semaphore`` (never unbounded ``asyncio.gather``, never
     a per-file fire-and-forget task); every file's read+parse task acquires
     the semaphore before starting and releases it in a ``finally``.
+
+    ``degraded`` (when provided) receives two independent fail-soft
+    diagnostics, mirroring the existing ``skipped_large_files`` pattern:
+    ``degraded["timed_out_files"]`` (a per-file timeout, see
+    ``_DEFAULT_FILE_TIMEOUT_S``) and ``degraded["quarantined_files"]`` (a
+    list of ``{"path", "error"}`` entries for files whose read/parse raised
+    an exception other than a timeout -- issue #279 step 13's "task
+    quarantine"). Either category drops the affected file from the
+    returned inventory but never aborts the run for the other files.
     """
     semaphore = asyncio.Semaphore(max_concurrent or _max_concurrent_files())
     timeout = timeout_s if timeout_s is not None else _per_file_timeout_s()
     timed_out: list[str] = []
+    quarantined: list[dict[str, str]] = []
 
     abs_paths = await asyncio.to_thread(_collect_text_files, cwd, skipped_large_files)
 
@@ -254,6 +283,7 @@ async def build_file_inventory_async(
                 timeout,
                 abs_path,
                 timed_out,
+                quarantined,
             )
         )
         for abs_path in abs_paths
@@ -284,6 +314,8 @@ async def build_file_inventory_async(
 
     if degraded is not None and timed_out:
         degraded["timed_out_files"] = sorted(timed_out)
+    if degraded is not None and quarantined:
+        degraded["quarantined_files"] = sorted(quarantined, key=lambda entry: entry["path"])
 
     return inventory
 
