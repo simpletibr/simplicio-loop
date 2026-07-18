@@ -105,13 +105,24 @@ _ASYNC_PIPELINE_MIN_FILES_ENV = "SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES"
 _DEFAULT_ASYNC_PIPELINE_MIN_FILES = 600
 
 
-def _async_pipeline_min_files() -> int:
+def _async_pipeline_min_files(cwd: str | None = None, output_dir: str = ".simplicio") -> int:
     """Threshold (inclusive-exclusive: async engages at >= this count).
 
-    Tunable via ``SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES`` for
-    benchmarking/tests; any non-positive or non-integer override is ignored
-    in favor of the measured default rather than silently disabling one of
-    the two pipelines.
+    Resolution order (issue #279 Phase-0: local per-machine calibration,
+    see ``pipeline_calibration.py`` / ADR-010):
+
+    1. ``SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES`` env var override --
+       unchanged, highest priority, exactly as before this issue (any
+       non-positive or non-integer override is ignored in favor of the
+       next tier rather than silently disabling one of the two pipelines).
+    2. A cached, machine-specific calibration file at
+       ``<cwd>/<output_dir>/pipeline-calibration.json`` (written by
+       ``simplicio-mapper benchmark pipeline-threshold``), if *cwd* is
+       given and a valid one exists.
+    3. The hardcoded, Windows-measured default (600) -- exactly today's
+       behavior when neither of the above is present, so a caller that
+       never ran calibration and never set the env var sees byte-for-byte
+       unchanged behavior.
     """
     override = os.environ.get(_ASYNC_PIPELINE_MIN_FILES_ENV)
     if override:
@@ -121,6 +132,12 @@ def _async_pipeline_min_files() -> int:
             value = 0
         if value > 0:
             return value
+    if cwd is not None:
+        from .pipeline_calibration import load_calibrated_threshold
+
+        calibrated = load_calibrated_threshold(cwd, output_dir)
+        if calibrated is not None:
+            return calibrated
     return _DEFAULT_ASYNC_PIPELINE_MIN_FILES
 
 
@@ -296,7 +313,11 @@ def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = Fals
     case for this tool) now default back to the faster synchronous path.
     See `docs/async-pipeline-dispatch-benchmark.md` for the crossover
     measurement and `_DEFAULT_ASYNC_PIPELINE_MIN_FILES` for the chosen
-    default.
+    default. Issue #279 Phase-0 adds an opt-in, per-machine override: if
+    `<output_dir>/pipeline-calibration.json` exists and is valid (written by
+    `simplicio-mapper benchmark pipeline-threshold`, see
+    `pipeline_calibration.py`), its `recommended_threshold` is used instead
+    of the hardcoded default -- absent that file, behavior is unchanged.
 
     Callers that are themselves already inside an event loop (a future
     async CLI, or an embedding host) should ``await build_artifacts_async(...)``
@@ -305,7 +326,7 @@ def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = Fals
     silently nesting event loops.
     """
     abs_cwd = os.path.abspath(cwd or os.getcwd())
-    threshold = _async_pipeline_min_files()
+    threshold = _async_pipeline_min_files(abs_cwd, output_dir)
     if _fast_file_count(abs_cwd, threshold) < threshold:
         return _build_artifacts_sync(abs_cwd, meta, incremental, output_dir)
 

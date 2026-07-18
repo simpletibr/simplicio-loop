@@ -100,6 +100,7 @@ USAGE
   simplicio-mapper canonical status <path> [--json]
   simplicio-mapper canonical verify <path> [--json] [--storage-root <dir>] [--config-fingerprint <value>] [--limit <n>]
   simplicio-mapper canonical gc <path> [--apply] [--json]
+  simplicio-mapper benchmark pipeline-threshold [path] [--sizes N,N,N] [--runs N] [--out <dir>] [--json]
   simplicio-mapper release-manifest [--json] [--root <dir>] [--check-registry] [--update-registry-baseline]
 
 OPTIONS
@@ -152,6 +153,14 @@ OPTIONS
                         the ADR-008 content-addressed storage root. Dry-run
                         by default; pass --apply to actually delete
                         (issue #268).
+  benchmark pipeline-threshold [path]
+                        Measure THIS machine's real sync-vs-async mapping-
+                        pipeline crossover and cache the result at
+                        <out>/pipeline-calibration.json; build_artifacts
+                        prefers it over the hardcoded dispatch-threshold
+                        default when present. Purely opt-in -- absent this
+                        file, dispatch behavior is unchanged (issue #279
+                        Phase-0, ADR-011).
   release-manifest      Phase-0, local, offline generator for the
                         simplicio.component-release/v1 manifest: version,
                         commit SHA, and every schema-version constant this

@@ -204,5 +204,64 @@ class ByteIdenticalAcrossDispatchTest(unittest.TestCase):
         self._assert_dispatch_matches_forced_paths(count=6, threshold=5)
 
 
+class CalibrationOverrideTest(unittest.TestCase):
+    """Integration coverage for issue #279 Phase-0: a cached
+    ``pipeline-calibration.json`` overrides the hardcoded default, an env
+    var override still wins over it, and its total absence leaves today's
+    behavior (the hardcoded 600 default) completely unchanged.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_no_calibration_file_keeps_hardcoded_default(self) -> None:
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES", None)
+            self.assertEqual(_async_pipeline_min_files(str(self.dir)), 600)
+
+    def test_valid_calibration_file_overrides_hardcoded_default(self) -> None:
+        from simplicio_mapper.mapper.pipeline_calibration import write_calibration
+
+        payload = {
+            "schema": "simplicio.pipeline-calibration/v1",
+            "recommended_threshold": 42,
+        }
+        write_calibration(str(self.dir), payload)
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES", None)
+            self.assertEqual(_async_pipeline_min_files(str(self.dir)), 42)
+
+    def test_env_override_still_wins_over_calibration_file(self) -> None:
+        from simplicio_mapper.mapper.pipeline_calibration import write_calibration
+
+        payload = {
+            "schema": "simplicio.pipeline-calibration/v1",
+            "recommended_threshold": 42,
+        }
+        write_calibration(str(self.dir), payload)
+        with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES": "99"}):
+            self.assertEqual(_async_pipeline_min_files(str(self.dir)), 99)
+
+    def test_build_artifacts_honors_calibration_file_for_dispatch(self) -> None:
+        from simplicio_mapper.mapper.pipeline_calibration import write_calibration
+
+        _make_tree(self.dir, 6)
+        payload = {
+            "schema": "simplicio.pipeline-calibration/v1",
+            "recommended_threshold": 5,
+        }
+        write_calibration(str(self.dir), payload)
+        with mock.patch.dict(os.environ, {}, clear=False), \
+                mock.patch.object(emit_module, "_build_artifacts_sync") as spy_sync:
+            os.environ.pop("SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES", None)
+            build_artifacts(str(self.dir))
+        # 6 files >= calibrated threshold (5) -> async path, sync never called.
+        spy_sync.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

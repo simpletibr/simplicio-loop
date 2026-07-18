@@ -30,6 +30,9 @@ Module map:
                         command bodies (depends on _index_engine.py).
   _status_engine.py  - scan/status/inspect/handoff/macro (depends on
                         _index_engine.py and _background.py).
+  _benchmark.py      - ``benchmark pipeline-threshold`` local calibration
+                        for the sync/async mapping-pipeline dispatch
+                        threshold (issue #279 Phase-0, ADR-010).
 """
 
 from __future__ import annotations
@@ -126,6 +129,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ._canonical import run_canonical_cli
 
         return run_canonical_cli(argv[1:])
+    # `benchmark pipeline-threshold [path]` takes a sub-verb + flags, same
+    # shape as `canonical`/`contract`/`doctor` above -- dispatched before
+    # `_parse_args` (issue #279 Phase-0: local per-machine sync/async
+    # dispatch-threshold calibration, ADR-011).
+    if argv and argv[0] == "benchmark":
+        from ._benchmark import run_benchmark_cli
+
+        return run_benchmark_cli(argv[1:])
     # `release-manifest` similarly takes flags rather than the usual
     # `<command> <root>` shape (issue #280, Phase-0 local release manifest).
     if argv and argv[0] == "release-manifest":
