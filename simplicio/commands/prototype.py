@@ -1,4 +1,42 @@
-"""Deterministic Prototype-First adapter for the dev CLI."""
+"""Deterministic Prototype-First adapter for the dev CLI.
+
+Portability status (issue #236 "Windows/Linux/macOS" AC, cross-platform
+follow-up): every filesystem/process primitive this module touches is a
+portable stdlib primitive with identical semantics on POSIX and Windows —
+
+- all paths go through `pathlib.Path`; the one place a path is turned into
+  a plain string key (`_tree`/`_source_tree`, for the content-hash used to
+  detect stale candidates) explicitly calls `.as_posix()` so the hash is
+  the same on Windows and POSIX for the same file set, not separator-
+  dependent;
+- `os.replace` (not `os.rename`) is used for both the receipt/decision
+  writer (`_write_json`) and the promote swap, because `os.replace` is
+  documented to atomically overwrite the destination on *both* platforms
+  (`os.rename` raises on Windows if the destination exists);
+- no `os.fork`, no POSIX-only permission bits, no process signals are used
+  anywhere in this module.
+
+The one spot that is platform-*sensitive* by necessity, not by oversight,
+is `validate`'s `subprocess.run(..., shell=True)`: a validator is a
+free-form shell command string supplied by the plan, so it necessarily
+runs through whatever shell `subprocess` picks per platform (`/bin/sh -c`
+on POSIX, `cmd.exe /c` via `COMSPEC` on Windows) — that shell-syntax
+difference is inherent to accepting arbitrary shell commands and cannot be
+papered over here; a plan author targeting Windows must write a
+Windows-shell-compatible validator command. What *is* fixed here is the
+text decoding of that subprocess's captured output: an explicit
+`encoding="utf-8", errors="replace"` (instead of relying on
+`text=True`'s platform-default locale encoding, which is commonly cp1252
+on Windows) so a validator that prints non-ASCII output decodes the same
+way everywhere instead of raising `UnicodeDecodeError` on some platforms
+and not others.
+
+**Not verified here**: this container is Linux-only, so none of the above
+has been exercised by actually running on Windows or macOS — "made
+portable" is not the same claim as "verified cross-platform"; see
+`tests/python/test_commands_prototype_platform.py` for the
+skip-gated Windows-only branches and what they'd need to actually run.
+"""
 
 from __future__ import annotations
 
@@ -242,12 +280,21 @@ def run(args: Any) -> int:
             _assert_not_stale(args, plan)
             results = []
             for command_line in plan.get("validators", []):
+                # shell=True necessarily runs the platform's own shell
+                # (/bin/sh on POSIX, cmd.exe on Windows) since a validator
+                # is an arbitrary shell command string from the plan — see
+                # the module docstring. encoding/errors are pinned
+                # explicitly (rather than relying on text=True's
+                # platform-default locale encoding) so non-ASCII validator
+                # output decodes the same way on every platform instead of
+                # raising UnicodeDecodeError only on some of them.
                 proc = subprocess.run(
                     command_line,
                     cwd=candidate,
                     shell=True,
                     capture_output=True,
-                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     timeout=args.timeout,
                     check=False,
                 )

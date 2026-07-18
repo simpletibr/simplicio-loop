@@ -27,11 +27,20 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
 from simplicio import cli
+
+# `sys.executable`, not a hardcoded "python3": the validator commands below
+# are shell strings that actually run (see test_validate_runs_real_validator_
+# and_captures_evidence's docstring intent), and "python3" is not guaranteed
+# on every platform (notably plain Windows installs, which expose "python"
+# but not "python3") — see simplicio/commands/prototype.py's module
+# docstring on the shell=True portability boundary this exercises for real.
+PYTHON = f'"{sys.executable}"'
 
 
 def _tree_hash(root: Path) -> str:
@@ -176,7 +185,7 @@ def test_validate_runs_real_validator_and_captures_evidence(tmp_path, capsys):
         tmp_path,
         capsys,
         goal="run a real command",
-        validators=["python3 -c \"print('validator ran for real')\""],
+        validators=[f"{PYTHON} -c \"print('validator ran for real')\""],
     )
     cli.main(["prototype", "scaffold", "--root", str(tmp_path), "--plan", str(plan_path), "--json"])
     capsys.readouterr()
@@ -194,7 +203,7 @@ def test_validate_runs_real_validator_and_captures_evidence(tmp_path, capsys):
 
 def test_validate_captures_a_real_failure_not_a_stub_pass(tmp_path, capsys):
     plan_path = _plan_from_input(
-        tmp_path, capsys, goal="fail on purpose", validators=['python3 -c "import sys; sys.exit(7)"']
+        tmp_path, capsys, goal="fail on purpose", validators=[f'{PYTHON} -c "import sys; sys.exit(7)"']
     )
     cli.main(["prototype", "scaffold", "--root", str(tmp_path), "--plan", str(plan_path)])
     capsys.readouterr()
@@ -208,7 +217,7 @@ def test_validate_captures_a_real_failure_not_a_stub_pass(tmp_path, capsys):
 
 
 def test_promote_refuses_without_any_decision_file(tmp_path, capsys):
-    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=['python3 -c "pass"'])
+    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=[f'{PYTHON} -c "pass"'])
     target = tmp_path / "promoted"
 
     code = cli.main(
@@ -234,7 +243,7 @@ def test_promote_refuses_without_any_decision_file(tmp_path, capsys):
 
 
 def test_promote_refuses_a_forged_decision_file(tmp_path, capsys):
-    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=['python3 -c "pass"'])
+    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=[f'{PYTHON} -c "pass"'])
     target = tmp_path / "promoted"
 
     forged = _artifacts_dir(tmp_path) / "forged-decision.json"
@@ -275,7 +284,7 @@ def test_promote_refuses_a_forged_decision_file(tmp_path, capsys):
 
 
 def test_promote_succeeds_with_a_valid_accept_decision_and_revalidates(tmp_path, capsys):
-    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=['python3 -c "pass"'])
+    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=[f'{PYTHON} -c "pass"'])
     # Promotion target lives OUTSIDE --root deliberately: promoting into the
     # tracked source tree would itself change that tree's hash, which the
     # post-promotion revalidation step below would then (correctly) flag as
@@ -361,7 +370,7 @@ def test_stale_candidate_is_detected_and_rejected_at_validate(tmp_path, capsys):
 
 def test_stale_candidate_is_detected_and_rejected_at_promote(tmp_path, capsys):
     (tmp_path / "src.py").write_text("value = 1\n", encoding="utf-8")
-    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=['python3 -c "pass"'])
+    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=[f'{PYTHON} -c "pass"'])
     receipt = json.loads((candidate / ".prototype-receipt.json").read_text(encoding="utf-8"))
     decision_path = _artifacts_dir(tmp_path) / "decision.json"
     decision_path.write_text(
@@ -406,7 +415,7 @@ def test_stale_candidate_is_detected_and_rejected_at_promote(tmp_path, capsys):
 
 def test_reject_writes_a_reject_decision(tmp_path, capsys):
     plan_path, candidate = _scaffold_and_validate(
-        tmp_path, capsys, validators=['python3 -c "import sys; sys.exit(1)"']
+        tmp_path, capsys, validators=[f'{PYTHON} -c "import sys; sys.exit(1)"']
     )
 
     code = cli.main(
@@ -435,7 +444,7 @@ def test_diff_reports_added_and_removed_files_between_target_and_candidate(tmp_p
     target.mkdir()
     (target / "existing.py").write_text("existing = True\n", encoding="utf-8")
 
-    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=['python3 -c "pass"'])
+    plan_path, candidate = _scaffold_and_validate(tmp_path, capsys, validators=[f'{PYTHON} -c "pass"'])
 
     code = cli.main(
         [
