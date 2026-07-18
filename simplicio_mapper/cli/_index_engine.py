@@ -11,6 +11,13 @@ from dataclasses import dataclass
 
 from ..history import append_changelog, create_snapshot
 from ..mapper import _is_internal_worktree_dir, write_mapping_artifacts
+from ..mapper.canonical_reuse import (
+    attempt_canonical_reuse,
+    is_canonical_reuse_enabled,
+)
+from ..mapper.canonical_reuse import (
+    write_receipt as _write_canonical_reuse_receipt,
+)
 from ..mapper.process_liveness import process_is_alive as _process_is_alive
 from ..mapper.process_liveness import process_start_token as _process_start_token
 from ..retrieval_index import build_retrieval_index, write_retrieval_index
@@ -33,13 +40,37 @@ def _run_once(opts: dict) -> dict:
     if opts["product_name"]:
         meta["product_name"] = opts["product_name"]
     log = (lambda _line: None) if opts["silent"] else print
-    result = write_mapping_artifacts(
-        cwd=root,
-        meta=meta,
-        incremental=opts["incremental"],
-        output_dir=opts["out"],
-        log=log,
-    )
+    canonical_reuse_receipt: dict | None = None
+    result: dict | None = None
+    # Opt-in only (issue #269): default behavior below (write_mapping_artifacts)
+    # is completely unchanged unless a caller explicitly enables reuse via
+    # --canonical-reuse or SIMPLICIO_MAPPER_CANONICAL_REUSE=1.
+    if is_canonical_reuse_enabled(opts):
+        outcome = attempt_canonical_reuse(root, opts["out"], meta)
+        canonical_reuse_receipt = outcome.receipt
+        result = outcome.run_result
+        if result is not None:
+            log(
+                "-> canonical-reuse hit: reused "
+                f"{canonical_reuse_receipt.get('files_reused', 0)} file(s), "
+                f"remapped {canonical_reuse_receipt.get('files_remapped', 0)}"
+            )
+        else:
+            log(
+                "-> canonical-reuse fallback: "
+                f"{canonical_reuse_receipt.get('fallback_reason')} (running full map)"
+            )
+        _write_canonical_reuse_receipt(root, opts["out"], canonical_reuse_receipt)
+    if result is None:
+        result = write_mapping_artifacts(
+            cwd=root,
+            meta=meta,
+            incremental=opts["incremental"],
+            output_dir=opts["out"],
+            log=log,
+        )
+    if canonical_reuse_receipt is not None:
+        result = {**result, "canonical_reuse": canonical_reuse_receipt}
     # Build the retrieval index during the normal scan/index pass so warm
     # task-aware queries never scan candidate bodies. Keep it as a first-class
     # artifact with the same source hashes used by incremental updates.
@@ -478,7 +509,7 @@ def _index_result(
         "symbols": len(symbol_index.get("symbols", []) or []),
         "relationships": len(call_graph.get("edges", []) or []),
     }
-    return {
+    payload = {
         "schema": INDEX_RESULT_SCHEMA,
         "status": status,
         "skipped_reason": skipped_reason,
@@ -487,6 +518,11 @@ def _index_result(
         "changed_files": changed_files,
         "error": error,
     }
+    # Only ever present when the caller opted in to canonical reuse (issue
+    # #269) -- default `index`/`scan` output is unaffected, byte-for-byte.
+    if run_result is not None and "canonical_reuse" in run_result:
+        payload["canonical_reuse"] = run_result["canonical_reuse"]
+    return payload
 
 
 _INDEX_COUNT_TAGS = {

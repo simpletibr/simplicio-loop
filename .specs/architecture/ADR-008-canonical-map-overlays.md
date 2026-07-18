@@ -1,25 +1,38 @@
 # ADR-008: Mapa canônico da branch default com overlays incrementais por worktree
 
-> Fase 0 desta decisão. Cobre apenas schemas versionados e o desenho da
-> arquitetura; nenhuma mudança de comportamento em produção acompanha este ADR.
+> Escrita originalmente como Fase 0 (só schemas, #237). **Atualizado
+> 2026-07-18**: os passos 2-5 do plano de migração (seção "Plano de
+> migração" abaixo) já foram implementados e mergeados nas issues #254,
+> #256, #258, #259, #261 e reconciliados em #272 — confirmado por leitura
+> direta do código nesta revisão, não apenas pelo título dos commits. Esta
+> ADR permanece a fonte de verdade do desenho; as seções abaixo foram
+> atualizadas in-place para não descrever como "futuro" o que já está no
+> `main`. Passos 6-8 (adapter dos comandos existentes, `canonical
+> status/build/verify/gc`, API async) continuam não implementados e são
+> tracked separadamente na issue #263 (fatia executável) com filhas #266
+> (status/build), #267 (verify), #268 (gc), #269 (index/scan integration),
+> #270 (docs/benchmark) — fora do escopo desta atualização.
 
 ---
 
 ## Status
 
-`Proposto`
+`Aceito` — desenho aprovado e parcialmente implementado (model layer completo:
+identidade, storage, builder, overlay, effective view; wiring de CLI/lock
+cross-worktree ainda pendente, tracked em #263 e filhas).
 
 ---
 
 ## Data
 
-`2026-07-17`
+`2026-07-17` (última atualização: `2026-07-18`)
 
 ---
 
 ## Autores
 
 - `claude-agent` (Phase-0, issue #236)
+- `claude-agent` (atualização de status pós-merge dos passos 2-5, issue #236, 2026-07-18)
 
 ---
 
@@ -84,22 +97,45 @@ schemas versionados, sem qualquer wiring no pipeline real.
 
 ### Escopo desta ADR
 
-Dentro do escopo (desenho completo, mesmo que a implementação venha depois):
+Dentro do escopo (desenho completo; itens marcados `[implementado]` já
+existem em código, confirmado nesta revisão por leitura direta dos módulos):
 
 - Schemas `CanonicalMapManifest`, `WorktreeOverlay`, `EffectiveMapView` e a
-  chave de identidade/invalidação.
-- Estratégia de armazenamento content-addressed.
+  chave de identidade/invalidação — `[implementado]`
+  `simplicio_mapper/mapper/canonical.py`.
+- Resolução pura de identidade (repo/branch default/common-dir) —
+  `[implementado]` `simplicio_mapper/mapper/canonical_identity.py` (#254).
+- Estratégia de armazenamento content-addressed (path arithmetic) —
+  `[implementado]` `simplicio_mapper/mapper/canonical_storage.py` (#256).
+- Builder real do `CanonicalMapManifest` contra o commit da branch default
+  (via `git worktree add --detach` temporário), incluindo promoção atômica
+  via `os.replace` — `[implementado]`
+  `simplicio_mapper/mapper/canonical_builder.py` (#261, reconciliado em
+  #272).
+- Cálculo de `WorktreeOverlay` (tree diff + staged/unstaged/untracked) —
+  `[implementado]` `simplicio_mapper/mapper/canonical_overlay.py` (#258).
+- Composição lazy do `EffectiveMapView` — `[implementado]`
+  `simplicio_mapper/mapper/effective_view.py` (#259).
 - Reaproveitamento do lock single-flight existente (`_index_engine.py`),
-  estendido — não substituído — para a chave canônica.
+  estendido — não substituído — para a chave canônica — **ainda não
+  implementado**: nenhuma referência a uma operação `canonical-build` existe
+  em `_index_engine.py` nesta revisão; o lock cross-worktree descrito na
+  seção 4 permanece desenho, não código.
 - Plano de migração passo a passo preservando contrato/CLI atuais via
   adapter.
 
-Fora do escopo desta ADR (fases futuras, tracked no PR como checklist):
+Fora do escopo desta ADR (fases futuras — status confirmado nesta revisão,
+tracked na issue #263 e filhas #266/#267/#268/#269/#270, trabalhadas por
+outros agents em paralelo, fora do escopo desta atualização):
 
 - Qualquer mudança de comportamento runtime dos comandos existentes
-  (`index`, `scan`, `status`).
-- Cálculo de delta real (tree diff + staged/unstaged/untracked).
-- Promoção atômica e GC de snapshots.
+  (`index`, `scan`, `status`) — nenhum comando existente chama
+  `canonical_builder`/`effective_view` ainda (confirmado: nenhum hit em
+  `simplicio_mapper/cli/`).
+- Extensão do lock single-flight para uma operação `canonical-build`
+  (seção 4) — desenhado, não implementado.
+- GC de snapshots (promoção atômica em si já está implementada, ver acima;
+  GC por `generation` continua desenho).
 - Comandos `canonical status/build/verify/gc`.
 - API async para o Loop Hub.
 
@@ -258,19 +294,22 @@ implementação**, não escrever um segundo lock do zero:
   (`index.lock` já é por-worktree e já está correto para essa camada — só o
   manifesto canônico compartilhado precisa do lock cross-worktree novo).
 
-### 5. Promoção atômica e GC (desenho, não implementado nesta fase)
+### 5. Promoção atômica e GC
 
-- Build do manifesto canônico escreve em um diretório temporário
-  (`<...>/<digest>.tmp-<token>/`) e promove com `os.replace` (atômico no
-  mesmo filesystem) para `<...>/<digest>/` só depois que todos os artefatos
-  estiverem completos e fsync'ados — mesmo padrão de escrita-então-rename já
-  usado em `_write_index_state`.
+- **Promoção atômica — `[implementado]`**: `canonical_builder.py` escreve em
+  um diretório temporário (`<...>/<digest>.tmp-<pid>/`, via
+  `canonical_manifest_tmp_dir`) e promove com `os.replace` para
+  `<...>/<digest>/` só depois que todos os artefatos estiverem completos.
+  Concorrência coberta: se outro processo já promoveu o mesmo digest
+  enquanto o build local rodava, o builder prefere a cópia já promovida e
+  descarta a própria (idempotência por conteúdo, não por quem chegou
+  primeiro).
 - `generation` monotônico em `CanonicalMapManifest` permite ao GC futuro
   identificar snapshots superados sem depender de mtime (que pode ser
   não-monotônico em alguns filesystems/clock skew).
   GC remove digests sem manifesto referenciado por nenhum branch-tip
-  recente nem em uso (lock/lease ativo) — desenhado, não implementado nesta
-  fase.
+  recente nem em uso (lock/lease ativo) — **ainda desenhado, não
+  implementado**; tracked na issue #268.
 
 ### 6. Plano de migração (passo a passo, preservando contrato atual)
 
@@ -296,6 +335,25 @@ implementação**, não escrever um segundo lock do zero:
    o adapter materializa `EffectiveMapView` para o formato atual quando um
    comando pede um artefato concreto, preservando 100% de compatibilidade
    de output.
+
+   > **Status (issue #269): parcialmente implementado.** `index`/`scan`
+   > ganharam um caminho opt-in (`--canonical-reuse` /
+   > `SIMPLICIO_MAPPER_CANONICAL_REUSE=1`, ver
+   > `simplicio_mapper/mapper/canonical_reuse.py`) que reaproveita o
+   > `CanonicalMapManifest` quando o overlay do worktree é **trivial**
+   > (`HEAD` == commit canônico, sem staged/unstaged/untracked fora do
+   > próprio `out`) — hit verbatim dos quatro artefatos canônicos +
+   > `architecture-inventory` recomputado localmente (barato, derivado). Lock
+   > single-flight é *advisory* (best-effort, nunca requerido pra
+   > corretude — `build_canonical_manifest` já é idempotente/atômico).
+   > Overlay não-trivial (dirty ou divergente) cai sempre no full map legado
+   > (`fallback_reason="overlay_not_trivial"`), nunca é mesclado — mesclar um
+   > overlay parcial em `symbol-index.json`/`call-graph.json` exigiria
+   > re-derivar relações cross-file de um patch parcial, escopo maior que
+   > esta issue; fica como follow-up (`status`/`ask` deste passo 6 também não
+   > foram tocados, só `index`/`scan`). Benchmark real:
+   > `scripts/canonical_reuse_benchmark.py` /
+   > `docs/evidence/canonical-reuse-benchmark.json`.
 7. Comandos novos `canonical status/build/verify/gc` — camada de
    observabilidade/operação por cima do que já existe, sem substituir os
    comandos atuais.
@@ -306,6 +364,26 @@ Cada passo acima é um PR próprio, sequenciado, cada um preservando o
 comportamento observável dos comandos existentes até que o passo 6
 (adapter) explicitamente troque o caminho de dados por trás do mesmo
 contrato.
+
+**Status confirmado nesta revisão (2026-07-18)**:
+
+- [x] Passo 1 — ADR + `canonical.py` (#237).
+- [x] Passo 2 — identidade pura (#254, `canonical_identity.py`).
+- [x] Passo 3 — builder real do `CanonicalMapManifest` (#256 storage + #261
+      builder, reconciliado em #272).
+- [x] Passo 4 — cálculo de `WorktreeOverlay` via tree diff (#258).
+- [x] Passo 5 — composição lazy do `EffectiveMapView` (#259).
+- [ ] Passo 6 — adapter dos comandos existentes (`index`/`scan`/`status`/
+      `ask`) para consumir `EffectiveMapView` sem trocar contrato de saída —
+      não implementado; tracked em #263/#269.
+- [ ] Passo 7 — comandos `canonical status/build/verify/gc` — não
+      implementado; tracked em #263/#266/#267/#268.
+- [ ] Passo 8 — API sync/async para o Loop Hub — não implementado, depende
+      de 1-7 estarem estáveis com benchmark.
+
+Passos 6-8 são escopo de #263 e das issues filhas, trabalhadas por outros
+agents em worktrees separados (`wt-mapper-266`..`wt-mapper-270`) em
+paralelo a esta atualização — não duplicados aqui.
 
 ---
 
@@ -377,29 +455,40 @@ contrato.
 
 ## Critério de revisão
 
-- Revisar quando o passo 3 do plano de migração (builder do
-  `CanonicalMapManifest` contra o commit da branch default) estiver
-  implementado e um benchmark real (`scripts/runtime_scale_benchmark.py` ou
-  equivalente novo) mostrar o ganho de CPU/RSS/I/O pedido pelos critérios de
-  aceite da issue #236 — se o ganho for marginal, reavaliar se o
-  content-addressing por `config_fingerprint` está fragmentando demais o
-  cache.
+- O passo 3 do plano de migração (builder do `CanonicalMapManifest` contra
+  o commit da branch default) já está implementado (#261/#272), mas o
+  benchmark real de ganho de CPU/RSS/I/O (`scripts/runtime_scale_benchmark.py`
+  ou equivalente novo) pedido pelos critérios de aceite da issue #236 ainda
+  não foi executado contra o builder canônico — tracked em #270. Rodar esse
+  benchmark antes de declarar o ganho de performance comprovado; se o ganho
+  for marginal, reavaliar se o content-addressing por `config_fingerprint`
+  está fragmentando demais o cache.
 - Revisar incondicionalmente após os passos 4-6 (overlay + composição +
   adapter) estarem em produção por um ciclo de release, antes de prosseguir
-  para os comandos `canonical status/build/verify/gc` (passo 7).
+  para os comandos `canonical status/build/verify/gc` (passo 7). Passos 4-5
+  (overlay, composição) já estão mergeados; passo 6 (adapter) segue
+  pendente em #263/#269 — a condição desta revisão ainda não foi
+  totalmente satisfeita.
 
 ---
 
 ## Links
 
 - Issue: [#236](https://github.com/wesleysimplicio/simplicio-mapper/issues/236)
-- PR de implementação (Fase 0 — este ADR + schemas): a preencher após `gh pr create`
+  (epic) — fatia executável tracked em #263, filhas #266/#267/#268/#269/#270.
+- PRs de implementação: #237 (Fase 0 — ADR + schemas), #254 (identidade),
+  #256 (storage paths), #258 (overlay delta), #259 (effective view),
+  #261 (builder real), #272 (fix: reconcilia formato do file-manifest entre
+  builder e effective view).
 - Documentos relacionados: [DESIGN](./DESIGN.md), [PATTERNS](./PATTERNS.md)
 - ADRs relacionados: [ADR-002](./ADR-002-python-rust-hybrid.md) (pipeline
   Python/Rust que o builder canônico reaproveita),
   [ADR-003](./ADR-003-two-tier-async-mapper.md) (two-tier async mapper —
   precedente para composição lazy de camadas)
-- Código relevante nesta análise: `simplicio_mapper/cli/_index_engine.py`
-  (lock single-flight reaproveitado), `simplicio_mapper/cache.py`
-  (`FileProcessingCache`, cache por-arquivo hoje não compartilhado entre
-  worktrees)
+- Código relevante nesta análise: `simplicio_mapper/mapper/canonical.py`,
+  `canonical_identity.py`, `canonical_storage.py`, `canonical_builder.py`,
+  `canonical_overlay.py`, `effective_view.py` (model layer completo, ver
+  seção "Escopo desta ADR"); `simplicio_mapper/cli/_index_engine.py` (lock
+  single-flight ainda não estendido para operação `canonical-build`);
+  `simplicio_mapper/cache.py` (`FileProcessingCache`, cache por-arquivo hoje
+  não compartilhado entre worktrees).

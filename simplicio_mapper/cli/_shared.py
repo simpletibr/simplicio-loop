@@ -98,6 +98,7 @@ USAGE
   simplicio-mapper doctor --contracts [--cross-repo] [<path> ...]
   simplicio-mapper canonical build <path> [--json]
   simplicio-mapper canonical status <path> [--json]
+  simplicio-mapper canonical verify <path> [--json] [--storage-root <dir>] [--config-fingerprint <value>] [--limit <n>]
   simplicio-mapper canonical gc <path> [--apply] [--json]
 
 OPTIONS
@@ -131,7 +132,6 @@ OPTIONS
   doctor --contracts    Validate contracts/mapper-artifacts/v1/ and
                         contracts/ecosystem/v1/ fixtures against their
                         schemas; exit 0 when all valid (issue #164).
-  canonical build <path>
                         Build (or reuse, content-addressed) the canonical
                         default-branch manifest via the existing builder
                         (issue #266). Isolated from index/scan -- does not
@@ -141,11 +141,21 @@ OPTIONS
                         the current default-branch commit, build-in-progress
                         state, and worktree-overlay counts. Never builds or
                         writes anything (issue #266).
+  canonical verify <path>
+                        Independent parity proof between the composed
+                        EffectiveMapView (canonical manifest + worktree
+                        overlay) and a full remap of the same worktree;
+                        exit 0 on match, 1 on mismatch/failure (issue #267).
   canonical gc <path>   Conservative, crash-safe GC of interrupted
                         promotions and stale canonical-map snapshots under
                         the ADR-008 content-addressed storage root. Dry-run
                         by default; pass --apply to actually delete
                         (issue #268).
+  --config-fingerprint <value>
+                        canonical verify: override the mapping-config
+                        fingerprint segment of the canonical key (default is
+                        a stable placeholder -- no config knobs are exposed
+                        at this surface yet).
   --range <spec>        sync: git diff range (e.g. main..HEAD) instead of the working tree.
   --staged              sync: diff staged changes instead of the working tree.
   --check               sync: report staleness without writing (exit 1 if stale).
@@ -192,6 +202,13 @@ OPTIONS
                          citizenIdentity addressing per artifact path
                          (Algorithms of Asolaria addressing geometry).
   --update              Compatibility alias for index refresh workflows.
+  --canonical-reuse      index/scan: opt in to reusing a validated canonical
+                         default-branch manifest (issue #269, ADR-008) when
+                         this worktree's HEAD matches it and is clean. Falls
+                         back to the full legacy map on any miss/mismatch
+                         (never serves stale data). Default off; also
+                         settable via SIMPLICIO_MAPPER_CANONICAL_REUSE=1.
+  --no-canonical-reuse   Explicitly disable canonical reuse (default).
   --verbose             Show progress during index refreshes.
   --root <dir>          Project root to map. Defaults to cwd.
   --stack <name>        Stack hint when .starter-meta.json is absent.

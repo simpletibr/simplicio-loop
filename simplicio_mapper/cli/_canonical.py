@@ -1,8 +1,8 @@
-"""``simplicio-mapper canonical build|status|gc`` -- canonical-map CLI surface.
+"""``simplicio-mapper canonical build|status|verify|gc`` -- canonical-map CLI surface.
 
 Parent: #263; epic: #236; ADR-008 (``.specs/architecture/ADR-008-canonical-map-overlays.md``).
 
-Three verbs over the already-merged canonical-map machinery
+Four verbs over the already-merged canonical-map machinery
 (``simplicio_mapper.mapper.canonical*`` / ``effective_view.py``):
 
 * ``canonical build <path> --json`` (issue #266, migration-plan step 7) --
@@ -21,6 +21,11 @@ Three verbs over the already-merged canonical-map machinery
   (a ``<digest>.tmp-*`` staging directory is present), and worktree-overlay
   counts (files reused/remapped) when the worktree's key matches an existing
   canonical manifest.
+* ``canonical verify <path> --json`` (issue #267) -- independent parity
+  proof between the composed ``EffectiveMapView`` (canonical manifest +
+  worktree overlay) and a bounded full remap, via
+  :func:`simplicio_mapper.mapper.canonical_verify.verify_canonical_parity`.
+  Exit 0 on match, 1 on mismatch/failure. Read-only, like ``status``.
 * ``canonical gc <path> [--apply] [--json]`` (issue #268, ADR-008 section 5)
   -- conservative, crash-safe garbage collection of interrupted-promotion
   temp dirs and stale canonical manifests under the same content-addressed
@@ -40,13 +45,15 @@ currently on the default branch. ``gc`` reports its own
 ``simplicio.canonical-gc/v1`` receipt (see ``canonical_gc.py``) rather than
 this module's ``build``/``status`` error-receipt shape, since its
 candidates/removed/preserved/recovered structure doesn't fit the
-single-manifest ``build``/``status`` payload.
+single-manifest ``build``/``status`` payload. ``verify`` similarly reports
+its own ``verify_canonical_parity`` receipt shape (result/counts/mismatches),
+not the ``build``/``status`` error-receipt shape.
 
-Privacy (issue #266 acceptance criteria, honored by ``gc`` too): no output
-field here ever carries an absolute filesystem path or a raw remote URL.
-``CanonicalMapKey.repo_identity`` is already a one-way hash of the
-normalized origin URL (or, lacking a remote, of the absolute common git dir)
-computed by ``canonical_identity.resolve_repo_identity`` -- this module
+Privacy (issue #266 acceptance criteria, honored by ``gc``/``verify`` too):
+no output field here ever carries an absolute filesystem path or a raw
+remote URL. ``CanonicalMapKey.repo_identity`` is already a one-way hash of
+the normalized origin URL (or, lacking a remote, of the absolute common git
+dir) computed by ``canonical_identity.resolve_repo_identity`` -- this module
 never re-resolves or echoes the raw remote URL, and never emits
 ``WorktreeOverlay.worktree_path`` (an absolute path by construction) or any
 internally-resolved cache-root path. ``canonical_gc.scan_canonical_gc``
@@ -56,11 +63,11 @@ This is a **net-new, isolated CLI surface**: it does not read, write, or
 otherwise touch ``.simplicio/`` (the per-worktree index/scan artifacts) and
 is not called by ``index``/``scan``'s existing code paths. Wiring the
 canonical map into those commands is migration-plan step 6 and explicitly
-out of scope here (see issue #266's "Não objetivos"). Both issue #266
-(``build``/``status``) and issue #268 (``gc``) landed as independent PRs
-against the same ``canonical`` subcommand skeleton; this file is the
-reconciled result -- see the git history of this module for how the two
-were merged.
+out of scope here (see issue #266's "Não objetivos"). Issue #266
+(``build``/``status``), issue #268 (``gc``), and issue #267 (``verify``)
+landed as independent PRs against the same ``canonical`` subcommand
+skeleton; this file is the reconciled result -- see the git history of this
+module for how they were merged.
 """
 
 from __future__ import annotations
@@ -90,6 +97,7 @@ from ..mapper.canonical_storage import (
     canonical_manifest_dir,
     resolve_canonical_cache_root,
 )
+from ..mapper.canonical_verify import DEFAULT_FILE_LIMIT, verify_canonical_parity
 from ..mapper.effective_view import compose_effective_view
 from ._shared import (
     CANONICAL_BUILD_SCHEMA,
@@ -103,7 +111,10 @@ _GIT_TIMEOUT_SECONDS = 5.0
 _USAGE = (
     "usage: simplicio-mapper canonical build <path> [--json]\n"
     "       simplicio-mapper canonical status <path> [--json]\n"
-    "       simplicio-mapper canonical gc <path> [--apply] [--json]"
+    "       simplicio-mapper canonical verify <path> [--json] [--storage-root <dir>]\n"
+    "                                     [--config-fingerprint <value>] [--limit <n>]\n"
+    "       simplicio-mapper canonical gc <path> [--apply] [--json] [--storage-root <dir>]\n"
+    "                                     [--ttl-seconds N] [--grace-seconds N]"
 )
 
 # This isolated CLI surface takes no mapping-config overrides (filters,
@@ -416,6 +427,90 @@ def _print_human(payload: dict) -> None:
     print(payload)
 
 
+def _print_verify_human_receipt(receipt: dict) -> None:
+    print(
+        f"canonical verify: {receipt['result']} "
+        f"(method={receipt['comparison_method']})"
+    )
+    counts = receipt.get("counts") or {}
+    if counts:
+        print(
+            "  canonical_files={canonical_files} effective_files={effective_files} "
+            "remap_files={remap_files} matched={matched} mismatches={mismatches}".format(
+                canonical_files=counts.get("canonical_files", 0),
+                effective_files=counts.get("effective_files", 0),
+                remap_files=counts.get("remap_files", 0),
+                matched=counts.get("matched", 0),
+                mismatches=counts.get("mismatches", 0),
+            )
+        )
+    print(f"  duration_seconds={receipt.get('duration_seconds')}")
+    if receipt.get("digest"):
+        print(f"  digest={receipt['digest'][:24]}...")
+    if receipt.get("failure_reason"):
+        print(f"  failure_reason={receipt['failure_reason']}")
+    for item in (receipt.get("mismatches") or [])[:20]:
+        print(f"    - {item['reason']}: {item['path']}")
+
+
+def _run_verify(argv: Sequence[str]) -> int:
+    root = "."
+    storage_root: str | None = None
+    config_fingerprint = "default"
+    file_limit = DEFAULT_FILE_LIMIT
+    as_json = False
+
+    positionals: list[str] = []
+    i = 0
+    items = list(argv)
+    while i < len(items):
+        arg = items[i]
+        if arg in ("-h", "--help"):
+            print(
+                "usage: simplicio-mapper canonical verify <root> [--json] "
+                "[--storage-root <dir>] [--config-fingerprint <value>] [--limit <n>]"
+            )
+            return 0
+        elif arg == "--json":
+            as_json = True
+        elif arg == "--storage-root":
+            i += 1
+            storage_root = items[i]
+        elif arg == "--config-fingerprint":
+            i += 1
+            config_fingerprint = items[i]
+        elif arg == "--limit":
+            i += 1
+            try:
+                file_limit = int(items[i])
+            except (ValueError, IndexError):
+                print("--limit requires an integer", file=sys.stderr)
+                return 2
+        elif arg.startswith("-"):
+            print(f"unknown canonical verify option: {arg}", file=sys.stderr)
+            return 2
+        else:
+            positionals.append(arg)
+        i += 1
+
+    if positionals:
+        root = positionals[0]
+
+    receipt = verify_canonical_parity(
+        root,
+        storage_root=storage_root,
+        config_fingerprint=config_fingerprint,
+        file_limit=file_limit,
+    )
+
+    if as_json:
+        print(json.dumps(receipt, ensure_ascii=False, sort_keys=True))
+    else:
+        _print_verify_human_receipt(receipt)
+
+    return 0 if receipt["result"] == "match" else 1
+
+
 def _run_gc(opts: dict) -> int:
     """``canonical gc`` (issue #268) -- see ``canonical_gc.scan_canonical_gc``.
 
@@ -424,7 +519,13 @@ def _run_gc(opts: dict) -> int:
     not fit the single-manifest ``status``/``error`` payload those two
     verbs share), and prints its own human-readable summary.
     """
-    report = scan_canonical_gc(opts["root"], apply=opts["apply"])
+    report = scan_canonical_gc(
+        opts["root"],
+        apply=opts["apply"],
+        storage_root=opts.get("storage_root") or None,
+        ttl_seconds=opts.get("ttl_seconds"),
+        promoted_grace_seconds=opts.get("grace_seconds"),
+    )
     payload = report.to_dict()
     if opts.get("json"):
         print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
@@ -447,20 +548,26 @@ def _run_gc(opts: dict) -> int:
 
 
 def run_canonical_cli(argv: Sequence[str]) -> int:
-    """Entry point for ``simplicio-mapper canonical <build|status|gc> <path> ...``."""
+    """Entry point for ``simplicio-mapper canonical <build|status|verify|gc> <path> ...``."""
     if not argv or argv[0] in ("-h", "--help"):
         print(_USAGE)
         return 0
     sub = argv[0]
     rest = argv[1:]
-    if sub not in ("build", "status", "gc"):
+    if sub not in ("build", "status", "verify", "gc"):
         print(f"unknown canonical subcommand: {sub}", file=sys.stderr)
         print(_USAGE, file=sys.stderr)
         return 2
 
+    if sub == "verify":
+        return _run_verify(rest)
+
     root = os.getcwd()
     json_mode = False
     apply_mode = False
+    storage_root: str = ""
+    ttl_seconds: float | None = None
+    grace_seconds: float | None = None
     positional: list[str] = []
     i = 0
     while i < len(rest):
@@ -479,6 +586,27 @@ def run_canonical_cli(argv: Sequence[str]) -> int:
                 return 2
         elif arg == "--apply" and sub == "gc":
             apply_mode = True
+        elif arg == "--storage-root" and sub == "gc":
+            i += 1
+            try:
+                storage_root = rest[i]
+            except IndexError:
+                print("--storage-root requires a value", file=sys.stderr)
+                return 2
+        elif arg == "--ttl-seconds" and sub == "gc":
+            i += 1
+            try:
+                ttl_seconds = float(rest[i])
+            except (IndexError, ValueError):
+                print("--ttl-seconds requires a number", file=sys.stderr)
+                return 2
+        elif arg == "--grace-seconds" and sub == "gc":
+            i += 1
+            try:
+                grace_seconds = float(rest[i])
+            except (IndexError, ValueError):
+                print("--grace-seconds requires a number", file=sys.stderr)
+                return 2
         elif arg.startswith("-"):
             print(f"unknown canonical {sub} option: {arg}", file=sys.stderr)
             print(_USAGE, file=sys.stderr)
@@ -489,7 +617,14 @@ def run_canonical_cli(argv: Sequence[str]) -> int:
     if positional:
         root = positional[0]
 
-    opts = {"root": root, "json": json_mode, "apply": apply_mode}
+    opts = {
+        "root": root,
+        "json": json_mode,
+        "apply": apply_mode,
+        "storage_root": storage_root,
+        "ttl_seconds": ttl_seconds,
+        "grace_seconds": grace_seconds,
+    }
 
     if sub == "gc":
         return _run_gc(opts)

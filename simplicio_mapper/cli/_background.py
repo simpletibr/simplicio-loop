@@ -51,6 +51,8 @@ def _spawn_index_process(opts: dict) -> tuple[dict, subprocess.Popen]:
         args.append("--update")
     if opts["verbose"]:
         args.append("--verbose")
+    if opts.get("canonical_reuse"):
+        args.append("--canonical-reuse")
     env = os.environ.copy()
     source_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     python_path = env.get("PYTHONPATH", "")
