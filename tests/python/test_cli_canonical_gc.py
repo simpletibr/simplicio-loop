@@ -126,18 +126,21 @@ class CanonicalGCCliTest(unittest.TestCase):
         self.assertIn("--apply", text)
 
     def test_missing_subcommand_prints_usage_and_exits_nonzero(self) -> None:
-        err = StringIO()
-        with redirect_stderr(err):
+        # Once #266/#267 merged in alongside this issue's `gc`, a bare
+        # `canonical` (no sub-command) prints the unified usage/help text to
+        # stdout and exits 0 -- same convention as `canonical --help`.
+        out = StringIO()
+        with redirect_stdout(out):
             code = main(["canonical"])
-        self.assertEqual(code, 2)
-        self.assertIn("usage", err.getvalue())
+        self.assertEqual(code, 0)
+        self.assertIn("usage", out.getvalue())
 
     def test_unknown_subcommand_is_rejected(self) -> None:
         err = StringIO()
         with redirect_stderr(err):
             code = main(["canonical", "bogus", str(self.repo)])
         self.assertEqual(code, 2)
-        self.assertIn("unknown canonical subcommand", err.getvalue())
+        self.assertIn("unknown canonical sub-command", err.getvalue())
 
     def test_unknown_option_is_rejected(self) -> None:
         err = StringIO()

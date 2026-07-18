@@ -352,9 +352,11 @@ class CanonicalCliHelpTests(unittest.TestCase):
         self.assertIn("canonical status", out.getvalue())
 
     def test_unknown_canonical_subcommand_is_rejected(self) -> None:
+        # `gc` became a real sub-command once issue #268 merged in alongside
+        # this issue's `build`/`status` -- use a genuinely unknown verb here.
         err = StringIO()
         with redirect_stderr(err):
-            code = main(["canonical", "gc", "/tmp"])
+            code = main(["canonical", "bogus", "/tmp"])
         self.assertEqual(code, 2)
         self.assertIn("unknown canonical sub-command", err.getvalue())
 

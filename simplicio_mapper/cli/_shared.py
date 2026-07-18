@@ -87,6 +87,8 @@ USAGE
   simplicio-mapper doctor --contracts [--cross-repo] [<path> ...]
   simplicio-mapper canonical build <path> [--json] [--config-fingerprint <value>]
   simplicio-mapper canonical status <path> [--json] [--config-fingerprint <value>]
+  simplicio-mapper canonical verify <path> [--json] [--storage-root <dir>] [--config-fingerprint <value>] [--limit <n>]
+  simplicio-mapper canonical gc [<path>] [--json] [--apply] [--storage-root <dir>] [--ttl-seconds N] [--grace-seconds N]
 
 OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
@@ -132,11 +134,21 @@ OPTIONS
                         simplicio.canonical-status/v1). Never builds,
                         never writes, never includes an absolute path, a
                         remote URL or file content (issue #266).
+  canonical verify <path>
+                        Independent parity proof between the composed
+                        EffectiveMapView (canonical manifest + worktree
+                        overlay) and a full remap of the same worktree;
+                        exit 0 on match, 1 on mismatch/failure (issue #267).
+  canonical gc [<path>]
+                        Crash-safe, conservative removal of temporary/
+                        expired/unreferenced canonical-map snapshots.
+                        Dry-run by default; pass --apply to mutate
+                        (issue #268).
   --config-fingerprint <value>
-                        canonical build/status: override the mapping-config
-                        fingerprint segment of the canonical key (default is
-                        a stable placeholder -- no config knobs are exposed
-                        at this surface yet).
+                        canonical build/status/verify: override the
+                        mapping-config fingerprint segment of the canonical
+                        key (default is a stable placeholder -- no config
+                        knobs are exposed at this surface yet).
   --range <spec>        sync: git diff range (e.g. main..HEAD) instead of the working tree.
   --staged              sync: diff staged changes instead of the working tree.
   --check               sync: report staleness without writing (exit 1 if stale).

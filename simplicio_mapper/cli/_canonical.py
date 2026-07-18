@@ -1,4 +1,4 @@
-"""``simplicio-mapper canonical build|status|gc`` -- issues #266/#268 (ADR-008 step 6, partial).
+"""``simplicio-mapper canonical build|status|verify|gc`` -- issues #266/#267/#268 (ADR-008 step 6, partial).
 
 Exposes a public, read-safe surface over the canonical-map model built in
 issue #236 (``simplicio_mapper.mapper.canonical*`` / ``effective_view.py``):
@@ -27,6 +27,10 @@ Sub-commands:
   issue's privacy requirement, the receipt **never** includes an absolute
   path, a raw remote URL, or file content -- see :func:`_redacted_key_summary`
   and :func:`_status_receipt` below for exactly which fields are omitted.
+* ``canonical verify <root> [--json] [--storage-root DIR]
+  [--config-fingerprint VALUE] [--limit N]`` -- independent parity proof
+  (issue #267) between the composed ``EffectiveMapView`` and a bounded full
+  remap, talking to ``simplicio_mapper.mapper.canonical_verify`` directly.
 * ``canonical gc [<root>] [--json] [--apply] [--storage-root DIR]
   [--ttl-seconds N] [--grace-seconds N]`` -- crash-safe, conservative removal
   of temporary/expired/unreferenced canonical-map snapshots (issue #268).
@@ -60,6 +64,7 @@ from ..mapper.canonical_identity import (
     resolve_common_git_dir,
     resolve_repo_identity_bundle,
 )
+from ..mapper.canonical_verify import DEFAULT_FILE_LIMIT, verify_canonical_parity
 from ..mapper.canonical_overlay import compute_worktree_overlay
 from ..mapper.canonical_storage import canonical_manifest_dir, resolve_canonical_cache_root
 from ..mapper.effective_view import compose_effective_view
@@ -357,6 +362,8 @@ def _run_gc(opts: dict) -> int:
 
 _HELP = """usage: simplicio-mapper canonical build <path> [--json] [--config-fingerprint <value>]
        simplicio-mapper canonical status <path> [--json] [--config-fingerprint <value>]
+       simplicio-mapper canonical verify <path> [--json] [--storage-root DIR]
+                                     [--config-fingerprint <value>] [--limit <n>]
        simplicio-mapper canonical gc [<path>] [--json] [--apply] [--storage-root DIR]
                                      [--ttl-seconds N] [--grace-seconds N]
 
@@ -367,6 +374,8 @@ canonical status  Read-only. Reports digest/redacted key, freshness,
                   cache/single-flight diagnostics and overlay counts. Never
                   builds or writes anything. Never includes an absolute
                   path, a remote URL, or file content.
+canonical verify  Independent parity proof between the composed effective
+                  view (manifest+overlay) and a bounded full remap.
 canonical gc      Crash-safe, conservative removal of temporary/expired/
                   unreferenced canonical-map snapshots. Dry-run by default;
                   pass --apply to actually remove entries.
@@ -450,8 +459,92 @@ def _parse_gc_opts(rest: list[str]) -> tuple[dict, int | None]:
     return opts, None
 
 
+def _print_verify_human_receipt(receipt: dict) -> None:
+    print(
+        f"canonical verify: {receipt['result']} "
+        f"(method={receipt['comparison_method']})"
+    )
+    counts = receipt.get("counts") or {}
+    if counts:
+        print(
+            "  canonical_files={canonical_files} effective_files={effective_files} "
+            "remap_files={remap_files} matched={matched} mismatches={mismatches}".format(
+                canonical_files=counts.get("canonical_files", 0),
+                effective_files=counts.get("effective_files", 0),
+                remap_files=counts.get("remap_files", 0),
+                matched=counts.get("matched", 0),
+                mismatches=counts.get("mismatches", 0),
+            )
+        )
+    print(f"  duration_seconds={receipt.get('duration_seconds')}")
+    if receipt.get("digest"):
+        print(f"  digest={receipt['digest'][:24]}...")
+    if receipt.get("failure_reason"):
+        print(f"  failure_reason={receipt['failure_reason']}")
+    for item in (receipt.get("mismatches") or [])[:20]:
+        print(f"    - {item['reason']}: {item['path']}")
+
+
+def _run_verify(argv: Sequence[str]) -> int:
+    root = "."
+    storage_root: str | None = None
+    config_fingerprint = "default"
+    file_limit = DEFAULT_FILE_LIMIT
+    as_json = False
+
+    positionals: list[str] = []
+    i = 0
+    items = list(argv)
+    while i < len(items):
+        arg = items[i]
+        if arg in ("-h", "--help"):
+            print(
+                "usage: simplicio-mapper canonical verify <root> [--json] "
+                "[--storage-root <dir>] [--config-fingerprint <value>] [--limit <n>]"
+            )
+            return 0
+        elif arg == "--json":
+            as_json = True
+        elif arg == "--storage-root":
+            i += 1
+            storage_root = items[i]
+        elif arg == "--config-fingerprint":
+            i += 1
+            config_fingerprint = items[i]
+        elif arg == "--limit":
+            i += 1
+            try:
+                file_limit = int(items[i])
+            except (ValueError, IndexError):
+                print("--limit requires an integer", file=sys.stderr)
+                return 2
+        elif arg.startswith("-"):
+            print(f"unknown canonical verify option: {arg}", file=sys.stderr)
+            return 2
+        else:
+            positionals.append(arg)
+        i += 1
+
+    if positionals:
+        root = positionals[0]
+
+    receipt = verify_canonical_parity(
+        root,
+        storage_root=storage_root,
+        config_fingerprint=config_fingerprint,
+        file_limit=file_limit,
+    )
+
+    if as_json:
+        print(json.dumps(receipt, ensure_ascii=False, sort_keys=True))
+    else:
+        _print_verify_human_receipt(receipt)
+
+    return 0 if receipt["result"] == "match" else 1
+
+
 def run_canonical_cli(argv: Sequence[str]) -> int:
-    """Entry point for ``simplicio-mapper canonical <build|status|gc> ...``."""
+    """Entry point for ``simplicio-mapper canonical <build|status|verify|gc> ...``."""
     if not argv or argv[0] in ("-h", "--help"):
         print(_HELP)
         return 0
@@ -475,6 +568,9 @@ def run_canonical_cli(argv: Sequence[str]) -> int:
             else:
                 _print_status_summary(receipt)
         return 0 if receipt["status"] == "ok" else 1
+
+    if sub == "verify":
+        return _run_verify(rest)
 
     if sub == "gc":
         opts, early_exit = _parse_gc_opts(rest)
