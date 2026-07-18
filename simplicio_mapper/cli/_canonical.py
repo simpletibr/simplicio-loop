@@ -72,6 +72,7 @@ module for how they were merged.
 
 from __future__ import annotations
 
+import dataclasses
 import glob
 import hashlib
 import json
@@ -87,7 +88,7 @@ from ..mapper.canonical_builder import (
     _mapper_version,
     build_canonical_manifest,
 )
-from ..mapper.canonical_gc import scan_canonical_gc
+from ..mapper.canonical_gc import _relativize, scan_canonical_gc
 from ..mapper.canonical_identity import (
     is_git_repository,
     resolve_repo_identity_bundle,
@@ -97,7 +98,11 @@ from ..mapper.canonical_storage import (
     canonical_manifest_dir,
     resolve_canonical_cache_root,
 )
-from ..mapper.canonical_verify import DEFAULT_FILE_LIMIT, verify_canonical_parity
+from ..mapper.canonical_verify import (
+    DEFAULT_FILE_LIMIT,
+    _is_out_of_scope,
+    verify_canonical_parity,
+)
 from ..mapper.effective_view import compose_effective_view
 from ._shared import (
     CANONICAL_BUILD_SCHEMA,
@@ -202,6 +207,36 @@ def _git_diagnostics(root: str) -> dict:
     }
 
 
+def _scoped_overlay(overlay):
+    """Drop the mapper's own out-of-scope paths (``SKIP_DIRS``, e.g. ``.simplicio/``) from ``overlay``.
+
+    ``compute_worktree_overlay`` reports every git-visible change verbatim,
+    including a stray ``.simplicio/cache/cache.db`` or ``.simplicio/index.lock``
+    left untracked by a *previous* mapper invocation (``canonical
+    verify``/``index``/``scan`` all write into the mapper's own output dir).
+    ``canonical_verify._is_out_of_scope`` already excludes exactly this class
+    of path from the ``verify`` comparison so a clean worktree never
+    "diverges" over its own cache residue; ``canonical status`` must apply
+    the same exclusion to its overlay summary, or a prior ``verify``/``index``
+    run makes ``status`` misreport ``dirty=True``/nonzero
+    ``files_remapped`` for a worktree the user never touched.
+    """
+    changed = tuple(
+        change
+        for change in overlay.changed_files
+        if not _is_out_of_scope(change.path)
+        and not (change.previous_path and _is_out_of_scope(change.previous_path))
+    )
+    tombstones = tuple(path for path in overlay.tombstones if not _is_out_of_scope(path))
+    dirty = bool(changed) or bool(tombstones)
+    return dataclasses.replace(
+        overlay,
+        changed_files=changed,
+        tombstones=tombstones,
+        dirty=dirty,
+    )
+
+
 def _resolve_key_and_paths(root: str):
     """Resolve identity + build the CanonicalMapKey + cache-root paths.
 
@@ -267,7 +302,12 @@ def _run_build(opts: dict) -> dict:
             "reused_existing": reused_existing,
             "key": _redacted_key(key),
             "manifest": {
-                "storage_root": manifest.storage_root,
+                # Relative to the cache root (never the absolute path
+                # ``manifest.storage_root`` carries in-memory) -- matches
+                # the privacy invariant every other canonical receipt in
+                # this module already honors (see module docstring) and
+                # ``canonical_gc.scan_canonical_gc``'s own relativization.
+                "storage_root": _relativize(manifest.storage_root, cache_root),
                 "artifact_paths": manifest.artifact_paths,
                 "file_manifest_digest": manifest.file_manifest_digest,
                 "counts": manifest.counts,
@@ -336,6 +376,7 @@ def _run_status(opts: dict) -> dict:
         if matches:
             overlay = compute_worktree_overlay(root, key, _DEFAULT_CONFIG_FINGERPRINT)
             if overlay is not None:
+                overlay = _scoped_overlay(overlay)
                 view = compose_effective_view(loaded, overlay)
                 overlay_summary = {
                     "present": True,
