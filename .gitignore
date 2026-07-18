@@ -49,6 +49,9 @@ playwright/.cache/
 coverage/
 .nyc_output/
 
+# Runtime .simplicio/ output inside contract fixture sources
+contracts/mapper-artifacts/**/source/.simplicio/
+
 # Editor / OS
 .DS_Store
 Thumbs.db
