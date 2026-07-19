@@ -24,6 +24,7 @@ from simplicio_mapper.mapper.graph import (  # noqa: E402
     _is_macro_screen,
     _known_path_suffix_index,
     _macro_roles_for_path,
+    _symbol_definitions_for_file,
     build_macro_map,
 )
 from simplicio_mapper.mapper.parse import _build_file_inventory, _now_iso  # noqa: E402
@@ -88,6 +89,97 @@ class SymbolAndCallGraphTest(unittest.TestCase):
         call_graph = _build_call_graph(str(self.dir), files, symbol_index, generated_at)
         self.assertEqual(call_graph["schema"], "simplicio.call-graph/v1")
         self.assertIsInstance(call_graph["edges"], list)
+
+
+class SymbolLineNumberBlankLinesTest(unittest.TestCase):
+    """Regression for a symbol-index line-number bug: every language pattern
+    in ``_symbol_definitions_for_file`` anchors on ``^\\s*<keyword>`` with
+    ``re.MULTILINE``. Because ``\\s`` matches newlines too, a definition
+    preceded by one or more blank lines lets ``^`` anchor at an earlier
+    blank line and lets ``\\s*`` swallow the intervening newlines -- so
+    ``match.start()`` (and the reported line number) pointed at that earlier
+    blank line instead of the real ``def``/``class`` line. This is the
+    common case: any top-level Python function preceded by PEP8's one or
+    two blank lines (or a module docstring followed by blank lines) got the
+    wrong line number, which corrupted every consumer of that number
+    (``ask callers/callees/tests-for``, call-graph self-call filtering,
+    etc.)."""
+
+    def test_def_after_module_docstring_reports_its_own_line(self) -> None:
+        text = (
+            '"""Sample module docstring."""\n'
+            "\n"
+            "\n"
+            "def greet(name):\n"
+            "    return f'hi {name}'\n"
+            "\n"
+            "\n"
+            "def main():\n"
+            "    print(greet('world'))\n"
+        )
+        file = ProjectFile(
+            path="src/app.py",
+            language="python",
+            size_bytes=len(text),
+            last_modified="",
+            file_hash="",
+            git_status="",
+            roles=[],
+            imports=[],
+            exports=[],
+        )
+        symbols = {s["name"]: s["line"] for s in _symbol_definitions_for_file(file, text)}
+        self.assertEqual(symbols["greet"], 4)
+        self.assertEqual(symbols["main"], 8)
+
+    def test_def_after_single_blank_line_reports_its_own_line(self) -> None:
+        text = "x = 1\n\ndef foo():\n    return x\n"
+        file = ProjectFile(
+            path="a.py",
+            language="python",
+            size_bytes=len(text),
+            last_modified="",
+            file_hash="",
+            git_status="",
+            roles=[],
+            imports=[],
+            exports=[],
+        )
+        symbols = {s["name"]: s["line"] for s in _symbol_definitions_for_file(file, text)}
+        self.assertEqual(symbols["foo"], 3)
+
+    def test_call_graph_does_not_fabricate_self_call_on_def_line(self) -> None:
+        """With the correct line number, the def line's own
+        ``greet(name)`` occurrence in the call-expression scan matches
+        ``greet``'s own definition line exactly, so the existing
+        same-line self-skip in ``_build_call_graph`` correctly drops it --
+        no more phantom ``greet`` calls ``greet`` edge."""
+        text = (
+            '"""Sample module docstring."""\n'
+            "\n"
+            "\n"
+            "def greet(name):\n"
+            "    return f'hi {name}'\n"
+        )
+        file = ProjectFile(
+            path="src/app.py",
+            language="python",
+            size_bytes=len(text),
+            last_modified="",
+            file_hash="",
+            git_status="",
+            roles=[],
+            imports=[],
+            exports=[],
+        )
+        symbol_index = {"symbols": _symbol_definitions_for_file(file, text)}
+        call_graph = _build_call_graph(".", [file], symbol_index, _now_iso(), contents={file.path: text})
+        self_edges = [
+            e
+            for e in call_graph["edges"]
+            if e["type"] == "calls" and e["source_symbol"] == e["target_symbol"] == "src/app.py::greet"
+        ]
+        self.assertEqual(self_edges, [])
 
 
 class CandidateImportTargetsIndexParityTest(unittest.TestCase):
