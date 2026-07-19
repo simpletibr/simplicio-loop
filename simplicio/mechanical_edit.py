@@ -481,15 +481,40 @@ def _apply_operations_to_snapshot(
 
 
 def _operation_order(operations: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    if all(isinstance(operation.get("order"), int) for operation in operations):
-        return sorted(operations, key=lambda item: item["order"])
-    return sorted(
-        operations,
-        key=lambda item: (
-            str(item.get("path", "")),
-            -int(item.get("start_line", item.get("line", item.get("end_line", 0))) or 0),
-        ),
-    )
+    """Order operations for application, honoring explicit ``order`` per file.
+
+    ``_validate_overlaps`` permits two operations on the SAME path to overlap
+    only when *both* declare an integer ``order`` — it reasons per path, not
+    across the whole plan. This function must apply that same per-path
+    reasoning, or the two contracts diverge: a plan with an explicitly
+    ordered, dependent pair of edits on file A (line numbers in the second op
+    computed against the state AFTER the first) could pass validation, yet
+    silently be applied out of order — and therefore against the WRONG line
+    numbers — the moment the plan also contains any unrelated operation on a
+    different file (or of a type with no ``order``, e.g. ``create_file``)
+    that itself lacks an ``order`` key. That previously collapsed the
+    fallback to line-based sorting for the *entire* plan, corrupting file A
+    even though its own two operations were correctly, explicitly ordered.
+    """
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for operation in operations:
+        grouped.setdefault(str(operation.get("path", "")), []).append(operation)
+
+    ordered: list[dict[str, Any]] = []
+    for path in sorted(grouped):
+        group = grouped[path]
+        if all(isinstance(operation.get("order"), int) for operation in group):
+            ordered.extend(sorted(group, key=lambda item: item["order"]))
+        else:
+            ordered.extend(
+                sorted(
+                    group,
+                    key=lambda item: (
+                        -int(item.get("start_line", item.get("line", item.get("end_line", 0))) or 0)
+                    ),
+                )
+            )
+    return ordered
 
 
 def _check_text_preconditions(

@@ -236,6 +236,65 @@ def test_validation_failure_restores_bytes_exactly(tmp_path):
     assert (tmp_path / "app.py").read_bytes() == original
 
 
+def test_explicit_order_on_one_file_survives_unordered_op_on_another_file(tmp_path, monkeypatch):
+    """Regression: `_operation_order` used to require an integer `order` on
+    EVERY operation in the whole plan before honoring `order` at all, while
+    `_validate_overlaps` decides whether overlapping ranges are acceptable
+    per PATH (both ops on that same file explicitly ordered). That mismatch
+    let a plan pass validation -- an explicitly ordered, dependent pair of
+    edits on `main.py` (the second op's line number computed against the
+    state AFTER the first) -- and then get silently applied out of order,
+    against the WRONG (pre-shift) line numbers, purely because the plan also
+    touched an unrelated file (`other.py`) with an operation that has no
+    `order` key (`create_file` never carries one). That corrupted `main.py`
+    with `status: ok` and no errors reported at all.
+    """
+    monkeypatch.setenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT", "1")
+    target = tmp_path / "main.py"
+    _write(
+        target,
+        "def add(a, b):\n    return a + b\n\n\ndef sub(a, b):\n    return a - b\n",
+    )
+    plan = {
+        "schema": "simplicio.mechanical-edit/v1",
+        "touched_files": ["main.py", "other.py"],
+        "operations": [
+            {
+                "op": "insert_before",
+                "path": "main.py",
+                "line": 1,
+                "text": "# header\n",
+                "order": 1,
+            },
+            {
+                "op": "replace_range",
+                "path": "main.py",
+                "start_line": 6,
+                "end_line": 6,
+                "text": "def sub(a, b):  # renumbered target\n",
+                "order": 2,
+            },
+            # Unrelated op on a DIFFERENT file, deliberately with no "order" --
+            # must not affect main.py's explicit, validated ordering.
+            {"op": "create_file", "path": "other.py", "text": "# unrelated\n"},
+        ],
+    }
+
+    result = execute_plan(plan, root=tmp_path, apply=True)
+
+    assert result["status"] == "ok"
+    assert result["errors"] == []
+    assert target.read_text(encoding="utf-8") == (
+        "# header\n"
+        "def add(a, b):\n"
+        "    return a + b\n"
+        "\n"
+        "\n"
+        "def sub(a, b):  # renumbered target\n"
+        "    return a - b\n"
+    )
+
+
 def test_refuses_symlink_escape_outside_root(tmp_path, monkeypatch):
     # The symlink target must live genuinely outside the edit root for this
     # to exercise the escape guard; placing it under tmp_path (as a sibling
