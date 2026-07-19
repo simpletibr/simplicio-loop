@@ -17,9 +17,8 @@ from pathlib import Path
 from typing import Any, Literal
 
 from .adaptive import get_validation_mode
-from .mapper import artifact_status, map_ask, map_handoff
+from .mapper import map_ask
 from .observability import emit_event, estimate_tokens, info, log_run
-from .orchestrator.cost_governor import _price as _estimate_price
 from .pipeline_fixers import try_static_fixers
 from .pipeline_integrated import run_integrated
 from .pipeline_stages import (
@@ -41,14 +40,12 @@ from .pipeline_stages import (
     _git_apply_patch as _stage_git_apply_patch,
 )
 from .pipeline_task_result import (
-    _diff_summary,
     _dry_run_preconditions,
-    target_kind,
     _task_result,
-    _verify_receipt_payload,
+    target_kind,
 )
 from .plan_compiler.effect_sink import EffectSink
-from .prompt import build_prompt, latest_prompt_envelope, set_prompt_retry_delta
+from .prompt import build_prompt, set_prompt_retry_delta
 from .providers import ProviderExecutionError, _provider_id, generate
 from .runtime_env import prepare_project_command
 from .transaction import VerificationReceipt
@@ -199,103 +196,6 @@ def _apply_and_test(output, root, bound_paths=None):
 
 
 _DEFAULT_APPLY_AND_TEST = _apply_and_test
-
-
-def _diff_summary(files_changed):
-    if not files_changed:
-        return "no changed files reported"
-    return "changed " + ", ".join(files_changed)
-
-
-def _task_result(
-    task_id,
-    prompt,
-    output,
-    *,
-    applied,
-    status=None,
-    warnings=None,
-    blocked_preconditions=None,
-    verify=None,
-    impact=None,
-    prompt_envelope=None,
-):
-    files_changed = extract_changed_files(output)
-    prompt_tokens = estimate_tokens(prompt)
-    completion_tokens = estimate_tokens(output or "")
-    priced = os.environ.get("SIMPLICIO_PRICE_PER_MTOK") or (
-        os.environ.get("SIMPLICIO_PRICE_PROMPT_PER_MTOK")
-        or os.environ.get("SIMPLICIO_PRICE_COMPLETION_PER_MTOK")
-    )
-    model = os.environ.get("SIMPLICIO_MODEL", "")
-    cost_usd = float(_estimate_price(model, prompt_tokens, completion_tokens)) if priced else 0.0
-    result = {
-        "task_id": task_id,
-        "applied": bool(applied),
-        "status": status or ("applied" if applied else "failed"),
-        "files_changed": files_changed,
-        "tokens_used": {
-            "prompt": prompt_tokens,
-            "completion": completion_tokens,
-        },
-        "cost_usd": cost_usd,
-        "cost_basis": "estimated" if priced else "unknown_no_pricing_configured",
-        "diff_summary": _diff_summary(files_changed),
-        "warnings": warnings or [],
-        "model": {
-            "requested": os.environ.get("SIMPLICIO_MODEL", ""),
-            "effective": os.environ.get("SIMPLICIO_EFFECTIVE_MODEL", os.environ.get("SIMPLICIO_MODEL", "")),
-            "effort": os.environ.get("SIMPLICIO_REASONING_EFFORT", os.environ.get("SIMPLICIO_EFFORT", "")),
-            "tier": os.environ.get("SIMPLICIO_MODEL_TIER", ""),
-            "provider": _provider_id(
-                os.environ.get("SIMPLICIO_MODEL", ""), os.environ.get("SIMPLICIO_BASE_URL", "")
-            ),
-        },
-    }
-    envelope = prompt_envelope or latest_prompt_envelope()
-    if envelope is not None:
-        result["prompt_envelope"] = envelope.receipt()
-    if blocked_preconditions:
-        result["blocked_preconditions"] = blocked_preconditions
-    verify_receipt = _verify_receipt_payload(verify)
-    if verify_receipt is not None:
-        exit_codes = verify_receipt.get("exit_codes", [])
-        if exit_codes:
-            status = "verified" if all(code == 0 for code in exit_codes) else "failed"
-        else:
-            status = IMPACT_RESULT_UNVERIFIED
-        result["verify"] = {
-            "status": status,
-            "receipt": verify_receipt,
-        }
-    # Issue #93: impact-test evidence block
-    if impact is not None:
-        result["impact"] = {
-            "callers": impact.get("callers", []),
-            "tests_run": impact.get("tests_run", []),
-            "result": impact.get("result", IMPACT_RESULT_UNVERIFIED),
-        }
-        receipt = impact.get("receipt")
-        if isinstance(receipt, dict):
-            result["impact"]["receipt"] = dict(receipt)
-        else:
-            receipt = {
-                "command": impact.get("command"),
-                "exit_code": impact.get("returncode"),
-                "output_tail": impact.get("output_tail", ""),
-                "status": impact.get("status"),
-            }
-            if any(value not in (None, "", []) for value in receipt.values()):
-                result["impact"]["receipt"] = receipt
-        if impact.get("status") in ("ok", "passed"):
-            result["impact"]["status"] = "verified"
-        elif impact.get("status") in ("failed", "error"):
-            result["impact"]["status"] = impact["status"]
-        else:
-            result["impact"]["status"] = IMPACT_RESULT_UNVERIFIED
-    if _LAST_PATCH_RECEIPT is not None:
-        result["patch"] = dict(_LAST_PATCH_RECEIPT)
-    return result
 
 
 def run_task(

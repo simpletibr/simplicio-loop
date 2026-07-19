@@ -24,7 +24,7 @@ from typing import Any
 from .mapper import artifact_status, map_handoff
 from .observability import estimate_tokens
 from .orchestrator.cost_governor import _price as _estimate_price
-from .pipeline_stages import extract_changed_files, IMPACT_RESULT_UNVERIFIED
+from .pipeline_stages import IMPACT_RESULT_UNVERIFIED, extract_changed_files
 from .prompt import latest_prompt_envelope
 from .providers import _provider_id
 
@@ -63,11 +63,11 @@ def _dry_run_preconditions(root: str | Path, target: str) -> list[dict[str, Any]
     target_value = Path(target)
     target_path = root_path / target_value
     target_exists = target_path.exists()
-    target_kind = "existing_file" if target_exists else "new_file"
     parent_path = target_path.parent.resolve()
     target_inside_root = parent_path == root_path or root_path in parent_path.parents
     new_file_ready = (
-        not target_value.is_absolute()
+        not target_exists
+        and not target_value.is_absolute()
         and target_inside_root
         and parent_path.is_dir()
         and not target_path.is_symlink()
@@ -277,14 +277,18 @@ def _task_result(
             "tests_run": impact.get("tests_run", []),
             "result": impact.get("result", IMPACT_RESULT_UNVERIFIED),
         }
-        receipt = {
-            "command": impact.get("command"),
-            "exit_code": impact.get("returncode"),
-            "output_tail": impact.get("output_tail", ""),
-            "status": impact.get("status"),
-        }
-        if any(value not in (None, "", []) for value in receipt.values()):
-            result["impact"]["receipt"] = receipt
+        receipt = impact.get("receipt")
+        if isinstance(receipt, dict):
+            result["impact"]["receipt"] = dict(receipt)
+        else:
+            receipt = {
+                "command": impact.get("command"),
+                "exit_code": impact.get("returncode"),
+                "output_tail": impact.get("output_tail", ""),
+                "status": impact.get("status"),
+            }
+            if any(value not in (None, "", []) for value in receipt.values()):
+                result["impact"]["receipt"] = receipt
         if impact.get("status") in ("ok", "passed"):
             result["impact"]["status"] = "verified"
         elif impact.get("status") in ("failed", "error"):

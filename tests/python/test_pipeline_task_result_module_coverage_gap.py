@@ -1,15 +1,18 @@
 """Direct unit coverage for simplicio/pipeline_task_result.py.
 
-Note: simplicio/pipeline.py currently shadows `_task_result` and
-`_diff_summary` with its own local copies (see spawned cleanup task), so
-`run_task` never calls into this module's `_task_result`. These tests
-call the module directly to exercise its own logic and dry-run
-precondition gate.
+The coordinator imports this module's `_task_result`; the regression test
+below prevents a stale local copy from shadowing the extracted implementation.
 """
 
 from __future__ import annotations
 
 from simplicio import pipeline_task_result as ptr
+
+
+def test_pipeline_uses_extracted_task_result_assembler():
+    from simplicio import pipeline
+
+    assert pipeline._task_result is ptr._task_result
 
 
 def test_verify_receipt_payload_none_when_empty():
@@ -154,6 +157,21 @@ def test_task_result_impact_failed(monkeypatch):
         },
     )
     assert result["impact"]["status"] == "failed"
+
+
+def test_task_result_preserves_native_impact_receipt(monkeypatch):
+    from simplicio import pipeline as pipeline_mod
+
+    monkeypatch.setattr(pipeline_mod, "_LAST_PATCH_RECEIPT", None)
+    receipt = {"schema": "simplicio.runtime-impact/v1", "status": "passed"}
+    result = ptr._task_result(
+        "T01",
+        "prompt",
+        "output",
+        applied=True,
+        impact={"status": "passed", "receipt": receipt},
+    )
+    assert result["impact"]["receipt"] == receipt
 
 
 def test_task_result_impact_unknown_status_unverified(monkeypatch):
@@ -312,7 +330,7 @@ def test_dry_run_preconditions_target_missing_from_disk(tmp_path, monkeypatch):
     monkeypatch.setattr(
         ptr, "map_handoff", lambda root: {"context_pack": {"files": [{"path": "a.py"}]}}
     )
-    blockers = ptr._dry_run_preconditions(tmp_path, "missing.py")
+    blockers = ptr._dry_run_preconditions(tmp_path, "missing/missing.py")
     reasons = {b["reason"] for b in blockers}
     assert "target_resolution_failed" in reasons
 
