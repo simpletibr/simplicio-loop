@@ -55,7 +55,21 @@ from typing import Any
 SCHEMA_PLAN = "simplicio.prototype-plan/v1"
 SCHEMA_RECEIPT = "simplicio.prototype-receipt/v1"
 SCHEMA_DECISION = "simplicio.prototype-decision/v1"
-TYPES = ("wireframe", "architecture_diagram", "schema", "data_model", "failing_reproducer", "benchmark_spike", "mock_or_fake", "code_spike", "vertical_slice", "prompt_candidate", "workflow_simulation", "storyboard", "policy_or_security_model")
+TYPES = (
+    "wireframe",
+    "architecture_diagram",
+    "schema",
+    "data_model",
+    "failing_reproducer",
+    "benchmark_spike",
+    "mock_or_fake",
+    "code_spike",
+    "vertical_slice",
+    "prompt_candidate",
+    "workflow_simulation",
+    "storyboard",
+    "policy_or_security_model",
+)
 # Bookkeeping directories the prototype adapter itself writes into (candidate
 # sandboxes, receipts, decisions). Excluded from the source-tree hash so that
 # scaffolding/validating a candidate never perturbs the very source_sha it is
@@ -212,11 +226,29 @@ def _skeleton(plan: dict[str, Any]) -> dict[str, str]:
     if kind == "data_model":
         return {"MODEL.md": _data_model_skeleton(name, goal)}
     if kind in {"failing_test", "failing_reproducer"}:
-        return {"test_prototype.py": "def test_prototype_reproducer():\n    raise AssertionError('prototype reproducer: implement expected behavior')\n"}
+        return {
+            "test_prototype.py": (
+                "def test_prototype_reproducer():\n"
+                "    raise AssertionError('prototype reproducer: implement expected behavior')\n"
+            )
+        }
     if kind in {"mock", "mock_or_fake"}:
-        return {"mock_adapter.py": "class PrototypeAdapter:\n    \"\"\"Contract-only adapter; no production side effects.\"\"\"\n\n    def call(self, *args, **kwargs):\n        raise NotImplementedError('prototype adapter')\n"}
+        return {
+            "mock_adapter.py": (
+                "class PrototypeAdapter:\n"
+                '    """Contract-only adapter; no production side effects."""\n\n'
+                "    def call(self, *args, **kwargs):\n"
+                "        raise NotImplementedError('prototype adapter')\n"
+            )
+        }
     if kind == "code_spike":
-        return {"spike.py": f"\"\"\"Bounded code spike for: {goal}\"\"\"\n\n\ndef run():\n    raise NotImplementedError('prototype spike')\n"}
+        return {
+            "spike.py": (
+                f'"""Bounded code spike for: {goal}"""\n\n\n'
+                "def run():\n"
+                "    raise NotImplementedError('prototype spike')\n"
+            )
+        }
     if kind == "benchmark_spike":
         return {"benchmark.py": _benchmark_spike_skeleton(goal)}
     if kind == "wireframe":
@@ -233,7 +265,11 @@ def _skeleton(plan: dict[str, Any]) -> dict[str, str]:
         return {"STORYBOARD.md": _storyboard_skeleton(name, goal)}
     if kind == "policy_or_security_model":
         return {"THREAT_MODEL.md": _policy_or_security_model_skeleton(name, goal)}
-    return {"PROTOTYPE.md": f"# {kind}: {name}\n\nGoal: {goal}\n\n- [ ] implement one bounded, reversible candidate\n"}
+    return {
+        "PROTOTYPE.md": (
+            f"# {kind}: {name}\n\nGoal: {goal}\n\n- [ ] implement one bounded, reversible candidate\n"
+        )
+    }
 
 
 def _data_model_skeleton(name: str, goal: str) -> str:
@@ -397,6 +433,24 @@ def _policy_or_security_model_skeleton(name: str, goal: str) -> str:
     )
 
 
+def _resolve_within(base: Path, relative: str) -> Path:
+    """Join `relative` onto `base` and reject any result that escapes it.
+
+    A prototype plan's `name` field (used to build scaffold file names, e.g.
+    schema/data_model skeletons) is attacker-controlled input when the plan
+    comes from `--input` — a value like ``"../../../../etc/evil"`` would
+    otherwise let `_scaffold_candidate` write outside the isolated candidate
+    sandbox via ordinary `Path.__truediv__` traversal. This is the mandatory
+    "symlink/path traversal in the artifact store" adversarial gate (issue
+    #236): every scaffold write is checked against the resolved candidate
+    root before touching disk, fail-closed rather than silently sanitized.
+    """
+    candidate_path = (base / relative).resolve()
+    if candidate_path != base and base not in candidate_path.parents:
+        raise PrototypeError(f"scaffold path escapes candidate sandbox: {relative!r}")
+    return candidate_path
+
+
 def _scaffold_candidate(candidate: Path, plan: dict[str, Any], *, force: bool) -> dict[str, Any]:
     """Write the plan's skeleton into an isolated candidate dir and return the
     scaffold receipt payload. Shared by the single-candidate `scaffold`
@@ -404,8 +458,9 @@ def _scaffold_candidate(candidate: Path, plan: dict[str, Any], *, force: bool) -
     if candidate.exists() and any(candidate.iterdir()) and not force:
         raise PrototypeError(f"candidate exists; use --force explicitly: {candidate}")
     candidate.mkdir(parents=True, exist_ok=True)
+    candidate_root = candidate.resolve()
     for relative, content in _skeleton(plan).items():
-        target = candidate / relative
+        target = _resolve_within(candidate_root, relative)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8", newline="\n")
     tree = _tree(candidate)

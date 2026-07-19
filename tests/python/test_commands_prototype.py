@@ -149,6 +149,56 @@ def test_scaffold_writes_only_inside_isolated_candidate_dir(tmp_path, capsys, pr
     assert source_file.read_bytes() == b"print('real working tree file')\n"
 
 
+def test_scaffold_rejects_a_plan_name_that_path_traverses_out_of_the_sandbox(tmp_path, capsys):
+    """Adversarial gate (issue #236 "symlink/path traversal no artifact store"):
+    a plan's `name` field seeds scaffold file names (e.g. `{name}.schema.json`)
+    and is attacker-controlled whenever the plan arrives via `--input`. Before
+    this fix, `candidate / relative` happily followed `../../..` segments and
+    wrote outside the isolated candidate directory. Assert the write is
+    refused fail-closed and nothing lands outside the sandbox or the repo
+    root."""
+    outside_marker = tmp_path / "outside_marker"
+    escape_target = outside_marker / "evil_pwned.schema.json"
+    input_path = _artifacts_dir(tmp_path) / "input.json"
+    input_path.write_text(
+        json.dumps(
+            {
+                "goal": "path traversal attempt",
+                "prototype_type": "schema",
+                "name": "../../../../outside_marker/evil_pwned",
+            }
+        ),
+        encoding="utf-8",
+    )
+    plan_path = _artifacts_dir(tmp_path) / "plan.json"
+    code = cli.main(
+        ["prototype", "plan", "--input", str(input_path), "--root", str(tmp_path), "--output", str(plan_path)]
+    )
+    assert code == 0
+    capsys.readouterr()
+
+    candidate = tmp_path / ".simplicio" / "prototypes" / "traversal-candidate"
+    code = cli.main(
+        [
+            "prototype",
+            "scaffold",
+            "--root",
+            str(tmp_path),
+            "--plan",
+            str(plan_path),
+            "--candidate",
+            str(candidate),
+            "--json",
+        ]
+    )
+    err = capsys.readouterr().err
+
+    assert code == 2
+    assert "escapes candidate sandbox" in err
+    assert not escape_target.exists()
+    assert not outside_marker.exists()
+
+
 def test_scaffold_refuses_to_overwrite_existing_candidate_without_force(tmp_path, capsys):
     _, plan_path = _make_plan(tmp_path, capsys, prototype_type="code_spike")
     cli.main(["prototype", "scaffold", "--root", str(tmp_path), "--plan", str(plan_path)])
