@@ -7,6 +7,8 @@ import sys
 from pathlib import Path
 
 import pytest
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 from simplicio.mechanical_edit import execute_plan, execute_plan_json
 
@@ -234,6 +236,161 @@ def test_validation_failure_restores_bytes_exactly(tmp_path):
 
     assert result["status"] == "refused"
     assert (tmp_path / "app.py").read_bytes() == original
+
+
+def test_explicit_order_on_one_file_survives_unordered_op_on_another_file(tmp_path, monkeypatch):
+    """Regression: `_operation_order` used to require an integer `order` on
+    EVERY operation in the whole plan before honoring `order` at all, while
+    `_validate_overlaps` decides whether overlapping ranges are acceptable
+    per PATH (both ops on that same file explicitly ordered). That mismatch
+    let a plan pass validation -- an explicitly ordered, dependent pair of
+    edits on `main.py` (the second op's line number computed against the
+    state AFTER the first) -- and then get silently applied out of order,
+    against the WRONG (pre-shift) line numbers, purely because the plan also
+    touched an unrelated file (`other.py`) with an operation that has no
+    `order` key (`create_file` never carries one). That corrupted `main.py`
+    with `status: ok` and no errors reported at all.
+    """
+    monkeypatch.setenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT", "1")
+    target = tmp_path / "main.py"
+    _write(
+        target,
+        "def add(a, b):\n    return a + b\n\n\ndef sub(a, b):\n    return a - b\n",
+    )
+    plan = {
+        "schema": "simplicio.mechanical-edit/v1",
+        "touched_files": ["main.py", "other.py"],
+        "operations": [
+            {
+                "op": "insert_before",
+                "path": "main.py",
+                "line": 1,
+                "text": "# header\n",
+                "order": 1,
+            },
+            {
+                "op": "replace_range",
+                "path": "main.py",
+                "start_line": 6,
+                "end_line": 6,
+                "text": "def sub(a, b):  # renumbered target\n",
+                "order": 2,
+            },
+            # Unrelated op on a DIFFERENT file, deliberately with no "order" --
+            # must not affect main.py's explicit, validated ordering.
+            {"op": "create_file", "path": "other.py", "text": "# unrelated\n"},
+        ],
+    }
+
+    result = execute_plan(plan, root=tmp_path, apply=True)
+
+    assert result["status"] == "ok"
+    assert result["errors"] == []
+    assert target.read_text(encoding="utf-8") == (
+        "# header\n"
+        "def add(a, b):\n"
+        "    return a + b\n"
+        "\n"
+        "\n"
+        "def sub(a, b):  # renumbered target\n"
+        "    return a - b\n"
+    )
+
+
+_ORDERED_PAIR_TEMPLATE = "def add(a, b):\n    return a + b\n\n\ndef sub(a, b):\n    return a - b\n"
+_ORDERED_PAIR_EXPECTED = (
+    "# header\n"
+    "def add(a, b):\n"
+    "    return a + b\n"
+    "\n"
+    "\n"
+    "def sub(a, b):  # renumbered target\n"
+    "    return a - b\n"
+)
+
+
+@settings(max_examples=40, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    target_count=st.integers(min_value=1, max_value=4),
+    noise_count=st.integers(min_value=0, max_value=4),
+    data=st.data(),
+)
+def test_explicit_order_survives_any_shuffle_of_unordered_ops_across_n_files(
+    target_count, noise_count, data, tmp_path_factory, monkeypatch
+):
+    """Property (DoD Camada 2, issue #246): generalizes the hand-written
+    regression above -- which pinned N=1 explicitly-ordered file, M=1
+    unordered "noise" file, one fixed interleaving -- across a random number
+    of ordered files, a random number of unordered noise files, and every
+    permutation of the combined operation list.
+
+    Each "target" file gets its own explicitly-ordered, dependent pair of
+    operations (`order=1`/`order=2`): the second operation's line number is
+    only correct if applied AFTER the first. Each "noise" file gets a single
+    unordered `create_file` -- exactly the shape that used to make
+    `_operation_order` discard `order` for the WHOLE plan, because it
+    required every operation in the plan (not just per path, as
+    `_validate_overlaps` reasons) to carry an explicit `order` before
+    honoring any of them.
+
+    The property under test: no matter how many noise operations share the
+    plan, and no matter where in the operation list they (or the ordered
+    pairs) fall, every target file must end up transformed as if its own
+    pair were applied in the declared order -- i.e. the result always
+    matches applying operations in the correct order, never a line-shift
+    corruption from a global fallback to line-based sorting.
+    """
+    monkeypatch.setenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT", "1")
+    root = tmp_path_factory.mktemp("case")
+
+    operations: list[dict] = []
+    targets: list[str] = []
+    for i in range(target_count):
+        path = f"target_{i}.py"
+        targets.append(path)
+        _write(root / path, _ORDERED_PAIR_TEMPLATE)
+        operations.append(
+            {
+                "op": "insert_before",
+                "path": path,
+                "line": 1,
+                "text": "# header\n",
+                "order": 1,
+            }
+        )
+        operations.append(
+            {
+                "op": "replace_range",
+                "path": path,
+                "start_line": 6,
+                "end_line": 6,
+                "text": "def sub(a, b):  # renumbered target\n",
+                "order": 2,
+            }
+        )
+
+    noise_paths: list[str] = []
+    for j in range(noise_count):
+        path = f"noise_{j}.py"
+        noise_paths.append(path)
+        operations.append({"op": "create_file", "path": path, "text": f"# noise {j}\n"})
+
+    shuffled = data.draw(st.permutations(operations))
+
+    plan = {
+        "schema": "simplicio.mechanical-edit/v1",
+        "touched_files": targets + noise_paths,
+        "operations": shuffled,
+    }
+
+    result = execute_plan(plan, root=root, apply=True)
+
+    assert result["status"] == "ok"
+    assert result["errors"] == []
+    for path in targets:
+        assert (root / path).read_text(encoding="utf-8") == _ORDERED_PAIR_EXPECTED
+    for j, path in enumerate(noise_paths):
+        assert (root / path).read_text(encoding="utf-8") == f"# noise {j}\n"
 
 
 def test_refuses_symlink_escape_outside_root(tmp_path, monkeypatch):
