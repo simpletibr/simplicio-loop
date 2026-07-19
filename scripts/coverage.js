@@ -16,11 +16,26 @@ const { spawnSync } = require('node:child_process');
 const COVERAGE_DIR = path.resolve(process.cwd(), 'coverage');
 const SUMMARY_PATH = path.join(COVERAGE_DIR, 'coverage-summary.json');
 
+function unitTestFiles(dir) {
+  const files = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...unitTestFiles(full));
+    else if (entry.isFile() && entry.name.endsWith('.test.js')) files.push(full);
+  }
+  return files.sort();
+}
+
 fs.mkdirSync(COVERAGE_DIR, { recursive: true });
 
 const result = spawnSync(
   process.execPath,
-  ['--test', '--experimental-test-coverage'],
+  // The committed evaluation corpus contains TypeScript fixtures that are
+  // inputs to the mapper, not Node tests for this package. Restricting this
+  // coverage command to the maintained unit suite keeps the gate portable
+  // across Node 20 and newer runtimes while the fixture harness remains
+  // covered by the Python compatibility tests.
+  ['--test', '--experimental-test-coverage', ...unitTestFiles(path.resolve(process.cwd(), 'tests/unit'))],
   { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
 );
 

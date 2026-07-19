@@ -69,6 +69,20 @@ git add docs/evidence/behavioral-scorecard.json docs/evidence/runtime-scale-benc
 and call that out explicitly in the PR description — a re-baseline commit
 should never be silent.
 
+## Workflow self-check
+
+`python scripts/check_workflow_references.py` runs in CI before tests. It
+fails closed when the workflow or either coverage gate file is missing, or
+when the workflow no longer references the declared 85% global and 90%
+critical thresholds.
+
+## Workflow self-check
+
+`python scripts/check_workflow_references.py` runs in CI before tests. It
+fails closed when the workflow or either coverage gate file is missing, or
+when the workflow no longer references the declared 85% global and 90%
+critical thresholds.
+
 ## Branch protection (manual step)
 
 This repo's branch protection for `main` currently has no required status
