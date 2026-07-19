@@ -4,6 +4,20 @@ Policy doc for the "block merges that break commands, compatibility, or the
 CLI experience" epic. This documents what already gates `master`, what this
 PR adds, and what is still an open follow-up.
 
+> **Update (issue #246, 2026-07): the workflows below no longer exist.**
+> `.github/workflows/` (including the `coverage` job this doc describes) was
+> removed entirely in `d7ff8c9` — GitHub Actions billing lockout plus a
+> decision to centralize CI/CD around `simplicio-runtime` — hours after this
+> job was added in `62ebd81`/#205. The `pyproject.toml` config
+> (`[tool.coverage.report].fail_under = 85`, `[tool.coverage.simplicio_critical]`)
+> and `scripts/coverage_gate.py` described below are still real and still
+> pass locally; only the CI trigger is gone. Until centralized CI restores
+> an equivalent job, the 85% floor is enforced by
+> `.claude/hooks/pre-commit.sh`/`.ps1`. See `DOD.md` and `AGENTS.md`'s
+> "Gap fechado, mecanismo mudou" note for the full picture, including a
+> known regression this same removal left behind: 3 tests still read
+> `.github/workflows/*.yml` files that no longer exist and fail today.
+
 ## What gates every PR today
 
 All jobs run in `.github/workflows/ci.yml` ("CI" workflow) on every push/PR

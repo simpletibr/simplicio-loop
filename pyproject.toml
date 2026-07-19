@@ -90,10 +90,14 @@ all = [
 # CI/dev-only, not a product extra: pytest to run tests/python, plus tomli
 # on 3.10 (tomllib is stdlib only from 3.11+; several tests parse this file).
 # pytest-cov (#202) backs the coverage gate: `scripts/coverage_gate.py`
-# consumes the `coverage.json` report this generates.
+# consumes the `coverage.json` report this generates. hypothesis backs
+# property-based tests (e.g. tests/python/test_mechanical_edit.py's
+# operation-ordering invariant, DoD Camada 2 issue #246) that fuzz random
+# plan shapes instead of only asserting the one hand-written regression case.
 test = [
   "pytest>=8",
   "pytest-cov>=7",
+  "hypothesis>=6.100",
   "tomli>=2.0.1; python_version < '3.11'",
 ]
 # CI/dev-only lint+type gate (#102): never a base/product dependency.

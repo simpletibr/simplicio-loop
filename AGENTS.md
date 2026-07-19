@@ -182,7 +182,28 @@ PR só faz merge quando **todos** os itens abaixo estão marcados:
 
 CI (`.github/workflows/ci.yml`, job `python` + `lint`) bloqueia merge se o gate falhar.
 
-> **Gap conhecido**: o job `python` do CI roda `pytest` mas não passa `--cov` nem falha sob um piso de coverage — o gate de 85%+ acima é hoje aplicado manualmente (revisão/agent), não mecanicamente pelo CI. Não existe `.github/workflows` "cobertura" nem `--cov-fail-under` configurado em `pyproject.toml`. Enquanto esse gap não for fechado com um passo de CI dedicado, tratar o item de coverage do DoD acima como obrigatório mesmo sem enforcement automático.
+> **Gap fechado, mecanismo mudou (issue #246, 2026-07)**: `.github/workflows/`
+> foi removido inteiramente em `d7ff8c9` (billing lockout na conta GitHub +
+> decisão de centralizar CI/CD em `simplicio-runtime`) — isso também apagou o
+> job `coverage` (85% global / 90% crítico, `scripts/coverage_gate.py`) que
+> `62ebd81`/#205 tinha acabado de ligar em CI horas antes. **Não existe
+> `.github/workflows/ci.yml` neste repo hoje** — o texto antigo deste
+> parágrafo (que descrevia um job `python` sem `--cov`) estava desatualizado
+> em relação a essa remoção, não só em relação ao `--cov` faltante. O piso
+> `[tool.coverage.report].fail_under = 85` em `pyproject.toml` já existia
+> (`62ebd81`) e permanece a config-fonte; o que estava sem trigger mecanizado
+> agora roda em **`.claude/hooks/pre-commit.sh`/`.ps1`**
+> (`pytest -q --cov=simplicio --cov-fail-under=85`, ativo quando
+> `pytest-cov` está instalado) até a CI centralizada assumir esse papel —
+> ver `docs/ci-quality-gate.md` para o comando completo com
+> `scripts/coverage_gate.py` (90% crítico) e `DOD.md` para o framework de 4
+> camadas. **Achado relevante da mesma sessão**: 3 testes
+> (`tests/python/test_ci_workflow_windows_lane.py`,
+> `tests/python/test_release_workflows.py` ×2) ainda leem arquivos
+> `.github/workflows/*.yml` que não existem mais — falham hoje,
+> independente de qualquer mudança nova, e bloqueiam este mesmo hook de
+> pre-commit até serem endereçados (rastreado na issue de Camada 3/4 aberta
+> a partir de #246).
 
 ---
 
