@@ -60,6 +60,38 @@ def _dry_run_preconditions(root: str | Path, target: str) -> list[dict[str, Any]
     root_path = Path(root).resolve()
     blockers: list[dict[str, Any]] = []
 
+    target_value = Path(target)
+    target_path = root_path / target_value
+    target_exists = target_path.exists()
+    target_kind = "existing_file" if target_exists else "new_file"
+    parent_path = target_path.parent.resolve()
+    target_inside_root = parent_path == root_path or root_path in parent_path.parents
+    new_file_ready = (
+        not target_value.is_absolute()
+        and target_inside_root
+        and parent_path.is_dir()
+        and not target_path.is_symlink()
+    )
+
+    if target_value.is_absolute() or not target_inside_root:
+        blockers.append(
+            {
+                "reason": "target_outside_root",
+                "message": "requested target must remain inside the repo root",
+                "next_surface": "task_target",
+                "details": {"target": target, "root": str(root_path)},
+            }
+        )
+    elif not target_exists and not new_file_ready:
+        blockers.append(
+            {
+                "reason": "target_parent_invalid",
+                "message": "new-file target requires an existing directory inside the repo root",
+                "next_surface": "task_target",
+                "details": {"target": target, "parent": str(parent_path)},
+            }
+        )
+
     artifacts = artifact_status(root_path)
     missing = [
         name
@@ -89,18 +121,17 @@ def _dry_run_preconditions(root: str | Path, target: str) -> list[dict[str, Any]
             }
         )
 
-    target_path = root_path / Path(target)
-    target_exists = target_path.exists()
     handoff = map_handoff(root_path)
     if handoff is None:
-        blockers.append(
-            {
-                "reason": "no_handoff_targets",
-                "message": "mapper handoff context is unavailable for dry-run task",
-                "next_surface": "context_pack",
-                "details": {"target": target},
-            }
-        )
+        if not new_file_ready:
+            blockers.append(
+                {
+                    "reason": "no_handoff_targets",
+                    "message": "mapper handoff context is unavailable for dry-run task",
+                    "next_surface": "context_pack",
+                    "details": {"target": target},
+                }
+            )
     else:
         pack = handoff.get("context_pack")
         if not isinstance(pack, dict):
@@ -136,7 +167,7 @@ def _dry_run_preconditions(root: str | Path, target: str) -> list[dict[str, Any]
                         "details": {"target": target},
                     }
                 )
-            elif target not in files:
+            elif target not in files and not new_file_ready:
                 blockers.append(
                     {
                         "reason": "target_resolution_failed",
@@ -146,7 +177,7 @@ def _dry_run_preconditions(root: str | Path, target: str) -> list[dict[str, Any]
                     }
                 )
 
-    if not target_exists:
+    if not target_exists and not new_file_ready:
         blockers.append(
             {
                 "reason": "target_resolution_failed",
@@ -167,6 +198,12 @@ def _dry_run_preconditions(root: str | Path, target: str) -> list[dict[str, Any]
     return deduped
 
 
+def target_kind(root: str | Path, target: str) -> str:
+    """Return the stable target classification used by task JSON receipts."""
+    path = Path(root).resolve() / Path(target)
+    return "existing_file" if path.exists() else "new_file"
+
+
 def _task_result(
     task_id,
     prompt,
@@ -179,6 +216,7 @@ def _task_result(
     verify=None,
     impact=None,
     prompt_envelope=None,
+    target_kind=None,
 ):
     from . import pipeline
 
@@ -214,6 +252,8 @@ def _task_result(
             ),
         },
     }
+    if target_kind is not None:
+        result["target_kind"] = target_kind
     envelope = prompt_envelope or latest_prompt_envelope()
     if envelope is not None:
         result["prompt_envelope"] = envelope.receipt()

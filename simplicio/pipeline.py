@@ -43,6 +43,7 @@ from .pipeline_stages import (
 from .pipeline_task_result import (
     _diff_summary,
     _dry_run_preconditions,
+    target_kind,
     _task_result,
     _verify_receipt_payload,
 )
@@ -359,6 +360,7 @@ def run_task(
                 status="blocked",
                 warnings=warnings,
                 blocked_preconditions=blockers,
+                target_kind=target_kind(root, target),
             )
         # Issue #210 AC6: snapshot bound paths BEFORE generate() so an
         # out-of-band mutation that happens while the provider subprocess is
@@ -371,7 +373,15 @@ def run_task(
         warnings = list(drift_warnings)
         if not validation.ok:
             warnings.append(validation.reason)
-        return _task_result(target, prompt, output, applied=False, status="dry_run", warnings=warnings)
+        return _task_result(
+            target,
+            prompt,
+            output,
+            applied=False,
+            status="dry_run",
+            warnings=warnings,
+            target_kind=target_kind(root, target),
+        )
 
     # Issue #107: structured "task_start" event — the dev-cli side of the
     # unified evidence flow a host loop's journal (e.g. simplicio-loop's

@@ -212,6 +212,73 @@ def test_task_dry_run_json_fails_closed_with_structured_blocked_preconditions(tm
     assert called["generate"] == 0
 
 
+def test_task_dry_run_json_accepts_new_file_under_existing_parent(tmp_path, monkeypatch, capsys):
+    _write(tmp_path / "src" / "existing.py", "old\n")
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.setattr("simplicio.pipeline.build_prompt", lambda *a, **k: "prompt")
+    monkeypatch.setattr(
+        "simplicio.pipeline_task_result.artifact_status",
+        lambda _root: {
+            "project_map": {"present": True},
+            "precedent_index": {"present": True},
+        },
+    )
+    monkeypatch.setattr(
+        "simplicio.pipeline_task_result.map_handoff",
+        lambda _root: {"context_pack": {"files": [{"path": "src/existing.py"}]}},
+    )
+    monkeypatch.setattr("simplicio.pipeline.generate", lambda *a, **k: "diff --git a/src/new.py b/src/new.py\n")
+
+    code = cli.main(
+        [
+            "task",
+            "create module",
+            "--root",
+            str(tmp_path),
+            "--target",
+            "src/new.py",
+            "--dry-run-task",
+            "--json",
+        ]
+    )
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "dry_run"
+    assert payload["target_kind"] == "new_file"
+
+
+def test_task_dry_run_json_rejects_new_file_outside_root(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.setattr("simplicio.pipeline.build_prompt", lambda *a, **k: "prompt")
+    monkeypatch.setattr(
+        "simplicio.pipeline_task_result.artifact_status",
+        lambda _root: {
+            "project_map": {"present": True},
+            "precedent_index": {"present": True},
+        },
+    )
+    monkeypatch.setattr("simplicio.pipeline_task_result.map_handoff", lambda _root: None)
+
+    code = cli.main(
+        [
+            "task",
+            "create module",
+            "--root",
+            str(tmp_path),
+            "--target",
+            "../escape.py",
+            "--dry-run-task",
+            "--json",
+        ]
+    )
+
+    assert code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "blocked"
+    assert any(item["reason"] == "target_outside_root" for item in payload["blocked_preconditions"])
+
+
 def test_task_dry_run_json_distinguishes_broader_context_and_target_resolution(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     monkeypatch.setattr("simplicio.pipeline.build_prompt", lambda *a, **k: "prompt")
