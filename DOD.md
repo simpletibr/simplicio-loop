@@ -185,5 +185,5 @@ Cross-repo and release-level checks, generally too expensive to run per-PR:
 
 Full step-by-step plan for Layers 3/4 (mutation testing priorities, the
 contract-test approach for both schema directions, and the eval-harness plan
-for `bench.py`): see the tracking issue linked from #246 and hub issue
-`simplicio-loop#579`.
+for `bench.py`): see #247 (references #246 and hub issue
+`simplicio-loop#579`).
