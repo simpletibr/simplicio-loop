@@ -22,6 +22,18 @@
 - [ ] chore — build/CI/tooling
 - [ ] breaking — quebra contrato (descrever em "Breaking changes")
 
+## Revisão por invariante (issue #310, ver `DOD.md` Camada 2)
+
+<!-- Responda mesmo que a resposta seja "N/A" -- não apague a pergunta. -->
+
+Este PR adiciona ou muda uma função que particiona/agrupa/itera sobre uma
+coleção que **outra** função já processa (ex.: duas funções que iteram
+`files`, dois indexadores que bucketam pela mesma chave, dois emissores que
+particionam o mesmo artefato)? Se sim: **elas usam a mesma chave/granularidade?**
+Descreva a comparação abaixo, ou escreva "N/A" se não se aplica.
+
+<!-- Resposta: -->
+
 ## Definition of Done
 
 - [ ] Acceptance criteria da task atendidos
@@ -30,6 +42,12 @@
 - [ ] Coverage >= 80%
 - [ ] E2E Playwright passa (`npx playwright test`)
 - [ ] Evidência E2E anexada (screenshots/trace) abaixo
+- [ ] **Evidência aponta pro resultado observável final, não só pro
+      status/exit-code da ferramenta** -- ex.: conteúdo do artefato
+      `.simplicio/*.json` gerado, diff do arquivo escrito em disco,
+      output real de `simplicio-mapper index|map|contract ...`; não basta
+      "o comando saiu com exit 0" (ver `DOD.md`, bug motivador da
+      corrupção silenciosa em `mechanical_edit.py`)
 - [ ] Sem TODO/FIXME novos sem issue tracked
 - [ ] Sem secrets/credenciais hardcoded
 - [ ] Conventional commits seguidos no histórico

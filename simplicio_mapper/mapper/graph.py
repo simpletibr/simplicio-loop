@@ -235,7 +235,16 @@ def _symbol_definitions_for_file(file: ProjectFile, text: str) -> list[dict]:
     for pattern, kind in patterns:
         for match in pattern.finditer(text):
             name = match.group(1)
-            line = _line_number(text, match.start())
+            # Use the captured name's own start, not the whole match's start:
+            # every pattern above anchors on `^\s*<keyword>` with re.MULTILINE,
+            # and `\s` matches newlines too, so when a definition is preceded
+            # by one or more blank lines `^` can anchor at an earlier blank
+            # line and let `\s*` swallow the intervening newlines -- shifting
+            # match.start() (and the reported line number) to that earlier
+            # blank line instead of the real definition line. match.start(1)
+            # sits on the identifier itself, which is always on the correct
+            # source line regardless of how much leading whitespace matched.
+            line = _line_number(text, match.start(1))
             key = (name, line, kind)
             if key in seen:
                 continue
