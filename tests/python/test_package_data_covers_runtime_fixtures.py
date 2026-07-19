@@ -13,9 +13,9 @@ the checkout, ships `score_skill.py` without its `commands/scenarios/*.json`
 data and `simplicio-py score-skill` fails with "no scenarios found" (exit 2)
 even though the same command works fine inside the repo.
 
-This module does two orthogonal, CI-fast checks (no `python -m build`
-needed — that's covered by the `packaging` job in .github/workflows/ci.yml,
-which also installs the built wheel into a clean venv and smoke-tests the
+This module does two orthogonal, fast local checks (no `python -m build`
+needed — the explicit packaging gate documented in
+`docs/ci-quality-gate.md` builds the wheel, checks it and smoke-tests the
 CLI):
 
 1. Static: every non-.py, non-cache file actually committed under

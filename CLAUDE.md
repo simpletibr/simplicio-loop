@@ -76,13 +76,16 @@ Detalhes completos (**PRODUCT** — o pacote Python real):
 - Test runner unit/contract: **pytest** (`tests/python/`, `tests/contracts/`; `[tool.pytest.ini_options]` em `pyproject.toml`).
 - Linter/formatter: **ruff** (`ruff check .` / `ruff format --check .`; `[tool.ruff]` em `pyproject.toml`, issue #102).
 - Type checker: **mypy** (`mypy simplicio`; `[tool.mypy]` em `pyproject.toml`, baseline documentado, issue #102).
-- CI/CD: GitHub Actions (`.github/workflows/ci.yml` — jobs `python`, `lint`, `extras`, `packaging`; este é o gate real que bloqueia merge).
+- Quality gate: execução local reproduzível (`ruff`, `mypy`, `pytest`, cobertura,
+  docs geradas e empacotamento). GitHub Actions está desativado neste repo;
+  `.github/workflows/` não existe e não é critério de aceite.
 - Deploy/release: PyPI (`simplicio-cli`), tag `vX.Y.Z` — ver `.specs/workflow/RELEASE.md`.
 
 Detalhes do **STARTER embutido** (harness de exemplo, não é o produto):
 
 - `package.json` na raiz só declara os scripts `test:e2e`/`test:e2e:ui`/`test:e2e:report` do harness Playwright (`playwright.config.ts`, `tests/e2e/`). Não há `npm run dev`/`build`/`lint`/`docs:build` — não invente esses comandos.
-- Test runner E2E do starter: **Playwright**, rodado isoladamente no workflow `.github/workflows/starter-e2e.yml` (não gate do pacote Python).
+- Test runner E2E do starter: **Playwright**, rodado localmente com
+  `npx playwright test` quando o harness é alterado (não é gate do pacote Python).
 
 > Antes de adicionar dependência nova (Python ou npm): **pergunta ao usuário**. Sem exceção.
 
@@ -94,7 +97,7 @@ Detalhes do **STARTER embutido** (harness de exemplo, não é o produto):
 # PRODUCT (Python — simplicio-cli) ------------------------------------------
 # setup
 pip install -e ".[dev]"        # editable install + ruff/mypy/pytest (issue #102)
-pip install -e ".[test]"       # só pytest, sem ruff/mypy (o que a CI usa no job "python")
+pip install -e ".[test]"       # só pytest/coverage, sem ruff/mypy
 
 # qualidade
 ruff check .                   # lint (E/F/I/UP/B)
@@ -120,7 +123,7 @@ npx playwright show-report     # abre relatorio ultimo run
 # git/PR (produto e starter) -------------------------------------------------
 git checkout -b feat/<task-id>-<slug>
 gh pr create --fill            # usa template de PR
-gh run watch                   # acompanha CI do branch atual
+# não usar gh run: Actions está fora do gate; anexar a evidência local ao PR
 ```
 
 ---
@@ -132,7 +135,8 @@ Para este repositório, sempre que a mudança for **release-relevant** (o pacote
 - versão de `pyproject.toml` publicada no PyPI (`simplicio-cli`)
 - tag GitHub `vX.Y.Z` criada e enviada
 - GitHub Release correspondente criada/atualizada
-- `master` limpa e sincronizada com `origin/master`
+- `main` limpa e sincronizada com `origin/main`
+- `master` preservada apenas como compatibilidade, sem novos commits diretos
 
 Validação padrão obrigatória antes de publicar/sincronizar:
 
@@ -186,30 +190,13 @@ PR só faz merge quando **todos** os itens abaixo estão marcados:
 - [ ] Sem `print()`/`console.log` de diagnóstico deixado pra trás em código de biblioteca (ver `simplicio/observability.py` / módulo de output central, issue #106) — CLI handlers onde stdout É o resultado pretendido são a exceção documentada
 - [ ] Sem TODO sem dono e sem prazo
 
-CI (`.github/workflows/ci.yml`, job `python` + `lint`) bloqueia merge se o gate falhar.
-
-> **Gap fechado, mecanismo mudou (issue #246, 2026-07)**: `.github/workflows/`
-> foi removido inteiramente em `d7ff8c9` (billing lockout na conta GitHub +
-> decisão de centralizar CI/CD em `simplicio-runtime`) — isso também apagou o
-> job `coverage` (85% global / 90% crítico, `scripts/coverage_gate.py`) que
-> `62ebd81`/#205 tinha acabado de ligar em CI horas antes. **Não existe
-> `.github/workflows/ci.yml` neste repo hoje** — o texto antigo deste
-> parágrafo (que descrevia um job `python` sem `--cov`) estava desatualizado
-> em relação a essa remoção, não só em relação ao `--cov` faltante. O piso
-> `[tool.coverage.report].fail_under = 85` em `pyproject.toml` já existia
-> (`62ebd81`) e permanece a config-fonte; o que estava sem trigger mecanizado
-> agora roda em **`.claude/hooks/pre-commit.sh`/`.ps1`**
-> (`pytest -q --cov=simplicio --cov-fail-under=85`, ativo quando
-> `pytest-cov` está instalado) até a CI centralizada assumir esse papel —
-> ver `docs/ci-quality-gate.md` para o comando completo com
-> `scripts/coverage_gate.py` (90% crítico) e `DOD.md` para o framework de 4
-> camadas. **Achado relevante da mesma sessão**: 3 testes
-> (`tests/python/test_ci_workflow_windows_lane.py`,
-> `tests/python/test_release_workflows.py` ×2) ainda leem arquivos
-> `.github/workflows/*.yml` que não existem mais — falham hoje,
-> independente de qualquer mudança nova, e bloqueiam este mesmo hook de
-> pre-commit até serem endereçados (rastreado na issue de Camada 3/4 aberta
-> a partir de #246).
+O gate que bloqueia merge é **local**. GitHub Actions foi removido em
+`d7ff8c9` (issue #246) e está fora do aceite. Rode e registre no PR os comandos
+da validação padrão acima; para cobertura, use
+`pytest --cov=simplicio --cov-report=json:coverage.json` seguido de
+`python3 scripts/coverage_gate.py --report coverage.json`. Os hooks
+`.claude/hooks/pre-commit.sh`/`.ps1` aplicam o piso global de 85% quando
+`pytest-cov` está instalado. Veja `docs/ci-quality-gate.md` e `DOD.md`.
 
 ---
 
@@ -327,7 +314,7 @@ cp .specs/architecture/ADR-template.md .specs/architecture/ADR-XXX-<slug>.md
 git push -u origin $(git branch --show-current)
 gh pr create --fill        # usa template padrao (.github/PULL_REQUEST_TEMPLATE.md)
 gh pr view --web           # abre no browser pra revisar
-gh run watch               # acompanha CI
+# anexar ao PR os comandos e resultados do gate local
 ```
 
 ### Criar task nova

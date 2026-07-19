@@ -1,96 +1,56 @@
-# CI Quality Gate (issue #202)
+# Local Quality Gate (issues #202, #246, #98)
 
-Policy doc for the "block merges that break commands, compatibility, or the
-CLI experience" epic. This documents what already gates `master`, what this
-PR adds, and what is still an open follow-up.
+This repository does not use GitHub Actions. The workflow directory was
+removed in `d7ff8c9` after the account billing lockout, and Actions is outside
+the acceptance criteria for the `main` branch migration. Pull requests target
+`main`; the retained `master` branch is compatibility-only and receives no new
+development commits.
 
-> **Update (issue #246, 2026-07): the workflows below no longer exist.**
-> `.github/workflows/` (including the `coverage` job this doc describes) was
-> removed entirely in `d7ff8c9` — GitHub Actions billing lockout plus a
-> decision to centralize CI/CD around `simplicio-runtime` — hours after this
-> job was added in `62ebd81`/#205. The `pyproject.toml` config
-> (`[tool.coverage.report].fail_under = 85`, `[tool.coverage.simplicio_critical]`)
-> and `scripts/coverage_gate.py` described below are still real and still
-> pass locally; only the CI trigger is gone. Until centralized CI restores
-> an equivalent job, the 85% floor is enforced by
-> `.claude/hooks/pre-commit.sh`/`.ps1`. See `DOD.md` and `AGENTS.md`'s
-> "Gap fechado, mecanismo mudou" note for the full picture, including a
-> known regression this same removal left behind: 3 tests still read
-> `.github/workflows/*.yml` files that no longer exist and fail today.
+## Reproducible merge gate
 
-## What gates every PR today
+Install the development tools and run the following commands from the
+repository root. Attach the command output to the pull request:
 
-All jobs run in `.github/workflows/ci.yml` ("CI" workflow) on every push/PR
-targeting `master`, `main`, or `develop`.
+```bash
+python -m pip install -e ".[dev]" build twine
+ruff check .
+ruff format --check .
+mypy simplicio
+pytest --cov=simplicio --cov-report=json:coverage.json
+python3 scripts/coverage_gate.py --report coverage.json
+python3 scripts/token_budget.py --check
+python3 scripts/gen_package_interdependence.py --check
+python -m build
+python -m twine check dist/*
+simplicio-py --help
+simplicio-cli --help
+simplicio-dev-cli --help
+```
 
-| Job | What it checks |
-| --- | --- |
-| `python` (matrix: 3.10/3.11/3.12/3.13) | `pytest` (unit + contract tests), generated-docs drift (#101), all 3 CLI entrypoints smoke-tested. Publishes a JUnit XML artifact per Python version. |
-| `coverage` (new, #202) | Re-runs the suite under `pytest-cov`, enforces **85% global** / **90% critical-module** line coverage via `scripts/coverage_gate.py`. Publishes `coverage.xml` / `coverage.json` / `htmlcov/` as artifacts. |
-| `lint` | `ruff check`, `ruff format --check`, `mypy simplicio`, token/context budget guard (#111). |
-| `windows-pipeline` | Windows-only slice: token budget guard + a pipeline/prompt-retry regression subset, catching Windows-path bugs the Linux matrix can't. |
-| `extras` | Installs `providers` / `ml` extras and verifies their imports actually resolve (#99). |
-| `packaging` | Builds sdist + wheel, `twine check`, installs the built wheel into a **clean venv** and smoke-tests the CLI — this is the "clean install validated" acceptance criterion. Publishes `dist/` as an artifact. |
+The embedded Node/Playwright starter is separate from the Python product. Run
+`npx playwright test` only when the starter harness changes.
 
-`check-ecosystem-deps` (daily + on `pyproject.toml` changes) and
-`starter-e2e` (non-gating Playwright harness for the template scaffold under
-`tests/e2e/`) run as separate workflows; `starter-e2e` intentionally does not
-gate `master` (#98) since it validates the starter-kit template, not this
-package.
+## Coverage contract
 
-## Coverage gate (this PR)
+- `[tool.coverage.report].fail_under = 85` is the global floor.
+- `[tool.coverage.simplicio_critical]` lists modules that must clear 90%.
+- `scripts/coverage_gate.py` reads `coverage.json` and enforces both floors.
+- `python3 scripts/coverage_gate.py --self-test` proves the guard accepts and
+  rejects synthetic reports correctly.
 
-- `[tool.coverage.report].fail_under = 85` in `pyproject.toml` is the
-  first-line floor (fails a local `pytest --cov=simplicio --cov-fail-under=85`
-  too, not just CI).
-- `[tool.coverage.simplicio_critical]` in `pyproject.toml` lists the modules
-  that must clear a stricter **90%** floor: `cli.py`, `pipeline.py`,
-  `mechanical_edit.py`, `mapper.py`, `execution_contract.py`, `doctor.py` —
-  the CLI entrypoint plus the core every `task`/`run` invocation exercises.
-- `scripts/coverage_gate.py` reads `coverage.json` (produced by
-  `pytest --cov=simplicio --cov-report=json:coverage.json`) and enforces both
-  numbers, printing a per-module breakdown. Run it locally the same way CI
-  does:
+The cross-platform hooks `.claude/hooks/pre-commit.sh` and
+`.claude/hooks/pre-commit.ps1` apply the 85% global floor when Python files are
+staged and `pytest-cov` is installed. The explicit gate above remains the
+source of truth because it also covers the stricter critical-module floor,
+token budget, generated documentation, packaging, and CLI entrypoints.
 
-  ```sh
-  pytest --cov=simplicio --cov-report=json:coverage.json
-  python3 scripts/coverage_gate.py --report coverage.json
-  ```
+## Public-interface and regression policy
 
-  `python3 scripts/coverage_gate.py --self-test` proves the gate actually
-  rejects a synthetic regression, without needing a real coverage run.
+`tests/python/test_cli_help_snapshot.py` byte-compares `--help` output against
+the fixtures in `tests/python/fixtures/cli_help/`. Public CLI changes must
+update the matching fixture in the same pull request.
 
-## Snapshot policy (already in place, documented here for #202)
-
-`tests/python/test_cli_help_snapshot.py` byte-compares `--help` output for
-every top-level and nested subcommand against fixtures in
-`tests/python/fixtures/cli_help/*.txt`. Any change to a public flag, help
-string, or argparse structure fails this test until the matching fixture is
-updated **in the same PR** — this is what satisfies the "public interface
-changes require explicit snapshot updates" acceptance criterion. There is no
-`--update-snapshots` auto-accept flag on purpose: fixtures are regenerated by
-hand (`python -m simplicio.cli <cmd> --help > tests/python/fixtures/cli_help/<cmd>.txt`)
-so the diff is always reviewed.
-
-## Regression-test policy
-
-Convention (see `AGENTS.md` for the existing example re: ruff `T20`): every
-bug fix lands with a test that fails before the fix and passes after it, in
-the same PR as the fix. This is process, not something CI can mechanically
-enforce today — flagged as a follow-up below.
-
-## Open follow-ups (out of scope for this PR)
-
-- **Branch protection**: making the `python`, `coverage`, and `lint` jobs
-  *required* status checks on `master` is a repo-settings change (Settings →
-  Branches → branch protection rules), not something expressible in
-  workflow YAML. Needs an org/repo admin to configure once; this PR's CI
-  changes are what such a rule would point at.
-- **Regression-test enforcement**: currently a reviewed convention. A
-  stronger version (e.g. a PR-template checkbox, or a script correlating
-  `Fixes #NNN` commits with new/changed test files) is future work and
-  deliberately not bundled into this change.
-- **Published-package install test**: the `packaging` job validates installing
-  the wheel *built in that run*; it does not yet install the already-published
-  PyPI release in a fresh environment. Worth adding as a scheduled job
-  alongside `check-ecosystem-deps` if that gap matters in practice.
+Every bug fix must include a regression test that fails before the fix and
+passes afterward. This policy is reviewed locally together with the
+adversarial verification required by `DOD.md`; it is not delegated to a
+remote workflow.

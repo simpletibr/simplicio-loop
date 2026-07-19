@@ -111,8 +111,8 @@ flowchart LR
 - [docs/PYTHON_PACKAGE_INTERDEPENDENCE.md](docs/PYTHON_PACKAGE_INTERDEPENDENCE.md) —
   **generated, not hand-edited** (#101). Regenerate after touching
   `pyproject.toml`'s version/dependencies/extras:
-  `python3 scripts/gen_package_interdependence.py`. CI enforces it hasn't
-  drifted (`python3 scripts/gen_package_interdependence.py --check`, also
+  `python3 scripts/gen_package_interdependence.py`. The local gate enforces it
+  hasn't drifted (`python3 scripts/gen_package_interdependence.py --check`, also
   covered by `tests/python/test_generated_docs.py`).
 - [docs/LLM_USAGE_POLICY.md](docs/LLM_USAGE_POLICY.md)
 - [docs/readme-globalization-standard.md](docs/readme-globalization-standard.md)
@@ -127,7 +127,7 @@ The section below restores the project-specific README material that existed bef
 [![Python](https://img.shields.io/pypi/pyversions/simplicio-cli.svg)](https://pypi.org/project/simplicio-cli/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[![simplicio-dev-cli pipeline: task to verified code change](https://raw.githubusercontent.com/wesleysimplicio/simplicio-dev-cli/master/output/imagegen/simplicio-cli-readme-hero-web.png)](output/imagegen/simplicio-cli-readme-hero.png)
+[![simplicio-dev-cli pipeline: task to verified code change](https://raw.githubusercontent.com/wesleysimplicio/simplicio-dev-cli/main/output/imagegen/simplicio-cli-readme-hero-web.png)](output/imagegen/simplicio-cli-readme-hero.png)
 
 > *"hide the Delete button for non-admins"* → diff + test + applied + verified.
 > **Zero API key inside Claude Code** (auto-installs, uses your subscription) — or
@@ -472,15 +472,18 @@ Missing an extra never crashes with a raw traceback — every optional import
 is guarded and raises an actionable error naming the exact extra to install
 (e.g. `pip install 'simplicio-cli[providers]'`).
 
-#### Local-equivalent of the CI gate
+#### Local quality gate
 
-`.github/workflows/ci.yml` is the primary required gate (the Node/Playwright
-harness in `starter-e2e.yml` validates the starter-kit template only and does
-not gate merges). Reproduce it locally with:
+GitHub Actions is disabled for this repository and `.github/workflows/` is
+intentionally absent. The reproducible merge gate runs locally; attach its
+command output to the pull request:
 
 ```bash
-pip install -e ".[test]"             # base install + pytest (+ tomli on 3.10)
-pytest                               # tests/python + tests/contracts, per pyproject.toml testpaths
+python -m pip install -e ".[dev]" build twine
+ruff check . && ruff format --check . && mypy simplicio
+pytest --cov=simplicio --cov-report=json:coverage.json
+python3 scripts/coverage_gate.py --report coverage.json
+python3 scripts/token_budget.py --check
 python3 scripts/gen_package_interdependence.py --check  # generated-doc drift gate (#101)
 simplicio-py --help                  # entrypoint smoke (x3)
 simplicio-cli --help

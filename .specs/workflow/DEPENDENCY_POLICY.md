@@ -46,13 +46,12 @@ Quando publicar uma nova versão de um pacote do ecossistema, o autor
 6. Abre um issue + PR em cada pacote dependente bumpando o floor
    (ex.: `simplicio-cli` recebe `simplicio-mapper>=0.6.0`).
 
-## Verificação automática (CI)
+## Verificação local
 
-- `.github/workflows/check-deps.yml` roda diariamente em `master` e em
-  cada PR. Compara as versões pinadas em `pyproject.toml` contra a
-  última versão pública no PyPI de cada dependência do ecossistema; se
-  o floor estiver atrasado em pelo menos 1 minor, abre/atualiza uma
-  issue automática `chore(deps): bump <pkg> floor`.
+- Antes de cada PR para `main`, compare as versões pinadas em
+  `pyproject.toml` contra a última versão pública no PyPI de cada dependência
+  do ecossistema. Se o floor estiver atrasado em pelo menos 1 minor, abra ou
+  atualize uma issue `chore(deps): bump <pkg> floor`.
 - `.github/dependabot.yml` configura updates automáticos para
   `pip` (deps Python) e `cargo` (crate Rust), com schedule semanal
   e auto-merge de patches via `dependabot/auto-merge`. Updates major

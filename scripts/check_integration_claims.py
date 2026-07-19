@@ -20,7 +20,7 @@ Usage:
     # message from stdin (e.g. `git log -1 --format=%B`), changed files from
     # `git diff --name-only` piped into a file
     git log -1 --format=%B > /tmp/msg.txt
-    git diff --name-only origin/master... > /tmp/files.txt
+    git diff --name-only origin/main... > /tmp/files.txt
     python3 scripts/check_integration_claims.py --message-file /tmp/msg.txt \\
         --files-file /tmp/files.txt
 

@@ -29,13 +29,13 @@ What it intentionally does NOT claim (proof_kind is honest):
 
 * GPT-5.4 medium via Simplicio Runtime live lane — not inferred here.
 * runtime+loop+dev-cli cross-repo receipts — requires the live runtime.
-* Windows/Linux live matrix — CI runs the deterministic corpus on each OS.
+* Windows/Linux live matrix — each platform must run the deterministic corpus.
 
-The CI release-gate job (``.github/workflows/ci.yml``) runs this script and
-treats the run as a required gate; release remains blocked unless the
-deterministic corpus is complete AND the generated docs/contracts have not
-drifted. The live lanes are scheduled separately so master is never green on a
-subset while claiming 100%.
+The local release gate runs this script and treats the run as required;
+release remains blocked unless the deterministic corpus is complete AND the
+generated docs/contracts have not drifted. Platform-specific live lanes are
+recorded separately so ``main`` is never declared green on a subset while
+claiming 100%.
 """
 
 from __future__ import annotations

@@ -122,7 +122,7 @@ A secao abaixo recupera o README tecnico original do `simplicio-cli` antes da pa
 [![Python](https://img.shields.io/pypi/pyversions/simplicio-cli.svg)](https://pypi.org/project/simplicio-cli/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[![pipeline do simplicio-dev-cli: tarefa até mudança verificada](https://raw.githubusercontent.com/wesleysimplicio/simplicio-dev-cli/master/output/imagegen/simplicio-cli-readme-hero-web.png)](output/imagegen/simplicio-cli-readme-hero.png)
+[![pipeline do simplicio-dev-cli: tarefa até mudança verificada](https://raw.githubusercontent.com/wesleysimplicio/simplicio-dev-cli/main/output/imagegen/simplicio-cli-readme-hero-web.png)](output/imagegen/simplicio-cli-readme-hero.png)
 
 > *"hide the Delete button for non-admins"* → diff + test + applied + verified.
 > **Zero API key inside Claude Code** (auto-installs, uses your subscription) — or

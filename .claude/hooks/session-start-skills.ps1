@@ -32,6 +32,6 @@ Loop padrao de task:
 Padroes deste repo:
   - PT-BR para respostas/docs internas. Ingles para codigo, commits, docs canonicas.
   - Sem emojis em codigo. Conventional Commits.
-  - DoD bloqueado por .github/workflows/dod.yml.
+  - DoD bloqueado pelo gate local documentado em docs/ci-quality-gate.md.
   - Nunca commitar segredos. Nunca pular testes.
 '@

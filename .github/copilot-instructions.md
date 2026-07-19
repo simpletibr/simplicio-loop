@@ -18,7 +18,8 @@ PRODUCT:
 - Test runner unit/contract: **pytest** (`tests/python/`, `tests/contracts/`).
 - Linter/formatter: **ruff** (`ruff check .` / `ruff format --check .`).
 - Type checker: **mypy** (`mypy simplicio`).
-- CI/CD: GitHub Actions (`.github/workflows/ci.yml` — jobs `python`, `lint`, `extras`, `packaging`).
+- Quality gate: execução local reproduzível com `ruff`, `mypy`, `pytest`,
+  cobertura, docs geradas e empacotamento. GitHub Actions está desativado.
 - Deploy: PyPI (`simplicio-cli`) — ver `.specs/workflow/RELEASE.md`.
 
 STARTER embutido (não é o produto): `package.json` só declara
@@ -47,7 +48,7 @@ npx playwright show-report
 # git/PR
 git checkout -b feat/<task-id>-<slug>
 gh pr create --fill
-gh run watch
+# anexar ao PR os comandos e resultados do gate local
 ```
 
 ---
@@ -59,7 +60,8 @@ Quando a mudança for **release-relevant** (pacote Python `simplicio-cli`), o pa
 - versão de `pyproject.toml` publicada no PyPI
 - tag GitHub `vX.Y.Z`
 - GitHub Release correspondente
-- `master` limpa e sincronizada com `origin/master`
+- `main` limpa e sincronizada com `origin/main`
+- `master` preservada apenas como compatibilidade, sem novos commits diretos
 
 Validação obrigatória antes de publicar/sincronizar:
 
@@ -108,9 +110,10 @@ PR só faz merge quando todos os itens abaixo estão marcados:
 - [ ] Sem warning novo, sem `print()`/`console.log` de diagnóstico deixado pra trás em código de biblioteca (exceção documentada: CLI handlers onde stdout é o resultado pretendido)
 - [ ] Sem TODO sem dono e sem prazo
 
-CI (`.github/workflows/ci.yml`, jobs `python` + `lint`) bloqueia merge se o gate falhar.
-
-> **Gap conhecido**: o CI não passa `--cov` nem falha sob piso de coverage hoje — o item de 85%+ acima é enforced manualmente, não pelo pipeline. Não inventar um workflow de coverage novo sem alinhar antes; só registrar o gap.
+O gate que bloqueia merge é **local**. GitHub Actions foi removido em
+`d7ff8c9` (issue #246) e está fora do aceite. Rode a validação documentada em
+`docs/ci-quality-gate.md`; os hooks `.claude/hooks/pre-commit.sh`/`.ps1`
+aplicam o piso global de 85% quando `pytest-cov` está instalado.
 
 ---
 

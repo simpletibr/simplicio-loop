@@ -99,13 +99,10 @@ currently fails (`mechanical_edit.py` 71%, `doctor.py` 73%,
 real work, tracked in the Layer 3/4 issue below, not something to fake past
 via a lower bar.
 
-**Known regression discovered while wiring this**: three tests still read
-`.github/workflows/*.yml` files that no longer exist
-(`tests/python/test_ci_workflow_windows_lane.py`,
-`tests/python/test_release_workflows.py` ×2) and fail unconditionally today
-— a direct, un-followed-up consequence of `d7ff8c9`. They are pre-existing
-and unrelated to this issue's diff; not fixed here to keep this change
-surgical, but tracked in the Layer 3/4 issue.
+The workflow-removal regression was closed during the `main` branch migration
+(issue #98): the obsolete tests that opened `.github/workflows/*.yml` were
+replaced by local-gate and branch-contract tests. No test now requires a
+GitHub Actions file to exist.
 
 ## Layer 2 — Risk-surface-driven (declared per PR)
 
