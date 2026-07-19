@@ -84,7 +84,7 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node --test",
+    "test": "node --test tests/unit/*.test.js",
     "test:coverage": "node scripts/coverage.js",
     "test:cli": "node bin/cli.js --help",
     "test:e2e": "playwright test",

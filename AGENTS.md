@@ -72,7 +72,7 @@ Detalhes:
 - Linguagem principal: **Python 3.10+** (canonical PyPI package `simplicio-mapper`); um espelho Node 18+ vive em `bin/cli.js` + `bin/mapper-artifacts.js` mantido em paridade.
 - Framework web/API: n/a — projeto é um CLI/library.
 - Banco de dados: n/a — cache opcional em disco via `diskcache` (`.simplicio/cache/`).
-- Test runner unit: **`python -m unittest discover -s tests/python`** (também roda via `pytest tests/python -q`) e **`node --test tests/unit`**.
+- Test runner unit: **`python -m unittest discover -s tests/python`** (também roda via `pytest tests/python -q`) e **`node --test tests/unit/*.test.js`**.
 - Test runner E2E: **Playwright** (config em `playwright.config.ts`).
 - Linter/formatter: **`ruff`** (Python, ver `[tool.ruff]` em `pyproject.toml`) e `node scripts/lint.js` (shell + JS).
 - CI/CD: GitHub Actions (ver `.github/workflows/`). DoD gate em `dod.yml`. Publish em `publish-pypi.yml` (PyPI-only desde 0.7.x).
@@ -96,7 +96,7 @@ npm run lint                                 # JS + shell lint (scripts/lint.js)
 ruff check simplicio_mapper tests/python     # Python lint
 node scripts/check-version-sync.js           # versões alinhadas (package/pyproject/__init__)
 python -m unittest discover -s tests/python  # Python unit
-node --test tests/unit                       # Node unit
+node --test tests/unit/*.test.js             # Node unit
 npm test                                     # cross alias (chama node --test)
 
 # E2E
