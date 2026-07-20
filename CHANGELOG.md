@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.2] — 2026-07-20
+
+### Changed
+- Raised the `simplicio-mapper` dependency floor to `>=0.24.1`, the mapper
+  release published immediately before this CLI release.
+
 ## [0.16.1] — 2026-07-13
 
 ### Changed
