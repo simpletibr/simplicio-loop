@@ -1,4 +1,4 @@
-"""Plan compiler contracts (issue #166): Goal + ContextSnapshot -> PlanDAG.
+"""Plan compiler contracts (issue #166): Goal + Mapper context -> PlanDAG.
 
 Public surface only — see :mod:`simplicio.plan_compiler.models` for the
 schema definitions and ``docs/plan-compiler.md`` for the contract writeup.
@@ -35,14 +35,22 @@ from simplicio.plan_compiler.errors import (
     PlanValidationError,
     SchemaMismatchError,
 )
+from simplicio.plan_compiler.mapper_context import (
+    DEV_CLI_FALLBACK_CONTEXT_SCHEMA,
+    MAPPER_CONTEXT_SNAPSHOT_SCHEMA,
+    MAPPER_CONTRACT_COMMIT,
+    MAPPER_CONTRACT_MANIFEST_SHA256,
+    MapperContextAdapter,
+    MapperContextError,
+    MapperContextView,
+    load_mapper_context,
+)
 from simplicio.plan_compiler.models import (
-    CONTEXT_SNAPSHOT_SCHEMA,
     EFFECT_PLAN_SCHEMA,
     GOAL_ENVELOPE_SCHEMA,
     PLAN_COMPILER_COMPATIBILITY,
     PLAN_DAG_SCHEMA,
     VERIFICATION_PLAN_SCHEMA,
-    ContextSnapshot,
     EffectPlan,
     GoalEnvelope,
     PlanDAG,
@@ -51,7 +59,7 @@ from simplicio.plan_compiler.models import (
 )
 
 __all__ = [
-    "CONTEXT_SNAPSHOT_SCHEMA",
+    "DEV_CLI_FALLBACK_CONTEXT_SCHEMA",
     "EFFECT_PLAN_SCHEMA",
     "GOAL_ENVELOPE_ADAPTER_EXPIRES_AT_VERSION",
     "GOAL_ENVELOPE_SCHEMA",
@@ -63,12 +71,17 @@ __all__ = [
     "VERIFICATION_PLAN_SCHEMA",
     "CompatAdapterError",
     "CompatAdapterExpiredError",
-    "ContextSnapshot",
     "EffectApplyResult",
     "EffectPlan",
     "EffectSink",
     "GoalEnvelope",
     "IntegratedModeRequiresSinkError",
+    "MAPPER_CONTRACT_COMMIT",
+    "MAPPER_CONTRACT_MANIFEST_SHA256",
+    "MAPPER_CONTEXT_SNAPSHOT_SCHEMA",
+    "MapperContextAdapter",
+    "MapperContextError",
+    "MapperContextView",
     "PlanCompilationError",
     "PlanCompilerError",
     "PlanDAG",
@@ -84,4 +97,5 @@ __all__ = [
     "adapt_outbound",
     "canonical_hash",
     "compile_task_spec_to_plan",
+    "load_mapper_context",
 ]

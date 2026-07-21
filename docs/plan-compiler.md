@@ -1,12 +1,19 @@
 # Plan compiler contracts
 
 `simplicio.plan_compiler` defines the typed interchange contract for issue #166:
-Goal + ContextSnapshot in, `PlanDAG` + `EffectPlan` + `VerificationPlan` out,
-with no embedded execution. These schemas do not exist as an importable
-package anywhere else in the simplicio ecosystem today, so this module is the
-**reference implementation** — versioned exactly like `simplicio.task-spec/v2`
-(`simplicio.task_spec`) — that `simplicio-runtime`/`simplicio-loop` can adopt
-as a consumer contract without this package importing their code.
+Goal + Mapper context in, `PlanDAG` + `EffectPlan` + `VerificationPlan` out,
+with no embedded execution. Goal/plan/effect/verification schemas remain local
+to this package. `simplicio.context-snapshot/v1` is owned exclusively by
+`simplicio-mapper`: the public `load_mapper_context()` boundary reads its
+packaged conformance manifest, pins it to Mapper commit
+`05ea96390762d4bba309abcbf4783d0637a4e53f` and digest
+`db8cf791fe6442585f03b3fac220c0987ca5e4271a4955df02b1df77018c52b0`, then
+delegates validation and canonical serialization to Mapper. Dev CLI neither
+copies nor reshapes that schema; it retains immutable canonical bytes and
+exposes a derived planning view. The former Dev CLI shape is rejected if it
+claims Mapper's schema id.
+Standalone fallback, when later wired, must use
+`simplicio.dev-cli.context-fallback/v1`, never Mapper's id.
 
 ```python
 from simplicio.plan_compiler import EffectPlan, PlanDAG, PlanNode, VerificationPlan
@@ -40,7 +47,7 @@ plan.canonical_hash()  # same canonical entry -> same hash, always
 
 | Type | Schema id |
 |---|---|
-| `ContextSnapshot` | `simplicio.context-snapshot/v1` |
+| Mapper context view | `simplicio.context-snapshot/v1` (owned by `simplicio-mapper`; consumed through `load_mapper_context`) |
 | `GoalEnvelope` | `simplicio.goal-envelope/v1` |
 | `PlanDAG` | `simplicio.plan-dag/v1` |
 | `EffectPlan` | `simplicio.effect-plan/v1` |

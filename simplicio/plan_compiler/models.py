@@ -1,6 +1,6 @@
 """Typed contracts for the plan compiler (issue #166).
 
-Reference implementation of ``GoalEnvelope``, ``ContextSnapshot``, ``PlanDAG``,
+Reference implementation of ``GoalEnvelope``, ``PlanDAG``,
 ``EffectPlan`` and ``VerificationPlan`` — the interchange contract between a
 Goal producer and this compiler, and between this compiler and the Runtime
 that owns execution/commit. These schemas do not currently exist as an
@@ -20,7 +20,6 @@ from typing import Any
 from simplicio.plan_compiler.canonical_hash import canonical_hash
 from simplicio.plan_compiler.errors import PlanValidationError, SchemaMismatchError
 
-CONTEXT_SNAPSHOT_SCHEMA = "simplicio.context-snapshot/v1"
 GOAL_ENVELOPE_SCHEMA = "simplicio.goal-envelope/v1"
 PLAN_DAG_SCHEMA = "simplicio.plan-dag/v1"
 EFFECT_PLAN_SCHEMA = "simplicio.effect-plan/v1"
@@ -40,39 +39,6 @@ def _check_schema(payload: dict[str, Any], *, expected: str) -> None:
     got = payload.get("schema")
     if got != expected:
         raise SchemaMismatchError(expected.split("/")[0], expected, str(got))
-
-
-@dataclass(frozen=True)
-class ContextSnapshot:
-    snapshot_id: str
-    revision: str
-    base_sha: str
-    captured_at: str
-    root: str
-    extra: dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "schema": CONTEXT_SNAPSHOT_SCHEMA,
-            "snapshot_id": self.snapshot_id,
-            "revision": self.revision,
-            "base_sha": self.base_sha,
-            "captured_at": self.captured_at,
-            "root": self.root,
-            "extra": self.extra,
-        }
-
-    @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> ContextSnapshot:
-        _check_schema(payload, expected=CONTEXT_SNAPSHOT_SCHEMA)
-        return cls(
-            snapshot_id=str(payload["snapshot_id"]),
-            revision=str(payload["revision"]),
-            base_sha=str(payload["base_sha"]),
-            captured_at=str(payload["captured_at"]),
-            root=str(payload["root"]),
-            extra=dict(payload.get("extra", {})),
-        )
 
 
 @dataclass(frozen=True)
