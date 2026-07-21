@@ -1,23 +1,32 @@
 # Mapper quality gate (#320)
 
-The Mapper release gate is intentionally split into evidence-producing lanes:
+The gate is local-first and does not require GitHub Actions or paid CI.
 
-- json-boundaries.yml is the fail-closed inventory gate for exact internal-state exceptions.
-- mapper-quality-gate.yml runs the inventory, Python tests, Node tests and package-content check on Linux, macOS and Windows.
-- The Runtime lane installs simplicio-runtime, runs the non-JSON ecosystem doctor, and requires a Runtime result before release.
-- Every lane writes Markdown; unavailable performance or HBP receipt evidence is written as null with a reason, never as zero and never as an internal JSON report.
+Run the fast policy gate:
 
-## Release rules
+    python scripts/mapper_quality_gate.py
 
-A release is blocked when:
+Run all available local checks:
 
-1. an internal JSON path is unclassified, expired or malformed;
-2. Python, Node, package or cross-platform jobs fail;
-3. Runtime conformance is unavailable or fails;
-4. a benchmark or receipt is claimed without an observed value.
+    python scripts/mapper_quality_gate.py --full
 
-The current TOML inventory intentionally retains legacy .simplicio and .orchestrator artifacts until the published Runtime HBP/HBI migration contract is consumed by Mapper. Those entries are migration exceptions, not a claim that the artifacts are already binary.
+For a release decision, require every local tool and the installed Runtime:
 
-## Remaining Runtime-dependent work
+    python scripts/mapper_quality_gate.py --full --require-tools --require-runtime
 
-The Mapper cannot safely invent an HBI payload schema. Runtime must publish the semantic index sections and conformance vectors before Mapper replaces its index writers. Once that contract lands, remove the dated exceptions, add migration/rollback fixtures, and keep the Runtime lane required.
+The command writes Markdown to artifacts/mapper-quality-summary.md. It never writes an internal JSON report. Missing evidence is recorded as null with a reason and is never treated as zero.
+
+## What is checked
+
+- exact TOML inventory and strict internal-JSON scanner;
+- Python tests;
+- Node unit tests;
+- npm package contents;
+- non-JSON simplicio-runtime ecosystem doctor;
+- explicit unavailable markers for cross-repository E2E, performance observations and HBP receipts.
+
+Run this command on Linux, macOS and Windows as part of the release checklist. The repository no longer adds a GitHub Actions workflow for this gate.
+
+## Runtime-dependent work
+
+The Mapper cannot invent the semantic HBI payload sections. Runtime must publish those sections and conformance vectors before the dated JSON exceptions can be removed and the index writers migrated. Until then, the local gate reports that dependency explicitly instead of labeling a custom mmap layout as HBI.
