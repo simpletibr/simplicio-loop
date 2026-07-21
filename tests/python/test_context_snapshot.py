@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import unittest
 
 from simplicio_mapper import __version__
@@ -251,7 +252,7 @@ class ContextSnapshotTest(unittest.TestCase):
 
         proc = subprocess.run(
             [
-                "python3",
+                sys.executable,
                 "-m",
                 "simplicio_mapper.cli",
                 "snapshot",

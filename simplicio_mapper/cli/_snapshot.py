@@ -22,9 +22,9 @@ import sys
 from collections.abc import Sequence
 
 from .. import __version__
+from ..context_contract import REPORT_SCHEMA, validate_context_file
 from ..context_dag import update_context_dag
 from ..context_snapshot import ARTIFACT_VERSION, build_context_graph, build_context_snapshot
-from ..contract import ContractError, validate_file
 from ..mapper import (
     _parse_json_safe,
     write_mapping_artifacts,
@@ -152,29 +152,31 @@ def _run_validate(opts: dict) -> int:
     if not paths:
         print("usage: simplicio-mapper snapshot validate <path> [<path> ...]", file=sys.stderr)
         return 2
-    # `validate_file` resolves schema dirs per-family internally, so any valid
-    # contract root satisfies the call (context-snapshot schemas resolve from
-    # the shipped package dir regardless of this root).
-    contract_root = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-        "contracts",
-        "context-snapshot",
-        "v1",
-    )
     failed = False
+    reports = []
     for path in paths:
         try:
-            schema_id, errors = validate_file(path, contract_root)
-        except ContractError as error:
-            print(f"[skip] {path}: {error}")
-            continue
-        if errors:
+            report = validate_context_file(path)
+        except (OSError, ValueError, json.JSONDecodeError) as error:
+            report = {
+                "schema": REPORT_SCHEMA,
+                "valid": False,
+                "reason_codes": [{"code": "SNAPSHOT_READ_ERROR", "path": "$", "message": str(error)}],
+                "snapshot_id": "",
+            }
+        report["path"] = path
+        reports.append(report)
+        if not report["valid"]:
             failed = True
-            print(f"[fail] {path} ({schema_id}):")
-            for error in errors:
-                print(f"  - {error}")
-        else:
-            print(f"[ok]   {path} ({schema_id})")
+        if not opts.get("json"):
+            if report["valid"]:
+                print(f"[ok]   {path} ({report['schema']})")
+            else:
+                print(f"[fail] {path} ({report['schema']}):")
+                for reason in report["reason_codes"]:
+                    print(f"  - {reason['code']}: {reason['message']}")
+    if opts.get("json"):
+        print(json.dumps({"schema": REPORT_SCHEMA, "valid": not failed, "reports": reports}, sort_keys=True))
     return 1 if failed else 0
 
 

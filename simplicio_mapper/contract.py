@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 
 CONTRACT_VERSION = "v1"
 
@@ -190,15 +191,68 @@ def _validate_node(value: object, schema: dict, path: str, errors: list[str]) ->
         for key, sub_schema in properties.items():
             if key in value:
                 _validate_node(value[key], sub_schema, f"{path}.{key}", errors)
+        if schema.get("additionalProperties") is False:
+            for key in value:
+                if key not in properties:
+                    errors.append(f"{path}: additional property {key!r} is not allowed")
+        additional = schema.get("additionalProperties")
+        if isinstance(additional, dict):
+            for key, child in value.items():
+                if key not in properties:
+                    _validate_node(child, additional, f"{path}.{key}", errors)
+
+        min_properties = schema.get("minProperties")
+        max_properties = schema.get("maxProperties")
+        if min_properties is not None and len(value) < min_properties:
+            errors.append(f"{path}: has {len(value)} properties, expected at least {min_properties}")
+        if max_properties is not None and len(value) > max_properties:
+            errors.append(f"{path}: has {len(value)} properties, expected at most {max_properties}")
 
     if isinstance(value, list):
         min_items = schema.get("minItems")
         if min_items is not None and len(value) < min_items:
             errors.append(f"{path}: has {len(value)} items, expected at least {min_items}")
+        max_items = schema.get("maxItems")
+        if max_items is not None and len(value) > max_items:
+            errors.append(f"{path}: has {len(value)} items, expected at most {max_items}")
+        if schema.get("uniqueItems"):
+            seen = set()
+            for item in value:
+                try:
+                    marker = json.dumps(item, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+                except (TypeError, ValueError):
+                    marker = repr(item)
+                if marker in seen:
+                    errors.append(f"{path}: array items must be unique")
+                    break
+                seen.add(marker)
         item_schema = schema.get("items")
         if item_schema:
             for index, item in enumerate(value):
                 _validate_node(item, item_schema, f"{path}[{index}]", errors)
+
+    if isinstance(value, str):
+        min_length = schema.get("minLength")
+        max_length = schema.get("maxLength")
+        if min_length is not None and len(value) < min_length:
+            errors.append(f"{path}: string shorter than {min_length}")
+        if max_length is not None and len(value) > max_length:
+            errors.append(f"{path}: string longer than {max_length}")
+        pattern = schema.get("pattern")
+        if isinstance(pattern, str):
+            try:
+                if re.search(pattern, value) is None:
+                    errors.append(f"{path}: string does not match pattern {pattern!r}")
+            except re.error:
+                errors.append(f"{path}: invalid schema pattern {pattern!r}")
+
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        minimum = schema.get("minimum")
+        maximum = schema.get("maximum")
+        if minimum is not None and value < minimum:
+            errors.append(f"{path}: value {value} is less than minimum {minimum}")
+        if maximum is not None and value > maximum:
+            errors.append(f"{path}: value {value} is greater than maximum {maximum}")
 
 
 def validate_instance(instance: dict, schema: dict) -> list[str]:
@@ -212,11 +266,17 @@ def validate_payload(payload: dict, contract_root: str) -> tuple[str, list[str]]
     """Validate ``payload`` against the schema its own ``schema`` field names.
 
     Returns ``(schema_id, errors)``. Raises ``ContractError`` if the payload
-    has no recognizable ``schema`` field.
+    has no recognizable ``schema`` field. Context schemas delegate lazily to
+    their canonical validator because they require cross-document invariants.
     """
     schema_id = payload.get("schema")
     if not schema_id:
         raise ContractError('payload has no "schema" field to look up a contract by')
+    if schema_id in {"simplicio.context-snapshot/v1", "simplicio.context-graph/v1"}:
+        from .context_contract import validate_context_payload
+
+        report = validate_context_payload(payload)
+        return schema_id, [f"{item['path']}: [{item['code']}] {item['message']}" for item in report["reason_codes"]]
     schema = load_schema(schema_id, contract_root)
     return schema_id, validate_instance(payload, schema)
 

@@ -1,5 +1,21 @@
 # ContextSnapshot / ContextGraph contract — `v1`
 
+The Mapper is the exclusive producer owner. Contract governance, byte-level
+canonicalization, reversible source handles, N/N-1 policy, v2 bump rules,
+future-version fail-closed behavior, and consumer migration are in
+[CONTRACT.md](CONTRACT.md). The deterministic, pinned conformance-kit index is
+`contract-manifest.json`; check it with
+`python3 scripts/check_context_contract_assets.py`.
+
+Local CI-equivalent commands (no Actions required):
+
+```bash
+python3 scripts/check_context_contract_assets.py
+python3 -m unittest tests.python.test_context_contract_assets
+python3 scripts/check_context_contract_assets.py --print
+git diff -- contracts/context-snapshot/v1/contract-manifest.json
+```
+
 Issue #208 foundation slice ("Schema e identidade"). Defines the canonical
 observer output of the Mapper: a content-addressed, versioned,
 fidelity-proven `ContextSnapshot` wrapping a multi-scale `ContextGraph`.
@@ -27,10 +43,10 @@ wheel. This family intentionally **overrides** that: issue #208 AC requires
 ## Identity (content addressing)
 
 `snapshot_id` is a SHA-256 of the canonical serialization of the snapshot body
-(everything except `snapshot_id`, `generated_at`, `producer`, `schema_version`):
+(everything except `snapshot_id` and `generated_at`):
 `sha256(json.dumps(body, sort_keys=True, separators=(",",":"), ensure_ascii=False))`.
-Same inputs → same id; one changed byte → different id. `needs_broader_context`
-is derived from the `omissions` list and never enters the hash.
+Same inputs → same id; one changed byte → different id. `producer`,
+`schema_version`, and `needs_broader_context` are deliberately addressable.
 
 ## Multi-scale graph
 
@@ -46,17 +62,24 @@ Every node and edge carries:
 - a reversible `source` / `source_handle` pointing back to the originating
   artifact file (+ `line` / `span` when known).
 
+In v1 an edge endpoint may refer to an external or not-yet-indexed logical ID.
+Its edge ID, source handle, and content hash remain validated; consumers must
+not infer that every endpoint has a local node record.
+
 ## Fixtures
 
-- `fixtures/latest/` — generated from the real `python-minimal` mapper run
-  (4 files, 4 symbols, 5 call edges → 15 graph nodes, 9 edges).
-- `fixtures/minimum/` — hand-authored tiny valid example (4 nodes, 2 edges)
-  for easy Rust consumption in the Simplicio Runtime (parent issue #3134).
+- `fixtures/minimum/` mirrors `valid/minimal`: a partial receipt with 1 node
+  and 0 edges.
+- `fixtures/latest/` mirrors `valid/full`: 7 graph nodes and 4 edges.
+- `valid/graph-multi-scale/` has 5 nodes and 3 edges; `valid/delta-revision/`
+  has 7 nodes and 4 edges.
 
-Regenerate with:
+The checked fixtures are golden assets. Do not use the old regeneration command
+as evidence of conformance; review a deterministic golden change with:
 
 ```bash
-python3 scripts/regen_context_snapshot_fixtures.py update
+python3 scripts/check_context_contract_assets.py --print
+git diff -- contracts/context-snapshot/v1/contract-manifest.json
 ```
 
 ## CLI

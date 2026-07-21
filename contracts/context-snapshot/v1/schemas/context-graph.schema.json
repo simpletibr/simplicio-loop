@@ -1,67 +1,18 @@
 {
   "$id": "simplicio.context-graph/v1",
   "title": "simplicio-mapper ContextGraph (v1)",
-  "description": "Multi-scale, content-addressed graph referenced by a simplicio.context-snapshot/v1 envelope. Nodes are addressed by scale (micro/meso/macro) + logical id; each node/edge carries a content_hash and a reversible source handle so any summary can be expanded back to the originating mapper artifact. Produced by simplicio_mapper.context_snapshot.build_context_graph.",
+  "description": "Multi-scale graph embedded in a ContextSnapshot. Source handles are repo-relative and reversible.",
   "type": "object",
-  "required": ["schema", "version", "nodes", "edges"],
+  "additionalProperties": false,
+  "required": ["schema", "version", "nodes", "edges", "counts", "scale_semantics", "drilldown"],
   "properties": {
-    "schema": { "type": "string", "enum": ["simplicio.context-graph/v1"] },
-    "version": { "type": "integer", "enum": [1] },
-    "nodes": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["id", "scale", "content_hash", "source"],
-        "properties": {
-          "id": { "type": "string" },
-          "scale": { "type": "string", "enum": ["micro", "meso", "macro"] },
-          "content_hash": { "type": "string" },
-          "source": {
-            "type": "object",
-            "required": ["file"],
-            "properties": {
-              "file": { "type": "string" },
-              "line": { "type": "integer" },
-              "span": { "type": "array", "items": { "type": "integer" }, "minItems": 2 }
-            }
-          }
-        }
-      }
-    },
-    "edges": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["id", "kind", "source", "target", "content_hash", "source_handle"],
-        "properties": {
-          "id": { "type": "string" },
-          "kind": { "type": "string" },
-          "source": { "type": "string" },
-          "target": { "type": "string" },
-          "content_hash": { "type": "string" },
-          "confidence": { "type": "number" },
-          "source_handle": {
-            "type": "object",
-            "required": ["file"],
-            "properties": {
-              "file": { "type": "string" },
-              "line": { "type": "integer" },
-              "span": { "type": "array", "items": { "type": "integer" }, "minItems": 2 }
-            }
-          }
-        }
-      }
-    },
-    "counts": {
-      "type": "object",
-      "required": ["nodes", "edges"],
-      "properties": {
-        "nodes": { "type": "integer" },
-        "edges": { "type": "integer" },
-        "micro": { "type": "integer" },
-        "meso": { "type": "integer" },
-        "macro": { "type": "integer" }
-      }
-    }
-  }
+    "schema": {"type": "string", "enum": ["simplicio.context-graph/v1"]},
+    "version": {"type": "integer", "enum": [1]},
+    "nodes": {"type": "array", "maxItems": 100000, "items": {"type": "object", "additionalProperties": false, "required": ["id", "scale", "content_hash", "source"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 4096}, "scale": {"type": "string", "enum": ["micro", "meso", "macro"]}, "content_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "source": {"$ref": "#/$defs/sourceHandle"}}}},
+    "edges": {"type": "array", "maxItems": 200000, "items": {"type": "object", "additionalProperties": false, "required": ["id", "kind", "source", "target", "content_hash", "source_handle"], "properties": {"id": {"type": "string", "minLength": 1, "maxLength": 4096}, "kind": {"type": "string", "minLength": 1, "maxLength": 256}, "source": {"type": "string", "minLength": 1, "maxLength": 4096}, "target": {"type": "string", "minLength": 1, "maxLength": 4096}, "content_hash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}, "confidence": {"type": "number", "minimum": 0, "maximum": 1}, "source_handle": {"$ref": "#/$defs/sourceHandle"}}}},
+    "counts": {"type": "object", "additionalProperties": false, "required": ["nodes", "edges"], "properties": {"nodes": {"type": "integer", "minimum": 0}, "edges": {"type": "integer", "minimum": 0}, "micro": {"type": "integer", "minimum": 0}, "meso": {"type": "integer", "minimum": 0}, "macro": {"type": "integer", "minimum": 0}}},
+    "scale_semantics": {"type": "object", "maxProperties": 3},
+    "drilldown": {"type": "object", "maxProperties": 16}
+  },
+  "$defs": {"sourceHandle": {"type": "object", "additionalProperties": false, "required": ["file"], "properties": {"file": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^(?!/)(?!.*\\\\)(?!.*\\u0000)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"}, "line": {"type": "integer", "minimum": 1}, "span": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"type": "integer", "minimum": 1}}}}}
 }
