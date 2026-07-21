@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -55,10 +56,11 @@ def build_report(
     checks.append(("Runtime ecosystem doctor", runtime_status, runtime_detail))
 
     if full:
+        npm = "npm.cmd" if os.name == "nt" else "npm"
         for name, command in (
             ("Python tests", [sys.executable, "-m", "pytest", "-q"]),
-            ("Node unit tests", ["npm", "test"]),
-            ("Package contents", ["npm", "pack", "--dry-run"]),
+            ("Node unit tests", [npm, "test"]),
+            ("Package contents", [npm, "pack", "--dry-run"]),
         ):
             checks.append((name, *_status(command, root)))
 
