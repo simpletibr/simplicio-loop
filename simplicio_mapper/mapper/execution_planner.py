@@ -65,11 +65,12 @@ def _requested_profile_from_env() -> ExecutionProfile:
 def plan_execution(file_count: int, threshold: int) -> ExecutionPlan:
     """Resolve the mapper execution profile for the current run.
 
-    ``auto`` chooses between sync/async from measured threshold data.  Explicit
-    ``sync``/``async`` override that decision, except the async kill switch
-    always wins.  Future profiles are accepted as configuration vocabulary but
-    deterministically fall back to ``auto`` until real worker/Hub protocols are
-    implemented in this package.
+    ``auto`` selects the bounded async pipeline so every normal mapper run
+    benefits from concurrent file I/O and parsing. Explicit ``sync`` remains
+    available for diagnosis and the async kill switch always wins. Future
+    profiles are accepted as configuration vocabulary but deterministically
+    fall back to ``auto`` until real worker/Hub protocols are implemented in
+    this package.
     """
     requested = _requested_profile_from_env()
     async_disabled = os.environ.get(ASYNC_KILL_SWITCH_ENV, "").strip().lower() in {
@@ -114,12 +115,11 @@ def plan_execution(file_count: int, threshold: int) -> ExecutionPlan:
     else:
         reason_prefix = ""
 
-    if safe_file_count >= safe_threshold:
-        selected = ExecutionProfile.ASYNC
-        reason = f"{reason_prefix}auto selected async because file_count >= threshold"
-    else:
-        selected = ExecutionProfile.SYNC
-        reason = f"{reason_prefix}auto selected sync because file_count < threshold"
+    selected = ExecutionProfile.ASYNC
+    reason = (
+        f"{reason_prefix}auto selected bounded async pipeline "
+        "for concurrent file inventory"
+    )
 
     return ExecutionPlan(
         requested_profile=requested.value,

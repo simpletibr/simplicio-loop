@@ -63,16 +63,13 @@ each.
 
 - Cause: host core count drives the default concurrency cap
   (`min(32, os.cpu_count() * 4)`), so a higher-core host uses more
-  concurrent file handles; small/medium trees on the async path are also
-  known to be slower than the synchronous path (see "Known limitation" in
-  the operational guide) -- confirm the run actually crossed
-  `SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES` before assuming a hang.
+  concurrent file handles. Normal `auto` runs use the async path at every
+  repository size; confirm the execution receipt before assuming a hang.
 - Diagnose: compare `os.cpu_count()` to the benchmark host in
   `docs/async-pipeline-after-benchmark.md`; check
   `.simplicio/project-map.json`'s `degraded` object.
-- Fix: lower `SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES`, or raise
-  `SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES` to keep the run on the
-  (usually faster, for small/medium trees) synchronous path.
+- Fix: lower `SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES`, or make one explicit
+  diagnostic/rollback run with `SIMPLICIO_MAPPER_EXECUTION_PROFILE=sync`.
 
 ### `.simplicio/cache/` Locked Or "File Still In Use" Right After A Run
 

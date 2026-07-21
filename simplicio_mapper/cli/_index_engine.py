@@ -378,6 +378,11 @@ def _index_result(
     # #269) -- default `index`/`scan` output is unaffected, byte-for-byte.
     if run_result is not None and "canonical_reuse" in run_result:
         payload["canonical_reuse"] = run_result["canonical_reuse"]
+    if run_result is not None and isinstance(run_result.get("execution_plan"), dict):
+        payload["execution_plan"] = run_result["execution_plan"]
+        execution_plan_path = run_result.get("execution_plan_path")
+        if isinstance(execution_plan_path, str):
+            payload["paths"]["execution_plan"] = execution_plan_path.replace(os.sep, "/")
     return payload
 
 

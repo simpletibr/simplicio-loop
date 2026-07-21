@@ -166,19 +166,19 @@ class RunCalibrationTest(unittest.TestCase):
             self.assertEqual(payload["recommended_threshold"], 777)
 
     def test_does_not_leak_the_env_var_override(self) -> None:
-        os.environ.pop("SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES", None)
+        os.environ.pop("SIMPLICIO_MAPPER_EXECUTION_PROFILE", None)
         run_calibration(sizes=(3,), runs=1)
-        self.assertNotIn("SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES", os.environ)
+        self.assertNotIn("SIMPLICIO_MAPPER_EXECUTION_PROFILE", os.environ)
 
     def test_restores_a_pre_existing_env_var_override(self) -> None:
-        os.environ["SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES"] = "123"
+        os.environ["SIMPLICIO_MAPPER_EXECUTION_PROFILE"] = "sync"
         try:
             run_calibration(sizes=(3,), runs=1)
             self.assertEqual(
-                os.environ["SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES"], "123"
+                os.environ["SIMPLICIO_MAPPER_EXECUTION_PROFILE"], "sync"
             )
         finally:
-            os.environ.pop("SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES", None)
+            os.environ.pop("SIMPLICIO_MAPPER_EXECUTION_PROFILE", None)
 
 
 if __name__ == "__main__":

@@ -21,32 +21,33 @@ see `docs/local-setup.md` for install/run basics.
 ## What actually runs today
 
 `simplicio_mapper/mapper/emit.py::build_artifacts` (the function every CLI
-command calls) does a cheap, content-free file-count probe
-(`_fast_file_count`) and then dispatches:
+command calls) records a cheap, content-free file count
+(`_fast_file_count`) and then uses the bounded-concurrency async pipeline by
+default:
 
 ```python
 def build_artifacts(cwd, meta=None, incremental=False, output_dir=".simplicio"):
     abs_cwd = os.path.abspath(cwd)
-    threshold = _async_pipeline_min_files()
-    if _fast_file_count(abs_cwd, threshold) < threshold:
+    threshold = _async_pipeline_min_files(abs_cwd, output_dir)
+    file_count = _fast_file_count(abs_cwd, threshold)
+    plan = plan_execution(file_count, threshold)
+    if plan.selected_profile == "sync":
         return _build_artifacts_sync(abs_cwd, meta, incremental, output_dir)
     from .async_pipeline import _install_uvloop_if_available, build_artifacts_async
     _install_uvloop_if_available()
     return asyncio.run(build_artifacts_async(abs_cwd, meta, incremental, output_dir))
 ```
 
-- **Below `SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES`** (default `600`,
-  see "Configuration knobs" below): the run goes through
-  `_build_artifacts_sync`, a restored copy of the original pre-PR-260
-  synchronous walk-and-parse-and-write body -- this is the common case for
-  most real-world (small/medium) repos this tool maps.
-- **At or above the threshold**: the run goes through
+- **Normal `auto` execution, at every repository size**: the run goes through
   `async_pipeline.build_artifacts_async`
   (`async_pipeline.build_file_inventory_async`, bounded-concurrency,
   `asyncio.to_thread`-based file reads, for the walk-and-parse stage), then
   the symbol-index/call-graph/architecture-inventory/JSON-write stages run
   exactly as before -- those stages are untouched and stay synchronous
   regardless of which path was taken.
+- **Explicit rollback/diagnostic execution**: set
+  `SIMPLICIO_MAPPER_EXECUTION_PROFILE=sync` or
+  `SIMPLICIO_MAPPER_NO_ASYNC_PIPELINE=1` to select `_build_artifacts_sync`.
 
 `build_artifacts()`'s signature, return value, and on-disk
 `.simplicio/*.json` output are identical on both paths and covered by
@@ -60,22 +61,19 @@ time), so they can be set per-invocation.
 
 | Variable | Default | Effect | Invalid/out-of-range input |
 |---|---|---|---|
-| `SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES` | `600` | File-count threshold (`_fast_file_count`, early-exiting once reached) below which `build_artifacts` routes to the plain synchronous pipeline instead of the async one -- see "What actually runs today" above and "Rollback / disable" below. | Non-integer or `<= 0` is **ignored**, falling back to the default. |
-| `SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES` | `min(32, os.cpu_count() * 4)` | Caps in-flight file read+parse tasks (a single `asyncio.Semaphore`). Never unbounded, regardless of setting; only applies once a run is on the async path. | Non-integer or `<= 0` is **ignored**, falling back to the default (not zero, not unbounded) -- verified by `test_env_override_controls_the_cap` in `tests/python/test_async_pipeline.py`. |
+| `SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES` | `600` | Calibration/receipt threshold for the bounded file-count probe. It no longer changes normal `auto` dispatch; use the explicit sync controls below for rollback. | Non-integer or `<= 0` is **ignored**, falling back to the default. |
+| `SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES` | `min(32, os.cpu_count() * 4)` | Caps in-flight file read+parse tasks (a single `asyncio.Semaphore`). Never unbounded, regardless of setting. | Non-integer or `<= 0` is **ignored**, falling back to the default (not zero, not unbounded) -- verified by `test_env_override_controls_the_cap` in `tests/python/test_async_pipeline.py`. |
 | `SIMPLICIO_MAPPER_FILE_TIMEOUT_S` | `30.0` | Per-file wall-clock budget (`asyncio.wait_for` around each file's read+parse) on the async path. A file that exceeds this is recorded in `degraded.timed_out_files` and dropped from the inventory -- the run itself is not aborted. | Non-numeric or `<= 0` is **ignored**, falling back to `30.0` -- verified by `test_per_file_timeout_env_override`. |
 
-Example, forcing the async path on a smaller tree and lowering both async
-knobs for a slow/constrained environment (e.g. a network-mounted repo, or a
-CI runner with few cores):
+Example, lowering concurrency and timeout budgets for a slow/constrained
+environment (e.g. a network-mounted repo, or a runner with few cores):
 
 ```bash
-SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES=1 \
-  SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES=8 SIMPLICIO_MAPPER_FILE_TIMEOUT_S=10 \
+SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES=8 SIMPLICIO_MAPPER_FILE_TIMEOUT_S=10 \
   simplicio-mapper index /path/to/project
 ```
 
 ```powershell
-$env:SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES = "1"
 $env:SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES = "8"
 $env:SIMPLICIO_MAPPER_FILE_TIMEOUT_S = "10"
 simplicio-mapper index C:\path\to\project
@@ -87,7 +85,7 @@ time) -- useful for isolating whether a problem is concurrency-related, but
 **not equivalent to the synchronous pipeline** (it still goes through
 `asyncio.to_thread` per file, still pays event-loop/task-scheduling
 overhead per file; see "Known limitation" below). To genuinely bypass the
-async pipeline, use `SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES` instead
+async pipeline, use `SIMPLICIO_MAPPER_EXECUTION_PROFILE=sync` instead
 (see "Rollback / disable" below).
 
 ## `uvloop` opt-in (Linux/macOS only)
@@ -183,15 +181,10 @@ unverified in any sandbox available to date.
 
 Two independent levers exist today, at different granularity:
 
-1. **`SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES` set to an arbitrarily
-   large value is a deterministic, always-available kill-switch.** Since
-   `build_artifacts` routes to `_build_artifacts_sync` whenever the
-   pre-run file count is below this threshold, setting it above any repo
-   you will ever map (e.g. `SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES=999999999`)
-   forces every run through the fully-synchronous, pre-PR-260 code path,
-   with no code change or package rollback required. This supersedes an
-   earlier documented gap ("no runtime kill-switch exists") -- it does now,
-   as of the size-based dispatch follow-up (ADR-009 plan step 11).
+1. **`SIMPLICIO_MAPPER_EXECUTION_PROFILE=sync` is the deterministic,
+   always-available rollback.** It forces the fully synchronous path without
+   code changes or package rollback. `SIMPLICIO_MAPPER_NO_ASYNC_PIPELINE=1`
+   is an equivalent safety kill-switch and wins over profile selection.
 2. **Tune around it instead of disabling it.** Most reported problems on
    the async path (slow runs, high memory, timeouts) are addressed by
    `SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES` and
@@ -209,29 +202,16 @@ of preference:
    rollback path -- confirm the exact last pre-async version against the
    CHANGELOG/release tags before pinning, since this document does not
    hardcode a version number that will drift out of date.
-4. **Revert PR #260 on a local branch** if you are running from source and
+4. **Revert the async-pipeline changes on a local branch** if you are running from source and
    need a code-level rollback rather than a package pin or env var --
    `git revert` (or `git checkout` the pre-merge commit) restores the
    fully synchronous `_build_file_inventory` loop unconditionally. This is
    the highest-effort option and should only be used if options 1-3 do not
    resolve the issue.
 
-**Why there was no soft kill-switch for a while, and why there is one
-now**: ADR-009's original ship did not include a dedicated "disable async"
-switch, because the sync public API (`build_artifacts()`) was preserved
-exactly and the async rewrite was additive/internal rather than a new
-opt-in surface a caller chooses to enable -- adding a second maintained
-code path was seen as doubling the surface that needs testing. Issue
-#264's after-benchmark then showed a genuine small/medium-tree performance
-regression from going unconditionally async, which is what motivated the
-size-based dispatch follow-up (plan step 11) -- that follow-up's threshold
-env var happens to also function as the kill-switch this document
-previously said did not exist. `_build_artifacts_sync` is a restored,
-tested copy of the pre-#260 loop, not a second implementation invented from
-scratch, so the "doubling the maintained surface" concern is bounded to
-keeping that restored function in sync with `graph.py`/`parse.py`, which
-`OutputEquivalenceTest` and the dispatch-boundary regression tests
-continue to guard.
+`_build_artifacts_sync` remains a tested diagnostic/rollback path.
+`OutputEquivalenceTest` and the execution-profile regression tests guard
+its parity with the async route.
 
 ## Known limitation: async can be slower than sync on small/medium trees
 
@@ -251,13 +231,10 @@ the working hypothesis for the difference (`asyncio`/thread-pool
 scheduling overhead outweighing I/O-wait when there isn't much I/O-wait to
 begin with).
 
-The size-based dispatch (`SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES`,
-default `600`, see "What actually runs today" above) exists specifically
-to route small/medium trees back to the synchronous path so this
-regression is no longer user-visible by default
-(`docs/async-pipeline-dispatch-benchmark.md`) -- but if you force the
-async path onto a small tree (e.g. for testing, via a very low threshold),
-expect it to be measurably slower than the default sync path, not faster.
+Normal `auto` execution intentionally remains asynchronous at every size to
+keep mapper work concurrent by default. If a measured small-tree regression
+matters in a constrained environment, use the explicit synchronous rollback
+for that invocation and record the execution receipt.
 
 Operators on I/O-constrained environments (slow disks, network
 filesystems) where cold-cache reads genuinely dominate wall time may see

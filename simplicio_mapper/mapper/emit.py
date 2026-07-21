@@ -94,20 +94,15 @@ def _build_agent_tree(
 
     return root_node
 
-#: Env var overriding the file-count threshold below which `build_artifacts`
-#: routes through the plain synchronous pipeline instead of the async one
-#: (issue #235 follow-up: size-based dispatch). See
-#: `docs/async-pipeline-dispatch-benchmark.md` for the measurement behind
-#: the default below -- small/medium trees were measurably SLOWER under the
-#: async pipeline (asyncio/thread-pool scheduling overhead outweighs I/O-wait
-#: savings when there is little I/O-wait to hide), so the async path is now
-#: opt-in above this file count, not the unconditional default.
+#: Compatibility and calibration input retained for benchmark receipts and
+#: explicit diagnostic overrides.  Normal ``auto`` execution is asynchronous
+#: regardless of the counted files; see ``execution_planner.plan_execution``.
 _ASYNC_PIPELINE_MIN_FILES_ENV = "SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES"
 _DEFAULT_ASYNC_PIPELINE_MIN_FILES = 600
 
 
 def _async_pipeline_min_files(cwd: str | None = None, output_dir: str = ".simplicio") -> int:
-    """Threshold (inclusive-exclusive: async engages at >= this count).
+    """Return the calibrated threshold retained in the execution receipt.
 
     Resolution order (issue #279 Phase-0: local per-machine calibration,
     see ``pipeline_calibration.py`` / ADR-010):
@@ -121,9 +116,7 @@ def _async_pipeline_min_files(cwd: str | None = None, output_dir: str = ".simpli
        ``simplicio-mapper benchmark pipeline-threshold``), if *cwd* is
        given and a valid one exists.
     3. The hardcoded, Windows-measured default (600) -- exactly today's
-       behavior when neither of the above is present, so a caller that
-       never ran calibration and never set the env var sees byte-for-byte
-       unchanged behavior.
+       receipt metadata when neither of the above is present.
     """
     override = os.environ.get(_ASYNC_PIPELINE_MIN_FILES_ENV)
     if override:
@@ -151,9 +144,9 @@ def _fast_file_count(cwd: str, cap: int) -> int:
     opens a file or calls ``os.path.getsize`` -- this must stay a fast
     pre-pass, not a second expensive walk. Early-exits as soon as ``cap``
     matching files have been seen, so probing a very large tree costs
-    O(cap) directory entries touched, not O(total files) -- a repo with
-    100k files and a threshold of 600 still only walks until the 600th
-    match, then immediately routes to the async pipeline.
+    O(cap) directory entries touched, not O(total files).  The count is
+    recorded for observability and future calibration; normal ``auto``
+    execution does not use it to fall back to synchronous processing.
     """
     count = 0
     for file in _walk(cwd):
@@ -171,13 +164,9 @@ def _build_artifacts_sync(cwd: str, meta: dict | None = None, incremental: bool 
     """Original, fully-synchronous pipeline (pre-issue-#235 behavior).
 
     Kept side-by-side with the async pipeline (`async_pipeline.build_artifacts_async`)
-    rather than removed: the after-benchmark (ADR-009 plan step 10,
-    `docs/async-pipeline-after-benchmark.md`) showed small/medium synthetic
-    trees are genuinely SLOWER end-to-end under the async pipeline than this
-    plain loop, because `asyncio`/thread-pool scheduling overhead outweighs
-    the I/O-wait it hides when there is little I/O-wait to begin with.
-    `build_artifacts` dispatches to this function for trees below
-    `_async_pipeline_min_files()`.
+    rather than removed: it is the explicit diagnostic/rollback route chosen
+    by ``SIMPLICIO_MAPPER_EXECUTION_PROFILE=sync`` or
+    ``SIMPLICIO_MAPPER_NO_ASYNC_PIPELINE=1``.
     """
     meta = meta or {}
     abs_cwd = os.path.abspath(cwd or os.getcwd())
@@ -301,24 +290,16 @@ def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = Fals
                     output_dir: str = ".simplicio") -> dict:
     """Build every `.simplicio/*.json` artifact for *cwd*.
 
-    Size-based dispatch (issue #235 follow-up, ADR-009 plan step 10's
-    honest after-benchmark): a cheap, content-free file-count probe
-    (`_fast_file_count`) decides whether this run goes through the plain
-    synchronous pipeline (`_build_artifacts_sync`, restored pre-#235
-    behavior) or the bounded-concurrency async pipeline
+    Every normal ``auto`` run uses the bounded-concurrency async pipeline
     (`async_pipeline.build_artifacts_async`, driven to completion via
-    `asyncio.run`). The after-benchmark showed the async pipeline is a real
-    win only at large scale (>= roughly 600 files on this measurement) --
-    below that, `asyncio`/thread-pool scheduling overhead measurably
-    outweighs the I/O-wait it hides, so small/medium trees (the common
-    case for this tool) now default back to the faster synchronous path.
-    See `docs/async-pipeline-dispatch-benchmark.md` for the crossover
-    measurement and `_DEFAULT_ASYNC_PIPELINE_MIN_FILES` for the chosen
-    default. Issue #279 Phase-0 adds an opt-in, per-machine override: if
-    `<output_dir>/pipeline-calibration.json` exists and is valid (written by
-    `simplicio-mapper benchmark pipeline-threshold`, see
-    `pipeline_calibration.py`), its `recommended_threshold` is used instead
-    of the hardcoded default -- absent that file, behavior is unchanged.
+    `asyncio.run`).  A cheap, content-free file-count probe is retained in
+    the execution receipt for observability and benchmark calibration, but
+    no longer routes small trees to the synchronous pipeline.  Set
+    ``SIMPLICIO_MAPPER_EXECUTION_PROFILE=sync`` or
+    ``SIMPLICIO_MAPPER_NO_ASYNC_PIPELINE=1`` only for an explicit diagnostic
+    or rollback run.  A calibrated threshold remains receipt metadata,
+    preserving comparable local benchmark output without silently changing
+    the default execution mode.
 
     Callers that are themselves already inside an event loop (a future
     async CLI, or an embedding host) should ``await build_artifacts_async(...)``

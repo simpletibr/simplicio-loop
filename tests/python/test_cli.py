@@ -484,6 +484,8 @@ class CliTest(unittest.TestCase):
         self.assertEqual(payload["status"], "updated")
         self.assertEqual(payload["skipped_reason"], None)
         self.assertTrue(payload["paths"]["project_map"].endswith(".simplicio/project-map.json"))
+        self.assertTrue(payload["paths"]["execution_plan"].endswith(".simplicio/execution-plan.json"))
+        self.assertEqual(payload["execution_plan"]["selected_profile"], "async")
         self.assertTrue(payload["paths"]["precedent_index"].endswith(".simplicio/precedent-index.json"))
         self.assertGreaterEqual(payload["counts"]["files"], 2)
         self.assertGreaterEqual(payload["counts"]["precedents"], 1)

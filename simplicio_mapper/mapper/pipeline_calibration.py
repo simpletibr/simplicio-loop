@@ -2,35 +2,24 @@
 (issue #279 Phase-0 increment; see
 ``.specs/architecture/ADR-011-adaptive-pipeline-threshold-calibration.md``).
 
-ADR-009's own honest gap: ``simplicio_mapper.mapper.emit.build_artifacts``
-routes below/above ``SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES`` (hardcoded
-default **600**) based on a single Windows-only measurement
-(``scripts/async_pipeline_dispatch_benchmark.py``), with no per-platform or
-per-machine tuning. Issue #279 asks for a genuinely adaptive, Hub-governed
-threshold; this module is the safe, additive Phase-0 slice of that: a local
-one-time calibration a user can run on THEIR machine/filesystem, which
-writes a cached override that :func:`simplicio_mapper.mapper.emit
-._async_pipeline_min_files` prefers over the hardcoded default -- but ONLY
-when present. No calibration file: behavior is byte-for-byte identical to
-before this module existed (the hardcoded default, unchanged).
+This module records a local, repeatable sync-vs-async measurement for a
+machine/filesystem.  Normal ``auto`` execution is intentionally async at
+every repository size; the calibration result therefore supplies receipt and
+benchmark evidence, rather than silently changing that default route.
 
 Method (reuses the same measurement shape as
 ``scripts/async_pipeline_dispatch_benchmark.py``'s crossover table, not its
 code -- that script lives outside the installed package and is not a
 runtime dependency): at each configured synthetic-tree size, force the
 plain synchronous pipeline and the bounded-concurrency async pipeline
-explicitly via the existing ``SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES``
-env var (bypassing the dispatcher, like-for-like on this revision), time
-both, and pick the smallest measured size where async's median wall time
-beats sync's as the recommended dispatch threshold for THIS machine. If
-async never wins at any measured size, the hardcoded default is kept
-(fail-safe: calibration never invents an unmeasured win).
+explicitly via ``SIMPLICIO_MAPPER_EXECUTION_PROFILE``, time
+both, and record the smallest measured size where async's median wall time
+beats sync's as local performance evidence. If async never wins at any
+measured size, the hardcoded threshold is retained in the receipt.
 
-This module never changes ``emit.py``'s existing default behavior on its
-own -- it only ever *adds* an optional, explicit opt-in artifact
-(``.simplicio/pipeline-calibration.json`` by default) that a caller must
-have actively generated via ``simplicio-mapper benchmark pipeline-threshold``
-(see ``simplicio_mapper/cli/_benchmark.py``).
+This module never changes ``emit.py``'s default behavior on its own. It only
+writes the optional ``.simplicio/pipeline-calibration.json`` receipt when a
+caller explicitly runs ``simplicio-mapper benchmark pipeline-threshold``.
 """
 
 from __future__ import annotations
@@ -54,10 +43,8 @@ CALIBRATION_SCHEMA = "simplicio.pipeline-calibration/v1"
 #: default, matching every other mapper artifact's location).
 CALIBRATION_FILENAME = "pipeline-calibration.json"
 
-#: Same env var `simplicio_mapper.mapper.emit` already reads to force the
-#: sync/async dispatch explicitly -- reused here, not duplicated, so
-#: calibration measures the exact same forcing mechanism production uses.
-_ENV_THRESHOLD = "SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES"
+#: The planner's explicit profile override used for deterministic calibration.
+_ENV_PROFILE = "SIMPLICIO_MAPPER_EXECUTION_PROFILE"
 
 #: Default synthetic-tree sizes probed by ``run_calibration`` -- chosen to
 #: bracket the shipped hardcoded default (600) without this command itself
@@ -136,18 +123,15 @@ def _materialize_tree(root: Path, file_count: int) -> int:
 
 def _time_build(source_dir: Path, mode: str) -> float:
     """Time one ``build_artifacts()`` call with the sync/async path forced
-    via the existing env-var override, exactly as
-    ``scripts/async_pipeline_dispatch_benchmark.py`` already does for its
-    crossover table -- forcing (not the size-based dispatcher) is required
-    here so each mode is measured deterministically regardless of where the
-    hardcoded default currently sits.
+    via the execution planner's explicit profile override.  Forcing is
+    required so each mode is measured deterministically.
     """
     # Local import: avoids a module-load-time cycle with `emit.py` (which
     # imports this module lazily too, see `emit._async_pipeline_min_files`).
     from .emit import build_artifacts
 
-    previous = os.environ.get(_ENV_THRESHOLD)
-    os.environ[_ENV_THRESHOLD] = "999999999" if mode == "sync" else "1"
+    previous = os.environ.get(_ENV_PROFILE)
+    os.environ[_ENV_PROFILE] = mode
     try:
         with tempfile.TemporaryDirectory(prefix="pipeline-calibration-out-") as out_dir:
             start = time.perf_counter()
@@ -155,9 +139,9 @@ def _time_build(source_dir: Path, mode: str) -> float:
             return time.perf_counter() - start
     finally:
         if previous is None:
-            os.environ.pop(_ENV_THRESHOLD, None)
+            os.environ.pop(_ENV_PROFILE, None)
         else:
-            os.environ[_ENV_THRESHOLD] = previous
+            os.environ[_ENV_PROFILE] = previous
 
 
 def run_calibration(

@@ -159,10 +159,9 @@ OPTIONS
   benchmark pipeline-threshold [path]
                         Measure THIS machine's real sync-vs-async mapping-
                         pipeline crossover and cache the result at
-                        <out>/pipeline-calibration.json; build_artifacts
-                        prefers it over the hardcoded dispatch-threshold
-                        default when present. Purely opt-in -- absent this
-                        file, dispatch behavior is unchanged (issue #279
+                        <out>/pipeline-calibration.json. The result is
+                        retained as local benchmark/receipt metadata;
+                        normal auto execution remains async (issue #279
                         Phase-0, ADR-011).
   benchmark shadow-rollout [path]
                         Run the CONFIGURED sync/async pipeline profile for

@@ -10,15 +10,12 @@ criterion: this module is invoked ONLY by the explicit
 ``simplicio_mapper/cli/_benchmark.py``). It is never wired into
 ``build_artifacts``/``write_mapping_artifacts``'s normal dispatch, so a
 real ``index``/``map``/``scan`` invocation never triggers a shadow run and
-is completely unaffected by this module's existence -- byte-for-byte the
-same as before this file existed, mirroring ``pipeline_calibration.py``'s
-own fail-safe/opt-in shape (ADR-011). ``run_shadow_comparison`` always
+is completely unaffected by this module's existence. ``run_shadow_comparison`` always
 returns a comparison payload built around the CONFIGURED profile's real
 artifacts (the one ``build_artifacts()`` would have produced on its own,
-via the existing, unmodified dispatch in
-``emit.py::_async_pipeline_min_files``/``_fast_file_count``); the
-candidate (the other) profile is run only to measure and compare, forced
-via the existing ``SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES`` env var
+via the existing execution planner); the candidate (the other) profile is
+run only to measure and compare, forced via the existing
+``SIMPLICIO_MAPPER_EXECUTION_PROFILE`` env var
 into an isolated, throwaway temp output directory (same technique
 ``pipeline_calibration.py::_time_build`` already uses) so it never writes
 into the real ``<output_dir>`` and never becomes the value any caller
@@ -40,11 +37,8 @@ from typing import Any
 #: Schema id for the shadow-comparison artifact written by this module.
 SHADOW_SCHEMA = "simplicio.pipeline-shadow/v1"
 
-#: Same env var `simplicio_mapper.mapper.emit`/`pipeline_calibration` already
-#: read to force the sync/async dispatch explicitly -- reused here, not
-#: duplicated logic, so the shadow run measures the exact same forcing
-#: mechanism production uses.
-_ENV_THRESHOLD = "SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES"
+#: The planner's explicit profile override used for isolated comparison runs.
+_ENV_PROFILE = "SIMPLICIO_MAPPER_EXECUTION_PROFILE"
 
 #: Filename written under the target ``output_dir`` (``.simplicio`` by
 #: default, matching every other mapper artifact's location).
@@ -102,16 +96,15 @@ def _diff_paths(left: Any, right: Any, path: str = "$", limit: int = 20) -> list
 
 def determine_configured_profile(cwd: str, output_dir: str = ".simplicio") -> str:
     """Which profile (``"sync"``/``"async"``) ``build_artifacts()`` would
-    pick right now for *cwd*, replicating its exact dispatch decision
-    (env var override, then calibration file, then hardcoded default --
-    see ``emit._async_pipeline_min_files``) without running the pipeline."""
+    pick right now for *cwd*, without running the pipeline."""
     # Local import: avoids a module-load-time cycle with `emit.py` (which
     # imports `pipeline_calibration` lazily too; same pattern here).
     from .emit import _async_pipeline_min_files, _fast_file_count
+    from .execution_planner import plan_execution
 
     abs_cwd = os.path.abspath(cwd)
     threshold = _async_pipeline_min_files(abs_cwd, output_dir)
-    return "sync" if _fast_file_count(abs_cwd, threshold) < threshold else "async"
+    return plan_execution(_fast_file_count(abs_cwd, threshold), threshold).selected_profile
 
 
 def run_shadow_comparison(
@@ -139,11 +132,9 @@ def run_shadow_comparison(
     configured_artifacts = build_artifacts(abs_cwd, meta, incremental, output_dir)
     configured_wall_s = time.perf_counter() - start
 
-    previous_env = os.environ.get(_ENV_THRESHOLD)
-    # Force the *other* profile explicitly, bypassing the size-based
-    # dispatcher for this one measurement -- exactly the same forcing
-    # mechanism `pipeline_calibration.py::_time_build` already uses.
-    os.environ[_ENV_THRESHOLD] = "1" if candidate_profile == "async" else "999999999"
+    previous_env = os.environ.get(_ENV_PROFILE)
+    # Force the other profile for this isolated measurement.
+    os.environ[_ENV_PROFILE] = candidate_profile
     try:
         with tempfile.TemporaryDirectory(prefix="pipeline-shadow-out-") as shadow_out_dir:
             start = time.perf_counter()
@@ -151,9 +142,9 @@ def run_shadow_comparison(
             candidate_wall_s = time.perf_counter() - start
     finally:
         if previous_env is None:
-            os.environ.pop(_ENV_THRESHOLD, None)
+            os.environ.pop(_ENV_PROFILE, None)
         else:
-            os.environ[_ENV_THRESHOLD] = previous_env
+            os.environ[_ENV_PROFILE] = previous_env
 
     diffs: dict[str, list[str]] = {}
     for key in configured_artifacts:
