@@ -43,6 +43,9 @@ def _clean(tmp_path, monkeypatch):
     ):
         monkeypatch.delenv(v, raising=False)
     monkeypatch.setenv("SIMPLICIO_CACHE_DIR", str(tmp_path / "cache"))
+    # Tests below that exercise a real local route opt in explicitly.  Product
+    # default is covered by the dedicated fail-closed regression tests.
+    monkeypatch.setenv("SIMPLICIO_LOCAL_INFERENCE", "enabled")
     monkeypatch.delenv("SIMPLICIO_BUST_CACHE", raising=False)
     providers._LOCAL_LLAMA_CACHE.clear()
     reset_for_tests()
@@ -66,6 +69,33 @@ def test_empty_config_uses_in_process_local_default():
     assert providers._is_default_local(None, None) is True
     assert providers._is_default_local("", "") is True
     assert providers._is_local(None, None) is False
+
+
+def test_generate_without_config_fails_closed_before_cache_or_model_load(monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_LOCAL_INFERENCE", raising=False)
+    local_load = MagicMock()
+    monkeypatch.setattr(providers, "_local_llama", local_load)
+
+    with pytest.raises(providers.ProviderExecutionError) as exc:
+        providers.generate("must not execute locally")
+
+    assert exc.value.receipt["reason_code"] == "LOCAL_INFERENCE_PAUSED"
+    assert exc.value.receipt["effective_route"] == "blocked"
+    local_load.assert_not_called()
+
+
+def test_loopback_ollama_route_fails_closed_before_socket(monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_LOCAL_INFERENCE", raising=False)
+    monkeypatch.setenv("SIMPLICIO_MODEL", "qwen-anything")
+    monkeypatch.setenv("SIMPLICIO_BASE_URL", "http://localhost:11434/v1")
+    remote = MagicMock()
+    monkeypatch.setattr(providers, "_openai_compatible_generate", remote)
+
+    with pytest.raises(providers.ProviderExecutionError) as exc:
+        providers.generate("must not call ollama")
+
+    assert exc.value.receipt["reason_code"] == "LOCAL_INFERENCE_PAUSED"
+    remote.assert_not_called()
 
 
 def test_is_local_false_when_base_set():

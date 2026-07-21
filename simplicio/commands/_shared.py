@@ -27,6 +27,9 @@ def read_text_source(path: str) -> str:
 def force_local_if_requested(a: argparse.Namespace) -> None:
     """Shared by the ``task`` and ``run --scope feature`` handlers."""
     if getattr(a, "local", False):
+        from ..local_inference import require_enabled
+
+        require_enabled(surface="cli_--local")
         # Force Path 4: local in-process llama.cpp. This keeps local execution
         # independent from Ollama or any HTTP service.
         from ..providers import LOCAL_DEFAULT_MODEL

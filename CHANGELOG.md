@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- Paused all local inference by default (#259). Empty configuration, explicit
+  llama.cpp routes, local planner routes, `--local`, and loopback
+  OpenAI-compatible endpoints now fail closed with `LOCAL_INFERENCE_PAUSED`
+  before cache access, model loading, downloads, subprocesses, or sockets.
+  Local model artifacts are preserved and an explicit
+  `SIMPLICIO_LOCAL_INFERENCE=enabled` process policy is required to re-enable
+  the route.
+
 ## [0.16.2] — 2026-07-20
 
 ### Changed

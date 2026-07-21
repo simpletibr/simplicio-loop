@@ -714,7 +714,7 @@ user prompt. UserPromptSubmit is the right pre-hook for routing decisions.
 | GLM (z.ai) | `glm-4.6` | `https://api.z.ai/api/paas/v4` |
 | DeepSeek | `deepseek-chat` | `https://api.deepseek.com` |
 | OpenAI | `gpt-4.1` | `https://api.openai.com/v1` |
-| Local (llama.cpp) | `openbmb/minicpm5:latest` | *(leave unset)* |
+| Local (llama.cpp, paused by default) | `openbmb/minicpm5:latest` + `SIMPLICIO_LOCAL_INFERENCE=enabled` | *(leave unset)* |
 | Anthropic native | `claude-opus-4-7` | *(leave unset)* |
 
 If `SIMPLICIO_BASE_URL` is unset and the key is `ANTHROPIC_API_KEY`, it uses the
@@ -725,19 +725,25 @@ your `base_url` — so **any** OpenAI-like provider works without code changes.
 simplicio-py smoke      # prints provider config + one test call
 ```
 
-#### Path 4 — local llama.cpp GGUF default
+#### Path 4 — local llama.cpp GGUF (explicitly re-enabled only)
 
-When **no provider is configured** (`SIMPLICIO_MODEL` and
-`SIMPLICIO_BASE_URL` both unset), simplicio runs the in-process
-[`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python) backend with
-`openbmb/minicpm5:latest`, backed by
+Local inference is **paused by default**.  With no provider configured, or
+when a loopback endpoint such as Ollama is selected, the CLI fails closed with
+the machine-readable reason `LOCAL_INFERENCE_PAUSED`; it does not read a
+cached completion, load a model, download weights, start a process, or open a
+socket. Existing GGUF artifacts are preserved.
+
+Use an explicit remote provider for normal operation. To intentionally enable
+the local route for a process, set `SIMPLICIO_LOCAL_INFERENCE=enabled` first.
+The in-process [`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python)
+backend then uses `openbmb/minicpm5:latest`, backed by
 `openbmb/MiniCPM5-1B-GGUF::MiniCPM5-1B-Q4_K_M.gguf`.
 
 ```bash
 pip install 'simplicio-cli[local]'          # pulls llama-cpp-python + huggingface-hub
-simplicio-py doctor --install                  # downloads/validates the default GGUF
+SIMPLICIO_LOCAL_INFERENCE=enabled simplicio-py doctor --install
 
-simplicio-py task "add input validation to createUser" \
+SIMPLICIO_LOCAL_INFERENCE=enabled simplicio-py task "add input validation to createUser" \
   --target src/users.ts --local              # forces local llama.cpp
 
 # the GGUF is fetched once from the Hugging Face Hub, then reused

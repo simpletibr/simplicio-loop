@@ -46,6 +46,13 @@ from pathlib import Path
 from typing import Any
 
 from ._cache import CacheEntry, cache, make_key
+from .local_inference import (
+    LOCAL_INFERENCE_PAUSED,
+    LocalInferencePaused,
+    is_local_endpoint,
+    pause_receipt,
+    require_enabled as require_local_inference_enabled,
+)
 
 _LAST_CACHE_RECEIPT: dict[str, Any] | None = None
 
@@ -304,6 +311,27 @@ def _is_default_local(model, base):
     if (not model and not base) or (model == LOCAL_DEFAULT_MODEL and not base):
         return True
     return False
+
+
+def _is_local_inference_request(model, base):
+    """Identify every local route before cache, download, load, or socket I/O."""
+    return _is_default_local(model, base) or _is_local(model, base) or is_local_endpoint(base)
+
+
+def _raise_local_pause(*, surface, model, base):
+    """Record a stable receipt before terminating a disabled local request."""
+    receipt = pause_receipt(surface=surface, model=model, base_url=base)
+    _remember_cache_receipt(receipt)
+    raise ProviderExecutionError(
+        {
+            **receipt,
+            "message": (
+                f"{LOCAL_INFERENCE_PAUSED}: local inference is disabled by default; "
+                "configure an explicit remote provider or set "
+                "SIMPLICIO_LOCAL_INFERENCE=enabled."
+            ),
+        }
+    )
 
 
 def _local_spec(model):
@@ -922,6 +950,16 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
     from ._cache import cache, make_key
 
     model_name = os.environ.get("SIMPLICIO_MODEL", "").strip()
+    base_url = os.environ.get("SIMPLICIO_BASE_URL", "").strip()
+    # Deliberately before prompt/cache/provider work: a disabled route must not
+    # read a cached completion, download weights, spawn an engine, or open a socket.
+    if _is_local_inference_request(model_name, base_url):
+        try:
+            require_local_inference_enabled(
+                surface="generate", model=model_name, base_url=base_url
+            )
+        except LocalInferencePaused:
+            _raise_local_pause(surface="generate", model=model_name, base=base_url)
     prompt = _apply_directives(prompt)
     cache_full_prompt = _inline_feedback(prompt, feedback)
     cache_key = make_key(
@@ -1073,6 +1111,10 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
 
 def info():
     c = _cfg()
+    if _is_local_inference_request(c["model"], c["base"]) and not os.environ.get(
+        "SIMPLICIO_LOCAL_INFERENCE", ""
+    ).strip().lower() in {"enabled", "1", "true", "yes"}:
+        return f"reason={LOCAL_INFERENCE_PAUSED} local inference is disabled by default"
     if _is_default_local(c["model"], c["base"]):
         repo, fname, path = _local_spec(LOCAL_DEFAULT_MODEL)
         target = path or f"{repo}/{fname}"
@@ -1230,6 +1272,13 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
     schema-stable, not creative.
     """
     p = planner_cfg(require_key=False)
+    if _is_local_inference_request(p["model"], p["base"]):
+        try:
+            require_local_inference_enabled(
+                surface="planner_complete", model=p["model"], base_url=p["base"]
+            )
+        except LocalInferencePaused:
+            _raise_local_pause(surface="planner_complete", model=p["model"], base=p["base"])
     prompt = _apply_directives(prompt)
     key = _planner_cache_key(p, prompt, max_tokens, temperature, template_version)
     receipt = _new_cache_receipt(

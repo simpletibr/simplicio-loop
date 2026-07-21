@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .hardware import HardwareProfile
+from .local_inference import LocalInferencePaused, require_enabled
 from .providers import (
     LOCAL_DEFAULT_FILE as DEFAULT_LOCAL_FILE,
 )
@@ -103,6 +104,7 @@ def is_installed(spec: ModelSpec | str) -> bool:
 
 def download(spec: ModelSpec) -> tuple[bool, str]:
     """Download the recommended GGUF into the executor model directory."""
+    require_enabled(surface="local_model_download", model=spec.model_id)
     try:
         from huggingface_hub import hf_hub_download
     except ImportError:
@@ -136,6 +138,7 @@ class RecommendationResult:
     can_download: bool
     installed: bool
     reason: str = ""
+    policy_receipt: dict | None = None
 
     @property
     def can_pull(self) -> bool:
@@ -160,6 +163,7 @@ class RecommendationResult:
             "can_download": self.can_download,
             "installed": self.installed,
             "reason": self.reason,
+            "policy_receipt": self.policy_receipt,
         }
 
 
@@ -219,6 +223,15 @@ def ensure_recommended(
         auto_download = auto_download or auto_pull
 
     result = evaluate(profile)
+    # A paused policy is intentionally observable but never mutates existing
+    # artifacts.  The gate happens before any download/module/network access.
+    try:
+        require_enabled(surface="local_model_provision", model=result.spec.model_id)
+    except LocalInferencePaused as exc:
+        result.can_download = False
+        result.reason = exc.receipt["reason_code"]
+        result.policy_receipt = exc.receipt
+        return result
     if result.installed:
         return result
     if not result.can_download:

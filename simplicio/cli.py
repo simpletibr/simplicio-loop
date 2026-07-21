@@ -145,7 +145,7 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
     p.add_argument(
         "--local",
         action="store_true",
-        help="force local llama.cpp with MiniCPM5; overrides SIMPLICIO_MODEL/SIMPLICIO_BASE_URL",
+        help="force local llama.cpp only when SIMPLICIO_LOCAL_INFERENCE=enabled; otherwise fails closed",
     )
 
 

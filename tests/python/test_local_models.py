@@ -14,6 +14,12 @@ from simplicio.local_models import (
     evaluate,
 )
 
+
+@pytest.fixture(autouse=True)
+def _explicit_local_test_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Legacy provisioning tests intentionally exercise the gated path."""
+    monkeypatch.setenv("SIMPLICIO_LOCAL_INFERENCE", "enabled")
+
 # ---- pick_tier ---- #
 
 
@@ -138,6 +144,24 @@ def test_ensure_recommended_does_not_download_without_opt_in(
     assert downloaded["called"] is False
     assert r.installed is False
     assert "opt in" in r.reason
+
+
+def test_ensure_recommended_reports_pause_without_download(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("SIMPLICIO_LOCAL_INFERENCE", raising=False)
+    monkeypatch.setattr("simplicio.local_models.model_file_present", lambda _s: False)
+    called = {"value": False}
+
+    def fake_download(_spec):
+        called["value"] = True
+        return True, "unexpected"
+
+    monkeypatch.setattr("simplicio.local_models.download", fake_download)
+    from simplicio.local_models import ensure_recommended
+
+    result = ensure_recommended(_profile(ram=64, vram=24), auto_download=True)
+    assert result.reason == "LOCAL_INFERENCE_PAUSED"
+    assert result.can_download is False
+    assert called["value"] is False
 
 
 def test_ensure_recommended_downloads_with_explicit_opt_in(

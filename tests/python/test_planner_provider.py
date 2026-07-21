@@ -107,6 +107,7 @@ def test_local_llama_planner_runs_without_credentials(
 
     monkeypatch.setenv("SIMPLICIO_MODEL", "local-llama/default")
     monkeypatch.setenv("SIMPLICIO_PLANNER", "local-llama/default")
+    monkeypatch.setenv("SIMPLICIO_LOCAL_INFERENCE", "enabled")
     monkeypatch.setenv("SIMPLICIO_BUST_CACHE", "1")
     monkeypatch.setattr(P, "_local_generate", fake_local_generate)
 
@@ -116,6 +117,18 @@ def test_local_llama_planner_runs_without_credentials(
     assert sent_prompt.startswith(P.LLM_DIRECTIVES)
     assert "plan this" in sent_prompt
     assert (sent_feedback, sent_model, sent_max) == (None, "local-llama/default", 123)
+
+
+def test_local_planner_is_paused_before_model_load(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SIMPLICIO_PLANNER", "local-llama/default")
+    called = []
+    monkeypatch.setattr(P, "_local_generate", lambda *args: called.append(args))
+
+    with pytest.raises(P.ProviderExecutionError) as exc:
+        P.planner_complete("plan this")
+
+    assert exc.value.receipt["reason_code"] == "LOCAL_INFERENCE_PAUSED"
+    assert called == []
 
 
 def test_missing_credentials_clearly_signaled(
