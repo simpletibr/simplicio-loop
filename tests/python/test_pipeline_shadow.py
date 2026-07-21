@@ -93,15 +93,15 @@ class DetermineConfiguredProfileTest(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.root = Path(self._tmp.name)
 
-    def test_matches_emit_dispatch_below_threshold(self) -> None:
+    def test_matches_emit_dispatch_at_small_size(self) -> None:
         _materialize_tiny_tree(self.root, 3)
         with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES": "600"}):
-            self.assertEqual(determine_configured_profile(str(self.root)), "sync")
-
-    def test_matches_emit_dispatch_above_threshold(self) -> None:
-        _materialize_tiny_tree(self.root, 3)
-        with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES": "2"}):
             self.assertEqual(determine_configured_profile(str(self.root)), "async")
+
+    def test_explicit_sync_matches_emit_dispatch(self) -> None:
+        _materialize_tiny_tree(self.root, 3)
+        with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_EXECUTION_PROFILE": "sync"}):
+            self.assertEqual(determine_configured_profile(str(self.root)), "sync")
 
 
 class RunShadowComparisonTest(unittest.TestCase):

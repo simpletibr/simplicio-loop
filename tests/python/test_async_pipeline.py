@@ -432,14 +432,10 @@ class LargeRepositorySystemTest(unittest.TestCase):
     fast; that scale is covered by the benchmark scripts instead (see
     ``scripts/async_pipeline_after_benchmark.py``).
 
-    Issue #235 follow-up (size-based dispatch, ADR-009 plan step 11): this
-    test's ~320-file tree is below the shipped dispatch default (600
-    files), so ``build_artifacts()`` would now route it through the
-    synchronous path by default. Since this test's whole purpose is
-    exercising the real, wired-in ASYNC pipeline through the CLI, the
-    dispatch threshold is forced down to 1 here so it keeps testing what it
-    always tested, regardless of the new default -- the dispatcher's own
-    routing logic has its own dedicated coverage in
+    The threshold remains forced down to 1 so the fixture continues to
+    exercise the calibrated-receipt path as well as the real, wired-in async
+    pipeline through the CLI.  Normal ``auto`` execution is async for this
+    tree even without the override; dedicated dispatch coverage lives in
     ``tests/python/test_pipeline_dispatch.py``.
     """
 

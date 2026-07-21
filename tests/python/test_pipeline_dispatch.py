@@ -1,14 +1,7 @@
-"""Tests for the size-based sync/async pipeline dispatch in
-``simplicio_mapper.mapper.emit.build_artifacts`` (issue #235 follow-up:
-the after-benchmark in ADR-009 plan step 10,
-``docs/async-pipeline-after-benchmark.md``, showed small/medium synthetic
-trees are genuinely SLOWER end-to-end under the unconditional async
-pipeline than the plain synchronous loop -- ``asyncio``/thread-pool
-scheduling overhead outweighs the I/O-wait it hides when there is little
-I/O-wait to begin with. This module covers the dispatch logic added to
-route small/medium trees back through the synchronous path and only engage
-the async pipeline once a measured crossover (see
-``docs/async-pipeline-dispatch-benchmark.md``) is reached.
+"""Tests for the default-async sync/async pipeline dispatch in
+``simplicio_mapper.mapper.emit.build_artifacts``.  Normal ``auto`` runs use
+the bounded async pipeline regardless of repository size; synchronous
+execution remains an explicit diagnostic/rollback path.
 
 Run with: python3 -m unittest discover -s tests/python
 """
@@ -112,10 +105,7 @@ class FastFileCountTest(unittest.TestCase):
 
 
 class DispatchRoutingTest(unittest.TestCase):
-    """Confirms build_artifacts() calls the sync path below the threshold
-    and the async path at/above it -- the actual regression this follow-up
-    fixes (issue #235: small/medium trees were unconditionally routed
-    through the slower async pipeline before this change).
+    """Confirms build_artifacts() defaults to the bounded async path.
     """
 
     def setUp(self) -> None:
@@ -125,7 +115,7 @@ class DispatchRoutingTest(unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp.cleanup()
 
-    def test_routes_to_sync_below_threshold(self) -> None:
+    def test_routes_to_async_below_threshold(self) -> None:
         _make_tree(self.dir, 3)
         with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES": "5"}), \
                 mock.patch.object(
@@ -133,8 +123,8 @@ class DispatchRoutingTest(unittest.TestCase):
                 ) as spy_sync, \
                 mock.patch("simplicio_mapper.mapper.async_pipeline.build_artifacts_async") as spy_async:
             build_artifacts(str(self.dir))
-        spy_sync.assert_called_once()
-        spy_async.assert_not_called()
+        spy_sync.assert_not_called()
+        spy_async.assert_called_once()
 
     def test_routes_to_async_at_or_above_threshold(self) -> None:
         _make_tree(self.dir, 6)
@@ -143,12 +133,12 @@ class DispatchRoutingTest(unittest.TestCase):
             build_artifacts(str(self.dir))
         spy_sync.assert_not_called()
 
-    def test_boundary_threshold_minus_one_goes_sync(self) -> None:
+    def test_boundary_threshold_minus_one_goes_async(self) -> None:
         _make_tree(self.dir, 4)  # threshold(5) - 1 files
         with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES": "5"}), \
                 mock.patch.object(emit_module, "_build_artifacts_sync", wraps=_build_artifacts_sync) as spy_sync:
             build_artifacts(str(self.dir))
-        spy_sync.assert_called_once()
+        spy_sync.assert_not_called()
 
     def test_boundary_exactly_at_threshold_goes_async(self) -> None:
         _make_tree(self.dir, 5)  # exactly threshold

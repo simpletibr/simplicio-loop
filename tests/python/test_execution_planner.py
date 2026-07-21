@@ -29,17 +29,17 @@ def _make_tree(root: Path, count: int) -> None:
 
 
 class ExecutionPlannerUnitTest(unittest.TestCase):
-    def test_auto_selects_sync_below_threshold_with_reason(self) -> None:
+    def test_auto_selects_async_below_threshold_with_reason(self) -> None:
         with mock.patch.dict(os.environ, {}, clear=True):
             plan = plan_execution(file_count=4, threshold=5)
-        self.assertEqual(plan.selected_profile, ExecutionProfile.SYNC.value)
-        self.assertIn("file_count < threshold", plan.reason)
+        self.assertEqual(plan.selected_profile, ExecutionProfile.ASYNC.value)
+        self.assertIn("bounded async pipeline", plan.reason)
 
     def test_auto_selects_async_at_threshold_with_reason(self) -> None:
         with mock.patch.dict(os.environ, {}, clear=True):
             plan = plan_execution(file_count=5, threshold=5)
         self.assertEqual(plan.selected_profile, ExecutionProfile.ASYNC.value)
-        self.assertIn("file_count >= threshold", plan.reason)
+        self.assertIn("bounded async pipeline", plan.reason)
 
     def test_explicit_sync_overrides_auto(self) -> None:
         with mock.patch.dict(os.environ, {EXECUTION_PROFILE_ENV: "sync"}, clear=True):
@@ -62,7 +62,7 @@ class ExecutionPlannerUnitTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {EXECUTION_PROFILE_ENV: "hub"}, clear=True):
             plan = plan_execution(file_count=1, threshold=5)
         self.assertEqual(plan.requested_profile, "hub")
-        self.assertEqual(plan.selected_profile, "sync")
+        self.assertEqual(plan.selected_profile, "async")
         self.assertEqual(plan.source, "fallback")
 
     def test_unknown_profile_value_falls_back_to_auto(self) -> None:
