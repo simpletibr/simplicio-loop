@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.24.2] - 2026-07-21
+
+### Added
+
+- Added the local/offline Mapper quality gate with strict internal-format
+  scanning, Python/Node/package checks, optional Runtime verification, and
+  Markdown-only evidence reports.
+
+### Changed
+
+- Removed Mapper-specific hosted GitHub Actions quality workflows; release
+  verification is now runnable locally without CI charges.
+- Added Windows-compatible npm.cmd invocation to the local quality gate.
+
 ## [0.24.1] - 2026-07-18
 
 ### Fixed
