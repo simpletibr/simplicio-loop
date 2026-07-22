@@ -42,3 +42,10 @@ Prefer a scenario-specific spec when the flow matters. For a generic smoke run:
 ```bash
 BASE_URL=<FRONTEND_URL> npx playwright test --project=chromium
 ```
+
+## Auditoria de issues
+
+`issue-328-meta-audit.json` é o inventário reproduzível das issues públicas e
+segue `simplicio.meta-issue-audit/v1`. Regenere e confira conforme
+[`docs/issue-meta-audit.md`](../issue-meta-audit.md); o artefato contém hashes,
+matriz de dependências, fluxo de testes e decisão conservadora por issue.

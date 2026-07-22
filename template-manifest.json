@@ -23,8 +23,11 @@
     ".specs/architecture/ADR-002-python-rust-hybrid.md",
     ".specs/architecture/ADR-003-two-tier-async-mapper.md",
     ".specs/architecture/ADR-004-template-vs-product-content-manifest.md",
+    ".specs/architecture/ADR-013-reproducible-issue-meta-audit.md",
     ".specs/sprints/BACKLOG.md",
     "docs/apply-edits.md",
+    "docs/issue-meta-audit.md",
+    "docs/evidence/issue-328-meta-audit.json",
     "docs/readme-globalization-standard.md",
     "docs/sessionstart-hook.md"
   ],

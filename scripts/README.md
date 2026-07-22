@@ -31,6 +31,21 @@ $env:LLM_PROJECT_MAPPER_SOURCE="C:\Users\you\source\repos\llm-project-mapper"
 .\scripts\update-starter.ps1
 ```
 
+## `meta_issue_audit.py` (issue #328)
+
+Builds the deterministic `simplicio.meta-issue-audit/v1` inventory from the
+public GitHub API or an offline JSON export. The command is read-only with
+respect to GitHub, redacts credential-shaped values, and supports a non-writing
+freshness check:
+
+```bash
+python scripts/meta_issue_audit.py --fetch --repository wesleysimplicio/simplicio-mapper --output docs/evidence/issue-328-meta-audit.json
+python scripts/meta_issue_audit.py --fetch --repository wesleysimplicio/simplicio-mapper --output docs/evidence/issue-328-meta-audit.json --check
+```
+
+See [`docs/issue-meta-audit.md`](../docs/issue-meta-audit.md) for the schema,
+failure behavior, closure policy, and offline replay instructions.
+
 ## `generate-ecosystem-doc.py` (issue #156)
 
 Regenerates [`SIMPLICIO_ECOSYSTEM.md`](../SIMPLICIO_ECOSYSTEM.md) from real
