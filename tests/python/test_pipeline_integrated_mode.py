@@ -21,6 +21,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from simplicio import pipeline
+from simplicio.atomic_execution import AttemptContext
 from simplicio.plan_compiler import EffectPlan, PlanDAG, RecordingEffectSink
 
 READY_RUNTIME = {
@@ -39,6 +40,10 @@ CANONICAL_CONTEXT = {
 
 class RuntimeTestSink(RecordingEffectSink):
     """Contract-shaped sink used only beyond the production negotiation gate."""
+
+
+def _attempt() -> AttemptContext:
+    return AttemptContext("attempt-1", "lease-1", "fence-7", "snapshot-real-1")
 
 
 def _valid_pipeline_diff() -> str:
@@ -180,6 +185,7 @@ def test_integrated_mode_without_test_cmd_is_blocked_not_applied(tmp_path, monke
         "- small",
         mode="integrated",
         effect_sink=sink,
+        integrated_attempt=_attempt(),
         runtime_handshake=READY_RUNTIME,
         context_snapshot=CANONICAL_CONTEXT,
         quiet=True,
@@ -218,6 +224,7 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
         "- build passes",
         mode="integrated",
         effect_sink=sink,
+        integrated_attempt=_attempt(),
         runtime_handshake=READY_RUNTIME,
         context_snapshot=CANONICAL_CONTEXT,
         quiet=True,
@@ -227,7 +234,7 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
     assert after == before, "run_task must not modify the worktree in integrated mode"
 
     assert result["applied"] is False
-    assert result["status"] == "integrated_effects_dispatched"
+    assert result["status"] == "integrated_atomic"
 
     assert len(sink.received) == 1
     effect = sink.received[0]
@@ -242,10 +249,14 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
     assert plan.nodes[0].acceptance_criteria_refs == ["AC1", "AC2"]
 
     assert result["effects"][0]["effect_id"] == effect.effect_id
-    assert len(result["effect_sink_results"]) == 1
-    assert result["effect_sink_results"][0]["effect_id"] == effect.effect_id
-    assert result["effect_sink_results"][0]["state"] == "not_started"
-    assert result["effect_sink_results"][0]["terminal"] is False
+    observation = result["observation"]
+    assert observation["outcome"] == "effect_submitted"
+    assert observation["attempt_id"] == "attempt-1"
+    assert observation["lease_id"] == "lease-1"
+    assert observation["fencing_token"] == "fence-7"
+    assert observation["context_handle"] == CANONICAL_CONTEXT["snapshot_id"]
+    assert observation["resources"]["effect_calls"] == 1
+    assert observation["resources"]["threads_created"] == 0
 
 
 def test_integrated_mode_needs_clarification_when_no_acceptance_criteria(tmp_path, monkeypatch):
@@ -265,6 +276,7 @@ def test_integrated_mode_needs_clarification_when_no_acceptance_criteria(tmp_pat
         "- build passes",
         mode="integrated",
         effect_sink=sink,
+        integrated_attempt=_attempt(),
         runtime_handshake=READY_RUNTIME,
         context_snapshot=CANONICAL_CONTEXT,
         quiet=True,

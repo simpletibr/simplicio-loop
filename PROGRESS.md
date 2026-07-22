@@ -4,6 +4,8 @@
 
 - 2026-07-22: issue #256 implemented `RuntimeEffectSink` with Runtime HTTP negotiation, typed outcomes, idempotency, atomic journal evidence, reconciliation, circuit-breaker behavior, and write-set/payload guards. Focused suite: 36 passed with 94.86% branch coverage; benchmark median 0.7126 ms, p95 1.0968 ms, 1311.19 transactions/s. Full-gate pre-existing failures remain documented in the PR.
 
+- 2026-07-22: issue #258 added coordinator-owned atomic integrated execution with `AttemptContext`, one-dispatch/one-attempt guards, and typed `AtomicObservation`. Focused evidence: 17 tests, 96% touched branch coverage, and 5,000 attempts with one effect call per attempt; baseline mypy debt remains outside the slice.
+
 - 2026-07-07: contexto obrigatório lido. `.starter-meta.json` ausente => modo `root`.
 - Segurança/robustez implementadas: `mechanical_edit`, `dod`, auto-upgrade opt-in no `ecosystem`, guards de CLI/shared/bench/skill_router, writes atômicas e validação de comandos cross-platform para os testes/contracts existentes.
 - Follow-up aplicado: a superfície MCP foi removida do dev-cli (`serve --mcp`, `mcp_server.py`, testes/fixtures/docs correlatos).

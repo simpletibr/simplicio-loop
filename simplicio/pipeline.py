@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from .adaptive import get_validation_mode
+from .atomic_execution import AttemptContext
 from .mapper import map_ask
 from .observability import emit_event, estimate_tokens, info, log_run
 from .pipeline_fixers import try_static_fixers
@@ -215,6 +216,7 @@ def run_task(
     runtime_handshake: dict | None = None,
     coordinator_kind: str | None = None,
     coordinator_id: str | None = None,
+    integrated_attempt: AttemptContext | None = None,
 ):
     """Run one task through the pipeline.
 
@@ -283,6 +285,7 @@ def run_task(
             primary_test_cmd,
             effect_sink,
             context_snapshot=context_snapshot,
+            attempt=integrated_attempt,
         )
         result["execution_profile"] = profile.to_dict()
         return result

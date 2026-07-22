@@ -55,3 +55,13 @@ the PR: 36 tests passed with 94.86% branch coverage; benchmark median 0.7126
 ms, p95 1.0968 ms, and 1311.19 transactions/s. The private Runtime deployment
 was not available in Cloud, so transport and fault-injection evidence cover the
 boundary rather than a live Runtime deployment.
+
+# Issue #258 result (2026-07-22)
+
+Implemented a coordinator-owned, single-dispatch integrated execution boundary.
+The production path preserves causal identity, prevents nested attempts and
+batched effects, checks cancellation/lease/fencing immediately before effect
+submission, and returns a typed observation without retry, replan, scheduler,
+provider, subprocess, worktree, queue, or terminal-status ownership. PR evidence
+records 17 focused tests, 96% touched branch coverage, and a 5,000-attempt
+benchmark with one effect call per attempt.
