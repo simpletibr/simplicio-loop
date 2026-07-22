@@ -14,6 +14,9 @@ set -euo pipefail
 
 echo "[pre-commit] Rodando gates locais antes do commit..."
 
+echo "[pre-commit] Verificando politica de estado JSON interno..."
+python3 scripts/check_json_boundaries.py --strict
+
 STAGED_PY="$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.py$' || true)"
 if [[ -n "$STAGED_PY" ]]; then
   echo "[pre-commit] Arquivos Python staged detectados -> ruff check ."
