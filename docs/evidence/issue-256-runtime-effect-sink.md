@@ -1,7 +1,8 @@
 # Issue #256 — RuntimeEffectSink causal receipt evidence
 
-Date: 2026-07-22 (UTC)  
-Checkout baseline: `bf2e293` on branch `work`  
+Date: 2026-07-22 (UTC)
+Checkout baseline: `bf2e293` on branch
+`codex/implement-github-issue-#256-in-simplicio-dev-cli`
 Issue: `wesleysimplicio/simplicio-dev-cli#256` (open when inspected)
 
 ## Scope of this patch
