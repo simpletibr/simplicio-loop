@@ -79,6 +79,8 @@ def run_integrated(
     prompt: str,
     primary_test_cmd: str | None,
     effect_sink: EffectSink | None,
+    *,
+    context_snapshot: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compile a plan and hand its effects to ``effect_sink``; never write.
 
@@ -124,13 +126,38 @@ def run_integrated(
         verification_command=primary_test_cmd,
     )
     goal_id = f"goal-{hashlib.sha256(goal.encode('utf-8')).hexdigest()[:16]}"
-    context_snapshot_id = f"snap-{hashlib.sha256(str(root).encode('utf-8')).hexdigest()[:16]}"
+    if context_snapshot is None:
+        return _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=["CONTEXT_REQUIRED"],
+            blocked_preconditions=[
+                {"code": "CONTEXT_REQUIRED", "message": "canonical Mapper ContextSnapshot is required"}
+            ],
+        )
+    context_snapshot_id = str(context_snapshot.get("snapshot_id", ""))
+    revision = str(context_snapshot.get("revision", ""))
+    if not context_snapshot_id or not revision:
+        return _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=["INCOMPATIBLE_CONTEXT"],
+            blocked_preconditions=[
+                {"code": "INCOMPATIBLE_CONTEXT", "message": "snapshot_id and revision are required"}
+            ],
+        )
     try:
         plan, effects, verifications = compile_task_spec_to_plan(
             task_spec,
             goal_id=goal_id,
             context_snapshot_id=context_snapshot_id,
-            revision="1",
+            revision=revision,
         )
     except PlanCompilationError as exc:
         emit_event(

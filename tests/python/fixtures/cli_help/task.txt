@@ -1,7 +1,7 @@
 usage: simplicio-py task [-h] [--root ROOT] [--stack STACK] --target TARGET
                          [--criteria CRITERIA] [--constraints CONSTRAINTS]
                          [--dry-run-task] [--json] [--bound-paths BOUND_PATHS]
-                         [--local]
+                         [--local] [--mode {auto,integrated,standalone}]
                          goal
 
 positional arguments:
@@ -20,5 +20,7 @@ options:
   --bound-paths BOUND_PATHS
                         glob limiting which paths the task may change;
                         repeatable
-  --local               force local llama.cpp with MiniCPM5; overrides
-                        SIMPLICIO_MODEL/SIMPLICIO_BASE_URL
+  --local               force local llama.cpp only when
+                        SIMPLICIO_LOCAL_INFERENCE=enabled; otherwise fails
+                        closed
+  --mode {auto,integrated,standalone}

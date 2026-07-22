@@ -56,7 +56,7 @@ MAX_ATTEMPTS = 5
 # instead of housing the plan-compile/effect-sink logic here — see that
 # module's docstring for the full contract and pipeline.py's token-budget
 # rationale (issue #141 AC).
-PipelineMode = Literal["standalone", "integrated"]
+PipelineMode = Literal["auto", "standalone", "integrated"]
 
 
 def _resolve_max_attempts() -> int:
@@ -209,8 +209,12 @@ def run_task(
     dry_run_task=False,
     bound_paths=None,
     quiet=False,
-    mode: PipelineMode = "standalone",
+    mode: PipelineMode | None = None,
     effect_sink: EffectSink | None = None,
+    context_snapshot: dict | None = None,
+    runtime_handshake: dict | None = None,
+    coordinator_kind: str | None = None,
+    coordinator_id: str | None = None,
 ):
     """Run one task through the pipeline.
 
@@ -227,13 +231,61 @@ def run_task(
     in this mode). ``dry_run_task`` is not consulted in this mode since
     nothing is ever applied to begin with.
     """
+    from .execution_mode import negotiate_execution_mode
+
+    profile = negotiate_execution_mode(
+        mode,
+        root=root,
+        runtime_handshake=runtime_handshake,
+        context_snapshot=context_snapshot,
+        effect_sink=effect_sink,
+        coordinator_kind=coordinator_kind,
+        coordinator_id=coordinator_id,
+    )
+    emit_event(
+        "execution_mode_selected",
+        {
+            "requested": profile.requested_mode,
+            "effective": profile.effective_mode,
+            "reason_code": profile.reason_code,
+            "fallback_reason": profile.fallback_reason,
+            "rollout": profile.rollout,
+        },
+        level="warning" if profile.effective_mode == "blocked" else "info",
+        root=root,
+    )
     _remember_patch_receipt(None)
     prompt = build_prompt(root, stack, goal, target, criteria, constraints)
     primary_test_cmd = os.environ.get("SIMPLICIO_TEST_CMD", "").strip() or None
-    if mode == "integrated":
-        return run_integrated(
-            root, stack, goal, target, criteria, constraints, prompt, primary_test_cmd, effect_sink
+    if profile.effective_mode == "blocked":
+        result = _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[profile.reason_code],
+            blocked_preconditions=[
+                {"code": profile.reason_code, "message": "execution-mode negotiation failed closed"}
+            ],
         )
+        result["execution_profile"] = profile.to_dict()
+        return result
+    if profile.effective_mode == "integrated":
+        result = run_integrated(
+            root,
+            stack,
+            goal,
+            target,
+            criteria,
+            constraints,
+            prompt,
+            primary_test_cmd,
+            effect_sink,
+            context_snapshot=context_snapshot,
+        )
+        result["execution_profile"] = profile.to_dict()
+        return result
     if not dry_run_task and primary_test_cmd is None:
         blocker = {
             "code": "verification_command_missing",
@@ -375,11 +427,13 @@ def run_task(
                 applied=False,
                 status=receipt.get("status", "failed"),
                 warnings=[receipt.get("message", "provider execution failed")],
-                blocked_preconditions=[{
-                    "reason": receipt.get("reason_code", "provider_failure"),
-                    "message": receipt.get("message", "provider execution failed"),
-                    "next_surface": "provider",
-                }],
+                blocked_preconditions=[
+                    {
+                        "reason": receipt.get("reason_code", "provider_failure"),
+                        "message": receipt.get("message", "provider execution failed"),
+                        "next_surface": "provider",
+                    }
+                ],
             )
             result["provider_terminal"] = receipt
             return result
@@ -493,7 +547,7 @@ def run_task(
                         root=root,
                         tokens_saved=0,
                     )
-                    return _task_result(
+                    result = _task_result(
                         target,
                         prompt,
                         output,
@@ -501,6 +555,8 @@ def run_task(
                         verify=last_verify_receipt,
                         impact=impact_results,
                     )
+                    result["execution_profile"] = profile.to_dict()
+                    return result
             else:
                 ok = False
                 log = (
@@ -595,7 +651,7 @@ def run_task(
                             root=root,
                             tokens_saved=0,
                         )
-                        return _task_result(
+                        result = _task_result(
                             target,
                             prompt,
                             output,
@@ -603,6 +659,8 @@ def run_task(
                             verify=last_verify_receipt,
                             impact=impact_results,
                         )
+                        result["execution_profile"] = profile.to_dict()
+                        return result
                 else:
                     ok = False
                     log = "impact verification unavailable after fixer — " + (impact_results or {}).get(

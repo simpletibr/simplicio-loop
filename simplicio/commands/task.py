@@ -30,6 +30,7 @@ def run(a: argparse.Namespace) -> int:
             dry_run_task=a.dry_run_task,
             bound_paths=a.bound_paths,
             quiet=a.json,
+            mode=getattr(a, "mode", None),
         )
         if a.json:
             print(json.dumps(result, sort_keys=True))
@@ -51,6 +52,7 @@ def run(a: argparse.Namespace) -> int:
         a.criteria,
         a.constraints,
         bound_paths=a.bound_paths,
+        mode=getattr(a, "mode", None),
     )
     status = "DONE" if result["applied"] else "FAILED"
     print(f"{status}: {result['diff_summary']}")

@@ -22,7 +22,23 @@ from pathlib import Path
 
 from simplicio import pipeline
 from simplicio.plan_compiler import EffectPlan, PlanDAG, RecordingEffectSink
-from simplicio.plan_compiler.effect_sink import IntegratedModeRequiresSinkError
+
+READY_RUNTIME = {
+    "verified": True,
+    "version": "3.6.0",
+    "capabilities": ["simplicio.effect-transaction/v1"],
+    "reason": "ok",
+}
+CANONICAL_CONTEXT = {
+    "schema": "simplicio.mapper.context-snapshot/v1",
+    "snapshot_id": "snapshot-real-1",
+    "revision": "abc123",
+    "digest": "sha256:context",
+}
+
+
+class RuntimeTestSink(RecordingEffectSink):
+    """Contract-shaped sink used only beyond the production negotiation gate."""
 
 
 def _valid_pipeline_diff() -> str:
@@ -129,35 +145,31 @@ def test_standalone_mode_explicit_matches_implicit_default(tmp_path, monkeypatch
     assert result["applied"] is True
 
 
-def test_integrated_mode_without_sink_raises_and_never_writes(tmp_path, monkeypatch):
-    """No effect_sink => refuse to proceed; must not fall back to direct writes."""
+def test_integrated_mode_without_sink_fails_closed_and_never_writes(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
     before = _snapshot(tmp_path)
     monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
-
-    try:
-        pipeline.run_task(
-            str(tmp_path),
-            "python",
-            "add api",
-            "src/app.py",
-            "- passes",
-            "- small",
-            mode="integrated",
-            quiet=True,
-        )
-        raised = False
-    except IntegratedModeRequiresSinkError:
-        raised = True
-
-    assert raised, "integrated mode without a sink must raise, not silently write"
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "add api",
+        "src/app.py",
+        "- passes",
+        "- small",
+        mode="integrated",
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
+        quiet=True,
+    )
+    assert result["status"] == "blocked"
+    assert result["warnings"] == ["RUNTIME_SINK_REQUIRED"]
     assert _snapshot(tmp_path) == before
 
 
 def test_integrated_mode_without_test_cmd_is_blocked_not_applied(tmp_path, monkeypatch):
     monkeypatch.delenv("SIMPLICIO_TEST_CMD", raising=False)
     monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
-    sink = RecordingEffectSink()
+    sink = RuntimeTestSink()
 
     result = pipeline.run_task(
         str(tmp_path),
@@ -168,6 +180,8 @@ def test_integrated_mode_without_test_cmd_is_blocked_not_applied(tmp_path, monke
         "- small",
         mode="integrated",
         effect_sink=sink,
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
         quiet=True,
     )
 
@@ -193,7 +207,7 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
     monkeypatch.setattr(pipeline, "generate", lambda *a, **k: _valid_pipeline_diff())
 
     before = _snapshot(tmp_path)
-    sink = RecordingEffectSink()
+    sink = RuntimeTestSink()
 
     result = pipeline.run_task(
         str(tmp_path),
@@ -204,6 +218,8 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
         "- build passes",
         mode="integrated",
         effect_sink=sink,
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
         quiet=True,
     )
 
@@ -238,7 +254,7 @@ def test_integrated_mode_needs_clarification_when_no_acceptance_criteria(tmp_pat
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
     monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
     before = _snapshot(tmp_path)
-    sink = RecordingEffectSink()
+    sink = RuntimeTestSink()
 
     result = pipeline.run_task(
         str(tmp_path),
@@ -249,6 +265,8 @@ def test_integrated_mode_needs_clarification_when_no_acceptance_criteria(tmp_pat
         "- build passes",
         mode="integrated",
         effect_sink=sink,
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
         quiet=True,
     )
 

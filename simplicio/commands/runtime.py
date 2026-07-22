@@ -37,6 +37,14 @@ def run(a: argparse.Namespace) -> int:
         print(json.dumps(payload, sort_keys=True))
         return 0 if payload["verified"] else 1
 
+    if a.runtime_cmd == "capabilities":
+        from ..execution_mode import capabilities_report
+
+        payload = capabilities_report(a.mode, root=a.root)
+        print(
+            json.dumps(payload, sort_keys=True) if a.json else json.dumps(payload, indent=2, sort_keys=True)
+        )
+        return 0
     if a.runtime_cmd == "doctor":
         payload = doctor_contract(a.root)
         if a.json:
