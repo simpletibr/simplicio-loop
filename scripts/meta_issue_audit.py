@@ -34,6 +34,8 @@ _SECRET_PATTERNS = (
 _CROSS_REPO_REF = re.compile(r"https://github\.com/([^/\s]+/[^/\s]+)/issues/(\d+)", re.I)
 _LOCAL_REF = re.compile(r"(?<![\w/])#(\d+)\b")
 _HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*$", re.M)
+_PR_REF = re.compile(r"https://github\.com/([^/\s]+/[^/\s]+)/pull/(\d+)", re.I)
+_COMMIT_REF = re.compile(r"https://github\.com/([^/\s]+/[^/\s]+)/commit/([0-9a-f]{7,40})", re.I)
 
 
 def _redact(value: str) -> tuple[str, bool]:
@@ -72,6 +74,60 @@ def _test_flow(number: int) -> list[dict[str, str]]:
         {"layer": "security", "scenario": "Use invalid and adversarial input; prove logs and artifacts contain no secrets, PII, or private source."},
         {"layer": "reproduction", "scenario": "Publish a local or container command that does not require paid GitHub Actions."},
     ]
+
+
+def _classification(issue: dict[str, Any]) -> dict[str, str]:
+    labels = " ".join(
+        str(label.get("name", "")) if isinstance(label, dict) else str(label)
+        for label in issue.get("labels", [])
+    ).casefold()
+    title = str(issue.get("title") or "").casefold()
+    text = f"{labels} {title}"
+    priority = next((value.upper() for value in ("p0", "p1", "p2", "p3") if value in text), "UNSPECIFIED")
+    risk = "high" if any(value in text for value in ("security", "release", "contract", "breaking")) else "standard"
+    component = next(
+        (value for value in ("mapper", "runtime", "cli", "agent", "docs", "ci", "benchmark") if value in text),
+        "unclassified",
+    )
+    epic = "meta-audit" if "meta-audit" in text or "auditoria" in text else "unassigned"
+    return {"epic": epic, "component": component, "risk": risk, "priority": priority}
+
+
+def _associations(body: str) -> dict[str, list[str]]:
+    return {
+        "pull_requests": sorted({f"https://github.com/{repo}/pull/{number}" for repo, number in _PR_REF.findall(body)}),
+        "commits": sorted({f"https://github.com/{repo}/commit/{sha}" for repo, sha in _COMMIT_REF.findall(body)}),
+        "branches": [],
+        "files": [],
+        "tests": [],
+        "projects": sorted({repo for repo, _number in _CROSS_REPO_REF.findall(body)}),
+    }
+
+
+def _review_markdown(review: dict[str, Any]) -> str:
+    headings = {
+        "context_and_problem": "Contexto e problema",
+        "objective": "Objetivo",
+        "out_of_scope": "Fora de escopo",
+        "inputs_outputs_contracts": "Entradas, saídas e contratos",
+        "dependencies_and_order": "Dependências e ordem",
+        "implementation_steps": "Passo a passo implementável",
+        "test_flow": "Fluxo de testes",
+        "verifiable_acceptance_criteria": "Critérios de aceite verificáveis",
+        "mandatory_evidence": "Evidências obrigatórias",
+        "risks_rollback_and_closure": "Riscos, rollback e decisão de encerramento",
+    }
+    sections = []
+    for key in REQUIRED_SECTIONS:
+        value = review[key]
+        if key == "test_flow":
+            content = "\n".join(f"- **{item['layer']}** — {item['scenario']}" for item in value)
+        elif isinstance(value, list):
+            content = "\n".join(f"- {item}" for item in value)
+        else:
+            content = str(value)
+        sections.append(f"## {headings[key]}\n\n{content}")
+    return "\n\n".join(sections) + "\n"
 
 
 def _review(issue: dict[str, Any], body: str, dependencies: dict[str, Any]) -> dict[str, Any]:
@@ -181,17 +237,29 @@ def build_audit(rows: list[dict[str, Any]], *, repository: str) -> dict[str, Any
                 "original_body_sha256": _digest(original_body),
                 "review_body_sha256": _digest(json.dumps(review, ensure_ascii=False, sort_keys=True)),
                 "dependencies": dependencies,
+                "classification": _classification(raw),
+                "associations": _associations(body),
                 "test_flow": _test_flow(number),
                 "evidence": {"required": review["mandatory_evidence"], "observed_in_export": []},
                 "security": {"redactions_applied": redacted},
                 "closure_decision": "KEEP_OPEN" if state == "open" else "REVIEW_CLOSED",
                 "review": review,
+                "proposed_body": _review_markdown(review),
             }
         )
     states = {"open": 0, "closed": 0}
     for issue in normalized:
         states[issue["state"]] = states.get(issue["state"], 0) + 1
     canonical_source = json.dumps(issues, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    dependency_matrix = [
+        {
+            "number": item["number"],
+            "local_issues": item["dependencies"]["local_issues"],
+            "cross_repository": item["dependencies"]["cross_repository"],
+        }
+        for item in normalized
+        if item["dependencies"]["local_issues"] or item["dependencies"]["cross_repository"]
+    ]
     return {
         "schema": SCHEMA,
         "repository": repository,
@@ -199,6 +267,7 @@ def build_audit(rows: list[dict[str, Any]], *, repository: str) -> dict[str, Any
         "summary": {"total": len(normalized), "open": states.get("open", 0), "closed": states.get("closed", 0)},
         "redacted_issue_count": redaction_count,
         "required_sections": REQUIRED_SECTIONS,
+        "dependency_matrix": dependency_matrix,
         "issues": normalized,
     }
 

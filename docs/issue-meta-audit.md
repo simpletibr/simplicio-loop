@@ -17,6 +17,12 @@ em `simplicio.meta-issue-audit/v1`. O resultado:
   entre repositórios;
 - inclui, para cada issue, as dez seções obrigatórias de revisão, o fluxo de
   testes em nove camadas, as evidências exigidas e uma decisão de encerramento;
+- materializa essas seções em `proposed_body`, pronto para diff e revisão antes
+  de qualquer edição autenticada, e classifica épico, componente, risco e
+  prioridade sem esconder valores não inferíveis (`unassigned`/`unclassified`);
+- extrai associações explícitas com PRs, commits e projetos e mantém campos
+  vazios para branches, arquivos e testes quando o corpo não fornece evidência;
+- publica uma matriz de dependências compacta no topo do artefato;
 - mascara padrões de credencial antes de copiar conteúdo e registra quantas
   issues sofreram redação;
 - usa hashes SHA-256 do corpo original, da revisão e da entrada canônica para

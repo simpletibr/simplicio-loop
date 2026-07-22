@@ -41,14 +41,34 @@ class MetaIssueAuditUnitTest(unittest.TestCase):
             self.assertEqual(len(item["test_flow"]), 9)
             self.assertTrue(item["evidence"]["required"])
             self.assertIn(item["closure_decision"], {"KEEP_OPEN", "REVIEW_CLOSED"})
+            self.assertEqual(item["proposed_body"].count("\n## ") + 1, 10)
+            self.assertEqual(set(item["classification"]), {"epic", "component", "risk", "priority"})
 
     def test_refs_dependencies_and_sensitive_values_are_handled(self) -> None:
         body = "Depends on #1 and https://github.com/acme/runtime/issues/9\nTOKEN=ghp_abcdefghijklmnopqrstuvwxyz123456"
         item = audit.build_audit([issue(2, body=body)], repository="example/repo")["issues"][0]
         self.assertEqual(item["dependencies"]["local_issues"], [1])
         self.assertEqual(item["dependencies"]["cross_repository"], ["https://github.com/acme/runtime/issues/9"])
+        self.assertEqual(item["associations"]["projects"], ["acme/runtime"])
+        matrix = audit.build_audit([issue(2, body=body)], repository="example/repo")["dependency_matrix"]
+        self.assertEqual(matrix[0]["number"], 2)
         self.assertNotIn("ghp_", json.dumps(item))
         self.assertTrue(item["security"]["redactions_applied"])
+
+    def test_associations_and_classification_are_explicit_and_deterministic(self) -> None:
+        row = issue(
+            4,
+            body=(
+                "Implemented by https://github.com/example/repo/pull/8 and "
+                "https://github.com/example/repo/commit/abcdef1234567"
+            ),
+        )
+        row["title"] = "P0 security contract for mapper"
+        item = audit.build_audit([row], repository="example/repo")["issues"][0]
+        self.assertEqual(item["classification"], {"epic": "unassigned", "component": "mapper", "risk": "high", "priority": "P0"})
+        self.assertEqual(item["associations"]["pull_requests"], ["https://github.com/example/repo/pull/8"])
+        self.assertEqual(item["associations"]["commits"], ["https://github.com/example/repo/commit/abcdef1234567"])
+        self.assertEqual(item["associations"]["branches"], [])
 
     def test_pull_requests_are_excluded_and_duplicates_rejected(self) -> None:
         pull = issue(3)
