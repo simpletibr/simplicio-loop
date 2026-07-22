@@ -12,7 +12,13 @@ from simplicio.atomic_execution import (
     IntegratedOwnershipError,
     execute_work_item_once,
 )
-from simplicio.plan_compiler import EffectOutcome, EffectPlan, PlanNode, RecordingEffectSink
+from simplicio.plan_compiler import (
+    EffectDispatchContext,
+    EffectOutcome,
+    EffectPlan,
+    PlanNode,
+    RecordingEffectSink,
+)
 
 
 class CallableSink:
@@ -167,6 +173,35 @@ def test_nested_attempt_and_multi_effect_dispatch_fail_closed() -> None:
             verifications=[],
             effect_sink=RecordingEffectSink(),
         )
+
+
+@pytest.mark.parametrize(
+    ("context", "message"),
+    [
+        (
+            EffectDispatchContext("plan-1", "goal-1", _node("other"), [], "attempt-1"),
+            "PlanNode must match",
+        ),
+        (
+            EffectDispatchContext("plan-1", "goal-1", _node(), [], "attempt-other"),
+            "preserve the coordinator attempt_id",
+        ),
+    ],
+)
+def test_dispatch_context_cannot_replace_coordinator_identity(context, message: str) -> None:
+    sink = RecordingEffectSink()
+
+    with pytest.raises(IntegratedOwnershipError, match=message):
+        execute_work_item_once(
+            _node(),
+            _attempt(),
+            effects=[_effect()],
+            verifications=[],
+            effect_sink=sink,
+            dispatch_context=context,
+        )
+
+    assert sink.received == []
 
 
 def test_twenty_external_work_items_create_no_local_pool() -> None:

@@ -25,8 +25,11 @@ coordinator dispatch(PlanNode, AttemptContext)
 `execute_work_item_once` cannot call `run_task`, `run_feature`, `TaskBatch`, a
 provider, a subprocess, a worktree factory, or a pool. It rejects nested
 attempts, effects for another node, and more than one effect for its selected
-node. It does not run a verification node: the coordinator dispatches that
-PlanNode separately after interpreting the observation.
+node. It also rejects a dispatch context that replaces either the selected
+PlanNode or the coordinator-owned `attempt_id`, before the sink can observe
+the inconsistent identity. It does not run a verification node: the
+coordinator dispatches that PlanNode separately after interpreting the
+observation.
 
 ## Capability owners
 

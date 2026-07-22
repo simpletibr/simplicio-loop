@@ -172,7 +172,7 @@ Como o **Passo 2 usa `--ignore-existing`**, nenhum arquivo do host é sobrescrit
 | `tests/` | sim | starter NÃO mescla arquivos individuais que já existem |
 | `AGENTS.md` / `CLAUDE.md` / `INIT.md` | sim | starter NÃO copia. Bootstrap registra em `.starter-meta.json -> existing_instruction_files`; `INIT.md` lê e **mescla** preservando o conteúdo do host |
 | `.gitignore` | sim | starter NÃO sobrescreve. Bootstrap só **adiciona** ao final com cabeçalho marcador (se você responder `yes` no prompt) |
-| `.github/workflows/` | sim | starter NÃO sobrescreve workflows existentes; só adiciona `dod.yml` se não houver homônimo |
+| `.github/workflows/` | sim | starter NÃO sobrescreve workflows existentes; só adiciona `ci.yml` se não houver homônimo |
 
 > Você nunca terá "dois `package.json`" — `rsync --ignore-existing` / `robocopy /XC /XN /XO` pulam o arquivo se já existe.
 
@@ -253,7 +253,7 @@ rm -rf .agents .skills .specs .claude .codex bin
 rm -f _BOOTSTRAP.md INSTALL.md .starter-meta.json
 rm -f bootstrap.sh bootstrap.ps1
 rm -rf .github/copilot presentation video
-rm -f .github/copilot-instructions.md .github/workflows/dod.yml
+rm -f .github/copilot-instructions.md .github/workflows/ci.yml
 
 # arquivos do starter SÓ se você confirmou que NÃO são do host
 # (mesma lista comentada no .gitignore — checa primeiro)

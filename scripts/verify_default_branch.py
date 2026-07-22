@@ -40,6 +40,7 @@ def verify(
     *,
     expected: str = "main",
     compatibility: str = "master",
+    previous_default: str = "master",
     fetch_json: Callable[[str], dict[str, Any]] = _fetch_json,
 ) -> tuple[bool, dict[str, Any]]:
     """Return migration status and a machine-readable evidence receipt."""
@@ -58,14 +59,21 @@ def verify(
     for branch, sha in tips.items():
         if not sha:
             reasons.append(f"branch {branch!r} has no observable commit SHA")
+    branches_synchronized = bool(tips.get(expected)) and tips.get(expected) == tips.get(compatibility)
+    if all(tips.values()) and not branches_synchronized:
+        reasons.append(
+            f"branch tips differ: {expected}={tips[expected]!r}, {compatibility}={tips[compatibility]!r}"
+        )
 
     receipt: dict[str, Any] = {
         "schema": SCHEMA,
         "repository": repository,
+        "previous_default": previous_default,
         "expected_default": expected,
         "observed_default": observed,
         "compatibility_branch": compatibility,
         "branch_tips": tips,
+        "branches_synchronized": branches_synchronized,
         "verified": not reasons,
         "reasons": reasons,
     }
@@ -77,6 +85,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repository", default="wesleysimplicio/simplicio-dev-cli")
     parser.add_argument("--expected", default="main")
     parser.add_argument("--compatibility", default="master")
+    parser.add_argument("--previous-default", default="master")
     args = parser.parse_args(argv)
 
     try:
@@ -84,11 +93,13 @@ def main(argv: list[str] | None = None) -> int:
             args.repository,
             expected=args.expected,
             compatibility=args.compatibility,
+            previous_default=args.previous_default,
         )
     except (OSError, ValueError, json.JSONDecodeError, urllib.error.URLError) as exc:
         receipt = {
             "schema": SCHEMA,
             "repository": args.repository,
+            "previous_default": args.previous_default,
             "expected_default": args.expected,
             "verified": False,
             "error": f"{type(exc).__name__}: {exc}",

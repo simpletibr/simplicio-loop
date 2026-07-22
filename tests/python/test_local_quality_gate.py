@@ -24,6 +24,16 @@ def test_ci_invokes_blocking_coverage_gate_on_main_pushes_and_prs() -> None:
     assert "continue-on-error" not in workflow
 
 
+def test_ci_blocks_internal_json_in_sources_and_release_archives_on_supported_platforms() -> None:
+    workflow = _read(".github/workflows/ci.yml")
+
+    assert "Internal JSON release gate (${{ matrix.os }})" in workflow
+    assert "[ubuntu-latest, macos-latest, windows-latest]" in workflow
+    assert "python scripts/check_json_boundaries.py --strict" in workflow
+    assert "python -m build" in workflow
+    assert "python scripts/check_json_boundaries.py --strict --artifact-dir dist" in workflow
+
+
 def test_documented_thresholds_equal_enforced_thresholds() -> None:
     global_floor, critical_floor, critical_modules = coverage_gate._load_config()
     gate_docs = _read("docs/ci-quality-gate.md")
@@ -51,10 +61,24 @@ def test_coverage_gate_rejects_reports_below_either_floor() -> None:
 
 
 def test_documented_workflow_references_exist() -> None:
-    audited_paths = [REPO_ROOT / name for name in ("AGENTS.md", "CLAUDE.md", "DOD.md", "README.md")]
-    audited_paths.extend((REPO_ROOT / "docs").rglob("*.md"))
+    audited_paths = [
+        REPO_ROOT / name
+        for name in (
+            "AGENTS.md",
+            "CLAUDE.md",
+            "DOD.md",
+            "README.md",
+            "INSTALL.md",
+            "INIT.md",
+            "_BOOTSTRAP.md",
+        )
+    ]
+    audited_paths.extend(
+        source for source in (REPO_ROOT / "docs").rglob("*.md") if "evidence" not in source.parts
+    )
     audited_paths.extend((REPO_ROOT / "tests").rglob("*.py"))
     audited_paths.extend((REPO_ROOT / "tests").rglob("*.js"))
+    audited_paths.extend(REPO_ROOT / name for name in ("bootstrap.sh", "bootstrap.ps1"))
 
     reference = re.compile(r"\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml")
     missing: list[str] = []

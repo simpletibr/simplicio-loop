@@ -18,7 +18,7 @@
         - Which CLI/LLM should run INIT.md?
     3. Substitutes <PRODUCT_NAME>/<STACK> ONLY inside
        starter-managed paths (.specs/, .agents/, .skills/, .claude/,
-       .codex/, .github/copilot*, .github/workflows/{ci,dod}.yml,
+       .codex/, .github/copilot*, .github/workflows/ci.yml,
        plus root AGENTS.md/CLAUDE.md/INIT.md/README*.md ONLY if those
        files actually contain a placeholder).
     4. NEVER overwrites pre-existing user files (.razor, .cs, .ts, .py,
@@ -204,8 +204,7 @@ $StarterGithubPatterns = @(
   ".github/copilot",
   ".github/PULL_REQUEST_TEMPLATE.md",
   ".github/ISSUE_TEMPLATE",
-  ".github/workflows/ci.yml",
-  ".github/workflows/dod.yml"
+  ".github/workflows/ci.yml"
 )
 $StarterRootFiles = @(
   "AGENTS.md","CLAUDE.md","INIT.md","_BOOTSTRAP.md",
@@ -411,7 +410,7 @@ Write-Host ""
 # ---------------------------------------------------------------------------
 # choose CLI / LLM
 # ---------------------------------------------------------------------------
-$InitPrompt = 'Read INIT.md and execute it. Do NOT modify any user source files (.razor, .cs, .ts, .py, .go, .rs, package.json, etc). Only write inside .specs/, .agents/, .skills/, .claude/, .codex/, .github/copilot*, .github/workflows/dod.yml plus root AGENTS.md/CLAUDE.md/INIT.md/README*.md. If AGENTS.md/CLAUDE.md/copilot-instructions.md already existed before bootstrap (see .starter-meta.json), READ them and IMPROVE in place — preserve their essence. DO NOT ask the human about team, domain, vision, personas, or product purpose: infer ALL of them by reading the codebase (README, package.json/angular.json/*.csproj/pyproject.toml/etc, entry points, routes, tests, env.example). Default persona is "developer"; additional personas must be derived from code (auth roles, route guards, UI flows, customer-facing copy). Honor workspace mode: if .starter-meta.json.project_mode == "monorepo", iterate over .starter-meta.json.projects[] and produce per-project .specs/. Use parallel multi-agents.'
+$InitPrompt = 'Read INIT.md and execute it. Do NOT modify any user source files (.razor, .cs, .ts, .py, .go, .rs, package.json, etc). Only write inside .specs/, .agents/, .skills/, .claude/, .codex/, .github/copilot*, .github/workflows/ci.yml plus root AGENTS.md/CLAUDE.md/INIT.md/README*.md. If AGENTS.md/CLAUDE.md/copilot-instructions.md already existed before bootstrap (see .starter-meta.json), READ them and IMPROVE in place — preserve their essence. DO NOT ask the human about team, domain, vision, personas, or product purpose: infer ALL of them by reading the codebase (README, package.json/angular.json/*.csproj/pyproject.toml/etc, entry points, routes, tests, env.example). Default persona is "developer"; additional personas must be derived from code (auth roles, route guards, UI flows, customer-facing copy). Honor workspace mode: if .starter-meta.json.project_mode == "monorepo", iterate over .starter-meta.json.projects[] and produce per-project .specs/. Use parallel multi-agents.'
 
 $CliOpts = @(
   @{ Key="claude";   Label="Claude Code";                                                       Cmd="claude" },

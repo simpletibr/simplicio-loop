@@ -13,14 +13,14 @@ from scripts import verify_default_branch
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def _github_fixture(default: str = "main", missing_sha: str | None = None):
+def _github_fixture(default: str = "main", missing_sha: str | None = None, master_sha: str = "main-sha"):
     def fetch(url: str) -> dict:
         if url.endswith("/branches/main"):
             return {"name": "main", "commit": {"sha": None if missing_sha == "main" else "main-sha"}}
         if url.endswith("/branches/master"):
             return {
                 "name": "master",
-                "commit": {"sha": None if missing_sha == "master" else "master-sha"},
+                "commit": {"sha": None if missing_sha == "master" else master_sha},
             }
         return {"default_branch": default}
 
@@ -34,10 +34,12 @@ def test_verify_accepts_main_and_records_both_branch_tips() -> None:
     assert receipt == {
         "schema": "simplicio.default-branch-evidence/v1",
         "repository": "owner/repo",
+        "previous_default": "master",
         "expected_default": "main",
         "observed_default": "main",
         "compatibility_branch": "master",
-        "branch_tips": {"main": "main-sha", "master": "master-sha"},
+        "branch_tips": {"main": "main-sha", "master": "main-sha"},
+        "branches_synchronized": True,
         "verified": True,
         "reasons": [],
     }
@@ -57,6 +59,16 @@ def test_verify_rejects_a_branch_without_an_observable_sha() -> None:
 
     assert ok is False
     assert receipt["reasons"] == ["branch 'master' has no observable commit SHA"]
+
+
+def test_verify_requires_compatibility_branch_to_match_main() -> None:
+    ok, receipt = verify_default_branch.verify(
+        "owner/repo", fetch_json=_github_fixture(master_sha="master-sha")
+    )
+
+    assert ok is False
+    assert receipt["branches_synchronized"] is False
+    assert receipt["reasons"] == ["branch tips differ: main='main-sha', master='master-sha'"]
 
 
 def test_fetch_json_uses_public_api_headers_and_parses_object(monkeypatch: pytest.MonkeyPatch) -> None:

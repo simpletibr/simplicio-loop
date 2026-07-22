@@ -24,7 +24,27 @@ simplicio` reports two errors in `simplicio/plan_compiler/models.py`; the interr
 reached 1,399 passes, 6 skips, and 21 failures, including stale help fixtures and provider/local-inference
 expectations introduced before this branch. Issue-focused suites are green.
 
-External blocker: issue #256 is still open, so there is no production `RuntimeEffectSink` to dispatch an
-EffectTransaction. This change deliberately does not fabricate one or promote integrated to default.
-Installed integrated requests fail closed, while the versioned negotiation, surfaces, rollout controls,
-profiles, metrics, and canonical-context requirement are ready for that dependency.
+Historical note: the first evidence pass predated issue #256. The current tree now contains the production
+`RuntimeEffectSink`; installed requests still fail closed unless an actual compatible Runtime endpoint and
+coordinator-owned context are supplied, and this local run does not claim a live cross-repository receipt.
+
+## Canonical-context regression follow-up (2026-07-22)
+
+Review against the live issue found that negotiation used the retired
+`simplicio.mapper.context-snapshot/v1` spelling and trusted the schema field alone, while Mapper's pinned
+contract is `simplicio.context-snapshot/v1`. The integrated path could therefore accept a fabricated object
+yet reject every real Mapper snapshot. Negotiation and dispatch now both call Mapper's contract adapter;
+the profile reports the canonical-payload SHA-256 and stable Mapper rejection code.
+
+Replay evidence against current `main` at `b6e6c29`:
+
+- focused unit/integration/system/regression: 25 passed; 94% branch-aware coverage across
+  `execution_mode.py` and `pipeline_integrated.py`;
+- system command `simplicio-py runtime capabilities --mode integrated --json` emitted one clean JSON object
+  and failed closed as `INCOMPATIBLE_RUNTIME` without a Runtime deployment;
+- negotiation benchmark assertion passed at fewer than 100 microseconds per validated-boundary call;
+- focused Ruff lint and format checks passed;
+- `git diff --check` passed, and generated dependency documentation matched;
+- repository-wide Ruff and mypy remain red on pre-existing baseline debt outside the replayed files
+  (23 lint errors and five mypy errors). Focused Ruff lint/format passed; focused mypy reached four
+  transitive baseline errors in unchanged modules.

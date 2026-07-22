@@ -28,6 +28,7 @@ from .observability import emit_event
 from .pipeline_task_result import _task_result
 from .plan_compiler import PlanCompilationError, compile_task_spec_to_plan
 from .plan_compiler.effect_sink import EffectDispatchContext, EffectSink, IntegratedModeRequiresSinkError
+from .plan_compiler.mapper_context import MapperContextError, load_mapper_context
 from .plan_compiler.runtime_effect_sink import RuntimeEffectSink
 from .task_spec import TaskSpec
 
@@ -139,9 +140,9 @@ def run_integrated(
                 {"code": "CONTEXT_REQUIRED", "message": "canonical Mapper ContextSnapshot is required"}
             ],
         )
-    context_snapshot_id = str(context_snapshot.get("snapshot_id", ""))
-    revision = str(context_snapshot.get("revision", ""))
-    if not context_snapshot_id or not revision:
+    try:
+        mapper_context = load_mapper_context(context_snapshot, source_root=root)
+    except MapperContextError as exc:
         return _task_result(
             target,
             prompt,
@@ -150,9 +151,11 @@ def run_integrated(
             status="blocked",
             warnings=["INCOMPATIBLE_CONTEXT"],
             blocked_preconditions=[
-                {"code": "INCOMPATIBLE_CONTEXT", "message": "snapshot_id and revision are required"}
+                {"code": "INCOMPATIBLE_CONTEXT", "message": f"{exc.code}: canonical Mapper snapshot rejected"}
             ],
         )
+    context_snapshot_id = mapper_context.view.snapshot_id
+    revision = mapper_context.view.revision
     if attempt.context_handle != context_snapshot_id:
         return _task_result(
             target,

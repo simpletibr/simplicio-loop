@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from timeit import timeit
+from types import SimpleNamespace
 
 import pytest
 
@@ -15,11 +16,23 @@ READY = {
     "reason": "ok",
 }
 CONTEXT = {
-    "schema": "simplicio.mapper.context-snapshot/v1",
+    "schema": "simplicio.context-snapshot/v1",
     "snapshot_id": "real",
     "revision": "abc",
     "digest": "sha256:1",
 }
+
+
+@pytest.fixture(autouse=True)
+def canonical_mapper_boundary(monkeypatch):
+    def load(payload, **_kwargs):
+        if payload is CONTEXT:
+            return SimpleNamespace(payload_bytes=b"canonical-context")
+        from simplicio.plan_compiler.mapper_context import MapperContextError
+
+        raise MapperContextError("TEST_CONTEXT_REJECTED", "not canonical")
+
+    monkeypatch.setattr("simplicio.execution_mode.load_mapper_context", load)
 
 
 class RuntimeEffectSink:
@@ -57,6 +70,18 @@ def test_integrated_matrix_fails_closed(handshake, context, sink, reason):
     assert profile.effective_mode == "blocked"
     assert profile.reason_code == reason
     assert profile.fallback_reason is None
+
+
+def test_schema_string_without_mapper_validation_is_not_canonical():
+    profile = negotiate_execution_mode(
+        "integrated",
+        runtime_handshake=READY,
+        context_snapshot={"schema": "simplicio.context-snapshot/v1"},
+        effect_sink=RuntimeEffectSink(),
+    )
+    assert profile.effective_mode == "blocked"
+    assert profile.reason_code == "INCOMPATIBLE_CONTEXT"
+    assert profile.mapper["contract_error"] == "TEST_CONTEXT_REJECTED"
 
 
 def test_auto_policy_fallback_and_kill_switch(monkeypatch):

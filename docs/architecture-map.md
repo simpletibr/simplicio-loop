@@ -129,6 +129,5 @@ Browser -> /checkout (RSC) -> POST /api/v1/orders -> OrdersController
 ### Deployment
 
 - Environments: `dev` (preview Vercel per PR), `staging` (auto from `main`), `prod` (manual promote, weekly).
-- CI/CD: GitHub Actions `.github/workflows/{ci,deploy-staging,deploy-prod}.yml`.
+- CI: GitHub Actions `.github/workflows/ci.yml`; deploys não são definidos neste repositório.
 - Release notes/changelog: `CHANGELOG.md` + GitHub Releases (auto-generated from PR titles).
-

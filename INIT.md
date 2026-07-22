@@ -49,7 +49,6 @@ Apenas estes caminhos são "starter-managed". **Tudo fora daqui é território d
 .github/PULL_REQUEST_TEMPLATE.md
 .github/ISSUE_TEMPLATE/**
 .github/workflows/ci.yml
-.github/workflows/dod.yml
 AGENTS.md          CLAUDE.md          README.md          README.pt-BR.md
 playwright.config.ts (apenas se ainda não existe ou se é template nosso)
 ```
