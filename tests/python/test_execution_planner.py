@@ -1,8 +1,10 @@
-"""Tests for issue #279 execution-profile planning and rollback controls."""
+"""Tests for issue #325 default-async planning and rollback controls."""
 
 from __future__ import annotations
 
+import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -89,7 +91,6 @@ class ExecutionPlannerIntegrationTest(unittest.TestCase):
         self.assertEqual(receipt["selected_profile"], "sync")
         self.assertIn("reason", receipt)
 
-
     def test_write_mapping_artifacts_publishes_execution_plan_file(self) -> None:
         _make_tree(self.root, 2)
         with mock.patch.dict(os.environ, {EXECUTION_PROFILE_ENV: "sync"}, clear=True):
@@ -113,6 +114,50 @@ class ExecutionPlannerIntegrationTest(unittest.TestCase):
             artifacts = build_artifacts(str(self.root))
         spy_sync.assert_called_once()
         self.assertTrue(artifacts["execution_plan"]["async_disabled"])
+
+
+class ExecutionPlannerSystemTest(unittest.TestCase):
+    """Exercise profile selection through the real Python CLI process."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        _make_tree(self.root, 2)
+
+    def _run_index(self, extra_env: dict[str, str] | None = None) -> dict:
+        env = os.environ.copy()
+        env.pop(EXECUTION_PROFILE_ENV, None)
+        env.pop(ASYNC_KILL_SWITCH_ENV, None)
+        env["PYTHONPATH"] = str(ROOT)
+        env.update(extra_env or {})
+        completed = subprocess.run(
+            [sys.executable, "-m", "simplicio_mapper.cli", "index", str(self.root), "--json"],
+            cwd=ROOT,
+            env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return json.loads(completed.stdout)
+
+    def test_real_cli_defaults_to_async_and_writes_receipt(self) -> None:
+        payload = self._run_index()
+
+        self.assertEqual(payload["execution_plan"]["selected_profile"], "async")
+        receipt_path = Path(payload["paths"]["execution_plan"])
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        self.assertEqual(receipt["schema"], "simplicio.execution-plan/v1")
+        self.assertEqual(receipt["selected_profile"], "async")
+        self.assertEqual(receipt["source"], "auto")
+
+    def test_real_cli_kill_switch_forces_sync_rollback(self) -> None:
+        payload = self._run_index({ASYNC_KILL_SWITCH_ENV: "1"})
+
+        receipt = payload["execution_plan"]
+        self.assertEqual(receipt["selected_profile"], "sync")
+        self.assertTrue(receipt["async_disabled"])
+        self.assertEqual(receipt["source"], "kill-switch")
 
 
 if __name__ == "__main__":
