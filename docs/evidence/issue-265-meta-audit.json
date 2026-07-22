@@ -1140,7 +1140,7 @@
       "title": "bench: migrate recommended Qwen Coder defaults to Qwen3-Coder-30B-A3B + Qwen3-Coder-Next",
       "traceability": {
         "evidence_mentioned": false,
-        "pr_or_commit_mentioned": true,
+        "pr_or_commit_mentioned": false,
         "tests_mentioned": true
       },
       "unmeasured_claims": [
@@ -1198,7 +1198,7 @@
       "title": "feat: from-scratch mode + DeepSeek planner + SkillOpt (RFC implementation)",
       "traceability": {
         "evidence_mentioned": true,
-        "pr_or_commit_mentioned": true,
+        "pr_or_commit_mentioned": false,
         "tests_mentioned": false
       },
       "unmeasured_claims": [],
@@ -1272,7 +1272,7 @@
         "risk": "medium"
       },
       "closed_at": "2026-05-30T03:27:48Z",
-      "closure_decision": "CLOSE-READY",
+      "closure_decision": "HISTORICAL-EVIDENCE-GAP",
       "created_at": "2026-05-29T15:51:51Z",
       "labels": [
         "enhancement",
@@ -1505,7 +1505,7 @@
         "risk": "medium"
       },
       "closed_at": "2026-05-31T09:40:46Z",
-      "closure_decision": "CLOSE-READY",
+      "closure_decision": "HISTORICAL-EVIDENCE-GAP",
       "created_at": "2026-05-30T23:43:37Z",
       "labels": [
         "enhancement",
@@ -1559,7 +1559,7 @@
       "traceability": {
         "evidence_mentioned": true,
         "pr_or_commit_mentioned": true,
-        "tests_mentioned": true
+        "tests_mentioned": false
       },
       "unmeasured_claims": [],
       "updated_at": "2026-05-31T09:40:46Z",
@@ -1605,7 +1605,7 @@
       "traceability": {
         "evidence_mentioned": false,
         "pr_or_commit_mentioned": false,
-        "tests_mentioned": true
+        "tests_mentioned": false
       },
       "unmeasured_claims": [
         "- Excelente performance na CPU (sem necessidade de GPU)",
@@ -2224,7 +2224,9 @@
         "pr_or_commit_mentioned": false,
         "tests_mentioned": true
       },
-      "unmeasured_claims": [],
+      "unmeasured_claims": [
+        "`simplicio/scratch/executor.py::_execute_one_task` has a stub branch: when no `SIMPLICIO_MODEL` is set and a task isn't covered by a mechanical codegen executor, it marks the task `skipped` (\"smoke-test mode: log the task but mark as skipped (no LLM call made)\") and sets `skipped_reason`. It also short-circuits via `SIMPLICIO_DISABLE_CODEGEN`. `tests/python/test_scratch.py` covers the happy codegen path and asserts `tasks_skipped` counts, but the boundary semantics of this stub (skipped vs failed, `fallback_to_llm` handling, `skipped_reason` content, and the `SIMPLICIO_DISABLE_CODEGEN` kill-switch interaction) are under-tested. Since issue #57 tracks *growing* recipe/executor coverage, uncovered tasks hitting this stub path will become more common, so its contract needs to be locked down. This complements #57 without overlapping (it's about the fallback/skip contract, not adding new executors)."
+      ],
       "updated_at": "2026-06-02T13:42:39Z",
       "url": "https://github.com/wesleysimplicio/simplicio-dev-cli/issues/66"
     },
@@ -2539,7 +2541,7 @@
       "traceability": {
         "evidence_mentioned": false,
         "pr_or_commit_mentioned": true,
-        "tests_mentioned": true
+        "tests_mentioned": false
       },
       "unmeasured_claims": [
         "3. **Telemetria descartada/duplicada**: `pipeline.py:182` hard-coda `cost_usd=0.0`; `providers.generate()`/`planner_complete()` não persistem usage; e há **dois estimadores conflitantes** no mesmo repo (`observability.estimate_tokens` = `words*4/3` vs `cost_governor._estimate_tokens` = `chars/4`) — claims de antes/depois podem divergir ~30% dependendo de qual se usa."
@@ -2673,7 +2675,7 @@
         "risk": "medium"
       },
       "closed_at": "2026-07-03T05:02:29Z",
-      "closure_decision": "CLOSE-READY",
+      "closure_decision": "HISTORICAL-EVIDENCE-GAP",
       "created_at": "2026-07-02T19:51:24Z",
       "labels": [
         "enhancement"
@@ -2705,8 +2707,8 @@
       "state_reason": "completed",
       "title": "feat(regression-safety): a camada verify do contrato 6-layer roda os testes de impacto, não só os do arquivo tocado",
       "traceability": {
-        "evidence_mentioned": true,
-        "pr_or_commit_mentioned": true,
+        "evidence_mentioned": false,
+        "pr_or_commit_mentioned": false,
         "tests_mentioned": true
       },
       "unmeasured_claims": [],
@@ -2849,7 +2851,7 @@
       "state_reason": "completed",
       "title": "contract: add executor compatibility tests for mapper and runtime integration",
       "traceability": {
-        "evidence_mentioned": true,
+        "evidence_mentioned": false,
         "pr_or_commit_mentioned": false,
         "tests_mentioned": true
       },
@@ -3237,7 +3239,7 @@
         "risk": "medium"
       },
       "closed_at": "2026-07-09T17:19:10Z",
-      "closure_decision": "CLOSE-READY",
+      "closure_decision": "HISTORICAL-EVIDENCE-GAP",
       "created_at": "2026-07-09T15:52:55Z",
       "labels": [],
       "milestone": null,
@@ -3277,8 +3279,8 @@
       "state_reason": "completed",
       "title": "observability: savings por verbo de delegação native-vs-python + token budget guard no CI",
       "traceability": {
-        "evidence_mentioned": true,
-        "pr_or_commit_mentioned": true,
+        "evidence_mentioned": false,
+        "pr_or_commit_mentioned": false,
         "tests_mentioned": true
       },
       "unmeasured_claims": [
@@ -3520,7 +3522,7 @@
       "state_reason": "completed",
       "title": "[P0] Compilador de contrato: rastreabilidade AC↔RN↔teste↔evidência e human gates",
       "traceability": {
-        "evidence_mentioned": true,
+        "evidence_mentioned": false,
         "pr_or_commit_mentioned": false,
         "tests_mentioned": true
       },
@@ -3688,7 +3690,7 @@
       "state_reason": "completed",
       "title": "[P0] Orquestração multi-task: DAG, isolamento, resume e conclusão por item",
       "traceability": {
-        "evidence_mentioned": true,
+        "evidence_mentioned": false,
         "pr_or_commit_mentioned": false,
         "tests_mentioned": false
       },
@@ -3811,6 +3813,8 @@
         "tests_mentioned": true
       },
       "unmeasured_claims": [
+        "Benchmarks existentes provam principalmente o efeito do prompt/primitivo atômico. Eles não provam o North Star “colar uma ou várias tasks ricas e receber entrega integrada 100%”.",
+        "- [ ] Harness roda o fluxo real, sem stubs no caminho de integração medido.",
         "- [ ] Relatório publica raw artifacts e `proof_kind` honesto, sem headline “100%” baseada em subset."
       ],
       "updated_at": "2026-07-12T03:13:27Z",
@@ -4016,7 +4020,7 @@
       "title": "[P0][Operator] Codex CLI patch extraction must recover corrupt/stale unified diffs deterministically",
       "traceability": {
         "evidence_mentioned": true,
-        "pr_or_commit_mentioned": true,
+        "pr_or_commit_mentioned": false,
         "tests_mentioned": false
       },
       "unmeasured_claims": [],
@@ -4031,7 +4035,7 @@
         "risk": "high"
       },
       "closed_at": "2026-07-12T03:13:24Z",
-      "closure_decision": "CLOSE-READY",
+      "closure_decision": "HISTORICAL-EVIDENCE-GAP",
       "created_at": "2026-07-11T07:26:37Z",
       "labels": [
         "enhancement",
@@ -4103,7 +4107,7 @@
       "traceability": {
         "evidence_mentioned": true,
         "pr_or_commit_mentioned": true,
-        "tests_mentioned": true
+        "tests_mentioned": false
       },
       "unmeasured_claims": [],
       "updated_at": "2026-07-12T03:13:24Z",
@@ -4117,7 +4121,7 @@
         "risk": "medium"
       },
       "closed_at": "2026-07-12T03:13:22Z",
-      "closure_decision": "CLOSE-READY",
+      "closure_decision": "HISTORICAL-EVIDENCE-GAP",
       "created_at": "2026-07-11T07:26:37Z",
       "labels": [
         "ci",
@@ -4186,7 +4190,7 @@
         "risk": "high"
       },
       "closed_at": "2026-07-13T00:52:45Z",
-      "closure_decision": "CLOSE-READY",
+      "closure_decision": "HISTORICAL-EVIDENCE-GAP",
       "created_at": "2026-07-12T05:30:38Z",
       "labels": [],
       "milestone": null,
@@ -4240,7 +4244,7 @@
       "title": "[P0][Plan Compiler] Goal + ContextSnapshot → PlanDAG tipado, effect-free e verificável",
       "traceability": {
         "evidence_mentioned": true,
-        "pr_or_commit_mentioned": true,
+        "pr_or_commit_mentioned": false,
         "tests_mentioned": true
       },
       "unmeasured_claims": [],
@@ -4368,8 +4372,8 @@
       "title": "[Loop Audit] Issue #114 closed without verified evidence",
       "traceability": {
         "evidence_mentioned": false,
-        "pr_or_commit_mentioned": true,
-        "tests_mentioned": true
+        "pr_or_commit_mentioned": false,
+        "tests_mentioned": false
       },
       "unmeasured_claims": [],
       "updated_at": "2026-07-13T06:57:33Z",
@@ -4645,7 +4649,7 @@
       "state_reason": "completed",
       "title": "[Compatibility] Normalize structured simplicio-mapper ask results in the impact gate",
       "traceability": {
-        "evidence_mentioned": true,
+        "evidence_mentioned": false,
         "pr_or_commit_mentioned": false,
         "tests_mentioned": true
       },
@@ -4747,7 +4751,7 @@
       "state_reason": "completed",
       "title": "[CI] Corrigir coleta de test_mapping_retry_flow em Python 3.9",
       "traceability": {
-        "evidence_mentioned": true,
+        "evidence_mentioned": false,
         "pr_or_commit_mentioned": false,
         "tests_mentioned": true
       },
@@ -4946,7 +4950,7 @@
         "risk": "high"
       },
       "closed_at": "2026-07-18T07:51:46Z",
-      "closure_decision": "CLOSE-READY",
+      "closure_decision": "HISTORICAL-EVIDENCE-GAP",
       "created_at": "2026-07-18T03:05:48Z",
       "labels": [],
       "milestone": null,
@@ -5163,7 +5167,7 @@
       "traceability": {
         "evidence_mentioned": false,
         "pr_or_commit_mentioned": true,
-        "tests_mentioned": true
+        "tests_mentioned": false
       },
       "unmeasured_claims": [],
       "updated_at": "2026-07-18T21:45:26Z",
@@ -5212,10 +5216,13 @@
       "title": "proposta: teste por propriedade/fuzzing + fixtures com código real + revisão por invariante",
       "traceability": {
         "evidence_mentioned": false,
-        "pr_or_commit_mentioned": true,
-        "tests_mentioned": true
+        "pr_or_commit_mentioned": false,
+        "tests_mentioned": false
       },
-      "unmeasured_claims": [],
+      "unmeasured_claims": [
+        "Nesta sessão, um bug-hunt dedicado encontrou um bug real e sério neste repo que o DoD dos 7 pilares (implementation+unit+integration+system+regression+perf+coverage≥85%) não pegou: `simplicio/mechanical_edit.py`, `_operation_order()` decidia honrar o campo `order` explícito checando `all(...)` no **plano inteiro**, enquanto `_validate_overlaps()` decide sobreposição por **arquivo**. Um plano multi-arquivo com ordenação explícita correta num arquivo + qualquer operação sem `order` noutro arquivo (ex. `create_file`) aplicava as edições fora de ordem — **corrompendo o arquivo silenciosamente e reportando `\"status\": \"ok\"`**. Já corrigido localmente (escopar o check de \"todas as ops têm order explícito\" por arquivo, não por plano inteiro), com teste de regressão novo.",
+        "5. **Testes de integração devem afirmar sobre o conteúdo final do arquivo**, não só sobre o `status`/`errors` retornado pela ferramenta — esse é o gap que deixou o bug passar despercebido mesmo com `status: ok` sendo checado."
+      ],
       "updated_at": "2026-07-19T01:20:55Z",
       "url": "https://github.com/wesleysimplicio/simplicio-dev-cli/issues/246"
     },
@@ -5351,6 +5358,7 @@
         "tests_mentioned": true
       },
       "unmeasured_claims": [
+        "The repository has `scripts/coverage_gate.py` and local pre-commit hooks, but no effective `.github/workflows` coverage workflow was discoverable. This reproduces the integrity gap recorded in simplicio-loop#582.",
         "- Restore a blocking PR/push CI workflow invoking the real coverage gate."
       ],
       "updated_at": "2026-07-21T20:46:01Z",
@@ -5810,7 +5818,7 @@
       "title": "[P0][Local Inference Pause] Desabilitar inferência local automática no Dev CLI",
       "traceability": {
         "evidence_mentioned": true,
-        "pr_or_commit_mentioned": true,
+        "pr_or_commit_mentioned": false,
         "tests_mentioned": false
       },
       "unmeasured_claims": [],
@@ -6021,11 +6029,11 @@
   "repository": "wesleysimplicio/simplicio-dev-cli",
   "schema": "simplicio.dev-cli.meta-issue-audit/v1",
   "source": "GitHub REST issues API; pull requests excluded",
-  "source_sha256": "f1556fe4e9ef299f0ac3b38f4c49ecf1c9546e905ae6eb511659bf7465320ee9",
+  "source_sha256": "fe56e8baf3115249e62910a116c78cd78f5374eefa126e35014d88dc5344ad0d",
   "summary": {
     "by_closure_decision": {
-      "CLOSE-READY": 11,
-      "HISTORICAL-EVIDENCE-GAP": 79,
+      "CLOSE-READY": 3,
+      "HISTORICAL-EVIDENCE-GAP": 87,
       "NEEDS-IMPLEMENTATION": 7
     },
     "by_component": {
@@ -6085,6 +6093,6 @@
     "issues_total": 97,
     "issues_with_all_review_sections": 97,
     "issues_with_possible_secrets": 0,
-    "issues_with_unmeasured_claims": 45
+    "issues_with_unmeasured_claims": 47
   }
 }

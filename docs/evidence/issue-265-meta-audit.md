@@ -10,8 +10,8 @@ O `simplicio-dev-cli` é a CLI determinística de desenvolvimento que consome Ma
 
 - Total: **97**
 - Estados: `{"closed": 90, "open": 7}`
-- Decisões: `{"CLOSE-READY": 11, "HISTORICAL-EVIDENCE-GAP": 79, "NEEDS-IMPLEMENTATION": 7}`
-- SHA-256 da normalização: `f1556fe4e9ef299f0ac3b38f4c49ecf1c9546e905ae6eb511659bf7465320ee9`
+- Decisões: `{"CLOSE-READY": 3, "HISTORICAL-EVIDENCE-GAP": 87, "NEEDS-IMPLEMENTATION": 7}`
+- SHA-256 da normalização: `fe56e8baf3115249e62910a116c78cd78f5374eefa126e35014d88dc5344ad0d`
 
 ## Matriz resumida
 
@@ -32,11 +32,11 @@ O `simplicio-dev-cli` é a CLI determinística de desenvolvimento que consome Ma
 | [31](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/31) | 2026-05-29 | closed | runtime | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [32](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/32) | 2026-05-29 | closed | plandag | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [33](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/33) | 2026-05-29 | closed | quality | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
-| [34](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/34) | 2026-05-29 | closed | plandag | medium | unassigned | CLOSE-READY |
+| [34](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/34) | 2026-05-29 | closed | plandag | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [35](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/35) | 2026-05-29 | closed | runtime | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [36](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/36) | 2026-05-29 | closed | plandag | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [37](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/37) | 2026-05-29 | closed | runtime | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
-| [41](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/41) | 2026-05-30 | closed | plandag | medium | unassigned | CLOSE-READY |
+| [41](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/41) | 2026-05-30 | closed | plandag | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [42](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/42) | 2026-05-31 | closed | quality | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [46](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/46) | 2026-05-31 | closed | cli | low | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [51](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/51) | 2026-05-31 | closed | quality | high | unassigned | HISTORICAL-EVIDENCE-GAP |
@@ -57,7 +57,7 @@ O `simplicio-dev-cli` é a CLI determinística de desenvolvimento que consome Ma
 | [88](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/88) | 2026-07-02 | closed | runtime | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [89](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/89) | 2026-07-02 | closed | runtime | high | P0 | HISTORICAL-EVIDENCE-GAP |
 | [90](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/90) | 2026-07-02 | closed | runtime | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
-| [93](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/93) | 2026-07-02 | closed | mapper | medium | unassigned | CLOSE-READY |
+| [93](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/93) | 2026-07-02 | closed | mapper | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [98](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/98) | 2026-07-07 | open | runtime | high | P0 | NEEDS-IMPLEMENTATION |
 | [99](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/99) | 2026-07-07 | closed | mapper | low | P1 | HISTORICAL-EVIDENCE-GAP |
 | [100](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/100) | 2026-07-07 | closed | runtime | medium | P1 | HISTORICAL-EVIDENCE-GAP |
@@ -68,7 +68,7 @@ O `simplicio-dev-cli` é a CLI determinística de desenvolvimento que consome Ma
 | [105](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/105) | 2026-07-07 | closed | cli | low | P1 | HISTORICAL-EVIDENCE-GAP |
 | [106](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/106) | 2026-07-07 | closed | mapper | low | P1 | HISTORICAL-EVIDENCE-GAP |
 | [107](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/107) | 2026-07-07 | closed | mapper | medium | P1 | HISTORICAL-EVIDENCE-GAP |
-| [111](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/111) | 2026-07-09 | closed | runtime | medium | unassigned | CLOSE-READY |
+| [111](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/111) | 2026-07-09 | closed | runtime | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [113](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/113) | 2026-07-09 | closed | runtime | high | P0 | HISTORICAL-EVIDENCE-GAP |
 | [114](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/114) | 2026-07-10 | closed | runtime | high | P0 | HISTORICAL-EVIDENCE-GAP |
 | [115](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/115) | 2026-07-10 | closed | runtime | high | P0 | HISTORICAL-EVIDENCE-GAP |
@@ -82,9 +82,9 @@ O `simplicio-dev-cli` é a CLI determinística de desenvolvimento que consome Ma
 | [126](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/126) | 2026-07-10 | closed | quality | low | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [127](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/127) | 2026-07-10 | closed | mapper | medium | P1 | HISTORICAL-EVIDENCE-GAP |
 | [129](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/129) | 2026-07-11 | closed | mapper | high | P0 | HISTORICAL-EVIDENCE-GAP |
-| [140](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/140) | 2026-07-11 | closed | runtime | high | P0 | CLOSE-READY |
-| [141](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/141) | 2026-07-11 | closed | runtime | medium | P1 | CLOSE-READY |
-| [166](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/166) | 2026-07-12 | closed | runtime | high | P0 | CLOSE-READY |
+| [140](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/140) | 2026-07-11 | closed | runtime | high | P0 | HISTORICAL-EVIDENCE-GAP |
+| [141](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/141) | 2026-07-11 | closed | runtime | medium | P1 | HISTORICAL-EVIDENCE-GAP |
+| [166](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/166) | 2026-07-12 | closed | runtime | high | P0 | HISTORICAL-EVIDENCE-GAP |
 | [167](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/167) | 2026-07-12 | closed | runtime | high | P0 | HISTORICAL-EVIDENCE-GAP |
 | [181](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/181) | 2026-07-13 | closed | runtime | high | P0 | HISTORICAL-EVIDENCE-GAP |
 | [200](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/200) | 2026-07-14 | closed | mapper | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
@@ -98,7 +98,7 @@ O `simplicio-dev-cli` é a CLI determinística de desenvolvimento que consome Ma
 | [223](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/223) | 2026-07-17 | closed | mapper | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [227](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/227) | 2026-07-17 | closed | mapper | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [231](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/231) | 2026-07-18 | closed | runtime | high | P0 | HISTORICAL-EVIDENCE-GAP |
-| [232](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/232) | 2026-07-18 | closed | mapper | high | P0 | CLOSE-READY |
+| [232](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/232) | 2026-07-18 | closed | mapper | high | P0 | HISTORICAL-EVIDENCE-GAP |
 | [236](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/236) | 2026-07-18 | closed | runtime | high | P0 | HISTORICAL-EVIDENCE-GAP |
 | [237](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/237) | 2026-07-18 | closed | runtime | medium | unassigned | CLOSE-READY |
 | [243](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/243) | 2026-07-18 | closed | prompt | low | unassigned | HISTORICAL-EVIDENCE-GAP |
@@ -991,7 +991,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-05-29T03:45:55Z`; atualizada `2026-05-29T04:09:18Z`
 - Labels: `bench, dependencies, enhancement`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "unassigned", "risk": "medium"}`
-- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
+- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
 - Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
@@ -1097,7 +1097,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-05-29T14:08:18Z`; atualizada `2026-05-31T08:46:26Z`
 - Labels: `enhancement, tracking`
 - Classificação: `{"component": "plandag", "epic": "standalone", "priority": "unassigned", "risk": "medium"}`
-- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": false}`
+- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": false, "tests_mentioned": false}`
 - Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
@@ -1289,7 +1289,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Labels: `enhancement, performance`
 - Classificação: `{"component": "plandag", "epic": "standalone", "priority": "unassigned", "risk": "medium"}`
 - Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
-- Decisão: **CLOSE-READY**
+- Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
 
@@ -1855,8 +1855,8 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-05-30T23:43:37Z`; atualizada `2026-05-31T09:40:46Z`
 - Labels: `enhancement, roadmap, tracking`
 - Classificação: `{"component": "plandag", "epic": "standalone", "priority": "unassigned", "risk": "medium"}`
-- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
-- Decisão: **CLOSE-READY**
+- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": false}`
+- Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
 
@@ -2007,7 +2007,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-05-31T02:55:38Z`; atualizada `2026-05-31T05:49:23Z`
 - Labels: `default-model, enhancement, local-llm`
 - Classificação: `{"component": "quality", "epic": "standalone", "priority": "unassigned", "risk": "medium"}`
-- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
+- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": false, "tests_mentioned": false}`
 - Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
@@ -3433,7 +3433,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-02T15:48:30Z`; atualizada `2026-07-02T20:37:41Z`
 - Labels: `enhancement`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "unassigned", "risk": "medium"}`
-- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
+- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": true, "tests_mentioned": false}`
 - Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
@@ -3771,8 +3771,8 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-02T19:51:24Z`; atualizada `2026-07-03T05:02:29Z`
 - Labels: `enhancement`
 - Classificação: `{"component": "mapper", "epic": "standalone", "priority": "unassigned", "risk": "medium"}`
-- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
-- Decisão: **CLOSE-READY**
+- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
+- Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
 
@@ -4077,7 +4077,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-07T04:02:33Z`; atualizada `2026-07-07T04:54:11Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P1", "risk": "medium"}`
-- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
+- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
 - Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
@@ -4820,8 +4820,8 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-09T15:52:55Z`; atualizada `2026-07-09T17:19:11Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "unassigned", "risk": "medium"}`
-- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
-- Decisão: **CLOSE-READY**
+- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
+- Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
 
@@ -5155,7 +5155,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-10T16:16:27Z`; atualizada `2026-07-10T19:06:32Z`
 - Labels: `enhancement`
 - Classificação: `{"component": "plandag", "epic": "standalone", "priority": "P0", "risk": "high"}`
-- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
+- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
 - Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
@@ -5395,7 +5395,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-10T16:16:30Z`; atualizada `2026-07-12T03:13:31Z`
 - Labels: `enhancement`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P0", "risk": "high"}`
-- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": false, "tests_mentioned": false}`
+- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": false, "tests_mentioned": false}`
 - Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
@@ -5896,7 +5896,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-11T00:05:16Z`; atualizada `2026-07-12T03:13:25Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "mapper", "epic": "standalone", "priority": "P0", "risk": "high"}`
-- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": false}`
+- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": false, "tests_mentioned": false}`
 - Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
@@ -5982,8 +5982,8 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-11T07:26:37Z`; atualizada `2026-07-12T03:13:24Z`
 - Labels: `enhancement, high-priority, performance, pipeline, prompt, prompt-engineering, retry`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P0", "risk": "high"}`
-- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
-- Decisão: **CLOSE-READY**
+- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": false}`
+- Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
 
@@ -6107,7 +6107,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Labels: `ci, enhancement, maintenance, performance, pipeline, test`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P1", "risk": "medium"}`
 - Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
-- Decisão: **CLOSE-READY**
+- Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
 
@@ -6219,8 +6219,8 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-12T05:30:38Z`; atualizada `2026-07-13T02:39:21Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P0", "risk": "high"}`
-- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
-- Decisão: **CLOSE-READY**
+- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
+- Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
 
@@ -6484,7 +6484,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-13T01:44:01Z`; atualizada `2026-07-13T06:57:33Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "runtime", "epic": "[EPIC]", "priority": "P0", "risk": "high"}`
-- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
+- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": false, "tests_mentioned": false}`
 - Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
@@ -6914,7 +6914,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-17T22:58:03Z`; atualizada `2026-07-17T23:24:19Z`
 - Labels: `bug`
 - Classificação: `{"component": "mapper", "epic": "standalone", "priority": "unassigned", "risk": "low"}`
-- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
+- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
 - Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
@@ -7079,7 +7079,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-17T23:23:35Z`; atualizada `2026-07-17T23:40:15Z`
 - Labels: `bug`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "unassigned", "risk": "medium"}`
-- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
+- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
 - Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
@@ -7424,7 +7424,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Labels: `nenhuma`
 - Classificação: `{"component": "mapper", "epic": "standalone", "priority": "P0", "risk": "high"}`
 - Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
-- Decisão: **CLOSE-READY**
+- Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
 
@@ -7712,7 +7712,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-18T20:54:01Z`; atualizada `2026-07-18T21:45:26Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "prompt", "epic": "standalone", "priority": "unassigned", "risk": "low"}`
-- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
+- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": true, "tests_mentioned": false}`
 - Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
@@ -7834,7 +7834,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-19T00:22:29Z`; atualizada `2026-07-19T01:20:55Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "prompt", "epic": "standalone", "priority": "unassigned", "risk": "medium"}`
-- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
+- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": false, "tests_mentioned": false}`
 - Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
@@ -9029,7 +9029,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 - Estado/data: `closed`; criada `2026-07-21T02:40:19Z`; atualizada `2026-07-21T04:44:02Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P0", "risk": "high"}`
-- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": false}`
+- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": false, "tests_mentioned": false}`
 - Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema

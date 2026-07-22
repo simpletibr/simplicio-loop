@@ -58,8 +58,61 @@ def test_security_and_unmeasured_claim_regression() -> None:
     issue = build_audit([_issue(1, state="closed", body=body)], "o/r")["issues"][0]
 
     assert issue["possible_secrets"]
-    assert issue["unmeasured_claims"] == ["Coverage is 99%. token sk-abcdefghijklmnopqrstuvwxyz123456."]
+    assert issue["unmeasured_claims"] == ["Coverage is 99%. token [REDACTED_SECRET]."]
     assert issue["closure_decision"] != "CLOSE-READY"
+
+
+def test_reports_redact_secret_values_and_reject_unmeasured_close_ready() -> None:
+    token = "sk-abcdefghijklmnopqrstuvwxyz123456"
+    body = (
+        f"Implemented in PR #9 / commit abc. pytest logs and benchmark receipt attached. {token}\n"
+        "Coverage is 99%."
+    )
+    audit = build_audit([_issue(1, state="closed", body=body)], "o/r")
+    report = render_markdown(audit)
+
+    assert token not in json.dumps(audit)
+    assert token not in report
+    assert "[REDACTED_SECRET]" in report
+    assert audit["issues"][0]["closure_decision"] == "HISTORICAL-EVIDENCE-GAP"
+
+
+def test_unmeasured_claim_alone_blocks_close_ready() -> None:
+    body = "Implemented in PR #9 / commit abc. pytest logs and receipt attached.\nCoverage is 99%."
+
+    issue = build_audit([_issue(1, state="closed", body=body)], "o/r")["issues"][0]
+
+    assert issue["possible_secrets"] == []
+    assert issue["unmeasured_claims"] == ["Coverage is 99%."]
+    assert issue["closure_decision"] == "HISTORICAL-EVIDENCE-GAP"
+
+
+def test_redaction_covers_pem_metadata_and_classification() -> None:
+    token = "sk-abcdefghijklmnopqrstuvwxyz123456"
+    pem = "-----BEGIN PRIVATE KEY-----\nc2VjcmV0\n-----END PRIVATE KEY-----"
+    issue = _issue(1, state="closed", body=f"[epic {token}]\n{pem}")
+    issue["labels"] = [{"name": token}]
+    issue["milestone"] = {"title": token}
+    issue["html_url"] = f"https://example.test/{token}"
+
+    serialized = json.dumps(build_audit([issue], "o/r"))
+
+    assert token not in serialized
+    assert "c2VjcmV0" not in serialized
+    assert serialized.count("[REDACTED_SECRET]") >= 4
+
+
+def test_negated_traceability_markers_do_not_make_issue_close_ready() -> None:
+    body = "PR missing.\nTests not run.\nEvidence unavailable.\nCoverage is 99%; no log exists."
+
+    issue = build_audit([_issue(1, state="closed", body=body)], "o/r")["issues"][0]
+
+    assert issue["traceability"] == {
+        "pr_or_commit_mentioned": False,
+        "tests_mentioned": False,
+        "evidence_mentioned": False,
+    }
+    assert issue["closure_decision"] == "HISTORICAL-EVIDENCE-GAP"
 
 
 def test_markdown_contains_inventory_and_all_required_sections() -> None:

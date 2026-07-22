@@ -41,8 +41,14 @@ REQUIRED_SECTIONS = (
 SECRET_PATTERNS = (
     re.compile(r"\b(?:gh[ps]|github_pat)_[A-Za-z0-9_]{20,}\b"),
     re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
-    re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
+    re.compile(
+        r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----.*?"
+        r"-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
+        re.DOTALL,
+    ),
 )
+SECRET_REDACTION = "[REDACTED_SECRET]"
+NEGATION = re.compile(r"\b(?:no|not|without|missing|unavailable|sem|não|nao|ausente)\b", re.IGNORECASE)
 MEASUREMENT_CLAIM = re.compile(
     r"(?:\b\d+(?:[.,]\d+)?\s*%|\b(?:faster|slower|performance|coverage|economia|"
     r"lat[êe]ncia|throughput|integra(?:ç|c)[aã]o)\b)",
@@ -132,28 +138,38 @@ def _review_issue(issue: dict[str, Any], repository: str) -> dict[str, Any]:
     body = str(issue.get("body") or "").strip()
     title = str(issue.get("title") or "").strip()
     text = f"{title}\n{body}"
-    labels = sorted(str(item.get("name", "")) for item in issue.get("labels", []))
-    references = sorted({int(value) for value in REFERENCE.findall(text) if int(value) != issue["number"]})
-    paths = sorted(set(PATH.findall(body)))
-    component = _classify_component(text, labels)
-    risk = _classify_risk(text, labels)
-    priority = _classify_priority(text, labels)
+    secrets = [pattern.pattern for pattern in SECRET_PATTERNS if pattern.search(text)]
+    safe_body = _redact_secrets(body)
+    safe_title = _redact_secrets(title)
+    safe_text = f"{safe_title}\n{safe_body}"
+    labels = sorted(_redact_secrets(str(item.get("name", ""))) for item in issue.get("labels", []))
+    references = sorted(
+        {int(value) for value in REFERENCE.findall(safe_text) if int(value) != issue["number"]}
+    )
+    paths = sorted(set(PATH.findall(safe_body)))
+    component = _classify_component(safe_text, labels)
+    risk = _classify_risk(safe_text, labels)
+    priority = _classify_priority(safe_text, labels)
     unmeasured = [
         line.strip()
-        for line in body.splitlines()
-        if MEASUREMENT_CLAIM.search(line) and not EVIDENCE_WORD.search(line)
+        for line in safe_body.splitlines()
+        if MEASUREMENT_CLAIM.search(line) and (not EVIDENCE_WORD.search(line) or NEGATION.search(line))
     ]
-    secrets = [pattern.pattern for pattern in SECRET_PATTERNS if pattern.search(text)]
-    has_pr_or_commit = bool(re.search(r"\b(?:PR|commit|pull request)\b", body, re.IGNORECASE))
-    has_tests = bool(re.search(r"\b(?:test|teste|pytest|e2e|benchmark)\b", body, re.IGNORECASE))
-    has_evidence = bool(re.search(r"\b(?:evid[êe]ncia|receipt|log|trace|m[eé]trica)\b", body, re.IGNORECASE))
+    has_pr_or_commit = _has_positive_marker(safe_body, r"\b(?:PR|commit|pull request)\b")
+    has_tests = _has_positive_marker(safe_body, r"\b(?:test|teste|pytest|e2e|benchmark)\b")
+    has_evidence = _has_positive_marker(safe_body, r"\b(?:evid[êe]ncia|receipt|log|trace|m[eé]trica)\b")
     close_ready = (
-        issue.get("state") == "closed" and has_pr_or_commit and has_tests and has_evidence and not secrets
+        issue.get("state") == "closed"
+        and has_pr_or_commit
+        and has_tests
+        and has_evidence
+        and not unmeasured
+        and not secrets
     )
     review = {
-        "Contexto e problema": body
+        "Contexto e problema": safe_body
         or f"A issue #{issue['number']} não possui descrição; o título é a única fonte disponível.",
-        "Objetivo": f"Entregar e provar o resultado delimitado por: {title}",
+        "Objetivo": f"Entregar e provar o resultado delimitado por: {safe_title}",
         "Fora de escopo": "Mudanças não necessárias ao objetivo acima, refactors oportunistas e contratos de outros projetos sem issue cruzada.",
         "Entradas, saídas e contratos": f"Entradas: corpo e metadados da issue. Saídas: implementação e evidência auditável. Contratos citados: {', '.join(paths) if paths else 'nenhum caminho explícito; identificar antes de implementar'}.",
         "Dependências e ordem": f"Referências explícitas: {', '.join('#' + str(n) for n in references) if references else 'nenhuma'}. Ordem: validar contratos atuais da main antes de editar; registrar quebra cruzada em issue vinculada.",
@@ -163,21 +179,23 @@ def _review_issue(issue: dict[str, Any], repository: str) -> dict[str, Any]:
         "Evidências obrigatórias": "PR e commit; comandos e logs do gate local; receipts/métricas/hashes; relatório de falhas injetadas; matriz de dependências; diff da especificação; decisão de encerramento ou bloqueio.",
         "Riscos, rollback e decisão de encerramento": "Risco: descrição original incompleta ou evidência histórica não rastreável. Rollback: reverter o commit/PR e restaurar o contrato anterior documentado. Encerrar somente com evidência verificável; caso contrário classificar SPEC, BLOCKED ou NEEDS-IMPLEMENTATION.",
     }
-    return {
+    result = {
         "number": issue["number"],
-        "url": issue.get("html_url", f"https://github.com/{repository}/issues/{issue['number']}"),
-        "title": title,
+        "url": _redact_secrets(
+            str(issue.get("html_url", f"https://github.com/{repository}/issues/{issue['number']}"))
+        ),
+        "title": safe_title,
         "state": issue.get("state"),
         "state_reason": issue.get("state_reason"),
         "created_at": issue.get("created_at"),
         "updated_at": issue.get("updated_at"),
         "closed_at": issue.get("closed_at"),
         "labels": labels,
-        "milestone": (issue.get("milestone") or {}).get("title"),
+        "milestone": _redact_secrets(str((issue.get("milestone") or {}).get("title") or "")) or None,
         "references": references,
         "referenced_paths": paths,
         "classification": {
-            "epic": _classify_epic(text),
+            "epic": _classify_epic(safe_text),
             "component": component,
             "risk": risk,
             "priority": priority,
@@ -194,6 +212,30 @@ def _review_issue(issue: dict[str, Any], repository: str) -> dict[str, Any]:
         if close_ready
         else ("NEEDS-IMPLEMENTATION" if issue.get("state") == "open" else "HISTORICAL-EVIDENCE-GAP"),
     }
+    return _redact_value(result)
+
+
+def _redact_secrets(value: str) -> str:
+    """Remove credential-shaped values before they reach persisted evidence."""
+    for pattern in SECRET_PATTERNS:
+        value = pattern.sub(SECRET_REDACTION, value)
+    return value
+
+
+def _redact_value(value: Any) -> Any:
+    """Redact every persisted string, including future metadata fields."""
+    if isinstance(value, str):
+        return _redact_secrets(value)
+    if isinstance(value, list):
+        return [_redact_value(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _redact_value(item) for key, item in value.items()}
+    return value
+
+
+def _has_positive_marker(value: str, marker: str) -> bool:
+    pattern = re.compile(marker, re.IGNORECASE)
+    return any(pattern.search(line) and not NEGATION.search(line) for line in value.splitlines())
 
 
 def _classify_epic(text: str) -> str:
