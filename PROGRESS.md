@@ -1,5 +1,12 @@
 # PROGRESS
 
+- 2026-07-22: issue #98 verifier strengthened to fail closed when compatibility
+  `master` diverges from `main`, with explicit previous/default metadata and
+  concrete live receipt. Focused suite: 11 passed, 97.06% branch coverage;
+  benchmark best 5.007 us/verification. Publication remains blocked because
+  GitHub still reports `default_branch=master`, branch tips diverge, and this
+  checkout has no remote, `gh`, or credential. Issue remains open.
+
  - 2026-07-22: issue #262 quality slice ported from master to current main and strengthened. The exact internal-JSON registry now rejects wildcards/traversal/missing accountability, scans wheel/sdist contents, and is wired into both local pre-commit hooks. Focused tests: 14 passed with 88% branch-aware scanner coverage. Measured 10k-entry scanner benchmark and blocker report saved under `docs/evidence/issue-262-*`. Full gate remains red from main-baseline failures; HBI/HBP conformance and cross-repository migration evidence remain explicitly unproven, so the PR is not mergeable.
 
 - 2026-07-22: issue #256 implemented `RuntimeEffectSink` with Runtime HTTP negotiation, typed outcomes, idempotency, atomic journal evidence, reconciliation, circuit-breaker behavior, and write-set/payload guards. Focused suite: 36 passed with 94.86% branch coverage; benchmark median 0.7126 ms, p95 1.0968 ms, 1311.19 transactions/s. Full-gate pre-existing failures remain documented in the PR.

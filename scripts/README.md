@@ -42,8 +42,9 @@ These are `--check`-able, deterministic scripts for the real Python product
   `scripts/token_budget_baseline.json`.
 - `verify_default_branch.py`: queries public GitHub metadata and emits a JSON
   receipt proving that `main` is the default while recording the `main` and
-  compatibility `master` commit SHAs. Run it after changing the repository
-  setting for issue #98:
+  compatibility `master` commit SHAs. The receipt also fails closed if those
+  tips diverge, proving that the retained branch has not received independent
+  commits. Run it after changing the repository setting for issue #98:
 
   ```bash
   python3 scripts/verify_default_branch.py
