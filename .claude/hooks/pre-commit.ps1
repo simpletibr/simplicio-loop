@@ -17,6 +17,10 @@ $ErrorActionPreference = 'Continue'
 
 Write-Host '[pre-commit] Rodando gates locais antes do commit...'
 
+Write-Host '[pre-commit] Verificando politica de estado JSON interno...'
+& python3 scripts/check_json_boundaries.py --strict
+if ($LASTEXITCODE -ne 0) { exit 1 }
+
 $stagedPy = git diff --cached --name-only --diff-filter=ACMR | Where-Object { $_ -match '\.py$' }
 if ($stagedPy) {
     Write-Host '[pre-commit] Arquivos Python staged detectados -> ruff check .'

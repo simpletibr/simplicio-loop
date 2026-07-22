@@ -13,6 +13,7 @@ repository root. Attach the command output to the pull request:
 
 ```bash
 python -m pip install -e ".[dev]" build twine
+python3 scripts/check_json_boundaries.py --strict
 ruff check .
 ruff format --check .
 mypy simplicio
@@ -22,6 +23,7 @@ python3 scripts/token_budget.py --check
 python3 scripts/gen_package_interdependence.py --check
 python -m build
 python -m twine check dist/*
+for artifact in dist/*; do python3 scripts/check_json_boundaries.py --strict --artifact "$artifact"; done
 simplicio-py --help
 simplicio-cli --help
 simplicio-dev-cli --help

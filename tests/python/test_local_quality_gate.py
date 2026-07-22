@@ -18,6 +18,7 @@ def test_actions_stay_removed_and_local_hooks_cover_posix_and_windows() -> None:
         assert "pytest -q" in text
         assert "--cov=simplicio" in text
         assert "--cov-fail-under=85" in text
+        assert "scripts/check_json_boundaries.py --strict" in text
 
 
 def test_local_gate_documents_all_repository_guards() -> None:
