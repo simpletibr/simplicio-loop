@@ -640,6 +640,7 @@ def run(args: Any) -> int:
             payload = _run_batch(args)
             return _emit(args, payload, status=0 if payload["failed"] == 0 and payload["errored"] == 0 else 1)
         plan = _load_bound_plan(args.plan)
+        _assert_not_stale(args, plan)
         candidate = _candidate_dir(args, plan)
         if command == "scaffold":
             payload = _scaffold_candidate(candidate, plan, force=args.force)
