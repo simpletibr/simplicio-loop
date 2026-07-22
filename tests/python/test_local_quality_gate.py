@@ -34,7 +34,6 @@ def test_ci_blocks_internal_json_in_sources_and_release_archives_on_supported_pl
     assert "python scripts/check_json_boundaries.py --strict --artifact-dir dist" in workflow
 
 
-
 def test_documented_thresholds_equal_enforced_thresholds() -> None:
     global_floor, critical_floor, critical_modules = coverage_gate._load_config()
     gate_docs = _read("docs/ci-quality-gate.md")
