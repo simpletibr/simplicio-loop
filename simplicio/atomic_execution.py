@@ -185,6 +185,15 @@ def execute_work_item_once(
         raise IntegratedOwnershipError("one dispatch may contain effects only for its selected PlanNode")
     if len(matching_effects) > 1:
         raise IntegratedOwnershipError("one integrated PlanNode may submit at most one effect per dispatch")
+    if dispatch_context is not None:
+        if dispatch_context.plan_node.node_id != plan_node.node_id:
+            raise IntegratedOwnershipError(
+                "dispatch context PlanNode must match the selected integrated PlanNode"
+            )
+        if dispatch_context.coordinator_id != attempt.attempt_id:
+            raise IntegratedOwnershipError(
+                "dispatch context coordinator_id must preserve the coordinator attempt_id"
+            )
 
     started = time.monotonic()
     token = _ACTIVE_ATTEMPT.set(attempt.attempt_id)
