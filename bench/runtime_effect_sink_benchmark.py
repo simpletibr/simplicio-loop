@@ -34,6 +34,7 @@ class LoopbackTransport:
             "effect_digest": transaction["effect_digest"],
             "effect_id": transaction["causal"]["effect_id"],
             "plan_node_id": transaction["causal"]["plan_node_id"],
+            "causal": transaction["causal"],
             "acceptance_criteria_refs": transaction["acceptance_criteria_refs"],
             "gate_decision": "allow",
             "base_hash": transaction["base_hash"],

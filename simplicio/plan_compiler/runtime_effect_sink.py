@@ -233,6 +233,8 @@ class RuntimeEffectSink:
         for field, value in expected.items():
             if receipt.get(field) != value:
                 raise RuntimeEffectError("RECEIPT_CORRELATION_MISMATCH", field)
+        if receipt.get("causal") != transaction["causal"]:
+            raise RuntimeEffectError("RECEIPT_CORRELATION_MISMATCH", "causal")
         digest = canonical_hash(_without_digest(receipt))
         if receipt.get("receipt_digest") != digest:
             raise RuntimeEffectError("RECEIPT_DIGEST_INVALID", "receipt content does not match digest")
