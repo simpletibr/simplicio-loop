@@ -26,11 +26,13 @@ o resultado é `effect_unknown`: nunca há retry ou fallback automático. O
 coordenador deve consultar `RuntimeEffectSink.reconcile(key)`; restart usa a
 mesma intenção persistida.
 
-Receipts são aceitos somente quando schema, digest, effect/idempotency/plan-node
-IDs, ACs, decisão do gate e hashes base/source conferem. Estados de validation
-e rollback permanecem no outcome. Campos de prompt, senha, secret, API key ou
-access token tornam o receipt inválido. Payloads maiores que 1 MiB e write sets
-absolutos ou com `..` são rejeitados antes da rede.
+Receipts são aceitos somente quando schema, digest, toda a identidade causal
+(coordenador, sessão, turno, tentativa, subworkflow, plano, goal, plan node e
+effect), idempotency key, ACs, decisão do gate e hashes base/source conferem.
+Estados de validation e rollback permanecem no outcome. Campos de prompt,
+senha, secret, API key ou access token tornam o receipt inválido. Payloads
+maiores que 1 MiB e write sets absolutos ou com `..` são rejeitados antes da
+rede.
 
 Após três falhas consecutivas, o circuit breaker abre por 30 segundos. O método
 `status()` preserva reason codes para diagnóstico. Para rollback do cliente,

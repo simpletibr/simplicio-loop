@@ -42,6 +42,7 @@ class FakeTransport:
             "effect_digest": transaction["effect_digest"],
             "effect_id": transaction["causal"]["effect_id"],
             "plan_node_id": transaction["causal"]["plan_node_id"],
+            "causal": transaction["causal"],
             "acceptance_criteria_refs": transaction["acceptance_criteria_refs"],
             "gate_decision": "allow",
             "base_hash": transaction["base_hash"],
@@ -195,6 +196,36 @@ def test_tampered_receipt_digest_is_rejected(tmp_path, effect, context):
 
     transport._make_receipt = tampered
     with pytest.raises(RuntimeEffectError, match="RECEIPT_DIGEST_INVALID"):
+        RuntimeEffectSink(transport, root=tmp_path).submit(effect, context)
+
+
+@pytest.mark.parametrize(
+    ("field", "forged"),
+    [
+        ("coordinator_kind", "runtime"),
+        ("coordinator_id", "attacker"),
+        ("session_id", "other-session"),
+        ("turn_id", "other-turn"),
+        ("attempt", 999),
+        ("subworkflow_id", "other-subworkflow"),
+        ("plan_id", "other-plan"),
+        ("goal_id", "other-goal"),
+    ],
+)
+def test_forged_causal_identity_is_rejected(tmp_path, effect, context, field, forged):
+    transport = FakeTransport()
+    original = transport._make_receipt
+
+    def forged_receipt(transaction):
+        receipt = original(transaction)
+        receipt["causal"] = {**receipt["causal"], field: forged}
+        receipt["receipt_digest"] = canonical_hash(
+            {key: value for key, value in receipt.items() if key != "receipt_digest"}
+        )
+        return receipt
+
+    transport._make_receipt = forged_receipt
+    with pytest.raises(RuntimeEffectError, match="RECEIPT_CORRELATION_MISMATCH: causal"):
         RuntimeEffectSink(transport, root=tmp_path).submit(effect, context)
 
 

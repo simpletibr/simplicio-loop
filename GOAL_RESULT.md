@@ -65,3 +65,14 @@ submission, and returns a typed observation without retry, replan, scheduler,
 provider, subprocess, worktree, queue, or terminal-status ownership. PR evidence
 records 17 focused tests, 96% touched branch coverage, and a 5,000-attempt
 benchmark with one effect call per attempt.
+
+## Issue #256 causal receipt hardening (2026-07-22)
+
+Status: tested patch, cross-repository completion blocked. Runtime receipts now
+must reproduce the complete submitted causal identity; forged coordinator,
+session, turn, attempt, subworkflow, plan, and goal values fail closed even
+when the attacker recomputes a valid receipt digest. Focused tests, branch
+coverage, clean-wheel system probing, and performance evidence are recorded in
+`docs/evidence/issue-256-runtime-effect-sink.md`. A live public Runtime and
+Agent/non-Agent coordinator receipts were unavailable in Codex Cloud, so the
+issue remains open and no end-to-end Runtime mutation claim is made.
