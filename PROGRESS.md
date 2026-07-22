@@ -1,6 +1,10 @@
 # PROGRESS
 
-- 2026-07-22: issue #262 quality slice ported from master to current main and strengthened. The exact internal-JSON registry now rejects wildcards/traversal/missing accountability, scans wheel/sdist contents, and is wired into both local pre-commit hooks. Focused tests: 14 passed with 88% branch-aware scanner coverage. Measured 10k-entry scanner benchmark and blocker report saved under `docs/evidence/issue-262-*`. Full gate remains red from main-baseline failures; HBI/HBP conformance and cross-repository migration evidence remain explicitly unproven, so the PR is not mergeable.
+ - 2026-07-22: issue #262 quality slice ported from master to current main and strengthened. The exact internal-JSON registry now rejects wildcards/traversal/missing accountability, scans wheel/sdist contents, and is wired into both local pre-commit hooks. Focused tests: 14 passed with 88% branch-aware scanner coverage. Measured 10k-entry scanner benchmark and blocker report saved under `docs/evidence/issue-262-*`. Full gate remains red from main-baseline failures; HBI/HBP conformance and cross-repository migration evidence remain explicitly unproven, so the PR is not mergeable.
+
+- 2026-07-22: issue #256 implemented `RuntimeEffectSink` with Runtime HTTP negotiation, typed outcomes, idempotency, atomic journal evidence, reconciliation, circuit-breaker behavior, and write-set/payload guards. Focused suite: 36 passed with 94.86% branch coverage; benchmark median 0.7126 ms, p95 1.0968 ms, 1311.19 transactions/s. Full-gate pre-existing failures remain documented in the PR.
+
+- 2026-07-22: issue #258 added coordinator-owned atomic integrated execution with `AttemptContext`, one-dispatch/one-attempt guards, and typed `AtomicObservation`. Focused evidence: 17 tests, 96% touched branch coverage, and 5,000 attempts with one effect call per attempt; baseline mypy debt remains outside the slice.
 
 - 2026-07-07: contexto obrigatório lido. `.starter-meta.json` ausente => modo `root`.
 - Segurança/robustez implementadas: `mechanical_edit`, `dod`, auto-upgrade opt-in no `ecosystem`, guards de CLI/shared/bench/skill_router, writes atômicas e validação de comandos cross-platform para os testes/contracts existentes.
@@ -32,3 +36,5 @@
   `pytest -q` mostra os mesmos 48 failures pré-existentes de antes deste
   slice (confirmado via `git stash`), nenhum em `test_plan_compiler.py`/
   `test_compile_task_spec.py`.
+
+- 2026-07-22: issue #256 adversarial follow-up now validates the complete causal identity in every Runtime receipt; 8 forged coordinator/session/attempt/plan variants fail closed even with a recomputed valid digest. Focused result: 44 passed, 91.22% branch coverage across the sink/integrated slice, clean-wheel probe passed, and 500-transaction benchmark recorded. Live Runtime/Agent cross-repository traces remain unavailable, so the issue remains open and full completion is not claimed.

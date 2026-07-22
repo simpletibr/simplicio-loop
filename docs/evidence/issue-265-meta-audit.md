@@ -1602,7 +1602,7 @@ class Recipe:
     applies_to: list[str]  # stack slugs
     slots_spec: dict[str, SlotSpec]  # required/optional, default
     tasks_template: list[dict]  # task templates with {slot} placeholders
-
+    
     def try_match(self, goal: str, stack_slug: str) -> RecipeMatch | None: ...
     def instantiate(self, match: RecipeMatch, project_name: str) -> Plan: ...
 

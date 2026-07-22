@@ -6,6 +6,7 @@ usage: simplicio-py run [-h] [--scope {auto,task,feature,sprint,scratch}]
                         [--sprint SPRINT] [--name NAME] [--dest DEST]
                         [--planner PLANNER] [--plan-only] [--skip-install]
                         [--slot KEY=VALUE]
+                        [--mode {auto,integrated,standalone}]
                         goal
 
 positional arguments:
@@ -32,3 +33,4 @@ options:
   --plan-only           scratch plan only
   --skip-install        scratch skip install
   --slot KEY=VALUE
+  --mode {auto,integrated,standalone}

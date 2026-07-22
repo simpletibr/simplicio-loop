@@ -23,10 +23,12 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
+from .atomic_execution import AttemptContext, execute_work_item_once
 from .observability import emit_event
 from .pipeline_task_result import _task_result
 from .plan_compiler import PlanCompilationError, compile_task_spec_to_plan
-from .plan_compiler.effect_sink import EffectSink, IntegratedModeRequiresSinkError
+from .plan_compiler.effect_sink import EffectDispatchContext, EffectSink, IntegratedModeRequiresSinkError
+from .plan_compiler.runtime_effect_sink import RuntimeEffectSink
 from .task_spec import TaskSpec
 
 __all__ = ["IntegratedModeRequiresSinkError", "run_integrated"]
@@ -79,6 +81,9 @@ def run_integrated(
     prompt: str,
     primary_test_cmd: str | None,
     effect_sink: EffectSink | None,
+    *,
+    context_snapshot: dict[str, Any] | None = None,
+    attempt: AttemptContext | None = None,
 ) -> dict[str, Any]:
     """Compile a plan and hand its effects to ``effect_sink``; never write.
 
@@ -88,12 +93,10 @@ def run_integrated(
     back to direct writes when no ``effect_sink`` is given.
     """
     if effect_sink is None:
+        effect_sink = RuntimeEffectSink.from_environment(root=root)
+    if attempt is None:
         raise IntegratedModeRequiresSinkError(
-            "mode='integrated' requires an effect_sink; refusing to fall back to "
-            "direct writes. The sink is the local stub boundary for the real "
-            "simplicio-runtime Effect API (issue #166 dependency on Runtime "
-            "#3134/#3135) -- see simplicio/plan_compiler/effect_sink.py and "
-            "docs/plan-compiler.md."
+            "mode='integrated' requires coordinator-supplied attempt_id, lease, fence, and context handle"
         )
     if primary_test_cmd is None:
         blocker = {
@@ -124,13 +127,53 @@ def run_integrated(
         verification_command=primary_test_cmd,
     )
     goal_id = f"goal-{hashlib.sha256(goal.encode('utf-8')).hexdigest()[:16]}"
-    context_snapshot_id = f"snap-{hashlib.sha256(str(root).encode('utf-8')).hexdigest()[:16]}"
+    if context_snapshot is None:
+        return _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=["CONTEXT_REQUIRED"],
+            blocked_preconditions=[
+                {"code": "CONTEXT_REQUIRED", "message": "canonical Mapper ContextSnapshot is required"}
+            ],
+        )
+    context_snapshot_id = str(context_snapshot.get("snapshot_id", ""))
+    revision = str(context_snapshot.get("revision", ""))
+    if not context_snapshot_id or not revision:
+        return _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=["INCOMPATIBLE_CONTEXT"],
+            blocked_preconditions=[
+                {"code": "INCOMPATIBLE_CONTEXT", "message": "snapshot_id and revision are required"}
+            ],
+        )
+    if attempt.context_handle != context_snapshot_id:
+        return _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=["CONTEXT_HANDLE_MISMATCH"],
+            blocked_preconditions=[
+                {
+                    "code": "CONTEXT_HANDLE_MISMATCH",
+                    "message": "attempt context_handle must identify the canonical ContextSnapshot",
+                }
+            ],
+        )
     try:
         plan, effects, verifications = compile_task_spec_to_plan(
             task_spec,
             goal_id=goal_id,
             context_snapshot_id=context_snapshot_id,
-            revision="1",
+            revision=revision,
         )
     except PlanCompilationError as exc:
         emit_event(
@@ -149,22 +192,40 @@ def run_integrated(
             blocked_preconditions=[{"code": "plan_compilation_failed", "message": str(exc)}],
         )
 
-    # The sink is the ONLY thing allowed to apply/commit an effect. It is a
-    # local stub today (see module docstring); a real integration swaps it
-    # for a sink that forwards to simplicio-runtime's Effect API.
-    sink_results = [effect_sink(effect) for effect in effects]
+    effect_node = next(
+        node for node in plan.nodes if any(effect.plan_node_id == node.node_id for effect in effects)
+    )
+    dispatch_context = EffectDispatchContext(
+        plan_id=plan.plan_id,
+        goal_id=plan.goal_id,
+        plan_node=effect_node,
+        verifications=[item for item in verifications if item.plan_node_id == effect_node.node_id],
+        coordinator_id=attempt.attempt_id,
+        source_hash=task_spec.source_hash,
+    )
+    observation = execute_work_item_once(
+        effect_node,
+        attempt,
+        effects=effects,
+        verifications=verifications,
+        effect_sink=effect_sink,
+        dispatch_context=dispatch_context,
+    )
 
-    result = _task_result(target, prompt, "", applied=False, status="integrated_planned")
+    result = _task_result(target, prompt, "", applied=False, status="integrated_atomic")
     result["plan"] = plan.to_dict()
     result["effects"] = [effect.to_dict() for effect in effects]
     result["verifications"] = [verification.to_dict() for verification in verifications]
-    result["effect_sink_results"] = [
-        {"effect_id": sink_result.effect_id, "accepted": sink_result.accepted, "detail": sink_result.detail}
-        for sink_result in sink_results
-    ]
+    result["observation"] = observation.to_dict()
     emit_event(
         "task_complete",
-        {"target": target, "mode": "integrated", "effects": len(effects)},
+        {
+            "target": target,
+            "mode": "integrated",
+            "attempt_id": attempt.attempt_id,
+            "outcome": observation.outcome,
+            "effects": len(observation.effect_ids),
+        },
         root=root,
         tokens_saved=0,
     )

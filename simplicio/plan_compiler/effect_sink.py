@@ -1,28 +1,7 @@
-"""Effect-sink boundary for "modo integrado" (issues #166, #167).
+"""Typed EffectSink boundary used by the integrated pipeline.
 
-Both #166 ("No modo integrado, zero escrita/commit fora da Effect API do
-Runtime") and #167 ("Modo integrado não executa writes diretamente") name
-the same invariant: when the Dev CLI runs in integrated mode, it must never
-apply an effect (write a file, run ``git apply``, commit) itself. Its job in
-that mode is only to compile a ``PlanDAG``/``EffectPlan`` (see
-:mod:`simplicio.plan_compiler.compile_task_spec`) and hand the ``EffectPlan``
-to whatever authorizes and applies it.
-
-That "whatever" is the real ``simplicio-runtime`` Effect API — tracked
-upstream as Runtime issues #3134/#3135, which do not exist as importable
-code in this repository. This module defines the local, typed boundary the
-Dev CLI calls into instead: an ``EffectSink`` callable that
-:func:`simplicio.pipeline.run_task` invokes once per compiled ``EffectPlan``
-when ``mode="integrated"``. This is a **stub boundary**, not the Runtime
-itself — swapping in a real sink that talks to ``simplicio-runtime`` over
-its future Effect API is the intended integration point once that API
-ships. Until then, :class:`RecordingEffectSink` is the reference
-implementation: it records every ``EffectPlan`` it receives and applies
-none of them, which is what proves (in tests) that the contract holds
-without a real Runtime.
-
-``pipeline.run_task`` refuses to proceed in integrated mode when no sink is
-provided — it never silently falls back to direct writes.
+Production uses :class:`RuntimeEffectSink`; ``RecordingEffectSink`` is an
+explicit test double and is rejected by the integrated production entrypoint.
 """
 
 from __future__ import annotations
@@ -30,64 +9,98 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from simplicio.plan_compiler.models import EffectPlan
+from simplicio.plan_compiler.models import EffectPlan, PlanNode, VerificationPlan
+
+EFFECT_STATES = frozenset(
+    {
+        "not_started",
+        "denied",
+        "running",
+        "completed",
+        "validation_failed",
+        "rolled_back",
+        "blocked_conflict",
+        "cancelled_safe",
+        "effect_unknown",
+    }
+)
 
 
 @dataclass(frozen=True)
-class EffectApplyResult:
-    """What a sink reports back after receiving one ``EffectPlan``.
+class EffectDispatchContext:
+    """Plan and causal data which must cross the Runtime boundary intact."""
 
-    ``accepted`` only means the sink took custody of the effect (e.g. queued
-    it for the Runtime to authorize) — it does NOT mean the effect was
-    applied to any worktree. Applying the effect is exclusively the
-    Runtime's job once its Effect API exists.
-    """
+    plan_id: str
+    goal_id: str
+    plan_node: PlanNode
+    verifications: list[VerificationPlan]
+    coordinator_kind: str = "simplicio-dev-cli"
+    coordinator_id: str = ""
+    session_id: str = ""
+    turn_id: str = ""
+    attempt: int = 1
+    subworkflow_id: str = ""
+    deadline: str | None = None
+    policy_revision: str = ""
+    base_hash: str = ""
+    source_hash: str = ""
+
+
+@dataclass(frozen=True)
+class EffectOutcome:
+    """Verified Runtime state. Custody is deliberately not represented."""
 
     effect_id: str
-    accepted: bool
-    detail: str = ""
-    extra: dict[str, Any] = field(default_factory=dict)
+    state: str
+    idempotency_key: str
+    receipt: dict[str, Any] | None = None
+    reason_codes: list[str] = field(default_factory=list)
+    validation: dict[str, Any] | None = None
+    rollback: dict[str, Any] | None = None
+    latency_ms: float | None = None
+    transport: str | None = None
+
+    @property
+    def terminal(self) -> bool:
+        return self.state not in {"not_started", "running", "effect_unknown"}
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "effect_id": self.effect_id,
+            "state": self.state,
+            "terminal": self.terminal,
+            "idempotency_key": self.idempotency_key,
+            "receipt": self.receipt,
+            "reason_codes": self.reason_codes,
+            "validation": self.validation,
+            "rollback": self.rollback,
+            "latency_ms": self.latency_ms,
+            "transport": self.transport,
+        }
 
 
 @runtime_checkable
 class EffectSink(Protocol):
-    """Callable boundary: receives one ``EffectPlan``, never applies it.
-
-    A concrete implementation may forward the ``EffectPlan`` to
-    ``simplicio-runtime``'s Effect API (once it exists), to a message queue,
-    or — for tests — simply record it. It must never itself write to the
-    worktree, run ``git apply``, or otherwise mutate persistent state; that
-    authority belongs to the Runtime.
-    """
-
-    def __call__(self, effect: EffectPlan) -> EffectApplyResult: ...
+    def submit(self, effect: EffectPlan, context: EffectDispatchContext) -> EffectOutcome: ...
 
 
 class IntegratedModeRequiresSinkError(RuntimeError):
-    """Raised when ``mode="integrated"`` runs without an ``effect_sink``.
-
-    Integrated mode must refuse to proceed rather than silently falling
-    back to direct writes when no sink is configured — see #166/#167.
-    """
+    """Integrated execution cannot obtain a real Runtime sink."""
 
 
 class RecordingEffectSink:
-    """Reference no-op ``EffectSink``: records ``EffectPlan``s, applies none.
+    """Test-only sink; production integrated mode explicitly rejects it."""
 
-    This is the sink used by this repository's own tests to prove the
-    integrated-mode contract (compile a plan, hand it to the sink, never
-    touch the worktree) without needing the real ``simplicio-runtime``
-    Effect API to exist. Production integrations should replace this with
-    a sink that actually forwards to the Runtime.
-    """
+    test_only = True
 
-    def __init__(self) -> None:
+    def __init__(self, *, state: str = "not_started") -> None:
+        if state not in EFFECT_STATES:
+            raise ValueError(f"invalid effect state: {state}")
+        self.state = state
         self.received: list[EffectPlan] = []
+        self.contexts: list[EffectDispatchContext] = []
 
-    def __call__(self, effect: EffectPlan) -> EffectApplyResult:
+    def submit(self, effect: EffectPlan, context: EffectDispatchContext) -> EffectOutcome:
         self.received.append(effect)
-        return EffectApplyResult(
-            effect_id=effect.effect_id,
-            accepted=True,
-            detail="recorded by local stub sink; not applied (no Runtime Effect API wired yet)",
-        )
+        self.contexts.append(context)
+        return EffectOutcome(effect.effect_id, self.state, effect.idempotency_key, transport="recording-test")

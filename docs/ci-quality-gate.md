@@ -1,12 +1,13 @@
-# Local Quality Gate (issues #202, #246, #98)
+# CI and Local Quality Gate (issues #202, #246, #251)
 
-This repository does not use GitHub Actions. The workflow directory was
-removed in `d7ff8c9` after the account billing lockout, and Actions is outside
-the acceptance criteria for the `main` branch migration. Pull requests target
-`main`; the retained `master` branch is compatibility-only and receives no new
-development commits.
+`.github/workflows/ci.yml` runs on every pull request targeting `main` and
+every push to `main`. Its blocking `coverage` job runs the complete Python
+test suite with coverage and then invokes the repository's real gate,
+`scripts/coverage_gate.py`. Branch protection should require the
+`Coverage gate (85% global / 90% critical)` check. Pull requests target
+`main`; the retained `master` branch is compatibility-only.
 
-## Reproducible merge gate
+## Reproducible local equivalent
 
 Install the development tools and run the following commands from the
 repository root. Attach the command output to the pull request:
@@ -40,11 +41,12 @@ The embedded Node/Playwright starter is separate from the Python product. Run
 - `python3 scripts/coverage_gate.py --self-test` proves the guard accepts and
   rejects synthetic reports correctly.
 
-The cross-platform hooks `.claude/hooks/pre-commit.sh` and
+The workflow and cross-platform hooks `.claude/hooks/pre-commit.sh` and
 `.claude/hooks/pre-commit.ps1` apply the 85% global floor when Python files are
 staged and `pytest-cov` is installed. The explicit gate above remains the
-source of truth because it also covers the stricter critical-module floor,
-token budget, generated documentation, packaging, and CLI entrypoints.
+source of truth for the coverage thresholds because it also covers the
+stricter critical-module floor. The remaining local commands cover token
+budget, generated documentation, packaging, and CLI entrypoints.
 
 ## Public-interface and regression policy
 
@@ -54,5 +56,5 @@ update the matching fixture in the same pull request.
 
 Every bug fix must include a regression test that fails before the fix and
 passes afterward. This policy is reviewed locally together with the
-adversarial verification required by `DOD.md`; it is not delegated to a
-remote workflow.
+adversarial verification required by `DOD.md`; CI complements rather than
+replaces that review.

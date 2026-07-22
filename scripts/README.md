@@ -40,6 +40,14 @@ These are `--check`-able, deterministic scripts for the real Python product
   `docs/PYTHON_PACKAGE_INTERDEPENDENCE.md` drifted from `pyproject.toml` (#101).
 - `token_budget.py`: tracks token-budget regressions against
   `scripts/token_budget_baseline.json`.
+- `verify_default_branch.py`: queries public GitHub metadata and emits a JSON
+  receipt proving that `main` is the default while recording the `main` and
+  compatibility `master` commit SHAs. Run it after changing the repository
+  setting for issue #98:
+
+  ```bash
+  python3 scripts/verify_default_branch.py
+  ```
 - `scan_artifacts.py --check`: scans the built `dist/*.whl`/`dist/*.tar.gz`
   contents for stray legacy-brand ("Hermes") mentions outside the documented
   compat surface (issue #167 plan step 24, "Escanear artifacts com regra

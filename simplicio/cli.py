@@ -147,6 +147,7 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
         action="store_true",
         help="force local llama.cpp only when SIMPLICIO_LOCAL_INFERENCE=enabled; otherwise fails closed",
     )
+    p.add_argument("--mode", choices=["auto", "integrated", "standalone"], default=None)
 
 
 def _add_run_args(p: argparse.ArgumentParser) -> None:
@@ -170,6 +171,7 @@ def _add_run_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--plan-only", action="store_true", help="scratch plan only")
     p.add_argument("--skip-install", action="store_true", help="scratch skip install")
     p.add_argument("--slot", action="append", default=[], metavar="KEY=VALUE")
+    p.add_argument("--mode", choices=["auto", "integrated", "standalone"], default=None)
 
 
 def _extract_global_verbosity(argv: list[str]) -> tuple[bool, bool, list[str]]:
@@ -468,6 +470,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "verify", help="verify the real reserved Simplicio Runtime identity and capabilities"
     )
     p_runtime_verify.add_argument("--timeout", type=int, default=30)
+    p_runtime_capabilities = runtime_sub.add_parser("capabilities")
+    p_runtime_capabilities.add_argument("--root", default=".")
+    p_runtime_capabilities.add_argument("--mode", choices=["auto", "integrated", "standalone"])
+    p_runtime_capabilities.add_argument("--json", action="store_true")
 
     p_prototype = sub.add_parser(
         "prototype", help="Prototype-First plan, scaffold, validate and promotion gate"
@@ -480,7 +486,21 @@ def _build_parser() -> argparse.ArgumentParser:
         "--type",
         dest="prototype_type",
         default="code_spike",
-        choices=("wireframe", "architecture_diagram", "schema", "data_model", "failing_reproducer", "benchmark_spike", "mock_or_fake", "code_spike", "vertical_slice", "prompt_candidate", "workflow_simulation", "storyboard", "policy_or_security_model"),
+        choices=(
+            "wireframe",
+            "architecture_diagram",
+            "schema",
+            "data_model",
+            "failing_reproducer",
+            "benchmark_spike",
+            "mock_or_fake",
+            "code_spike",
+            "vertical_slice",
+            "prompt_candidate",
+            "workflow_simulation",
+            "storyboard",
+            "policy_or_security_model",
+        ),  # noqa: E501
     )
     p_proto_plan.add_argument("--root", default=".", help="source tree the plan's source_sha is anchored to")
     p_proto_plan.add_argument("--output", default=".simplicio/prototype-plan.json")

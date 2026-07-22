@@ -20,6 +20,26 @@ from ._shared import force_local_if_requested
 CLI_PROG = "simplicio-py"
 
 
+def _mode_guard(a: argparse.Namespace) -> tuple[dict, int] | None:
+    """Block non-task integrated scopes before planners or local effects."""
+    from ..execution_mode import negotiate_execution_mode
+
+    profile = negotiate_execution_mode(getattr(a, "mode", None), root=a.root)
+    if profile.effective_mode != "blocked" and profile.effective_mode != "integrated":
+        return None
+    payload = {
+        "scope": a.scope,
+        "applied": False,
+        "warnings": [profile.reason_code],
+        "execution_profile": profile.to_dict(),
+    }
+    if a.json:
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print(f"{CLI_PROG} run: {profile.reason_code}", file=sys.stderr)
+    return payload, 1
+
+
 def _first_file_signal(signals: list[str]) -> str | None:
     for signal in signals:
         if signal.startswith("file:"):
@@ -56,6 +76,9 @@ def _run_feature(a: argparse.Namespace) -> int:
     if not a.stack:
         print(f"{CLI_PROG} run --scope feature requires --stack <slug>", file=sys.stderr)
         return 2
+    guarded = _mode_guard(a)
+    if guarded:
+        return guarded[1]
     from ..orchestrator import run_feature
 
     force_local_if_requested(a)
@@ -169,6 +192,9 @@ def _run_sprint(a: argparse.Namespace) -> int:
     if not a.stack:
         print(f"{CLI_PROG} run --scope sprint requires --stack <slug>", file=sys.stderr)
         return 2
+    guarded = _mode_guard(a)
+    if guarded:
+        return guarded[1]
     from ..dod import load_dod, load_sprint_dod, run_dod_gates
     from ..orchestrator import run_feature
     from ..orchestrator.cost_governor import CostGovernor, provider_budget

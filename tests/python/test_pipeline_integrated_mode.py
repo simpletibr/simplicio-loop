@@ -21,8 +21,29 @@ from __future__ import annotations
 from pathlib import Path
 
 from simplicio import pipeline
+from simplicio.atomic_execution import AttemptContext
 from simplicio.plan_compiler import EffectPlan, PlanDAG, RecordingEffectSink
-from simplicio.plan_compiler.effect_sink import IntegratedModeRequiresSinkError
+
+READY_RUNTIME = {
+    "verified": True,
+    "version": "3.6.0",
+    "capabilities": ["simplicio.effect-transaction/v1"],
+    "reason": "ok",
+}
+CANONICAL_CONTEXT = {
+    "schema": "simplicio.mapper.context-snapshot/v1",
+    "snapshot_id": "snapshot-real-1",
+    "revision": "abc123",
+    "digest": "sha256:context",
+}
+
+
+class RuntimeTestSink(RecordingEffectSink):
+    """Contract-shaped sink used only beyond the production negotiation gate."""
+
+
+def _attempt() -> AttemptContext:
+    return AttemptContext("attempt-1", "lease-1", "fence-7", "snapshot-real-1")
 
 
 def _valid_pipeline_diff() -> str:
@@ -129,35 +150,31 @@ def test_standalone_mode_explicit_matches_implicit_default(tmp_path, monkeypatch
     assert result["applied"] is True
 
 
-def test_integrated_mode_without_sink_raises_and_never_writes(tmp_path, monkeypatch):
-    """No effect_sink => refuse to proceed; must not fall back to direct writes."""
+def test_integrated_mode_without_sink_fails_closed_and_never_writes(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
     before = _snapshot(tmp_path)
     monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
-
-    try:
-        pipeline.run_task(
-            str(tmp_path),
-            "python",
-            "add api",
-            "src/app.py",
-            "- passes",
-            "- small",
-            mode="integrated",
-            quiet=True,
-        )
-        raised = False
-    except IntegratedModeRequiresSinkError:
-        raised = True
-
-    assert raised, "integrated mode without a sink must raise, not silently write"
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "add api",
+        "src/app.py",
+        "- passes",
+        "- small",
+        mode="integrated",
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
+        quiet=True,
+    )
+    assert result["status"] == "blocked"
+    assert result["warnings"] == ["RUNTIME_SINK_REQUIRED"]
     assert _snapshot(tmp_path) == before
 
 
 def test_integrated_mode_without_test_cmd_is_blocked_not_applied(tmp_path, monkeypatch):
     monkeypatch.delenv("SIMPLICIO_TEST_CMD", raising=False)
     monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
-    sink = RecordingEffectSink()
+    sink = RuntimeTestSink()
 
     result = pipeline.run_task(
         str(tmp_path),
@@ -168,6 +185,9 @@ def test_integrated_mode_without_test_cmd_is_blocked_not_applied(tmp_path, monke
         "- small",
         mode="integrated",
         effect_sink=sink,
+        integrated_attempt=_attempt(),
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
         quiet=True,
     )
 
@@ -193,7 +213,7 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
     monkeypatch.setattr(pipeline, "generate", lambda *a, **k: _valid_pipeline_diff())
 
     before = _snapshot(tmp_path)
-    sink = RecordingEffectSink()
+    sink = RuntimeTestSink()
 
     result = pipeline.run_task(
         str(tmp_path),
@@ -204,6 +224,9 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
         "- build passes",
         mode="integrated",
         effect_sink=sink,
+        integrated_attempt=_attempt(),
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
         quiet=True,
     )
 
@@ -211,7 +234,7 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
     assert after == before, "run_task must not modify the worktree in integrated mode"
 
     assert result["applied"] is False
-    assert result["status"] == "integrated_planned"
+    assert result["status"] == "integrated_atomic"
 
     assert len(sink.received) == 1
     effect = sink.received[0]
@@ -226,10 +249,14 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
     assert plan.nodes[0].acceptance_criteria_refs == ["AC1", "AC2"]
 
     assert result["effects"][0]["effect_id"] == effect.effect_id
-    assert len(result["effect_sink_results"]) == 1
-    assert result["effect_sink_results"][0]["effect_id"] == effect.effect_id
-    assert result["effect_sink_results"][0]["accepted"] is True
-    assert "not applied" in result["effect_sink_results"][0]["detail"]
+    observation = result["observation"]
+    assert observation["outcome"] == "effect_submitted"
+    assert observation["attempt_id"] == "attempt-1"
+    assert observation["lease_id"] == "lease-1"
+    assert observation["fencing_token"] == "fence-7"
+    assert observation["context_handle"] == CANONICAL_CONTEXT["snapshot_id"]
+    assert observation["resources"]["effect_calls"] == 1
+    assert observation["resources"]["threads_created"] == 0
 
 
 def test_integrated_mode_needs_clarification_when_no_acceptance_criteria(tmp_path, monkeypatch):
@@ -238,7 +265,7 @@ def test_integrated_mode_needs_clarification_when_no_acceptance_criteria(tmp_pat
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
     monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
     before = _snapshot(tmp_path)
-    sink = RecordingEffectSink()
+    sink = RuntimeTestSink()
 
     result = pipeline.run_task(
         str(tmp_path),
@@ -249,6 +276,9 @@ def test_integrated_mode_needs_clarification_when_no_acceptance_criteria(tmp_pat
         "- build passes",
         mode="integrated",
         effect_sink=sink,
+        integrated_attempt=_attempt(),
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
         quiet=True,
     )
 
