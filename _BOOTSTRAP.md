@@ -146,10 +146,7 @@ Custom agent que só desenha arquitetura e cria ADRs, não escreve código de pr
 > Espelho em `.github/copilot/agents/<nome>.agent.md` para o GitHub Copilot Workspace. `.agents/` é canônico (padrão AGENTS.md ecosystem); o mirror em `.github/copilot/agents/` é para Copilot Coding Agent que lê estritamente desse caminho.
 
 ### `.github/workflows/ci.yml`
-GitHub Actions: matrix de Node versions, npm install, lint, test --coverage, playwright install + test, upload artifacts (playwright-report, coverage).
-
-### `.github/workflows/dod.yml`
-Gate de PR: roda DoD checklist do AGENTS.md. Falha se coverage < 80%, se Playwright tem evidence faltando, se commit não é convencional.
+GitHub Actions: gate bloqueante em pushes e pull requests para `main`, com a suíte Python, cobertura global de 85% e cobertura de 90% nos módulos críticos.
 
 ### `.github/PULL_REQUEST_TEMPLATE.md`
 Checklist DoD + link pra task.md + screenshots/evidências.

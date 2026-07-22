@@ -51,10 +51,24 @@ def test_coverage_gate_rejects_reports_below_either_floor() -> None:
 
 
 def test_documented_workflow_references_exist() -> None:
-    audited_paths = [REPO_ROOT / name for name in ("AGENTS.md", "CLAUDE.md", "DOD.md", "README.md")]
-    audited_paths.extend((REPO_ROOT / "docs").rglob("*.md"))
+    audited_paths = [
+        REPO_ROOT / name
+        for name in (
+            "AGENTS.md",
+            "CLAUDE.md",
+            "DOD.md",
+            "README.md",
+            "INSTALL.md",
+            "INIT.md",
+            "_BOOTSTRAP.md",
+        )
+    ]
+    audited_paths.extend(
+        source for source in (REPO_ROOT / "docs").rglob("*.md") if "evidence" not in source.parts
+    )
     audited_paths.extend((REPO_ROOT / "tests").rglob("*.py"))
     audited_paths.extend((REPO_ROOT / "tests").rglob("*.js"))
+    audited_paths.extend(REPO_ROOT / name for name in ("bootstrap.sh", "bootstrap.ps1"))
 
     reference = re.compile(r"\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml")
     missing: list[str] = []
