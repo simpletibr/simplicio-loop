@@ -2,15 +2,22 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
+
+from .plan_compiler.mapper_context import (
+    MAPPER_CONTEXT_SNAPSHOT_SCHEMA,
+    MapperContextError,
+    load_mapper_context,
+)
 
 ExecutionMode = Literal["auto", "integrated", "standalone"]
 RUNTIME_EFFECT_CAPABILITY = "simplicio.effect-transaction/v1"
-MAPPER_CONTEXT_SCHEMA = "simplicio.mapper.context-snapshot/v1"
+MAPPER_CONTEXT_SCHEMA = MAPPER_CONTEXT_SNAPSHOT_SCHEMA
 
 
 @dataclass(frozen=True)
@@ -44,7 +51,7 @@ def requested_mode(explicit: str | None, root: str | os.PathLike[str] = ".") -> 
     raw = explicit or os.environ.get("SIMPLICIO_EXECUTION_MODE") or _config(root).get("mode") or "auto"
     if raw not in {"auto", "integrated", "standalone"}:
         raise ValueError("execution mode must be auto, integrated, or standalone")
-    return raw
+    return cast(ExecutionMode, raw)
 
 
 def _allow_fallback(root: str | os.PathLike[str]) -> bool:
@@ -72,7 +79,14 @@ def negotiate_execution_mode(
     capabilities = handshake.get("capabilities", []) if isinstance(handshake, dict) else []
     runtime_ready = bool(handshake.get("verified")) and RUNTIME_EFFECT_CAPABILITY in capabilities
     snapshot_schema = context_snapshot.get("schema") if isinstance(context_snapshot, dict) else None
-    mapper_ready = snapshot_schema == MAPPER_CONTEXT_SCHEMA
+    mapper_error: str | None = None
+    mapper_adapter = None
+    if context_snapshot is not None:
+        try:
+            mapper_adapter = load_mapper_context(context_snapshot, source_root=str(root))
+        except MapperContextError as exc:
+            mapper_error = exc.code
+    mapper_ready = mapper_adapter is not None
     sink_ready = effect_sink is not None and effect_sink.__class__.__name__ != "RecordingEffectSink"
     config = _config(root)
     rollout = os.environ.get("SIMPLICIO_EXECUTION_ROLLOUT", str(config.get("rollout", "shadow")))
@@ -88,7 +102,10 @@ def negotiate_execution_mode(
     mapper = {
         "schema": snapshot_schema,
         "compatible": mapper_ready,
-        "digest": (context_snapshot or {}).get("digest"),
+        "digest": (
+            hashlib.sha256(mapper_adapter.payload_bytes).hexdigest() if mapper_adapter is not None else None
+        ),
+        "contract_error": mapper_error,
     }
     sink = {
         "configured": effect_sink is not None,

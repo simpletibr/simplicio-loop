@@ -19,6 +19,9 @@ new ``mode="integrated"`` entry point added in ``simplicio/pipeline.py``:
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from simplicio import pipeline
 from simplicio.atomic_execution import AttemptContext
@@ -31,11 +34,25 @@ READY_RUNTIME = {
     "reason": "ok",
 }
 CANONICAL_CONTEXT = {
-    "schema": "simplicio.mapper.context-snapshot/v1",
+    "schema": "simplicio.context-snapshot/v1",
     "snapshot_id": "snapshot-real-1",
     "revision": "abc123",
     "digest": "sha256:context",
 }
+
+
+@pytest.fixture(autouse=True)
+def canonical_mapper_boundary(monkeypatch):
+    def load(payload, **_kwargs):
+        if payload is CANONICAL_CONTEXT:
+            view = SimpleNamespace(snapshot_id="snapshot-real-1", revision="abc123")
+            return SimpleNamespace(payload_bytes=b"canonical-context", view=view)
+        from simplicio.plan_compiler.mapper_context import MapperContextError
+
+        raise MapperContextError("TEST_CONTEXT_REJECTED", "not canonical")
+
+    monkeypatch.setattr("simplicio.execution_mode.load_mapper_context", load)
+    monkeypatch.setattr("simplicio.pipeline_integrated.load_mapper_context", load)
 
 
 class RuntimeTestSink(RecordingEffectSink):
