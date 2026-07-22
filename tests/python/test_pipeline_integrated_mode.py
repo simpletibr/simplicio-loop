@@ -227,7 +227,7 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
     assert after == before, "run_task must not modify the worktree in integrated mode"
 
     assert result["applied"] is False
-    assert result["status"] == "integrated_planned"
+    assert result["status"] == "integrated_effects_dispatched"
 
     assert len(sink.received) == 1
     effect = sink.received[0]
@@ -244,8 +244,8 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
     assert result["effects"][0]["effect_id"] == effect.effect_id
     assert len(result["effect_sink_results"]) == 1
     assert result["effect_sink_results"][0]["effect_id"] == effect.effect_id
-    assert result["effect_sink_results"][0]["accepted"] is True
-    assert "not applied" in result["effect_sink_results"][0]["detail"]
+    assert result["effect_sink_results"][0]["state"] == "not_started"
+    assert result["effect_sink_results"][0]["terminal"] is False
 
 
 def test_integrated_mode_needs_clarification_when_no_acceptance_criteria(tmp_path, monkeypatch):

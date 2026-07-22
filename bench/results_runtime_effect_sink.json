@@ -1,0 +1,8 @@
+{
+  "environment": "Codex Cloud, Python 3.12.13, Linux x86_64",
+  "includes": "canonical mapping, intent/outcome/receipt atomic persistence, receipt verification; loopback transport",
+  "iterations": 500,
+  "median_ms": 0.7126,
+  "p95_ms": 1.0968,
+  "throughput_per_s": 1311.19
+}

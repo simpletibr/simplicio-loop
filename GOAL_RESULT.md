@@ -45,3 +45,13 @@ coverage and measured performance evidence. Runtime HBI conformance, HBP
 lineage, atomic legacy migration, installed cross-repository version windows,
 and the supported-OS matrix are not proven. See
 `docs/evidence/issue-262-quality-gate.md` for commands, results, and blockers.
+
+# Issue #256 result (2026-07-22)
+
+Status: implemented. The integrated Dev CLI now creates a `RuntimeEffectSink`
+from `SIMPLICIO_RUNTIME_URL` when no sink is injected, negotiates the Runtime
+HTTP boundary, and does not execute the effect locally. Focused evidence from
+the PR: 36 tests passed with 94.86% branch coverage; benchmark median 0.7126
+ms, p95 1.0968 ms, and 1311.19 transactions/s. The private Runtime deployment
+was not available in Cloud, so transport and fault-injection evidence cover the
+boundary rather than a live Runtime deployment.

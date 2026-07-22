@@ -1,0 +1,346 @@
+from __future__ import annotations
+
+import json
+from dataclasses import replace
+
+import pytest
+
+from simplicio.plan_compiler import EffectPlan, PlanNode, VerificationPlan
+from simplicio.plan_compiler.canonical_hash import canonical_hash
+from simplicio.plan_compiler.effect_sink import EffectDispatchContext
+from simplicio.plan_compiler.runtime_effect_sink import (
+    RECEIPT_SCHEMA,
+    TRANSACTION_SCHEMA,
+    HttpRuntimeTransport,
+    RuntimeEffectError,
+    RuntimeEffectSink,
+)
+
+
+class FakeTransport:
+    name = "http-json"
+
+    def __init__(self, *, state="completed", failure=None):
+        self.state = state
+        self.failure = failure
+        self.submitted = []
+        self.queries = 0
+        self.receipt = None
+
+    def capabilities(self):
+        return {
+            "runtime_version": "1.4.0",
+            "effect_transaction_schemas": [TRANSACTION_SCHEMA],
+            "transports": [self.name],
+        }
+
+    def _make_receipt(self, transaction):
+        receipt = {
+            "schema": RECEIPT_SCHEMA,
+            "state": self.state,
+            "idempotency_key": transaction["idempotency_key"],
+            "effect_digest": transaction["effect_digest"],
+            "effect_id": transaction["causal"]["effect_id"],
+            "plan_node_id": transaction["causal"]["plan_node_id"],
+            "acceptance_criteria_refs": transaction["acceptance_criteria_refs"],
+            "gate_decision": "allow",
+            "base_hash": transaction["base_hash"],
+            "source_hash": transaction["source_hash"],
+            "validation": {"state": "passed"},
+            "rollback": None,
+            "reason_codes": [],
+            "latency_ms": 1.25,
+        }
+        receipt["receipt_digest"] = canonical_hash(receipt)
+        return receipt
+
+    def submit(self, transaction):
+        self.submitted.append(transaction)
+        if self.failure:
+            raise RuntimeEffectError(self.failure, "injected")
+        self.receipt = self._make_receipt(transaction)
+        return self.receipt
+
+    def query(self, key):
+        self.queries += 1
+        if self.failure:
+            raise RuntimeEffectError(self.failure, "injected")
+        assert self.receipt and self.receipt["idempotency_key"] == key
+        return self.receipt
+
+
+@pytest.fixture
+def effect():
+    return EffectPlan("effect-1", "node-1", "write", "runtime", "legacy-key", ["source clean"])
+
+
+@pytest.fixture
+def context():
+    node = PlanNode(
+        "node-1",
+        "edit.apply",
+        read_set=["src/a.py"],
+        write_set=["src/a.py"],
+        risk="medium",
+        acceptance_criteria_refs=["AC1"],
+        requires_gate=True,
+        rollback_strategy="checkpoint",
+    )
+    verification = VerificationPlan(
+        "verify-1", "node-1", "pytest", "pytest -q", 60, acceptance_criteria_refs=["AC1"]
+    )
+    return EffectDispatchContext(
+        "plan-1",
+        "goal-1",
+        node,
+        [verification],
+        coordinator_kind="agent",
+        coordinator_id="coordinator-1",
+        session_id="session-1",
+        turn_id="turn-1",
+        attempt=2,
+        subworkflow_id="sub-1",
+        policy_revision="policy-7",
+        base_hash="base-sha",
+        source_hash="source-sha",
+    )
+
+
+def test_maps_full_transaction_and_verifies_completed_receipt(tmp_path, effect, context):
+    transport = FakeTransport()
+    outcome = RuntimeEffectSink(transport, root=tmp_path).submit(effect, context)
+
+    transaction = transport.submitted[0]
+    assert outcome.state == "completed" and outcome.terminal
+    assert transaction["causal"] == {
+        "coordinator_kind": "agent",
+        "coordinator_id": "coordinator-1",
+        "session_id": "session-1",
+        "turn_id": "turn-1",
+        "attempt": 2,
+        "subworkflow_id": "sub-1",
+        "plan_id": "plan-1",
+        "goal_id": "goal-1",
+        "plan_node_id": "node-1",
+        "effect_id": "effect-1",
+    }
+    assert transaction["write_set"] == ["src/a.py"]
+    assert transaction["acceptance_criteria_refs"] == ["AC1"]
+    assert transaction["validation_plan"][0]["verification_id"] == "verify-1"
+    assert transaction["rollback_policy"] == "checkpoint"
+    assert list((tmp_path / ".simplicio/runtime-effects").glob("*.receipt.json"))
+
+
+@pytest.mark.parametrize(
+    "state",
+    ["denied", "running", "validation_failed", "rolled_back", "blocked_conflict", "cancelled_safe"],
+)
+def test_preserves_all_runtime_states(tmp_path, effect, context, state):
+    outcome = RuntimeEffectSink(FakeTransport(state=state), root=tmp_path / state).submit(effect, context)
+    assert outcome.state == state
+    assert outcome.validation == {"state": "passed"}
+
+
+def test_lost_response_is_unknown_and_never_retried(tmp_path, effect, context):
+    transport = FakeTransport(failure="RUNTIME_TRANSPORT_ERROR")
+    outcome = RuntimeEffectSink(transport, root=tmp_path).submit(effect, context)
+    assert outcome.state == "effect_unknown"
+    assert len(transport.submitted) == 1
+    assert transport.queries == 0
+
+
+def test_replay_reconciles_without_duplicate_submit(tmp_path, effect, context):
+    transport = FakeTransport()
+    sink = RuntimeEffectSink(transport, root=tmp_path)
+    first = sink.submit(effect, context)
+    second = sink.submit(effect, context)
+    assert first.idempotency_key == second.idempotency_key
+    assert len(transport.submitted) == 1
+    assert transport.queries == 1
+
+
+def test_restart_reconciles_durable_intent(tmp_path, effect, context):
+    transport = FakeTransport()
+    first = RuntimeEffectSink(transport, root=tmp_path).submit(effect, context)
+    second = RuntimeEffectSink(transport, root=tmp_path).reconcile(first.idempotency_key)
+    assert second.state == "completed"
+
+
+@pytest.mark.parametrize("field", ["effect_id", "plan_node_id", "idempotency_key", "effect_digest"])
+def test_forged_correlation_is_rejected(tmp_path, effect, context, field):
+    transport = FakeTransport()
+    original = transport._make_receipt
+
+    def forged(transaction):
+        receipt = original(transaction)
+        receipt[field] = "forged"
+        receipt["receipt_digest"] = canonical_hash(
+            {k: v for k, v in receipt.items() if k != "receipt_digest"}
+        )
+        return receipt
+
+    transport._make_receipt = forged
+    with pytest.raises(RuntimeEffectError, match="RECEIPT_CORRELATION_MISMATCH"):
+        RuntimeEffectSink(transport, root=tmp_path).submit(effect, context)
+
+
+def test_tampered_receipt_digest_is_rejected(tmp_path, effect, context):
+    transport = FakeTransport()
+    original = transport._make_receipt
+
+    def tampered(transaction):
+        receipt = original(transaction)
+        receipt["gate_decision"] = "deny"
+        return receipt
+
+    transport._make_receipt = tampered
+    with pytest.raises(RuntimeEffectError, match="RECEIPT_DIGEST_INVALID"):
+        RuntimeEffectSink(transport, root=tmp_path).submit(effect, context)
+
+
+def test_incompatible_capability_fails_closed(tmp_path, effect, context):
+    transport = FakeTransport()
+    transport.capabilities = lambda: {
+        "runtime_version": "2.0",
+        "effect_transaction_schemas": [],
+        "transports": [],
+    }
+    with pytest.raises(RuntimeEffectError, match="RUNTIME_CAPABILITY_INCOMPATIBLE"):
+        RuntimeEffectSink(transport, root=tmp_path).submit(effect, context)
+
+
+def test_same_key_different_digest_fails_closed(tmp_path, effect, context):
+    sink = RuntimeEffectSink(FakeTransport(), root=tmp_path)
+    outcome = sink.submit(effect, context)
+    intent = next((tmp_path / ".simplicio/runtime-effects").glob("*.intent.json"))
+    payload = json.loads(intent.read_text())
+    payload["effect_digest"] = "different"
+    intent.write_text(json.dumps(payload))
+    with pytest.raises(RuntimeEffectError, match="IDEMPOTENCY_DIGEST_CONFLICT"):
+        sink.submit(effect, context)
+    assert outcome.state == "completed"
+
+
+def test_oversized_and_write_escape_are_rejected_before_transport(tmp_path, effect, context):
+    transport = FakeTransport()
+    with pytest.raises(RuntimeEffectError, match="EFFECT_PAYLOAD_OVERSIZED"):
+        RuntimeEffectSink(transport, root=tmp_path, max_payload_bytes=10).submit(effect, context)
+    with pytest.raises(RuntimeEffectError, match="WRITE_SET_ESCAPE"):
+        RuntimeEffectSink(transport, root=tmp_path).submit(
+            effect, replace(context, plan_node=replace(context.plan_node, write_set=["../secret"]))
+        )
+    assert not transport.submitted
+
+
+def test_receipt_and_events_do_not_contain_effect_payload(tmp_path, effect, context):
+    secret_effect = replace(effect, preconditions=["TOKEN_DO_NOT_LOG"])
+    sink = RuntimeEffectSink(FakeTransport(), root=tmp_path)
+    sink.submit(secret_effect, context)
+    outcome_text = next((tmp_path / ".simplicio/runtime-effects").glob("*.outcome.json")).read_text()
+    assert "TOKEN_DO_NOT_LOG" not in outcome_text
+
+
+@pytest.mark.parametrize(
+    ("mutation", "code"),
+    [
+        ({"schema": "wrong"}, "RECEIPT_SCHEMA_INVALID"),
+        ({"state": "applied"}, "RECEIPT_STATE_INVALID"),
+        ({"gate_decision": "maybe"}, "RECEIPT_GATE_DECISION_INVALID"),
+        ({"base_hash": "stale"}, "RECEIPT_HASH_MISMATCH"),
+        ({"prompt": "private"}, "RECEIPT_REDACTION_INVALID"),
+        ({"validation": None}, "RECEIPT_VALIDATION_MISSING"),
+    ],
+)
+def test_malformed_or_unsafe_receipt_is_rejected(tmp_path, effect, context, mutation, code):
+    transport = FakeTransport()
+    original = transport._make_receipt
+
+    def malformed(transaction):
+        receipt = original(transaction)
+        receipt.update(mutation)
+        receipt["receipt_digest"] = canonical_hash(
+            {k: v for k, v in receipt.items() if k != "receipt_digest"}
+        )
+        return receipt
+
+    transport._make_receipt = malformed
+    with pytest.raises(RuntimeEffectError, match=code):
+        RuntimeEffectSink(transport, root=tmp_path).submit(effect, context)
+
+
+def test_status_reports_health_and_reason_code(tmp_path):
+    healthy = RuntimeEffectSink(FakeTransport(), root=tmp_path / "ok")
+    assert healthy.status() == {"healthy": True, "transport": "http-json", "reason_codes": []}
+    broken_transport = FakeTransport()
+    broken_transport.capabilities = lambda: {
+        "runtime_version": "invalid",
+        "effect_transaction_schemas": [TRANSACTION_SCHEMA],
+        "transports": ["http-json"],
+    }
+    broken = RuntimeEffectSink(broken_transport, root=tmp_path / "broken")
+    assert broken.status()["reason_codes"] == ["RUNTIME_VERSION_INVALID"]
+
+
+def test_circuit_breaker_opens_after_repeated_unknowns(tmp_path, effect, context):
+    transport = FakeTransport(failure="RUNTIME_TRANSPORT_ERROR")
+    sink = RuntimeEffectSink(transport, root=tmp_path)
+    for attempt in range(3):
+        outcome = sink.submit(
+            replace(effect, effect_id=f"effect-{attempt}"), replace(context, turn_id=str(attempt))
+        )
+        assert outcome.state == "effect_unknown"
+    with pytest.raises(RuntimeEffectError, match="RUNTIME_CIRCUIT_OPEN"):
+        sink.submit(replace(effect, effect_id="effect-final"), replace(context, turn_id="final"))
+
+
+def test_reconcile_missing_intent_fails_closed(tmp_path):
+    with pytest.raises(RuntimeEffectError, match="INTENT_NOT_FOUND"):
+        RuntimeEffectSink(FakeTransport(), root=tmp_path).reconcile("missing")
+
+
+def test_http_transport_uses_public_endpoints(monkeypatch):
+    calls = []
+
+    class Response:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"ok": True}
+
+    def request(method, url, **kwargs):
+        calls.append((method, url, kwargs.get("json")))
+        return Response()
+
+    monkeypatch.setattr("httpx.request", request)
+    transport = HttpRuntimeTransport("https://runtime.example/")
+    assert transport.capabilities() == {"ok": True}
+    assert transport.submit({"x": 1}) == {"ok": True}
+    assert transport.query("key") == {"ok": True}
+    assert calls == [
+        ("GET", "https://runtime.example/v1/capabilities", None),
+        ("POST", "https://runtime.example/v1/effect-transactions", {"x": 1}),
+        ("GET", "https://runtime.example/v1/effect-transactions/key", None),
+    ]
+
+
+def test_http_transport_rejects_non_object_and_network_error(monkeypatch):
+    class BadResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return []
+
+    monkeypatch.setattr("httpx.request", lambda *args, **kwargs: BadResponse())
+    with pytest.raises(RuntimeEffectError, match="RUNTIME_RESPONSE_INVALID"):
+        HttpRuntimeTransport("https://runtime.example").capabilities()
+
+    def fail(*args, **kwargs):
+        import httpx
+
+        raise httpx.ConnectError("offline")
+
+    monkeypatch.setattr("httpx.request", fail)
+    with pytest.raises(RuntimeEffectError, match="RUNTIME_TRANSPORT_ERROR"):
+        HttpRuntimeTransport("https://runtime.example").capabilities()

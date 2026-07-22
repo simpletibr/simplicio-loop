@@ -25,7 +25,8 @@ from simplicio.plan_compiler.compile_task_spec import (
     compile_task_spec_to_plan,
 )
 from simplicio.plan_compiler.effect_sink import (
-    EffectApplyResult,
+    EffectDispatchContext,
+    EffectOutcome,
     EffectSink,
     IntegratedModeRequiresSinkError,
     RecordingEffectSink,
@@ -57,6 +58,7 @@ from simplicio.plan_compiler.models import (
     PlanNode,
     VerificationPlan,
 )
+from simplicio.plan_compiler.runtime_effect_sink import RuntimeEffectError, RuntimeEffectSink
 
 __all__ = [
     "DEV_CLI_FALLBACK_CONTEXT_SCHEMA",
@@ -71,7 +73,8 @@ __all__ = [
     "VERIFICATION_PLAN_SCHEMA",
     "CompatAdapterError",
     "CompatAdapterExpiredError",
-    "EffectApplyResult",
+    "EffectDispatchContext",
+    "EffectOutcome",
     "EffectPlan",
     "EffectSink",
     "GoalEnvelope",
@@ -88,6 +91,8 @@ __all__ = [
     "PlanNode",
     "PlanValidationError",
     "RecordingEffectSink",
+    "RuntimeEffectError",
+    "RuntimeEffectSink",
     "SchemaMismatchError",
     "UnsupportedCompatVersionError",
     "VerificationPlan",

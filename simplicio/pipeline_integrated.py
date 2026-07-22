@@ -26,7 +26,8 @@ from typing import Any
 from .observability import emit_event
 from .pipeline_task_result import _task_result
 from .plan_compiler import PlanCompilationError, compile_task_spec_to_plan
-from .plan_compiler.effect_sink import EffectSink, IntegratedModeRequiresSinkError
+from .plan_compiler.effect_sink import EffectDispatchContext, EffectSink, IntegratedModeRequiresSinkError
+from .plan_compiler.runtime_effect_sink import RuntimeEffectSink
 from .task_spec import TaskSpec
 
 __all__ = ["IntegratedModeRequiresSinkError", "run_integrated"]
@@ -90,13 +91,7 @@ def run_integrated(
     back to direct writes when no ``effect_sink`` is given.
     """
     if effect_sink is None:
-        raise IntegratedModeRequiresSinkError(
-            "mode='integrated' requires an effect_sink; refusing to fall back to "
-            "direct writes. The sink is the local stub boundary for the real "
-            "simplicio-runtime Effect API (issue #166 dependency on Runtime "
-            "#3134/#3135) -- see simplicio/plan_compiler/effect_sink.py and "
-            "docs/plan-compiler.md."
-        )
+        effect_sink = RuntimeEffectSink.from_environment(root=root)
     if primary_test_cmd is None:
         blocker = {
             "code": "verification_command_missing",
@@ -179,16 +174,28 @@ def run_integrated(
     # The sink is the ONLY thing allowed to apply/commit an effect. It is a
     # local stub today (see module docstring); a real integration swaps it
     # for a sink that forwards to simplicio-runtime's Effect API.
-    sink_results = [effect_sink(effect) for effect in effects]
+    nodes = {node.node_id: node for node in plan.nodes}
+    sink_results = [
+        effect_sink.submit(
+            effect,
+            EffectDispatchContext(
+                plan_id=plan.plan_id,
+                goal_id=plan.goal_id,
+                plan_node=nodes[effect.plan_node_id],
+                verifications=[item for item in verifications if item.plan_node_id == effect.plan_node_id],
+                coordinator_id="simplicio-dev-cli",
+                source_hash=task_spec.source_hash,
+            ),
+        )
+        for effect in effects
+    ]
 
-    result = _task_result(target, prompt, "", applied=False, status="integrated_planned")
+    result = _task_result(target, prompt, "", applied=False, status="integrated_effects_dispatched")
     result["plan"] = plan.to_dict()
     result["effects"] = [effect.to_dict() for effect in effects]
     result["verifications"] = [verification.to_dict() for verification in verifications]
-    result["effect_sink_results"] = [
-        {"effect_id": sink_result.effect_id, "accepted": sink_result.accepted, "detail": sink_result.detail}
-        for sink_result in sink_results
-    ]
+    result["effect_sink_results"] = [sink_result.to_dict() for sink_result in sink_results]
+    result["status"] = "integrated_effects_dispatched"
     emit_event(
         "task_complete",
         {"target": target, "mode": "integrated", "effects": len(effects)},
