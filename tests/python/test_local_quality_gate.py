@@ -24,6 +24,17 @@ def test_ci_invokes_blocking_coverage_gate_on_main_pushes_and_prs() -> None:
     assert "continue-on-error" not in workflow
 
 
+def test_ci_blocks_internal_json_in_sources_and_release_archives_on_supported_platforms() -> None:
+    workflow = _read(".github/workflows/ci.yml")
+
+    assert "Internal JSON release gate (${{ matrix.os }})" in workflow
+    assert "[ubuntu-latest, macos-latest, windows-latest]" in workflow
+    assert "python scripts/check_json_boundaries.py --strict" in workflow
+    assert "python -m build" in workflow
+    assert "python scripts/check_json_boundaries.py --strict --artifact-dir dist" in workflow
+
+
+
 def test_documented_thresholds_equal_enforced_thresholds() -> None:
     global_floor, critical_floor, critical_modules = coverage_gate._load_config()
     gate_docs = _read("docs/ci-quality-gate.md")

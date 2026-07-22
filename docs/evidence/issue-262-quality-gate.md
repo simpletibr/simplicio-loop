@@ -1,17 +1,21 @@
 # Issue #262 quality-gate evidence
 
-Date: 2026-07-22. Branch base: `f0f9231` (`upstream/main`). Python 3.12.13 on
+Date: 2026-07-22. Branch base: `bf2e293` (`main` checkout). Python 3.12.13 on
 Linux x86_64.
 
 ## Implemented and exercised
 
 - `python3 scripts/check_json_boundaries.py --strict`: 0 unclassified findings.
-- `pytest -q tests/python/test_json_boundaries.py tests/python/test_local_quality_gate.py
+- `pytest -q tests/python/test_json_boundaries.py
+  tests/python/test_local_quality_gate.py::test_ci_blocks_internal_json_in_sources_and_release_archives_on_supported_platforms
   --cov=scripts.check_json_boundaries --cov-branch --cov-report=term-missing`:
-  14 passed; scanner coverage 88% including branches.
-- `python -m build` and `python -m twine check dist/*`: wheel and sdist built and
-  passed metadata checks. Scanning each archive returned 0 packaged internal JSON
-  findings.
+  16 passed; scanner coverage 89% including branches.
+- `python -m build` built the wheel and sdist. Then
+  `python scripts/check_json_boundaries.py --strict --artifact-dir dist` scanned
+  every release archive and returned 0 packaged internal JSON findings.
+- `.github/workflows/ci.yml` now runs those source/build/package checks as a
+  blocking job on `ubuntu-latest`, `macos-latest`, and `windows-latest`; the
+  workflow contract test proves none of the release stages can be omitted.
 - Adversarial archive tests inject `.simplicio/generated.json` into wheel and
   sdist layouts; strict scanning rejects both. A malformed archive fails closed,
   while an external `schema.json` remains allowed.
@@ -23,18 +27,23 @@ Linux x86_64.
 
 ## Repository-wide gate state
 
-The focused issue gate is green. The repository-wide commands are not green on
-the unmodified `main` baseline: `ruff check .` reports 24 existing findings,
-`mypy simplicio` reports 5 existing errors, and `pytest -q` reports 26 failures
-(1,822 passed, 16 skipped). The failures include stale CLI snapshots, stale
-Mapper dependency assertions, provider behavior, and unrelated task validation.
-They are outside issue #262 and were not rewritten in this focused change.
+The focused issue gate is green. A broader focused run also executes the
+pre-existing workflow-reference regression and reports 1 unrelated failure:
+`docs/evidence/issue-265-meta-audit.md` names four deleted workflow files. The
+repository-wide commands are not green on the unmodified `main` baseline:
+`ruff check .` reports 23 existing findings, `ruff format --check .` reports 27
+existing files, and `mypy simplicio` reports 6 existing errors. The full
+`pytest -q` attempt reached 11% with four failures before the 30-second Cloud
+command window ended, so it is recorded as unavailable rather than passing.
+These failures are outside issue #262 and were not rewritten in this focused
+change.
 
 ## Criteria not proven by this repository change
 
 This PR does not claim Runtime HBI conformance, HBP migration lineage, atomic
-legacy migration, cross-repository released-package compatibility, or the
-Linux/macOS/Windows matrix. The repository still contains the dated legacy
+legacy migration or cross-repository released-package compatibility. The
+Linux/macOS/Windows matrix is configured but cannot be claimed green until the
+new pull-request checks execute. The repository still contains the dated legacy
 exceptions listed in `config/json-boundaries.toml`; classification is enforced,
 but their underlying producers have not all migrated. These are explicit
 release blockers rather than passing zeroes. The PR must remain unmerged until

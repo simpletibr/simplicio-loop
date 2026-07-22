@@ -124,10 +124,29 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path("."))
     parser.add_argument("--artifact", type=Path, action="append", default=[])
+    parser.add_argument(
+        "--artifact-dir",
+        type=Path,
+        action="append",
+        default=[],
+        help="scan every wheel and source archive in a release directory",
+    )
     parser.add_argument("--strict", action="store_true")
     args = parser.parse_args(argv)
     try:
-        findings = check(args.root.resolve(), args.artifact)
+        artifacts = list(args.artifact)
+        for directory in args.artifact_dir:
+            if not directory.is_dir():
+                raise ValueError(f"artifact directory does not exist: {directory}")
+            discovered = [
+                path
+                for path in sorted(directory.iterdir())
+                if path.is_file() and (path.suffix == ".whl" or path.name.endswith(".tar.gz"))
+            ]
+            if not discovered:
+                raise ValueError(f"artifact directory contains no wheel or source archives: {directory}")
+            artifacts.extend(discovered)
+        findings = check(args.root.resolve(), artifacts)
     except (OSError, ValueError, KeyError, tarfile.TarError, zipfile.BadZipFile) as error:
         print(f"json-boundaries: configuration error: {error}", file=sys.stderr)
         return 2

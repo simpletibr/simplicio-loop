@@ -87,3 +87,29 @@ def test_invalid_archive_fails_closed(policy_root: Path, capsys):
     artifact.write_bytes(b"not an archive")
     assert main(["--root", str(policy_root), "--artifact", str(artifact), "--strict"]) == 2
     assert "unsupported artifact archive" in capsys.readouterr().err
+
+
+def test_artifact_directory_scans_every_release_archive(policy_root: Path, capsys):
+    dist = policy_root / "dist"
+    dist.mkdir()
+    with zipfile.ZipFile(dist / "package.whl", "w") as archive:
+        archive.writestr("package/schema.json", "{}")
+    with tarfile.open(dist / "package.tar.gz", "w:gz") as archive:
+        content = b"{}"
+        info = tarfile.TarInfo("release/.simplicio/state.json")
+        info.size = len(content)
+        archive.addfile(info, io.BytesIO(content))
+
+    assert main(["--root", str(policy_root), "--artifact-dir", str(dist), "--strict"]) == 1
+    output = capsys.readouterr().out
+    assert "PACKAGED_INTERNAL_JSON package.tar.gz!release/.simplicio/state.json" in output
+
+
+@pytest.mark.parametrize("directory", ["missing", "empty"])
+def test_artifact_directory_fails_closed_without_release_archives(policy_root: Path, capsys, directory: str):
+    artifact_dir = policy_root / directory
+    if directory == "empty":
+        artifact_dir.mkdir()
+
+    assert main(["--root", str(policy_root), "--artifact-dir", str(artifact_dir), "--strict"]) == 2
+    assert "json-boundaries: configuration error" in capsys.readouterr().err
