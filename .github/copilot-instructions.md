@@ -18,8 +18,8 @@ PRODUCT:
 - Test runner unit/contract: **pytest** (`tests/python/`, `tests/contracts/`).
 - Linter/formatter: **ruff** (`ruff check .` / `ruff format --check .`).
 - Type checker: **mypy** (`mypy simplicio`).
-- Quality gate: execução local reproduzível com `ruff`, `mypy`, `pytest`,
-  cobertura, docs geradas e empacotamento. GitHub Actions está desativado.
+- Quality gate: GitHub Actions executa o gate bloqueante de cobertura em PRs e
+  pushes para `main`; o gate completo também é reproduzível localmente.
 - Deploy: PyPI (`simplicio-cli`) — ver `.specs/workflow/RELEASE.md`.
 
 STARTER embutido (não é o produto): `package.json` só declara
@@ -110,8 +110,8 @@ PR só faz merge quando todos os itens abaixo estão marcados:
 - [ ] Sem warning novo, sem `print()`/`console.log` de diagnóstico deixado pra trás em código de biblioteca (exceção documentada: CLI handlers onde stdout é o resultado pretendido)
 - [ ] Sem TODO sem dono e sem prazo
 
-O gate que bloqueia merge é **local**. GitHub Actions foi removido em
-`d7ff8c9` (issue #246) e está fora do aceite. Rode a validação documentada em
+O gate bloqueante de cobertura roda em `.github/workflows/ci.yml` e deve ser
+exigido pela proteção de `main`. Rode também a validação local documentada em
 `docs/ci-quality-gate.md`; os hooks `.claude/hooks/pre-commit.sh`/`.ps1`
 aplicam o piso global de 85% quando `pytest-cov` está instalado.
 

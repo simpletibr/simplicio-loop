@@ -67,42 +67,25 @@ tests" is necessary but insufficient.
   edge case and one error path.
 - No secret, no stray `print()`/debug output, no unowned/undated TODO.
 
-### Coverage gate: current state (issue #246)
+### Coverage gate: current state (issues #246, #251)
 
 `[tool.coverage.report].fail_under = 85` and
-`[tool.coverage.simplicio_critical]` (90% floor on `cli.py`, `pipeline.py`,
-`mechanical_edit.py`, `mapper.py`, `execution_contract.py`, `doctor.py`) were
-already added to `pyproject.toml` in commit `62ebd81` (#205), together with
-`scripts/coverage_gate.py`. That commit also wired a dedicated `coverage` CI
-job. **Hours later, the same day, commit `d7ff8c9` removed
-`.github/workflows/` entirely** — GitHub Actions billing lockout plus a
-decision to centralize CI/CD around `simplicio-runtime` — which deleted that
-job along with every other workflow in this repo. `AGENTS.md`/`CLAUDE.md`
-still described this as "CI's `python` job runs `pytest` without `--cov`,"
-which was already stale on top of being incomplete: there is currently **no
-`.github/workflows/ci.yml` in this repo at all**.
+`[tool.coverage.simplicio_critical]` define the 90% floor on `cli.py`,
+`pipeline.py`, `mechanical_edit.py`, `mapper.py`, `execution_contract.py`, and
+`doctor.py`. `scripts/coverage_gate.py` reads those values directly, so the
+configuration is the single source of truth.
 
-Since GitHub Actions cannot run here right now regardless of what YAML
-exists (billing lockout), re-adding a workflow file would not be a real
-gate — it would be a file that never executes. The real, mechanically
-enforced gate as of this issue lives in
-`.claude/hooks/pre-commit.sh`/`.ps1`: when `pytest-cov` is installed, every
-commit touching a staged `.py` file now runs
-`pytest -q --cov=simplicio --cov-report=term-missing --cov-fail-under=85`
-and blocks the commit if the floor is missed (falls back to plain
-`pytest -q -x` if `pytest-cov` isn't installed, rather than silently
-skipping the whole test run). Verified locally at 85.71% total coverage
-before wiring this in. The stricter 90%-critical check
-(`scripts/coverage_gate.py`) is **not** wired into the hook because it
-currently fails (`mechanical_edit.py` 71%, `doctor.py` 73%,
-`execution_contract.py` 88%, `pipeline.py` 87.5%) — closing that gap is
-real work, tracked in the Layer 3/4 issue below, not something to fake past
-via a lower bar.
+Issue #251 restores `.github/workflows/ci.yml` after its earlier removal in
+`d7ff8c9`. Its blocking coverage job runs on pull requests and pushes to
+`main`, produces `coverage.json`, and invokes `scripts/coverage_gate.py`.
+Branch protection should require `Coverage gate (85% global / 90% critical)`.
 
-The workflow-removal regression was closed during the `main` branch migration
-(issue #98): the obsolete tests that opened `.github/workflows/*.yml` were
-replaced by local-gate and branch-contract tests. No test now requires a
-GitHub Actions file to exist.
+The same mechanically enforced global floor remains available before push in
+`.claude/hooks/pre-commit.sh` and `.claude/hooks/pre-commit.ps1`. The CI job
+additionally applies the stricter critical-module gate. Repository self-checks
+verify the workflow triggers and command, verify documented thresholds against
+`pyproject.toml`, exercise both failure boundaries, and reject missing workflow
+references in current product docs and tests.
 
 ## Layer 2 — Risk-surface-driven (declared per PR)
 

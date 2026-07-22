@@ -472,10 +472,10 @@ Missing an extra never crashes with a raw traceback — every optional import
 is guarded and raises an actionable error naming the exact extra to install
 (e.g. `pip install 'simplicio-cli[providers]'`).
 
-#### Local quality gate
+#### CI and local quality gate
 
-GitHub Actions is disabled for this repository and `.github/workflows/` is
-intentionally absent. The reproducible merge gate runs locally; attach its
+The blocking `.github/workflows/ci.yml` coverage job runs on pull requests
+and pushes to `main`. The same gate is reproducible locally; attach its
 command output to the pull request:
 
 ```bash

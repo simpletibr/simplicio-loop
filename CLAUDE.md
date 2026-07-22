@@ -76,9 +76,9 @@ Detalhes completos (**PRODUCT** — o pacote Python real):
 - Test runner unit/contract: **pytest** (`tests/python/`, `tests/contracts/`; `[tool.pytest.ini_options]` em `pyproject.toml`).
 - Linter/formatter: **ruff** (`ruff check .` / `ruff format --check .`; `[tool.ruff]` em `pyproject.toml`, issue #102).
 - Type checker: **mypy** (`mypy simplicio`; `[tool.mypy]` em `pyproject.toml`, baseline documentado, issue #102).
-- Quality gate: execução local reproduzível (`ruff`, `mypy`, `pytest`, cobertura,
-  docs geradas e empacotamento). GitHub Actions está desativado neste repo;
-  `.github/workflows/` não existe e não é critério de aceite.
+- Quality gate: GitHub Actions executa o gate bloqueante de cobertura em PRs e
+  pushes para `main`; o mesmo gate é reproduzível localmente, junto de `ruff`,
+  `mypy`, docs geradas e empacotamento.
 - Deploy/release: PyPI (`simplicio-cli`), tag `vX.Y.Z` — ver `.specs/workflow/RELEASE.md`.
 
 Detalhes do **STARTER embutido** (harness de exemplo, não é o produto):
@@ -190,9 +190,9 @@ PR só faz merge quando **todos** os itens abaixo estão marcados:
 - [ ] Sem `print()`/`console.log` de diagnóstico deixado pra trás em código de biblioteca (ver `simplicio/observability.py` / módulo de output central, issue #106) — CLI handlers onde stdout É o resultado pretendido são a exceção documentada
 - [ ] Sem TODO sem dono e sem prazo
 
-O gate que bloqueia merge é **local**. GitHub Actions foi removido em
-`d7ff8c9` (issue #246) e está fora do aceite. Rode e registre no PR os comandos
-da validação padrão acima; para cobertura, use
+O gate bloqueante de cobertura roda em `.github/workflows/ci.yml` e deve ser
+exigido pela proteção de `main`. Rode e registre também no PR os comandos da
+validação local padrão acima; para cobertura, use
 `pytest --cov=simplicio --cov-report=json:coverage.json` seguido de
 `python3 scripts/coverage_gate.py --report coverage.json`. Os hooks
 `.claude/hooks/pre-commit.sh`/`.ps1` aplicam o piso global de 85% quando

@@ -3,13 +3,8 @@
 # Roda a suite de testes em modo silencioso e BLOQUEIA o commit se vermelho.
 # Mensagens em pt-BR para feedback rápido.
 #
-# NOTA (issue #246, 2026-07): .github/workflows/ foi removido inteiramente em
-# d7ff8c9 (billing lockout + centralizacao de CI/CD em simplicio-runtime), o
-# que também apagou o job "coverage" (85% global / 90% critico) que #205
-# tinha acabado de ligar em CI horas antes. Ate a CI centralizada voltar, ESTE
-# hook e o unico gate mecanizado que roda de verdade -- por isso o piso de
-# coverage do pyproject.toml (`[tool.coverage.report].fail_under = 85`) e
-# aplicado aqui via `--cov`/`--cov-fail-under`, nao mais so em CI.
+# O workflow CI restaurado em #251 aplica o gate completo (85% global / 90%
+# critico). Este hook preserva o piso global antes do push para feedback local.
 set -euo pipefail
 
 echo "[pre-commit] Rodando gates locais antes do commit..."
