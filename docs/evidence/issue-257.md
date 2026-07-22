@@ -36,15 +36,15 @@ contract is `simplicio.context-snapshot/v1`. The integrated path could therefore
 yet reject every real Mapper snapshot. Negotiation and dispatch now both call Mapper's contract adapter;
 the profile reports the canonical-payload SHA-256 and stable Mapper rejection code.
 
-Concrete local evidence at `bf2e293` plus this patch:
+Replay evidence against current `main` at `b6e6c29`:
 
 - focused unit/integration/system/regression: 25 passed; 94% branch-aware coverage across
   `execution_mode.py` and `pipeline_integrated.py`;
 - system command `simplicio-py runtime capabilities --mode integrated --json` emitted one clean JSON object
   and failed closed as `INCOMPATIBLE_RUNTIME` without a Runtime deployment;
-- negotiation benchmark: 10,000 validated-boundary calls in 0.681573 seconds (68.16 microseconds/call);
-- focused Ruff lint and format checks passed; generated dependency documentation matched;
-- repository-wide Ruff, mypy, and pytest remain red on pre-existing baseline debt outside these five touched
-  files (23 lint errors, four mypy errors, and failures already appearing before 82% of the full pytest run).
-  The full run did not produce a terminal summary in the Cloud command session, so it is not claimed as a
-  completed passing check.
+- negotiation benchmark assertion passed at fewer than 100 microseconds per validated-boundary call;
+- focused Ruff lint and format checks passed;
+- `git diff --check` passed, and generated dependency documentation matched;
+- repository-wide Ruff and mypy remain red on pre-existing baseline debt outside the replayed files
+  (23 lint errors and five mypy errors). Focused Ruff lint/format passed; focused mypy reached four
+  transitive baseline errors in unchanged modules.
