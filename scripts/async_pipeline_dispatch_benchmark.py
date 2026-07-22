@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""Crossover + dispatch-active benchmark for the size-based sync/async
-pipeline dispatch (issue #235 follow-up, ADR-009 plan step 10's honest
-after-benchmark showed small/medium trees regressed under the
-unconditionally-async pipeline; this script is the evidence for the
-dispatch threshold added in ``simplicio_mapper.mapper.emit.build_artifacts``).
+"""Local sync/async comparison for the default-async mapper pipeline.
 
 Two things are measured here, both against the CURRENT revision (dispatch
 active in production code):
@@ -11,14 +7,13 @@ active in production code):
 1. **Crossover table** -- at each synthetic tree size, the plain
    synchronous pipeline (``_build_artifacts_sync``) and the bounded-
    concurrency async pipeline (``async_pipeline.build_artifacts_async``)
-   are forced explicitly (bypassing the dispatcher) via
-   ``SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES``, so the two are compared
+   are forced explicitly via ``SIMPLICIO_MAPPER_EXECUTION_PROFILE``, so the two are compared
    like-for-like on the same revision (both already include PR #255's
    O(n^2) import-resolution fix, unlike the historical before/after tables
-   which compare across revisions). This is the *evidence* for where the
-   dispatch threshold should sit.
-2. **Dispatch-active table** -- the real, unmodified ``build_artifacts()``
-   entry point (dispatcher wired in, default threshold) measured at the
+   which compare across revisions). This is the local evidence for the
+   operational trade-off retained by the explicit rollback profile.
+2. **Default-active table** -- the real ``build_artifacts()`` entry point
+   with ``auto`` selected, measured at the
    same three sizes as the historical before/after benchmarks (small=4,
    medium=200, large=1500 requested file counts), directly comparable to
    ``docs/async-pipeline-baseline-benchmark.md`` (before) and
@@ -58,14 +53,15 @@ from async_pipeline_after_benchmark import (  # noqa: E402
 
 from simplicio_mapper.mapper import build_artifacts  # noqa: E402
 
-SCHEMA = "simplicio.async-pipeline-dispatch-benchmark/v1"
+SCHEMA = "simplicio.async-pipeline-dispatch-benchmark/v2"
 MD_DOC_PATH = ROOT / "docs" / "async-pipeline-dispatch-benchmark.md"
 JSON_DOC_PATH = ROOT / "docs" / "evidence" / "async-pipeline-dispatch-benchmark.json"
 BASELINE_JSON_PATH = ROOT / "docs" / "evidence" / "async-pipeline-baseline-benchmark.json"
 AFTER_JSON_PATH = ROOT / "docs" / "evidence" / "async-pipeline-after-benchmark.json"
 
 SEED = 20260717
-ENV_THRESHOLD = "SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES"
+ENV_PROFILE = "SIMPLICIO_MAPPER_EXECUTION_PROFILE"
+ENV_KILL_SWITCH = "SIMPLICIO_MAPPER_NO_ASYNC_PIPELINE"
 
 CROSSOVER_SIZES = [50, 100, 400, 800, 1200, 1650]
 
@@ -92,13 +88,20 @@ def _make_tree(tmp_path: Path, file_count: int) -> tuple[Path, int]:
 
 
 def _run_forced(mode: str, source_dir: Path, output_dir: Path) -> float:
-    os.environ[ENV_THRESHOLD] = "999999999" if mode == "sync" else "1"
+    previous = os.environ.get(ENV_PROFILE)
+    previous_kill_switch = os.environ.pop(ENV_KILL_SWITCH, None)
+    os.environ[ENV_PROFILE] = mode
     try:
         start = time.perf_counter()
         build_artifacts(str(source_dir), meta={}, incremental=False, output_dir=str(output_dir))
         return time.perf_counter() - start
     finally:
-        os.environ.pop(ENV_THRESHOLD, None)
+        if previous is None:
+            os.environ.pop(ENV_PROFILE, None)
+        else:
+            os.environ[ENV_PROFILE] = previous
+        if previous_kill_switch is not None:
+            os.environ[ENV_KILL_SWITCH] = previous_kill_switch
 
 
 def _crossover_row(file_count: int, runs: int) -> dict[str, Any]:
@@ -137,21 +140,34 @@ def _dispatch_row(name: str, file_count: int, use_real_fixture: bool, runs: int)
 
         cold_times = []
         warm_times = []
-        for i in range(runs):
-            out = source_dir / f".simplicio-cold-{i}"
-            start = time.perf_counter()
-            build_artifacts(str(source_dir), meta={}, incremental=False, output_dir=str(out))
-            cold_times.append(time.perf_counter() - start)
+        previous = os.environ.pop(ENV_PROFILE, None)
+        previous_kill_switch = os.environ.pop(ENV_KILL_SWITCH, None)
+        selected_profile = None
+        try:
+            for i in range(runs):
+                out = source_dir / f".simplicio-cold-{i}"
+                start = time.perf_counter()
+                cold = build_artifacts(
+                    str(source_dir), meta={}, incremental=False, output_dir=str(out)
+                )
+                cold_times.append(time.perf_counter() - start)
+                selected_profile = cold["execution_plan"]["selected_profile"]
 
-            start = time.perf_counter()
-            build_artifacts(str(source_dir), meta={}, incremental=False, output_dir=str(out))
-            warm_times.append(time.perf_counter() - start)
+                start = time.perf_counter()
+                build_artifacts(str(source_dir), meta={}, incremental=False, output_dir=str(out))
+                warm_times.append(time.perf_counter() - start)
+        finally:
+            if previous is not None:
+                os.environ[ENV_PROFILE] = previous
+            if previous_kill_switch is not None:
+                os.environ[ENV_KILL_SWITCH] = previous_kill_switch
 
         cold_median = statistics.median(cold_times)
         warm_median = statistics.median(warm_times)
         return {
             "size": name,
             "file_count": written,
+            "selected_profile": selected_profile,
             "cold_wall_median_s": round(cold_median, 4),
             "warm_wall_median_s": round(warm_median, 4),
             "cold_files_per_sec": round(written / cold_median, 2) if cold_median > 0 else 0.0,
@@ -166,9 +182,10 @@ def _render_markdown(
     python_version: str,
     baseline_by_size: dict[str, Any] | None,
     after_by_size: dict[str, Any] | None,
+    runs: int,
 ) -> str:
     lines = [
-        "# Async pipeline dispatch -- crossover + confirmation benchmark (issue #235 follow-up)",
+        "# Default-async pipeline -- local profile comparison (issue #325)",
         "",
         f"Measured: {generated_at}. Python: `{python_version}`. Tool: "
         "`scripts/async_pipeline_dispatch_benchmark.py`. Both tables below "
@@ -178,12 +195,17 @@ def _render_markdown(
         "compare across revisions -- this is a like-for-like sync-vs-async "
         "comparison.",
         "",
+        f"Command: `python scripts/async_pipeline_dispatch_benchmark.py --write --runs {runs}`. "
+        f"Samples per profile/size: {runs}. Results are local wall-clock measurements; "
+        "compare profiles on the same host and revision rather than treating them as "
+        "portable performance guarantees.",
+        "",
         "## Crossover table (forced sync vs. forced async, same revision)",
         "",
         "Each row forces the named path via "
-        "`SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES` (bypassing the "
-        "dispatcher) and measures cold wall time. This is the evidence used "
-        f"to pick the shipped default threshold ({threshold} files).",
+        "`SIMPLICIO_MAPPER_EXECUTION_PROFILE` and measures cold wall time. "
+        "The threshold is retained as receipt/calibration metadata "
+        f"({threshold} files), but `auto` selects async at every size.",
         "",
         "| Files (requested / actual) | Sync wall p50 (s) | Async wall p50 (s) | Sync faster? | sync/async ratio |",
         "|---:|---:|---:|---|---:|",
@@ -197,19 +219,19 @@ def _render_markdown(
 
     lines.extend([
         "",
-        "## Dispatch-active table (real `build_artifacts()`, default threshold)",
+        "## Auto-active table (real `build_artifacts()`, default profile)",
         "",
         "Same three sizes as the historical before/after benchmarks "
         "(`docs/async-pipeline-baseline-benchmark.md`, "
         "`docs/async-pipeline-after-benchmark.md`), now measured through "
-        "the real, unmodified entry point with the dispatcher active.",
+        "the real entry point with no explicit execution profile.",
         "",
-        "| Size | Files | Cold wall p50 (s) | Cold files/s | Warm wall p50 (s) |",
-        "|---|---:|---:|---:|---:|",
+        "| Size | Files | Selected profile | Cold wall p50 (s) | Cold files/s | Warm wall p50 (s) |",
+        "|---|---:|---|---:|---:|---:|",
     ])
     for row in dispatch:
         lines.append(
-            f"| {row['size']} | {row['file_count']} | {row['cold_wall_median_s']} | "
+            f"| {row['size']} | {row['file_count']} | {row['selected_profile']} | {row['cold_wall_median_s']} | "
             f"{row['cold_files_per_sec']} | {row['warm_wall_median_s']} |"
         )
 
@@ -218,9 +240,9 @@ def _render_markdown(
             "",
             "## Three-way comparison (cold wall time): before (sync-only, "
             "pre-#235) vs. after (unconditionally-async, PR #260/#271) vs. "
-            "dispatch (this change)",
+            "auto/default-async (this change)",
             "",
-            "| Size | Before (sync-only) | After (unconditional async) | Dispatch (this fix) | Dispatch vs. before | Dispatch vs. after |",
+            "| Size | Before (sync-only) | After (unconditional async) | Auto/default async | Auto vs. before | Auto vs. after |",
             "|---|---:|---:|---:|---:|---:|",
         ])
         for row in dispatch:
@@ -237,17 +259,12 @@ def _render_markdown(
                 f"| {row['size']} | {before_wall} | {after_wall} | {dispatch_wall} | "
                 f"{vs_before:.2f}x | {vs_after:.2f}x |"
             )
-        lines.append("")
-        lines.append(
-            "Reading this table: \"Dispatch vs. before\" close to or above "
-            "1.0x means the regression versus the original synchronous "
-            "pipeline is fixed (small/medium should land here, since the "
-            "dispatcher now routes them through the same synchronous code "
-            "path as \"before\", modulo the unrelated O(n^2) fix which "
-            "benefits both). \"Dispatch vs. after\" close to 1.0x for the "
-            "large row confirms the async pipeline's real win is preserved "
-            "once a tree is actually large enough to cross the threshold."
-        )
+        lines.extend([
+            "",
+            "Historical rows were recorded on earlier revisions and are context only. "
+            "The crossover table above is the valid same-revision profile comparison; "
+            "the auto table proves the production entry point selects async at every size.",
+        ])
 
     return "\n".join(lines) + "\n"
 
@@ -286,7 +303,7 @@ def main() -> int:
     python_version = sys.version.split()[0]
     markdown = _render_markdown(
         crossover, dispatch, threshold, generated_at, python_version,
-        baseline_by_size, after_by_size,
+        baseline_by_size, after_by_size, args.runs,
     )
     print(markdown)
 
