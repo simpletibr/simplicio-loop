@@ -1,8 +1,7 @@
+import sys
 from pathlib import Path
 
-import sys
-
-from scripts.mapper_quality_gate import _status, build_report, main
+from scripts.mapper_quality_gate import _release_evidence, _status, build_report, main
 
 
 def test_quality_report_is_markdown_and_preserves_unavailable_evidence():
@@ -10,7 +9,7 @@ def test_quality_report_is_markdown_and_preserves_unavailable_evidence():
     report, code = build_report(root, runtime_binary="definitely-missing-simplicio")
     assert code == 0
     assert report.startswith("# Mapper quality gate")
-    assert "Performance observations | null" in report
+    assert "Performance | null" in report
     assert "HBP receipt | null" in report
     assert "Runtime ecosystem doctor | null" in report
 
@@ -34,6 +33,66 @@ def test_release_gate_fails_closed_on_legacy_json_and_missing_evidence():
     assert code == 1
     assert "Overall: **BLOCKED**" in report
     assert "INTERNAL_JSON .simplicio/project-map.json" in report
+    assert "Cross-repository E2E | null" in report
+
+
+def test_release_evidence_requires_boolean_observation_and_detail(tmp_path):
+    evidence = tmp_path / "release-evidence.toml"
+    evidence.write_text(
+        '''[evidence.cross_repository_e2e]
+observed = true
+detail = "installed mapper 1.2 consumed by dev-cli 2.3"
+
+[evidence.performance]
+observed = false
+detail = "peak RSS exceeded the bound"
+
+[evidence.hbp_receipt]
+observed = true
+
+[evidence.hbi_conformance]
+observed = "yes"
+detail = "not a boolean"
+''',
+        encoding="utf-8",
+    )
+    checks = dict((name, (status, detail)) for name, status, detail in _release_evidence(evidence))
+    assert checks["cross_repository_e2e"] == (
+        "pass",
+        "installed mapper 1.2 consumed by dev-cli 2.3",
+    )
+    assert checks["performance"] == ("fail", "peak RSS exceeded the bound")
+    assert checks["hbp_receipt"][0] == "null"
+    assert checks["hbi_conformance"][0] == "null"
+
+
+def test_release_gate_accepts_complete_observed_evidence_when_other_checks_pass(tmp_path, monkeypatch):
+    evidence = tmp_path / "release-evidence.toml"
+    evidence.write_text(
+        "\n".join(
+            f'[evidence.{name}]\nobserved = true\ndetail = "observed {name}"\n'
+            for name in ("cross_repository_e2e", "performance", "hbp_receipt", "hbi_conformance")
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("scripts.mapper_quality_gate._run", lambda *_: (True, "scanner passed"))
+    monkeypatch.setattr("scripts.mapper_quality_gate._runtime_check", lambda *_: ("pass", "runtime passed"))
+    monkeypatch.setattr("scripts.mapper_quality_gate._status", lambda *_: ("pass", "tool passed"))
+    report, code = build_report(
+        tmp_path,
+        full=True,
+        release=True,
+        evidence_path=evidence,
+    )
+    assert code == 0
+    assert "Overall: **PASS**" in report
+
+
+def test_report_escapes_multiline_and_table_delimiters(monkeypatch):
+    monkeypatch.setattr("scripts.mapper_quality_gate._run", lambda *_: (True, "ok|next\nline"))
+    monkeypatch.setattr("scripts.mapper_quality_gate._runtime_check", lambda *_: ("pass", "ok"))
+    report, _ = build_report(Path(__file__).parents[1])
+    assert "ok\\|next<br>line" in report
 
 
 def test_status_distinguishes_pass_failure_and_missing_command(tmp_path):

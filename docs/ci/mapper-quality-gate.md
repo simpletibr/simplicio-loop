@@ -12,13 +12,21 @@ Run all available local checks:
 
 For a release decision, require every local tool and the installed Runtime:
 
-    python scripts/mapper_quality_gate.py --release --full --require-tools --require-runtime
+    python scripts/mapper_quality_gate.py --release --full --require-tools --require-runtime \
+      --evidence artifacts/release-evidence.toml
 
 `--release` switches the scanner from the migration baseline to strict mode.
 Strict mode rejects every owned JSON artifact, including a still-valid legacy
 exception. Therefore the release command remains blocked until the binary/TOML
 migration has removed the artifact; an inventory entry can never become a
 release waiver.
+
+Release mode also requires explicit TOML observations for
+`cross_repository_e2e`, `performance`, `hbp_receipt`, and `hbi_conformance`.
+Each `[evidence.<name>]` table must contain `observed = true` and a non-empty
+`detail` describing versions, hashes, workload, receipt, or conformance result.
+Missing, malformed, or negative observations remain `null`/`fail` and block
+publication; the gate never converts absent evidence into a passing zero.
 
 The command writes Markdown to artifacts/mapper-quality-summary.md. It never writes an internal JSON report. Missing evidence is recorded as null with a reason and is never treated as zero.
 

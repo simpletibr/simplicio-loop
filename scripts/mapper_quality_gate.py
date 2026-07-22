@@ -15,6 +15,25 @@ import subprocess
 import sys
 from pathlib import Path
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10 uses the optional backport
+    import tomli as tomllib  # type: ignore[no-redef]
+
+
+_REQUIRED_RELEASE_EVIDENCE = {
+    "cross_repository_e2e": "adjacent released packages were not exercised",
+    "performance": "benchmark workload and hardware were not recorded",
+    "hbp_receipt": "a conformant HBP execution receipt was not recorded",
+    "hbi_conformance": "Runtime HBI conformance was not recorded",
+}
+_EVIDENCE_LABELS = {
+    "cross_repository_e2e": "Cross-repository E2E",
+    "performance": "Performance",
+    "hbp_receipt": "HBP receipt",
+    "hbi_conformance": "HBI conformance",
+}
+
 
 def _run(command: list[str], cwd: Path) -> tuple[bool, str]:
     try:
@@ -38,6 +57,36 @@ def _runtime_check(root: Path, binary: str) -> tuple[str, str]:
     return _status([binary, "ecosystem", "doctor", "--repo", "."], root)
 
 
+def _release_evidence(path: Path | None) -> list[tuple[str, str, str]]:
+    """Load explicit release observations without inventing unavailable results."""
+    document: dict = {}
+    load_error: str | None = None
+    if path is not None:
+        try:
+            with path.open("rb") as handle:
+                document = tomllib.load(handle)
+        except (OSError, tomllib.TOMLDecodeError) as error:
+            load_error = f"evidence file unavailable or invalid: {error}"
+
+    evidence = document.get("evidence", {})
+    checks: list[tuple[str, str, str]] = []
+    for key, unavailable_reason in _REQUIRED_RELEASE_EVIDENCE.items():
+        entry = evidence.get(key, {}) if isinstance(evidence, dict) else {}
+        observed = entry.get("observed") if isinstance(entry, dict) else None
+        detail = entry.get("detail") if isinstance(entry, dict) else None
+        if observed is True and isinstance(detail, str) and detail.strip():
+            checks.append((key, "pass", detail.strip()))
+        elif observed is False and isinstance(detail, str) and detail.strip():
+            checks.append((key, "fail", detail.strip()))
+        else:
+            checks.append((key, "null", load_error or unavailable_reason))
+    return checks
+
+
+def _table_cell(value: str) -> str:
+    return value.replace("|", "\\|").replace("\r", " ").replace("\n", "<br>")
+
+
 def build_report(
     root: Path,
     runtime_binary: str = "simplicio",
@@ -45,6 +94,7 @@ def build_report(
     full: bool = False,
     require_tools: bool = False,
     release: bool = False,
+    evidence_path: Path | None = None,
 ) -> tuple[str, int]:
     checks: list[tuple[str, str, str]] = []
 
@@ -70,13 +120,21 @@ def build_report(
         ):
             checks.append((name, *_status(command, root)))
 
+    release_checks = _release_evidence(evidence_path)
+    checks.extend(
+        (_EVIDENCE_LABELS[name], result, detail)
+        for name, result, detail in release_checks
+    )
+
     hard_fail = any(result == "fail" for _, result, _ in checks)
     missing_required = any(result == "null" for _, result, _ in checks if require_tools)
     if require_runtime and runtime_status != "pass":
         missing_required = True
 
     unavailable_evidence = release and (
-        runtime_status != "pass" or not full
+        runtime_status != "pass"
+        or not full
+        or any(result != "pass" for _, result, _ in release_checks)
     )
     overall = "PASS" if not hard_fail and not missing_required and not unavailable_evidence else "BLOCKED"
     now = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
@@ -90,17 +148,11 @@ def build_report(
         "| Criterion | Result | Evidence |",
         "| --- | --- | --- |",
     ]
-    lines.extend(f"| {name} | {result} | {detail} |" for name, result, detail in checks)
     lines.extend(
-        [
-            "| Cross-repository E2E | null | adjacent package versions are not available in this checkout |",
-            "| Performance observations | null | benchmark hardware/workload not supplied |",
-            "| HBP receipt | null | Runtime receipt export is not available in this checkout |",
-            "",
-            "A null result is unavailable evidence, never a passing zero.",
-            "",
-        ]
+        f"| {_table_cell(name)} | {result} | {_table_cell(detail)} |"
+        for name, result, detail in checks
     )
+    lines.extend(["", "A null result is unavailable evidence, never a passing zero.", ""])
     return "\n".join(lines), 0 if overall == "PASS" else 1
 
 
@@ -113,6 +165,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--full", action="store_true", help="also run Python, Node and package checks")
     parser.add_argument("--require-tools", action="store_true", help="block when local tools are unavailable")
     parser.add_argument("--release", action="store_true", help="fail closed on legacy JSON or unavailable evidence")
+    parser.add_argument("--evidence", type=Path, help="TOML file containing observed release evidence")
     args = parser.parse_args(argv)
     root = args.root.resolve()
     report, code = build_report(
@@ -122,6 +175,7 @@ def main(argv: list[str] | None = None) -> int:
         args.full,
         args.require_tools,
         args.release,
+        args.evidence,
     )
     output = args.output if args.output.is_absolute() else root / args.output
     output.parent.mkdir(parents=True, exist_ok=True)

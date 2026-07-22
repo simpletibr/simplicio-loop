@@ -1,13 +1,22 @@
-# Goal result — issue #328
+# Goal Result — GitHub issue #320
 
-## Outcome
+## Result
 
-A real, reviewable repository diff now provides a deterministic meta-audit tool and a committed inventory for all 178 publicly accessible issues. Every inventory row carries the required ten-section review contract, dependencies, nine-layer test flow, evidence requirements, hashes, security state, and conservative closure decision.
+A tested fail-closed patch is ready. The change does not claim the full binary
+migration complete: strict mode correctly blocks release until internal JSON is
+removed and every external evidence criterion is explicitly observed.
 
-## Evidence
+## Delivered
 
-See `docs/evidence/issue-328-meta-audit.json`, `docs/issue-meta-audit.md`, and `.specs/architecture/ADR-013-reproducible-issue-meta-audit.md`.
+- Explicit TOML observations for cross-repository E2E, performance, HBP receipt,
+  and HBI conformance.
+- Release failure on missing, malformed, negative, or incomplete observations.
+- Safe Markdown evidence rendering for multiline output and table delimiters.
+- npm prepublish integration and operator documentation.
+- Focused regression coverage and durable local execution evidence.
 
-## Residual blocker
+## Exit status
 
-The repository evidence is complete, but the issue's remote-mutation criterion is not claimed complete: GitHub bodies were not rewritten because this Cloud checkout has neither a configured remote nor authenticated GitHub tooling. The PR must remain unmerged until an authenticated operator reviews/applies remote issue diffs and CI is green.
+`BLOCKED` for full issue completion because required Runtime/adjacent-package
+conformance and the underlying internal-format migration are unavailable. The
+issue must remain open until those criteria pass after merge.
