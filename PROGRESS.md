@@ -169,3 +169,5 @@
   `pytest -q` mostra os mesmos 48 failures pré-existentes de antes deste
   slice (confirmado via `git stash`), nenhum em `test_plan_compiler.py`/
   `test_compile_task_spec.py`.
+
+- 2026-07-22: issue #256 adversarial follow-up now validates the complete causal identity in every Runtime receipt; 8 forged coordinator/session/attempt/plan variants fail closed even with a recomputed valid digest. Focused result: 44 passed, 91.22% branch coverage across the sink/integrated slice, clean-wheel probe passed, and 500-transaction benchmark recorded. Live Runtime/Agent cross-repository traces remain unavailable, so the issue remains open and full completion is not claimed.
