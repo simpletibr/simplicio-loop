@@ -45,6 +45,9 @@ jobs:
       - name: Verify workflow references and thresholds
         run: python scripts/check_workflow_references.py
 
+      - name: Enforce internal JSON migration baseline
+        run: python scripts/check_json_boundaries.py --mode baseline
+
       - name: Run Python tests and produce coverage JSON
         run: >-
           python -m pytest tests/python -q
@@ -74,4 +77,3 @@ jobs:
             quality-gate-report.json
             coverage/coverage-summary.json
           if-no-files-found: warn
-

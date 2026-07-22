@@ -12,7 +12,13 @@ Run all available local checks:
 
 For a release decision, require every local tool and the installed Runtime:
 
-    python scripts/mapper_quality_gate.py --full --require-tools --require-runtime
+    python scripts/mapper_quality_gate.py --release --full --require-tools --require-runtime
+
+`--release` switches the scanner from the migration baseline to strict mode.
+Strict mode rejects every owned JSON artifact, including a still-valid legacy
+exception. Therefore the release command remains blocked until the binary/TOML
+migration has removed the artifact; an inventory entry can never become a
+release waiver.
 
 The command writes Markdown to artifacts/mapper-quality-summary.md. It never writes an internal JSON report. Missing evidence is recorded as null with a reason and is never treated as zero.
 

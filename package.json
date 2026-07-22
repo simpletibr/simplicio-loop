@@ -96,6 +96,8 @@
     "docs:version": "npm --prefix docs-site run docs:version --",
     "evidence": "playwright test --project=chromium",
     "pack:dry": "npm pack --dry-run",
+    "quality:release": "python3 scripts/mapper_quality_gate.py --release --full --require-tools --require-runtime",
+    "prepublishOnly": "npm run quality:release",
     "release": "npm publish --access public"
   },
   "devDependencies": {

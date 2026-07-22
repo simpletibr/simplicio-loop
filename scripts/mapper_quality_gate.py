@@ -44,11 +44,17 @@ def build_report(
     require_runtime: bool = False,
     full: bool = False,
     require_tools: bool = False,
+    release: bool = False,
 ) -> tuple[str, int]:
     checks: list[tuple[str, str, str]] = []
 
     scanner_ok, scanner_output = _run(
-        [sys.executable, "scripts/check_json_boundaries.py", "--strict"], root
+        [
+            sys.executable,
+            "scripts/check_json_boundaries.py",
+            "--mode",
+            "strict" if release else "baseline",
+        ], root
     )
     checks.append(("Internal JSON inventory", "pass" if scanner_ok else "fail", scanner_output or "no output"))
 
@@ -69,7 +75,10 @@ def build_report(
     if require_runtime and runtime_status != "pass":
         missing_required = True
 
-    overall = "PASS" if not hard_fail and not missing_required else "BLOCKED"
+    unavailable_evidence = release and (
+        runtime_status != "pass" or not full
+    )
+    overall = "PASS" if not hard_fail and not missing_required and not unavailable_evidence else "BLOCKED"
     now = dt.datetime.now(dt.timezone.utc).replace(microsecond=0).isoformat()
     lines = [
         "# Mapper quality gate",
@@ -103,6 +112,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--require-runtime", action="store_true")
     parser.add_argument("--full", action="store_true", help="also run Python, Node and package checks")
     parser.add_argument("--require-tools", action="store_true", help="block when local tools are unavailable")
+    parser.add_argument("--release", action="store_true", help="fail closed on legacy JSON or unavailable evidence")
     args = parser.parse_args(argv)
     root = args.root.resolve()
     report, code = build_report(
@@ -111,6 +121,7 @@ def main(argv: list[str] | None = None) -> int:
         args.require_runtime,
         args.full,
         args.require_tools,
+        args.release,
     )
     output = args.output if args.output.is_absolute() else root / args.output
     output.parent.mkdir(parents=True, exist_ok=True)
