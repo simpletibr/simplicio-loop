@@ -1,5 +1,29 @@
 # Progress Log — GitHub issue #320
 
+## Current verification — 2026-07-22
+
+- Open PRs in `wesleysimplicio/simplicio-mapper`: **0**.
+- Open issues: **#320, #325 and #328**.
+- #325 implementation, rollback path, CLI receipt, focused tests and local
+  benchmark are present on `main`; its remaining documentation drift was
+  corrected in the closeout branch.
+- #328 has a committed deterministic inventory of 178 issues (175 closed, 3
+  open), ten-section proposals, dependency matrix and replay checks.
+- #320 remains **BLOCKED**, not completed: strict mode still reports the
+  inventoried legacy JSON artifacts and the required Runtime HBI/HBP
+  conformance and cross-repository evidence are unavailable. The upstream
+  Runtime contracts remain open in #3492, #3494 and #3496.
+- Closeout validation: version-sync check passed; 60 focused Python tests
+  passed; Ruff passed; Node unit tests passed 92 with 1 documented skip;
+  baseline JSON policy passed and strict policy correctly blocked on 23
+  inventoried legacy artifacts.
+- The base worker lacks `pytest`/`diskcache`; closeout tests were run in an
+  isolated environment with the declared dev dependencies. The `simplicio`
+  Runtime binary remains unavailable.
+
+This section records the current closeout state. The historical checkpoints
+below are retained as evidence from earlier runs.
+
 ## Current status
 
 The release gate is hardened and tested. Full issue completion remains blocked:

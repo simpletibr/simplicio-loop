@@ -13,11 +13,11 @@ from __future__ import annotations
 import os
 import platform
 from dataclasses import asdict, dataclass
-from enum import StrEnum
+from enum import Enum
 from typing import Any
 
 
-class ExecutionProfile(StrEnum):
+class ExecutionProfile(str, Enum):
     """User-visible execution profiles for mapper pipeline dispatch."""
 
     AUTO = "auto"

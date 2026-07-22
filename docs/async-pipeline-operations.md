@@ -107,9 +107,9 @@ async pipeline, use `SIMPLICIO_MAPPER_EXECUTION_PROFILE=sync` instead
 - **Linux/macOS with `uvloop` installed**: the policy is installed and
   used automatically -- there is no environment variable to opt out of
   uvloop specifically once it is importable in the environment (the only
-  way to avoid it is to not have `uvloop` installed, to run on Windows, or
-  to stay under the size-based dispatch threshold so the run never reaches
-  the async path at all). This path is verified today only via
+  way to avoid it is to not have `uvloop` installed or to run on Windows;
+  the mapper's normal `auto` profile is async at every repository size). This
+  path is verified today only via
   `unittest.mock` in `UvloopSelectionTest` (mocked
   `sys.platform`/`sys.modules`), **not** against a real `uvloop`
   installation actually driving the event loop -- an honestly-documented
@@ -344,13 +344,14 @@ real on the platforms measured so far.
 
 - **Cause**: `uvloop` is not installed (`pip install uvloop`), or
   `sys.platform == "win32"` (uvloop is never attempted on Windows, by
-  design -- not a bug), or the run never reached the async path at all
-  (tree below `SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES`).
+  design -- not a bug). The normal `auto` profile reaches the async path at
+  every repository size; an explicit `sync` profile or kill switch is the
+  expected way to run synchronously.
 - **Diagnose**: `python -c "import uvloop"` -- if this raises
   `ImportError`, that's why. There is no packaged
   `simplicio-mapper[uvloop]` extra today (see "`uvloop` opt-in" above); it
-  must be installed as a separate, manual step. Also confirm the run
-  actually crossed the size-based dispatch threshold.
+  must be installed as a separate, manual step. The execution receipt records
+  the selected profile for confirmation.
 
 ## Cross-references
 
@@ -365,7 +366,7 @@ real on the platforms measured so far.
   `docs/async-pipeline-after-benchmark.md`
 - Before/after numbers (Linux container, issue #264):
   `docs/async-pipeline-after-benchmark-linux-container.md`
-- Dispatch/crossover benchmark (size-based dispatch, plan step 11):
+- Dispatch/crossover benchmark (explicit profiles and default-async dispatch):
   `docs/async-pipeline-dispatch-benchmark.md`
 - Inventory-stage-only benchmark (issue #264):
   `docs/async-inventory-benchmark.md`
