@@ -8,10 +8,10 @@ O `simplicio-dev-cli` é a CLI determinística de desenvolvimento que consome Ma
 
 ## Inventário
 
-- Total: **97**
-- Estados: `{"closed": 90, "open": 7}`
-- Decisões: `{"CLOSE-READY": 3, "HISTORICAL-EVIDENCE-GAP": 87, "NEEDS-IMPLEMENTATION": 7}`
-- SHA-256 da normalização: `fe56e8baf3115249e62910a116c78cd78f5374eefa126e35014d88dc5344ad0d`
+- Total: **102**
+- Estados: `{"closed": 93, "open": 9}`
+- Decisões: `{"CLOSE-READY": 5, "HISTORICAL-EVIDENCE-GAP": 88, "NEEDS-IMPLEMENTATION": 9}`
+- SHA-256 da normalização: `40731f5661f4ee66de6ae7a3de6014ade67ce08a730f3da39d48b70d093b6695`
 
 ## Matriz resumida
 
@@ -58,7 +58,7 @@ O `simplicio-dev-cli` é a CLI determinística de desenvolvimento que consome Ma
 | [89](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/89) | 2026-07-02 | closed | runtime | high | P0 | HISTORICAL-EVIDENCE-GAP |
 | [90](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/90) | 2026-07-02 | closed | runtime | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [93](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/93) | 2026-07-02 | closed | mapper | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
-| [98](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/98) | 2026-07-07 | open | runtime | high | P0 | NEEDS-IMPLEMENTATION |
+| [98](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/98) | 2026-07-07 | closed | runtime | high | P0 | CLOSE-READY |
 | [99](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/99) | 2026-07-07 | closed | mapper | low | P1 | HISTORICAL-EVIDENCE-GAP |
 | [100](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/100) | 2026-07-07 | closed | runtime | medium | P1 | HISTORICAL-EVIDENCE-GAP |
 | [101](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/101) | 2026-07-07 | closed | runtime | high | P0 | HISTORICAL-EVIDENCE-GAP |
@@ -104,16 +104,21 @@ O `simplicio-dev-cli` é a CLI determinística de desenvolvimento que consome Ma
 | [243](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/243) | 2026-07-18 | closed | prompt | low | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [246](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/246) | 2026-07-19 | closed | prompt | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [247](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/247) | 2026-07-19 | closed | runtime | high | unassigned | HISTORICAL-EVIDENCE-GAP |
-| [251](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/251) | 2026-07-19 | open | runtime | medium | unassigned | NEEDS-IMPLEMENTATION |
+| [251](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/251) | 2026-07-19 | closed | runtime | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [252](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/252) | 2026-07-19 | closed | runtime | medium | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [255](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/255) | 2026-07-20 | closed | runtime | high | P0 | HISTORICAL-EVIDENCE-GAP |
 | [256](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/256) | 2026-07-20 | open | runtime | high | P0 | NEEDS-IMPLEMENTATION |
 | [257](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/257) | 2026-07-20 | open | runtime | high | P0 | NEEDS-IMPLEMENTATION |
-| [258](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/258) | 2026-07-20 | open | runtime | high | P0 | NEEDS-IMPLEMENTATION |
+| [258](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/258) | 2026-07-20 | closed | runtime | high | P0 | CLOSE-READY |
 | [259](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/259) | 2026-07-21 | closed | runtime | high | P0 | HISTORICAL-EVIDENCE-GAP |
 | [261](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/261) | 2026-07-21 | closed | runtime | high | unassigned | HISTORICAL-EVIDENCE-GAP |
 | [262](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/262) | 2026-07-21 | open | runtime | high | unassigned | NEEDS-IMPLEMENTATION |
 | [265](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/265) | 2026-07-21 | open | runtime | medium | unassigned | NEEDS-IMPLEMENTATION |
+| [298](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/298) | 2026-07-23 | open | runtime | high | P0 | NEEDS-IMPLEMENTATION |
+| [299](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/299) | 2026-07-23 | open | runtime | medium | P1 | NEEDS-IMPLEMENTATION |
+| [300](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/300) | 2026-07-23 | open | runtime | high | P0 | NEEDS-IMPLEMENTATION |
+| [301](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/301) | 2026-07-23 | open | runtime | high | P1 | NEEDS-IMPLEMENTATION |
+| [302](https://github.com/wesleysimplicio/simplicio-dev-cli/issues/302) | 2026-07-23 | open | runtime | high | P0 | NEEDS-IMPLEMENTATION |
 
 ## Revisões normalizadas (mais antiga → mais recente)
 
@@ -3834,11 +3839,11 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 
 ### #98 — [P0][Branch] Migrar a branch default de master para main e alinhar referências locais
 
-- Estado/data: `open`; criada `2026-07-07T03:57:12Z`; atualizada `2026-07-21T20:46:02Z`
+- Estado/data: `closed`; criada `2026-07-07T03:57:12Z`; atualizada `2026-07-23T05:45:50Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P0", "risk": "high"}`
 - Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
-- Decisão: **NEEDS-IMPLEMENTATION**
+- Decisão: **CLOSE-READY**
 
 #### Contexto e problema
 
@@ -8058,11 +8063,11 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 
 ### #251 — [Audit #582] Restore blocking CI coverage gate and remove stale workflow references
 
-- Estado/data: `open`; criada `2026-07-19T03:35:10Z`; atualizada `2026-07-21T20:46:01Z`
+- Estado/data: `closed`; criada `2026-07-19T03:35:10Z`; atualizada `2026-07-23T07:18:06Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "unassigned", "risk": "medium"}`
 - Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
-- Decisão: **NEEDS-IMPLEMENTATION**
+- Decisão: **HISTORICAL-EVIDENCE-GAP**
 
 #### Contexto e problema
 
@@ -8440,7 +8445,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 
 ### #256 — [P0][EffectSink] Implementar RuntimeEffectSink real com EffectTransaction e receipts
 
-- Estado/data: `open`; criada `2026-07-20T00:42:49Z`; atualizada `2026-07-21T20:46:04Z`
+- Estado/data: `open`; criada `2026-07-20T00:42:49Z`; atualizada `2026-07-23T21:02:03Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P0", "risk": "high"}`
 - Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
@@ -8668,7 +8673,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 
 ### #257 — [P0][Entrypoint] Expor modo integrado e torná-lo o caminho negociado para coordenadores
 
-- Estado/data: `open`; criada `2026-07-20T00:46:36Z`; atualizada `2026-07-21T20:46:05Z`
+- Estado/data: `open`; criada `2026-07-20T00:46:36Z`; atualizada `2026-07-23T21:02:08Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P0", "risk": "high"}`
 - Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
@@ -8837,11 +8842,11 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 
 ### #258 — [P0][Ownership] Uma tentativa atômica no integrado e zero scheduler/retry duplicado
 
-- Estado/data: `open`; criada `2026-07-20T00:47:15Z`; atualizada `2026-07-21T20:46:06Z`
+- Estado/data: `closed`; criada `2026-07-20T00:47:15Z`; atualizada `2026-07-22T21:53:31Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P0", "risk": "high"}`
 - Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
-- Decisão: **NEEDS-IMPLEMENTATION**
+- Decisão: **CLOSE-READY**
 
 #### Contexto e problema
 
@@ -9218,7 +9223,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 
 ### #262 — [Quality] Enforce no-internal-JSON and prove binary-format migration E2E
 
-- Estado/data: `open`; criada `2026-07-21T04:45:46Z`; atualizada `2026-07-21T20:46:07Z`
+- Estado/data: `open`; criada `2026-07-21T04:45:46Z`; atualizada `2026-07-23T21:02:09Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "runtime", "epic": "standalone", "priority": "unassigned", "risk": "high"}`
 - Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
@@ -9363,7 +9368,7 @@ Risco: descrição original incompleta ou evidência histórica não rastreável
 
 ### #265 — [META-AUDIT] Revisar todas as issues — objetivos, fluxo de testes e critérios de aceite
 
-- Estado/data: `open`; criada `2026-07-21T20:43:13Z`; atualizada `2026-07-21T20:43:13Z`
+- Estado/data: `open`; criada `2026-07-21T20:43:13Z`; atualizada `2026-07-23T21:02:11Z`
 - Labels: `nenhuma`
 - Classificação: `{"component": "runtime", "epic": "[META-AUDIT]", "priority": "unassigned", "risk": "medium"}`
 - Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": true, "tests_mentioned": true}`
@@ -9457,6 +9462,537 @@ Mudanças não necessárias ao objetivo acima, refactors oportunistas e contrato
 #### Entradas, saídas e contratos
 
 Entradas: corpo e metadados da issue. Saídas: implementação e evidência auditável. Contratos citados: JSON/export, PR/commit, PRs/commits, README/ADR, sistema/E2E.
+
+#### Dependências e ordem
+
+Referências explícitas: nenhuma. Ordem: validar contratos atuais da main antes de editar; registrar quebra cruzada em issue vinculada.
+
+#### Passo a passo implementável
+
+1. Reproduzir ou medir o estado inicial. 2. Confirmar contrato e superfície de mudança. 3. Implementar escopo mínimo. 4. Executar os testes aplicáveis. 5. Publicar PR/commit e receipts. 6. Revisar riscos antes de decidir o fechamento.
+
+#### Fluxo de testes
+
+Unitário: regras puras e entradas inválidas. Integração: contratos entre módulos. Sistema/E2E: comando feliz e falha observável. Regressão: cenário original. Concorrência/retry/timeout/cancelamento/rollback: exercer quando o fluxo possuir esses estados. Desempenho: benchmark antes/depois para hot path; segurança: secret/PII scan e abuso de input.
+
+#### Critérios de aceite verificáveis
+
+Implementação vinculada; unit, integração, sistema/E2E e regressão verdes; cobertura medida >=85% no código tocado (90% branch quando disponível); benchmark com números quando aplicável; argumentos inválidos, falhas, timeout e rollback demonstrados ou marcados N/A com justificativa.
+
+#### Evidências obrigatórias
+
+PR e commit; comandos e logs do gate local; receipts/métricas/hashes; relatório de falhas injetadas; matriz de dependências; diff da especificação; decisão de encerramento ou bloqueio.
+
+#### Riscos, rollback e decisão de encerramento
+
+Risco: descrição original incompleta ou evidência histórica não rastreável. Rollback: reverter o commit/PR e restaurar o contrato anterior documentado. Encerrar somente com evidência verificável; caso contrário classificar SPEC, BLOCKED ou NEEDS-IMPLEMENTATION.
+
+### #298 — [P0][Contract] Adotar PlanDAG canônico compartilhado entre Dev CLI, Loop e Runtime
+
+- Estado/data: `open`; criada `2026-07-23T19:42:11Z`; atualizada `2026-07-23T21:02:13Z`
+- Labels: `nenhuma`
+- Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P0", "risk": "high"}`
+- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
+- Decisão: **NEEDS-IMPLEMENTATION**
+
+#### Contexto e problema
+
+## Contexto e problema
+
+O Dev CLI já produz `simplicio.plan-dag/v1`, enquanto o Loop mantém contratos próprios de plano/run e o Runtime possui seu exec-graph. A mesma intenção pode atravessar representações diferentes, exigindo adapters e permitindo divergência de dependências, gates, orçamento, identidade causal e critérios de aceite.
+
+## Objetivo
+
+Definir e adotar um único contrato canônico de plano para o caminho Mapper → Loop/Agent → Dev CLI → Runtime, com uma fonte de schema, conformance suite e projeções explicitamente derivadas.
+
+## Fora de escopo
+
+- fundir os processos dos projetos;
+- transferir scheduling do Loop para o Dev CLI;
+- permitir execução embutida no compilador;
+- manter conversões silenciosas ou ilimitadas entre formatos.
+
+## Dependências
+
+- #256 RuntimeEffectSink;
+- #257 entrypoint integrado;
+- Runtime EffectTransaction/exec-graph;
+- contratos atuais do simplicio-loop.
+
+## Implementação passo a passo
+
+1. Inventariar campos e invariantes dos planos do Dev CLI, Loop e Runtime.
+2. Publicar matriz source-of-truth/owner/consumer e registrar incompatibilidades.
+3. Congelar schema canônico com major version, additive-field policy e limites.
+4. Incluir goal/plan/node IDs, dependencies, conflicts, budget, deadline, risk, authority, context_handle, acceptance criteria, effects e verifications.
+5. Extrair fixtures oficiais e conformance suite consumível pelos três projetos.
+6. Fazer o Dev CLI compilar somente o contrato canônico.
+7. Fazer o Loop consumir o DAG, sem reconstruí-lo a partir de texto.
+8. Fazer o Runtime validar o mesmo digest antes de admitir efeitos.
+9. Permitir projeções locais somente com `source_digest`, versão e transformação registrada.
+10. Implementar adapter apenas N/N-1, com telemetria e data de expiração.
+11. Rejeitar major desconhecido, perda de campos obrigatórios e digest divergente.
+12. Propagar o mesmo plan/node ID até observations e receipts.
+13. Adicionar E2E cross-repo com pacotes instalados.
+14. Documentar rollout, rollback e matriz de compatibilidade.
+
+## Testes obrigatórios
+
+- ciclos, órfãos, conflitos e ordenação;
+- round-trip determinístico e canonical hash;
+- N/N-1 e major incompatível;
+- projeção com digest válido/adulterado;
+- Loop dispatch de cada node;
+- Runtime admission do mesmo EffectPlan;
+- restart/replay preservando IDs;
+- pacote instalado, não apenas checkout;
+- mixed-version e rollback.
+
+## Critérios de aceite
+
+- [ ] Existe uma única fonte de schema PlanDAG.
+- [ ] Dev CLI, Loop e Runtime passam a mesma conformance suite.
+- [ ] Loop não recria plano sem referência/digest canônico.
+- [ ] Runtime vincula effect receipt ao mesmo plan/node ID.
+- [ ] Nenhum campo obrigatório é perdido em projeções.
+- [ ] Major incompatível falha fechado.
+- [ ] Adapter suporta somente N/N-1 e possui expiração.
+- [ ] E2E prova Goal → PlanDAG → Effect → Observation → Receipt.
+- [ ] Rollback para a versão anterior é documentado e testado.
+
+## Evidências para fechamento
+
+Matriz before/after, schemas e digests, fixtures, resultados cross-repo, traces causais, mixed-version matrix, benchmark de serialização/validação e relatório de rollback.
+
+#### Objetivo
+
+Entregar e provar o resultado delimitado por: [P0][Contract] Adotar PlanDAG canônico compartilhado entre Dev CLI, Loop e Runtime
+
+#### Fora de escopo
+
+Mudanças não necessárias ao objetivo acima, refactors oportunistas e contratos de outros projetos sem issue cruzada.
+
+#### Entradas, saídas e contratos
+
+Entradas: corpo e metadados da issue. Saídas: implementação e evidência auditável. Contratos citados: EffectTransaction/exec-graph, Loop/Agent, N/N-1, before/after, goal/plan/node, plan/node, plano/run, referência/digest, restart/replay, serialização/validação, simplicio.plan-dag/v1, source-of-truth/owner/consumer, válido/adulterado.
+
+#### Dependências e ordem
+
+Referências explícitas: #256, #257. Ordem: validar contratos atuais da main antes de editar; registrar quebra cruzada em issue vinculada.
+
+#### Passo a passo implementável
+
+1. Reproduzir ou medir o estado inicial. 2. Confirmar contrato e superfície de mudança. 3. Implementar escopo mínimo. 4. Executar os testes aplicáveis. 5. Publicar PR/commit e receipts. 6. Revisar riscos antes de decidir o fechamento.
+
+#### Fluxo de testes
+
+Unitário: regras puras e entradas inválidas. Integração: contratos entre módulos. Sistema/E2E: comando feliz e falha observável. Regressão: cenário original. Concorrência/retry/timeout/cancelamento/rollback: exercer quando o fluxo possuir esses estados. Desempenho: benchmark antes/depois para hot path; segurança: secret/PII scan e abuso de input.
+
+#### Critérios de aceite verificáveis
+
+Implementação vinculada; unit, integração, sistema/E2E e regressão verdes; cobertura medida >=85% no código tocado (90% branch quando disponível); benchmark com números quando aplicável; argumentos inválidos, falhas, timeout e rollback demonstrados ou marcados N/A com justificativa.
+
+#### Evidências obrigatórias
+
+PR e commit; comandos e logs do gate local; receipts/métricas/hashes; relatório de falhas injetadas; matriz de dependências; diff da especificação; decisão de encerramento ou bloqueio.
+
+#### Riscos, rollback e decisão de encerramento
+
+Risco: descrição original incompleta ou evidência histórica não rastreável. Rollback: reverter o commit/PR e restaurar o contrato anterior documentado. Encerrar somente com evidência verificável; caso contrário classificar SPEC, BLOCKED ou NEEDS-IMPLEMENTATION.
+
+### #299 — [P1][TaskSpec] Substituir bridge textual por entrada TaskSpec tipada e sem perda
+
+- Estado/data: `open`; criada `2026-07-23T19:42:11Z`; atualizada `2026-07-23T21:02:14Z`
+- Labels: `nenhuma`
+- Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P1", "risk": "medium"}`
+- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
+- Decisão: **NEEDS-IMPLEMENTATION**
+
+#### Contexto e problema
+
+## Contexto e problema
+
+O modo integrado atual reconstrói um TaskSpec mínimo a partir de strings livres; cada linha de critérios vira AC1/AC2 e informações como severidade, origem, símbolos, evidência e relações são perdidas.
+
+## Objetivo
+
+Expor uma entrada TaskSpec tipada como caminho principal, preservando integralmente requisitos e permitindo que a bridge textual permaneça apenas como adapter explícito.
+
+## Fora de escopo
+
+- usar LLM para inventar critérios ausentes;
+- aceitar verificação vazia em tarefas mutantes;
+- remover imediatamente a CLI humana de texto.
+
+## Implementação passo a passo
+
+1. Definir schema/version do TaskSpec e campos obrigatórios.
+2. Modelar goal, non-goals, constraints, AC IDs/text/type/priority/source, targets, symbols, risk, expected evidence e verification commands.
+3. Adicionar `run_task_spec()` e entrada CLI por arquivo/stdin.
+4. Fazer Plan Compiler consumir diretamente o objeto tipado.
+5. Transformar a bridge textual em adapter nomeado com provenance e warnings.
+6. Retornar NEEDS_CLARIFICATION em ambiguidades, nunca preencher silenciosamente.
+7. Preservar IDs e relações no PlanDAG, VerificationPlan e receipts.
+8. Validar paths, commands, limits e schemas antes de model/effect.
+9. Implementar canonical serialization e hash.
+10. Adicionar compatibilidade N/N-1 e rejeição de major desconhecido.
+11. Atualizar Loop/Runtime para enviar TaskSpec, não strings remontadas.
+12. Medir perda de informação e tokens before/after.
+13. Documentar exemplos, migration e rollback.
+
+## Testes obrigatórios
+
+- round-trip de todos os campos;
+- ACs relacionados e evidência múltipla;
+- entrada incompleta/ambígua;
+- paths/commands inválidos;
+- textual adapter com warning/provenance;
+- N/N-1 e major futuro;
+- Loop → Dev CLI → Runtime E2E;
+- determinismo e hash;
+- clean install.
+
+## Critérios de aceite
+
+- [ ] TaskSpec tipado é o caminho integrado principal.
+- [ ] Nenhum ID, constraint, target, risk ou expected evidence se perde.
+- [ ] Bridge textual é explícita e observável.
+- [ ] Critérios ausentes resultam em NEEDS_CLARIFICATION.
+- [ ] PlanDAG e receipts referenciam os AC IDs originais.
+- [ ] Entradas inválidas falham antes de LLM ou write.
+- [ ] E2E com pacote instalado está verde.
+- [ ] Métricas before/after usam dados reais.
+
+## Evidências para fechamento
+
+Schema, fixtures, round-trip hashes, loss matrix, outputs de erro, E2E trace, benchmark de tokens/latência e rollback.
+
+#### Objetivo
+
+Entregar e provar o resultado delimitado por: [P1][TaskSpec] Substituir bridge textual por entrada TaskSpec tipada e sem perda
+
+#### Fora de escopo
+
+Mudanças não necessárias ao objetivo acima, refactors oportunistas e contratos de outros projetos sem issue cruzada.
+
+#### Entradas, saídas e contratos
+
+Entradas: corpo e metadados da issue. Saídas: implementação e evidência auditável. Contratos citados: AC1/AC2, IDs/text/type/priority/source, Loop/Runtime, N/N-1, arquivo/stdin., before/after, before/after., incompleta/ambígua, model/effect., paths/commands, schema/version, tokens/latência, warning/provenance.
+
+#### Dependências e ordem
+
+Referências explícitas: nenhuma. Ordem: validar contratos atuais da main antes de editar; registrar quebra cruzada em issue vinculada.
+
+#### Passo a passo implementável
+
+1. Reproduzir ou medir o estado inicial. 2. Confirmar contrato e superfície de mudança. 3. Implementar escopo mínimo. 4. Executar os testes aplicáveis. 5. Publicar PR/commit e receipts. 6. Revisar riscos antes de decidir o fechamento.
+
+#### Fluxo de testes
+
+Unitário: regras puras e entradas inválidas. Integração: contratos entre módulos. Sistema/E2E: comando feliz e falha observável. Regressão: cenário original. Concorrência/retry/timeout/cancelamento/rollback: exercer quando o fluxo possuir esses estados. Desempenho: benchmark antes/depois para hot path; segurança: secret/PII scan e abuso de input.
+
+#### Critérios de aceite verificáveis
+
+Implementação vinculada; unit, integração, sistema/E2E e regressão verdes; cobertura medida >=85% no código tocado (90% branch quando disponível); benchmark com números quando aplicável; argumentos inválidos, falhas, timeout e rollback demonstrados ou marcados N/A com justificativa.
+
+#### Evidências obrigatórias
+
+PR e commit; comandos e logs do gate local; receipts/métricas/hashes; relatório de falhas injetadas; matriz de dependências; diff da especificação; decisão de encerramento ou bloqueio.
+
+#### Riscos, rollback e decisão de encerramento
+
+Risco: descrição original incompleta ou evidência histórica não rastreável. Rollback: reverter o commit/PR e restaurar o contrato anterior documentado. Encerrar somente com evidência verificável; caso contrário classificar SPEC, BLOCKED ou NEEDS-IMPLEMENTATION.
+
+### #300 — [P0][Context] Vincular ContextSnapshot, ContextPack e context_handle por digest verificável
+
+- Estado/data: `open`; criada `2026-07-23T19:42:12Z`; atualizada `2026-07-23T21:02:15Z`
+- Labels: `nenhuma`
+- Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P0", "risk": "high"}`
+- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
+- Decisão: **NEEDS-IMPLEMENTATION**
+
+#### Contexto e problema
+
+## Contexto e problema
+
+O Loop alimenta a LLM com `mapper handoff/context_pack`, enquanto o modo integrado do Dev CLI exige o ContextSnapshot canônico. Sem vínculo verificável, a decisão da LLM pode usar um pack diferente do snapshot autorizado para o efeito.
+
+## Objetivo
+
+Tornar ContextSnapshot a fonte auditável, ContextPack uma projeção limitada para LLM e context_handle a identidade comum usada no Goal, PlanDAG, Attempt, Effect e Receipt.
+
+## Fora de escopo
+
+- enviar o snapshot inteiro para toda chamada LLM;
+- permitir packs sem origem ou digest;
+- tornar o Dev CLI owner do schema Mapper.
+
+## Implementação passo a passo
+
+1. Definir `ContextHandle` com snapshot_id, revision, source_digest, pack_hash, mapper version e source root identity.
+2. Fazer o Mapper assinar/hash-ear canonical bytes antes de gerar projeções.
+3. Registrar no ContextPack os selectors, truncation, token budget e snapshot digest de origem.
+4. Validar pack_hash e source_digest no intake do Dev CLI.
+5. Propagar context_handle por GoalEnvelope, PlanDAG, attempt, EffectTransaction e receipt.
+6. Bloquear snapshot ausente, pack órfão, revision stale ou root mismatch.
+7. Implementar refresh explícito após mudança estrutural.
+8. Detectar source drift entre decisão e efeito.
+9. Permitir raw reads somente quando `needs_broader_context` estiver registrado.
+10. Redigir conteúdo sensível sem alterar a verificabilidade da projeção.
+11. Implementar cache por digest e invalidation determinística.
+12. Publicar diagnóstico mostrando snapshot/pack efetivos sem expor conteúdo.
+13. Adicionar E2E Loop → LLM pack → Dev CLI snapshot → Runtime receipt.
+14. Documentar recovery, compatibilidade e rollback.
+
+## Testes obrigatórios
+
+- pack válido e determinístico;
+- pack adulterado, truncado e de snapshot diferente;
+- source drift antes do efeito;
+- root/path mismatch;
+- cache hit/miss e invalidation;
+- refresh após mudança estrutural;
+- secrets ausentes;
+- budget excedido;
+- pacotes instalados e versões mistas.
+
+## Critérios de aceite
+
+- [ ] Todo ContextPack aponta para um ContextSnapshot verificável.
+- [ ] O mesmo context_handle atravessa plano, tentativa, efeito e receipt.
+- [ ] Pack adulterado ou stale falha antes de mutação.
+- [ ] A LLM recebe projeção limitada, não o snapshot completo por padrão.
+- [ ] Source drift produz estado tipado e não write.
+- [ ] Cache nunca mistura roots/revisions.
+- [ ] Diagnóstico explica hashes, versões e invalidation.
+- [ ] E2E demonstra vínculo causal completo.
+
+## Evidências para fechamento
+
+Fixtures canonicalizadas, hashes, traces, matriz de adulteração/drift, token budgets reais, logs redigidos, resultados E2E e procedimento de rollback.
+
+#### Objetivo
+
+Entregar e provar o resultado delimitado por: [P0][Context] Vincular ContextSnapshot, ContextPack e context_handle por digest verificável
+
+#### Fora de escopo
+
+Mudanças não necessárias ao objetivo acima, refactors oportunistas e contratos de outros projetos sem issue cruzada.
+
+#### Entradas, saídas e contratos
+
+Entradas: corpo e metadados da issue. Saídas: implementação e evidência auditável. Contratos citados: adulteração/drift, assinar/hash-ear, handoff/context_pack, hit/miss, root/path, roots/revisions., snapshot/pack.
+
+#### Dependências e ordem
+
+Referências explícitas: nenhuma. Ordem: validar contratos atuais da main antes de editar; registrar quebra cruzada em issue vinculada.
+
+#### Passo a passo implementável
+
+1. Reproduzir ou medir o estado inicial. 2. Confirmar contrato e superfície de mudança. 3. Implementar escopo mínimo. 4. Executar os testes aplicáveis. 5. Publicar PR/commit e receipts. 6. Revisar riscos antes de decidir o fechamento.
+
+#### Fluxo de testes
+
+Unitário: regras puras e entradas inválidas. Integração: contratos entre módulos. Sistema/E2E: comando feliz e falha observável. Regressão: cenário original. Concorrência/retry/timeout/cancelamento/rollback: exercer quando o fluxo possuir esses estados. Desempenho: benchmark antes/depois para hot path; segurança: secret/PII scan e abuso de input.
+
+#### Critérios de aceite verificáveis
+
+Implementação vinculada; unit, integração, sistema/E2E e regressão verdes; cobertura medida >=85% no código tocado (90% branch quando disponível); benchmark com números quando aplicável; argumentos inválidos, falhas, timeout e rollback demonstrados ou marcados N/A com justificativa.
+
+#### Evidências obrigatórias
+
+PR e commit; comandos e logs do gate local; receipts/métricas/hashes; relatório de falhas injetadas; matriz de dependências; diff da especificação; decisão de encerramento ou bloqueio.
+
+#### Riscos, rollback e decisão de encerramento
+
+Risco: descrição original incompleta ou evidência histórica não rastreável. Rollback: reverter o commit/PR e restaurar o contrato anterior documentado. Encerrar somente com evidência verificável; caso contrário classificar SPEC, BLOCKED ou NEEDS-IMPLEMENTATION.
+
+### #301 — [P1][Migration] Descontinuar escrita standalone e convergir para Effect API
+
+- Estado/data: `open`; criada `2026-07-23T19:42:13Z`; atualizada `2026-07-23T21:02:12Z`
+- Labels: `nenhuma`
+- Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P1", "risk": "high"}`
+- Rastreabilidade original: `{"evidence_mentioned": false, "pr_or_commit_mentioned": false, "tests_mentioned": false}`
+- Decisão: **NEEDS-IMPLEMENTATION**
+
+#### Contexto e problema
+
+## Contexto e problema
+
+Standalone ainda pode aplicar patch e testes localmente, enquanto integrated entrega efeitos ao Runtime. Dois caminhos mutantes criam comportamentos, receipts e falhas diferentes.
+
+## Objetivo
+
+Executar migração governada para que toda mutação de produção atravesse Effect API; standalone torna-se adapter temporário, explicitamente inseguro para integração, e depois read-only/retirado.
+
+## Fora de escopo
+
+- quebrar instalações existentes sem rollout;
+- impedir uso offline;
+- mover raciocínio/planejamento para o Runtime.
+
+## Implementação passo a passo
+
+1. Inventariar todos writes, git apply, commits, subprocesses e fallbacks standalone.
+2. Definir fases shadow, opt-in, default, warning, read-only e removal.
+3. Instrumentar uso por entrypoint sem prompts/secrets.
+4. Criar Runtime local/offline embutido ou transport adapter para preservar uso offline.
+5. Fazer `auto` preferir integrated por capability handshake.
+6. Exigir flag explícita para legacy standalone durante janela.
+7. Marcar receipts legacy sem alegar Runtime gate.
+8. Proibir mudança para standalone após effect_unknown.
+9. Adicionar kill switch governado que nunca duplica efeito.
+10. Migrar deterministic edit, task, feature e sprint.
+11. Remover writes duplicados após atingir gates de adoção.
+12. Implementar linter/guard contra novos writes fora do Effect API.
+13. Publicar datas/versões de depreciação e rollback.
+14. Validar clean install, upgrade e downgrade.
+
+## Testes obrigatórios
+
+- offline/online;
+- Runtime presente, ausente e incompatível;
+- shadow sem dupla mutação;
+- effect_unknown sem fallback;
+- kill switch;
+- upgrade/downgrade;
+- entrypoints task/feature/sprint/edit;
+- guard contra write;
+- installed packages;
+- recovery após crash.
+
+## Critérios de aceite
+
+- [ ] Existe roadmap de remoção com versões e datas.
+- [ ] Auto não escolhe write standalone silenciosamente.
+- [ ] Toda mutação padrão atravessa Effect API.
+- [ ] Offline continua disponível por executor local compatível com o mesmo contrato.
+- [ ] effect_unknown nunca causa segunda escrita.
+- [ ] Receipts distinguem legado e integrado.
+- [ ] Guard bloqueia novos writes fora do boundary.
+- [ ] Upgrade/downgrade e rollback foram exercitados.
+- [ ] Remoção final não reduz os cenários suportados sem decisão registrada.
+
+## Evidências para fechamento
+
+Inventário de writes before/after, telemetria agregada, rollout receipts, fault matrix, prova de zero dupla mutação, clean-install logs e rollback report.
+
+#### Objetivo
+
+Entregar e provar o resultado delimitado por: [P1][Migration] Descontinuar escrita standalone e convergir para Effect API
+
+#### Fora de escopo
+
+Mudanças não necessárias ao objetivo acima, refactors oportunistas e contratos de outros projetos sem issue cruzada.
+
+#### Entradas, saídas e contratos
+
+Entradas: corpo e metadados da issue. Saídas: implementação e evidência auditável. Contratos citados: Upgrade/downgrade, before/after, datas/versões, linter/guard, local/offline, offline/online, prompts/secrets., raciocínio/planejamento, read-only/retirado., task/feature/sprint/edit, upgrade/downgrade.
+
+#### Dependências e ordem
+
+Referências explícitas: nenhuma. Ordem: validar contratos atuais da main antes de editar; registrar quebra cruzada em issue vinculada.
+
+#### Passo a passo implementável
+
+1. Reproduzir ou medir o estado inicial. 2. Confirmar contrato e superfície de mudança. 3. Implementar escopo mínimo. 4. Executar os testes aplicáveis. 5. Publicar PR/commit e receipts. 6. Revisar riscos antes de decidir o fechamento.
+
+#### Fluxo de testes
+
+Unitário: regras puras e entradas inválidas. Integração: contratos entre módulos. Sistema/E2E: comando feliz e falha observável. Regressão: cenário original. Concorrência/retry/timeout/cancelamento/rollback: exercer quando o fluxo possuir esses estados. Desempenho: benchmark antes/depois para hot path; segurança: secret/PII scan e abuso de input.
+
+#### Critérios de aceite verificáveis
+
+Implementação vinculada; unit, integração, sistema/E2E e regressão verdes; cobertura medida >=85% no código tocado (90% branch quando disponível); benchmark com números quando aplicável; argumentos inválidos, falhas, timeout e rollback demonstrados ou marcados N/A com justificativa.
+
+#### Evidências obrigatórias
+
+PR e commit; comandos e logs do gate local; receipts/métricas/hashes; relatório de falhas injetadas; matriz de dependências; diff da especificação; decisão de encerramento ou bloqueio.
+
+#### Riscos, rollback e decisão de encerramento
+
+Risco: descrição original incompleta ou evidência histórica não rastreável. Rollback: reverter o commit/PR e restaurar o contrato anterior documentado. Encerrar somente com evidência verificável; caso contrário classificar SPEC, BLOCKED ou NEEDS-IMPLEMENTATION.
+
+### #302 — [P0][Authority] Garantir que LLM apenas proponha e nunca autorize efeitos diretamente
+
+- Estado/data: `open`; criada `2026-07-23T19:42:13Z`; atualizada `2026-07-23T21:02:16Z`
+- Labels: `nenhuma`
+- Classificação: `{"component": "runtime", "epic": "standalone", "priority": "P0", "risk": "high"}`
+- Rastreabilidade original: `{"evidence_mentioned": true, "pr_or_commit_mentioned": false, "tests_mentioned": true}`
+- Decisão: **NEEDS-IMPLEMENTATION**
+
+#### Contexto e problema
+
+## Contexto e problema
+
+O contrato afirma que a IA decide e o operador executa, mas isso precisa ser garantido mecanicamente. Texto ou tool call produzido pela LLM não pode equivaler a autoridade para write, commit ou operação irreversível.
+
+## Objetivo
+
+Separar Proposal, PolicyDecision, EffectAuthorization e ExecutionReceipt, exigindo gates determinísticos e identidade causal antes de qualquer efeito.
+
+## Fora de escopo
+
+- remover LLM do planejamento;
+- tornar toda edição mecânica;
+- permitir que prompt, comentário ou conteúdo do repositório altere policy.
+
+## Implementação passo a passo
+
+1. Inventariar todos os pontos onde output da LLM alcança comandos, patches ou EffectSink.
+2. Definir `ChangeProposal` não autoritativa com digest, provenance e targets.
+3. Validar schema, paths, bounds, source hash e allowed capabilities.
+4. Executar policy/risk/secret/injection gates fora do contexto da LLM.
+5. Produzir `EffectAuthorization` assinada/hasheada com authority, expiry, attempt, lease e fence.
+6. Exigir authorization válida no EffectSink/Runtime.
+7. Proibir execução de shell arbitrário não declarado no VerificationPlan.
+8. Revalidar source/preconditions imediatamente antes do efeito.
+9. Vincular proposal → authorization → effect → receipt por digests.
+10. Redigir prompts/secrets de logs e receipts.
+11. Classificar deny, needs-human, stale, cancelled e effect_unknown.
+12. Adicionar human gate para irreversíveis.
+13. Implementar prompt-injection/adversarial test suite.
+14. Documentar threat model, recovery e rollback.
+
+## Testes obrigatórios
+
+- LLM tentando solicitar write direto;
+- path traversal, command injection e secret exfiltration;
+- proposal/authorization adulteradas;
+- authorization expirada, attempt/lease/fence divergentes;
+- source drift;
+- irreversible sem human gate;
+- replay/idempotência;
+- prompt injection em issue, comentário, código e docs;
+- installed-package E2E.
+
+## Critérios de aceite
+
+- [ ] Output bruto da LLM nunca chega ao executor como autoridade.
+- [ ] Todo efeito possui authorization verificável.
+- [ ] Proposal e receipt são ligados por digest.
+- [ ] Stale/expired/mismatched authorization falha antes de write.
+- [ ] Operações irreversíveis exigem decisão humana registrada.
+- [ ] Prompt injection não altera policy ou capability.
+- [ ] Logs/receipts não contêm prompt ou secret.
+- [ ] Adversarial suite e E2E instalados estão verdes.
+- [ ] Rollback não reexecuta efeito ambíguo.
+
+## Evidências para fechamento
+
+Threat model, call graph before/after, adversarial matrix, receipts/digests, secret scan, traces deny/allow/human-gate/effect_unknown e rollback report.
+
+#### Objetivo
+
+Entregar e provar o resultado delimitado por: [P0][Authority] Garantir que LLM apenas proponha e nunca autorize efeitos diretamente
+
+#### Fora de escopo
+
+Mudanças não necessárias ao objetivo acima, refactors oportunistas e contratos de outros projetos sem issue cruzada.
+
+#### Entradas, saídas e contratos
+
+Entradas: corpo e metadados da issue. Saídas: implementação e evidência auditável. Contratos citados: EffectSink/Runtime., Logs/receipts, Stale/expired/mismatched, assinada/hasheada, attempt/lease/fence, before/after, deny/allow/human-gate/effect_unknown, policy/risk/secret/injection, prompt-injection/adversarial, prompts/secrets, proposal/authorization, receipts/digests, replay/idempotência, source/preconditions.
 
 #### Dependências e ordem
 
