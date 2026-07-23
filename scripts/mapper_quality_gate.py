@@ -35,16 +35,31 @@ _EVIDENCE_LABELS = {
 }
 
 
-def _run(command: list[str], cwd: Path) -> tuple[bool, str]:
+def _run(
+    command: list[str],
+    cwd: Path,
+    env: dict[str, str] | None = None,
+) -> tuple[bool, str]:
     try:
-        result = subprocess.run(command, cwd=cwd, text=True, capture_output=True, check=False)
+        result = subprocess.run(
+            command,
+            cwd=cwd,
+            env=env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
     except OSError as error:
         return False, str(error)
     return result.returncode == 0, (result.stdout + result.stderr).strip()
 
 
-def _status(command: list[str], root: Path) -> tuple[str, str]:
-    ok, output = _run(command, root)
+def _status(
+    command: list[str],
+    root: Path,
+    env: dict[str, str] | None = None,
+) -> tuple[str, str]:
+    ok, output = _run(command, root, env=env)
     if ok:
         return "pass", output[-500:] or "command passed"
     lowered = output.lower()
@@ -113,12 +128,20 @@ def build_report(
 
     if full:
         npm = "npm.cmd" if os.name == "nt" else "npm"
-        for name, command in (
-            ("Python tests", [sys.executable, "-m", "pytest", "-q"]),
-            ("Node unit tests", [npm, "test"]),
-            ("Package contents", [npm, "pack", "--dry-run"]),
+        test_env = os.environ.copy()
+        existing_pythonpath = test_env.get("PYTHONPATH")
+        test_env["PYTHONPATH"] = os.pathsep.join(
+            value for value in (str(root), existing_pythonpath) if value
+        )
+        for name, command, env in (
+            # Fixture projects have their own `src` roots and are exercised by
+            # their dedicated contract/E2E tests. Collecting them from the
+            # repository root makes pytest resolve the wrong import root.
+            ("Python tests", [sys.executable, "-m", "pytest", "-q", "tests/python"], test_env),
+            ("Node unit tests", [npm, "test"], None),
+            ("Package contents", [npm, "pack", "--dry-run"], None),
         ):
-            checks.append((name, *_status(command, root)))
+            checks.append((name, *_status(command, root, env=env)))
 
     release_checks = _release_evidence(evidence_path)
     checks.extend(
