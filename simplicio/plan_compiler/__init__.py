@@ -24,6 +24,15 @@ from simplicio.plan_compiler.compile_task_spec import (
     PlanCompilationError,
     compile_task_spec_to_plan,
 )
+from simplicio.plan_compiler.conformance import (
+    PLAN_CONTRACT_CONSUMERS,
+    PLAN_CONTRACT_OWNER,
+    PLAN_PROJECTION_SCHEMA,
+    PlanProjection,
+    create_plan_projection,
+    plan_contract_manifest,
+    validate_plan_projection,
+)
 from simplicio.plan_compiler.effect_sink import (
     EffectDispatchContext,
     EffectOutcome,
@@ -67,9 +76,12 @@ __all__ = [
     "GOAL_ENVELOPE_SCHEMA",
     "GOAL_ENVELOPE_VERSION",
     "PLAN_COMPILER_COMPATIBILITY",
+    "PLAN_CONTRACT_CONSUMERS",
+    "PLAN_CONTRACT_OWNER",
     "PLAN_DAG_ADAPTER_EXPIRES_AT_VERSION",
     "PLAN_DAG_SCHEMA",
     "PLAN_DAG_VERSION",
+    "PLAN_PROJECTION_SCHEMA",
     "VERIFICATION_PLAN_SCHEMA",
     "CompatAdapterError",
     "CompatAdapterExpiredError",
@@ -89,6 +101,7 @@ __all__ = [
     "PlanCompilerError",
     "PlanDAG",
     "PlanNode",
+    "PlanProjection",
     "PlanValidationError",
     "RecordingEffectSink",
     "RuntimeEffectError",
@@ -102,5 +115,8 @@ __all__ = [
     "adapt_outbound",
     "canonical_hash",
     "compile_task_spec_to_plan",
+    "create_plan_projection",
     "load_mapper_context",
+    "plan_contract_manifest",
+    "validate_plan_projection",
 ]

@@ -37,6 +37,8 @@ RUNTIME_CAPABILITIES = [
     "simplicio.dev-cli.evidence-ledger/v1",
     "simplicio.dev-cli.task-batch/v1",
     "simplicio.prompt-envelope/v1",
+    "simplicio.plan-dag/v1",
+    "simplicio.plan-projection/v1",
 ]
 
 RUNTIME_VERIFY_CAPABILITIES = [

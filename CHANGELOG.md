@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Changed
+- Declared `simplicio.plan-dag/v1` as the canonical Dev CLI plan contract,
+  added digest-bound consumer projections for Loop and Runtime, and validated
+  explicit node conflicts (#298).
 - Paused all local inference by default (#259). Empty configuration, explicit
   llama.cpp routes, local planner routes, `--local`, and loopback
   OpenAI-compatible endpoints now fail closed with `LOCAL_INFERENCE_PAUSED`

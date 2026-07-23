@@ -25,7 +25,7 @@ PLAN_DAG_SCHEMA = "simplicio.plan-dag/v1"
 EFFECT_PLAN_SCHEMA = "simplicio.effect-plan/v1"
 VERIFICATION_PLAN_SCHEMA = "simplicio.verification-plan/v1"
 
-PLAN_COMPILER_COMPATIBILITY = {
+PLAN_COMPILER_COMPATIBILITY: dict[str, Any] = {
     "major": 1,
     "minimum_consumer_major": 1,
     "contract": "additive-fields-within-major",
@@ -87,6 +87,8 @@ class PlanNode:
     inputs: list[str] = field(default_factory=list)
     outputs: list[str] = field(default_factory=list)
     depends_on: list[str] = field(default_factory=list)
+    conflicts_with: list[str] = field(default_factory=list)
+    _conflicts_with_explicit: bool = field(default=False, repr=False, compare=False)
     read_set: list[str] = field(default_factory=list)
     write_set: list[str] = field(default_factory=list)
     risk: str = "low"
@@ -99,7 +101,7 @@ class PlanNode:
     rollback_strategy: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "node_id": self.node_id,
             "capability": self.capability,
             "inputs": self.inputs,
@@ -116,6 +118,9 @@ class PlanNode:
             "checkpoint_required": self.checkpoint_required,
             "rollback_strategy": self.rollback_strategy,
         }
+        if self.conflicts_with or self._conflicts_with_explicit:
+            payload["conflicts_with"] = self.conflicts_with
+        return payload
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> PlanNode:
@@ -125,6 +130,8 @@ class PlanNode:
             inputs=list(payload.get("inputs", [])),
             outputs=list(payload.get("outputs", [])),
             depends_on=list(payload.get("depends_on", [])),
+            conflicts_with=list(payload.get("conflicts_with", [])),
+            _conflicts_with_explicit="conflicts_with" in payload,
             read_set=list(payload.get("read_set", [])),
             write_set=list(payload.get("write_set", [])),
             risk=str(payload.get("risk", "low")),
@@ -303,6 +310,20 @@ class PlanDAG:
             unknown = set(node.depends_on) - known
             if unknown:
                 diagnostics.append(f"node {node.node_id} depends on unknown node(s) {sorted(unknown)}")
+            unknown_conflicts = set(node.conflicts_with) - known
+            if unknown_conflicts:
+                diagnostics.append(
+                    f"node {node.node_id} conflicts with unknown node(s) {sorted(unknown_conflicts)}"
+                )
+            if node.node_id in node.conflicts_with:
+                diagnostics.append(f"node {node.node_id} cannot conflict with itself")
+            for conflict_id in node.conflicts_with:
+                counterpart = next(
+                    (candidate for candidate in self.nodes if candidate.node_id == conflict_id),
+                    None,
+                )
+                if counterpart is not None and node.node_id not in counterpart.conflicts_with:
+                    diagnostics.append(f"node conflict must be symmetric: {node.node_id} -> {conflict_id}")
 
         if not diagnostics and self._has_cycle():
             diagnostics.append("PlanDAG contains a dependency cycle")

@@ -172,3 +172,12 @@
   `test_compile_task_spec.py`.
 
 - 2026-07-22: issue #256 adversarial follow-up now validates the complete causal identity in every Runtime receipt; 8 forged coordinator/session/attempt/plan variants fail closed even with a recomputed valid digest. Focused result: 44 passed, 91.22% branch coverage across the sink/integrated slice, clean-wheel probe passed, and 500-transaction benchmark recorded. Live Runtime/Agent cross-repository traces remain unavailable, so the issue remains open and full completion is not claimed.
+## Issue #298 canonical PlanDAG contract
+
+- 2026-07-23: added the canonical ownership manifest, digest-bound consumer
+  projections, explicit node conflicts, ADR-007, adversarial conformance tests
+  and a measured benchmark. Focused result: 51 passed; new conformance module
+  99% branch-aware coverage; 1,000-iteration benchmark mean 0.288002 ms and
+  p95 0.313495 ms. Full baseline: 1,915 passed, 20 skipped and 41 pre-existing
+  failures; cross-repository Loop/Runtime adoption remains an explicit closure
+  gate.

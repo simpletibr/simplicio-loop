@@ -53,6 +53,27 @@ plan.canonical_hash()  # same canonical entry -> same hash, always
 | `EffectPlan` | `simplicio.effect-plan/v1` |
 | `VerificationPlan` | `simplicio.verification-plan/v1` |
 
+## Contrato canônico e projeções
+
+`simplicio.plan-dag/v1` é o plano canônico compilado pelo Dev CLI. Seu
+manifesto de ownership pode ser obtido com `plan_contract_manifest()`:
+Dev CLI é owner; Loop e Runtime são consumidores registrados.
+
+Um consumidor que precise de uma visão local deve usar
+`create_plan_projection()`. A projeção `simplicio.plan-projection/v1` preserva
+`plan_id`, `goal_id`, `context_snapshot_id` e `revision`, declara
+`transformation_id` registrado para o consumidor e carrega tanto o digest do
+PlanDAG fonte quanto `payload_digest`. O payload deve ser exatamente o resultado
+determinístico da transformação registrada. Digest divergente, mutação posterior,
+consumer desconhecido, transformação arbitrária, plano fonte inválido, perda de
+identidade ou schema major incompatível falham fechado. Projeção não transfere
+ownership nem autoriza execução.
+
+`PlanNode.conflicts_with` registra conflitos de scheduling no mesmo contrato.
+Validação rejeita referência desconhecida, conflito do nó consigo mesmo e
+conflito assimétrico. O serializer preserva a presença explícita de
+`conflicts_with: []` recebida de produtores v1 anteriores, mantendo seu digest.
+
 `PLAN_COMPILER_COMPATIBILITY` declares `major=1`, `minimum_consumer_major=1`,
 and `contract="additive-fields-within-major"` — new fields may be added within
 a major version; consumers should reject a `schema` string whose major
