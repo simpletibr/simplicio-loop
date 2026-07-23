@@ -283,6 +283,13 @@ class SpanExpansionTest(unittest.TestCase):
         self.assertFalse(resolved["stale"])
         self.assertIn("import functools", resolved["text"])
 
+    def test_expand_handle_round_trips_colon_in_path(self) -> None:
+        path = "src/namespace:service.py"
+        (self.root / path).write_text("value = 1\n", encoding="utf-8")
+        handle = ri._expand_handle(str(self.root), path, None)
+        self.assertIn("%3A", handle)
+        self.assertEqual(ri.resolve_expand_handle(str(self.root), handle)["path"], path)
+
 
 class TokenBudgetTest(unittest.TestCase):
     def test_budget_fit_under_limit(self) -> None:

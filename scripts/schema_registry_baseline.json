@@ -7,6 +7,7 @@
     "simplicio_mapper.context_cache:CONTEXT_CACHE_STRUCTURED_VERSION": 1,
     "simplicio_mapper.context_dag:SCHEMA_VERSION": 1,
     "simplicio_mapper.context_snapshot:SCHEMA_VERSION": "v1",
+    "simplicio_mapper.execution_context:SCHEMA_VERSION": 1,
     "simplicio_mapper.contract:CONTRACT_VERSION": "v1",
     "simplicio_mapper.docsync:DOCS_SYNC_VERSION": 1,
     "simplicio_mapper.drift:SPEC_DRIFT_VERSION": 1,

@@ -74,6 +74,7 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "clustering_config": "",
         "changed_paths": [],
         "canonical_reuse": False,
+        "execution_context": False,
     }
     commands = (
         "index",
@@ -306,6 +307,8 @@ def _parse_args(argv: Sequence[str]) -> dict:
             opts["canonical_reuse"] = True
         elif arg == "--no-canonical-reuse":
             opts["canonical_reuse"] = False
+        elif arg == "--execution-context":
+            opts["execution_context"] = True
         elif arg == "--background":
             opts["background"] = True
         elif arg == "--sync":

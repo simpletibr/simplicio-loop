@@ -66,7 +66,11 @@ class ContextContractDistributionTests(unittest.TestCase):
                     str(python),
                     "-c",
                     "from importlib.resources import files; "
-                    "raise SystemExit(not files('simplicio_mapper').joinpath('contracts/context-snapshot/v1/consumer-example/validate_snapshot.py').is_file())",
+                    "root=files('simplicio_mapper'); "
+                    "required=('contracts/context-snapshot/v1/consumer-example/validate_snapshot.py',"
+                    "'contracts/execution-context/v1/schemas/execution-context.schema.json',"
+                    "'contracts/execution-context/v1/fixtures/valid/minimal/execution-context.json'); "
+                    "raise SystemExit(not all(root.joinpath(path).is_file() for path in required))",
                 ],
                 cwd=consumer,
             )

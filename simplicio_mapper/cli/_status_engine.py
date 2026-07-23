@@ -9,6 +9,7 @@ from collections.abc import Mapping
 
 from ..context_cache import ContextCache
 from ..context_pack import build_context_pack
+from ..execution_context import build_execution_context
 from ..mapper import build_macro_map
 from ..retrieval_index import DEFAULT_TOKEN_BUDGET, load_retrieval_index, select_context_targets
 from ..task_batch import build_task_batch
@@ -175,6 +176,8 @@ def _load_mapper_artifacts(root: str, out: str) -> dict[str, dict]:
         "project_map": _read_json_safe(paths["project_map"]),
         "symbol_index": _read_json_safe(paths["symbol_index"]),
         "call_graph": _read_json_safe(paths["call_graph"]),
+        "architecture_inventory": _read_json_safe(paths["architecture_inventory"]),
+        "precedent_index": _read_json_safe(paths["precedent_index"]),
     }
 
 
@@ -531,6 +534,53 @@ def _run_handoff(opts: dict) -> int:
             context_pack=context_pack,
             project_map=project_map,
             task_id=task_fingerprint,
+        )
+    if opts.get("execution_context"):
+        effective_selection = selection or {
+            "targets": target_rows,
+            "expanded_spans": [
+                {
+                    "path": file_entry["path"],
+                    "spans": [
+                        {
+                            "start_line": selected["start_line"],
+                            "end_line": selected["end_line"],
+                            "kind": "source",
+                        }
+                        for selected in file_entry.get("ranges", [])
+                    ],
+                    "tests": file_entry.get("tests", []),
+                    "expand_handle": next(
+                        (
+                            handle.get("expand_handle", "")
+                            for handle in file_entry.get("drilldown", {}).get("handles", [])
+                            if isinstance(handle, dict)
+                        ),
+                        "",
+                    ),
+                }
+                for file_entry in context_pack.get("files", [])
+            ],
+            "fidelity": {"sufficient": bool(target_rows), "dimensions": {}, "reasons": []},
+            "abstained": not target_rows,
+        }
+        query_plan = effective_selection.get("query_plan", {})
+        payload["execution_context"] = build_execution_context(
+            root,
+            goal=goal,
+            task_fingerprint=task_fingerprint,
+            acceptance_criteria=list(query_plan.get("ac_ids", []))
+            if isinstance(query_plan, dict)
+            else [],
+            task_intent=task_intent,
+            project_map=project_map,
+            symbol_index=symbol_index,
+            call_graph=call_graph,
+            architecture_inventory=artifacts["architecture_inventory"],
+            precedent_index=artifacts["precedent_index"],
+            selection=effective_selection,
+            context_pack=context_pack,
+            token_budget=token_budget,
         )
     if opts.get("for_llm") == "toon":
         _print_toon(payload)

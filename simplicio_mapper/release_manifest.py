@@ -69,6 +69,7 @@ RELEASE_PROTOCOLS = (
     "simplicio.mapper-artifacts/v1",
     "simplicio.precedent-index/v1",
     "simplicio.context-snapshot/v1",
+    "simplicio.execution-context/v1",
     "simplicio.canonical-map/v1",
     "simplicio.worktree-overlay/v1",
 )
@@ -101,6 +102,7 @@ SCHEMA_VERSION_REGISTRY: tuple[tuple[str, str], ...] = (
     ("simplicio_mapper.context_cache", "CONTEXT_CACHE_STRUCTURED_VERSION"),
     ("simplicio_mapper.context_dag", "SCHEMA_VERSION"),
     ("simplicio_mapper.context_snapshot", "SCHEMA_VERSION"),
+    ("simplicio_mapper.execution_context", "SCHEMA_VERSION"),
     ("simplicio_mapper.contract", "CONTRACT_VERSION"),
     ("simplicio_mapper.docsync", "DOCS_SYNC_VERSION"),
     ("simplicio_mapper.drift", "SPEC_DRIFT_VERSION"),

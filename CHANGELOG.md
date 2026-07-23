@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added the opt-in `handoff --execution-context` producer for the deterministic
+  `simplicio.execution-context/v1` per-task envelope, including exact source
+  spans/hashes, graph/test/precedent provenance, stable expansion handles,
+  explicit fidelity/abstention/budget receipts, boundary redactions, packaged
+  schema/fixture assets, and a reproducible cold/warm benchmark (issue #350).
+
 ## [0.24.2] - 2026-07-21
 
 ### Added

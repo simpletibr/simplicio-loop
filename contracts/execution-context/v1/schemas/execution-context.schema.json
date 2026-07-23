@@ -1,0 +1,326 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "simplicio.execution-context/v1",
+  "title": "Simplicio per-task execution context",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "task",
+    "repository",
+    "sources",
+    "graph_edges",
+    "related_tests",
+    "precedents",
+    "fidelity",
+    "omissions",
+    "abstention",
+    "needs_broader_context",
+    "next_queries",
+    "trust",
+    "redactions",
+    "token_budget",
+    "envelope_hash"
+  ],
+  "$defs": {
+    "hash64": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "stringArray": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "sourceHandle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "line"],
+      "properties": {
+        "path": { "type": "string" },
+        "line": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    }
+  },
+  "properties": {
+    "schema": { "const": "simplicio.execution-context/v1" },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fingerprint", "goal", "acceptance_criteria", "intent_fingerprint"],
+      "properties": {
+        "fingerprint": { "type": "string", "minLength": 1 },
+        "goal": { "type": "string" },
+        "acceptance_criteria": { "$ref": "#/$defs/stringArray" },
+        "intent_fingerprint": { "type": "string" }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "root_hash", "map_hash", "snapshot_id", "artifact_hashes"],
+      "properties": {
+        "id": { "type": "string" },
+        "root_hash": { "$ref": "#/$defs/hash64" },
+        "map_hash": { "$ref": "#/$defs/hash64" },
+        "snapshot_id": { "$ref": "#/$defs/hash64" },
+        "context_pack_hash": { "type": "string" },
+        "artifact_hashes": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/hash64" }
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "rank",
+          "language",
+          "relevance_score",
+          "reason_codes",
+          "source_hash",
+          "line_count",
+          "symbols",
+          "spans",
+          "expansion_handle"
+        ],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "rank": { "type": "integer", "minimum": 1 },
+          "language": { "type": "string" },
+          "relevance_score": { "type": "number" },
+          "reason_codes": { "$ref": "#/$defs/stringArray" },
+          "source_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "line_count": { "type": "integer", "minimum": 0 },
+          "symbols": { "$ref": "#/$defs/stringArray" },
+          "spans": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "start_line",
+                "end_line",
+                "kind",
+                "symbol",
+                "span_hash",
+                "text",
+                "expansion_handle"
+              ],
+              "properties": {
+                "start_line": { "type": "integer", "minimum": 1 },
+                "end_line": { "type": "integer", "minimum": 1 },
+                "kind": { "type": "string" },
+                "symbol": { "type": ["string", "null"] },
+                "span_hash": { "$ref": "#/$defs/hash64" },
+                "text": { "type": "string" },
+                "expansion_handle": { "type": "string", "minLength": 1 }
+              }
+            }
+          },
+          "expansion_handle": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "graph_edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "source",
+          "target",
+          "dependency_distance",
+          "confidence",
+          "provenance",
+          "source_handle",
+          "edge_hash"
+        ],
+        "properties": {
+          "kind": { "type": "string" },
+          "source": { "type": "string" },
+          "target": { "type": "string" },
+          "dependency_distance": { "type": "integer", "minimum": 0 },
+          "confidence": { "type": ["number", "null"] },
+          "provenance": { "type": "string" },
+          "source_handle": { "$ref": "#/$defs/sourceHandle" },
+          "edge_hash": { "$ref": "#/$defs/hash64" }
+        }
+      }
+    },
+    "related_tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "verifies", "route", "confidence", "provenance"],
+        "properties": {
+          "path": { "type": "string" },
+          "verifies": { "type": "string" },
+          "route": { "type": "string" },
+          "confidence": { "type": "number" },
+          "provenance": { "type": "string" }
+        }
+      }
+    },
+    "precedents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "path",
+          "line",
+          "summary",
+          "snippet",
+          "confidence",
+          "provenance",
+          "redacted_values"
+        ],
+        "properties": {
+          "id": { "type": "string" },
+          "path": { "type": "string" },
+          "line": { "type": ["integer", "null"] },
+          "summary": { "type": "string" },
+          "snippet": { "type": "string" },
+          "confidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["value", "semantics", "measured"],
+            "properties": {
+              "value": { "type": "integer", "minimum": 0 },
+              "semantics": { "const": "keyword_overlap_count" },
+              "measured": { "const": false }
+            }
+          },
+          "provenance": { "type": "string" },
+          "redacted_values": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "fidelity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sufficient", "vector", "coverage_ratio", "reasons"],
+      "properties": {
+        "sufficient": { "type": "boolean" },
+        "vector": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "target_preserved": { "type": "boolean" },
+            "identifier_coverage_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "ac_coverage_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "discriminative_coverage_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "verification_route_present": { "type": ["boolean", "null"] },
+            "layer_count": { "type": "integer", "minimum": 0 },
+            "has_discriminative_signal": { "type": "boolean" },
+            "matched_domain_terms": { "$ref": "#/$defs/stringArray" }
+          }
+        },
+        "coverage_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "reasons": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "omissions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "reason", "expansion_handle"],
+        "properties": {
+          "kind": { "type": "string" },
+          "reason": { "type": "string" },
+          "expansion_handle": {
+            "oneOf": [
+              { "type": "string" },
+              { "$ref": "#/$defs/sourceHandle" },
+              { "type": "null" }
+            ]
+          }
+        }
+      }
+    },
+    "abstention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["abstained", "reasons"],
+      "properties": {
+        "abstained": { "type": "boolean" },
+        "reasons": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "needs_broader_context": { "type": "boolean" },
+    "next_queries": { "$ref": "#/$defs/stringArray" },
+    "trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["classification", "sensitivity", "source_content"],
+      "properties": {
+        "classification": { "const": "repository-local" },
+        "sensitivity": { "enum": ["normal", "redacted"] },
+        "source_content": { "const": "extractive" }
+      }
+    },
+    "redactions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "reason"],
+        "properties": {
+          "path": { "type": "string" },
+          "reason": {
+            "enum": [
+              "binary_file",
+              "outside_authorized_root",
+              "secret_path",
+              "secret_value",
+              "unreadable_file"
+            ]
+          },
+          "evidence_kind": { "type": "string" },
+          "span": {
+            "type": "array",
+            "prefixItems": [
+              { "type": "integer", "minimum": 1 },
+              { "type": "integer", "minimum": 1 }
+            ],
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "count": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "token_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested_tokens",
+        "serialized_tokens",
+        "serialized_bytes",
+        "tokenizer_policy",
+        "measurement",
+        "within_budget"
+      ],
+      "properties": {
+        "requested_tokens": { "type": "integer", "minimum": 1 },
+        "serialized_tokens": { "type": "integer", "minimum": 0 },
+        "serialized_bytes": { "type": "integer", "minimum": 0 },
+        "tokenizer_policy": { "type": "string", "minLength": 1 },
+        "measurement": { "const": "MEASURED" },
+        "within_budget": { "type": "boolean" }
+      }
+    },
+    "envelope_hash": { "$ref": "#/$defs/hash64" }
+  }
+}

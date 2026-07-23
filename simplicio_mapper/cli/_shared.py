@@ -74,7 +74,7 @@ USAGE
   simplicio-mapper scan <path> [--json] [--sync] [--await] [--timeout <s>]
   simplicio-mapper status <path> [--json] [--await] [--timeout <s>]
   simplicio-mapper inspect <path> [--json] [--for-llm toon] [--await] [--timeout <s>]
-  simplicio-mapper handoff <path> [--goal <text>|--task-file <file>|--task-batch-file <file>] [--task-fingerprint <sha>] [--target <file>] [--minimum-query-coverage <0..1>] [--token-budget <n>] [--limit <n>] [--json] [--for-llm toon] [--await] [--timeout <s>]
+  simplicio-mapper handoff <path> [--goal <text>|--task-file <file>|--task-batch-file <file>] [--task-fingerprint <sha>] [--target <file>] [--minimum-query-coverage <0..1>] [--token-budget <n>] [--execution-context] [--limit <n>] [--json] [--for-llm toon] [--await] [--timeout <s>]
   simplicio-mapper orient <path> (--task-file <file>|--task-json <file>|--stdin) [--target <file>] [--limit <n>] [--json] [--for-llm toon]
   simplicio-mapper endpoints <path> [--against <server-root>] [--json]
   simplicio-mapper screens <path> [--json]
@@ -218,6 +218,7 @@ OPTIONS
                         handoff: minimum lexical coverage before context is sufficient (default 0.2).
   --token-budget <n>    handoff: token budget passed to indexed selection diagnostics/fidelity
                         (default 8000).
+  --execution-context   handoff: add simplicio.execution-context/v1 without changing the outer contract.
   --docs                Render markdown docs after map/index.
   --no-docs             Keep map/index JSON-only.
   --docs-only           Render markdown docs without refreshing JSON first.

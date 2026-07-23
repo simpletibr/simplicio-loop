@@ -50,6 +50,7 @@ import re
 import unicodedata
 from collections.abc import Mapping, Sequence
 from typing import Any
+from urllib.parse import quote, unquote
 
 from .savings import ESTIMATOR_LABEL, estimate_tokens
 
@@ -1285,7 +1286,7 @@ def _expand_handle(
     to resolve it; it can stat the file and re-read the requested block.
     """
     root_fp = hashlib.sha256(os.path.normcase(os.path.abspath(root)).encode("utf-8")).hexdigest()[:16]
-    norm = path.replace(os.sep, "/")
+    norm = quote(path.replace(os.sep, "/"), safe="/._-")
     ch = content_hash or "none"
     if kind == "range" and start_line is not None and end_line is not None:
         return f"expand:{root_fp}:{norm}:{ch}:range:{start_line}-{end_line}"
@@ -1369,7 +1370,11 @@ def resolve_expand_handle(
     parts = expand_handle.split(":")
     if len(parts) < 6 or parts[0] != "expand":
         raise ValueError(f"invalid expand handle: {expand_handle}")
-    _, root_fp, path, expected_hash, kind, payload = parts[:6]
+    root_fp = parts[1]
+    path = unquote(":".join(parts[2:-3]))
+    expected_hash, kind, payload = parts[-3:]
+    if not path or kind not in {"full", "range"}:
+        raise ValueError(f"invalid expand handle: {expand_handle}")
     actual_root_fp = hashlib.sha256(os.path.normcase(os.path.abspath(root)).encode("utf-8")).hexdigest()[:16]
     if root_fp != actual_root_fp:
         raise ValueError("expand handle belongs to a different root")
