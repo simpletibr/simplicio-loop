@@ -30,13 +30,14 @@ Linux x86_64.
 The focused issue gate is green. A broader focused run also executes the
 pre-existing workflow-reference regression and reports 1 unrelated failure:
 `docs/evidence/issue-265-meta-audit.md` names four deleted workflow files. The
-repository-wide commands are not green on the unmodified `main` baseline:
-`ruff check .` reports 23 existing findings, `ruff format --check .` reports 27
-existing files, and `mypy simplicio` reports 6 existing errors. The full
-`pytest -q` attempt reached 11% with four failures before the 30-second Cloud
-command window ended, so it is recorded as unavailable rather than passing.
-These failures are outside issue #262 and were not rewritten in this focused
-change.
+repository-wide commands are not green on the `main` baseline: `ruff check .`
+reports 23 unrelated findings and `mypy simplicio` reports 5 unrelated errors.
+The complete `pytest -q` run finished with 1927 passed, 20 skipped and 39
+failed. One failure was the local-gate documentation line wrapping changed in
+this patch; it was corrected and its targeted test then passed. The remaining
+baseline failures cover stale CLI snapshots/version pins, provider behavior,
+missing console entrypoints/dependencies and unrelated codegen/runtime tests;
+they were not rewritten in this focused change.
 
 ## Criteria not proven by this repository change
 
@@ -48,3 +49,51 @@ exceptions listed in `config/json-boundaries.toml`; classification is enforced,
 but their underlying producers have not all migrated. These are explicit
 release blockers rather than passing zeroes. The PR must remain unmerged until
 those criteria have executable evidence and the repository-wide gate is green.
+
+## Scanner hardening follow-up — 2026-07-23
+
+The pinned Python and Node scanners now have executable parity coverage. They:
+
+- detect direct standard-library imports in addition to serializer calls;
+- reject unsupported exception categories, invalid calendar dates, expired
+  exceptions, traversal and wildcard paths;
+- classify renamed arrays, symlinks and oversized text as findings rather than
+  following or silently skipping them, with size checked before reading;
+- default expiry evaluation to the actual scan date;
+- emit byte-identical Markdown and HBP evidence for the same fixture.
+
+Focused validation:
+
+```text
+PYTHONPATH=/tmp/pytest-deps python3 -m pytest -q \
+  tests/python/test_policy_scan.py tests/python/test_json_boundaries.py \
+  tests/test_json_boundaries.py tests/python/test_local_quality_gate.py
+44 passed in 0.44s; 90.81% combined branch coverage
+```
+
+Installed-package probe:
+
+```text
+python3 -m pip wheel --no-deps --no-build-isolation .
+Successfully built simplicio-cli
+python3 -m pip install --no-deps --target <temporary> simplicio_cli-0.16.2-py3-none-any.whl
+Successfully installed simplicio-cli-0.16.2
+importlib.metadata.version("simplicio-cli") == "0.16.2"
+python3 scripts/check_json_boundaries.py --strict --artifact-dir <temporary-wheel-dir>
+json-boundaries: 0 finding(s); strict=pass
+```
+
+The wheel SHA-256 was
+`5fdb54f0b2470bc18fb11c6c9528e39f7c070fd40e7465585ab77c4cd3d7097f`.
+The full installed CLI could not be exercised in isolation because its declared
+runtime dependencies were not installed and network installation was outside
+this run; that lane is `null`, not pass.
+
+The shared source scan remains intentionally red: baseline found `1469`
+occurrences, `1448` unclassified. Strict mode therefore blocks release. This
+repository still has no locally available Runtime HBI conformance suite,
+versioned HBI codec, atomic legacy migrator, released adjacent package matrix,
+or macOS/Windows hosts. HBI conformance, codec corruption/migration behavior,
+cross-repository upgrade/rollback and supported-OS results remain `null` with
+those reasons. No custom binary format or synthetic cross-repository result was
+introduced to make the gate appear green.

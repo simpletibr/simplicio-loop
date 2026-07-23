@@ -1,5 +1,15 @@
 # Goal Result
 
+## Issue #262 scanner hardening (2026-07-23)
+
+Status: locally verifiable scanner and package lanes strengthened; issue remains
+blocked. Exact-policy corruption, renamed/oversized artifact, Python/Node
+parity, HBP integrity, wheel install and archive scans are proven. The strict
+source gate correctly fails with 1448 unclassified findings. Runtime HBI
+conformance, HBP migration lineage, atomic legacy migration, released
+cross-repository compatibility and macOS/Windows execution are unavailable and
+are recorded as `null`, not success.
+
 ## Goal
 
 Terminar issues abertas do `simplicio-dev-cli`.

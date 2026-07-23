@@ -47,6 +47,7 @@
   `test_compile_task_spec.py`.
 
 - 2026-07-22: issue #256 adversarial follow-up now validates the complete causal identity in every Runtime receipt; 8 forged coordinator/session/attempt/plan variants fail closed even with a recomputed valid digest. Focused result: 44 passed, 91.22% branch coverage across the sink/integrated slice, clean-wheel probe passed, and 500-transaction benchmark recorded. Live Runtime/Agent cross-repository traces remain unavailable, so the issue remains open and full completion is not claimed.
+- 2026-07-23: issue #262 scanner hardening validates exact exception categories/dates, standard-library serializer imports, renamed arrays, symlinks and oversized text; Python/Node evidence is byte-identical and HBP tampering is detected. Focused suite: 44 passed with 90.81% combined branch coverage. A wheel built and installed into an isolated target, reported version 0.16.2, and passed the internal-state archive scan. The shared strict source gate still blocks release with 1448 unclassified findings; Runtime HBI conformance, atomic migration, adjacent released packages and non-Linux hosts remain unavailable.
 
 ## Issue #265 audit hardening
 
