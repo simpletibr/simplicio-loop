@@ -6,6 +6,10 @@
 - Declared `simplicio.plan-dag/v1` as the canonical Dev CLI plan contract,
   added digest-bound consumer projections for Loop and Runtime, and validated
   explicit node conflicts (#298).
+- Added lossless `simplicio.task-spec/v2` import through `--task-spec` and
+  `--task-spec-stdin`; integrated execution now receives the original typed
+  contract, preserves additive fields, exposes a canonical handoff digest,
+  and rejects typed input on the standalone path (#299).
 - Paused all local inference by default (#259). Empty configuration, explicit
   llama.cpp routes, local planner routes, `--local`, and loopback
   OpenAI-compatible endpoints now fail closed with `LOCAL_INFERENCE_PAUSED`

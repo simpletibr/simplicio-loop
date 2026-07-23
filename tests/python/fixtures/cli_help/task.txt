@@ -1,8 +1,9 @@
-usage: simplicio-py task [-h] [--root ROOT] [--stack STACK] --target TARGET
+usage: simplicio-py task [-h] [--root ROOT] [--stack STACK] [--target TARGET]
                          [--criteria CRITERIA] [--constraints CONSTRAINTS]
                          [--dry-run-task] [--json] [--bound-paths BOUND_PATHS]
                          [--local] [--mode {auto,integrated,standalone}]
-                         goal
+                         [--task-spec PATH | --task-spec-stdin]
+                         [goal]
 
 positional arguments:
   goal
@@ -24,3 +25,7 @@ options:
                         SIMPLICIO_LOCAL_INFERENCE=enabled; otherwise fails
                         closed
   --mode {auto,integrated,standalone}
+  --task-spec PATH      read one exported simplicio.task-spec/v2 JSON document
+                        from PATH
+  --task-spec-stdin     read one exported simplicio.task-spec/v2 JSON document
+                        from stdin

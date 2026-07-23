@@ -132,6 +132,19 @@
 
 ## Issue #257 integrated-mode progress
 
+- 2026-07-23: issue #299 replaced the lossy integrated text bridge with an
+  optional typed `TaskSpec` handoff. External v2 JSON imports validate schema,
+  required identity, SHA-256 source hash, and acceptance-criterion IDs;
+  additive fields survive round trips; CLI file/stdin adapters feed the same
+  object to the compiler; standalone use fails closed. Focused validation:
+  63 passed; the repository-wide run reached 1917 passed, 20 skipped and 41
+  pre-existing baseline failures. Final evidence is recorded in
+  `docs/evidence/issue-299-validation.md`.
+- 2026-07-23: issue #299 adversarial follow-up rejected reserved additive-field
+  collisions, fully validates known JSON containers and verification commands,
+  rejects non-finite values, and disambiguates a future additive `tasks` field
+  from a document wrapper. Rebased affected suite: 118 passed.
+
 - 2026-07-22: issue #257 follow-up corrected the integrated ContextSnapshot boundary to use Mapper's real `simplicio.context-snapshot/v1` contract and full adapter validation at negotiation and dispatch. Focused evidence: 25 passed, 94% branch-aware touched-module coverage, clean fail-closed CLI JSON, and 68.16 microseconds/negotiation over 10,000 calls. Repository-wide baseline lint/type/test debt remains recorded in `docs/evidence/issue-257.md`.
 
  - 2026-07-22: issue #262 quality slice ported from master to current main and strengthened. The exact internal-JSON registry now rejects wildcards/traversal/missing accountability, scans wheel/sdist contents, and is wired into both local pre-commit hooks. Focused tests: 14 passed with 88% branch-aware scanner coverage. Measured 10k-entry scanner benchmark and blocker report saved under `docs/evidence/issue-262-*`. Full gate remains red from main-baseline failures; HBI/HBP conformance and cross-repository migration evidence remain explicitly unproven, so the PR is not mergeable.

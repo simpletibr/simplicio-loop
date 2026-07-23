@@ -8,9 +8,12 @@ without invoking an LLM, mapper, runtime, or edit operator.
 from __future__ import annotations
 
 import hashlib
+import json
+import math
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
+from dataclasses import fields as dataclass_fields
 from typing import Any
 
 TASK_SPEC_SCHEMA = "simplicio.task-spec/v2"
@@ -28,6 +31,16 @@ class TaskSpecValidationError(ValueError):
     def __init__(self, diagnostics: Iterable[str]) -> None:
         self.diagnostics = list(diagnostics)
         super().__init__("; ".join(self.diagnostics))
+
+
+def _contains_non_finite(value: Any) -> bool:
+    if isinstance(value, float):
+        return not math.isfinite(value)
+    if isinstance(value, dict):
+        return any(_contains_non_finite(key) or _contains_non_finite(item) for key, item in value.items())
+    if isinstance(value, (list, tuple)):
+        return any(_contains_non_finite(item) for item in value)
+    return False
 
 
 @dataclass(frozen=True)
@@ -77,33 +90,160 @@ class TaskSpec:
     verification_commands: list[dict[str, Any]] = field(default_factory=list)
     source_span: dict[str, int] = field(default_factory=dict)
     original_text: str = ""
+    extra_fields: dict[str, Any] = field(default_factory=dict, repr=False)
+
+    def __post_init__(self) -> None:
+        reserved = {item.name for item in dataclass_fields(type(self)) if item.name != "extra_fields"} | {
+            "schema"
+        }
+        collisions = sorted(reserved & set(self.extra_fields))
+        if collisions:
+            raise TaskSpecValidationError(
+                [f"TaskSpec additive fields collide with reserved fields: {', '.join(collisions)}"]
+            )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "schema": TASK_SPEC_SCHEMA,
-            "task_id": self.task_id,
-            "source": self.source,
-            "source_hash": self.source_hash,
-            "language": self.language,
-            "system": self.system,
-            "functionality": self.functionality,
-            "task_type": self.task_type,
-            "narrative": self.narrative,
-            "acceptance_criteria": self.acceptance_criteria,
-            "business_rules": self.business_rules,
-            "non_functional_requirements": self.non_functional_requirements,
-            "prototypes": self.prototypes,
-            "attachments": self.attachments,
-            "navigation": self.navigation,
-            "dependencies": self.dependencies,
-            "impact_signals": self.impact_signals,
-            "additional_information": self.additional_information,
-            "uncertainties": self.uncertainties,
-            "human_gates": self.human_gates,
-            "verification_commands": self.verification_commands,
-            "source_span": self.source_span,
-            "original_text": self.original_text,
+        payload = dict(self.extra_fields)
+        payload.update(
+            {
+                "schema": TASK_SPEC_SCHEMA,
+                "task_id": self.task_id,
+                "source": self.source,
+                "source_hash": self.source_hash,
+                "language": self.language,
+                "system": self.system,
+                "functionality": self.functionality,
+                "task_type": self.task_type,
+                "narrative": self.narrative,
+                "acceptance_criteria": self.acceptance_criteria,
+                "business_rules": self.business_rules,
+                "non_functional_requirements": self.non_functional_requirements,
+                "prototypes": self.prototypes,
+                "attachments": self.attachments,
+                "navigation": self.navigation,
+                "dependencies": self.dependencies,
+                "impact_signals": self.impact_signals,
+                "additional_information": self.additional_information,
+                "uncertainties": self.uncertainties,
+                "human_gates": self.human_gates,
+                "verification_commands": self.verification_commands,
+                "source_span": self.source_span,
+                "original_text": self.original_text,
+            }
+        )
+        return payload
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> TaskSpec:
+        """Restore a version-compatible external TaskSpec without dropping fields."""
+        if not isinstance(payload, dict):
+            raise TaskSpecValidationError(["TaskSpec payload must be an object"])
+        schema = payload.get("schema")
+        if schema != TASK_SPEC_SCHEMA:
+            raise TaskSpecValidationError(
+                [f"unsupported TaskSpec schema {schema!r}; expected {TASK_SPEC_SCHEMA!r}"]
+            )
+        required = ("task_id", "source", "source_hash", "language")
+        missing = [name for name in required if not payload.get(name)]
+        if missing:
+            raise TaskSpecValidationError([f"TaskSpec missing required fields: {', '.join(missing)}"])
+        if not isinstance(payload["task_id"], str):
+            raise TaskSpecValidationError(["TaskSpec task_id must be a string"])
+        if not isinstance(payload["source"], dict):
+            raise TaskSpecValidationError(["TaskSpec source must be an object"])
+        if not isinstance(payload["language"], str):
+            raise TaskSpecValidationError(["TaskSpec language must be a string"])
+        for name in ("system", "functionality", "task_type"):
+            if payload.get(name) is not None and not isinstance(payload[name], str):
+                raise TaskSpecValidationError([f"TaskSpec {name} must be a string or null"])
+        narrative = payload.get("narrative", {})
+        if not isinstance(narrative, dict):
+            raise TaskSpecValidationError(["TaskSpec narrative must be an object"])
+        if any(
+            not isinstance(key, str) or (value is not None and not isinstance(value, str))
+            for key, value in narrative.items()
+        ):
+            raise TaskSpecValidationError(
+                ["TaskSpec narrative keys must be strings and values must be strings or null"]
+            )
+        list_fields = (
+            "acceptance_criteria",
+            "business_rules",
+            "non_functional_requirements",
+            "prototypes",
+            "attachments",
+            "navigation",
+            "dependencies",
+            "additional_information",
+            "uncertainties",
+            "human_gates",
+            "verification_commands",
+        )
+        for name in list_fields:
+            value = payload.get(name, [])
+            if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
+                raise TaskSpecValidationError([f"TaskSpec {name} must be a list of objects"])
+        if not isinstance(payload.get("impact_signals", {}), dict):
+            raise TaskSpecValidationError(["TaskSpec impact_signals must be an object"])
+        if not isinstance(payload.get("source_span", {}), dict):
+            raise TaskSpecValidationError(["TaskSpec source_span must be an object"])
+        if not isinstance(payload.get("original_text", ""), str):
+            raise TaskSpecValidationError(["TaskSpec original_text must be a string"])
+        if _contains_non_finite(payload):
+            raise TaskSpecValidationError(["TaskSpec must not contain NaN or infinite numbers"])
+        if not isinstance(payload["source_hash"], str) or not re.fullmatch(
+            r"[0-9a-f]{64}", payload["source_hash"]
+        ):
+            raise TaskSpecValidationError(["TaskSpec source_hash must be a lowercase SHA-256 digest"])
+        original_text = payload.get("original_text", "")
+        if original_text and _source_hash(str(original_text)) != payload["source_hash"]:
+            raise TaskSpecValidationError(
+                ["TaskSpec source_hash does not match the normalized original_text"]
+            )
+        criteria = payload.get("acceptance_criteria", [])
+        if not isinstance(criteria, list) or not criteria:
+            raise TaskSpecValidationError(["TaskSpec acceptance_criteria must be a non-empty list"])
+        criterion_ids = [str(item.get("id", "")).strip() for item in criteria if isinstance(item, dict)]
+        if len(criterion_ids) != len(criteria) or any(not item for item in criterion_ids):
+            raise TaskSpecValidationError(
+                ["every acceptance criterion must be an object with a non-empty id"]
+            )
+        if len(criterion_ids) != len(set(criterion_ids)):
+            raise TaskSpecValidationError(["TaskSpec contains duplicate acceptance criterion IDs"])
+        for command in payload.get("verification_commands", []):
+            if not isinstance(command.get("command"), str) or not command["command"].strip():
+                raise TaskSpecValidationError(
+                    ["every verification command must contain a non-empty command string"]
+                )
+            verifier = command.get("verifier", "pytest")
+            if not isinstance(verifier, str) or not verifier.strip():
+                raise TaskSpecValidationError(
+                    ["every verification command verifier must be a non-empty string"]
+                )
+            timeout = command.get("timeout_s", 300.0)
+            if (
+                isinstance(timeout, bool)
+                or not isinstance(timeout, (int, float))
+                or not math.isfinite(float(timeout))
+                or timeout <= 0
+            ):
+                raise TaskSpecValidationError(
+                    ["every verification command timeout_s must be a positive finite number"]
+                )
+
+        known = {item.name for item in dataclass_fields(cls)} - {"extra_fields"}
+        values = {name: payload[name] for name in known if name in payload}
+        values["extra_fields"] = {
+            name: value for name, value in payload.items() if name not in known and name != "schema"
         }
+        return cls(**values)
+
+    def canonical_hash(self) -> str:
+        """Return the stable digest used to prove lossless handoff between processes."""
+        encoded = json.dumps(
+            self.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
 
 
 @dataclass
@@ -116,6 +256,19 @@ class TaskSpecDocument:
             "compatibility": dict(TASK_SPEC_COMPATIBILITY),
             "tasks": [task.to_dict() for task in self.tasks],
         }
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> TaskSpecDocument:
+        if not isinstance(payload, dict):
+            raise TaskSpecValidationError(["TaskSpec document must be an object"])
+        if payload.get("schema") != TASK_SPEC_SCHEMA:
+            raise TaskSpecValidationError(
+                [f"unsupported TaskSpec schema {payload.get('schema')!r}; expected {TASK_SPEC_SCHEMA!r}"]
+            )
+        raw_tasks = payload.get("tasks")
+        if not isinstance(raw_tasks, list) or not raw_tasks:
+            raise TaskSpecValidationError(["TaskSpec document must contain at least one task"])
+        return cls(tasks=[TaskSpec.from_dict(task) for task in raw_tasks])
 
 
 @dataclass(frozen=True)

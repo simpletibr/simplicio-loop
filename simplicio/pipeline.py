@@ -49,6 +49,7 @@ from .plan_compiler.effect_sink import EffectSink
 from .prompt import build_prompt, set_prompt_retry_delta
 from .providers import ProviderExecutionError, _provider_id, generate
 from .runtime_env import prepare_project_command
+from .task_spec import TaskSpec
 from .transaction import VerificationReceipt
 
 MAX_ATTEMPTS = 5
@@ -217,6 +218,7 @@ def run_task(
     coordinator_kind: str | None = None,
     coordinator_id: str | None = None,
     integrated_attempt: AttemptContext | None = None,
+    task_spec: TaskSpec | None = None,
 ):
     """Run one task through the pipeline.
 
@@ -273,6 +275,23 @@ def run_task(
         )
         result["execution_profile"] = profile.to_dict()
         return result
+    if task_spec is not None and profile.effective_mode != "integrated":
+        result = _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=["TASK_SPEC_REQUIRES_INTEGRATED_MODE"],
+            blocked_preconditions=[
+                {
+                    "code": "TASK_SPEC_REQUIRES_INTEGRATED_MODE",
+                    "message": "typed TaskSpec input is accepted only by the integrated execution path",
+                }
+            ],
+        )
+        result["execution_profile"] = profile.to_dict()
+        return result
     if profile.effective_mode == "integrated":
         result = run_integrated(
             root,
@@ -286,6 +305,7 @@ def run_task(
             effect_sink,
             context_snapshot=context_snapshot,
             attempt=integrated_attempt,
+            task_spec=task_spec,
         )
         result["execution_profile"] = profile.to_dict()
         return result

@@ -124,10 +124,10 @@ def _dispatch_nested(argv: list[str]) -> int | None:
 
 
 def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None:
-    p.add_argument("goal")
+    p.add_argument("goal", nargs="?")
     p.add_argument("--root", default=".")
     p.add_argument("--stack", default=None)
-    p.add_argument("--target", required=target_required)
+    p.add_argument("--target", required=False)
     p.add_argument("--criteria", default="- true state\n- false state")
     p.add_argument("--constraints", default="- build passes")
     p.add_argument(
@@ -148,6 +148,17 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
         help="force local llama.cpp only when SIMPLICIO_LOCAL_INFERENCE=enabled; otherwise fails closed",
     )
     p.add_argument("--mode", choices=["auto", "integrated", "standalone"], default=None)
+    task_spec_source = p.add_mutually_exclusive_group()
+    task_spec_source.add_argument(
+        "--task-spec",
+        metavar="PATH",
+        help="read one exported simplicio.task-spec/v2 JSON document from PATH",
+    )
+    task_spec_source.add_argument(
+        "--task-spec-stdin",
+        action="store_true",
+        help="read one exported simplicio.task-spec/v2 JSON document from stdin",
+    )
 
 
 def _add_run_args(p: argparse.ArgumentParser) -> None:

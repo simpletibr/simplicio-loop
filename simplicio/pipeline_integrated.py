@@ -85,6 +85,7 @@ def run_integrated(
     *,
     context_snapshot: dict[str, Any] | None = None,
     attempt: AttemptContext | None = None,
+    task_spec: TaskSpec | None = None,
 ) -> dict[str, Any]:
     """Compile a plan and hand its effects to ``effect_sink``; never write.
 
@@ -120,14 +121,17 @@ def run_integrated(
         root=root,
     )
 
-    task_spec = _build_task_spec(
-        target=target,
-        goal=goal,
-        criteria=criteria,
-        constraints=constraints,
-        verification_command=primary_test_cmd,
-    )
-    goal_id = f"goal-{hashlib.sha256(goal.encode('utf-8')).hexdigest()[:16]}"
+    typed_input = task_spec is not None
+    if task_spec is None:
+        task_spec = _build_task_spec(
+            target=target,
+            goal=goal,
+            criteria=criteria,
+            constraints=constraints,
+            verification_command=primary_test_cmd,
+        )
+    goal_material = task_spec.canonical_hash() if typed_input else goal
+    goal_id = f"goal-{hashlib.sha256(goal_material.encode('utf-8')).hexdigest()[:16]}"
     if context_snapshot is None:
         return _task_result(
             target,
@@ -220,6 +224,7 @@ def run_integrated(
     result["effects"] = [effect.to_dict() for effect in effects]
     result["verifications"] = [verification.to_dict() for verification in verifications]
     result["observation"] = observation.to_dict()
+    result["task_spec_hash"] = task_spec.canonical_hash()
     emit_event(
         "task_complete",
         {
