@@ -1,128 +1,25 @@
-import sys
-from pathlib import Path
-
-from scripts.mapper_quality_gate import _release_evidence, _status, build_report, main
-
-
-def test_quality_report_is_markdown_and_preserves_unavailable_evidence():
-    root = Path(__file__).parents[1]
-    report, code = build_report(root, runtime_binary="definitely-missing-simplicio")
-    assert code == 0
-    assert report.startswith("# Mapper quality gate")
-    assert "Performance | null" in report
-    assert "HBP receipt | null" in report
-    assert "Runtime ecosystem doctor | null" in report
-
-
-def test_runtime_requirement_blocks_missing_runtime():
-    root = Path(__file__).parents[1]
-    _, code = build_report(
-        root,
-        runtime_binary="definitely-missing-simplicio",
-        require_runtime=True,
-    )
-    assert code == 1
-
-
-def test_release_gate_fails_closed_on_legacy_json_and_missing_evidence():
-    report, code = build_report(
-        Path(__file__).parents[1],
-        runtime_binary="definitely-missing-simplicio",
-        release=True,
-    )
-    assert code == 1
-    assert "Overall: **BLOCKED**" in report
-    assert "INTERNAL_JSON .simplicio/project-map.json" in report
-    assert "Cross-repository E2E | null" in report
-
-
-def test_release_evidence_requires_boolean_observation_and_detail(tmp_path):
-    evidence = tmp_path / "release-evidence.toml"
-    evidence.write_text(
-        '''[evidence.cross_repository_e2e]
-observed = true
-detail = "installed mapper 1.2 consumed by dev-cli 2.3"
-
-[evidence.performance]
-observed = false
-detail = "peak RSS exceeded the bound"
-
-[evidence.hbp_receipt]
-observed = true
-
-[evidence.hbi_conformance]
-observed = "yes"
-detail = "not a boolean"
-''',
-        encoding="utf-8",
-    )
-    checks = dict((name, (status, detail)) for name, status, detail in _release_evidence(evidence))
-    assert checks["cross_repository_e2e"] == (
-        "pass",
-        "installed mapper 1.2 consumed by dev-cli 2.3",
-    )
-    assert checks["performance"] == ("fail", "peak RSS exceeded the bound")
-    assert checks["hbp_receipt"][0] == "null"
-    assert checks["hbi_conformance"][0] == "null"
-
-
-def test_release_gate_accepts_complete_observed_evidence_when_other_checks_pass(tmp_path, monkeypatch):
-    evidence = tmp_path / "release-evidence.toml"
-    evidence.write_text(
-        "\n".join(
-            f'[evidence.{name}]\nobserved = true\ndetail = "observed {name}"\n'
-            for name in ("cross_repository_e2e", "performance", "hbp_receipt", "hbi_conformance")
-        ),
-        encoding="utf-8",
-    )
-    monkeypatch.setattr("scripts.mapper_quality_gate._run", lambda *_: (True, "scanner passed"))
-    monkeypatch.setattr("scripts.mapper_quality_gate._runtime_check", lambda *_: ("pass", "runtime passed"))
-    monkeypatch.setattr(
-        "scripts.mapper_quality_gate._status",
-        lambda *_, **__: ("pass", "tool passed"),
-    )
-    report, code = build_report(
-        tmp_path,
-        full=True,
-        release=True,
-        evidence_path=evidence,
-    )
-    assert code == 0
-    assert "Overall: **PASS**" in report
-
-
-def test_report_escapes_multiline_and_table_delimiters(monkeypatch):
-    monkeypatch.setattr("scripts.mapper_quality_gate._run", lambda *_: (True, "ok|next\nline"))
-    monkeypatch.setattr("scripts.mapper_quality_gate._runtime_check", lambda *_: ("pass", "ok"))
-    report, _ = build_report(Path(__file__).parents[1])
-    assert "ok\\|next<br>line" in report
-
-
-def test_status_distinguishes_pass_failure_and_missing_command(tmp_path):
-    assert _status([sys.executable, "-c", "print('ok')"], tmp_path) == ("pass", "ok")
-    status, detail = _status([sys.executable, "-c", "raise SystemExit('bad')"], tmp_path)
-    assert status == "fail" and detail == "bad"
-    status, _ = _status(["definitely-missing-command"], tmp_path)
-    assert status == "null"
-
-
-def test_main_writes_markdown_report(tmp_path, monkeypatch):
-    monkeypatch.chdir(Path(__file__).parents[1])
-    output = tmp_path / "quality.md"
-    assert main(["--output", str(output), "--runtime-binary", "definitely-missing-simplicio"]) == 0
-    assert output.read_text(encoding="utf-8").startswith("# Mapper quality gate")
-
-
-def test_full_gate_records_each_local_check(monkeypatch):
-    root = Path(__file__).parents[1]
-
-    def fake_status(command, _root, env=None):
-        assert env is None or isinstance(env, dict)
-        return "pass", "observed"
-
-    monkeypatch.setattr("scripts.mapper_quality_gate._status", fake_status)
-    report, code = build_report(root, full=True)
-    assert code == 0
-    assert "Python tests | pass | observed" in report
-    assert "Node unit tests | pass | observed" in report
-    assert "Package contents | pass | observed" in report
+YªçŠx-®éÜj×¢ëiºÚ+Š§j[h‘éÜ¢éí×½»N‹Z–‹­¦ëeŠw¬Õ¥µÁ½ÉĞÍåÌ)™É½´Á…Ñ¡±¥ˆ¥µÁ½ÉĞA…Ñ ()™É½´ÍÉ¥ÁÑÌ¹µ…ÁÁ•É}ÅÕ…±¥Ñå}…Ñ”¥µÁ½ÉĞ}É•±•…Í•}•Ù¥‘•¹”°}ÍÑ…ÑÕÌ°‰Õ¥±‘}É•Á½ÉĞ°µ…¥¸(()‘•˜Ñ•ÍÑ}ÅÕ…±¥Ñå}É•Á½ÉÑ}¥Í}µ…É­‘½İ¹}…¹‘}ÁÉ•Í•ÉÙ•Í}Õ¹…Ù…¥±…‰±•}•Ù¥‘•¹” ¤è(€€€É½½Ğ€ôA…Ñ ¡}}™¥±•}|¤¹Á…É•¹ÑÍlÅt(€€€É•Á½ÉĞ°½‘”€ô‰Õ¥±‘}É•Á½ÉĞ¡É½½Ğ°ÉÕ¹Ñ¥µ•}‰¥¹…Éäô‰‘•™¥¹¥Ñ•±äµµ¥ÍÍ¥¹œµÍ¥µÁ±¥¥¼ˆ¤(€€€…ÍÍ•ÉĞ½‘”€ôô€À(€€€…ÍÍ•ÉĞÉ•Á½ÉĞ¹ÍÑ…ÉÑÍİ¥Ñ  ˆŒ5…ÁÁ•ÈÅÕ…±¥Ñä…Ñ”ˆ¤(€€€…ÍÍ•ÉĞ€‰A•É™½Éµ…¹”ğ¹Õ±°ˆ¥¸É•Á½ÉĞ(€€€…ÍÍ•ÉĞ€‰!	@É••¥ÁĞğ¹Õ±°ˆ¥¸É•Á½ÉĞ(€€€…ÍÍ•ÉĞ€‰IÕ¹Ñ¥µ”•½ÍåÍÑ•´‘½Ñ½Èğ¹Õ±°ˆ¥¸É•Á½ÉĞ(()‘•˜Ñ•ÍÑ}ÉÕ¹Ñ¥µ•}É•ÅÕ¥É•µ•¹Ñ}‰±½­Í}µ¥ÍÍ¥¹}ÉÕ¹Ñ¥µ” ¤è(€€€É½½Ğ€ôA…Ñ ¡}}™¥±•}|¤¹Á…É•¹ÑÍlÅt(€€€|°½‘”€ô‰Õ¥±‘}É•Á½ÉĞ (€€€€€€€É½½Ğ°(€€€€€€€ÉÕ¹Ñ¥µ•}‰¥¹…Éäô‰‘•™¥¹¥Ñ•±äµµ¥ÍÍ¥¹œµÍ¥µÁ±¥¥¼ˆ°(€€€€€€€É•ÅÕ¥É•}ÉÕ¹Ñ¥µ”õQÉÕ”°(€€€€¤(€€€…ÍÍ•ÉĞ½‘”€ôô€Ä(()‘•˜Ñ•ÍÑ}É•±•…Í•}…Ñ•}™…¥±Í}±½Í•‘}½¹}±•…å}©Í½¹}…¹‘}µ¥ÍÍ¥¹}•Ù¥‘•¹” ¤è(€€€É•Á½ÉĞ°½‘”€ô‰Õ¥±‘}É•Á½ÉĞ (€€€€€€€A…Ñ ¡}}™¥±•}|¤¹Á…É•¹ÑÍlÅt°(€€€€€€€ÉÕ¹Ñ¥µ•}‰¥¹…Éäô‰‘•™¥¹¥Ñ•±äµµ¥ÍÍ¥¹œµÍ¥µÁ±¥¥¼ˆ°(€€€€€€€É•±•…Í”õQÉÕ”°(€€€€¤(€€€…ÍÍ•ÉĞ½‘”€ôô€Ä(€€€…ÍÍ•ÉĞ€‰=Ù•É…±°è€¨©	1=-¨¨ˆ¥¸É•Á½ÉĞ(€€€…ÍÍ•ÉĞ€‰%9QI91})M=8€¹Í¥µÁ±¥¥¼½ÁÉ½©•Ğµµ…À¹©Í½¸ˆ¥¸É•Á½ÉĞ(€€€…ÍÍ•ÉĞ€‰É½ÍÌµÉ•Á½Í¥Ñ½ÉäÉğ¹Õ±°ˆ¥¸É•Á½ÉĞ(()‘•˜Ñ•ÍÑ}É•±•…Í•}•Ù¥‘•¹•}É•ÅÕ¥É•Í}‰½½±•…¹}½‰Í•ÉÙ…Ñ¥½¹}…¹‘}‘•Ñ…¥°¡ÑµÁ}Á…Ñ ¤è(€€€•Ù¥‘•¹”€ôÑµÁ}Á…Ñ €¼€‰É•±•…Í”µ•Ù¥‘•¹”¹Ñ½µ°ˆ(€€€•Ù¥‘•¹”¹İÉ¥Ñ•}Ñ•áĞ (€€€€€€€€œœm•Ù¥‘•¹”¹É½ÍÍ}É•Á½Í¥Ñ½Éå}”É•t)½‰Í•ÉÙ•€ôÑÉÕ”)‘•Ñ…¥°€ô€‰¥¹ÍÑ…±±•µ…ÁÁ•È€Ä¸È½¹ÍÕµ•‰ä‘•Øµ±¤€È¸Ìˆ()m•Ù¥‘•¹”¹Á•É™½Éµ…¹•t)½‰Í•ÉÙ•€ô™…±Ï½»¶‰ËkºwµçYH
+—Îˆ
+YK›Úß™^›[™HŠJBˆ[ÛšÙ^\]ÚœÙ]]ŠœØÜš\Ë›X\\—Ü]X[]WÙØ]K—Ü[[YWØÚXÚÈ‹[X™H
+—Îˆ
+œ\ÜÈ‹›ÚÈŠJBˆ™\ÜÈHZ[Ü™\Ü
+]
+×Ùš[W×ÊKœ\™[ÖÌWJBˆ\ÜÙ\›Ú×™^œ›[™Hˆ[ˆ™\Ü‚‚™Yˆ\İÜİ]\×Ù\İ[™İZ\Ú\×Ü\Ü×Ù˜Z[\™WØ[™ÛZ\ÜÚ[™×ØÛÛ[X[™
+\Ü]
+N‚ˆ\ÜÙ\Üİ]\ÊÜŞ\Ë™^Xİ]X›K‹XÈ‹œš[
+	ÛÚÉÊH—K\Ü]
+HOH
+œ\ÜÈ‹›ÚÈŠBˆİ]\Ë]Z[HÜİ]\ÊÜŞ\Ë™^Xİ]X›K‹XÈ‹œ˜Z\ÙHŞ\İ[Q^]
+	Ø˜Y	ÊH—K\Ü]
+Bˆ\ÜÙ\İ]\ÈOH™˜Z[ˆ[™]Z[OH˜˜Y‚ˆİ]\ËÈHÜİ]\ÊÈ™Yš[š][K[Z\ÜÚ[™ËXÛÛ[X[™—K\Ü]
+Bˆ\ÜÙ\İ]\ÈOH›[‚‚‚™Yˆ\İÛXZ[—İÜš]\×ÛX\šÙİÛ—Ü™\Ü
+\Ü][ÛšÙ^\]Ú
+N‚ˆ[ÛšÙ^\]Ú˜Ú\Š]
+×Ùš[W×ÊKœ\™[ÖÌWJBˆİ]]H\Ü]Èœ]X[]K›Y‚ˆ\ÜÙ\XZ[ŠÈ‹K[İ]]‹İŠİ]]
+K‹K\[[YKXš[˜\H‹™Yš[š][K[Z\ÜÚ[™Ë\Ú[\XÚ[È—JHOHˆ\ÜÙ\İ]]œ™XYİ^
+[˜ÛÙ[™ÏH]‹NŠKœİ\İÚ]
+ˆÈX\\ˆ]X[]HØ]HŠB‚‚™Yˆ\İÙ[ÙØ]WÜ™XÛÜ™×ÙXXÚÛØØ[ØÚXÚÊ[ÛšÙ^\]Ú
+N‚ˆ›ÛİH]
+×Ùš[W×ÊKœ\™[ÖÌWB‚ˆYˆ˜ZÙWÜİ]\ÊÛÛ[X[™Ü›Ûİ[S›Û™JN‚ˆ\ÜÙ\[ˆ\È›Û™HÜˆ\Ú[œİ[˜ÙJ[‹Xİ
+Bˆ™]\›ˆœ\ÜÈ‹›ØœÙ\™Y‚‚ˆ[ÛšÙ^\]ÚœÙ]]ŠœØÜš\Ë›X\\—Ü]X[]WÙØ]K—Üİ]\È‹˜ZÙWÜİ]\ÊBˆ™\ÜÛÙHHZ[Ü™\Ü
+›Ûİ[UYJBˆ\ÜÙ\ÛÙHOHˆ\ÜÙ\”]Ûˆ\İÈ\ÜÈØœÙ\™Yˆ[ˆ™\Üˆ\ÜÙ\“›ÙH[š]\İÈ\ÜÈØœÙ\™Yˆ[ˆ™\Üˆ\ÜÙ\”XÚØYÙHÛÛ[È\ÜÈØœÙ\™Yˆ[ˆ™\Ü
