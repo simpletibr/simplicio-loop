@@ -26,6 +26,13 @@ o resultado é `effect_unknown`: nunca há retry ou fallback automático. O
 coordenador deve consultar `RuntimeEffectSink.reconcile(key)`; restart usa a
 mesma intenção persistida.
 
+Falha de transporte durante capability negotiation, antes de qualquer
+admission, produz `not_started`. Falha depois do início de `submit`, ou receipt
+malformado, adulterado ou não correlacionado, produz `effect_unknown`. Ambos
+persistem outcome tipado, latency e reason code. Receipt não verificado nunca é
+persistido. No executor atômico, `not_started` é uma falha retryable; não é
+reportado como efeito submetido.
+
 Receipts são aceitos somente quando schema, digest, toda a identidade causal
 (coordenador, sessão, turno, tentativa, subworkflow, plano, goal, plan node e
 effect), idempotency key, ACs, decisão do gate e hashes base/source conferem.
@@ -50,5 +57,6 @@ pytest -q tests/python/test_runtime_effect_sink.py \
 python bench/runtime_effect_sink_benchmark.py
 ```
 
-Eventos contêm apenas effect ID, state, transport e latência. O payload do
-efeito, prompts e secrets não são emitidos em logs.
+Eventos contêm apenas effect ID, state, transport, latência e reason codes
+estáveis. O payload do efeito, receipts rejeitados, prompts e secrets não são
+emitidos em logs.

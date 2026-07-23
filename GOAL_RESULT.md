@@ -77,6 +77,20 @@ coverage, clean-wheel system probing, and performance evidence are recorded in
 Agent/non-Agent coordinator receipts were unavailable in Codex Cloud, so the
 issue remains open and no end-to-end Runtime mutation claim is made.
 
+## Issue #256 durable ambiguous outcomes (2026-07-23)
+
+Status: local boundary hardened; cross-repository completion remains blocked.
+Receipt validation failures after admission now persist a redacted
+`effect_unknown` outcome and never persist untrusted receipt content.
+Capability transport failures before admission persist `not_started`, which
+the atomic executor exposes as retryable failure instead of effect submission.
+The focused suite passed 63 tests at 93.01% branch coverage, and the
+500-transaction benchmark measured median 0.2176 ms and p95 0.3307 ms. A live
+Runtime trace, Agent/non-Agent parity, public transport parity, stale-source
+pre-mutation proof remain unavailable. The exact patch wheel passed an isolated
+`--target` install probe; its SHA-256 is
+`53afe69f2c63f7ec6e803112fad4e057c5e87b3eabcd8a8cc92b5b6ba11db99d`.
+
 ## Issue #262 quality gate
 
 ## Issue #262 CI follow-up (2026-07-22)

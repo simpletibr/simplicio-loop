@@ -58,6 +58,9 @@ def canonical_mapper_boundary(monkeypatch):
 class RuntimeTestSink(RecordingEffectSink):
     """Contract-shaped sink used only beyond the production negotiation gate."""
 
+    def __init__(self):
+        super().__init__(state="running")
+
 
 def _attempt() -> AttemptContext:
     return AttemptContext("attempt-1", "lease-1", "fence-7", "snapshot-real-1")

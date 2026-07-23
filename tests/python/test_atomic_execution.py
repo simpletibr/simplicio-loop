@@ -126,6 +126,29 @@ def test_sink_crash_is_effect_unknown_without_automatic_retry() -> None:
     assert "response lost" not in observation.reason
 
 
+def test_runtime_not_started_is_retryable_failure_not_submitted() -> None:
+    class NotStartedSink:
+        def submit(self, effect, context):
+            return EffectOutcome(
+                effect.effect_id,
+                "not_started",
+                "key-1",
+                reason_codes=["RUNTIME_TRANSPORT_ERROR"],
+            )
+
+    observation = execute_work_item_once(
+        _node(),
+        _attempt(),
+        effects=[_effect()],
+        verifications=[],
+        effect_sink=NotStartedSink(),
+    )
+
+    assert observation.outcome == "failed"
+    assert observation.retryability == "retryable"
+    assert observation.reason == "RUNTIME_TRANSPORT_ERROR"
+
+
 def test_receipt_preserves_coordinator_identity_and_handles() -> None:
     def completed(effect: EffectPlan) -> EffectOutcome:
         return EffectOutcome(

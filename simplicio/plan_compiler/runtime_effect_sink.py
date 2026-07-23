@@ -218,7 +218,9 @@ class RuntimeEffectSink:
         temporary.write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")), encoding="utf-8")
         temporary.replace(path)
 
-    def _validate_receipt(self, receipt: dict[str, Any], transaction: dict[str, Any]) -> EffectOutcome:
+    def _validate_receipt(self, receipt: Any, transaction: dict[str, Any]) -> EffectOutcome:
+        if not isinstance(receipt, dict):
+            raise RuntimeEffectError("RUNTIME_RESPONSE_INVALID", "receipt must be a JSON object")
         if receipt.get("schema") != RECEIPT_SCHEMA:
             raise RuntimeEffectError("RECEIPT_SCHEMA_INVALID", str(receipt.get("schema")))
         state = str(receipt.get("state", ""))
@@ -263,6 +265,40 @@ class RuntimeEffectSink:
             transport=self.transport.name,
         )
 
+    def _safe_outcome(
+        self,
+        *,
+        effect_id: str,
+        idempotency_key: str,
+        state: str,
+        reason_code: str,
+        started: float,
+    ) -> EffectOutcome:
+        """Persist a non-terminal result without storing an unsafe receipt."""
+        latency_ms = round((time.perf_counter() - started) * 1000, 3)
+        outcome = EffectOutcome(
+            effect_id,
+            state,
+            idempotency_key,
+            reason_codes=[reason_code],
+            latency_ms=latency_ms,
+            transport=self.transport.name,
+        )
+        self._persist(idempotency_key, "outcome", outcome.to_dict())
+        emit_event(
+            "effect_outcome",
+            {
+                "effect_id": effect_id,
+                "state": outcome.state,
+                "transport": self.transport.name,
+                "latency_ms": latency_ms,
+                "reason_codes": [reason_code],
+            },
+            level="warning",
+            root=str(self.root),
+        )
+        return outcome
+
     def submit(self, effect: EffectPlan, context: EffectDispatchContext) -> EffectOutcome:
         transaction = self._transaction(effect, context)
         key = transaction["idempotency_key"]
@@ -280,21 +316,46 @@ class RuntimeEffectSink:
         try:
             self.breaker.before_call()
             self._negotiate()
+        except RuntimeEffectError as exc:
+            if exc.code != "RUNTIME_CIRCUIT_OPEN":
+                self.breaker.failure()
+            if exc.code in {
+                "RUNTIME_CIRCUIT_OPEN",
+                "RUNTIME_TRANSPORT_ERROR",
+                "RUNTIME_RESPONSE_INVALID",
+            }:
+                return self._safe_outcome(
+                    effect_id=effect.effect_id,
+                    idempotency_key=key,
+                    state="not_started",
+                    reason_code=exc.code,
+                    started=started,
+                )
+            raise
+        try:
             receipt = self.transport.submit(transaction)
-            outcome = self._validate_receipt(receipt, transaction)
         except RuntimeEffectError as exc:
             self.breaker.failure()
             if exc.code in {"RUNTIME_TRANSPORT_ERROR", "RUNTIME_RESPONSE_INVALID"}:
-                outcome = EffectOutcome(
-                    effect.effect_id,
-                    "effect_unknown",
-                    key,
-                    reason_codes=[exc.code],
-                    transport=self.transport.name,
+                return self._safe_outcome(
+                    effect_id=effect.effect_id,
+                    idempotency_key=key,
+                    state="effect_unknown",
+                    reason_code=exc.code,
+                    started=started,
                 )
-                self._persist(key, "outcome", outcome.to_dict())
-                return outcome
             raise
+        try:
+            outcome = self._validate_receipt(receipt, transaction)
+        except RuntimeEffectError as exc:
+            self.breaker.failure()
+            return self._safe_outcome(
+                effect_id=effect.effect_id,
+                idempotency_key=key,
+                state="effect_unknown",
+                reason_code=exc.code,
+                started=started,
+            )
         self.breaker.success()
         self._persist(key, "receipt", receipt)
         self._persist(key, "outcome", outcome.to_dict())
@@ -306,6 +367,7 @@ class RuntimeEffectSink:
                 "transport": self.transport.name,
                 "latency_ms": round((time.perf_counter() - started) * 1000, 3),
             },
+            root=str(self.root),
         )
         return outcome
 
@@ -319,20 +381,32 @@ class RuntimeEffectSink:
         else:
             transaction = transaction_or_key
             key = transaction["idempotency_key"]
-        self.breaker.before_call()
-        self._negotiate()
+        started = time.perf_counter()
         try:
+            self.breaker.before_call()
+            self._negotiate()
             receipt = self.transport.query(key)
         except RuntimeEffectError as exc:
-            self.breaker.failure()
-            return EffectOutcome(
-                transaction["causal"]["effect_id"],
-                "effect_unknown",
-                key,
-                reason_codes=[exc.code],
-                transport=self.transport.name,
+            if exc.code != "RUNTIME_CIRCUIT_OPEN":
+                self.breaker.failure()
+            return self._safe_outcome(
+                effect_id=transaction["causal"]["effect_id"],
+                idempotency_key=key,
+                state="effect_unknown",
+                reason_code=exc.code,
+                started=started,
             )
-        outcome = self._validate_receipt(receipt, transaction)
+        try:
+            outcome = self._validate_receipt(receipt, transaction)
+        except RuntimeEffectError as exc:
+            self.breaker.failure()
+            return self._safe_outcome(
+                effect_id=transaction["causal"]["effect_id"],
+                idempotency_key=key,
+                state="effect_unknown",
+                reason_code=exc.code,
+                started=started,
+            )
         self.breaker.success()
         self._persist(key, "receipt", receipt)
         self._persist(key, "outcome", outcome.to_dict())

@@ -261,14 +261,14 @@ def execute_work_item_once(
         evidence = tuple(
             str(item) for item in receipt_payload.get("evidence_handles", ()) if str(item).strip()
         )
-        accepted_states = {"not_started", "running", "completed"}
+        accepted_states = {"running", "completed"}
         if result.state not in accepted_states:
             reason = ", ".join(result.reason_codes) or f"runtime effect state: {result.state}"
             retryability: Retryability = (
                 "unknown"
                 if result.state == "effect_unknown"
                 else "retryable"
-                if result.state == "blocked_conflict"
+                if result.state in {"not_started", "blocked_conflict"}
                 else "non_retryable"
             )
             return _observation(
