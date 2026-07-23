@@ -1,5 +1,14 @@
 # Goal Result
 
+## Issue #300 context binding (2026-07-23)
+
+The rebased local slice binds the canonical Mapper ContextSnapshot and its
+limited ContextPack projection to one digest-backed context handle. The
+handle is propagated through plan, attempt, effect transaction, observation,
+and receipt correlation. The full cross-repository flow remains blocked until
+Mapper emits the required provenance and Loop/Runtime provide installed-package
+E2E evidence; see `docs/evidence/issue-300.md`.
+
 ## Issue #262 scanner hardening (2026-07-23)
 
 Status: locally verifiable scanner and package lanes strengthened; issue remains

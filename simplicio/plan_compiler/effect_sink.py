@@ -44,6 +44,7 @@ class EffectDispatchContext:
     policy_revision: str = ""
     base_hash: str = ""
     source_hash: str = ""
+    context_handle: str = ""
 
 
 @dataclass(frozen=True)

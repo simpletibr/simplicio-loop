@@ -10,6 +10,7 @@ slice) — exactly the N-1 boundary ``compat_adapter`` documents.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,7 @@ from simplicio.plan_compiler import GoalEnvelope, PlanDAG, PlanNode
 from simplicio.plan_compiler.compat_adapter import (
     GOAL_ENVELOPE_VERSION,
     PLAN_DAG_VERSION,
+    CompatAdapterError,
     CompatAdapterExpiredError,
     UnsupportedCompatVersionError,
     adapt_goal_envelope_inbound,
@@ -259,6 +261,12 @@ def test_plan_dag_adapt_outbound_rejects_older_than_n_minus_1() -> None:
     plan = _current_plan()
     with pytest.raises(UnsupportedCompatVersionError):
         adapt_outbound(plan, PLAN_DAG_VERSION - 2)
+
+
+def test_digest_bound_plan_cannot_downgrade_to_handle_unaware_consumer() -> None:
+    plan = replace(_current_plan(), context_handle="sha256:" + "c" * 64)
+    with pytest.raises(CompatAdapterError, match="context_handle"):
+        adapt_outbound(plan, PLAN_DAG_VERSION - 1)
 
 
 def test_plan_dag_adapt_inbound_rejects_older_than_n_minus_1() -> None:

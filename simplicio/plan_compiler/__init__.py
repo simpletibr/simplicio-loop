@@ -46,14 +46,22 @@ from simplicio.plan_compiler.errors import (
     SchemaMismatchError,
 )
 from simplicio.plan_compiler.mapper_context import (
+    DEV_CLI_CONTEXT_HANDLE_SCHEMA,
     DEV_CLI_FALLBACK_CONTEXT_SCHEMA,
+    MAPPER_CONTEXT_PACK_SCHEMA,
     MAPPER_CONTEXT_SNAPSHOT_SCHEMA,
     MAPPER_CONTRACT_COMMIT,
     MAPPER_CONTRACT_MANIFEST_SHA256,
+    ContextBinding,
+    ContextHandle,
     MapperContextAdapter,
     MapperContextError,
+    MapperContextPackAdapter,
     MapperContextView,
+    bind_mapper_context,
     load_mapper_context,
+    load_mapper_context_pack,
+    verify_context_sources,
 )
 from simplicio.plan_compiler.models import (
     EFFECT_PLAN_SCHEMA,
@@ -70,6 +78,9 @@ from simplicio.plan_compiler.models import (
 from simplicio.plan_compiler.runtime_effect_sink import RuntimeEffectError, RuntimeEffectSink
 
 __all__ = [
+    "ContextBinding",
+    "ContextHandle",
+    "DEV_CLI_CONTEXT_HANDLE_SCHEMA",
     "DEV_CLI_FALLBACK_CONTEXT_SCHEMA",
     "EFFECT_PLAN_SCHEMA",
     "GOAL_ENVELOPE_ADAPTER_EXPIRES_AT_VERSION",
@@ -93,9 +104,11 @@ __all__ = [
     "IntegratedModeRequiresSinkError",
     "MAPPER_CONTRACT_COMMIT",
     "MAPPER_CONTRACT_MANIFEST_SHA256",
+    "MAPPER_CONTEXT_PACK_SCHEMA",
     "MAPPER_CONTEXT_SNAPSHOT_SCHEMA",
     "MapperContextAdapter",
     "MapperContextError",
+    "MapperContextPackAdapter",
     "MapperContextView",
     "PlanCompilationError",
     "PlanCompilerError",
@@ -113,10 +126,13 @@ __all__ = [
     "adapt_goal_envelope_outbound",
     "adapt_inbound",
     "adapt_outbound",
+    "bind_mapper_context",
     "canonical_hash",
     "compile_task_spec_to_plan",
     "create_plan_projection",
     "load_mapper_context",
     "plan_contract_manifest",
     "validate_plan_projection",
+    "load_mapper_context_pack",
+    "verify_context_sources",
 ]

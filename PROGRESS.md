@@ -1,5 +1,16 @@
 # PROGRESS
 
+## Issue #300 digest-bound context progress
+
+- 2026-07-23: implemented a fail-closed local binding between canonical Mapper
+  ContextSnapshot bytes, a provenance-bearing ContextPack projection, and one
+  SHA-256 context handle. The handle now crosses PlanDAG, EffectPlan, Attempt,
+  EffectTransaction causal metadata, observation, and verified receipt.
+- 2026-07-23: added pre-dispatch source-drift/path checks, typed projection
+  rejection (origin, hash, fidelity, budget, sensitive fields), N-1 downgrade
+  refusal for bound plans, hash-only diagnostics, and evidence documenting the
+  Mapper/Loop/Runtime blockers that cannot be proven in this repository.
+
 - 2026-07-22: issue #98 verifier strengthened to fail closed when compatibility
   `master` diverges from `main`, with explicit previous/default metadata and
   concrete live receipt. Focused suite: 11 passed, 97.06% branch coverage;

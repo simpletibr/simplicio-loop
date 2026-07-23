@@ -228,6 +228,7 @@ def run_task(
     mode: PipelineMode | None = None,
     effect_sink: EffectSink | None = None,
     context_snapshot: dict | None = None,
+    context_pack: dict | None = None,
     runtime_handshake: dict | None = None,
     coordinator_kind: str | None = None,
     coordinator_id: str | None = None,
@@ -384,6 +385,7 @@ def run_task(
             primary_test_cmd,
             effect_sink,
             context_snapshot=context_snapshot,
+            context_pack=context_pack,
             attempt=integrated_attempt,
             task_spec=task_spec,
         )

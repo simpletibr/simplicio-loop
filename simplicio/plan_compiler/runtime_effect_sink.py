@@ -207,6 +207,8 @@ class RuntimeEffectSink:
         }
 
     def _transaction(self, effect: EffectPlan, context: EffectDispatchContext) -> dict[str, Any]:
+        if effect.context_handle != context.context_handle:
+            raise RuntimeEffectError("CONTEXT_HANDLE_MISMATCH", "EffectPlan and dispatch context differ")
         node = context.plan_node
         _safe_write_set(node.write_set)
         effect_body = effect.to_dict()
@@ -223,6 +225,8 @@ class RuntimeEffectSink:
             "plan_node_id": effect.plan_node_id,
             "effect_id": effect.effect_id,
         }
+        if context.context_handle:
+            causal["context_handle"] = context.context_handle
         key = hashlib.sha256(json.dumps([causal, effect_digest], sort_keys=True).encode()).hexdigest()
         return {
             "schema": TRANSACTION_SCHEMA,

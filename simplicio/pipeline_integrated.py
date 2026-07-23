@@ -28,7 +28,11 @@ from .observability import emit_event
 from .pipeline_task_result import _task_result
 from .plan_compiler import PlanCompilationError, compile_task_spec_to_plan
 from .plan_compiler.effect_sink import EffectDispatchContext, EffectSink, IntegratedModeRequiresSinkError
-from .plan_compiler.mapper_context import MapperContextError, load_mapper_context
+from .plan_compiler.mapper_context import (
+    MapperContextError,
+    bind_mapper_context,
+    verify_context_sources,
+)
 from .plan_compiler.runtime_effect_sink import RuntimeEffectSink
 from .task_spec import TaskSpec
 
@@ -84,6 +88,7 @@ def run_integrated(
     effect_sink: EffectSink | None,
     *,
     context_snapshot: dict[str, Any] | None = None,
+    context_pack: dict[str, Any] | None = None,
     attempt: AttemptContext | None = None,
     task_spec: TaskSpec | None = None,
 ) -> dict[str, Any]:
@@ -144,23 +149,46 @@ def run_integrated(
                 {"code": "CONTEXT_REQUIRED", "message": "canonical Mapper ContextSnapshot is required"}
             ],
         )
-    try:
-        mapper_context = load_mapper_context(context_snapshot, source_root=root)
-    except MapperContextError as exc:
+    if context_pack is None:
         return _task_result(
             target,
             prompt,
             "",
             applied=False,
             status="blocked",
-            warnings=["INCOMPATIBLE_CONTEXT"],
+            warnings=["CONTEXT_PACK_REQUIRED"],
             blocked_preconditions=[
-                {"code": "INCOMPATIBLE_CONTEXT", "message": f"{exc.code}: canonical Mapper snapshot rejected"}
+                {
+                    "code": "CONTEXT_PACK_REQUIRED",
+                    "message": "Mapper ContextPack with snapshot provenance is required",
+                }
             ],
         )
-    context_snapshot_id = mapper_context.view.snapshot_id
-    revision = mapper_context.view.revision
-    if attempt.context_handle != context_snapshot_id:
+    try:
+        binding = bind_mapper_context(context_snapshot, context_pack, source_root=root)
+        verify_context_sources(binding, source_root=root)
+    except MapperContextError as exc:
+        warning = (
+            exc.code if exc.code in {"SOURCE_DRIFT", "CONTEXT_ROOT_PATH_MISMATCH"} else "INCOMPATIBLE_CONTEXT"
+        )
+        return _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[warning],
+            blocked_preconditions=[
+                {
+                    "code": warning,
+                    "message": f"{exc.code}: snapshot/projection binding rejected",
+                }
+            ],
+        )
+    context_snapshot_id = binding.snapshot.view.snapshot_id
+    revision = binding.snapshot.view.revision
+    context_handle = binding.context_handle.value
+    if attempt.context_handle != context_handle:
         return _task_result(
             target,
             prompt,
@@ -171,7 +199,7 @@ def run_integrated(
             blocked_preconditions=[
                 {
                     "code": "CONTEXT_HANDLE_MISMATCH",
-                    "message": "attempt context_handle must identify the canonical ContextSnapshot",
+                    "message": "attempt context_handle must match the snapshot/projection digest binding",
                 }
             ],
         )
@@ -181,6 +209,7 @@ def run_integrated(
             goal_id=goal_id,
             context_snapshot_id=context_snapshot_id,
             revision=revision,
+            context_handle=context_handle,
         )
     except PlanCompilationError as exc:
         emit_event(
@@ -209,6 +238,7 @@ def run_integrated(
         verifications=[item for item in verifications if item.plan_node_id == effect_node.node_id],
         coordinator_id=attempt.attempt_id,
         source_hash=task_spec.source_hash,
+        context_handle=context_handle,
     )
     observation = execute_work_item_once(
         effect_node,
@@ -225,6 +255,10 @@ def run_integrated(
     result["verifications"] = [verification.to_dict() for verification in verifications]
     result["observation"] = observation.to_dict()
     result["task_spec_hash"] = task_spec.canonical_hash()
+    result["context_binding"] = {
+        **binding.context_handle.to_dict(),
+        "context_handle": context_handle,
+    }
     emit_event(
         "task_complete",
         {
