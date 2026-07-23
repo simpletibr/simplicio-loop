@@ -414,3 +414,29 @@ O Runtime Effect API continua sendo um contrato cross-repo: esta documentação
 e os testes locais não alegam receipt Runtime vivo. Feature/sprint integrados
 também continuam bloqueados até a migração para WorkItems atômicos da issue
 #258; o modo standalone preserva o lifecycle local legado.
+
+## Digest-bound snapshot projections (issue #300)
+
+Integrated execution no longer treats a human-readable `snapshot_id` as the
+attempt context identity. `bind_mapper_context()` validates Mapper's canonical
+snapshot plus its limited ContextPack projection and derives a content-addressed
+handle over both canonical byte sequences. The pack must carry additive
+`source_snapshot` provenance (`snapshot_id`, `revision`, `source_digest`, and
+`root_hash`) matching the accepted snapshot.
+
+Before dispatch, `verify_context_sources()` hashes every projected file under
+the selected root. Missing, changed, absolute, or escaping paths return a typed
+blocked result and never reach the EffectSink. A matching handle is compiled
+onto the PlanDAG and EffectPlan, preserved by AttemptContext/AtomicObservation,
+and sent in EffectTransaction causal metadata so a Runtime receipt must echo it
+to pass receipt correlation.
+
+The diagnostic result exposes only schema, hashes, IDs, revision, root
+identity, and Mapper version under `context_binding`; it never echoes source
+content. A digest-bound plan cannot be downgraded through the handle-unaware
+N-1 adapter.
+
+This is a fail-closed Dev-CLI consumer boundary, not a local fork of Mapper's
+schemas. Mapper 0.24.1 does not yet emit the required provenance, so a real
+cross-repository flow remains blocked until its producer contract is updated.
+See `docs/evidence/issue-300.md` for the exact validation matrix and blockers.

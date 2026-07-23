@@ -122,10 +122,15 @@ def adapt_goal_envelope_outbound(goal: GoalEnvelope, target_version: int) -> dic
     _check_goal_envelope_not_expired()
     if target_version != GOAL_ENVELOPE_VERSION - 1:
         raise UnsupportedCompatVersionError("GoalEnvelope", target_version, GOAL_ENVELOPE_VERSION)
+    if goal.context_handle:
+        raise CompatAdapterError(
+            "GoalEnvelope with a digest-bound context_handle cannot be downgraded safely"
+        )
     payload = goal.to_dict()
     # version 0 predates producer_id/consumer_id (#171): drop them cleanly.
     payload.pop("producer_id", None)
     payload.pop("consumer_id", None)
+    payload.pop("context_handle", None)
     return payload
 
 
@@ -164,8 +169,11 @@ def adapt_outbound(plan: PlanDAG, target_version: int) -> dict[str, Any]:
     _check_plan_dag_not_expired()
     if target_version != PLAN_DAG_VERSION - 1:
         raise UnsupportedCompatVersionError("PlanDAG", target_version, PLAN_DAG_VERSION)
+    if plan.context_handle:
+        raise CompatAdapterError("PlanDAG with a digest-bound context_handle cannot be downgraded safely")
     payload = plan.to_dict()
     payload.pop("budget", None)
+    payload.pop("context_handle", None)
     return payload
 
 

@@ -79,6 +79,27 @@ def test_validate_rejects_orphan_dependency() -> None:
         plan.validate()
 
 
+def test_validate_rejects_effect_with_different_context_handle() -> None:
+    plan = PlanDAG(
+        plan_id="plan-1",
+        goal_id="goal-1",
+        context_snapshot_id="snap-1",
+        revision="1",
+        nodes=[PlanNode(node_id="n1", capability="edit.apply", requires_gate=True)],
+        context_handle="sha256:" + "a" * 64,
+    )
+    effect = EffectPlan(
+        "effect-1",
+        "n1",
+        "write",
+        "runtime",
+        "key",
+        context_handle="sha256:" + "b" * 64,
+    )
+    with pytest.raises(PlanValidationError, match="context_handle"):
+        plan.validate(effects=[effect])
+
+
 def test_validate_rejects_unmapped_acceptance_criteria() -> None:
     plan = _simple_plan()
     with pytest.raises(PlanValidationError):
@@ -360,7 +381,11 @@ def test_compiled_runtime_handoff_payloads_exclude_agent_owned_control_plane_fie
         trace_id="trace-1",
     )
 
-    handoff_payloads = [plan.to_dict(), *(effect.to_dict() for effect in effects), *(v.to_dict() for v in verifications)]
+    handoff_payloads = [
+        plan.to_dict(),
+        *(effect.to_dict() for effect in effects),
+        *(v.to_dict() for v in verifications),
+    ]
 
     def _walk_keys(value):
         if isinstance(value, dict):

@@ -184,6 +184,28 @@ def test_capability_handshake_fails_closed_for_malformed_external_shapes(tmp_pat
     assert handshake["reason"] == "RUNTIME_CAPABILITY_INVALID"
 
 
+def test_context_handle_crosses_transaction_and_verified_receipt(tmp_path, effect, context):
+    context = replace(context, context_handle="sha256:" + "c" * 64)
+    effect = replace(effect, context_handle=context.context_handle)
+    transport = FakeTransport()
+
+    outcome = RuntimeEffectSink(transport, root=tmp_path).submit(effect, context)
+
+    assert transport.submitted[0]["causal"]["context_handle"] == context.context_handle
+    assert transport.submitted[0]["effect"]["context_handle"] == context.context_handle
+    assert outcome.receipt is not None
+    assert outcome.receipt["causal"]["context_handle"] == context.context_handle
+
+
+def test_runtime_rejects_context_handle_mismatch_before_persist_or_submit(tmp_path, effect, context):
+    transport = FakeTransport()
+    context = replace(context, context_handle="sha256:" + "c" * 64)
+    with pytest.raises(RuntimeEffectError, match="CONTEXT_HANDLE_MISMATCH"):
+        RuntimeEffectSink(transport, root=tmp_path).submit(effect, context)
+    assert transport.submitted == []
+    assert not (tmp_path / ".simplicio").exists()
+
+
 @pytest.mark.parametrize(
     "state",
     ["denied", "running", "validation_failed", "rolled_back", "blocked_conflict", "cancelled_safe"],

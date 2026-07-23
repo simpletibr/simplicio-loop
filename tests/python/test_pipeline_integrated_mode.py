@@ -39,13 +39,15 @@ CANONICAL_CONTEXT = {
     "revision": "abc123",
     "digest": "sha256:context",
 }
+CANONICAL_PACK = {"schema": "simplicio.context-pack/v1"}
+CONTEXT_HANDLE = "sha256:" + "c" * 64
 
 
 @pytest.fixture(autouse=True)
 def canonical_mapper_boundary(monkeypatch):
     def load(payload, **_kwargs):
         if payload is CANONICAL_CONTEXT:
-            view = SimpleNamespace(snapshot_id="snapshot-real-1", revision="abc123")
+            view = SimpleNamespace(snapshot_id="snapshot-real-1", revision="abc123", root_hash="root-hash")
             return SimpleNamespace(payload_bytes=b"canonical-context", view=view)
         from simplicio.plan_compiler.mapper_context import MapperContextError
 
@@ -54,6 +56,24 @@ def canonical_mapper_boundary(monkeypatch):
     monkeypatch.setattr("simplicio.execution_mode.load_mapper_context", load)
     monkeypatch.setattr("simplicio.pipeline_integrated.load_mapper_context", load)
     monkeypatch.setattr("simplicio.execution_mode.RuntimeEffectSink", RuntimeTestSink)
+
+    def bind(snapshot, pack, **_kwargs):
+        assert snapshot is CANONICAL_CONTEXT
+        assert pack is CANONICAL_PACK
+        return SimpleNamespace(
+            snapshot=load(snapshot),
+            context_handle=SimpleNamespace(
+                value=CONTEXT_HANDLE,
+                to_dict=lambda: {
+                    "schema": "simplicio.dev-cli.context-handle/v1",
+                    "source_digest": "a" * 64,
+                    "projection_digest": "b" * 64,
+                },
+            ),
+        )
+
+    monkeypatch.setattr("simplicio.pipeline_integrated.bind_mapper_context", bind)
+    monkeypatch.setattr("simplicio.pipeline_integrated.verify_context_sources", lambda *a, **k: None)
 
 
 class RuntimeTestSink(RecordingEffectSink):
@@ -66,7 +86,7 @@ class RuntimeTestSink(RecordingEffectSink):
 
 
 def _attempt() -> AttemptContext:
-    return AttemptContext("attempt-1", "lease-1", "fence-7", "snapshot-real-1")
+    return AttemptContext("attempt-1", "lease-1", "fence-7", CONTEXT_HANDLE)
 
 
 def _valid_pipeline_diff() -> str:
@@ -187,6 +207,7 @@ def test_integrated_mode_without_sink_fails_closed_and_never_writes(tmp_path, mo
         mode="integrated",
         runtime_handshake=READY_RUNTIME,
         context_snapshot=CANONICAL_CONTEXT,
+        context_pack=CANONICAL_PACK,
         quiet=True,
     )
     assert result["status"] == "blocked"
@@ -234,11 +255,84 @@ def test_integrated_mode_without_test_cmd_is_blocked_not_applied(tmp_path, monke
         integrated_attempt=_attempt(),
         runtime_handshake=READY_RUNTIME,
         context_snapshot=CANONICAL_CONTEXT,
+        context_pack=CANONICAL_PACK,
         quiet=True,
     )
 
     assert result["applied"] is False
     assert result["status"] == "blocked"
+    assert sink.received == []
+
+
+def test_integrated_mode_requires_pack_and_matching_digest_handle(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
+    monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
+    sink = RuntimeTestSink()
+
+    missing = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "add api",
+        "src/app.py",
+        "- passes",
+        "- small",
+        mode="integrated",
+        effect_sink=sink,
+        integrated_attempt=_attempt(),
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
+        quiet=True,
+    )
+    mismatch = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "add api",
+        "src/app.py",
+        "- passes",
+        "- small",
+        mode="integrated",
+        effect_sink=sink,
+        integrated_attempt=AttemptContext("attempt-1", "lease-1", "fence-7", "sha256:" + "d" * 64),
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
+        context_pack=CANONICAL_PACK,
+        quiet=True,
+    )
+
+    assert missing["warnings"] == ["CONTEXT_PACK_REQUIRED"]
+    assert mismatch["warnings"] == ["CONTEXT_HANDLE_MISMATCH"]
+    assert sink.received == []
+
+
+def test_integrated_mode_blocks_source_drift_before_effect(tmp_path, monkeypatch):
+    from simplicio.plan_compiler.mapper_context import MapperContextError
+
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
+    monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
+
+    def drift(*_args, **_kwargs):
+        raise MapperContextError("SOURCE_DRIFT", "src/app.py changed")
+
+    monkeypatch.setattr("simplicio.pipeline_integrated.verify_context_sources", drift)
+    sink = RuntimeTestSink()
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "add api",
+        "src/app.py",
+        "- passes",
+        "- small",
+        mode="integrated",
+        effect_sink=sink,
+        integrated_attempt=_attempt(),
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
+        context_pack=CANONICAL_PACK,
+        quiet=True,
+    )
+
+    assert result["warnings"] == ["SOURCE_DRIFT"]
+    assert result["blocked_preconditions"][0]["code"] == "SOURCE_DRIFT"
     assert sink.received == []
 
 
@@ -273,6 +367,7 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
         integrated_attempt=_attempt(),
         runtime_handshake=READY_RUNTIME,
         context_snapshot=CANONICAL_CONTEXT,
+        context_pack=CANONICAL_PACK,
         quiet=True,
     )
 
@@ -300,7 +395,11 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
     assert observation["attempt_id"] == "attempt-1"
     assert observation["lease_id"] == "lease-1"
     assert observation["fencing_token"] == "fence-7"
-    assert observation["context_handle"] == CANONICAL_CONTEXT["snapshot_id"]
+    assert observation["context_handle"] == CONTEXT_HANDLE
+    assert result["plan"]["context_handle"] == CONTEXT_HANDLE
+    assert result["effects"][0]["context_handle"] == CONTEXT_HANDLE
+    assert sink.contexts[0].context_handle == CONTEXT_HANDLE
+    assert result["context_binding"]["context_handle"] == CONTEXT_HANDLE
     assert observation["resources"]["effect_calls"] == 1
     assert observation["resources"]["threads_created"] == 0
 
@@ -325,6 +424,7 @@ def test_integrated_mode_needs_clarification_when_no_acceptance_criteria(tmp_pat
         integrated_attempt=_attempt(),
         runtime_handshake=READY_RUNTIME,
         context_snapshot=CANONICAL_CONTEXT,
+        context_pack=CANONICAL_PACK,
         quiet=True,
     )
 

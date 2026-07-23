@@ -51,6 +51,7 @@ class GoalEnvelope:
     constraints: dict[str, Any] = field(default_factory=dict)
     producer_id: str = ""
     consumer_id: str = ""
+    context_handle: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -63,6 +64,7 @@ class GoalEnvelope:
             "constraints": self.constraints,
             "producer_id": self.producer_id,
             "consumer_id": self.consumer_id,
+            "context_handle": self.context_handle,
         }
 
     @classmethod
@@ -77,6 +79,7 @@ class GoalEnvelope:
             constraints=dict(payload.get("constraints", {})),
             producer_id=str(payload.get("producer_id", "")),
             consumer_id=str(payload.get("consumer_id", "")),
+            context_handle=str(payload.get("context_handle", "")),
         )
 
 
@@ -155,6 +158,7 @@ class EffectPlan:
     preconditions: list[str] = field(default_factory=list)
     patch_ref: str | None = None
     artifact_ref: str | None = None
+    context_handle: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -167,6 +171,7 @@ class EffectPlan:
             "preconditions": self.preconditions,
             "patch_ref": self.patch_ref,
             "artifact_ref": self.artifact_ref,
+            "context_handle": self.context_handle,
         }
 
     @classmethod
@@ -181,6 +186,7 @@ class EffectPlan:
             preconditions=list(payload.get("preconditions", [])),
             patch_ref=payload.get("patch_ref"),
             artifact_ref=payload.get("artifact_ref"),
+            context_handle=str(payload.get("context_handle", "")),
         )
 
 
@@ -243,6 +249,7 @@ class PlanDAG:
     consumer_id: str = ""
     budget: float | None = None
     trace_id: str | None = None
+    context_handle: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -256,6 +263,7 @@ class PlanDAG:
             "consumer_id": self.consumer_id,
             "budget": self.budget,
             "trace_id": self.trace_id,
+            "context_handle": self.context_handle,
         }
 
     @classmethod
@@ -273,6 +281,7 @@ class PlanDAG:
             consumer_id=str(payload.get("consumer_id", "")),
             budget=float(raw_budget) if raw_budget is not None else None,
             trace_id=str(raw_trace_id) if raw_trace_id is not None else None,
+            context_handle=str(payload.get("context_handle", "")),
         )
 
     def canonical_hash(self) -> str:
@@ -340,6 +349,8 @@ class PlanDAG:
                 diagnostics.append(f"estimated cost {total_cost} exceeds budget {effective_budget}")
 
         for effect in effects:
+            if effect.context_handle != self.context_handle:
+                diagnostics.append(f"EffectPlan {effect.effect_id} context_handle does not match PlanDAG")
             if effect.plan_node_id not in known:
                 diagnostics.append(
                     f"EffectPlan {effect.effect_id} references unknown node {effect.plan_node_id}"

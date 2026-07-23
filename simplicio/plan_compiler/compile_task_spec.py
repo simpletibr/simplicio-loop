@@ -33,18 +33,24 @@ class PlanCompilationError(PlanCompilerError):
     """
 
 
-def _idempotency_key(task_spec: TaskSpec, *, goal_id: str, context_snapshot_id: str, revision: str) -> str:
-    digest = hashlib.sha256(
-        "|".join(
-            [
-                task_spec.task_id,
-                task_spec.source_hash,
-                goal_id,
-                context_snapshot_id,
-                revision,
-            ]
-        ).encode("utf-8")
-    ).hexdigest()
+def _idempotency_key(
+    task_spec: TaskSpec,
+    *,
+    goal_id: str,
+    context_snapshot_id: str,
+    revision: str,
+    context_handle: str,
+) -> str:
+    parts = [
+        task_spec.task_id,
+        task_spec.source_hash,
+        goal_id,
+        context_snapshot_id,
+        revision,
+    ]
+    if context_handle:
+        parts.append(context_handle)
+    digest = hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
     return f"edit-{digest[:16]}"
 
 
@@ -56,6 +62,7 @@ def compile_task_spec_to_plan(
     revision: str,
     budget: float | None = None,
     trace_id: str | None = None,
+    context_handle: str = "",
 ) -> tuple[PlanDAG, list[EffectPlan], list[VerificationPlan]]:
     """Compile ``task_spec`` into a validated ``(PlanDAG, effects, verifications)``.
 
@@ -117,6 +124,7 @@ def compile_task_spec_to_plan(
         nodes=[edit_node, verify_node],
         budget=budget,
         trace_id=trace_id,
+        context_handle=context_handle,
     )
 
     effects = [
@@ -130,8 +138,13 @@ def compile_task_spec_to_plan(
                 goal_id=goal_id,
                 context_snapshot_id=context_snapshot_id,
                 revision=revision,
+                context_handle=context_handle,
             ),
-            preconditions=[f"context_snapshot:{context_snapshot_id}"],
+            preconditions=[
+                f"context_snapshot:{context_snapshot_id}",
+                *([f"context_handle:{context_handle}"] if context_handle else []),
+            ],
+            context_handle=context_handle,
         )
     ]
 
