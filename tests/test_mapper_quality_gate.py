@@ -77,7 +77,10 @@ def test_release_gate_accepts_complete_observed_evidence_when_other_checks_pass(
     )
     monkeypatch.setattr("scripts.mapper_quality_gate._run", lambda *_: (True, "scanner passed"))
     monkeypatch.setattr("scripts.mapper_quality_gate._runtime_check", lambda *_: ("pass", "runtime passed"))
-    monkeypatch.setattr("scripts.mapper_quality_gate._status", lambda *_: ("pass", "tool passed"))
+    monkeypatch.setattr(
+        "scripts.mapper_quality_gate._status",
+        lambda *_, **__: ("pass", "tool passed"),
+    )
     report, code = build_report(
         tmp_path,
         full=True,
@@ -113,7 +116,8 @@ def test_main_writes_markdown_report(tmp_path, monkeypatch):
 def test_full_gate_records_each_local_check(monkeypatch):
     root = Path(__file__).parents[1]
 
-    def fake_status(command, _root):
+    def fake_status(command, _root, env=None):
+        assert env is None or isinstance(env, dict)
         return "pass", "observed"
 
     monkeypatch.setattr("scripts.mapper_quality_gate._status", fake_status)
