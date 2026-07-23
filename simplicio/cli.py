@@ -159,6 +159,13 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
         action="store_true",
         help="read one exported simplicio.task-spec/v2 JSON document from stdin",
     )
+    p.add_argument("--context-snapshot", help="canonical Mapper ContextSnapshot JSON path")
+    p.add_argument("--attempt-id", help="coordinator-owned atomic attempt ID")
+    p.add_argument("--lease-id", help="coordinator-owned lease ID")
+    p.add_argument("--fencing-token", help="coordinator-owned fencing token")
+    p.add_argument("--context-handle", help="canonical snapshot ID bound to the attempt")
+    p.add_argument("--coordinator-kind", help="coordinator type recorded in the execution profile")
+    p.add_argument("--coordinator-id", help="coordinator identity recorded in the execution profile")
 
 
 def _add_run_args(p: argparse.ArgumentParser) -> None:
@@ -183,6 +190,13 @@ def _add_run_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--skip-install", action="store_true", help="scratch skip install")
     p.add_argument("--slot", action="append", default=[], metavar="KEY=VALUE")
     p.add_argument("--mode", choices=["auto", "integrated", "standalone"], default=None)
+    p.add_argument("--context-snapshot", help="canonical Mapper ContextSnapshot JSON path")
+    p.add_argument("--attempt-id", help="coordinator-owned atomic attempt ID")
+    p.add_argument("--lease-id", help="coordinator-owned lease ID")
+    p.add_argument("--fencing-token", help="coordinator-owned fencing token")
+    p.add_argument("--context-handle", help="canonical snapshot ID bound to the attempt")
+    p.add_argument("--coordinator-kind", help="coordinator type recorded in the execution profile")
+    p.add_argument("--coordinator-id", help="coordinator identity recorded in the execution profile")
 
 
 def _extract_global_verbosity(argv: list[str]) -> tuple[bool, bool, list[str]]:
@@ -484,6 +498,15 @@ def _build_parser() -> argparse.ArgumentParser:
     p_runtime_capabilities = runtime_sub.add_parser("capabilities")
     p_runtime_capabilities.add_argument("--root", default=".")
     p_runtime_capabilities.add_argument("--mode", choices=["auto", "integrated", "standalone"])
+    p_runtime_capabilities.add_argument(
+        "--context-snapshot", help="canonical Mapper ContextSnapshot JSON path"
+    )
+    p_runtime_capabilities.add_argument("--attempt-id", help="coordinator-owned atomic attempt ID")
+    p_runtime_capabilities.add_argument("--lease-id", help="coordinator-owned lease ID")
+    p_runtime_capabilities.add_argument("--fencing-token", help="coordinator-owned fencing token")
+    p_runtime_capabilities.add_argument("--context-handle", help="canonical snapshot ID bound to the attempt")
+    p_runtime_capabilities.add_argument("--coordinator-kind")
+    p_runtime_capabilities.add_argument("--coordinator-id")
     p_runtime_capabilities.add_argument("--json", action="store_true")
 
     p_prototype = sub.add_parser(

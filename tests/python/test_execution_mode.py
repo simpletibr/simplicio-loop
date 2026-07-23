@@ -7,7 +7,13 @@ from types import SimpleNamespace
 import pytest
 
 from simplicio import cli
-from simplicio.execution_mode import negotiate_execution_mode, requested_mode
+from simplicio.atomic_execution import AttemptContext
+from simplicio.execution_mode import (
+    negotiate_execution_mode,
+    prepare_execution_inputs,
+    requested_mode,
+    require_coordinator_attempt,
+)
 
 READY = {
     "verified": True,
@@ -33,10 +39,11 @@ def canonical_mapper_boundary(monkeypatch):
         raise MapperContextError("TEST_CONTEXT_REJECTED", "not canonical")
 
     monkeypatch.setattr("simplicio.execution_mode.load_mapper_context", load)
+    monkeypatch.setattr("simplicio.execution_mode.RuntimeEffectSink", RuntimeEffectSink)
 
 
 class RuntimeEffectSink:
-    pass
+    test_only = False
 
 
 @pytest.mark.parametrize("coordinator", ["simplicio-agent", "codex-cloud"])
@@ -72,6 +79,30 @@ def test_integrated_matrix_fails_closed(handshake, context, sink, reason):
     assert profile.fallback_reason is None
 
 
+def test_non_object_runtime_handshake_fails_closed() -> None:
+    profile = negotiate_execution_mode(
+        "integrated",
+        runtime_handshake=[],  # type: ignore[arg-type]
+        context_snapshot=CONTEXT,
+        effect_sink=RuntimeEffectSink(),
+    )
+
+    assert profile.effective_mode == "blocked"
+    assert profile.reason_code == "INCOMPATIBLE_RUNTIME"
+    assert profile.runtime["reason"] == "RUNTIME_HANDSHAKE_INVALID"
+
+
+def test_explicit_empty_snapshot_is_not_replaced_by_environment(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "simplicio.execution_mode._load_context_snapshot",
+        lambda *_args, **_kwargs: CONTEXT,
+    )
+
+    prepared = prepare_execution_inputs("integrated", context_snapshot={})
+
+    assert prepared.context_snapshot == {}
+
+
 def test_schema_string_without_mapper_validation_is_not_canonical():
     profile = negotiate_execution_mode(
         "integrated",
@@ -82,6 +113,21 @@ def test_schema_string_without_mapper_validation_is_not_canonical():
     assert profile.effective_mode == "blocked"
     assert profile.reason_code == "INCOMPATIBLE_CONTEXT"
     assert profile.mapper["contract_error"] == "TEST_CONTEXT_REJECTED"
+
+
+def test_sink_that_only_mimics_the_class_name_is_rejected():
+    class RuntimeEffectSinkLookalike:
+        pass
+
+    profile = negotiate_execution_mode(
+        "integrated",
+        runtime_handshake=READY,
+        context_snapshot=CONTEXT,
+        effect_sink=RuntimeEffectSinkLookalike(),
+    )
+
+    assert profile.effective_mode == "blocked"
+    assert profile.reason_code == "RUNTIME_SINK_REQUIRED"
 
 
 def test_auto_policy_fallback_and_kill_switch(monkeypatch):
@@ -135,12 +181,224 @@ def test_capabilities_cli_json_is_clean_and_installed_entrypoint_parity(monkeypa
     assert payload["execution_profile"]["effective_mode"] == "blocked"
 
 
+def test_task_cli_forwards_integrated_coordinator_inputs(monkeypatch, capsys):
+    captured = {}
+
+    def fake_run_task(*_args, **kwargs):
+        captured.update(kwargs)
+        return {
+            "applied": False,
+            "status": "blocked",
+            "diff_summary": "blocked",
+            "warnings": ["RUNTIME_UNAVAILABLE"],
+        }
+
+    monkeypatch.setattr("simplicio.pipeline.run_task", fake_run_task)
+    result = cli.main(
+        [
+            "task",
+            "goal",
+            "--target",
+            "src/app.py",
+            "--mode",
+            "integrated",
+            "--context-snapshot",
+            "snapshot.json",
+            "--attempt-id",
+            "attempt-1",
+            "--lease-id",
+            "lease-1",
+            "--fencing-token",
+            "fence-1",
+            "--context-handle",
+            "snapshot-1",
+            "--coordinator-kind",
+            "simplicio-agent",
+            "--coordinator-id",
+            "agent-1",
+            "--json",
+        ]
+    )
+
+    assert result == 1
+    assert json.loads(capsys.readouterr().out)["status"] == "blocked"
+    assert captured["context_snapshot_path"] == "snapshot.json"
+    assert captured["attempt_id"] == "attempt-1"
+    assert captured["lease_id"] == "lease-1"
+    assert captured["fencing_token"] == "fence-1"
+    assert captured["context_handle"] == "snapshot-1"
+    assert captured["coordinator_kind"] == "simplicio-agent"
+    assert captured["coordinator_id"] == "agent-1"
+
+
+def test_task_cli_invalid_context_path_fails_as_clean_json(tmp_path, capsys):
+    result = cli.main(
+        [
+            "task",
+            "goal",
+            "--root",
+            str(tmp_path),
+            "--target",
+            "src/app.py",
+            "--mode",
+            "integrated",
+            "--context-snapshot",
+            "missing.json",
+            "--json",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    assert result == 1
+    assert captured.err == ""
+    payload = json.loads(captured.out)
+    assert payload["warnings"] == ["INCOMPATIBLE_CONTEXT"]
+    assert payload["execution_profile"]["effective_mode"] == "blocked"
+    assert payload["execution_profile"]["reason_code"] == "INCOMPATIBLE_CONTEXT"
+
+
 def test_task_feature_sprint_cli_parser_mode_parity():
     parser = cli._build_parser()
-    task = parser.parse_args(["task", "g", "--target", "x", "--mode", "standalone"])
+    task = parser.parse_args(
+        [
+            "task",
+            "g",
+            "--target",
+            "x",
+            "--mode",
+            "integrated",
+            "--context-snapshot",
+            "snapshot.json",
+            "--attempt-id",
+            "attempt-1",
+            "--lease-id",
+            "lease-1",
+            "--fencing-token",
+            "fence-1",
+            "--context-handle",
+            "snapshot-1",
+        ]
+    )
     feature = parser.parse_args(["run", "g", "--scope", "feature", "--mode", "integrated"])
     sprint = parser.parse_args(["run", "g", "--scope", "sprint", "--mode", "auto"])
-    assert (task.mode, feature.mode, sprint.mode) == ("standalone", "integrated", "auto")
+    assert (task.mode, feature.mode, sprint.mode) == ("integrated", "integrated", "auto")
+    assert task.context_snapshot == "snapshot.json"
+    assert task.attempt_id == "attempt-1"
+    assert task.lease_id == "lease-1"
+    assert task.fencing_token == "fence-1"
+    assert task.context_handle == "snapshot-1"
+
+
+def test_prepare_execution_inputs_loads_cli_snapshot_and_sink_handshake(tmp_path, monkeypatch):
+    snapshot_path = tmp_path / "snapshot.json"
+    snapshot_path.write_text(json.dumps(CONTEXT), encoding="utf-8")
+    sink = RuntimeEffectSink()
+    sink.capability_handshake = lambda: READY
+    monkeypatch.setattr(
+        "simplicio.execution_mode.RuntimeEffectSink.from_environment",
+        lambda **_kwargs: sink,
+        raising=False,
+    )
+    monkeypatch.setenv("SIMPLICIO_RUNTIME_URL", "https://runtime.example")
+
+    prepared = prepare_execution_inputs(
+        "integrated",
+        root=tmp_path,
+        context_snapshot_path=snapshot_path,
+        attempt_id="attempt-1",
+        lease_id="lease-1",
+        fencing_token="fence-1",
+        context_handle="real",
+    )
+
+    assert prepared.context_snapshot == CONTEXT
+    assert prepared.effect_sink is sink
+    assert prepared.runtime_handshake == READY
+    assert prepared.attempt == AttemptContext("attempt-1", "lease-1", "fence-1", "real")
+
+
+def test_prepare_execution_inputs_uses_env_and_never_probes_for_standalone(tmp_path, monkeypatch):
+    snapshot_path = tmp_path / "snapshot.json"
+    snapshot_path.write_text(json.dumps(CONTEXT), encoding="utf-8")
+    monkeypatch.setenv("SIMPLICIO_CONTEXT_SNAPSHOT", str(snapshot_path))
+    monkeypatch.setenv("SIMPLICIO_ATTEMPT_ID", "attempt-env")
+    monkeypatch.setenv("SIMPLICIO_LEASE_ID", "lease-env")
+    monkeypatch.setenv("SIMPLICIO_FENCING_TOKEN", "fence-env")
+    monkeypatch.setenv("SIMPLICIO_CONTEXT_HANDLE", "real")
+    monkeypatch.setenv("SIMPLICIO_RUNTIME_URL", "https://runtime.example")
+    monkeypatch.setattr(
+        "simplicio.execution_mode.RuntimeEffectSink.from_environment",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("standalone must not probe Runtime")),
+        raising=False,
+    )
+
+    standalone = prepare_execution_inputs("standalone", root=tmp_path)
+    assert standalone.context_snapshot is None
+    assert standalone.effect_sink is None
+
+    sink = RuntimeEffectSink()
+    sink.capability_handshake = lambda: READY
+    monkeypatch.setattr(
+        "simplicio.execution_mode.RuntimeEffectSink.from_environment",
+        lambda **_kwargs: sink,
+        raising=False,
+    )
+    integrated = prepare_execution_inputs("integrated", root=tmp_path)
+    assert integrated.context_snapshot == CONTEXT
+    assert integrated.attempt == AttemptContext("attempt-env", "lease-env", "fence-env", "real")
+
+
+def test_standalone_negotiation_never_probes_runtime_or_mapper(monkeypatch):
+    monkeypatch.setattr(
+        "simplicio.runtime_contracts.runtime_verify_contract",
+        lambda: (_ for _ in ()).throw(AssertionError("standalone must not probe Runtime")),
+    )
+    monkeypatch.setattr(
+        "simplicio.execution_mode.load_mapper_context",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("standalone must not probe Mapper")),
+    )
+
+    profile = negotiate_execution_mode(
+        "standalone",
+        context_snapshot={"schema": "invalid"},
+        effect_sink=object(),
+    )
+
+    assert profile.effective_mode == "standalone"
+    assert profile.runtime["reason"] == "not-probed-standalone"
+
+
+def test_prepare_execution_inputs_rejects_partial_attempt_identity(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_ATTEMPT_ID", "attempt-only")
+    with pytest.raises(ValueError, match="all coordinator attempt fields"):
+        prepare_execution_inputs("integrated", root=tmp_path)
+
+
+def test_integrated_selection_without_attempt_fails_closed():
+    profile = negotiate_execution_mode(
+        "integrated",
+        runtime_handshake=READY,
+        context_snapshot=CONTEXT,
+        effect_sink=RuntimeEffectSink(),
+    )
+
+    blocked = require_coordinator_attempt(profile, None)
+
+    assert blocked.effective_mode == "blocked"
+    assert blocked.reason_code == "COORDINATOR_CONTEXT_REQUIRED"
+    assert blocked.coordinator["attempt_ready"] is False
+
+
+def test_prepare_execution_inputs_bounds_snapshot_reads(tmp_path):
+    snapshot_path = tmp_path / "oversized.json"
+    snapshot_path.write_bytes(b"{" + b" " * (16 * 1024 * 1024) + b"}")
+
+    with pytest.raises(ValueError, match="exceeds 16 MiB"):
+        prepare_execution_inputs(
+            "integrated",
+            root=tmp_path,
+            context_snapshot_path=snapshot_path,
+        )
 
 
 def test_negotiation_benchmark_hot_path_under_100_microseconds(monkeypatch):

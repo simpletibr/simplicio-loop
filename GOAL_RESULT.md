@@ -179,6 +179,18 @@ Both mode negotiation and effect dispatch now require Mapper adapter validation 
 string. Focused validation is green and concrete evidence is recorded in `docs/evidence/issue-257.md`;
 repository-wide pre-existing quality-gate failures remain explicit rather than being reported as success.
 
+## Issue #257 installed-entrypoint follow-up (2026-07-23)
+
+Status: implementation complete locally; external closure evidence blocked.
+`simplicio-py task --mode integrated` now accepts canonical Mapper snapshot
+and coordinator attempt/lease/fence inputs directly, uses the selected
+`RuntimeEffectSink` capability handshake, and fails closed with a complete
+execution profile before planning or writes. Focused tests, branch coverage,
+wheel build/install, malformed-input system exercise, and negotiation
+benchmark are recorded in `docs/evidence/issue-257.md`. No live Runtime was
+available, so E2E/DEFAULT/GATED promotion, cross-repository receipt, and live
+rollback remain explicitly unproven.
+
 ## Goal
 
 Terminar issues abertas do `simplicio-dev-cli`.

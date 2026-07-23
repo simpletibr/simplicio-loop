@@ -14,7 +14,7 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from .adaptive import get_validation_mode
 from .atomic_execution import AttemptContext
@@ -219,6 +219,11 @@ def run_task(
     coordinator_id: str | None = None,
     integrated_attempt: AttemptContext | None = None,
     task_spec: TaskSpec | None = None,
+    context_snapshot_path: str | os.PathLike[str] | None = None,
+    attempt_id: str | None = None,
+    lease_id: str | None = None,
+    fencing_token: str | None = None,
+    context_handle: str | None = None,
 ):
     """Run one task through the pipeline.
 
@@ -235,7 +240,50 @@ def run_task(
     in this mode). ``dry_run_task`` is not consulted in this mode since
     nothing is ever applied to begin with.
     """
-    from .execution_mode import negotiate_execution_mode
+    from .execution_mode import (
+        ExecutionInputError,
+        blocked_input_profile,
+        negotiate_execution_mode,
+        prepare_execution_inputs,
+        require_coordinator_attempt,
+    )
+
+    try:
+        prepared = prepare_execution_inputs(
+            mode,
+            root=root,
+            context_snapshot=context_snapshot,
+            context_snapshot_path=context_snapshot_path,
+            effect_sink=effect_sink,
+            runtime_handshake=runtime_handshake,
+            attempt=integrated_attempt,
+            attempt_id=attempt_id,
+            lease_id=lease_id,
+            fencing_token=fencing_token,
+            context_handle=context_handle,
+        )
+    except ExecutionInputError as exc:
+        result = _task_result(
+            target,
+            "",
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[exc.code],
+            blocked_preconditions=[{"code": exc.code, "message": str(exc)}],
+        )
+        result["execution_profile"] = blocked_input_profile(
+            mode,
+            exc,
+            root=root,
+            coordinator_kind=coordinator_kind,
+            coordinator_id=coordinator_id,
+        ).to_dict()
+        return result
+    context_snapshot = prepared.context_snapshot
+    effect_sink = cast(EffectSink | None, prepared.effect_sink)
+    runtime_handshake = prepared.runtime_handshake
+    integrated_attempt = prepared.attempt
 
     profile = negotiate_execution_mode(
         mode,
@@ -246,6 +294,7 @@ def run_task(
         coordinator_kind=coordinator_kind,
         coordinator_id=coordinator_id,
     )
+    profile = require_coordinator_attempt(profile, integrated_attempt)
     emit_event(
         "execution_mode_selected",
         {

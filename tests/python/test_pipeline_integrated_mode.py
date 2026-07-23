@@ -53,6 +53,7 @@ def canonical_mapper_boundary(monkeypatch):
 
     monkeypatch.setattr("simplicio.execution_mode.load_mapper_context", load)
     monkeypatch.setattr("simplicio.pipeline_integrated.load_mapper_context", load)
+    monkeypatch.setattr("simplicio.execution_mode.RuntimeEffectSink", RuntimeTestSink)
 
 
 class RuntimeTestSink(RecordingEffectSink):
@@ -60,6 +61,8 @@ class RuntimeTestSink(RecordingEffectSink):
 
     def __init__(self):
         super().__init__(state="running")
+
+    test_only = False
 
 
 def _attempt() -> AttemptContext:
@@ -189,6 +192,29 @@ def test_integrated_mode_without_sink_fails_closed_and_never_writes(tmp_path, mo
     assert result["status"] == "blocked"
     assert result["warnings"] == ["RUNTIME_SINK_REQUIRED"]
     assert _snapshot(tmp_path) == before
+
+
+def test_integrated_mode_without_attempt_fails_closed_instead_of_raising(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
+    monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
+
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "add api",
+        "src/app.py",
+        "- passes",
+        "- small",
+        mode="integrated",
+        effect_sink=RuntimeTestSink(),
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
+        quiet=True,
+    )
+
+    assert result["status"] == "blocked"
+    assert result["warnings"] == ["COORDINATOR_CONTEXT_REQUIRED"]
+    assert result["execution_profile"]["effective_mode"] == "blocked"
 
 
 def test_integrated_mode_without_test_cmd_is_blocked_not_applied(tmp_path, monkeypatch):

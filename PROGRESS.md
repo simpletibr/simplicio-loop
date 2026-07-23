@@ -145,6 +145,13 @@
   rejects non-finite values, and disambiguates a future additive `tasks` field
   from a document wrapper. Rebased affected suite: 118 passed.
 
+- 2026-07-23: installed-entrypoint follow-up added CLI/environment/API inputs
+  for canonical snapshot plus coordinator attempt/lease/fence identity, reused
+  the production sink's versioned capability handshake, and rejected sink
+  lookalikes. Focused result: 121 passed; issue slice 88.74% branch coverage;
+  clean wheel build/install passed; negotiation measured 15.05 us/call. Live
+  Runtime E2E/DEFAULT/GATED and rollback receipts remain unavailable, so the
+  issue is not claimed closed.
 - 2026-07-22: issue #257 follow-up corrected the integrated ContextSnapshot boundary to use Mapper's real `simplicio.context-snapshot/v1` contract and full adapter validation at negotiation and dispatch. Focused evidence: 25 passed, 94% branch-aware touched-module coverage, clean fail-closed CLI JSON, and 68.16 microseconds/negotiation over 10,000 calls. Repository-wide baseline lint/type/test debt remains recorded in `docs/evidence/issue-257.md`.
 
  - 2026-07-22: issue #262 quality slice ported from master to current main and strengthened. The exact internal-JSON registry now rejects wildcards/traversal/missing accountability, scans wheel/sdist contents, and is wired into both local pre-commit hooks. Focused tests: 14 passed with 88% branch-aware scanner coverage. Measured 10k-entry scanner benchmark and blocker report saved under `docs/evidence/issue-262-*`. Full gate remains red from main-baseline failures; HBI/HBP conformance and cross-repository migration evidence remain explicitly unproven, so the PR is not mergeable.

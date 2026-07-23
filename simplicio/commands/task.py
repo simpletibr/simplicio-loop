@@ -81,6 +81,13 @@ def run(a: argparse.Namespace) -> int:
             quiet=a.json,
             mode=getattr(a, "mode", None),
             task_spec=task_spec,
+            context_snapshot_path=getattr(a, "context_snapshot", None),
+            attempt_id=getattr(a, "attempt_id", None),
+            lease_id=getattr(a, "lease_id", None),
+            fencing_token=getattr(a, "fencing_token", None),
+            context_handle=getattr(a, "context_handle", None),
+            coordinator_kind=getattr(a, "coordinator_kind", None),
+            coordinator_id=getattr(a, "coordinator_id", None),
         )
         if a.json:
             print(json.dumps(result, sort_keys=True))
@@ -104,6 +111,13 @@ def run(a: argparse.Namespace) -> int:
         bound_paths=a.bound_paths,
         mode=getattr(a, "mode", None),
         task_spec=task_spec,
+        context_snapshot_path=getattr(a, "context_snapshot", None),
+        attempt_id=getattr(a, "attempt_id", None),
+        lease_id=getattr(a, "lease_id", None),
+        fencing_token=getattr(a, "fencing_token", None),
+        context_handle=getattr(a, "context_handle", None),
+        coordinator_kind=getattr(a, "coordinator_kind", None),
+        coordinator_id=getattr(a, "coordinator_id", None),
     )
     status = "DONE" if result["applied"] else "FAILED"
     print(f"{status}: {result['diff_summary']}")

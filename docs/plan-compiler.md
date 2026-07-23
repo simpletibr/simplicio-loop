@@ -395,29 +395,22 @@ typed boundary this Dev CLI calls into instead:
 - `EffectApplyResult` — what a sink reports back; `accepted=True` only
   means the sink took custody of the effect (e.g. queued it for the
   Runtime to authorize), never that it was applied to any worktree.
-- `RecordingEffectSink` — the reference no-op implementation this
-  repository's own tests use: it appends every `EffectPlan` it receives to
-  `self.received` and applies none of them. This is what lets the
-  integrated-mode contract be proven today, without needing the real
-  Runtime to exist.
-
-A production integration is expected to swap `RecordingEffectSink` for a
-sink that actually forwards to `simplicio-runtime`'s Effect API once it
-ships — that swap is the intended extension point, and this slice's job
-was to build the boundary the swap plugs into, not the Runtime side of it.
+- `RecordingEffectSink` — implementação no-op exclusiva de testes. A
+  negociação de produção a rejeita mesmo quando um caller tenta fornecê-la.
+- `RuntimeEffectSink` — implementação de produção que negocia o contrato
+  versionado do Runtime, persiste intents e envia `EffectTransaction`.
 
 ### What this closes, and what it does not
 
-This closes the Dev-CLI-side half of both unchecked ACs: integrated mode,
-once opted into, never applies an effect itself and always routes through
-the sink. It does **not**:
+O modo integrado está exposto em `simplicio-py task --mode integrated`.
+Snapshot canônico, identidade de tentativa, lease e fence podem ser passados
+por flags, ambiente ou API Python. O entrypoint constrói um
+`RuntimeEffectSink` somente quando `SIMPLICIO_RUNTIME_URL` está explícito e
+usa o handshake do próprio sink para selecionar o modo. Sem qualquer
+pré-condição compatível, ele falha antes do plano e não cai silenciosamente
+para escrita standalone.
 
-- Implement the real Runtime Effect API — that is Runtime #3134/#3135,
-  external to this repository.
-- Wire integrated mode into `cli.py`'s `simplicio-py task` command or any
-  other CLI entry point — `mode`/`effect_sink` are `pipeline.run_task`
-  parameters only in this slice, with no `--integrated` flag yet. A caller
-  (e.g. a future Runtime-aware wrapper) constructs a real sink and calls
-  `run_task(..., mode="integrated", effect_sink=...)` directly.
-- Change `mode="standalone"` (the default) in any way — every existing
-  `run_task`/`run` call site and test is unaffected.
+O Runtime Effect API continua sendo um contrato cross-repo: esta documentação
+e os testes locais não alegam receipt Runtime vivo. Feature/sprint integrados
+também continuam bloqueados até a migração para WorkItems atômicos da issue
+#258; o modo standalone preserva o lifecycle local legado.

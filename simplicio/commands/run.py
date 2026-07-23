@@ -22,9 +22,42 @@ CLI_PROG = "simplicio-py"
 
 def _mode_guard(a: argparse.Namespace) -> tuple[dict, int] | None:
     """Block non-task integrated scopes before planners or local effects."""
-    from ..execution_mode import negotiate_execution_mode
+    from ..execution_mode import (
+        ExecutionInputError,
+        blocked_input_profile,
+        negotiate_execution_mode,
+        prepare_execution_inputs,
+        require_coordinator_attempt,
+    )
 
-    profile = negotiate_execution_mode(getattr(a, "mode", None), root=a.root)
+    try:
+        prepared = prepare_execution_inputs(
+            getattr(a, "mode", None),
+            root=a.root,
+            context_snapshot_path=getattr(a, "context_snapshot", None),
+            attempt_id=getattr(a, "attempt_id", None),
+            lease_id=getattr(a, "lease_id", None),
+            fencing_token=getattr(a, "fencing_token", None),
+            context_handle=getattr(a, "context_handle", None),
+        )
+        profile = negotiate_execution_mode(
+            getattr(a, "mode", None),
+            root=a.root,
+            runtime_handshake=prepared.runtime_handshake,
+            context_snapshot=prepared.context_snapshot,
+            effect_sink=prepared.effect_sink,
+            coordinator_kind=getattr(a, "coordinator_kind", None),
+            coordinator_id=getattr(a, "coordinator_id", None),
+        )
+        profile = require_coordinator_attempt(profile, prepared.attempt)
+    except ExecutionInputError as exc:
+        profile = blocked_input_profile(
+            getattr(a, "mode", None),
+            exc,
+            root=a.root,
+            coordinator_kind=getattr(a, "coordinator_kind", None),
+            coordinator_id=getattr(a, "coordinator_id", None),
+        )
     if profile.effective_mode != "blocked" and profile.effective_mode != "integrated":
         return None
     payload = {

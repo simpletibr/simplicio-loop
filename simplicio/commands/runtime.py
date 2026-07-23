@@ -40,7 +40,17 @@ def run(a: argparse.Namespace) -> int:
     if a.runtime_cmd == "capabilities":
         from ..execution_mode import capabilities_report
 
-        payload = capabilities_report(a.mode, root=a.root)
+        payload = capabilities_report(
+            a.mode,
+            root=a.root,
+            context_snapshot_path=getattr(a, "context_snapshot", None),
+            attempt_id=getattr(a, "attempt_id", None),
+            lease_id=getattr(a, "lease_id", None),
+            fencing_token=getattr(a, "fencing_token", None),
+            context_handle=getattr(a, "context_handle", None),
+            coordinator_kind=getattr(a, "coordinator_kind", None),
+            coordinator_id=getattr(a, "coordinator_id", None),
+        )
         print(
             json.dumps(payload, sort_keys=True) if a.json else json.dumps(payload, indent=2, sort_keys=True)
         )

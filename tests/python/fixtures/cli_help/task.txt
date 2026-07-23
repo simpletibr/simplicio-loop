@@ -3,6 +3,12 @@ usage: simplicio-py task [-h] [--root ROOT] [--stack STACK] [--target TARGET]
                          [--dry-run-task] [--json] [--bound-paths BOUND_PATHS]
                          [--local] [--mode {auto,integrated,standalone}]
                          [--task-spec PATH | --task-spec-stdin]
+                         [--context-snapshot CONTEXT_SNAPSHOT]
+                         [--attempt-id ATTEMPT_ID] [--lease-id LEASE_ID]
+                         [--fencing-token FENCING_TOKEN]
+                         [--context-handle CONTEXT_HANDLE]
+                         [--coordinator-kind COORDINATOR_KIND]
+                         [--coordinator-id COORDINATOR_ID]
                          [goal]
 
 positional arguments:
@@ -29,3 +35,16 @@ options:
                         from PATH
   --task-spec-stdin     read one exported simplicio.task-spec/v2 JSON document
                         from stdin
+  --context-snapshot CONTEXT_SNAPSHOT
+                        canonical Mapper ContextSnapshot JSON path
+  --attempt-id ATTEMPT_ID
+                        coordinator-owned atomic attempt ID
+  --lease-id LEASE_ID   coordinator-owned lease ID
+  --fencing-token FENCING_TOKEN
+                        coordinator-owned fencing token
+  --context-handle CONTEXT_HANDLE
+                        canonical snapshot ID bound to the attempt
+  --coordinator-kind COORDINATOR_KIND
+                        coordinator type recorded in the execution profile
+  --coordinator-id COORDINATOR_ID
+                        coordinator identity recorded in the execution profile

@@ -154,7 +154,10 @@ def test_integrated_pipeline_passes_original_task_spec_to_compiler(tmp_path, mon
     captured = {}
 
     class Sink(RecordingEffectSink):
-        pass
+        test_only = False
+
+        def __init__(self) -> None:
+            super().__init__(state="running")
 
     context = {
         "schema": "simplicio.context-snapshot/v1",
@@ -167,6 +170,7 @@ def test_integrated_pipeline_passes_original_task_spec_to_compiler(tmp_path, mon
 
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
     monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
+    monkeypatch.setattr("simplicio.execution_mode.RuntimeEffectSink", Sink)
     monkeypatch.setattr("simplicio.execution_mode.load_mapper_context", lambda *a, **k: mapper_context)
     monkeypatch.setattr("simplicio.pipeline_integrated.load_mapper_context", lambda *a, **k: mapper_context)
     real_compile = __import__(

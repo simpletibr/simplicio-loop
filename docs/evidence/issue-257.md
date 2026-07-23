@@ -48,3 +48,57 @@ Replay evidence against current `main` at `b6e6c29`:
 - repository-wide Ruff and mypy remain red on pre-existing baseline debt outside the replayed files
   (23 lint errors and five mypy errors). Focused Ruff lint/format passed; focused mypy reached four
   transitive baseline errors in unchanged modules.
+
+## Installed-entrypoint completion follow-up (2026-07-23)
+
+Base SHA: `affce3f`. Branch: `agent/issue-257`. Environment: Python 3.12.13,
+Linux x86_64.
+
+Adversarial review of the merged implementation found that `--mode integrated`
+was selectable but not executable from the installed `task` entrypoint:
+snapshot, attempt, lease, fence, and context handle existed only as Python
+arguments. Negotiation also used the reserved runtime-binary probe rather than
+the exact HTTP capability response used by `RuntimeEffectSink`.
+
+The follow-up adds:
+
+- CLI/API/environment parity for canonical snapshot and coordinator-owned
+  attempt identity;
+- one `RuntimeEffectSink.capability_handshake()` reused for selection and
+  effect admission;
+- strict production-sink type admission instead of class-name inference;
+- zero Mapper/Runtime probe for explicit standalone execution;
+- complete blocked execution profiles for malformed or partial inputs;
+- 16 MiB snapshot input bound and stable errors without local path disclosure;
+- updated help fixtures, installed-wheel documentation, and changelog.
+
+Local evidence:
+
+- focused unit/integration/system/regression: 121 passed;
+- issue-focused branch coverage: 88.74% total; `execution_mode.py` 95% and
+  `runtime_effect_sink.py` 94%;
+- repository run: 1,912 passed, 20 skipped, 43 failed at the first pass; the
+  two issue-owned task/run help fixture failures were corrected and replayed
+  green, while the remaining failures are existing cross-project, removed
+  workflow, provider, optional-tool, and baseline-contract debt;
+- repository global coverage from that run: 85.92%; the critical-module gate
+  remains red in unchanged modules (`mechanical_edit`, `execution_contract`,
+  `doctor`) and the pre-existing `pipeline.py` baseline;
+- focused Ruff lint/format: passed; repository Ruff remains red with 34
+  pre-existing findings outside this diff;
+- mypy no longer reports an issue-owned error; five pre-existing errors remain
+  in `models.py`, `multi_task.py`, `observability.py`, and `task_operator.py`;
+- generated dependency documentation: passed;
+- wheel/sdist build and Twine checks: passed, with pre-existing setuptools
+  license deprecation warnings;
+- clean wheel install: passed; installed `task --help` exposes all coordinator
+  fields and an invalid snapshot returns one clean JSON object with
+  `INCOMPATIBLE_CONTEXT`;
+- negotiation benchmark: 10,000 calls in 0.150458 seconds
+  (15.05 microseconds/call).
+
+No live Runtime endpoint was available. Therefore this follow-up does **not**
+claim a cross-repository EffectTransaction receipt, E2E/DEFAULT/GATED promotion
+receipt, live rollback, or Runtime version/digest. Those values remain
+unobserved rather than estimated, and issue #257 must remain open until the
+external Runtime evidence exists.

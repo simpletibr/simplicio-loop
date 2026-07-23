@@ -17,6 +17,11 @@ suportada é Runtime `>=1.0.0,<2.0.0`.
 Configure `SIMPLICIO_RUNTIME_URL`. O endpoint pode estar fora do checkout e não
 depende de processo ou SDK do Simplicio Agent.
 
+O mesmo `GET /v1/capabilities` usado pelo sink produz o handshake versionado
+que seleciona o modo efetivo. Não há uma segunda heurística por nome de
+processo, arquivo ou texto de `--help`, e o sink negociado é reutilizado no
+envio do efeito.
+
 ## Durabilidade, recovery e segurança
 
 Antes do envio, a intenção canônica é gravada atomicamente em
@@ -50,7 +55,14 @@ com o Runtime.
 
 ```bash
 SIMPLICIO_RUNTIME_URL=http://runtime:8080 \
-SIMPLICIO_TEST_CMD='pytest -q' simplicio-py task ...
+SIMPLICIO_TEST_CMD='pytest -q' simplicio-py task 'goal' \
+  --target src/app.py \
+  --mode integrated \
+  --context-snapshot .simplicio/context-snapshot.json \
+  --attempt-id attempt-1 \
+  --lease-id lease-1 \
+  --fencing-token fence-1 \
+  --context-handle snapshot-1
 
 pytest -q tests/python/test_runtime_effect_sink.py \
   tests/python/test_pipeline_integrated_mode.py

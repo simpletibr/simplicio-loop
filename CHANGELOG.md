@@ -10,6 +10,11 @@
   `--task-spec-stdin`; integrated execution now receives the original typed
   contract, preserves additive fields, exposes a canonical handoff digest,
   and rejects typed input on the standalone path (#299).
+- Made negotiated integrated execution usable from installed `task` entrypoints
+  (#257): coordinator snapshot/attempt/lease/fence inputs now have CLI and
+  environment surfaces, the selected production `RuntimeEffectSink` supplies
+  the exact versioned handshake used for effects, and malformed context fails
+  closed before planning or local writes.
 - Paused all local inference by default (#259). Empty configuration, explicit
   llama.cpp routes, local planner routes, `--local`, and loopback
   OpenAI-compatible endpoints now fail closed with `LOCAL_INFERENCE_PAUSED`

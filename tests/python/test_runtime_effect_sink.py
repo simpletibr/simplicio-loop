@@ -132,6 +132,58 @@ def test_maps_full_transaction_and_verifies_completed_receipt(tmp_path, effect, 
     assert list((tmp_path / ".simplicio/runtime-effects").glob("*.receipt.json"))
 
 
+def test_capability_handshake_reports_the_versioned_effect_contract(tmp_path):
+    sink = RuntimeEffectSink(FakeTransport(), root=tmp_path)
+
+    handshake = sink.capability_handshake()
+
+    assert handshake == {
+        "verified": True,
+        "version": "1.4.0",
+        "capabilities": [TRANSACTION_SCHEMA],
+        "reason": "ok",
+        "transport": "http-json",
+    }
+
+
+def test_capability_handshake_fails_closed_without_raising(tmp_path):
+    transport = FakeTransport()
+    transport.capabilities = lambda: {
+        "runtime_version": "2.0.0",
+        "effect_transaction_schemas": [TRANSACTION_SCHEMA],
+        "transports": [transport.name],
+    }
+
+    handshake = RuntimeEffectSink(transport, root=tmp_path).capability_handshake()
+
+    assert handshake["verified"] is False
+    assert handshake["reason"] == "RUNTIME_VERSION_INCOMPATIBLE"
+    assert handshake["capabilities"] == []
+
+
+@pytest.mark.parametrize(
+    "capabilities",
+    [
+        None,
+        {"runtime_version": "1.4.0", "effect_transaction_schemas": None, "transports": ["http-json"]},
+        {
+            "runtime_version": "1.4.0",
+            "effect_transaction_schemas": [TRANSACTION_SCHEMA],
+            "transports": None,
+        },
+    ],
+)
+def test_capability_handshake_fails_closed_for_malformed_external_shapes(tmp_path, capabilities):
+    class MalformedTransport(FakeTransport):
+        def capabilities(self):
+            return capabilities
+
+    handshake = RuntimeEffectSink(MalformedTransport(), root=tmp_path).capability_handshake()
+
+    assert handshake["verified"] is False
+    assert handshake["reason"] == "RUNTIME_CAPABILITY_INVALID"
+
+
 @pytest.mark.parametrize(
     "state",
     ["denied", "running", "validation_failed", "rolled_back", "blocked_conflict", "cancelled_safe"],

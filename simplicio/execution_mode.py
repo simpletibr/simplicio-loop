@@ -5,15 +5,17 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, Literal, cast
 
+from .atomic_execution import AttemptContext
 from .plan_compiler.mapper_context import (
     MAPPER_CONTEXT_SNAPSHOT_SCHEMA,
     MapperContextError,
     load_mapper_context,
 )
+from .plan_compiler.runtime_effect_sink import RuntimeEffectSink
 
 ExecutionMode = Literal["auto", "integrated", "standalone"]
 RUNTIME_EFFECT_CAPABILITY = "simplicio.effect-transaction/v1"
@@ -24,7 +26,7 @@ MAPPER_CONTEXT_SCHEMA = MAPPER_CONTEXT_SNAPSHOT_SCHEMA
 class ExecutionProfile:
     requested_mode: ExecutionMode
     effective_mode: Literal["integrated", "standalone", "blocked"]
-    coordinator: dict[str, str]
+    coordinator: dict[str, Any]
     runtime: dict[str, Any]
     mapper: dict[str, Any]
     sink: dict[str, Any]
@@ -35,6 +37,22 @@ class ExecutionProfile:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+class ExecutionInputError(ValueError):
+    """Stable fail-closed error while resolving coordinator inputs."""
+
+    def __init__(self, code: str, message: str) -> None:
+        self.code = code
+        super().__init__(f"{code}: {message}")
+
+
+@dataclass(frozen=True)
+class PreparedExecutionInputs:
+    context_snapshot: dict[str, Any] | None
+    effect_sink: object | None
+    runtime_handshake: dict[str, Any] | None
+    attempt: AttemptContext | None
 
 
 def _config(root: str | os.PathLike[str]) -> dict[str, Any]:
@@ -61,6 +79,151 @@ def _allow_fallback(root: str | os.PathLike[str]) -> bool:
     return raw.lower() in {"1", "true", "yes", "on"}
 
 
+def _load_context_snapshot(
+    root: str | os.PathLike[str], explicit_path: str | os.PathLike[str] | None
+) -> dict[str, Any] | None:
+    config = _config(root)
+    raw_path = explicit_path or os.environ.get("SIMPLICIO_CONTEXT_SNAPSHOT") or config.get("context_snapshot")
+    if not raw_path:
+        return None
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = Path(root) / path
+    try:
+        with path.open("rb") as stream:
+            raw = stream.read(16 * 1024 * 1024 + 1)
+        if len(raw) > 16 * 1024 * 1024:
+            raise ExecutionInputError("INCOMPATIBLE_CONTEXT", "context snapshot exceeds 16 MiB")
+        payload = json.loads(raw.decode("utf-8"))
+    except ExecutionInputError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ExecutionInputError("INCOMPATIBLE_CONTEXT", "cannot read canonical context snapshot") from exc
+    if not isinstance(payload, dict):
+        raise ExecutionInputError("INCOMPATIBLE_CONTEXT", "context snapshot must be a JSON object")
+    return payload
+
+
+def _attempt_context(
+    *,
+    attempt_id: str | None,
+    lease_id: str | None,
+    fencing_token: str | None,
+    context_handle: str | None,
+) -> AttemptContext | None:
+    values = (
+        attempt_id or os.environ.get("SIMPLICIO_ATTEMPT_ID"),
+        lease_id or os.environ.get("SIMPLICIO_LEASE_ID"),
+        fencing_token or os.environ.get("SIMPLICIO_FENCING_TOKEN"),
+        context_handle or os.environ.get("SIMPLICIO_CONTEXT_HANDLE"),
+    )
+    if not any(values):
+        return None
+    if not all(value and value.strip() for value in values):
+        raise ExecutionInputError(
+            "COORDINATOR_CONTEXT_REQUIRED",
+            "all coordinator attempt fields are required: attempt, lease, fence, and context handle",
+        )
+    return AttemptContext(*cast(tuple[str, str, str, str], values))
+
+
+def prepare_execution_inputs(
+    mode: str | None = None,
+    *,
+    root: str | os.PathLike[str] = ".",
+    context_snapshot: dict[str, Any] | None = None,
+    context_snapshot_path: str | os.PathLike[str] | None = None,
+    effect_sink: object | None = None,
+    runtime_handshake: dict[str, Any] | None = None,
+    attempt: AttemptContext | None = None,
+    attempt_id: str | None = None,
+    lease_id: str | None = None,
+    fencing_token: str | None = None,
+    context_handle: str | None = None,
+) -> PreparedExecutionInputs:
+    """Resolve installed-entrypoint inputs without probing in standalone mode."""
+    if requested_mode(mode, root) == "standalone":
+        return PreparedExecutionInputs(context_snapshot, effect_sink, runtime_handshake, attempt)
+
+    resolved_context = (
+        context_snapshot
+        if context_snapshot is not None
+        else _load_context_snapshot(root, context_snapshot_path)
+    )
+    resolved_sink = effect_sink
+    if resolved_sink is None and os.environ.get("SIMPLICIO_RUNTIME_URL", "").strip():
+        resolved_sink = RuntimeEffectSink.from_environment(root=Path(root))
+    resolved_handshake = runtime_handshake
+    handshake = getattr(resolved_sink, "capability_handshake", None)
+    if resolved_handshake is None and callable(handshake):
+        resolved_handshake = handshake()
+    resolved_attempt = attempt or _attempt_context(
+        attempt_id=attempt_id,
+        lease_id=lease_id,
+        fencing_token=fencing_token,
+        context_handle=context_handle,
+    )
+    return PreparedExecutionInputs(
+        resolved_context,
+        resolved_sink,
+        resolved_handshake,
+        resolved_attempt,
+    )
+
+
+def blocked_input_profile(
+    mode: str | None,
+    error: ExecutionInputError,
+    *,
+    root: str | os.PathLike[str] = ".",
+    coordinator_kind: str | None = None,
+    coordinator_id: str | None = None,
+) -> ExecutionProfile:
+    """Build complete diagnostics for input failures before negotiation."""
+    config = _config(root)
+    return ExecutionProfile(
+        requested_mode(mode, root),
+        "blocked",
+        {
+            "kind": coordinator_kind or os.environ.get("SIMPLICIO_COORDINATOR_KIND", "unknown"),
+            "id": coordinator_id or os.environ.get("SIMPLICIO_COORDINATOR_ID", ""),
+        },
+        {
+            "verified": False,
+            "version": None,
+            "capability": RUNTIME_EFFECT_CAPABILITY,
+            "capability_available": False,
+            "reason": "not-probed-after-input-error",
+        },
+        {
+            "schema": None,
+            "compatible": False,
+            "digest": None,
+            "contract_error": error.code,
+        },
+        {"configured": False, "production": False, "kind": None},
+        None,
+        os.environ.get("SIMPLICIO_EXECUTION_ROLLOUT", str(config.get("rollout", "shadow"))),
+        False,
+        error.code,
+    )
+
+
+def require_coordinator_attempt(
+    profile: ExecutionProfile, attempt: AttemptContext | None
+) -> ExecutionProfile:
+    """Fail closed when an otherwise integrated selection lacks an atomic attempt."""
+    if profile.effective_mode != "integrated" or attempt is not None:
+        return profile
+    return replace(
+        profile,
+        effective_mode="blocked",
+        coordinator={**profile.coordinator, "attempt_ready": False},
+        default_eligible=False,
+        reason_code="COORDINATOR_CONTEXT_REQUIRED",
+    )
+
+
 def negotiate_execution_mode(
     mode: str | None = None,
     *,
@@ -72,11 +235,49 @@ def negotiate_execution_mode(
     coordinator_id: str | None = None,
 ) -> ExecutionProfile:
     """Negotiate only from versioned contracts; never infer from files/help/process names."""
+    requested = requested_mode(mode, root)
+    config = _config(root)
+    rollout = os.environ.get("SIMPLICIO_EXECUTION_ROLLOUT", str(config.get("rollout", "shadow")))
+    coordinator = {
+        "kind": coordinator_kind or os.environ.get("SIMPLICIO_COORDINATOR_KIND", "unknown"),
+        "id": coordinator_id or os.environ.get("SIMPLICIO_COORDINATOR_ID", ""),
+    }
+    if requested == "standalone":
+        return ExecutionProfile(
+            requested,
+            "standalone",
+            coordinator,
+            {
+                "verified": False,
+                "version": None,
+                "capability": RUNTIME_EFFECT_CAPABILITY,
+                "capability_available": False,
+                "reason": "not-probed-standalone",
+            },
+            {"schema": None, "compatible": False, "digest": None, "contract_error": None},
+            {"configured": False, "production": False, "kind": None},
+            None,
+            rollout,
+            False,
+            "STANDALONE_EXPLICIT",
+        )
+
     from .runtime_contracts import runtime_verify_contract
 
-    requested = requested_mode(mode, root)
-    handshake = runtime_handshake if runtime_handshake is not None else runtime_verify_contract()
-    capabilities = handshake.get("capabilities", []) if isinstance(handshake, dict) else []
+    raw_handshake = runtime_handshake if runtime_handshake is not None else runtime_verify_contract()
+    handshake = (
+        raw_handshake
+        if isinstance(raw_handshake, dict)
+        else {
+            "verified": False,
+            "version": None,
+            "capabilities": [],
+            "reason": "RUNTIME_HANDSHAKE_INVALID",
+        }
+    )
+    capabilities = handshake.get("capabilities", [])
+    if not isinstance(capabilities, list):
+        capabilities = []
     runtime_ready = bool(handshake.get("verified")) and RUNTIME_EFFECT_CAPABILITY in capabilities
     snapshot_schema = context_snapshot.get("schema") if isinstance(context_snapshot, dict) else None
     mapper_error: str | None = None
@@ -87,9 +288,7 @@ def negotiate_execution_mode(
         except MapperContextError as exc:
             mapper_error = exc.code
     mapper_ready = mapper_adapter is not None
-    sink_ready = effect_sink is not None and effect_sink.__class__.__name__ != "RecordingEffectSink"
-    config = _config(root)
-    rollout = os.environ.get("SIMPLICIO_EXECUTION_ROLLOUT", str(config.get("rollout", "shadow")))
+    sink_ready = isinstance(effect_sink, RuntimeEffectSink)
     killed = os.environ.get("SIMPLICIO_INTEGRATED_KILL_SWITCH", "").lower() in {"1", "true", "yes", "on"}
     eligible = runtime_ready and mapper_ready and sink_ready and not killed
     runtime = {
@@ -112,10 +311,6 @@ def negotiate_execution_mode(
         "production": sink_ready,
         "kind": effect_sink.__class__.__name__ if effect_sink else None,
     }
-    coordinator = {
-        "kind": coordinator_kind or os.environ.get("SIMPLICIO_COORDINATOR_KIND", "unknown"),
-        "id": coordinator_id or os.environ.get("SIMPLICIO_COORDINATOR_ID", ""),
-    }
     missing = (
         "INTEGRATED_KILLED"
         if killed
@@ -129,19 +324,6 @@ def negotiate_execution_mode(
             )
         )
     )
-    if requested == "standalone":
-        return ExecutionProfile(
-            requested,
-            "standalone",
-            coordinator,
-            runtime,
-            mapper,
-            sink,
-            None,
-            rollout,
-            False,
-            "STANDALONE_EXPLICIT",
-        )
     if requested == "integrated":
         return ExecutionProfile(
             requested,
@@ -186,8 +368,51 @@ def negotiate_execution_mode(
     )
 
 
-def capabilities_report(mode: str | None = None, *, root: str = ".") -> dict[str, Any]:
+def capabilities_report(
+    mode: str | None = None,
+    *,
+    root: str = ".",
+    context_snapshot_path: str | os.PathLike[str] | None = None,
+    attempt_id: str | None = None,
+    lease_id: str | None = None,
+    fencing_token: str | None = None,
+    context_handle: str | None = None,
+    coordinator_kind: str | None = None,
+    coordinator_id: str | None = None,
+) -> dict[str, Any]:
+    try:
+        prepared = prepare_execution_inputs(
+            mode,
+            root=root,
+            context_snapshot_path=context_snapshot_path,
+            attempt_id=attempt_id,
+            lease_id=lease_id,
+            fencing_token=fencing_token,
+            context_handle=context_handle,
+        )
+    except ExecutionInputError as exc:
+        profile = blocked_input_profile(
+            mode,
+            exc,
+            root=root,
+            coordinator_kind=coordinator_kind,
+            coordinator_id=coordinator_id,
+        )
+        return {
+            "schema": "simplicio.dev-cli.execution-capabilities/v1",
+            "execution_profile": profile.to_dict(),
+        }
+    profile = negotiate_execution_mode(
+        mode,
+        root=root,
+        runtime_handshake=prepared.runtime_handshake,
+        context_snapshot=prepared.context_snapshot,
+        effect_sink=prepared.effect_sink,
+        coordinator_kind=coordinator_kind,
+        coordinator_id=coordinator_id,
+    )
+    profile = require_coordinator_attempt(profile, prepared.attempt)
     return {
         "schema": "simplicio.dev-cli.execution-capabilities/v1",
-        "execution_profile": negotiate_execution_mode(mode, root=root).to_dict(),
+        "execution_profile": profile.to_dict(),
     }

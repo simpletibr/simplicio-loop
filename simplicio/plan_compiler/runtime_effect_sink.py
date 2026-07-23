@@ -141,6 +141,7 @@ class RuntimeEffectSink:
         self.max_payload_bytes = max_payload_bytes
         self.breaker = _CircuitBreaker()
         self._negotiated = False
+        self._runtime_version: str | None = None
 
     @classmethod
     def from_environment(cls, *, root: str | Path) -> RuntimeEffectSink:
@@ -155,8 +156,16 @@ class RuntimeEffectSink:
         if self._negotiated:
             return
         capabilities = self.transport.capabilities()
+        if not isinstance(capabilities, dict):
+            raise RuntimeEffectError("RUNTIME_CAPABILITY_INVALID", "capability response must be an object")
         schemas = capabilities.get("effect_transaction_schemas", [])
         transports = capabilities.get("transports", [])
+        if not isinstance(schemas, list) or not all(isinstance(item, str) for item in schemas):
+            raise RuntimeEffectError(
+                "RUNTIME_CAPABILITY_INVALID", "effect_transaction_schemas must be a list of strings"
+            )
+        if not isinstance(transports, list) or not all(isinstance(item, str) for item in transports):
+            raise RuntimeEffectError("RUNTIME_CAPABILITY_INVALID", "transports must be a list of strings")
         if TRANSACTION_SCHEMA not in schemas or self.transport.name not in transports:
             raise RuntimeEffectError(
                 "RUNTIME_CAPABILITY_INCOMPATIBLE", "EffectTransaction/v1 or transport absent"
@@ -168,7 +177,34 @@ class RuntimeEffectSink:
             raise RuntimeEffectError("RUNTIME_VERSION_INVALID", version) from exc
         if major != SUPPORTED_MAJOR:
             raise RuntimeEffectError("RUNTIME_VERSION_INCOMPATIBLE", version)
+        self._runtime_version = version
         self._negotiated = True
+
+    def capability_handshake(self) -> dict[str, Any]:
+        """Return the sink's versioned capability result for mode negotiation.
+
+        This is the public bridge between the coordinator-facing execution
+        profile and the exact transport contract that will submit effects.
+        It never raises for an unavailable or incompatible Runtime: callers
+        receive a fail-closed handshake with a stable reason code.
+        """
+        try:
+            self._negotiate()
+        except RuntimeEffectError as exc:
+            return {
+                "verified": False,
+                "version": None,
+                "capabilities": [],
+                "reason": exc.code,
+                "transport": self.transport.name,
+            }
+        return {
+            "verified": True,
+            "version": self._runtime_version,
+            "capabilities": [TRANSACTION_SCHEMA],
+            "reason": "ok",
+            "transport": self.transport.name,
+        }
 
     def _transaction(self, effect: EffectPlan, context: EffectDispatchContext) -> dict[str, Any]:
         node = context.plan_node

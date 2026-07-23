@@ -7,6 +7,12 @@ usage: simplicio-py run [-h] [--scope {auto,task,feature,sprint,scratch}]
                         [--planner PLANNER] [--plan-only] [--skip-install]
                         [--slot KEY=VALUE]
                         [--mode {auto,integrated,standalone}]
+                        [--context-snapshot CONTEXT_SNAPSHOT]
+                        [--attempt-id ATTEMPT_ID] [--lease-id LEASE_ID]
+                        [--fencing-token FENCING_TOKEN]
+                        [--context-handle CONTEXT_HANDLE]
+                        [--coordinator-kind COORDINATOR_KIND]
+                        [--coordinator-id COORDINATOR_ID]
                         goal
 
 positional arguments:
@@ -34,3 +40,16 @@ options:
   --skip-install        scratch skip install
   --slot KEY=VALUE
   --mode {auto,integrated,standalone}
+  --context-snapshot CONTEXT_SNAPSHOT
+                        canonical Mapper ContextSnapshot JSON path
+  --attempt-id ATTEMPT_ID
+                        coordinator-owned atomic attempt ID
+  --lease-id LEASE_ID   coordinator-owned lease ID
+  --fencing-token FENCING_TOKEN
+                        coordinator-owned fencing token
+  --context-handle CONTEXT_HANDLE
+                        canonical snapshot ID bound to the attempt
+  --coordinator-kind COORDINATOR_KIND
+                        coordinator type recorded in the execution profile
+  --coordinator-id COORDINATOR_ID
+                        coordinator identity recorded in the execution profile
