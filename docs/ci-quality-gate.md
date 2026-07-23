@@ -1,10 +1,8 @@
 # CI and Local Quality Gate (issues #202, #246, #251)
 
-`.github/workflows/ci.yml` runs on every pull request targeting `main` and
-every push to `main`. Its blocking `coverage` job runs the complete Python
-test suite with coverage and then invokes the repository's real gate,
-`scripts/coverage_gate.py`. Branch protection should require the
-`Coverage gate (85% global / 90% critical)` check. Pull requests target
+Hosted GitHub Actions are intentionally absent. The repository's release gate
+is local and fail-closed: maintainers run it before a push, release or publish
+and attach its evidence to the pull request. Pull requests target
 `main`; the retained `master` branch is compatibility-only.
 
 ## Reproducible local equivalent
@@ -15,6 +13,9 @@ repository root. Attach the command output to the pull request:
 ```bash
 python -m pip install -e ".[dev]" build twine
 python3 scripts/check_json_boundaries.py --strict
+python3 tools/policy_scan.py --repo . --mode strict \
+  --markdown docs/evidence/no-internal-json-scan.md \
+  --hbp docs/evidence/no-internal-json-scan.hbp
 ruff check .
 ruff format --check .
 mypy simplicio
@@ -24,7 +25,7 @@ python3 scripts/token_budget.py --check
 python3 scripts/gen_package_interdependence.py --check
 python -m build
 python -m twine check dist/*
-for artifact in dist/*; do python3 scripts/check_json_boundaries.py --strict --artifact "$artifact"; done
+python3 scripts/check_json_boundaries.py --strict --artifact-dir dist
 simplicio-py --help
 simplicio-cli --help
 simplicio-dev-cli --help
@@ -41,7 +42,7 @@ The embedded Node/Playwright starter is separate from the Python product. Run
 - `python3 scripts/coverage_gate.py --self-test` proves the guard accepts and
   rejects synthetic reports correctly.
 
-The workflow and cross-platform hooks `.claude/hooks/pre-commit.sh` and
+The cross-platform hooks `.claude/hooks/pre-commit.sh` and
 `.claude/hooks/pre-commit.ps1` apply the 85% global floor when Python files are
 staged and `pytest-cov` is installed. The explicit gate above remains the
 source of truth for the coverage thresholds because it also covers the
@@ -56,5 +57,5 @@ update the matching fixture in the same pull request.
 
 Every bug fix must include a regression test that fails before the fix and
 passes afterward. This policy is reviewed locally together with the
-adversarial verification required by `DOD.md`; CI complements rather than
-replaces that review.
+adversarial verification required by `DOD.md`; automation never replaces that
+review.

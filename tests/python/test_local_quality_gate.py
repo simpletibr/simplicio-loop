@@ -12,26 +12,22 @@ def _read(path: str) -> str:
     return (REPO_ROOT / path).read_text(encoding="utf-8")
 
 
-def test_ci_invokes_blocking_coverage_gate_on_main_pushes_and_prs() -> None:
-    workflow = _read(".github/workflows/ci.yml")
-    flattened = " ".join(workflow.split())
-
-    assert re.search(r"push:\s*\n\s*branches: \[main\]", workflow)
-    assert re.search(r"pull_request:\s*\n\s*branches: \[main\]", workflow)
-    assert "pytest --cov=simplicio" in flattened
-    assert "--cov-report=json:coverage.json" in flattened
-    assert "python3 scripts/coverage_gate.py --report coverage.json" in workflow
-    assert "continue-on-error" not in workflow
+def test_local_hooks_invoke_blocking_coverage_gate() -> None:
+    for hook in (".claude/hooks/pre-commit.sh", ".claude/hooks/pre-commit.ps1"):
+        text = _read(hook)
+        assert "pytest -q" in text
+        assert "--cov=simplicio" in text
+        assert "--cov-fail-under=85" in text
+        assert "continue-on-error" not in text
 
 
-def test_ci_blocks_internal_json_in_sources_and_release_archives_on_supported_platforms() -> None:
-    workflow = _read(".github/workflows/ci.yml")
+def test_local_release_docs_block_internal_json_in_sources_and_archives() -> None:
+    gate = _read("docs/ci-quality-gate.md")
 
-    assert "Internal JSON release gate (${{ matrix.os }})" in workflow
-    assert "[ubuntu-latest, macos-latest, windows-latest]" in workflow
-    assert "python scripts/check_json_boundaries.py --strict" in workflow
-    assert "python -m build" in workflow
-    assert "python scripts/check_json_boundaries.py --strict --artifact-dir dist" in workflow
+    assert "tools/policy_scan.py --repo . --mode strict" in gate
+    assert "scripts/check_json_boundaries.py --strict" in gate
+    assert "python -m build" in gate
+    assert "scripts/check_json_boundaries.py --strict --artifact-dir dist" in gate
 
 
 def test_documented_thresholds_equal_enforced_thresholds() -> None:
@@ -60,32 +56,15 @@ def test_coverage_gate_rejects_reports_below_either_floor() -> None:
     assert coverage_gate.evaluate(low_critical, 85, 90, modules)[0] is False
 
 
-def test_documented_workflow_references_exist() -> None:
-    audited_paths = [
-        REPO_ROOT / name
-        for name in (
-            "AGENTS.md",
-            "CLAUDE.md",
-            "DOD.md",
-            "README.md",
-            "INSTALL.md",
-            "INIT.md",
-            "_BOOTSTRAP.md",
-        )
-    ]
-    audited_paths.extend(
-        source for source in (REPO_ROOT / "docs").rglob("*.md") if "evidence" not in source.parts
-    )
-    audited_paths.extend((REPO_ROOT / "tests").rglob("*.py"))
-    audited_paths.extend((REPO_ROOT / "tests").rglob("*.js"))
-    audited_paths.extend(REPO_ROOT / name for name in ("bootstrap.sh", "bootstrap.ps1"))
+def test_documented_local_gate_commands_reference_existing_files() -> None:
+    audited_paths = [REPO_ROOT / "docs" / "ci-quality-gate.md"]
 
-    reference = re.compile(r"\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml")
+    reference = re.compile(r"(?:python3?\s+)?((?:scripts|tools)/[A-Za-z0-9_./-]+\.py)")
     missing: list[str] = []
     for source in audited_paths:
-        for workflow in reference.findall(source.read_text(encoding="utf-8")):
-            if not (REPO_ROOT / workflow).is_file():
-                missing.append(f"{source.relative_to(REPO_ROOT)} -> {workflow}")
+        for script in reference.findall(source.read_text(encoding="utf-8")):
+            if not (REPO_ROOT / script).is_file():
+                missing.append(f"{source.relative_to(REPO_ROOT)} -> {script}")
 
     assert missing == []
 

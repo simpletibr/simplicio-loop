@@ -7,12 +7,22 @@ import fs from "node:fs";
 import path from "node:path";
 
 const patterns = [
+  ["serialization-library", "import json"], ["serialization-library", "from json"],
   ["serialization-library", "serde_json"], ["serialization-library", "orjson"],
   ["serialization-call", "json.dumps"], ["serialization-call", "json.loads"],
   ["serialization-call", "JSON.parse"], ["serialization-call", "JSON.stringify"],
   ["protocol", "JSON-RPC"], ["protocol", "json-rpc"],
 ];
 const ignored = new Set([".git", "target", "node_modules", "vendor", ".venv", ".simplicio"]);
+const exceptionCategories = new Set(["external-adapter", "historical-documentation", "legacy-internal", "scanner-self", "toolchain-mandated"]);
+const maxTextBytes = 4 * 1024 * 1024;
+
+function parseDate(value, label) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error(`invalid ${label}: ${value}`);
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.valueOf()) || date.toISOString().slice(0, 10) !== value) throw new Error(`invalid ${label}: ${value}`);
+  return value;
+}
 
 function parseString(value) {
   if (!value.startsWith('"') || !value.endsWith('"')) throw new Error(`not a TOML string: ${value}`);
@@ -20,6 +30,7 @@ function parseString(value) {
 }
 
 function policyFromToml(text, today) {
+  parseDate(today, "scan date");
   const policy = { exceptions: [] };
   let current = null;
   for (const raw of text.split(/\r?\n/)) {
@@ -37,8 +48,12 @@ function policyFromToml(text, today) {
   const seen = new Set();
   for (const item of policy.exceptions) {
     for (const key of ["path", "category", "owner", "external_dependency", "justification", "review_date", "removal_date"]) if (!item[key]) throw new Error(`exception missing ${key}`);
-    if (seen.has(item.path) || item.path.startsWith("/") || item.path.includes("..") || /[*?\[\]]/.test(item.path)) throw new Error(`exception path is not exact: ${item.path}`);
+    if (seen.has(item.path) || item.path.startsWith("/") || item.path.split("/").includes("..") || item.path.includes("\\") || /[*?\[\]]/.test(item.path)) throw new Error(`exception path is not exact: ${item.path}`);
+    if (!exceptionCategories.has(item.category)) throw new Error(`unsupported exception category: ${item.category}`);
     seen.add(item.path);
+    parseDate(item.review_date, "review date");
+    parseDate(item.removal_date, "removal date");
+    if (item.review_date > today || item.removal_date < item.review_date) throw new Error(`invalid exception date window: ${item.path}`);
     if (item.removal_date < today) throw new Error(`expired exception: ${item.path}`);
   }
   return policy;
@@ -50,7 +65,7 @@ function files(root) {
     if (ignored.has(name.name) || name.name.startsWith(".")) continue;
     const full = path.join(root, name.name);
     if (name.isDirectory()) result.push(...files(full));
-    else if (name.isFile()) result.push(full);
+    else if (name.isFile() || name.isSymbolicLink()) result.push(full);
   }
   return result;
 }
@@ -63,14 +78,34 @@ function scan(root, policy) {
     const category = exceptions.get(relative) ?? "unclassified";
     const extension = path.extname(full).toLowerCase();
     if ([".json", ".jsonl", ".ndjson"].includes(extension)) findings.push([relative, 1, "artifact-extension", extension.slice(1), category]);
+    const stat = fs.lstatSync(full);
+    if (stat.isSymbolicLink()) {
+      findings.push([relative, 1, "symlink", "not-followed", category]);
+      continue;
+    }
+    if (stat.size > maxTextBytes) {
+      findings.push([relative, 1, "oversized-text", `${stat.size}-bytes`, category]);
+      continue;
+    }
     const data = fs.readFileSync(full);
-    if (data.length > 4 * 1024 * 1024 || data.includes(0)) continue;
+    if (data.includes(0)) continue;
+    if (data.length > maxTextBytes) {
+      findings.push([relative, 1, "oversized-text", `${data.length}-bytes`, category]);
+      continue;
+    }
     const text = data.toString("utf8");
     const trimmed = text.trim();
-    if (![".json", ".jsonl", ".ndjson"].includes(extension) && trimmed.startsWith("{") && trimmed.endsWith("}")) findings.push([relative, 1, "renamed-json-artifact", "object-document", category]);
+    if (![".json", ".jsonl", ".ndjson"].includes(extension)) {
+      if (trimmed.startsWith("{") && trimmed.endsWith("}")) findings.push([relative, 1, "renamed-json-artifact", "object-document", category]);
+      else if (trimmed.startsWith("[") && trimmed.endsWith("]")) findings.push([relative, 1, "renamed-json-artifact", "array-document", category]);
+    }
     text.split(/\r?\n/).forEach((line, index) => patterns.forEach(([kind, needle]) => {
       if (line.includes(needle)) findings.push([relative, index + 1, kind, needle, category]);
     }));
+  }
+  const usedExceptions = new Set(findings.filter((item) => item[4] !== "unclassified").map((item) => item[0]));
+  for (const exceptionPath of [...exceptions.keys()].sort()) {
+    if (!usedExceptions.has(exceptionPath)) findings.push([exceptionPath, 1, "unused-exception", "no-matching-finding", "unclassified"]);
   }
   return [...new Map(findings.map((item) => [item.join("\0"), item])).values()].sort((a, b) => {
     const left = a.join("\0");
@@ -99,7 +134,7 @@ const root = path.resolve(value("--repo", "."));
 const policyPath = path.resolve(value("--policy", path.join(root, "policy/no-internal-json.toml")));
 const mode = value("--mode", "baseline");
 if (!["baseline", "strict"].includes(mode)) throw new Error("--mode must be baseline or strict");
-const today = process.env.SIMPLICIO_POLICY_SCAN_DATE ?? "2099-01-01";
+const today = process.env.SIMPLICIO_POLICY_SCAN_DATE ?? new Date().toISOString().slice(0, 10);
 const policy = policyFromToml(fs.readFileSync(policyPath, "utf8"), today);
 const [markdown, hbp, code] = render(scan(root, policy), policy, mode);
 const markdownPath = value("--markdown", null);
