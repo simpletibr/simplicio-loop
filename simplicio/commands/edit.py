@@ -14,8 +14,16 @@ import os
 import shutil
 import subprocess
 import sys
+from typing import Any
 
 from ..runtime_bridge import delegated_command, record_delegation
+from ..standalone_migration import (
+    effect_unknown_pending,
+    emit_mutation_route,
+    mutation_receipt,
+    record_effect_unknown,
+    standalone_policy_for_root,
+)
 from ._shared import read_text_source
 
 CLI_PROG = "simplicio-py"
@@ -29,7 +37,42 @@ def run_mechanical_edit(a: argparse.Namespace) -> int:
     except OSError as exc:
         print(f"{CLI_PROG} mechanical-edit: {exc}", file=sys.stderr)
         return 2
-    result = execute_plan_json(plan_text, root=a.root, apply=a.apply)
+    policy = standalone_policy_for_root(a.root)
+    result: dict[str, Any]
+    if a.apply and not policy.write_allowed:
+        result = {
+            "schema": "simplicio.mechanical-edit-result/v1",
+            "status": "refused",
+            "applied": False,
+            "noop": False,
+            "operation_count": 0,
+            "files": [],
+            "errors": [
+                {
+                    "code": policy.reason_code,
+                    "message": "local mutation is disabled by standalone migration policy",
+                }
+            ],
+            "mutation_receipt": mutation_receipt("blocked", entrypoint="edit", policy=policy),
+        }
+        emit_mutation_route(
+            root=a.root,
+            entrypoint="edit",
+            route="blocked",
+            reason_code=policy.reason_code,
+            policy=policy,
+        )
+    else:
+        result = execute_plan_json(plan_text, root=a.root, apply=a.apply)
+        result["mutation_receipt"] = mutation_receipt("legacy_standalone", entrypoint="edit", policy=policy)
+        if a.apply:
+            emit_mutation_route(
+                root=a.root,
+                entrypoint="edit",
+                route="legacy_standalone",
+                reason_code=policy.reason_code,
+                policy=policy,
+            )
     if a.json:
         print(json.dumps(result, sort_keys=True))
     else:
@@ -88,7 +131,7 @@ def _translate_create_file_plan_for_native(plan: dict) -> list[dict] | None:
     return native_plans
 
 
-def _run_native_edit_plans(runtime: str, native_plans: list[dict], a: argparse.Namespace) -> dict:
+def _run_native_edit_plans(runtime: str, native_plans: list[dict], a: argparse.Namespace) -> dict[str, Any]:
     """Delegate one or more single-file native plans, one subprocess call
     per file (the native binary only ever addresses one file per `--plan`),
     and combine the results into the same shape `run_mechanical_edit`
@@ -96,6 +139,22 @@ def _run_native_edit_plans(runtime: str, native_plans: list[dict], a: argparse.N
     consistent result regardless of which path answered."""
     files: list[dict] = []
     errors: list[dict] = []
+    if a.apply and len(native_plans) > 1:
+        return {
+            "schema": "simplicio.mechanical-edit-result/v1",
+            "status": "refused",
+            "applied": False,
+            "noop": False,
+            "operation_count": 0,
+            "files": [],
+            "errors": [
+                {
+                    "code": "RUNTIME_ATOMIC_MULTI_FILE_REQUIRED",
+                    "message": "multi-file apply requires one atomic Runtime transaction",
+                }
+            ],
+            "mutation_receipt": mutation_receipt("blocked", entrypoint="edit"),
+        }
     for native_plan in native_plans:
         cmd = delegated_command(runtime, ["edit", "--plan", "-", "--repo", a.root, "--json"])
         if not a.apply:
@@ -128,18 +187,51 @@ def _run_native_edit_plans(runtime: str, native_plans: list[dict], a: argparse.N
                 "after_sha256": result.get("after_sha256"),
             }
         )
+    if errors and a.apply:
+        record_effect_unknown(a.root)
     return {
         "schema": "simplicio.mechanical-edit-result/v1",
-        "status": "ok" if not errors else "error",
+        "status": "ok" if not errors else ("effect_unknown" if a.apply else "error"),
         "applied": bool(a.apply) and not errors,
         "noop": False,
         "operation_count": len(native_plans),
         "files": files,
         "errors": errors,
+        "mutation_receipt": mutation_receipt("runtime_effect_api", entrypoint="edit"),
     }
 
 
 def run_edit(a: argparse.Namespace) -> int:
+    if a.apply and effect_unknown_pending(a.root):
+        policy = standalone_policy_for_root(a.root)
+        blocked_result = {
+            "schema": "simplicio.mechanical-edit-result/v1",
+            "status": "refused",
+            "applied": False,
+            "noop": False,
+            "operation_count": 0,
+            "files": [],
+            "errors": [
+                {
+                    "code": "EFFECT_UNKNOWN_RECONCILIATION_REQUIRED",
+                    "message": "reconcile the prior Runtime effect before another mutation",
+                }
+            ],
+            "mutation_receipt": mutation_receipt("blocked", entrypoint="edit", policy=policy),
+        }
+        emit_mutation_route(
+            root=a.root,
+            entrypoint="edit",
+            route="blocked",
+            reason_code="EFFECT_UNKNOWN_RECONCILIATION_REQUIRED",
+            policy=policy,
+        )
+        if a.json:
+            print(json.dumps(blocked_result, sort_keys=True))
+        else:
+            print(f"{blocked_result['status']}: applied=False noop=False")
+            print("error: EFFECT_UNKNOWN_RECONCILIATION_REQUIRED", file=sys.stderr)
+        return 1
     runtime = None if a.no_runtime else _runtime_edit_binary()
     if runtime:
         try:
@@ -153,6 +245,13 @@ def run_edit(a: argparse.Namespace) -> int:
         if native_plans is not None:
             result = _run_native_edit_plans(runtime, native_plans, a)
             record_delegation("edit", "native", root=a.root, reason="translated:create_file")
+            if a.apply:
+                emit_mutation_route(
+                    root=a.root,
+                    entrypoint="edit",
+                    route="runtime_effect_api",
+                    reason_code="RUNTIME_NATIVE_EDIT",
+                )
             if a.json:
                 print(json.dumps(result, sort_keys=True))
             else:
@@ -176,6 +275,15 @@ def run_edit(a: argparse.Namespace) -> int:
             record_delegation("edit", "python-fallback", root=a.root, reason=f"delegation-error: {exc}")
         else:
             record_delegation("edit", "native", root=a.root)
+            if a.apply and completed.returncode != 0:
+                record_effect_unknown(a.root)
+            if a.apply:
+                emit_mutation_route(
+                    root=a.root,
+                    entrypoint="edit",
+                    route="runtime_effect_api",
+                    reason_code="RUNTIME_NATIVE_EDIT",
+                )
             return completed.returncode
     else:
         if a.no_runtime:

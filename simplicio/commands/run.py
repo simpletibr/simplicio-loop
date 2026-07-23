@@ -29,6 +29,11 @@ def _mode_guard(a: argparse.Namespace) -> tuple[dict, int] | None:
         prepare_execution_inputs,
         require_coordinator_attempt,
     )
+    from ..standalone_migration import (
+        StandalonePolicy,
+        emit_mutation_route,
+        mutation_route_for_mode,
+    )
 
     try:
         prepared = prepare_execution_inputs(
@@ -58,6 +63,19 @@ def _mode_guard(a: argparse.Namespace) -> tuple[dict, int] | None:
             coordinator_kind=getattr(a, "coordinator_kind", None),
             coordinator_id=getattr(a, "coordinator_id", None),
         )
+    policy = StandalonePolicy(**profile.standalone_policy)
+    route = (
+        "blocked"
+        if bool(getattr(a, "dry_run_task", False))
+        else mutation_route_for_mode(profile.effective_mode)
+    )
+    emit_mutation_route(
+        root=a.root,
+        entrypoint=a.scope,
+        route=route,
+        reason_code=profile.reason_code,
+        policy=policy,
+    )
     if profile.effective_mode != "blocked" and profile.effective_mode != "integrated":
         return None
     payload = {

@@ -15,6 +15,10 @@
   environment surfaces, the selected production `RuntimeEffectSink` supplies
   the exact versioned handshake used for effects, and malformed context fails
   closed before planning or local writes.
+- Added governed standalone-write migration phases for issue #301. The
+  compatibility-preserving `shadow` default now records route telemetry and
+  legacy receipt classification; later phases require explicit opt-in or
+  fail closed, and `effect_unknown` can never authorize fallback.
 - Paused all local inference by default (#259). Empty configuration, explicit
   llama.cpp routes, local planner routes, `--local`, and loopback
   OpenAI-compatible endpoints now fail closed with `LOCAL_INFERENCE_PAUSED`

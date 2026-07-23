@@ -16,6 +16,7 @@ from .plan_compiler.mapper_context import (
     load_mapper_context,
 )
 from .plan_compiler.runtime_effect_sink import RuntimeEffectSink
+from .standalone_migration import StandalonePolicy, effect_unknown_pending, standalone_policy
 
 ExecutionMode = Literal["auto", "integrated", "standalone"]
 RUNTIME_EFFECT_CAPABILITY = "simplicio.effect-transaction/v1"
@@ -34,6 +35,7 @@ class ExecutionProfile:
     rollout: str
     default_eligible: bool
     reason_code: str
+    standalone_policy: dict[str, Any]
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -181,6 +183,8 @@ def blocked_input_profile(
 ) -> ExecutionProfile:
     """Build complete diagnostics for input failures before negotiation."""
     config = _config(root)
+    pending = "effect_unknown" if effect_unknown_pending(str(root)) else None
+    policy = standalone_policy(config, previous_effect_outcome=pending)
     return ExecutionProfile(
         requested_mode(mode, root),
         "blocked",
@@ -206,6 +210,7 @@ def blocked_input_profile(
         os.environ.get("SIMPLICIO_EXECUTION_ROLLOUT", str(config.get("rollout", "shadow"))),
         False,
         error.code,
+        policy.to_dict(),
     )
 
 
@@ -233,6 +238,8 @@ def negotiate_execution_mode(
     effect_sink: object | None = None,
     coordinator_kind: str | None = None,
     coordinator_id: str | None = None,
+    previous_effect_outcome: str | None = None,
+    read_only: bool = False,
 ) -> ExecutionProfile:
     """Negotiate only from versioned contracts; never infer from files/help/process names."""
     requested = requested_mode(mode, root)
@@ -242,10 +249,36 @@ def negotiate_execution_mode(
         "kind": coordinator_kind or os.environ.get("SIMPLICIO_COORDINATOR_KIND", "unknown"),
         "id": coordinator_id or os.environ.get("SIMPLICIO_COORDINATOR_ID", ""),
     }
+    persisted_outcome = "effect_unknown" if effect_unknown_pending(str(root)) else None
+    policy: StandalonePolicy = standalone_policy(
+        config,
+        previous_effect_outcome=previous_effect_outcome or persisted_outcome,
+    )
     if requested == "standalone":
+        if read_only:
+            return ExecutionProfile(
+                requested,
+                "standalone",
+                coordinator,
+                {
+                    "verified": False,
+                    "version": None,
+                    "capability": RUNTIME_EFFECT_CAPABILITY,
+                    "capability_available": False,
+                    "reason": "not-probed-standalone",
+                },
+                {"schema": None, "compatible": False, "digest": None, "contract_error": None},
+                {"configured": False, "production": False, "kind": None},
+                None,
+                rollout,
+                False,
+                "STANDALONE_READ_ONLY",
+                policy.to_dict(),
+            )
+        effective = "standalone" if policy.write_allowed else "blocked"
         return ExecutionProfile(
             requested,
-            "standalone",
+            effective,
             coordinator,
             {
                 "verified": False,
@@ -259,7 +292,8 @@ def negotiate_execution_mode(
             None,
             rollout,
             False,
-            "STANDALONE_EXPLICIT",
+            "STANDALONE_EXPLICIT" if policy.write_allowed else policy.reason_code,
+            policy.to_dict(),
         )
 
     from .runtime_contracts import runtime_verify_contract
@@ -324,6 +358,20 @@ def negotiate_execution_mode(
             )
         )
     )
+    if read_only:
+        return ExecutionProfile(
+            requested,
+            "standalone",
+            coordinator,
+            runtime,
+            mapper,
+            sink,
+            "READ_ONLY_EXECUTION",
+            rollout,
+            eligible,
+            "INTEGRATED_READ_ONLY" if requested == "integrated" else "AUTO_READ_ONLY",
+            policy.to_dict(),
+        )
     if requested == "integrated":
         return ExecutionProfile(
             requested,
@@ -336,6 +384,7 @@ def negotiate_execution_mode(
             rollout,
             eligible,
             "INTEGRATED_READY" if eligible else missing,
+            policy.to_dict(),
         )
     if eligible and rollout in {"canary", "default"}:
         return ExecutionProfile(
@@ -349,10 +398,22 @@ def negotiate_execution_mode(
             rollout,
             True,
             "AUTO_INTEGRATED",
+            policy.to_dict(),
         )
-    if not _allow_fallback(root):
+    if not _allow_fallback(root) or not policy.write_allowed:
+        reason = policy.reason_code if not policy.write_allowed else missing
         return ExecutionProfile(
-            requested, "blocked", coordinator, runtime, mapper, sink, None, rollout, False, missing
+            requested,
+            "blocked",
+            coordinator,
+            runtime,
+            mapper,
+            sink,
+            None,
+            rollout,
+            False,
+            reason,
+            policy.to_dict(),
         )
     return ExecutionProfile(
         requested,
@@ -365,6 +426,7 @@ def negotiate_execution_mode(
         rollout,
         eligible,
         "AUTO_DEGRADED",
+        policy.to_dict(),
     )
 
 

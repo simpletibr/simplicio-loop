@@ -156,6 +156,18 @@
 
  - 2026-07-22: issue #262 quality slice ported from master to current main and strengthened. The exact internal-JSON registry now rejects wildcards/traversal/missing accountability, scans wheel/sdist contents, and is wired into both local pre-commit hooks. Focused tests: 14 passed with 88% branch-aware scanner coverage. Measured 10k-entry scanner benchmark and blocker report saved under `docs/evidence/issue-262-*`. Full gate remains red from main-baseline failures; HBI/HBP conformance and cross-repository migration evidence remain explicitly unproven, so the PR is not mergeable.
 
+## Issue #301 standalone migration progress
+
+- 2026-07-23: added governed migration phases, explicit legacy-write opt-in,
+  fail-closed `effect_unknown`, route telemetry, legacy/integrated receipt
+  classification, and an AST baseline guard covering 184 mutation scopes /
+  241 candidate calls. Focused result: 86 passed with 98% branch coverage;
+  package build/install and installed fail-closed/compatibility probes passed.
+  Compatibility remains `shadow` by default. Offline Effect API parity,
+  published upgrade/downgrade, adoption receipts, and final removal remain
+  external blockers recorded in
+  `docs/evidence/issue-301.md`.
+
 - 2026-07-22: issue #256 implemented `RuntimeEffectSink` with Runtime HTTP negotiation, typed outcomes, idempotency, atomic journal evidence, reconciliation, circuit-breaker behavior, and write-set/payload guards. Focused suite: 36 passed with 94.86% branch coverage; benchmark median 0.7126 ms, p95 1.0968 ms, 1311.19 transactions/s. Full-gate pre-existing failures remain documented in the PR.
 
 - 2026-07-22: issue #258 added coordinator-owned atomic integrated execution with `AttemptContext`, one-dispatch/one-attempt guards, and typed `AtomicObservation`. Focused evidence: 17 tests, 96% touched branch coverage, and 5,000 attempts with one effect call per attempt; baseline mypy debt remains outside the slice.

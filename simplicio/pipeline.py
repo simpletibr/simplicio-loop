@@ -131,7 +131,21 @@ def _remember_verify_receipt(receipt: VerificationReceipt | None) -> None:
 
 def _remember_patch_receipt(receipt: dict[str, Any] | None) -> None:
     global _LAST_PATCH_RECEIPT
-    _LAST_PATCH_RECEIPT = None if receipt is None else dict(receipt)
+    if receipt is None:
+        _LAST_PATCH_RECEIPT = None
+        return
+    payload = dict(receipt)
+    payload.setdefault(
+        "mutation_route",
+        {
+            "schema": "simplicio.dev-cli.mutation-route/v1",
+            "entrypoint": "task",
+            "route": "legacy_standalone",
+            "runtime_gated": False,
+            "legacy": True,
+        },
+    )
+    _LAST_PATCH_RECEIPT = payload
 
 
 # ---------------------------------------------------------------------------
@@ -188,7 +202,7 @@ def _apply_and_test_attempt(output, root, bound_paths=None, *, promote_on_succes
         promote_on_success=promote_on_success,
     )
     _LAST_VERIFY_RECEIPT = result.verify_receipt
-    _LAST_PATCH_RECEIPT = result.patch_receipt
+    _remember_patch_receipt(result.patch_receipt)
     return result
 
 
@@ -284,6 +298,11 @@ def run_task(
     effect_sink = cast(EffectSink | None, prepared.effect_sink)
     runtime_handshake = prepared.runtime_handshake
     integrated_attempt = prepared.attempt
+    from .standalone_migration import (
+        StandalonePolicy,
+        emit_mutation_route,
+        mutation_route_for_mode,
+    )
 
     profile = negotiate_execution_mode(
         mode,
@@ -293,8 +312,18 @@ def run_task(
         effect_sink=effect_sink,
         coordinator_kind=coordinator_kind,
         coordinator_id=coordinator_id,
+        read_only=dry_run_task,
     )
     profile = require_coordinator_attempt(profile, integrated_attempt)
+    migration_policy = StandalonePolicy(**profile.standalone_policy)
+    mutation_route = "blocked" if dry_run_task else mutation_route_for_mode(profile.effective_mode)
+    emit_mutation_route(
+        root=root,
+        entrypoint="task",
+        route=mutation_route,
+        reason_code=profile.reason_code,
+        policy=migration_policy,
+    )
     emit_event(
         "execution_mode_selected",
         {
@@ -342,6 +371,8 @@ def run_task(
         result["execution_profile"] = profile.to_dict()
         return result
     if profile.effective_mode == "integrated":
+        from .standalone_migration import mutation_receipt, record_effect_unknown
+
         result = run_integrated(
             root,
             stack,
@@ -357,6 +388,9 @@ def run_task(
             task_spec=task_spec,
         )
         result["execution_profile"] = profile.to_dict()
+        result["mutation_receipt"] = mutation_receipt("runtime_effect_api", entrypoint="task")
+        if result.get("observation", {}).get("outcome") == "effect_unknown":
+            record_effect_unknown(root)
         return result
     if not dry_run_task and primary_test_cmd is None:
         blocker = {

@@ -172,6 +172,17 @@ benchmark with one effect call per attempt.
 
 ## Issue #257 integrated-mode validation
 
+## Issue #301 standalone migration
+
+Implemented the local migration-control slice without claiming final removal:
+phase policy, compatibility opt-in, fail-closed unknown outcomes, aggregate
+route telemetry, receipt classification, and a deterministic guard against
+new writes outside `RuntimeEffectSink`. The default remains `shadow` to avoid
+breaking installed offline users before a compatible local Effect executor
+exists. Cross-repository rollout, package upgrade/downgrade, live crash
+recovery, and final removal evidence remain blocked and are listed in
+`docs/evidence/issue-301.md`.
+
 ## Issue #257 follow-up (2026-07-22)
 
 Corrected a contract mismatch that made the exposed integrated mode incompatible with real Mapper snapshots.
