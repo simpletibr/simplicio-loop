@@ -232,6 +232,7 @@ def run_task(
     context_snapshot: dict | None = None,
     context_pack: dict | None = None,
     execution_context: dict | None = None,
+    context_refresh: bool = False,
     runtime_handshake: dict | None = None,
     coordinator_kind: str | None = None,
     coordinator_id: str | None = None,
@@ -411,6 +412,7 @@ def run_task(
             context_snapshot=context_snapshot,
             context_pack=context_pack,
             execution_context=execution_context,
+            context_refresh=context_refresh,
             attempt=integrated_attempt,
             task_spec=task_spec,
         )

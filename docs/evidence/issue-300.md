@@ -18,7 +18,13 @@ pack/attempt digest mismatch, insufficient fidelity, token-budget overflow,
 sensitive field, unsafe path, missing source, or changed source bytes.
 
 Diagnostics return hashes and versions in `context_binding`; snapshot and pack
-content are not echoed.
+content are not echoed. The integrated path now also records a digest-scoped
+`simplicio.context-binding-cache/v1` receipt. The cache is cross-process,
+stores identity metadata only, and keys/checks the complete handle identity
+so roots, revisions, Mapper versions, and projections cannot be mixed.
+`context_refresh=True` invalidates previous entries for the same snapshot id
+before recording the new revision, and the invalidation count is included in
+the receipt.
 
 ## Reproducible validation
 
@@ -63,11 +69,17 @@ The following issue steps therefore remain external or follow-up work:
 - Mapper emission and conformance validation of snapshot provenance,
   selectors, truncation, redaction metadata, and token budget;
 - Loop use of the derived handle in its Goal and LLM request;
-- explicit structural refresh and digest-keyed cross-process cache;
+- real Loop invocation of the public refresh option after structural change;
 - secret scanning/redaction of snippet *values* (this slice rejects sensitive
   keys but does not mutate Mapper-owned projection bytes);
 - real Runtime/Loop installed-package, mixed-version, recovery, and rollback
   E2E evidence.
+
+The Dev CLI-side cache/refresh contract is now covered by unit tests that use
+two cache instances to model separate processes, verify exact-digest hits,
+reject changed projections, and prove revision refresh invalidation. The
+integrated pipeline test also records the cache receipt alongside the
+Loop-facing context handle and Runtime-facing observation.
 
 Until Mapper emits the provenance, integrated execution fails closed with
 `INCOMPATIBLE_CONTEXT`; standalone behavior is unchanged.

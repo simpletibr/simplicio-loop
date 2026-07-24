@@ -22,12 +22,14 @@ from types import MappingProxyType
 from typing import Any
 
 from simplicio.plan_compiler.errors import PlanCompilerError
+from simplicio.utils.fs import write_text_atomic
 
 MAPPER_CONTEXT_SNAPSHOT_SCHEMA = "simplicio.context-snapshot/v1"
 MAPPER_CONTEXT_PACK_SCHEMA = "simplicio.context-pack/v1"
 MAPPER_EXECUTION_CONTEXT_SCHEMA = "simplicio.execution-context/v1"
 DEV_CLI_CONTEXT_HANDLE_SCHEMA = "simplicio.dev-cli.context-handle/v1"
 DEV_CLI_FALLBACK_CONTEXT_SCHEMA = "simplicio.dev-cli.context-fallback/v1"
+CONTEXT_BINDING_CACHE_SCHEMA = "simplicio.context-binding-cache/v1"
 MAPPER_CONTRACT_OWNER = "wesleysimplicio/simplicio-mapper"
 MAPPER_CONTRACT_MANIFEST_SHA256 = "db8cf791fe6442585f03b3fac220c0987ca5e4271a4955df02b1df77018c52b0"
 MAPPER_CONTRACT_COMMIT = "05ea96390762d4bba309abcbf4783d0637a4e53f"
@@ -193,6 +195,143 @@ class ContextBinding:
     snapshot: MapperContextAdapter
     pack: MapperContextPackAdapter
     context_handle: ContextHandle
+
+
+class ContextBindingCache:
+    """Cross-process metadata cache for validated context bindings.
+
+    The cache intentionally stores only hashes and identity fields.  It never
+    stores snapshot/pack content and it is never used to bypass Mapper
+    validation.  A caller must bind and verify the current payload first;
+    this cache then records whether that exact digest was seen before.  The
+    handle is the key and the complete identity is checked again on lookup,
+    so a reused snapshot id or a malformed cache file cannot mix roots,
+    revisions, or projections.
+    """
+
+    def __init__(self, root: str | Path) -> None:
+        self.root = Path(root)
+        self.path = self.root / ".simplicio" / "context-bindings.json"
+
+    @staticmethod
+    def _identity(handle: ContextHandle) -> dict[str, str]:
+        return {
+            "snapshot_id": str(getattr(handle, "snapshot_id", "")),
+            "revision": str(getattr(handle, "revision", "")),
+            "source_digest": str(getattr(handle, "source_digest", "")),
+            "pack_hash": str(getattr(handle, "pack_hash", "")),
+            "mapper_version": str(getattr(handle, "mapper_version", "")),
+            "source_root_identity": str(getattr(handle, "source_root_identity", "")),
+            "projection_digest": str(getattr(handle, "projection_digest", "")),
+        }
+
+    def lookup(self, handle: ContextHandle) -> dict[str, Any]:
+        key = handle.value
+        store = self._read()
+        entry = store.get("entries", {}).get(key)
+        identity = self._identity(handle)
+        if not isinstance(entry, dict):
+            return self._receipt(key, handle, hit=False, reason="missing")
+        if entry.get("identity") != identity:
+            return self._receipt(key, handle, hit=False, reason="identity_mismatch")
+        return self._receipt(key, handle, hit=True, reason="exact_digest")
+
+    def put(self, binding: ContextBinding) -> dict[str, Any]:
+        handle = binding.context_handle
+        store = self._read()
+        entries = store.setdefault("entries", {})
+        entries[handle.value] = {
+            "identity": self._identity(handle),
+        }
+        self._write(store)
+        return self._receipt(handle.value, handle, hit=False, reason="stored", stored=True)
+
+    def refresh(self, binding: ContextBinding) -> dict[str, Any]:
+        """Invalidate prior revisions for this snapshot, then record this one."""
+
+        handle = binding.context_handle
+        store = self._read()
+        entries = store.setdefault("entries", {})
+        invalidated = 0
+        for key, entry in list(entries.items()):
+            identity = entry.get("identity") if isinstance(entry, dict) else None
+            if isinstance(identity, dict) and identity.get("snapshot_id") == handle.snapshot_id:
+                del entries[key]
+                invalidated += 1
+        entries[handle.value] = {"identity": self._identity(handle)}
+        self._write(store)
+        receipt = self._receipt(handle.value, handle, hit=False, reason="explicit_refresh", stored=True)
+        receipt["invalidated"] = invalidated
+        return receipt
+
+    def invalidate(
+        self,
+        *,
+        snapshot_id: str | None = None,
+        source_root_identity: str | None = None,
+        key: str | None = None,
+    ) -> dict[str, Any]:
+        store = self._read()
+        entries = store.setdefault("entries", {})
+        removed = 0
+        for candidate, entry in list(entries.items()):
+            identity = entry.get("identity") if isinstance(entry, dict) else None
+            matches = (
+                (key is None or candidate == key)
+                and (
+                    snapshot_id is None
+                    or (isinstance(identity, dict) and identity.get("snapshot_id") == snapshot_id)
+                )
+                and (
+                    source_root_identity is None
+                    or (
+                        isinstance(identity, dict)
+                        and identity.get("source_root_identity") == source_root_identity
+                    )
+                )
+            )
+            if matches:
+                del entries[candidate]
+                removed += 1
+        self._write(store)
+        return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "removed": removed}
+
+    def _receipt(
+        self,
+        key: str,
+        handle: ContextHandle,
+        *,
+        hit: bool,
+        reason: str,
+        stored: bool = False,
+    ) -> dict[str, Any]:
+        return {
+            "schema": CONTEXT_BINDING_CACHE_SCHEMA,
+            "key": key,
+            "hit": hit,
+            "reason": reason,
+            "stored": stored,
+            "identity": self._identity(handle),
+        }
+
+    def _read(self) -> dict[str, Any]:
+        if not self.path.is_file():
+            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}}
+        try:
+            payload = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}}
+        if not isinstance(payload, dict) or payload.get("schema") != CONTEXT_BINDING_CACHE_SCHEMA:
+            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}}
+        entries = payload.get("entries")
+        return {
+            "schema": CONTEXT_BINDING_CACHE_SCHEMA,
+            "entries": entries if isinstance(entries, dict) else {},
+        }
+
+    def _write(self, payload: dict[str, Any]) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        write_text_atomic(self.path, json.dumps(payload, sort_keys=True, separators=(",", ":")))
 
 
 def _source_handles(graph: Mapping[str, Any]) -> tuple[Mapping[str, Any], ...]:
@@ -536,6 +675,7 @@ def load_mapper_context(payload: Any, *, source_root: str | None = None) -> Mapp
 
 __all__ = [
     "ContextBinding",
+    "ContextBindingCache",
     "ContextHandle",
     "DEV_CLI_CONTEXT_HANDLE_SCHEMA",
     "DEV_CLI_FALLBACK_CONTEXT_SCHEMA",

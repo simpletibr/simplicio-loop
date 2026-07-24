@@ -62,6 +62,7 @@ from simplicio.plan_compiler.mapper_context import (
     MAPPER_CONTRACT_MANIFEST_SHA256,
     MAPPER_EXECUTION_CONTEXT_SCHEMA,
     ContextBinding,
+    ContextBindingCache,
     ContextHandle,
     MapperContextAdapter,
     MapperContextError,
@@ -89,6 +90,7 @@ from simplicio.plan_compiler.runtime_effect_sink import RuntimeEffectError, Runt
 
 __all__ = [
     "ContextBinding",
+    "ContextBindingCache",
     "AUTHORIZATION_SCHEMA",
     "AuthorizationError",
     "ContextHandle",

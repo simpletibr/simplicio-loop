@@ -14,6 +14,7 @@ from simplicio.plan_compiler.mapper_context import (
     MAPPER_CONTEXT_PACK_SCHEMA,
     MAPPER_CONTEXT_SNAPSHOT_SCHEMA,
     MAPPER_EXECUTION_CONTEXT_SCHEMA,
+    ContextBindingCache,
     MapperContextError,
     bind_mapper_context,
     load_mapper_context,
@@ -122,6 +123,48 @@ def test_context_handle_is_deterministic_and_binds_snapshot_and_pack(mapper_boun
 
     changed = _pack(payload, recent_changes=["src/main.py"])
     assert bind_mapper_context(payload, changed).context_handle.value != first.context_handle.value
+
+
+def test_context_binding_cache_is_cross_process_and_digest_scoped(
+    mapper_boundary: None, tmp_path: Any
+) -> None:
+    payload = _payload()
+    first = bind_mapper_context(payload, _pack(payload))
+    cache = ContextBindingCache(tmp_path)
+
+    assert cache.lookup(first.context_handle)["hit"] is False
+    cache.put(first)
+
+    # A new instance models a second Loop/Dev CLI process.  It may observe
+    # metadata for the exact handle, but it never receives context content.
+    second_process = ContextBindingCache(tmp_path)
+    hit = second_process.lookup(first.context_handle)
+    assert hit["hit"] is True
+    assert "payload" not in hit
+    assert hit["identity"]["source_root_identity"] == "root-hash"
+
+    changed = bind_mapper_context(payload, _pack(payload, recent_changes=["src/main.py"]))
+    miss = second_process.lookup(changed.context_handle)
+    assert miss["hit"] is False
+    assert miss["reason"] == "missing"
+
+
+def test_context_binding_cache_refresh_invalidates_prior_revision(
+    mapper_boundary: None, tmp_path: Any
+) -> None:
+    payload = _payload()
+    first = bind_mapper_context(payload, _pack(payload))
+    cache = ContextBindingCache(tmp_path)
+    cache.put(first)
+
+    refreshed_payload = {**payload, "revision": "rev-3"}
+    refreshed = bind_mapper_context(refreshed_payload, _pack(refreshed_payload))
+    receipt = cache.refresh(refreshed)
+
+    assert receipt["reason"] == "explicit_refresh"
+    assert receipt["invalidated"] == 1
+    assert cache.lookup(first.context_handle)["hit"] is False
+    assert cache.lookup(refreshed.context_handle)["hit"] is True
 
 
 @pytest.mark.parametrize(

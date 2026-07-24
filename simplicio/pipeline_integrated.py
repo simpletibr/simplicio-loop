@@ -29,6 +29,7 @@ from .pipeline_task_result import _task_result
 from .plan_compiler import EffectAuthorization, PlanCompilationError, compile_task_spec_to_plan
 from .plan_compiler.effect_sink import EffectDispatchContext, EffectSink, IntegratedModeRequiresSinkError
 from .plan_compiler.mapper_context import (
+    ContextBindingCache,
     MapperContextError,
     bind_mapper_context,
     load_mapper_context,  # noqa: F401 - retained as a monkeypatchable compatibility boundary
@@ -92,6 +93,7 @@ def run_integrated(
     context_snapshot: dict[str, Any] | None = None,
     context_pack: dict[str, Any] | None = None,
     execution_context: dict[str, Any] | None = None,
+    context_refresh: bool = False,
     attempt: AttemptContext | None = None,
     task_spec: TaskSpec | None = None,
 ) -> dict[str, Any]:
@@ -211,6 +213,10 @@ def run_integrated(
                 }
             ],
         )
+    context_cache = ContextBindingCache(root)
+    cache_receipt = (
+        context_cache.refresh(binding) if context_refresh else context_cache.lookup(binding.context_handle)
+    )
     try:
         plan, effects, verifications = compile_task_spec_to_plan(
             task_spec,
@@ -297,6 +303,7 @@ def run_integrated(
     result["context_binding"] = {
         **binding.context_handle.to_dict(),
         "context_handle": context_handle,
+        "cache": cache_receipt,
     }
     emit_event(
         "task_complete",

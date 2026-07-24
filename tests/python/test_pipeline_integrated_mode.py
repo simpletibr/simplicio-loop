@@ -441,6 +441,8 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
     assert result["effects"][0]["context_handle"] == CONTEXT_HANDLE
     assert sink.contexts[0].context_handle == CONTEXT_HANDLE
     assert result["context_binding"]["context_handle"] == CONTEXT_HANDLE
+    assert result["context_binding"]["cache"]["schema"] == "simplicio.context-binding-cache/v1"
+    assert result["context_binding"]["cache"]["hit"] is False
     assert observation["resources"]["effect_calls"] == 1
     assert observation["resources"]["threads_created"] == 0
 
