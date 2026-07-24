@@ -250,6 +250,9 @@ class PlanDAG:
     budget: float | None = None
     trace_id: str | None = None
     context_handle: str = ""
+    # Preserve whether an optional field was explicitly serialized so legacy
+    # v1 payloads round-trip without changing their canonical digest.
+    _context_handle_present: bool = field(default=False, repr=False, compare=False)
 
     def to_dict(self) -> dict[str, Any]:
         payload = {
@@ -264,7 +267,7 @@ class PlanDAG:
             "budget": self.budget,
             "trace_id": self.trace_id,
         }
-        if self.context_handle:
+        if self.context_handle or self._context_handle_present:
             payload["context_handle"] = self.context_handle
         return payload
 
@@ -284,6 +287,7 @@ class PlanDAG:
             budget=float(raw_budget) if raw_budget is not None else None,
             trace_id=str(raw_trace_id) if raw_trace_id is not None else None,
             context_handle=str(payload.get("context_handle", "")),
+            _context_handle_present="context_handle" in payload,
         )
 
     def canonical_hash(self) -> str:

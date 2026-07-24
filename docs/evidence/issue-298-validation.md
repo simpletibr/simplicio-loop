@@ -9,12 +9,11 @@ identity loss, payload adulterado, transformação não registrada, plano fonte
 inválido e unsupported schema major. O payload tem digest próprio e precisa
 coincidir com a transformação determinística registrada para o consumidor.
 
-The integrated Runtime boundary now carries the canonical `PlanDAG` payload and
-`plan_digest` alongside each `EffectTransaction`. The digest is part of the
-transaction idempotency key, and a mismatched or structurally invalid plan is
-rejected before transport. This is an additive Dev CLI boundary proof; it does
-not claim that the currently deployed Loop/Runtime consumes or echoes these
-fields.
+The integrated Runtime boundary carries the canonical `PlanDAG` payload and
+`plan_digest` alongside each `EffectTransaction`. The Loop consumer forwards
+the causal envelope into transactions and receipts, while Runtime validates
+the envelope before effect handlers run. Legacy transactions without the
+optional canonical envelope remain compatible.
 
 ## Reproduction
 
@@ -72,10 +71,23 @@ The consumer implementation is now merged:
 - Runtime: `93350743d319175c3461d32764ffc1c9b2475568` (PR #3572), validating
   canonical plan metadata at the effect firewall before handlers run.
 
-The installed cross-repository E2E lane is not claimed from this worker: the
-environment lacks `pytest`, `simplicio-mapper`, `httpx`, and an installed
-Runtime binary. The implementation is fail-closed and the missing lane remains
-an explicit verification debt rather than a fabricated PASS.
+Installed-package probe executed in a clean wheel-only venv:
+
+- `simplicio-cli==0.16.2`, `simplicio-loop==3.38.1`, and
+  `simplicio-mapper==0.24.2` were installed as packages, not editable
+  checkouts.
+- The real trace `Goal -> PlanDAG -> Loop admission -> EffectTransaction ->
+  Receipt` passed with plan digest
+  `b77b56026603ea604272568490e61bfdb5271ed443a87d97fc16abc666a1069d`.
+- Replay preserved the digest; unknown major, digest mismatch, dependency
+  cycle, and N-1 downgrade/upgrade all failed or round-tripped as expected.
+- The exact merged Runtime firewall source was compiled in an isolated Rust
+  harness with that same digest: `7 passed`.
+
+The full Runtime binary E2E remains unverified because the private compiled
+`simplicio` executable is not installed or published to this worker. The
+Runtime source-level firewall gate is verified; this distinction is kept
+explicit instead of being reported as a binary PASS.
 
 ## Rollback
 
