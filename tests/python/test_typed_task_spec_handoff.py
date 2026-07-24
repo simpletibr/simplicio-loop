@@ -223,6 +223,7 @@ def test_integrated_pipeline_passes_original_task_spec_to_compiler(tmp_path, mon
         context_snapshot=context,
         context_pack={"schema": "simplicio.context-pack/v1"},
         integrated_attempt=AttemptContext("attempt-299", "lease-299", "fence-299", "snapshot-299"),
+        dry_run_task=True,
         task_spec=task,
     )
 
@@ -272,6 +273,26 @@ def test_standalone_pipeline_rejects_typed_task_spec_without_consuming_it(tmp_pa
     )
     assert result["status"] == "blocked"
     assert result["blocked_preconditions"][0]["code"] == "TASK_SPEC_REQUIRES_INTEGRATED_MODE"
+
+
+def test_blocked_integrated_pipeline_still_exposes_typed_task_spec_hash(tmp_path, monkeypatch) -> None:
+    task = TaskSpec.from_dict(_payload())
+    monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
+
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "ignored textual goal",
+        "ignored.py",
+        "- ignored criterion",
+        "- ignored constraint",
+        mode="integrated",
+        task_spec=task,
+        quiet=True,
+    )
+
+    assert result["status"] == "blocked"
+    assert result["task_spec_hash"] == task.canonical_hash()
 
 
 def test_cli_task_spec_file_loader_preserves_export(tmp_path) -> None:
