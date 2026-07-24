@@ -32,3 +32,18 @@ cross-invocation lock; it is never converted into a standalone retry.
 This is an offline executor receipt, not proof of a live Runtime deployment.
 Online Runtime/Loop adoption and published-package upgrade/downgrade receipts
 must still be measured by the cross-repository harness.
+
+## Local E2E matrix
+
+Run the issue-specific offline matrix with the repository's test environment:
+
+```bash
+pytest -q tests/python/test_issue_301_e2e.py
+```
+
+The matrix uses a loopback HTTP Runtime and the production offline transport;
+it covers Runtime absent/present/incompatible, all migration phases, kill
+switch and `effect_unknown` locking, task/feature/sprint/edit routing,
+authorization, receipts, idempotency, response-loss reconciliation, rollback,
+and isolated source-install contract smoke. It does not claim a published
+wheel upgrade/downgrade or a live Loop → Runtime → Dev CLI receipt.
