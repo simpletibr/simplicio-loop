@@ -318,7 +318,16 @@ def run_integrated(
         dispatch_context=dispatch_context,
     )
 
-    result = _task_result(target, prompt, "", applied=False, status="integrated_atomic")
+    # applied is true only when the production Runtime sink reports the
+    # atomic effect submission. Recording sinks prove handoff shape, not a
+    # committed mutation.
+    result = _task_result(
+        target,
+        prompt,
+        "",
+        applied=isinstance(effect_sink, RuntimeEffectSink) and observation.outcome == "effect_submitted",
+        status="integrated_atomic",
+    )
     result["plan"] = plan.to_dict()
     result["effects"] = [effect.to_dict() for effect in effects]
     result["verifications"] = [verification.to_dict() for verification in verifications]
