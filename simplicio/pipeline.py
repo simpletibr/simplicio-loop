@@ -346,6 +346,15 @@ def run_task(
     _remember_patch_receipt(None)
     prompt = build_prompt(root, stack, goal, target, criteria, constraints)
     primary_test_cmd = os.environ.get("SIMPLICIO_TEST_CMD", "").strip() or None
+    if primary_test_cmd is None and task_spec is not None:
+        primary_test_cmd = next(
+            (
+                str(item.get("command", "")).strip()
+                for item in task_spec.verification_commands
+                if isinstance(item, dict) and str(item.get("command", "")).strip()
+            ),
+            None,
+        )
     if profile.effective_mode == "blocked":
         result = _task_result(
             target,
@@ -841,6 +850,39 @@ def run(root, stack, goal, target, criteria, constraints, bound_paths=None):
     if result["applied"]:
         return result
     return None
+
+
+def run_task_spec(root, stack, task_spec: TaskSpec, **kwargs: Any) -> dict[str, Any]:
+    """Execute one validated TaskSpec without flattening its typed payload.
+
+    This is the public API counterpart to ``simplicio-py task --task-spec``.
+    The narrative fields are used only for the legacy function signature; the
+    original object is passed unchanged to the integrated compiler.
+    """
+    if not isinstance(task_spec, TaskSpec):
+        raise TypeError("run_task_spec requires a simplicio.task_spec.TaskSpec")
+    if "task_spec" in kwargs:
+        raise TypeError("run_task_spec does not accept a second task_spec argument")
+    narrative = task_spec.narrative
+    goal = str(narrative.get("goal") or narrative.get("want") or task_spec.functionality or task_spec.task_id)
+    criteria = "\n".join(
+        str(item.get("text") or item.get("then") or item["id"])
+        for item in task_spec.acceptance_criteria
+    )
+    constraints = "\n".join(
+        str(item.get("text") or item.get("description") or item.get("id", ""))
+        for item in task_spec.business_rules
+    )
+    return run_task(
+        root,
+        stack,
+        goal,
+        task_spec.task_id,
+        criteria,
+        constraints,
+        task_spec=task_spec,
+        **kwargs,
+    )
 
 
 async def run_tasks_async(
