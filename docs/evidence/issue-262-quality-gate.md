@@ -114,3 +114,17 @@ json-boundaries: 0 finding(s); strict=pass
 This changes only local classification. It does not claim Runtime HBI
 conformance, HBP migration lineage, installed-package E2E, or release
 readiness; those remain explicit external gates.
+
+## Dev CLI HBP adapter slice — 2026-07-24
+
+`simplicio.hbp/v1` is now available through the additive
+`simplicio.hbp.HbpEvidenceLedger` adapter. It mirrors Runtime's `HBP1` header,
+little-endian length-delimited records, typed `hbp-fields/v1` evidence payload,
+chain links, and SHA-256 row hashes. It rejects legacy JSONL, unknown
+version/flags, truncation, tampering, and invalid chain state before append or
+verification.
+
+Local evidence: `5 passed`; touched-module coverage `85%`; the Runtime MCP test
+runner also passed the HBP adapter suite. Existing JSON writers remain in place
+until Mapper/Loop/Runtime installed migration and upgrade/rollback evidence is
+available, so #262 remains open.

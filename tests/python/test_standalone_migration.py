@@ -397,3 +397,14 @@ def test_approved_runtime_effect_boundary_is_excluded(tmp_path):
     )
 
     assert mutation_inventory(tmp_path) == []
+
+
+def test_approved_hbp_effect_boundary_is_excluded(tmp_path):
+    boundary = tmp_path / "simplicio"
+    boundary.mkdir(parents=True)
+    (boundary / "hbp.py").write_text(
+        "from pathlib import Path\nPath('hbp-inbox.bin').write_bytes(b'HBP1')\n",
+        encoding="utf-8",
+    )
+
+    assert mutation_inventory(tmp_path) == []
