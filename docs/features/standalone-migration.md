@@ -65,9 +65,9 @@ python scripts/check_effect_boundary.py --inventory
 
 The AST guard inventories mutation primitives and subprocess boundaries in
 the Python product, excluding only the production
-`RuntimeEffectSink`. The current-main baseline records 188 mutation scopes and
-246 calls at digest
-`4dfd242520c8c475d48de209168eb2a85605b868041a0c871fb25ec63b15c298`.
+`RuntimeEffectSink`. The current-main baseline records 190 mutation scopes and
+248 calls at digest
+`4a0fc6cfe9b1cdbc4ee497338b9781ea713d3e4d433df6b1945f51d17f78065f`.
 The baseline was refreshed after later merged contract slices; this change
 adds no new mutation primitive.
 Any addition, removal, or scope change outside the approved Effect boundary

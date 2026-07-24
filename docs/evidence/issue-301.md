@@ -29,6 +29,27 @@ new product mutation boundary was added by this refresh.
 The reviewed additions are the reconciliation lock write and verified clear;
 existing legacy writes remain inventoried.
 
+## E2E matrix added in this slice
+
+`tests/python/test_issue_301_e2e.py` is a deterministic, offline system
+matrix. It uses a loopback HTTP Runtime for the online leg and the production
+`OfflineRuntimeTransport` for the offline leg; no credentials, GitHub/Jira/
+Trello calls, or paid GitHub Actions are involved. It covers:
+
+- Runtime absent, incompatible, offline-present, and HTTP-present;
+- `shadow`, `opt_in`, `warning`, `read_only`, and `removed` policy behavior;
+- task/feature/sprint/edit boundaries, kill-switch/fail-closed routing;
+- authorized receipts, idempotency, rollback, and lost-response
+  `effect_unknown` reconciliation without a second submit;
+- Loop-shaped attempt/lease/fencing/context causal fields;
+- isolated source-install contract smoke for clean-install/rollback checks.
+
+Local command/result: `pytest -q tests/python/test_issue_301_e2e.py` → **20
+passed**. The local integrated path also asserts the coordinator policy
+revision and only reports `applied=true` after the real
+`RuntimeEffectSink` completes the effect; recording sinks remain non-mutating
+test doubles.
+
 ## Acceptance matrix
 
 | Acceptance criterion | Local result |
@@ -67,6 +88,8 @@ No external receipt is inferred. Local results:
 - offline EffectTransaction path applied one authorized artifact, persisted a
   receipt, and reconciled an injected post-apply response loss without a
   second mutation;
+- issue-specific E2E matrix: 20 passed, including a loopback HTTP Runtime
+  response-loss/reconciliation leg and task/feature/sprint offline dispatch;
 - additive `runtime_effect_api` route markers deliberately keep
   `runtime_gated=false`; no local marker substitutes for a causal Runtime
   receipt;
