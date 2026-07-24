@@ -48,6 +48,7 @@ def _mode_guard(a: argparse.Namespace) -> tuple[dict, int] | None:
             root=a.root,
             context_snapshot_path=getattr(a, "context_snapshot", None),
             context_pack_path=getattr(a, "context_pack", None),
+            execution_context_path=getattr(a, "execution_context", None),
             authorization_path=getattr(a, "effect_authorization", None),
             attempt_id=getattr(a, "attempt_id", None),
             lease_id=getattr(a, "lease_id", None),
@@ -70,7 +71,12 @@ def _mode_guard(a: argparse.Namespace) -> tuple[dict, int] | None:
                     "CONTEXT_PACK_REQUIRED", "integrated feature/sprint execution requires a ContextPack"
                 )
             try:
-                bind_mapper_context(prepared.context_snapshot, prepared.context_pack, source_root=a.root)
+                bind_mapper_context(
+                    prepared.context_snapshot,
+                    prepared.context_pack,
+                    source_root=a.root,
+                    execution_context_payload=prepared.execution_context,
+                )
             except MapperContextError as exc:
                 raise ExecutionInputError("INCOMPATIBLE_CONTEXT", str(exc)) from exc
     except ExecutionInputError as exc:
@@ -193,6 +199,7 @@ def _integrated_feature_task_runner(a: argparse.Namespace):
     from ..task_spec import TaskSpec
 
     prepared = a._execution_inputs
+
     def run_one(task, project_dir, stack, *, quiet=False):
         source = {
             "kind": "feature-plan",
@@ -232,12 +239,14 @@ def _integrated_feature_task_runner(a: argparse.Namespace):
                 effect_sink=prepared.effect_sink,
                 context_snapshot=prepared.context_snapshot,
                 context_pack=prepared.context_pack,
+                execution_context=getattr(prepared, "execution_context", None),
                 authorization=getattr(prepared, "authorization", None),
                 runtime_handshake=prepared.runtime_handshake,
                 coordinator_kind=getattr(a, "coordinator_kind", None),
                 coordinator_id=getattr(a, "coordinator_id", None),
                 integrated_attempt=prepared.attempt,
                 task_spec=task_spec,
+                execution_context_path=getattr(a, "execution_context", None),
             )
         finally:
             if previous is None:

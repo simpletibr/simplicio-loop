@@ -45,6 +45,7 @@ def run(a: argparse.Namespace) -> int:
             root=a.root,
             context_snapshot_path=getattr(a, "context_snapshot", None),
             context_pack_path=getattr(a, "context_pack", None),
+            execution_context_path=getattr(a, "execution_context", None),
             authorization_path=getattr(a, "effect_authorization", None),
             attempt_id=getattr(a, "attempt_id", None),
             lease_id=getattr(a, "lease_id", None),

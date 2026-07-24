@@ -231,6 +231,7 @@ def run_task(
     authorization: EffectAuthorization | None = None,
     context_snapshot: dict | None = None,
     context_pack: dict | None = None,
+    execution_context: dict | None = None,
     runtime_handshake: dict | None = None,
     coordinator_kind: str | None = None,
     coordinator_id: str | None = None,
@@ -238,6 +239,7 @@ def run_task(
     task_spec: TaskSpec | None = None,
     context_snapshot_path: str | os.PathLike[str] | None = None,
     context_pack_path: str | os.PathLike[str] | None = None,
+    execution_context_path: str | os.PathLike[str] | None = None,
     authorization_path: str | os.PathLike[str] | None = None,
     attempt_id: str | None = None,
     lease_id: str | None = None,
@@ -273,9 +275,11 @@ def run_task(
             root=root,
             context_snapshot=context_snapshot,
             context_pack=context_pack,
+            execution_context=execution_context,
             authorization=authorization,
             context_snapshot_path=context_snapshot_path,
             context_pack_path=context_pack_path,
+            execution_context_path=execution_context_path,
             authorization_path=authorization_path,
             effect_sink=effect_sink,
             runtime_handshake=runtime_handshake,
@@ -305,6 +309,7 @@ def run_task(
         return result
     context_snapshot = prepared.context_snapshot
     context_pack = prepared.context_pack
+    execution_context = prepared.execution_context
     authorization = authorization or prepared.authorization
     effect_sink = cast(EffectSink | None, prepared.effect_sink)
     runtime_handshake = prepared.runtime_handshake
@@ -406,6 +411,7 @@ def run_task(
             authorization=authorization,
             context_snapshot=context_snapshot,
             context_pack=context_pack,
+            execution_context=execution_context,
             attempt=integrated_attempt,
             task_spec=task_spec,
         )
@@ -870,8 +876,7 @@ def run_task_spec(root, stack, task_spec: TaskSpec, **kwargs: Any) -> dict[str, 
     narrative = task_spec.narrative
     goal = str(narrative.get("goal") or narrative.get("want") or task_spec.functionality or task_spec.task_id)
     criteria = "\n".join(
-        str(item.get("text") or item.get("then") or item["id"])
-        for item in task_spec.acceptance_criteria
+        str(item.get("text") or item.get("then") or item["id"]) for item in task_spec.acceptance_criteria
     )
     constraints = "\n".join(
         str(item.get("text") or item.get("description") or item.get("id", ""))

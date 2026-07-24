@@ -91,6 +91,7 @@ def run_integrated(
     authorization: EffectAuthorization | None = None,
     context_snapshot: dict[str, Any] | None = None,
     context_pack: dict[str, Any] | None = None,
+    execution_context: dict[str, Any] | None = None,
     attempt: AttemptContext | None = None,
     task_spec: TaskSpec | None = None,
 ) -> dict[str, Any]:
@@ -167,7 +168,12 @@ def run_integrated(
             ],
         )
     try:
-        binding = bind_mapper_context(context_snapshot, context_pack, source_root=root)
+        binding = bind_mapper_context(
+            context_snapshot,
+            context_pack,
+            source_root=root,
+            execution_context_payload=execution_context,
+        )
         verify_context_sources(binding, source_root=root)
     except MapperContextError as exc:
         warning = (

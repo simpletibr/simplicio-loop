@@ -13,10 +13,12 @@ from simplicio.plan_compiler.mapper_context import (
     DEV_CLI_FALLBACK_CONTEXT_SCHEMA,
     MAPPER_CONTEXT_PACK_SCHEMA,
     MAPPER_CONTEXT_SNAPSHOT_SCHEMA,
+    MAPPER_EXECUTION_CONTEXT_SCHEMA,
     MapperContextError,
     bind_mapper_context,
     load_mapper_context,
     load_mapper_context_pack,
+    load_mapper_execution_context,
     verify_context_sources,
 )
 
@@ -201,6 +203,56 @@ def test_context_pack_requires_schema_provenance_files_and_valid_budget(
         with pytest.raises(MapperContextError) as error:
             load_mapper_context_pack(pack, snapshot=snapshot)
         assert error.value.code == code
+
+
+def test_latest_mapper_execution_context_can_prove_pack_origin(
+    mapper_boundary: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from simplicio.plan_compiler import mapper_context
+
+    class MapperExecutionContext:
+        @staticmethod
+        def validate_execution_context(_payload: Any) -> list[str]:
+            return []
+
+    original_import = mapper_context.importlib.import_module
+
+    def import_module(name: str) -> Any:
+        if name == "simplicio_mapper.execution_context":
+            return MapperExecutionContext
+        return original_import(name)
+
+    monkeypatch.setattr(mapper_context.importlib, "import_module", import_module)
+    snapshot = _payload()
+    pack = _pack(snapshot)
+    pack.pop("source_snapshot")
+    execution_context = {
+        "schema": MAPPER_EXECUTION_CONTEXT_SCHEMA,
+        "repository": {
+            "snapshot_id": snapshot["snapshot_id"],
+            "root_hash": snapshot["root_hash"],
+            "context_pack_hash": pack["pack_hash"],
+        },
+    }
+
+    binding = bind_mapper_context(snapshot, pack, execution_context_payload=execution_context)
+    assert binding.pack.pack_hash == pack["pack_hash"]
+    assert (
+        load_mapper_execution_context(
+            execution_context,
+            snapshot=binding.snapshot,
+            pack=binding.pack,
+        )["schema"]
+        == MAPPER_EXECUTION_CONTEXT_SCHEMA
+    )
+
+
+def test_context_pack_without_provenance_fails_closed(mapper_boundary: None) -> None:
+    snapshot = _payload()
+    pack = _pack(snapshot)
+    pack.pop("source_snapshot")
+    with pytest.raises(MapperContextError, match="CONTEXT_PACK_PROVENANCE_REQUIRED"):
+        bind_mapper_context(snapshot, pack)
 
 
 def test_adapter_rejects_old_shadow_shape_before_mapper_validation(mapper_boundary: None) -> None:

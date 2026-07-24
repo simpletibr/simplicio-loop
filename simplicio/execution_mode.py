@@ -54,6 +54,7 @@ class ExecutionInputError(ValueError):
 class PreparedExecutionInputs:
     context_snapshot: dict[str, Any] | None
     context_pack: dict[str, Any] | None
+    execution_context: dict[str, Any] | None
     authorization: EffectAuthorization | None
     effect_sink: object | None
     runtime_handshake: dict[str, Any] | None
@@ -134,6 +135,35 @@ def _load_context_pack(
     return payload
 
 
+def _load_execution_context(
+    root: str | os.PathLike[str], explicit_path: str | os.PathLike[str] | None
+) -> dict[str, Any] | None:
+    config = _config(root)
+    raw_path = (
+        explicit_path or os.environ.get("SIMPLICIO_EXECUTION_CONTEXT") or config.get("execution_context")
+    )
+    if not raw_path:
+        return None
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = Path(root) / path
+    try:
+        with path.open("rb") as stream:
+            raw = stream.read(16 * 1024 * 1024 + 1)
+        if len(raw) > 16 * 1024 * 1024:
+            raise ExecutionInputError("INCOMPATIBLE_EXECUTION_CONTEXT", "execution context exceeds 16 MiB")
+        payload = json.loads(raw.decode("utf-8"))
+    except ExecutionInputError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ExecutionInputError(
+            "INCOMPATIBLE_EXECUTION_CONTEXT", "cannot read Mapper execution context"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise ExecutionInputError("INCOMPATIBLE_EXECUTION_CONTEXT", "execution context must be a JSON object")
+    return payload
+
+
 def _load_authorization(
     root: str | os.PathLike[str], explicit_path: str | os.PathLike[str] | None
 ) -> EffectAuthorization | None:
@@ -186,9 +216,11 @@ def prepare_execution_inputs(
     root: str | os.PathLike[str] = ".",
     context_snapshot: dict[str, Any] | None = None,
     context_pack: dict[str, Any] | None = None,
+    execution_context: dict[str, Any] | None = None,
     authorization: EffectAuthorization | None = None,
     context_snapshot_path: str | os.PathLike[str] | None = None,
     context_pack_path: str | os.PathLike[str] | None = None,
+    execution_context_path: str | os.PathLike[str] | None = None,
     authorization_path: str | os.PathLike[str] | None = None,
     effect_sink: object | None = None,
     runtime_handshake: dict[str, Any] | None = None,
@@ -201,7 +233,13 @@ def prepare_execution_inputs(
     """Resolve installed-entrypoint inputs without probing in standalone mode."""
     if requested_mode(mode, root) == "standalone":
         return PreparedExecutionInputs(
-            context_snapshot, context_pack, authorization, effect_sink, runtime_handshake, attempt
+            context_snapshot,
+            context_pack,
+            execution_context,
+            authorization,
+            effect_sink,
+            runtime_handshake,
+            attempt,
         )
 
     resolved_context = (
@@ -210,6 +248,11 @@ def prepare_execution_inputs(
         else _load_context_snapshot(root, context_snapshot_path)
     )
     resolved_pack = context_pack if context_pack is not None else _load_context_pack(root, context_pack_path)
+    resolved_execution_context = (
+        execution_context
+        if execution_context is not None
+        else _load_execution_context(root, execution_context_path)
+    )
     resolved_authorization = (
         authorization if authorization is not None else _load_authorization(root, authorization_path)
     )
@@ -229,6 +272,7 @@ def prepare_execution_inputs(
     return PreparedExecutionInputs(
         resolved_context,
         resolved_pack,
+        resolved_execution_context,
         resolved_authorization,
         resolved_sink,
         resolved_handshake,
@@ -499,6 +543,7 @@ def capabilities_report(
     root: str = ".",
     context_snapshot_path: str | os.PathLike[str] | None = None,
     context_pack_path: str | os.PathLike[str] | None = None,
+    execution_context_path: str | os.PathLike[str] | None = None,
     authorization_path: str | os.PathLike[str] | None = None,
     attempt_id: str | None = None,
     lease_id: str | None = None,
@@ -513,6 +558,7 @@ def capabilities_report(
             root=root,
             context_snapshot_path=context_snapshot_path,
             context_pack_path=context_pack_path,
+            execution_context_path=execution_context_path,
             authorization_path=authorization_path,
             attempt_id=attempt_id,
             lease_id=lease_id,

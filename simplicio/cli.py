@@ -161,6 +161,7 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
     )
     p.add_argument("--context-snapshot", help="canonical Mapper ContextSnapshot JSON path")
     p.add_argument("--context-pack", help="canonical Mapper ContextPack JSON path")
+    p.add_argument("--execution-context", help="Mapper execution-context/v1 provenance JSON path")
     p.add_argument("--effect-authorization", help="coordinator-issued EffectAuthorization JSON path")
     p.add_argument("--attempt-id", help="coordinator-owned atomic attempt ID")
     p.add_argument("--lease-id", help="coordinator-owned lease ID")
@@ -194,6 +195,7 @@ def _add_run_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--mode", choices=["auto", "integrated", "standalone"], default=None)
     p.add_argument("--context-snapshot", help="canonical Mapper ContextSnapshot JSON path")
     p.add_argument("--context-pack", help="canonical Mapper ContextPack JSON path")
+    p.add_argument("--execution-context", help="Mapper execution-context/v1 provenance JSON path")
     p.add_argument("--effect-authorization", help="coordinator-issued EffectAuthorization JSON path")
     p.add_argument("--attempt-id", help="coordinator-owned atomic attempt ID")
     p.add_argument("--lease-id", help="coordinator-owned lease ID")
@@ -505,8 +507,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p_runtime_capabilities.add_argument(
         "--context-snapshot", help="canonical Mapper ContextSnapshot JSON path"
     )
+    p_runtime_capabilities.add_argument("--context-pack", help="canonical Mapper ContextPack JSON path")
     p_runtime_capabilities.add_argument(
-        "--context-pack", help="canonical Mapper ContextPack JSON path"
+        "--execution-context", help="Mapper execution-context/v1 provenance JSON path"
     )
     p_runtime_capabilities.add_argument(
         "--effect-authorization", help="coordinator-issued EffectAuthorization JSON path"

@@ -71,3 +71,19 @@ The following issue steps therefore remain external or follow-up work:
 
 Until Mapper emits the provenance, integrated execution fails closed with
 `INCOMPATIBLE_CONTEXT`; standalone behavior is unchanged.
+
+## Latest Mapper main compatibility slice — 2026-07-23
+
+Mapper `origin/main` was rechecked at `461d0245fc924aaca4ea868ef1053f1df1dec330`.
+Its published `simplicio.context-snapshot/v1` kit remains compatible, and its
+`simplicio.execution-context/v1` envelope carries `repository.snapshot_id`,
+`repository.root_hash`, and `repository.context_pack_hash`. Dev CLI now accepts
+that envelope through `--execution-context`, environment, or project config;
+the installed Mapper validator is called and all three identities are checked
+against the supplied snapshot and pack. The older `source_snapshot` path is
+unchanged.
+
+This is a compatibility slice, not closure evidence: the current Mapper
+`context-pack/v1` payload still does not embed `source_snapshot`, and no
+installed Loop → LLM → Dev CLI → Runtime receipt, cache/refresh, mixed-version,
+or rollback E2E was available. The issue therefore remains open.

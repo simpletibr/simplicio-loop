@@ -66,6 +66,13 @@ Runtime Effect API. They never use the legacy codegen/local task runner after
 negotiation selects `integrated`. `--context-pack` is also available on
 `runtime capabilities` and can be supplied through `SIMPLICIO_CONTEXT_PACK` or
 `.simplicio/execution.json` (`context_pack`).
+Recent `simplicio-mapper` releases can additionally emit
+`simplicio.execution-context/v1`. Pass it with `--execution-context`,
+`SIMPLICIO_EXECUTION_CONTEXT`, or `execution_context` in the same project
+config. Dev CLI asks the installed Mapper validator to verify that envelope,
+then checks that its `snapshot_id`, `root_hash`, and `context_pack_hash` match
+the supplied snapshot and pack. A pack without this envelope or the older
+explicit `source_snapshot` provenance remains blocked.
 The coordinator may provide serialized `EffectAuthorization` with
 `--effect-authorization`, `SIMPLICIO_EFFECT_AUTHORIZATION`, or
 `effect_authorization` in the same project config. The authorization is still
