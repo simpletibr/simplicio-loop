@@ -25,6 +25,7 @@ from simplicio.plan_compiler.errors import PlanCompilerError
 
 MAPPER_CONTEXT_SNAPSHOT_SCHEMA = "simplicio.context-snapshot/v1"
 MAPPER_CONTEXT_PACK_SCHEMA = "simplicio.context-pack/v1"
+MAPPER_EXECUTION_CONTEXT_SCHEMA = "simplicio.execution-context/v1"
 DEV_CLI_CONTEXT_HANDLE_SCHEMA = "simplicio.dev-cli.context-handle/v1"
 DEV_CLI_FALLBACK_CONTEXT_SCHEMA = "simplicio.dev-cli.context-fallback/v1"
 MAPPER_CONTRACT_OWNER = "wesleysimplicio/simplicio-mapper"
@@ -238,7 +239,12 @@ def _required_mapping(payload: Mapping[str, Any], field: str) -> Mapping[str, An
     return value
 
 
-def load_mapper_context_pack(payload: Any, *, snapshot: MapperContextAdapter) -> MapperContextPackAdapter:
+def load_mapper_context_pack(
+    payload: Any,
+    *,
+    snapshot: MapperContextAdapter,
+    execution_context: Any | None = None,
+) -> MapperContextPackAdapter:
     """Validate a Mapper projection and prove its canonical snapshot origin.
 
     Mapper owns the ContextPack schema.  The Dev CLI only consumes the
@@ -253,19 +259,28 @@ def load_mapper_context_pack(payload: Any, *, snapshot: MapperContextAdapter) ->
     pack_hash = payload.get("pack_hash")
     if not isinstance(pack_hash, str) or _SHA256_RE.fullmatch(pack_hash) is None:
         raise MapperContextError("CONTEXT_PACK_HASH_INVALID", "Mapper pack_hash must be SHA-256")
-    provenance = _required_mapping(payload, "source_snapshot")
-    expected = {
-        "snapshot_id": snapshot.view.snapshot_id,
-        "revision": snapshot.view.revision,
-        "source_digest": snapshot.source_digest,
-        "root_hash": snapshot.view.root_hash,
-    }
-    for field, value in expected.items():
-        if provenance.get(field) != value:
+    provenance = payload.get("source_snapshot")
+    if provenance is None:
+        if execution_context is None:
             raise MapperContextError(
-                "CONTEXT_PACK_ORIGIN_MISMATCH",
-                f"ContextPack source_snapshot.{field} does not match the canonical snapshot",
+                "CONTEXT_PACK_PROVENANCE_REQUIRED",
+                "ContextPack needs source_snapshot or a Mapper execution-context envelope",
             )
+    else:
+        if not isinstance(provenance, Mapping):
+            raise MapperContextError("CONTEXT_PACK_INVALID", "ContextPack.source_snapshot must be an object")
+        expected = {
+            "snapshot_id": snapshot.view.snapshot_id,
+            "revision": snapshot.view.revision,
+            "source_digest": snapshot.source_digest,
+            "root_hash": snapshot.view.root_hash,
+        }
+        for field, value in expected.items():
+            if provenance.get(field) != value:
+                raise MapperContextError(
+                    "CONTEXT_PACK_ORIGIN_MISMATCH",
+                    f"ContextPack source_snapshot.{field} does not match the canonical snapshot",
+                )
     if _contains_sensitive_key(payload):
         raise MapperContextError(
             "CONTEXT_PACK_SENSITIVE_DATA", "ContextPack contains a forbidden sensitive field"
@@ -324,16 +339,83 @@ def load_mapper_context_pack(payload: Any, *, snapshot: MapperContextAdapter) ->
     )
 
 
+def load_mapper_execution_context(
+    payload: Any,
+    *,
+    snapshot: MapperContextAdapter,
+    pack: MapperContextPackAdapter,
+) -> Mapping[str, Any]:
+    """Validate Mapper's task envelope as the provenance for a ContextPack.
+
+    The Mapper owns this envelope and its hash.  Dev CLI only checks the
+    public validator and the three cross-payload identities it consumes.
+    """
+    if not isinstance(payload, Mapping) or payload.get("schema") != MAPPER_EXECUTION_CONTEXT_SCHEMA:
+        raise MapperContextError(
+            "UNSUPPORTED_EXECUTION_CONTEXT_SCHEMA",
+            "a Mapper execution-context/v1 payload is required",
+        )
+    try:
+        module = importlib.import_module("simplicio_mapper.execution_context")
+        validate = module.validate_execution_context
+    except (ImportError, ModuleNotFoundError, AttributeError) as exc:
+        raise MapperContextError(
+            "MAPPER_EXECUTION_CONTEXT_API_UNAVAILABLE",
+            "installed Mapper execution-context validator API is unavailable",
+        ) from exc
+    try:
+        errors = validate(payload)
+    except Exception as exc:  # external producer boundary; normalize its failure
+        raise MapperContextError(
+            "MAPPER_EXECUTION_CONTEXT_VALIDATOR_FAILED",
+            "Mapper execution-context validator failed",
+        ) from exc
+    if not isinstance(errors, list) or errors:
+        raise MapperContextError(
+            "MAPPER_EXECUTION_CONTEXT_REJECTED",
+            "Mapper rejected the execution-context envelope",
+            reasons=tuple(
+                MappingProxyType({"code": str(error), "path": "$.execution_context"}) for error in errors
+            )
+            if isinstance(errors, list)
+            else (),
+        )
+    repository = _required_mapping(payload, "repository")
+    expected = {
+        "snapshot_id": snapshot.view.snapshot_id,
+        "root_hash": snapshot.view.root_hash,
+        "context_pack_hash": pack.pack_hash,
+    }
+    for field, value in expected.items():
+        if repository.get(field) != value:
+            raise MapperContextError(
+                "CONTEXT_EXECUTION_ORIGIN_MISMATCH",
+                f"execution-context repository.{field} does not match the supplied snapshot/pack",
+            )
+    return MappingProxyType(dict(payload))
+
+
 def bind_mapper_context(
     snapshot_payload: Any,
     pack_payload: Any,
     *,
     source_root: str | None = None,
+    execution_context_payload: Any | None = None,
 ) -> ContextBinding:
     """Validate snapshot + projection and derive their shared content handle."""
 
     snapshot = load_mapper_context(snapshot_payload, source_root=source_root)
-    pack = load_mapper_context_pack(pack_payload, snapshot=snapshot)
+    pack = load_mapper_context_pack(
+        pack_payload,
+        snapshot=snapshot,
+        execution_context=execution_context_payload,
+    )
+    if execution_context_payload is not None:
+        load_mapper_execution_context(
+            execution_context_payload,
+            snapshot=snapshot,
+            pack=pack,
+        )
     producer = snapshot.payload.get("producer")
     mapper_version = producer.get("version") if isinstance(producer, Mapping) else None
     if not isinstance(mapper_version, str) or not mapper_version:
@@ -461,6 +543,7 @@ __all__ = [
     "MAPPER_CONTRACT_MANIFEST_SHA256",
     "MAPPER_CONTEXT_PACK_SCHEMA",
     "MAPPER_CONTEXT_SNAPSHOT_SCHEMA",
+    "MAPPER_EXECUTION_CONTEXT_SCHEMA",
     "MapperContextAdapter",
     "MapperContextError",
     "MapperContextPackAdapter",
@@ -468,5 +551,6 @@ __all__ = [
     "bind_mapper_context",
     "load_mapper_context",
     "load_mapper_context_pack",
+    "load_mapper_execution_context",
     "verify_context_sources",
 ]

@@ -6,7 +6,6 @@ schema definitions and ``docs/plan-compiler.md`` for the contract writeup.
 
 from __future__ import annotations
 
-from simplicio.plan_compiler.canonical_hash import canonical_hash
 from simplicio.plan_compiler.authority import (
     AUTHORIZATION_SCHEMA,
     PROPOSAL_SCHEMA,
@@ -15,6 +14,7 @@ from simplicio.plan_compiler.authority import (
     EffectAuthorization,
     build_change_proposal,
 )
+from simplicio.plan_compiler.canonical_hash import canonical_hash
 from simplicio.plan_compiler.compat_adapter import (
     GOAL_ENVELOPE_ADAPTER_EXPIRES_AT_VERSION,
     GOAL_ENVELOPE_VERSION,
@@ -60,6 +60,7 @@ from simplicio.plan_compiler.mapper_context import (
     MAPPER_CONTEXT_SNAPSHOT_SCHEMA,
     MAPPER_CONTRACT_COMMIT,
     MAPPER_CONTRACT_MANIFEST_SHA256,
+    MAPPER_EXECUTION_CONTEXT_SCHEMA,
     ContextBinding,
     ContextHandle,
     MapperContextAdapter,
@@ -69,6 +70,7 @@ from simplicio.plan_compiler.mapper_context import (
     bind_mapper_context,
     load_mapper_context,
     load_mapper_context_pack,
+    load_mapper_execution_context,
     verify_context_sources,
 )
 from simplicio.plan_compiler.models import (
@@ -117,6 +119,7 @@ __all__ = [
     "MAPPER_CONTRACT_MANIFEST_SHA256",
     "MAPPER_CONTEXT_PACK_SCHEMA",
     "MAPPER_CONTEXT_SNAPSHOT_SCHEMA",
+    "MAPPER_EXECUTION_CONTEXT_SCHEMA",
     "MapperContextAdapter",
     "MapperContextError",
     "MapperContextPackAdapter",
@@ -148,5 +151,6 @@ __all__ = [
     "plan_contract_manifest",
     "validate_plan_projection",
     "load_mapper_context_pack",
+    "load_mapper_execution_context",
     "verify_context_sources",
 ]
