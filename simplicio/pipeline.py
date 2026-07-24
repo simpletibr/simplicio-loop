@@ -45,6 +45,7 @@ from .pipeline_task_result import (
     _task_result,
     target_kind,
 )
+from .plan_compiler.authority import EffectAuthorization
 from .plan_compiler.effect_sink import EffectSink
 from .prompt import build_prompt, set_prompt_retry_delta
 from .providers import ProviderExecutionError, _provider_id, generate
@@ -227,6 +228,7 @@ def run_task(
     quiet=False,
     mode: PipelineMode | None = None,
     effect_sink: EffectSink | None = None,
+    authorization: EffectAuthorization | None = None,
     context_snapshot: dict | None = None,
     context_pack: dict | None = None,
     runtime_handshake: dict | None = None,
@@ -384,6 +386,7 @@ def run_task(
             prompt,
             primary_test_cmd,
             effect_sink,
+            authorization=authorization,
             context_snapshot=context_snapshot,
             context_pack=context_pack,
             attempt=integrated_attempt,

@@ -1,0 +1,95 @@
+from dataclasses import replace
+
+import pytest
+
+from simplicio.plan_compiler import (
+    AuthorizationError,
+    EffectAuthorization,
+    EffectDispatchContext,
+    EffectPlan,
+    PlanNode,
+    build_change_proposal,
+)
+
+
+def _bundle():
+    effect = EffectPlan("effect-1", "node-1", "write", "runtime", "key-1", context_handle="ctx-1")
+    context = EffectDispatchContext(
+        "plan-1",
+        "goal-1",
+        PlanNode("node-1", "edit.apply", write_set=["src/app.py"], requires_gate=True),
+        [],
+        coordinator_id="attempt-1",
+        policy_revision="policy-1",
+        source_hash="source-1",
+        context_handle="ctx-1",
+        lease_id="lease-1",
+        fencing_token="fence-1",
+    )
+    proposal = build_change_proposal(effect, context)
+    authorization = EffectAuthorization.issue(
+        proposal,
+        authority="operator-1",
+        issuer="simplicio-loop",
+        human_gate_receipt="human-gate-1",
+        now=100.0,
+    )
+    return effect, context, proposal, authorization
+
+
+def test_authorization_is_deterministic_and_round_trips():
+    _effect, _context, proposal, authorization = _bundle()
+
+    assert proposal.to_dict()["schema"] == "simplicio.change-proposal/v1"
+    assert authorization.to_dict()["schema"] == "simplicio.effect-authorization/v1"
+    assert authorization.authorization_digest == authorization.digest()
+    authorization.verify(proposal, now=100.5)
+
+
+def test_irreversible_proposal_requires_human_gate():
+    _effect, _context, proposal, _authorization = _bundle()
+
+    with pytest.raises(AuthorizationError, match="human_gate_receipt"):
+        EffectAuthorization.issue(proposal, authority="operator-1", issuer="simplicio-loop", now=100.0)
+
+
+def test_llm_cannot_issue_authorization():
+    _effect, _context, proposal, _authorization = _bundle()
+
+    with pytest.raises(AuthorizationError, match="LLM_CANNOT_AUTHORIZE"):
+        EffectAuthorization.issue(
+            proposal,
+            authority="operator-1",
+            issuer="llm",
+            human_gate_receipt="human-gate-1",
+            now=100.0,
+        )
+
+
+def test_expired_authorization_fails_closed():
+    _effect, _context, proposal, authorization = _bundle()
+
+    with pytest.raises(AuthorizationError, match="AUTHORIZATION_EXPIRED"):
+        authorization.verify(proposal, now=161.0)
+
+
+def test_tampered_proposal_or_authorization_digest_fails_closed():
+    effect, context, proposal, authorization = _bundle()
+    changed = replace(effect, effect_id="effect-forged")
+    changed_proposal = build_change_proposal(changed, context)
+
+    with pytest.raises(AuthorizationError, match="AUTHORIZATION_PROPOSAL_MISMATCH"):
+        authorization.verify(changed_proposal, now=100.5)
+
+    with pytest.raises(AuthorizationError, match="AUTHORIZATION_DIGEST_INVALID"):
+        replace(authorization, human_gate_receipt="forged-gate").verify(proposal, now=100.5)
+
+
+def test_proposal_binds_write_set_and_causal_fence():
+    effect, context, proposal, authorization = _bundle()
+    forged_context = replace(context, fencing_token="fence-2")
+    forged_proposal = build_change_proposal(effect, forged_context)
+
+    assert forged_proposal.digest() != proposal.digest()
+    with pytest.raises(AuthorizationError, match="AUTHORIZATION_PROPOSAL_MISMATCH"):
+        authorization.verify(forged_proposal, now=100.5)

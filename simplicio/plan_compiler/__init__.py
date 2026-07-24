@@ -7,6 +7,14 @@ schema definitions and ``docs/plan-compiler.md`` for the contract writeup.
 from __future__ import annotations
 
 from simplicio.plan_compiler.canonical_hash import canonical_hash
+from simplicio.plan_compiler.authority import (
+    AUTHORIZATION_SCHEMA,
+    PROPOSAL_SCHEMA,
+    AuthorizationError,
+    ChangeProposal,
+    EffectAuthorization,
+    build_change_proposal,
+)
 from simplicio.plan_compiler.compat_adapter import (
     GOAL_ENVELOPE_ADAPTER_EXPIRES_AT_VERSION,
     GOAL_ENVELOPE_VERSION,
@@ -79,6 +87,8 @@ from simplicio.plan_compiler.runtime_effect_sink import RuntimeEffectError, Runt
 
 __all__ = [
     "ContextBinding",
+    "AUTHORIZATION_SCHEMA",
+    "AuthorizationError",
     "ContextHandle",
     "DEV_CLI_CONTEXT_HANDLE_SCHEMA",
     "DEV_CLI_FALLBACK_CONTEXT_SCHEMA",
@@ -97,6 +107,7 @@ __all__ = [
     "CompatAdapterError",
     "CompatAdapterExpiredError",
     "EffectDispatchContext",
+    "EffectAuthorization",
     "EffectOutcome",
     "EffectPlan",
     "EffectSink",
@@ -117,7 +128,10 @@ __all__ = [
     "PlanProjection",
     "PlanValidationError",
     "RecordingEffectSink",
+    "PROPOSAL_SCHEMA",
     "RuntimeEffectError",
+    "ChangeProposal",
+    "build_change_proposal",
     "RuntimeEffectSink",
     "SchemaMismatchError",
     "UnsupportedCompatVersionError",

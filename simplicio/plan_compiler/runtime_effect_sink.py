@@ -13,6 +13,7 @@ from typing import Any, Protocol
 import httpx
 
 from simplicio.observability import emit_event
+from simplicio.plan_compiler.authority import AuthorizationError, build_change_proposal
 from simplicio.plan_compiler.canonical_hash import canonical_hash
 from simplicio.plan_compiler.effect_sink import (
     EFFECT_STATES,
@@ -211,6 +212,15 @@ class RuntimeEffectSink:
             raise RuntimeEffectError("CONTEXT_HANDLE_MISMATCH", "EffectPlan and dispatch context differ")
         node = context.plan_node
         _safe_write_set(node.write_set)
+        if context.authorization is None:
+            raise RuntimeEffectError(
+                "EFFECT_AUTHORIZATION_REQUIRED", "effect requires coordinator authorization"
+            )
+        try:
+            proposal = build_change_proposal(effect, context)
+            context.authorization.verify(proposal)
+        except AuthorizationError as exc:
+            raise RuntimeEffectError(exc.code, str(exc)) from exc
         effect_body = effect.to_dict()
         effect_digest = canonical_hash(effect_body)
         causal = {
@@ -232,6 +242,10 @@ class RuntimeEffectSink:
             "schema": TRANSACTION_SCHEMA,
             "idempotency_key": key,
             "effect_digest": effect_digest,
+            "proposal": proposal.to_dict(),
+            "proposal_digest": proposal.digest(),
+            "authorization": context.authorization.to_dict(),
+            "authorization_digest": context.authorization.authorization_digest,
             "causal": causal,
             "effect": effect_body,
             "authority_required": effect.authority_required,
@@ -271,6 +285,8 @@ class RuntimeEffectSink:
             "effect_digest": transaction["effect_digest"],
             "effect_id": transaction["causal"]["effect_id"],
             "plan_node_id": transaction["causal"]["plan_node_id"],
+            "proposal_digest": transaction["proposal_digest"],
+            "authorization_digest": transaction["authorization_digest"],
         }
         for field, value in expected.items():
             if receipt.get(field) != value:

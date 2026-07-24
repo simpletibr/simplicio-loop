@@ -26,11 +26,12 @@ from typing import Any
 from .atomic_execution import AttemptContext, execute_work_item_once
 from .observability import emit_event
 from .pipeline_task_result import _task_result
-from .plan_compiler import PlanCompilationError, compile_task_spec_to_plan
+from .plan_compiler import EffectAuthorization, PlanCompilationError, compile_task_spec_to_plan
 from .plan_compiler.effect_sink import EffectDispatchContext, EffectSink, IntegratedModeRequiresSinkError
 from .plan_compiler.mapper_context import (
     MapperContextError,
     bind_mapper_context,
+    load_mapper_context,  # noqa: F401 - retained as a monkeypatchable compatibility boundary
     verify_context_sources,
 )
 from .plan_compiler.runtime_effect_sink import RuntimeEffectSink
@@ -87,6 +88,7 @@ def run_integrated(
     primary_test_cmd: str | None,
     effect_sink: EffectSink | None,
     *,
+    authorization: EffectAuthorization | None = None,
     context_snapshot: dict[str, Any] | None = None,
     context_pack: dict[str, Any] | None = None,
     attempt: AttemptContext | None = None,
@@ -239,6 +241,9 @@ def run_integrated(
         coordinator_id=attempt.attempt_id,
         source_hash=task_spec.source_hash,
         context_handle=context_handle,
+        lease_id=attempt.lease_id,
+        fencing_token=attempt.fencing_token,
+        authorization=authorization,
     )
     observation = execute_work_item_once(
         effect_node,

@@ -52,6 +52,27 @@ plan.canonical_hash()  # same canonical entry -> same hash, always
 | `PlanDAG` | `simplicio.plan-dag/v1` |
 | `EffectPlan` | `simplicio.effect-plan/v1` |
 | `VerificationPlan` | `simplicio.verification-plan/v1` |
+| `ChangeProposal` | `simplicio.change-proposal/v1` |
+| `EffectAuthorization` | `simplicio.effect-authorization/v1` |
+
+## Effect authority boundary (#302)
+
+`ChangeProposal` is descriptive only: it binds the effect digest, target
+write-set, capability, policy revision, context handle, attempt, lease and
+fencing token. `EffectAuthorization` is a separate short-lived record issued
+by an external coordinator. The API rejects an LLM/model issuer and requires a
+human-gate receipt reference for irreversible effects. The
+`RuntimeEffectSink` recomputes the proposal and verifies both digests before
+persisting intent or calling the transport; missing, expired, replayed or
+tampered authorization fails closed. Receipts must echo the proposal and
+authorization digests, so the Runtime can verify custody without receiving a
+prompt, secret or raw approval material.
+
+Callers that own the coordinator boundary pass the typed authorization through
+`pipeline.run_task(..., authorization=...)` or
+`run_integrated(..., authorization=...)`. Omitting it is intentionally a
+blocked production submission, while `RecordingEffectSink` remains an
+explicit test double.
 
 ## Contrato canônico e projeções
 
