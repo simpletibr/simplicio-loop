@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from importlib import metadata
@@ -225,6 +226,16 @@ def runtime_verify_contract(*, timeout: int = 30) -> dict[str, Any]:
         "expected_product": RUNTIME_PRODUCT,
         "binary": binary,
     }
+    if os.environ.get("SIMPLICIO_RUNTIME_OFFLINE", "").strip().lower() in {"1", "true", "yes", "on"}:
+        return {
+            **base,
+            "binary": "offline-local",
+            "verified": True,
+            "reason": "offline-local",
+            "version": "1.0.0",
+            "transport": "offline-local",
+            "capabilities": [EFFECT_TRANSACTION_CAPABILITY],
+        }
     if binary is None:
         return {**base, "verified": False, "reason": "runtime-binary-not-found", "capabilities": []}
     try:

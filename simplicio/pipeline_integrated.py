@@ -21,6 +21,7 @@ issues #3134/#3135, which do not exist as code in this repo yet) -- see
 from __future__ import annotations
 
 import hashlib
+import os
 from typing import Any
 
 from .atomic_execution import AttemptContext, execute_work_item_once
@@ -75,6 +76,11 @@ def _build_task_spec(
         acceptance_criteria=acceptance_criteria,
         verification_commands=verification_commands,
         original_text=source_text,
+        extra_fields={
+            "artifact_ref": os.environ["SIMPLICIO_EFFECT_ARTIFACT_REF"]
+        }
+        if os.environ.get("SIMPLICIO_EFFECT_ARTIFACT_REF")
+        else {},
     )
 
 

@@ -83,7 +83,11 @@ clearing it. Rollback to a previous package version is
 supported only while its schemas remain compatible and must be tested from
 the built artifacts before a phase promotion.
 
-The current package does not yet contain the required offline executor that
-implements the same Effect API contract. Until that cross-repository
-dependency exists, `shadow` and the explicit legacy opt-in preserve offline
-compatibility but do not satisfy final migration closure.
+Offline compatibility is provided by the local `OfflineRuntimeTransport`.
+With `SIMPLICIO_RUNTIME_OFFLINE=1`, integrated mode negotiates the same
+`simplicio.effect-transaction/v1` contract and applies only a repository-local,
+authorized mechanical-edit artifact inside the Effect boundary. It persists a
+verified receipt and reuses that receipt during reconciliation, so a lost
+response cannot cause a second mutation. This closes the local offline parity
+slice; live Runtime/Loop adoption, published-package upgrade/downgrade and
+final legacy removal still require cross-repository receipts.

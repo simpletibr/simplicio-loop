@@ -16,6 +16,10 @@ This change implements only locally verifiable migration controls:
 - an AST inventory guard against new mutation primitives outside the
   production `RuntimeEffectSink`;
 - a version/date roadmap and rollback rules.
+- an offline `EffectTransaction/v1` executor with durable receipts, authorized
+  artifact application, and idempotent reconciliation after a lost response;
+- explicit `artifact_ref` propagation from a decided TaskSpec into the
+  effect-boundary transaction.
 
 The current-main mutation inventory is 188 symbolic scopes and 246
 candidate calls, SHA-256
@@ -32,7 +36,7 @@ existing legacy writes remain inventoried.
 | Roadmap with versions and dates | Implemented in `docs/features/standalone-migration.md`; future dates are explicitly targets. |
 | Auto does not silently choose standalone writes | Partial: telemetry is active in compatibility `shadow`; `opt_in` and later fail closed without explicit authorization. Default promotion is blocked on adoption evidence. |
 | Every default mutation traverses Effect API | Blocked: `shadow` intentionally preserves existing installations. |
-| Offline uses the same contract | Blocked: no compatible embedded/offline Runtime executor is available in this repository. |
+| Offline uses the same contract | Implemented locally by `OfflineRuntimeTransport`; it accepts only an authorized repository-local mechanical-edit artifact and emits a verified `simplicio.effect-receipt/v1` receipt. |
 | `effect_unknown` never causes a second write | Locally enforced across invocations by a persistent reconciliation lock and the one-dispatch atomic boundary; live Runtime reconciliation remains external. |
 | Receipts distinguish legacy/integrated | Implemented additively for task patch and edit results. |
 | Guard blocks new writes outside boundary | Implemented with deterministic AST inventory and baseline test. |
@@ -60,6 +64,9 @@ No external receipt is inferred. Local results:
   blocked without opt-in and left the product file absent;
 - installed opt-in compatibility path wrote once and returned a legacy,
   non-Runtime-gated receipt; invalid phase failed closed as `read_only`;
+- offline EffectTransaction path applied one authorized artifact, persisted a
+  receipt, and reconciled an injected post-apply response loss without a
+  second mutation;
 - additive `runtime_effect_api` route markers deliberately keep
   `runtime_gated=false`; no local marker substitutes for a causal Runtime
   receipt;
@@ -84,9 +91,10 @@ python -m build && python -m twine check dist/*
 
 ## External blockers
 
-No live compatible Runtime or simplicio-loop deployment was available.
-Consequently this evidence does not claim online/offline parity, real
-rollout adoption telemetry, cross-repository fault injection, clean
-upgrade/downgrade between published versions, a crash-recovery receipt, or
-final removal readiness. Issue #301 must remain open until those receipts
-exist.
+No live compatible Runtime deployment was available. The local offline
+executor is measured, but this evidence does not claim real rollout adoption
+telemetry, cross-repository fault injection, clean upgrade/downgrade between
+published versions, or final removal readiness. The Loop checkout is
+available for contract inspection, but no installed Loop → Runtime → Dev CLI
+production receipt was produced in this worker. Issue #301 remains open for
+those external receipts.

@@ -15,6 +15,7 @@ Still purely additive: nothing in ``cli.py``/``pipeline.py``/
 from __future__ import annotations
 
 import hashlib
+import os
 
 from simplicio.plan_compiler.errors import PlanCompilerError
 from simplicio.plan_compiler.models import EffectPlan, PlanDAG, PlanNode, VerificationPlan
@@ -144,6 +145,11 @@ def compile_task_spec_to_plan(
                 f"context_snapshot:{context_snapshot_id}",
                 *([f"context_handle:{context_handle}"] if context_handle else []),
             ],
+            artifact_ref=(
+                task_spec.extra_fields.get("artifact_ref")
+                if isinstance(task_spec.extra_fields.get("artifact_ref"), str)
+                else os.environ.get("SIMPLICIO_EFFECT_ARTIFACT_REF")
+            ),
             context_handle=context_handle,
         )
     ]

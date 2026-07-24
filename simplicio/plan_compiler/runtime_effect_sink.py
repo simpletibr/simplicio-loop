@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -43,6 +44,180 @@ class RuntimeTransport(Protocol):
     def submit(self, transaction: dict[str, Any]) -> dict[str, Any]: ...
 
     def query(self, idempotency_key: str) -> dict[str, Any]: ...
+
+
+class OfflineRuntimeTransport:
+    """Durable local EffectTransaction executor for offline installations.
+
+    This is deliberately a transport, not a second pipeline: the caller still
+    builds the exact Runtime transaction, the sink still verifies the receipt,
+    and idempotency is keyed by the transaction id.  The optional
+    ``artifact_ref`` points at a repository-local mechanical-edit plan.  A
+    transaction without an artifact is denied rather than silently falling
+    back to the legacy standalone writer.
+
+    ``failure="after_apply"`` is a deterministic fault-injection hook used by
+    the migration tests.  It simulates a lost response after the effect was
+    committed; the persisted receipt makes the subsequent reconciliation
+    return the original result without applying the effect twice.
+    """
+
+    name = "offline-local"
+    test_only = False
+
+    def __init__(self, *, root: str | Path, failure: str | None = None) -> None:
+        self.root = Path(root)
+        self.store = self.root / ".simplicio" / "runtime-effects"
+        self.failure = failure
+        self.apply_count = 0
+
+    def capabilities(self) -> dict[str, Any]:
+        return {
+            "runtime_version": "1.0.0",
+            "effect_transaction_schemas": [TRANSACTION_SCHEMA],
+            "transports": [self.name],
+            "mode": "offline",
+        }
+
+    def _receipt_path(self, idempotency_key: str) -> Path:
+        digest = hashlib.sha256(idempotency_key.encode("utf-8")).hexdigest()
+        return self.store / f"{digest}.offline-receipt.json"
+
+    def _load_receipt(self, idempotency_key: str) -> dict[str, Any] | None:
+        path = self._receipt_path(idempotency_key)
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return None
+        return payload if isinstance(payload, dict) else None
+
+    def _persist_receipt(self, receipt: dict[str, Any]) -> None:
+        path = self._receipt_path(str(receipt["idempotency_key"]))
+        self.store.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(f".{path.name}.tmp")
+        temporary.write_text(
+            json.dumps(receipt, sort_keys=True, separators=(",", ":")), encoding="utf-8"
+        )
+        temporary.replace(path)
+
+    def _artifact_path(self, artifact_ref: object) -> Path:
+        if not isinstance(artifact_ref, str) or not artifact_ref.strip():
+            raise RuntimeEffectError("OFFLINE_EFFECT_ARTIFACT_REQUIRED", "write effect has no artifact_ref")
+        reference = artifact_ref.strip()
+        if reference.startswith("file://"):
+            reference = reference[7:]
+        candidate = Path(reference)
+        if candidate.is_absolute():
+            resolved = candidate.resolve()
+        else:
+            resolved = (self.root / candidate).resolve()
+        try:
+            resolved.relative_to(self.root.resolve())
+        except ValueError as exc:
+            raise RuntimeEffectError("OFFLINE_ARTIFACT_ESCAPE", "artifact_ref must remain inside root") from exc
+        return resolved
+
+    def _apply_artifact(self, transaction: dict[str, Any]) -> tuple[str, dict[str, Any], dict[str, Any] | None]:
+        effect = transaction.get("effect")
+        if not isinstance(effect, dict):
+            raise RuntimeEffectError("OFFLINE_EFFECT_INVALID", "transaction effect must be an object")
+        artifact_path = self._artifact_path(effect.get("artifact_ref"))
+        try:
+            plan = json.loads(artifact_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+            raise RuntimeEffectError("OFFLINE_EFFECT_ARTIFACT_INVALID", "artifact_ref is not valid JSON") from exc
+        if not isinstance(plan, dict) or not isinstance(plan.get("operations"), list):
+            raise RuntimeEffectError("OFFLINE_EFFECT_ARTIFACT_INVALID", "artifact must be a mechanical edit plan")
+        from simplicio.mechanical_edit import execute_plan
+
+        self.apply_count += 1
+        result = execute_plan(plan, root=self.root, apply=True)
+        validation_rows = result.get("validation", [])
+        validation = {
+            "executor": self.name,
+            "artifact_ref": artifact_path.relative_to(self.root).as_posix(),
+            "status": result.get("status"),
+            "applied": bool(result.get("applied")),
+            "noop": bool(result.get("noop")),
+            "operation_count": result.get("operation_count", 0),
+            "checks": [
+                {"passed": bool(row.get("passed")), "advisory": bool(row.get("advisory"))}
+                for row in validation_rows
+                if isinstance(row, dict)
+            ],
+        }
+        errors = result.get("errors", [])
+        error_codes = [
+            str(row.get("code"))
+            for row in errors
+            if isinstance(row, dict) and row.get("code")
+        ]
+        failed = bool(error_codes) or result.get("status") not in {"ok", "applied"}
+        if failed:
+            state = "validation_failed" if "validation_failed" in error_codes else "denied"
+            rollback = {"status": "restored", "performed": True} if state == "validation_failed" else None
+            return state, validation, rollback
+        return "completed", validation, None
+
+    def _build_receipt(self, transaction: dict[str, Any], *, state: str, validation: dict[str, Any],
+                       rollback: dict[str, Any] | None, reason_codes: list[str]) -> dict[str, Any]:
+        receipt = {
+            "schema": RECEIPT_SCHEMA,
+            "state": state,
+            "idempotency_key": transaction["idempotency_key"],
+            "effect_digest": transaction["effect_digest"],
+            "proposal_digest": transaction["proposal_digest"],
+            "authorization_digest": transaction["authorization_digest"],
+            "effect_id": transaction["causal"]["effect_id"],
+            "plan_node_id": transaction["causal"]["plan_node_id"],
+            "causal": transaction["causal"],
+            "acceptance_criteria_refs": transaction["acceptance_criteria_refs"],
+            "gate_decision": "allow" if state == "completed" else "deny",
+            "base_hash": transaction["base_hash"],
+            "source_hash": transaction["source_hash"],
+            "validation": validation,
+            "rollback": rollback,
+            "reason_codes": reason_codes,
+            "latency_ms": 0.0,
+            "executor": self.name,
+        }
+        receipt["receipt_digest"] = canonical_hash(receipt)
+        return receipt
+
+    def submit(self, transaction: dict[str, Any]) -> dict[str, Any]:
+        key = str(transaction.get("idempotency_key", ""))
+        if not re.fullmatch(r"[0-9a-f]{16,128}", key):
+            raise RuntimeEffectError("OFFLINE_IDEMPOTENCY_KEY_INVALID", "idempotency key is not safe")
+        existing = self._load_receipt(key)
+        if existing is not None:
+            return existing
+        if transaction.get("schema") != TRANSACTION_SCHEMA:
+            raise RuntimeEffectError("OFFLINE_TRANSACTION_SCHEMA_INVALID", "unsupported transaction schema")
+        started = time.perf_counter()
+        try:
+            state, validation, rollback = self._apply_artifact(transaction)
+            reason_codes = ["OFFLINE_EFFECT_APPLIED"] if state == "completed" else ["OFFLINE_EFFECT_REJECTED"]
+        except RuntimeEffectError as exc:
+            state = "denied"
+            validation = {"executor": self.name, "status": "denied"}
+            rollback = None
+            reason_codes = [exc.code]
+        receipt = self._build_receipt(
+            transaction, state=state, validation=validation, rollback=rollback, reason_codes=reason_codes
+        )
+        receipt["latency_ms"] = round((time.perf_counter() - started) * 1000, 3)
+        receipt["receipt_digest"] = canonical_hash(_without_digest(receipt))
+        self._persist_receipt(receipt)
+        if self.failure == "after_apply" and state == "completed":
+            self.failure = None
+            raise RuntimeEffectError("RUNTIME_TRANSPORT_ERROR", "offline response lost after apply")
+        return receipt
+
+    def query(self, idempotency_key: str) -> dict[str, Any]:
+        receipt = self._load_receipt(idempotency_key)
+        if receipt is None:
+            raise RuntimeEffectError("OFFLINE_RECEIPT_NOT_FOUND", idempotency_key)
+        return receipt
 
 
 class HttpRuntimeTransport:
@@ -146,10 +321,12 @@ class RuntimeEffectSink:
 
     @classmethod
     def from_environment(cls, *, root: str | Path) -> RuntimeEffectSink:
+        if os.environ.get("SIMPLICIO_RUNTIME_OFFLINE", "").strip().lower() in {"1", "true", "yes", "on"}:
+            return cls(OfflineRuntimeTransport(root=root), root=root)
         url = os.environ.get("SIMPLICIO_RUNTIME_URL", "").strip()
         if not url:
             raise IntegratedModeRequiresSinkError(
-                "RUNTIME_NOT_CONFIGURED: set SIMPLICIO_RUNTIME_URL for mode='integrated'"
+                "RUNTIME_NOT_CONFIGURED: set SIMPLICIO_RUNTIME_URL or SIMPLICIO_RUNTIME_OFFLINE=1 for mode='integrated'"
             )
         return cls(HttpRuntimeTransport(url), root=root)
 

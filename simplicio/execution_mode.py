@@ -261,7 +261,10 @@ def prepare_execution_inputs(
         authorization if authorization is not None else _load_authorization(root, authorization_path)
     )
     resolved_sink = effect_sink
-    if resolved_sink is None and os.environ.get("SIMPLICIO_RUNTIME_URL", "").strip():
+    offline_runtime = os.environ.get("SIMPLICIO_RUNTIME_OFFLINE", "").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+    if resolved_sink is None and (os.environ.get("SIMPLICIO_RUNTIME_URL", "").strip() or offline_runtime):
         resolved_sink = RuntimeEffectSink.from_environment(root=Path(root))
     resolved_handshake = runtime_handshake
     handshake = getattr(resolved_sink, "capability_handshake", None)

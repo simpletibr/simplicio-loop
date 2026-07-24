@@ -86,7 +86,11 @@ from simplicio.plan_compiler.models import (
     PlanNode,
     VerificationPlan,
 )
-from simplicio.plan_compiler.runtime_effect_sink import RuntimeEffectError, RuntimeEffectSink
+from simplicio.plan_compiler.runtime_effect_sink import (
+    OfflineRuntimeTransport,
+    RuntimeEffectError,
+    RuntimeEffectSink,
+)
 
 __all__ = [
     "ContextBinding",
@@ -115,6 +119,7 @@ __all__ = [
     "EffectOutcome",
     "EffectPlan",
     "EffectSink",
+    "OfflineRuntimeTransport",
     "GoalEnvelope",
     "IntegratedModeRequiresSinkError",
     "MAPPER_CONTRACT_COMMIT",
