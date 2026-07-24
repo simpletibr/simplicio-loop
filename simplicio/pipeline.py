@@ -267,6 +267,7 @@ def run_task(
         negotiate_execution_mode,
         prepare_execution_inputs,
         require_coordinator_attempt,
+        requested_mode,
     )
 
     try:
@@ -299,6 +300,8 @@ def run_task(
             warnings=[exc.code],
             blocked_preconditions=[{"code": exc.code, "message": str(exc)}],
         )
+        if task_spec is not None:
+            result["task_spec_hash"] = task_spec.canonical_hash()
         result["execution_profile"] = blocked_input_profile(
             mode,
             exc,
@@ -320,6 +323,7 @@ def run_task(
         mutation_route_for_mode,
     )
 
+    requested_execution_mode = requested_mode(mode, root)
     profile = negotiate_execution_mode(
         mode,
         root=root,
@@ -328,7 +332,11 @@ def run_task(
         effect_sink=effect_sink,
         coordinator_kind=coordinator_kind,
         coordinator_id=coordinator_id,
-        read_only=dry_run_task,
+        # An explicit integrated run is already effect-safe: the Runtime
+        # sink owns the effect boundary. Loop uses --dry-run-task while
+        # preflighting this path, so it must not downgrade the typed handoff
+        # to the legacy standalone profile.
+        read_only=dry_run_task and requested_execution_mode != "integrated",
     )
     profile = require_coordinator_attempt(profile, integrated_attempt)
     migration_policy = StandalonePolicy(**profile.standalone_policy)
@@ -376,6 +384,8 @@ def run_task(
                 {"code": profile.reason_code, "message": "execution-mode negotiation failed closed"}
             ],
         )
+        if task_spec is not None:
+            result["task_spec_hash"] = task_spec.canonical_hash()
         result["execution_profile"] = profile.to_dict()
         return result
     if task_spec is not None and profile.effective_mode != "integrated":
