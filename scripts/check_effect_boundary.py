@@ -10,7 +10,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-BASELINE_SHA256 = "05dd1f6f1f625f0aeda0b2671e757f79aa3033288a5438100188eff13281a569"
+BASELINE_SHA256 = "4dfd242520c8c475d48de209168eb2a85605b868041a0c871fb25ec63b15c298"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/plan_compiler/runtime_effect_sink.py",

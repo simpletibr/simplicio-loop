@@ -114,8 +114,8 @@ codegen/local task runner is not selected on this route. Missing or malformed
 snapshot/pack, incompatible Runtime, or incomplete attempt identity still
 blocks before planning/effect.
 
-Focused regression validation: 91 passed. Two unrelated repository effect-
-boundary baseline assertions remain red (`expected 05dd1f6...`, current
-inventory `4dfd242...`); this diff adds no mutation primitive. The passing
+Focused regression validation: 91 passed. The repository effect-boundary
+baseline is now synchronized to the current inventory (`4dfd242...`); this
+slice adds no mutation primitive. The passing
 tests prove routing and input propagation with test doubles; they do not claim
 a live Runtime receipt or close the cross-repository E2E requirement above.

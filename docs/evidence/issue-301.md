@@ -17,9 +17,11 @@ This change implements only locally verifiable migration controls:
   production `RuntimeEffectSink`;
 - a version/date roadmap and rollback rules.
 
-The reviewed mutation inventory is 186 symbolic scopes and 244
+The current-main mutation inventory is 188 symbolic scopes and 246
 candidate calls, SHA-256
-`05dd1f6f1f625f0aeda0b2671e757f79aa3033288a5438100188eff13281a569`.
+`4dfd242520c8c475d48de209168eb2a85605b868041a0c871fb25ec63b15c298`.
+The baseline was refreshed after the subsequent merged contract slices; no
+new product mutation boundary was added by this refresh.
 The reviewed additions are the reconciliation lock write and verified clear;
 existing legacy writes remain inventoried.
 

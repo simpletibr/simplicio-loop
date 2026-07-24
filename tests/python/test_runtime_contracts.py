@@ -73,6 +73,7 @@ def test_version_contract_exposes_canonical_capabilities(monkeypatch):
     assert "simplicio.dev-cli.patch-receipt/v1" in payload["capabilities"]
     assert "simplicio.dev-cli.task-batch/v1" in payload["capabilities"]
     assert "simplicio.prompt-envelope/v1" in payload["capabilities"]
+    assert "simplicio.effect-transaction/v1" in payload["capabilities"]
     assert payload["compatibility"]["task_spec"]["minimum_consumer_major"] == 2
     assert payload["compatibility"]["runtime"] == {
         "product": "simplicio-runtime",
@@ -444,6 +445,7 @@ def test_runtime_verify_cli_does_not_warn_for_real_runtime_product(monkeypatch, 
                             "mechanical_edit_result": "simplicio.mechanical-edit-result/v1",
                             "artifact_response": "simplicio.artifact-response/v1",
                             "workflow_ledger": "simplicio.workflow-ledger/v1",
+                            "effect_transaction": "simplicio.effect-transaction/v1",
                         },
                         "compatibility": {"schema": "simplicio.evidence-ledger/v1"},
                     }
@@ -477,6 +479,7 @@ def test_runtime_verify_contract_uses_version_and_contracts_smoke(monkeypatch):
                             "mechanical_edit_result": "simplicio.mechanical-edit-result/v1",
                             "artifact_response": "simplicio.artifact-response/v1",
                             "workflow_ledger": "simplicio.workflow-ledger/v1",
+                            "effect_transaction": "simplicio.effect-transaction/v1",
                         },
                         "compatibility": {"schema": "simplicio.evidence-ledger/v1"},
                     }
@@ -521,6 +524,7 @@ def test_runtime_verify_contract_reports_missing_runtime_contract_schemas(monkey
     assert payload["verified"] is False
     assert payload["reason"] == "capability-handshake-missing"
     assert "simplicio.mechanical-edit/v1" in payload["missing_capabilities"]
+    assert "simplicio.effect-transaction/v1" in payload["missing_capabilities"]
 
 
 def test_runtime_verify_contract_reports_contract_probe_timeout_with_identity(monkeypatch):
@@ -550,7 +554,9 @@ def test_runtime_verify_contract_ignores_repo_local_artifact_failures_when_contr
         "simplicio.runtime_contracts.subprocess.run",
         _fake_runtime_run_by_command(
             {
-                ("version", "--json"): json.dumps({"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}),
+                ("version", "--json"): json.dumps(
+                    {"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}
+                ),
                 ("contracts", "smoke", "--json"): json.dumps(
                     {
                         "runtime": "simplicio-runtime",
@@ -567,6 +573,7 @@ def test_runtime_verify_contract_ignores_repo_local_artifact_failures_when_contr
                             "mechanical_edit_result": "simplicio.mechanical-edit-result/v1",
                             "artifact_response": "simplicio.artifact-response/v1",
                             "workflow_ledger": "simplicio.workflow-ledger/v1",
+                            "effect_transaction": "simplicio.effect-transaction/v1",
                         },
                     }
                 ),

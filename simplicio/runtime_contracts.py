@@ -19,6 +19,7 @@ PYTHON_ADAPTER_COMMAND = "simplicio-py"
 RUNTIME_COMMAND = "simplicio"
 RUNTIME_PRODUCT = "simplicio-runtime"
 DEV_CLI_PRODUCT = "simplicio-dev-cli"
+EFFECT_TRANSACTION_CAPABILITY = "simplicio.effect-transaction/v1"
 
 # Issue #167 (ecosystem rebrand): products that used to occupy the
 # `simplicio` runtime command slot before the Hermes -> Simplicio Runtime
@@ -33,6 +34,7 @@ RUNTIME_CAPABILITIES = [
     "simplicio.execution-contract/v1",
     "simplicio.orientation-plan/v1",
     "simplicio.transaction/v1",
+    EFFECT_TRANSACTION_CAPABILITY,
     "simplicio.dev-cli.patch-receipt/v1",
     "simplicio.dev-cli.evidence-ledger/v1",
     "simplicio.dev-cli.task-batch/v1",
@@ -42,6 +44,7 @@ RUNTIME_CAPABILITIES = [
 ]
 
 RUNTIME_VERIFY_CAPABILITIES = [
+    EFFECT_TRANSACTION_CAPABILITY,
     "simplicio.compatibility-matrix/v1",
     "simplicio.context-pack/v1",
     "simplicio.mechanical-edit/v1",

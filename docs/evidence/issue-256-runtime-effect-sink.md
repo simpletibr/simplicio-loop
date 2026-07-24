@@ -54,3 +54,8 @@ Runtime Gate → mutation → validation → rollback receipt trace,
 public-transport parity, coordinator parity against Agent and non-Agent
 processes, or a real stale-source pre-mutation block. Issue #256 must remain
 open until those cross-repository receipts exist.
+
+The generic Runtime contract verifier now also requires the exact
+`simplicio.effect-transaction/v1` capability. A Runtime that exposes only
+auxiliary contract smoke schemas is therefore reported as incompatible before
+`auto`/`integrated` can select the effect path.
