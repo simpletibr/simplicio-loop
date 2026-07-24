@@ -13,6 +13,7 @@ from pathlib import Path
 BASELINE_SHA256 = "4dfd242520c8c475d48de209168eb2a85605b868041a0c871fb25ec63b15c298"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
+        "simplicio/hbp.py",
         "simplicio/plan_compiler/runtime_effect_sink.py",
     }
 )
