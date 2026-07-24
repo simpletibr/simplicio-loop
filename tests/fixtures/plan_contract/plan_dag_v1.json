@@ -1,0 +1,31 @@
+{
+  "schema": "simplicio.plan-dag/v1",
+  "plan_id": "plan-298-fixture",
+  "goal_id": "goal-298",
+  "context_snapshot_id": "snapshot-298",
+  "revision": "1",
+  "nodes": [
+    {
+      "node_id": "edit",
+      "capability": "edit.apply",
+      "inputs": [],
+      "outputs": ["source"],
+      "depends_on": [],
+      "read_set": ["src"],
+      "write_set": ["src"],
+      "risk": "medium",
+      "uncertainty": "low",
+      "estimated_cost": 1.0,
+      "reason_codes": ["issue-298"],
+      "acceptance_criteria_refs": ["AC1"],
+      "requires_gate": true,
+      "checkpoint_required": false,
+      "rollback_strategy": "revert"
+    }
+  ],
+  "producer_id": "simplicio-dev-cli",
+  "consumer_id": "simplicio-loop",
+  "budget": 2.0,
+  "trace_id": "trace-298",
+  "context_handle": ""
+}

@@ -64,10 +64,18 @@ error.
 
 ## Cross-repository gate
 
-Issue closure still requires Loop and Runtime to consume this schema and pass
-the same fixtures using installed packages. This repository cannot claim that
-cross-repository E2E until linked changes land and raw traces identify all
-three versions and digests.
+The consumer implementation is now merged:
+
+- Loop: `d148ed447b5f6b8b287da4835c4e3a6b47eab063` (PR #725), validating the
+  installed Dev CLI PlanDAG and carrying plan identity into effect transactions
+  and receipts.
+- Runtime: `93350743d319175c3461d32764ffc1c9b2475568` (PR #3572), validating
+  canonical plan metadata at the effect firewall before handlers run.
+
+The installed cross-repository E2E lane is not claimed from this worker: the
+environment lacks `pytest`, `simplicio-mapper`, `httpx`, and an installed
+Runtime binary. The implementation is fail-closed and the missing lane remains
+an explicit verification debt rather than a fabricated PASS.
 
 ## Rollback
 
