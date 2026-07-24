@@ -238,6 +238,7 @@ def run_task(
     task_spec: TaskSpec | None = None,
     context_snapshot_path: str | os.PathLike[str] | None = None,
     context_pack_path: str | os.PathLike[str] | None = None,
+    authorization_path: str | os.PathLike[str] | None = None,
     attempt_id: str | None = None,
     lease_id: str | None = None,
     fencing_token: str | None = None,
@@ -272,8 +273,10 @@ def run_task(
             root=root,
             context_snapshot=context_snapshot,
             context_pack=context_pack,
+            authorization=authorization,
             context_snapshot_path=context_snapshot_path,
             context_pack_path=context_pack_path,
+            authorization_path=authorization_path,
             effect_sink=effect_sink,
             runtime_handshake=runtime_handshake,
             attempt=integrated_attempt,
@@ -302,6 +305,7 @@ def run_task(
         return result
     context_snapshot = prepared.context_snapshot
     context_pack = prepared.context_pack
+    authorization = authorization or prepared.authorization
     effect_sink = cast(EffectSink | None, prepared.effect_sink)
     runtime_handshake = prepared.runtime_handshake
     integrated_attempt = prepared.attempt

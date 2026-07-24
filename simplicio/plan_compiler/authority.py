@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import TYPE_CHECKING, Any
 
 from simplicio.plan_compiler.canonical_hash import canonical_hash
@@ -149,6 +149,43 @@ class EffectAuthorization:
     expires_at: float
     human_gate_receipt: str
     authorization_digest: str = ""
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> EffectAuthorization:
+        """Load coordinator-issued JSON without accepting additive ambiguity."""
+        if not isinstance(payload, dict) or payload.get("schema") != AUTHORIZATION_SCHEMA:
+            raise AuthorizationError("AUTHORIZATION_SCHEMA_INVALID", "effect authorization schema is invalid")
+        allowed = {field.name for field in fields(cls)} | {"schema"}
+        unknown = sorted(set(payload) - allowed)
+        if unknown:
+            raise AuthorizationError("AUTHORIZATION_FIELDS_INVALID", ", ".join(unknown))
+        required = [field.name for field in fields(cls)]
+        missing = [name for name in required if name not in payload]
+        if missing:
+            raise AuthorizationError("AUTHORIZATION_FIELDS_MISSING", ", ".join(missing))
+        try:
+            return cls(
+                proposal_digest=str(payload["proposal_digest"]),
+                effect_digest=str(payload["effect_digest"]),
+                effect_id=str(payload["effect_id"]),
+                plan_node_id=str(payload["plan_node_id"]),
+                authority=str(payload["authority"]),
+                capability=str(payload["capability"]),
+                policy_revision=str(payload["policy_revision"]),
+                attempt_id=str(payload["attempt_id"]),
+                lease_id=str(payload["lease_id"]),
+                fencing_token=str(payload["fencing_token"]),
+                context_handle=str(payload["context_handle"]),
+                issuer=str(payload["issuer"]),
+                issued_at=float(payload["issued_at"]),
+                expires_at=float(payload["expires_at"]),
+                human_gate_receipt=str(payload["human_gate_receipt"]),
+                authorization_digest=str(payload["authorization_digest"]),
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise AuthorizationError(
+                "AUTHORIZATION_FIELDS_INVALID", "effect authorization fields are invalid"
+            ) from exc
 
     @classmethod
     def issue(

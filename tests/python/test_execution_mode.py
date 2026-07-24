@@ -206,6 +206,8 @@ def test_task_cli_forwards_integrated_coordinator_inputs(monkeypatch, capsys):
             "snapshot.json",
             "--context-pack",
             "pack.json",
+            "--effect-authorization",
+            "authorization.json",
             "--attempt-id",
             "attempt-1",
             "--lease-id",
@@ -226,6 +228,7 @@ def test_task_cli_forwards_integrated_coordinator_inputs(monkeypatch, capsys):
     assert json.loads(capsys.readouterr().out)["status"] == "blocked"
     assert captured["context_snapshot_path"] == "snapshot.json"
     assert captured["context_pack_path"] == "pack.json"
+    assert captured["authorization_path"] == "authorization.json"
     assert captured["attempt_id"] == "attempt-1"
     assert captured["lease_id"] == "lease-1"
     assert captured["fencing_token"] == "fence-1"
