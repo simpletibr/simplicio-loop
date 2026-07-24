@@ -160,6 +160,7 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
         help="read one exported simplicio.task-spec/v2 JSON document from stdin",
     )
     p.add_argument("--context-snapshot", help="canonical Mapper ContextSnapshot JSON path")
+    p.add_argument("--context-pack", help="canonical Mapper ContextPack JSON path")
     p.add_argument("--attempt-id", help="coordinator-owned atomic attempt ID")
     p.add_argument("--lease-id", help="coordinator-owned lease ID")
     p.add_argument("--fencing-token", help="coordinator-owned fencing token")
@@ -191,6 +192,7 @@ def _add_run_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--slot", action="append", default=[], metavar="KEY=VALUE")
     p.add_argument("--mode", choices=["auto", "integrated", "standalone"], default=None)
     p.add_argument("--context-snapshot", help="canonical Mapper ContextSnapshot JSON path")
+    p.add_argument("--context-pack", help="canonical Mapper ContextPack JSON path")
     p.add_argument("--attempt-id", help="coordinator-owned atomic attempt ID")
     p.add_argument("--lease-id", help="coordinator-owned lease ID")
     p.add_argument("--fencing-token", help="coordinator-owned fencing token")
@@ -500,6 +502,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p_runtime_capabilities.add_argument("--mode", choices=["auto", "integrated", "standalone"])
     p_runtime_capabilities.add_argument(
         "--context-snapshot", help="canonical Mapper ContextSnapshot JSON path"
+    )
+    p_runtime_capabilities.add_argument(
+        "--context-pack", help="canonical Mapper ContextPack JSON path"
     )
     p_runtime_capabilities.add_argument("--attempt-id", help="coordinator-owned atomic attempt ID")
     p_runtime_capabilities.add_argument("--lease-id", help="coordinator-owned lease ID")

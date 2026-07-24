@@ -237,6 +237,7 @@ def run_task(
     integrated_attempt: AttemptContext | None = None,
     task_spec: TaskSpec | None = None,
     context_snapshot_path: str | os.PathLike[str] | None = None,
+    context_pack_path: str | os.PathLike[str] | None = None,
     attempt_id: str | None = None,
     lease_id: str | None = None,
     fencing_token: str | None = None,
@@ -270,7 +271,9 @@ def run_task(
             mode,
             root=root,
             context_snapshot=context_snapshot,
+            context_pack=context_pack,
             context_snapshot_path=context_snapshot_path,
+            context_pack_path=context_pack_path,
             effect_sink=effect_sink,
             runtime_handshake=runtime_handshake,
             attempt=integrated_attempt,
@@ -298,6 +301,7 @@ def run_task(
         ).to_dict()
         return result
     context_snapshot = prepared.context_snapshot
+    context_pack = prepared.context_pack
     effect_sink = cast(EffectSink | None, prepared.effect_sink)
     runtime_handshake = prepared.runtime_handshake
     integrated_attempt = prepared.attempt

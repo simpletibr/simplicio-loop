@@ -255,6 +255,49 @@ def test_run_scope_feature_outputs_orchestrator_result(monkeypatch, capsys):
     assert payload["applied"] is True
 
 
+def test_integrated_feature_runner_forwards_typed_task_to_runtime(monkeypatch):
+    from types import SimpleNamespace
+
+    from simplicio.commands.run import _integrated_feature_task_runner
+
+    captured = {}
+
+    def fake_run_task(*args, **kwargs):
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return {"applied": True, "status": "integrated_atomic"}
+
+    monkeypatch.setattr("simplicio.pipeline.run_task", fake_run_task)
+    args = SimpleNamespace(
+        _execution_inputs=SimpleNamespace(
+            effect_sink=object(),
+            context_snapshot={"schema": "simplicio.context-snapshot/v1"},
+            context_pack={"schema": "simplicio.context-pack/v1"},
+            runtime_handshake={"verified": True},
+            attempt=SimpleNamespace(attempt_id="attempt-1"),
+        ),
+        coordinator_kind="simplicio-agent",
+        coordinator_id="agent-1",
+    )
+    runner = _integrated_feature_task_runner(args)
+    task = Task(
+        id="T01-api",
+        goal="update API",
+        target="src/app.py",
+        criteria="- endpoint works",
+        constraints="- no breaking change",
+        verify="pytest -q",
+    )
+
+    passed, log = runner(task, None, SimpleNamespace(language="python", framework=None), quiet=True)
+
+    assert passed is True
+    assert "integrated_atomic" in log
+    assert captured["kwargs"]["mode"] == "integrated"
+    assert captured["kwargs"]["context_pack"] == {"schema": "simplicio.context-pack/v1"}
+    assert captured["kwargs"]["task_spec"].task_id == "T01-api"
+
+
 def test_run_scope_feature_json_suppresses_pipeline_logs(
     tmp_path,
     monkeypatch,

@@ -21,7 +21,13 @@ CLI_PROG = "simplicio-py"
 
 
 def _mode_guard(a: argparse.Namespace) -> tuple[dict, int] | None:
-    """Block non-task integrated scopes before planners or local effects."""
+    """Negotiate the route before planning or local effects.
+
+    Feature and sprint planning may run in integrated mode, but their task
+    execution is injected below through the same pipeline boundary as the
+    task entrypoint.  A blocked profile still returns before any planner or
+    effect is reached.
+    """
     from ..execution_mode import (
         ExecutionInputError,
         blocked_input_profile,
@@ -29,6 +35,7 @@ def _mode_guard(a: argparse.Namespace) -> tuple[dict, int] | None:
         prepare_execution_inputs,
         require_coordinator_attempt,
     )
+    from ..plan_compiler.mapper_context import MapperContextError, bind_mapper_context
     from ..standalone_migration import (
         StandalonePolicy,
         emit_mutation_route,
@@ -40,6 +47,7 @@ def _mode_guard(a: argparse.Namespace) -> tuple[dict, int] | None:
             getattr(a, "mode", None),
             root=a.root,
             context_snapshot_path=getattr(a, "context_snapshot", None),
+            context_pack_path=getattr(a, "context_pack", None),
             attempt_id=getattr(a, "attempt_id", None),
             lease_id=getattr(a, "lease_id", None),
             fencing_token=getattr(a, "fencing_token", None),
@@ -55,6 +63,15 @@ def _mode_guard(a: argparse.Namespace) -> tuple[dict, int] | None:
             coordinator_id=getattr(a, "coordinator_id", None),
         )
         profile = require_coordinator_attempt(profile, prepared.attempt)
+        if profile.effective_mode == "integrated":
+            if prepared.context_pack is None:
+                raise ExecutionInputError(
+                    "CONTEXT_PACK_REQUIRED", "integrated feature/sprint execution requires a ContextPack"
+                )
+            try:
+                bind_mapper_context(prepared.context_snapshot, prepared.context_pack, source_root=a.root)
+            except MapperContextError as exc:
+                raise ExecutionInputError("INCOMPATIBLE_CONTEXT", str(exc)) from exc
     except ExecutionInputError as exc:
         profile = blocked_input_profile(
             getattr(a, "mode", None),
@@ -76,7 +93,9 @@ def _mode_guard(a: argparse.Namespace) -> tuple[dict, int] | None:
         reason_code=profile.reason_code,
         policy=policy,
     )
-    if profile.effective_mode != "blocked" and profile.effective_mode != "integrated":
+    if profile.effective_mode != "blocked":
+        a._execution_inputs = prepared
+        a._execution_profile = profile
         return None
     payload = {
         "scope": a.scope,
@@ -134,6 +153,9 @@ def _run_feature(a: argparse.Namespace) -> int:
 
     force_local_if_requested(a)
     try:
+        task_runner = None
+        if a._execution_profile.effective_mode == "integrated":
+            task_runner = _integrated_feature_task_runner(a)
         result = run_feature(
             root=a.root,
             stack_slug=a.stack,
@@ -141,6 +163,7 @@ def _run_feature(a: argparse.Namespace) -> int:
             max_iter=a.max_iter,
             max_cost=a.max_cost,
             quiet=a.json,
+            task_runner=task_runner,
         )
     except ValueError as exc:
         print(f"{CLI_PROG} run: {exc}", file=sys.stderr)
@@ -153,6 +176,77 @@ def _run_feature(a: argparse.Namespace) -> int:
         for warning in result["warnings"]:
             print(f"warning: {warning}", file=sys.stderr)
     return 0 if result["applied"] else 1
+
+
+def _integrated_feature_task_runner(a: argparse.Namespace):
+    """Return a feature runner that delegates every task to Runtime.
+
+    The feature planner remains a read/planning step.  It cannot use the
+    historical codegen or local pipeline runner once negotiation selected
+    integrated mode.
+    """
+    import hashlib
+    import os
+
+    from ..pipeline import run_task
+    from ..task_spec import TaskSpec
+
+    prepared = a._execution_inputs
+    def run_one(task, project_dir, stack, *, quiet=False):
+        source = {
+            "kind": "feature-plan",
+            "task_id": task.id,
+            "target": task.target,
+            "verify": task.verify,
+        }
+        source_hash = hashlib.sha256(
+            json.dumps(source, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
+        task_spec = TaskSpec(
+            task_id=task.id,
+            source=source,
+            source_hash=source_hash,
+            language=stack.language,
+            functionality=task.goal,
+            narrative={"goal": task.goal, "constraints": task.constraints},
+            acceptance_criteria=[
+                {"id": f"AC{index}", "text": line.lstrip("-* ").strip()}
+                for index, line in enumerate(task.criteria.splitlines(), start=1)
+                if line.strip()
+            ],
+            verification_commands=[{"command": task.verify, "verifier": "declared"}],
+        )
+        previous = os.environ.get("SIMPLICIO_TEST_CMD")
+        os.environ["SIMPLICIO_TEST_CMD"] = task.verify
+        try:
+            output = run_task(
+                str(project_dir),
+                f"{stack.language}{' + ' + stack.framework if stack.framework else ''}",
+                task.goal,
+                task.target,
+                task.criteria,
+                task.constraints,
+                quiet=quiet,
+                mode="integrated",
+                effect_sink=prepared.effect_sink,
+                context_snapshot=prepared.context_snapshot,
+                context_pack=prepared.context_pack,
+                runtime_handshake=prepared.runtime_handshake,
+                coordinator_kind=getattr(a, "coordinator_kind", None),
+                coordinator_id=getattr(a, "coordinator_id", None),
+                integrated_attempt=prepared.attempt,
+                task_spec=task_spec,
+            )
+        finally:
+            if previous is None:
+                os.environ.pop("SIMPLICIO_TEST_CMD", None)
+            else:
+                os.environ["SIMPLICIO_TEST_CMD"] = previous
+        return bool(isinstance(output, dict) and output.get("applied")), json.dumps(
+            output, sort_keys=True, default=str
+        )
+
+    return run_one
 
 
 def _infer_sprint_name(goal: str) -> str | None:
@@ -311,6 +405,9 @@ def _run_sprint(a: argparse.Namespace) -> int:
             ):
                 continue
             try:
+                task_runner = None
+                if a._execution_profile.effective_mode == "integrated":
+                    task_runner = _integrated_feature_task_runner(a)
                 result = run_feature(
                     root=a.root,
                     stack_slug=a.stack,
@@ -318,6 +415,7 @@ def _run_sprint(a: argparse.Namespace) -> int:
                     max_iter=a.max_iter,
                     max_cost=None,
                     quiet=a.json,
+                    task_runner=task_runner,
                 )
             except ValueError as exc:
                 result = {
