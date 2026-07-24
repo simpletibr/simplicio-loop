@@ -97,3 +97,20 @@ or macOS/Windows hosts. HBI conformance, codec corruption/migration behavior,
 cross-repository upgrade/rollback and supported-OS results remain `null` with
 those reasons. No custom binary format or synthetic cross-repository result was
 introduced to make the gate appear green.
+
+## Current checkout recheck — 2026-07-23
+
+The strict source scanner was rerun after the Runtime resource-map cache was
+observed in `.simplicio/cache/resource-map-full.json`. It is an exact
+`simplicio.runtime-resource-map/v1` cache owned by `simplicio-runtime`, so it
+now has one dated HBI migration exception in
+`config/json-boundaries.toml`.
+
+```text
+python3 scripts/check_json_boundaries.py --strict
+json-boundaries: 0 finding(s); strict=pass
+```
+
+This changes only local classification. It does not claim Runtime HBI
+conformance, HBP migration lineage, installed-package E2E, or release
+readiness; those remain explicit external gates.

@@ -13,6 +13,13 @@ owner = "dev-cli"
 reason = "migrate read-mostly architecture index to Runtime HBI v1"
 expires = "2026-09-30"
 [[exceptions]]
+path = ".simplicio/cache/resource-map-full.json"
+category = "legacy-internal"
+target = "hbi"
+owner = "simplicio-runtime"
+reason = "migrate Runtime resource-map cache to HBI v1"
+expires = "2026-09-30"
+[[exceptions]]
 path = ".simplicio/call-graph.json"
 category = "legacy-internal"
 target = "hbi"
