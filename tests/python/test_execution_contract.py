@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import FrozenInstanceError
 from hashlib import sha256
+import json
 
 import pytest
 
@@ -173,6 +174,23 @@ def test_planes_contract_preserves_requirements_and_combined_order() -> None:
             assert intent.negative
             assert intent.edge
             assert intent.is_executable
+
+
+def test_execution_contract_preserves_complete_task_spec_boundary_losslessly() -> None:
+    task = _planes_task()
+    task["verification_commands"] = [{"command": "pytest -q", "verifier": "pytest", "timeout_s": 42}]
+    task["future_additive_field"] = {"owner": "loop", "enabled": True}
+    expected = {**task, "schema": "simplicio.task-spec/v2"}
+
+    contract = compile_execution_contract(task)
+    payload = contract.to_dict()
+    canonical = json.dumps(expected, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+    assert payload["task_spec"] == expected
+    assert payload["task_spec_hash"] == sha256(canonical.encode("utf-8")).hexdigest()
+    assert contract.to_dict(include_contract_hash=False)["task_spec"] == expected
+    assert payload["task_spec"]["verification_commands"] == task["verification_commands"]
+    assert payload["task_spec"]["future_additive_field"] == task["future_additive_field"]
 
 
 def test_planes_contract_surfaces_unspecified_decisions_and_hypotheses() -> None:

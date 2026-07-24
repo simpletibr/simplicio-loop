@@ -44,6 +44,11 @@ def _source_digest(text: str) -> str:
     return sha256(normalized.encode()).hexdigest()
 
 
+def _canonical_task_spec_hash(payload: Mapping[str, Any]) -> str:
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return sha256(canonical.encode("utf-8")).hexdigest()
+
+
 class ContractCompilationError(ValueError):
     """Raised when input cannot produce a trustworthy contract."""
 
@@ -266,6 +271,10 @@ class ExecutionContract:
     system: str
     functionality: str
     task_type: str
+    # Canonical JSON is the immutable lossless boundary.  Using the generic
+    # tuple freezer here would collapse [] and {} into the same value.
+    task_spec: str
+    task_spec_hash: str
     narrative: tuple[tuple[str, Any], ...]
     acceptance_criteria: tuple[AcceptanceCriterion, ...]
     business_rules: tuple[Requirement, ...]
@@ -356,6 +365,8 @@ class ExecutionContract:
             "system": self.system,
             "functionality": self.functionality,
             "task_type": self.task_type,
+            "task_spec": json.loads(self.task_spec),
+            "task_spec_hash": self.task_spec_hash,
             "narrative": _thaw(self.narrative),
             "acceptance_criteria": [item.to_dict() for item in self.acceptance_criteria],
             "business_rules": [item.to_dict() for item in self.business_rules],
@@ -769,6 +780,16 @@ def compile_execution_contract(task_spec: Any, *, execution_mode: bool = False) 
     if errors:
         raise ContractCompilationError(errors)
 
+    # Keep the complete typed boundary alongside the normalized execution
+    # projection.  Older callers may provide a mapping without ``schema``;
+    # normalize that one additive field without changing the caller's object.
+    task_spec_payload = dict(task)
+    task_spec_payload.setdefault("schema", TASK_SPEC_SCHEMA)
+    task_spec_json = json.dumps(
+        task_spec_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    task_spec_hash = _canonical_task_spec_hash(task_spec_payload)
+
     gates: list[HumanGate] = []
     hypotheses: list[Hypothesis] = []
     _input_gates(task, gates)
@@ -816,6 +837,8 @@ def compile_execution_contract(task_spec: Any, *, execution_mode: bool = False) 
         system=str(task.get("system") or ""),
         functionality=str(task.get("functionality") or ""),
         task_type=str(task.get("task_type") or ""),
+        task_spec=task_spec_json,
+        task_spec_hash=task_spec_hash,
         narrative=_freeze(task.get("narrative") or {}),
         acceptance_criteria=criteria,
         business_rules=rules,
