@@ -246,6 +246,13 @@ def run_task(
     lease_id: str | None = None,
     fencing_token: str | None = None,
     context_handle: str | None = None,
+    session_id: str = "",
+    turn_id: str = "",
+    attempt_number: int = 1,
+    subworkflow_id: str = "",
+    deadline: str | None = None,
+    policy_revision: str = "dev-cli-integrated-v1",
+    base_hash: str = "",
 ):
     """Run one task through the pipeline.
 
@@ -425,6 +432,14 @@ def run_task(
             context_refresh=context_refresh,
             attempt=integrated_attempt,
             task_spec=task_spec,
+            coordinator_kind=coordinator_kind or "simplicio-dev-cli",
+            session_id=session_id,
+            turn_id=turn_id,
+            attempt_number=attempt_number,
+            subworkflow_id=subworkflow_id,
+            deadline=deadline,
+            policy_revision=policy_revision,
+            base_hash=base_hash,
         )
         result["execution_profile"] = profile.to_dict()
         result["mutation_receipt"] = mutation_receipt("runtime_effect_api", entrypoint="task")

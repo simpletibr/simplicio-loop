@@ -84,6 +84,21 @@ Loop-facing context handle and Runtime-facing observation.
 Until Mapper emits the provenance, integrated execution fails closed with
 `INCOMPATIBLE_CONTEXT`; standalone behavior is unchanged.
 
+## E2E harness — 2026-07-23
+
+`tests/contracts/test_issue_300_e2e.py` now exercises the public integrated
+`run_task` path with the real local `OfflineRuntimeTransport`: Loop-shaped Goal
+and bounded ContextPack input, canonical Mapper binding, PlanDAG/EffectPlan,
+EffectTransaction, verified receipt, cache subprocess visibility, tamper/drift
+rejection, N−1 refusal, recovery, and rollback. Result: **14 passed, 1
+skipped** in the focused E2E file. Full details and the exact command are in
+[`docs/evidence/issue-300-e2e.md`](issue-300-e2e.md).
+
+The run also closed a Dev CLI API gap: coordinator-owned session/turn/policy/
+base fields are now forwarded into the Runtime dispatch context so a real
+Loop-issued authorization can be verified end to end. This local transport
+evidence is still a harness, not installed cross-repository proof.
+
 ## Latest Mapper main compatibility slice — 2026-07-23
 
 Mapper `origin/main` was rechecked at `461d0245fc924aaca4ea868ef1053f1df1dec330`.

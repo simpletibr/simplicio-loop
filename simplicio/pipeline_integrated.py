@@ -41,6 +41,8 @@ from .task_spec import TaskSpec
 
 __all__ = ["IntegratedModeRequiresSinkError", "run_integrated"]
 
+DEFAULT_INTEGRATED_POLICY_REVISION = "dev-cli-integrated-v1"
+
 
 def _build_task_spec(
     *,
@@ -102,6 +104,14 @@ def run_integrated(
     context_refresh: bool = False,
     attempt: AttemptContext | None = None,
     task_spec: TaskSpec | None = None,
+    coordinator_kind: str = "simplicio-dev-cli",
+    session_id: str = "",
+    turn_id: str = "",
+    attempt_number: int = 1,
+    subworkflow_id: str = "",
+    deadline: str | None = None,
+    policy_revision: str = DEFAULT_INTEGRATED_POLICY_REVISION,
+    base_hash: str = "",
 ) -> dict[str, Any]:
     """Compile a plan and hand its effects to ``effect_sink``; never write.
 
@@ -283,7 +293,15 @@ def run_integrated(
         goal_id=plan.goal_id,
         plan_node=effect_node,
         verifications=[item for item in verifications if item.plan_node_id == effect_node.node_id],
+        coordinator_kind=coordinator_kind,
         coordinator_id=attempt.attempt_id,
+        session_id=session_id,
+        turn_id=turn_id,
+        attempt=attempt_number,
+        subworkflow_id=subworkflow_id,
+        deadline=deadline,
+        policy_revision=policy_revision,
+        base_hash=base_hash,
         source_hash=task_spec.source_hash,
         context_handle=context_handle,
         lease_id=attempt.lease_id,
