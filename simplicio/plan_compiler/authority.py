@@ -105,8 +105,10 @@ def build_change_proposal(effect: EffectPlan, context: EffectDispatchContext) ->
         ("source_hash", context.source_hash),
         ("policy_revision", context.policy_revision),
     ):
-        if not str(value).strip():
-            raise AuthorizationError("AUTHORIZATION_CONTEXT_INVALID", field)
+        try:
+            _reference(value, field=field)
+        except AuthorizationError as exc:
+            raise AuthorizationError("AUTHORIZATION_CONTEXT_INVALID", field) from exc
     if effect.context_handle != context.context_handle:
         raise AuthorizationError("CONTEXT_HANDLE_MISMATCH", "effect and dispatch context differ")
     effect_digest = canonical_hash(effect.to_dict())

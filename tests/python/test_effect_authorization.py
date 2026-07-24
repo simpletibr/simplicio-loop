@@ -133,3 +133,10 @@ def test_proposal_binds_write_set_and_causal_fence():
     assert forged_proposal.digest() != proposal.digest()
     with pytest.raises(AuthorizationError, match="AUTHORIZATION_PROPOSAL_MISMATCH"):
         authorization.verify(forged_proposal, now=100.5)
+
+
+@pytest.mark.parametrize("field,value", [("coordinator_id", None), ("source_hash", 17)])
+def test_proposal_rejects_non_string_context_identity(field, value):
+    effect, context, _proposal, _authorization = _bundle()
+    with pytest.raises(AuthorizationError, match="AUTHORIZATION_CONTEXT_INVALID"):
+        build_change_proposal(effect, replace(context, **{field: value}))
