@@ -16,6 +16,10 @@ preserves the intake contract through plan compilation.
   schema/identity names cannot collide with canonical fields.
 - `TaskSpec.canonical_hash()` gives producers and consumers a deterministic
   handoff digest.
+- `ExecutionContract` now carries the complete canonical `TaskSpec` payload and
+  its `task_spec_hash` alongside the normalized execution projection. The
+  boundary preserves empty containers, `verification_commands`, and unknown
+  additive fields instead of projecting them away.
 - `simplicio-py task --task-spec PATH` and `--task-spec-stdin` import either a
   single task object or a one-task document.
 - `pipeline.run_task(..., task_spec=...)` passes the original object into the
@@ -40,6 +44,8 @@ The focused suite covers:
 6. malformed known containers/items, invalid verifier commands, non-finite
    numbers and future additive `tasks` metadata fail or round-trip
    deterministically without tracebacks or document misclassification.
+7. `TaskSpec → ExecutionContract → export` preserves the canonical payload and
+   hash, including empty containers and additive fields.
 
 Run:
 
@@ -65,6 +71,11 @@ entrypoints. No changed or newly added test failed.
 
 `mypy simplicio` still reports five pre-existing source-module errors plus no
 error in this slice after the typed `Path` adapter correction.
+
+Current boundary regression result: `36 passed` across
+`tests/python/test_execution_contract.py` and
+`tests/python/test_typed_task_spec_handoff.py`; touched-file coverage for
+`simplicio/execution_contract.py` is `88%` in the line/branch report.
 
 ## Rollback
 

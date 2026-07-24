@@ -9,6 +9,7 @@ import pytest
 
 from simplicio import pipeline
 from simplicio.atomic_execution import AttemptContext
+from simplicio.execution_contract import compile_execution_contract
 from simplicio.plan_compiler import RecordingEffectSink
 from simplicio.task_spec import TASK_SPEC_SCHEMA, TaskSpec, TaskSpecDocument, TaskSpecValidationError
 
@@ -46,6 +47,15 @@ def test_task_spec_round_trip_is_lossless_and_hash_is_stable() -> None:
 
     _assert_export_preserved(task)
     assert TaskSpec.from_dict(task.to_dict()).canonical_hash() == task.canonical_hash()
+
+
+def test_execution_contract_keeps_typed_task_spec_hash_and_additive_fields() -> None:
+    task = TaskSpec.from_dict(_payload())
+
+    contract = compile_execution_contract(task)
+
+    assert contract.task_spec_hash == task.canonical_hash()
+    assert contract.to_dict()["task_spec"] == task.to_dict()
 
 
 def test_programmatic_additive_fields_cannot_override_canonical_identity() -> None:
