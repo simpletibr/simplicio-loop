@@ -252,7 +252,7 @@ class PlanDAG:
     context_handle: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "schema": PLAN_DAG_SCHEMA,
             "plan_id": self.plan_id,
             "goal_id": self.goal_id,
@@ -263,8 +263,10 @@ class PlanDAG:
             "consumer_id": self.consumer_id,
             "budget": self.budget,
             "trace_id": self.trace_id,
-            "context_handle": self.context_handle,
         }
+        if self.context_handle:
+            payload["context_handle"] = self.context_handle
+        return payload
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> PlanDAG:
