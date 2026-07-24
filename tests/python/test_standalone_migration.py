@@ -100,6 +100,7 @@ def test_auto_fails_closed_in_opt_in_phase_until_legacy_flag(monkeypatch):
     assert blocked.reason_code == "LEGACY_STANDALONE_OPT_IN_REQUIRED"
 
     monkeypatch.setenv("SIMPLICIO_ENABLE_LEGACY_STANDALONE_WRITE", "true")
+    monkeypatch.setenv("SIMPLICIO_ALLOW_STANDALONE_FALLBACK", "true")
     compatible = negotiate_execution_mode("auto", runtime_handshake=handshake)
     assert compatible.effective_mode == "standalone"
     assert compatible.standalone_policy["legacy_opt_in"] is True

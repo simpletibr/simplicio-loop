@@ -248,11 +248,10 @@ def run_task(
 ):
     """Run one task through the pipeline.
 
-    ``mode="standalone"`` (the default, unchanged) applies the generated
-    patch directly against ``root`` via ``git apply`` and runs
-    ``SIMPLICIO_TEST_CMD`` locally, exactly as before this parameter existed
-    — see issue #166 plan step 4.5 ("Manter modo standalone apenas como
-    adaptador explícito e deprecável").
+    ``mode="standalone"`` applies the generated patch directly against
+    ``root`` via ``git apply`` and runs ``SIMPLICIO_TEST_CMD`` locally. It is
+    an explicit legacy adapter; automatic negotiation requires an explicit
+    standalone-fallback opt-in before selecting it.
 
     ``mode="integrated"`` (issues #166, #167) never applies anything itself:
     it delegates to :func:`simplicio.pipeline_integrated.run_integrated`,

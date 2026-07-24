@@ -8,7 +8,7 @@ The same setting is available through the Python API (`mode=`), `SIMPLICIO_EXECU
 |---|---|
 | `standalone` | Explicit local lifecycle; receipts never claim Runtime gating or evidence. |
 | `integrated` | Requires a versioned Runtime EffectTransaction capability, production sink, and a Mapper-validated `simplicio.context-snapshot/v1`; otherwise blocks before planning/effects. A matching schema string alone is never accepted. |
-| `auto` | Selects integrated only from the versioned handshake and rollout policy. It may degrade to standalone only when fallback policy permits, and records the reason. |
+| `auto` | Selects integrated only from the versioned handshake and rollout policy. It blocks when integrated is unavailable unless standalone fallback is explicitly enabled, and records the reason. |
 
 Inspect negotiation without executing work:
 
@@ -31,7 +31,7 @@ simplicio-py runtime capabilities \
 Project configuration:
 
 ```json
-{"mode":"auto","allow_standalone_fallback":true,"rollout":"shadow"}
+{"mode":"auto","allow_standalone_fallback":false,"rollout":"shadow"}
 ```
 
 Execute one coordinator-owned atomic task from an installed entrypoint:
@@ -83,9 +83,10 @@ Explicit `standalone` does not read the context snapshot and does not probe
 Mapper, the Runtime binary, or `SIMPLICIO_RUNTIME_URL`.
 
 Rollout values are `shadow`, `canary`, and `default`. Shadow records eligibility but executes once in
-standalone. `SIMPLICIO_INTEGRATED_KILL_SWITCH=1` rolls back selection; integrated requests still fail
-closed, while auto follows the explicit fallback policy. Set
-`SIMPLICIO_ALLOW_STANDALONE_FALLBACK=false` when a coordinator must never degrade.
+standalone only when `allow_standalone_fallback` is explicitly enabled. Without that opt-in, auto
+blocks before any standalone mutation. `SIMPLICIO_INTEGRATED_KILL_SWITCH=1` rolls back selection;
+integrated requests still fail closed, while auto follows the explicit fallback policy. Set
+`SIMPLICIO_ALLOW_STANDALONE_FALLBACK=true` only during a governed migration window.
 
 An `effect_unknown` outcome belongs to the selected Runtime transaction. Callers must reconcile it;
 they must not retry in standalone or renegotiate the mode. The production `RuntimeEffectSink` is selected

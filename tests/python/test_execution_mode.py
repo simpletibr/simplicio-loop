@@ -132,6 +132,7 @@ def test_sink_that_only_mimics_the_class_name_is_rejected():
 
 def test_auto_policy_fallback_and_kill_switch(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_EXECUTION_ROLLOUT", "default")
+    monkeypatch.setenv("SIMPLICIO_ALLOW_STANDALONE_FALLBACK", "true")
     monkeypatch.setenv("SIMPLICIO_INTEGRATED_KILL_SWITCH", "1")
     profile = negotiate_execution_mode(
         "auto", runtime_handshake=READY, context_snapshot=CONTEXT, effect_sink=RuntimeEffectSink()
@@ -147,7 +148,20 @@ def test_auto_policy_fallback_and_kill_switch(monkeypatch):
     )
 
 
-def test_shadow_observes_but_never_dispatches_integrated():
+def test_auto_blocks_without_explicit_standalone_fallback(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_EXECUTION_ROLLOUT", "default")
+    monkeypatch.delenv("SIMPLICIO_ALLOW_STANDALONE_FALLBACK", raising=False)
+    profile = negotiate_execution_mode(
+        "auto", runtime_handshake={"verified": False, "capabilities": [], "reason": "runtime-absent"}
+    )
+
+    assert profile.effective_mode == "blocked"
+    assert profile.reason_code == "INCOMPATIBLE_RUNTIME"
+    assert profile.fallback_reason is None
+
+
+def test_shadow_observes_but_never_dispatches_integrated(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_ALLOW_STANDALONE_FALLBACK", "true")
     profile = negotiate_execution_mode(
         "auto", runtime_handshake=READY, context_snapshot=CONTEXT, effect_sink=RuntimeEffectSink()
     )

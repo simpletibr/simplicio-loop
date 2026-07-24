@@ -119,8 +119,8 @@ def _snapshot(root: Path) -> dict[str, str]:
     return snapshot
 
 
-def test_standalone_mode_is_unaffected_default_and_still_applies_via_git_apply(tmp_path, monkeypatch):
-    """mode='standalone' (the implicit default) must behave exactly as before."""
+def test_standalone_mode_is_unaffected_when_selected_explicitly(tmp_path, monkeypatch):
+    """Explicit mode='standalone' must behave exactly as before."""
     monkeypatch.setenv("SIMPLICIO_DISABLE_RUN_LOG", "1")
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
 
@@ -150,6 +150,7 @@ def test_standalone_mode_is_unaffected_default_and_still_applies_via_git_apply(t
         "src/app.py",
         "- passes",
         "- small",
+        mode="standalone",
         quiet=True,
     )
 
