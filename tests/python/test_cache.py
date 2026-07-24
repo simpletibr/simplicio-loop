@@ -14,6 +14,7 @@ from simplicio._cache import (
     reset_for_tests,
 )
 from simplicio.cli import main as cli_main
+from simplicio.hbp import HBP_MAGIC, HbpEvidenceLedger
 
 
 @pytest.fixture(autouse=True)
@@ -98,7 +99,7 @@ def test_cache_stats_track_session_hit_rate():
     assert stats["hit_rate"] == 0.5
 
 
-def test_concurrent_writes_keep_valid_json():
+def test_concurrent_writes_keep_valid_hbp():
     c = CompletionCache()
     key = make_key("p", "m", "prompt")
 
@@ -112,8 +113,11 @@ def test_concurrent_writes_keep_valid_json():
         thread.join()
 
     path = c.path_for(key)
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    assert payload["completion"].startswith("value-")
+    assert path.suffix == ".hbp"
+    assert path.read_bytes().startswith(HBP_MAGIC)
+    rows = HbpEvidenceLedger(path.parent, file_name=path.name).verify()
+    assert len(rows) == 1
+    assert rows[0].topic == "completion-cache"
     assert c.get(key).completion.startswith("value-")
 
 

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import json
 import struct
 
 import pytest
 
-from simplicio.hbp import HBP_MAGIC, HBP_FILE_NAME, HbpError, HbpEvidenceLedger, row_content_hash
+from simplicio.hbp import HBP_FILE_NAME, HBP_MAGIC, HbpError, HbpEvidenceLedger, row_content_hash
 
 
 def test_hbp_evidence_matches_runtime_layout_and_chain(tmp_path) -> None:
@@ -65,3 +66,33 @@ def test_hbp_rejects_unknown_header_contract(tmp_path, offset, value, message) -
 
     with pytest.raises(HbpError, match=message):
         ledger.verify()
+
+
+def test_hbp_migrates_legacy_jsonl_atomically_and_idempotently(tmp_path) -> None:
+    legacy = tmp_path / "events.jsonl"
+    legacy.write_text(
+        json.dumps({"event": "task_complete", "payload": {"files": 2}}) + "\n",
+        encoding="utf-8",
+    )
+    ledger = HbpEvidenceLedger(tmp_path / "hbp", file_name="events.hbp")
+
+    assert ledger.migrate_jsonl(legacy) == 1
+    assert not legacy.exists()
+    assert (tmp_path / "events.jsonl.migrated").is_file()
+    assert ledger.verify()[0].payload.startswith("hbp-fields/v1")
+    assert "payload.files=2" in ledger.verify()[0].payload
+
+    # A retry after the post-replace/pre-rename window cannot duplicate rows.
+    assert ledger.migrate_jsonl(legacy) == 0
+    assert len(ledger.verify()) == 1
+
+
+def test_hbp_migration_validates_before_creating_target(tmp_path) -> None:
+    legacy = tmp_path / "events.jsonl"
+    legacy.write_text('{"ok": true}\nnot-json\n', encoding="utf-8")
+    ledger = HbpEvidenceLedger(tmp_path / "hbp", file_name="events.hbp")
+
+    with pytest.raises(ValueError, match="invalid legacy JSONL"):
+        ledger.migrate_jsonl(legacy)
+    assert not ledger.path.exists()
+    assert legacy.exists()
