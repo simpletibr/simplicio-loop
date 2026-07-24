@@ -56,6 +56,36 @@ def test_authorization_json_rejects_unknown_or_missing_fields():
         EffectAuthorization.from_dict({key: value for key, value in payload.items() if key != "issuer"})
 
 
+@pytest.mark.parametrize("field,value", [("issuer", None), ("fencing_token", 7)])
+def test_authorization_json_rejects_non_string_references(field, value):
+    _effect, _context, _proposal, authorization = _bundle()
+    with pytest.raises(AuthorizationError, match="AUTHORIZATION_FIELDS_INVALID"):
+        EffectAuthorization.from_dict({**authorization.to_dict(), field: value})
+
+
+@pytest.mark.parametrize("field,value", [("issued_at", float("nan")), ("expires_at", float("inf"))])
+def test_authorization_json_rejects_non_finite_timestamps(field, value):
+    _effect, _context, _proposal, authorization = _bundle()
+    with pytest.raises(AuthorizationError, match="AUTHORIZATION_FIELDS_INVALID"):
+        EffectAuthorization.from_dict({**authorization.to_dict(), field: value})
+
+
+def test_authorization_issue_rejects_non_finite_ttl_and_time():
+    _effect, _context, proposal, _authorization = _bundle()
+    with pytest.raises(AuthorizationError, match="AUTHORIZATION_FIELDS_INVALID"):
+        EffectAuthorization.issue(
+            proposal, authority="operator-1", issuer="simplicio-loop", ttl_s=float("nan")
+        )
+    with pytest.raises(AuthorizationError, match="AUTHORIZATION_FIELDS_INVALID"):
+        EffectAuthorization.issue(
+            proposal,
+            authority="operator-1",
+            issuer="simplicio-loop",
+            human_gate_receipt="human-gate-1",
+            now=float("inf"),
+        )
+
+
 def test_irreversible_proposal_requires_human_gate():
     _effect, _context, proposal, _authorization = _bundle()
 

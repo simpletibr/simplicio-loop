@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass, fields
+from math import isfinite
 from typing import TYPE_CHECKING, Any
 
 from simplicio.plan_compiler.canonical_hash import canonical_hash
@@ -32,11 +33,22 @@ class AuthorizationError(ValueError):
         super().__init__(f"{code}: {message}")
 
 
-def _reference(value: str, *, field: str) -> str:
-    value = str(value).strip()
+def _reference(value: Any, *, field: str) -> str:
+    if not isinstance(value, str):
+        raise AuthorizationError("AUTHORIZATION_REFERENCE_INVALID", field)
+    value = value.strip()
     if not value or not _REFERENCE.fullmatch(value):
         raise AuthorizationError("AUTHORIZATION_REFERENCE_INVALID", field)
     return value
+
+
+def _finite_number(value: Any, *, field: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise AuthorizationError("AUTHORIZATION_FIELDS_INVALID", field)
+    number = float(value)
+    if not isfinite(number):
+        raise AuthorizationError("AUTHORIZATION_FIELDS_INVALID", field)
+    return number
 
 
 @dataclass(frozen=True)
@@ -163,24 +175,30 @@ class EffectAuthorization:
         missing = [name for name in required if name not in payload]
         if missing:
             raise AuthorizationError("AUTHORIZATION_FIELDS_MISSING", ", ".join(missing))
+        string_fields = (
+            "proposal_digest",
+            "effect_digest",
+            "effect_id",
+            "plan_node_id",
+            "authority",
+            "capability",
+            "policy_revision",
+            "attempt_id",
+            "lease_id",
+            "fencing_token",
+            "context_handle",
+            "issuer",
+            "human_gate_receipt",
+            "authorization_digest",
+        )
+        invalid_types = [name for name in string_fields if not isinstance(payload[name], str)]
+        if invalid_types:
+            raise AuthorizationError("AUTHORIZATION_FIELDS_INVALID", ", ".join(invalid_types))
         try:
             return cls(
-                proposal_digest=str(payload["proposal_digest"]),
-                effect_digest=str(payload["effect_digest"]),
-                effect_id=str(payload["effect_id"]),
-                plan_node_id=str(payload["plan_node_id"]),
-                authority=str(payload["authority"]),
-                capability=str(payload["capability"]),
-                policy_revision=str(payload["policy_revision"]),
-                attempt_id=str(payload["attempt_id"]),
-                lease_id=str(payload["lease_id"]),
-                fencing_token=str(payload["fencing_token"]),
-                context_handle=str(payload["context_handle"]),
-                issuer=str(payload["issuer"]),
-                issued_at=float(payload["issued_at"]),
-                expires_at=float(payload["expires_at"]),
-                human_gate_receipt=str(payload["human_gate_receipt"]),
-                authorization_digest=str(payload["authorization_digest"]),
+                **{name: payload[name] for name in string_fields},
+                issued_at=_finite_number(payload["issued_at"], field="issued_at"),
+                expires_at=_finite_number(payload["expires_at"], field="expires_at"),
             )
         except (TypeError, ValueError, OverflowError) as exc:
             raise AuthorizationError(
@@ -198,7 +216,8 @@ class EffectAuthorization:
         now: float | None = None,
         ttl_s: float = 60.0,
     ) -> EffectAuthorization:
-        if ttl_s <= 0:
+        ttl = _finite_number(ttl_s, field="ttl_s")
+        if ttl <= 0:
             raise AuthorizationError("AUTHORIZATION_TTL_INVALID", "ttl_s must be positive")
         authority = _reference(authority, field="authority")
         issuer = _reference(issuer, field="issuer")
@@ -208,7 +227,7 @@ class EffectAuthorization:
             human_gate_receipt = _reference(human_gate_receipt, field="human_gate_receipt")
         elif human_gate_receipt:
             human_gate_receipt = _reference(human_gate_receipt, field="human_gate_receipt")
-        issued_at = time.time() if now is None else float(now)
+        issued_at = time.time() if now is None else _finite_number(now, field="issued_at")
         authorization = cls(
             proposal_digest=proposal.digest(),
             effect_digest=proposal.effect_digest,
@@ -223,7 +242,7 @@ class EffectAuthorization:
             context_handle=proposal.context_handle,
             issuer=issuer,
             issued_at=issued_at,
-            expires_at=issued_at + float(ttl_s),
+            expires_at=issued_at + ttl,
             human_gate_receipt=human_gate_receipt,
         )
         return cls(**{**authorization.__dict__, "authorization_digest": authorization.digest()})
@@ -270,13 +289,31 @@ class EffectAuthorization:
         ):
             if getattr(self, field) != getattr(proposal, field):
                 raise AuthorizationError("AUTHORIZATION_BINDING_MISMATCH", field)
+        for field in (
+            "proposal_digest",
+            "effect_digest",
+            "effect_id",
+            "plan_node_id",
+            "authority",
+            "capability",
+            "policy_revision",
+            "attempt_id",
+            "lease_id",
+            "fencing_token",
+            "context_handle",
+            "issuer",
+            "authorization_digest",
+        ):
+            _reference(getattr(self, field), field=field)
+        _finite_number(self.issued_at, field="issued_at")
+        _finite_number(self.expires_at, field="expires_at")
         _reference(self.authority, field="authority")
         issuer = _reference(self.issuer, field="issuer")
         if issuer.lower() in {"llm", "model", "assistant", "language-model"}:
             raise AuthorizationError("LLM_CANNOT_AUTHORIZE", "authorization issuer must be a coordinator")
         if self.expires_at <= self.issued_at:
             raise AuthorizationError("AUTHORIZATION_WINDOW_INVALID", "expiry must follow issue time")
-        current = time.time() if now is None else float(now)
+        current = time.time() if now is None else _finite_number(now, field="now")
         if current < self.issued_at or current >= self.expires_at:
             raise AuthorizationError("AUTHORIZATION_EXPIRED", "authorization is outside its validity window")
         if proposal.irreversible:
