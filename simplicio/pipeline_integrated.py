@@ -236,6 +236,33 @@ def run_integrated(
             blocked_preconditions=[{"code": "plan_compilation_failed", "message": str(exc)}],
         )
 
+    # The Mapper snapshot is checked before planning, but planning itself is a
+    # coordinator-owned interval in which another actor can change the source
+    # tree.  Revalidate immediately before entering the sole effect boundary;
+    # otherwise a Runtime receipt could be causally valid for a stale source.
+    # This is deliberately a second Mapper verification, not a local write or
+    # an implicit re-index, so integrated mode remains effect-free in Dev CLI.
+    try:
+        verify_context_sources(binding, source_root=root)
+    except MapperContextError as exc:
+        warning = (
+            exc.code if exc.code in {"SOURCE_DRIFT", "CONTEXT_ROOT_PATH_MISMATCH"} else "INCOMPATIBLE_CONTEXT"
+        )
+        return _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[warning],
+            blocked_preconditions=[
+                {
+                    "code": warning,
+                    "message": f"{exc.code}: source changed after plan compilation",
+                }
+            ],
+        )
+
     effect_node = next(
         node for node in plan.nodes if any(effect.plan_node_id == node.node_id for effect in effects)
     )

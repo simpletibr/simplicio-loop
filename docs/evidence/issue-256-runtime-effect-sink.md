@@ -1,7 +1,7 @@
 # Issue #256 — RuntimeEffectSink causal receipt evidence
 
 Date: 2026-07-23 (America/Sao_Paulo)
-Checkout baseline: `affce3f` on branch `agent/issue-256`
+Checkout baseline: `7fc5c8e` on branch `main`
 Issue: `wesleysimplicio/simplicio-dev-cli#256` (open when inspected)
 
 ## Scope of this patch
@@ -13,6 +13,11 @@ persisting a typed outcome. They now fail closed as durable `effect_unknown`
 without persisting the untrusted receipt. Capability transport failures before
 admission are distinguished as `not_started`; the atomic executor no longer
 reports that state as a submitted effect.
+
+This slice also revalidates the canonical Mapper source immediately after
+PlanDAG compilation and immediately before the integrated effect boundary.
+Source drift in that interval now returns `SOURCE_DRIFT` without invoking the
+sink or changing the worktree.
 
 ## Evidence matrix
 
@@ -28,6 +33,8 @@ reports that state as a submitted effect.
 | Full regression | `/tmp/wt257-venv/bin/python -m pytest -q` | BASELINE RED: 1910 passed, 20 skipped, 41 failed; failures are outside this slice (help snapshots, removed workflow expectations, stale mapper pins, optional extras, provider/local-inference expectations, missing CLI executables, scratch TypeScript dependency, and task-progress guards) |
 | Full lint/format | `/tmp/wt257-venv/bin/ruff check .`; `/tmp/wt257-venv/bin/ruff format --check .` | BASELINE RED: 34 lint findings and 32 files with format drift, none in this patch's focused Python files |
 | Type check | `/tmp/wt257-venv/bin/mypy simplicio/plan_compiler/runtime_effect_sink.py simplicio/atomic_execution.py` | BASELINE RED: 3 imported-module errors in `plan_compiler/models.py` and `observability.py`; no error reported in either changed module |
+| Source-drift regression | `test_integrated_mode_rechecks_source_after_plan_before_effect` | PASS: 77 focused tests total; second Mapper verification blocked before sink dispatch |
+| Loop preflight | `PYTHONPATH=.../simplicio-loop python -m simplicio_loop.cli preflight --json` | PASS for Mapper `0.24.2`, Dev CLI `0.16.2`, and `simplicio-py`; Runtime binary was present but its `--version` surface was incompatible with the Loop probe |
 
 ## Adversarial verification
 
@@ -51,9 +58,20 @@ state classification, durable safe outcomes, installed-wheel behavior, and
 local fault injection, and canonical PlanDAG + digest propagation into the
 transaction, but **does not prove** the required live PlanDAG →
 Runtime Gate → mutation → validation → rollback receipt trace,
-public-transport parity, coordinator parity against Agent and non-Agent
-processes, or a real stale-source pre-mutation block. Issue #256 must remain
-open until those cross-repository receipts exist.
+public-transport parity, or coordinator parity against Agent and non-Agent
+processes. The stale-source pre-mutation boundary is now proven locally by the
+new regression test, but not yet by a live Runtime receipt.
+
+The installed Runtime `1.6.4` MCP server was exercised through the Loop-style
+MCP bridge on a disposable file: the real `simplicio_edit` tool changed the
+file and returned before/after hashes. Its response was
+`simplicio.edit-result/v1`, not the required
+`simplicio.effect-receipt/v1`, and the server did not advertise
+`simplicio.effect-transaction/v1` in `tools/list`. That result is useful
+transport evidence, but cannot be promoted to a verified Runtime receipt by
+the Dev CLI. Issue #256 must remain open until the Runtime publishes and
+returns the required causal EffectTransaction receipt and the remaining
+validation/rollback/coordinator-parity traces exist.
 
 The generic Runtime contract verifier now also requires the exact
 `simplicio.effect-transaction/v1` capability. A Runtime that exposes only

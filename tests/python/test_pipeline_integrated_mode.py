@@ -337,6 +337,46 @@ def test_integrated_mode_blocks_source_drift_before_effect(tmp_path, monkeypatch
     assert sink.received == []
 
 
+def test_integrated_mode_rechecks_source_after_plan_before_effect(tmp_path, monkeypatch):
+    """A source change during coordinator planning must block before submit."""
+    from simplicio.plan_compiler.mapper_context import MapperContextError
+
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
+    monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
+    calls = 0
+
+    def drift_after_plan(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise MapperContextError("SOURCE_DRIFT", "src/app.py changed during plan compilation")
+
+    monkeypatch.setattr("simplicio.pipeline_integrated.verify_context_sources", drift_after_plan)
+    sink = RuntimeTestSink()
+
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "add api",
+        "src/app.py",
+        "- true state\n- false state",
+        "- build passes",
+        mode="integrated",
+        effect_sink=sink,
+        integrated_attempt=_attempt(),
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
+        context_pack=CANONICAL_PACK,
+        quiet=True,
+    )
+
+    assert calls == 2
+    assert result["status"] == "blocked"
+    assert result["warnings"] == ["SOURCE_DRIFT"]
+    assert result["blocked_preconditions"][0]["code"] == "SOURCE_DRIFT"
+    assert sink.received == []
+
+
 def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp_path, monkeypatch):
     """The core contract: compile a real PlanDAG/EffectPlan, hand it to the
     sink, and never touch the worktree -- unlike standalone mode, which does."""
