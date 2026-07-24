@@ -21,6 +21,9 @@ preserves the intake contract through plan compilation.
 - `pipeline.run_task(..., task_spec=...)` passes the original object into the
   integrated compiler. The standalone path rejects typed input instead of
   silently flattening or ignoring it.
+- `pipeline.run_task_spec(...)` is the public typed API; it derives only the
+  legacy positional fields while preserving the original TaskSpec object and
+  can derive the declared verification command without a global env override.
 - Legacy string arguments remain supported and continue through the existing
   compatibility bridge.
 

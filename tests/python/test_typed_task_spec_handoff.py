@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -168,11 +169,22 @@ def test_integrated_pipeline_passes_original_task_spec_to_compiler(tmp_path, mon
     mapper_view = type("View", (), {"snapshot_id": "snapshot-299", "revision": "abc299"})()
     mapper_context = type("MapperContext", (), {"payload_bytes": b"context", "view": mapper_view})()
 
-    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
+    monkeypatch.delenv("SIMPLICIO_TEST_CMD", raising=False)
     monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
     monkeypatch.setattr("simplicio.execution_mode.RuntimeEffectSink", Sink)
     monkeypatch.setattr("simplicio.execution_mode.load_mapper_context", lambda *a, **k: mapper_context)
     monkeypatch.setattr("simplicio.pipeline_integrated.load_mapper_context", lambda *a, **k: mapper_context)
+    monkeypatch.setattr(
+        "simplicio.pipeline_integrated.bind_mapper_context",
+        lambda *a, **k: SimpleNamespace(
+            snapshot=mapper_context,
+            context_handle=SimpleNamespace(
+                value="snapshot-299",
+                to_dict=lambda: {"context_handle": "snapshot-299"},
+            ),
+        ),
+    )
+    monkeypatch.setattr("simplicio.pipeline_integrated.verify_context_sources", lambda *a, **k: None)
     real_compile = __import__(
         "simplicio.pipeline_integrated", fromlist=["compile_task_spec_to_plan"]
     ).compile_task_spec_to_plan
@@ -199,6 +211,7 @@ def test_integrated_pipeline_passes_original_task_spec_to_compiler(tmp_path, mon
             "reason": "ok",
         },
         context_snapshot=context,
+        context_pack={"schema": "simplicio.context-pack/v1"},
         integrated_attempt=AttemptContext("attempt-299", "lease-299", "fence-299", "snapshot-299"),
         task_spec=task,
     )
@@ -208,6 +221,31 @@ def test_integrated_pipeline_passes_original_task_spec_to_compiler(tmp_path, mon
     for key, value in _payload().items():
         assert captured["payload"][key] == value
     assert result["task_spec_hash"] == task.canonical_hash()
+
+
+def test_run_task_spec_public_api_preserves_typed_identity(monkeypatch) -> None:
+    task = TaskSpec.from_dict(_payload())
+    captured = {}
+
+    def fake_run_task(*args, **kwargs):
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        return {"status": "accepted"}
+
+    monkeypatch.setattr(pipeline, "run_task", fake_run_task)
+
+    result = pipeline.run_task_spec("repo", "python", task, mode="integrated")
+
+    assert result["status"] == "accepted"
+    assert captured["args"][:6] == (
+        "repo",
+        "python",
+        "Entregar TaskSpec sem perdas",
+        "TASK-299",
+        "todos os campos chegam ao compilador",
+        "nao reconstruir de texto",
+    )
+    assert captured["kwargs"]["task_spec"] is task
 
 
 def test_standalone_pipeline_rejects_typed_task_spec_without_consuming_it(tmp_path, monkeypatch) -> None:
