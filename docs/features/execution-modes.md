@@ -17,6 +17,7 @@ SIMPLICIO_RUNTIME_URL=http://runtime:8080 \
 simplicio-py runtime capabilities \
   --mode auto \
   --context-snapshot .simplicio/context-snapshot.json \
+  --context-pack .simplicio/context-pack.json \
   --attempt-id attempt-42 \
   --lease-id lease-7 \
   --fencing-token fence-9 \
@@ -41,6 +42,7 @@ simplicio-py task 'add the decided validation' \
   --target src/app.py \
   --mode integrated \
   --context-snapshot .simplicio/context-snapshot.json \
+  --context-pack .simplicio/context-pack.json \
   --attempt-id attempt-42 \
   --lease-id lease-7 \
   --fencing-token fence-9 \
@@ -55,6 +57,13 @@ The same transient values can be supplied to the Python API or through
 `SIMPLICIO_FENCING_TOKEN`, and `SIMPLICIO_CONTEXT_HANDLE`. All four attempt
 identity fields are required together. The context handle is the canonical
 Mapper snapshot ID; it is never derived from the file path.
+
+Feature and sprint entrypoints use the same boundary: planning is allowed, but
+each planned task is converted to a typed TaskSpec and dispatched through the
+Runtime Effect API. They never use the legacy codegen/local task runner after
+negotiation selects `integrated`. `--context-pack` is also available on
+`runtime capabilities` and can be supplied through `SIMPLICIO_CONTEXT_PACK` or
+`.simplicio/execution.json` (`context_pack`).
 
 Explicit `standalone` does not read the context snapshot and does not probe
 Mapper, the Runtime binary, or `SIMPLICIO_RUNTIME_URL`.

@@ -204,6 +204,8 @@ def test_task_cli_forwards_integrated_coordinator_inputs(monkeypatch, capsys):
             "integrated",
             "--context-snapshot",
             "snapshot.json",
+            "--context-pack",
+            "pack.json",
             "--attempt-id",
             "attempt-1",
             "--lease-id",
@@ -223,6 +225,7 @@ def test_task_cli_forwards_integrated_coordinator_inputs(monkeypatch, capsys):
     assert result == 1
     assert json.loads(capsys.readouterr().out)["status"] == "blocked"
     assert captured["context_snapshot_path"] == "snapshot.json"
+    assert captured["context_pack_path"] == "pack.json"
     assert captured["attempt_id"] == "attempt-1"
     assert captured["lease_id"] == "lease-1"
     assert captured["fencing_token"] == "fence-1"
@@ -269,6 +272,8 @@ def test_task_feature_sprint_cli_parser_mode_parity():
             "integrated",
             "--context-snapshot",
             "snapshot.json",
+            "--context-pack",
+            "pack.json",
             "--attempt-id",
             "attempt-1",
             "--lease-id",
@@ -283,6 +288,7 @@ def test_task_feature_sprint_cli_parser_mode_parity():
     sprint = parser.parse_args(["run", "g", "--scope", "sprint", "--mode", "auto"])
     assert (task.mode, feature.mode, sprint.mode) == ("integrated", "integrated", "auto")
     assert task.context_snapshot == "snapshot.json"
+    assert task.context_pack == "pack.json"
     assert task.attempt_id == "attempt-1"
     assert task.lease_id == "lease-1"
     assert task.fencing_token == "fence-1"
@@ -292,6 +298,9 @@ def test_task_feature_sprint_cli_parser_mode_parity():
 def test_prepare_execution_inputs_loads_cli_snapshot_and_sink_handshake(tmp_path, monkeypatch):
     snapshot_path = tmp_path / "snapshot.json"
     snapshot_path.write_text(json.dumps(CONTEXT), encoding="utf-8")
+    pack = {"schema": "simplicio.context-pack/v1", "snapshot_digest": "sha256:1"}
+    pack_path = tmp_path / "pack.json"
+    pack_path.write_text(json.dumps(pack), encoding="utf-8")
     sink = RuntimeEffectSink()
     sink.capability_handshake = lambda: READY
     monkeypatch.setattr(
@@ -305,6 +314,7 @@ def test_prepare_execution_inputs_loads_cli_snapshot_and_sink_handshake(tmp_path
         "integrated",
         root=tmp_path,
         context_snapshot_path=snapshot_path,
+        context_pack_path=pack_path,
         attempt_id="attempt-1",
         lease_id="lease-1",
         fencing_token="fence-1",
@@ -312,6 +322,7 @@ def test_prepare_execution_inputs_loads_cli_snapshot_and_sink_handshake(tmp_path
     )
 
     assert prepared.context_snapshot == CONTEXT
+    assert prepared.context_pack == pack
     assert prepared.effect_sink is sink
     assert prepared.runtime_handshake == READY
     assert prepared.attempt == AttemptContext("attempt-1", "lease-1", "fence-1", "real")

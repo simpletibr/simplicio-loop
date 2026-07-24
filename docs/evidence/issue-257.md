@@ -102,3 +102,20 @@ claim a cross-repository EffectTransaction receipt, E2E/DEFAULT/GATED promotion
 receipt, live rollback, or Runtime version/digest. Those values remain
 unobserved rather than estimated, and issue #257 must remain open until the
 external Runtime evidence exists.
+
+## Integrated feature/sprint routing follow-up (2026-07-24)
+
+The CLI now carries a canonical `ContextPack` path/config/env input alongside
+`ContextSnapshot`. When negotiation selects `integrated` for `feature` or
+`sprint`, the planner remains read-only and every planned task is dispatched
+through `pipeline.run_task(mode="integrated")` with the production sink,
+snapshot, pack, runtime handshake, and coordinator attempt. The legacy
+codegen/local task runner is not selected on this route. Missing or malformed
+snapshot/pack, incompatible Runtime, or incomplete attempt identity still
+blocks before planning/effect.
+
+Focused regression validation: 91 passed. Two unrelated repository effect-
+boundary baseline assertions remain red (`expected 05dd1f6...`, current
+inventory `4dfd242...`); this diff adds no mutation primitive. The passing
+tests prove routing and input propagation with test doubles; they do not claim
+a live Runtime receipt or close the cross-repository E2E requirement above.

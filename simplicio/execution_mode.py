@@ -52,6 +52,7 @@ class ExecutionInputError(ValueError):
 @dataclass(frozen=True)
 class PreparedExecutionInputs:
     context_snapshot: dict[str, Any] | None
+    context_pack: dict[str, Any] | None
     effect_sink: object | None
     runtime_handshake: dict[str, Any] | None
     attempt: AttemptContext | None
@@ -106,6 +107,31 @@ def _load_context_snapshot(
     return payload
 
 
+def _load_context_pack(
+    root: str | os.PathLike[str], explicit_path: str | os.PathLike[str] | None
+) -> dict[str, Any] | None:
+    config = _config(root)
+    raw_path = explicit_path or os.environ.get("SIMPLICIO_CONTEXT_PACK") or config.get("context_pack")
+    if not raw_path:
+        return None
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = Path(root) / path
+    try:
+        with path.open("rb") as stream:
+            raw = stream.read(16 * 1024 * 1024 + 1)
+        if len(raw) > 16 * 1024 * 1024:
+            raise ExecutionInputError("INCOMPATIBLE_CONTEXT_PACK", "context pack exceeds 16 MiB")
+        payload = json.loads(raw.decode("utf-8"))
+    except ExecutionInputError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ExecutionInputError("INCOMPATIBLE_CONTEXT_PACK", "cannot read canonical context pack") from exc
+    if not isinstance(payload, dict):
+        raise ExecutionInputError("INCOMPATIBLE_CONTEXT_PACK", "context pack must be a JSON object")
+    return payload
+
+
 def _attempt_context(
     *,
     attempt_id: str | None,
@@ -134,7 +160,9 @@ def prepare_execution_inputs(
     *,
     root: str | os.PathLike[str] = ".",
     context_snapshot: dict[str, Any] | None = None,
+    context_pack: dict[str, Any] | None = None,
     context_snapshot_path: str | os.PathLike[str] | None = None,
+    context_pack_path: str | os.PathLike[str] | None = None,
     effect_sink: object | None = None,
     runtime_handshake: dict[str, Any] | None = None,
     attempt: AttemptContext | None = None,
@@ -145,13 +173,16 @@ def prepare_execution_inputs(
 ) -> PreparedExecutionInputs:
     """Resolve installed-entrypoint inputs without probing in standalone mode."""
     if requested_mode(mode, root) == "standalone":
-        return PreparedExecutionInputs(context_snapshot, effect_sink, runtime_handshake, attempt)
+        return PreparedExecutionInputs(
+            context_snapshot, context_pack, effect_sink, runtime_handshake, attempt
+        )
 
     resolved_context = (
         context_snapshot
         if context_snapshot is not None
         else _load_context_snapshot(root, context_snapshot_path)
     )
+    resolved_pack = context_pack if context_pack is not None else _load_context_pack(root, context_pack_path)
     resolved_sink = effect_sink
     if resolved_sink is None and os.environ.get("SIMPLICIO_RUNTIME_URL", "").strip():
         resolved_sink = RuntimeEffectSink.from_environment(root=Path(root))
@@ -167,6 +198,7 @@ def prepare_execution_inputs(
     )
     return PreparedExecutionInputs(
         resolved_context,
+        resolved_pack,
         resolved_sink,
         resolved_handshake,
         resolved_attempt,
@@ -435,6 +467,7 @@ def capabilities_report(
     *,
     root: str = ".",
     context_snapshot_path: str | os.PathLike[str] | None = None,
+    context_pack_path: str | os.PathLike[str] | None = None,
     attempt_id: str | None = None,
     lease_id: str | None = None,
     fencing_token: str | None = None,
@@ -447,6 +480,7 @@ def capabilities_report(
             mode,
             root=root,
             context_snapshot_path=context_snapshot_path,
+            context_pack_path=context_pack_path,
             attempt_id=attempt_id,
             lease_id=lease_id,
             fencing_token=fencing_token,
