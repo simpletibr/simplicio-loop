@@ -31,6 +31,20 @@ simplicio-cli --help
 simplicio-dev-cli --help
 ```
 
+Issue #262 also has an executable local E2E runner. It records the cache
+cold/warm path, legacy JSONL migration, run/edit/task/gate CLI surfaces, the
+strict boundary scan, and installed Runtime/Mapper probes:
+
+```text
+python scripts/issue_262_e2e.py \
+  --markdown docs/evidence/issue-262-e2e.md \
+  --hbp docs/evidence/issue-262-e2e.hbp
+```
+
+The runner emits Markdown and Runtime-compatible HBP receipts only. An
+unavailable Runtime or adjacent installed package is `UNVERIFIED` with a
+reason and makes the command fail; it is never represented as a passing zero.
+
 The embedded Node/Playwright starter is separate from the Python product. Run
 `npx playwright test` only when the starter harness changes.
 

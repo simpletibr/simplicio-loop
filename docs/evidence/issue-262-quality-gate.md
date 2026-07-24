@@ -50,6 +50,21 @@ but their underlying producers have not all migrated. These are explicit
 release blockers rather than passing zeroes. The PR must remain unmerged until
 those criteria have executable evidence and the repository-wide gate is green.
 
+## Binary cache and migration slice — 2026-07-23
+
+- Completion cache writes now use one Runtime-compatible HBP record per key;
+  cache hit/miss, TTL, corruption cleanup, eviction and concurrent replacement
+  are covered by the focused suite.
+- `HbpEvidenceLedger.migrate_jsonl` is an explicit read-once adapter. It
+  validates every legacy row before writing, replaces the verified HBP target
+  atomically, archives the source only after replacement, and is idempotent on
+  retry.
+- `scripts/issue_262_e2e.py` exercises these paths plus the CLI help surfaces
+  for `run`, `edit`, `task` and `gate`, and writes Markdown/HBP evidence.
+- The installed Runtime and Mapper probes remain `UNVERIFIED` when their
+  published executables are unavailable. This is intentionally release
+  blocking; no cross-repository completion claim is made by this slice.
+
 ## Scanner hardening follow-up — 2026-07-23
 
 The pinned Python and Node scanners now have executable parity coverage. They:

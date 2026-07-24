@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import os
@@ -11,6 +12,8 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+from .hbp import HbpError, HbpEvidenceLedger
 
 
 def _env_flag(name: str, default: bool) -> bool:
@@ -111,7 +114,89 @@ class CompletionCache:
         return _env_flag("SIMPLICIO_BUST_CACHE", False)
 
     def path_for(self, key: str) -> Path:
+        return self.root / key[:2] / f"{key}.hbp"
+
+    def _legacy_path_for(self, key: str) -> Path:
         return self.root / key[:2] / f"{key}.json"
+
+    @staticmethod
+    def _fields(entry: CacheEntry) -> dict[str, str]:
+        # repr/literal_eval is used only for the bounded metadata scalar. It
+        # is never executed and keeps the internal cache free of JSON.
+        return {
+            "completion": entry.completion,
+            "created_at": repr(entry.created_at),
+            "metadata": repr(entry.metadata),
+            "model": entry.model,
+            "provider_id": entry.provider_id,
+        }
+
+    @staticmethod
+    def _entry_from_fields(fields: dict[str, str]) -> CacheEntry:
+        try:
+            metadata = ast.literal_eval(fields.get("metadata", "{}"))
+            created_at = float(fields.get("created_at", "0"))
+        except (ValueError, SyntaxError, TypeError) as exc:
+            raise HbpError("invalid completion cache fields") from exc
+        if not isinstance(metadata, dict):
+            raise HbpError("completion cache metadata must be a mapping")
+        return CacheEntry(
+            completion=fields.get("completion", ""),
+            provider_id=fields.get("provider_id", ""),
+            model=fields.get("model", ""),
+            created_at=created_at or time.time(),
+            metadata=metadata,
+        )
+
+    def _read_hbp(self, path: Path) -> CacheEntry:
+        rows = HbpEvidenceLedger(path.parent, file_name=path.name).verify()
+        if len(rows) != 1 or rows[0].topic != "completion-cache":
+            raise HbpError("completion cache must contain exactly one record")
+        payload = rows[0].payload
+        payload_bytes = payload.encode("utf-8")
+        prefix = b"hbp-fields/v1"
+        if not payload_bytes.startswith(prefix):
+            raise HbpError("completion cache has an unsupported payload")
+        fields: dict[str, str] = {}
+        cursor = len(prefix)
+        while cursor < len(payload_bytes):
+            if payload_bytes[cursor : cursor + 1] != b":":
+                raise HbpError("invalid completion cache field framing")
+            colon = payload_bytes.find(b":", cursor + 1)
+            if colon < 0:
+                raise HbpError("truncated completion cache field length")
+            try:
+                size = int(payload_bytes[cursor + 1 : colon])
+            except ValueError as exc:
+                raise HbpError("invalid completion cache field length") from exc
+            start = colon + 1
+            end = start + size
+            raw_field, cursor = payload_bytes[start:end], end
+            if len(raw_field) != size:
+                raise HbpError("truncated completion cache field")
+            try:
+                field = raw_field.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise HbpError("completion cache field is not UTF-8") from exc
+            separator = field.find("=")
+            if separator < 1:
+                raise HbpError("completion cache field is missing a key")
+            key, value = field[:separator], field[separator + 1 :]
+            fields[key] = value
+        return self._entry_from_fields(fields)
+
+    def _write_hbp(self, path: Path, entry: CacheEntry) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp_dir = Path(tempfile.mkdtemp(prefix=f".{path.stem}.", dir=str(path.parent)))
+        try:
+            temp_path = temp_dir / path.name
+            HbpEvidenceLedger(temp_dir, file_name=path.name).record_fields(
+                "completion-cache", self._fields(entry), "simplicio-dev-cli/cache"
+            )
+            HbpEvidenceLedger(temp_dir, file_name=path.name).verify()
+            os.replace(temp_path, path)
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
     def get(self, key: str) -> CacheEntry | None:
         if not self.enabled or self.bust:
@@ -120,8 +205,19 @@ class CompletionCache:
         path = self.path_for(key)
         try:
             if not path.exists():
-                self.misses += 1
-                return None
+                legacy = self._legacy_path_for(key)
+                if legacy.exists():
+                    try:
+                        with legacy.open("r", encoding="utf-8") as handle:
+                            self._write_hbp(path, CacheEntry.from_dict(json.load(handle)))
+                        legacy.unlink()
+                    except (OSError, ValueError, TypeError, json.JSONDecodeError, HbpError):
+                        self._safe_unlink(legacy)
+                        self.misses += 1
+                        return None
+                else:
+                    self.misses += 1
+                    return None
             if self._is_expired(path):
                 self._safe_unlink(path)
                 self.misses += 1
@@ -130,11 +226,10 @@ class CompletionCache:
             self.misses += 1
             return None
         try:
-            with path.open("r", encoding="utf-8") as handle:
-                entry = CacheEntry.from_dict(json.load(handle))
-                self.hits += 1
-                return entry
-        except (OSError, ValueError, TypeError):
+            entry = self._read_hbp(path)
+            self.hits += 1
+            return entry
+        except (OSError, ValueError, TypeError, HbpError):
             self._safe_unlink(path)
             self.misses += 1
             return None
@@ -144,24 +239,9 @@ class CompletionCache:
             return
         path = self.path_for(key)
         try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            fd, tmp_name = tempfile.mkstemp(
-                prefix=f".{path.stem}.",
-                suffix=".tmp",
-                dir=str(path.parent),
-            )
+            self._write_hbp(path, entry)
         except OSError:
             return
-        try:
-            with os.fdopen(fd, "w", encoding="utf-8") as handle:
-                json.dump(entry.to_dict(), handle, sort_keys=True)
-            try:
-                os.replace(tmp_name, path)
-            except OSError:
-                return
-        finally:
-            if os.path.exists(tmp_name):
-                self._safe_unlink(Path(tmp_name))
         self.puts += 1
         evict_every = max(1, _env_int("SIMPLICIO_CACHE_EVICT_EVERY", 16))
         if self.puts == 1 or self.puts % evict_every == 0:
@@ -202,7 +282,7 @@ class CompletionCache:
                 return []
             return [
                 path
-                for path in self.root.rglob("*.json")
+                for path in self.root.rglob("*.hbp")
                 if path.is_file() and _is_completion_cache_file(self.root, path)
             ]
         except OSError:

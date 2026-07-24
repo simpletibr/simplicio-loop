@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shutil
 import struct
+import tempfile
 import time
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
 
 HBP_SCHEMA = "simplicio.hbp/v1"
 HBP_MAGIC = b"HBP1"
@@ -198,10 +200,12 @@ def _exclusive_lock(path: Path) -> Iterator[None]:
 class HbpEvidenceLedger:
     """Append-only Runtime-compatible evidence ledger."""
 
-    def __init__(self, directory: str | Path) -> None:
+    def __init__(self, directory: str | Path, *, file_name: str = HBP_FILE_NAME) -> None:
         self.directory = Path(directory)
-        self.path = self.directory / HBP_FILE_NAME
-        self.lock_path = self.directory / "hbp-inbox.bin.lock"
+        if not file_name or Path(file_name).name != file_name or file_name.endswith(".lock"):
+            raise ValueError("HBP file_name must be a plain file name")
+        self.path = self.directory / file_name
+        self.lock_path = self.directory / f"{file_name}.lock"
 
     def rows(self) -> tuple[HbpRow, ...]:
         if not self.path.exists():
@@ -239,9 +243,7 @@ class HbpEvidenceLedger:
                 provenance=provenance,
                 crypto_token=crypto_token,
                 prev_hash=previous_hash,
-                hash=row_content_hash(
-                    len(rows), previous_hash, topic, payload, provenance, crypto_token
-                ),
+                hash=row_content_hash(len(rows), previous_hash, topic, payload, provenance, crypto_token),
             )
             encoded = _encode_record(row)
             current_size = self.path.stat().st_size if self.path.exists() else 0
@@ -264,6 +266,74 @@ class HbpEvidenceLedger:
             f":{len(field.encode('utf-8'))}:{field}" for field in (action, evidence, agent_id)
         )
         return self.append("agent-action", payload, f"agent:{agent_id}", timestamp=timestamp)
+
+    def record_fields(
+        self,
+        topic: str,
+        fields: Mapping[str, object],
+        provenance: str,
+        *,
+        timestamp: int | None = None,
+    ) -> HbpRow:
+        """Append deterministic key/value fields without JSON serialization.
+
+        The framing is deliberately simple and Runtime-compatible: the HBP
+        row remains the integrity/container format while the payload declares
+        ``hbp-fields/v1`` and carries length-delimited UTF-8 fields.  Values
+        are supplied by the caller as already-canonical strings so this
+        helper never smuggles a JSON object into an internal ledger.
+        """
+        encoded: list[str] = []
+        for key in sorted(fields):
+            value = fields[key]
+            if not isinstance(key, str) or not key:
+                raise HbpError("HBP field names must be non-empty strings")
+            if isinstance(value, (dict, list, tuple, set)):
+                raise HbpError("HBP fields must be scalar canonical values")
+            encoded.append(f"{key}={value}")
+        payload = "hbp-fields/v1" + "".join(f":{len(field.encode('utf-8'))}:{field}" for field in encoded)
+        return self.append(topic, payload, provenance, timestamp=timestamp)
+
+    def migrate_jsonl(
+        self,
+        source: str | Path,
+        *,
+        topic: str = "legacy-migration",
+        provenance: str = "simplicio-dev-cli/legacy-json-migration",
+    ) -> int:
+        """Atomically migrate a legacy JSONL file into one HBP ledger.
+
+        The JSON parser is isolated in :mod:`legacy_json_adapter`. The target
+        is fully built and verified before it replaces the destination; the
+        source is renamed only after the target is durable. If a process is
+        interrupted after replacement but before the rename, the next call
+        verifies the target and completes the source rename without replaying
+        rows.
+        """
+        from .legacy_json_adapter import read_jsonl
+
+        legacy = Path(source)
+        migrated = legacy.with_name(legacy.name + ".migrated")
+        if not legacy.is_file():
+            return 0
+        if self.path.exists():
+            rows = self.verify()
+            if not migrated.exists():
+                os.replace(legacy, migrated)
+            return len(rows)
+        fields_rows = read_jsonl(legacy)
+        self.directory.mkdir(parents=True, exist_ok=True)
+        temp_dir = Path(tempfile.mkdtemp(prefix=f".{self.path.name}.", dir=str(self.directory)))
+        try:
+            temp_ledger = HbpEvidenceLedger(temp_dir, file_name=self.path.name)
+            for fields in fields_rows:
+                temp_ledger.record_fields(topic, fields, provenance)
+            temp_ledger.verify()
+            os.replace(temp_ledger.path, self.path)
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        os.replace(legacy, migrated)
+        return len(fields_rows)
 
 
 __all__ = ["HBP_FILE_NAME", "HBP_GENESIS", "HbpError", "HbpEvidenceLedger", "HbpRow", "row_content_hash"]
