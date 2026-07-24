@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from .atomic_execution import AttemptContext
+from .plan_compiler.authority import AuthorizationError, EffectAuthorization
 from .plan_compiler.mapper_context import (
     MAPPER_CONTEXT_SNAPSHOT_SCHEMA,
     MapperContextError,
@@ -53,6 +54,7 @@ class ExecutionInputError(ValueError):
 class PreparedExecutionInputs:
     context_snapshot: dict[str, Any] | None
     context_pack: dict[str, Any] | None
+    authorization: EffectAuthorization | None
     effect_sink: object | None
     runtime_handshake: dict[str, Any] | None
     attempt: AttemptContext | None
@@ -132,6 +134,29 @@ def _load_context_pack(
     return payload
 
 
+def _load_authorization(
+    root: str | os.PathLike[str], explicit_path: str | os.PathLike[str] | None
+) -> EffectAuthorization | None:
+    config = _config(root)
+    raw_path = (
+        explicit_path
+        or os.environ.get("SIMPLICIO_EFFECT_AUTHORIZATION")
+        or config.get("effect_authorization")
+    )
+    if not raw_path:
+        return None
+    path = Path(raw_path)
+    if not path.is_absolute():
+        path = Path(root) / path
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return EffectAuthorization.from_dict(payload)
+    except (OSError, UnicodeError, json.JSONDecodeError, AuthorizationError) as exc:
+        raise ExecutionInputError(
+            "INCOMPATIBLE_AUTHORIZATION", "cannot load coordinator-issued effect authorization"
+        ) from exc
+
+
 def _attempt_context(
     *,
     attempt_id: str | None,
@@ -161,8 +186,10 @@ def prepare_execution_inputs(
     root: str | os.PathLike[str] = ".",
     context_snapshot: dict[str, Any] | None = None,
     context_pack: dict[str, Any] | None = None,
+    authorization: EffectAuthorization | None = None,
     context_snapshot_path: str | os.PathLike[str] | None = None,
     context_pack_path: str | os.PathLike[str] | None = None,
+    authorization_path: str | os.PathLike[str] | None = None,
     effect_sink: object | None = None,
     runtime_handshake: dict[str, Any] | None = None,
     attempt: AttemptContext | None = None,
@@ -174,7 +201,7 @@ def prepare_execution_inputs(
     """Resolve installed-entrypoint inputs without probing in standalone mode."""
     if requested_mode(mode, root) == "standalone":
         return PreparedExecutionInputs(
-            context_snapshot, context_pack, effect_sink, runtime_handshake, attempt
+            context_snapshot, context_pack, authorization, effect_sink, runtime_handshake, attempt
         )
 
     resolved_context = (
@@ -183,6 +210,9 @@ def prepare_execution_inputs(
         else _load_context_snapshot(root, context_snapshot_path)
     )
     resolved_pack = context_pack if context_pack is not None else _load_context_pack(root, context_pack_path)
+    resolved_authorization = (
+        authorization if authorization is not None else _load_authorization(root, authorization_path)
+    )
     resolved_sink = effect_sink
     if resolved_sink is None and os.environ.get("SIMPLICIO_RUNTIME_URL", "").strip():
         resolved_sink = RuntimeEffectSink.from_environment(root=Path(root))
@@ -199,6 +229,7 @@ def prepare_execution_inputs(
     return PreparedExecutionInputs(
         resolved_context,
         resolved_pack,
+        resolved_authorization,
         resolved_sink,
         resolved_handshake,
         resolved_attempt,
@@ -468,6 +499,7 @@ def capabilities_report(
     root: str = ".",
     context_snapshot_path: str | os.PathLike[str] | None = None,
     context_pack_path: str | os.PathLike[str] | None = None,
+    authorization_path: str | os.PathLike[str] | None = None,
     attempt_id: str | None = None,
     lease_id: str | None = None,
     fencing_token: str | None = None,
@@ -481,6 +513,7 @@ def capabilities_report(
             root=root,
             context_snapshot_path=context_snapshot_path,
             context_pack_path=context_pack_path,
+            authorization_path=authorization_path,
             attempt_id=attempt_id,
             lease_id=lease_id,
             fencing_token=fencing_token,

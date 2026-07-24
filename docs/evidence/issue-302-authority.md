@@ -18,6 +18,10 @@ git diff --check
 
 The public pipeline accepts `authorization=` and carries it into the typed
 dispatch context. No GitHub Actions workflow or external CI result is used.
+Installed `task`, `feature`, and `sprint` entrypoints now also accept a
+coordinator-issued `EffectAuthorization` JSON file; loading rejects malformed
+schema/fields before any planner or effect, while the Runtime sink performs
+the final proposal-bound verification.
 The installed Loop/Runtime cross-repository receipt matrix remains a separate
 deployment verification because this repository does not own those deployed
 processes.

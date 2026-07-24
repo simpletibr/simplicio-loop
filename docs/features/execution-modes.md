@@ -18,6 +18,7 @@ simplicio-py runtime capabilities \
   --mode auto \
   --context-snapshot .simplicio/context-snapshot.json \
   --context-pack .simplicio/context-pack.json \
+  --effect-authorization .simplicio/effect-authorization.json \
   --attempt-id attempt-42 \
   --lease-id lease-7 \
   --fencing-token fence-9 \
@@ -43,6 +44,7 @@ simplicio-py task 'add the decided validation' \
   --mode integrated \
   --context-snapshot .simplicio/context-snapshot.json \
   --context-pack .simplicio/context-pack.json \
+  --effect-authorization .simplicio/effect-authorization.json \
   --attempt-id attempt-42 \
   --lease-id lease-7 \
   --fencing-token fence-9 \
@@ -64,6 +66,11 @@ Runtime Effect API. They never use the legacy codegen/local task runner after
 negotiation selects `integrated`. `--context-pack` is also available on
 `runtime capabilities` and can be supplied through `SIMPLICIO_CONTEXT_PACK` or
 `.simplicio/execution.json` (`context_pack`).
+The coordinator may provide serialized `EffectAuthorization` with
+`--effect-authorization`, `SIMPLICIO_EFFECT_AUTHORIZATION`, or
+`effect_authorization` in the same project config. The authorization is still
+rebound and verified by the Runtime sink; the file is not an authority source
+for the planner or model.
 
 Explicit `standalone` does not read the context snapshot and does not probe
 Mapper, the Runtime binary, or `SIMPLICIO_RUNTIME_URL`.

@@ -43,7 +43,17 @@ def test_authorization_is_deterministic_and_round_trips():
     assert proposal.to_dict()["schema"] == "simplicio.change-proposal/v1"
     assert authorization.to_dict()["schema"] == "simplicio.effect-authorization/v1"
     assert authorization.authorization_digest == authorization.digest()
+    assert EffectAuthorization.from_dict(authorization.to_dict()) == authorization
     authorization.verify(proposal, now=100.5)
+
+
+def test_authorization_json_rejects_unknown_or_missing_fields():
+    _effect, _context, _proposal, authorization = _bundle()
+    payload = authorization.to_dict()
+    with pytest.raises(AuthorizationError, match="AUTHORIZATION_FIELDS_INVALID"):
+        EffectAuthorization.from_dict({**payload, "extra": True})
+    with pytest.raises(AuthorizationError, match="AUTHORIZATION_FIELDS_MISSING"):
+        EffectAuthorization.from_dict({key: value for key, value in payload.items() if key != "issuer"})
 
 
 def test_irreversible_proposal_requires_human_gate():
