@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
 from simplicio.plan_compiler.authority import EffectAuthorization
-from simplicio.plan_compiler.models import EffectPlan, PlanNode, VerificationPlan
+from simplicio.plan_compiler.models import EffectPlan, PlanDAG, PlanNode, VerificationPlan
 
 EFFECT_STATES = frozenset(
     {
@@ -49,6 +49,7 @@ class EffectDispatchContext:
     lease_id: str = ""
     fencing_token: str = ""
     authorization: EffectAuthorization | None = None
+    plan: PlanDAG | None = None
 
 
 @dataclass(frozen=True)

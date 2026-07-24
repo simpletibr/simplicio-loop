@@ -9,6 +9,13 @@ identity loss, payload adulterado, transformação não registrada, plano fonte
 inválido e unsupported schema major. O payload tem digest próprio e precisa
 coincidir com a transformação determinística registrada para o consumidor.
 
+The integrated Runtime boundary now carries the canonical `PlanDAG` payload and
+`plan_digest` alongside each `EffectTransaction`. The digest is part of the
+transaction idempotency key, and a mismatched or structurally invalid plan is
+rejected before transport. This is an additive Dev CLI boundary proof; it does
+not claim that the currently deployed Loop/Runtime consumes or echoes these
+fields.
+
 ## Reproduction
 
 ```text
@@ -64,5 +71,6 @@ three versions and digests.
 
 ## Rollback
 
-Revert the implementation commit. Existing PlanDAG fields remain additive;
-consumers that do not use projections keep their prior behavior.
+Revert the implementation commit. Existing PlanDAG fields and transactions
+without a dispatch plan remain compatible; consumers that do not use
+projections keep their prior behavior.

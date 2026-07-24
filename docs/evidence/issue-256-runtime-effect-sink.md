@@ -48,7 +48,8 @@ The checkout has a Git remote but no `gh` executable. More importantly, no live
 public deployment of the Runtime EffectTransaction/v1 service or official
 fixtures/SHAs was supplied. Therefore this patch proves the Dev CLI boundary,
 state classification, durable safe outcomes, installed-wheel behavior, and
-local fault injection, but **does not prove** the required live PlanDAG →
+local fault injection, and canonical PlanDAG + digest propagation into the
+transaction, but **does not prove** the required live PlanDAG →
 Runtime Gate → mutation → validation → rollback receipt trace,
 public-transport parity, coordinator parity against Agent and non-Agent
 processes, or a real stale-source pre-mutation block. Issue #256 must remain

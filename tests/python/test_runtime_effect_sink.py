@@ -8,6 +8,7 @@ import pytest
 from simplicio.plan_compiler import (
     EffectAuthorization,
     EffectPlan,
+    PlanDAG,
     PlanNode,
     VerificationPlan,
     build_change_proposal,
@@ -117,6 +118,14 @@ def context(effect):
         context_handle="ctx-1",
         lease_id="lease-1",
         fencing_token="fence-1",
+        plan=PlanDAG(
+            "plan-1",
+            "goal-1",
+            "snapshot-1",
+            "revision-1",
+            nodes=[node],
+            context_handle="ctx-1",
+        ),
     )
     proposal = build_change_proposal(effect, context)
     return replace(
@@ -163,10 +172,29 @@ def test_maps_full_transaction_and_verifies_completed_receipt(tmp_path, effect, 
         "context_handle": "ctx-1",
     }
     assert transaction["write_set"] == ["src/a.py"]
+    assert transaction["plan"] == context.plan.to_dict()
+    assert transaction["plan_digest"] == context.plan.canonical_hash()
     assert transaction["acceptance_criteria_refs"] == ["AC1"]
     assert transaction["validation_plan"][0]["verification_id"] == "verify-1"
     assert transaction["rollback_policy"] == "checkpoint"
     assert list((tmp_path / ".simplicio/runtime-effects").glob("*.receipt.json"))
+
+
+def test_plan_provenance_mismatch_is_rejected_before_transport(tmp_path, effect, context):
+    transport = FakeTransport()
+    invalid_plan = PlanDAG(
+        "plan-1",
+        "other-goal",
+        "snapshot-1",
+        "revision-1",
+        nodes=[context.plan_node],
+        context_handle="ctx-1",
+    )
+
+    with pytest.raises(RuntimeEffectError, match="PLAN_CONTEXT_MISMATCH"):
+        RuntimeEffectSink(transport, root=tmp_path).submit(effect, replace(context, plan=invalid_plan))
+
+    assert transport.submitted == []
 
 
 def test_missing_authorization_is_rejected_before_transport(tmp_path, effect, context):
@@ -187,7 +215,9 @@ def test_authorization_binds_effect_and_fence_before_transport(tmp_path, effect,
         authorization_digest=context.authorization.authorization_digest,
     )
 
-    with pytest.raises(RuntimeEffectError, match="AUTHORIZATION_BINDING_MISMATCH|AUTHORIZATION_DIGEST_INVALID"):
+    with pytest.raises(
+        RuntimeEffectError, match="AUTHORIZATION_BINDING_MISMATCH|AUTHORIZATION_DIGEST_INVALID"
+    ):
         RuntimeEffectSink(transport, root=tmp_path).submit(effect, replace(context, authorization=forged))
 
     assert transport.submitted == []
@@ -248,6 +278,7 @@ def test_capability_handshake_fails_closed_for_malformed_external_shapes(tmp_pat
 def test_context_handle_crosses_transaction_and_verified_receipt(tmp_path, effect, context):
     context = replace(context, context_handle="sha256:" + "c" * 64)
     effect = replace(effect, context_handle=context.context_handle)
+    context = replace(context, plan=replace(context.plan, context_handle=context.context_handle))
     context = _reauthorize(effect, context)
     transport = FakeTransport()
 
@@ -544,9 +575,7 @@ def test_circuit_breaker_opens_after_repeated_unknowns(tmp_path, effect, context
     for attempt in range(3):
         current_effect = replace(effect, effect_id=f"effect-{attempt}")
         current_context = _reauthorize(current_effect, replace(context, turn_id=str(attempt)))
-        outcome = sink.submit(
-            current_effect, current_context
-        )
+        outcome = sink.submit(current_effect, current_context)
         assert outcome.state == "effect_unknown"
     opened_at = sink.breaker.opened_at
     final_effect = replace(effect, effect_id="effect-final")

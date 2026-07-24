@@ -21,7 +21,7 @@ from simplicio.plan_compiler.effect_sink import (
     EffectOutcome,
     IntegratedModeRequiresSinkError,
 )
-from simplicio.plan_compiler.models import EffectPlan
+from simplicio.plan_compiler.models import EffectPlan, PlanValidationError
 
 TRANSACTION_SCHEMA = "simplicio.effect-transaction/v1"
 RECEIPT_SCHEMA = "simplicio.effect-receipt/v1"
@@ -223,6 +223,19 @@ class RuntimeEffectSink:
             raise RuntimeEffectError(exc.code, str(exc)) from exc
         effect_body = effect.to_dict()
         effect_digest = canonical_hash(effect_body)
+        plan_body = None
+        plan_digest = None
+        if context.plan is not None:
+            if context.plan.plan_id != context.plan_id or context.plan.goal_id != context.goal_id:
+                raise RuntimeEffectError(
+                    "PLAN_CONTEXT_MISMATCH", "PlanDAG identity differs from dispatch context"
+                )
+            try:
+                context.plan.validate(effects=[effect])
+            except PlanValidationError as exc:
+                raise RuntimeEffectError("PLAN_CONTRACT_INVALID", str(exc)) from exc
+            plan_body = context.plan.to_dict()
+            plan_digest = canonical_hash(plan_body)
         causal = {
             "coordinator_kind": context.coordinator_kind,
             "coordinator_id": context.coordinator_id,
@@ -237,7 +250,9 @@ class RuntimeEffectSink:
         }
         if context.context_handle:
             causal["context_handle"] = context.context_handle
-        key = hashlib.sha256(json.dumps([causal, effect_digest], sort_keys=True).encode()).hexdigest()
+        key = hashlib.sha256(
+            json.dumps([causal, effect_digest, plan_digest], sort_keys=True).encode()
+        ).hexdigest()
         return {
             "schema": TRANSACTION_SCHEMA,
             "idempotency_key": key,
@@ -247,6 +262,8 @@ class RuntimeEffectSink:
             "authorization": context.authorization.to_dict(),
             "authorization_digest": context.authorization.authorization_digest,
             "causal": causal,
+            "plan": plan_body,
+            "plan_digest": plan_digest,
             "effect": effect_body,
             "authority_required": effect.authority_required,
             "deadline": context.deadline,

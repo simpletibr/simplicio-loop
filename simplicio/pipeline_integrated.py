@@ -250,6 +250,7 @@ def run_integrated(
         lease_id=attempt.lease_id,
         fencing_token=attempt.fencing_token,
         authorization=authorization,
+        plan=plan,
     )
     observation = execute_work_item_once(
         effect_node,
