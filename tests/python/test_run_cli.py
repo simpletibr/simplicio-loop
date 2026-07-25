@@ -1,8 +1,21 @@
 import json
 import sys
 
+import pytest
+
 from simplicio import cli
 from simplicio.scratch.plan_schema import Plan, Task
+
+
+@pytest.fixture(autouse=True)
+def _explicit_standalone_mode(monkeypatch):
+    """Legacy run-command cases must not depend on auto fallback.
+
+    Issue #257 intentionally made ``auto`` fail closed when a compatible
+    Runtime is unavailable.  These tests exercise the explicit local product
+    path, so they must select it just like an installed caller would.
+    """
+    monkeypatch.setenv("SIMPLICIO_EXECUTION_MODE", "standalone")
 
 
 def _write(path, text):
