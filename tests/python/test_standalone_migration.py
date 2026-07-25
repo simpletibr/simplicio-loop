@@ -18,12 +18,15 @@ from simplicio.commands import edit as edit_cmd
 from simplicio.commands import run as run_cmd
 from simplicio.execution_mode import negotiate_execution_mode
 from simplicio.standalone_migration import (
+    ROLLOUT_EVIDENCE_SCHEMA,
     clear_effect_unknown,
     effect_unknown_pending,
     migration_phase,
     mutation_receipt,
     mutation_route_for_mode,
     record_effect_unknown,
+    rollout_readiness,
+    rollout_readiness_for_root,
     standalone_policy,
     standalone_policy_for_root,
 )
@@ -89,6 +92,74 @@ def test_effect_unknown_lock_survives_invocations_until_verified_reconciliation(
 
     clear_effect_unknown(str(tmp_path), runtime_reconciled=True)
     assert effect_unknown_pending(str(tmp_path)) is False
+
+
+def _rollout_evidence(target_phase="read_only"):
+    return {
+        "schema": ROLLOUT_EVIDENCE_SCHEMA,
+        "target_phase": target_phase,
+        "producer_versions": {
+            "dev_cli": "0.19.0",
+            "loop": "1.0.0",
+            "runtime": "1.0.0",
+        },
+        "receipts": {
+            "runtime_loop": "sha256:runtime-loop",
+            "offline_parity": "sha256:offline",
+            "clean_install": "sha256:clean-install",
+            "upgrade": "sha256:upgrade",
+            "downgrade": "sha256:downgrade",
+            "rollback": "sha256:rollback",
+        },
+        "unresolved_effect_unknown": 0,
+        "effect_boundary_digest": BASELINE_SHA256,
+    }
+
+
+def test_rollout_readiness_requires_complete_cross_repo_receipts():
+    evidence = _rollout_evidence()
+
+    readiness = rollout_readiness(
+        evidence,
+        target_phase="read_only",
+        expected_effect_boundary_digest=BASELINE_SHA256,
+    )
+
+    assert readiness.ready is True
+    assert readiness.reason_codes == ()
+    assert set(readiness.receipt_ids) == {
+        "runtime_loop",
+        "offline_parity",
+        "clean_install",
+        "upgrade",
+        "downgrade",
+        "rollback",
+    }
+
+
+def test_rollout_readiness_fails_closed_for_missing_or_stale_evidence(tmp_path):
+    absent = rollout_readiness_for_root(
+        str(tmp_path),
+        target_phase="removed",
+        expected_effect_boundary_digest=BASELINE_SHA256,
+    )
+    assert absent.ready is False
+    assert "ROLLOUT_EVIDENCE_SCHEMA_INVALID" in absent.reason_codes
+
+    evidence = _rollout_evidence("warning")
+    evidence["receipts"].pop("downgrade")
+    evidence["unresolved_effect_unknown"] = 1
+    evidence["effect_boundary_digest"] = "stale"
+    readiness = rollout_readiness(
+        evidence,
+        target_phase="removed",
+        expected_effect_boundary_digest=BASELINE_SHA256,
+    )
+    assert readiness.ready is False
+    assert "ROLLOUT_TARGET_PHASE_MISMATCH" in readiness.reason_codes
+    assert "ROLLOUT_RECEIPT_MISSING:downgrade" in readiness.reason_codes
+    assert "ROLLOUT_EFFECT_UNKNOWN_UNRESOLVED" in readiness.reason_codes
+    assert "ROLLOUT_EFFECT_BOUNDARY_BASELINE_MISMATCH" in readiness.reason_codes
 
 
 def test_auto_fails_closed_in_opt_in_phase_until_legacy_flag(monkeypatch):

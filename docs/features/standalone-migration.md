@@ -21,6 +21,15 @@ Promotion requires measured Runtime/Loop adoption, clean install and
 upgrade/downgrade receipts, offline executor parity, and zero unresolved
 `effect_unknown` outcomes.
 
+Promotion tooling consumes
+`.simplicio/standalone-rollout-evidence.json`
+(`simplicio.dev-cli.standalone-rollout-evidence/v1`). It fails closed unless
+the target phase matches, the effect-boundary baseline matches, producer
+versions are recorded for Dev CLI/Loop/Runtime, `unresolved_effect_unknown`
+is zero, and non-empty receipt identities exist for live Runtime+Loop,
+offline parity, clean install, upgrade, downgrade, and rollback. Local tests
+or booleans cannot stand in for those external receipt identities.
+
 Project configuration may use the equivalent keys in
 `.simplicio/execution.json`:
 
@@ -65,11 +74,11 @@ python scripts/check_effect_boundary.py --inventory
 
 The AST guard inventories mutation primitives and subprocess boundaries in
 the Python product, excluding only the production
-`RuntimeEffectSink`. The current-main baseline records 190 mutation scopes and
-248 calls at digest
-`4a0fc6cfe9b1cdbc4ee497338b9781ea713d3e4d433df6b1945f51d17f78065f`.
-The baseline was refreshed after later merged contract slices; this change
-adds no new mutation primitive.
+`RuntimeEffectSink`. The current-main baseline records 192 mutation scopes and
+250 calls at digest
+`15ae0b02d06db507bd96a5f45ec29c43512ec896b0d2a0dcd8a06cff05f3e21d`.
+The baseline includes the reconciliation lock write and verified clear sites;
+this rollout-readiness change adds no new mutation primitive.
 Any addition, removal, or scope change outside the approved Effect boundary
 fails the guard and requires an explicit inventory review.
 

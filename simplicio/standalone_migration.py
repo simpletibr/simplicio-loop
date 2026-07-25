@@ -15,7 +15,17 @@ MigrationPhase = Literal["shadow", "opt_in", "warning", "read_only", "removed"]
 MutationRoute = Literal["runtime_effect_api", "legacy_standalone", "blocked"]
 MIGRATION_PHASES = ("shadow", "opt_in", "warning", "read_only", "removed")
 MUTATION_ROUTE_SCHEMA = "simplicio.dev-cli.mutation-route/v1"
+ROLLOUT_EVIDENCE_SCHEMA = "simplicio.dev-cli.standalone-rollout-evidence/v1"
+ROLLOUT_EVIDENCE_PATH = ".simplicio/standalone-rollout-evidence.json"
 EFFECT_UNKNOWN_LOCK = ".simplicio/effect-unknown.lock"
+_REQUIRED_ROLLOUT_RECEIPTS = (
+    "runtime_loop",
+    "offline_parity",
+    "clean_install",
+    "upgrade",
+    "downgrade",
+    "rollback",
+)
 
 
 @dataclass(frozen=True)
@@ -24,6 +34,19 @@ class StandalonePolicy:
     legacy_opt_in: bool
     write_allowed: bool
     reason_code: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class RolloutReadiness:
+    target_phase: MigrationPhase
+    ready: bool
+    reason_codes: tuple[str, ...]
+    receipt_ids: dict[str, str]
+    producer_versions: dict[str, str]
+    effect_boundary_digest: str
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -92,6 +115,79 @@ def standalone_policy_for_root(root: str, *, previous_effect_outcome: str | None
         config = {}
     outcome = previous_effect_outcome or ("effect_unknown" if effect_unknown_pending(root) else None)
     return standalone_policy(config, previous_effect_outcome=outcome)
+
+
+def rollout_readiness(
+    payload: Any,
+    *,
+    target_phase: MigrationPhase,
+    expected_effect_boundary_digest: str = "",
+) -> RolloutReadiness:
+    """Validate promotion evidence without inferring cross-repository success."""
+    reasons: list[str] = []
+    receipt_ids: dict[str, str] = {}
+    producer_versions: dict[str, str] = {}
+    boundary_digest = ""
+    if not isinstance(payload, dict) or payload.get("schema") != ROLLOUT_EVIDENCE_SCHEMA:
+        reasons.append("ROLLOUT_EVIDENCE_SCHEMA_INVALID")
+    else:
+        if payload.get("target_phase") != target_phase:
+            reasons.append("ROLLOUT_TARGET_PHASE_MISMATCH")
+        receipts = payload.get("receipts")
+        if not isinstance(receipts, dict):
+            reasons.append("ROLLOUT_RECEIPTS_INVALID")
+        else:
+            for name in _REQUIRED_ROLLOUT_RECEIPTS:
+                value = receipts.get(name)
+                if not isinstance(value, str) or not value.strip():
+                    reasons.append(f"ROLLOUT_RECEIPT_MISSING:{name}")
+                else:
+                    receipt_ids[name] = value.strip()
+        versions = payload.get("producer_versions")
+        if not isinstance(versions, dict):
+            reasons.append("ROLLOUT_PRODUCER_VERSIONS_INVALID")
+        else:
+            for name in ("dev_cli", "loop", "runtime"):
+                value = versions.get(name)
+                if not isinstance(value, str) or not value.strip():
+                    reasons.append(f"ROLLOUT_PRODUCER_VERSION_MISSING:{name}")
+                else:
+                    producer_versions[name] = value.strip()
+        unresolved = payload.get("unresolved_effect_unknown")
+        if not isinstance(unresolved, int) or isinstance(unresolved, bool) or unresolved != 0:
+            reasons.append("ROLLOUT_EFFECT_UNKNOWN_UNRESOLVED")
+        boundary_digest = str(payload.get("effect_boundary_digest") or "")
+        if (
+            expected_effect_boundary_digest
+            and boundary_digest != expected_effect_boundary_digest
+        ):
+            reasons.append("ROLLOUT_EFFECT_BOUNDARY_BASELINE_MISMATCH")
+    return RolloutReadiness(
+        target_phase=target_phase,
+        ready=not reasons,
+        reason_codes=tuple(reasons),
+        receipt_ids=receipt_ids,
+        producer_versions=producer_versions,
+        effect_boundary_digest=boundary_digest,
+    )
+
+
+def rollout_readiness_for_root(
+    root: str,
+    *,
+    target_phase: MigrationPhase,
+    expected_effect_boundary_digest: str = "",
+) -> RolloutReadiness:
+    path = Path(root) / ROLLOUT_EVIDENCE_PATH
+    try:
+        payload: Any = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        payload = None
+    return rollout_readiness(
+        payload,
+        target_phase=target_phase,
+        expected_effect_boundary_digest=expected_effect_boundary_digest,
+    )
 
 
 def mutation_receipt(

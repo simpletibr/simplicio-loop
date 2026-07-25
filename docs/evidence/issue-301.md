@@ -21,9 +21,9 @@ This change implements only locally verifiable migration controls:
 - explicit `artifact_ref` propagation from a decided TaskSpec into the
   effect-boundary transaction.
 
-The current-main mutation inventory is 190 symbolic scopes and 248
+The current-main mutation inventory is 192 symbolic scopes and 250
 candidate calls, SHA-256
-`4a0fc6cfe9b1cdbc4ee497338b9781ea713d3e4d433df6b1945f51d17f78065f`.
+`15ae0b02d06db507bd96a5f45ec29c43512ec896b0d2a0dcd8a06cff05f3e21d`.
 The baseline was refreshed after the subsequent merged contract slices; no
 new product mutation boundary was added by this refresh.
 The reviewed additions are the reconciliation lock write and verified clear;
