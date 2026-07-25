@@ -476,6 +476,7 @@ def build_execution_context(
     precedent_index: Mapping[str, Any] | None,
     selection: Mapping[str, Any],
     context_pack: Mapping[str, Any] | None = None,
+    context_snapshot: Mapping[str, Any] | None = None,
     architecture_inventory: Mapping[str, Any] | None = None,
     token_budget: int = DEFAULT_TOKEN_BUDGET,
 ) -> dict[str, Any]:
@@ -491,14 +492,18 @@ def build_execution_context(
         "intent_fingerprint": str((task_intent or {}).get("fingerprint") or ""),
     }
     fingerprint = task_fingerprint.strip() or _canonical_hash(task_descriptor)
-    snapshot = build_context_snapshot(
-        root,
-        project_map=project_map,
-        symbol_index=symbol_index,
-        call_graph=call_graph,
-        architecture_inventory=architecture_inventory or {},
-        task_query=goal,
-        budget_tokens=token_budget,
+    snapshot = (
+        dict(context_snapshot)
+        if context_snapshot is not None
+        else build_context_snapshot(
+            root,
+            project_map=project_map,
+            symbol_index=symbol_index,
+            call_graph=call_graph,
+            architecture_inventory=architecture_inventory or {},
+            task_query=goal,
+            budget_tokens=token_budget,
+        )
     )
     selection_fidelity = dict(selection.get("fidelity", {}))
     abstained = (

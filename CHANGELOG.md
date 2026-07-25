@@ -4,6 +4,10 @@
 
 ### Added
 
+- Added canonical `ContextSnapshot` provenance to opt-in execution-context
+  handoffs. The bounded `ContextPack` now carries the exact snapshot digest,
+  revision, root hash, and snapshot id consumed by downstream Dev CLI
+  verification (simplicio-dev-cli#300).
 - Added the opt-in `handoff --execution-context` producer for the deterministic
   `simplicio.execution-context/v1` per-task envelope, including exact source
   spans/hashes, graph/test/precedent provenance, stable expansion handles,

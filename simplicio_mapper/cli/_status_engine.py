@@ -9,6 +9,7 @@ from collections.abc import Mapping
 
 from ..context_cache import ContextCache
 from ..context_pack import build_context_pack
+from ..context_snapshot import build_context_snapshot
 from ..execution_context import build_execution_context
 from ..mapper import build_macro_map
 from ..retrieval_index import DEFAULT_TOKEN_BUDGET, load_retrieval_index, select_context_targets
@@ -455,6 +456,15 @@ def _run_handoff(opts: dict) -> int:
         target_rows = [{"path": path} for path in targets]
     selection_latency_ms = round((time.perf_counter() - selection_started) * 1000, 3)
 
+    context_snapshot = build_context_snapshot(
+        root,
+        project_map=project_map,
+        symbol_index=symbol_index,
+        call_graph=call_graph,
+        architecture_inventory=artifacts["architecture_inventory"],
+        task_query=goal,
+        budget_tokens=token_budget if task_aware else 0,
+    )
     context_pack = build_context_pack(
         root=root,
         targets=target_rows,
@@ -468,6 +478,7 @@ def _run_handoff(opts: dict) -> int:
         query_terms=selection["query_terms"] if selection else None,
         minimum_query_coverage=minimum_coverage,
         token_budget=token_budget if task_aware else None,
+        context_snapshot=context_snapshot,
     )
     explicit_target_override = bool(
         selection
@@ -536,6 +547,7 @@ def _run_handoff(opts: dict) -> int:
             task_id=task_fingerprint,
         )
     if opts.get("execution_context"):
+        payload["context_snapshot"] = context_snapshot
         effective_selection = selection or {
             "targets": target_rows,
             "expanded_spans": [
@@ -580,6 +592,7 @@ def _run_handoff(opts: dict) -> int:
             precedent_index=artifacts["precedent_index"],
             selection=effective_selection,
             context_pack=context_pack,
+            context_snapshot=context_snapshot,
             token_budget=token_budget,
         )
     if opts.get("for_llm") == "toon":

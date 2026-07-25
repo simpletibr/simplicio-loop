@@ -27,6 +27,7 @@ import re
 from collections.abc import Iterable
 from typing import Any
 
+from .context_contract import canonical_sha256
 from .mapper import LLM_DIRECTIVES
 from .task_context import apply_task_context, enforce_serialized_budget, select_context_targets
 
@@ -229,6 +230,7 @@ def build_context_pack(
     query_terms: list[str] | None = None,
     minimum_query_coverage: float = 0.2,
     token_budget: int | None = None,
+    context_snapshot: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a `simplicio.context-pack/v1` envelope.
 
@@ -399,6 +401,13 @@ def build_context_pack(
         minimum_query_coverage=minimum_query_coverage,
         token_budget=token_budget,
     )
+    if context_snapshot is not None:
+        payload["source_snapshot"] = {
+            "snapshot_id": context_snapshot["snapshot_id"],
+            "revision": context_snapshot["revision"],
+            "source_digest": canonical_sha256(context_snapshot),
+            "root_hash": context_snapshot["root_hash"],
+        }
     payload["fidelity"] = {
         "status": "partial" if payload.get("needs_broader_context") else "sufficient",
         "gate": "needs_broader_context" if payload.get("needs_broader_context") else "ready",

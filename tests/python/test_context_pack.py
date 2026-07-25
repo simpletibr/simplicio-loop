@@ -33,6 +33,7 @@ from simplicio_mapper.context_pack import (  # noqa: E402
     CONTEXT_PACK_SCHEMA,
     build_context_pack,
 )
+from simplicio_mapper.context_snapshot import build_context_snapshot  # noqa: E402
 
 
 def _pack(root, targets, **kwargs):
@@ -52,6 +53,25 @@ class ContextPackBasicTest(unittest.TestCase):
         self.assertIn("freshness", pack)
         self.assertIn("fidelity", pack)
         self.assertIn("scales", pack)
+        self.assertNotIn("source_snapshot", pack)
+
+    def test_explicit_snapshot_adds_exact_provenance(self) -> None:
+        snapshot = build_context_snapshot(
+            str(FIXTURE),
+            project_map={},
+            symbol_index={},
+            call_graph={},
+            architecture_inventory={},
+        )
+        pack = _pack(
+            str(FIXTURE),
+            [{"path": "sample.py"}],
+            context_snapshot=snapshot,
+        )
+        self.assertEqual(pack["source_snapshot"]["snapshot_id"], snapshot["snapshot_id"])
+        self.assertEqual(pack["source_snapshot"]["revision"], snapshot["revision"])
+        self.assertEqual(pack["source_snapshot"]["root_hash"], snapshot["root_hash"])
+        self.assertEqual(len(pack["source_snapshot"]["source_digest"]), 64)
 
     def test_multi_language_fixtures(self) -> None:
         pack = _pack(

@@ -558,6 +558,27 @@ class ExecutionContextTests(unittest.TestCase):
         payload = json.loads(opted_in.stdout)
         self.assertEqual(payload["schema"], "simplicio.map-handoff/v1")
         self.assertEqual(payload["execution_context"]["schema"], EXECUTION_CONTEXT_SCHEMA)
+        snapshot = payload["context_snapshot"]
+        provenance = payload["context_pack"]["source_snapshot"]
+        self.assertEqual(provenance["snapshot_id"], snapshot["snapshot_id"])
+        self.assertEqual(provenance["revision"], snapshot["revision"])
+        self.assertEqual(provenance["root_hash"], snapshot["root_hash"])
+        self.assertEqual(
+            provenance["source_digest"],
+            hashlib.sha256(
+                json.dumps(
+                    snapshot,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                ).encode("utf-8")
+            ).hexdigest(),
+        )
+        self.assertEqual(
+            payload["execution_context"]["repository"]["snapshot_id"],
+            snapshot["snapshot_id"],
+        )
 
     def test_help_keeps_token_budget_default_with_token_budget_option(self) -> None:
         help_result = subprocess.run(
