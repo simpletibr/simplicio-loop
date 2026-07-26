@@ -37,7 +37,7 @@ class FileProcessingCache:
         self._cache.clear()
 
     def make_file_key(self, path: str | Path, size_bytes: int, mtime_ns: int) -> str:
-        normalized = Path(path).as_posix()
+        normalized = str(path).replace("\\", "/")
         raw = f"{self.VERSION}:{normalized}:{size_bytes}:{mtime_ns}".encode()
         digest = hashlib.blake2b(raw, digest_size=24).hexdigest()
         return f"file:{digest}"

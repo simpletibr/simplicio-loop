@@ -29,6 +29,7 @@ from ._index_engine import (
     _process_start_token,
     _read_index_state,
     _state_path,
+    _write_index_state,
 )
 from ._shared import (
     INDEX_STATE_SCHEMA,
@@ -45,6 +46,10 @@ def _map_job_path(root: str, out: str) -> str:
 
 def _inspection_path(root: str, out: str) -> str:
     return os.path.join(os.path.abspath(os.path.join(root, out)), "map-inspection.json")
+
+
+def _partial_scan_path(root: str, out: str) -> str:
+    return os.path.join(os.path.abspath(os.path.join(root, out)), "partial-scan.json")
 
 
 def _write_json_atomic(path: str, payload: dict) -> None:
@@ -99,6 +104,8 @@ def _index_is_fresh(root: str, out: str) -> bool:
     """True when the on-disk artifacts match the current freshness signature."""
     state = _read_index_state(root, out)
     if state.get("schema") != INDEX_STATE_SCHEMA:
+        return False
+    if state.get("completeness", "complete") != "complete":
         return False
     if not _artifacts_exist(_artifact_paths(root, out)):
         return False
@@ -351,6 +358,9 @@ def _status_payload(root: str, out: str, *, phase: str | None = None) -> dict:
         "map_job_path": _map_job_path(root, out).replace(os.sep, "/"),
         "project_map_path": _project_map_path(root, out).replace(os.sep, "/"),
         "counts": counts,
+        "completeness": state.get("completeness", "unknown"),
+        "progress": state.get("progress") if isinstance(state.get("progress"), dict) else {},
+        "resume": state.get("resume") if isinstance(state.get("resume"), dict) else None,
         "job": _job_summary(root, out),
         "cache": _cache_summary(root, out),
         "evidence": {
@@ -667,14 +677,44 @@ def _run_scan(opts: dict) -> int:
 
     ci = os.environ.get("CI", "").strip().lower() in ("1", "true", "yes", "on")
     synchronous = ci or opts["sync"]
+    previous_state = _read_index_state(root, out)
+    resuming = previous_state.get("completeness") == "partial"
+    spawn_opts = dict(opts)
+    if resuming:
+        spawn_opts["incremental"] = True
+    started = time.monotonic()
+    macro_counts = dict(macro.get("counts") or {})
+    progress = {
+        "phase": "deep_running",
+        "files_discovered": int(macro_counts.get("files", 0) or 0),
+        "files_processed": 0,
+        "elapsed_seconds": 0.0,
+        "eta_seconds": None,
+        "eta_reason": "insufficient_samples",
+    }
+    partial = {
+        "schema": "simplicio.partial-scan/v1",
+        "root": root.replace(os.sep, "/"),
+        "signature": _freshness_signature(root, out),
+        "completeness": "partial",
+        "macro": macro,
+        "progress": progress,
+        "resume": {
+            "mode": "incremental",
+            "continuation": f"simplicio-mapper scan {root} --sync --update --json",
+            "reuses_unchanged_files": True,
+        },
+    }
+    _write_json_atomic(_partial_scan_path(root, out), partial)
 
     deep: dict = {
         "state_path": _state_path(root, out).replace(os.sep, "/"),
         "lock_path": _lock_path(root, out).replace(os.sep, "/"),
         "poll": "simplicio-mapper status " + root,
+        "resuming": resuming,
     }
     if synchronous:
-        spawned, child = _spawn_index_process(opts)
+        spawned, child = _spawn_index_process(spawn_opts)
         deep.update({key: spawned[key] for key in ("pid", "process_start", "log")})
         deep["timeout_seconds"] = max(0, int(opts["timeout"]))
         initial_envelope = {
@@ -704,8 +744,36 @@ def _run_scan(opts: dict) -> int:
             deep["lock_status"] = _inspect_index_lock(root, out, recover=True)
             if phase == "failed" and deep.get("failure_reason") is None:
                 deep["failure_reason"] = "worker_failed_before_terminal"
+            progress.update(
+                {
+                    "phase": phase,
+                    "elapsed_seconds": round(time.monotonic() - started, 3),
+                }
+            )
+            partial["progress"] = progress
+            partial["failure_reason"] = deep.get("failure_reason")
+            partial["worker"] = {
+                "pid": deep.get("pid"),
+                "process_start": deep.get("process_start"),
+                "exit_code": deep.get("exit_code"),
+            }
+            _write_json_atomic(_partial_scan_path(root, out), partial)
+            _write_index_state(
+                root,
+                out,
+                partial["signature"],
+                {"files": progress["files_discovered"], "processed": progress["files_processed"]},
+                completeness="partial",
+                progress=progress,
+                resume=partial["resume"],
+            )
+        else:
+            try:
+                os.remove(_partial_scan_path(root, out))
+            except FileNotFoundError:
+                pass
     else:
-        spawned = _spawn_background_index(opts)
+        spawned = _spawn_background_index(spawn_opts)
         deep["pid"] = spawned["pid"]
         deep["process_start"] = spawned["process_start"]
         deep["log"] = spawned["log"]

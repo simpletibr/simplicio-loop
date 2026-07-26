@@ -179,6 +179,10 @@ def _run_index_locked(opts: dict, root: str, out: str, lock) -> int:
         payload["paths"]["docs_root"] = docs_payload["docs_root"].replace(os.sep, "/")
         payload["counts"]["docs"] = docs_payload["counts"]["files"]
     _write_index_state(root, out, refreshed_signature, payload["counts"])
+    try:
+        os.remove(os.path.join(os.path.abspath(os.path.join(root, out)), "partial-scan.json"))
+    except FileNotFoundError:
+        pass
     _emit_index_json(opts, payload)
     return 0
 

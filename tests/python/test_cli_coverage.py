@@ -30,12 +30,12 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper import cli as cli_module  # noqa: E402
-from simplicio_mapper.cli import _status_engine as status_engine  # noqa: E402
 
 # `time` moved into cli/_background.py as part of the issue #159 god-file
 # split (cli.py -> cli/ package) -- __init__.py itself no longer imports the
 # stdlib `time` module directly, so patch it where `_watch` actually calls it.
 from simplicio_mapper.cli import _background as cli_background  # noqa: E402
+from simplicio_mapper.cli import _status_engine as status_engine  # noqa: E402
 from simplicio_mapper.cli import main  # noqa: E402
 
 
@@ -227,6 +227,16 @@ class SynchronousScanTimeoutTest(unittest.TestCase):
         self.assertTrue(payload["sync"])
         self.assertEqual(payload["deep"]["failure_reason"], "scan_timeout")
         self.assertEqual(payload["deep"]["timeout_seconds"], 1)
+        partial = json.loads((target / ".simplicio" / "partial-scan.json").read_text(encoding="utf-8"))
+        self.assertEqual(partial["schema"], "simplicio.partial-scan/v1")
+        self.assertEqual(partial["completeness"], "partial")
+        self.assertEqual(partial["progress"]["phase"], "timeout")
+        self.assertGreaterEqual(partial["progress"]["files_discovered"], 2)
+        self.assertIsNone(partial["progress"]["eta_seconds"])
+        self.assertTrue(partial["resume"]["reuses_unchanged_files"])
+        state = json.loads((target / ".simplicio" / "index-state.json").read_text(encoding="utf-8"))
+        self.assertEqual(state["completeness"], "partial")
+        self.assertEqual(state["resume"]["mode"], "incremental")
 
         status_out = io.StringIO()
         with contextlib.redirect_stdout(status_out):
@@ -235,6 +245,36 @@ class SynchronousScanTimeoutTest(unittest.TestCase):
         self.assertEqual(status["phase"], "failed")
         self.assertTrue(status["terminal"])
         self.assertEqual(status["failure_reason"], "scan_timeout")
+
+        resumed_opts: list[dict] = []
+
+        class FailedWorker:
+            pid = 424243
+
+            def wait(self, timeout=None):
+                return 1
+
+            def poll(self):
+                return 1
+
+        def spawn_resumed(opts):
+            resumed_opts.append(dict(opts))
+            return (
+                {
+                    "pid": 424243,
+                    "process_start": "fake-resume",
+                    "log": str(target / ".simplicio" / "background-index.log"),
+                },
+                FailedWorker(),
+            )
+
+        with mock.patch.object(status_engine, "_spawn_index_process", side_effect=spawn_resumed):
+            resumed_code, resumed_stdout, _ = _run([
+                "scan", str(target), "--sync", "--timeout", "1", "--json",
+            ])
+        self.assertEqual(resumed_code, 0)
+        self.assertTrue(resumed_opts[0]["incremental"])
+        self.assertTrue(json.loads(resumed_stdout)["deep"]["resuming"])
 
 
 class BackgroundWorkerNeverInheritsStdinTest(unittest.TestCase):
@@ -282,7 +322,10 @@ class BackgroundWorkerNeverInheritsStdinTest(unittest.TestCase):
             captured["kwargs"] = kwargs
             return _FakeChild()
 
-        with mock.patch.object(subprocess, "Popen", side_effect=_fake_popen):
+        with (
+            mock.patch.object(subprocess, "Popen", side_effect=_fake_popen),
+            mock.patch.object(cli_background, "_process_start_token", return_value="fake-start"),
+        ):
             payload, child = cli_background._spawn_index_process(opts)
 
         self.assertIs(subprocess.Popen, real_popen)  # patch scoped, no leakage

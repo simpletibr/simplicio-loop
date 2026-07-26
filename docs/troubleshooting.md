@@ -71,6 +71,26 @@ each.
 - Fix: lower `SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES`, or make one explicit
   diagnostic/rollback run with `SIMPLICIO_MAPPER_EXECUTION_PROFILE=sync`.
 
+### Bounded `scan --sync` Times Out On A Large Repository
+
+- The timeout receipt is resumable. Inspect
+  `.simplicio/partial-scan.json` and `.simplicio/index-state.json`; both
+  report `completeness=partial`, measured discovered/processed counts,
+  elapsed time, and `eta_seconds=null` with a reason when no defensible ETA
+  exists.
+- Re-run the same command. A partial checkpoint automatically enables the
+  incremental path, which reuses `FileProcessingCache` entries for unchanged
+  files instead of discarding completed work. `deep.resuming=true` proves
+  that the continuation path was selected.
+- Generated/vendor directories in `SKIP_DIRS` (`node_modules`, `.git`,
+  common build/cache outputs) are excluded automatically. For generated
+  source that must remain visible, control pressure with
+  `SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES`; use
+  `SIMPLICIO_MAPPER_FILE_TIMEOUT_S` for slow individual files.
+- Never delete `index.lock` while `status.lock_status` reports a live owner.
+  The Mapper only reclaims it after PID/start identity proves death,
+  including on Windows.
+
 ### `.simplicio/cache/` Locked Or "File Still In Use" Right After A Run
 
 - Cause: almost always an external process (editor, AV scanner, a

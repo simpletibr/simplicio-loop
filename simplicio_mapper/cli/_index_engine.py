@@ -321,13 +321,25 @@ def _read_index_state(root: str, out: str) -> dict:
     return _read_json_safe(_state_path(root, out))
 
 
-def _write_index_state(root: str, out: str, signature: dict, counts: dict | None = None) -> None:
+def _write_index_state(
+    root: str,
+    out: str,
+    signature: dict,
+    counts: dict | None = None,
+    *,
+    completeness: str = "complete",
+    progress: dict | None = None,
+    resume: dict | None = None,
+) -> None:
     path = _state_path(root, out)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     payload = {
         "schema": INDEX_STATE_SCHEMA,
         "signature": signature,
         "counts": counts or {},
+        "completeness": completeness,
+        "progress": progress or {},
+        "resume": resume,
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     with open(path, "w", encoding="utf-8") as handle:

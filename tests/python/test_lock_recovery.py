@@ -287,7 +287,7 @@ class IndexLockRecoveryTest(unittest.TestCase):
         # and prove acquire/inspect/release still work end to end.
         deep_root = self.root
         segment = "diretório_de_indexação_日本語_très-long_"
-        for index in range(6):
+        for index in range(7):
             deep_root = deep_root / f"{segment}{index}"
         deep_root.mkdir(parents=True, exist_ok=True)
         self.assertGreater(len(str(deep_root)), 260)
