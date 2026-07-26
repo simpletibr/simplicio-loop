@@ -1,9 +1,12 @@
+import argparse
 import json
+import os
 import sys
 
 import pytest
 
 from simplicio import cli
+from simplicio.commands._shared import force_local_if_requested
 from simplicio.scratch.plan_schema import Plan, Task
 
 
@@ -41,6 +44,27 @@ def _diff(path):
 
 def _true_cmd():
     return f'"{sys.executable}" -c "raise SystemExit(0)"'
+
+
+def test_force_local_preserves_explicit_model_and_path(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_LOCAL_INFERENCE", "enabled")
+    monkeypatch.setenv("SIMPLICIO_MODEL", "local-llama//models/qwen.gguf")
+    monkeypatch.setenv("SIMPLICIO_LOCAL_MODEL_PATH", "/models/qwen.gguf")
+
+    force_local_if_requested(argparse.Namespace(local=True))
+
+    assert os.environ["SIMPLICIO_MODEL"] == "local-llama//models/qwen.gguf"
+    assert os.environ["SIMPLICIO_LOCAL_MODEL_PATH"] == "/models/qwen.gguf"
+
+
+def test_force_local_uses_explicit_model_path_when_model_is_unset(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_LOCAL_INFERENCE", "enabled")
+    monkeypatch.delenv("SIMPLICIO_MODEL", raising=False)
+    monkeypatch.setenv("SIMPLICIO_LOCAL_MODEL_PATH", "/models/qwen.gguf")
+
+    force_local_if_requested(argparse.Namespace(local=True))
+
+    assert os.environ["SIMPLICIO_MODEL"] == "local-llama//models/qwen.gguf"
 
 
 def test_run_scope_task_preserves_task_json_contract(tmp_path, monkeypatch, capsys):
