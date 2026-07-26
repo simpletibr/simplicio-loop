@@ -43,12 +43,21 @@ def _map_job_path(root: str, out: str) -> str:
     return os.path.join(os.path.abspath(os.path.join(root, out)), "map-job.json")
 
 
-def _write_map_job(root: str, out: str, envelope: dict) -> None:
-    abs_out = os.path.abspath(os.path.join(root, out))
-    os.makedirs(abs_out, exist_ok=True)
-    with open(_map_job_path(root, out), "w", encoding="utf-8") as handle:
-        json.dump(envelope, handle, indent=2, sort_keys=True)
+def _inspection_path(root: str, out: str) -> str:
+    return os.path.join(os.path.abspath(os.path.join(root, out)), "map-inspection.json")
+
+
+def _write_json_atomic(path: str, payload: dict) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    temporary = f"{path}.tmp-{os.getpid()}"
+    with open(temporary, "w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)
         handle.write("\n")
+    os.replace(temporary, path)
+
+
+def _write_map_job(root: str, out: str, envelope: dict) -> None:
+    _write_json_atomic(_map_job_path(root, out), envelope)
 
 
 def _terminate_index_worker(child: subprocess.Popen) -> None:
@@ -389,12 +398,17 @@ def _run_inspect(opts: dict) -> int:
     status_payload = _status_payload(root, out, phase=phase)
     payload = {
         "schema": MAP_INSPECTION_SCHEMA,
+        "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "root": root.replace(os.sep, "/"),
         "out": os.path.abspath(os.path.join(root, out)).replace(os.sep, "/"),
         "status": status_payload,
         "evidence": status_payload["evidence"],
         "artifacts": {key: path.replace(os.sep, "/") for key, path in _artifact_paths(root, out).items()},
     }
+    if status_payload["terminal"]:
+        receipt_path = _inspection_path(root, out)
+        payload["receipt_path"] = receipt_path.replace(os.sep, "/")
+        _write_json_atomic(receipt_path, payload)
     if opts.get("for_llm") == "toon":
         _print_toon(payload)
     elif opts["json"]:

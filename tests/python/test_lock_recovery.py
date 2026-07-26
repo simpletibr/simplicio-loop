@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import os
 import subprocess
@@ -8,6 +9,7 @@ import tempfile
 import threading
 import time
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -24,7 +26,7 @@ from simplicio_mapper.cli._index_engine import (  # noqa: E402
     _process_start_token,
     _release_index_lock,
 )
-from simplicio_mapper.cli._status_engine import _await_terminal, _status_payload  # noqa: E402
+from simplicio_mapper.cli._status_engine import _await_terminal, _run_inspect, _status_payload  # noqa: E402
 
 
 class IndexLockRecoveryTest(unittest.TestCase):
@@ -187,6 +189,43 @@ class IndexLockRecoveryTest(unittest.TestCase):
         self.assertTrue(payload["terminal"])
         self.assertTrue(payload["lock_status"]["recovered"])
         self.assertEqual(payload["lock_status"]["reason"], "dead_process")
+        self.assertFalse(self.path.exists())
+
+    def test_failed_worker_inspect_persists_fresh_terminal_receipt(self) -> None:
+        self._write_json(pid=2_147_483_647, process_start="gone", acquired_at=time.time())
+        (self.path.parent / "map-job.json").write_text(
+            json.dumps(
+                {
+                    "schema": "simplicio.map-job/v1",
+                    "phase": "deep_running",
+                    "deep": {"pid": 2_147_483_647, "process_start": "gone"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        output = io.StringIO()
+        with redirect_stdout(output):
+            code = _run_inspect(
+                {
+                    "root": str(self.root),
+                    "out": self.out,
+                    "await": True,
+                    "timeout": 1,
+                    "json": True,
+                    "for_llm": "",
+                }
+            )
+        self.assertEqual(code, 0)
+        emitted = json.loads(output.getvalue())
+        receipt_path = self.path.parent / "map-inspection.json"
+        self.assertTrue(receipt_path.is_file())
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        self.assertEqual(receipt, emitted)
+        self.assertEqual(receipt["status"]["phase"], "failed")
+        self.assertTrue(receipt["status"]["terminal"])
+        self.assertFalse(receipt["status"]["fresh"])
+        self.assertEqual(receipt["status"]["failure_reason"], "worker_died_before_terminal")
+        self.assertIn("generated_at", receipt)
         self.assertFalse(self.path.exists())
 
     def test_live_full_schema_lock_is_never_stolen_and_reports_owner_evidence(self) -> None:
