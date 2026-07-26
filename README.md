@@ -52,6 +52,21 @@ Auto-upgrade is now opt-in: set `SIMPLICIO_AUTO_UPGRADE=1` for session-start upg
 Python consumers can expose the bundled mapper dependency directly with
 `from simplicio import mapper_module, mapper_version` or `import simplicio.mapper_api`.
 
+### Local model precedence and timeout
+
+`--local` preserves explicit operator configuration. Precedence is:
+
+1. `SIMPLICIO_LOCAL_MODEL_PATH` selects an existing GGUF and never downloads a replacement.
+2. An explicit `SIMPLICIO_MODEL=local-llama/...` selects its path/repository and is not replaced.
+3. A loopback `SIMPLICIO_BASE_URL` selects the existing llama.cpp/OpenAI-compatible server.
+4. Only when none of the above is configured does `--local` select the bundled MiniCPM5 default.
+
+Local GGUF generation runs in an isolated process with a hard 180-second deadline.
+Set `SIMPLICIO_LOCAL_TIMEOUT_S` to another positive number of seconds. On timeout,
+the complete worker process tree is terminated and the JSON task result includes a
+`simplicio.local-generation-terminal/v1` receipt; no patch is applied. Use `0` only
+for trusted embedding/tests that deliberately accept unbounded in-process execution.
+
 ## What it does
 
 - Accepts a focused task from the runtime, agent, or CLI surface.

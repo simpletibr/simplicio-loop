@@ -36,7 +36,9 @@ Four modes, picked by SIMPLICIO_MODEL prefix (or by absence of config):
      pip install 'simplicio-cli[local]'.
 """
 
+import multiprocessing
 import os
+import queue
 import shutil
 import subprocess
 import tempfile
@@ -286,6 +288,7 @@ LOCAL_DEFAULT_THREADS = min(os.cpu_count() or 1, 4)
 LOCAL_MAX_THREADS = 4
 LOCAL_DEFAULT_MAX_TOKENS = 512
 LOCAL_MAX_OUTPUT_TOKENS = 2048
+LOCAL_DEFAULT_TIMEOUT_S = 180.0
 LOCAL_DEFAULT_BATCH = 128
 LOCAL_MAX_BATCH = 128
 LOCAL_DEFAULT_UBATCH = 32
@@ -527,8 +530,8 @@ def _local_llama(model):
     return llm
 
 
-def _local_generate(prompt, feedback, model, max_tokens):
-    """Generate a completion in-process via llama-cpp-python."""
+def _local_generate_direct(prompt, feedback, model, max_tokens):
+    """Generate one completion inside the isolated local worker."""
     llm = _local_llama(model)
     out_tokens = _safe_local_max_tokens(max_tokens)
     temperature = float(os.environ.get("SIMPLICIO_LOCAL_TEMP", "0.1"))
@@ -538,6 +541,85 @@ def _local_generate(prompt, feedback, model, max_tokens):
         temperature=temperature,
     )
     return r["choices"][0]["message"]["content"] or ""
+
+
+def _local_timeout_s() -> float:
+    raw = os.environ.get("SIMPLICIO_LOCAL_TIMEOUT_S", "").strip()
+    if raw == "0":
+        return 0.0
+    try:
+        value = float(raw) if raw else LOCAL_DEFAULT_TIMEOUT_S
+    except ValueError:
+        return LOCAL_DEFAULT_TIMEOUT_S
+    return value if value > 0 else LOCAL_DEFAULT_TIMEOUT_S
+
+
+def _local_worker(result_queue, prompt, feedback, model, max_tokens) -> None:
+    if os.name != "nt":
+        try:
+            os.setsid()
+        except OSError:
+            pass
+    try:
+        result_queue.put({"ok": True, "output": _local_generate_direct(prompt, feedback, model, max_tokens)})
+    except BaseException as exc:
+        result_queue.put({"ok": False, "error": str(exc), "error_type": type(exc).__name__})
+
+
+def _local_terminal(reason_code: str, model: str, *, detail: str = "") -> ProviderExecutionError:
+    _, _, path = _local_spec(model)
+    return ProviderExecutionError(
+        {
+            "schema": "simplicio.local-generation-terminal/v1",
+            "status": "blocked",
+            "reason_code": reason_code,
+            "retryable": True,
+            "requested_model": os.environ.get("SIMPLICIO_MODEL") or model,
+            "effective_model": model,
+            "provider": "local-llama",
+            "model_path": path,
+            "route": "isolated-process",
+            "timeout_s": _local_timeout_s(),
+            "detail": detail[:500],
+            "next_action": "reduce task scope or raise SIMPLICIO_LOCAL_TIMEOUT_S, then retry",
+            "message": f"{reason_code}: local generation did not complete",
+        }
+    )
+
+
+def _local_generate(prompt, feedback, model, max_tokens):
+    """Generate in an isolated, hard-deadline process."""
+    timeout = _local_timeout_s()
+    if timeout == 0:
+        return _local_generate_direct(prompt, feedback, model, max_tokens)
+    context = multiprocessing.get_context("spawn" if os.name == "nt" else "fork")
+    result_queue = context.Queue(maxsize=1)
+    process = context.Process(
+        target=_local_worker,
+        args=(result_queue, prompt, feedback, model, max_tokens),
+        daemon=False,
+    )
+    process.start()
+    process.join(timeout)
+    if process.is_alive():
+        from .task_operator import kill_process_tree
+
+        kill_process_tree(process)
+        process.join(5)
+        raise _local_terminal("local_generation_timeout", model)
+    try:
+        payload = result_queue.get(timeout=1)
+    except queue.Empty as exc:
+        raise _local_terminal(
+            "local_generation_worker_failed", model, detail=f"worker exit code {process.exitcode}"
+        ) from exc
+    if not payload.get("ok"):
+        raise _local_terminal(
+            "local_model_unhealthy",
+            model,
+            detail=f"{payload.get('error_type')}: {payload.get('error')}",
+        )
+    return str(payload.get("output") or "")
 
 
 def _provider_id(model, base):
@@ -1134,7 +1216,7 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
             receipt=receipt,
         )
 
-    if not c["key"]:
+    if not c["key"] and not is_local_endpoint(c["base"]):
         raise SystemExit(
             "set SIMPLICIO_API_KEY (or OPENROUTER_/ANTHROPIC_API_KEY). "
             "No key? Use SIMPLICIO_MODEL=claude-cli/<model> or codex-cli/<model> "
@@ -1159,7 +1241,14 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
         )
 
     # Any OpenAI-compatible endpoint (OpenRouter, GLM, DeepSeek, local...)
-    out, usage = _openai_compatible_generate(model, c["base"], c["key"], prompt, feedback, max_tokens)
+    out, usage = _openai_compatible_generate(
+        model,
+        c["base"],
+        c["key"] or "local",
+        prompt,
+        feedback,
+        max_tokens,
+    )
     return _finalize_completion(
         key=key,
         out=out,

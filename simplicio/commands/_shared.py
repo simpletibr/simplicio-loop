@@ -44,9 +44,12 @@ def force_local_if_requested(a: argparse.Namespace) -> None:
         from ..providers import LOCAL_DEFAULT_MODEL
 
         if not requested_model:
-            os.environ["SIMPLICIO_MODEL"] = (
-                f"local-llama/{requested_path}" if requested_path else LOCAL_DEFAULT_MODEL
-            )
+            if requested_path:
+                os.environ["SIMPLICIO_MODEL"] = f"local-llama/{requested_path}"
+            elif requested_base:
+                os.environ["SIMPLICIO_MODEL"] = os.environ.get("SIMPLICIO_LOCAL_SERVER_MODEL", "local-model")
+            else:
+                os.environ["SIMPLICIO_MODEL"] = LOCAL_DEFAULT_MODEL
         if not requested_base:
             os.environ.pop("SIMPLICIO_BASE_URL", None)
         os.environ.pop("SIMPLICIO_API_KEY", None)

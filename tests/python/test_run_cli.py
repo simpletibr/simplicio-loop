@@ -67,6 +67,17 @@ def test_force_local_uses_explicit_model_path_when_model_is_unset(monkeypatch):
     assert os.environ["SIMPLICIO_MODEL"] == "local-llama//models/qwen.gguf"
 
 
+def test_force_local_preserves_loopback_server_without_default_gguf(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_LOCAL_INFERENCE", "enabled")
+    monkeypatch.delenv("SIMPLICIO_MODEL", raising=False)
+    monkeypatch.setenv("SIMPLICIO_BASE_URL", "http://127.0.0.1:8090/v1")
+
+    force_local_if_requested(argparse.Namespace(local=True))
+
+    assert os.environ["SIMPLICIO_MODEL"] == "local-model"
+    assert os.environ["SIMPLICIO_BASE_URL"] == "http://127.0.0.1:8090/v1"
+
+
 def test_run_scope_task_preserves_task_json_contract(tmp_path, monkeypatch, capsys):
     _write(tmp_path / "frontend" / "app.ts", "old\n")
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")

@@ -7,6 +7,7 @@ heavy model load (`_local_llama`) when exercising explicit GGUF fallback paths.
 
 import os
 import sys
+import time
 import types
 from unittest.mock import MagicMock
 
@@ -40,12 +41,14 @@ def _clean(tmp_path, monkeypatch):
         "SIMPLICIO_LOCAL_MAX_TOKENS",
         "SIMPLICIO_LOCAL_MAX_TOKENS_CAP",
         "SIMPLICIO_LOCAL_TEMP",
+        "SIMPLICIO_LOCAL_TIMEOUT_S",
     ):
         monkeypatch.delenv(v, raising=False)
     monkeypatch.setenv("SIMPLICIO_CACHE_DIR", str(tmp_path / "cache"))
     # Tests below that exercise a real local route opt in explicitly.  Product
     # default is covered by the dedicated fail-closed regression tests.
     monkeypatch.setenv("SIMPLICIO_LOCAL_INFERENCE", "enabled")
+    monkeypatch.setenv("SIMPLICIO_LOCAL_TIMEOUT_S", "0")
     monkeypatch.delenv("SIMPLICIO_BUST_CACHE", raising=False)
     providers._LOCAL_LLAMA_CACHE.clear()
     reset_for_tests()
@@ -480,6 +483,26 @@ def test_local_generate_clamps_unsafe_token_cap(monkeypatch):
     providers._local_generate("p", None, "local-llama/default", 4000)
     kwargs = llm.create_chat_completion.call_args[1]
     assert kwargs["max_tokens"] == providers.LOCAL_MAX_OUTPUT_TOKENS
+
+
+def test_local_generation_timeout_emits_receipt_and_reaps_worker(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_LOCAL_TIMEOUT_S", "0.05")
+
+    def stalled(*args, **kwargs):
+        time.sleep(5)
+        return "too late"
+
+    monkeypatch.setattr(providers, "_local_generate_direct", stalled)
+
+    with pytest.raises(providers.ProviderExecutionError) as exc:
+        providers._local_generate("task", None, "local-llama/default", 32)
+
+    receipt = exc.value.receipt
+    assert receipt["schema"] == "simplicio.local-generation-terminal/v1"
+    assert receipt["reason_code"] == "local_generation_timeout"
+    assert receipt["route"] == "isolated-process"
+    assert receipt["timeout_s"] == 0.05
+    assert receipt["retryable"] is True
 
 
 def test_generate_cache_key_includes_weights(monkeypatch):
