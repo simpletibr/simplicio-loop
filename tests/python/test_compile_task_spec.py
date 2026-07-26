@@ -50,6 +50,35 @@ def test_compile_task_spec_is_deterministic() -> None:
     assert plan_a.canonical_hash() == plan_b.canonical_hash()
 
 
+def test_compile_records_semantic_context_budget_spans_and_expected_hashes() -> None:
+    task_spec = _task_spec(
+        extra_fields={
+            "context_budget_tokens": 100,
+            "context_consumed_tokens": 120,
+            "selected_span_ids": ["symbol:user.create", "file:src/users.py"],
+            "expected_hashes": {"src/users.py": "a" * 64},
+        }
+    )
+
+    plan, effects, _ = compile_task_spec_to_plan(
+        task_spec,
+        **COMPILE_KWARGS,
+        context_handle="sha256:" + "b" * 64,
+    )
+
+    for node in plan.nodes:
+        assert node.semantic_inputs == [
+            "snapshot:snap-1",
+            "context:sha256:" + "b" * 64,
+        ]
+        assert node.context_budget_tokens == 100
+        assert node.context_consumed_tokens == 120
+        assert node.context_truncated is True
+        assert node.selected_span_ids == ["file:src/users.py", "symbol:user.create"]
+    assert "file_sha256:src/users.py:" + "a" * 64 in effects[0].preconditions
+    assert "content" not in str(plan.to_dict()).lower()
+
+
 def test_compile_task_spec_rejects_missing_acceptance_criteria() -> None:
     task_spec = _task_spec(acceptance_criteria=[])
 

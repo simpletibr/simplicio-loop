@@ -166,6 +166,11 @@ class ContextHandle:
     mapper_version: str
     source_root_identity: str
     projection_digest: str
+    generation: str = ""
+    repository: str = ""
+    commit: str = ""
+    overlay: str = ""
+    context_schema: str = MAPPER_CONTEXT_SNAPSHOT_SCHEMA
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -177,6 +182,11 @@ class ContextHandle:
             "mapper_version": self.mapper_version,
             "source_root_identity": self.source_root_identity,
             "projection_digest": self.projection_digest,
+            "generation": self.generation,
+            "repository": self.repository,
+            "commit": self.commit,
+            "overlay": self.overlay,
+            "context_schema": self.context_schema,
         }
 
     @property
@@ -223,6 +233,11 @@ class ContextBindingCache:
             "mapper_version": str(getattr(handle, "mapper_version", "")),
             "source_root_identity": str(getattr(handle, "source_root_identity", "")),
             "projection_digest": str(getattr(handle, "projection_digest", "")),
+            "generation": str(getattr(handle, "generation", "")),
+            "repository": str(getattr(handle, "repository", "")),
+            "commit": str(getattr(handle, "commit", "")),
+            "overlay": str(getattr(handle, "overlay", "")),
+            "context_schema": str(getattr(handle, "context_schema", "")),
         }
 
     def lookup(self, handle: ContextHandle) -> dict[str, Any]:
@@ -572,6 +587,11 @@ def bind_mapper_context(
         mapper_version=mapper_version,
         source_root_identity=snapshot.view.root_hash,
         projection_digest=pack.projection_digest,
+        generation=str(snapshot.payload.get("generation") or snapshot.view.revision),
+        repository=str(snapshot.payload.get("repository") or MAPPER_CONTRACT_OWNER),
+        commit=str(snapshot.payload.get("commit") or MAPPER_CONTRACT_COMMIT),
+        overlay=str(snapshot.payload.get("overlay") or ""),
+        context_schema=MAPPER_CONTEXT_SNAPSHOT_SCHEMA,
     )
     return ContextBinding(snapshot=snapshot, pack=pack, context_handle=handle)
 

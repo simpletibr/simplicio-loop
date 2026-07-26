@@ -102,6 +102,11 @@ class PlanNode:
     requires_gate: bool = False
     checkpoint_required: bool = False
     rollback_strategy: str | None = None
+    semantic_inputs: list[str] = field(default_factory=list)
+    context_budget_tokens: int = 0
+    context_consumed_tokens: int = 0
+    selected_span_ids: list[str] = field(default_factory=list)
+    context_truncated: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         payload = {
@@ -123,6 +128,16 @@ class PlanNode:
         }
         if self.conflicts_with or self._conflicts_with_explicit:
             payload["conflicts_with"] = self.conflicts_with
+        if self.semantic_inputs:
+            payload["semantic_inputs"] = self.semantic_inputs
+        if self.context_budget_tokens:
+            payload["context_budget_tokens"] = self.context_budget_tokens
+        if self.context_consumed_tokens:
+            payload["context_consumed_tokens"] = self.context_consumed_tokens
+        if self.selected_span_ids:
+            payload["selected_span_ids"] = self.selected_span_ids
+        if self.context_truncated:
+            payload["context_truncated"] = self.context_truncated
         return payload
 
     @classmethod
@@ -145,6 +160,11 @@ class PlanNode:
             requires_gate=bool(payload.get("requires_gate", False)),
             checkpoint_required=bool(payload.get("checkpoint_required", False)),
             rollback_strategy=payload.get("rollback_strategy"),
+            semantic_inputs=list(payload.get("semantic_inputs", [])),
+            context_budget_tokens=int(payload.get("context_budget_tokens", 0)),
+            context_consumed_tokens=int(payload.get("context_consumed_tokens", 0)),
+            selected_span_ids=list(payload.get("selected_span_ids", [])),
+            context_truncated=bool(payload.get("context_truncated", False)),
         )
 
 

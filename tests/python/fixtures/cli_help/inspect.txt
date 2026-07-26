@@ -1,4 +1,6 @@
-usage: simplicio-py inspect [-h] [--root ROOT] [--goal GOAL] [--json] target
+usage: simplicio-py inspect [-h] [--root ROOT] [--goal GOAL] [--context]
+                            [--json]
+                            target
 
 positional arguments:
   target
@@ -7,4 +9,5 @@ options:
   -h, --help   show this help message and exit
   --root ROOT
   --goal GOAL
+  --context    explain why each Mapper file/symbol was selected
   --json

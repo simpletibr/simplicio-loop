@@ -114,6 +114,31 @@ def test_inspect_run_json(tmp_path, monkeypatch, capsys):
     assert payload["context"] == "hello"
 
 
+def test_inspect_context_explains_stable_file_selection(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(
+        "simplicio.mapper.inspect_target",
+        lambda root, target, goal="": {
+            "context": "hello",
+            "target": target,
+            "relevant_files": [{"path": "app.py", "roles": ["entrypoint"]}],
+        },
+    )
+
+    code = inspect_cmd.run(
+        ns(root=str(tmp_path), target="app.py", goal="update app", context=True, json=True)
+    )
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["context_explain"] == [
+        {
+            "stable_id": "file:app.py",
+            "path": "app.py",
+            "reasons": ["target_match", "role:entrypoint", "goal_ranked"],
+        }
+    ]
+
+
 def test_env_export_run_json(tmp_path, capsys):
     env_file = tmp_path / ".env"
     env_file.write_text("FOO=bar\n", encoding="utf-8")

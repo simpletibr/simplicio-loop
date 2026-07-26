@@ -99,6 +99,15 @@ def compile_task_spec_to_plan(
         raise PlanCompilationError("; ".join(diagnostics))
 
     ac_refs = [str(criterion["id"]) for criterion in task_spec.acceptance_criteria]
+    context_budget_tokens = int(task_spec.extra_fields.get("context_budget_tokens", 0))
+    context_consumed_tokens = int(task_spec.extra_fields.get("context_consumed_tokens", 0))
+    selected_span_ids = sorted(
+        str(item) for item in task_spec.extra_fields.get("selected_span_ids", []) if str(item)
+    )
+    semantic_inputs = [
+        f"snapshot:{context_snapshot_id}",
+        *([f"context:{context_handle}"] if context_handle else []),
+    ]
 
     edit_node = PlanNode(
         node_id=EDIT_NODE_ID,
@@ -108,6 +117,11 @@ def compile_task_spec_to_plan(
         risk="medium",
         reason_codes=["task_spec_compile"],
         requires_gate=True,
+        semantic_inputs=semantic_inputs,
+        context_budget_tokens=context_budget_tokens,
+        context_consumed_tokens=context_consumed_tokens,
+        selected_span_ids=selected_span_ids,
+        context_truncated=context_consumed_tokens > context_budget_tokens > 0,
     )
     verify_node = PlanNode(
         node_id=VERIFY_NODE_ID,
@@ -115,6 +129,11 @@ def compile_task_spec_to_plan(
         depends_on=[EDIT_NODE_ID],
         acceptance_criteria_refs=ac_refs,
         reason_codes=["task_spec_compile"],
+        semantic_inputs=semantic_inputs,
+        context_budget_tokens=context_budget_tokens,
+        context_consumed_tokens=context_consumed_tokens,
+        selected_span_ids=selected_span_ids,
+        context_truncated=context_consumed_tokens > context_budget_tokens > 0,
     )
 
     plan = PlanDAG(
@@ -144,6 +163,12 @@ def compile_task_spec_to_plan(
             preconditions=[
                 f"context_snapshot:{context_snapshot_id}",
                 *([f"context_handle:{context_handle}"] if context_handle else []),
+                *[
+                    f"file_sha256:{path}:{digest}"
+                    for path, digest in sorted(
+                        dict(task_spec.extra_fields.get("expected_hashes", {})).items()
+                    )
+                ],
             ],
             artifact_ref=(
                 task_spec.extra_fields.get("artifact_ref")

@@ -10,7 +10,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-BASELINE_SHA256 = "63c90bd69b6559afea1c5aeb5e64fd4e3142e6f5d5fe35a8f5ae55e5fe88c40c"
+BASELINE_SHA256 = "a00d4907379e59666231f04b8f10747b495ad2665d3754e011f97b8ecbf932e4"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",

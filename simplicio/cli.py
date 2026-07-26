@@ -298,6 +298,11 @@ def _build_parser() -> argparse.ArgumentParser:
     p_inspect.add_argument("target")
     p_inspect.add_argument("--root", default=".")
     p_inspect.add_argument("--goal", default="")
+    p_inspect.add_argument(
+        "--context",
+        action="store_true",
+        help="explain why each Mapper file/symbol was selected",
+    )
     p_inspect.add_argument("--json", action="store_true")
 
     p_intake = sub.add_parser(
