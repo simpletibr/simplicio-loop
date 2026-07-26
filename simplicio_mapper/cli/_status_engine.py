@@ -156,6 +156,12 @@ def _await_terminal(root: str, out: str, timeout: int, poll: float = 0.2) -> str
     while phase == "deep_running" and time.monotonic() < deadline:
         time.sleep(poll)
         phase = _deep_phase(root, out)
+    if phase == "deep_running":
+        # This is the terminal result of the bounded *await operation*, not a
+        # claim that the worker stopped.  The live-owner lock remains intact
+        # and a later status call may still observe ``deep_running`` or
+        # ``complete``.
+        return "timeout"
     return phase
 
 
@@ -312,9 +318,17 @@ def _status_payload(root: str, out: str, *, phase: str | None = None) -> dict:
         "terminal": current_phase != "deep_running",
         "lock": lock_status["active"],
         "lock_status": lock_status,
-        "failure_reason": worker_failure if current_phase == "failed" else None,
+        "failure_reason": (
+            "scan_timeout"
+            if current_phase == "timeout"
+            else worker_failure
+            if current_phase == "failed"
+            else None
+        ),
         "retry_guidance": (
-            "rerun scan; lock is owned by a live process"
+            "rerun status --await with a larger timeout; worker is still active"
+            if current_phase == "timeout" and lock_status.get("reason_code") == "lock_live_owner"
+            else "rerun scan; lock is owned by a live process"
             if lock_status.get("reason_code") == "lock_live_owner"
             else "rerun scan to recover and rebuild"
             if current_phase == "failed"
@@ -390,7 +404,7 @@ def _run_inspect(opts: dict) -> int:
             f"inspect phase={status_payload['phase']} fresh={status_payload['fresh']} "
             f"cache_entries={status_payload['cache']['entries']}"
         )
-    return 0
+    return 1 if phase == "timeout" else 0
 
 
 def _run_handoff(opts: dict) -> int:
@@ -721,4 +735,4 @@ def _run_status(opts: dict) -> int:
         print(json.dumps(payload, sort_keys=True))
     else:
         print(f"status phase={phase} lock={payload['lock']} fresh={payload['fresh']}")
-    return 0
+    return 1 if phase == "timeout" else 0

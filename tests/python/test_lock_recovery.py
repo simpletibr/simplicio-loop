@@ -24,7 +24,7 @@ from simplicio_mapper.cli._index_engine import (  # noqa: E402
     _process_start_token,
     _release_index_lock,
 )
-from simplicio_mapper.cli._status_engine import _status_payload  # noqa: E402
+from simplicio_mapper.cli._status_engine import _await_terminal, _status_payload  # noqa: E402
 
 
 class IndexLockRecoveryTest(unittest.TestCase):
@@ -212,6 +212,23 @@ class IndexLockRecoveryTest(unittest.TestCase):
             self.assertIn("age_seconds", status)
             payload = _status_payload(str(self.root), self.out)
             self.assertEqual(payload["retry_guidance"], "rerun scan; lock is owned by a live process")
+        finally:
+            _release_index_lock(lock)
+
+    def test_bounded_await_returns_explicit_timeout_without_stealing_live_lock(self) -> None:
+        lock = _acquire_index_lock(str(self.root), self.out)
+        self.assertIsNotNone(lock)
+        assert lock is not None
+        try:
+            phase = _await_terminal(str(self.root), self.out, timeout=0)
+            self.assertEqual(phase, "timeout")
+            payload = _status_payload(str(self.root), self.out, phase=phase)
+            self.assertTrue(payload["terminal"])
+            self.assertEqual(payload["failure_reason"], "scan_timeout")
+            self.assertTrue(payload["lock"])
+            self.assertEqual(payload["lock_status"]["reason_code"], "lock_live_owner")
+            self.assertIn("larger timeout", payload["retry_guidance"])
+            self.assertTrue(self.path.exists())
         finally:
             _release_index_lock(lock)
 
