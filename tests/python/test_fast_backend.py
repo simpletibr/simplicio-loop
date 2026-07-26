@@ -8,7 +8,7 @@ from io import StringIO
 from pathlib import Path
 
 from simplicio_mapper.cli import main
-from simplicio_mapper.fast_backend import diagnose_fast, resolve_backend
+from simplicio_mapper.fast_backend import FastContextHandle, diagnose_fast, resolve_backend
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -139,6 +139,37 @@ class FastBackendTest(unittest.TestCase):
             code = main(["doctor", "--fast", str(self.manifest), "--json"])
         self.assertEqual(code, 0)
         self.assertTrue(json.loads(output.getvalue())["compatible"])
+
+    def test_context_handle_is_engine_neutral_and_digest_stable(self) -> None:
+        payload = self._write_manifest()
+        payload.update({"repository": "wesleysimplicio/example", "commit": "abc123"})
+        handle = FastContextHandle.from_manifest(
+            payload, repository=payload["repository"], commit=payload["commit"], engine="rust"
+        )
+        self.assertEqual(handle.to_dict()["schema"], "simplicio.fast-context-handle/v1")
+        self.assertEqual(handle.to_dict()["engine"], "rust")
+        self.assertEqual(len(handle.digest), 64)
+        self.assertNotIn("offset", json.dumps(handle.to_dict()))
+        self.assertNotIn("mmap", json.dumps(handle.to_dict()))
+
+    def test_context_handle_rejects_storage_details_and_bad_hashes(self) -> None:
+        handle = FastContextHandle(
+            repository="repo", commit="abc", base_generation="g1",
+            source_hashes=(("src/main.py", "not-a-sha"),),
+        )
+        with self.assertRaises(ValueError):
+            handle.validate()
+
+    def test_invalid_manifest_handle_falls_back_with_reason(self) -> None:
+        payload = self._write_manifest()
+        payload.update({"repository": "repo", "commit": "abc", "engine": "rust"})
+        payload["projections"]["files"][0]["content_hash"] = "bad"
+        self.manifest.write_text(json.dumps(payload), encoding="utf-8")
+        resolution = resolve_backend(
+            root=str(self.root), local_artifacts=self.local, mode="fast", manifest_path=str(self.manifest)
+        )
+        self.assertEqual(resolution.receipt["status"], "degraded")
+        self.assertTrue(resolution.receipt["reason"].startswith("fast_context_handle_invalid:"))
 
 
 if __name__ == "__main__":
