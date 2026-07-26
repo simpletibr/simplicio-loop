@@ -29,13 +29,26 @@ def force_local_if_requested(a: argparse.Namespace) -> None:
     if getattr(a, "local", False):
         from ..local_inference import require_enabled
 
-        require_enabled(surface="cli_--local")
+        requested_model = os.environ.get("SIMPLICIO_MODEL", "").strip()
+        requested_path = os.environ.get("SIMPLICIO_LOCAL_MODEL_PATH", "").strip()
+        requested_base = os.environ.get("SIMPLICIO_BASE_URL", "").strip()
+        require_enabled(
+            surface="cli_--local",
+            model=requested_model or None,
+            base_url=requested_base or None,
+        )
         # Force Path 4: local in-process llama.cpp. This keeps local execution
-        # independent from Ollama or any HTTP service.
+        # independent from remote services.  Explicit operator selection wins:
+        # a local-llama model, GGUF path, or loopback llama.cpp endpoint must
+        # never be silently replaced by the bundled default.
         from ..providers import LOCAL_DEFAULT_MODEL
 
-        os.environ["SIMPLICIO_MODEL"] = LOCAL_DEFAULT_MODEL
-        os.environ.pop("SIMPLICIO_BASE_URL", None)
+        if not requested_model:
+            os.environ["SIMPLICIO_MODEL"] = (
+                f"local-llama/{requested_path}" if requested_path else LOCAL_DEFAULT_MODEL
+            )
+        if not requested_base:
+            os.environ.pop("SIMPLICIO_BASE_URL", None)
         os.environ.pop("SIMPLICIO_API_KEY", None)
 
 
