@@ -15,6 +15,7 @@ from simplicio.plan_compiler.mapper_context import (
     MAPPER_CONTEXT_SNAPSHOT_SCHEMA,
     MAPPER_EXECUTION_CONTEXT_SCHEMA,
     ContextBindingCache,
+    ContextHandle,
     MapperContextError,
     bind_mapper_context,
     load_mapper_context,
@@ -127,6 +128,40 @@ def test_context_handle_is_deterministic_and_binds_snapshot_and_pack(mapper_boun
 
     changed = _pack(payload, recent_changes=["src/main.py"])
     assert bind_mapper_context(payload, changed).context_handle.value != first.context_handle.value
+
+
+def test_fast_v3_context_provenance_is_additive_and_engine_neutral() -> None:
+    handle = ContextHandle(
+        snapshot_id="snap-1",
+        revision="rev-2",
+        source_digest="a" * 64,
+        pack_hash="b" * 64,
+        mapper_version="0.25.0",
+        source_root_identity="root",
+        projection_digest="c" * 64,
+        generation="g-1",
+        repository="wesleysimplicio/example",
+        commit="deadbeef",
+        base_generation="g-1",
+        overlay_generation="overlay-1",
+        engine="rust",
+        capability_digest="d" * 64,
+        source_hashes=(("src/main.py", "e" * 64),),
+    )
+    handle.validate_engine_binding()
+    payload = handle.to_dict()
+    assert payload["engine"] == "rust"
+    assert payload["base_generation"] == "g-1"
+    assert payload["source_hashes"]["src/main.py"] == "e" * 64
+    assert "offset" not in json.dumps(payload)
+    assert "mmap" not in json.dumps(payload)
+
+    with pytest.raises(MapperContextError, match="ENGINE_CAPABILITIES_MISSING"):
+        ContextHandle(
+            snapshot_id="s", revision="r", source_digest="a" * 64,
+            pack_hash="b" * 64, mapper_version="m", source_root_identity="root",
+            projection_digest="c" * 64, generation="g", engine="rust",
+        ).validate_engine_binding()
 
 
 def test_context_binding_cache_is_cross_process_and_digest_scoped(
