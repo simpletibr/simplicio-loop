@@ -171,9 +171,17 @@ class ContextHandle:
     commit: str = ""
     overlay: str = ""
     context_schema: str = MAPPER_CONTEXT_SNAPSHOT_SCHEMA
+    # Fast V3 additive provenance.  These fields are optional so older Mapper
+    # snapshots keep their exact wire shape while newer Python/Rust engines
+    # can share one engine-neutral binding.
+    base_generation: str = ""
+    overlay_generation: str = ""
+    engine: str = ""
+    capability_digest: str = ""
+    source_hashes: tuple[tuple[str, str], ...] = ()
 
-    def to_dict(self) -> dict[str, str]:
-        return {
+    def to_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
             "schema": DEV_CLI_CONTEXT_HANDLE_SCHEMA,
             "snapshot_id": self.snapshot_id,
             "revision": self.revision,
@@ -188,6 +196,31 @@ class ContextHandle:
             "overlay": self.overlay,
             "context_schema": self.context_schema,
         }
+        if self.base_generation:
+            payload["base_generation"] = self.base_generation
+        if self.overlay_generation:
+            payload["overlay_generation"] = self.overlay_generation
+        if self.engine:
+            payload["engine"] = self.engine
+        if self.capability_digest:
+            payload["capability_digest"] = self.capability_digest
+        if self.source_hashes:
+            payload["source_hashes"] = {key: value for key, value in self.source_hashes}
+        return payload
+
+    def validate_engine_binding(self) -> None:
+        """Reject engine-specific or stale provenance before plan compilation."""
+        if self.engine and self.engine not in {"python", "rust"}:
+            raise MapperContextError("ENGINE_UNSUPPORTED", f"unsupported Fast engine: {self.engine}")
+        if self.engine == "rust" and not self.capability_digest:
+            raise MapperContextError("ENGINE_CAPABILITIES_MISSING", "Rust context is missing capability digest")
+        if self.base_generation and self.generation and self.base_generation != self.generation:
+            raise MapperContextError("GENERATION_MISMATCH", "base generation does not match context generation")
+        for path, digest in self.source_hashes:
+            if not path or not _SHA256_RE.fullmatch(str(digest).removeprefix("sha256:")):
+                raise MapperContextError("SOURCE_HASH_INVALID", f"invalid source hash for {path}")
+        if any("offset" in key.casefold() or "mmap" in key.casefold() for key in self.to_dict()):
+            raise MapperContextError("ENGINE_INTERNAL_LEAK", "context handle exposes storage internals")
 
     @property
     def digest(self) -> str:
@@ -238,6 +271,13 @@ class ContextBindingCache:
             "commit": str(getattr(handle, "commit", "")),
             "overlay": str(getattr(handle, "overlay", "")),
             "context_schema": str(getattr(handle, "context_schema", "")),
+            "base_generation": str(getattr(handle, "base_generation", "")),
+            "overlay_generation": str(getattr(handle, "overlay_generation", "")),
+            "engine": str(getattr(handle, "engine", "")),
+            "capability_digest": str(getattr(handle, "capability_digest", "")),
+            "source_hashes_digest": hashlib.sha256(
+                _canonical_json_bytes(dict(getattr(handle, "source_hashes", ())))
+            ).hexdigest(),
         }
 
     def lookup(self, handle: ContextHandle) -> dict[str, Any]:
@@ -579,6 +619,10 @@ def bind_mapper_context(
             raise MapperContextError(
                 "MAPPER_VERSION_UNAVAILABLE", "Mapper producer version is unavailable"
             ) from exc
+    fast_provenance = any(
+        key in snapshot.payload
+        for key in ("base_generation", "overlay_generation", "engine", "capability_digest", "source_hashes")
+    )
     handle = ContextHandle(
         snapshot_id=snapshot.view.snapshot_id,
         revision=snapshot.view.revision,
@@ -592,7 +636,21 @@ def bind_mapper_context(
         commit=str(snapshot.payload.get("commit") or MAPPER_CONTRACT_COMMIT),
         overlay=str(snapshot.payload.get("overlay") or ""),
         context_schema=MAPPER_CONTEXT_SNAPSHOT_SCHEMA,
+        base_generation=(str(snapshot.payload.get("base_generation") or snapshot.payload.get("generation") or snapshot.view.revision)
+                        if fast_provenance else ""),
+        overlay_generation=(str(snapshot.payload.get("overlay_generation") or snapshot.payload.get("overlay") or "")
+                           if fast_provenance else ""),
+        engine=str(snapshot.payload.get("engine") or ""),
+        capability_digest=str(snapshot.payload.get("capability_digest") or ""),
+        source_hashes=tuple(
+            sorted(
+                (str(item.get("path") or ""), str(item.get("sha256") or item.get("content_hash") or ""))
+                for item in (snapshot.payload.get("source_hashes") or [])
+                if isinstance(item, Mapping)
+            )
+        ),
     )
+    handle.validate_engine_binding()
     return ContextBinding(snapshot=snapshot, pack=pack, context_handle=handle)
 
 
