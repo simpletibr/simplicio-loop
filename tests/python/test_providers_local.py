@@ -98,6 +98,47 @@ def test_loopback_ollama_route_fails_closed_before_socket(monkeypatch):
     remote.assert_not_called()
 
 
+def test_loopback_endpoint_connection_failure_has_actionable_receipt(monkeypatch):
+    class FakeCompletions:
+        @staticmethod
+        def create(**kwargs):
+            raise ConnectionError("connection refused")
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs):
+            self.chat = types.SimpleNamespace(completions=FakeCompletions())
+
+    monkeypatch.setattr(providers, "_import_openai", lambda: FakeOpenAI)
+
+    with pytest.raises(providers.ProviderExecutionError) as exc:
+        providers._openai_compatible_generate("qwen-local", "http://127.0.0.1:8090/v1", "", "task", None, 32)
+
+    receipt = exc.value.receipt
+    assert receipt["schema"] == "simplicio.local-inference-terminal/v1"
+    assert receipt["reason_code"] == "local_endpoint_unavailable"
+    assert receipt["retryable"] is True
+    assert receipt["effective_model"] == "qwen-local"
+    assert receipt["route"] == "http://127.0.0.1:8090/v1"
+
+
+def test_loopback_model_health_failure_is_distinct(monkeypatch):
+    class FakeCompletions:
+        @staticmethod
+        def create(**kwargs):
+            raise RuntimeError("model is loading and not ready")
+
+    class FakeOpenAI:
+        def __init__(self, **kwargs):
+            self.chat = types.SimpleNamespace(completions=FakeCompletions())
+
+    monkeypatch.setattr(providers, "_import_openai", lambda: FakeOpenAI)
+
+    with pytest.raises(providers.ProviderExecutionError) as exc:
+        providers._openai_compatible_generate("qwen-local", "http://localhost:8090/v1", "", "task", None, 32)
+
+    assert exc.value.receipt["reason_code"] == "local_model_unhealthy"
+
+
 def test_is_local_false_when_base_set():
     assert providers._is_local(None, "http://localhost:11434/v1") is False
 

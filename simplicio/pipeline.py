@@ -18,6 +18,7 @@ from typing import Any, Literal, cast
 
 from .adaptive import get_validation_mode
 from .atomic_execution import AttemptContext
+from .execution_receipts import execution_mode_blocker
 from .mapper import map_ask
 from .observability import emit_event, estimate_tokens, info, log_run
 from .pipeline_fixers import try_static_fixers
@@ -63,19 +64,7 @@ PipelineMode = Literal["auto", "standalone", "integrated"]
 
 
 def _resolve_max_attempts() -> int:
-    """Read the per-call attempt budget, honoring an external opt-out.
-
-    Issue #166 (control-plane inventory, see
-    docs/plan-compiler.md#control-plane-ownership-inventory-retry--feature-sprint-scheduling)
-    flags this loop as a genuine double-retry risk: a host loop that already
-    owns retry policy (e.g. simplicio-loop) can invoke ``simplicio-py task``
-    once per its own attempt, and this internal loop would still retry
-    ``MAX_ATTEMPTS`` times underneath it, multiplying attempts.
-    ``SIMPLICIO_MAX_ATTEMPTS`` lets such a caller opt into a single atomic
-    attempt (set it to ``1``) without changing standalone use, which keeps
-    reading the ``MAX_ATTEMPTS`` module constant unchanged by default.
-    """
-
+    """Resolve the host-configurable attempt budget."""
     raw = os.environ.get("SIMPLICIO_MAX_ATTEMPTS", "").strip()
     if not raw:
         return MAX_ATTEMPTS
@@ -380,6 +369,7 @@ def run_task(
             None,
         )
     if profile.effective_mode == "blocked":
+        blocker = execution_mode_blocker(profile)
         result = _task_result(
             target,
             prompt,
@@ -387,9 +377,7 @@ def run_task(
             applied=False,
             status="blocked",
             warnings=[profile.reason_code],
-            blocked_preconditions=[
-                {"code": profile.reason_code, "message": "execution-mode negotiation failed closed"}
-            ],
+            blocked_preconditions=[blocker],
         )
         if task_spec is not None:
             result["task_spec_hash"] = task_spec.canonical_hash()
@@ -450,6 +438,8 @@ def run_task(
         blocker = {
             "code": "verification_command_missing",
             "message": "verification command missing; set SIMPLICIO_TEST_CMD before execution",
+            "retryable": True,
+            "next_action": "set SIMPLICIO_TEST_CMD to a real project verification command, then retry",
         }
         return _task_result(
             target,

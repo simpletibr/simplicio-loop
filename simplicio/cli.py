@@ -135,6 +135,11 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
         action="store_true",
         help="generate the would-be task output without applying/testing",
     )
+    p.add_argument(
+        "--verify-only",
+        action="store_true",
+        help="run SIMPLICIO_TEST_CMD without model generation or repository mutation",
+    )
     p.add_argument("--json", action="store_true", help="emit stable structured task output")
     p.add_argument(
         "--bound-paths",

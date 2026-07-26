@@ -1,7 +1,8 @@
 usage: simplicio-py task [-h] [--root ROOT] [--stack STACK] [--target TARGET]
                          [--criteria CRITERIA] [--constraints CONSTRAINTS]
-                         [--dry-run-task] [--json] [--bound-paths BOUND_PATHS]
-                         [--local] [--mode {auto,integrated,standalone}]
+                         [--dry-run-task] [--verify-only] [--json]
+                         [--bound-paths BOUND_PATHS] [--local]
+                         [--mode {auto,integrated,standalone}]
                          [--task-spec PATH | --task-spec-stdin]
                          [--context-snapshot CONTEXT_SNAPSHOT]
                          [--context-pack CONTEXT_PACK]
@@ -26,6 +27,8 @@ options:
   --constraints CONSTRAINTS
   --dry-run-task        generate the would-be task output without
                         applying/testing
+  --verify-only         run SIMPLICIO_TEST_CMD without model generation or
+                        repository mutation
   --json                emit stable structured task output
   --bound-paths BOUND_PATHS
                         glob limiting which paths the task may change;

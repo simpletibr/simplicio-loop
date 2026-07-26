@@ -8,10 +8,86 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 from ._shared import force_local_if_requested
+
+
+def _run_verification_only(a: argparse.Namespace) -> int:
+    from ..pipeline_stages import _configured_test_command, _verification_timeout_seconds
+    from ..runtime_env import prepare_project_command
+
+    command, configuration_error = _configured_test_command()
+    if configuration_error:
+        payload = {
+            "schema": "simplicio.dev-cli.verification-only/v1",
+            "status": "blocked",
+            "applied": False,
+            "files_changed": [],
+            "model_invoked": False,
+            "blocked_preconditions": [
+                {
+                    "code": "verification_command_missing",
+                    "message": configuration_error,
+                    "retryable": True,
+                    "next_action": (
+                        "set SIMPLICIO_TEST_CMD to a real project verification command, then retry"
+                    ),
+                }
+            ],
+        }
+        if a.json:
+            print(json.dumps(payload, sort_keys=True))
+        else:
+            print(f"BLOCKED: {configuration_error}", file=sys.stderr)
+        return 1
+
+    assert command is not None
+    cmd, use_shell = prepare_project_command(a.root, command)
+    started = time.monotonic()
+    try:
+        completed = subprocess.run(
+            cmd,
+            shell=use_shell,
+            cwd=a.root,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=_verification_timeout_seconds(),
+            check=False,
+        )
+        exit_code = completed.returncode
+        stdout_tail = completed.stdout[-2000:]
+        stderr_tail = completed.stderr[-2000:]
+        reason_code = "verification_passed" if exit_code == 0 else "verification_failed"
+    except subprocess.TimeoutExpired as exc:
+        exit_code = None
+        stdout_tail = str(exc.stdout or "")[-2000:]
+        stderr_tail = str(exc.stderr or "")[-2000:]
+        reason_code = "verification_timeout"
+    payload = {
+        "schema": "simplicio.dev-cli.verification-only/v1",
+        "status": "verified" if exit_code == 0 else "failed",
+        "reason_code": reason_code,
+        "applied": False,
+        "files_changed": [],
+        "model_invoked": False,
+        "duration_ms": int((time.monotonic() - started) * 1000),
+        "verify": {
+            "command": command,
+            "exit_code": exit_code,
+            "stdout_tail": stdout_tail,
+            "stderr_tail": stderr_tail,
+        },
+    }
+    if a.json:
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print("VERIFIED" if exit_code == 0 else f"FAILED: {reason_code}")
+    return 0 if exit_code == 0 else 1
 
 
 def _load_task_spec(a: argparse.Namespace):
@@ -62,6 +138,8 @@ def run(a: argparse.Namespace) -> int:
     from ..pipeline import run_task
     from ..precedent import auto_detect_stack
 
+    if getattr(a, "verify_only", False):
+        return _run_verification_only(a)
     force_local_if_requested(a)
     stack = auto_detect_stack(a.root, a.stack)
     task_arguments = _task_arguments(a)

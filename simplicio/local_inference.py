@@ -41,7 +41,9 @@ def pause_receipt(*, surface: str, model: str | None = None, base_url: str | Non
         "requested_base_url": base_url or "",
         "refused_backend": "loopback-openai-compatible" if is_local_endpoint(base_url) else "local-inference",
         "effective_route": "blocked",
+        "retryable": True,
         "reenable": f"set {LOCAL_INFERENCE_ENV}=enabled explicitly",
+        "next_action": f"set {LOCAL_INFERENCE_ENV}=enabled explicitly, then retry",
     }
 
 

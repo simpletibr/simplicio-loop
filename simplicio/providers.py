@@ -974,7 +974,36 @@ def _openai_compatible_generate(model, base, key, prompt, feedback, max_tokens):
     OpenAI = _import_openai()
 
     cli = OpenAI(base_url=base, api_key=key)
-    r = cli.chat.completions.create(model=model, max_tokens=max_tokens, messages=_msgs(prompt, feedback))
+    try:
+        r = cli.chat.completions.create(model=model, max_tokens=max_tokens, messages=_msgs(prompt, feedback))
+    except Exception as exc:
+        if not is_local_endpoint(base):
+            raise
+        detail = str(exc).lower()
+        model_failure = any(
+            term in detail for term in ("model", "health", "loading", "not ready", "unavailable", "404")
+        )
+        reason_code = "local_model_unhealthy" if model_failure else "local_endpoint_unavailable"
+        raise ProviderExecutionError(
+            {
+                "schema": "simplicio.local-inference-terminal/v1",
+                "status": "blocked",
+                "reason_code": reason_code,
+                "retryable": True,
+                "requested_model": model,
+                "effective_model": model,
+                "provider": "openai-compatible",
+                "model_path": os.environ.get("SIMPLICIO_LOCAL_MODEL_PATH") or None,
+                "route": base,
+                "detail": str(exc)[:500],
+                "next_action": (
+                    "start or reconnect the local OpenAI-compatible endpoint, then retry"
+                    if reason_code == "local_endpoint_unavailable"
+                    else "wait for the configured model health check to pass, then retry"
+                ),
+                "message": f"{reason_code}: local inference request failed",
+            }
+        ) from exc
     return r.choices[0].message.content, _openai_usage(r)
 
 

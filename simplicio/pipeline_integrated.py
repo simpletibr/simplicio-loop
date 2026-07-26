@@ -128,6 +128,8 @@ def run_integrated(
         blocker = {
             "code": "verification_command_missing",
             "message": "verification command missing; set SIMPLICIO_TEST_CMD before execution",
+            "retryable": True,
+            "next_action": "set SIMPLICIO_TEST_CMD to a real project verification command, then retry",
         }
         return _task_result(
             target,

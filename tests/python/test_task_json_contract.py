@@ -167,6 +167,35 @@ def test_task_non_json_propagates_failed_pipeline_exit_code(tmp_path, monkeypatc
     assert "include a unified diff" in captured.err
 
 
+def test_task_verify_only_succeeds_without_model_or_mutation(tmp_path, monkeypatch, capsys):
+    marker = tmp_path / "marker.txt"
+    marker.write_text("unchanged", encoding="utf-8")
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", _true_cmd())
+
+    code = cli.main(["task", "--root", str(tmp_path), "--verify-only", "--json"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert payload["schema"] == "simplicio.dev-cli.verification-only/v1"
+    assert payload["status"] == "verified"
+    assert payload["model_invoked"] is False
+    assert payload["applied"] is False
+    assert payload["files_changed"] == []
+    assert marker.read_text(encoding="utf-8") == "unchanged"
+
+
+def test_task_verify_only_blocks_before_process_when_command_missing(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("SIMPLICIO_TEST_CMD", raising=False)
+
+    code = cli.main(["task", "--root", str(tmp_path), "--verify-only", "--json"])
+
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 1
+    assert payload["status"] == "blocked"
+    assert payload["model_invoked"] is False
+    assert payload["blocked_preconditions"][0]["retryable"] is True
+
+
 def test_task_dry_run_json_fails_closed_with_structured_blocked_preconditions(tmp_path, monkeypatch, capsys):
     _write(tmp_path / "frontend" / "app.ts", "old\n")
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
