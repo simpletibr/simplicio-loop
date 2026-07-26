@@ -68,6 +68,7 @@ Thumbs.db
 .parcel-cache
 
 # Simplicio mapper runtime state (shared artifacts stay tracked)
+.simplicio/fast/
 .simplicio/cache/
 .simplicio/index-state.json
 .simplicio/index.lock
@@ -75,11 +76,15 @@ Thumbs.db
 .simplicio/ops/
 .simplicio/worktrees/
 .simplicio/loop-runs/
-.orchestrator/loop/
-.orchestrator/runs/
-.orchestrator/worktrees/
+.simplicio/orchestrator/loop/
+.simplicio/orchestrator/runs/
+.simplicio/orchestrator/worktrees/
 .claude/worktrees/
 .simplicio/history/
+
+# Legacy Simplicio roots are quarantined; new state belongs under .simplicio/.
+.orchestrator/
+.simplicio-fast/
 
 # Claude / Codex (estado local, não vai pro repo)
 .codex/local

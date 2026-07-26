@@ -2,7 +2,7 @@ version = 1
 policy = "internal-json-deny"
 
 [scanner]
-internal_roots = [".simplicio", ".orchestrator"]
+internal_roots = [".simplicio"]
 formats = [".json", ".jsonl", ".ndjson"]
 
 # These are legacy artifacts retained only for the bounded migration window.
@@ -97,7 +97,7 @@ reason = "migrate append-only savings evidence to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".orchestrator/loop/journal.jsonl"
+path = ".simplicio/orchestrator/loop/journal.jsonl"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"
@@ -105,7 +105,7 @@ reason = "migrate orchestration journal to Runtime HBP v1"
 expires = "2026-09-30"
 
 [[exceptions]]
-path = ".orchestrator/learn/pending.jsonl"
+path = ".simplicio/orchestrator/learn/pending.jsonl"
 category = "legacy-internal"
 target = "hbp"
 owner = "mapper"

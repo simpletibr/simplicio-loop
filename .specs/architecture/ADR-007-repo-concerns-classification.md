@@ -42,7 +42,7 @@ existem.
 | `PYPI.md` | **meta-doc, mas obrigatório na raiz** — é o `readme` do `pyproject.toml`; hatchling resolve `readme` relativo à raiz do projeto | sim (é literalmente o texto do PyPI) |
 | `TOON-CONTRACT.md`, `YOOL_TUPLE_HAMT.md`, `SIMPLICIO_INTEGRATION.md`, `SIMPLICIO_ECOSYSTEM.md` | **meta-doc técnico, fortemente linkado** (dezenas de referências cruzadas em README/AGENTS.md/contracts/scripts/testes) | sim (`SIMPLICIO_INTEGRATION.md` no wheel/sdist Python) |
 | `PRD.md`, `PROGRESS.md`, `GOAL_RESULT.md` | **meta-doc, mas convenção padrão entre-repos** — ver "Por que NÃO movidos" abaixo | não publicados hoje |
-| `.catalog/`, `.orchestrator/`, `.serena/`, `.simplicio/`, `.ruff_cache/`, `.llm-project-mapper.json` | **artefato de ferramenta/cache local** | não publicados (fora das listas de `files`/`include`) |
+| `.catalog/`, `.simplicio/orchestrator/`, `.serena/`, `.simplicio/`, `.ruff_cache/`, `.llm-project-mapper.json` | **artefato de ferramenta/cache local** | não publicados (fora das listas de `files`/`include`) |
 | `packaging/`, `vscode-extension/`, `examples/`, `fixtures/` | **auxiliar de build/exemplo** | não publicados hoje |
 
 ## Decisão — corte mínimo seguro
