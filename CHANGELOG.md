@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [0.25.0] - 2026-07-26
+
 ### Added
 
 - Added canonical `ContextSnapshot` provenance to opt-in execution-context
@@ -13,6 +15,26 @@
   spans/hashes, graph/test/precedent provenance, stable expansion handles,
   explicit fidelity/abstention/budget receipts, boundary redactions, packaged
   schema/fixture assets, and a reproducible cold/warm benchmark (issue #350).
+- Added atomic terminal inspection receipts and bounded timeout handoff
+  behavior so worker death, timeout and lock state remain auditable.
+- Added resumable timeout checkpoints, heartbeat/progress state and automatic
+  incremental retry without repeating completed mapping work (issue #357).
+- Added the capability-negotiated Simplicio Fast backend adapter while keeping
+  Mapper as the public canonical ContextGraph producer (issue #358).
+- Added the versioned machine-first Mapper-to-Fast handoff with stable
+  generations, artifact checksums, canonical-map identity, changed-path deltas
+  and parsed/reused/degraded/fallback receipts (issue #360).
+- Added Fast shadow certification with precision/recall per relation and
+  language, reproducible divergence samples, canary gates, compatibility
+  policy, observability and configuration-only rollback (issue #359).
+
+### Changed
+
+- Added raw, reproducible 10-run benchmark evidence for Fast adapter,
+  handoff concurrency and cold/warm/incremental certification workloads.
+- Expanded cross-language contract fixtures for Python, TypeScript, Rust and
+  C# without exposing internal mmap offsets.
+
 
 ## [0.24.2] - 2026-07-21
 
