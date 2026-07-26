@@ -298,6 +298,11 @@ def _build_parser() -> argparse.ArgumentParser:
     p_inspect.add_argument("target")
     p_inspect.add_argument("--root", default=".")
     p_inspect.add_argument("--goal", default="")
+    p_inspect.add_argument(
+        "--context",
+        action="store_true",
+        help="explain why each Mapper file/symbol was selected",
+    )
     p_inspect.add_argument("--json", action="store_true")
 
     p_intake = sub.add_parser(
@@ -406,6 +411,19 @@ def _build_parser() -> argparse.ArgumentParser:
     p_mechanical.add_argument("--apply", action="store_true")
     p_mechanical.add_argument("--dry-run", action="store_true")
     p_mechanical.add_argument("--json", action="store_true")
+
+    p_changeset = sub.add_parser(
+        "changeset",
+        help="execute simplicio.fast.changeset/v2 through the mechanical-edit boundary",
+    )
+    p_changeset.add_argument("--root", default=".", help="repository root")
+    p_changeset.add_argument("--plan", default="-", help="changeset JSON path, or - for stdin")
+    p_changeset.add_argument("--apply", action="store_true", help="atomically apply; default is dry-run")
+    p_changeset.add_argument(
+        "--current-generation",
+        help="reject the changeset unless its generation matches this value",
+    )
+    p_changeset.add_argument("--json", action="store_true", help="emit a stable v2 receipt")
 
     p_edit = sub.add_parser(
         "edit",
@@ -666,6 +684,7 @@ _COMMAND_MODULES = {
     "fast": "fast",
     "versions": "versions",
     "env-export": "env_export",
+    "changeset": "changeset",
     "file": "file",
     "test": "test",
     "token": "token",

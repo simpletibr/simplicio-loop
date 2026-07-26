@@ -1,9 +1,9 @@
 usage: simplicio-py [-h]
-                    {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,prototype,memory}
+                    {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,changeset,edit,file,test,token,score-skill,runtime,prototype,memory}
                     ...
 
 positional arguments:
-  {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,prototype,memory}
+  {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,changeset,edit,file,test,token,score-skill,runtime,prototype,memory}
     index               index/cache the repo (once, or after changes)
     task                run a task
     run                 run a task, feature, sprint, or scratch goal
@@ -27,6 +27,8 @@ positional arguments:
     env-export          print shell-safe exports from a dotenv file without
                         sourcing it
     mechanical-edit     execute simplicio.mechanical-edit/v1 dry-run or apply
+    changeset           execute simplicio.fast.changeset/v2 through the
+                        mechanical-edit boundary
     edit                apply a mechanical edit plan via simplicio-runtime
                         when available
     file                read raw file contents

@@ -44,9 +44,11 @@ def test_capabilities_contract_is_stable(monkeypatch):
         "schemas": [
             "simplicio.context-snapshot/v1",
             "simplicio.mapper-context-snapshot/v1",
+            "simplicio.fast.changeset/v2",
+            "simplicio.fast.changeset-receipt/v2",
         ],
         "languages": ["python", "javascript", "typescript", "json"],
-        "commands": ["fast capabilities", "fast doctor"],
+        "commands": ["fast capabilities", "fast doctor", "changeset"],
         "source_access": False,
     }
 

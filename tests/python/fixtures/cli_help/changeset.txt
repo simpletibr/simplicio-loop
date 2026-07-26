@@ -1,0 +1,13 @@
+usage: simplicio-py changeset [-h] [--root ROOT] [--plan PLAN] [--apply]
+                              [--current-generation CURRENT_GENERATION]
+                              [--json]
+
+options:
+  -h, --help            show this help message and exit
+  --root ROOT           repository root
+  --plan PLAN           changeset JSON path, or - for stdin
+  --apply               atomically apply; default is dry-run
+  --current-generation CURRENT_GENERATION
+                        reject the changeset unless its generation matches
+                        this value
+  --json                emit a stable v2 receipt

@@ -37,6 +37,7 @@ TOP_LEVEL_SUBCOMMANDS = [
     "versions",
     "env-export",
     "mechanical-edit",
+    "changeset",
     "edit",
     "file",
     "test",

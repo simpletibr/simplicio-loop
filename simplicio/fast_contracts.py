@@ -112,9 +112,13 @@ def capabilities_contract(*, offline: bool = False) -> dict[str, Any]:
             "fast": ">=0.1,<1",
             "mapper": "installed version reported; negotiated through snapshot schema",
         },
-        "schemas": list(SNAPSHOT_SCHEMAS),
+        "schemas": [
+            *SNAPSHOT_SCHEMAS,
+            "simplicio.fast.changeset/v2",
+            "simplicio.fast.changeset-receipt/v2",
+        ],
         "languages": ["python", "javascript", "typescript", "json"],
-        "commands": ["fast capabilities", "fast doctor"],
+        "commands": ["fast capabilities", "fast doctor", "changeset"],
         "source_access": False,
     }
 
