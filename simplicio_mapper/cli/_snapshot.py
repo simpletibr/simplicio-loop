@@ -25,6 +25,7 @@ from .. import __version__
 from ..context_contract import REPORT_SCHEMA, validate_context_file
 from ..context_dag import update_context_dag
 from ..context_snapshot import ARTIFACT_VERSION, build_context_graph, build_context_snapshot
+from ..fast_backend import resolve_backend, write_backend_receipt
 from ..mapper import (
     _parse_json_safe,
     write_mapping_artifacts,
@@ -56,17 +57,38 @@ def _git_revision(root: str) -> str:
 
 
 def _build_snapshot(
-    root: str, out: str, *, refresh: bool, task_query: str, selection_policy: str, budget_tokens: int
+    root: str,
+    out: str,
+    *,
+    refresh: bool,
+    task_query: str,
+    selection_policy: str,
+    budget_tokens: int,
+    backend: str = "auto",
+    fast_manifest: str = "",
 ) -> dict:
     abs_root = os.path.abspath(root)
     abs_out = os.path.abspath(os.path.join(abs_root, out))
     project_map_path = os.path.join(abs_out, "project-map.json")
     if refresh or not os.path.isfile(project_map_path):
         write_mapping_artifacts(abs_root, output_dir=out)
-    project_map = _load_json_safe(project_map_path)
-    symbol_index = _load_json_safe(os.path.join(abs_out, "symbol-index.json"))
-    call_graph = _load_json_safe(os.path.join(abs_out, "call-graph.json"))
-    architecture_inventory = _load_json_safe(os.path.join(abs_out, "architecture-inventory.json"))
+    local_artifacts = {
+        "project_map": _load_json_safe(project_map_path),
+        "symbol_index": _load_json_safe(os.path.join(abs_out, "symbol-index.json")),
+        "call_graph": _load_json_safe(os.path.join(abs_out, "call-graph.json")),
+        "architecture_inventory": _load_json_safe(os.path.join(abs_out, "architecture-inventory.json")),
+    }
+    resolution = resolve_backend(
+        root=abs_root,
+        local_artifacts=local_artifacts,
+        mode=backend,
+        manifest_path=fast_manifest,
+    )
+    write_backend_receipt(abs_root, out, resolution.receipt)
+    project_map = resolution.artifacts["project_map"]
+    symbol_index = resolution.artifacts["symbol_index"]
+    call_graph = resolution.artifacts["call_graph"]
+    architecture_inventory = resolution.artifacts["architecture_inventory"]
     revision = _git_revision(abs_root) or project_map.get("generated_at", "")
     return build_context_snapshot(
         abs_root,
@@ -91,6 +113,8 @@ def _run_build(opts: dict) -> int:
         task_query=opts.get("goal", ""),
         selection_policy=opts.get("selection_policy", "deterministic"),
         budget_tokens=int(opts.get("token_budget", 0)),
+        backend=str(opts.get("backend", "auto")),
+        fast_manifest=str(opts.get("fast_manifest", "")),
     )
     dest = os.path.join(os.path.abspath(os.path.join(root, out)), "context-snapshot.json")
     os.makedirs(os.path.dirname(dest), exist_ok=True)
@@ -221,6 +245,8 @@ def run_snapshot_cli(argv: Sequence[str]) -> int:
         "token_budget": 0,
         "full_rescan": False,
         "build_config_hash": "",
+        "backend": "auto",
+        "fast_manifest": "",
     }
     i = 0
     while i < len(rest):
@@ -253,6 +279,12 @@ def run_snapshot_cli(argv: Sequence[str]) -> int:
         elif arg == "--build-config-hash":
             i += 1
             base["build_config_hash"] = rest[i]
+        elif arg == "--backend":
+            i += 1
+            base["backend"] = rest[i]
+        elif arg == "--fast-manifest":
+            i += 1
+            base["fast_manifest"] = rest[i]
         elif arg.startswith("-"):
             print(f"unknown snapshot option: {arg}", file=sys.stderr)
             return 2

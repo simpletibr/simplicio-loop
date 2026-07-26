@@ -250,9 +250,17 @@ def run_doctor_cli(argv: list[str]) -> int:
     (e.g. real ``.simplicio/*.json`` output is out of scope here -- use
     ``simplicio-mapper contract validate`` for that instead).
     """
+    if "--fast" in argv:
+        from .fast_backend import diagnose_fast
+
+        positional = [arg for arg in argv if arg not in {"--fast", "--json"}]
+        payload = diagnose_fast(positional[0] if positional else "")
+        print(json.dumps(payload, sort_keys=True))
+        return 0 if payload["compatible"] else 1
+
     if not argv or "--contracts" not in argv:
         print(
-            "usage: simplicio-mapper doctor --contracts [<path> ...]\n"
+            "usage: simplicio-mapper doctor (--contracts [<path> ...] | --fast [manifest.json])\n"
             "  validates contracts/mapper-artifacts/v1/ and contracts/ecosystem/v1/\n"
             "  fixtures against their schemas (exit 0 when all valid).",
             flush=True,

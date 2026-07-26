@@ -96,6 +96,7 @@ USAGE
   simplicio-mapper update [--root <dir>] [--watch]
   simplicio-mapper contract validate <path> [<path> ...]
   simplicio-mapper doctor --contracts [--cross-repo] [<path> ...]
+  simplicio-mapper doctor --fast [manifest.json] [--json]
   simplicio-mapper canonical build <path> [--json]
   simplicio-mapper canonical status <path> [--json]
   simplicio-mapper canonical verify <path> [--json] [--storage-root <dir>] [--config-fingerprint <value>] [--limit <n>]
@@ -137,6 +138,8 @@ OPTIONS
   doctor --contracts    Validate contracts/mapper-artifacts/v1/ and
                         contracts/ecosystem/v1/ fixtures against their
                         schemas; exit 0 when all valid (issue #164).
+  doctor --fast         Diagnose Simplicio Fast manifest availability,
+                        capability compatibility and generation handle.
   canonical build <path>
                         Build (or reuse, content-addressed) the canonical
                         default-branch manifest via the existing builder

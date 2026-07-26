@@ -1,0 +1,24 @@
+{
+  "schema": "simplicio.fast-context/v1",
+  "generation": "fixture-generation-1",
+  "capabilities": {
+    "snapshot_schemas": ["simplicio.context-snapshot/v1"],
+    "languages": ["python", "typescript", "rust", "csharp"],
+    "edge_kinds": ["calls", "imports", "references"]
+  },
+  "projections": {
+    "files": [
+      {"path": "src/main.py", "language": "python", "roles": ["domain"]},
+      {"path": "src/main.ts", "language": "typescript", "roles": ["domain"]},
+      {"path": "src/main.rs", "language": "rust", "roles": ["domain"]},
+      {"path": "src/Main.cs", "language": "csharp", "roles": ["domain"]}
+    ],
+    "symbols": [
+      {"name": "main", "qualified_name": "src/main.py::main", "kind": "function", "defined_in": "src/main.py", "line": 1},
+      {"name": "main", "qualified_name": "src/main.ts::main", "kind": "function", "defined_in": "src/main.ts", "line": 1},
+      {"name": "main", "qualified_name": "src/main.rs::main", "kind": "function", "defined_in": "src/main.rs", "line": 1},
+      {"name": "Main", "qualified_name": "src/Main.cs::Main", "kind": "method", "defined_in": "src/Main.cs", "line": 1}
+    ],
+    "edges": []
+  }
+}
