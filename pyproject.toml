@@ -75,6 +75,9 @@ bench = ["fpdf2>=2.8.7"]
 # Explicit opt-in local inference. Pulls llama.cpp Python bindings and
 # huggingface-hub; the backend stays paused until SIMPLICIO_LOCAL_INFERENCE=enabled.
 local = ["llama-cpp-python>=0.3.32", "huggingface-hub>=1.21.0"]
+# Optional canonical Fast adapter. It remains outside the base install until
+# its release train is formally promoted.
+fast = ["simplicio-fast>=0.1,<1"]
 # Opt-in faster asyncio event loop for the structured-concurrency runtime
 # (simplicio.runtime_async, issue #212). Never required: `install_uvloop()`
 # no-ops on Windows or when this extra is absent, falling back to stdlib

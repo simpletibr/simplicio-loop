@@ -1,9 +1,9 @@
 usage: simplicio-py [-h]
-                    {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,versions,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,prototype,memory}
+                    {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,prototype,memory}
                     ...
 
 positional arguments:
-  {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,versions,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,prototype,memory}
+  {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,edit,file,test,token,score-skill,runtime,prototype,memory}
     index               index/cache the repo (once, or after changes)
     task                run a task
     run                 run a task, feature, sprint, or scratch goal
@@ -20,6 +20,7 @@ positional arguments:
                         v2 contract
     doctor              check local llama.cpp readiness and dependency
                         freshness
+    fast                negotiate optional Simplicio Fast capabilities
     versions            report simplicio-mapper installed/declared/tested
                         versions, drift, and this repo's own component-release
                         manifest (issue #232)

@@ -298,11 +298,6 @@ def _build_parser() -> argparse.ArgumentParser:
     p_inspect.add_argument("target")
     p_inspect.add_argument("--root", default=".")
     p_inspect.add_argument("--goal", default="")
-    p_inspect.add_argument(
-        "--context",
-        action="store_true",
-        help="explain why each Mapper file/symbol was selected",
-    )
     p_inspect.add_argument("--json", action="store_true")
 
     p_intake = sub.add_parser(
@@ -351,6 +346,31 @@ def _build_parser() -> argparse.ArgumentParser:
     p_doctor.add_argument("--no-check-updates", action="store_true")
     p_doctor.add_argument("--refresh", action="store_true")
     p_doctor.add_argument("--upgrade", action="store_true")
+
+    p_fast = sub.add_parser("fast", help="negotiate optional Simplicio Fast capabilities")
+    fast_sub = p_fast.add_subparsers(dest="fast_cmd", required=True)
+    for fast_name, fast_help in (
+        ("capabilities", "report versioned schemas, languages, commands and availability"),
+        ("doctor", "diagnose Fast installation, compatibility, parser and snapshot"),
+    ):
+        p_fast_command = fast_sub.add_parser(fast_name, help=fast_help)
+        p_fast_command.add_argument("--json", action="store_true", help="emit stable machine-readable JSON")
+        p_fast_command.add_argument(
+            "--offline",
+            action="store_true",
+            help="report an offline-safe installation correction without network access",
+        )
+        p_fast_command.add_argument(
+            "--receipt",
+            metavar="PATH",
+            help="append a local metadata-only receipt; never includes source code",
+        )
+        if fast_name == "doctor":
+            p_fast_command.add_argument(
+                "--snapshot",
+                metavar="PATH",
+                help="validate a canonical Mapper snapshot without reading mmap internals",
+            )
 
     p_versions = sub.add_parser(
         "versions",
@@ -643,6 +663,7 @@ _COMMAND_MODULES = {
     "inspect": "inspect",
     "intake": "intake",
     "doctor": "doctor",
+    "fast": "fast",
     "versions": "versions",
     "env-export": "env_export",
     "file": "file",

@@ -40,6 +40,7 @@ simplicio-sprint (downstream, depends on this package)
 - **`simplicio-cli[ml]`**: `sentence-transformers>=5.6.0`
 - **`simplicio-cli[bench]`**: `fpdf2>=2.8.7`
 - **`simplicio-cli[local]`**: `llama-cpp-python>=0.3.32`, `huggingface-hub>=1.21.0`
+- **`simplicio-cli[fast]`**: `simplicio-fast>=0.1,<1`
 - **`simplicio-cli[performance]`**: `uvloop>=0.21.0; sys_platform != 'win32'`
 - **`simplicio-cli[all]`**: `simplicio-cli[providers]`, `simplicio-cli[ml]`, `simplicio-cli[bench]`, `simplicio-cli[local]`, `simplicio-cli[performance]`
 - **`simplicio-cli[test]`**: `pytest>=8`, `pytest-cov>=7`, `hypothesis>=6.100`, `tomli>=2.0.1; python_version < '3.11'`

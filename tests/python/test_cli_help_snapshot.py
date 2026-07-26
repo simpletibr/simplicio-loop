@@ -33,6 +33,7 @@ TOP_LEVEL_SUBCOMMANDS = [
     "inspect",
     "intake",
     "doctor",
+    "fast",
     "versions",
     "env-export",
     "mechanical-edit",

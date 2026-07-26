@@ -1,0 +1,11 @@
+usage: simplicio-py fast [-h] {capabilities,doctor} ...
+
+positional arguments:
+  {capabilities,doctor}
+    capabilities        report versioned schemas, languages, commands and
+                        availability
+    doctor              diagnose Fast installation, compatibility, parser and
+                        snapshot
+
+options:
+  -h, --help            show this help message and exit
