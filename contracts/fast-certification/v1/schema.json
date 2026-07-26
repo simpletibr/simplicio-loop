@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "simplicio.mapper-fast-certification/v1",
+  "type": "object",
+  "required": [
+    "schema",
+    "status",
+    "reason",
+    "requested_backend",
+    "selected_backend",
+    "receipt"
+  ],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-fast-certification/v1"},
+    "status": {"enum": ["ok", "fallback", "degraded"]},
+    "reason": {"type": "string"},
+    "requested_backend": {"type": "string"},
+    "selected_backend": {"enum": ["mapper", "fast"]},
+    "receipt": {
+      "type": "object",
+      "required": ["parsed", "reused", "fallback", "degraded"],
+      "properties": {
+        "parsed": {"type": "integer", "minimum": 0},
+        "reused": {"type": "integer", "minimum": 0},
+        "fallback": {"type": "integer", "minimum": 0},
+        "degraded": {"type": "integer", "minimum": 0}
+      }
+    },
+    "shadow": {"type": "object"},
+    "observability": {"type": "object"},
+    "compatibility": {"type": "object"}
+  }
+}

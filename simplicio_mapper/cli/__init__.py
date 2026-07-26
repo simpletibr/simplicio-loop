@@ -111,6 +111,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ..fast_handoff import run_fast_handoff_cli
 
         return run_fast_handoff_cli(argv[1:])
+    if argv and argv[0] == "fast-certify":
+        from ..fast_certification import run_fast_certify_cli
+
+        return run_fast_certify_cli(argv[1:])
     # `contract` takes a subcommand + a list of paths, not the usual
     # `<command> <root>` shape the rest of the CLI expects, so it is
     # dispatched before `_parse_args` (issue #157, mapper-artifacts contract).
