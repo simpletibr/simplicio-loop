@@ -16,7 +16,7 @@ Estimator: `observability.estimate_tokens` (words*4/3, the single canonical esti
 unified in #88). Holdout improving *more* than the score cases (not less) is a good sign
 against overfitting to the exact wording of `SCORE_CASES`.
 
-## Run log (6 iterations, `.orchestrator/autoresearch/simplicio_precedent.py/iterations.jsonl`)
+## Run log (6 iterations, `.simplicio/orchestrator/autoresearch/simplicio_precedent.py/iterations.jsonl`)
 
 | iter | mutate | gate | score | accepted |
 |---|---|---|---|---|

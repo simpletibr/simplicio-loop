@@ -2,7 +2,7 @@ version = 1
 policy = "internal-json-deny"
 
 [scanner]
-internal_roots = [".simplicio", ".orchestrator"]
+internal_roots = [".simplicio"]
 formats = [".json", ".jsonl", ".ndjson"]
 
 [[exceptions]]
@@ -90,7 +90,7 @@ owner = "dev-cli"
 reason = "migrate resumable run snapshot to Runtime HBI v1"
 expires = "2026-09-30"
 [[exceptions]]
-path = ".orchestrator/learn/pending.jsonl"
+path = ".simplicio/orchestrator/learn/pending.jsonl"
 category = "legacy-internal"
 target = "hbp"
 owner = "dev-cli"

@@ -16,6 +16,11 @@ test-results/
 # Rust build artifacts
 rust/*/target/
 
+# Simplicio ecosystem state has one root; legacy roots are quarantined.
+.simplicio/orchestrator/
+.orchestrator/
+.simplicio-fast/
+
 # Per-bench-run scratchpad: every model × case raw output. Regenerated on
 # every bench run; we keep results JSON/MD/PDF artifacts under bench/ but
 # not the per-case scratchpads.
