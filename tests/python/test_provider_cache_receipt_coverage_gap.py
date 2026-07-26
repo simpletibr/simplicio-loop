@@ -7,9 +7,7 @@ from simplicio import providers
 
 
 def _blank_receipt():
-    return pcr._new_cache_receipt(
-        surface="test", requested_provider_id="openrouter", requested_model="gpt-x"
-    )
+    return pcr._new_cache_receipt(surface="test", requested_provider_id="openrouter", requested_model="gpt-x")
 
 
 def test_cache_bypass_reason_disabled(monkeypatch):

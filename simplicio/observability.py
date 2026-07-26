@@ -95,7 +95,7 @@ def configure_logging(*, quiet: bool = False, verbose: bool = False) -> logging.
 
     if not _configured:
         handler = logging.StreamHandler(stream=sys.stderr)
-        handler._simplicio_stderr_handler = True
+        handler._simplicio_stderr_handler = True  # type: ignore[attr-defined]
         handler.setFormatter(logging.Formatter("%(message)s"))
         _logger.addHandler(handler)
         _logger.propagate = False
@@ -177,7 +177,11 @@ def estimate_token_details(text: str | None) -> dict[str, Any]:
         import tiktoken
 
         try:
-            encoding = tiktoken.encoding_for_model(model) if model else tiktoken.get_encoding(_TOKENIZER_FALLBACK_ENCODING)
+            encoding = (
+                tiktoken.encoding_for_model(model)
+                if model
+                else tiktoken.get_encoding(_TOKENIZER_FALLBACK_ENCODING)
+            )
         except KeyError:
             encoding = tiktoken.get_encoding(_TOKENIZER_FALLBACK_ENCODING)
         return {

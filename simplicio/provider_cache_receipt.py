@@ -46,9 +46,7 @@ def last_cache_receipt() -> dict[str, Any] | None:
     return deepcopy(providers._LAST_CACHE_RECEIPT)
 
 
-def _new_cache_receipt(
-    *, surface: str, requested_provider_id: str, requested_model: str
-) -> dict[str, Any]:
+def _new_cache_receipt(*, surface: str, requested_provider_id: str, requested_model: str) -> dict[str, Any]:
     receipt = {
         "schema": "simplicio.providers.cache-receipt/v1",
         "surface": surface,

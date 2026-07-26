@@ -2,7 +2,11 @@
 
 ## Unreleased
 
+## [0.16.3] — 2026-07-25
+
 ### Changed
+- Raised the `simplicio-mapper` dependency floor to `>=0.24.2`, the latest
+  mapper release published before this CLI release.
 - Declared `simplicio.plan-dag/v1` as the canonical Dev CLI plan contract,
   added digest-bound consumer projections for Loop and Runtime, and validated
   explicit node conflicts (#298).

@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 import subprocess
-import sys
-
-import pytest
 
 from simplicio import pipeline_fixers as pf
 from simplicio.pipeline_fixers import (
@@ -101,9 +98,7 @@ def test_add_pyproject_dependency_no_project_section_appends_one(tmp_path):
 
 def test_add_pyproject_dependency_already_declared_returns_false(tmp_path):
     pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text(
-        '[project]\ndependencies = [\n  "fastapi>=1.0",\n]\n', encoding="utf-8"
-    )
+    pyproject.write_text('[project]\ndependencies = [\n  "fastapi>=1.0",\n]\n', encoding="utf-8")
     changed = pf._add_pyproject_dependency(pyproject, "fastapi")
     assert changed is False
 
@@ -120,9 +115,7 @@ def test_add_pyproject_dependency_no_dependencies_key_inserts_one(tmp_path):
 
 def test_add_pyproject_dependency_single_line_list(tmp_path):
     pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text(
-        '[project]\ndependencies = ["httpx>=0.28.1"]\n', encoding="utf-8"
-    )
+    pyproject.write_text('[project]\ndependencies = ["httpx>=0.28.1"]\n', encoding="utf-8")
     changed = pf._add_pyproject_dependency(pyproject, "fastapi")
     assert changed is True
     text = pyproject.read_text(encoding="utf-8")
@@ -132,9 +125,7 @@ def test_add_pyproject_dependency_single_line_list(tmp_path):
 
 def test_add_pyproject_dependency_multiline_list_appends_before_close(tmp_path):
     pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text(
-        '[project]\ndependencies = [\n  "httpx>=0.28.1",\n]\n', encoding="utf-8"
-    )
+    pyproject.write_text('[project]\ndependencies = [\n  "httpx>=0.28.1",\n]\n', encoding="utf-8")
     changed = pf._add_pyproject_dependency(pyproject, "fastapi")
     assert changed is True
     text = pyproject.read_text(encoding="utf-8")
@@ -192,9 +183,7 @@ def test_missing_npm_package_fixer_no_lockfile_uses_npm(tmp_path):
         calls.append(argv)
         return _ok(argv)
 
-    result = MissingNpmPackageFixer().try_fix(
-        "Cannot find module 'lodash'", tmp_path, runner=fake_run
-    )
+    result = MissingNpmPackageFixer().try_fix("Cannot find module 'lodash'", tmp_path, runner=fake_run)
     assert result.applied is True
     assert calls[0] == ["npm", "install", "lodash"]
 
@@ -215,9 +204,7 @@ def test_missing_npm_package_fixer_install_failure(tmp_path):
     def fake_run(argv, **kwargs):
         return _fail(argv)
 
-    result = MissingNpmPackageFixer().try_fix(
-        "Cannot find module 'lodash'", tmp_path, runner=fake_run
-    )
+    result = MissingNpmPackageFixer().try_fix("Cannot find module 'lodash'", tmp_path, runner=fake_run)
     assert result.applied is False
     assert "npm install lodash failed" in result.details
 
@@ -226,9 +213,7 @@ def test_missing_npm_package_fixer_runner_raises(tmp_path):
     def fake_run(argv, **kwargs):
         raise FileNotFoundError("no npm")
 
-    result = MissingNpmPackageFixer().try_fix(
-        "Cannot find module 'lodash'", tmp_path, runner=fake_run
-    )
+    result = MissingNpmPackageFixer().try_fix("Cannot find module 'lodash'", tmp_path, runner=fake_run)
     assert result.applied is False
     assert "npm install failed" in result.details
 

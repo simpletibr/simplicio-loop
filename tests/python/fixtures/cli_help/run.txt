@@ -8,6 +8,9 @@ usage: simplicio-py run [-h] [--scope {auto,task,feature,sprint,scratch}]
                         [--slot KEY=VALUE]
                         [--mode {auto,integrated,standalone}]
                         [--context-snapshot CONTEXT_SNAPSHOT]
+                        [--context-pack CONTEXT_PACK]
+                        [--execution-context EXECUTION_CONTEXT]
+                        [--effect-authorization EFFECT_AUTHORIZATION]
                         [--attempt-id ATTEMPT_ID] [--lease-id LEASE_ID]
                         [--fencing-token FENCING_TOKEN]
                         [--context-handle CONTEXT_HANDLE]
@@ -42,6 +45,12 @@ options:
   --mode {auto,integrated,standalone}
   --context-snapshot CONTEXT_SNAPSHOT
                         canonical Mapper ContextSnapshot JSON path
+  --context-pack CONTEXT_PACK
+                        canonical Mapper ContextPack JSON path
+  --execution-context EXECUTION_CONTEXT
+                        Mapper execution-context/v1 provenance JSON path
+  --effect-authorization EFFECT_AUTHORIZATION
+                        coordinator-issued EffectAuthorization JSON path
   --attempt-id ATTEMPT_ID
                         coordinator-owned atomic attempt ID
   --lease-id LEASE_ID   coordinator-owned lease ID

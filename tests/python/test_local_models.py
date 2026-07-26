@@ -20,6 +20,7 @@ def _explicit_local_test_opt_in(monkeypatch: pytest.MonkeyPatch) -> None:
     """Legacy provisioning tests intentionally exercise the gated path."""
     monkeypatch.setenv("SIMPLICIO_LOCAL_INFERENCE", "enabled")
 
+
 # ---- pick_tier ---- #
 
 

@@ -111,7 +111,7 @@ def test_base_dependencies_exclude_heavy_and_provider_packages():
 def test_optional_dependencies_groups_match_actual_imports():
     data = _load_pyproject()
     extras = data["project"]["optional-dependencies"]
-    assert {"providers", "ml", "local", "bench", "all"} <= extras.keys()
+    assert {"providers", "ml", "local", "bench", "performance", "all"} <= extras.keys()
 
     def _names(group):
         return {
@@ -124,7 +124,8 @@ def test_optional_dependencies_groups_match_actual_imports():
     assert _names("ml") == {"sentence-transformers"}
     assert _names("local") == {"llama-cpp-python", "huggingface-hub"}
     assert _names("bench") == {"fpdf2"}
+    assert _names("performance") == {"uvloop"}
     # `all` is a union expressed via self-referential extras, not a flat list.
     assert all(req.startswith("simplicio-cli[") for req in extras["all"])
     referenced = {req.split("[", 1)[1].rstrip("]") for req in extras["all"]}
-    assert referenced == {"providers", "ml", "bench", "local"}
+    assert referenced == {"providers", "ml", "bench", "local", "performance"}

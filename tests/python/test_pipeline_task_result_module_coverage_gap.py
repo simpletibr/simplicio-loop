@@ -209,9 +209,7 @@ def test_task_result_prompt_envelope_receipt(monkeypatch):
         def receipt(self):
             return {"schema": "envelope/v1"}
 
-    result = ptr._task_result(
-        "T01", "prompt", "output", applied=True, prompt_envelope=_Envelope()
-    )
+    result = ptr._task_result("T01", "prompt", "output", applied=True, prompt_envelope=_Envelope())
     assert result["prompt_envelope"] == {"schema": "envelope/v1"}
 
 
@@ -310,9 +308,7 @@ def test_dry_run_preconditions_target_not_in_files_but_exists(tmp_path, monkeypa
         "artifact_status",
         lambda root: {"project_map": {"present": True}, "precedent_index": {"present": True}},
     )
-    monkeypatch.setattr(
-        ptr, "map_handoff", lambda root: {"context_pack": {"files": [{"path": "other.py"}]}}
-    )
+    monkeypatch.setattr(ptr, "map_handoff", lambda root: {"context_pack": {"files": [{"path": "other.py"}]}})
     target = tmp_path / "a.py"
     target.write_text("x = 1\n", encoding="utf-8")
 
@@ -327,9 +323,7 @@ def test_dry_run_preconditions_target_missing_from_disk(tmp_path, monkeypatch):
         "artifact_status",
         lambda root: {"project_map": {"present": True}, "precedent_index": {"present": True}},
     )
-    monkeypatch.setattr(
-        ptr, "map_handoff", lambda root: {"context_pack": {"files": [{"path": "a.py"}]}}
-    )
+    monkeypatch.setattr(ptr, "map_handoff", lambda root: {"context_pack": {"files": [{"path": "a.py"}]}})
     blockers = ptr._dry_run_preconditions(tmp_path, "missing/missing.py")
     reasons = {b["reason"] for b in blockers}
     assert "target_resolution_failed" in reasons
@@ -341,9 +335,7 @@ def test_dry_run_preconditions_all_clear(tmp_path, monkeypatch):
         "artifact_status",
         lambda root: {"project_map": {"present": True}, "precedent_index": {"present": True}},
     )
-    monkeypatch.setattr(
-        ptr, "map_handoff", lambda root: {"context_pack": {"files": [{"path": "a.py"}]}}
-    )
+    monkeypatch.setattr(ptr, "map_handoff", lambda root: {"context_pack": {"files": [{"path": "a.py"}]}})
     target = tmp_path / "a.py"
     target.write_text("x = 1\n", encoding="utf-8")
 

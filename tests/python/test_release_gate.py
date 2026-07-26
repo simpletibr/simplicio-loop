@@ -28,7 +28,9 @@ def test_release_gate_runs_with_local_imports(monkeypatch, tmp_path: Path) -> No
     assert result["matrix"]["cases"] == 12
     assert result["release_gates"]["deterministic_corpus_complete"] is False
     assert result["metrics"]["cases_passed"] == 1
-    assert any(case["case_id"] == "planes-ordering" and case["outcome_ok"] is False for case in result["cases"])
+    assert any(
+        case["case_id"] == "planes-ordering" and case["outcome_ok"] is False for case in result["cases"]
+    )
     assert "GPT-5.4 medium via Simplicio Runtime live lane" in result["missing_release_evidence"]
     assert json_path.exists()
     assert md_path.exists()

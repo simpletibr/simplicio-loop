@@ -310,19 +310,12 @@ def test_no_model_with_base_raises_with_hint(monkeypatch):
     with pytest.raises(SystemExit) as exc:
         providers.generate("x")
     msg = str(exc.value)
-    assert "SIMPLICIO_MODEL" in msg
-    assert "claude-cli" in msg
-    assert "codex-cli" in msg
-    assert "openbmb/minicpm5:latest" in msg
+    assert "LOCAL_INFERENCE_PAUSED" in msg
+    assert "SIMPLICIO_LOCAL_INFERENCE=enabled" in msg
 
 
-def test_no_config_at_all_routes_to_local_llama_default(monkeypatch):
-    # No model AND no base -> local llama.cpp primary, not a raise.
+def test_no_config_at_all_keeps_local_inference_paused(monkeypatch):
     monkeypatch.delenv("SIMPLICIO_MODEL", raising=False)
     monkeypatch.delenv("SIMPLICIO_BASE_URL", raising=False)
-    monkeypatch.setattr(
-        providers,
-        "_local_generate",
-        lambda p, f, model, mt: f"local:{model}",
-    )
-    assert providers.generate("x") == "local:openbmb/minicpm5:latest"
+    with pytest.raises(SystemExit, match="LOCAL_INFERENCE_PAUSED"):
+        providers.generate("x")

@@ -336,6 +336,7 @@ def test_validate_generated_output_allows_localized_diff_on_same_file(tmp_path):
             "@@ -5,1 +5,1 @@",
             "-line5",
             "+line5 modified",
+            "TEST: pytest -q",
             "",
         ]
     )
@@ -353,7 +354,9 @@ def test_validate_generated_output_skips_destructive_check_without_root(tmp_path
 
     # No `root=` supplied (e.g. legacy callers, or a caller that cannot
     # resolve the pre-image) — the check is skipped, not a crash.
-    result = pipeline_stages.validate_generated_output(_full_replace_diff(), bound_paths=["big.py"])
+    result = pipeline_stages.validate_generated_output(
+        _full_replace_diff() + "\nTEST: pytest -q", bound_paths=["big.py"]
+    )
 
     assert result.ok is True
 
@@ -365,7 +368,9 @@ def test_validate_generated_output_skips_destructive_check_for_multi_file_bound_
     # bound_paths resolves to more than one concrete file -> no single
     # "the whole file" comparison is meaningful; the check is a no-op.
     result = pipeline_stages.validate_generated_output(
-        _full_replace_diff(), bound_paths=["big.py", "other.py"], root=str(tmp_path)
+        _full_replace_diff() + "\nTEST: pytest -q",
+        bound_paths=["big.py", "other.py"],
+        root=str(tmp_path),
     )
 
     assert result.ok is True
@@ -385,6 +390,7 @@ def test_validate_generated_output_skips_destructive_check_for_small_files(tmp_p
             "-b",
             "+x",
             "+y",
+            "TEST: pytest -q",
             "",
         ]
     )

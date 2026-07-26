@@ -75,7 +75,7 @@ def test_shell_out_call_logs_estimated_usage_event(monkeypatch, tmp_path):
     assert event["mode"] == "provider_call"
     assert event["provider_id"] == "claude-cli"
     assert event["cache_hit"] is False
-    assert event["usage_source"] == "estimated"
+    assert event["usage_source"] == "tiktoken"
     assert event["tokens"]["completion"] >= 1
 
 
@@ -127,6 +127,7 @@ def test_openai_compatible_call_logs_provider_usage_when_reported(monkeypatch, t
 def test_planner_complete_local_llama_logs_event(monkeypatch, tmp_path):
     monkeypatch.setenv("SIMPLICIO_LOG_ROOT", str(tmp_path))
     monkeypatch.setenv("SIMPLICIO_PLANNER", "local-llama/default")
+    monkeypatch.setenv("SIMPLICIO_LOCAL_INFERENCE", "enabled")
 
     monkeypatch.setattr(providers, "_local_generate", lambda *a, **k: "plan-json")
     out = providers.planner_complete("build a plan")

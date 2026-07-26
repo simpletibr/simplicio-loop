@@ -5,13 +5,15 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from simplicio.scratch.codegen import python_pydantic as pd
 from simplicio.scratch.codegen import PythonAddPydanticSchemaExecutor
+from simplicio.scratch.codegen import python_pydantic as pd
 from simplicio.scratch.plan_schema import Task
 from simplicio.scratch.stack_registry import Stack
 
 
-def _stack(tmp_path: Path, slug: str = "py-fastapi", language: str = "Python", framework: str = "FastAPI") -> Stack:
+def _stack(
+    tmp_path: Path, slug: str = "py-fastapi", language: str = "Python", framework: str = "FastAPI"
+) -> Stack:
     return Stack(slug=slug, path=tmp_path, meta={"language": language, "framework": framework})
 
 
@@ -103,8 +105,8 @@ def test_execute_falls_back_when_target_is_a_directory(tmp_path):
 def test_execute_falls_back_when_no_fields_derivable(tmp_path):
     _write_model(
         tmp_path,
-        'from sqlalchemy.orm import DeclarativeBase\n\n\n'
-        'class Base(DeclarativeBase):\n    pass\n\n\n'
+        "from sqlalchemy.orm import DeclarativeBase\n\n\n"
+        "class Base(DeclarativeBase):\n    pass\n\n\n"
         'class User(Base):\n    __tablename__ = "users"\n',
     )
     result = PythonAddPydanticSchemaExecutor().execute(_task(), tmp_path, _stack(tmp_path))

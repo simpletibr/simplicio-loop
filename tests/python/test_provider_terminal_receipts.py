@@ -1,4 +1,5 @@
 import json
+
 import pytest
 
 from simplicio import pipeline, providers, task_operator
@@ -38,7 +39,9 @@ def test_shell_out_maps_credit_exhaustion_to_terminal_receipt(monkeypatch):
 
 
 def test_shell_out_maps_silent_child_exit_without_fabricating_success(monkeypatch):
-    monkeypatch.setattr(task_operator, "run_bounded_subprocess", lambda *args, **kwargs: _failed_process(stderr=""))
+    monkeypatch.setattr(
+        task_operator, "run_bounded_subprocess", lambda *args, **kwargs: _failed_process(stderr="")
+    )
     with pytest.raises(providers.ProviderExecutionError) as error:
         providers._shell_out(["codex", "exec"], "Codex CLI", provider="codex-cli")
     assert error.value.receipt["reason_code"] == "provider_child_exit_silent"
@@ -52,19 +55,28 @@ def test_pipeline_emits_terminal_and_returns_without_mutation(tmp_path, monkeypa
     monkeypatch.setattr(pipeline, "build_prompt", lambda *args, **kwargs: "prompt")
 
     def fail_generate(*args, **kwargs):
-        raise providers.ProviderExecutionError({
-            "schema": "simplicio.provider-terminal/v1",
-            "status": "blocked",
-            "reason_code": "provider_capacity_unavailable",
-            "message": "provider capacity unavailable",
-            "provider": "codex-cli",
-            "model": "gpt-5.6-luna",
-            "effort": "high",
-        })
+        raise providers.ProviderExecutionError(
+            {
+                "schema": "simplicio.provider-terminal/v1",
+                "status": "blocked",
+                "reason_code": "provider_capacity_unavailable",
+                "message": "provider capacity unavailable",
+                "provider": "codex-cli",
+                "model": "gpt-5.6-luna",
+                "effort": "high",
+            }
+        )
 
     monkeypatch.setattr(pipeline, "generate", fail_generate)
     result = pipeline.run_task(
-        str(tmp_path), "python", "change app", "app.py", "- keep behavior", "", quiet=True
+        str(tmp_path),
+        "python",
+        "change app",
+        "app.py",
+        "- keep behavior",
+        "",
+        quiet=True,
+        mode="standalone",
     )
     assert result["status"] == "blocked"
     assert result["applied"] is False
@@ -75,5 +87,10 @@ def test_pipeline_emits_terminal_and_returns_without_mutation(tmp_path, monkeypa
         for line in (tmp_path / ".simplicio" / "events.jsonl").read_text(encoding="utf-8").splitlines()
     ]
     assert [event["event"] for event in events] == [
-        "task_start", "task_progress", "provider_terminal", "task_terminal"
+        "mutation_route_selected",
+        "execution_mode_selected",
+        "task_start",
+        "task_progress",
+        "provider_terminal",
+        "task_terminal",
     ]

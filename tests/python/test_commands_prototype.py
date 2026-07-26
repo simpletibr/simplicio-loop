@@ -120,7 +120,14 @@ def test_doctor_reports_schemas_and_isolation_default(capsys):
 
 
 def test_plan_accepts_every_documented_prototype_type(tmp_path, capsys):
-    for prototype_type in ("schema", "data_model", "failing_reproducer", "mock_or_fake", "code_spike", "vertical_slice"):
+    for prototype_type in (
+        "schema",
+        "data_model",
+        "failing_reproducer",
+        "mock_or_fake",
+        "code_spike",
+        "vertical_slice",
+    ):
         plan, _ = _make_plan(
             tmp_path, capsys, prototype_type=prototype_type, goal=f"goal for {prototype_type}"
         )
@@ -537,7 +544,9 @@ def test_scaffold_wireframe_produces_screens_regions_interactions(tmp_path, caps
 
 
 def test_scaffold_architecture_diagram_produces_mermaid_skeleton(tmp_path, capsys):
-    candidate = _scaffold(tmp_path, capsys, prototype_type="architecture_diagram", goal="draw the payments flow")
+    candidate = _scaffold(
+        tmp_path, capsys, prototype_type="architecture_diagram", goal="draw the payments flow"
+    )
     text = (candidate / "ARCHITECTURE.md").read_text(encoding="utf-8")
 
     assert "```mermaid" in text

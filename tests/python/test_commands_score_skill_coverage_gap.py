@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import json
 
+import pytest
+
 from simplicio.commands import score_skill as ss
 
 
@@ -88,11 +90,8 @@ def test_resolve_scenarios_from_explicit_single_dict_file(tmp_path):
 def test_resolve_scenarios_raises_on_unexpected_shape(tmp_path):
     f = tmp_path / "scenario.json"
     f.write_text(json.dumps("just a string"), encoding="utf-8")
-    try:
+    with pytest.raises(ValueError, match="unexpected JSON structure"):
         ss._resolve_scenarios([str(f)], [], tmp_path / "builtin")
-        assert False, "expected ValueError"
-    except ValueError as exc:
-        assert "unexpected JSON structure" in str(exc)
 
 
 def test_resolve_scenarios_falls_back_to_builtin_dir(tmp_path):
@@ -126,9 +125,7 @@ def test_main_all_pass_text(tmp_path, capsys):
     skill_file = tmp_path / "skill.md"
     skill_file.write_text("must have quick action here", encoding="utf-8")
     scenario_file = tmp_path / "scenario.json"
-    scenario_file.write_text(
-        json.dumps([{"id": "s1", "must_include_any": [["quick"]]}]), encoding="utf-8"
-    )
+    scenario_file.write_text(json.dumps([{"id": "s1", "must_include_any": [["quick"]]}]), encoding="utf-8")
 
     rc = ss.main([str(skill_file), "--scenario", str(scenario_file)])
     out = capsys.readouterr().out
@@ -141,9 +138,7 @@ def test_main_json_output(tmp_path, capsys):
     skill_file = tmp_path / "skill.md"
     skill_file.write_text("quick", encoding="utf-8")
     scenario_file = tmp_path / "scenario.json"
-    scenario_file.write_text(
-        json.dumps([{"id": "s1", "must_include_any": [["quick"]]}]), encoding="utf-8"
-    )
+    scenario_file.write_text(json.dumps([{"id": "s1", "must_include_any": [["quick"]]}]), encoding="utf-8")
 
     rc = ss.main([str(skill_file), "--scenario", str(scenario_file), "--json"])
     out = capsys.readouterr().out
@@ -182,9 +177,7 @@ def test_main_verbose_prints_even_on_success(tmp_path, capsys):
     skill_file = tmp_path / "skill.md"
     skill_file.write_text("quick", encoding="utf-8")
     scenario_file = tmp_path / "scenario.json"
-    scenario_file.write_text(
-        json.dumps([{"id": "s1", "must_include_any": [["quick"]]}]), encoding="utf-8"
-    )
+    scenario_file.write_text(json.dumps([{"id": "s1", "must_include_any": [["quick"]]}]), encoding="utf-8")
 
     rc = ss.main([str(skill_file), "--scenario", str(scenario_file), "--verbose"])
     out = capsys.readouterr().out
@@ -216,7 +209,7 @@ def test_main_invalid_scenario_json_returns_2(tmp_path, capsys):
     scenario_file.write_text("not json", encoding="utf-8")
 
     rc = ss.main([str(skill_file), "--scenario", str(scenario_file)])
-    err = capsys.readouterr().err
+    capsys.readouterr()
     assert rc == 2
 
 
@@ -246,15 +239,11 @@ def test_main_extra_scenario_inline(tmp_path, capsys):
 
 
 def test_run_adapter_falls_back_to_python_main(tmp_path, monkeypatch, capsys):
-    monkeypatch.setattr(
-        "simplicio.commands._shared.try_route_via_simplicio", lambda *a, **k: None
-    )
+    monkeypatch.setattr("simplicio.commands._shared.try_route_via_simplicio", lambda *a, **k: None)
     skill_file = tmp_path / "skill.md"
     skill_file.write_text("quick", encoding="utf-8")
     scenario_file = tmp_path / "scenario.json"
-    scenario_file.write_text(
-        json.dumps([{"id": "s1", "must_include_any": [["quick"]]}]), encoding="utf-8"
-    )
+    scenario_file.write_text(json.dumps([{"id": "s1", "must_include_any": [["quick"]]}]), encoding="utf-8")
 
     ns = argparse.Namespace(
         skill=str(skill_file),
@@ -272,9 +261,7 @@ def test_run_adapter_falls_back_to_python_main(tmp_path, monkeypatch, capsys):
 
 
 def test_run_adapter_uses_native_result_when_available(tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        "simplicio.commands._shared.try_route_via_simplicio", lambda *a, **k: 0
-    )
+    monkeypatch.setattr("simplicio.commands._shared.try_route_via_simplicio", lambda *a, **k: 0)
     ns = argparse.Namespace(
         skill="-",
         scenario_sources=[],

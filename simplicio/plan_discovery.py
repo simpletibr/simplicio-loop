@@ -301,15 +301,11 @@ def build_plan_preview(
     root_path = Path(root).resolve()
     loaded = load_project_map(root_path)
     if loaded is None:
-        raise PlanDiscoveryError(
-            ["mapper project-map is missing; run simplicio-mapper scan --sync --json"]
-        )
+        raise PlanDiscoveryError(["mapper project-map is missing; run simplicio-mapper scan --sync --json"])
     map_path, project_map = loaded
     entries = _files(project_map)
     if not entries:
-        raise PlanDiscoveryError(
-            ["mapper project-map has no files; run simplicio-mapper scan --sync --json"]
-        )
+        raise PlanDiscoveryError(["mapper project-map has no files; run simplicio-mapper scan --sync --json"])
 
     task_payload = task_spec_payload or (task.to_dict() if hasattr(task, "to_dict") else dict(task))
     entries_ranked = _rank(entries, task)
@@ -361,15 +357,11 @@ def build_plan_preview(
                 ran_queries.add(verb)
 
         test_paths = [
-            str(item.get("test_path") or item.get("path"))
-            for item in (tests or [])
-            if isinstance(item, dict)
+            str(item.get("test_path") or item.get("path")) for item in (tests or []) if isinstance(item, dict)
         ]
         test_paths = [item for item in test_paths if item and item != "None"]
         caller_paths = [
-            str(item.get("caller") or item.get("path"))
-            for item in (callers or [])
-            if isinstance(item, dict)
+            str(item.get("caller") or item.get("path")) for item in (callers or []) if isinstance(item, dict)
         ]
         caller_paths = [item for item in caller_paths if item and item != "None"]
 

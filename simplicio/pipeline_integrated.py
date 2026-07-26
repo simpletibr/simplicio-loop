@@ -78,9 +78,7 @@ def _build_task_spec(
         acceptance_criteria=acceptance_criteria,
         verification_commands=verification_commands,
         original_text=source_text,
-        extra_fields={
-            "artifact_ref": os.environ["SIMPLICIO_EFFECT_ARTIFACT_REF"]
-        }
+        extra_fields={"artifact_ref": os.environ["SIMPLICIO_EFFECT_ARTIFACT_REF"]}
         if os.environ.get("SIMPLICIO_EFFECT_ARTIFACT_REF")
         else {},
     )

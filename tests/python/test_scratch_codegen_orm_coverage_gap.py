@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from simplicio.scratch.codegen import python_orm as orm
 from simplicio.scratch.codegen import PythonAddOrmFieldExecutor
+from simplicio.scratch.codegen import python_orm as orm
 from simplicio.scratch.plan_schema import Task
 from simplicio.scratch.stack_registry import Stack
 

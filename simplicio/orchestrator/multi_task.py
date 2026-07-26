@@ -290,9 +290,9 @@ class TaskBatch:
         additions = [task for task in candidate if task["id"] not in known]
         if not additions:
             return []
-        combined = self.tasks + additions
-        TaskBatch(self.path, combined, self.identity)._validate_graph()
-        self.tasks = combined
+        combined: list[Mapping[str, Any]] = [*self.tasks, *additions]
+        validated = TaskBatch(self.path, combined, self.identity)
+        self.tasks = validated.tasks
         self.identity = BatchIdentity(
             source_hash or _stable_hash([task["source_hash"] for task in self.tasks]),
             plan_hash

@@ -174,7 +174,6 @@ def test_full_stack_without_flow_auto_derives_ui_backend_ordering() -> None:
     assert plan2.flows == (explicit,)
 
 
-
 def test_monorepo_records_operator_and_anchor_per_repo() -> None:
     task = _task(backend="yes")
     ui = _target("web", "src/ui.tsx", "ui")

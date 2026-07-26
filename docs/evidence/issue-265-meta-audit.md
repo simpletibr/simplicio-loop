@@ -1456,8 +1456,10 @@ Cada static fix resolvido = uma LLM call poupada. Estimativa: **−30% dos retri
 class StaticFixer(ABC):
     name: str
     pattern: re.Pattern
+
     @abstractmethod
     def try_fix(self, log: str, project_dir: Path) -> bool: ...
+
 
 class FixerResult:
     fixer: str
@@ -1601,15 +1603,17 @@ class RecipeMatch:
     recipe_name: str
     slots: dict[str, str]  # extracted via regex named groups
 
+
 class Recipe:
     name: str
     matches: list[re.Pattern]
     applies_to: list[str]  # stack slugs
     slots_spec: dict[str, SlotSpec]  # required/optional, default
     tasks_template: list[dict]  # task templates with {slot} placeholders
-    
+
     def try_match(self, goal: str, stack_slug: str) -> RecipeMatch | None: ...
     def instantiate(self, match: RecipeMatch, project_name: str) -> Plan: ...
+
 
 class RecipeRegistry:
     def load(self) -> None: ...  # walk simplicio/templates/recipes/<stack>/*.yaml
@@ -1668,6 +1672,7 @@ lint_command: "ruff check src tests"
 def generate_plan(stack: Stack, goal: str, project_name: str) -> Plan:
     # NEW: try recipe match first
     from simplicio.scratch.recipes import RecipeRegistry
+
     reg = RecipeRegistry()
     match = reg.match(goal, stack.slug)
     if match is not None:

@@ -95,9 +95,7 @@ class OfflineRuntimeTransport:
         path = self._receipt_path(str(receipt["idempotency_key"]))
         self.store.mkdir(parents=True, exist_ok=True)
         temporary = path.with_name(f".{path.name}.tmp")
-        temporary.write_text(
-            json.dumps(receipt, sort_keys=True, separators=(",", ":")), encoding="utf-8"
-        )
+        temporary.write_text(json.dumps(receipt, sort_keys=True, separators=(",", ":")), encoding="utf-8")
         temporary.replace(path)
 
     def _artifact_path(self, artifact_ref: object) -> Path:
@@ -114,10 +112,14 @@ class OfflineRuntimeTransport:
         try:
             resolved.relative_to(self.root.resolve())
         except ValueError as exc:
-            raise RuntimeEffectError("OFFLINE_ARTIFACT_ESCAPE", "artifact_ref must remain inside root") from exc
+            raise RuntimeEffectError(
+                "OFFLINE_ARTIFACT_ESCAPE", "artifact_ref must remain inside root"
+            ) from exc
         return resolved
 
-    def _apply_artifact(self, transaction: dict[str, Any]) -> tuple[str, dict[str, Any], dict[str, Any] | None]:
+    def _apply_artifact(
+        self, transaction: dict[str, Any]
+    ) -> tuple[str, dict[str, Any], dict[str, Any] | None]:
         effect = transaction.get("effect")
         if not isinstance(effect, dict):
             raise RuntimeEffectError("OFFLINE_EFFECT_INVALID", "transaction effect must be an object")
@@ -125,9 +127,13 @@ class OfflineRuntimeTransport:
         try:
             plan = json.loads(artifact_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-            raise RuntimeEffectError("OFFLINE_EFFECT_ARTIFACT_INVALID", "artifact_ref is not valid JSON") from exc
+            raise RuntimeEffectError(
+                "OFFLINE_EFFECT_ARTIFACT_INVALID", "artifact_ref is not valid JSON"
+            ) from exc
         if not isinstance(plan, dict) or not isinstance(plan.get("operations"), list):
-            raise RuntimeEffectError("OFFLINE_EFFECT_ARTIFACT_INVALID", "artifact must be a mechanical edit plan")
+            raise RuntimeEffectError(
+                "OFFLINE_EFFECT_ARTIFACT_INVALID", "artifact must be a mechanical edit plan"
+            )
         from simplicio.mechanical_edit import execute_plan
 
         self.apply_count += 1
@@ -147,11 +153,7 @@ class OfflineRuntimeTransport:
             ],
         }
         errors = result.get("errors", [])
-        error_codes = [
-            str(row.get("code"))
-            for row in errors
-            if isinstance(row, dict) and row.get("code")
-        ]
+        error_codes = [str(row.get("code")) for row in errors if isinstance(row, dict) and row.get("code")]
         failed = bool(error_codes) or result.get("status") not in {"ok", "applied"}
         if failed:
             state = "validation_failed" if "validation_failed" in error_codes else "denied"
@@ -159,8 +161,15 @@ class OfflineRuntimeTransport:
             return state, validation, rollback
         return "completed", validation, None
 
-    def _build_receipt(self, transaction: dict[str, Any], *, state: str, validation: dict[str, Any],
-                       rollback: dict[str, Any] | None, reason_codes: list[str]) -> dict[str, Any]:
+    def _build_receipt(
+        self,
+        transaction: dict[str, Any],
+        *,
+        state: str,
+        validation: dict[str, Any],
+        rollback: dict[str, Any] | None,
+        reason_codes: list[str],
+    ) -> dict[str, Any]:
         receipt = {
             "schema": RECEIPT_SCHEMA,
             "state": state,
@@ -326,7 +335,8 @@ class RuntimeEffectSink:
         url = os.environ.get("SIMPLICIO_RUNTIME_URL", "").strip()
         if not url:
             raise IntegratedModeRequiresSinkError(
-                "RUNTIME_NOT_CONFIGURED: set SIMPLICIO_RUNTIME_URL or SIMPLICIO_RUNTIME_OFFLINE=1 for mode='integrated'"
+                "RUNTIME_NOT_CONFIGURED: set SIMPLICIO_RUNTIME_URL or "
+                "SIMPLICIO_RUNTIME_OFFLINE=1 for mode='integrated'"
             )
         return cls(HttpRuntimeTransport(url), root=root)
 

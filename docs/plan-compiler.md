@@ -146,9 +146,9 @@ exists":
 
 ```python
 matches = plan.verifications_for_acceptance_criterion("AC1", verifications)
-matches[0].verifier                 # e.g. "pytest"
-matches[0].command_or_capability     # e.g. "pytest -q tests/test_ac1.py"
-matches[0].expected_evidence          # e.g. ["pytest-junit.xml"]
+matches[0].verifier  # e.g. "pytest"
+matches[0].command_or_capability  # e.g. "pytest -q tests/test_ac1.py"
+matches[0].expected_evidence  # e.g. ["pytest-junit.xml"]
 ```
 
 It takes the same `verifications` bundle passed to `validate()` and returns
@@ -363,7 +363,12 @@ from simplicio.plan_compiler import RecordingEffectSink
 
 sink = RecordingEffectSink()  # reference stub; see below
 result = pipeline.run_task(
-    root, stack, goal, target, criteria, constraints,
+    root,
+    stack,
+    goal,
+    target,
+    criteria,
+    constraints,
     mode="integrated",
     effect_sink=sink,
 )

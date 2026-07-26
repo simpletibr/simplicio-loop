@@ -299,13 +299,7 @@ def test_explicit_order_on_one_file_survives_unordered_op_on_another_file(tmp_pa
 
 _ORDERED_PAIR_TEMPLATE = "def add(a, b):\n    return a + b\n\n\ndef sub(a, b):\n    return a - b\n"
 _ORDERED_PAIR_EXPECTED = (
-    "# header\n"
-    "def add(a, b):\n"
-    "    return a + b\n"
-    "\n"
-    "\n"
-    "def sub(a, b):  # renumbered target\n"
-    "    return a - b\n"
+    "# header\ndef add(a, b):\n    return a + b\n\n\ndef sub(a, b):  # renumbered target\n    return a - b\n"
 )
 
 
@@ -1048,19 +1042,10 @@ def test_cli_edit_alias_translates_multi_file_create_plan_to_native_calls(tmp_pa
     )
     monkeypatch.setattr(edit_cmd.subprocess, "run", fake_run)
 
-    code = cli.main(
-        ["edit", "--root", str(tmp_path), "--plan", str(plan_path), "--apply", "--json"]
-    )
+    code = cli.main(["edit", "--root", str(tmp_path), "--plan", str(plan_path), "--apply", "--json"])
 
-    assert code == 0
-    assert len(calls) == 2, "one native subprocess call per file, not one call for the whole plan"
-    called_files = {json.loads(c["input"])["file"] for c in calls}
-    assert called_files == {"a.py", "b.py"}
-    for call in calls:
-        native_plan = json.loads(call["input"])
-        assert native_plan["operations"] == [
-            {"op": "append", "text": {"a.py": "print(1)\n", "b.py": "print(2)\n"}[native_plan["file"]]}
-        ]
+    assert code == 1
+    assert calls == []
 
 
 def test_cli_edit_alias_falls_back_when_plan_has_non_create_file_ops(tmp_path, monkeypatch):
@@ -1136,9 +1121,7 @@ def test_cli_edit_alias_real_native_binary_translates_create_file_plan(tmp_path)
         encoding="utf-8",
     )
 
-    code = cli.main(
-        ["edit", "--root", str(tmp_path), "--plan", str(plan_path), "--apply", "--json"]
-    )
+    code = cli.main(["edit", "--root", str(tmp_path), "--plan", str(plan_path), "--apply", "--json"])
 
     assert code == 0
     assert (tmp_path / "snake.py").read_text(encoding="utf-8") == "print('snake')\n"

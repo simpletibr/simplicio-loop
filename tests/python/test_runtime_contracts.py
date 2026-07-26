@@ -87,7 +87,10 @@ def test_version_contract_exposes_canonical_capabilities(monkeypatch):
     }
     assert payload["ownership_boundary"]["schema"] == "simplicio.agent-first-boundary/v1"
     assert payload["ownership_boundary"]["owners"]["simplicio-runtime"]["role"] == "deterministic_coprocessor"
-    assert payload["ownership_boundary"]["runtime_handoff_forbidden_fields"] == AGENT_FIRST_BOUNDARY_FORBIDDEN_FIELDS
+    assert (
+        payload["ownership_boundary"]["runtime_handoff_forbidden_fields"]
+        == AGENT_FIRST_BOUNDARY_FORBIDDEN_FIELDS
+    )
 
 
 def test_agent_first_boundary_contract_keeps_agent_owned_control_plane_out_of_runtime_scope():
@@ -326,7 +329,9 @@ def _fake_completed(stdout: str) -> subprocess.CompletedProcess:
     return subprocess.CompletedProcess(args=["stub"], returncode=0, stdout=stdout, stderr="")
 
 
-def _fake_runtime_run_by_command(payloads: dict[tuple[str, ...], str], *, returncodes: dict[tuple[str, ...], int] | None = None):
+def _fake_runtime_run_by_command(
+    payloads: dict[tuple[str, ...], str], *, returncodes: dict[tuple[str, ...], int] | None = None
+):
     returncodes = returncodes or {}
 
     def _runner(args, **kwargs):
@@ -367,7 +372,9 @@ def test_runtime_verify_contract_does_not_flag_unknown_product(monkeypatch):
         "simplicio.runtime_contracts.subprocess.run",
         _fake_runtime_run_by_command(
             {
-                ("version", "--json"): json.dumps({"runtime": {"name": "some-other-tool", "version": "0.0.1"}}),
+                ("version", "--json"): json.dumps(
+                    {"runtime": {"name": "some-other-tool", "version": "0.0.1"}}
+                ),
             }
         ),
     )
@@ -432,7 +439,9 @@ def test_runtime_verify_cli_does_not_warn_for_real_runtime_product(monkeypatch, 
         "simplicio.runtime_contracts.subprocess.run",
         _fake_runtime_run_by_command(
             {
-                ("version", "--json"): json.dumps({"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}),
+                ("version", "--json"): json.dumps(
+                    {"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}
+                ),
                 ("contracts", "smoke", "--json"): json.dumps(
                     {
                         "runtime": "simplicio-runtime",
@@ -466,7 +475,9 @@ def test_runtime_verify_contract_uses_version_and_contracts_smoke(monkeypatch):
         "simplicio.runtime_contracts.subprocess.run",
         _fake_runtime_run_by_command(
             {
-                ("version", "--json"): json.dumps({"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}),
+                ("version", "--json"): json.dumps(
+                    {"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}
+                ),
                 ("contracts", "smoke", "--json"): json.dumps(
                     {
                         "runtime": "simplicio-runtime",
@@ -505,7 +516,9 @@ def test_runtime_verify_contract_reports_missing_runtime_contract_schemas(monkey
         "simplicio.runtime_contracts.subprocess.run",
         _fake_runtime_run_by_command(
             {
-                ("version", "--json"): json.dumps({"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}),
+                ("version", "--json"): json.dumps(
+                    {"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}
+                ),
                 ("contracts", "smoke", "--json"): json.dumps(
                     {
                         "runtime": "simplicio-runtime",

@@ -17,7 +17,7 @@ def test_package_version_matches_release_metadata() -> None:
 def test_simplicio_ecosystem_dependency_floors_are_current() -> None:
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
 
-    assert "simplicio-mapper>=0.24.1" in project["dependencies"]
+    assert "simplicio-mapper>=0.24.2" in project["dependencies"]
     assert "simplicio-prompt>=1.14.1" in project["dependencies"]
 
 

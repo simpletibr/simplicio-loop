@@ -152,7 +152,11 @@ def test_full_stack_plan_links_ui_state_and_api_via_measured_flow(tmp_path, monk
             return []
         if verb == "flows":
             return [
-                {"name": "modeling-ordering", "targets": order, "why": "UI consumes state which calls API order"}
+                {
+                    "name": "modeling-ordering",
+                    "targets": order,
+                    "why": "UI consumes state which calls API order",
+                }
             ]
         if verb == "tests-for":
             return [{"test_path": f"tests/test_{arg.split('/')[-1].replace('.', '_')}.py"}]

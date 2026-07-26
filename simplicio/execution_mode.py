@@ -262,7 +262,10 @@ def prepare_execution_inputs(
     )
     resolved_sink = effect_sink
     offline_runtime = os.environ.get("SIMPLICIO_RUNTIME_OFFLINE", "").strip().lower() in {
-        "1", "true", "yes", "on"
+        "1",
+        "true",
+        "yes",
+        "on",
     }
     if resolved_sink is None and (os.environ.get("SIMPLICIO_RUNTIME_URL", "").strip() or offline_runtime):
         resolved_sink = RuntimeEffectSink.from_environment(root=Path(root))
@@ -389,7 +392,7 @@ def negotiate_execution_mode(
                 "STANDALONE_READ_ONLY",
                 policy.to_dict(),
             )
-        effective = "standalone" if policy.write_allowed else "blocked"
+        effective: Literal["standalone", "blocked"] = "standalone" if policy.write_allowed else "blocked"
         return ExecutionProfile(
             requested,
             effective,

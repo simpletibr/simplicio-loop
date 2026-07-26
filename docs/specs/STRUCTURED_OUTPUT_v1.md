@@ -100,11 +100,16 @@ falls back to raw-text modal.
 ## 4. Behavior signature (used by aggregator)
 
 ```python
-sig = sha256(json.dumps({
-    "files":     sorted(files_changed),
-    "behaviors": sorted(behaviors_added),
-    "expected":  sorted(expected_oracle_pass),
-}, sort_keys=True))[:12]
+sig = sha256(
+    json.dumps(
+        {
+            "files": sorted(files_changed),
+            "behaviors": sorted(behaviors_added),
+            "expected": sorted(expected_oracle_pass),
+        },
+        sort_keys=True,
+    )
+)[:12]
 ```
 
 Two responses with identical `(files, behaviors, expected)` triples share a

@@ -78,9 +78,7 @@ def _write_artifact(root):
         json.dumps(
             {
                 "schema": "simplicio.mechanical-edit/v1",
-                "operations": [
-                    {"op": "create_file", "path": "offline-created.txt", "text": "Effect API\n"}
-                ],
+                "operations": [{"op": "create_file", "path": "offline-created.txt", "text": "Effect API\n"}],
             }
         ),
         encoding="utf-8",

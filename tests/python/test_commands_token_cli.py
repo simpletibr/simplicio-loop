@@ -74,9 +74,7 @@ def test_postconditions_reads_json_checks_from_file(tmp_path, capsys):
     checks_file.write_text(json.dumps([{"type": "file_exists", "path": "README.md"}]), encoding="utf-8")
     (tmp_path / "README.md").write_text("hi\n", encoding="utf-8")
 
-    code = cli.main(
-        ["token", "postconditions", "--file", str(checks_file), "--root", str(tmp_path)]
-    )
+    code = cli.main(["token", "postconditions", "--file", str(checks_file), "--root", str(tmp_path)])
 
     assert code == 0
     payload = json.loads(capsys.readouterr().out)
@@ -145,9 +143,7 @@ def test_retry_reads_log_from_file_when_given(tmp_path, capsys):
 
 def test_model_routing_reads_json_payload(tmp_path, capsys):
     routing_file = tmp_path / "routing.json"
-    routing_file.write_text(
-        json.dumps({"task_kind": "edit", "complexity": "low"}), encoding="utf-8"
-    )
+    routing_file.write_text(json.dumps({"task_kind": "edit", "complexity": "low"}), encoding="utf-8")
 
     code = cli.main(["token", "model-routing", "--file", str(routing_file)])
 
@@ -251,9 +247,7 @@ def test_context_cache_invalidate_clears_entry(tmp_path, capsys):
     )
     capsys.readouterr()
 
-    code = cli.main(
-        ["token", "context-cache", "invalidate", "--root", str(tmp_path), "--key", "k"]
-    )
+    code = cli.main(["token", "context-cache", "invalidate", "--root", str(tmp_path), "--key", "k"])
     assert code == 0
     capsys.readouterr()
 

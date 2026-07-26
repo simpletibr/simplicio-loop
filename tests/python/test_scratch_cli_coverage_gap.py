@@ -15,8 +15,8 @@ from pathlib import Path
 import pytest
 
 from simplicio.scratch import cli as scratch_cli
-from simplicio.scratch.planner import PlannerError
 from simplicio.scratch.plan_schema import EXAMPLE_PLAN, validate_plan
+from simplicio.scratch.planner import PlannerError
 from simplicio.scratch.stack_registry import StackRegistry
 
 
@@ -161,9 +161,7 @@ def test_cmd_scratch_cannot_infer_stack(capsys, tmp_path: Path) -> None:
 
 
 def test_cmd_scratch_invalid_slot(capsys) -> None:
-    rc = scratch_cli.main(
-        ["a fastapi service", "--stack", "py-fastapi", "--slot", "bad-slot-no-equals"]
-    )
+    rc = scratch_cli.main(["a fastapi service", "--stack", "py-fastapi", "--slot", "bad-slot-no-equals"])
     err = capsys.readouterr().err
     assert rc == 2
     assert "invalid --slot" in err
@@ -199,9 +197,7 @@ def test_cmd_scratch_plan_only_text(monkeypatch, capsys) -> None:
 def test_cmd_scratch_plan_only_json(monkeypatch, capsys) -> None:
     plan = _fake_plan()
     monkeypatch.setattr(scratch_cli, "_generate_plan_with_slots", lambda *a, **k: plan)
-    rc = scratch_cli.main(
-        ["a fastapi service", "--stack", "py-fastapi", "--plan-only", "--json"]
-    )
+    rc = scratch_cli.main(["a fastapi service", "--stack", "py-fastapi", "--plan-only", "--json"])
     out = capsys.readouterr().out
     assert rc == 0
     data = json.loads(out)
@@ -235,9 +231,7 @@ def test_cmd_scratch_full_execute_json(monkeypatch, capsys, tmp_path: Path) -> N
 
     monkeypatch.setattr(executor_mod, "execute_plan", lambda *a, **k: _FakeReport())
 
-    rc = scratch_cli.main(
-        ["a fastapi service", "--stack", "py-fastapi", "--dest", str(tmp_path), "--json"]
-    )
+    rc = scratch_cli.main(["a fastapi service", "--stack", "py-fastapi", "--dest", str(tmp_path), "--json"])
     out = capsys.readouterr().out
     assert rc == 0
     data = json.loads(out)
@@ -259,9 +253,7 @@ def test_cmd_scratch_full_execute_text_partial_failure(monkeypatch, capsys, tmp_
 
     monkeypatch.setattr(executor_mod, "execute_plan", lambda *a, **k: _PartialReport())
 
-    rc = scratch_cli.main(
-        ["a fastapi service", "--stack", "py-fastapi", "--dest", str(tmp_path)]
-    )
+    rc = scratch_cli.main(["a fastapi service", "--stack", "py-fastapi", "--dest", str(tmp_path)])
     err = capsys.readouterr().err
     assert rc == 1
     assert "fail/skipped" in err
@@ -279,9 +271,7 @@ def test_cmd_scratch_file_exists_error(monkeypatch, capsys, tmp_path: Path) -> N
 
     monkeypatch.setattr(executor_mod, "execute_plan", _boom)
 
-    rc = scratch_cli.main(
-        ["a fastapi service", "--stack", "py-fastapi", "--dest", str(tmp_path)]
-    )
+    rc = scratch_cli.main(["a fastapi service", "--stack", "py-fastapi", "--dest", str(tmp_path)])
     err = capsys.readouterr().err
     assert rc == 4
     assert "already exists" in err

@@ -51,6 +51,8 @@ from .local_inference import (
     LocalInferencePaused,
     is_local_endpoint,
     pause_receipt,
+)
+from .local_inference import (
     require_enabled as require_local_inference_enabled,
 )
 
@@ -587,6 +589,16 @@ def _shell_out(cmd, label, stdin_text=None, cancel_event=None, *, provider="unkn
     )
 
     def terminal(status, reason_code, *, exit_code=None, detail=""):
+        detail_text = str(detail)[:500]
+        message = f"{label}: {reason_code}"
+        if reason_code == "provider_startup_timeout":
+            message = f"{label}: never started producing output"
+        elif reason_code == "provider_timeout":
+            message = f"{label}: timed out"
+        elif exit_code is not None:
+            message = f"{label}: exit {exit_code}"
+        if detail_text:
+            message = f"{message}: {detail_text}"
         return {
             "schema": "simplicio.provider-terminal/v1",
             "status": status,
@@ -597,14 +609,22 @@ def _shell_out(cmd, label, stdin_text=None, cancel_event=None, *, provider="unkn
             "provider": provider,
             "model": model or "redacted",
             "effort": effort or "redacted",
-            "detail": str(detail)[:500],
-            "message": f"{label}: {reason_code}",
+            "detail": detail_text,
+            "message": message,
         }
 
     if result.phase != PHASE_COMPLETED or result.returncode != 0:
         stderr = (result.stderr or "").strip()
         combined = f"{stderr}\n{result.stdout or ''}".lower()
-        capacity_terms = ("credit", "quota", "rate limit", "rate_limit", "billing", "insufficient", "usage limit")
+        capacity_terms = (
+            "credit",
+            "quota",
+            "rate limit",
+            "rate_limit",
+            "billing",
+            "insufficient",
+            "usage limit",
+        )
         if result.phase == PHASE_STARTUP_TIMEOUT:
             reason = "provider_startup_timeout"
         elif result.phase == PHASE_TOTAL_TIMEOUT:
@@ -614,15 +634,28 @@ def _shell_out(cmd, label, stdin_text=None, cancel_event=None, *, provider="unkn
         elif result.returncode is None:
             reason = "provider_not_installed"
         else:
-            reason = "provider_capacity_unavailable" if any(term in combined for term in capacity_terms) else (
-                "provider_child_exit_silent" if not combined.strip() else "provider_process_failed"
+            reason = (
+                "provider_capacity_unavailable"
+                if any(term in combined for term in capacity_terms)
+                else ("provider_child_exit_silent" if not combined.strip() else "provider_process_failed")
             )
-        raise ProviderExecutionError(terminal(
-            "blocked" if reason in {"provider_capacity_unavailable", "provider_startup_timeout", "provider_timeout", "provider_cancelled", "provider_not_installed"} else "failed",
-            reason,
-            exit_code=result.returncode,
-            detail=stderr or result.recovery or (result.stdout or "").strip(),
-        ))
+        raise ProviderExecutionError(
+            terminal(
+                "blocked"
+                if reason
+                in {
+                    "provider_capacity_unavailable",
+                    "provider_startup_timeout",
+                    "provider_timeout",
+                    "provider_cancelled",
+                    "provider_not_installed",
+                }
+                else "failed",
+                reason,
+                exit_code=result.returncode,
+                detail=stderr or result.recovery or (result.stdout or "").strip(),
+            )
+        )
     return result.stdout
 
 
@@ -658,7 +691,9 @@ def _shell_out_claude(prompt, model, cancel_event=None):
     cmd = [_cli_command("claude"), "-p", prompt]
     if model and model not in ("default", "auto"):
         cmd += ["--model", model]
-    return _shell_out(cmd, "Claude Code CLI (`claude -p`)", cancel_event=cancel_event, provider="claude-cli", model=model)
+    return _shell_out(
+        cmd, "Claude Code CLI (`claude -p`)", cancel_event=cancel_event, provider="claude-cli", model=model
+    )
 
 
 def _shell_out_codex(prompt, model, cancel_event=None):
@@ -955,9 +990,7 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
     # read a cached completion, download weights, spawn an engine, or open a socket.
     if _is_local_inference_request(model_name, base_url):
         try:
-            require_local_inference_enabled(
-                surface="generate", model=model_name, base_url=base_url
-            )
+            require_local_inference_enabled(surface="generate", model=model_name, base_url=base_url)
         except LocalInferencePaused:
             _raise_local_pause(surface="generate", model=model_name, base=base_url)
     prompt = _apply_directives(prompt)
@@ -1111,9 +1144,9 @@ def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
 
 def info():
     c = _cfg()
-    if _is_local_inference_request(c["model"], c["base"]) and not os.environ.get(
+    if _is_local_inference_request(c["model"], c["base"]) and os.environ.get(
         "SIMPLICIO_LOCAL_INFERENCE", ""
-    ).strip().lower() in {"enabled", "1", "true", "yes"}:
+    ).strip().lower() not in {"enabled", "1", "true", "yes"}:
         return f"reason={LOCAL_INFERENCE_PAUSED} local inference is disabled by default"
     if _is_default_local(c["model"], c["base"]):
         repo, fname, path = _local_spec(LOCAL_DEFAULT_MODEL)
@@ -1274,9 +1307,7 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
     p = planner_cfg(require_key=False)
     if _is_local_inference_request(p["model"], p["base"]):
         try:
-            require_local_inference_enabled(
-                surface="planner_complete", model=p["model"], base_url=p["base"]
-            )
+            require_local_inference_enabled(surface="planner_complete", model=p["model"], base_url=p["base"])
         except LocalInferencePaused:
             _raise_local_pause(surface="planner_complete", model=p["model"], base=p["base"])
     prompt = _apply_directives(prompt)

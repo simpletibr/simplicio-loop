@@ -13,8 +13,6 @@ import importlib
 import json
 import subprocess
 
-import pytest
-
 import simplicio.ecosystem as eco
 
 

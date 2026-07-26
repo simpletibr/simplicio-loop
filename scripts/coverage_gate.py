@@ -106,7 +106,8 @@ def evaluate(report: dict, global_floor: float, critical_floor: float, critical_
         else:
             ok = False
             lines.append(
-                f"::error::critical module {module}: {pct:.2f}% < required critical floor {critical_floor:.2f}%"
+                f"::error::critical module {module}: {pct:.2f}% "
+                f"< required critical floor {critical_floor:.2f}%"
             )
 
     return ok, lines

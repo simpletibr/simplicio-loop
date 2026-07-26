@@ -4,6 +4,9 @@ usage: simplicio-py task [-h] [--root ROOT] [--stack STACK] [--target TARGET]
                          [--local] [--mode {auto,integrated,standalone}]
                          [--task-spec PATH | --task-spec-stdin]
                          [--context-snapshot CONTEXT_SNAPSHOT]
+                         [--context-pack CONTEXT_PACK]
+                         [--execution-context EXECUTION_CONTEXT]
+                         [--effect-authorization EFFECT_AUTHORIZATION]
                          [--attempt-id ATTEMPT_ID] [--lease-id LEASE_ID]
                          [--fencing-token FENCING_TOKEN]
                          [--context-handle CONTEXT_HANDLE]
@@ -37,6 +40,12 @@ options:
                         from stdin
   --context-snapshot CONTEXT_SNAPSHOT
                         canonical Mapper ContextSnapshot JSON path
+  --context-pack CONTEXT_PACK
+                        canonical Mapper ContextPack JSON path
+  --execution-context EXECUTION_CONTEXT
+                        Mapper execution-context/v1 provenance JSON path
+  --effect-authorization EFFECT_AUTHORIZATION
+                        coordinator-issued EffectAuthorization JSON path
   --attempt-id ATTEMPT_ID
                         coordinator-owned atomic attempt ID
   --lease-id LEASE_ID   coordinator-owned lease ID

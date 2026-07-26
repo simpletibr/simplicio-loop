@@ -273,8 +273,8 @@ def run_task(
         blocked_input_profile,
         negotiate_execution_mode,
         prepare_execution_inputs,
-        require_coordinator_attempt,
         requested_mode,
+        require_coordinator_attempt,
     )
 
     try:
@@ -598,6 +598,43 @@ def run_task(
             result["provider_terminal"] = receipt
             return result
         except SystemExit as exc:
+            # Some test runners and plugin hosts reload ``providers`` while
+            # keeping this module alive. The reloaded ProviderExecutionError
+            # is still a SystemExit carrying the same stable receipt contract,
+            # but it no longer has identical class identity.
+            reloaded_receipt = getattr(exc, "receipt", None)
+            if isinstance(reloaded_receipt, dict):
+                receipt = dict(reloaded_receipt)
+                emit_event("provider_terminal", receipt, level="warning", root=root)
+                emit_event(
+                    "task_terminal",
+                    {
+                        "target": target,
+                        "attempt": t,
+                        "status": receipt.get("status", "failed"),
+                        "reason_code": receipt.get("reason_code", "provider_failure"),
+                        "provider_terminal": receipt,
+                    },
+                    level="warning",
+                    root=root,
+                )
+                result = _task_result(
+                    target,
+                    prompt,
+                    "",
+                    applied=False,
+                    status=receipt.get("status", "failed"),
+                    warnings=[receipt.get("message", "provider execution failed")],
+                    blocked_preconditions=[
+                        {
+                            "reason": receipt.get("reason_code", "provider_failure"),
+                            "message": receipt.get("message", "provider execution failed"),
+                            "next_surface": "provider",
+                        }
+                    ],
+                )
+                result["provider_terminal"] = receipt
+                return result
             # Issue #219: #210's bounded shell-out raises SystemExit on a stall;
             # previously that crashed run_task uncaught with no receipt at all.
             reason = str(exc) or "provider produced no progress before its bounded deadline"

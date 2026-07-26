@@ -12,10 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 
-import pytest
-
 from simplicio.commands import claims
-
 
 # ---------------------------------------------------------------------------
 # Rule 1 — ground impact before severity

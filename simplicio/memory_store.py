@@ -400,9 +400,7 @@ def validate_memory(
                     errors.append(
                         {
                             "code": "invalid_index_schema",
-                            "message": (
-                                f"index is missing required tables: {', '.join(missing_tables)}"
-                            ),
+                            "message": (f"index is missing required tables: {', '.join(missing_tables)}"),
                         }
                     )
                 elif not errors:

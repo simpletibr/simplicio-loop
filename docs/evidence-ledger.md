@@ -7,7 +7,9 @@ It stores one JSON object per receipt and returns a consumable claim matrix:
 from simplicio.evidence_ledger import EvidenceLedger
 
 ledger = EvidenceLedger(".simplicio/evidence.jsonl", base_sha=base_sha, plan_hash=plan_hash)
-ledger.record(criterion_id="AC1", command="pytest tests/e2e/ac1.py", exit_code=0, artifact="artifacts/ac1.json")
+ledger.record(
+    criterion_id="AC1", command="pytest tests/e2e/ac1.py", exit_code=0, artifact="artifacts/ac1.json"
+)
 matrix = ledger.matrix(["AC1", "AC2"])
 ```
 

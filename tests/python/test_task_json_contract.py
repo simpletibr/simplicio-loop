@@ -227,7 +227,9 @@ def test_task_dry_run_json_accepts_new_file_under_existing_parent(tmp_path, monk
         "simplicio.pipeline_task_result.map_handoff",
         lambda _root: {"context_pack": {"files": [{"path": "src/existing.py"}]}},
     )
-    monkeypatch.setattr("simplicio.pipeline.generate", lambda *a, **k: "diff --git a/src/new.py b/src/new.py\n")
+    monkeypatch.setattr(
+        "simplicio.pipeline.generate", lambda *a, **k: "diff --git a/src/new.py b/src/new.py\n"
+    )
 
     code = cli.main(
         [

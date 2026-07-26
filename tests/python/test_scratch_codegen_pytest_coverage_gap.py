@@ -5,8 +5,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from simplicio.scratch.codegen import python_pytest as pt
 from simplicio.scratch.codegen import PythonAddPytestTestExecutor
+from simplicio.scratch.codegen import python_pytest as pt
 from simplicio.scratch.plan_schema import Task
 from simplicio.scratch.stack_registry import Stack
 
@@ -98,9 +98,7 @@ def test_execute_test_already_exists_is_noop(tmp_path):
 
     test_path = tmp_path / "tests/unit/test_math_ops.py"
     test_path.parent.mkdir(parents=True)
-    test_path.write_text(
-        "def test_double_happy_path() -> None:\n    assert True\n", encoding="utf-8"
-    )
+    test_path.write_text("def test_double_happy_path() -> None:\n    assert True\n", encoding="utf-8")
     original = test_path.read_text(encoding="utf-8")
 
     result = PythonAddPytestTestExecutor().execute(_task(), tmp_path, _stack(tmp_path))
@@ -152,9 +150,7 @@ def test_execute_async_function_generates_asyncio_run(tmp_path):
     )
     source = tmp_path / "src/utils/math_ops.py"
     source.parent.mkdir(parents=True)
-    source.write_text(
-        "async def double(value: int) -> int:\n    return value * 2\n", encoding="utf-8"
-    )
+    source.write_text("async def double(value: int) -> int:\n    return value * 2\n", encoding="utf-8")
 
     result = PythonAddPytestTestExecutor().execute(_task(), tmp_path, _stack(tmp_path))
     assert result.passed is True
@@ -225,9 +221,7 @@ def test_pytest_pythonpath_invalid_literal(tmp_path):
 
 
 def test_pytest_pythonpath_non_list_non_str_returns_empty(tmp_path):
-    (tmp_path / "pyproject.toml").write_text(
-        "[tool.pytest.ini_options]\npythonpath = 42\n", encoding="utf-8"
-    )
+    (tmp_path / "pyproject.toml").write_text("[tool.pytest.ini_options]\npythonpath = 42\n", encoding="utf-8")
     assert pt._pytest_pythonpath(tmp_path) == []
 
 
@@ -273,12 +267,8 @@ def test_assertion_branches():
     assert pt._assertion(_fn("def f() -> float: pass")) == "assert isinstance(result, float)"
     assert pt._assertion(_fn("def f() -> list: pass")) == "assert isinstance(result, list)"
     assert pt._assertion(_fn("def f() -> dict: pass")) == "assert isinstance(result, dict)"
-    assert (
-        pt._assertion(_fn("def f():\n    return\n")) == "assert result is None"
-    )
-    assert (
-        pt._assertion(_fn("def f():\n    return compute()\n")) == "assert result is not None"
-    )
+    assert pt._assertion(_fn("def f():\n    return\n")) == "assert result is None"
+    assert pt._assertion(_fn("def f():\n    return compute()\n")) == "assert result is not None"
 
 
 def test_has_value_return_ignores_bare_none():

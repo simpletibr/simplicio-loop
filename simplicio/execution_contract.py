@@ -785,9 +785,7 @@ def compile_execution_contract(task_spec: Any, *, execution_mode: bool = False) 
     # normalize that one additive field without changing the caller's object.
     task_spec_payload = dict(task)
     task_spec_payload.setdefault("schema", TASK_SPEC_SCHEMA)
-    task_spec_json = json.dumps(
-        task_spec_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-    )
+    task_spec_json = json.dumps(task_spec_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     task_spec_hash = _canonical_task_spec_hash(task_spec_payload)
 
     gates: list[HumanGate] = []

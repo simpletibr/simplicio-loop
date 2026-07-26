@@ -146,8 +146,7 @@ def _derive_full_stack_flow(
     frontend_paths = {item.path for item in changed_frontend}
     backend_paths = {item.path for item in changed_backend}
     already_covered = any(
-        frontend_paths & set(flow.targets) and backend_paths & set(flow.targets)
-        for flow in flows
+        frontend_paths & set(flow.targets) and backend_paths & set(flow.targets) for flow in flows
     )
     if already_covered:
         return flows

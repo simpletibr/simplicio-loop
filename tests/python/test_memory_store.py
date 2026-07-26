@@ -293,9 +293,7 @@ def test_cli_memory_store_text_mode_reports_path(tmp_path, capsys):
 
     mem_dir = tmp_path / "mem"
 
-    code = cli.main(
-        ["memory", "store", "release process", "Ship via draft PR first.", "--dir", str(mem_dir)]
-    )
+    code = cli.main(["memory", "store", "release process", "Ship via draft PR first.", "--dir", str(mem_dir)])
 
     captured = capsys.readouterr()
     assert code == 0

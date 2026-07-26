@@ -19,12 +19,13 @@ import shutil
 import subprocess
 import sys
 import threading
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Iterator
+from typing import Any
 
 import pytest
 
@@ -43,9 +44,9 @@ from simplicio.plan_compiler.compile_task_spec import compile_task_spec_to_plan
 from simplicio.plan_compiler.effect_sink import EffectDispatchContext
 from simplicio.plan_compiler.models import PlanDAG, PlanNode, VerificationPlan
 from simplicio.plan_compiler.runtime_effect_sink import (
-    HttpRuntimeTransport,
     RECEIPT_SCHEMA,
     TRANSACTION_SCHEMA,
+    HttpRuntimeTransport,
     RuntimeEffectSink,
 )
 from simplicio.standalone_migration import (
@@ -57,7 +58,6 @@ from simplicio.standalone_migration import (
     standalone_policy_for_root,
 )
 from simplicio.task_spec import TaskSpec
-
 
 CONTEXT_HANDLE = "sha256:" + "c" * 64
 CONTEXT_SNAPSHOT = {
@@ -366,7 +366,14 @@ def test_issue_301_runtime_presence_and_capability_matrix(
         sink = RuntimeEffectSink.from_environment(root=tmp_path)
         handshake = sink.capability_handshake()
     elif runtime_state == "incompatible":
-        for proxy_name in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"):
+        for proxy_name in (
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "ALL_PROXY",
+            "http_proxy",
+            "https_proxy",
+            "all_proxy",
+        ):
             monkeypatch.delenv(proxy_name, raising=False)
         monkeypatch.setenv("NO_PROXY", "127.0.0.1,localhost")
         monkeypatch.setenv("no_proxy", "127.0.0.1,localhost")
@@ -433,7 +440,9 @@ def test_issue_301_effect_unknown_lock_blocks_legacy_edit_until_reconciled(tmp_p
         ),
         encoding="utf-8",
     )
-    assert cli.main(["mechanical-edit", "--root", str(tmp_path), "--plan", str(plan), "--apply", "--json"]) == 1
+    assert (
+        cli.main(["mechanical-edit", "--root", str(tmp_path), "--plan", str(plan), "--apply", "--json"]) == 1
+    )
     payload = json.loads(capsys.readouterr().out)
     assert payload["applied"] is False
     assert payload["errors"][0]["code"] == "EFFECT_UNKNOWN_RECONCILIATION_REQUIRED"
@@ -494,7 +503,9 @@ def test_issue_301_kill_switch_blocks_integrated_mutation_before_dispatch(
         ],
     ],
 )
-def test_issue_301_task_feature_sprint_entrypoints_fail_closed_without_runtime(tmp_path, monkeypatch, argv, capsys):
+def test_issue_301_task_feature_sprint_entrypoints_fail_closed_without_runtime(
+    tmp_path, monkeypatch, argv, capsys
+):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     before = sorted(
         path.relative_to(tmp_path).as_posix()
@@ -506,7 +517,9 @@ def test_issue_301_task_feature_sprint_entrypoints_fail_closed_without_runtime(t
     payload = json.loads(captured.out)
     assert payload["applied"] is False
     assert payload["execution_profile"]["effective_mode"] == "blocked"
-    assert payload["warnings"] == ["RUNTIME_NOT_CONFIGURED"] or payload["warnings"] == ["INCOMPATIBLE_RUNTIME"]
+    assert payload["warnings"] == ["RUNTIME_NOT_CONFIGURED"] or payload["warnings"] == [
+        "INCOMPATIBLE_RUNTIME"
+    ]
     after = sorted(
         path.relative_to(tmp_path).as_posix()
         for path in tmp_path.rglob("*")
@@ -522,9 +535,11 @@ def _feature_task_spec(task, stack, artifact_ref: str) -> TaskSpec:
         "target": task.target,
         "verify": task.verify,
     }
-    source_hash = __import__("hashlib").sha256(
-        json.dumps(source, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
+    source_hash = (
+        __import__("hashlib")
+        .sha256(json.dumps(source, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+        .hexdigest()
+    )
     return TaskSpec(
         task_id=task.id,
         source=source,
@@ -678,13 +693,17 @@ def test_issue_301_edit_entrypoint_reports_legacy_receipt_and_respects_phase(tmp
         ),
         encoding="utf-8",
     )
-    assert cli.main(["mechanical-edit", "--root", str(tmp_path), "--plan", str(plan), "--apply", "--json"]) == 1
+    assert (
+        cli.main(["mechanical-edit", "--root", str(tmp_path), "--plan", str(plan), "--apply", "--json"]) == 1
+    )
     blocked = json.loads(capsys.readouterr().out)
     assert blocked["mutation_receipt"]["route"] == "blocked"
     assert not (tmp_path / "legacy.txt").exists()
 
     monkeypatch.setenv("SIMPLICIO_ENABLE_LEGACY_STANDALONE_WRITE", "1")
-    assert cli.main(["mechanical-edit", "--root", str(tmp_path), "--plan", str(plan), "--apply", "--json"]) == 0
+    assert (
+        cli.main(["mechanical-edit", "--root", str(tmp_path), "--plan", str(plan), "--apply", "--json"]) == 0
+    )
     applied = json.loads(capsys.readouterr().out)
     assert applied["mutation_receipt"]["legacy"] is True
     assert applied["mutation_receipt"]["runtime_gated"] is False
@@ -716,7 +735,7 @@ def test_issue_301_clean_source_install_and_contract_rollback_smoke(tmp_path):
         "assert pathlib.Path(module.__file__).parents[1].joinpath("
         "'_issue_301_install_marker.txt').read_text() == sys.argv[1]"
     )
-    for target, label in zip(installs, ("v1", "v2")):
+    for target, label in zip(installs, ("v1", "v2"), strict=True):
         env = dict(os.environ)
         env["PYTHONPATH"] = os.pathsep.join([str(target), str(repo)])
         result = subprocess.run(

@@ -506,7 +506,9 @@ def test_apply_and_test_persists_transaction_receipt_for_failed_verification(tmp
             "TEST: pytest -q",
         ]
     )
-    monkeypatch.setenv("SIMPLICIO_TEST_CMD", f"{sys.executable} -c \"import sys; print('boom'); sys.exit(3)\"")
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD", f"{sys.executable} -c \"import sys; print('boom'); sys.exit(3)\""
+    )
 
     ok, _log = pipeline._apply_and_test(output, str(tmp_path))
 
@@ -1245,7 +1247,7 @@ def test_impact_verification_emits_receipt_and_honors_transaction_timeout(tmp_pa
             return [{"test_path": "tests/test_app.py"}]
         return None
 
-    test_cmd = f'{sys.executable} -c "import sys; sys.stdout.write(\'impact\')"'
+    test_cmd = f"{sys.executable} -c \"import sys; sys.stdout.write('impact')\""
     result = pipeline_stages.run_impact_tests(
         tmp_path,
         ["src/app.py"],

@@ -2,11 +2,11 @@ usage: simplicio-py edit [-h] [--root ROOT] [--plan PLAN] [--apply]
                          [--dry-run] [--json] [--no-runtime]
 
 options:
-  -h, --help           show this help message and exit
-  --root, --repo ROOT
-  --plan PLAN          plan JSON path, or - for stdin
+  -h, --help            show this help message and exit
+  --root ROOT, --repo ROOT
+  --plan PLAN           plan JSON path, or - for stdin
   --apply
   --dry-run
   --json
-  --no-runtime         use the Python mechanical-edit fallback instead of
-                       delegating to simplicio edit
+  --no-runtime          use the Python mechanical-edit fallback instead of
+                        delegating to simplicio edit

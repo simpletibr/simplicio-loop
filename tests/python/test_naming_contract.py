@@ -45,6 +45,9 @@ ALLOWED_HERMES_FILES = {
     REPO_ROOT / "scripts" / "scan_artifacts.py",
     REPO_ROOT / "scripts" / "README.md",
     REPO_ROOT / "tests" / "python" / "test_scan_artifacts.py",
+    # Historical audit evidence quotes the pre-rebrand name while recording
+    # the exact repository state that was reviewed.
+    REPO_ROOT / "docs" / "evidence" / "issue-265-meta-audit.md",
     # This file itself documents the compat surface in its docstrings/comments.
     Path(__file__).resolve(),
 }
@@ -97,12 +100,20 @@ def test_no_stray_hermes_outside_documented_compat_surface() -> None:
     runtime_contracts.py legacy-alias detection list, the N-1 compat_adapter
     pair, and their direct call sites/tests). Anything else is a leftover
     rebrand miss."""
-    excluded_dirs = {".git", "node_modules", ".venv", "venv", "dist", "build", ".mypy_cache", ".ruff_cache", ".simplicio"}
+    excluded_dirs = {
+        ".git",
+        "node_modules",
+        ".venv",
+        "venv",
+        "dist",
+        "build",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".simplicio",
+    }
     candidates: list[Path] = []
     for pattern in ("*.md", "*.sh", "*.ps1", "*.py"):
-        candidates.extend(
-            p for p in REPO_ROOT.rglob(pattern) if excluded_dirs.isdisjoint(p.parts)
-        )
+        candidates.extend(p for p in REPO_ROOT.rglob(pattern) if excluded_dirs.isdisjoint(p.parts))
 
     offenders: list[str] = []
     for path in candidates:

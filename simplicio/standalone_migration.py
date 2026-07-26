@@ -157,10 +157,7 @@ def rollout_readiness(
         if not isinstance(unresolved, int) or isinstance(unresolved, bool) or unresolved != 0:
             reasons.append("ROLLOUT_EFFECT_UNKNOWN_UNRESOLVED")
         boundary_digest = str(payload.get("effect_boundary_digest") or "")
-        if (
-            expected_effect_boundary_digest
-            and boundary_digest != expected_effect_boundary_digest
-        ):
+        if expected_effect_boundary_digest and boundary_digest != expected_effect_boundary_digest:
             reasons.append("ROLLOUT_EFFECT_BOUNDARY_BASELINE_MISMATCH")
     return RolloutReadiness(
         target_phase=target_phase,
