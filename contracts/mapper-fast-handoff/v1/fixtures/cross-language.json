@@ -1,0 +1,25 @@
+{
+  "schema": "simplicio.mapper-fast-handoff/v1",
+  "generation": "fixture-generation-1",
+  "repository_id": "cross-language-fixture",
+  "revision": "fixture-revision",
+  "canonical_map": {
+    "id": "05deceaa90ff3ccaf5fb4437ecf1226e14fe95a17cbd33a52ecc56dd3bac87ec",
+    "default_branch": "main"
+  },
+  "capabilities": {
+    "snapshot_schemas": ["simplicio.context-snapshot/v1"],
+    "handoff_schemas": ["simplicio.mapper-fast-handoff/v1"],
+    "languages": ["csharp", "python", "rust", "typescript"],
+    "edge_kinds": ["calls", "imports", "references"],
+    "fields": ["symbols", "imports", "references", "calls", "tests", "language", "confidence"]
+  },
+  "artifacts": [],
+  "delta": {
+    "base_commit": "fixture-revision",
+    "changed_paths": [],
+    "node_ids": ["csharp-main", "python-main", "rust-main", "typescript-main"],
+    "edge_ids": [],
+    "affected": {"nodes": 4, "edges": 0}
+  }
+}

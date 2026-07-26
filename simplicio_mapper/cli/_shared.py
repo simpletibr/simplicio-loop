@@ -97,6 +97,7 @@ USAGE
   simplicio-mapper contract validate <path> [<path> ...]
   simplicio-mapper doctor --contracts [--cross-repo] [<path> ...]
   simplicio-mapper doctor --fast [manifest.json] [--json]
+  simplicio-mapper fast-handoff [path] [--changed-path file] [--base-commit sha]
   simplicio-mapper canonical build <path> [--json]
   simplicio-mapper canonical status <path> [--json]
   simplicio-mapper canonical verify <path> [--json] [--storage-root <dir>] [--config-fingerprint <value>] [--limit <n>]
