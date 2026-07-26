@@ -271,6 +271,13 @@ class ContextBindingCache:
             "commit": str(getattr(handle, "commit", "")),
             "overlay": str(getattr(handle, "overlay", "")),
             "context_schema": str(getattr(handle, "context_schema", "")),
+            "base_generation": str(getattr(handle, "base_generation", "")),
+            "overlay_generation": str(getattr(handle, "overlay_generation", "")),
+            "engine": str(getattr(handle, "engine", "")),
+            "capability_digest": str(getattr(handle, "capability_digest", "")),
+            "source_hashes_digest": hashlib.sha256(
+                _canonical_json_bytes(dict(getattr(handle, "source_hashes", ())))
+            ).hexdigest(),
         }
 
     def lookup(self, handle: ContextHandle) -> dict[str, Any]:
