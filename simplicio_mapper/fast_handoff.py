@@ -23,7 +23,7 @@ ARTIFACT_NAMES = (
     "architecture-inventory.json",
 )
 
-
+_ATOMIC_JSON_LOCK = threading.Lock()
 def _hash_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
@@ -43,10 +43,18 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 
 def _atomic_json(path: Path, payload: Mapping[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f"{path.name}.tmp-{os.getpid()}-{threading.get_ident()}")
-    temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(temporary, path)
+    with _ATOMIC_JSON_LOCK:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_name(f"{path.name}.tmp-{os.getpid()}-{threading.get_ident()}")
+        temporary.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        for attempt in range(5):
+            try:
+                os.replace(temporary, path)
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.01 * (attempt + 1))
 
 
 def _git(root: Path, *args: str) -> str:
