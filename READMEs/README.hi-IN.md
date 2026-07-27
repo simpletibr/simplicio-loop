@@ -6,7 +6,11 @@
 
 [कैनोनिकल README और सभी भाषाएँ](../README.md)
 
-<p align="center"><img src="../assets/llm-project-mapper-hero.png" alt="रिपॉज़िटरी साक्ष्य-समर्थित सीमित संदर्भ में बदलती हुई" width="100%"></p>
+<p align="center">
+  <a href="../video/assets/simplicio-mapper-ink-press.hi-IN.mp4"><img src="../assets/llm-project-mapper-hero.png" alt="रिपॉज़िटरी साक्ष्य-समर्थित सीमित संदर्भ में बदलती हुई" width="100%"></a>
+  <br>
+  <strong><a href="../video/assets/simplicio-mapper-ink-press.hi-IN.mp4">36 सेकंड की उत्पाद फ़िल्म देखें</a></strong>
+</p>
 
 `simplicio-mapper` कोडबेस को `.simplicio/` में संस्करणित आर्टिफैक्ट में बदलता है: आर्किटेक्चर, प्रतीक, फ्लो, नियम, टेस्ट और कार्य-आधारित संदर्भ पैक। यह Simplicio इकोसिस्टम का मैपिंग इंजन है—रिपॉज़िटरी ज्ञान को निरीक्षण के लिए छोटा और ऑडिट के लिए स्पष्ट बनाता है।
 

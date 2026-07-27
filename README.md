@@ -9,7 +9,11 @@
 **Languages:** [English](README.md) · [Português](READMEs/README.pt-BR.md) · [Español](READMEs/README.es-ES.md) · [Français](READMEs/README.fr-FR.md) · [Italiano](READMEs/README.it-IT.md) · [Polski](READMEs/README.pl-PL.md) · [Русский](READMEs/README.ru-RU.md) · [中文](READMEs/README.zh-CN.md) · [日本語](READMEs/README.ja-JP.md) · [한국어](READMEs/README.ko-KR.md) · [हिन्दी](READMEs/README.hi-IN.md) · [العربية](READMEs/README.ar-SA.md) · [עברית](READMEs/README.he-IL.md) · [Bahasa Indonesia](READMEs/README.id-ID.md) · [Bahasa Melayu](READMEs/README.ms-MY.md)
 
 <p align="center">
-  <img src="assets/llm-project-mapper-hero.png" alt="A repository becoming a bounded, evidence-backed context snapshot" width="100%">
+  <a href="video/assets/simplicio-mapper-ink-press.en.mp4">
+    <img src="assets/llm-project-mapper-hero.png" alt="A repository becoming a bounded, evidence-backed context snapshot" width="100%">
+  </a>
+  <br>
+  <strong><a href="video/assets/simplicio-mapper-ink-press.en.mp4">Watch the 36-second product film</a></strong>
 </p>
 <p align="center">
   <img src="assets/overlay-install.svg" alt="Overlay install screencast" width="100%">

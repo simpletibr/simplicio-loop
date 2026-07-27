@@ -6,7 +6,11 @@
 
 [规范 README 与全部语言](../README.md)
 
-<p align="center"><img src="../assets/llm-project-mapper-hero.png" alt="代码仓库转化为由证据支持的有边界上下文" width="100%"></p>
+<p align="center">
+  <a href="../video/assets/simplicio-mapper-ink-press.zh-CN.mp4"><img src="../assets/llm-project-mapper-hero.png" alt="代码仓库转化为由证据支持的有边界上下文" width="100%"></a>
+  <br>
+  <strong><a href="../video/assets/simplicio-mapper-ink-press.zh-CN.mp4">观看 36 秒产品影片</a></strong>
+</p>
 
 `simplicio-mapper` 将代码库转化为 `.simplicio/` 中的版本化产物：架构、符号、流程、规则、测试以及面向任务的上下文包。它是 Simplicio 生态系统的映射引擎，使仓库知识既足够精简以便检查，又足够明确以便审计。
 

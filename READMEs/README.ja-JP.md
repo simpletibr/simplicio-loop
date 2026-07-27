@@ -6,7 +6,11 @@
 
 [正規 README と全言語](../README.md)
 
-<p align="center"><img src="../assets/llm-project-mapper-hero.png" alt="リポジトリが証拠に支えられた境界付きコンテキストになる様子" width="100%"></p>
+<p align="center">
+  <a href="../video/assets/simplicio-mapper-ink-press.ja-JP.mp4"><img src="../assets/llm-project-mapper-hero.png" alt="リポジトリが証拠に支えられた境界付きコンテキストになる様子" width="100%"></a>
+  <br>
+  <strong><a href="../video/assets/simplicio-mapper-ink-press.ja-JP.mp4">36 秒の製品動画を見る</a></strong>
+</p>
 
 `simplicio-mapper` はコードベースを `.simplicio/` 配下のバージョン管理された成果物へ変換します。成果物にはアーキテクチャ、シンボル、フロー、ルール、テスト、タスク指向のコンテキストパックが含まれます。Simplicio エコシステムのマッピングエンジンとして、リポジトリ知識を検査できるほど小さく、監査できるほど明示的にします。
 

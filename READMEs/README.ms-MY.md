@@ -6,7 +6,11 @@
 
 [README kanonik dan semua bahasa](../README.md)
 
-<p align="center"><img src="../assets/llm-project-mapper-hero.png" alt="Repositori menjadi konteks bersempadan yang disokong bukti" width="100%"></p>
+<p align="center">
+  <a href="../video/assets/simplicio-mapper-ink-press.ms-MY.mp4"><img src="../assets/llm-project-mapper-hero.png" alt="Repositori menjadi konteks bersempadan yang disokong bukti" width="100%"></a>
+  <br>
+  <strong><a href="../video/assets/simplicio-mapper-ink-press.ms-MY.mp4">Tonton filem produk selama 36 saat</a></strong>
+</p>
 
 `simplicio-mapper` menukarkan pangkalan kod kepada artifak berversi dalam `.simplicio/`: seni bina, simbol, aliran, peraturan, ujian dan pek konteks berasaskan tugasan. Ia ialah enjin pemetaan ekosistem Simplicio — pengetahuan repositori cukup kecil untuk diperiksa dan cukup jelas untuk diaudit.
 

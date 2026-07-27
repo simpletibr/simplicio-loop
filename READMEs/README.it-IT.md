@@ -6,7 +6,11 @@
 
 [README canonico e tutte le lingue](../README.md)
 
-<p align="center"><img src="../assets/llm-project-mapper-hero.png" alt="Un repository trasformato in contesto delimitato e basato su evidenze" width="100%"></p>
+<p align="center">
+  <a href="../video/assets/simplicio-mapper-ink-press.it-IT.mp4"><img src="../assets/llm-project-mapper-hero.png" alt="Un repository trasformato in contesto delimitato e basato su evidenze" width="100%"></a>
+  <br>
+  <strong><a href="../video/assets/simplicio-mapper-ink-press.it-IT.mp4">Guarda il filmato di prodotto di 36 secondi</a></strong>
+</p>
 
 `simplicio-mapper` trasforma una codebase in artefatti versionati in `.simplicio/`: architettura, simboli, flussi, regole, test e pacchetti di contesto guidati dal compito. È il motore di mappatura dell’ecosistema Simplicio: conoscenza abbastanza compatta da ispezionare e abbastanza esplicita da verificare.
 

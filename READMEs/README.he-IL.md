@@ -8,7 +8,11 @@
 
 [README קנוני וכל השפות](../README.md)
 
-<p align="center"><img src="../assets/llm-project-mapper-hero.png" alt="מאגר שהופך להקשר תחום המבוסס על ראיות" width="100%"></p>
+<p align="center">
+  <a href="../video/assets/simplicio-mapper-ink-press.he-IL.mp4"><img src="../assets/llm-project-mapper-hero.png" alt="מאגר שהופך להקשר תחום המבוסס על ראיות" width="100%"></a>
+  <br>
+  <strong><a href="../video/assets/simplicio-mapper-ink-press.he-IL.mp4">צפו בסרטון המוצר בן 36 השניות</a></strong>
+</p>
 
 `simplicio-mapper` הופך בסיס קוד לארטיפקטים עם גרסאות תחת `.simplicio/`: ארכיטקטורה, סמלים, זרימות, כללים, בדיקות וחבילות הקשר המכוונות למשימה. זהו מנוע המיפוי של אקוסיסטם Simplicio; הידע על המאגר קטן מספיק לבדיקה ומפורש מספיק לביקורת.
 
