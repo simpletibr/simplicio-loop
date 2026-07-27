@@ -321,12 +321,18 @@ def runtime_verify_contract(*, timeout: int = 30) -> dict[str, Any]:
         }
         - {""}
     )
+    checks = [check for check in contracts_response.get("checks", []) if isinstance(check, dict)]
     failed_checks = sorted(
-        str(check.get("name"))
-        for check in contracts_response.get("checks", [])
-        if isinstance(check, dict) and check.get("passed") is False and check.get("name")
+        str(check.get("name")) for check in checks if check.get("passed") is False and check.get("name")
     )
-    blocking_checks = [name for name in failed_checks if not name.startswith("artifact:")]
+    blocking_checks = sorted(
+        str(check.get("name"))
+        for check in checks
+        if check.get("passed") is False
+        and check.get("name")
+        and check.get("required") is True
+        and check.get("not_applicable") is not True
+    )
     missing = sorted(cap for cap in RUNTIME_VERIFY_CAPABILITIES if cap not in names)
     if contracts_response.get("runtime") != RUNTIME_PRODUCT:
         reason = "wrong-runtime-product"
@@ -347,6 +353,7 @@ def runtime_verify_contract(*, timeout: int = 30) -> dict[str, Any]:
         "capabilities": names,
         "missing_capabilities": missing,
         "failed_checks": failed_checks,
+        "blocking_checks": blocking_checks,
         "legacy_alias": False,
     }
 

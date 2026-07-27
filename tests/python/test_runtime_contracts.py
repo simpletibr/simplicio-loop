@@ -348,6 +348,86 @@ def _fake_runtime_run_by_command(
     return _runner
 
 
+def _full_runtime_contracts_smoke(*checks: dict[str, object]) -> str:
+    return json.dumps(
+        {
+            "runtime": "simplicio-runtime",
+            "status": "failed" if any(check.get("passed") is False for check in checks) else "passed",
+            "checks": list(checks),
+            "standard_io": "simplicio.io/v1",
+            "schemas": {
+                "compatibility_matrix": "simplicio.compatibility-matrix/v1",
+                "context_pack": "simplicio.context-pack/v1",
+                "mechanical_edit": "simplicio.mechanical-edit/v1",
+                "mechanical_edit_result": "simplicio.mechanical-edit-result/v1",
+                "artifact_response": "simplicio.artifact-response/v1",
+                "workflow_ledger": "simplicio.workflow-ledger/v1",
+                "effect_transaction": "simplicio.effect-transaction/v1",
+            },
+            "compatibility": {"schema": "simplicio.evidence-ledger/v1"},
+        }
+    )
+
+
+def test_runtime_verify_contract_ignores_failed_optional_not_applicable_check(monkeypatch):
+    monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(
+        "simplicio.runtime_contracts.subprocess.run",
+        _fake_runtime_run_by_command(
+            {
+                ("version", "--json"): json.dumps(
+                    {"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}
+                ),
+                ("contracts", "smoke", "--json"): _full_runtime_contracts_smoke(
+                    {
+                        "name": "adapter:llama-server",
+                        "required": False,
+                        "not_applicable": True,
+                        "policy": "disabled",
+                        "passed": False,
+                    }
+                ),
+            }
+        ),
+    )
+
+    payload = runtime_verify_contract()
+
+    assert payload["verified"] is True
+    assert payload["reason"] == "ok"
+    assert payload["failed_checks"] == ["adapter:llama-server"]
+    assert payload["blocking_checks"] == []
+
+
+def test_runtime_verify_contract_blocks_failed_required_check(monkeypatch):
+    monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
+    monkeypatch.setattr(
+        "simplicio.runtime_contracts.subprocess.run",
+        _fake_runtime_run_by_command(
+            {
+                ("version", "--json"): json.dumps(
+                    {"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}
+                ),
+                ("contracts", "smoke", "--json"): _full_runtime_contracts_smoke(
+                    {
+                        "name": "runtime:simplicio-runtime",
+                        "required": True,
+                        "not_applicable": False,
+                        "passed": False,
+                    }
+                ),
+            }
+        ),
+    )
+
+    payload = runtime_verify_contract()
+
+    assert payload["verified"] is False
+    assert payload["reason"] == "runtime-contracts-status-failed"
+    assert payload["failed_checks"] == ["runtime:simplicio-runtime"]
+    assert payload["blocking_checks"] == ["runtime:simplicio-runtime"]
+
+
 def test_runtime_verify_contract_flags_legacy_alias(monkeypatch):
     monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
     monkeypatch.setattr(
