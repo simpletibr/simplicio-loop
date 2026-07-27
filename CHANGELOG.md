@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.16.4] - 2026-07-27
+
+### Changed
+- Added the guarded Stage ABI mutation worker to the main release line.
+- Kept Dev CLI state and ecosystem artifacts under `.simplicio`.
+- Continued the Fast provenance, atomic changeset, and fail-closed local-inference policy surfaces already present on main.
+
 ## [0.16.3] — 2026-07-25
 
 ### Changed
