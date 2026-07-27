@@ -197,7 +197,9 @@ def _run_native_edit_plans(runtime: str, native_plans: list[dict], a: argparse.N
         "operation_count": len(native_plans),
         "files": files,
         "errors": errors,
-        "mutation_receipt": mutation_receipt("runtime_effect_api", entrypoint="edit"),
+        "mutation_receipt": mutation_receipt(
+            "runtime_effect_api", entrypoint="edit", runtime_gate_verified=not errors
+        ),
     }
 
 
