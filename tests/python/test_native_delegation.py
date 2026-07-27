@@ -211,7 +211,7 @@ def test_run_edit_records_python_fallback_when_no_binary_on_path(tmp_path, monke
     assert events[0]["payload"]["reason"] == "binary-not-found"
 
 
-def test_run_edit_delegates_python_stub_via_interpreter_on_windows(tmp_path, monkeypatch):
+def test_run_edit_delegates_python_stub_via_interpreter_on_windows(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(edit_cmd.shutil, "which", lambda name: "C:/tmp/simplicio-stub.py")
     calls = []
 
@@ -247,6 +247,39 @@ def test_run_edit_delegates_python_stub_via_interpreter_on_windows(tmp_path, mon
         assert argv[:2] == [sys.executable, "C:/tmp/simplicio-stub.py"]
     else:
         assert argv[0] == "C:/tmp/simplicio-stub.py"
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["mutation_receipt"]["runtime_gated"] is True
+
+
+def test_native_runtime_failure_never_claims_runtime_gate(tmp_path, monkeypatch):
+    def fake_run(_argv, **_kwargs):
+        return SimpleNamespace(returncode=1, stdout="", stderr="runtime rejected")
+
+    monkeypatch.setattr(edit_cmd.subprocess, "run", fake_run)
+    result = edit_cmd._run_native_edit_plans(
+        "simplicio",
+        [{"file": "x.txt"}],
+        argparse.Namespace(root=str(tmp_path), apply=True),
+    )
+
+    assert result["status"] == "effect_unknown"
+    assert result["mutation_receipt"]["runtime_gated"] is False
+
+
+def test_native_runtime_malformed_output_never_claims_runtime_gate(tmp_path, monkeypatch):
+    def fake_run(_argv, **_kwargs):
+        return SimpleNamespace(returncode=0, stdout="not-json", stderr="")
+
+    monkeypatch.setattr(edit_cmd.subprocess, "run", fake_run)
+    result = edit_cmd._run_native_edit_plans(
+        "simplicio",
+        [{"file": "x.txt"}],
+        argparse.Namespace(root=str(tmp_path), apply=True),
+    )
+
+    assert result["status"] == "effect_unknown"
+    assert result["errors"][0]["code"] == "native_delegation_malformed_output"
+    assert result["mutation_receipt"]["runtime_gated"] is False
 
 
 # --------------------------------------------------------------------------- #
