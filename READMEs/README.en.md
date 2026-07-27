@@ -6,7 +6,11 @@
 
 [All languages and the canonical README](../README.md)
 
-<p align="center"><img src="../assets/llm-project-mapper-hero.png" alt="A repository becoming bounded, evidence-backed context" width="100%"></p>
+<p align="center">
+  <a href="../video/assets/simplicio-mapper-ink-press.en.mp4"><img src="../assets/llm-project-mapper-hero.png" alt="A repository becoming bounded, evidence-backed context" width="100%"></a>
+  <br>
+  <strong><a href="../video/assets/simplicio-mapper-ink-press.en.mp4">Watch the 36-second product film</a></strong>
+</p>
 
 `simplicio-mapper` maps a codebase into versioned `.simplicio/` artifacts: architecture, symbols, flows, rules, tests, and task-aware context packs. It is the mapping engine of the Simplicio ecosystem, built to make repository knowledge small enough to inspect and explicit enough to audit.
 

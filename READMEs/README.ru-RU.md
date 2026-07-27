@@ -6,7 +6,11 @@
 
 [Канонический README и все языки](../README.md)
 
-<p align="center"><img src="../assets/llm-project-mapper-hero.png" alt="Репозиторий превращается в ограниченный контекст, подкреплённый доказательствами" width="100%"></p>
+<p align="center">
+  <a href="../video/assets/simplicio-mapper-ink-press.ru-RU.mp4"><img src="../assets/llm-project-mapper-hero.png" alt="Репозиторий превращается в ограниченный контекст, подкреплённый доказательствами" width="100%"></a>
+  <br>
+  <strong><a href="../video/assets/simplicio-mapper-ink-press.ru-RU.mp4">Посмотрите 36-секундный фильм о продукте</a></strong>
+</p>
 
 `simplicio-mapper` превращает кодовую базу в версионируемые артефакты в `.simplicio/`: архитектуру, символы, потоки, правила, тесты и контекстные пакеты для задач. Это движок картирования экосистемы Simplicio: знания о репозитории достаточно компактны для проверки и достаточно явны для аудита.
 

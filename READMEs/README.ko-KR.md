@@ -6,7 +6,11 @@
 
 [정식 README 및 모든 언어](../README.md)
 
-<p align="center"><img src="../assets/llm-project-mapper-hero.png" alt="저장소가 증거 기반의 경계 있는 컨텍스트로 바뀌는 모습" width="100%"></p>
+<p align="center">
+  <a href="../video/assets/simplicio-mapper-ink-press.ko-KR.mp4"><img src="../assets/llm-project-mapper-hero.png" alt="저장소가 증거 기반의 경계 있는 컨텍스트로 바뀌는 모습" width="100%"></a>
+  <br>
+  <strong><a href="../video/assets/simplicio-mapper-ink-press.ko-KR.mp4">36초 제품 영상 보기</a></strong>
+</p>
 
 `simplicio-mapper`는 코드베이스를 `.simplicio/` 아래의 버전 관리 아티팩트로 변환합니다. 아키텍처, 심볼, 흐름, 규칙, 테스트, 작업별 컨텍스트 팩이 포함됩니다. Simplicio 생태계의 매핑 엔진으로서, 저장소 지식을 검사할 만큼 작고 감사할 만큼 명시적으로 만듭니다.
 

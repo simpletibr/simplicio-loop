@@ -8,7 +8,11 @@
 
 [README المرجعي وجميع اللغات](../README.md)
 
-<p align="center"><img src="../assets/llm-project-mapper-hero.png" alt="مستودع يتحول إلى سياق محدود مدعوم بالأدلة" width="100%"></p>
+<p align="center">
+  <a href="../video/assets/simplicio-mapper-ink-press.ar-SA.mp4"><img src="../assets/llm-project-mapper-hero.png" alt="مستودع يتحول إلى سياق محدود مدعوم بالأدلة" width="100%"></a>
+  <br>
+  <strong><a href="../video/assets/simplicio-mapper-ink-press.ar-SA.mp4">شاهد فيلم المنتج في 36 ثانية</a></strong>
+</p>
 
 يحوّل `simplicio-mapper` قاعدة الشفرة إلى مخرجات مُصَدَّرة بإصدارات داخل `.simplicio/`: معمارية، ورموز، وتدفقات، وقواعد، واختبارات، وحزم سياق موجهة للمهام. وهو محرك الخرائط في منظومة Simplicio، بحيث تصبح معرفة المستودع صغيرة بما يكفي للفحص وصريحة بما يكفي للتدقيق.
 

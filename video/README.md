@@ -1,5 +1,25 @@
 # Skills Tutorial — Vídeo Remotion
 
+## simplicio-mapper — Ink Press
+
+O filme de produto **Ink Press** apresenta, em 36 segundos, o problema que o
+Mapper resolve: agentes chegam sem um mapa confiável do repositório e repetem
+leituras caras e inconsistentes. O vídeo mostra como o Mapper transforma o
+código em artefatos versionados e consultáveis para inspeção, impacto e
+handoff.
+
+Cada README localizado aponta para a versão correspondente em
+[`assets/`](./assets). A produção Remotion fica no projeto irmão
+`simplicio-remotion/videos/simplicio-mapper-ink-press/`.
+
+| Idiomas disponíveis | Formato |
+|---|---|
+| `en`, `pt-BR`, `es-ES`, `fr-FR`, `it-IT`, `pl-PL`, `ru-RU`, `zh-CN`, `ja-JP`, `ko-KR`, `hi-IN`, `ar-SA`, `he-IL`, `id-ID`, `ms-MY` | 1920×1080 · 30 fps · H.264/AAC |
+
+Exemplo: [`simplicio-mapper-ink-press.pt-BR.mp4`](./assets/simplicio-mapper-ink-press.pt-BR.mp4).
+
+---
+
 Vídeo explicativo (1080p · 30fps · ~59s) sobre **como usar as skills** do `llm-project-mapper`. Construído com [Remotion](https://www.remotion.dev/) — vídeo programático em React. Mesma timeline em **dois idiomas** (pt-BR e en) via `<LangProvider>` + dicionário em `src/i18n.ts`.
 
 O mesmo workspace também gera o vídeo **Why LLM Project Mapper** (`53s`) com:
