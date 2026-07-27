@@ -1,6 +1,6 @@
 [project]
 name = "simplicio-cli"
-version = "0.16.4"
+version = "0.16.5"
 description = "Portable task-to-code pipeline that works with any LLM. Turn a one-line task into a verified code change — diff + test + verify loop. +55 pts on a 156-check benchmark, 21% faster, ~same tokens."
 readme = "README.md"
 license = { text = "MIT" }

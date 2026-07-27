@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## [0.16.5] - 2026-07-27
+
+### Changed
+- Publish the current main line with the guarded Stage ABI mutation worker,
+  `.simplicio` state parity, and Fast provenance/changeset contracts.
+
 ## [0.16.4] - 2026-07-27
 
 ### Changed
