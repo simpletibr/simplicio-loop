@@ -131,7 +131,11 @@ def coverage_delta(atlas: Mapping[str, Any], previous_gap_ids: Sequence[str] = (
         "closed_gap_ids": sorted(previous - {item["gap_id"] for item in gaps}),
     }
     # Loop v1 validates the digest over its projection, excluding incremental metadata.
-    projection = {key: body[key] for key in ("schema", "source", "base_atlas_digest", "gaps")}
+    projection = {key: body[key] for key in ("schema", "source", "base_atlas_digest")}
+    projection["gaps"] = [
+        {key: item[key] for key in ("gap_id", "kind", "subject", "evidence_refs")}
+        for item in body["gaps"]
+    ]
     body["delta_digest"] = digest(projection)
     return body
 
@@ -152,7 +156,12 @@ def operational_delta(*, source: str, base_atlas_digest: str,
         "schema": DELTA_SCHEMA, "source": source, "base_atlas_digest": base_atlas_digest,
         "gaps": sorted(gaps, key=lambda item: item["gap_id"]),
     }
-    body["delta_digest"] = digest(body)
+    projection = {key: body[key] for key in ("schema", "source", "base_atlas_digest")}
+    projection["gaps"] = [
+        {key: item[key] for key in ("gap_id", "kind", "subject", "evidence_refs")}
+        for item in body["gaps"]
+    ]
+    body["delta_digest"] = digest(projection)
     return body
 
 
