@@ -5,9 +5,11 @@ from typing import Any, Callable
 from .mutation_worker import MutationBlocked, MutationWorker, RECEIPT, digest
 
 MUTABLE_ENTRYPOINTS = {
-    "task", "run", "cache.clear", "init", "env-export", "mechanical-edit",
+    "index", "task", "run", "cache.clear", "init", "env-export", "mechanical-edit",
     "changeset", "edit", "test.run", "prototype.apply", "prototype.scaffold",
-    "prototype.batch", "memory.init", "memory.store", "memory.handoff",
+    "prototype.plan", "prototype.promote", "prototype.reject", "prototype.batch",
+    "memory.init", "memory.store", "memory.handoff",
+    "token.context-cache.put", "token.context-cache.invalidate",
 }
 
 def verify_receipt(receipt: dict[str, Any]) -> bool:

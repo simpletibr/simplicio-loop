@@ -10,8 +10,10 @@ READ_ONLY = {"status","claims","inspect","doctor","versions","file","detect","ru
 
 def route_name(argv: Sequence[str]) -> str:
     if not argv: return ""
-    if len(argv)>1 and f"{argv[0]}.{argv[1]}" in MUTABLE_ENTRYPOINTS:
-        return f"{argv[0]}.{argv[1]}"
+    for length in range(min(3,len(argv)),0,-1):
+        candidate=".".join(argv[:length])
+        if candidate in MUTABLE_ENTRYPOINTS:
+            return candidate
     return argv[0]
 
 def guard_mutable_dispatch(argv: Sequence[str], environ: Mapping[str,str]|None=None) -> None:

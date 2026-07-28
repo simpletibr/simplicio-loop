@@ -19,6 +19,11 @@ def test_valid_stage_plan_and_read_only_compatibility(tmp_path):
     guard_mutable_dispatch(["edit"],env)
     guard_mutable_dispatch(["status"],{"SIMPLICIO_STAGE_ABI":"1"})
 
+def test_nested_mutating_routes_cannot_bypass_guard():
+    for argv in (["token","context-cache","put"],["prototype","promote"],["cache","clear"]):
+        with pytest.raises(MutationBlocked,match="MECHANICAL_PLAN_REQUIRED"):
+            guard_mutable_dispatch(argv,{"SIMPLICIO_STAGE_ABI":"1"})
+
 def test_cli_main_calls_guard_before_parser_dispatch():
     source=(Path(__file__).parents[2]/"simplicio/cli.py").read_text()
     guard=source.index("guard_mutable_dispatch(argv")
