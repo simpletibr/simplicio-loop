@@ -265,6 +265,92 @@ def evaluate_evidence(graph: Mapping[str, Any], *, risk: str = "medium",
     }
 
 
+def context_delta(base_graph: Mapping[str, Any], target_graph: Mapping[str, Any], *,
+                  renames: Mapping[str, str] | None = None) -> dict[str, Any]:
+    base, target = validate_graph(base_graph), validate_graph(target_graph)
+    if base["repo_id"] != target["repo_id"]:
+        raise ContextGraphError("delta_repo_mismatch", target["repo_id"])
+    before = {(f["kind"], f["key"]): f for f in base["facts"]}
+    after = {(f["kind"], f["key"]): f for f in target["facts"]}
+    rename_map = dict(sorted((renames or {}).items()))
+    renamed: list[dict[str, Any]] = []
+    consumed_before, consumed_after = set(), set()
+    for old_key, new_key in rename_map.items():
+        candidates = sorted(k for k in before if k[1] == old_key)
+        if len(candidates) != 1:
+            raise ContextGraphError("delta_rename_source_invalid", old_key)
+        old = candidates[0]; new = (old[0], new_key)
+        if new not in after:
+            raise ContextGraphError("delta_rename_target_invalid", new_key)
+        renamed.append({"from_fact_id": before[old]["fact_id"],
+                        "to_fact_id": after[new]["fact_id"],
+                        "from_key": old_key, "to_key": new_key})
+        consumed_before.add(old); consumed_after.add(new)
+    common = (set(before) & set(after)) - consumed_before - consumed_after
+    updated = [
+        {"from_fact_id": before[k]["fact_id"], "fact": after[k]}
+        for k in sorted(common)
+        if before[k]["value"] != after[k]["value"]
+        or before[k]["provenance"] != after[k]["provenance"]
+    ]
+    created = [after[k] for k in sorted(set(after) - set(before) - consumed_after)]
+    deleted = [
+        {"fact_id": before[k]["fact_id"], "key": k[1], "status": "TOMBSTONE"}
+        for k in sorted(set(before) - set(after) - consumed_before)
+    ]
+    changed_ids = {
+        x["fact_id"] for x in created
+    } | {x["fact"]["fact_id"] for x in updated} | {
+        x["to_fact_id"] for x in renamed
+    }
+    affected_relations = sorted(
+        r["relation_id"] for r in target["relations"]
+        if r["source_id"] in changed_ids or r["target_id"] in changed_ids
+    )
+    body = {
+        "schema": "simplicio.context-delta/v1", "repo_id": base["repo_id"],
+        "base_generation": base["generation"], "target_generation": target["generation"],
+        "base_graph_digest": base["graph_digest"],
+        "target_graph_digest": target["graph_digest"],
+        "created": created, "updated": updated, "renamed": renamed,
+        "deleted": deleted, "affected_relation_ids": affected_relations,
+        # Canonical target is included so application is transactional and exact.
+        "target_graph": target,
+    }
+    body["delta_digest"] = digest(body)
+    return body
+
+
+def apply_delta(base_graph: Mapping[str, Any], delta: Mapping[str, Any]) -> dict[str, Any]:
+    base = validate_graph(base_graph)
+    unsigned = dict(delta); supplied = unsigned.pop("delta_digest", "")
+    if supplied != digest(unsigned):
+        raise ContextGraphError("delta_corrupt", supplied)
+    if delta.get("schema") != "simplicio.context-delta/v1":
+        raise ContextGraphError("delta_schema_invalid", "")
+    if base["graph_digest"] != delta.get("base_graph_digest"):
+        raise ContextGraphError("delta_base_mismatch", base["graph_digest"])
+    target = validate_graph(delta["target_graph"])
+    if target["graph_digest"] != delta.get("target_graph_digest"):
+        raise ContextGraphError("delta_target_mismatch", target["graph_digest"])
+    return target
+
+
+def batch_events(events: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Debounce by logical key: last sequence wins, output order is stable."""
+    latest: dict[str, tuple[int, dict[str, Any]]] = {}
+    for position, event in enumerate(events):
+        key = str(event.get("key", ""))
+        if not key:
+            raise ContextGraphError("event_key_missing", str(position))
+        sequence = int(event.get("sequence", position))
+        previous = latest.get(key)
+        if previous is None or sequence >= previous[0]:
+            latest[key] = (sequence, dict(event))
+    return [value[1] for _, value in sorted(latest.items())]
+
+
 __all__ = ["ContextGraphError", "Provenance", "build_graph", "digest", "fact",
-           "evaluate_evidence", "limited_export", "impact_query", "relation",
-           "tombstone", "validate_graph"]
+           "apply_delta", "batch_events", "context_delta", "evaluate_evidence",
+           "limited_export", "impact_query", "relation", "tombstone",
+           "validate_graph"]
