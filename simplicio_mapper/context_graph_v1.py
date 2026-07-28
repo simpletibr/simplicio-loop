@@ -350,7 +350,90 @@ def batch_events(events: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     return [value[1] for _, value in sorted(latest.items())]
 
 
+_PACKET_PRIORITY = {"signature": 0, "symbol": 0, "relation": 1, "rule": 2,
+                    "test": 3, "route": 4, "screen": 5, "body": 9}
+
+
+def build_context_packet(graph: Mapping[str, Any], *, max_bytes: int = 8192,
+                         max_items: int = 64,
+                         ancestor_packet_hash: str | None = None) -> dict[str, Any]:
+    clean = validate_graph(graph)
+    if max_bytes < 512 or max_items < 1:
+        raise ContextGraphError("packet_budget_invalid", str(max_bytes))
+    candidates = sorted(clean["facts"], key=lambda f: (
+        _PACKET_PRIORITY.get(f["kind"], 6), f["fact_id"]))
+    selected, used_content = [], set()
+    for item in candidates:
+        content_hash = digest({"kind": item["kind"], "value": item["value"],
+                               "source": item["provenance"]["source_sha256"]})
+        if content_hash in used_content:
+            continue
+        packet_item = {
+            "fact_id": item["fact_id"], "kind": item["kind"],
+            "value": item["value"], "content_sha256": content_hash,
+            "provenance": item["provenance"],
+            "handle": f"fast://context/{clean['graph_digest']}/{item['fact_id']}",
+        }
+        candidate = selected + [packet_item]
+        probe = {
+            "schema": "simplicio.context-packet/v1",
+            "graph_digest": clean["graph_digest"], "generation": clean["generation"],
+            "items": candidate,
+        }
+        if len(candidate) > max_items or len(canonical(probe)) > max_bytes:
+            break
+        selected, used_content = candidate, used_content | {content_hash}
+    body = {
+        "schema": "simplicio.context-packet/v1",
+        "repo_id": clean["repo_id"], "generation": clean["generation"],
+        "graph_digest": clean["graph_digest"], "items": selected,
+        "coverage": len(selected) / len(candidates) if candidates else 1.0,
+        "truncated": len(selected) < len(candidates),
+        "omitted_items": len(candidates) - len(selected),
+        "budget": {
+            "max_bytes": max_bytes, "max_items": max_items,
+            "token_count": None, "token_count_null_reason": "TOKENIZER_UNAVAILABLE",
+        },
+        "ancestor_packet_hash": ancestor_packet_hash,
+        "lineage_reason": "INITIAL" if ancestor_packet_hash is None else "EXPANSION",
+    }
+    body["packet_hash"] = digest(body)
+    body["encoded_bytes"] = len(canonical(body))
+    return body
+
+
+def validate_context_packet(packet: Mapping[str, Any], *,
+                            expected_generation: str | None = None) -> dict[str, Any]:
+    if packet.get("schema") != "simplicio.context-packet/v1":
+        raise ContextGraphError("packet_schema_invalid", "")
+    unsigned = dict(packet)
+    supplied_bytes = unsigned.pop("encoded_bytes", None)
+    supplied_hash = unsigned.pop("packet_hash", "")
+    if supplied_hash != digest(unsigned):
+        raise ContextGraphError("packet_corrupt", supplied_hash)
+    if supplied_bytes != len(canonical(packet)):
+        # encoded_bytes is informative because including itself changes byte size.
+        if not isinstance(supplied_bytes, int) or supplied_bytes < 1:
+            raise ContextGraphError("packet_size_invalid", str(supplied_bytes))
+    if expected_generation is not None and packet.get("generation") != expected_generation:
+        raise ContextGraphError("packet_generation_stale", str(packet.get("generation")))
+    return dict(packet)
+
+
+def expand_context_packet(graph: Mapping[str, Any], packet: Mapping[str, Any], *,
+                          max_bytes: int = 16384, max_items: int = 128) -> dict[str, Any]:
+    prior = validate_context_packet(packet)
+    clean = validate_graph(graph, expected_generation=prior["generation"])
+    if clean["graph_digest"] != prior["graph_digest"]:
+        raise ContextGraphError("packet_graph_stale", clean["graph_digest"])
+    return build_context_packet(
+        clean, max_bytes=max_bytes, max_items=max_items,
+        ancestor_packet_hash=prior["packet_hash"],
+    )
+
+
 __all__ = ["ContextGraphError", "Provenance", "build_graph", "digest", "fact",
            "apply_delta", "batch_events", "context_delta", "evaluate_evidence",
-           "limited_export", "impact_query", "relation", "tombstone",
+           "build_context_packet", "expand_context_packet", "limited_export",
+           "impact_query", "relation", "tombstone", "validate_context_packet",
            "validate_graph"]
