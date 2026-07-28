@@ -1,11 +1,11 @@
 import pytest
 from simplicio.mutation_worker import MutationBlocked, MutationWorker
 from simplicio.mutation_lifecycle import MUTABLE_ENTRYPOINTS, recover, rollback, verify_receipt
-from test_mutation_worker_353 import plan
+from tests.python.mutation_353_helpers import plan
 
 def test_verified_receipt_and_rollback_e2e(tmp_path):
     worker=MutationWorker(tmp_path)
-    receipt=worker.execute(plan(tmp_path),lambda _:{"status":"ok","applied":True,"before_hash":"a","after_hash":"b"})
+    receipt=worker.execute(plan(),lambda _:{"status":"ok","applied":True,"before_hash":"a","after_hash":"b"})
     assert verify_receipt(receipt)
     rolled=rollback(worker,"k",lambda prior:{"status":"restored","restored_hash":prior["before_hash"]})
     assert rolled["status"]=="restored" and rolled["mutation_receipt_hash"]==receipt["receipt_hash"]
@@ -13,7 +13,7 @@ def test_verified_receipt_and_rollback_e2e(tmp_path):
 def test_crash_resume_by_independent_observation(tmp_path):
     worker=MutationWorker(tmp_path)
     with pytest.raises(RuntimeError):
-        worker.execute(plan(tmp_path),lambda _:(_ for _ in ()).throw(RuntimeError()))
+        worker.execute(plan(),lambda _:(_ for _ in ()).throw(RuntimeError()))
     receipt=recover(worker,"k",lambda:{"status":"committed","plan_id":"p","before_hash":"a","after_hash":"b"})
     assert verify_receipt(receipt)
 
