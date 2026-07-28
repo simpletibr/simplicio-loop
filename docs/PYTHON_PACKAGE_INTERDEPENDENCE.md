@@ -6,7 +6,7 @@
        python3 scripts/gen_package_interdependence.py --check
 -->
 
-Source of truth: this repo's `pyproject.toml` (`simplicio-cli` v0.16.3).
+Source of truth: this repo's `pyproject.toml` (`simplicio-cli` v0.17.0).
 
 ## Current Graph
 
@@ -15,7 +15,7 @@ simplicio-mapper >=0.24.2
 simplicio-prompt >=1.14.1
   ^          ^
   |          |
-simplicio-cli 0.16.3
+simplicio-cli 0.17.0
   ^
   |
 simplicio-sprint (downstream, depends on this package)
@@ -36,13 +36,11 @@ simplicio-sprint (downstream, depends on this package)
 
 ### Optional extras (#99 — heavy ML/provider deps are opt-in)
 
-- **`simplicio-cli[providers]`**: `anthropic>=0.112.0`, `openai>=2.44.0`
 - **`simplicio-cli[ml]`**: `sentence-transformers>=5.6.0`
 - **`simplicio-cli[bench]`**: `fpdf2>=2.8.7`
-- **`simplicio-cli[local]`**: `llama-cpp-python>=0.3.32`, `huggingface-hub>=1.21.0`
 - **`simplicio-cli[fast]`**: `simplicio-fast>=0.1,<1`
 - **`simplicio-cli[performance]`**: `uvloop>=0.21.0; sys_platform != 'win32'`
-- **`simplicio-cli[all]`**: `simplicio-cli[providers]`, `simplicio-cli[ml]`, `simplicio-cli[bench]`, `simplicio-cli[local]`, `simplicio-cli[performance]`
+- **`simplicio-cli[all]`**: `simplicio-cli[ml]`, `simplicio-cli[bench]`, `simplicio-cli[performance]`
 - **`simplicio-cli[test]`**: `pytest>=8`, `pytest-cov>=7`, `hypothesis>=6.100`, `tomli>=2.0.1; python_version < '3.11'`
 - **`simplicio-cli[dev]`**: `simplicio-cli[test]`, `ruff>=0.15.8`, `mypy>=1.19.1`
 

@@ -1,9 +1,8 @@
-usage: simplicio-py doctor [-h] [--install] [--json] [--list-tiers]
-                           [--no-check-updates] [--refresh] [--upgrade]
+usage: simplicio-py doctor [-h] [--json] [--list-tiers] [--no-check-updates]
+                           [--refresh] [--upgrade]
 
 options:
   -h, --help          show this help message and exit
-  --install
   --json
   --list-tiers
   --no-check-updates

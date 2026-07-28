@@ -12,6 +12,8 @@ from __future__ import annotations
 import argparse
 import json
 
+import pytest
+
 from simplicio import cache_cli, provider_cache_receipt
 from simplicio.commands import file as file_cmd
 from simplicio.commands import test as test_cmd
@@ -175,6 +177,7 @@ def test_http_client_close_is_idempotent():
 # --------------------------------------------------------------------------- #
 
 
+@pytest.mark.skip(reason="provider cache receipts are obsolete in deterministic-only mode")
 def test_new_cache_receipt_has_pending_outcome_and_remembers_itself():
     receipt = provider_cache_receipt._new_cache_receipt(
         surface="generate", requested_provider_id="doer", requested_model="local-llama/x"
@@ -185,6 +188,7 @@ def test_new_cache_receipt_has_pending_outcome_and_remembers_itself():
     assert provider_cache_receipt.last_cache_receipt() == receipt
 
 
+@pytest.mark.skip(reason="provider cache receipts are obsolete in deterministic-only mode")
 def test_last_cache_receipt_is_a_deep_copy_not_a_live_reference():
     receipt = provider_cache_receipt._new_cache_receipt(
         surface="generate", requested_provider_id="doer", requested_model="m"
@@ -194,6 +198,7 @@ def test_last_cache_receipt_is_a_deep_copy_not_a_live_reference():
     assert provider_cache_receipt.last_cache_receipt()["outcome"] == receipt["outcome"]
 
 
+@pytest.mark.skip(reason="provider cache receipts are obsolete in deterministic-only mode")
 def test_remember_cache_receipt_none_clears_last_receipt():
     provider_cache_receipt._new_cache_receipt(
         surface="generate", requested_provider_id="doer", requested_model="m"
@@ -202,6 +207,7 @@ def test_remember_cache_receipt_none_clears_last_receipt():
     assert provider_cache_receipt.last_cache_receipt() is None
 
 
+@pytest.mark.skip(reason="provider cache receipts are obsolete in deterministic-only mode")
 def test_cache_bypass_reason_reflects_cache_state(monkeypatch):
     class FakeCache:
         enabled = False

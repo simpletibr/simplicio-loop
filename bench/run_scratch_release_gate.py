@@ -130,60 +130,28 @@ def _stack_row(slug: str, present: bool) -> dict[str, Any]:
 
 def _planner_readiness() -> dict[str, Any]:
     cfg = planner_cfg(require_key=False)
-    model = str(cfg["model"])
-    if cfg["shell_out"]:
-        cli = _shell_out_command(model)
-        path = _which(cli)
-        return {
-            "model": model,
-            "kind": "shell-out",
-            "ready": path is not None,
-            "credential": "not-needed",
-            "cli_path": path,
-            "blocker": f"planner shell-out CLI not found: {cli}",
-        }
-    ready = bool(cfg["key"])
+    model = str(cfg.get("model") or "")
     env_key = _planner_env_key(model)
     return {
         "model": model,
-        "kind": "api",
-        "ready": ready,
-        "credential": "set" if ready else "missing",
+        "kind": "disabled",
+        "ready": False,
+        "credential": "disabled",
         "env_key": env_key,
-        "blocker": f"missing planner credential: {env_key}",
+        "blocker": "llm_execution_disabled",
     }
 
 
 def _doer_readiness() -> dict[str, Any]:
     raw = os.environ.get("SIMPLICIO_MODEL", "").strip()
-    if not raw:
-        return {
-            "model": "",
-            "kind": "unset",
-            "ready": False,
-            "credential": "missing",
-            "blocker": "missing doer model: set SIMPLICIO_MODEL",
-        }
-    if raw.startswith(("codex-cli/", "claude-cli/")):
-        cli = _shell_out_command(raw)
-        path = _which(cli)
-        return {
-            "model": raw,
-            "kind": "shell-out",
-            "ready": path is not None,
-            "credential": "not-needed",
-            "cli_path": path,
-            "blocker": f"doer shell-out CLI not found: {cli}",
-        }
     env_key = _doer_env_key(raw)
-    ready = bool(os.environ.get(env_key))
     return {
         "model": raw,
-        "kind": "api",
-        "ready": ready,
-        "credential": "set" if ready else "missing",
+        "kind": "disabled",
+        "ready": False,
+        "credential": "disabled",
         "env_key": env_key,
-        "blocker": f"missing doer credential: {env_key}",
+        "blocker": "llm_execution_disabled",
     }
 
 

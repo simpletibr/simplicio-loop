@@ -32,6 +32,8 @@
 
 Turn a one-line task into a verified code change: mapper context, six-layer contract, diff, test, and evidence.
 
+> **Deterministic-only boundary:** `simplicio-py` never sends prompts or completions to a local model, OpenRouter, Anthropic, OpenAI-compatible endpoint, or CLI provider. It does not load or download model weights. Provider execution has been removed; the adapter only performs local contracts, edits, tests, and evidence.
+
 ## Project DNA
 
 simplicio-dev-cli is the focused implementation and verification operator in the Simplicio ecosystem. It receives a decided task, loads repository context, applies a bounded diff, runs tests, and emits evidence that another operator can inspect. It is not the runtime, the mapper, or the LLM itself: it is the disciplined execution layer between a plan and a trustworthy change.
@@ -54,20 +56,12 @@ Auto-upgrade is now opt-in: set `SIMPLICIO_AUTO_UPGRADE=1` for session-start upg
 Python consumers can expose the bundled mapper dependency directly with
 `from simplicio import mapper_module, mapper_version` or `import simplicio.mapper_api`.
 
-### Local model precedence and timeout
+### Model boundary
 
-`--local` preserves explicit operator configuration. Precedence is:
-
-1. `SIMPLICIO_LOCAL_MODEL_PATH` selects an existing GGUF and never downloads a replacement.
-2. An explicit `SIMPLICIO_MODEL=local-llama/...` selects its path/repository and is not replaced.
-3. A loopback `SIMPLICIO_BASE_URL` selects the existing llama.cpp/OpenAI-compatible server.
-4. Only when none of the above is configured does `--local` select the bundled MiniCPM5 default.
-
-Local GGUF generation runs in an isolated process with a hard 180-second deadline.
-Set `SIMPLICIO_LOCAL_TIMEOUT_S` to another positive number of seconds. On timeout,
-the complete worker process tree is terminated and the JSON task result includes a
-`simplicio.local-generation-terminal/v1` receipt; no patch is applied. Use `0` only
-for trusted embedding/tests that deliberately accept unbounded in-process execution.
+Historical model and provider environment variables are ignored. `smoke` reports
+the deterministic-only mode, while generation and planning calls fail closed with
+the machine-readable reason `llm_execution_disabled` before network, model, or
+provider CLI activity can occur.
 
 ## What it does
 

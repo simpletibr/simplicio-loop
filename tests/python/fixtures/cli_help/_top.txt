@@ -18,7 +18,7 @@ positional arguments:
     inspect             inspect a target with mapper-backed context
     intake              parse raw task cards into the provider-free TaskSpec
                         v2 contract
-    doctor              check local llama.cpp readiness and dependency
+    doctor              check deterministic readiness and dependency
                         freshness
     fast                negotiate optional Simplicio Fast capabilities
     versions            report simplicio-mapper installed/declared/tested

@@ -26,6 +26,8 @@ attempt loop itself:
 
 from __future__ import annotations
 
+import sys
+
 from simplicio import pipeline, pipeline_stages
 from simplicio.pipeline_fixers import FixerResult
 
@@ -268,7 +270,7 @@ def test_run_task_does_not_escalate_on_a_single_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "map_ask", lambda *a, **k: [])
     monkeypatch.setenv(
         "SIMPLICIO_TEST_CMD",
-        "python -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
+        f"{sys.executable} -c \"from pathlib import Path; import sys; sys.exit(0 if Path('app.py').read_text() == 'new\\n' else 1)\"",
     )
 
     result = pipeline.run_task(

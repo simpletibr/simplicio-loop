@@ -8,7 +8,6 @@ being duplicated across handlers.
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
@@ -25,34 +24,9 @@ def read_text_source(path: str) -> str:
 
 
 def force_local_if_requested(a: argparse.Namespace) -> None:
-    """Shared by the ``task`` and ``run --scope feature`` handlers."""
+    """Reject the removed local-LLM execution mode."""
     if getattr(a, "local", False):
-        from ..local_inference import require_enabled
-
-        requested_model = os.environ.get("SIMPLICIO_MODEL", "").strip()
-        requested_path = os.environ.get("SIMPLICIO_LOCAL_MODEL_PATH", "").strip()
-        requested_base = os.environ.get("SIMPLICIO_BASE_URL", "").strip()
-        require_enabled(
-            surface="cli_--local",
-            model=requested_model or None,
-            base_url=requested_base or None,
-        )
-        # Force Path 4: local in-process llama.cpp. This keeps local execution
-        # independent from remote services.  Explicit operator selection wins:
-        # a local-llama model, GGUF path, or loopback llama.cpp endpoint must
-        # never be silently replaced by the bundled default.
-        from ..providers import LOCAL_DEFAULT_MODEL
-
-        if not requested_model:
-            if requested_path:
-                os.environ["SIMPLICIO_MODEL"] = f"local-llama/{requested_path}"
-            elif requested_base:
-                os.environ["SIMPLICIO_MODEL"] = os.environ.get("SIMPLICIO_LOCAL_SERVER_MODEL", "local-model")
-            else:
-                os.environ["SIMPLICIO_MODEL"] = LOCAL_DEFAULT_MODEL
-        if not requested_base:
-            os.environ.pop("SIMPLICIO_BASE_URL", None)
-        os.environ.pop("SIMPLICIO_API_KEY", None)
+        raise SystemExit("simplicio-py: local LLM execution is disabled")
 
 
 def parse_rust_flags(args: list[str]) -> tuple[list[str], bool, bool]:

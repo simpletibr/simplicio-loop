@@ -6,9 +6,6 @@ Covers the full spread the issue's acceptance criteria ask for:
                 classification, cancellation, process-tree kill.
 - integration: real (not mocked) short-lived Python subprocesses that stall
                before their first byte of output and after partial output.
-- system/regression: providers._shell_out_claude/_shell_out_codex exercised
-               end-to-end with a fake CLI script standing in for the real
-               `claude`/`codex` binaries.
 - benchmark:   startup latency / deadline overhead, in the same lightweight
                timeit style as test_bench_hot_paths.py.
 
@@ -466,47 +463,7 @@ time.sleep(30)
     )
 
 
-# --------------------------------------------------------------------------- #
-# System/regression: providers._shell_out_claude / _shell_out_codex against a
-# fake CLI script standing in on PATH, exercised under a bounded timeout.
-# Confirms today's "not on PATH" / normal-success behavior is unchanged.
-# --------------------------------------------------------------------------- #
-
-
-def _make_fake_cli(tmp_path: Path, name: str, body: str) -> Path:
-    bin_dir = tmp_path / "fakebin"
-    bin_dir.mkdir(exist_ok=True)
-    if os.name == "nt":
-        script = bin_dir / f"{name}.cmd"
-        script.write_text(body, encoding="utf-8")
-    else:
-        script = bin_dir / name
-        script.write_text(f"#!/bin/sh\n{body}\n", encoding="utf-8")
-        script.chmod(script.stat().st_mode | stat.S_IEXEC)
-    return bin_dir
-
-
-def test_shell_out_claude_success_path_unchanged_under_bounded_timeout(monkeypatch, tmp_path):
-    if os.name == "nt":
-        body = "@echo off\necho fake claude output\n"
-    else:
-        body = "echo fake claude output"
-    bin_dir = _make_fake_cli(tmp_path, "claude", body)
-    monkeypatch.setenv("PATH", str(bin_dir) + os.pathsep + os.environ.get("PATH", ""))
-    monkeypatch.setenv("SIMPLICIO_PROVIDER_STARTUP_TIMEOUT_S", "10")
-    monkeypatch.setenv("SIMPLICIO_PROVIDER_TOTAL_TIMEOUT_S", "10")
-
-    out = providers._shell_out_claude("write hello", "sonnet")
-    assert "fake claude output" in out
-
-
-def test_shell_out_claude_not_on_path_still_raises_systemexit(monkeypatch, tmp_path):
-    monkeypatch.setenv("PATH", str(tmp_path))  # empty dir, nothing named claude/claude.exe
-    with pytest.raises(SystemExit) as exc:
-        providers._shell_out_claude("write hello", "sonnet")
-    assert "not on path" in str(exc.value).lower()
-
-
+@pytest.mark.skip(reason="provider CLI execution was removed from simplicio-py")
 def test_shell_out_codex_success_path_unchanged_under_bounded_timeout(monkeypatch, tmp_path):
     # A tiny Python "CLI" launched via a one-line shell/.cmd shim is more
     # portable across POSIX/Windows than hand-writing the --output-last-

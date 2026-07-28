@@ -1,21 +1,14 @@
 [project]
 name = "simplicio-cli"
-version = "0.16.5"
-description = "Portable task-to-code pipeline that works with any LLM. Turn a one-line task into a verified code change — diff + test + verify loop. +55 pts on a 156-check benchmark, 21% faster, ~same tokens."
+version = "0.17.0"
+description = "Deterministic task-to-code contract and verification CLI. It never executes or provisions an LLM."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
 authors = [{ name = "Wesley Simplicio", email = "wesleybob4@gmail.com" }]
 keywords = [
-  "llm",
-  "ai",
-  "agent",
-  "code-generation",
-  "prompt-engineering",
-  "openrouter",
-  "openai",
-  "anthropic",
-  "claude",
+  "deterministic",
+  "verification",
   "developer-tools",
   "cli",
   "rag",
@@ -46,10 +39,9 @@ classifiers = [
 # model itself), doctor/runtime contracts, caching. numpy stays in base
 # (lightweight, no GPU/torch) because it is imported unconditionally by
 # simplicio.cache -> simplicio.precedent/skill_router, which the core
-# `task`/`run` commands import even when no remote/semantic provider is
-# configured. The genuinely heavy ML dependency (sentence-transformers,
-# which pulls PyTorch + CUDA wheels, ~3 GB) moves to the `ml` extra; remote
-# provider SDKs move to `providers`. See docs/PYTHON_PACKAGE_INTERDEPENDENCE.md
+# `task`/`run` commands import. The genuinely heavy ML dependency (sentence-transformers,
+# which pulls PyTorch + CUDA wheels, ~3 GB) moves to the `ml` extra. See
+# docs/PYTHON_PACKAGE_INTERDEPENDENCE.md
 # (generated, `--check`-able) for the full graph and #99 for the audit.
 dependencies = [
   "numpy>=2.1.0",
@@ -63,18 +55,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Remote LLM provider SDKs (native Anthropic path + any OpenAI-compatible
-# endpoint: OpenRouter, GLM, DeepSeek, ...). Not needed for claude-cli/
-# codex-cli shell-out providers or the local llama.cpp path.
-providers = ["anthropic>=0.112.0", "openai>=2.44.0"]
 # Semantic precedent/skill ranking (sentence-transformers -> PyTorch). Only
 # needed once `task`/`run` actually reach the embedding path (no cached
 # vectors yet); the numpy-only cosine-similarity math stays in base.
 ml = ["sentence-transformers>=5.6.0"]
 bench = ["fpdf2>=2.8.7"]
-# Explicit opt-in local inference. Pulls llama.cpp Python bindings and
-# huggingface-hub; the backend stays paused until SIMPLICIO_LOCAL_INFERENCE=enabled.
-local = ["llama-cpp-python>=0.3.32", "huggingface-hub>=1.21.0"]
 # Optional canonical Fast adapter. It remains outside the base install until
 # its release train is formally promoted.
 fast = ["simplicio-fast>=0.1,<1"]
@@ -84,10 +69,8 @@ fast = ["simplicio-fast>=0.1,<1"]
 # asyncio.
 performance = ["uvloop>=0.21.0; sys_platform != 'win32'"]
 all = [
-  "simplicio-cli[providers]",
   "simplicio-cli[ml]",
   "simplicio-cli[bench]",
-  "simplicio-cli[local]",
   "simplicio-cli[performance]",
 ]
 # CI/dev-only, not a product extra: pytest to run tests/python, plus tomli

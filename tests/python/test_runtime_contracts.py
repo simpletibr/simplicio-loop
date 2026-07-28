@@ -203,15 +203,13 @@ def test_runtime_doctor_cli_outputs_json_contract(tmp_path, monkeypatch, capsys)
 
 def test_smoke_cli_can_emit_stable_json(monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
-    monkeypatch.setattr("simplicio.providers.info", lambda: "test-provider")
-    monkeypatch.setattr("simplicio.providers.generate", lambda prompt: "OK simplicio connected.")
 
     code = cli.main(["smoke", "--json"])
 
     assert code == 0
     payload = json.loads(capsys.readouterr().out)
     assert payload["schema"] == "simplicio.dev-cli.smoke/v1"
-    assert payload["provider"] == "test-provider"
+    assert "provider=disabled" in payload["provider"]
     assert payload["ok"] is True
 
 

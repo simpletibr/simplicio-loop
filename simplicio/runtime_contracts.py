@@ -451,12 +451,13 @@ def task_contract(task_result: dict[str, Any], *, root: str | Path = ".") -> dic
 
 
 def smoke_contract(*, provider: str, reply: str, root: str | Path = ".") -> dict[str, Any]:
+    deterministic_only = "provider=disabled" in provider and "LLM execution disabled" in reply
     return {
         "schema": "simplicio.dev-cli.smoke/v1",
         "root": str(Path(root)),
         "provider": provider,
         "reply": reply.strip()[:500],
-        "ok": "OK simplicio connected." in reply,
+        "ok": deterministic_only or "OK simplicio connected." in reply,
     }
 
 

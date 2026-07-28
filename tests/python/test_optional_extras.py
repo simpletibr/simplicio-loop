@@ -1,12 +1,9 @@
-"""#99 — heavy ML/provider deps live behind pip extras, not the base install.
+"""#99 — optional ML/benchmark deps stay out of the base install.
 
-Covers the actionable-error contract for each extra (`providers`, `ml`,
-`local`, `bench`) and cross-checks pyproject.toml so the extras graph can't
-silently drift from what the code actually imports. `local`'s own
-actionable-error tests already live in test_providers_local.py
-(`test_resolve_local_path_no_hf_lib_raises`, `test_local_llama_missing_backend_raises`);
-this file adds the same pattern for `providers` (openai/anthropic) and `ml`
-(sentence-transformers), plus the base/optional-dependencies audit.
+Cross-checks pyproject.toml so the extras graph cannot silently drift from
+what the deterministic CLI actually imports. Provider and local-model extras
+must remain absent because ``simplicio-py`` never executes or provisions an
+LLM.
 """
 
 from __future__ import annotations
@@ -21,7 +18,7 @@ except ModuleNotFoundError:  # Python 3.10: tomllib is stdlib only from 3.11+
 
 import pytest
 
-from simplicio import precedent, providers
+from simplicio import precedent
 
 PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
 
@@ -31,39 +28,8 @@ def _load_pyproject():
 
 
 # --------------------------------------------------------------------------- #
-# providers extra: openai / anthropic
+# No provider or local-model extras
 # --------------------------------------------------------------------------- #
-
-
-def test_import_openai_missing_raises_actionable_error(monkeypatch):
-    monkeypatch.setitem(sys.modules, "openai", None)
-    with pytest.raises(SystemExit) as exc:
-        providers._import_openai()
-    assert "openai" in str(exc.value)
-    assert "simplicio-cli[providers]" in str(exc.value)
-
-
-def test_import_anthropic_missing_raises_actionable_error(monkeypatch):
-    monkeypatch.setitem(sys.modules, "anthropic", None)
-    with pytest.raises(SystemExit) as exc:
-        providers._import_anthropic()
-    assert "anthropic" in str(exc.value)
-    assert "simplicio-cli[providers]" in str(exc.value)
-
-
-def test_generate_native_anthropic_path_missing_sdk_is_actionable(monkeypatch, tmp_path):
-    monkeypatch.setenv("SIMPLICIO_MODEL", "claude-opus-4-7")
-    monkeypatch.setenv("SIMPLICIO_API_KEY", "x")
-    monkeypatch.delenv("SIMPLICIO_BASE_URL", raising=False)
-    monkeypatch.setenv("SIMPLICIO_CACHE_DIR", str(tmp_path / "cache"))
-    monkeypatch.setitem(sys.modules, "anthropic", None)
-    from simplicio._cache import reset_for_tests
-
-    reset_for_tests()
-    with pytest.raises(SystemExit) as exc:
-        providers.generate("do a thing")
-    assert "simplicio-cli[providers]" in str(exc.value)
-    reset_for_tests()
 
 
 # --------------------------------------------------------------------------- #
@@ -111,7 +77,9 @@ def test_base_dependencies_exclude_heavy_and_provider_packages():
 def test_optional_dependencies_groups_match_actual_imports():
     data = _load_pyproject()
     extras = data["project"]["optional-dependencies"]
-    assert {"providers", "ml", "local", "bench", "performance", "all"} <= extras.keys()
+    assert {"ml", "bench", "fast", "performance", "all"} <= extras.keys()
+    assert "providers" not in extras
+    assert "local" not in extras
 
     def _names(group):
         return {
@@ -120,12 +88,10 @@ def test_optional_dependencies_groups_match_actual_imports():
             if not req.startswith("simplicio-cli[")
         }
 
-    assert _names("providers") == {"anthropic", "openai"}
     assert _names("ml") == {"sentence-transformers"}
-    assert _names("local") == {"llama-cpp-python", "huggingface-hub"}
     assert _names("bench") == {"fpdf2"}
     assert _names("performance") == {"uvloop"}
     # `all` is a union expressed via self-referential extras, not a flat list.
     assert all(req.startswith("simplicio-cli[") for req in extras["all"])
     referenced = {req.split("[", 1)[1].rstrip("]") for req in extras["all"]}
-    assert referenced == {"providers", "ml", "bench", "local", "performance"}
+    assert referenced == {"ml", "bench", "performance"}

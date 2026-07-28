@@ -8,7 +8,6 @@ import os
 import re
 from dataclasses import dataclass
 from typing import Any
-from urllib.parse import urlparse
 
 PROMPT_ENVELOPE_SCHEMA = "simplicio.prompt-envelope/v1"
 PROMPT_RETRY_DELTA_SCHEMA = "simplicio.prompt-retry-delta/v1"
@@ -142,28 +141,8 @@ def _context_window(value: int | None) -> int:
 
 
 def _provider_identity() -> tuple[str, str]:
-    effective_model = (
-        os.environ.get("SIMPLICIO_EFFECTIVE_MODEL") or os.environ.get("SIMPLICIO_MODEL") or ""
-    ).strip()
-    base = (os.environ.get("SIMPLICIO_BASE_URL") or "").strip()
-    provider = (os.environ.get("SIMPLICIO_PROVIDER") or "").strip()
-    if provider:
-        return provider, effective_model
-    if effective_model.startswith("claude-cli/"):
-        return "claude-cli", effective_model
-    if effective_model.startswith("codex-cli/"):
-        return "codex-cli", effective_model
-    if effective_model.startswith("local-llama/") or effective_model == "openbmb/minicpm5:latest":
-        return "local-llama", effective_model
-    if base and effective_model:
-        parsed = urlparse(base)
-        return parsed.netloc or "openai-compatible", effective_model
-    if base:
-        parsed = urlparse(base)
-        return parsed.netloc or "openai-compatible", effective_model
-    if not effective_model:
-        return "local-llama", "openbmb/minicpm5:latest"
-    return "unknown", effective_model
+    """Return the only supported route; model/provider environment is ignored."""
+    return "disabled", ""
 
 
 def _budget(layer: str, default: int) -> tuple[int, str]:

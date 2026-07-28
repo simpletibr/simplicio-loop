@@ -147,11 +147,6 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
         default=[],
         help="glob limiting which paths the task may change; repeatable",
     )
-    p.add_argument(
-        "--local",
-        action="store_true",
-        help="force local llama.cpp only when SIMPLICIO_LOCAL_INFERENCE=enabled; otherwise fails closed",
-    )
     p.add_argument("--mode", choices=["auto", "integrated", "standalone"], default=None)
     task_spec_source = p.add_mutually_exclusive_group()
     task_spec_source.add_argument(
@@ -187,7 +182,6 @@ def _add_run_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--dry-run-task", action="store_true")
     p.add_argument("--json", action="store_true")
     p.add_argument("--bound-paths", action="append", default=[])
-    p.add_argument("--local", action="store_true")
     p.add_argument("--max-cost", default=None)
     p.add_argument("--max-iter", type=int, default=3)
     p.add_argument("--sprint", help="sprint directory name, e.g. sprint-01")
@@ -265,7 +259,7 @@ def _build_parser() -> argparse.ArgumentParser:
     pc_clear = pc_sub.add_parser("clear", help="clear completion cache")
     pc_clear.add_argument("--force", action="store_true", help="required to clear")
 
-    p_smoke = sub.add_parser("smoke", help="one proof call: connect+generate (needs SIMPLICIO_MODEL+KEY)")
+    p_smoke = sub.add_parser("smoke", help="check the deterministic-only adapter; never contacts an LLM")
     p_smoke.add_argument("--json", action="store_true")
     p_smoke.add_argument("--root", default=".")
 
@@ -343,9 +337,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_doctor = sub.add_parser(
         "doctor",
-        help="check local llama.cpp readiness and dependency freshness",
+        help="check deterministic readiness and dependency freshness",
     )
-    p_doctor.add_argument("--install", action="store_true")
     p_doctor.add_argument("--json", action="store_true")
     p_doctor.add_argument("--list-tiers", action="store_true")
     p_doctor.add_argument("--no-check-updates", action="store_true")

@@ -1,11 +1,9 @@
 import json
 import os
 import threading
-from unittest.mock import patch
 
 import pytest
 
-from simplicio import providers
 from simplicio._cache import (
     CacheEntry,
     CompletionCache,
@@ -136,76 +134,6 @@ def test_lru_eviction_removes_oldest(monkeypatch):
 
     assert c.get(old_key) is None
     assert c.get(new_key) is not None
-
-
-def test_provider_cache_short_circuits_missing_api_key(monkeypatch):
-    monkeypatch.setenv("SIMPLICIO_MODEL", "anthropic/claude-opus")
-    monkeypatch.delenv("SIMPLICIO_API_KEY", raising=False)
-    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("SIMPLICIO_BASE_URL", raising=False)
-    key = make_key(
-        "anthropic-native",
-        "anthropic/claude-opus",
-        providers._apply_directives("cached prompt"),
-        feedback=None,
-        max_tokens=4000,
-    )
-    cache().put(
-        key,
-        CacheEntry(
-            "CACHED",
-            provider_id="anthropic-native",
-            model="anthropic/claude-opus",
-        ),
-    )
-
-    assert providers.generate("cached prompt") == "CACHED"
-
-
-def test_planner_cache_short_circuits_missing_api_key(monkeypatch):
-    monkeypatch.setenv("SIMPLICIO_PLANNER", "deepseek/deepseek-v4-pro")
-    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
-    cfg = providers.planner_cfg(require_key=False)
-    key = providers._planner_cache_key(
-        cfg,
-        providers._apply_directives("cached plan"),
-        8192,
-        0.1,
-        "stack-v1",
-    )
-    cache().put(
-        key,
-        CacheEntry(
-            "CACHED_PLAN",
-            provider_id=providers._planner_provider_id(cfg),
-            model=cfg["model"],
-        ),
-    )
-
-    assert providers.planner_complete("cached plan", template_version="stack-v1") == ("CACHED_PLAN")
-    with pytest.raises(SystemExit):
-        providers.planner_complete("cached plan", template_version="stack-v2")
-
-
-def test_provider_writes_shell_out_completion_to_cache(monkeypatch):
-    from simplicio.task_operator import PHASE_COMPLETED, BoundedRunResult
-
-    monkeypatch.setenv("SIMPLICIO_MODEL", "claude-cli/sonnet")
-    with patch("simplicio.task_operator.run_bounded_subprocess") as run:
-        run.return_value = BoundedRunResult(
-            phase=PHASE_COMPLETED,
-            elapsed_s=0.01,
-            returncode=0,
-            stdout="from cli",
-            stderr="",
-            recovery="",
-        )
-
-        assert providers.generate("cache me") == "from cli"
-        assert providers.generate("cache me") == "from cli"
-
-    assert run.call_count == 1
 
 
 def test_cache_cli_stats_and_clear(capsys):

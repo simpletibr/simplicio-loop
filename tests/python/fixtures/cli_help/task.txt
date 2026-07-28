@@ -33,9 +33,6 @@ options:
   --bound-paths BOUND_PATHS
                         glob limiting which paths the task may change;
                         repeatable
-  --local               force local llama.cpp only when
-                        SIMPLICIO_LOCAL_INFERENCE=enabled; otherwise fails
-                        closed
   --mode {auto,integrated,standalone}
   --task-spec PATH      read one exported simplicio.task-spec/v2 JSON document
                         from PATH

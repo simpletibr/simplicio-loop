@@ -1,8 +1,7 @@
 """doctor.py - `simplicio-py doctor` subcommand.
 
-Prints detected hardware tier + recommended local model + install status.
-With --install, opt-in to downloading the recommended GGUF. Without
-the flag, never touches the disk. With --json, machine-readable output.
+Prints deterministic environment and dependency status. Local model execution
+and provisioning are disabled. With --json, machine-readable output.
 """
 
 from __future__ import annotations
@@ -84,30 +83,14 @@ def _render_human(result, profile) -> None:
     print(f"  size (Q4)     ~{result.spec.size_gb_q4:.1f} GB")
     print(f"  notes         {result.spec.notes}")
     print()
-    print("  runtime       llama.cpp via llama-cpp-python")
+    print("  runtime       deterministic-only (LLM execution disabled)")
     print(f"  can run       {'yes' if result.can_run else 'NO'}")
     print(f"  can download  {'yes' if result.can_download else 'NO'}")
     print(f"  installed     {'YES' if result.installed else 'no'}")
     if result.reason:
         print(f"  status        {result.reason}")
     print()
-    if result.installed:
-        print("-> set SIMPLICIO_MODEL to use it explicitly:")
-        print(f"  export SIMPLICIO_MODEL={result.spec.model_id}")
-        print("  unset SIMPLICIO_BASE_URL SIMPLICIO_API_KEY")
-    elif result.can_download:
-        print("-> to install:")
-        print("  simplicio-py doctor --install")
-        print(
-            f"  (or manually download {result.spec.repo_id}/{result.spec.filename} "
-            f"to {model_file_path(result.spec)})"
-        )
-    else:
-        print(
-            "-> hardware is too small for the recommended model; "
-            "consider a smaller stack or move to cloud (SIMPLICIO_MODEL = "
-            "OpenRouter/HF/etc.)"
-        )
+    print("-> no model execution or provisioning is available in simplicio-py")
 
 
 def _render_events(summary: dict) -> None:
@@ -179,9 +162,6 @@ def _render_hub_status(status: dict) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="simplicio-py doctor")
-    p.add_argument(
-        "--install", action="store_true", help="opt-in: download the recommended GGUF if not present"
-    )
     p.add_argument("--json", action="store_true", help="machine-readable output")
     p.add_argument("--list-tiers", action="store_true", help="print the full hardware → model map and exit")
     p.add_argument("--no-check-updates", action="store_true", help="skip the dependency-freshness check")
@@ -229,7 +209,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     profile = detect()
-    result = ensure_recommended(profile, auto_download=args.install)
+    result = ensure_recommended(profile)
 
     check_updates = not args.no_check_updates
     eco_statuses: list = []

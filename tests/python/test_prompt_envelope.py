@@ -7,7 +7,7 @@ def test_prompt_envelope_records_layers_budgets_and_stable_hashes(monkeypatch) -
     monkeypatch.setenv("SIMPLICIO_PROMPT_BUDGET_GOAL", "1")
     monkeypatch.setenv("SIMPLICIO_PROMPT_TASK_CLASS", "review")
     monkeypatch.setenv("SIMPLICIO_MODEL_CONTEXT_WINDOW", "16384")
-    monkeypatch.setenv("SIMPLICIO_MODEL", "codex-cli/gpt-5.4-medium")
+    monkeypatch.setenv("SIMPLICIO_MODEL", "ignored-model")
     envelope = PromptEnvelope.from_layers(
         {"goal": "a long goal", "target": "src/app.py"}, template_version="v1"
     )
@@ -18,8 +18,8 @@ def test_prompt_envelope_records_layers_budgets_and_stable_hashes(monkeypatch) -
     assert receipt["context_pack_hash"] == envelope.context_pack_hash
     assert receipt["task_class"] == "review"
     assert receipt["context_window"] == 16384
-    assert receipt["provider"] == "codex-cli"
-    assert receipt["model"] == "codex-cli/gpt-5.4-medium"
+    assert receipt["provider"] == "disabled"
+    assert receipt["model"] == ""
     assert receipt["needs_broader_context"] is True
     assert receipt["cache_eligible"] is False
     goal_layer = next(row for row in receipt["layers"] if row["layer"] == "goal")
@@ -32,9 +32,9 @@ def test_cache_identity_includes_provider_and_budget_inputs(monkeypatch) -> None
     envelope = PromptEnvelope.from_layers({"goal": "fix"}, template_version="v1")
     baseline = envelope.cache_identity
 
-    monkeypatch.setenv("SIMPLICIO_MODEL", "codex-cli/model")
+    monkeypatch.setenv("SIMPLICIO_MODEL", "ignored-model")
     changed_provider = PromptEnvelope.from_layers({"goal": "fix"}, template_version="v1")
-    assert changed_provider.cache_identity != baseline
+    assert changed_provider.cache_identity == baseline
 
     monkeypatch.setenv("SIMPLICIO_PROMPT_BUDGET_GOAL", "2")
     changed_budget = PromptEnvelope.from_layers({"goal": "fix"}, template_version="v1")

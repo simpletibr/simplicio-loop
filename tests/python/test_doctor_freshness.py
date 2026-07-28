@@ -13,7 +13,7 @@ def test_tracked_packages_includes_ecosystem_and_pyproject_deps() -> None:
     # simplicio ecosystem triplet comes first
     assert names[:3] == ("simplicio-prompt", "simplicio-mapper", "simplicio-sprint")
     # declared pyproject dependencies are folded in
-    for expected in ("anthropic", "openai", "numpy", "sentence-transformers"):
+    for expected in ("numpy", "sentence-transformers"):
         assert expected in names
     # no duplicates (simplicio-mapper / simplicio-prompt declared in both places)
     assert len(names) == len(set(names))

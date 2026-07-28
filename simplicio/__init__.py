@@ -1,4 +1,4 @@
-__version__ = "0.16.5"
+__version__ = "0.17.0"
 
 from .mapper_api import mapper_module, mapper_version
 

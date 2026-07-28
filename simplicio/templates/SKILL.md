@@ -44,22 +44,13 @@ command -v simplicio-py \
   || pip install --user simplicio-cli \
   || pip install -e .            # fallback: editable install from repo root (locked venv / no PyPI)
 
-# config check (one-shot, costs 1 LLM call)
+# deterministic health check; never sends an LLM request
 simplicio-py smoke
 ```
 
-If `smoke` fails: set the env vars and retry. Read `~/.config/simplicio/.env` or current shell env. Required:
-
-| Provider | `SIMPLICIO_MODEL` | `SIMPLICIO_BASE_URL` | Key env var |
-|---|---|---|---|
-| OpenRouter | `anthropic/claude-opus-4` (or any) | `https://openrouter.ai/api/v1` | `OPENROUTER_API_KEY` |
-| GLM (z.ai) | `glm-4.6` | `https://api.z.ai/api/paas/v4` | `OPENAI_API_KEY` |
-| DeepSeek | `deepseek-chat` | `https://api.deepseek.com` | `OPENAI_API_KEY` |
-| OpenAI | `gpt-4.1` | `https://api.openai.com/v1` | `OPENAI_API_KEY` |
-| llama.cpp local | `openbmb/minicpm5:latest` | `http://127.0.0.1:8080/v1` | none |
-| Anthropic native | `claude-opus-4-7` | *(unset)* | `ANTHROPIC_API_KEY` |
-
-`base_url` unset + `ANTHROPIC_API_KEY` present → native Anthropic SDK. Else OpenAI-compatible client.
+`simplicio-py` has no provider configuration. API keys, model names, base URLs,
+local inference flags, and provider CLIs are ignored; generation/planning
+surfaces fail closed with `llm_execution_disabled`.
 
 ### 2. Index (cache warm-up)
 
@@ -95,7 +86,7 @@ simplicio-py task "<one-line goal>" \
 - <guardrail 2>"
 ```
 
-simplicio internally: precedent (from cache) → skill match → stacks the 6 layers → LLM generates diff + test + Playwright → applies → runs `SIMPLICIO_TEST_CMD` → pass = done, fail = sends error back, fixes, retries up to 3×.
+simplicio internally: precedent (from cache) → skill match → stacks the 6 layers → validates a deterministic edit contract → applies → runs `SIMPLICIO_TEST_CMD` → records evidence.
 
 ### 5. Read the output
 
@@ -104,8 +95,8 @@ Output stream contains, in order:
 1. `MAPPER` — what file was identified as the target + neighbors.
 2. `PRECEDENT` — the in-repo snippet picked as the "this is how we already do it" example.
 3. `SKILL` — the one mapper skill matched and injected.
-4. `PROMPT` — the full 6-layer prompt sent (cache-friendly).
-5. `DIFF` — the patch the LLM emitted.
+4. `PROMPT` — the local contract envelope (cache-friendly).
+5. `DIFF` — the deterministic edit result.
 6. `APPLY` — `git apply` result.
 7. `TEST` — `SIMPLICIO_TEST_CMD` exit code + stderr.
 8. `VERIFY` — pass/fail summary. If fail, loop up to 3× with the error appended.
@@ -152,7 +143,7 @@ If it's a UI change, also run Playwright (`npx playwright test --reporter=list,h
 
 ## Definition of Done
 
-- [ ] `simplicio-py smoke` returned a clean provider config print + one successful test call.
+- [ ] `simplicio-py smoke` returned deterministic-only status without network/model activity.
 - [ ] `simplicio-py task ...` ran with `--stack` + `--target` + `--criteria` + `--constraints` all set.
 - [ ] `VERIFY: pass` in the output, OR a clear "fail after 3 retries — escalate" message.
 - [ ] Diff applied (`git diff` shows the change) and project's normal validation (lint + test) is green.

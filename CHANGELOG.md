@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## [0.17.0] - 2026-07-28
+
+### Changed
+- Made `simplicio-py` deterministic-only: it no longer sends prompts to local
+  models, OpenRouter, Anthropic, OpenAI-compatible endpoints, or provider CLIs.
+- Removed provider SDK/local-model extras and fail-closed all generation,
+  planning, model provisioning, and provider readiness routes with
+  `llm_execution_disabled`.
+- Updated smoke, doctor, package metadata, documentation, and regression tests
+  to enforce the no-LLM boundary.
+
 ## [0.16.5] - 2026-07-27
 
 ### Changed

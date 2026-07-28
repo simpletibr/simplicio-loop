@@ -1,4 +1,4 @@
-"""``simplicio-py doctor`` — local llama.cpp readiness + dependency freshness.
+"""``simplicio-py doctor`` — deterministic readiness + dependency freshness.
 
 Extracted from `cli.py`'s `main()` body (issue #103); behavior unchanged.
 The actual doctor implementation lives in `simplicio/doctor.py`.
@@ -13,8 +13,6 @@ def run(a: argparse.Namespace) -> int:
     from ..doctor import main as doctor_main
 
     doctor_argv = []
-    if a.install:
-        doctor_argv.append("--install")
     if a.json:
         doctor_argv.append("--json")
     if a.list_tiers:
