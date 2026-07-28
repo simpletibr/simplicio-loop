@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+## [0.26.0] - 2026-07-28
+
+### Added
+
+- Added `tested_by`, `fixed_with`, and `reverts` edges to
+  `simplicio.context-history/v1` without exporting author/subject/diff content;
+  provenance now documents Mapper ownership and Fast as consumer (#373).
+- Added `simplicio.prism-task-facts/v1` for bounded Prism task projection:
+  declared/observed write-set namespaces, dependency/test/resource hints,
+  hard/soft conflict candidates, coverage/fidelity/abstention, and
+  order-independent batch projection for up to 10 tasks (#393).
+- Added `simplicio.prism-work-delta/v1` for incremental invalidation between
+  PrismTaskFacts generations, including affected tasks, conflict diffs, and
+  `safe_to_reuse_context` as a fact (never mutation authority) (#394).
+- Added internal HBP-style binary codec (`HBP1`) for Prism contracts with
+  content-addressed framing, tamper rejection, external JSON adapters, and
+  capability negotiation. JSON remains boundary-only (#395).
+- Added optional `simplicio.mapper.semantic-index/v1` deterministic semantic
+  enrichment that never creates factual edges; ML mode fails closed without a
+  Runtime InferenceBackend (#377).
+
+### Notes
+
+- GitHub already carried an untagged/local `0.25.0` line; this is the first
+  PyPI publish of the post-0.24.2 ContextGraph/Prism surface as `0.26.0`.
+
 ## [0.25.0] - 2026-07-26
 
 ### Added
