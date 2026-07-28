@@ -15,9 +15,6 @@
   <br>
   <strong><a href="video/assets/simplicio-mapper-ink-press.en.mp4">Watch the 36-second product film</a></strong>
 </p>
-<p align="center">
-  <img src="assets/overlay-install.svg" alt="Overlay install screencast" width="100%">
-</p>
 
 `simplicio-mapper` is the mapping engine in the Simplicio ecosystem. It reads a codebase once, produces versioned artifacts under `.simplicio/`, and gives a human or an agent a small, explainable context pack instead of an unbounded dump of files. The result is useful for orientation, implementation planning, review, impact analysis, onboarding, and handoffs.
 
