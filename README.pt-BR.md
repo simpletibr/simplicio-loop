@@ -24,6 +24,8 @@
   <img src="output/imagegen/simplicio-cli-proof-receipt.png" alt="diff, testes e receipt de verificação" width="760" />
 </p>
 
+[Assista ao vídeo Ink Press do produto em português](assets/video/simplicio-ink-press-pt-br-v1.mp4)
+
 ---
 
 ## Resumo direto
