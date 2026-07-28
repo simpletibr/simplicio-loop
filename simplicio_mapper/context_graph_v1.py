@@ -138,5 +138,65 @@ def limited_export(graph: Mapping[str, Any], *, max_facts: int) -> dict[str, Any
     }
 
 
+def impact_query(graph: Mapping[str, Any], changed_fact_ids: Sequence[str], *,
+                 direction: str = "forward", max_depth: int = 4,
+                 max_nodes: int = 100) -> dict[str, Any]:
+    clean = validate_graph(graph)
+    if direction not in {"forward", "reverse"} or max_depth < 0 or max_nodes < 1:
+        raise ContextGraphError("impact_budget_invalid", direction)
+    facts = {item["fact_id"]: item for item in clean["facts"]}
+    if any(item not in facts for item in changed_fact_ids):
+        raise ContextGraphError("impact_seed_unknown", "")
+    adjacency: dict[str, list[tuple[str, Mapping[str, Any]]]] = {}
+    for edge in clean["relations"]:
+        source, target = (
+            (edge["source_id"], edge["target_id"])
+            if direction == "forward" else (edge["target_id"], edge["source_id"])
+        )
+        adjacency.setdefault(source, []).append((target, edge))
+    for values in adjacency.values():
+        values.sort(key=lambda item: (item[0], item[1]["relation_id"]))
+    queue = [(item, 0) for item in sorted(set(changed_fact_ids))]
+    visited: dict[str, int] = {}
+    evidence: dict[str, list[str]] = {}
+    truncated = False
+    while queue:
+        current, depth = queue.pop(0)
+        if current in visited and visited[current] <= depth:
+            continue
+        if len(visited) >= max_nodes:
+            truncated = True
+            break
+        visited[current] = depth
+        if depth >= max_depth:
+            if adjacency.get(current):
+                truncated = True
+            continue
+        for target, edge in adjacency.get(current, ()):
+            evidence.setdefault(target, []).append(edge["relation_id"])
+            queue.append((target, depth + 1))
+    impacted = [
+        {
+            "fact_id": fact_id, "kind": facts[fact_id]["kind"],
+            "classification": "direct" if depth <= 1 else "transitive",
+            "depth": depth, "evidence_relation_ids": sorted(set(evidence.get(fact_id, ()))),
+        }
+        for fact_id, depth in sorted(visited.items(), key=lambda item: (item[1], item[0]))
+    ]
+    tests = [item["fact_id"] for item in impacted if item["kind"] == "test"]
+    write_set = sorted({
+        facts[item["fact_id"]]["provenance"]["path"] for item in impacted
+        if item["kind"] in {"symbol", "rule", "route", "screen"}
+    })
+    return {
+        "schema": "simplicio.impact-query/v1", "graph_digest": clean["graph_digest"],
+        "direction": direction, "seeds": sorted(set(changed_fact_ids)),
+        "max_depth": max_depth, "max_nodes": max_nodes, "impacted": impacted,
+        "verification_hints": {"test_fact_ids": tests},
+        "write_set_hints": write_set, "truncated": truncated,
+        "native_resolution": True, "fallback_reason": None,
+    }
+
+
 __all__ = ["ContextGraphError", "Provenance", "build_graph", "digest", "fact",
-           "limited_export", "relation", "tombstone", "validate_graph"]
+           "limited_export", "impact_query", "relation", "tombstone", "validate_graph"]
