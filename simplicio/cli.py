@@ -690,6 +690,10 @@ _COMMAND_MODULES = {
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
 
+    # Stage ABI mutations fail closed before verbosity/parser/dispatch can run.
+    from .mutation_dispatch import guard_mutable_dispatch
+    guard_mutable_dispatch(argv)
+
     quiet, verbose, argv = _extract_global_verbosity(argv)
     from .observability import configure_logging
 
