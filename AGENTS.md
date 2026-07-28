@@ -1,5 +1,14 @@
 # AGENTS.md
 
+## Simplicio Ecosystem Contract (canonical)
+
+This repository is one component of the Simplicio ecosystem. For every non-trivial task: run `simplicio runtime map --repo . --for-llm markdown`, then `simplicio memory "<task>"`, rank/load relevant skills, execute through the native `simplicio` CLI, validate, and record evidence. MCP is fallback transport only.
+
+### Boundaries and handoff
+`simplicio-mapper` observes and emits bounded context; `simplicio-fast` owns snapshots/mmap/PlanDAG; `simplicio-dev-cli` owns focused implementation plans and deterministic edits; `simplicio-runtime` owns contracts, gates, validation and receipts; `simplicio-loop` owns convergence, journals, watcher/close-gates and learning; `simplicio-agent` owns the control plane and conversation. Providers are workers, never authorities.
+
+Use `simplicio`/`simplicio shell compact` for inspection, `simplicio edit --plan` or governed dev-cli for mutation, preserve `simplicio.io/v1`, run `simplicio contracts smoke --json` and `simplicio validate "<task>" --repo . --json`, and close only with real tests plus `simplicio evidence`. Facts are `MEASURED|` only with receipts; otherwise `UNVERIFIED|`. Savings come only from `simplicio savings report --repo . --json`. Missing dependencies fail closed; never fabricate context, tests, savings or provider output.
+
 > Canonical pattern spec: [YOOL_TUPLE_HAMT.md](YOOL_TUPLE_HAMT.md)
 >
 > Receipt schema reference: [YOOL_TUPLE_HAMT.md §1.8.4](YOOL_TUPLE_HAMT.md#184-receipt-schema-reference)
