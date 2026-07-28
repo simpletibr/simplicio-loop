@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## [0.18.0] - 2026-07-28
+
+### Added
+- Write-set locks with lease/fence validation (#365).
+- Atomic write-set checkpoints and rollback (#366).
+- Authorized delivery effects with observed re-query (#367).
+- Progressive verification executor (parse→full) (#368).
+- Canonical Prism effect receipts with offline verify (#369).
+- PrismExecutionEnvelope/v1 (#379).
+- Exactly-once Prism transactions under concurrency (#381).
+- Governed LiteRT doctor/convert/quantize/compile/benchmark plans (#357).
+- Issue drain coverage tests for Prism/lock/delivery/LiteRT (#363/#364/#380).
+
+### Changed
+- Raised `simplicio-mapper` dependency floor to `>=0.26.0`.
+
 ## [0.17.0] - 2026-07-28
 
 ### Changed
