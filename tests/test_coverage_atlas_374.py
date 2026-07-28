@@ -65,3 +65,17 @@ def test_suppression_requires_owner_reason_and_expires():
     )
     # New atlas digest intentionally creates new stable gap IDs; suppressions bind one atlas revision.
     assert coverage_delta(atlas, now_revision="3")["gaps"]
+
+
+def test_operational_health_adapter_emits_fast_gap_without_dispatch_authority():
+    from simplicio_mapper.coverage_atlas import operational_delta
+    delta = operational_delta(
+        source="mapper@installed", base_atlas_digest="sha256:atlas",
+        observations=[
+            {"kind": "cache_integrity", "subject": "cache:main", "healthy": False,
+             "evidence_refs": ["fast://health"]},
+            {"kind": "index_generation", "subject": "index:main", "healthy": True},
+        ],
+    )
+    assert [item["kind"] for item in delta["gaps"]] == ["cache_integrity"]
+    assert not any(key in delta for key in ("dispatch", "completion", "worker"))

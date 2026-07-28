@@ -136,5 +136,26 @@ def coverage_delta(atlas: Mapping[str, Any], previous_gap_ids: Sequence[str] = (
     return body
 
 
-__all__ = ["AtlasError", "build_atlas", "coverage_delta", "detect_gaps", "digest",
+def operational_delta(*, source: str, base_atlas_digest: str,
+                      observations: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Adapt bounded Fast health observations without granting execution authority."""
+    allowed = {"cache_integrity", "index_generation", "knowledge_federation", "python_rust_parity"}
+    gaps = []
+    for raw in observations:
+        kind, subject = str(raw.get("kind", "")), str(raw.get("subject", ""))
+        if kind not in allowed or not subject or raw.get("healthy") not in {True, False}:
+            raise AtlasError("invalid operational observation")
+        if raw["healthy"]:
+            continue
+        gaps.append(_gap(base_atlas_digest, kind, subject, raw.get("evidence_refs", ())))
+    body = {
+        "schema": DELTA_SCHEMA, "source": source, "base_atlas_digest": base_atlas_digest,
+        "gaps": sorted(gaps, key=lambda item: item["gap_id"]),
+    }
+    body["delta_digest"] = digest(body)
+    return body
+
+
+__all__ = ["AtlasError", "build_atlas", "coverage_delta", "operational_delta",
+           "detect_gaps", "digest",
            "edge", "node", "ATLAS_SCHEMA", "DELTA_SCHEMA"]
