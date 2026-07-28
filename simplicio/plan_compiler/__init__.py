@@ -53,6 +53,15 @@ from simplicio.plan_compiler.errors import (
     PlanValidationError,
     SchemaMismatchError,
 )
+from simplicio.plan_compiler.execution_contracts import (
+    BOUND_VERIFICATION_PLAN_SCHEMA,
+    CHANGE_SET_SCHEMA,
+    BoundVerificationPlan,
+    ChangeOperation,
+    ChangeSet,
+    ContextHashes,
+    VerificationCommand,
+)
 from simplicio.plan_compiler.mapper_context import (
     DEV_CLI_CONTEXT_HANDLE_SCHEMA,
     DEV_CLI_FALLBACK_CONTEXT_SCHEMA,
@@ -94,6 +103,7 @@ from simplicio.plan_compiler.runtime_effect_sink import (
 
 __all__ = [
     "ContextBinding",
+    "ContextHashes",
     "ContextBindingCache",
     "AUTHORIZATION_SCHEMA",
     "AuthorizationError",
@@ -101,6 +111,8 @@ __all__ = [
     "DEV_CLI_CONTEXT_HANDLE_SCHEMA",
     "DEV_CLI_FALLBACK_CONTEXT_SCHEMA",
     "EFFECT_PLAN_SCHEMA",
+    "CHANGE_SET_SCHEMA",
+    "BOUND_VERIFICATION_PLAN_SCHEMA",
     "GOAL_ENVELOPE_ADAPTER_EXPIRES_AT_VERSION",
     "GOAL_ENVELOPE_SCHEMA",
     "GOAL_ENVELOPE_VERSION",
@@ -119,6 +131,9 @@ __all__ = [
     "EffectOutcome",
     "EffectPlan",
     "EffectSink",
+    "ChangeOperation",
+    "ChangeSet",
+    "BoundVerificationPlan",
     "OfflineRuntimeTransport",
     "GoalEnvelope",
     "IntegratedModeRequiresSinkError",
@@ -146,6 +161,7 @@ __all__ = [
     "SchemaMismatchError",
     "UnsupportedCompatVersionError",
     "VerificationPlan",
+    "VerificationCommand",
     "adapt_goal_envelope_inbound",
     "adapt_goal_envelope_outbound",
     "adapt_inbound",
