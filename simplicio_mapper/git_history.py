@@ -136,6 +136,20 @@ def _validate_commit(value: str | None) -> str | None:
     return value
 
 
+def _looks_like_test(path: str) -> bool:
+    lower = path.casefold()
+    name = Path(path).name.casefold()
+    return (
+        "/tests/" in f"/{lower}"
+        or "/test/" in f"/{lower}"
+        or name.startswith("test_")
+        or name.endswith("_test.py")
+        or name.endswith(".spec.ts")
+        or name.endswith(".test.ts")
+        or name.endswith("_test.go")
+    )
+
+
 def build_git_history(
     root: str | Path,
     *,
@@ -199,8 +213,40 @@ def build_git_history(
             handles.append({"handle": f"history:{change_id}", "kind": "change", "expand": {"commit": commit["commit"], "path": path}})
         for left, right in itertools.combinations(sorted(set(file_ids)), 2):
             add_edge("changed_with", left, right, commit=commit["commit"])
+        # Co-change edges for production↔test files without exporting subjects/diffs.
+        unique_files = sorted(set(file_ids))
+        test_ids = [fid for fid in unique_files if _looks_like_test(nodes[fid]["path"])]
+        prod_ids = [fid for fid in unique_files if fid not in test_ids]
+        for prod in prod_ids:
+            for test in test_ids:
+                add_edge("tested_by", prod, test, commit=commit["commit"])
+                add_edge("fixed_with", prod, test, commit=commit["commit"])
         commit["id"] = commit_id
         commit["changes"] = sorted(changes, key=lambda item: item["id"])
+
+    # Revert edges: detect via git-log grep without exporting subject text.
+    try:
+        revert_raw = _git(
+            repo,
+            ["log", "--all", "--grep=^[Rr]evert", "--format=%H %P", f"--max-count={max_commits}"],
+        )
+        for line in revert_raw.splitlines():
+            parts = line.split()
+            if len(parts) < 2:
+                continue
+            rev, *parents = parts
+            if len(rev) != 40:
+                continue
+            rev_id = f"commit:{rev}"
+            add_node(rev_id, "commit", commit=rev, parents=parents, revert=True)
+            for parent in parents:
+                if len(parent) != 40:
+                    continue
+                parent_id = f"commit:{parent}"
+                add_node(parent_id, "commit", commit=parent)
+                add_edge("reverts", rev_id, parent_id)
+    except HistoryError:
+        pass
 
     return {
         "schema": HISTORY_SCHEMA,
@@ -218,5 +264,16 @@ def build_git_history(
             "shallow_repository": shallow,
             "diffs_included": False,
             "deterministic_ids": True,
+            "edge_kinds": [
+                "introduced_by",
+                "last_touched_by",
+                "changed_with",
+                "renamed_from",
+                "tested_by",
+                "fixed_with",
+                "reverts",
+            ],
+            "consumer": "simplicio-fast",
+            "owner": "simplicio-mapper",
         },
     }

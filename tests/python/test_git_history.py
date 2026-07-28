@@ -76,3 +76,19 @@ def test_invalid_root_and_budget_fail_closed(tmp_path):
     root = _repo(tmp_path)
     with pytest.raises(HistoryError, match="between"):
         build_git_history(root, max_commits=0)
+
+
+def test_test_cochange_edges_and_consumer_provenance(tmp_path):
+    root = _repo(tmp_path)
+    (root / "tests").mkdir()
+    (root / "tests" / "test_a.py").write_text("def test_a():\n    assert True\n", encoding="utf-8")
+    (root / "a.py").write_text("a = 2\n", encoding="utf-8")
+    _commit(root, "fix with test")
+    history = build_git_history(root, max_commits=20)
+    kinds = {edge["kind"] for edge in history["edges"]}
+    assert "tested_by" in kinds
+    assert "fixed_with" in kinds
+    assert history["schema"] == HISTORY_SCHEMA
+    assert history["provenance"]["consumer"] == "simplicio-fast"
+    assert history["provenance"]["owner"] == "simplicio-mapper"
+    assert "reverts" in history["provenance"]["edge_kinds"]
