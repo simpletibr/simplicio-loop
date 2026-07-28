@@ -198,5 +198,73 @@ def impact_query(graph: Mapping[str, Any], changed_fact_ids: Sequence[str], *,
     }
 
 
+_RISK_THRESHOLDS = {"low": 0.55, "medium": 0.72, "high": 0.88}
+_EVIDENCE_CAPS = {"measured": 1.0, "inferred": 0.75, "asserted": 0.50}
+
+
+def evaluate_evidence(graph: Mapping[str, Any], *, risk: str = "medium",
+                      evidence_kinds: Mapping[str, str] | None = None,
+                      measured_scores: Mapping[str, float | None] | None = None,
+                      threshold: float | None = None) -> dict[str, Any]:
+    """Produce a conservative, explainable evidence receipt.
+
+    Unknown measurements remain null with a reason; they are never converted to
+    zero or presented as successful evidence.
+    """
+    clean = validate_graph(graph)
+    if risk not in _RISK_THRESHOLDS:
+        raise ContextGraphError("evidence_risk_invalid", risk)
+    required = _RISK_THRESHOLDS[risk] if threshold is None else float(threshold)
+    if not 0 <= required <= 1:
+        raise ContextGraphError("evidence_threshold_invalid", str(required))
+    kinds, scores = evidence_kinds or {}, measured_scores or {}
+    rows: list[dict[str, Any]] = []
+    for item in clean["facts"]:
+        fact_id = item["fact_id"]
+        kind = kinds.get(fact_id, "asserted")
+        if kind not in _EVIDENCE_CAPS:
+            raise ContextGraphError("evidence_kind_invalid", kind)
+        raw = scores.get(fact_id)
+        reason = None
+        if raw is None:
+            score = _EVIDENCE_CAPS[kind] if kind != "measured" else None
+            reason = "MEASUREMENT_UNAVAILABLE" if kind == "measured" else None
+        else:
+            if not 0 <= float(raw) <= 1:
+                raise ContextGraphError("evidence_score_invalid", fact_id)
+            score = min(float(raw), _EVIDENCE_CAPS[kind])
+        rows.append({
+            "fact_id": fact_id, "evidence_kind": kind, "score": score,
+            "score_null_reason": reason, "source": item["provenance"],
+            "cap": _EVIDENCE_CAPS[kind],
+        })
+    known = [row["score"] for row in rows if row["score"] is not None]
+    coverage = len(known) / len(rows) if rows else 0.0
+    fidelity = sum(known) / len(known) if known else None
+    confidence = coverage * fidelity if fidelity is not None else None
+    if not rows or confidence is None:
+        verdict, verdict_reason = "abstain", "NO_USABLE_EVIDENCE"
+    elif confidence >= required:
+        verdict, verdict_reason = "sufficient", None
+    else:
+        verdict, verdict_reason = "partial", "BELOW_RISK_THRESHOLD"
+    return {
+        "schema": "simplicio.evidence-receipt/v1",
+        "graph_digest": clean["graph_digest"], "risk": risk,
+        "threshold": required, "coverage": coverage, "fidelity": fidelity,
+        "confidence": confidence, "verdict": verdict,
+        "verdict_reason": verdict_reason, "facts": rows,
+        "explain": {
+            "formula": "confidence=coverage*fidelity",
+            "included_fact_ids": [row["fact_id"] for row in rows if row["score"] is not None],
+            "excluded": [
+                {"fact_id": row["fact_id"], "reason": row["score_null_reason"]}
+                for row in rows if row["score"] is None
+            ],
+        },
+    }
+
+
 __all__ = ["ContextGraphError", "Provenance", "build_graph", "digest", "fact",
-           "limited_export", "impact_query", "relation", "tombstone", "validate_graph"]
+           "evaluate_evidence", "limited_export", "impact_query", "relation",
+           "tombstone", "validate_graph"]
