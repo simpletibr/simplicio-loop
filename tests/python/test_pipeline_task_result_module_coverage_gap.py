@@ -343,6 +343,26 @@ def test_dry_run_preconditions_all_clear(tmp_path, monkeypatch):
     assert blockers == []
 
 
+def test_dry_run_preconditions_prefers_supplied_canonical_pack(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        ptr,
+        "artifact_status",
+        lambda root: {"project_map": {"present": True}, "precedent_index": {"present": True}},
+    )
+    def fail_generic_handoff(root):
+        raise AssertionError("generic mapper handoff must not replace canonical pack")
+    monkeypatch.setattr(ptr, "map_handoff", fail_generic_handoff)
+    target = tmp_path / "a.py"
+    target.write_text("x = 1\n", encoding="utf-8")
+
+    blockers = ptr._dry_run_preconditions(
+        tmp_path,
+        "a.py",
+        context_pack={"files": [{"path": "a.py"}]},
+    )
+    assert blockers == []
+
+
 def test_dry_run_preconditions_dedups_identical_blockers(tmp_path, monkeypatch):
     monkeypatch.setattr(ptr, "artifact_status", lambda root: {})
     monkeypatch.setattr(ptr, "map_handoff", lambda root: None)

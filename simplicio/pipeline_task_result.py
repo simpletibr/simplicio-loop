@@ -56,7 +56,12 @@ def _diff_summary(files_changed):
     return "changed " + ", ".join(files_changed)
 
 
-def _dry_run_preconditions(root: str | Path, target: str) -> list[dict[str, Any]]:
+def _dry_run_preconditions(
+    root: str | Path,
+    target: str,
+    *,
+    context_pack: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     root_path = Path(root).resolve()
     blockers: list[dict[str, Any]] = []
 
@@ -121,7 +126,14 @@ def _dry_run_preconditions(root: str | Path, target: str) -> list[dict[str, Any]
             }
         )
 
-    handoff = map_handoff(root_path)
+    # Prefer the canonical Runtime-bound pack already supplied by the
+    # caller. A generic mapper re-handoff here can discard task-aware fidelity
+    # and is not authoritative for an integrated execution.
+    handoff = (
+        {"context_pack": context_pack}
+        if context_pack is not None
+        else map_handoff(root_path)
+    )
     if handoff is None:
         if not new_file_ready:
             blockers.append(
