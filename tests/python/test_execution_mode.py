@@ -61,6 +61,16 @@ def test_auto_canary_selects_integrated_from_versioned_handshake(monkeypatch, co
     assert profile.coordinator["kind"] == coordinator
 
 
+def test_auto_defaults_to_integrated_when_contracts_are_ready(monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_EXECUTION_ROLLOUT", raising=False)
+    profile = negotiate_execution_mode(
+        "auto", runtime_handshake=READY, context_snapshot=CONTEXT, effect_sink=RuntimeEffectSink()
+    )
+    assert profile.rollout == "default"
+    assert profile.effective_mode == "integrated"
+    assert profile.reason_code == "AUTO_INTEGRATED"
+
+
 @pytest.mark.parametrize(
     ("handshake", "context", "sink", "reason"),
     [
@@ -161,6 +171,7 @@ def test_auto_blocks_without_explicit_standalone_fallback(monkeypatch):
 
 
 def test_shadow_observes_but_never_dispatches_integrated(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_EXECUTION_ROLLOUT", "shadow")
     monkeypatch.setenv("SIMPLICIO_ALLOW_STANDALONE_FALLBACK", "true")
     profile = negotiate_execution_mode(
         "auto", runtime_handshake=READY, context_snapshot=CONTEXT, effect_sink=RuntimeEffectSink()

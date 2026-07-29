@@ -31,7 +31,7 @@ simplicio-py runtime capabilities \
 Project configuration:
 
 ```json
-{"mode":"auto","allow_standalone_fallback":false,"rollout":"shadow"}
+{"mode":"auto","allow_standalone_fallback":false,"rollout":"default"}
 ```
 
 Execute one coordinator-owned atomic task from an installed entrypoint:
@@ -82,9 +82,10 @@ for the planner or model.
 Explicit `standalone` does not read the context snapshot and does not probe
 Mapper, the Runtime binary, or `SIMPLICIO_RUNTIME_URL`.
 
-Rollout values are `shadow`, `canary`, and `default`. Shadow records eligibility but executes once in
-standalone only when `allow_standalone_fallback` is explicitly enabled. Without that opt-in, auto
-blocks before any standalone mutation. `SIMPLICIO_INTEGRATED_KILL_SWITCH=1` rolls back selection;
+Rollout values are `shadow`, `canary`, and `default`. The default is `default`, so auto
+selects the integrated Runtime path as soon as the versioned handshake, Mapper snapshot, and
+production effect sink are ready. If those contracts are unavailable, auto remains fail-closed
+unless `allow_standalone_fallback` is explicitly enabled. `SIMPLICIO_INTEGRATED_KILL_SWITCH=1` rolls back selection;
 integrated requests still fail closed, while auto follows the explicit fallback policy. Set
 `SIMPLICIO_ALLOW_STANDALONE_FALLBACK=true` only during a governed migration window.
 

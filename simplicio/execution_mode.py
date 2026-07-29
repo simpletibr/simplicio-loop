@@ -324,7 +324,7 @@ def blocked_input_profile(
         },
         {"configured": False, "production": False, "kind": None},
         None,
-        os.environ.get("SIMPLICIO_EXECUTION_ROLLOUT", str(config.get("rollout", "shadow"))),
+        os.environ.get("SIMPLICIO_EXECUTION_ROLLOUT", str(config.get("rollout", "default"))),
         False,
         error.code,
         policy.to_dict(),
@@ -361,7 +361,7 @@ def negotiate_execution_mode(
     """Negotiate only from versioned contracts; never infer from files/help/process names."""
     requested = requested_mode(mode, root)
     config = _config(root)
-    rollout = os.environ.get("SIMPLICIO_EXECUTION_ROLLOUT", str(config.get("rollout", "shadow")))
+    rollout = os.environ.get("SIMPLICIO_EXECUTION_ROLLOUT", str(config.get("rollout", "default")))
     coordinator = {
         "kind": coordinator_kind or os.environ.get("SIMPLICIO_COORDINATOR_KIND", "unknown"),
         "id": coordinator_id or os.environ.get("SIMPLICIO_COORDINATOR_ID", ""),
