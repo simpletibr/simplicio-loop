@@ -121,10 +121,19 @@ def _fidelity_from_pack(
     matched_lower = {item.lower() for item in matched_terms}
     matched_upper = {item.upper() for item in matched_terms}
     discriminative_terms = [term for term in query_terms if len(term) >= 3]
-
-    identifier_match = {item for item in exact_identifiers if item in matched_lower}
-    ac_match = {item for item in ac_ids if item in matched_upper}
     target_ok = bool(not target.strip() or target.replace(os.sep, "/").strip() in paths)
+
+    explicit_target = bool(target.strip()) and target_ok
+    contract_ids = {
+        item for item in exact_identifiers
+        if any(item.startswith(prefix) and item[len(prefix):].isdigit() for prefix in ("ac", "rn", "nfr", "us"))
+    }
+    identifier_match = {item for item in exact_identifiers if item in matched_lower}
+    if explicit_target:
+        identifier_match.update(contract_ids)
+    ac_match = {item for item in ac_ids if item in matched_upper}
+    if explicit_target:
+        ac_match.update(ac_ids)
     coverage_ratio = len(matched_terms) / len(discriminative_terms) if discriminative_terms else 1.0
     requires_strong_signal = bool(
         plan["symbol_terms"] or exact_identifiers or ac_ids or plan["target_path"] or plan["path_terms"]

@@ -1534,11 +1534,22 @@ def fidelity_gate(
 
     # Dimension 1: explicit target preserved.
     target_ok = bool(not plan.target_path or plan.target_path in selected_paths)
-    # Dimension 2: exact identifiers preserved.
+    # Dimension 2: exact identifiers preserved. Contract IDs (AC/RN/NFR/US)
+    # are task metadata, not required source symbols, when an explicit target
+    # is selected. Unmatched identifiers without an explicit target still fail.
+    explicit_target = bool(plan.target_path and target_ok)
+    contract_ids = {
+        i.lower() for i in plan.exact_identifiers
+        if _AC_RE.fullmatch(i)
+    }
     id_match = {i.lower() for i in plan.exact_identifiers if i.lower() in all_matched}
+    if explicit_target:
+        id_match.update(contract_ids)
     identifier_ratio = (len(id_match) / len(plan.exact_identifiers)) if plan.exact_identifiers else 1.0
     # Dimension 3: AC/RN/NFR ids preserved.
     ac_match = {a.upper() for a in plan.ac_ids if a.lower() in all_matched}
+    if explicit_target:
+        ac_match.update(a.upper() for a in plan.ac_ids)
     ac_ratio = (len(ac_match) / len(plan.ac_ids)) if plan.ac_ids else 1.0
     # Dimension 4: discriminative term coverage (BM25-style, not raw file count).
     disc_terms = [t for t in plan.all_terms if t.lower() not in _STOP_WORDS]

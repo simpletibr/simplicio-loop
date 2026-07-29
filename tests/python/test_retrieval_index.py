@@ -328,6 +328,14 @@ class FidelityGateTest(unittest.TestCase):
         # Either abstained (no relevant target) or insufficient due to missing AC.
         self.assertFalse(fidelity["sufficient"])
 
+    def test_explicit_target_allows_unmatched_contract_ids(self) -> None:
+        idx = ri.build_retrieval_index(_sample_project_map(), symbol_index=_sample_symbols())
+        plan = ri.build_query_plan("Fix TokenCache eviction for RN99", target="src/cache/token_cache.py")
+        ranked = ri.rank_candidates(idx, plan, limit=3)
+        fidelity = ri.fidelity_gate(ranked, ri.expand_spans(".", ranked, idx), plan)
+        self.assertTrue(fidelity["sufficient"], fidelity)
+
+
     def test_high_generic_overlap_alone_cannot_pass(self) -> None:
         # A query whose terms all appear in generic docs only must not pass as
         # "sufficient" when no discriminative symbol/target matched.
