@@ -21,7 +21,7 @@ landing the full rewrite as one unreviewable diff).
 Design points taken directly from the ADR:
 
 - **Bounded concurrency, never unbounded** -- a single ``asyncio.Semaphore``
-  gates in-flight reads. Default cap is ``min(32, (os.cpu_count() or 1) * 4)``,
+  gates in-flight reads. Default cap is ``min(64, (os.cpu_count() or 1) * 4)``,
   matching the ADR's suggested default for ``AsyncMappingPipeline``'s own
   semaphore. Every task acquires the semaphore before starting its read and
   releases it in a ``finally`` (ADR AC: "Nenhuma concorrência ilimitada ou
@@ -61,7 +61,7 @@ __all__ = [
 
 
 def default_max_concurrency() -> int:
-    """Default concurrency cap: ``min(32, (os.cpu_count() or 1) * 4)``.
+    """Default concurrency cap: ``min(64, (os.cpu_count() or 1) * 4)``.
 
     Matches the sizing heuristic ADR-009 proposes for the eventual
     ``AsyncMappingPipeline`` semaphore (env var
@@ -70,7 +70,7 @@ def default_max_concurrency() -> int:
     ``max_concurrency`` parameter instead of reading env vars itself, since
     it is not yet wired to any CLI surface).
     """
-    return min(32, (os.cpu_count() or 1) * 4)
+    return min(64, (os.cpu_count() or 1) * 4)
 
 
 # Evaluated once at import time for callers that want a constant to reference
@@ -158,7 +158,7 @@ async def read_files_concurrently(
             design being explicitly out of scope for this primitive).
         max_concurrency: maximum number of reads in flight at once. Must be
             a positive integer. Defaults to
-            :func:`default_max_concurrency` (``min(32, cpu_count * 4)``)
+            :func:`default_max_concurrency` (``min(64, cpu_count * 4)``)
             when omitted -- never unbounded.
         timeout: optional overall wall-clock budget in seconds. When set and
             exceeded, all in-flight reads are cancelled cleanly (no orphaned

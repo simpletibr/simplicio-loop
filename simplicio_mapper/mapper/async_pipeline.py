@@ -70,7 +70,7 @@ _FILE_TIMEOUT_ENV = "SIMPLICIO_MAPPER_FILE_TIMEOUT_S"
 def _max_concurrent_files() -> int:
     """Bounded-concurrency cap for in-flight file read+parse tasks.
 
-    Default ``min(32, os.cpu_count() * 4)`` (ADR-009), tunable via
+    Default ``min(64, os.cpu_count() * 4)`` (ADR-009), tunable via
     ``SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES`` for benchmarking/tests. Any
     non-positive or non-integer override is ignored in favor of the
     default rather than silently producing an unbounded/zero semaphore.
@@ -84,7 +84,7 @@ def _max_concurrent_files() -> int:
         if value > 0:
             return value
     cpu_count = os.cpu_count() or 4
-    return min(32, cpu_count * 4)
+    return min(64, cpu_count * 4)
 
 
 def _per_file_timeout_s() -> float:

@@ -51,11 +51,11 @@ def _write_files(tmpdir: str, count: int, body: str = "hello world\n") -> list[s
 
 
 class DefaultConcurrencyTests(unittest.TestCase):
-    def test_default_is_bounded_by_32_and_cpu_heuristic(self):
+    def test_default_is_bounded_by_64_and_cpu_heuristic(self):
         cap = default_max_concurrency()
         self.assertGreaterEqual(cap, 1)
-        self.assertLessEqual(cap, 32)
-        self.assertEqual(cap, min(32, (os.cpu_count() or 1) * 4))
+        self.assertLessEqual(cap, 64)
+        self.assertEqual(cap, min(64, (os.cpu_count() or 1) * 4))
 
     def test_module_constant_matches_function(self):
         self.assertEqual(DEFAULT_MAX_CONCURRENCY, default_max_concurrency())

@@ -14,7 +14,7 @@ half of the gap -- it remains true for the **uvloop-active** half (see
 
 - Platform: `Linux-6.18.5-x86_64-with-glibc2.39` (container), CPU
   `Intel(R) Xeon(R) Processor @ 2.10GHz`, `os.cpu_count() == 4` (matches the
-  `min(32, os.cpu_count() * 4)` = 16 default concurrency cap on this
+  `min(64, os.cpu_count() * 4)` = 16 default concurrency cap on this
   machine).
 - Python: `3.11.15` (the Windows runs in `docs/async-pipeline-*-benchmark.md`
   were measured on `3.14.5` -- **different Python minor version, different

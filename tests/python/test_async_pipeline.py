@@ -114,16 +114,16 @@ class BoundedConcurrencyTest(unittest.IsolatedAsyncioTestCase):
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES", None)
             cap = _max_concurrent_files()
-        expected = min(32, (os.cpu_count() or 4) * 4)
+        expected = min(64, (os.cpu_count() or 4) * 4)
         self.assertEqual(cap, expected)
 
     async def test_env_override_controls_the_cap(self) -> None:
         with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES": "7"}):
             self.assertEqual(_max_concurrent_files(), 7)
         with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES": "not-a-number"}):
-            self.assertEqual(_max_concurrent_files(), min(32, (os.cpu_count() or 4) * 4))
+            self.assertEqual(_max_concurrent_files(), min(64, (os.cpu_count() or 4) * 4))
         with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES": "0"}):
-            self.assertEqual(_max_concurrent_files(), min(32, (os.cpu_count() or 4) * 4))
+            self.assertEqual(_max_concurrent_files(), min(64, (os.cpu_count() or 4) * 4))
 
 
 class TimeoutTest(unittest.IsolatedAsyncioTestCase):
