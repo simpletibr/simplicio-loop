@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.26.1] - 2026-07-30
+
+### Changed
+
+- Publish the Python-first Mapper compatibility line used by Loop 3.38.11,
+  Dev CLI 0.18.1, and Fast 2.0.18.
+
 ## [0.26.0] - 2026-07-28
 
 ### Added
