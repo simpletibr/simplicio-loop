@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.26.2] - 2026-07-30
+
+### Fixed
+
+- Ship a portable Codex hook bridge so PostToolUse and UserPromptSubmit do
+  not reference missing scripts or shell-specific environment variables.
+
 ## [0.26.1] - 2026-07-30
 
 ### Changed

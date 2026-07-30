@@ -1,12 +1,12 @@
 {
   "hooks": {
-    "PreToolUse": [
+    "UserPromptSubmit": [
       {
-        "matcher": "Bash",
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "node .\\bin\\hook-runner.js codex pre-commit-if-needed"
+            "command": "node .\\bin\\codex-hook.js"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .\\bin\\hook-runner.js codex post-edit \"$CLAUDE_FILE_PATH\""
+            "command": "node .\\bin\\codex-hook.js"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .\\bin\\hook-runner.js codex session-start"
+            "command": "node .\\bin\\codex-hook.js"
           }
         ]
       }
