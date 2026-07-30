@@ -65,7 +65,7 @@ def _ram_macos() -> float | None:
         if out.returncode != 0:
             return None
         return int(out.stdout.strip()) / (1024**3)
-    except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
+    except (OSError, subprocess.TimeoutExpired, ValueError):
         return None
 
 
@@ -95,7 +95,11 @@ def _gpu_nvidia() -> tuple[float, str] | None:
             text=True,
             timeout=5,
         )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    # Captured console handles can be invalid under Windows test runners
+    # (WinError 6/50).  Hardware probing is advisory, so every OS-level
+    # process-launch failure must degrade to "no GPU" instead of failing
+    # `doctor --json`.
+    except (OSError, subprocess.TimeoutExpired):
         return None
     if out.returncode != 0 or not out.stdout.strip():
         return None
@@ -129,7 +133,7 @@ def _gpu_apple_silicon() -> tuple[float, str] | None:
             text=True,
             timeout=3,
         )
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    except (OSError, subprocess.TimeoutExpired):
         return None
     if out.returncode != 0:
         return None

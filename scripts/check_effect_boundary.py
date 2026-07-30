@@ -10,7 +10,9 @@ import json
 from collections import Counter
 from pathlib import Path
 
-BASELINE_SHA256 = "845a58545e901ff5b7dabc3e6eefb991faef35cbb3c605342a134a0ed5d3cff8"
+# Reviewed 2026-07-30: the inventory includes the controlled checkpoint,
+# transaction, verification and write-set primitives added since #353.
+BASELINE_SHA256 = "8081970e2739d3fd512adedb9a922342b71916984f4b22ec98740ce9c6a25e28"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",
