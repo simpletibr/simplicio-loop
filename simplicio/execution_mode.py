@@ -236,9 +236,17 @@ def prepare_execution_inputs(
 ) -> PreparedExecutionInputs:
     """Resolve installed-entrypoint inputs without probing in standalone mode."""
     if requested_mode(mode, root) == "standalone":
+        # Standalone still needs to consume an explicitly supplied context pack.
+        # Previously the path arguments were silently ignored in this branch, so
+        # Loop's local degraded context never reached the task precondition gate.
+        resolved_pack = (
+            context_pack
+            if context_pack is not None
+            else _load_context_pack(root, context_pack_path)
+        )
         return PreparedExecutionInputs(
             context_snapshot,
-            context_pack,
+            resolved_pack,
             execution_context,
             authorization,
             effect_sink,

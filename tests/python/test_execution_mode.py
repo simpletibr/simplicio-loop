@@ -387,6 +387,18 @@ def test_prepare_execution_inputs_uses_env_and_never_probes_for_standalone(tmp_p
     assert integrated.attempt == AttemptContext("attempt-env", "lease-env", "fence-env", "real")
 
 
+def test_standalone_loads_explicit_context_pack_path(tmp_path):
+    pack = {"schema": "simplicio.context-pack/v1", "fidelity": {"gate": "degraded_local"}}
+    pack_path = tmp_path / "context-pack.json"
+    pack_path.write_text(json.dumps(pack), encoding="utf-8")
+
+    prepared = prepare_execution_inputs(
+        "standalone", root=tmp_path, context_pack_path=pack_path,
+    )
+
+    assert prepared.context_pack == pack
+
+
 def test_standalone_negotiation_never_probes_runtime_or_mapper(monkeypatch):
     monkeypatch.setattr(
         "simplicio.runtime_contracts.runtime_verify_contract",

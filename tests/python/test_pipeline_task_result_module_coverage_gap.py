@@ -363,6 +363,25 @@ def test_dry_run_preconditions_prefers_supplied_canonical_pack(tmp_path, monkeyp
     assert blockers == []
 
 
+def test_dry_run_preconditions_accepts_explicit_degraded_local_pack(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_ALLOW_DEGRADED_MAPPER", "1")
+    monkeypatch.setattr(ptr, "artifact_status", lambda root: {})
+    monkeypatch.setattr(ptr, "map_handoff", lambda root: None)
+    target = tmp_path / "a.py"
+    target.write_text("x = 1\n", encoding="utf-8")
+
+    blockers = ptr._dry_run_preconditions(
+        tmp_path,
+        "a.py",
+        context_pack={
+            "fidelity": {"gate": "degraded_local", "status": "UNVERIFIED"},
+            "files": [{"path": "a.py"}],
+        },
+        allow_degraded_mapper=True,
+    )
+    assert blockers == []
+
+
 def test_dry_run_preconditions_dedups_identical_blockers(tmp_path, monkeypatch):
     monkeypatch.setattr(ptr, "artifact_status", lambda root: {})
     monkeypatch.setattr(ptr, "map_handoff", lambda root: None)

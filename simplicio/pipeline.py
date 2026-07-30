@@ -451,7 +451,12 @@ def run_task(
             blocked_preconditions=[blocker],
         )
     if dry_run_task:
-        blockers = _dry_run_preconditions(root, target, context_pack=context_pack)
+        blockers = _dry_run_preconditions(
+            root,
+            target,
+            context_pack=context_pack,
+            allow_degraded_mapper=requested_execution_mode == "standalone",
+        )
         if blockers:
             warnings = [item["message"] for item in blockers]
             return _task_result(

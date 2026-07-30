@@ -56,11 +56,25 @@ def _diff_summary(files_changed):
     return "changed " + ", ".join(files_changed)
 
 
+def _degraded_mapper_context_allowed(context_pack: dict[str, Any] | None) -> bool:
+    """Allow only Loop-issued, explicit degraded context in standalone mode."""
+    if not isinstance(context_pack, dict):
+        return False
+    fidelity = context_pack.get("fidelity")
+    if not isinstance(fidelity, dict) or fidelity.get("gate") != "degraded_local":
+        return False
+    if fidelity.get("status") != "UNVERIFIED":
+        return False
+    raw = os.environ.get("SIMPLICIO_ALLOW_DEGRADED_MAPPER", "").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
 def _dry_run_preconditions(
     root: str | Path,
     target: str,
     *,
     context_pack: dict[str, Any] | None = None,
+    allow_degraded_mapper: bool = False,
 ) -> list[dict[str, Any]]:
     root_path = Path(root).resolve()
     blockers: list[dict[str, Any]] = []
@@ -103,7 +117,8 @@ def _dry_run_preconditions(
         for name in ("project_map", "precedent_index")
         if not bool((artifacts.get(name) or {}).get("present"))
     ]
-    if missing:
+    degraded_allowed = allow_degraded_mapper and _degraded_mapper_context_allowed(context_pack)
+    if missing and not degraded_allowed:
         blockers.append(
             {
                 "reason": "artifacts_missing",
@@ -116,7 +131,7 @@ def _dry_run_preconditions(
     inspection = artifacts.get("inspection") if isinstance(artifacts, dict) else None
     warnings = inspection.get("warnings", []) if isinstance(inspection, dict) else []
     stale_warnings = [str(item) for item in warnings if "stale" in str(item).lower()]
-    if stale_warnings:
+    if stale_warnings and not degraded_allowed:
         blockers.append(
             {
                 "reason": "artifacts_stale",
