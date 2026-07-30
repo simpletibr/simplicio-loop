@@ -469,6 +469,18 @@ def run_task(
                 blocked_preconditions=blockers,
                 target_kind=target_kind(root, target),
             )
+        if os.environ.get("SIMPLICIO_STANDALONE_PREFLIGHT", "").strip().lower() in {
+            "1", "true", "yes", "on",
+        }:
+            return _task_result(
+                target,
+                prompt,
+                "",
+                applied=False,
+                status="dry_run",
+                warnings=["standalone_preflight_provider_skipped"],
+                target_kind=target_kind(root, target),
+            )
         # Issue #210 AC6: snapshot bound paths BEFORE generate() so an
         # out-of-band mutation that happens while the provider subprocess is
         # running (e.g. the target deleted mid-stall) is caught even though

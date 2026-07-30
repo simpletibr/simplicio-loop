@@ -69,6 +69,38 @@ def test_task_dry_run_json_does_not_touch_worktree(tmp_path, monkeypatch, capsys
     assert (tmp_path / "frontend" / "app.ts").read_text(encoding="utf-8") == "old\n"
 
 
+def test_standalone_preflight_skips_provider_after_context_gate(tmp_path, monkeypatch, capsys):
+    _write(tmp_path / "README.md", "old\n")
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.setenv("SIMPLICIO_STANDALONE_PREFLIGHT", "1")
+    monkeypatch.setattr(
+        "simplicio.pipeline_task_result.artifact_status",
+        lambda _root: {"project_map": {"present": True}, "precedent_index": {"present": True}},
+    )
+    monkeypatch.setattr(
+        "simplicio.pipeline_task_result.map_handoff",
+        lambda _root: {"context_pack": {"files": [{"path": "README.md"}]}},
+    )
+    called = {"generate": 0}
+
+    def fail_if_called(*_args, **_kwargs):
+        called["generate"] += 1
+        raise AssertionError("standalone preflight must not invoke a provider")
+
+    monkeypatch.setattr("simplicio.pipeline.generate", fail_if_called)
+
+    code = cli.main([
+        "task", "verify README", "--root", str(tmp_path), "--target", "README.md",
+        "--mode", "standalone", "--dry-run-task", "--json",
+    ])
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "dry_run"
+    assert payload["warnings"] == ["standalone_preflight_provider_skipped"]
+    assert called["generate"] == 0
+
+
 def test_task_json_reports_normal_run(tmp_path, monkeypatch, capsys):
     _write(tmp_path / "frontend" / "app.ts", "old\n")
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
