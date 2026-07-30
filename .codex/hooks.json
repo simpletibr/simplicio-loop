@@ -1,12 +1,12 @@
 {
   "hooks": {
-    "PreToolUse": [
+    "UserPromptSubmit": [
       {
-        "matcher": "Bash",
+        "matcher": "*",
         "hooks": [
           {
             "type": "command",
-            "command": "node .\\bin\\hook-runner.js codex pre-commit-if-needed"
+            "command": "python -m simplicio.codex_hooks"
           }
         ]
       }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .\\bin\\hook-runner.js codex post-edit \"$CLAUDE_FILE_PATH\""
+            "command": "python -m simplicio.codex_hooks"
           }
         ]
       }
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .\\bin\\hook-runner.js codex session-start"
+            "command": "python -m simplicio.codex_hooks"
           }
         ]
       }
