@@ -24,6 +24,7 @@ from simplicio_mapper.mapper.graph import (  # noqa: E402
     _is_macro_screen,
     _known_path_suffix_index,
     _macro_roles_for_path,
+    _nearest_symbol,
     _symbol_definitions_for_file,
     build_macro_map,
 )
@@ -180,6 +181,31 @@ class SymbolLineNumberBlankLinesTest(unittest.TestCase):
             if e["type"] == "calls" and e["source_symbol"] == e["target_symbol"] == "src/app.py::greet"
         ]
         self.assertEqual(self_edges, [])
+
+
+class NearestSymbolIndexTest(unittest.TestCase):
+    def test_indexed_lookup_preserves_nearest_definition(self) -> None:
+        symbols = [
+            {"name": "first", "qualified_name": "src/app.py::first", "defined_in": "src/app.py", "line": 4},
+            {"name": "second", "qualified_name": "src/app.py::second", "defined_in": "src/app.py", "line": 10},
+            {"name": "other", "qualified_name": "src/other.py::other", "defined_in": "src/other.py", "line": 2},
+        ]
+        by_file = {
+            "src/app.py": [symbols[0], symbols[1]],
+            "src/other.py": [symbols[2]],
+        }
+        lines_by_file = {path: [int(item["line"]) for item in definitions] for path, definitions in by_file.items()}
+
+        expected = {1: None, 4: "src/app.py::first", 9: "src/app.py::first", 10: "src/app.py::second", 99: "src/app.py::second"}
+        for line, qualified_name in expected.items():
+            result = _nearest_symbol(
+                symbols,
+                "src/app.py",
+                line,
+                symbols_by_file=by_file,
+                symbol_lines_by_file=lines_by_file,
+            )
+            self.assertEqual(result and result["qualified_name"], qualified_name)
 
 
 class CandidateImportTargetsIndexParityTest(unittest.TestCase):
