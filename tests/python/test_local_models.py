@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from simplicio.hardware import HardwareProfile, pick_tier
+import subprocess
+
+from simplicio.hardware import HardwareProfile, detect_gpu, pick_tier
 from simplicio.local_models import DEFAULT_LOCAL_MODEL_ID, ensure_recommended
 
 
@@ -20,6 +22,15 @@ def _profile() -> HardwareProfile:
 def test_hardware_tier_mapping_remains_deterministic() -> None:
     assert pick_tier(64, 0, True) == "gpu-xlarge"
     assert pick_tier(8, 0, True) == "cpu-small"
+
+
+def test_gpu_probe_oserror_degrades_to_no_gpu(monkeypatch) -> None:
+    def broken_probe(*_args, **_kwargs):
+        raise OSError(6, "invalid handle")
+
+    monkeypatch.setattr(subprocess, "run", broken_probe)
+
+    assert detect_gpu() == (0.0, "", "no GPU detected", False)
 
 
 def test_local_model_status_never_provisions_or_enables_execution(monkeypatch) -> None:
