@@ -11,6 +11,7 @@ import os
 import posixpath
 import re
 import subprocess
+from bisect import bisect_right
 
 from ..models import ProjectFile
 from .parse import (
@@ -372,11 +373,26 @@ def _call_expressions(text: str) -> list[tuple[str, int]]:
         calls.append((name, _line_number(text, match.start())))
     return calls
 
-def _nearest_symbol(symbols: list[dict], file: str, line: int) -> dict | None:
-    previous = [item for item in symbols if item["defined_in"] == file and item["line"] <= line]
-    if not previous:
+def _nearest_symbol(
+    symbols: list[dict],
+    file: str,
+    line: int,
+    *,
+    symbols_by_file: dict[str, list[dict]] | None = None,
+    symbol_lines_by_file: dict[str, list[int]] | None = None,
+) -> dict | None:
+    if symbols_by_file is None:
+        previous = [item for item in symbols if item["defined_in"] == file and item["line"] <= line]
+        return max(previous, key=lambda item: int(item["line"]), default=None)
+
+    candidates = symbols_by_file.get(file, [])
+    if not candidates:
         return None
-    return sorted(previous, key=lambda item: item["line"])[-1]
+    lines = (symbol_lines_by_file or {}).get(file)
+    if lines is None:
+        lines = [int(item["line"]) for item in candidates]
+    index = bisect_right(lines, line) - 1
+    return candidates[index] if index >= 0 else None
 
 def _build_call_graph(
     cwd: str,
@@ -389,8 +405,16 @@ def _build_call_graph(
     known_path_index = _known_path_suffix_index(known_paths)
     symbols = list(symbol_index.get("symbols") or [])
     symbols_by_name: dict[str, list[dict]] = {}
+    symbols_by_file: dict[str, list[dict]] = {}
     for symbol in symbols:
         symbols_by_name.setdefault(symbol["name"], []).append(symbol)
+        symbols_by_file.setdefault(symbol["defined_in"], []).append(symbol)
+    for definitions in symbols_by_file.values():
+        definitions.sort(key=lambda item: (int(item["line"]), str(item.get("qualified_name") or item.get("name") or "")))
+    symbol_lines_by_file = {
+        path: [int(item["line"]) for item in definitions]
+        for path, definitions in symbols_by_file.items()
+    }
 
     edges = []
     seen: set[tuple[str, str, str, str]] = set()
@@ -427,7 +451,13 @@ def _build_call_graph(
                 for target in symbols_by_name.get(name, [])[:3]:
                     if target["defined_in"] == file.path and target["line"] == line:
                         continue
-                    caller = _nearest_symbol(symbols, file.path, line)
+                    caller = _nearest_symbol(
+                        symbols,
+                        file.path,
+                        line,
+                        symbols_by_file=symbols_by_file,
+                        symbol_lines_by_file=symbol_lines_by_file,
+                    )
                     add_edge({
                         "type": "calls",
                         "source_file": file.path,
