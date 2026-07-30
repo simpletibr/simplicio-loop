@@ -62,7 +62,7 @@ each.
 ### Run Seems Slow/Hung, Or Uses More Memory Than The Published Benchmark
 
 - Cause: host core count drives the default concurrency cap
-  (`min(32, os.cpu_count() * 4)`), so a higher-core host uses more
+  (`min(64, os.cpu_count() * 4)`), so a higher-core host uses more
   concurrent file handles. Normal `auto` runs use the async path at every
   repository size; confirm the execution receipt before assuming a hang.
 - Diagnose: compare `os.cpu_count()` to the benchmark host in

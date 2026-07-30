@@ -62,7 +62,7 @@ time), so they can be set per-invocation.
 | Variable | Default | Effect | Invalid/out-of-range input |
 |---|---|---|---|
 | `SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES` | `600` | Calibration/receipt threshold for the bounded file-count probe. It no longer changes normal `auto` dispatch; use the explicit sync controls below for rollback. | Non-integer or `<= 0` is **ignored**, falling back to the default. |
-| `SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES` | `min(32, os.cpu_count() * 4)` | Caps in-flight file read+parse tasks (a single `asyncio.Semaphore`). Never unbounded, regardless of setting. | Non-integer or `<= 0` is **ignored**, falling back to the default (not zero, not unbounded) -- verified by `test_env_override_controls_the_cap` in `tests/python/test_async_pipeline.py`. |
+| `SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES` | `min(64, os.cpu_count() * 4)` | Caps in-flight file read+parse tasks (a single `asyncio.Semaphore`). Never unbounded, regardless of setting. | Non-integer or `<= 0` is **ignored**, falling back to the default (not zero, not unbounded) -- verified by `test_env_override_controls_the_cap` in `tests/python/test_async_pipeline.py`. |
 | `SIMPLICIO_MAPPER_FILE_TIMEOUT_S` | `30.0` | Per-file wall-clock budget (`asyncio.wait_for` around each file's read+parse) on the async path. A file that exceeds this is recorded in `degraded.timed_out_files` and dropped from the inventory -- the run itself is not aborted. | Non-numeric or `<= 0` is **ignored**, falling back to `30.0` -- verified by `test_per_file_timeout_env_override`. |
 
 Example, lowering concurrency and timeout budgets for a slow/constrained
