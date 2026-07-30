@@ -24,7 +24,7 @@ def execution_mode_blocker(profile: Any) -> dict[str, Any]:
                     [runtime["capability"]] if not runtime.get("capability_available") else []
                 ),
                 "runtime_version": runtime.get("version"),
-                "compatible_dev_cli_version": ">=0.16.3",
+                "compatible_dev_cli_version": ">=0.18.1",
                 "next_action": "run `simplicio-py runtime verify --json`, then retry",
             }
         )

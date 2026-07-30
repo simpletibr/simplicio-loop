@@ -1,6 +1,6 @@
 [project]
 name = "simplicio-cli"
-version = "0.18.0"
+version = "0.18.1"
 description = "Deterministic task-to-code contract and verification CLI. It never executes or provisions an LLM."
 readme = "README.md"
 license = { text = "MIT" }
@@ -45,7 +45,7 @@ classifiers = [
 # (generated, `--check`-able) for the full graph and #99 for the audit.
 dependencies = [
   "numpy>=2.1.0",
-  "simplicio-mapper>=0.26.0",
+  "simplicio-mapper>=0.26.1",
   "simplicio-prompt>=1.14.1",
   "httpx>=0.28.1",
   "orjson>=3.11.9",
@@ -62,7 +62,7 @@ ml = ["sentence-transformers>=5.6.0"]
 bench = ["fpdf2>=2.8.7"]
 # Optional canonical Fast adapter. It remains outside the base install until
 # its release train is formally promoted.
-fast = ["simplicio-fast>=0.1,<1"]
+fast = ["simplicio-fast>=2.0.18,<3"]
 # Opt-in faster asyncio event loop for the structured-concurrency runtime
 # (simplicio.runtime_async, issue #212). Never required: `install_uvloop()`
 # no-ops on Windows or when this extra is absent, falling back to stdlib

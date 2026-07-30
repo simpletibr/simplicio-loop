@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.18.1] - 2026-07-30
+
+### Changed
+
+- Align the optional Fast integration with Fast 2.0.18 and the Mapper floor
+  with Mapper 0.26.1.
+
 ## [0.18.0] - 2026-07-28
 
 ### Added

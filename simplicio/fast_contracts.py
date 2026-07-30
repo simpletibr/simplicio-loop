@@ -12,8 +12,8 @@ from typing import Any
 
 FAST_DISTRIBUTION = "simplicio-fast"
 FAST_MODULE = "simplicio_fast"
-FAST_MIN_VERSION = (0, 1, 0)
-FAST_MAX_MAJOR = 1
+FAST_MIN_VERSION = (2, 0, 18)
+FAST_MAX_MAJOR = 3
 CAPABILITIES_SCHEMA = "simplicio.fast-capabilities/v1"
 DOCTOR_SCHEMA = "simplicio.fast-doctor/v1"
 RECEIPT_SCHEMA = "simplicio.fast-local-receipt/v1"
@@ -87,7 +87,7 @@ def fast_preflight(*, offline: bool = False) -> FastPreflight:
             mapper_version,
             False,
             "fast-version-outside-supported-range",
-            f"install {FAST_DISTRIBUTION}>=0.1,<1",
+            f"install {FAST_DISTRIBUTION}>=2.0.18,<3",
         )
 
     parser_available = _module_available(f"{FAST_MODULE}.parsers", "SIMPLICIO_FAST_PARSER_AVAILABLE")
@@ -109,7 +109,7 @@ def capabilities_contract(*, offline: bool = False) -> dict[str, Any]:
         "schema": CAPABILITIES_SCHEMA,
         "availability": preflight.to_dict(),
         "compatibility": {
-            "fast": ">=0.1,<1",
+            "fast": ">=2.0.18,<3",
             "mapper": "installed version reported; negotiated through snapshot schema",
         },
         "schemas": [

@@ -13,8 +13,8 @@ from simplicio.fast_contracts import capabilities_contract, doctor_contract
     [
         ("", "0", "absent"),
         ("2.0.0", "1", "incompatible"),
-        ("0.1.0", "0", "degraded"),
-        ("0.1.0", "1", "ready"),
+        ("2.0.18", "0", "degraded"),
+        ("2.0.18", "1", "ready"),
     ],
 )
 def test_preflight_status_matrix(monkeypatch, version, parser, status):
@@ -38,7 +38,7 @@ def test_capabilities_contract_is_stable(monkeypatch):
             "correction": "pip install 'simplicio-cli[fast]'",
         },
         "compatibility": {
-            "fast": ">=0.1,<1",
+            "fast": ">=2.0.18,<3",
             "mapper": "installed version reported; negotiated through snapshot schema",
         },
         "schemas": [
