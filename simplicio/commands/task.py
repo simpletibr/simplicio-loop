@@ -169,6 +169,10 @@ def run(a: argparse.Namespace) -> int:
             context_handle=getattr(a, "context_handle", None),
             coordinator_kind=getattr(a, "coordinator_kind", None),
             coordinator_id=getattr(a, "coordinator_id", None),
+            repo_root=getattr(a, "repo_root", None),
+            scope_root=getattr(a, "scope_root", None),
+            context_snapshot_id=getattr(a, "context_snapshot_id", None),
+            context_pack_hash=getattr(a, "context_pack_hash", None),
         )
         if a.json:
             print(json.dumps(result, sort_keys=True))
@@ -202,6 +206,10 @@ def run(a: argparse.Namespace) -> int:
         context_handle=getattr(a, "context_handle", None),
         coordinator_kind=getattr(a, "coordinator_kind", None),
         coordinator_id=getattr(a, "coordinator_id", None),
+        repo_root=getattr(a, "repo_root", None),
+        scope_root=getattr(a, "scope_root", None),
+        context_snapshot_id=getattr(a, "context_snapshot_id", None),
+        context_pack_hash=getattr(a, "context_pack_hash", None),
     )
     status = "DONE" if result["applied"] else "FAILED"
     print(f"{status}: {result['diff_summary']}")

@@ -1,5 +1,9 @@
 usage: simplicio-py run [-h] [--scope {auto,task,feature,sprint,scratch}]
-                        [--root ROOT] [--stack STACK] [--target TARGET]
+                        [--root ROOT] [--repo-root REPO_ROOT]
+                        [--scope-root SCOPE_ROOT]
+                        [--context-snapshot-id CONTEXT_SNAPSHOT_ID]
+                        [--context-pack-hash CONTEXT_PACK_HASH]
+                        [--stack STACK] [--target TARGET]
                         [--criteria CRITERIA] [--constraints CONSTRAINTS]
                         [--dry-run-task] [--json] [--bound-paths BOUND_PATHS]
                         [--max-cost MAX_COST] [--max-iter MAX_ITER]
@@ -25,6 +29,14 @@ options:
   -h, --help            show this help message and exit
   --scope {auto,task,feature,sprint,scratch}
   --root ROOT
+  --repo-root REPO_ROOT
+                        declared repository root for the mutation contract
+  --scope-root SCOPE_ROOT
+                        declared writable scope root inside repo_root
+  --context-snapshot-id CONTEXT_SNAPSHOT_ID
+                        Mapper snapshot identity
+  --context-pack-hash CONTEXT_PACK_HASH
+                        Mapper ContextPack identity
   --stack STACK
   --target TARGET
   --criteria CRITERIA
