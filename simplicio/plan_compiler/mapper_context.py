@@ -454,8 +454,10 @@ def load_mapper_context_pack(
         raise MapperContextError(
             "UNSUPPORTED_CONTEXT_PACK_SCHEMA", "a Mapper context-pack/v1 payload is required"
         )
-    pack_hash = payload.get("pack_hash")
-    if not isinstance(pack_hash, str) or _SHA256_RE.fullmatch(pack_hash) is None:
+    raw_pack_hash = payload.get("pack_hash")
+    if raw_pack_hash is not None and (
+        not isinstance(raw_pack_hash, str) or _SHA256_RE.fullmatch(raw_pack_hash) is None
+    ):
         raise MapperContextError("CONTEXT_PACK_HASH_INVALID", "Mapper pack_hash must be SHA-256")
     provenance = payload.get("source_snapshot")
     if provenance is None:
@@ -524,6 +526,9 @@ def load_mapper_context_pack(
                 "CONTEXT_PACK_FILE_INVALID", "every ContextPack file needs path and snapshot_hash"
             )
     payload_bytes = _canonical_json_bytes(payload)
+    # Issue #301 compatibility: schema-compatible legacy packs may omit the
+    # raw field; bind their canonical projection digest as the identity.
+    pack_hash = raw_pack_hash or hashlib.sha256(payload_bytes).hexdigest()
     frozen = _freeze(json.loads(payload_bytes.decode("utf-8")))
     if not isinstance(frozen, Mapping):
         raise MapperContextError("CONTEXT_PACK_INVALID", "canonical ContextPack is not an object")

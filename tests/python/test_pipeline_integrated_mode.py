@@ -194,6 +194,35 @@ def test_standalone_mode_explicit_matches_implicit_default(tmp_path, monkeypatch
     assert result["applied"] is True
 
 
+def test_integrated_dry_run_is_preflight_only(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
+    sink = RuntimeTestSink()
+
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "add api",
+        "src/app.py",
+        "- passes",
+        "- small",
+        mode="integrated",
+        dry_run_task=True,
+        effect_sink=sink,
+        integrated_attempt=_attempt(),
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
+        context_pack=CANONICAL_PACK,
+        quiet=True,
+    )
+
+    assert result["applied"] is False
+    assert result["status"] == "dry_run"
+    assert result["warnings"] == ["integrated_effect_preflight_only"]
+    assert result["execution_profile"]["effective_mode"] == "integrated"
+    assert sink.received == []
+    assert result["mutation_authorization_receipt"]["final_status"] == "dry_run"
+
+
 def test_integrated_mode_without_sink_fails_closed_and_never_writes(tmp_path, monkeypatch):
     monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
     before = _snapshot(tmp_path)

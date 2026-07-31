@@ -406,3 +406,15 @@ def test_missing_manifest_and_validator_api_have_stable_codes(monkeypatch: pytes
     monkeypatch.setattr(mapper_context.importlib, "import_module", unavailable)
     with pytest.raises(MapperContextError, match="MAPPER_API_UNAVAILABLE"):
         mapper_context._mapper_api()
+
+
+def test_context_pack_without_raw_hash_derives_canonical_identity(mapper_boundary: None) -> None:
+    payload = _payload()
+    pack = _pack(payload)
+    pack.pop("pack_hash")
+
+    binding = bind_mapper_context(payload, pack)
+
+    expected = hashlib.sha256(_canonical_json(pack)).hexdigest()
+    assert binding.pack.pack_hash == expected
+    assert binding.context_handle.pack_hash == expected

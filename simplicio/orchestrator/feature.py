@@ -7,12 +7,11 @@ existing verify-loop, and a failing task can trigger one bounded replan.
 
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from ..scratch._pipeline_adapter import run_task as run_plan_task
-from ..scratch.codegen import try_execute
 from ..scratch.planner import generate_plan
 from ..scratch.stack_registry import StackRegistry, slugify_project
 from .cost_governor import BudgetExceeded, provider_budget
@@ -20,30 +19,27 @@ from .cost_governor import BudgetExceeded, provider_budget
 TaskRunner = Callable[..., tuple[bool, str]]
 
 
-def _codegen_disabled() -> bool:
-    return os.environ.get("SIMPLICIO_DISABLE_CODEGEN", "").lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-
-
-def _run_feature_task(task, project_dir: Path, stack, *, quiet: bool = False):
-    """Run feature tasks through deterministic codegen before the LLM pipeline."""
-    codegen_log = ""
-    if not _codegen_disabled():
-        codegen_result = try_execute(task, project_dir, stack)
-        if codegen_result is not None:
-            codegen_log = codegen_result.log
-            if codegen_result.passed or not codegen_result.fallback_to_llm:
-                mode = codegen_result.executor_name or "codegen"
-                return codegen_result.passed, f"codegen:{mode}: {codegen_log}"
-
-    passed, log = run_plan_task(task, project_dir, stack, quiet=quiet)
-    if codegen_log:
-        log = f"codegen fallback: {codegen_log}\n\n{log}"
-    return passed, log
+def _run_feature_task(
+    task,
+    project_dir: Path,
+    stack,
+    *,
+    quiet: bool = False,
+    forwarded_pipeline_kwargs: dict[str, Any] | None = None,
+):
+    """Run feature/sprint tasks only through the authorized pipeline boundary."""
+    if forwarded_pipeline_kwargs is None:
+        return False, "MUTATION_CONTEXT_REQUIRED"
+    context = dict(forwarded_pipeline_kwargs)
+    if not context.get("repo_root") or not context.get("scope_root"):
+        return False, "MUTATION_CONTEXT_REQUIRED"
+    return run_plan_task(
+        task,
+        project_dir,
+        stack,
+        quiet=quiet,
+        forwarded_pipeline_kwargs=context,
+    )
 
 
 def _ordered_tasks(tasks: list[object]) -> list[object]:
@@ -78,6 +74,9 @@ def run_feature(
     planner: Callable[..., object] | None = None,
     task_runner: TaskRunner | None = None,
     quiet: bool = False,
+    repo_root: str | None = None,
+    scope_root: str | None = None,
+    forwarded_pipeline_kwargs: dict[str, Any] | None = None,
 ) -> dict:
     """Run a multi-task feature plan against an existing repository."""
 
@@ -86,6 +85,15 @@ def run_feature(
     planner_fn = planner or generate_plan
     default_task_runner = task_runner is None
     task_runner_fn = task_runner or _run_feature_task
+    pipeline_context = (
+        None
+        if forwarded_pipeline_kwargs is None and repo_root is None and scope_root is None
+        else dict(forwarded_pipeline_kwargs or {})
+    )
+    if pipeline_context is not None and repo_root is not None:
+        pipeline_context.setdefault("repo_root", repo_root)
+    if pipeline_context is not None and scope_root is not None:
+        pipeline_context.setdefault("scope_root", scope_root)
 
     reg = StackRegistry()
     stack = reg.get(stack_slug)
@@ -129,6 +137,7 @@ def run_feature(
                             Path(root),
                             stack,
                             quiet=quiet,
+                            forwarded_pipeline_kwargs=pipeline_context,
                         )
                     else:
                         passed, log = task_runner_fn(task, Path(root), stack)

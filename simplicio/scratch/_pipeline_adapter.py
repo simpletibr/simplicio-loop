@@ -25,6 +25,7 @@ def run_task(
     stack: Stack,
     *,
     quiet: bool = False,
+    forwarded_pipeline_kwargs: dict[str, Any] | None = None,
 ) -> tuple[bool, str]:
     """Run one plan task through simplicio.pipeline.
     Returns (passed, log_tail)."""
@@ -57,6 +58,8 @@ def run_task(
             "criteria": task.criteria,
             "constraints": task.constraints,
         }
+        if forwarded_pipeline_kwargs is not None:
+            pipeline_kwargs.update(forwarded_pipeline_kwargs)
         if quiet:
             output = pipeline.run_task(**pipeline_kwargs, quiet=True)
         else:
