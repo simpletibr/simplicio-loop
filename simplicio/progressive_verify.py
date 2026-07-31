@@ -63,7 +63,7 @@ class ProgressiveVerifier:
         root: str | Path,
         *,
         cache: dict[str, dict[str, Any]] | None = None,
-        default_timeout_s: float = 30.0,
+        default_timeout_s: float | None = None,
     ) -> None:
         self.root = Path(root).resolve()
         self.cache = cache if cache is not None else {}
@@ -118,7 +118,7 @@ class ProgressiveVerifier:
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                timeout=timeout_s or self.default_timeout_s,
+                timeout=timeout_s if timeout_s is not None else self.default_timeout_s,
                 check=False,
                 shell=False,
             )

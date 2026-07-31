@@ -541,7 +541,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p_runtime_verify = runtime_sub.add_parser(
         "verify", help="verify the real reserved Simplicio Runtime identity and capabilities"
     )
-    p_runtime_verify.add_argument("--timeout", type=int, default=30)
+    p_runtime_verify.add_argument(
+        "--timeout",
+        type=int,
+        default=None,
+        help="optional Runtime probe deadline in seconds (default: no deadline)",
+    )
     p_runtime_capabilities = runtime_sub.add_parser("capabilities")
     p_runtime_capabilities.add_argument("--root", default=".")
     p_runtime_capabilities.add_argument("--mode", choices=["auto", "integrated", "standalone"])

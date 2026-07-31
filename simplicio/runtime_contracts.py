@@ -211,7 +211,7 @@ def is_legacy_runtime_alias(product: str | None) -> bool:
     return product.strip().lower() in LEGACY_RUNTIME_ALIASES
 
 
-def runtime_verify_contract(*, timeout: int = 30) -> dict[str, Any]:
+def runtime_verify_contract(*, timeout: int | None = None) -> dict[str, Any]:
     """Probe the real reserved runtime without silently falling back.
 
     Identity comes from the runtime's canonical ``version --json`` surface

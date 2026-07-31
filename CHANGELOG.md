@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## [0.18.4] - 2026-07-31
+
+### Changed
+
+- Run verification and provider commands without a default deadline; retain
+  explicit opt-in deadlines and emit a PID-backed long-running review receipt
+  after 30 minutes instead of stopping valid work.
+- Strengthen Windows cancellation so a pre-kill process snapshot terminates
+  descendants even if the direct parent exits during `taskkill` scheduling.
+
 ## [0.18.3] - 2026-07-30
 
 ### Fixed

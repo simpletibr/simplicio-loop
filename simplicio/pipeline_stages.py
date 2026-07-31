@@ -27,7 +27,6 @@ _TEST_COMMAND_PLACEHOLDERS = {
     "echo 'configure SIMPLICIO_TEST_CMD'",
     'echo "configure SIMPLICIO_TEST_CMD"',
 }
-_DEFAULT_VERIFY_TIMEOUT_S = 120
 
 
 @dataclass
@@ -71,15 +70,17 @@ def _configured_test_command() -> tuple[str | None, str | None]:
     return raw, None
 
 
-def _verification_timeout_seconds() -> int:
+def _verification_timeout_seconds() -> int | None:
     raw = os.environ.get("SIMPLICIO_TEST_TIMEOUT_S", "").strip()
     if not raw:
-        return _DEFAULT_VERIFY_TIMEOUT_S
+        return None
+    if raw.lower() in {"0", "off", "none", "unlimited"}:
+        return None
     try:
         value = int(raw)
     except ValueError:
-        return _DEFAULT_VERIFY_TIMEOUT_S
-    return value if value > 0 else _DEFAULT_VERIFY_TIMEOUT_S
+        return None
+    return value if value > 0 else None
 
 
 def _patch_receipt(candidate: PatchCandidate | None, files: list[str] | None = None) -> dict[str, Any] | None:
