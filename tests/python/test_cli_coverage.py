@@ -329,7 +329,9 @@ class BackgroundWorkerNeverInheritsStdinTest(unittest.TestCase):
             payload, child = cli_background._spawn_index_process(opts)
 
         self.assertIs(subprocess.Popen, real_popen)  # patch scoped, no leakage
+        self.assertIn("-B", captured["args"][0])
         self.assertEqual(captured["kwargs"].get("stdin"), subprocess.DEVNULL)
+        self.assertEqual(captured["kwargs"]["env"].get("PYTHONDONTWRITEBYTECODE"), "1")
         self.assertEqual(payload["pid"], 123456)
         self.assertIsInstance(child, _FakeChild)
 

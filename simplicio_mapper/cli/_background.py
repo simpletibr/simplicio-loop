@@ -40,7 +40,10 @@ def _spawn_index_process(opts: dict) -> tuple[dict, subprocess.Popen]:
     abs_out = os.path.abspath(os.path.join(root, out))
     os.makedirs(abs_out, exist_ok=True)
     log_path = os.path.join(abs_out, "background-index.log")
-    args = [sys.executable, "-m", "simplicio_mapper.cli", "index", root, "--out", out]
+    # Do not let stale bytecode from an installed Mapper shadow the source tree
+    # selected for this worker, especially on Windows where timestamp checks can
+    # be coarser than rapid source updates.
+    args = [sys.executable, "-B", "-m", "simplicio_mapper.cli", "index", root, "--out", out]
     if opts["stack"]:
         args.extend(["--stack", opts["stack"]])
     if opts["product_name"]:
@@ -54,6 +57,7 @@ def _spawn_index_process(opts: dict) -> tuple[dict, subprocess.Popen]:
     if opts.get("canonical_reuse"):
         args.append("--canonical-reuse")
     env = os.environ.copy()
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     # ``__file__`` is normally ``.../simplicio_mapper/cli/_background.py``.
     # The import root is the directory containing the package, not the
     # package directory itself; the latter can make a detached worker resolve
