@@ -67,9 +67,17 @@ def _now() -> float:
 
 
 def _read(path: Path) -> dict[str, Any]:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError, json.JSONDecodeError) as error:
+    error: Exception | None = None
+    for attempt in range(20):
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+            break
+        except (OSError, ValueError, json.JSONDecodeError) as current:
+            error = current
+            if attempt == 19:
+                raise BackgroundWorkError("CORRUPT_STATE", str(path)) from current
+            time.sleep(0.005)
+    else:
         raise BackgroundWorkError("CORRUPT_STATE", str(path)) from error
     if not isinstance(value, dict):
         raise BackgroundWorkError("CORRUPT_STATE", str(path))
