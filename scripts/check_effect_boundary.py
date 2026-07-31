@@ -12,7 +12,7 @@ from pathlib import Path
 
 # Reviewed 2026-07-30: the inventory includes the controlled checkpoint,
 # transaction, verification and write-set primitives added since #353.
-BASELINE_SHA256 = "8081970e2739d3fd512adedb9a922342b71916984f4b22ec98740ce9c6a25e28"
+BASELINE_SHA256 = "cfeaa025448006f732b7d1304be1fb7ab677bc4bb92843823d7e40ff358d40d0"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",

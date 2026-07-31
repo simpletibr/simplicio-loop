@@ -135,7 +135,7 @@ def _attach_contract_receipt(
         verification={"commands": commands, "results": verification_results},
         retry=retry_payload,
         duration_ms=duration_ms if duration_ms is not None else result.get("duration_ms"),
-        final_status="applied" if result.get("applied") else str(result.get("status", "blocked")),
+        final_status=_final_receipt_status(result, dry_run=result.get("status") == "dry_run"),
     )
     result["mutation_authorization_receipt"] = receipt
     return result
@@ -301,7 +301,7 @@ def _apply_and_test(output, root, bound_paths=None):
 _DEFAULT_APPLY_AND_TEST = _apply_and_test
 
 
-def run_task(
+def _run_task(
     root,
     stack,
     goal,
@@ -726,7 +726,7 @@ def run_task(
                 "retryable": observation_payload.get("retryability") == "retryable",
             },
             duration_ms=result.get("duration_ms"),
-            final_status="applied" if result.get("applied") else str(result.get("status", "blocked")),
+            final_status=_final_receipt_status(result, dry_run=result.get("status") == "dry_run"),
         )
         result = _attach_contract_receipt(
             result,
@@ -1285,6 +1285,88 @@ def run_task(
         verify=last_verify_receipt,
         impact=impact_results,
     )
+
+
+def _final_receipt_status(result: dict[str, Any], *, dry_run: bool) -> str:
+    if result.get("applied") is True:
+        return "applied"
+    status = str(result.get("status") or "blocked")
+    if dry_run and status == "dry_run":
+        return "dry_run"
+    if status == "integrated_atomic":
+        observation = result.get("observation")
+        outcome = observation.get("outcome") if isinstance(observation, dict) else None
+        return (
+            "blocked"
+            if outcome in {"rejected", "precondition_failed", "authorization_required"}
+            else "failed"
+        )
+    return status
+
+
+def _receipt_context(root: str, target: str, kwargs: dict[str, Any]) -> TaskContext:
+    actual_root = Path(root).resolve()
+    scope = Path(kwargs.get("scope_root") or actual_root).resolve()
+    snapshot = kwargs.get("context_snapshot") or {}
+    pack = kwargs.get("context_pack") or {}
+    try:
+        return TaskContext.from_values(
+            repo_root=actual_root,
+            scope_root=scope,
+            target=target,
+            context_snapshot_id=str(snapshot.get("snapshot_id") or kwargs.get("context_snapshot_id") or ""),
+            context_pack_hash=str(pack.get("pack_hash") or kwargs.get("context_pack_hash") or ""),
+            attempt_id=str(
+                kwargs.get("attempt_id") or getattr(kwargs.get("integrated_attempt"), "attempt_id", "") or ""
+            ),
+            require_identity=False,
+        )
+    except (TaskContextError, ValueError):
+        return TaskContext.from_values(
+            repo_root=actual_root,
+            scope_root=actual_root,
+            target=".",
+            context_snapshot_id="",
+            context_pack_hash="",
+            attempt_id="",
+            require_identity=False,
+        )
+
+
+def _finalize_task_result(
+    result: dict[str, Any], args: tuple[Any, ...], kwargs: dict[str, Any]
+) -> dict[str, Any]:
+    if result.get("mutation_authorization_receipt") is not None:
+        return result
+    root = str(kwargs.get("root") if kwargs.get("root") is not None else args[0])
+    target = str(kwargs.get("target") if kwargs.get("target") is not None else args[3])
+    mode = str(kwargs.get("mode") or "standalone")
+    profile = result.get("execution_profile")
+    effective_mode = str(profile.get("effective_mode") if isinstance(profile, dict) else mode)
+    dry_run = bool(kwargs.get("dry_run_task", False))
+    if dry_run or result.get("status") == "blocked":
+        route = "blocked"
+    elif effective_mode == "integrated":
+        route = "runtime_effect_api"
+    else:
+        route = "legacy_standalone"
+    context = _receipt_context(root, target, kwargs)
+    attempt = kwargs.get("integrated_attempt")
+    return _attach_contract_receipt(
+        result,
+        task_context=context,
+        route=route,
+        effective_mode=effective_mode,
+        authorization=kwargs.get("authorization"),
+        verification_status=str(result.get("status") or "unverified"),
+        attempt=attempt,
+        retry={"attempt": kwargs.get("attempt_number", 1), "max_attempts": 1, "retryable": False},
+    )
+
+
+def run_task(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    result = _run_task(*args, **kwargs)
+    return _finalize_task_result(result, args, kwargs)
 
 
 def run(root, stack, goal, target, criteria, constraints, bound_paths=None, **kwargs: Any):

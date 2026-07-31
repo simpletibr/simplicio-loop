@@ -38,7 +38,19 @@ def _run_feature_task(
     quiet: bool = False,
     forwarded_pipeline_kwargs: dict[str, Any] | None = None,
 ):
-    """Run feature tasks through deterministic codegen before the LLM pipeline."""
+    """Run feature tasks through the authorized mutation boundary."""
+    # Feature/sprint dispatch always supplies a pipeline-context dictionary.
+    # Once that boundary is present, scratch codegen must not write directly;
+    # the pipeline owns root/scope/authority validation and receipts.
+    if forwarded_pipeline_kwargs is not None:
+        passed, log = run_plan_task(
+            task,
+            project_dir,
+            stack,
+            quiet=quiet,
+            forwarded_pipeline_kwargs=forwarded_pipeline_kwargs,
+        )
+        return passed, log
     codegen_log = ""
     if not _codegen_disabled():
         codegen_result = try_execute(task, project_dir, stack)
@@ -103,10 +115,14 @@ def run_feature(
     planner_fn = planner or generate_plan
     default_task_runner = task_runner is None
     task_runner_fn = task_runner or _run_feature_task
-    pipeline_context = dict(forwarded_pipeline_kwargs or {})
-    if repo_root is not None:
+    pipeline_context = (
+        None
+        if forwarded_pipeline_kwargs is None and repo_root is None and scope_root is None
+        else dict(forwarded_pipeline_kwargs or {})
+    )
+    if pipeline_context is not None and repo_root is not None:
         pipeline_context.setdefault("repo_root", repo_root)
-    if scope_root is not None:
+    if pipeline_context is not None and scope_root is not None:
         pipeline_context.setdefault("scope_root", scope_root)
 
     reg = StackRegistry()

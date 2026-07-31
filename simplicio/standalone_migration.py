@@ -227,7 +227,7 @@ def mutation_receipt(
         "verification": verification_payload,
         "retry": retry_payload,
         "duration_ms": duration_ms,
-        "final_status": final_status or ("blocked" if route == "blocked" else "applied"),
+        "final_status": final_status or ("blocked" if route == "blocked" else "unknown"),
     }
 
 
