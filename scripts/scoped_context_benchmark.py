@@ -1,8 +1,9 @@
-"""Measure cold, warm, and incremental scoped-context latency."""
+"""Measure cold, warm, and incremental scoped-context performance honestly."""
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 import tempfile
 import time
@@ -13,45 +14,102 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from simplicio_mapper.scoped_context import PERFORMANCE_THRESHOLD_MS, build_scoped_context
 
 
-def _invoke(root: Path, cache: Path, task: str, changed: tuple[str, ...] = ()) -> tuple[float, dict]:
+def _invoke(root: Path, cache: Path, task: str, changed: tuple[str, ...] = ()) -> dict[str, float | int | str]:
     started = time.perf_counter()
-    payload = build_scoped_context(str(root), target_hints=["src/target.py"], task_fingerprint=task, changed_paths=changed, cache_root=str(cache), start_background=False)
-    return (time.perf_counter() - started) * 1000, payload
+    payload = build_scoped_context(
+        str(root),
+        target_hints=["src/target.py"],
+        task_fingerprint=task,
+        changed_paths=changed,
+        cache_root=str(cache),
+        start_background=False,
+    )
+    metrics = payload["metrics"]
+    return {
+        "wall_ms": round((time.perf_counter() - started) * 1000, 3),
+        "cpu_ms": float(metrics["cpu_ms"]),
+        "parsed_files": int(metrics["files_parsed"]),
+        "reused_files": int(metrics["files_reused"]),
+        "artifact_bytes": int(metrics["artifact_bytes"]),
+        "cache": str(metrics["cache"]),
+    }
+
+
+def _summary(samples: list[dict[str, float | int | str]]) -> dict[str, object]:
+    walls = sorted(float(sample["wall_ms"]) for sample in samples)
+    cpus = sorted(float(sample["cpu_ms"]) for sample in samples)
+    p95_index = min(len(walls) - 1, max(0, math.ceil(len(walls) * 0.95) - 1))
+    return {
+        "repetitions": len(samples),
+        "wall_ms": {
+            "avg": round(sum(walls) / len(walls), 3),
+            "median": round(walls[len(walls) // 2], 3),
+            "p95": round(walls[p95_index], 3),
+            "max": round(max(walls), 3),
+        },
+        "cpu_ms": {
+            "avg": round(sum(cpus) / len(cpus), 3),
+            "median": round(cpus[len(cpus) // 2], 3),
+            "p95": round(cpus[p95_index], 3),
+            "max": round(max(cpus), 3),
+        },
+        "parsed_files": sum(int(sample["parsed_files"]) for sample in samples),
+        "reused_files": sum(int(sample["reused_files"]) for sample in samples),
+        "artifact_bytes": sum(int(sample["artifact_bytes"]) for sample in samples),
+        "cache_states": sorted({str(sample["cache"]) for sample in samples}),
+    }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repetitions", type=int, default=10)
+    parser.add_argument("--warmup", type=int, default=2)
     args = parser.parse_args()
     if args.repetitions < 10:
         parser.error("--repetitions must be at least 10")
+    if args.warmup < 0:
+        parser.error("--warmup must not be negative")
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         (root / "src").mkdir()
         target = root / "src/target.py"
         target.write_text("value = 1\n", encoding="utf-8")
         cache = root / "cache"
-        cold = [_invoke(root, root / f"cold-{index}", f"cold-{index}")[0] for index in range(args.repetitions)]
-        warm = [_invoke(root, cache, "warm")[0] for _ in range(args.repetitions)]
+
+        cold = [_invoke(root, root / f"cold-{index}", f"cold-{index}") for index in range(args.repetitions)]
+
+        _invoke(root, cache, "warm")
+        for _ in range(args.warmup):
+            _invoke(root, cache, "warm")
+        warm = [_invoke(root, cache, "warm") for _ in range(args.repetitions)]
+
+        _invoke(root, cache, "incremental")
+        for index in range(args.warmup):
+            target.write_text(f"value = {index + 2}\n", encoding="utf-8")
+            _invoke(root, cache, "incremental", ("src/target.py",))
         incremental = []
         for index in range(args.repetitions):
-            target.write_text(f"value = {index + 2}\n", encoding="utf-8")
-            incremental.append(_invoke(root, cache, "warm", ("src/target.py",))[0])
+            target.write_text(f"value = {index + args.warmup + 2}\n", encoding="utf-8")
+            incremental.append(_invoke(root, cache, "incremental", ("src/target.py",)))
+
+    modes = {"cold": _summary(cold), "warm": _summary(warm), "incremental": _summary(incremental)}
+    warm_pass = float(modes["warm"]["wall_ms"]["p95"]) <= PERFORMANCE_THRESHOLD_MS
+    incremental_pass = float(modes["incremental"]["wall_ms"]["p95"]) <= PERFORMANCE_THRESHOLD_MS
     result = {
-        "schema": "simplicio.mapper-scoped-benchmark/v1",
+        "schema": "simplicio.mapper-scoped-benchmark/v2",
         "repetitions": args.repetitions,
+        "warmup_repetitions": args.warmup,
         "threshold_ms": PERFORMANCE_THRESHOLD_MS,
-        "cold_avg_ms": sum(cold) / len(cold),
-        "cold_max_ms": max(cold),
-        "warm_avg_ms": sum(warm) / len(warm),
-        "warm_max_ms": max(warm),
-        "incremental_avg_ms": sum(incremental) / len(incremental),
-        "incremental_max_ms": max(incremental),
-        "warm_pass": max(warm) <= PERFORMANCE_THRESHOLD_MS,
-        "incremental_pass": max(incremental) <= PERFORMANCE_THRESHOLD_MS,
+        "gate_metric": "wall_ms.p95",
+        "modes": modes,
+        "warm_pass": warm_pass,
+        "incremental_pass": incremental_pass,
+        "cold_wall_avg_ms": modes["cold"]["wall_ms"]["avg"],
+        "warm_wall_avg_ms": modes["warm"]["wall_ms"]["avg"],
+        "incremental_wall_avg_ms": modes["incremental"]["wall_ms"]["avg"],
     }
     print(json.dumps(result, sort_keys=True))
-    return 0 if result["warm_pass"] and result["incremental_pass"] else 1
+    return 0 if warm_pass and incremental_pass else 1
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ import contextlib
 import hashlib
 import io
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,6 +17,7 @@ from simplicio_mapper.scoped_context import (
     ScopedContextError,
     ScopedRequest,
     _run_background_worker,
+    _generation_digest,
     build_scoped_context,
     run_scoped_context_cli,
 )
@@ -79,6 +81,20 @@ class ScopedContextTests(unittest.TestCase):
         self.assertGreaterEqual(first["budget"]["effective_bytes"], first["budget"]["requested_bytes"])
         self.assertEqual([row["path"] for row in first["selected_paths"]], [row["path"] for row in second["selected_paths"]])
 
+    def test_budget_preserves_multiple_explicit_symbol_and_corridor_targets(self):
+        self._artifacts()
+        payload = build_scoped_context(
+            str(self.root),
+            target_hints=["src/target.py", "run"],
+            context_budget=1,
+            cache_root=str(self.cache),
+            start_background=False,
+        )
+        paths = {row["path"] for row in payload["selected_paths"]}
+        self.assertTrue({"src/target.py", "src/helper.py", "src/caller.py", "tests/test_target.py"} <= paths)
+        self.assertTrue(payload["budget"]["expanded"])
+        self.assertEqual(paths, set(payload["budget"]["required_paths"]))
+
     def test_warm_reuses_source_rows_and_mutation_invalidates_dependency_closure(self):
         self._artifacts()
         first = build_scoped_context(str(self.root), target_hints=["run"], task_fingerprint="task", cache_root=str(self.cache), start_background=False)
@@ -93,6 +109,37 @@ class ScopedContextTests(unittest.TestCase):
         self.assertIn("src/target.py", incremental["metrics"]["dependency_invalidations"])
         self.assertGreater(incremental["metrics"]["source_files_reused"], 0)
 
+    def test_same_size_mutation_with_restored_mtime_invalidates(self):
+        first = build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="mtime", cache_root=str(self.cache), start_background=False)
+        path = self.root / "src/target.py"
+        before = path.stat()
+        path.write_text("def run():\n    return 2\n", encoding="utf-8")
+        os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+        second = build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="mtime", cache_root=str(self.cache), start_background=False)
+        self.assertNotEqual(first["generation"]["id"], second["generation"]["id"])
+        self.assertEqual(["src/target.py"], second["metrics"]["actual_changed_paths"])
+        self.assertEqual(["src/target.py"], second["metrics"]["parsed_paths"])
+
+    def test_same_size_artifact_mutation_invalidates_artifact_cache(self):
+        self._artifacts()
+        first = build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="artifact", cache_root=str(self.cache), start_background=False)
+        project_map = self.root / ".simplicio/project-map.json"
+        before = project_map.stat()
+        project_map.write_text(project_map.read_text(encoding="utf-8").replace("fixture", "otherxx"), encoding="utf-8")
+        os.utime(project_map, ns=(before.st_atime_ns, before.st_mtime_ns))
+        second = build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="artifact", cache_root=str(self.cache), start_background=False)
+        self.assertNotEqual(first["generation"]["id"], second["generation"]["id"])
+        self.assertEqual(4, second["metrics"]["artifact_files_parsed"])
+
+    def test_metrics_do_not_count_changed_paths_outside_selection(self):
+        first = build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="metrics", cache_root=str(self.cache), start_background=False)
+        second = build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="metrics", changed_paths=["unrelated.py"], cache_root=str(self.cache), start_background=False)
+        self.assertEqual(["unrelated.py"], second["metrics"]["actual_changed_paths"])
+        self.assertEqual([], second["metrics"]["parsed_paths"])
+        self.assertEqual(["src/target.py"], second["metrics"]["reused_paths"])
+        self.assertEqual([], second["metrics"]["dependency_invalidations"])
+        self.assertEqual(first["generation"]["id"], second["generation"]["id"])
+
     def test_pinned_attempt_survives_promotion(self):
         first = build_scoped_context(str(self.root), target_hints=["src/target.py"], attempt_id="attempt", cache_root=str(self.cache), start_background=False)
         old_hash = first["spans"][0]["source_sha256"]
@@ -102,6 +149,27 @@ class ScopedContextTests(unittest.TestCase):
         self.assertNotEqual(first["generation"]["id"], newer["generation"]["id"])
         self.assertEqual(old_hash, pinned["spans"][0]["source_sha256"])
         self.assertEqual("pinned", pinned["metrics"]["cache"])
+
+    def test_tampered_generation_is_rejected_by_content_digest(self):
+        build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="tamper", cache_root=str(self.cache), start_background=False)
+        generation_path = next(self.cache.rglob("generations/*.json"))
+        value = json.loads(generation_path.read_text(encoding="utf-8"))
+        value["spans"][0]["source_sha256"] = "0" * 64
+        generation_path.write_text(json.dumps(value), encoding="utf-8")
+        with self.assertRaises(ScopedContextError) as error:
+            build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="tamper", cache_root=str(self.cache), start_background=False)
+        self.assertEqual(REASON_CACHE_INCOMPATIBLE, error.exception.reason_code)
+
+    def test_tampered_selected_span_stat_is_rejected(self):
+        build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="stat-tamper", cache_root=str(self.cache), start_background=False)
+        generation_path = next(self.cache.rglob("generations/*.json"))
+        value = json.loads(generation_path.read_text(encoding="utf-8"))
+        value["selected_paths"][0]["source_stat"] = {"size": 0, "mtime_ns": 0}
+        value["content_digest"] = _generation_digest(value)
+        generation_path.write_text(json.dumps(value), encoding="utf-8")
+        with self.assertRaises(ScopedContextError) as error:
+            build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="stat-tamper", cache_root=str(self.cache), start_background=False)
+        self.assertEqual(REASON_CACHE_INCOMPATIBLE, error.exception.reason_code)
 
     def test_concurrent_readers_publish_valid_same_generation(self):
         def read_once(_):
@@ -149,12 +217,14 @@ class ScopedContextTests(unittest.TestCase):
             build_scoped_context(str(self.root), target_hints=["src/target.py"], cache_root=str(self.cache), start_background=False)
         self.assertEqual(REASON_SCOPED_ARTIFACT_STALE, error.exception.reason_code)
 
-    def test_background_worker_completes_durable_record(self):
-        payload = build_scoped_context(str(self.root), target_hints=["src/target.py"], cache_root=str(self.cache), start_background=False)
-        self.assertEqual(0, _run_background_worker(payload["background"]["work_id"], self.cache))
+    def test_background_worker_is_queued_without_fake_completion(self):
+        payload = build_scoped_context(str(self.root), target_hints=["src/target.py"], cache_root=str(self.cache), start_background=True)
+        self.assertEqual(3, _run_background_worker(payload["background"]["work_id"], self.cache))
         state_path = next(self.cache.rglob(f"{payload['background']['work_id']}.json"))
         state = json.loads(state_path.read_text(encoding="utf-8"))
-        self.assertEqual("completed", state["state"])
+        self.assertEqual("queued", state["state"])
+        with self.assertRaises(ScopedContextError):
+            _run_background_worker("*", self.cache)
 
     def test_missing_root_and_unknown_symbol_fail_closed(self):
         with self.assertRaises(ScopedContextError) as missing:
