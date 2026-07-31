@@ -58,12 +58,13 @@ cleanly.
 
 | Var | Default | Meaning |
 |---|---|---|
-| `SIMPLICIO_PROVIDER_STARTUP_TIMEOUT_S` | `30` | Max seconds with **zero** stdout/stderr bytes from the child before it's classified as a startup stall. |
-| `SIMPLICIO_PROVIDER_TOTAL_TIMEOUT_S` | `600` | Max seconds for the whole call, regardless of output (unchanged from the pre-#210 default, so existing deployments keep the same ceiling unless they opt in to a different one). |
-| `SIMPLICIO_PROVIDER_HEARTBEAT_INTERVAL_S` | `15` | How often a `provider_heartbeat` event is emitted while the child is alive and neither deadline has passed. |
+| `SIMPLICIO_PROVIDER_STARTUP_TIMEOUT_S` | disabled | Optional maximum seconds with **zero** stdout/stderr bytes before the call is classified as a startup stall. |
+| `SIMPLICIO_PROVIDER_TOTAL_TIMEOUT_S` | disabled | Optional maximum seconds for the whole call, regardless of output. |
+| `SIMPLICIO_PROVIDER_LONG_RUNNING_REVIEW_S` | `1800` | Elapsed seconds before one PID-backed `provider_long_running` review event is emitted; the child keeps running. |
+| `SIMPLICIO_PROVIDER_HEARTBEAT_INTERVAL_S` | `15` | How often a `provider_heartbeat` event is emitted while the child is alive. |
 
-Invalid or non-positive values fall back to the default (fail-safe, never a
-crash from a malformed env var).
+Unset, invalid, zero, or non-positive timeout values disable that deadline;
+use an explicit positive value only when a caller needs a cancellation policy.
 
 ### Phase classification
 
@@ -79,9 +80,10 @@ in `simplicio/observability.py`, schema `simplicio.dev-cli-event/v1`):
   policy**: do not blind-retry the same command; first check
   `claude`/`codex` login state, then retry once.
 - `total_timeout` — the provider was producing output but ran past the
-  total deadline. Usually a genuinely large/slow task. **Retry policy**:
-  narrow the task scope (smaller `--target`/`--bound-paths`) before
-  retrying, or raise `SIMPLICIO_PROVIDER_TOTAL_TIMEOUT_S` for that one call.
+  explicitly configured total deadline. Usually a genuinely large/slow task.
+  **Retry policy**: narrow the task scope (smaller `--target`/`--bound-paths`)
+  before retrying, or remove that opt-in deadline when continued observation
+  is appropriate.
 - `cancelled` — an external cancellation fired (cooperative, via
   `task_operator.run_bounded_subprocess`'s `cancel_event`). **Retry
   policy**: caller-driven; this repo never auto-retries a cancellation.
@@ -89,6 +91,11 @@ in `simplicio/observability.py`, schema `simplicio.dev-cli-event/v1`):
   policy**: fix the underlying cause (install the CLI, check `stderr` in
   the message) before retrying; retrying an unchanged non-zero exit will
   just fail the same way.
+
+Long-running work is not another terminal phase: after 30 minutes by default,
+it produces one `provider_long_running` warning with the child PID, elapsed
+time, and output-observation state so an operator can inspect the process
+without discarding valid work.
 
 On every non-`completed` phase, the whole descendant process tree is
 killed (POSIX: `os.killpg` on the child's own session; Windows: `taskkill

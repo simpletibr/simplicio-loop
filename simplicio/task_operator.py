@@ -1,4 +1,4 @@
-"""task_operator.py — bounded execution of shelled-out provider subprocesses.
+"""task_operator.py — monitored execution of shelled-out provider subprocesses.
 
 Issue #210: `simplicio.providers._shell_out` used to make a single blocking
 ``subprocess.run(cmd, timeout=600)`` call. That gives no heartbeat while the
@@ -15,8 +15,10 @@ grandchild process (a shell, a nested tool call) orphaned.
   /T /F``, falling back to ``Popen.kill()``);
 - emits a heartbeat via :func:`simplicio.observability.emit_event` every
   ``heartbeat_interval`` seconds while the child is alive;
-- classifies a stall as ``"startup_timeout"`` (no stdout/stderr byte yet) vs
-  ``"total_timeout"`` (output has started, but the deadline passed anyway);
+- emits a separate long-running-process review event after 30 minutes by
+  default, including the child PID, without stopping useful work;
+- supports opt-in startup/total deadlines for callers that explicitly need a
+  cancellation policy;
 - supports cooperative cancellation via an optional ``threading.Event``;
 - returns a structured :class:`BoundedRunResult` instead of raising, so
   callers keep full control over how a stall is reported.
@@ -36,12 +38,14 @@ from dataclasses import dataclass, field
 from typing import Any
 
 # --------------------------------------------------------------------------- #
-# Configuration (env-overridable; defaults preserve the pre-#210 behavior for
-# the total deadline).
+# Configuration. Commands run without a deadline by default. A caller may opt
+# into a deadline through the existing environment variables, while the normal
+# path emits a review receipt after thirty minutes instead of killing work.
 # --------------------------------------------------------------------------- #
 
-DEFAULT_STARTUP_TIMEOUT_S = 30.0
-DEFAULT_TOTAL_TIMEOUT_S = 600.0
+DEFAULT_STARTUP_TIMEOUT_S: float | None = None
+DEFAULT_TOTAL_TIMEOUT_S: float | None = None
+DEFAULT_LONG_RUNNING_REVIEW_S = 30.0 * 60.0
 DEFAULT_HEARTBEAT_INTERVAL_S = 15.0
 _POLL_INTERVAL_S = 0.2
 
@@ -66,12 +70,16 @@ _RECOVERY_HINTS = {
 }
 
 
-def startup_timeout_s() -> float:
-    return _env_float("SIMPLICIO_PROVIDER_STARTUP_TIMEOUT_S", DEFAULT_STARTUP_TIMEOUT_S)
+def startup_timeout_s() -> float | None:
+    return _optional_timeout_s("SIMPLICIO_PROVIDER_STARTUP_TIMEOUT_S")
 
 
-def total_timeout_s() -> float:
-    return _env_float("SIMPLICIO_PROVIDER_TOTAL_TIMEOUT_S", DEFAULT_TOTAL_TIMEOUT_S)
+def total_timeout_s() -> float | None:
+    return _optional_timeout_s("SIMPLICIO_PROVIDER_TOTAL_TIMEOUT_S")
+
+
+def long_running_review_s() -> float:
+    return _env_float("SIMPLICIO_PROVIDER_LONG_RUNNING_REVIEW_S", DEFAULT_LONG_RUNNING_REVIEW_S)
 
 
 def heartbeat_interval_s() -> float:
@@ -87,6 +95,17 @@ def _env_float(name: str, default: float) -> float:
     except ValueError:
         return default
     return value if value > 0 else default
+
+
+def _optional_timeout_s(name: str) -> float | None:
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw or raw in {"0", "off", "none", "unlimited"}:
+        return None
+    try:
+        value = float(raw)
+    except ValueError:
+        return None
+    return value if value > 0 else None
 
 
 @dataclass
@@ -113,6 +132,69 @@ def _popen_kwargs_for_new_process_group() -> dict[str, Any]:
     return {"start_new_session": True}
 
 
+def _windows_descendant_pids(root_pid: int) -> list[int]:
+    """Return descendants of *root_pid*, deepest first, when Windows exposes them.
+
+    ``taskkill /T`` normally walks this tree itself.  Taking a snapshot first
+    closes the small race where the direct parent exits while ``taskkill`` is
+    being scheduled and its child is then re-parented before the tree walk.
+    The helper is best effort: ``taskkill`` and the direct ``Popen.kill``
+    fallback remain available when the Windows API cannot be read.
+    """
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class _ProcessEntry32(ctypes.Structure):
+            _fields_ = [
+                ("dwSize", wintypes.DWORD),
+                ("cntUsage", wintypes.DWORD),
+                ("th32ProcessID", wintypes.DWORD),
+                ("th32DefaultHeapID", ctypes.c_size_t),
+                ("th32ModuleID", wintypes.DWORD),
+                ("cntThreads", wintypes.DWORD),
+                ("th32ParentProcessID", wintypes.DWORD),
+                ("pcPriClassBase", wintypes.LONG),
+                ("dwFlags", wintypes.DWORD),
+                ("szExeFile", ctypes.c_wchar * 260),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+        kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+        kernel32.Process32FirstW.argtypes = [wintypes.HANDLE, ctypes.POINTER(_ProcessEntry32)]
+        kernel32.Process32FirstW.restype = wintypes.BOOL
+        kernel32.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.POINTER(_ProcessEntry32)]
+        kernel32.Process32NextW.restype = wintypes.BOOL
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+        snapshot = kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+        invalid_handle = ctypes.c_void_p(-1).value
+        if snapshot == invalid_handle:
+            return []
+        try:
+            entry = _ProcessEntry32()
+            entry.dwSize = ctypes.sizeof(entry)
+            parents: dict[int, int] = {}
+            if kernel32.Process32FirstW(snapshot, ctypes.byref(entry)):
+                while True:
+                    parents[int(entry.th32ProcessID)] = int(entry.th32ParentProcessID)
+                    if not kernel32.Process32NextW(snapshot, ctypes.byref(entry)):
+                        break
+            descendants: list[int] = []
+            pending = [root_pid]
+            while pending:
+                parent = pending.pop()
+                children = [pid for pid, candidate_parent in parents.items() if candidate_parent == parent]
+                descendants.extend(children)
+                pending.extend(children)
+            return list(reversed(descendants))
+        finally:
+            kernel32.CloseHandle(snapshot)
+    except (AttributeError, OSError):
+        return []
+
+
 def kill_process_tree(proc: subprocess.Popen) -> None:
     """Kill *proc* and every descendant it spawned.
 
@@ -120,22 +202,28 @@ def kill_process_tree(proc: subprocess.Popen) -> None:
     True``), so its process group id equals its pid; ``os.killpg`` reaches
     every descendant in one call.
 
-    Windows: the child was started with ``CREATE_NEW_PROCESS_GROUP``;
-    ``taskkill /PID <pid> /T /F`` kills the whole tree. If ``taskkill`` is
+    Windows: the child was started with ``CREATE_NEW_PROCESS_GROUP``. A
+    pre-kill Toolhelp snapshot lets us address descendants directly before
+    asking ``taskkill`` to terminate the root tree. If ``taskkill`` is
     unavailable for any reason, fall back to killing only the direct child
     (still better than leaking the whole call).
     """
     if os.name == "nt":
+        taskkill_succeeded = False
         try:
-            subprocess.run(
-                ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
-                capture_output=True,
-                timeout=10,
-                check=False,
-            )
-            return
+            # Descendant-first termination survives a parent that exits and
+            # is re-parented while Windows schedules the root /T traversal.
+            for pid in [*_windows_descendant_pids(proc.pid), proc.pid]:
+                result = subprocess.run(
+                    ["taskkill", "/PID", str(pid), "/T", "/F"],
+                    capture_output=True,
+                    check=False,
+                )
+                taskkill_succeeded = taskkill_succeeded or result.returncode == 0
         except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
             pass
+        if taskkill_succeeded:
+            return
         try:
             proc.kill()
         except OSError:
@@ -160,7 +248,12 @@ def kill_process_tree(proc: subprocess.Popen) -> None:
 def _stream_reader(stream, chunks: list[str], first_output_event: threading.Event) -> None:
     try:
         while True:
-            data = stream.read(4096)
+            # ``read(4096)`` may wait for a full buffer on Windows pipes even
+            # after a flushed line is available. Reading a line makes startup
+            # and long-running-process observations reflect real output as it
+            # arrives instead of only after the child exits.
+            readline = getattr(stream, "readline", None)
+            data = readline() if callable(readline) else stream.read(1)
             if not data:
                 break
             chunks.append(data)
@@ -195,11 +288,12 @@ def run_bounded_subprocess(
     cwd: str | None = None,
     startup_timeout: float | None = None,
     total_timeout: float | None = None,
+    long_running_review_after: float | None = None,
     heartbeat_interval: float | None = None,
     cancel_event: threading.Event | None = None,
     root: str | None = None,
 ) -> BoundedRunResult:
-    """Run *cmd* to completion or until it is bounded off.
+    """Run *cmd* to completion while keeping its process observable.
 
     Never raises for "the child stalled" or "the child exited non-zero" —
     those are reported as a :class:`BoundedRunResult` with the appropriate
@@ -212,6 +306,9 @@ def run_bounded_subprocess(
 
     startup_timeout = startup_timeout_s() if startup_timeout is None else startup_timeout
     total_timeout = total_timeout_s() if total_timeout is None else total_timeout
+    long_running_review_after = (
+        long_running_review_s() if long_running_review_after is None else long_running_review_after
+    )
     heartbeat_interval = heartbeat_interval_s() if heartbeat_interval is None else heartbeat_interval
 
     start = time.monotonic()
@@ -259,6 +356,7 @@ def run_bounded_subprocess(
 
     phase = PHASE_COMPLETED
     last_heartbeat = start
+    long_running_reported = False
     returncode: int | None = None
     while True:
         returncode = proc.poll()
@@ -269,12 +367,26 @@ def run_bounded_subprocess(
         if cancel_event is not None and cancel_event.is_set():
             phase = PHASE_CANCELLED
             break
-        if not first_output_event.is_set() and elapsed >= startup_timeout:
+        if startup_timeout is not None and not first_output_event.is_set() and elapsed >= startup_timeout:
             phase = PHASE_STARTUP_TIMEOUT
             break
-        if elapsed >= total_timeout:
+        if total_timeout is not None and elapsed >= total_timeout:
             phase = PHASE_TOTAL_TIMEOUT
             break
+        if not long_running_reported and elapsed >= long_running_review_after:
+            emit_event(
+                "provider_long_running",
+                {
+                    "label": label,
+                    "pid": proc.pid,
+                    "elapsed_s": round(elapsed, 2),
+                    "review_after_s": long_running_review_after,
+                    "first_output_seen": first_output_event.is_set(),
+                },
+                level="warning",
+                root=root,
+            )
+            long_running_reported = True
         if now - last_heartbeat >= heartbeat_interval:
             emit_event(
                 "provider_heartbeat",

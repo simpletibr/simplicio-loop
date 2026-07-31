@@ -222,6 +222,36 @@ def test_kill_process_tree_windows_branch_falls_back_when_taskkill_missing(monke
     assert killed == [True]
 
 
+def test_kill_process_tree_windows_addresses_snapshot_descendants_first(monkeypatch):
+    from simplicio import task_operator
+
+    monkeypatch.setattr(task_operator.os, "name", "nt", raising=False)
+    monkeypatch.setattr(task_operator, "_windows_descendant_pids", lambda pid: [1002, 1001])
+    calls = []
+
+    class _Result:
+        returncode = 0
+
+    def _fake_run(args, **kwargs):
+        calls.append(args)
+        return _Result()
+
+    monkeypatch.setattr(task_operator.subprocess, "run", _fake_run)
+
+    class _FakeProc:
+        pid = 999
+
+        def kill(self):
+            raise AssertionError("taskkill succeeded, so the direct fallback is not expected")
+
+    task_operator.kill_process_tree(_FakeProc())
+    assert calls == [
+        ["taskkill", "/PID", "1002", "/T", "/F"],
+        ["taskkill", "/PID", "1001", "/T", "/F"],
+        ["taskkill", "/PID", "999", "/T", "/F"],
+    ]
+
+
 def test_stream_reader_swallows_closed_stream_error():
     from simplicio.task_operator import _stream_reader
 
@@ -317,7 +347,14 @@ def test_total_timeout_when_output_started_but_deadline_passed(tmp_path):
         "print('partial output', flush=True)\nimport time\ntime.sleep(5)\n",
     )
     result = run_bounded_subprocess(
-        _py(script), label="partial", startup_timeout=30, total_timeout=0.3, heartbeat_interval=100
+        # Keep this explicit deadline comfortably above interpreter startup on
+        # a loaded Windows host; the child still sleeps long enough to prove
+        # the opt-in total deadline rather than normal completion.
+        _py(script),
+        label="partial",
+        startup_timeout=30,
+        total_timeout=2.0,
+        heartbeat_interval=100,
     )
     assert result.phase == PHASE_TOTAL_TIMEOUT
     assert "partial output" in result.stdout
@@ -380,6 +417,36 @@ def test_heartbeat_fires_at_configured_interval(tmp_path):
     # generous lower bound to stay robust to scheduler jitter in CI.
     assert len(heartbeats) >= 2
     assert all(r["payload"]["label"] == "heartbeat-test" for r in heartbeats)
+
+
+def test_long_running_process_emits_review_without_timeout(tmp_path):
+    script = _write_script(
+        tmp_path,
+        "long_running_but_valid.py",
+        "import time\ntime.sleep(0.25)\nprint('done')\n",
+    )
+    root = tmp_path / "project"
+    root.mkdir()
+
+    result = run_bounded_subprocess(
+        _py(script),
+        label="long-running-review",
+        startup_timeout=None,
+        total_timeout=None,
+        long_running_review_after=0.05,
+        heartbeat_interval=0.01,
+        root=str(root),
+    )
+
+    assert result.phase == PHASE_COMPLETED
+    records = [
+        json.loads(line)
+        for line in (root / ".simplicio" / "events.jsonl").read_text(encoding="utf-8").splitlines()
+        if line
+    ]
+    reviews = [record for record in records if record["event"] == "provider_long_running"]
+    assert len(reviews) == 1
+    assert reviews[0]["payload"]["pid"] > 0
 
 
 # --------------------------------------------------------------------------- #

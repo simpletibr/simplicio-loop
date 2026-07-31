@@ -588,6 +588,41 @@ def test_runtime_verify_contract_uses_version_and_contracts_smoke(monkeypatch):
     assert payload["failed_checks"] == []
 
 
+def test_runtime_verify_contract_has_no_default_probe_deadline(monkeypatch):
+    monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
+    timeouts = []
+    delegate = _fake_runtime_run_by_command(
+        {
+            ("version", "--json"): json.dumps({"runtime": {"name": "simplicio-runtime", "version": "3.5.0"}}),
+            ("contracts", "smoke", "--json"): json.dumps(
+                {
+                    "runtime": "simplicio-runtime",
+                    "status": "passed",
+                    "schemas": {
+                        "compatibility_matrix": "simplicio.compatibility-matrix/v1",
+                        "context_pack": "simplicio.context-pack/v1",
+                        "mechanical_edit": "simplicio.mechanical-edit/v1",
+                        "mechanical_edit_result": "simplicio.mechanical-edit-result/v1",
+                        "artifact_response": "simplicio.artifact-response/v1",
+                        "workflow_ledger": "simplicio.workflow-ledger/v1",
+                        "effect_transaction": "simplicio.effect-transaction/v1",
+                    },
+                    "compatibility": {"schema": "simplicio.evidence-ledger/v1"},
+                }
+            ),
+        }
+    )
+
+    def fake_run(args, **kwargs):
+        timeouts.append(kwargs.get("timeout"))
+        return delegate(args, **kwargs)
+
+    monkeypatch.setattr("simplicio.runtime_contracts.subprocess.run", fake_run)
+
+    assert runtime_verify_contract()["verified"] is True
+    assert timeouts == [None, None]
+
+
 def test_runtime_verify_contract_reports_missing_runtime_contract_schemas(monkeypatch):
     monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", lambda name: "/bin/simplicio")
     monkeypatch.setattr(
