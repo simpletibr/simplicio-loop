@@ -532,6 +532,7 @@ def _run_task(
         )
         or (
             profile.effective_mode == "standalone"
+            and requested_execution_mode != "standalone"
             and (
                 strict_authority
                 or context_snapshot is not None
