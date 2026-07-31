@@ -692,6 +692,7 @@ def _main_unwrapped(argv=None):
 
     # Stage ABI mutations fail closed before verbosity/parser/dispatch can run.
     from .mutation_dispatch import guard_mutable_dispatch
+
     guard_mutable_dispatch(argv)
 
     quiet, verbose, argv = _extract_global_verbosity(argv)
@@ -769,6 +770,7 @@ def main(argv=None):
     """Run legacy commands directly or wrap Stage ABI mutations pre-to-post."""
     args = list(sys.argv[1:] if argv is None else argv)
     from .stage_main import run_stage_or_legacy
+
     return run_stage_or_legacy(args, _main_unwrapped)
 
 

@@ -4,7 +4,17 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
 from pathlib import Path
+
+_WINDOWS_REPLACE_RETRY_DELAYS = (0.01, 0.02, 0.04)
+
+
+def _is_transient_windows_replace_error(exc: PermissionError) -> bool:
+    """Return whether an AV/indexer lock can safely be retried on Windows."""
+    if os.name != "nt":
+        return False
+    return exc.winerror in {5, 32} or exc.errno in {5, 13, 32}
 
 
 def write_bytes_atomic(path: str | Path, data: bytes) -> Path:
@@ -14,7 +24,14 @@ def write_bytes_atomic(path: str | Path, data: bytes) -> Path:
     try:
         with os.fdopen(fd, "wb") as handle:
             handle.write(data)
-        os.replace(tmp_name, target)
+        for delay in (*_WINDOWS_REPLACE_RETRY_DELAYS, None):
+            try:
+                os.replace(tmp_name, target)
+                break
+            except PermissionError as exc:
+                if delay is None or not _is_transient_windows_replace_error(exc):
+                    raise
+                time.sleep(delay)
     finally:
         try:
             os.unlink(tmp_name)

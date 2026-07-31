@@ -107,7 +107,10 @@ def test_validate_writes_evidence_and_blocks_failing_validator(tmp_path):
         input=None,
     )
     plan = _read(plan_path)
-    plan["validators"] = [f"{sys.executable} -c 'print(42)'", f"{sys.executable} -c 'raise SystemExit(3)'"]
+    plan["validators"] = [
+        f'"{sys.executable}" -c "print(42)"',
+        f'"{sys.executable}" -c "raise SystemExit(3)"',
+    ]
     plan["plan_hash"] = prototype._sha({k: v for k, v in plan.items() if k != "plan_hash"})
     _write(plan_path, plan)
     candidate = tmp_path / "candidate"

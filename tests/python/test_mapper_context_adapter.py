@@ -158,9 +158,15 @@ def test_fast_v3_context_provenance_is_additive_and_engine_neutral() -> None:
 
     with pytest.raises(MapperContextError, match="ENGINE_CAPABILITIES_MISSING"):
         ContextHandle(
-            snapshot_id="s", revision="r", source_digest="a" * 64,
-            pack_hash="b" * 64, mapper_version="m", source_root_identity="root",
-            projection_digest="c" * 64, generation="g", engine="rust",
+            snapshot_id="s",
+            revision="r",
+            source_digest="a" * 64,
+            pack_hash="b" * 64,
+            mapper_version="m",
+            source_root_identity="root",
+            projection_digest="c" * 64,
+            generation="g",
+            engine="rust",
         ).validate_engine_binding()
 
 

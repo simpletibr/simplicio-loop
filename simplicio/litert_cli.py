@@ -11,7 +11,7 @@ import platform
 import shutil
 import sys
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 
 class LiteRTError(RuntimeError):

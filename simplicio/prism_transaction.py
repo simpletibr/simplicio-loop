@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -155,7 +154,8 @@ class PrismTransaction:
             database.execute("BEGIN IMMEDIATE")
             database.execute(
                 "INSERT INTO prism_tx(tx_key,envelope_hash,state,receipt) VALUES(?,?,?,?) "
-                "ON CONFLICT(tx_key) DO UPDATE SET state=excluded.state, receipt=COALESCE(excluded.receipt, prism_tx.receipt)",
+                "ON CONFLICT(tx_key) DO UPDATE SET state=excluded.state, "
+                "receipt=COALESCE(excluded.receipt, prism_tx.receipt)",
                 (tx_key, envelope.envelope_hash(), state, encoded),
             )
             database.execute("COMMIT")

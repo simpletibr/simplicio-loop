@@ -337,9 +337,11 @@ def _infer_stack(reg: StackRegistry, goal: str, root: str = ".") -> str | None:
 
 def _detect_stack_from_files(reg: StackRegistry, root: str = ".") -> str | None:
     """Inspect the target directory for common project markers."""
+    if "\x00" in str(root):
+        return None
     try:
         root_path = Path(root).resolve()
-    except Exception:
+    except (OSError, ValueError):
         return None
 
     if (

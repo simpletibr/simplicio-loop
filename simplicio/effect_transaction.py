@@ -58,8 +58,7 @@ class EffectTransaction:
         with self._db() as database:
             database.execute("BEGIN IMMEDIATE")
             database.execute(
-                "UPDATE transactions SET state=?, receipt=COALESCE(?, receipt) "
-                "WHERE idempotency_key=?",
+                "UPDATE transactions SET state=?, receipt=COALESCE(?, receipt) WHERE idempotency_key=?",
                 (state, encoded, key),
             )
             database.execute(
@@ -82,8 +81,7 @@ class EffectTransaction:
         with self._db() as database:
             database.execute("BEGIN IMMEDIATE")
             row = database.execute(
-                "SELECT change_set_hash,state,receipt FROM transactions "
-                "WHERE idempotency_key=?",
+                "SELECT change_set_hash,state,receipt FROM transactions WHERE idempotency_key=?",
                 (key,),
             ).fetchone()
             if row:

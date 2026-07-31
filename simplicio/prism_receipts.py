@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Mapping
+import struct
+from collections.abc import Mapping
+from typing import Any
 
-from simplicio.hbp import HBP_MAGIC, HbpError, row_content_hash
+from simplicio.hbp import HBP_MAGIC, row_content_hash
 from simplicio.plan_compiler.canonical_hash import canonical_hash
 from simplicio.prism_envelope import PrismExecutionEnvelope
-
-import struct
 
 
 def _redact_obj(value: Any) -> Any:

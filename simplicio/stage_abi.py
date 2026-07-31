@@ -8,14 +8,14 @@ outside this module.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import tempfile
 import threading
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from .mechanical_edit import execute_plan
@@ -110,7 +110,7 @@ class StageMutationEnvelopeV1:
     validation: tuple[dict[str, Any], ...] = ()
 
     @classmethod
-    def from_dict(cls, payload: dict[str, Any]) -> "StageMutationEnvelopeV1":
+    def from_dict(cls, payload: dict[str, Any]) -> StageMutationEnvelopeV1:
         if not isinstance(payload, dict) or payload.get("schema") != STAGE_MUTATION_SCHEMA:
             raise StageAbiError("STAGE_SCHEMA_INVALID", "envelope schema is invalid")
         required = {
@@ -363,7 +363,9 @@ def verify_mutation_receipt(receipt: dict[str, Any], *, root: str | Path) -> boo
         raise StageAbiError("STAGE_RECEIPT_INVALID", "only completed receipts are verifiable")
     root_path = Path(root).expanduser().resolve()
     if Path(str(receipt.get("workspace_root", ""))).expanduser().resolve() != root_path:
-        raise StageAbiError("STAGE_WORKSPACE_MISMATCH", "receipt workspace_root does not match execution root")
+        raise StageAbiError(
+            "STAGE_WORKSPACE_MISMATCH", "receipt workspace_root does not match execution root"
+        )
     after = receipt.get("after_hashes")
     if not isinstance(after, dict) or not after:
         raise StageAbiError("STAGE_RECEIPT_INVALID", "receipt after_hashes are missing")

@@ -91,11 +91,17 @@ def test_failure_after_checkpoint_rolls_back(failure: str, tmp_path) -> None:
     checkpoint, apply, verify, rollback = callbacks(calls)
 
     if failure == "apply":
-        apply = lambda _: (_ for _ in ()).throw(RuntimeError("edit crash"))
+
+        def apply(_):
+            raise RuntimeError("edit crash")
     elif failure == "verify":
-        verify = lambda *_: {"status": "failed"}
+
+        def verify(_, __):
+            return {"status": "failed"}
     else:
-        apply = lambda _: {"status": "unknown"}
+
+        def apply(_):
+            return {"status": "unknown"}
 
     with pytest.raises(EffectTransactionError, match="EFFECT_FAILED_ROLLED_BACK"):
         transaction.execute(

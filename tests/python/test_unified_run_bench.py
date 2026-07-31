@@ -17,7 +17,8 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def _artifact_sha256(path: str) -> str:
-    return hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
+    content = (ROOT / path).read_bytes()
+    return hashlib.sha256(content.replace(b"\r\n", b"\n")).hexdigest()
 
 
 def _verified_artifact(path: str = "bench/run_unified_run_bench.py") -> dict[str, str]:
@@ -512,8 +513,7 @@ def test_unified_run_bench_codex_partial_transcript_stays_partial_live(
     assert rc == 0
     for live_row in live_payload["rows"]:
         transcript_artifact = live_row["artifacts"][0]
-        transcript_path = ROOT / transcript_artifact["path"]
-        assert transcript_artifact["sha256"] == hashlib.sha256(transcript_path.read_bytes()).hexdigest()
+        assert transcript_artifact["sha256"] == _artifact_sha256(transcript_artifact["path"])
     assert payload["summary"]["evidence_level"] == "partial-live"
     assert payload["summary"]["release_ready"] is False
     assert payload["summary"]["live_row_count"] == 3
@@ -548,8 +548,7 @@ def test_unified_run_bench_full_live_matrix_is_release_ready(tmp_path) -> None:
         for artifact in live_row.get("artifacts", []):
             if not isinstance(artifact, dict):
                 continue
-            artifact_path = ROOT / artifact["path"]
-            assert artifact["sha256"] == hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+            assert artifact["sha256"] == _artifact_sha256(artifact["path"])
     assert payload["summary"]["evidence_level"] == "live"
     assert payload["summary"]["release_ready"] is True
     assert payload["summary"]["release_blockers"] == []

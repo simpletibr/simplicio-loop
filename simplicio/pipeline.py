@@ -470,7 +470,10 @@ def run_task(
                 target_kind=target_kind(root, target),
             )
         if os.environ.get("SIMPLICIO_STANDALONE_PREFLIGHT", "").strip().lower() in {
-            "1", "true", "yes", "on",
+            "1",
+            "true",
+            "yes",
+            "on",
         }:
             return _task_result(
                 target,
@@ -941,8 +944,6 @@ def run_task_spec(root, stack, task_spec: TaskSpec, **kwargs: Any) -> dict[str, 
     """
     if not isinstance(task_spec, TaskSpec):
         raise TypeError("run_task_spec requires a simplicio.task_spec.TaskSpec")
-    if "task_spec" in kwargs:
-        raise TypeError("run_task_spec does not accept a second task_spec argument")
     narrative = task_spec.narrative
     goal = str(narrative.get("goal") or narrative.get("want") or task_spec.functionality or task_spec.task_id)
     criteria = "\n".join(

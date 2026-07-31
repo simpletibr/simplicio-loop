@@ -213,9 +213,13 @@ class ContextHandle:
         if self.engine and self.engine not in {"python", "rust"}:
             raise MapperContextError("ENGINE_UNSUPPORTED", f"unsupported Fast engine: {self.engine}")
         if self.engine == "rust" and not self.capability_digest:
-            raise MapperContextError("ENGINE_CAPABILITIES_MISSING", "Rust context is missing capability digest")
+            raise MapperContextError(
+                "ENGINE_CAPABILITIES_MISSING", "Rust context is missing capability digest"
+            )
         if self.base_generation and self.generation and self.base_generation != self.generation:
-            raise MapperContextError("GENERATION_MISMATCH", "base generation does not match context generation")
+            raise MapperContextError(
+                "GENERATION_MISMATCH", "base generation does not match context generation"
+            )
         for path, digest in self.source_hashes:
             if not path or not _SHA256_RE.fullmatch(str(digest).removeprefix("sha256:")):
                 raise MapperContextError("SOURCE_HASH_INVALID", f"invalid source hash for {path}")
@@ -636,10 +640,20 @@ def bind_mapper_context(
         commit=str(snapshot.payload.get("commit") or MAPPER_CONTRACT_COMMIT),
         overlay=str(snapshot.payload.get("overlay") or ""),
         context_schema=MAPPER_CONTEXT_SNAPSHOT_SCHEMA,
-        base_generation=(str(snapshot.payload.get("base_generation") or snapshot.payload.get("generation") or snapshot.view.revision)
-                        if fast_provenance else ""),
-        overlay_generation=(str(snapshot.payload.get("overlay_generation") or snapshot.payload.get("overlay") or "")
-                           if fast_provenance else ""),
+        base_generation=(
+            str(
+                snapshot.payload.get("base_generation")
+                or snapshot.payload.get("generation")
+                or snapshot.view.revision
+            )
+            if fast_provenance
+            else ""
+        ),
+        overlay_generation=(
+            str(snapshot.payload.get("overlay_generation") or snapshot.payload.get("overlay") or "")
+            if fast_provenance
+            else ""
+        ),
         engine=str(snapshot.payload.get("engine") or ""),
         capability_digest=str(snapshot.payload.get("capability_digest") or ""),
         source_hashes=tuple(

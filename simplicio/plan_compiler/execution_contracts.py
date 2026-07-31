@@ -103,20 +103,14 @@ class ChangeOperation:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> ChangeOperation:
-        known = frozenset(
-            {"operation_id", "kind", "target", "before_hash", "content_handle"}
-        )
+        known = frozenset({"operation_id", "kind", "target", "before_hash", "content_handle"})
         return cls(
             operation_id=str(payload.get("operation_id", "")),
             kind=str(payload.get("kind", "")),
             target=str(payload.get("target", "")),
-            before_hash=(
-                str(payload["before_hash"]) if payload.get("before_hash") is not None else None
-            ),
+            before_hash=(str(payload["before_hash"]) if payload.get("before_hash") is not None else None),
             content_handle=(
-                str(payload["content_handle"])
-                if payload.get("content_handle") is not None
-                else None
+                str(payload["content_handle"]) if payload.get("content_handle") is not None else None
             ),
             extensions=_extensions(payload, known),
         )
@@ -181,9 +175,7 @@ class ChangeSet:
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> ChangeSet:
         if payload.get("schema") != CHANGE_SET_SCHEMA:
-            raise SchemaMismatchError(
-                "simplicio.change-set", CHANGE_SET_SCHEMA, str(payload.get("schema"))
-            )
+            raise SchemaMismatchError("simplicio.change-set", CHANGE_SET_SCHEMA, str(payload.get("schema")))
         known = frozenset(
             {
                 "schema",
@@ -205,8 +197,7 @@ class ChangeSet:
             context_hashes=ContextHashes.from_dict(dict(payload.get("context_hashes", {}))),
             preconditions=list(payload.get("preconditions", [])),
             operations=[
-                ChangeOperation.from_dict(dict(operation))
-                for operation in payload.get("operations", [])
+                ChangeOperation.from_dict(dict(operation)) for operation in payload.get("operations", [])
             ],
             write_set=list(payload.get("write_set", [])),
             extensions=_extensions(payload, known),
@@ -297,16 +288,13 @@ class BoundVerificationPlan:
                 BOUND_VERIFICATION_PLAN_SCHEMA,
                 str(payload.get("schema")),
             )
-        known = frozenset(
-            {"schema", "verification_plan_id", "change_set_hash", "context_hashes", "commands"}
-        )
+        known = frozenset({"schema", "verification_plan_id", "change_set_hash", "context_hashes", "commands"})
         contract = cls(
             verification_plan_id=str(payload.get("verification_plan_id", "")),
             change_set_hash=str(payload.get("change_set_hash", "")),
             context_hashes=ContextHashes.from_dict(dict(payload.get("context_hashes", {}))),
             commands=[
-                VerificationCommand.from_dict(dict(command))
-                for command in payload.get("commands", [])
+                VerificationCommand.from_dict(dict(command)) for command in payload.get("commands", [])
             ],
             extensions=_extensions(payload, known),
         )

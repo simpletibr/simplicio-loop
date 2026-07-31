@@ -6,11 +6,11 @@ paths and rejects stale fencing tokens before mutation.
 
 from __future__ import annotations
 
-import json
 import sqlite3
 import time
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
 
 class LockError(RuntimeError):

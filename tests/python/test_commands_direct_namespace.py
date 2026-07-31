@@ -277,7 +277,9 @@ def test_detect_run_joins_prompt_words_when_no_prompt(monkeypatch):
 def test_doctor_run_translates_namespace_to_argv(monkeypatch):
     seen = {}
     monkeypatch.setattr("simplicio.doctor.main", lambda argv: (seen.__setitem__("argv", argv), 0)[1])
-    code = doctor_cmd.run(ns(json=True, list_tiers=False, no_check_updates=True, refresh=False, upgrade=False))
+    code = doctor_cmd.run(
+        ns(json=True, list_tiers=False, no_check_updates=True, refresh=False, upgrade=False)
+    )
     assert code == 0
     assert seen["argv"] == ["--json", "--no-check-updates"]
 

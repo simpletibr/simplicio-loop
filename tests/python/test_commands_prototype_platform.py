@@ -77,7 +77,12 @@ def test_validate_captures_non_ascii_validator_output_via_pinned_utf8_encoding(t
     Windows), so non-ASCII validator stdout decodes the same way on every
     platform rather than raising `UnicodeDecodeError` only on some of them.
     """
-    validator = f'"{sys.executable}" -c "print(\'caf\\u00e9 \\u2705\')"'
+    validator_script = _artifacts_dir(tmp_path) / "emit_utf8.py"
+    validator_script.write_text(
+        'import sys\nsys.stdout.buffer.write("café ✅".encode("utf-8"))\n',
+        encoding="utf-8",
+    )
+    validator = f'"{sys.executable}" "{validator_script}"'
     plan_path = _plan_from_input(tmp_path, capsys, validators=[validator])
     cli.main(["prototype", "scaffold", "--root", str(tmp_path), "--plan", str(plan_path)])
     capsys.readouterr()
