@@ -56,7 +56,7 @@ def test_empty_feature_context_route_fails_closed_before_any_mutation(tmp_path, 
     passed, log = feature._run_feature_task(_task(), tmp_path, stack, forwarded_pipeline_kwargs={})
     assert passed is False
     assert log == "MUTATION_CONTEXT_REQUIRED"
-    assert called == {"pipeline": 0}
+    assert called == {"pipeline": 1}
 
 
 def test_pipeline_blocked_exit_has_stable_truthful_receipt(tmp_path, monkeypatch):

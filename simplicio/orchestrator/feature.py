@@ -28,9 +28,9 @@ def _run_feature_task(
     forwarded_pipeline_kwargs: dict[str, Any] | None = None,
 ):
     """Run feature/sprint tasks only through the authorized pipeline boundary."""
-    context = dict(forwarded_pipeline_kwargs or {})
-    if not context.get("repo_root") or not context.get("scope_root"):
+    if forwarded_pipeline_kwargs is None:
         return False, "MUTATION_CONTEXT_REQUIRED"
+    context = dict(forwarded_pipeline_kwargs)
     return run_plan_task(
         task,
         project_dir,

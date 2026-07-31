@@ -700,10 +700,6 @@ def run_apply_stage(
         return ApplyStageResult(False, command_error, None, None)
 
     root_path = Path(root)
-    simplicio_dir = root_path / ".simplicio"
-    simplicio_dir.mkdir(parents=True, exist_ok=True)
-    (simplicio_dir / "last_output.txt").write_text(output or "", encoding="utf-8")
-
     validation = validate_generated_output(
         output,
         bound_paths,
@@ -713,6 +709,22 @@ def run_apply_stage(
     )
     if not validation.ok:
         return ApplyStageResult(False, f"pre-apply validation failed: {validation.reason}", None, None)
+
+    preview_changed_files = extract_changed_files(output or "")
+    preview_warnings = authorized_path_warnings(
+        preview_changed_files,
+        root=root,
+        repo_root=repo_root,
+        scope_root=scope_root,
+    )
+    if preview_warnings:
+        return ApplyStageResult(
+            False,
+            "pre-apply validation failed: " + "; ".join(preview_warnings),
+            None,
+            None,
+            changed_files=preview_changed_files,
+        )
 
     candidate = _extract_patch_candidate(output or "", root, bound_paths)
     patch = candidate.patch
@@ -737,6 +749,9 @@ def run_apply_stage(
             changed_files=changed_files,
         )
 
+    simplicio_dir = root_path / ".simplicio"
+    simplicio_dir.mkdir(parents=True, exist_ok=True)
+    (simplicio_dir / "last_output.txt").write_text(output or "", encoding="utf-8")
     (simplicio_dir / "last_patch.diff").write_text(patch, encoding="utf-8")
     (simplicio_dir / "last_patch_strategy.txt").write_text(candidate.strategy + "\n", encoding="utf-8")
 

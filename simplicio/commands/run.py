@@ -200,6 +200,30 @@ def _run_scratch(a: argparse.Namespace) -> int:
     return scratch_main(scratch_argv)
 
 
+def _require_explicit_mutation_roots(a: argparse.Namespace) -> tuple[dict, int] | None:
+    profile = getattr(a, "_execution_profile", None)
+    if profile is None or profile.effective_mode != "integrated":
+        return None
+    missing = []
+    if not getattr(a, "repo_root", None):
+        missing.append("repo_root")
+    if not getattr(a, "scope_root", None):
+        missing.append("scope_root")
+    if not missing:
+        return None
+    payload = {
+        "scope": a.scope,
+        "applied": False,
+        "warnings": ["MUTATION_CONTEXT_REQUIRED"],
+        "missing": missing,
+    }
+    if a.json:
+        print(json.dumps(payload, sort_keys=True))
+    else:
+        print(f"{CLI_PROG} run: MUTATION_CONTEXT_REQUIRED ({', '.join(missing)})", file=sys.stderr)
+    return payload, 1
+
+
 def _run_feature(a: argparse.Namespace) -> int:
     if not a.stack:
         print(f"{CLI_PROG} run --scope feature requires --stack <slug>", file=sys.stderr)
@@ -207,6 +231,9 @@ def _run_feature(a: argparse.Namespace) -> int:
     guarded = _mode_guard(a)
     if guarded:
         return guarded[1]
+    root_guard = _require_explicit_mutation_roots(a)
+    if root_guard:
+        return root_guard[1]
     from ..orchestrator import run_feature
 
     force_local_if_requested(a)
@@ -412,6 +439,9 @@ def _run_sprint(a: argparse.Namespace) -> int:
     guarded = _mode_guard(a)
     if guarded:
         return guarded[1]
+    root_guard = _require_explicit_mutation_roots(a)
+    if root_guard:
+        return root_guard[1]
     from ..dod import load_dod, load_sprint_dod, run_dod_gates
     from ..orchestrator import run_feature
     from ..orchestrator.cost_governor import CostGovernor, provider_budget

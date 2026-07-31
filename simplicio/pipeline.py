@@ -1135,8 +1135,14 @@ def _run_task(
                 )
 
         # ── Primary test or impact test failed — try fixers ──
-        fixer_result = try_static_fixers(log, root)
-        if fixer_result.applied:
+        fixer_paths = authorized_path_warnings(
+            extract_changed_files(output),
+            root=root,
+            repo_root=declared_repo_root,
+            scope_root=declared_scope_root,
+        )
+        fixer_result = None if fixer_paths else try_static_fixers(log, root)
+        if fixer_result is not None and fixer_result.applied:
             attempt = _apply_and_test_attempt(
                 output,
                 root,
