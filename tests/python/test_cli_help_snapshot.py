@@ -22,6 +22,7 @@ FIXTURES = Path(__file__).parent / "fixtures" / "cli_help"
 TOP_LEVEL_SUBCOMMANDS = [
     "index",
     "task",
+    "proposal",
     "run",
     "bench",
     "cache",

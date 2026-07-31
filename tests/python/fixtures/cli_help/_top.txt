@@ -1,10 +1,11 @@
 usage: simplicio-py [-h]
-                    {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,changeset,edit,file,test,token,score-skill,runtime,prototype,memory} ...
+                    {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,changeset,edit,file,test,token,score-skill,runtime,prototype,memory} ...
 
 positional arguments:
-  {index,task,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,changeset,edit,file,test,token,score-skill,runtime,prototype,memory}
+  {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,changeset,edit,file,test,token,score-skill,runtime,prototype,memory}
     index               index/cache the repo (once, or after changes)
     task                run a task
+    proposal            compile a non-mutating Runtime ChangeProposal
     run                 run a task, feature, sprint, or scratch goal
     bench               compare with vs without (real numbers)
     cache               inspect or clear completion cache
