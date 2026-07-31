@@ -350,19 +350,28 @@ def run_task(
     effect_sink = cast(EffectSink | None, prepared.effect_sink)
     runtime_handshake = prepared.runtime_handshake
     integrated_attempt = prepared.attempt
-    declared_repo_root = repo_root or root
-    declared_scope_root = scope_root or repo_root or root
-    snapshot_identity = context_snapshot_id or str((context_snapshot or {}).get("snapshot_id", ""))
-    pack_identity = context_pack_hash or str(
-        (context_pack or {}).get("pack_hash")
-        or (context_pack or {}).get("projection_digest")
-        or (integrated_attempt.context_handle if integrated_attempt else "")
-        or ""
+    actual_root = Path(root).resolve()
+    declared_repo_root = Path(repo_root if repo_root is not None else actual_root).resolve()
+    declared_scope_root = scope_root if scope_root is not None else actual_root
+    canonical_snapshot_id = str((context_snapshot or {}).get("snapshot_id") or "").strip()
+    canonical_pack_hash = str((context_pack or {}).get("pack_hash") or "").strip()
+    supplied_snapshot_id = None if context_snapshot_id is None else str(context_snapshot_id).strip()
+    supplied_pack_hash = None if context_pack_hash is None else str(context_pack_hash).strip()
+    snapshot_identity = canonical_snapshot_id
+    pack_identity = canonical_pack_hash
+    attempt_identity = (
+        attempt_id
+        if attempt_id is not None
+        else (integrated_attempt.attempt_id if integrated_attempt else "")
     )
-    attempt_identity = attempt_id or (integrated_attempt.attempt_id if integrated_attempt else "")
     try:
+        if declared_repo_root != actual_root:
+            raise TaskContextError(
+                "REPO_ROOT_MISMATCH",
+                "declared repo_root must equal the actual mutation root",
+            )
         task_context = TaskContext.from_values(
-            repo_root=declared_repo_root,
+            repo_root=actual_root,
             scope_root=declared_scope_root,
             target=target,
             context_snapshot_id=snapshot_identity,
@@ -409,16 +418,48 @@ def run_task(
         read_only=dry_run_task and requested_execution_mode != "integrated",
     )
     profile = require_coordinator_attempt(profile, integrated_attempt)
-    if profile.effective_mode == "integrated":
+    identity_error: TaskContextError | None = None
+    if supplied_snapshot_id is not None and supplied_snapshot_id != canonical_snapshot_id:
+        identity_error = TaskContextError(
+            "CONTEXT_SNAPSHOT_ID_MISMATCH",
+            "supplied context_snapshot_id does not match the canonical Mapper snapshot",
+        )
+    elif supplied_pack_hash is not None and supplied_pack_hash != canonical_pack_hash:
+        identity_error = TaskContextError(
+            "CONTEXT_PACK_HASH_MISMATCH",
+            "supplied context_pack_hash does not match the canonical Mapper ContextPack",
+        )
+    strict_authority = os.environ.get("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    identity_required = not dry_run_task and (
+        (profile.effective_mode == "integrated" and context_snapshot is not None and context_pack is not None)
+        or (
+            profile.effective_mode == "standalone"
+            and (
+                strict_authority
+                or context_snapshot is not None
+                or context_pack is not None
+                or supplied_snapshot_id is not None
+                or supplied_pack_hash is not None
+            )
+        )
+    )
+    if identity_error is not None or identity_required:
         try:
+            if identity_error is not None:
+                raise identity_error
             task_context = TaskContext.from_values(
-                repo_root=declared_repo_root,
+                repo_root=actual_root,
                 scope_root=declared_scope_root,
                 target=target,
                 context_snapshot_id=snapshot_identity,
                 context_pack_hash=pack_identity,
                 attempt_id=attempt_identity,
-                require_identity=True,
+                require_identity=identity_required,
             )
         except TaskContextError as exc:
             result = _task_result(
@@ -437,8 +478,21 @@ def run_task(
                 ],
             )
             result["execution_profile"] = profile.to_dict()
+            if profile.effective_mode == "integrated":
+                return _attach_contract_receipt(
+                    result,
+                    task_context=task_context,
+                    route="blocked",
+                    effective_mode=profile.effective_mode,
+                    authorization=authorization,
+                    verification_status="not_run",
+                )
             return result
-        if authorization is None and isinstance(effect_sink, RuntimeEffectSink):
+        if (
+            profile.effective_mode == "integrated"
+            and authorization is None
+            and isinstance(effect_sink, RuntimeEffectSink)
+        ):
             result = _task_result(
                 target,
                 "",

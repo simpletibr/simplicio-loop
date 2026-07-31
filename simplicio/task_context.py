@@ -127,7 +127,8 @@ class TaskContext:
         unknown = sorted(set(payload) - allowed)
         if unknown:
             raise TaskContextError("TASK_CONTEXT_FIELDS_INVALID", ", ".join(unknown))
-        return cls.from_values(
+        supplied_hash = _required_text(payload.get("context_hash"), "context_hash")
+        context = cls.from_values(
             repo_root=payload.get("repo_root"),
             scope_root=payload.get("scope_root"),
             target=payload.get("target"),
@@ -136,6 +137,12 @@ class TaskContext:
             attempt_id=payload.get("attempt_id", ""),
             require_identity=require_identity,
         )
+        if supplied_hash != context.context_hash:
+            raise TaskContextError(
+                "CONTEXT_HASH_MISMATCH",
+                "context_hash does not match canonical task context",
+            )
+        return context
 
     def to_dict(self) -> dict[str, str]:
         return {

@@ -39,7 +39,7 @@ CANONICAL_CONTEXT = {
     "revision": "abc123",
     "digest": "sha256:context",
 }
-CANONICAL_PACK = {"schema": "simplicio.context-pack/v1"}
+CANONICAL_PACK = {"schema": "simplicio.context-pack/v1", "pack_hash": "pack-hash-401"}
 CONTEXT_HANDLE = "sha256:" + "c" * 64
 
 
@@ -476,3 +476,30 @@ def test_integrated_mode_needs_clarification_when_no_acceptance_criteria(tmp_pat
     assert "NEEDS_CLARIFICATION" in result["warnings"][0]
     assert sink.received == []
     assert _snapshot(tmp_path) == before
+
+
+def test_integrated_runtime_sink_requires_authorization_before_dispatch(tmp_path, monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "pytest -q")
+    monkeypatch.setattr(pipeline, "RuntimeEffectSink", RuntimeTestSink)
+    sink = RuntimeTestSink()
+
+    result = pipeline.run_task(
+        str(tmp_path),
+        "python",
+        "add api",
+        "src/app.py",
+        "- passes",
+        "- build passes",
+        mode="integrated",
+        effect_sink=sink,
+        integrated_attempt=_attempt(),
+        runtime_handshake=READY_RUNTIME,
+        context_snapshot=CANONICAL_CONTEXT,
+        context_pack=CANONICAL_PACK,
+        quiet=True,
+    )
+
+    assert result["status"] == "blocked"
+    assert result["warnings"] == ["AUTHORIZATION_REQUIRED"]
+    assert result["mutation_authorization_receipt"]["authorization_id"] is None
+    assert sink.received == []

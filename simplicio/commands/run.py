@@ -71,7 +71,7 @@ def _mode_guard(a: argparse.Namespace) -> tuple[dict, int] | None:
                     "CONTEXT_PACK_REQUIRED", "integrated feature/sprint execution requires a ContextPack"
                 )
             try:
-                bind_mapper_context(
+                binding = bind_mapper_context(
                     prepared.context_snapshot,
                     prepared.context_pack,
                     source_root=a.root,
@@ -79,6 +79,26 @@ def _mode_guard(a: argparse.Namespace) -> tuple[dict, int] | None:
                 )
             except MapperContextError as exc:
                 raise ExecutionInputError("INCOMPATIBLE_CONTEXT", str(exc)) from exc
+            supplied_snapshot_id = getattr(a, "context_snapshot_id", None)
+            if (
+                supplied_snapshot_id is not None
+                and str(supplied_snapshot_id).strip() != binding.snapshot.view.snapshot_id
+            ):
+                raise ExecutionInputError(
+                    "CONTEXT_SNAPSHOT_ID_MISMATCH",
+                    "supplied context_snapshot_id does not match the canonical Mapper snapshot",
+                )
+            supplied_pack_hash = getattr(a, "context_pack_hash", None)
+            if supplied_pack_hash is not None and str(supplied_pack_hash).strip() != binding.pack.pack_hash:
+                raise ExecutionInputError(
+                    "CONTEXT_PACK_HASH_MISMATCH",
+                    "supplied context_pack_hash does not match the canonical Mapper ContextPack",
+                )
+            if prepared.authorization is None:
+                raise ExecutionInputError(
+                    "AUTHORIZATION_REQUIRED",
+                    "integrated feature/sprint mutation requires a Runtime EffectAuthorization",
+                )
     except ExecutionInputError as exc:
         profile = blocked_input_profile(
             getattr(a, "mode", None),
@@ -247,6 +267,15 @@ def _integrated_feature_task_runner(a: argparse.Namespace):
                 integrated_attempt=prepared.attempt,
                 task_spec=task_spec,
                 execution_context_path=getattr(a, "execution_context", None),
+                authorization_path=getattr(a, "effect_authorization", None),
+                attempt_id=getattr(a, "attempt_id", None),
+                lease_id=getattr(a, "lease_id", None),
+                fencing_token=getattr(a, "fencing_token", None),
+                context_handle=getattr(a, "context_handle", None),
+                repo_root=getattr(a, "repo_root", None),
+                scope_root=getattr(a, "scope_root", None),
+                context_snapshot_id=getattr(a, "context_snapshot_id", None),
+                context_pack_hash=getattr(a, "context_pack_hash", None),
             )
         finally:
             if previous is None:
