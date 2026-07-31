@@ -107,6 +107,10 @@ __all__ = [
 
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] == "scoped-handoff":
+        from ..scoped_context import run_scoped_context_cli
+
+        return run_scoped_context_cli(argv[1:])
     if argv and argv[0] == "fast-handoff":
         from ..fast_handoff import run_fast_handoff_cli
 
