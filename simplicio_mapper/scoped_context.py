@@ -19,11 +19,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from . import __version__
+
 SCOPED_HANDOFF_SCHEMA = "simplicio.mapper-scoped-context/v1"
 GENERATION_SCHEMA = "simplicio.mapper-scoped-generation/v1"
 BACKGROUND_SCHEMA = "simplicio.mapper.background-work/v1"
 CACHE_SCHEMA = "simplicio.mapper-scoped-cache/v2"
 PERFORMANCE_THRESHOLD_MS = 250.0
+MAPPER_VERSION = __version__
+MAX_NEAREST_TESTS = 3
+MAX_PRECEDENTS = 3
+RECOMMENDED_NEXT_ACTION = "RUN_FOCUSED_VERIFICATION"
 
 REASON_TARGET_OUTSIDE_SCOPE = "TARGET_OUTSIDE_SCOPE"
 REASON_ROOT_MISMATCH = "ROOT_MISMATCH"
@@ -32,18 +38,16 @@ REASON_CORRIDOR_INCOMPLETE = "CORRIDOR_INCOMPLETE"
 REASON_CACHE_INCOMPATIBLE = "CACHE_INCOMPATIBLE"
 REASON_BACKGROUND_PENDING = "BACKGROUND_PENDING"
 
-_ARTIFACTS = ("project-map.json", "symbol-index.json", "call-graph.json", "architecture-inventory.json")
+_ARTIFACTS = ("project-map.json", "symbol-index.json", "call-graph.json", "architecture-inventory.json", "precedent-index.json")
 _MANIFESTS = {"pyproject.toml", "package.json", "Cargo.toml", "go.mod", "pom.xml", "requirements.txt"}
 _HEX = re.compile(r"^[0-9a-f]{64}$")
 _WORKER_ID = re.compile(r"^[0-9a-f]{32}$")
-
 
 
 class ScopedContextError(ValueError):
     def __init__(self, reason_code: str, detail: str = "") -> None:
         self.reason_code = reason_code
         super().__init__(f"{reason_code}: {detail}" if detail else reason_code)
-
 
 @dataclass(frozen=True)
 class ScopedRequest:
@@ -127,6 +131,28 @@ def _norm(value: Any) -> str:
         text = text[2:]
     return text
 
+def _safe_source_path(repo: Path, path: str, reason: str = REASON_SCOPED_ARTIFACT_STALE) -> Path:
+    normalized = _norm(path)
+    candidate = Path(normalized)
+    if normalized != path or not normalized or candidate.is_absolute() or ".." in candidate.parts:
+        raise ScopedContextError(reason, path)
+    resolved = (repo / normalized).resolve()
+    _require_inside(resolved, repo.resolve(), reason, path)
+    if not resolved.is_file():
+        raise ScopedContextError(reason, path)
+    return resolved
+
+
+def _artifact_path(repo: Path, out_dir: Path, name: str) -> Path | None:
+    candidate = out_dir / name
+    if not candidate.exists():
+        return None
+    resolved = candidate.resolve()
+    _require_inside(resolved, repo.resolve(), REASON_SCOPED_ARTIFACT_STALE, name)
+    _require_inside(resolved, out_dir.resolve(), REASON_SCOPED_ARTIFACT_STALE, name)
+    if not resolved.is_file():
+        raise ScopedContextError(REASON_SCOPED_ARTIFACT_STALE, name)
+    return resolved
 
 def _source_sha(path: Path) -> str:
     try:
@@ -228,17 +254,16 @@ def _git_state(repo: Path) -> list[dict[str, int]]:
 
 
 def _span(repo: Path, path: str) -> dict[str, Any]:
-    source = repo / path
-    digest = _source_sha(source)
+    source = _safe_source_path(repo, path)
     data = source.read_bytes()
+    digest = hashlib.sha256(data).hexdigest()
     return {
-        "path": path,
+        "path": _norm(path),
         "source_sha256": digest,
         "source_stat": _stat(source),
         "bytes": len(data),
         "spans": [{"start_line": 1, "end_line": max(1, min(120, len(data.splitlines()))), "source_sha256": digest}],
     }
-
 
 def _default_cache_root() -> Path:
     return Path(os.environ.get("SIMPLICIO_MAPPER_SCOPED_CACHE", str(Path.home() / ".simplicio/mapper/scoped-context-cache"))).expanduser()
@@ -258,32 +283,65 @@ def _generation_digest(generation: Mapping[str, Any]) -> str:
     return _sha(content)
 
 
+def _generation_id(generation: Mapping[str, Any]) -> str:
+    inputs = generation.get("generation_inputs")
+    if not isinstance(inputs, Mapping):
+        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "generation inputs")
+    return _sha(inputs)
+
+
+def _artifact_digest(records: Sequence[Mapping[str, Any]]) -> str:
+    values = ({"name": str(item.get("name", "")), "sha256": str(item.get("sha256", ""))} for item in records)
+    return _sha(sorted(values, key=lambda item: item["name"]))
+
+
 def _validate_generation(value: Mapping[str, Any], repo: Path, repo_key: str) -> dict[str, Any]:
     if value.get("schema") != GENERATION_SCHEMA or value.get("immutable") is not True:
         raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "generation schema")
     generation_id = value.get("generation_id")
     if not isinstance(generation_id, str) or _HEX.fullmatch(generation_id) is None:
         raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "generation id")
+    if _generation_id(value) != generation_id:
+        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "generation identity")
     if value.get("content_digest") != _generation_digest(value):
         raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "generation content digest")
+    producer = value.get("producer")
+    inputs = value.get("generation_inputs")
+    if not isinstance(producer, Mapping) or producer.get("name") != "simplicio-mapper" or producer.get("version") != MAPPER_VERSION:
+        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "producer version")
+    if not isinstance(inputs, Mapping) or inputs.get("mapper_version") != MAPPER_VERSION:
+        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "generation mapper version")
+    expected_input_fingerprint = _sha({"repo_key": inputs.get("repo_key"), "scope": inputs.get("scope"), "targets": inputs.get("targets"), "task": inputs.get("task"), "budget": inputs.get("budget"), "config": inputs.get("config"), "mapper_version": inputs.get("mapper_version")})
+    if value.get("input_fingerprint") != expected_input_fingerprint:
+        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "request identity")
     repository = value.get("repository")
     if not isinstance(repository, Mapping) or repository.get("repository_id") != repo_key:
         raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "repository identity")
-    stored_root = Path(str(repository.get("root", ""))).expanduser()
-    if not stored_root.is_dir() or _repo_identity(stored_root.resolve()) != repo_key:
+    if _repo_identity(repo.resolve()) != repo_key:
+        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "request repository identity")
+    stored_root = str(repository.get("root", ""))
+    if not stored_root:
         raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "repository root")
-    scope_root = Path(str(repository.get("scope_root", ""))).expanduser()
-    _require_inside(scope_root.resolve(), stored_root.resolve(), REASON_CACHE_INCOMPATIBLE, "scope root")
+    stored_root_path = Path(stored_root).expanduser()
+    if stored_root_path.exists() and _repo_identity(stored_root_path.resolve()) != repo_key:
+        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "producer repository identity")
+    scope_name = repository.get("scope")
+    if not isinstance(scope_name, str) or inputs.get("scope") != scope_name:
+        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "repository scope")
     spans = value.get("spans")
     selected = value.get("selected_paths")
-    if not isinstance(spans, list) or not isinstance(selected, list):
+    records = value.get("artifact_records")
+    precedents = value.get("precedents")
+    if not isinstance(spans, list) or not isinstance(selected, list) or not isinstance(records, list) or not isinstance(precedents, list):
         raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "generation rows")
+    if value.get("artifact_digest") != _artifact_digest(records):
+        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "artifact digest")
     span_by_path: dict[str, Mapping[str, Any]] = {}
     for row in spans:
         if not isinstance(row, Mapping):
             raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "span row")
         path = _norm(row.get("path"))
-        if path != row.get("path") or not path or Path(path).is_absolute() or ".." in Path(path).parts:
+        if path != row.get("path") or not path:
             raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "span path")
         source_sha = row.get("source_sha256")
         stat = row.get("source_stat")
@@ -292,18 +350,29 @@ def _validate_generation(value: Mapping[str, Any], repo: Path, repo_key: str) ->
         try:
             stat_size = int(stat["size"])
             int(stat["mtime_ns"])
+            row_size = int(row.get("bytes", -2))
         except (KeyError, TypeError, ValueError) as error:
             raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "span stat") from error
-        try:
-            row_size = int(row.get("bytes", -2))
-        except (TypeError, ValueError) as error:
-            raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "span size") from error
         if stat_size != row_size:
             raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "span size")
-        _require_inside((repo / path).resolve(), repo, REASON_CACHE_INCOMPATIBLE, path)
+        _safe_source_path(repo, path, REASON_CACHE_INCOMPATIBLE)
         if path in span_by_path:
             raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "duplicate span")
         span_by_path[path] = row
+    expected_selected = [
+        {"path": row["path"], "why": row.get("why", []), "source_sha256": row["source_sha256"], "source_stat": row["source_stat"]}
+        for row in spans
+    ]
+    if selected != expected_selected or inputs.get("selected") != expected_selected:
+        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "selected span identity")
+    expected_artifacts = [
+        {"name": str(record.get("name", "")), "sha256": str(record.get("sha256", ""))}
+        for record in records
+    ]
+    if inputs.get("artifacts") != expected_artifacts or inputs.get("artifact_digest") != value.get("artifact_digest"):
+        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "artifact identity")
+    if inputs.get("precedents") != precedents:
+        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "precedent identity")
     for row in selected:
         if not isinstance(row, Mapping) or _norm(row.get("path")) not in span_by_path:
             raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "selected span")
@@ -311,7 +380,6 @@ def _validate_generation(value: Mapping[str, Any], repo: Path, repo_key: str) ->
         if row.get("source_sha256") != span.get("source_sha256") or row.get("source_stat") != span.get("source_stat"):
             raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "selected span digest")
     return dict(value)
-
 
 def _load_generation(path: Path, repo: Path, repo_key: str) -> dict[str, Any] | None:
     if not path.is_file():
@@ -330,7 +398,7 @@ def _load_current(base: Path, repo: Path, repo_key: str, request_key: str) -> di
     if pointer.get("generation_sha256") != _sha({"generation_id": generation_id}):
         raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "promotion digest")
     generation = _load_generation(_generation_path(base, repo_key, generation_id), repo, repo_key)
-    if generation is None:
+    if generation is None or generation.get("generation_id") != generation_id or generation.get("input_fingerprint") != request_key:
         raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "missing generation")
     return generation
 
@@ -349,31 +417,56 @@ def _load_pin(base: Path, repo: Path, repo_key: str, attempt_id: str) -> dict[st
     if not isinstance(generation_id, str) or _HEX.fullmatch(generation_id) is None:
         raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "pinned generation")
     generation = _load_generation(_generation_path(base, repo_key, generation_id), repo, repo_key)
-    if generation is None:
+    if generation is None or generation.get("generation_id") != generation_id:
         raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "missing pinned generation")
     return generation
 
 
-def _write_generation(base: Path, repo_key: str, generation: Mapping[str, Any]) -> None:
+def _write_generation(base: Path, repo: Path, repo_key: str, generation: Mapping[str, Any]) -> None:
     path = _generation_path(base, repo_key, str(generation["generation_id"]))
-    if path.exists():
+    if path.is_file():
+        for attempt in range(20):
+            try:
+                existing = _load_generation(path, repo, repo_key)
+                break
+            except ScopedContextError:
+                if attempt == 19:
+                    raise
+                time.sleep(0.005)
+        if existing is None or existing.get("content_digest") != generation.get("content_digest"):
+            raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "generation collision")
         return
     for attempt in range(3):
         try:
             _atomic_json(path, generation)
+            existing = _load_generation(path, repo, repo_key)
+            if existing is None or existing.get("content_digest") != generation.get("content_digest"):
+                raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "generation collision")
             return
-        except (PermissionError, FileExistsError):
-            if path.exists():
-                return
+        except (PermissionError, FileExistsError) as error:
+            if path.is_file():
+                existing = _load_generation(path, repo, repo_key)
+                if existing is not None and existing.get("content_digest") == generation.get("content_digest"):
+                    return
+                raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "generation collision") from error
             if attempt == 2:
                 raise
             time.sleep(0.005)
 
-
-def _promote(base: Path, repo_key: str, request_key: str, generation_id: str) -> None:
+def _promote(base: Path, repo: Path, repo_key: str, request_key: str, generation_id: str) -> None:
+    generation = None
+    for attempt in range(20):
+        try:
+            generation = _load_generation(_generation_path(base, repo_key, generation_id), repo, repo_key)
+            break
+        except ScopedContextError:
+            if attempt == 19:
+                raise
+            time.sleep(0.005)
+    if generation is None or generation.get("generation_id") != generation_id:
+        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "promotion generation")
     _, _, promotion, _ = _cache_paths(base, repo_key, request_key)
     _atomic_json(promotion, {"schema": CACHE_SCHEMA, "generation_id": generation_id, "generation_sha256": _sha({"generation_id": generation_id})})
-
 
 def _pin(base: Path, repo_key: str, attempt_id: str, generation_id: str) -> None:
     _, _, _, pins = _cache_paths(base, repo_key, "unused")
@@ -392,25 +485,23 @@ def _artifact_records(repo: Path, out_dir: Path) -> tuple[dict[str, Any], list[d
     artifacts: dict[str, Any] = {}
     records: list[dict[str, Any]] = []
     for name in _ARTIFACTS:
-        path = out_dir / name
-        if path.exists():
-            artifacts[name] = _read_json(path)
-            records.append({"name": name, "sha256": _source_sha(path), "stat": _stat(path), "bytes": path.stat().st_size})
+        path = _artifact_path(repo, out_dir, name)
+        if path is None:
+            continue
+        artifacts[name] = _read_json(path)
+        records.append({"name": name, "sha256": _source_sha(path), "stat": _stat(path), "bytes": path.stat().st_size})
     return artifacts, records
 
 
 def _artifacts_unchanged(repo: Path, out_dir: Path, records: Sequence[Mapping[str, Any]]) -> bool:
     for record in records:
-        path = out_dir / str(record.get("name", ""))
-        if not path.is_file():
-            return False
         try:
-            if _stat(path) != record.get("stat") or _source_sha(path) != record.get("sha256"):
+            path = _artifact_path(repo, out_dir, str(record.get("name", "")))
+            if path is None or _stat(path) != record.get("stat") or _source_sha(path) != record.get("sha256"):
                 return False
         except ScopedContextError:
             return False
     return True
-
 
 def _files_from_artifacts(artifacts: Mapping[str, Any]) -> dict[str, Mapping[str, Any]]:
     project = artifacts.get("project-map.json", {})
@@ -476,12 +567,46 @@ def _closure(selected: set[str], files: Mapping[str, Mapping[str, Any]], artifac
     for path in sorted(manifest_paths):
         expanded.add(path)
         why.setdefault(path, []).append("manifest")
-    for path in files:
-        if _in_scope(path, scope) and any(token in path.casefold() for token in ("test", "spec")) and any(stem in path.casefold() for stem in stems):
-            expanded.add(path)
-            why.setdefault(path, []).append("nearest_test")
+    test_candidates = [
+        path for path in files
+        if _in_scope(path, scope)
+        and any(token in path.casefold() for token in ("test", "spec"))
+        and any(stem in path.casefold() for stem in stems)
+    ]
+    ranked_tests = sorted(
+        set(test_candidates),
+        key=lambda path: (-sum(stem in path.casefold() for stem in stems), len(Path(path).parts), path),
+    )[:MAX_NEAREST_TESTS]
+    for path in ranked_tests:
+        expanded.add(path)
+        why.setdefault(path, []).append("nearest_test")
     return expanded, why
 
+
+def _select_precedents(artifacts: Mapping[str, Any], selected: set[str], scope: str) -> list[dict[str, Any]]:
+    index = artifacts.get("precedent-index.json", {})
+    items = index.get("items", []) if isinstance(index, Mapping) else []
+    stems = {Path(path).stem.casefold() for path in selected}
+    candidates: list[tuple[int, str, str, Mapping[str, Any]]] = []
+    for item in items:
+        if not isinstance(item, Mapping):
+            continue
+        path = _norm(item.get("path"))
+        if not path or not _in_scope(path, scope):
+            continue
+        haystack = " ".join(str(item.get(field, "")) for field in ("path", "summary", "snippet", "tags")).casefold()
+        score = sum(stem in haystack for stem in stems)
+        if score:
+            candidates.append((-score, path, str(item.get("id", "")), item))
+    selected_items: list[dict[str, Any]] = []
+    for rank, (_, _, _, item) in enumerate(sorted(candidates), start=1):
+        if rank > MAX_PRECEDENTS:
+            break
+        value = dict(item)
+        value["rank"] = rank
+        value["why"] = "nearest_precedent"
+        selected_items.append(value)
+    return selected_items
 
 def _in_scope(path: str, scope: str) -> bool:
     normalized = _norm(path)
@@ -494,13 +619,18 @@ def _source_changes(repo: Path, generation: Mapping[str, Any], requested: Sequen
     candidates.update(_norm(item) for item in requested)
     changed: set[str] = set()
     for path in candidates:
-        source = repo / path
-        if not source.is_file():
-            changed.add(path)
+        normalized = _norm(path)
+        candidate = Path(normalized)
+        if normalized != path or not normalized or candidate.is_absolute() or ".." in candidate.parts:
+            raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, path)
+        resolved = (repo / normalized).resolve()
+        _require_inside(resolved, repo.resolve(), REASON_CACHE_INCOMPATIBLE, path)
+        if not resolved.is_file():
+            changed.add(normalized)
             continue
         expected = known.get(path, {}).get("source_sha256")
-        if not isinstance(expected, str) or _source_sha(source) != expected:
-            changed.add(path)
+        if not isinstance(expected, str) or _source_sha(resolved) != expected:
+            changed.add(normalized)
     return changed
 
 
@@ -522,17 +652,23 @@ def _dependency_invalidation(changed: set[str], artifacts: Mapping[str, Any]) ->
 
 
 def _budget_rows(rows: list[dict[str, Any]], budget: int) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-    total = sum(int(row.get("bytes", 0)) for row in rows)
+    ordered = sorted(rows, key=lambda row: row["path"])
+    total = sum(int(row.get("bytes", 0)) for row in ordered)
     effective = max(budget, total)
-    return sorted(rows, key=lambda row: row["path"]), {
+    optional_paths = sorted(
+        row["path"] for row in ordered if "nearest_test" in row.get("why", [])
+    )
+    return ordered, {
         "requested_bytes": budget,
         "effective_bytes": effective,
         "expanded": effective > budget,
         "expansion_bytes": max(0, effective - budget),
         "expansion_reason": "full_required_corridor" if effective > budget else "within_budget",
-        "required_paths": sorted(row["path"] for row in rows),
+        "required_paths": [row["path"] for row in ordered],
+        "optional_paths": optional_paths,
+        "nearest_test_limit": MAX_NEAREST_TESTS,
+        "precedent_limit": MAX_PRECEDENTS,
     }
-
 
 def _background_paths(base: Path, repo_key: str, work_id: str) -> tuple[Path, Path]:
     root = base / repo_key / "background"
@@ -620,21 +756,36 @@ def _metrics(
     }
 
 
-def _render(generation: Mapping[str, Any], request: ScopedRequest, metrics: Mapping[str, Any], background: Mapping[str, Any], pinned: bool) -> dict[str, Any]:
+def _render(
+    generation: Mapping[str, Any],
+    request: ScopedRequest,
+    repo: Path,
+    scope: Path,
+    metrics: Mapping[str, Any],
+    background: Mapping[str, Any],
+    pinned: bool,
+) -> dict[str, Any]:
     wall_ms = float(metrics.get("wall_ms", 0))
+    repository = dict(generation["repository"])
+    repository["root"] = repo.as_posix()
+    repository["scope_root"] = scope.as_posix()
+    repository["scope"] = _scope_name(repo, scope)
     return {
         "schema": SCOPED_HANDOFF_SCHEMA,
         "ready": True,
         "reason_code": REASON_BACKGROUND_PENDING,
-        "repository": generation["repository"],
+        "repository": repository,
         "request": {"target_hints": list(request.target_hints), "task_fingerprint": request.task_fingerprint, "context_budget": request.context_budget, "configuration_fingerprint": request.configuration_fingerprint},
-        "generation": {"id": generation["generation_id"], "schema": GENERATION_SCHEMA, "immutable": True, "input_fingerprint": generation["input_fingerprint"], "producer": "simplicio-mapper"},
+        "generation": {"id": generation["generation_id"], "schema": GENERATION_SCHEMA, "immutable": True, "input_fingerprint": generation["input_fingerprint"], "producer": dict(generation["producer"]), "artifact_digest": generation["artifact_digest"]},
         "attempt": {"id": request.attempt_id, "generation": generation["generation_id"], "pinned": pinned},
         "selected_paths": generation["selected_paths"],
         "spans": generation["spans"],
+        "precedents": generation.get("precedents", []),
+        "artifact_digest": generation["artifact_digest"],
         "budget": generation["budget"],
         "metrics": dict(metrics) | {"performance_threshold_ms": PERFORMANCE_THRESHOLD_MS, "performance_threshold_passed": wall_ms <= PERFORMANCE_THRESHOLD_MS},
         "background": dict(background),
+        "recommended_next_action": RECOMMENDED_NEXT_ACTION,
         "completeness": {"limitations": ["foreground corridor excludes unrelated files"], "deep_required_for": ["repository-wide completeness"]},
     }
 
@@ -663,12 +814,12 @@ def build_scoped_context(
     repo_key = _repo_identity(repo)
     base = Path(cache_root).expanduser().resolve() if cache_root else _default_cache_root().resolve()
     scope_name = _scope_name(repo, scope)
-    request_key = _sha({"repo_key": repo_key, "scope": scope_name, "targets": request.target_hints, "task": request.task_fingerprint, "budget": request.context_budget, "config": request.configuration_fingerprint})
+    request_key = _sha({"repo_key": repo_key, "scope": scope_name, "targets": request.target_hints, "task": request.task_fingerprint, "budget": request.context_budget, "config": request.configuration_fingerprint, "mapper_version": MAPPER_VERSION})
     pinned = _load_pin(base, repo, repo_key, request.attempt_id)
     if pinned is not None:
         metrics = _metrics(started_wall, started_cpu, cache="pinned", parsed_paths=(), reused_paths=[item.get("path", "") for item in pinned.get("spans", [])], artifact_files_parsed=0, artifact_records=pinned.get("artifact_records", []), requested_paths=changed_paths, actual_changed_paths=())
         background = _start_background_work(base, repo_key, pinned, start_background)
-        return _render(pinned, request, metrics, background, True)
+        return _render(pinned, request, repo, scope, metrics, background, True)
     current = _load_current(base, repo, repo_key, request_key)
     git_state = _git_state(repo)
     if current is not None and current.get("repository", {}).get("git_state") == git_state:
@@ -686,49 +837,51 @@ def build_scoped_context(
             if request.attempt_id:
                 _pin(base, repo_key, request.attempt_id, str(current["generation_id"]))
             background = _start_background_work(base, repo_key, current, start_background)
-            return _render(current, request, metrics, background, bool(request.attempt_id))
+            return _render(current, request, repo, scope, metrics, background, bool(request.attempt_id))
     artifacts_reused = current is not None and _artifacts_unchanged(repo, out_dir, current.get("artifact_records", []))
     artifacts, records = _artifact_records(repo, out_dir) if not artifacts_reused else ({}, list(current.get("artifact_records", [])))
     if not artifacts and current is not None:
         artifacts = current.get("artifacts", {})
     files = _files_from_artifacts(artifacts)
     selected, why = _target_paths(request, repo, files, artifacts)
-    scope_name = _scope_name(repo, scope)
     selected, expansion_why = _closure(selected, files, artifacts, scope_name)
-    for path, reasons in expansion_why.items():
-        why.setdefault(path, []).extend(reasons)
+    for selected_path, reasons in expansion_why.items():
+        why.setdefault(selected_path, []).extend(reasons)
+    precedents = _select_precedents(artifacts, selected, scope_name)
     invalidated = _dependency_invalidation(actual_changed, artifacts)
     selected_invalidated = invalidated & selected
     recomputed_paths: set[str] = set()
     reused_paths: set[str] = set()
     rows = []
     cached_row = {str(item.get("path")): item for item in (current or {}).get("spans", []) if isinstance(item, Mapping)}
-    for path in sorted(selected):
-        if not _in_scope(path, scope_name):
+    for selected_path in sorted(selected):
+        if not _in_scope(selected_path, scope_name):
             continue
-        if current is not None and path in cached_row and path not in selected_invalidated:
-            row = dict(cached_row[path])
-            reused_paths.add(path)
+        if current is not None and selected_path in cached_row and selected_path not in selected_invalidated:
+            row = dict(cached_row[selected_path])
+            reused_paths.add(selected_path)
         else:
-            row = _span(repo, path)
-            recomputed_paths.add(path)
-        row["why"] = sorted(set(why.get(path, ["corridor"])))
+            row = _span(repo, selected_path)
+            recomputed_paths.add(selected_path)
+        row["why"] = sorted(set(why.get(selected_path, ["corridor"])))
         rows.append(row)
     rows, budget = _budget_rows(rows, request.context_budget)
     if not rows:
         raise ScopedContextError(REASON_CORRIDOR_INCOMPLETE, "no target corridor")
-    generation_input = {"repo_key": repo_key, "revision": revision, "tree": tree, "scope": scope_name, "targets": request.target_hints, "task": request.task_fingerprint, "budget": request.context_budget, "config": request.configuration_fingerprint, "selected": [(row["path"], row["source_sha256"]) for row in rows], "artifacts": [(record["name"], record["sha256"]) for record in records]}
-    generation_id = _sha(generation_input)
-    generation = {"schema": GENERATION_SCHEMA, "generation_id": generation_id, "input_fingerprint": request_key, "immutable": True, "repository": {"root": repo.as_posix(), "scope_root": scope.as_posix(), "repository_id": repo_key, "revision": revision, "tree": tree, "git_state": git_state}, "request": {"target_hints": list(request.target_hints)}, "selected_paths": [{"path": row["path"], "why": row["why"], "source_sha256": row["source_sha256"], "source_stat": row["source_stat"]} for row in rows], "spans": rows, "budget": budget, "artifacts": artifacts, "artifact_records": records}
+    artifact_digest = _artifact_digest(records)
+    selected_inputs = [{"path": row["path"], "why": row["why"], "source_sha256": row["source_sha256"], "source_stat": row["source_stat"]} for row in rows]
+    artifact_inputs = [{"name": str(record["name"]), "sha256": str(record["sha256"])} for record in records]
+    generation_inputs = {"repo_key": repo_key, "revision": revision, "tree": tree, "scope": scope_name, "targets": request.target_hints, "task": request.task_fingerprint, "budget": request.context_budget, "config": request.configuration_fingerprint, "mapper_version": MAPPER_VERSION, "selected": selected_inputs, "artifacts": artifact_inputs, "artifact_digest": artifact_digest, "precedents": precedents}
+    generation_id = _sha(generation_inputs)
+    generation = {"schema": GENERATION_SCHEMA, "generation_id": generation_id, "generation_inputs": generation_inputs, "input_fingerprint": request_key, "immutable": True, "producer": {"name": "simplicio-mapper", "version": MAPPER_VERSION}, "repository": {"root": repo.as_posix(), "scope_root": scope.as_posix(), "scope": scope_name, "repository_id": repo_key, "revision": revision, "tree": tree, "git_state": git_state}, "request": {"target_hints": list(request.target_hints)}, "selected_paths": selected_inputs, "spans": rows, "precedents": precedents, "budget": budget, "artifacts": artifacts, "artifact_records": records, "artifact_digest": artifact_digest}
     generation["content_digest"] = _generation_digest(generation)
-    _write_generation(base, repo_key, generation)
-    _promote(base, repo_key, request_key, generation_id)
+    _write_generation(base, repo, repo_key, generation)
+    _promote(base, repo, repo_key, request_key, generation_id)
     if request.attempt_id:
         _pin(base, repo_key, request.attempt_id, generation_id)
     metrics = _metrics(started_wall, started_cpu, cache="miss" if current is None else "incremental", parsed_paths=recomputed_paths, reused_paths=reused_paths, artifact_files_parsed=0 if artifacts_reused else len(records), artifact_records=records, requested_paths=requested_changed, actual_changed_paths=actual_changed, invalidated_paths=selected_invalidated)
     background = _start_background_work(base, repo_key, generation, start_background)
-    return _render(generation, request, metrics, background, bool(request.attempt_id))
-
+    return _render(generation, request, repo, scope, metrics, background, bool(request.attempt_id))
 
 def run_scoped_context_cli(argv: Sequence[str]) -> int:
     import argparse
