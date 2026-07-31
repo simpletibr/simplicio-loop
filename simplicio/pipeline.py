@@ -48,9 +48,11 @@ from .pipeline_task_result import (
 )
 from .plan_compiler.authority import EffectAuthorization
 from .plan_compiler.effect_sink import EffectSink
+from .plan_compiler.runtime_effect_sink import RuntimeEffectSink
 from .prompt import build_prompt, set_prompt_retry_delta
 from .providers import ProviderExecutionError, _provider_id, generate
 from .runtime_env import prepare_project_command
+from .task_context import TaskContext, TaskContextError
 from .task_spec import TaskSpec
 from .transaction import VerificationReceipt
 
@@ -61,6 +63,31 @@ MAX_ATTEMPTS = 5
 # module's docstring for the full contract and pipeline.py's token-budget
 # rationale (issue #141 AC).
 PipelineMode = Literal["auto", "standalone", "integrated"]
+
+
+def _attach_contract_receipt(
+    result: dict[str, Any],
+    *,
+    task_context: TaskContext,
+    route: str,
+    effective_mode: str,
+    authorization: EffectAuthorization | None = None,
+    verification_status: str = "unverified",
+) -> dict[str, Any]:
+    patch_value = result.get("patch")
+    patch: dict[str, Any] = patch_value if isinstance(patch_value, dict) else {}
+    verify_value = result.get("verify")
+    verify: dict[str, Any] = verify_value if isinstance(verify_value, dict) else {}
+    receipt = task_context.receipt(
+        route=route,
+        effective_mode=effective_mode,
+        authorization_id=(authorization.authorization_digest if authorization is not None else None),
+        before_digest=patch.get("base_sha"),
+        after_digest=patch.get("candidate_sha"),
+        verification_status=verification_status or str(verify.get("status", "unverified")),
+    )
+    result["mutation_authorization_receipt"] = receipt
+    return result
 
 
 def _resolve_max_attempts() -> int:
@@ -242,6 +269,10 @@ def run_task(
     deadline: str | None = None,
     policy_revision: str = "dev-cli-integrated-v1",
     base_hash: str = "",
+    repo_root: str | os.PathLike[str] | None = None,
+    scope_root: str | os.PathLike[str] | None = None,
+    context_snapshot_id: str | None = None,
+    context_pack_hash: str | None = None,
 ):
     """Run one task through the pipeline.
 
@@ -294,7 +325,13 @@ def run_task(
             applied=False,
             status="blocked",
             warnings=[exc.code],
-            blocked_preconditions=[{"code": exc.code, "message": str(exc)}],
+            blocked_preconditions=[
+                {
+                    "code": exc.code,
+                    "reason": ("target_outside_root" if exc.code == "TARGET_OUTSIDE_SCOPE" else exc.code),
+                    "message": str(exc),
+                }
+            ],
         )
         if task_spec is not None:
             result["task_spec_hash"] = task_spec.canonical_hash()
@@ -313,6 +350,52 @@ def run_task(
     effect_sink = cast(EffectSink | None, prepared.effect_sink)
     runtime_handshake = prepared.runtime_handshake
     integrated_attempt = prepared.attempt
+    actual_root = Path(root).resolve()
+    declared_repo_root = Path(repo_root if repo_root is not None else actual_root).resolve()
+    declared_scope_root = scope_root if scope_root is not None else actual_root
+    canonical_snapshot_id = str((context_snapshot or {}).get("snapshot_id") or "").strip()
+    canonical_pack_hash = str((context_pack or {}).get("pack_hash") or "").strip()
+    supplied_snapshot_id = None if context_snapshot_id is None else str(context_snapshot_id).strip()
+    supplied_pack_hash = None if context_pack_hash is None else str(context_pack_hash).strip()
+    snapshot_identity = canonical_snapshot_id
+    pack_identity = canonical_pack_hash
+    attempt_identity = (
+        attempt_id
+        if attempt_id is not None
+        else (integrated_attempt.attempt_id if integrated_attempt else "")
+    )
+    try:
+        if declared_repo_root != actual_root:
+            raise TaskContextError(
+                "REPO_ROOT_MISMATCH",
+                "declared repo_root must equal the actual mutation root",
+            )
+        task_context = TaskContext.from_values(
+            repo_root=actual_root,
+            scope_root=declared_scope_root,
+            target=target,
+            context_snapshot_id=snapshot_identity,
+            context_pack_hash=pack_identity,
+            attempt_id=attempt_identity,
+            require_identity=False,
+        )
+    except TaskContextError as exc:
+        result = _task_result(
+            target,
+            "",
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[exc.code],
+            blocked_preconditions=[
+                {
+                    "code": exc.code,
+                    "reason": ("target_outside_root" if exc.code == "TARGET_OUTSIDE_SCOPE" else exc.code),
+                    "message": str(exc),
+                }
+            ],
+        )
+        return result
     from .standalone_migration import (
         StandalonePolicy,
         emit_mutation_route,
@@ -335,6 +418,104 @@ def run_task(
         read_only=dry_run_task and requested_execution_mode != "integrated",
     )
     profile = require_coordinator_attempt(profile, integrated_attempt)
+    identity_error: TaskContextError | None = None
+    if supplied_snapshot_id is not None and supplied_snapshot_id != canonical_snapshot_id:
+        identity_error = TaskContextError(
+            "CONTEXT_SNAPSHOT_ID_MISMATCH",
+            "supplied context_snapshot_id does not match the canonical Mapper snapshot",
+        )
+    elif supplied_pack_hash is not None and supplied_pack_hash != canonical_pack_hash:
+        identity_error = TaskContextError(
+            "CONTEXT_PACK_HASH_MISMATCH",
+            "supplied context_pack_hash does not match the canonical Mapper ContextPack",
+        )
+    strict_authority = os.environ.get("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    identity_required = not dry_run_task and (
+        (profile.effective_mode == "integrated" and context_snapshot is not None and context_pack is not None)
+        or (
+            profile.effective_mode == "standalone"
+            and (
+                strict_authority
+                or context_snapshot is not None
+                or context_pack is not None
+                or supplied_snapshot_id is not None
+                or supplied_pack_hash is not None
+            )
+        )
+    )
+    if identity_error is not None or identity_required:
+        try:
+            if identity_error is not None:
+                raise identity_error
+            task_context = TaskContext.from_values(
+                repo_root=actual_root,
+                scope_root=declared_scope_root,
+                target=target,
+                context_snapshot_id=snapshot_identity,
+                context_pack_hash=pack_identity,
+                attempt_id=attempt_identity,
+                require_identity=identity_required,
+            )
+        except TaskContextError as exc:
+            result = _task_result(
+                target,
+                "",
+                "",
+                applied=False,
+                status="blocked",
+                warnings=[exc.code],
+                blocked_preconditions=[
+                    {
+                        "code": exc.code,
+                        "reason": ("target_outside_root" if exc.code == "TARGET_OUTSIDE_SCOPE" else exc.code),
+                        "message": str(exc),
+                    }
+                ],
+            )
+            result["execution_profile"] = profile.to_dict()
+            if profile.effective_mode == "integrated":
+                return _attach_contract_receipt(
+                    result,
+                    task_context=task_context,
+                    route="blocked",
+                    effective_mode=profile.effective_mode,
+                    authorization=authorization,
+                    verification_status="not_run",
+                )
+            return result
+        if (
+            profile.effective_mode == "integrated"
+            and authorization is None
+            and isinstance(effect_sink, RuntimeEffectSink)
+        ):
+            result = _task_result(
+                target,
+                "",
+                "",
+                applied=False,
+                status="blocked",
+                warnings=["AUTHORIZATION_REQUIRED"],
+                blocked_preconditions=[
+                    {
+                        "code": "AUTHORIZATION_REQUIRED",
+                        "message": "integrated mutation requires a Runtime EffectAuthorization",
+                    }
+                ],
+            )
+            result["execution_profile"] = profile.to_dict()
+            return _attach_contract_receipt(
+                result,
+                task_context=task_context,
+                route="blocked",
+                effective_mode=profile.effective_mode,
+                authorization=None,
+                verification_status="not_run",
+            )
     migration_policy = StandalonePolicy(**profile.standalone_policy)
     mutation_route = "blocked" if dry_run_task else mutation_route_for_mode(profile.effective_mode)
     emit_mutation_route(
@@ -382,7 +563,14 @@ def run_task(
         if task_spec is not None:
             result["task_spec_hash"] = task_spec.canonical_hash()
         result["execution_profile"] = profile.to_dict()
-        return result
+        return _attach_contract_receipt(
+            result,
+            task_context=task_context,
+            route="blocked",
+            effective_mode=profile.effective_mode,
+            authorization=authorization,
+            verification_status="not_run",
+        )
     if task_spec is not None and profile.effective_mode != "integrated":
         result = _task_result(
             target,
@@ -431,6 +619,14 @@ def run_task(
         )
         result["execution_profile"] = profile.to_dict()
         result["mutation_receipt"] = mutation_receipt("runtime_effect_api", entrypoint="task")
+        result = _attach_contract_receipt(
+            result,
+            task_context=task_context,
+            route="runtime_effect_api",
+            effective_mode=profile.effective_mode,
+            authorization=authorization,
+            verification_status=str(result.get("observation", {}).get("outcome", "unverified")),
+        )
         if result.get("observation", {}).get("outcome") == "effect_unknown":
             record_effect_unknown(root)
         return result
@@ -763,6 +959,18 @@ def run_task(
                         impact=impact_results,
                     )
                     result["execution_profile"] = profile.to_dict()
+                    result = _attach_contract_receipt(
+                        result,
+                        task_context=task_context,
+                        route=mutation_route,
+                        effective_mode=profile.effective_mode,
+                        authorization=authorization,
+                        verification_status=(
+                            "verified"
+                            if result.get("verify", {}).get("status") == "verified"
+                            else "unverified"
+                        ),
+                    )
                     return result
             else:
                 ok = False
@@ -867,6 +1075,18 @@ def run_task(
                             impact=impact_results,
                         )
                         result["execution_profile"] = profile.to_dict()
+                        result = _attach_contract_receipt(
+                            result,
+                            task_context=task_context,
+                            route=mutation_route,
+                            effective_mode=profile.effective_mode,
+                            authorization=authorization,
+                            verification_status=(
+                                "verified"
+                                if result.get("verify", {}).get("status") == "verified"
+                                else "unverified"
+                            ),
+                        )
                         return result
                 else:
                     ok = False
