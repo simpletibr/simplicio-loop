@@ -670,9 +670,6 @@ def build_scoped_context(
         background = _start_background_work(base, repo_key, pinned, start_background)
         return _render(pinned, request, metrics, background, True)
     current = _load_current(base, repo, repo_key, request_key)
-    promotion_path = _cache_paths(base, repo_key, request_key)[2]
-    if promotion_path.exists() and current is None:
-        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, str(promotion_path))
     git_state = _git_state(repo)
     if current is not None and current.get("repository", {}).get("git_state") == git_state:
         revision = str(current.get("repository", {}).get("revision", ""))

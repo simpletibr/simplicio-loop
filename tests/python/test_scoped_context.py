@@ -16,8 +16,8 @@ from simplicio_mapper.scoped_context import (
     REASON_TARGET_OUTSIDE_SCOPE,
     ScopedContextError,
     ScopedRequest,
-    _run_background_worker,
     _generation_digest,
+    _run_background_worker,
     build_scoped_context,
     run_scoped_context_cli,
 )
