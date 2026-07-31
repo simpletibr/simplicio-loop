@@ -64,7 +64,9 @@ def test_source_drift_and_hookwall_are_fail_closed(tmp_path):
     target.write_text("old\n", encoding="utf-8")
     payload = _envelope(
         tmp_path,
-        operations=[{"op": "replace_range", "path": "target.txt", "start_line": 1, "end_line": 1, "text": "new\n"}],
+        operations=[
+            {"op": "replace_range", "path": "target.txt", "start_line": 1, "end_line": 1, "text": "new\n"}
+        ],
         source_hashes={"target.txt": _digest(b"different\n")},
     )
     with pytest.raises(StageAbiError, match="source hash"):
@@ -99,7 +101,9 @@ def test_apply_receipt_is_verifiable_and_retry_is_idempotent(tmp_path, monkeypat
     before_bytes = target.read_bytes()
     payload = _envelope(
         tmp_path,
-        operations=[{"op": "replace_range", "path": "target.txt", "start_line": 1, "end_line": 1, "text": "new\n"}],
+        operations=[
+            {"op": "replace_range", "path": "target.txt", "start_line": 1, "end_line": 1, "text": "new\n"}
+        ],
         source_hashes={"target.txt": _digest(before_bytes)},
     )
     first = execute_stage_envelope(payload, root=tmp_path, apply=True)
@@ -112,7 +116,10 @@ def test_apply_receipt_is_verifiable_and_retry_is_idempotent(tmp_path, monkeypat
     second = execute_stage_envelope(payload, root=tmp_path, apply=True)
     assert second["status"] == "idempotent"
     assert second["mutation_receipt"] == receipt
-    assert json.loads(next((tmp_path / ".simplicio" / "stage-abi").glob("*.receipt.json")).read_text()) == receipt
+    assert (
+        json.loads(next((tmp_path / ".simplicio" / "stage-abi").glob("*.receipt.json")).read_text())
+        == receipt
+    )
 
 
 def test_llm_cannot_be_hookwall_issuer(tmp_path):

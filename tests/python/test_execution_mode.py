@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from timeit import timeit
+from time import process_time
 from types import SimpleNamespace
 
 import pytest
@@ -393,7 +393,9 @@ def test_standalone_loads_explicit_context_pack_path(tmp_path):
     pack_path.write_text(json.dumps(pack), encoding="utf-8")
 
     prepared = prepare_execution_inputs(
-        "standalone", root=tmp_path, context_pack_path=pack_path,
+        "standalone",
+        root=tmp_path,
+        context_pack_path=pack_path,
     )
 
     assert prepared.context_pack == pack
@@ -454,10 +456,10 @@ def test_prepare_execution_inputs_bounds_snapshot_reads(tmp_path):
 
 def test_negotiation_benchmark_hot_path_under_100_microseconds(monkeypatch):
     monkeypatch.setenv("SIMPLICIO_EXECUTION_ROLLOUT", "canary")
-    elapsed = timeit(
-        lambda: negotiate_execution_mode(
+    start = process_time()
+    for _ in range(1000):
+        negotiate_execution_mode(
             "auto", runtime_handshake=READY, context_snapshot=CONTEXT, effect_sink=RuntimeEffectSink()
-        ),
-        number=1000,
-    )
+        )
+    elapsed = process_time() - start
     assert elapsed / 1000 < 0.0001

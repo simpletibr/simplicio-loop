@@ -240,9 +240,7 @@ def prepare_execution_inputs(
         # Previously the path arguments were silently ignored in this branch, so
         # Loop's local degraded context never reached the task precondition gate.
         resolved_pack = (
-            context_pack
-            if context_pack is not None
-            else _load_context_pack(root, context_pack_path)
+            context_pack if context_pack is not None else _load_context_pack(root, context_pack_path)
         )
         return PreparedExecutionInputs(
             context_snapshot,

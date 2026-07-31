@@ -80,9 +80,7 @@ def build_review_packet(
                 "--skillopt-review-json bench/results_skillopt_review_packet.json"
             ),
         },
-        "generated_candidates": [
-            _relative_path(path, ROOT) for path in generated_candidates
-        ],
+        "generated_candidates": [_relative_path(path, ROOT) for path in generated_candidates],
         "generation_failures": generation_failures,
         "reviews": rows,
     }
@@ -124,11 +122,7 @@ def load_candidate_goals(path: Path) -> list[str]:
         if not isinstance(data, list):
             raise ValueError("candidate goals JSON must be a list or {'goals': [...]}")
         return [str(item).strip() for item in data if str(item).strip()]
-    return [
-        line.strip()
-        for line in text.splitlines()
-        if line.strip() and not line.strip().startswith("#")
-    ]
+    return [line.strip() for line in text.splitlines() if line.strip() and not line.strip().startswith("#")]
 
 
 def _review_gated_skills(skills_root: Path) -> list[Path]:
@@ -155,11 +149,9 @@ def _review_row(path: Path, skills_root: Path) -> dict[str, Any] | None:
         "path": _relative_path(path, ROOT),
         "skill_md": _relative_path(path, ROOT),
         "skills_root_path": _relative_path(path, skills_root),
-        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+        "sha256": _stable_skill_hash(path),
         "review_required": True,
-        "source_goal": frontmatter.get(
-            "source_goal", frontmatter.get("auto_generated.source_goal", "")
-        ),
+        "source_goal": frontmatter.get("source_goal", frontmatter.get("auto_generated.source_goal", "")),
         "planner_model": frontmatter.get(
             "planner_model", frontmatter.get("auto_generated.planner_model", "")
         ),
@@ -170,19 +162,18 @@ def _review_row(path: Path, skills_root: Path) -> dict[str, Any] | None:
     }
 
 
+def _stable_skill_hash(path: Path) -> str:
+    """Hash review artifacts independently of checkout line endings."""
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
 def _is_skillopt_review_candidate(frontmatter: dict[str, str]) -> bool:
     return (
-        frontmatter.get(
-            "review_required", frontmatter.get("auto_generated.review_required", "")
-        ).lower()
+        frontmatter.get("review_required", frontmatter.get("auto_generated.review_required", "")).lower()
         == "true"
         and frontmatter.get("by", frontmatter.get("auto_generated.by")) == "skill-opt"
         and bool(frontmatter.get("source_goal", frontmatter.get("auto_generated.source_goal")))
-        and bool(
-            frontmatter.get(
-                "planner_model", frontmatter.get("auto_generated.planner_model")
-            )
-        )
+        and bool(frontmatter.get("planner_model", frontmatter.get("auto_generated.planner_model")))
     )
 
 
@@ -258,9 +249,7 @@ def _to_markdown(packet: dict[str, Any]) -> str:
     if packet.get("generation_failures"):
         lines.extend(["", "## Generation Failures", ""])
         for failure in packet["generation_failures"]:
-            lines.append(
-                f"- {failure.get('description', '')}: {failure.get('error', '')}"
-            )
+            lines.append(f"- {failure.get('description', '')}: {failure.get('error', '')}")
     lines.append("")
     return "\n".join(lines)
 

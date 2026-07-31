@@ -6,6 +6,8 @@ below prevents a stale local copy from shadowing the extracted implementation.
 
 from __future__ import annotations
 
+import pytest
+
 from simplicio import pipeline_task_result as ptr
 
 
@@ -13,6 +15,80 @@ def test_pipeline_uses_extracted_task_result_assembler():
     from simplicio import pipeline
 
     assert pipeline._task_result is ptr._task_result
+
+
+def test_pipeline_records_terminal_provider_receipt_in_standalone_mode(tmp_path, monkeypatch):
+    """Provider refusal remains a typed terminal task result, never a crash."""
+    from simplicio import pipeline
+    from simplicio.providers import ProviderExecutionError
+
+    target = tmp_path / "app.py"
+    target.write_text("print('ok')\n", encoding="utf-8")
+    receipt = {
+        "status": "blocked",
+        "reason_code": "llm_execution_disabled",
+        "message": "LLM execution is disabled",
+    }
+
+    def refuse(_prompt, _feedback=None):
+        raise ProviderExecutionError(receipt)
+
+    monkeypatch.setenv("SIMPLICIO_TEST_CMD", "placeholder")
+    monkeypatch.setattr(pipeline, "generate", refuse)
+
+    result = pipeline.run_task(
+        tmp_path,
+        "python",
+        "keep the file unchanged",
+        "app.py",
+        "- remains valid",
+        "- local only",
+        mode="standalone",
+        quiet=True,
+    )
+
+    assert result["status"] == "blocked"
+    assert result["provider_terminal"] == receipt
+    assert result["blocked_preconditions"][0]["reason"] == "llm_execution_disabled"
+
+
+def test_pipeline_run_compatibility_returns_only_applied_result(monkeypatch):
+    from simplicio import pipeline
+
+    monkeypatch.setattr(pipeline, "run_task", lambda *args, **kwargs: {"applied": True})
+    assert pipeline.run(".", "python", "goal", "app.py", "- works", "- local") == {"applied": True}
+
+    monkeypatch.setattr(pipeline, "run_task", lambda *args, **kwargs: {"applied": False})
+    assert pipeline.run(".", "python", "goal", "app.py", "- works", "- local") is None
+
+
+def test_pipeline_impact_compatibility_preserves_two_argument_hook(monkeypatch):
+    from simplicio import pipeline
+
+    calls = []
+
+    def fake_impact(root, files):
+        calls.append((root, files))
+        return {"result": "not_needed"}
+
+    monkeypatch.setattr(pipeline, "_run_impact_tests", fake_impact)
+    assert pipeline._run_impact_tests_compat("root", ["app.py"], None) == {"result": "not_needed"}
+    assert calls == [("root", ["app.py"])]
+
+
+def test_pipeline_can_clear_last_verify_receipt(monkeypatch):
+    from simplicio import pipeline
+
+    monkeypatch.setattr(pipeline, "_LAST_VERIFY_RECEIPT", {"transaction_id": "old"})
+    pipeline._remember_verify_receipt(None)
+    assert pipeline._LAST_VERIFY_RECEIPT is None
+
+
+def test_run_task_spec_rejects_invalid_typed_input():
+    from simplicio import pipeline
+
+    with pytest.raises(TypeError, match="requires"):
+        pipeline.run_task_spec(".", "python", object())
 
 
 def test_verify_receipt_payload_none_when_empty():
@@ -349,8 +425,10 @@ def test_dry_run_preconditions_prefers_supplied_canonical_pack(tmp_path, monkeyp
         "artifact_status",
         lambda root: {"project_map": {"present": True}, "precedent_index": {"present": True}},
     )
+
     def fail_generic_handoff(root):
         raise AssertionError("generic mapper handoff must not replace canonical pack")
+
     monkeypatch.setattr(ptr, "map_handoff", fail_generic_handoff)
     target = tmp_path / "a.py"
     target.write_text("x = 1\n", encoding="utf-8")

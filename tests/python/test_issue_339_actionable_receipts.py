@@ -19,7 +19,7 @@ def test_incompatible_runtime_blocker_is_actionable_and_retryable():
     assert blocker["retryable"] is True
     assert blocker["missing_capabilities"] == ["simplicio.effect-transaction/v1"]
     assert blocker["runtime_version"] == "3.5.0"
-    assert blocker["compatible_dev_cli_version"] == ">=0.16.3"
+    assert blocker["compatible_dev_cli_version"] == ">=0.18.1"
     assert "runtime verify --json" in blocker["next_action"]
 
 

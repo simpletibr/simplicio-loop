@@ -366,7 +366,13 @@ def get_effective_map_view(root: str | os.PathLike[str], *, force_remap: bool = 
     manifest + worktree overlay from disk when the live git identity still
     matches them — this is the "no redundant full remap" path (issue #213).
     """
-    identity = resolve_git_identity(root)
+    root_path = Path(root).resolve()
+    # Mapper inspection may materialize its own cache under ``.simplicio``.
+    # Resolve that state before fingerprinting the worktree, otherwise the
+    # cache write changes ``git status`` after the overlay path is chosen and
+    # makes the just-created overlay unreachable on the next call.
+    artifacts = artifact_status(root_path)
+    identity = resolve_git_identity(root_path)
     cache_key = _cache_key(identity)
     if not force_remap and cache_key in _VIEW_CACHE:
         return _VIEW_CACHE[cache_key]
@@ -389,8 +395,6 @@ def get_effective_map_view(root: str | os.PathLike[str], *, force_remap: bool = 
             overlay_candidate = WorktreeOverlay.from_dict(data)
             if overlay_candidate.matches(identity):
                 overlay = overlay_candidate
-
-    artifacts = artifact_status(identity.root)
 
     if canonical is not None and overlay is not None:
         source = SOURCE_CANONICAL_OVERLAY_HIT

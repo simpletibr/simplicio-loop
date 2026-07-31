@@ -193,11 +193,11 @@ def main(argv: list[str] | None = None) -> int:
     policy = load_policy(policy_path, today)
     markdown, hbp, code = render(scan(args.repo, policy), policy, args.mode)
     if args.markdown:
-        args.markdown.write_text(markdown, encoding="utf-8")
+        args.markdown.write_text(markdown, encoding="utf-8", newline="\n")
     else:
         sys.stdout.write(markdown)
     if args.hbp:
-        args.hbp.write_text(hbp, encoding="utf-8")
+        args.hbp.write_text(hbp, encoding="utf-8", newline="\n")
     return code
 
 

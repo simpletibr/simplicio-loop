@@ -54,7 +54,7 @@ def main() -> int:
     try:
         result = detect(prompt)
         if result.is_code_task:
-            print(result.hint, file=sys.stderr)
+            sys.stderr.write(f"{result.hint}\n")
     except Exception:
         # Hooks must never take down or block the host agent.
         return 0

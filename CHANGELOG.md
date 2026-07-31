@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## [0.18.3] - 2026-07-30
+
+### Fixed
+
+- Keep `doctor --json` operational on Windows when optional hardware probes
+  cannot create a subprocess (#398).
+- Raise the Mapper floor to 0.26.2 for the current bounded-parallel scan
+  release.
+
 ## [0.18.1] - 2026-07-30
 
 ### Changed

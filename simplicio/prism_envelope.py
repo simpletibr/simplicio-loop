@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import re
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any
 
 from simplicio.plan_compiler.canonical_hash import canonical_hash
 from simplicio.plan_compiler.errors import PlanValidationError, SchemaMismatchError
@@ -173,9 +174,7 @@ class PrismExecutionEnvelope:
             goal_id=str(payload.get("goal_id", "")),
             prism_id=str(payload.get("prism_id", "")),
             parent_prism_id=(
-                str(payload["parent_prism_id"])
-                if payload.get("parent_prism_id") is not None
-                else None
+                str(payload["parent_prism_id"]) if payload.get("parent_prism_id") is not None else None
             ),
             slot_id=str(payload.get("slot_id", "")),
             task_id=str(payload.get("task_id", "")),

@@ -2,7 +2,7 @@ usage: simplicio-py run [-h] [--scope {auto,task,feature,sprint,scratch}]
                         [--root ROOT] [--stack STACK] [--target TARGET]
                         [--criteria CRITERIA] [--constraints CONSTRAINTS]
                         [--dry-run-task] [--json] [--bound-paths BOUND_PATHS]
-                        [--local] [--max-cost MAX_COST] [--max-iter MAX_ITER]
+                        [--max-cost MAX_COST] [--max-iter MAX_ITER]
                         [--sprint SPRINT] [--name NAME] [--dest DEST]
                         [--planner PLANNER] [--plan-only] [--skip-install]
                         [--slot KEY=VALUE]
@@ -32,7 +32,6 @@ options:
   --dry-run-task
   --json
   --bound-paths BOUND_PATHS
-  --local
   --max-cost MAX_COST
   --max-iter MAX_ITER
   --sprint SPRINT       sprint directory name, e.g. sprint-01

@@ -138,6 +138,7 @@ def test_plan_accepts_every_documented_prototype_type(tmp_path, capsys):
 def test_scaffold_writes_only_inside_isolated_candidate_dir(tmp_path, capsys, prototype_type):
     source_file = tmp_path / "src.py"
     source_file.write_text("print('real working tree file')\n", encoding="utf-8")
+    source_before = source_file.read_bytes()
 
     plan, plan_path = _make_plan(tmp_path, capsys, prototype_type=prototype_type)
     assert plan["prototype_type"] == prototype_type
@@ -153,7 +154,7 @@ def test_scaffold_writes_only_inside_isolated_candidate_dir(tmp_path, capsys, pr
     assert any(candidate.iterdir())
 
     # ...and the working-tree source file is byte-for-byte untouched.
-    assert source_file.read_bytes() == b"print('real working tree file')\n"
+    assert source_file.read_bytes() == source_before
 
 
 def test_scaffold_rejects_a_plan_name_that_path_traverses_out_of_the_sandbox(tmp_path, capsys):

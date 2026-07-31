@@ -89,10 +89,20 @@ def test_standalone_preflight_skips_provider_after_context_gate(tmp_path, monkey
 
     monkeypatch.setattr("simplicio.pipeline.generate", fail_if_called)
 
-    code = cli.main([
-        "task", "verify README", "--root", str(tmp_path), "--target", "README.md",
-        "--mode", "standalone", "--dry-run-task", "--json",
-    ])
+    code = cli.main(
+        [
+            "task",
+            "verify README",
+            "--root",
+            str(tmp_path),
+            "--target",
+            "README.md",
+            "--mode",
+            "standalone",
+            "--dry-run-task",
+            "--json",
+        ]
+    )
 
     assert code == 0
     payload = json.loads(capsys.readouterr().out)

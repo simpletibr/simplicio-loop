@@ -182,9 +182,11 @@ def test_real_cli_degrades_gracefully_on_corrupted_project_map(tmp_path: Path) -
 
 
 def test_real_cli_task_reports_llm_unavailable_without_crashing(tmp_path: Path) -> None:
-    """No LLM provider configured/reachable (`SIMPLICIO_MODEL` points at a
-    remote provider but neither `SIMPLICIO_API_KEY` nor a provider-specific
-    key env var is set). `dev-cli task` must fail loudly but *cleanly*:
+    """The provider-free task boundary must fail loudly but *cleanly*.
+
+    The explicit standalone mode bypasses the Mapper-context precondition so
+    this real-process scenario exercises provider refusal rather than a
+    preceding orchestration guard:
     non-zero exit code, an actionable one-line `stderr` message, no raw
     Python traceback, and — critically — no partial/half-applied diff left
     on disk, since the failure happens before any patch is generated."""
@@ -211,6 +213,8 @@ def test_real_cli_task_reports_llm_unavailable_without_crashing(tmp_path: Path) 
             str(project),
             "--target",
             "src/app.py",
+            "--mode",
+            "standalone",
             "--json",
         ],
         cwd=project,
@@ -222,11 +226,11 @@ def test_real_cli_task_reports_llm_unavailable_without_crashing(tmp_path: Path) 
     )
 
     assert task_process.returncode != 0, (
-        "expected a non-zero exit when no LLM provider is configured/reachable\n"
+        "expected a non-zero exit when LLM execution is unavailable\n"
         f"stdout:\n{task_process.stdout}\nstderr:\n{task_process.stderr}"
     )
     _assert_no_traceback(task_process, "simplicio-dev-cli task (LLM unavailable)")
-    assert "SIMPLICIO_API_KEY" in task_process.stderr or "API_KEY" in task_process.stderr
+    assert "LLM execution is disabled" in task_process.stderr
 
     # No diff was ever generated, so the fixture source file must be
     # byte-for-byte untouched.

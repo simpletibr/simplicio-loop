@@ -23,6 +23,7 @@ plan files one after another never invalidates an earlier plan's
 from __future__ import annotations
 
 import json
+import sys
 import threading
 import time
 from pathlib import Path
@@ -164,9 +165,11 @@ def test_batch_no_cross_candidate_artifact_corruption(tmp_path, capsys):
 
 def test_batch_isolates_a_failing_validator_from_siblings(tmp_path, capsys):
     plans_dir = _plans_dir(tmp_path)
-    _write_plan(tmp_path, capsys, plans_dir, name="good-a", goal="passes", validators=["true"])
-    _write_plan(tmp_path, capsys, plans_dir, name="bad", goal="fails", validators=["false"])
-    _write_plan(tmp_path, capsys, plans_dir, name="good-b", goal="also passes", validators=["true"])
+    succeeds = f'"{sys.executable}" -c "import sys; sys.exit(0)"'
+    fails = f'"{sys.executable}" -c "import sys; sys.exit(1)"'
+    _write_plan(tmp_path, capsys, plans_dir, name="good-a", goal="passes", validators=[succeeds])
+    _write_plan(tmp_path, capsys, plans_dir, name="bad", goal="fails", validators=[fails])
+    _write_plan(tmp_path, capsys, plans_dir, name="good-b", goal="also passes", validators=[succeeds])
 
     code = cli.main(
         [
@@ -333,7 +336,7 @@ def test_batch_completes_large_batch_without_unbounded_growth(tmp_path, capsys, 
     payload = json.loads(capsys.readouterr().out)
     threads_after = threading.active_count()
 
-    assert code == 0
+    assert code == 0, payload
     assert payload["total"] == total_plans
     assert payload["ok"] == total_plans
     assert state["peak"] <= concurrency
@@ -436,6 +439,7 @@ def test_batch_never_writes_outside_its_own_candidate_dirs(tmp_path, capsys, con
     real working-tree file must remain untouched."""
     source_file = tmp_path / "src.py"
     source_file.write_text("print('real working tree file')\n", encoding="utf-8")
+    source_before = source_file.read_bytes()
     plans_dir = _plans_dir(tmp_path)
     for i in range(4):
         _write_plan(tmp_path, capsys, plans_dir, name=f"plan{i}", goal=f"goal {i}")
@@ -458,4 +462,4 @@ def test_batch_never_writes_outside_its_own_candidate_dirs(tmp_path, capsys, con
     for result in payload["results"]:
         candidate = Path(result["candidate"])
         assert candidate.is_relative_to(tmp_path / ".simplicio" / "prototypes")
-    assert source_file.read_bytes() == b"print('real working tree file')\n"
+    assert source_file.read_bytes() == source_before

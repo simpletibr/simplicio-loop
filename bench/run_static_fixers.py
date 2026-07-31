@@ -242,6 +242,9 @@ def _run_case(case: FixerCase, root: Path, fixer_enabled: bool) -> dict[str, Any
         "- passes",
         "- small",
         quiet=True,
+        # This synthetic benchmark exercises local fixer/retry behavior.  It
+        # must not invoke an external Runtime contract probe for every case.
+        mode="standalone",
     )
 
     return {
@@ -264,9 +267,7 @@ def _row(
         "baseline_llm_calls": baseline["llm_calls"],
         "with_fixer_llm_calls": with_fixer["llm_calls"],
         "retry_calls_saved": baseline["llm_calls"] - with_fixer["llm_calls"],
-        "fixed_before_llm_retry": bool(
-            with_fixer["fixer_applied"] and with_fixer["llm_calls"] == 1
-        ),
+        "fixed_before_llm_retry": bool(with_fixer["fixer_applied"] and with_fixer["llm_calls"] == 1),
         "fixers": with_fixer["fixers"],
         "passed": baseline["applied"] and with_fixer["applied"],
     }
@@ -295,11 +296,7 @@ def run_real_package_manager_probe(
         )
         pyproject = root / "pyproject.toml"
         declared = case.package in pyproject.read_text(encoding="utf-8")
-        import_ok = (
-            _check_import(case.module)
-            if result.applied and runner is None
-            else result.applied
-        )
+        import_ok = _check_import(case.module) if result.applied and runner is None else result.applied
         rows.append(
             {
                 "name": case.name,
@@ -346,9 +343,7 @@ def run_scratch_import_failure_probe(
         started = time.perf_counter()
         scratch_proc = _run_command(scratch_cmd, ROOT, runner, timeout=300)
         payload = _extract_json_object(scratch_proc.stdout or "")
-        project_dir = Path(
-            str(payload.get("project_dir") or projects_dir / project_name)
-        )
+        project_dir = Path(str(payload.get("project_dir") or projects_dir / project_name))
         row = {
             "name": project_name,
             "scratch_returncode": scratch_proc.returncode,
@@ -396,9 +391,7 @@ def run_scratch_import_failure_probe(
             timeout=120,
         )
         pyproject = project_dir / "pyproject.toml"
-        dependency_declared = pyproject.exists() and "boltons" in pyproject.read_text(
-            encoding="utf-8"
-        )
+        dependency_declared = pyproject.exists() and "boltons" in pyproject.read_text(encoding="utf-8")
         row.update(
             {
                 "initial_failure_observed": initial.returncode != 0
@@ -465,17 +458,13 @@ def _summarize(
     fixed = sum(1 for row in rows if row["fixed_before_llm_retry"])
     baseline_calls = sum(int(row["baseline_llm_calls"]) for row in rows)
     with_fixer_calls = sum(int(row["with_fixer_llm_calls"]) for row in rows)
-    reduction = (
-        (baseline_calls - with_fixer_calls) / baseline_calls if baseline_calls else 0.0
-    )
+    reduction = (baseline_calls - with_fixer_calls) / baseline_calls if baseline_calls else 0.0
     real_total = len(real_probe_rows)
     real_passed = sum(1 for row in real_probe_rows if row.get("passed"))
     scratch_probe_total = len(scratch_probe_rows)
     scratch_probe_passed = sum(1 for row in scratch_probe_rows if row.get("passed"))
     live_total = int(live_corpus.get("total_runs", 0)) if live_corpus else 0
-    live_failures = (
-        int(live_corpus.get("eligible_failure_runs", 0)) if live_corpus else 0
-    )
+    live_failures = int(live_corpus.get("eligible_failure_runs", 0)) if live_corpus else 0
     summary = {
         "total_cases": total,
         "passed_cases": passed,
@@ -494,13 +483,11 @@ def _summarize(
             "fifty_cases": total >= 50,
             "fixer_resolved_ge_80": fixed / total >= 0.80 if total else False,
             "retry_calls_down_ge_30": reduction >= 0.30,
-            "real_package_manager_execution": real_total > 0
-            and real_passed == real_total,
+            "real_package_manager_execution": real_total > 0 and real_passed == real_total,
             "real_scratch_import_failure_repaired": scratch_probe_total > 0
             and scratch_probe_passed == scratch_probe_total,
             "real_scratch_corpus": live_total >= 50,
-            "real_eligible_failures_observed": live_failures > 0
-            or scratch_probe_passed > 0,
+            "real_eligible_failures_observed": live_failures > 0 or scratch_probe_passed > 0,
         },
         "missing_release_evidence": [],
     }
@@ -540,12 +527,8 @@ def _normalize_live_gate(
             "total_runs": int(live_gate.get("total_runs", 0)),
             "e2e_green": int(live_gate.get("e2e_green", 0)),
             "eligible_failure_runs": int(live_gate.get("eligible_failure_runs", 0)),
-            "post_verify_failure_runs": int(
-                live_gate.get("post_verify_failure_runs", 0)
-            ),
-            "scratch_returncode_failure_runs": int(
-                live_gate.get("scratch_returncode_failure_runs", 0)
-            ),
+            "post_verify_failure_runs": int(live_gate.get("post_verify_failure_runs", 0)),
+            "scratch_returncode_failure_runs": int(live_gate.get("scratch_returncode_failure_runs", 0)),
             "stacks": sorted(live_gate.get("stacks", [])),
         }
 
@@ -586,9 +569,7 @@ def _normalize_live_gate(
         "source": live_gate.get("source") or source or "inline",
         "total_runs": total,
         "e2e_green": e2e_green,
-        "eligible_failure_runs": sum(
-            1 for row in runs if row.get("e2e_green") is False
-        ),
+        "eligible_failure_runs": sum(1 for row in runs if row.get("e2e_green") is False),
         "post_verify_failure_runs": post_verify_failure_runs,
         "scratch_returncode_failure_runs": scratch_returncode_failure_runs,
         "stacks": sorted(stacks),
@@ -801,11 +782,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result["summary"], indent=2, sort_keys=True))
         print(f"wrote {args.json_output}")
         print(f"wrote {args.md_output}")
-    return (
-        0
-        if result["summary"]["passed_cases"] == result["summary"]["total_cases"]
-        else 1
-    )
+    return 0 if result["summary"]["passed_cases"] == result["summary"]["total_cases"] else 1
 
 
 if __name__ == "__main__":

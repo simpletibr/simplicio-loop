@@ -38,12 +38,8 @@ _ENV_ASSIGNMENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=.*$")
 
 RESULTS_JSON = ROOT / "bench" / "results_scratch_live_gate.json"
 RESULTS_MD = ROOT / "bench" / "results_scratch_live_gate.md"
-CODEGEN_DISABLED_RESULTS_JSON = (
-    ROOT / "bench" / "results_scratch_live_gate_codegen_disabled_baseline.json"
-)
-CODEGEN_DISABLED_RESULTS_MD = (
-    ROOT / "bench" / "results_scratch_live_gate_codegen_disabled_baseline.md"
-)
+CODEGEN_DISABLED_RESULTS_JSON = ROOT / "bench" / "results_scratch_live_gate_codegen_disabled_baseline.json"
+CODEGEN_DISABLED_RESULTS_MD = ROOT / "bench" / "results_scratch_live_gate_codegen_disabled_baseline.md"
 
 Runner = Callable[..., subprocess.CompletedProcess[str]]
 
@@ -70,11 +66,7 @@ def run_live_gate(
     projects_dir.mkdir(parents=True, exist_ok=True)
     registry = StackRegistry()
 
-    matrix = [
-        (goal_index, stack)
-        for goal_index, _goal in enumerate(goals, start=1)
-        for stack in stacks
-    ]
+    matrix = [(goal_index, stack) for goal_index, _goal in enumerate(goals, start=1) for stack in stacks]
     if skip_existing_keys:
         matrix = [
             (goal_index, stack)
@@ -323,9 +315,7 @@ def _row_metrics(
         }
     files_written = payload.get("files_written", [])
     scaffold_clean = isinstance(files_written, list) and bool(files_written)
-    task_all_passed = (
-        returncode == 0 and tasks_total > 0 and tasks_passed == tasks_total
-    )
+    task_all_passed = returncode == 0 and tasks_total > 0 and tasks_passed == tasks_total
     e2e_green = bool(verify.get("passed")) if post_verify else None
     return {
         "planner_valid": tasks_total > 0 or scaffold_clean,
@@ -378,9 +368,7 @@ def _post_verify(
     started = time.perf_counter()
     for name, command in commands:
         if not command:
-            rows.append(
-                {"name": name, "command": "", "returncode": None, "skipped": True}
-            )
+            rows.append({"name": name, "command": "", "returncode": None, "skipped": True})
             continue
         command_start = time.perf_counter()
         rows.append(
@@ -456,12 +444,8 @@ def _command_tool_preflight(
         rows.append(row)
 
     checked = [row for row in rows if row.get("available") is not None]
-    available_tools = sorted(
-        {str(row["tool"]) for row in checked if row.get("available")}
-    )
-    missing_tools = sorted(
-        {str(row["tool"]) for row in checked if row.get("available") is False}
-    )
+    available_tools = sorted({str(row["tool"]) for row in checked if row.get("available")})
+    missing_tools = sorted({str(row["tool"]) for row in checked if row.get("available") is False})
     return {
         "enabled": True,
         "scope": "post_verify",
@@ -548,11 +532,7 @@ def _runtime_tool_name(parts: list[str]) -> str | None:
 
 def _is_project_local_tool(tool: str) -> bool:
     return (
-        tool.startswith(".")
-        or tool.startswith("/")
-        or tool.startswith("\\")
-        or "/" in tool
-        or "\\" in tool
+        tool.startswith(".") or tool.startswith("/") or tool.startswith("\\") or "/" in tool or "\\" in tool
     )
 
 
@@ -758,22 +738,14 @@ def _summarize(
     planner_valid_rate = _ratio(planner_valid, total)
     scaffold_clean_rate = _ratio(scaffold_clean, len(scaffold_rows))
     e2e_green_rate = _ratio(e2e_green, len(e2e_rows))
-    cost_values = [
-        float(row["cost_usd"]) for row in rows if row.get("cost_usd") is not None
-    ]
+    cost_values = [float(row["cost_usd"]) for row in rows if row.get("cost_usd") is not None]
     average_cost_usd = (
-        round(sum(cost_values) / len(cost_values), 6)
-        if len(cost_values) == total and total
-        else None
+        round(sum(cost_values) / len(cost_values), 6) if len(cost_values) == total and total else None
     )
     lines_generated_total = sum(
-        int((row.get("line_stats") or {}).get("lines_generated") or 0)
-        for row in rows
+        int((row.get("line_stats") or {}).get("lines_generated") or 0) for row in rows
     )
-    lines_modified_total = sum(
-        int((row.get("line_stats") or {}).get("lines_modified") or 0)
-        for row in rows
-    )
+    lines_modified_total = sum(int((row.get("line_stats") or {}).get("lines_modified") or 0) for row in rows)
     skillopt = _normalize_skillopt_review(skillopt_review)
     runtime_tools = runtime_tool_preflight or _empty_runtime_tool_preflight(
         enabled=post_verify and not plan_only
@@ -782,20 +754,12 @@ def _summarize(
         "full_75_run_matrix": _has_full_release_matrix(rows),
         "planner_valid_ge_90": planner_valid_rate >= 0.90 if total else False,
         "scaffold_clean_ge_95": None if plan_only else scaffold_clean_rate >= 0.95,
-        "e2e_green_ge_80": (
-            e2e_green_rate >= 0.80 if post_verify and e2e_rows else None
-        ),
-        "median_wall_clock_le_8m": (
-            median_wall_clock_s <= 480 if median_wall_clock_s is not None else None
-        ),
-        "average_cost_le_1": (
-            average_cost_usd <= 1.0 if average_cost_usd is not None else None
-        ),
+        "e2e_green_ge_80": (e2e_green_rate >= 0.80 if post_verify and e2e_rows else None),
+        "median_wall_clock_le_8m": (median_wall_clock_s <= 480 if median_wall_clock_s is not None else None),
+        "average_cost_le_1": (average_cost_usd <= 1.0 if average_cost_usd is not None else None),
         "skillopt_human_approval_ge_80": skillopt["gate_passed"],
     }
-    release_gates["release_ready"] = all(
-        value is True for value in release_gates.values()
-    )
+    release_gates["release_ready"] = all(value is True for value in release_gates.values())
     return {
         "total_runs": total,
         "planner_valid": planner_valid,
@@ -926,9 +890,7 @@ def _normalize_skillopt_review(
         "reviews": normalized,
         "invalid_reviews": invalid,
         "duplicate_reviews": duplicate,
-        "artifact_verified": sum(
-            1 for row in normalized if row.get("artifact_verified") is True
-        ),
+        "artifact_verified": sum(1 for row in normalized if row.get("artifact_verified") is True),
     }
 
 
@@ -949,8 +911,10 @@ def _skillopt_artifact_hash_matches(path: str, expected_sha256: str) -> bool:
     artifact = _skillopt_artifact_path(path)
     if not artifact.is_file():
         return False
-    actual = hashlib.sha256(artifact.read_bytes()).hexdigest()
-    return actual == expected_sha256
+    raw = artifact.read_bytes()
+    exact = hashlib.sha256(raw).hexdigest()
+    canonical_lf = hashlib.sha256(raw.replace(b"\r\n", b"\n")).hexdigest()
+    return expected_sha256 in {exact, canonical_lf}
 
 
 def _skillopt_artifact_frontmatter_valid(path: str) -> bool:
@@ -962,8 +926,7 @@ def _skillopt_artifact_frontmatter_valid(path: str) -> bool:
     except (OSError, UnicodeDecodeError):
         return False
     return (
-        fields.get("review_required", fields.get("auto_generated.review_required", "")).lower()
-        == "true"
+        fields.get("review_required", fields.get("auto_generated.review_required", "")).lower() == "true"
         and fields.get("by", fields.get("auto_generated.by")) == "skill-opt"
         and bool(fields.get("source_goal", fields.get("auto_generated.source_goal")))
         and bool(fields.get("planner_model", fields.get("auto_generated.planner_model")))
@@ -1003,9 +966,7 @@ def _skillopt_artifact_path(path: str) -> Path:
 def _has_full_release_matrix(rows: list[dict[str, Any]]) -> bool:
     required = {(goal, stack) for goal in RELEASE_GOALS for stack in PILOT_STACKS}
     observed = {
-        (str(row.get("goal")), str(row.get("stack")))
-        for row in rows
-        if row.get("goal") and row.get("stack")
+        (str(row.get("goal")), str(row.get("stack"))) for row in rows if row.get("goal") and row.get("stack")
     }
     return required.issubset(observed)
 
@@ -1048,18 +1009,13 @@ def merge_results(
         disable_codegen=bool(current_matrix.get("disable_codegen")),
     )
 
-    rows_by_key = {
-        _row_key(row): row
-        for row in existing.get("runs", [])
-        if _row_key(row) is not None
-    }
+    rows_by_key = {_row_key(row): row for row in existing.get("runs", []) if _row_key(row) is not None}
     for row in current.get("runs", []):
         key = _row_key(row)
         if key is not None:
             if key in rows_by_key and not allow_overwrite:
                 raise ValueError(
-                    "refusing to overwrite existing live gate row: "
-                    f"goal={key[0]!r} stack={key[1]!r}"
+                    f"refusing to overwrite existing live gate row: goal={key[0]!r} stack={key[1]!r}"
                 )
             rows_by_key[key] = row
     rows = sorted(
@@ -1098,15 +1054,8 @@ def merge_results(
                 or existing.get("summary", {}).get("skillopt_review")
             ),
             runtime_tool_preflight=_post_verify_tool_preflight(
-                tuple(
-                    dict.fromkeys(
-                        str(row.get("stack"))
-                        for row in rows
-                        if row.get("stack")
-                    )
-                ),
-                enabled=bool(current_matrix.get("post_verify"))
-                and not bool(current_matrix.get("plan_only")),
+                tuple(dict.fromkeys(str(row.get("stack")) for row in rows if row.get("stack"))),
+                enabled=bool(current_matrix.get("post_verify")) and not bool(current_matrix.get("plan_only")),
                 registry=StackRegistry(),
             ),
         ),
@@ -1146,11 +1095,7 @@ def _row_key(row: dict[str, Any]) -> tuple[str, str] | None:
 
 
 def existing_row_keys(result: dict[str, Any]) -> set[tuple[str, str]]:
-    return {
-        key
-        for row in result.get("runs", [])
-        if (key := _row_key(row)) is not None
-    }
+    return {key for row in result.get("runs", []) if (key := _row_key(row)) is not None}
 
 
 def _pilot_stack_index(stack: str) -> int:
@@ -1191,10 +1136,7 @@ def _to_markdown(result: dict[str, Any]) -> str:
         f"- lines generated: {summary['lines_generated_total']}",
         f"- lines modified: {summary['lines_modified_total']}",
         f"- runtime tool preflight: {runtime_tools.get('enabled', False)}",
-        (
-            "- missing runtime tools: "
-            f"{_format_markdown_list(runtime_tools.get('missing_tools') or [])}"
-        ),
+        (f"- missing runtime tools: {_format_markdown_list(runtime_tools.get('missing_tools') or [])}"),
         f"- release ready: {summary['release_gates']['release_ready']}",
         "",
         "## Release Gate Status",
@@ -1208,10 +1150,7 @@ def _to_markdown(result: dict[str, Any]) -> str:
             "## SkillOpt Review Evidence",
             "",
             f"- source: {skillopt.get('source', 'inline')}",
-            (
-                f"- reviewed skills: {skillopt.get('approved', 0)}/"
-                f"{skillopt.get('total_reviews', 0)} approved"
-            ),
+            (f"- reviewed skills: {skillopt.get('approved', 0)}/{skillopt.get('total_reviews', 0)} approved"),
             f"- approval rate: {float(skillopt.get('approval_rate', 0.0)):.2%}",
             f"- invalid review rows: {skillopt.get('invalid_reviews', 0)}",
         ]
@@ -1221,18 +1160,9 @@ def _to_markdown(result: dict[str, Any]) -> str:
             "",
             "## Runtime Tool Preflight",
             "",
-            (
-                "- required tools: "
-                f"{_format_markdown_list(runtime_tools.get('required_tools') or [])}"
-            ),
-            (
-                "- available tools: "
-                f"{_format_markdown_list(runtime_tools.get('available_tools') or [])}"
-            ),
-            (
-                "- missing tools: "
-                f"{_format_markdown_list(runtime_tools.get('missing_tools') or [])}"
-            ),
+            (f"- required tools: {_format_markdown_list(runtime_tools.get('required_tools') or [])}"),
+            (f"- available tools: {_format_markdown_list(runtime_tools.get('available_tools') or [])}"),
+            (f"- missing tools: {_format_markdown_list(runtime_tools.get('missing_tools') or [])}"),
             f"- checked commands: {runtime_tools.get('checked_commands', 0)}",
             f"- unchecked commands: {runtime_tools.get('unchecked_commands', 0)}",
         ]
@@ -1325,10 +1255,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     if args.resume_existing and args.overwrite_existing:
         parser.error("--resume-existing cannot be combined with --overwrite-existing")
     if args.merge_existing and (args.resume_existing or args.overwrite_existing):
-        parser.error(
-            "--merge-existing cannot be combined with "
-            "--resume-existing or --overwrite-existing"
-        )
+        parser.error("--merge-existing cannot be combined with --resume-existing or --overwrite-existing")
     return args
 
 
@@ -1389,13 +1316,9 @@ def main(argv: list[str] | None = None) -> int:
         disable_codegen=args.disable_codegen,
         timeout_seconds=args.timeout_seconds,
         skillopt_review=(
-            load_skillopt_review_evidence(args.skillopt_review_json)
-            if args.skillopt_review_json
-            else None
+            load_skillopt_review_evidence(args.skillopt_review_json) if args.skillopt_review_json else None
         ),
-        skip_existing_keys=(
-            existing_row_keys(existing) if args.resume_existing and existing else None
-        ),
+        skip_existing_keys=(existing_row_keys(existing) if args.resume_existing and existing else None),
     )
     if preserving_existing and existing:
         try:
@@ -1412,12 +1335,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"wrote {json_output}")
         print(f"wrote {md_output}")
     summary = result["summary"]
-    return (
-        0
-        if summary["total_runs"] > 0
-        and summary["planner_valid"] == summary["total_runs"]
-        else 1
-    )
+    return 0 if summary["total_runs"] > 0 and summary["planner_valid"] == summary["total_runs"] else 1
 
 
 if __name__ == "__main__":

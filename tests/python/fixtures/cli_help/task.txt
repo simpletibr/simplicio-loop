@@ -1,7 +1,7 @@
 usage: simplicio-py task [-h] [--root ROOT] [--stack STACK] [--target TARGET]
                          [--criteria CRITERIA] [--constraints CONSTRAINTS]
                          [--dry-run-task] [--verify-only] [--json]
-                         [--bound-paths BOUND_PATHS] [--local]
+                         [--bound-paths BOUND_PATHS]
                          [--mode {auto,integrated,standalone}]
                          [--task-spec PATH | --task-spec-stdin]
                          [--context-snapshot CONTEXT_SNAPSHOT]

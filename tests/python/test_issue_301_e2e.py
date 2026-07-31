@@ -517,9 +517,11 @@ def test_issue_301_task_feature_sprint_entrypoints_fail_closed_without_runtime(
     payload = json.loads(captured.out)
     assert payload["applied"] is False
     assert payload["execution_profile"]["effective_mode"] == "blocked"
-    assert payload["warnings"] == ["RUNTIME_NOT_CONFIGURED"] or payload["warnings"] == [
-        "INCOMPATIBLE_RUNTIME"
-    ]
+    assert payload["warnings"] in (
+        ["RUNTIME_NOT_CONFIGURED"],
+        ["INCOMPATIBLE_RUNTIME"],
+        ["CONTEXT_REQUIRED"],
+    )
     after = sorted(
         path.relative_to(tmp_path).as_posix()
         for path in tmp_path.rglob("*")

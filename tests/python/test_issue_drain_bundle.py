@@ -7,18 +7,18 @@ import pytest
 
 from simplicio.checkpoint_store import CheckpointStore
 from simplicio.delivery_auth import DeliveryAuthorization, DeliveryError, DeliveryExecutor
+from simplicio.litert_cli import LiteRTError, convert, doctor
 from simplicio.plan_compiler.execution_contracts import (
     BoundVerificationPlan,
     ChangeSet,
     ContextHashes,
     VerificationCommand,
 )
-from simplicio.progressive_verify import ProgressiveVerifier
 from simplicio.prism_envelope import ENVELOPE_SCHEMA, PrismExecutionEnvelope
 from simplicio.prism_receipts import build_effect_receipt, llm_projection, verify_receipt_offline
 from simplicio.prism_transaction import PrismTransaction
+from simplicio.progressive_verify import ProgressiveVerifier, ProgressiveVerifyError
 from simplicio.write_set_lock import LockError, WriteSetLockManager
-from simplicio.litert_cli import LiteRTError, convert, doctor
 from tests.python.test_execution_contracts_363 import changeset_payload
 
 
@@ -96,7 +96,7 @@ def test_progressive_verify_missing_command_fails(tmp_path):
         ],
     )
     verifier = ProgressiveVerifier(tmp_path)
-    with pytest.raises(Exception):
+    with pytest.raises(ProgressiveVerifyError):
         verifier.execute_plan(plan, source_hashes={"x": "e" * 64})
 
 

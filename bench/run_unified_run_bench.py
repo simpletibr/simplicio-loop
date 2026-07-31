@@ -100,11 +100,7 @@ def run_benchmark(
     live_results: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     fixtures = _normalize_cases(cases or DEFAULT_CASES)
-    rows = [
-        _fixture_row(case, mode)
-        for case in fixtures
-        for mode in MODES
-    ]
+    rows = [_fixture_row(case, mode) for case in fixtures for mode in MODES]
     live_errors: list[str] = []
     if live_results:
         rows, live_errors = _merge_live_results(rows, live_results)
@@ -114,8 +110,7 @@ def run_benchmark(
         summary["release_ready"] = False
     return {
         "benchmark": (
-            "unified-run-f5-live" if summary["evidence_level"] == "live"
-            else "unified-run-f5-fixture"
+            "unified-run-f5-live" if summary["evidence_level"] == "live" else "unified-run-f5-fixture"
         ),
         "issue": "#41",
         "phase": "F5",
@@ -238,10 +233,7 @@ def _merge_live_results(
     fixture_rows: list[dict[str, Any]],
     live_results: list[dict[str, Any]],
 ) -> tuple[list[dict[str, Any]], list[str]]:
-    rows_by_key = {
-        (row["case_id"], row["mode_id"]): dict(row)
-        for row in fixture_rows
-    }
+    rows_by_key = {(row["case_id"], row["mode_id"]): dict(row) for row in fixture_rows}
     errors = []
     seen_live_keys: set[tuple[str, str]] = set()
     for index, live in enumerate(live_results, start=1):
@@ -262,14 +254,10 @@ def _merge_live_results(
         duration_s = _nonnegative_number(live.get("duration_s"))
         cost_usd = _optional_nonnegative_number(live.get("cost_usd"))
         if not command or not isinstance(exit_code, int) or not isinstance(success, bool):
-            errors.append(
-                f"live row {index} missing required command, exit_code, or success"
-            )
+            errors.append(f"live row {index} missing required command, exit_code, or success")
             continue
         if success != (exit_code == 0):
-            errors.append(
-                f"live row {index} success must match exit_code==0"
-            )
+            errors.append(f"live row {index} success must match exit_code==0")
             continue
         if duration_s is None:
             errors.append(f"live row {index} duration_s must be finite and >= 0")
@@ -285,9 +273,7 @@ def _merge_live_results(
             {
                 "fixture": False,
                 "llm_invoked": bool(live.get("llm_invoked", mode_id != "cli_ag")),
-                "external_agent_invoked": bool(
-                    live.get("external_agent_invoked", mode_id == "codex_goal")
-                ),
+                "external_agent_invoked": bool(live.get("external_agent_invoked", mode_id == "codex_goal")),
                 "outcome": "live_success" if success else "live_failure",
                 "command": command,
                 "exit_code": exit_code,
@@ -375,7 +361,7 @@ def _verified_artifact(artifact: dict[str, Any]) -> tuple[dict[str, Any], str | 
     artifact_path = _resolve_artifact_path(path_value.strip())
     if artifact_path is None:
         return {}, "path must reference a file under repo root"
-    actual_sha = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+    actual_sha = _artifact_sha256(artifact_path)
     if actual_sha != expected_sha:
         return {}, "sha256 does not match file contents"
     return {
@@ -384,6 +370,14 @@ def _verified_artifact(artifact: dict[str, Any]) -> tuple[dict[str, Any], str | 
         "kind": kind_value.strip(),
         "verified": True,
     }, None
+
+
+def _artifact_sha256(path: Path) -> str:
+    """Hash text evidence canonically so Git line endings do not invalidate it."""
+    content = path.read_bytes()
+    if path.suffix.lower() in {".json", ".jsonl", ".md", ".py", ".toml", ".txt", ".yaml", ".yml"}:
+        content = content.replace(b"\r\n", b"\n")
+    return hashlib.sha256(content).hexdigest()
 
 
 def _resolve_artifact_path(path_value: str) -> Path | None:
@@ -411,33 +405,21 @@ def _summarize(
         by_mode[mode["mode_id"]] = {
             "label": mode["label"],
             "rows": len(mode_rows),
-            "manual_decomposition_cases": sum(
-                1 for row in mode_rows if row["manual_decomposition_required"]
-            ),
-            "replan_supported_cases": sum(
-                1 for row in mode_rows if row["replan_supported"] is True
-            ),
+            "manual_decomposition_cases": sum(1 for row in mode_rows if row["manual_decomposition_required"]),
+            "replan_supported_cases": sum(1 for row in mode_rows if row["replan_supported"] is True),
             "resume_state_supported_cases": sum(
                 1 for row in mode_rows if row["resume_state_supported"] is True
             ),
-            "cost_observable_cases": sum(
-                1 for row in mode_rows if row["cost_observable"] is True
-            ),
-            "cost_cap_required_cases": sum(
-                1 for row in mode_rows if row["cost_cap_required"] is True
-            ),
+            "cost_observable_cases": sum(1 for row in mode_rows if row["cost_observable"] is True),
+            "cost_cap_required_cases": sum(1 for row in mode_rows if row["cost_cap_required"] is True),
             "llm_invocations": sum(1 for row in mode_rows if row["llm_invoked"]),
-            "external_agent_invocations": sum(
-                1 for row in mode_rows if row["external_agent_invoked"]
-            ),
+            "external_agent_invocations": sum(1 for row in mode_rows if row["external_agent_invoked"]),
         }
 
     expected_rows = len(cases) * len(MODES)
     live_rows = [row for row in rows if row["fixture"] is False]
     complete_live_matrix = len(live_rows) == expected_rows
-    all_live_success = complete_live_matrix and all(
-        row.get("success") is True for row in live_rows
-    )
+    all_live_success = complete_live_matrix and all(row.get("success") is True for row in live_rows)
     codex_live = any(
         row["mode_id"] == "codex_goal"
         and row["fixture"] is False
@@ -457,14 +439,12 @@ def _summarize(
             release_blockers.append("all live comparison rows must succeed")
         if not codex_live:
             release_blockers.append("Codex /goal live row needs transcript hash")
-        if not any(
-            _has_verified_artifact(row)
-            for row in live_rows
-            if row["scope"] == "sprint"
-        ):
+        if not any(_has_verified_artifact(row) for row in live_rows if row["scope"] == "sprint"):
             release_blockers.append("artifact collection for sprint DoD evidence")
-    evidence_level = "live" if complete_live_matrix and not release_blockers else (
-        "partial-live" if live_rows else "fixture"
+    evidence_level = (
+        "live"
+        if complete_live_matrix and not release_blockers
+        else ("partial-live" if live_rows else "fixture")
     )
     return {
         "fixture_only": not live_rows,
@@ -493,10 +473,7 @@ def _has_verified_artifact(row: dict[str, Any]) -> bool:
     artifacts = row.get("artifacts")
     if not isinstance(artifacts, list):
         return False
-    return any(
-        isinstance(artifact, dict) and artifact.get("verified") is True
-        for artifact in artifacts
-    )
+    return any(isinstance(artifact, dict) and artifact.get("verified") is True for artifact in artifacts)
 
 
 def write_reports(result: dict[str, Any], json_path: Path, md_path: Path) -> None:
@@ -566,10 +543,7 @@ def _to_markdown(result: dict[str, Any]) -> str:
         f"- modes: {summary['mode_count']}",
         f"- rows: {summary['row_count']}/{summary['expected_row_count']}",
         f"- release ready: {summary['release_ready']}",
-        (
-            "- ready for live run: "
-            f"{summary['head_to_head_ready_for_live_run']}"
-        ),
+        (f"- ready for live run: {summary['head_to_head_ready_for_live_run']}"),
         f"- live rows: {summary['live_row_count']}/{summary['expected_row_count']}",
         "",
         "## Modes",
