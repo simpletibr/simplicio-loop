@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import os
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,8 +17,13 @@ from simplicio_mapper.scoped_context import (
     REASON_TARGET_OUTSIDE_SCOPE,
     ScopedContextError,
     ScopedRequest,
+    _artifact_digest,
+    _artifact_records,
     _generation_digest,
+    _generation_id,
+    _repo_identity,
     _run_background_worker,
+    _write_generation,
     build_scoped_context,
     run_scoped_context_cli,
 )
@@ -39,8 +45,8 @@ class ScopedContextTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def _artifacts(self):
-        artifact_dir = self.root / ".simplicio"
+    def _write_artifacts(self, root: Path):
+        artifact_dir = root / ".simplicio"
         artifact_dir.mkdir(exist_ok=True)
         files = [
             {"path": "src/target.py"},
@@ -56,6 +62,9 @@ class ScopedContextTests(unittest.TestCase):
             {"source_file": "src/caller.py", "target_file": "src/target.py"},
         ]}), encoding="utf-8")
         (artifact_dir / "architecture-inventory.json").write_text(json.dumps({"schema": "fixture"}), encoding="utf-8")
+
+    def _artifacts(self):
+        self._write_artifacts(self.root)
 
     def test_foreground_handoff_is_ready_with_hash_and_started_boundary(self):
         payload = build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="task", attempt_id="attempt-1", cache_root=str(self.cache), start_background=False)
@@ -246,6 +255,107 @@ class ScopedContextTests(unittest.TestCase):
             status = run_scoped_context_cli([str(self.root), "--target", "../outside.py", "--no-background", "--json", "--cache-root", str(self.cache)])
         self.assertEqual(1, status)
         self.assertIn(REASON_TARGET_OUTSIDE_SCOPE, output.getvalue())
+
+
+    def test_generation_identity_rejects_coherent_input_tamper(self):
+        build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="coherent", cache_root=str(self.cache), start_background=False)
+        generation_path = next(self.cache.rglob("generations/*.json"))
+        value = json.loads(generation_path.read_text(encoding="utf-8"))
+        value["generation_inputs"]["task"] = "attacker-controlled"
+        value["generation_id"] = _generation_id(value)
+        value["content_digest"] = _generation_digest(value)
+        generation_path.write_text(json.dumps(value), encoding="utf-8")
+        with self.assertRaises(ScopedContextError) as error:
+            build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="coherent", cache_root=str(self.cache), start_background=False)
+        self.assertEqual(REASON_CACHE_INCOMPATIBLE, error.exception.reason_code)
+
+    def test_existing_generation_collision_fails_closed(self):
+        build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="collision", cache_root=str(self.cache), start_background=False)
+        generation_path = next(self.cache.rglob("generations/*.json"))
+        value = json.loads(generation_path.read_text(encoding="utf-8"))
+        value["budget"]["effective_bytes"] += 1
+        value["content_digest"] = _generation_digest(value)
+        with self.assertRaises(ScopedContextError) as error:
+            _write_generation(self.cache, self.root, _repo_identity(self.root), value)
+        self.assertEqual(REASON_CACHE_INCOMPATIBLE, error.exception.reason_code)
+
+    def test_artifact_path_containment_is_checked_before_read(self):
+        outside_artifact = self.root.parent / "project-map.json"
+        outside_artifact.write_text("{}", encoding="utf-8")
+        try:
+            with self.assertRaises(ScopedContextError) as error:
+                _artifact_records(self.root, self.root.parent)
+            self.assertEqual(REASON_SCOPED_ARTIFACT_STALE, error.exception.reason_code)
+        finally:
+            outside_artifact.unlink(missing_ok=True)
+
+    def test_cached_span_containment_is_portable_without_symlink_support(self):
+        build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="span-containment", cache_root=str(self.cache), start_background=False)
+        generation_path = next(self.cache.rglob("generations/*.json"))
+        value = json.loads(generation_path.read_text(encoding="utf-8"))
+        value["spans"][0]["path"] = "../escape.py"
+        value["generation_id"] = _generation_id(value)
+        value["content_digest"] = _generation_digest(value)
+        generation_path.write_text(json.dumps(value), encoding="utf-8")
+        with self.assertRaises(ScopedContextError) as error:
+            build_scoped_context(str(self.root), target_hints=["src/target.py"], task_fingerprint="span-containment", cache_root=str(self.cache), start_background=False)
+        self.assertEqual(REASON_CACHE_INCOMPATIBLE, error.exception.reason_code)
+
+    def test_nearest_tests_and_precedents_are_bounded_and_ranked(self):
+        self._artifacts()
+        project_map = json.loads((self.root / ".simplicio/project-map.json").read_text(encoding="utf-8"))
+        for index in range(6):
+            path = f"tests/test_target_variant_{index}.py"
+            (self.root / path).write_text("def test_variant(): pass\n", encoding="utf-8")
+            project_map["files"].append({"path": path})
+        (self.root / ".simplicio/project-map.json").write_text(json.dumps(project_map), encoding="utf-8")
+        precedents = {"items": [
+            {"id": f"p{index}", "path": f"src/target_example_{index}.py", "summary": "target example"}
+            for index in range(6)
+        ]}
+        (self.root / ".simplicio/precedent-index.json").write_text(json.dumps(precedents), encoding="utf-8")
+        payload = build_scoped_context(str(self.root), target_hints=["src/target.py"], cache_root=str(self.cache), start_background=False)
+        nearest_tests = [row["path"] for row in payload["selected_paths"] if "nearest_test" in row["why"]]
+        self.assertLessEqual(len(nearest_tests), 3)
+        self.assertEqual(nearest_tests, sorted(nearest_tests))
+        self.assertLessEqual(len(payload["precedents"]), 3)
+        self.assertEqual([item["rank"] for item in payload["precedents"]], list(range(1, len(payload["precedents"]) + 1)))
+        self.assertEqual(payload["artifact_digest"], payload["generation"]["artifact_digest"])
+
+    def test_cross_worktree_reuse_renders_request_root(self):
+        repo_a = self.root / "repo-a"
+        repo_a.mkdir()
+        (repo_a / "src").mkdir()
+        (repo_a / "src/target.py").write_text("value = 1\n", encoding="utf-8")
+        (repo_a / "src/helper.py").write_text("value = 1\n", encoding="utf-8")
+        (repo_a / "src/caller.py").write_text("from src.target import value\n", encoding="utf-8")
+        (repo_a / "tests").mkdir()
+        (repo_a / "tests/test_target.py").write_text("def test_target(): pass\n", encoding="utf-8")
+        (repo_a / "pyproject.toml").write_text("[build-system]\n", encoding="utf-8")
+        self._write_artifacts(repo_a)
+        common_git = self.root / "common-git"
+        (common_git / "worktrees/a").mkdir(parents=True)
+        (common_git / "worktrees/b").mkdir()
+        (repo_a / ".git").write_text(f"gitdir: {common_git / 'worktrees/a'}\n", encoding="utf-8")
+        repo_b = self.root / "repo-b"
+        shutil.copytree(repo_a / "src", repo_b / "src")
+        shutil.copytree(repo_a / "tests", repo_b / "tests")
+        shutil.copytree(repo_a / ".simplicio", repo_b / ".simplicio")
+        shutil.copy2(repo_a / "pyproject.toml", repo_b / "pyproject.toml")
+        (repo_b / ".git").write_text(f"gitdir: {common_git / 'worktrees/b'}\n", encoding="utf-8")
+        first = build_scoped_context(str(repo_a), target_hints=["src/target.py"], task_fingerprint="worktree", cache_root=str(self.cache), start_background=False)
+        second = build_scoped_context(str(repo_b), target_hints=["src/target.py"], task_fingerprint="worktree", cache_root=str(self.cache), start_background=False)
+        self.assertEqual(first["generation"]["id"], second["generation"]["id"])
+        self.assertEqual(Path(second["repository"]["root"]), repo_b.resolve())
+        self.assertEqual(second["repository"]["repository_id"], first["repository"]["repository_id"])
+
+    def test_machine_output_has_stable_action_and_artifact_digest(self):
+        payload = build_scoped_context(str(self.root), target_hints=["src/target.py"], cache_root=str(self.cache), start_background=False)
+        self.assertEqual("RUN_FOCUSED_VERIFICATION", payload["recommended_next_action"])
+        self.assertEqual(payload["artifact_digest"], payload["generation"]["artifact_digest"])
+        records = _artifact_records(self.root, self.root / ".simplicio")[1]
+        self.assertEqual(payload["artifact_digest"], _artifact_digest(records))
+        self.assertEqual("0.26.2", payload["generation"]["producer"]["version"])
 
 
 if __name__ == "__main__":

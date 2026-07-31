@@ -30,6 +30,7 @@ def _invoke(root: Path, cache: Path, task: str, changed: tuple[str, ...] = ()) -
         "cpu_ms": float(metrics["cpu_ms"]),
         "parsed_files": int(metrics["files_parsed"]),
         "reused_files": int(metrics["files_reused"]),
+        "artifact_files_parsed": int(metrics["artifact_files_parsed"]),
         "artifact_bytes": int(metrics["artifact_bytes"]),
         "cache": str(metrics["cache"]),
     }
@@ -55,6 +56,7 @@ def _summary(samples: list[dict[str, float | int | str]]) -> dict[str, object]:
         },
         "parsed_files": sum(int(sample["parsed_files"]) for sample in samples),
         "reused_files": sum(int(sample["reused_files"]) for sample in samples),
+        "artifact_files_parsed": sum(int(sample["artifact_files_parsed"]) for sample in samples),
         "artifact_bytes": sum(int(sample["artifact_bytes"]) for sample in samples),
         "cache_states": sorted({str(sample["cache"]) for sample in samples}),
     }
@@ -72,8 +74,21 @@ def main() -> int:
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         (root / "src").mkdir()
+        (root / "tests").mkdir()
         target = root / "src/target.py"
         target.write_text("value = 1\n", encoding="utf-8")
+        (root / "src/helper.py").write_text("value = 1\n", encoding="utf-8")
+        (root / "src/caller.py").write_text("from src.target import value\n", encoding="utf-8")
+        (root / "tests/test_target.py").write_text("def test_target(): pass\n", encoding="utf-8")
+        (root / "pyproject.toml").write_text("[build-system]\n", encoding="utf-8")
+        artifact_dir = root / ".simplicio"
+        artifact_dir.mkdir()
+        files = [{"path": path} for path in ("src/target.py", "src/helper.py", "src/caller.py", "tests/test_target.py", "pyproject.toml")]
+        (artifact_dir / "project-map.json").write_text(json.dumps({"files": files}), encoding="utf-8")
+        (artifact_dir / "symbol-index.json").write_text(json.dumps({"symbols": [{"name": "value", "defined_in": "src/target.py"}]}), encoding="utf-8")
+        (artifact_dir / "call-graph.json").write_text(json.dumps({"edges": [{"source_file": "src/target.py", "target_file": "src/helper.py"}, {"source_file": "src/caller.py", "target_file": "src/target.py"}]}), encoding="utf-8")
+        (artifact_dir / "architecture-inventory.json").write_text(json.dumps({"schema": "benchmark"}), encoding="utf-8")
+        (artifact_dir / "precedent-index.json").write_text(json.dumps({"items": [{"id": "benchmark", "path": "src/target.py", "summary": "target benchmark"}]}), encoding="utf-8")
         cache = root / "cache"
 
         cold = [_invoke(root, root / f"cold-{index}", f"cold-{index}") for index in range(args.repetitions)]
