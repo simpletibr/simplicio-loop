@@ -193,15 +193,41 @@ def mutation_receipt(
     entrypoint: str,
     policy: StandalonePolicy | None = None,
     runtime_gate_verified: bool = False,
+    available: dict[str, Any] | None = None,
+    plan: Any = None,
+    changeset: Any = None,
+    files: list[Any] | None = None,
+    verification: dict[str, Any] | None = None,
+    retry: dict[str, Any] | None = None,
+    duration_ms: int | float | None = None,
+    final_status: str | None = None,
 ) -> dict[str, Any]:
-    """Return additive route metadata without claiming an unobserved Runtime gate."""
+    """Return one stable route receipt without claiming an unobserved gate."""
+    available_payload = dict(available or {})
+    verification_payload = dict(verification or {})
+    verification_payload.setdefault("commands", [])
+    verification_payload.setdefault("results", [])
+    retry_payload = dict(retry or {})
+    retry_payload.setdefault("attempt", 1)
+    retry_payload.setdefault("max_attempts", 1)
+    retry_payload.setdefault("retryable", False)
     return {
         "schema": MUTATION_ROUTE_SCHEMA,
+        "receipt_version": 1,
         "entrypoint": entrypoint,
         "route": route,
         "runtime_gated": runtime_gate_verified,
         "legacy": route == "legacy_standalone",
         "migration_phase": policy.phase if policy is not None else None,
+        "available": available_payload,
+        "available_tuple": [key for key, value in available_payload.items() if value is not None],
+        "plan": plan,
+        "changeset": changeset,
+        "files": list(files or []),
+        "verification": verification_payload,
+        "retry": retry_payload,
+        "duration_ms": duration_ms,
+        "final_status": final_status or ("blocked" if route == "blocked" else "applied"),
     }
 
 

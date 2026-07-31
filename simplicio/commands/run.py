@@ -144,6 +144,37 @@ def _first_file_signal(signals: list[str]) -> str | None:
     return None
 
 
+def _feature_context_kwargs(a: argparse.Namespace) -> dict:
+    """Keep standalone feature/sprint dispatch bound to the parsed context."""
+    prepared = getattr(a, "_execution_inputs", None)
+    forwarded = {
+        "mode": getattr(a, "mode", None),
+        "repo_root": getattr(a, "repo_root", None),
+        "scope_root": getattr(a, "scope_root", None),
+        "context_snapshot": getattr(prepared, "context_snapshot", None),
+        "context_pack": getattr(prepared, "context_pack", None),
+        "execution_context": getattr(prepared, "execution_context", None),
+        "authorization": getattr(prepared, "authorization", None),
+        "effect_sink": getattr(prepared, "effect_sink", None),
+        "runtime_handshake": getattr(prepared, "runtime_handshake", None),
+        "integrated_attempt": getattr(prepared, "attempt", None),
+        "attempt_id": getattr(a, "attempt_id", None),
+        "lease_id": getattr(a, "lease_id", None),
+        "fencing_token": getattr(a, "fencing_token", None),
+        "context_handle": getattr(a, "context_handle", None),
+        "context_snapshot_id": getattr(a, "context_snapshot_id", None),
+        "context_pack_hash": getattr(a, "context_pack_hash", None),
+        "coordinator_kind": getattr(a, "coordinator_kind", None),
+        "coordinator_id": getattr(a, "coordinator_id", None),
+    }
+    forwarded = {key: value for key, value in forwarded.items() if value is not None}
+    return {
+        "repo_root": getattr(a, "repo_root", None),
+        "scope_root": getattr(a, "scope_root", None),
+        "forwarded_pipeline_kwargs": forwarded,
+    }
+
+
 def _run_scratch(a: argparse.Namespace) -> int:
     from ..scratch.cli import main as scratch_main
 
@@ -191,6 +222,7 @@ def _run_feature(a: argparse.Namespace) -> int:
             max_cost=a.max_cost,
             quiet=a.json,
             task_runner=task_runner,
+            **_feature_context_kwargs(a),
         )
     except ValueError as exc:
         print(f"{CLI_PROG} run: {exc}", file=sys.stderr)
@@ -456,6 +488,7 @@ def _run_sprint(a: argparse.Namespace) -> int:
                     max_cost=None,
                     quiet=a.json,
                     task_runner=task_runner,
+                    **_feature_context_kwargs(a),
                 )
             except ValueError as exc:
                 result = {

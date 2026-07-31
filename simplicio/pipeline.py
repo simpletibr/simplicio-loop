@@ -28,7 +28,7 @@ from .pipeline_stages import (
     IMPACT_RESULT_NOT_NEEDED,
     IMPACT_RESULT_PASSED,
     IMPACT_RESULT_UNVERIFIED,
-    ApplyStageResult,
+    authorized_path_warnings,
     bound_path_drift,
     build_retry_feedback,
     classify_failure,
@@ -73,11 +73,52 @@ def _attach_contract_receipt(
     effective_mode: str,
     authorization: EffectAuthorization | None = None,
     verification_status: str = "unverified",
+    attempt: AttemptContext | None = None,
+    duration_ms: int | float | None = None,
+    retry: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     patch_value = result.get("patch")
     patch: dict[str, Any] = patch_value if isinstance(patch_value, dict) else {}
     verify_value = result.get("verify")
     verify: dict[str, Any] = verify_value if isinstance(verify_value, dict) else {}
+    binding = result.get("context_binding")
+    if isinstance(binding, dict):
+        binding_snapshot = str(binding.get("snapshot_id") or "").strip()
+        binding_pack = str(binding.get("pack_hash") or "").strip()
+        if binding_snapshot and binding_pack:
+            task_context = TaskContext.from_values(
+                repo_root=task_context.repo_root,
+                scope_root=task_context.scope_root,
+                target=task_context.target,
+                context_snapshot_id=binding_snapshot,
+                context_pack_hash=binding_pack,
+                attempt_id=task_context.attempt_id,
+                require_identity=False,
+            )
+    observation = result.get("observation")
+    observation_payload = observation if isinstance(observation, dict) else {}
+    verification_plans = result.get("verifications")
+    commands = (
+        [
+            str(item.get("command"))
+            for item in verification_plans
+            if isinstance(item, dict) and item.get("command")
+        ]
+        if isinstance(verification_plans, list)
+        else []
+    )
+    verification_results = observation_payload.get("validation", [])
+    if not isinstance(verification_results, list):
+        verification_results = []
+    if not verification_results and verify:
+        verification_results = [verify]
+    files = result.get("files_changed")
+    if not isinstance(files, list):
+        files = patch.get("files", []) if isinstance(patch.get("files"), list) else []
+    retry_payload = dict(retry or {})
+    retry_payload.setdefault("attempt", 1)
+    retry_payload.setdefault("max_attempts", 1)
+    retry_payload.setdefault("retryable", observation_payload.get("retryability") == "retryable")
     receipt = task_context.receipt(
         route=route,
         effective_mode=effective_mode,
@@ -85,6 +126,16 @@ def _attach_contract_receipt(
         before_digest=patch.get("base_sha"),
         after_digest=patch.get("candidate_sha"),
         verification_status=verification_status or str(verify.get("status", "unverified")),
+        lease_id=attempt.lease_id if attempt is not None else None,
+        fencing_token=attempt.fencing_token if attempt is not None else None,
+        context_handle=attempt.context_handle if attempt is not None else None,
+        plan=result.get("plan"),
+        changeset=result.get("changeset", result.get("effects")),
+        files=files,
+        verification={"commands": commands, "results": verification_results},
+        retry=retry_payload,
+        duration_ms=duration_ms if duration_ms is not None else result.get("duration_ms"),
+        final_status="applied" if result.get("applied") else str(result.get("status", "blocked")),
     )
     result["mutation_authorization_receipt"] = receipt
     return result
@@ -196,9 +247,26 @@ def _git_apply_patch(root, patch):
     return _stage_git_apply_patch(root, patch, subprocess_run=subprocess.run)
 
 
-def _apply_and_test_attempt(output, root, bound_paths=None, *, promote_on_success=True):
+def _apply_and_test_attempt(
+    output,
+    root,
+    bound_paths=None,
+    *,
+    promote_on_success=True,
+    repo_root=None,
+    scope_root=None,
+):
     if _apply_and_test is not _DEFAULT_APPLY_AND_TEST:
-        ok, log = _apply_and_test(output, root, bound_paths)
+        path_warnings = authorized_path_warnings(
+            extract_changed_files(output),
+            root=root,
+            repo_root=repo_root,
+            scope_root=scope_root,
+        )
+        if path_warnings:
+            ok, log = False, "pre-apply validation failed: " + "; ".join(path_warnings)
+        else:
+            ok, log = _apply_and_test(output, root, bound_paths)
 
         class _PatchedAttempt:
             def __init__(self, ok, log):
@@ -217,6 +285,8 @@ def _apply_and_test_attempt(output, root, bound_paths=None, *, promote_on_succes
         git_apply_patch_fn=_git_apply_patch,
         prepare_project_command_fn=prepare_project_command,
         promote_on_success=promote_on_success,
+        repo_root=repo_root,
+        scope_root=scope_root,
     )
     _LAST_VERIFY_RECEIPT = result.verify_receipt
     _remember_patch_receipt(result.patch_receipt)
@@ -358,7 +428,9 @@ def run_task(
     supplied_snapshot_id = None if context_snapshot_id is None else str(context_snapshot_id).strip()
     supplied_pack_hash = None if context_pack_hash is None else str(context_pack_hash).strip()
     snapshot_identity = canonical_snapshot_id
-    pack_identity = canonical_pack_hash
+    # Issue #301 compatibility: older ContextPack payloads may omit the raw
+    # pack_hash; integrated binding remains authoritative for that identity.
+    pack_identity = canonical_pack_hash or supplied_pack_hash or ""
     attempt_identity = (
         attempt_id
         if attempt_id is not None
@@ -424,7 +496,7 @@ def run_task(
             "CONTEXT_SNAPSHOT_ID_MISMATCH",
             "supplied context_snapshot_id does not match the canonical Mapper snapshot",
         )
-    elif supplied_pack_hash is not None and supplied_pack_hash != canonical_pack_hash:
+    elif supplied_pack_hash is not None and canonical_pack_hash and supplied_pack_hash != canonical_pack_hash:
         identity_error = TaskContextError(
             "CONTEXT_PACK_HASH_MISMATCH",
             "supplied context_pack_hash does not match the canonical Mapper ContextPack",
@@ -436,7 +508,12 @@ def run_task(
         "on",
     }
     identity_required = not dry_run_task and (
-        (profile.effective_mode == "integrated" and context_snapshot is not None and context_pack is not None)
+        (
+            profile.effective_mode == "integrated"
+            and context_snapshot is not None
+            and context_pack is not None
+            and bool(snapshot_identity and pack_identity and attempt_identity)
+        )
         or (
             profile.effective_mode == "standalone"
             and (
@@ -591,6 +668,7 @@ def run_task(
     if profile.effective_mode == "integrated":
         from .standalone_migration import mutation_receipt, record_effect_unknown
 
+        integrated_started_at = time.monotonic()
         result = run_integrated(
             root,
             stack,
@@ -616,9 +694,40 @@ def run_task(
             deadline=deadline,
             policy_revision=policy_revision,
             base_hash=base_hash,
+            context_pack_hash=supplied_pack_hash,
         )
+        result["duration_ms"] = int((time.monotonic() - integrated_started_at) * 1000)
         result["execution_profile"] = profile.to_dict()
-        result["mutation_receipt"] = mutation_receipt("runtime_effect_api", entrypoint="task")
+        verification_plans = result.get("verifications")
+        verification_commands = (
+            [
+                str(item.get("command"))
+                for item in verification_plans
+                if isinstance(item, dict) and item.get("command")
+            ]
+            if isinstance(verification_plans, list)
+            else []
+        )
+        observation_payload = result.get("observation")
+        observation_payload = observation_payload if isinstance(observation_payload, dict) else {}
+        result["mutation_receipt"] = mutation_receipt(
+            "runtime_effect_api",
+            entrypoint="task",
+            plan=result.get("plan"),
+            changeset=result.get("effects"),
+            files=result.get("files_changed"),
+            verification={
+                "commands": verification_commands,
+                "results": observation_payload.get("validation", []),
+            },
+            retry={
+                "attempt": attempt_number,
+                "max_attempts": 1,
+                "retryable": observation_payload.get("retryability") == "retryable",
+            },
+            duration_ms=result.get("duration_ms"),
+            final_status="applied" if result.get("applied") else str(result.get("status", "blocked")),
+        )
         result = _attach_contract_receipt(
             result,
             task_context=task_context,
@@ -626,6 +735,13 @@ def run_task(
             effective_mode=profile.effective_mode,
             authorization=authorization,
             verification_status=str(result.get("observation", {}).get("outcome", "unverified")),
+            attempt=integrated_attempt,
+            duration_ms=result.get("duration_ms"),
+            retry={
+                "attempt": attempt_number,
+                "max_attempts": 1,
+                "retryable": result.get("observation", {}).get("retryability") == "retryable",
+            },
         )
         if result.get("observation", {}).get("outcome") == "effect_unknown":
             record_effect_unknown(root)
@@ -687,7 +803,14 @@ def run_task(
         bound_path_baseline = snapshot_bound_paths(root, bound_paths)
         output = generate(prompt)
         drift_warnings = bound_path_drift(root, bound_paths, bound_path_baseline)
-        validation = validate_generated_output(output, bound_paths, mode=get_validation_mode(), root=root)
+        validation = validate_generated_output(
+            output,
+            bound_paths,
+            mode=get_validation_mode(),
+            root=root,
+            repo_root=declared_repo_root,
+            scope_root=declared_scope_root,
+        )
         warnings = list(drift_warnings)
         if not validation.ok:
             warnings.append(validation.reason)
@@ -883,12 +1006,21 @@ def run_task(
                 ],
             )
         last_output = output or ""
-        last_validation = validate_generated_output(output, bound_paths, root=root)
-        if getattr(_apply_and_test, "__module__", __name__) != __name__:
-            legacy_ok, legacy_log = _apply_and_test(output, root, bound_paths)
-            attempt = ApplyStageResult(legacy_ok, legacy_log, None, None)
-        else:
-            attempt = _apply_and_test_attempt(output, root, bound_paths, promote_on_success=False)
+        last_validation = validate_generated_output(
+            output,
+            bound_paths,
+            root=root,
+            repo_root=declared_repo_root,
+            scope_root=declared_scope_root,
+        )
+        attempt = _apply_and_test_attempt(
+            output,
+            root,
+            bound_paths,
+            promote_on_success=False,
+            repo_root=declared_repo_root,
+            scope_root=declared_scope_root,
+        )
         ok, log = attempt.ok, attempt.log
         last_verify_receipt = _LAST_VERIFY_RECEIPT
         last_log = log
@@ -1005,7 +1137,14 @@ def run_task(
         # ── Primary test or impact test failed — try fixers ──
         fixer_result = try_static_fixers(log, root)
         if fixer_result.applied:
-            attempt = _apply_and_test_attempt(output, root, bound_paths, promote_on_success=False)
+            attempt = _apply_and_test_attempt(
+                output,
+                root,
+                bound_paths,
+                promote_on_success=False,
+                repo_root=declared_repo_root,
+                scope_root=declared_scope_root,
+            )
             ok, fixed_log = attempt.ok, attempt.log
             last_verify_receipt = _LAST_VERIFY_RECEIPT
             log_run(
@@ -1148,8 +1287,17 @@ def run_task(
     )
 
 
-def run(root, stack, goal, target, criteria, constraints, bound_paths=None):
-    result = run_task(root, stack, goal, target, criteria, constraints, bound_paths=bound_paths)
+def run(root, stack, goal, target, criteria, constraints, bound_paths=None, **kwargs: Any):
+    result = run_task(
+        root,
+        stack,
+        goal,
+        target,
+        criteria,
+        constraints,
+        bound_paths=bound_paths,
+        **kwargs,
+    )
     if result["applied"]:
         return result
     return None

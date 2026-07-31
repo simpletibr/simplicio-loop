@@ -165,9 +165,36 @@ class TaskContext:
         before_digest: str | None = None,
         after_digest: str | None = None,
         verification_status: str = "unverified",
+        lease_id: str | None = None,
+        fencing_token: str | None = None,
+        context_handle: str | None = None,
+        plan: Any = None,
+        changeset: Any = None,
+        files: list[Any] | None = None,
+        verification: dict[str, Any] | None = None,
+        retry: dict[str, Any] | None = None,
+        duration_ms: int | float | None = None,
+        final_status: str | None = None,
     ) -> dict[str, Any]:
+        """Return one stable receipt shape for every mutation outcome."""
+        available = {
+            "attempt_id": self.attempt_id or None,
+            "lease_id": lease_id,
+            "fencing_token": fencing_token,
+            "context_handle": context_handle,
+            "authorization_id": authorization_id,
+        }
+        verification_payload = dict(verification or {})
+        verification_payload.setdefault("commands", [])
+        verification_payload.setdefault("results", [])
+        verification_payload.setdefault("status", verification_status)
+        retry_payload = dict(retry or {})
+        retry_payload.setdefault("attempt", 1)
+        retry_payload.setdefault("max_attempts", 1)
+        retry_payload.setdefault("retryable", False)
         return {
             "schema": "simplicio.mutation-authorization-receipt/v1",
+            "receipt_version": 1,
             "route": route,
             "effective_mode": effective_mode,
             "context_hash": self.context_hash,
@@ -175,6 +202,19 @@ class TaskContext:
             "before_digest": before_digest,
             "after_digest": after_digest,
             "verification_status": verification_status,
+            "available": available,
+            "available_tuple": [key for key, value in available.items() if value is not None],
+            "attempt_id": self.attempt_id or None,
+            "lease_id": lease_id,
+            "fencing_token": fencing_token,
+            "context_handle": context_handle,
+            "plan": plan,
+            "changeset": changeset,
+            "files": list(files or []),
+            "verification": verification_payload,
+            "retry": retry_payload,
+            "duration_ms": duration_ms,
+            "final_status": final_status or ("applied" if verification_status == "verified" else "blocked"),
             "task_context": self.to_dict(),
         }
 

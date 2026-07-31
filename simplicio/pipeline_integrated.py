@@ -110,6 +110,7 @@ def run_integrated(
     deadline: str | None = None,
     policy_revision: str = DEFAULT_INTEGRATED_POLICY_REVISION,
     base_hash: str = "",
+    context_pack_hash: str | None = None,
 ) -> dict[str, Any]:
     """Compile a plan and hand its effects to ``effect_sink``; never write.
 
@@ -193,6 +194,25 @@ def run_integrated(
             execution_context_payload=execution_context,
         )
         verify_context_sources(binding, source_root=root)
+        canonical_pack_hash = str(getattr(getattr(binding, "pack", None), "pack_hash", "") or "")
+        supplied_pack_hash = None if context_pack_hash is None else str(context_pack_hash).strip()
+        if supplied_pack_hash is not None and supplied_pack_hash != canonical_pack_hash:
+            return _task_result(
+                target,
+                prompt,
+                "",
+                applied=False,
+                status="blocked",
+                warnings=["CONTEXT_PACK_HASH_MISMATCH"],
+                blocked_preconditions=[
+                    {
+                        "code": "CONTEXT_PACK_HASH_MISMATCH",
+                        "message": (
+                            "supplied context_pack_hash does not match the canonical Mapper ContextPack"
+                        ),
+                    }
+                ],
+            )
     except MapperContextError as exc:
         warning = (
             exc.code if exc.code in {"SOURCE_DRIFT", "CONTEXT_ROOT_PATH_MISMATCH"} else "INCOMPATIBLE_CONTEXT"
@@ -266,6 +286,25 @@ def run_integrated(
     # an implicit re-index, so integrated mode remains effect-free in Dev CLI.
     try:
         verify_context_sources(binding, source_root=root)
+        canonical_pack_hash = str(getattr(getattr(binding, "pack", None), "pack_hash", "") or "")
+        supplied_pack_hash = None if context_pack_hash is None else str(context_pack_hash).strip()
+        if supplied_pack_hash is not None and supplied_pack_hash != canonical_pack_hash:
+            return _task_result(
+                target,
+                prompt,
+                "",
+                applied=False,
+                status="blocked",
+                warnings=["CONTEXT_PACK_HASH_MISMATCH"],
+                blocked_preconditions=[
+                    {
+                        "code": "CONTEXT_PACK_HASH_MISMATCH",
+                        "message": (
+                            "supplied context_pack_hash does not match the canonical Mapper ContextPack"
+                        ),
+                    }
+                ],
+            )
     except MapperContextError as exc:
         warning = (
             exc.code if exc.code in {"SOURCE_DRIFT", "CONTEXT_ROOT_PATH_MISMATCH"} else "INCOMPATIBLE_CONTEXT"

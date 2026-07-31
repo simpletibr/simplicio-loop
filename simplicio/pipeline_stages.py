@@ -10,7 +10,7 @@ import re
 import shutil
 import subprocess
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from .adaptive import get_validation_mode
@@ -486,7 +486,63 @@ def _full_file_replacement_hints(text: str, root: str | os.PathLike | None, boun
     ]
 
 
-def validate_generated_output(output, bound_paths=None, mode=None, root=None) -> ValidationResult:
+def _path_is_inside(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
+
+def authorized_path_warnings(
+    files: list[str],
+    *,
+    root: str | os.PathLike[str],
+    repo_root: str | os.PathLike[str] | None = None,
+    scope_root: str | os.PathLike[str] | None = None,
+) -> list[str]:
+    """Reject every changed path outside the declared mutation roots."""
+    mutation_root = Path(root).resolve()
+    authorized_repo = Path(repo_root if repo_root is not None else mutation_root).resolve()
+    raw_scope = Path(scope_root if scope_root is not None else authorized_repo)
+    authorized_scope = (
+        (authorized_repo / raw_scope).resolve() if not raw_scope.is_absolute() else raw_scope.resolve()
+    )
+    if authorized_repo != mutation_root:
+        return ["REPO_ROOT_MISMATCH: authorized repo_root must equal the actual mutation root"]
+    if not _path_is_inside(authorized_scope, authorized_repo):
+        return ["ROOT_SCOPE_MISMATCH: authorized scope_root must be inside repo_root"]
+
+    warnings: list[str] = []
+    for raw_path in files:
+        normalized = str(raw_path).replace("\\", "/")
+        posix_path = PurePosixPath(normalized)
+        windows_path = PureWindowsPath(str(raw_path))
+        if (
+            not normalized
+            or posix_path.is_absolute()
+            or windows_path.is_absolute()
+            or windows_path.drive
+            or ".." in posix_path.parts
+        ):
+            warnings.append(f"PATCH_PATH_OUTSIDE_REPO: {raw_path}")
+            continue
+        resolved = (authorized_repo / Path(*posix_path.parts)).resolve()
+        if not _path_is_inside(resolved, authorized_repo):
+            warnings.append(f"PATCH_PATH_OUTSIDE_REPO: {raw_path}")
+        elif not _path_is_inside(resolved, authorized_scope):
+            warnings.append(f"PATCH_PATH_OUTSIDE_SCOPE: {raw_path}")
+    return warnings
+
+
+def validate_generated_output(
+    output,
+    bound_paths=None,
+    mode=None,
+    root=None,
+    repo_root=None,
+    scope_root=None,
+) -> ValidationResult:
     text = output or ""
     if mode is None:
         mode = get_validation_mode()
@@ -503,7 +559,17 @@ def validate_generated_output(output, bound_paths=None, mode=None, root=None) ->
         hints.append("include a TEST block or concrete test code")
     if not has_external_test and re.search(r"(?i)\b(pseudocode|placeholder|todo: implement)\b", text):
         hints.append("replace placeholders with executable code")
-    hints.extend(_bound_path_warnings(extract_changed_files(output), bound_paths))
+    changed_files = extract_changed_files(output)
+    hints.extend(_bound_path_warnings(changed_files, bound_paths))
+    if root is not None:
+        hints.extend(
+            authorized_path_warnings(
+                changed_files,
+                root=root,
+                repo_root=repo_root,
+                scope_root=scope_root,
+            )
+        )
     # Issue #219: unconditional (not mode-gated) — a destructive rewrite is a safety concern.
     hints.extend(_full_file_replacement_hints(text, root, bound_paths))
     return ValidationResult(
@@ -626,6 +692,8 @@ def run_apply_stage(
     prepare_project_command_fn=prepare_project_command,
     begin_transaction_fn=begin_transaction,
     promote_on_success=True,
+    repo_root=None,
+    scope_root=None,
 ) -> ApplyStageResult:
     cmd, command_error = _configured_test_command()
     if command_error:
@@ -636,23 +704,44 @@ def run_apply_stage(
     simplicio_dir.mkdir(parents=True, exist_ok=True)
     (simplicio_dir / "last_output.txt").write_text(output or "", encoding="utf-8")
 
-    validation = validate_generated_output(output, bound_paths, root=root)
+    validation = validate_generated_output(
+        output,
+        bound_paths,
+        root=root,
+        repo_root=repo_root,
+        scope_root=scope_root,
+    )
     if not validation.ok:
         return ApplyStageResult(False, f"pre-apply validation failed: {validation.reason}", None, None)
 
     candidate = _extract_patch_candidate(output or "", root, bound_paths)
     patch = candidate.patch
-    patch_receipt = _patch_receipt(candidate, extract_changed_files(patch))
+    changed_files = extract_changed_files(patch)
+    patch_receipt = _patch_receipt(candidate, changed_files)
     if not patch:
         reason = candidate.reason or "no unified diff found"
         return ApplyStageResult(False, f"pre-apply validation failed: {reason}", None, patch_receipt)
+
+    path_warnings = authorized_path_warnings(
+        changed_files,
+        root=root,
+        repo_root=repo_root,
+        scope_root=scope_root,
+    )
+    if path_warnings:
+        return ApplyStageResult(
+            False,
+            "pre-apply validation failed: " + "; ".join(path_warnings),
+            None,
+            patch_receipt,
+            changed_files=changed_files,
+        )
 
     (simplicio_dir / "last_patch.diff").write_text(patch, encoding="utf-8")
     (simplicio_dir / "last_patch_strategy.txt").write_text(candidate.strategy + "\n", encoding="utf-8")
 
     tx = begin_transaction_fn(root, dirty_policy="preserve")
     _copy_transaction_workspace(root, tx.candidate)
-    changed_files = extract_changed_files(patch)
     applied, apply_log = git_apply_patch_fn(str(tx.candidate), patch)
     if not applied and candidate.strategy == "unified_diff":
         target = _single_bound_path(bound_paths)
