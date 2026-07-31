@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.26.3] - 2026-07-31
+
+### Fixed
+
+- Make concurrent deep-index callers wait on the shared per-worktree lock.
+- Keep detached mapping workers on the same package import root as the parent process.
+
 ## [0.26.2] - 2026-07-30
 
 ### Fixed

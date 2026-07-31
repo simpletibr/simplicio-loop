@@ -45,7 +45,7 @@ class BackgroundWorkerTest(unittest.TestCase):
                 "targets": ["src/one.py"],
                 "task": task,
                 "config": "cfg",
-                "mapper_version": "0.26.2",
+                "mapper_version": "0.26.3",
             },
             "repository": {"root": str(self.root)},
         }
