@@ -7,27 +7,16 @@ existing verify-loop, and a failing task can trigger one bounded replan.
 
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from ..scratch._pipeline_adapter import run_task as run_plan_task
-from ..scratch.codegen import try_execute
 from ..scratch.planner import generate_plan
 from ..scratch.stack_registry import StackRegistry, slugify_project
 from .cost_governor import BudgetExceeded, provider_budget
 
 TaskRunner = Callable[..., tuple[bool, str]]
-
-
-def _codegen_disabled() -> bool:
-    return os.environ.get("SIMPLICIO_DISABLE_CODEGEN", "").lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
 
 
 def _run_feature_task(
@@ -38,38 +27,17 @@ def _run_feature_task(
     quiet: bool = False,
     forwarded_pipeline_kwargs: dict[str, Any] | None = None,
 ):
-    """Run feature tasks through the authorized mutation boundary."""
-    # Feature/sprint dispatch always supplies a pipeline-context dictionary.
-    # Once that boundary is present, scratch codegen must not write directly;
-    # the pipeline owns root/scope/authority validation and receipts.
-    if forwarded_pipeline_kwargs is not None:
-        passed, log = run_plan_task(
-            task,
-            project_dir,
-            stack,
-            quiet=quiet,
-            forwarded_pipeline_kwargs=forwarded_pipeline_kwargs,
-        )
-        return passed, log
-    codegen_log = ""
-    if not _codegen_disabled():
-        codegen_result = try_execute(task, project_dir, stack)
-        if codegen_result is not None:
-            codegen_log = codegen_result.log
-            if codegen_result.passed or not codegen_result.fallback_to_llm:
-                mode = codegen_result.executor_name or "codegen"
-                return codegen_result.passed, f"codegen:{mode}: {codegen_log}"
-
-    passed, log = run_plan_task(
+    """Run feature/sprint tasks only through the authorized pipeline boundary."""
+    context = dict(forwarded_pipeline_kwargs or {})
+    if not context.get("repo_root") or not context.get("scope_root"):
+        return False, "MUTATION_CONTEXT_REQUIRED"
+    return run_plan_task(
         task,
         project_dir,
         stack,
         quiet=quiet,
-        forwarded_pipeline_kwargs=forwarded_pipeline_kwargs,
+        forwarded_pipeline_kwargs=context,
     )
-    if codegen_log:
-        log = f"codegen fallback: {codegen_log}\n\n{log}"
-    return passed, log
 
 
 def _ordered_tasks(tasks: list[object]) -> list[object]:

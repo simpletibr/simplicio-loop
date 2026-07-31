@@ -20,16 +20,12 @@ def _task(target: str = "src/app.py") -> Task:
 def test_feature_context_route_never_calls_scratch_codegen(tmp_path, monkeypatch):
     seen: dict[str, object] = {}
 
-    def fail_codegen(*args, **kwargs):
-        raise AssertionError("feature context route must not invoke scratch codegen")
-
     def fake_pipeline(task, project_dir, stack, **kwargs):
         seen["task"] = task
         seen["project_dir"] = project_dir
         seen["context"] = kwargs["forwarded_pipeline_kwargs"]
         return False, "blocked"
 
-    monkeypatch.setattr(feature, "try_execute", fail_codegen)
     monkeypatch.setattr(feature, "run_plan_task", fake_pipeline)
     stack = feature.StackRegistry().get("php-vanilla")
     assert stack is not None
@@ -47,10 +43,8 @@ def test_feature_context_route_never_calls_scratch_codegen(tmp_path, monkeypatch
     assert seen["context"] == {"repo_root": str(tmp_path), "scope_root": str(tmp_path / "src")}
 
 
-def test_empty_feature_context_route_still_uses_pipeline_boundary(tmp_path, monkeypatch):
-    called = {"codegen": 0, "pipeline": 0}
-
-    monkeypatch.setattr(feature, "try_execute", lambda *a, **k: called.__setitem__("codegen", 1))
+def test_empty_feature_context_route_fails_closed_before_any_mutation(tmp_path, monkeypatch):
+    called = {"pipeline": 0}
 
     def fake_pipeline(*args, **kwargs):
         called["pipeline"] += 1
@@ -62,7 +56,7 @@ def test_empty_feature_context_route_still_uses_pipeline_boundary(tmp_path, monk
     passed, log = feature._run_feature_task(_task(), tmp_path, stack, forwarded_pipeline_kwargs={})
     assert passed is False
     assert log == "MUTATION_CONTEXT_REQUIRED"
-    assert called == {"codegen": 0, "pipeline": 1}
+    assert called == {"pipeline": 0}
 
 
 def test_pipeline_blocked_exit_has_stable_truthful_receipt(tmp_path, monkeypatch):

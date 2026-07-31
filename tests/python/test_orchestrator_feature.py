@@ -242,7 +242,7 @@ def test_run_feature_applies_max_cost_to_provider_calls(tmp_path, monkeypatch):
     assert "SIMPLICIO_COST_SPENT_USD" not in os.environ
 
 
-def test_run_feature_uses_codegen_for_docs_marker_tasks(tmp_path):
+def test_run_feature_requires_context_before_any_codegen(tmp_path):
     marker = "SimplicioCode Desktop DEBUG E2E"
 
     def fake_planner(stack, goal, project_name):
@@ -266,7 +266,7 @@ def test_run_feature_uses_codegen_for_docs_marker_tasks(tmp_path):
         planner=fake_planner,
     )
 
-    assert result["applied"] is True
+    assert result["applied"] is False
     assert result["tasks"][0]["target"] == "docs/simplicio-code-desktop-debug-flow.md"
-    assert "codegen:markdown-doc-marker" in result["tasks"][0]["log"]
-    assert marker in (tmp_path / "docs/simplicio-code-desktop-debug-flow.md").read_text(encoding="utf-8")
+    assert "MUTATION_CONTEXT_REQUIRED" in result["tasks"][0]["log"]
+    assert not (tmp_path / "docs/simplicio-code-desktop-debug-flow.md").exists()
