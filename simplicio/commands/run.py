@@ -147,10 +147,14 @@ def _first_file_signal(signals: list[str]) -> str | None:
 def _feature_context_kwargs(a: argparse.Namespace) -> dict:
     """Keep standalone feature/sprint dispatch bound to the parsed context."""
     prepared = getattr(a, "_execution_inputs", None)
+    profile = getattr(a, "_execution_profile", None)
+    standalone_root = getattr(profile, "effective_mode", None) == "standalone"
+    repo_root = getattr(a, "repo_root", None) or (a.root if standalone_root else None)
+    scope_root = getattr(a, "scope_root", None) or (a.root if standalone_root else None)
     forwarded = {
         "mode": getattr(a, "mode", None),
-        "repo_root": getattr(a, "repo_root", None),
-        "scope_root": getattr(a, "scope_root", None),
+        "repo_root": repo_root,
+        "scope_root": scope_root,
         "context_snapshot": getattr(prepared, "context_snapshot", None),
         "context_pack": getattr(prepared, "context_pack", None),
         "execution_context": getattr(prepared, "execution_context", None),
@@ -169,8 +173,8 @@ def _feature_context_kwargs(a: argparse.Namespace) -> dict:
     }
     forwarded = {key: value for key, value in forwarded.items() if value is not None}
     return {
-        "repo_root": getattr(a, "repo_root", None),
-        "scope_root": getattr(a, "scope_root", None),
+        "repo_root": repo_root,
+        "scope_root": scope_root,
         "forwarded_pipeline_kwargs": forwarded,
     }
 

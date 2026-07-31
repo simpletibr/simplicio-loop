@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import json
+
 from simplicio import pipeline
 from simplicio.orchestrator import feature
 from simplicio.scratch.plan_schema import Task
@@ -56,7 +59,7 @@ def test_empty_feature_context_route_fails_closed_before_any_mutation(tmp_path, 
     passed, log = feature._run_feature_task(_task(), tmp_path, stack, forwarded_pipeline_kwargs={})
     assert passed is False
     assert log == "MUTATION_CONTEXT_REQUIRED"
-    assert called == {"pipeline": 1}
+    assert called == {"pipeline": 0}
 
 
 def test_pipeline_blocked_exit_has_stable_truthful_receipt(tmp_path, monkeypatch):
@@ -111,6 +114,15 @@ def test_integrated_non_applied_status_is_truthful():
         )
         == "failed"
     )
+
+
+def test_legacy_context_pack_receipt_uses_canonical_hash(tmp_path):
+    pack = {"schema": "simplicio.context-pack/v1", "files": [{"path": "src/app.py"}]}
+    receipt = pipeline._receipt_context(str(tmp_path), "src/app.py", {"context_pack": pack})
+    expected = hashlib.sha256(
+        json.dumps(pack, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+    ).hexdigest()
+    assert receipt.context_pack_hash == expected
 
 
 def test_legacy_route_never_infers_applied():

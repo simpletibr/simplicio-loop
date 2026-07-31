@@ -31,6 +31,8 @@ def _run_feature_task(
     if forwarded_pipeline_kwargs is None:
         return False, "MUTATION_CONTEXT_REQUIRED"
     context = dict(forwarded_pipeline_kwargs)
+    if not context.get("repo_root") or not context.get("scope_root"):
+        return False, "MUTATION_CONTEXT_REQUIRED"
     return run_plan_task(
         task,
         project_dir,

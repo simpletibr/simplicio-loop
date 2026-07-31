@@ -10,6 +10,7 @@ retry loop just like any verify failure.
 """
 
 import hashlib
+import json
 import os
 import subprocess
 import time
@@ -355,8 +356,8 @@ def _run_task(
     it delegates to :func:`simplicio.pipeline_integrated.run_integrated`,
     which compiles a ``PlanDAG``/``EffectPlan`` bundle from the task's
     goal/criteria and hands each ``EffectPlan`` to ``effect_sink`` (required
-    in this mode). ``dry_run_task`` is not consulted in this mode since
-    nothing is ever applied to begin with.
+    in this mode). ``dry_run_task`` performs a typed Runtime preflight and
+    returns before plan compilation or sink dispatch.
     """
     from .execution_mode import (
         ExecutionInputError,
@@ -490,6 +491,18 @@ def _run_task(
         read_only=dry_run_task and requested_execution_mode != "integrated",
     )
     profile = require_coordinator_attempt(profile, integrated_attempt)
+    if profile.effective_mode == "integrated" and dry_run_task:
+        result = _task_result(
+            target,
+            "",
+            "",
+            applied=False,
+            status="dry_run",
+            warnings=["integrated_effect_preflight_only"],
+            blocked_preconditions=[],
+        )
+        result["execution_profile"] = profile.to_dict()
+        return result
     identity_error: TaskContextError | None = None
     if supplied_snapshot_id is not None and supplied_snapshot_id != canonical_snapshot_id:
         identity_error = TaskContextError(
@@ -1141,7 +1154,7 @@ def _run_task(
             repo_root=declared_repo_root,
             scope_root=declared_scope_root,
         )
-        fixer_result = None if fixer_paths else try_static_fixers(log, root)
+        fixer_result = None if fixer_paths or scope_root is not None else try_static_fixers(log, root)
         if fixer_result is not None and fixer_result.applied:
             attempt = _apply_and_test_attempt(
                 output,
@@ -1315,13 +1328,18 @@ def _receipt_context(root: str, target: str, kwargs: dict[str, Any]) -> TaskCont
     scope = Path(kwargs.get("scope_root") or actual_root).resolve()
     snapshot = kwargs.get("context_snapshot") or {}
     pack = kwargs.get("context_pack") or {}
+    pack_hash = str(pack.get("pack_hash") or kwargs.get("context_pack_hash") or "").strip()
+    if not pack_hash and pack:
+        pack_hash = hashlib.sha256(
+            json.dumps(pack, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+        ).hexdigest()
     try:
         return TaskContext.from_values(
             repo_root=actual_root,
             scope_root=scope,
             target=target,
             context_snapshot_id=str(snapshot.get("snapshot_id") or kwargs.get("context_snapshot_id") or ""),
-            context_pack_hash=str(pack.get("pack_hash") or kwargs.get("context_pack_hash") or ""),
+            context_pack_hash=pack_hash,
             attempt_id=str(
                 kwargs.get("attempt_id") or getattr(kwargs.get("integrated_attempt"), "attempt_id", "") or ""
             ),
