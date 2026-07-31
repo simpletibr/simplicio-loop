@@ -441,6 +441,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="use the Python mechanical-edit fallback instead of delegating to simplicio edit",
     )
 
+    p_reconcile = sub.add_parser(
+        "reconcile",
+        help="reconcile a pending Runtime effect from strict evidence-file proof",
+    )
+    p_reconcile.add_argument("--root", "--repo", dest="root", default=".")
+    p_reconcile.add_argument("--idempotency-key")
+    p_reconcile.add_argument("--evidence-file", required=True)
+    p_reconcile.add_argument("--json", action="store_true")
+
     p_file = sub.add_parser("file", help="read raw file contents")
     file_sub = p_file.add_subparsers(dest="file_cmd", required=True)
     p_file_read = file_sub.add_parser("read", help="print a file's contents, optionally sliced by line range")
@@ -756,6 +765,10 @@ def _main_unwrapped(argv=None):
             from .commands.edit import run_edit
 
             return run_edit(a)
+        if a.cmd == "reconcile":
+            from .commands.reconcile import run as reconcile_run
+
+            return reconcile_run(a)
         if a.cmd == "score-skill":
             from .commands.score_skill import run as score_skill_run
 

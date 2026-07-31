@@ -82,6 +82,30 @@ this rollout-readiness change adds no new mutation primitive.
 Any addition, removal, or scope change outside the approved Effect boundary
 fails the guard and requires an explicit inventory review.
 
+## Unknown-effect reconciliation
+
+`edit --apply` parses and validates its complete plan before delegating to the
+Runtime. An empty or malformed stdin plan returns a normal validation error and
+never creates an unknown-effect lock. Once a Runtime subprocess has started, an
+uncertain result creates `.simplicio/effect-unknown.lock` with the idempotency
+key, repository, plan/effect digests, preconditions, receipt/evidence locations,
+and an exact recovery command.
+
+Use the Dev CLI wrapper only with a Runtime evidence file:
+
+```text
+simplicio-py reconcile --root <repo> --idempotency-key <key> \
+  --evidence-file <repo>/.simplicio/runtime-effects/reconciliation/<key>.json --json
+```
+
+The wrapper invokes Runtime `effect reconcile --evidence-file` and clears the
+lock only when Runtime returns `safe_to_clear_pending: true` with
+`unchanged-before` or `proven-after`. Missing support, malformed, forged,
+wrong-key/repository, ambiguous, or diverged proof remains blocked; the lock is
+never deleted manually. Runtime PR #3700 is the producer contract for this
+`evidence-file` option and must be installed/published before a positive live
+reconciliation result can be claimed.
+
 ## Rollback
 
 Before any effect submission, rollback between `opt_in`/`warning` and
