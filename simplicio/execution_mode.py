@@ -233,6 +233,7 @@ def prepare_execution_inputs(
     lease_id: str | None = None,
     fencing_token: str | None = None,
     context_handle: str | None = None,
+    proposal_only: bool = False,
 ) -> PreparedExecutionInputs:
     """Resolve installed-entrypoint inputs without probing in standalone mode."""
     if requested_mode(mode, root) == "standalone":
@@ -264,16 +265,22 @@ def prepare_execution_inputs(
         else _load_execution_context(root, execution_context_path)
     )
     resolved_authorization = (
-        authorization if authorization is not None else _load_authorization(root, authorization_path)
+        None
+        if proposal_only
+        else (authorization if authorization is not None else _load_authorization(root, authorization_path))
     )
-    resolved_sink = effect_sink
+    resolved_sink = None if proposal_only else effect_sink
     offline_runtime = os.environ.get("SIMPLICIO_RUNTIME_OFFLINE", "").strip().lower() in {
         "1",
         "true",
         "yes",
         "on",
     }
-    if resolved_sink is None and (os.environ.get("SIMPLICIO_RUNTIME_URL", "").strip() or offline_runtime):
+    if (
+        not proposal_only
+        and resolved_sink is None
+        and (os.environ.get("SIMPLICIO_RUNTIME_URL", "").strip() or offline_runtime)
+    ):
         resolved_sink = RuntimeEffectSink.from_environment(root=Path(root))
     resolved_handshake = runtime_handshake
     handshake = getattr(resolved_sink, "capability_handshake", None)
@@ -363,6 +370,7 @@ def negotiate_execution_mode(
     coordinator_id: str | None = None,
     previous_effect_outcome: str | None = None,
     read_only: bool = False,
+    proposal_only: bool = False,
 ) -> ExecutionProfile:
     """Negotiate only from versioned contracts; never infer from files/help/process names."""
     requested = requested_mode(mode, root)
@@ -377,6 +385,44 @@ def negotiate_execution_mode(
         config,
         previous_effect_outcome=previous_effect_outcome or persisted_outcome,
     )
+    if proposal_only:
+        proposal_mapper_error = None
+        mapper_adapter = None
+        if context_snapshot is not None:
+            try:
+                mapper_adapter = load_mapper_context(context_snapshot, source_root=str(root))
+            except MapperContextError as exc:
+                proposal_mapper_error = exc.code
+        mapper_ready = mapper_adapter is not None
+        proposal_mapper: dict[str, Any] = {
+            "schema": context_snapshot.get("schema") if isinstance(context_snapshot, dict) else None,
+            "compatible": mapper_ready,
+            "digest": hashlib.sha256(mapper_adapter.payload_bytes).hexdigest()
+            if mapper_adapter is not None
+            else None,
+            "contract_error": proposal_mapper_error,
+        }
+        runtime = {
+            "verified": False,
+            "version": None,
+            "capability": RUNTIME_EFFECT_CAPABILITY,
+            "capability_available": False,
+            "reason": "not-required-proposal-only",
+        }
+        proposal_sink: dict[str, Any] = {"configured": False, "production": False, "kind": None}
+        return ExecutionProfile(
+            requested,
+            "integrated" if mapper_ready else "blocked",
+            coordinator,
+            runtime,
+            proposal_mapper,
+            proposal_sink,
+            None,
+            rollout,
+            mapper_ready,
+            "PROPOSAL_ONLY_READY" if mapper_ready else "CONTEXT_REQUIRED",
+            policy.to_dict(),
+        )
     if requested == "standalone":
         if read_only:
             return ExecutionProfile(
@@ -463,7 +509,7 @@ def negotiate_execution_mode(
         ),
         "contract_error": mapper_error,
     }
-    sink = {
+    sink: dict[str, Any] = {
         "configured": effect_sink is not None,
         "production": sink_ready,
         "kind": effect_sink.__class__.__name__ if effect_sink else None,

@@ -22,24 +22,35 @@ from __future__ import annotations
 
 import hashlib
 import os
+from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import Any
 
 from .atomic_execution import AttemptContext, execute_work_item_once
 from .observability import emit_event
 from .pipeline_task_result import _task_result
 from .plan_compiler import EffectAuthorization, PlanCompilationError, compile_task_spec_to_plan
+from .plan_compiler.authority import AuthorizationError, ChangeProposal, build_change_proposal
 from .plan_compiler.effect_sink import EffectDispatchContext, EffectSink, IntegratedModeRequiresSinkError
 from .plan_compiler.mapper_context import (
+    ContextBinding,
     ContextBindingCache,
     MapperContextError,
     bind_mapper_context,
     load_mapper_context,  # noqa: F401 - retained as a monkeypatchable compatibility boundary
     verify_context_sources,
 )
+from .plan_compiler.models import EffectPlan, PlanDAG, VerificationPlan
 from .plan_compiler.runtime_effect_sink import RuntimeEffectSink
 from .task_spec import TaskSpec
 
-__all__ = ["IntegratedModeRequiresSinkError", "run_integrated"]
+__all__ = [
+    "IntegratedModeRequiresSinkError",
+    "IntegratedPreparationError",
+    "PreparedIntegratedWorkItem",
+    "prepare_integrated_work_item",
+    "run_integrated",
+]
 
 DEFAULT_INTEGRATED_POLICY_REVISION = "dev-cli-integrated-v1"
 
@@ -84,6 +95,246 @@ def _build_task_spec(
     )
 
 
+class IntegratedPreparationError(RuntimeError):
+    def __init__(self, code: str, message: str, *, warning: str | None = None) -> None:
+        self.code = code
+        self.warning = warning or code
+        super().__init__(f"{code}: {message}")
+
+
+@dataclass(frozen=True)
+class PreparedIntegratedWorkItem:
+    plan: PlanDAG
+    effect: EffectPlan
+    verifications: list[VerificationPlan]
+    binding: ContextBinding
+    dispatch_context: EffectDispatchContext
+    task_spec: TaskSpec
+    cache_receipt: dict[str, Any]
+    goal_id: str
+
+
+def _validate_write_set(write_set: list[str]) -> None:
+    seen = set()
+    for raw in write_set:
+        path = str(raw).replace("\\", "/")
+        relative = PurePosixPath(path)
+        if not path or relative.is_absolute() or ".." in relative.parts:
+            raise IntegratedPreparationError("WRITE_SET_ESCAPE", f"unsafe write path: {raw}")
+        if path in seen:
+            raise IntegratedPreparationError("WRITE_SET_DUPLICATE", f"duplicate write path: {raw}")
+        seen.add(path)
+
+
+def _context_binding_payload(binding: ContextBinding) -> dict[str, Any]:
+    handle = dict(binding.context_handle.to_dict())
+    view = getattr(getattr(binding, "snapshot", None), "view", None)
+    pack = getattr(binding, "pack", None)
+    for field, value in (
+        ("snapshot_id", getattr(view, "snapshot_id", "")),
+        ("revision", getattr(view, "revision", "")),
+        ("root_hash", getattr(view, "root_hash", "")),
+        ("pack_hash", getattr(pack, "pack_hash", handle.get("pack_hash", ""))),
+        ("projection_digest", getattr(pack, "projection_digest", handle.get("projection_digest", ""))),
+    ):
+        if value and field not in handle:
+            handle[field] = value
+    handle["context_handle"] = binding.context_handle.value
+    return handle
+
+
+def _dispatch_context_payload(context: EffectDispatchContext) -> dict[str, Any]:
+    return {
+        "plan_id": context.plan_id,
+        "goal_id": context.goal_id,
+        "plan_node": context.plan_node.to_dict(),
+        "verifications": [item.to_dict() for item in context.verifications],
+        "coordinator_kind": context.coordinator_kind,
+        "coordinator_id": context.coordinator_id,
+        "session_id": context.session_id,
+        "turn_id": context.turn_id,
+        "attempt": context.attempt,
+        "subworkflow_id": context.subworkflow_id,
+        "deadline": context.deadline,
+        "policy_revision": context.policy_revision,
+        "base_hash": context.base_hash,
+        "source_hash": context.source_hash,
+        "context_handle": context.context_handle,
+        "lease_id": context.lease_id,
+        "fencing_token": context.fencing_token,
+        "authorization": None,
+        "plan_digest": context.plan.canonical_hash() if context.plan else "",
+    }
+
+
+def _proposal_envelope(prepared: PreparedIntegratedWorkItem, proposal: ChangeProposal) -> dict[str, Any]:
+    pp = proposal.to_dict()
+    binding = _context_binding_payload(prepared.binding)
+    effect = prepared.effect.to_dict()
+    return {
+        **pp,
+        "envelope": "simplicio.change-proposal-envelope/v1",
+        "proposal": pp,
+        "proposal_digest": proposal.digest(),
+        "plan": prepared.plan.to_dict(),
+        "plan_digest": prepared.plan.canonical_hash(),
+        "effect": effect,
+        "effect_digest": proposal.effect_digest,
+        "verifications": [item.to_dict() for item in prepared.verifications],
+        "context_binding": binding,
+        "source": {
+            "task_source_hash": prepared.task_spec.source_hash,
+            "mapper_source_digest": str(binding.get("source_digest", "")),
+            "snapshot_id": str(binding.get("snapshot_id", "")),
+            "revision": str(binding.get("revision", "")),
+            "root_hash": str(binding.get("root_hash", "")),
+            "pack_hash": str(binding.get("pack_hash", "")),
+            "projection_digest": str(binding.get("projection_digest", "")),
+        },
+        "identity": {
+            "attempt_id": proposal.attempt_id,
+            "lease_id": proposal.lease_id,
+            "fencing_token": proposal.fencing_token,
+            "context_handle": proposal.context_handle,
+            "policy_revision": proposal.policy_revision,
+        },
+        "dispatch_context": _dispatch_context_payload(prepared.dispatch_context),
+    }
+
+
+def prepare_integrated_work_item(
+    root: str,
+    stack: str,
+    goal: str,
+    target: str,
+    criteria: str,
+    constraints: str,
+    primary_test_cmd: str | None,
+    *,
+    authorization: EffectAuthorization | None = None,
+    context_snapshot: dict[str, Any] | None = None,
+    context_pack: dict[str, Any] | None = None,
+    execution_context: dict[str, Any] | None = None,
+    context_refresh: bool = False,
+    attempt: AttemptContext | None = None,
+    task_spec: TaskSpec | None = None,
+    coordinator_kind: str = "simplicio-dev-cli",
+    session_id: str = "",
+    turn_id: str = "",
+    attempt_number: int = 1,
+    subworkflow_id: str = "",
+    deadline: str | None = None,
+    policy_revision: str = DEFAULT_INTEGRATED_POLICY_REVISION,
+    base_hash: str = "",
+    context_pack_hash: str | None = None,
+    proposal_only: bool = False,
+) -> PreparedIntegratedWorkItem:
+    if attempt is None:
+        raise IntegratedPreparationError(
+            "COORDINATOR_CONTEXT_REQUIRED",
+            "integrated proposal requires attempt, lease, fence, and context handle",
+        )
+    if context_refresh and proposal_only:
+        raise IntegratedPreparationError(
+            "PROPOSAL_CONTEXT_REFRESH_FORBIDDEN", "proposal-only cannot refresh or write the context cache"
+        )
+    typed_input = task_spec is not None
+    if task_spec is None:
+        task_spec = _build_task_spec(
+            target=target,
+            goal=goal,
+            criteria=criteria,
+            constraints=constraints,
+            verification_command=primary_test_cmd,
+        )
+    if not task_spec.verification_commands:
+        raise IntegratedPreparationError(
+            "verification_command_missing",
+            "verification command missing; set SIMPLICIO_TEST_CMD before execution",
+            warning="verification command missing; set SIMPLICIO_TEST_CMD before execution",
+        )
+    if context_snapshot is None:
+        raise IntegratedPreparationError("CONTEXT_REQUIRED", "canonical Mapper ContextSnapshot is required")
+    if context_pack is None:
+        raise IntegratedPreparationError("CONTEXT_PACK_REQUIRED", "Mapper ContextPack is required")
+    binding = bind_mapper_context(
+        context_snapshot, context_pack, source_root=root, execution_context_payload=execution_context
+    )
+    verify_context_sources(binding, source_root=root)
+    canonical_pack_hash = str(getattr(getattr(binding, "pack", None), "pack_hash", "") or "")
+    supplied_pack_hash = None if context_pack_hash is None else str(context_pack_hash).strip()
+    if supplied_pack_hash is not None and supplied_pack_hash != canonical_pack_hash:
+        raise IntegratedPreparationError(
+            "CONTEXT_PACK_HASH_MISMATCH",
+            "supplied context_pack_hash does not match the canonical Mapper ContextPack",
+        )
+    context_snapshot_id = binding.snapshot.view.snapshot_id
+    revision = binding.snapshot.view.revision
+    context_handle = binding.context_handle.value
+    if attempt.context_handle != context_handle:
+        raise IntegratedPreparationError(
+            "CONTEXT_HANDLE_MISMATCH",
+            "attempt context_handle must match the snapshot/projection digest binding",
+        )
+    cache = ContextBindingCache(root)
+    cache_receipt = cache.refresh(binding) if context_refresh else cache.lookup(binding.context_handle)
+    goal_material = task_spec.canonical_hash() if typed_input else goal
+    goal_id = f"goal-{hashlib.sha256(goal_material.encode('utf-8')).hexdigest()[:16]}"
+    plan, effects, verifications = compile_task_spec_to_plan(
+        task_spec,
+        goal_id=goal_id,
+        context_snapshot_id=context_snapshot_id,
+        revision=revision,
+        context_handle=context_handle,
+    )
+    verify_context_sources(binding, source_root=root)
+    if supplied_pack_hash is not None and supplied_pack_hash != str(
+        getattr(getattr(binding, "pack", None), "pack_hash", "") or ""
+    ):
+        raise IntegratedPreparationError(
+            "CONTEXT_PACK_HASH_MISMATCH",
+            "supplied context_pack_hash does not match the canonical Mapper ContextPack",
+        )
+    if len(effects) != 1:
+        raise IntegratedPreparationError(
+            "MULTI_EFFECT", "proposal-only dispatch requires exactly one EffectPlan"
+        )
+    effect = effects[0]
+    nodes = [node for node in plan.nodes if node.node_id == effect.plan_node_id]
+    if len(nodes) != 1:
+        raise IntegratedPreparationError("EFFECT_PLAN_NODE_INVALID", "effect must bind exactly one PlanNode")
+    node = nodes[0]
+    _validate_write_set(node.write_set)
+    dispatch = EffectDispatchContext(
+        plan_id=plan.plan_id,
+        goal_id=plan.goal_id,
+        plan_node=node,
+        verifications=[item for item in verifications if item.plan_node_id == node.node_id],
+        coordinator_kind=coordinator_kind,
+        coordinator_id=attempt.attempt_id,
+        session_id=session_id,
+        turn_id=turn_id,
+        attempt=attempt_number,
+        subworkflow_id=subworkflow_id,
+        deadline=deadline,
+        policy_revision=policy_revision,
+        base_hash=base_hash,
+        source_hash=task_spec.source_hash,
+        context_handle=context_handle,
+        lease_id=attempt.lease_id,
+        fencing_token=attempt.fencing_token,
+        authorization=authorization,
+        plan=plan,
+    )
+    try:
+        build_change_proposal(effect, dispatch)
+    except AuthorizationError as exc:
+        raise IntegratedPreparationError(exc.code, str(exc)) from exc
+    return PreparedIntegratedWorkItem(
+        plan, effect, verifications, binding, dispatch, task_spec, cache_receipt, goal_id
+    )
+
+
 def run_integrated(
     root: str,
     stack: str,
@@ -111,108 +362,51 @@ def run_integrated(
     policy_revision: str = DEFAULT_INTEGRATED_POLICY_REVISION,
     base_hash: str = "",
     context_pack_hash: str | None = None,
+    proposal_only: bool = False,
 ) -> dict[str, Any]:
-    """Compile a plan and hand its effects to ``effect_sink``; never write.
-
-    Never calls ``git apply``/writes to ``root`` -- that is the whole point
-    of this mode (#166, #167). Refuses to proceed
-    (:class:`IntegratedModeRequiresSinkError`) instead of silently falling
-    back to direct writes when no ``effect_sink`` is given.
-    """
-    if effect_sink is None:
+    if effect_sink is None and not proposal_only:
         effect_sink = RuntimeEffectSink.from_environment(root=root)
-    if attempt is None:
-        raise IntegratedModeRequiresSinkError(
-            "mode='integrated' requires coordinator-supplied attempt_id, lease, fence, and context handle"
-        )
-    if primary_test_cmd is None:
-        blocker = {
-            "code": "verification_command_missing",
-            "message": "verification command missing; set SIMPLICIO_TEST_CMD before execution",
-            "retryable": True,
-            "next_action": "set SIMPLICIO_TEST_CMD to a real project verification command, then retry",
-        }
-        return _task_result(
-            target,
-            prompt,
-            "",
-            applied=False,
-            status="blocked",
-            warnings=[blocker["message"]],
-            blocked_preconditions=[blocker],
-        )
-
-    emit_event(
-        "task_start",
-        {"target": target, "stack": stack, "goal": goal, "mode": "integrated"},
-        root=root,
-    )
-
-    typed_input = task_spec is not None
-    if task_spec is None:
-        task_spec = _build_task_spec(
-            target=target,
-            goal=goal,
-            criteria=criteria,
-            constraints=constraints,
-            verification_command=primary_test_cmd,
-        )
-    goal_material = task_spec.canonical_hash() if typed_input else goal
-    goal_id = f"goal-{hashlib.sha256(goal_material.encode('utf-8')).hexdigest()[:16]}"
-    if context_snapshot is None:
-        return _task_result(
-            target,
-            prompt,
-            "",
-            applied=False,
-            status="blocked",
-            warnings=["CONTEXT_REQUIRED"],
-            blocked_preconditions=[
-                {"code": "CONTEXT_REQUIRED", "message": "canonical Mapper ContextSnapshot is required"}
-            ],
-        )
-    if context_pack is None:
-        return _task_result(
-            target,
-            prompt,
-            "",
-            applied=False,
-            status="blocked",
-            warnings=["CONTEXT_PACK_REQUIRED"],
-            blocked_preconditions=[
-                {
-                    "code": "CONTEXT_PACK_REQUIRED",
-                    "message": "Mapper ContextPack with snapshot provenance is required",
-                }
-            ],
+    if not proposal_only:
+        emit_event(
+            "task_start", {"target": target, "stack": stack, "goal": goal, "mode": "integrated"}, root=root
         )
     try:
-        binding = bind_mapper_context(
-            context_snapshot,
-            context_pack,
-            source_root=root,
-            execution_context_payload=execution_context,
+        prepared = prepare_integrated_work_item(
+            root,
+            stack,
+            goal,
+            target,
+            criteria,
+            constraints,
+            primary_test_cmd,
+            authorization=authorization,
+            context_snapshot=context_snapshot,
+            context_pack=context_pack,
+            execution_context=execution_context,
+            context_refresh=context_refresh,
+            attempt=attempt,
+            task_spec=task_spec,
+            coordinator_kind=coordinator_kind,
+            session_id=session_id,
+            turn_id=turn_id,
+            attempt_number=attempt_number,
+            subworkflow_id=subworkflow_id,
+            deadline=deadline,
+            policy_revision=policy_revision,
+            base_hash=base_hash,
+            context_pack_hash=context_pack_hash,
+            proposal_only=proposal_only,
         )
-        verify_context_sources(binding, source_root=root)
-        canonical_pack_hash = str(getattr(getattr(binding, "pack", None), "pack_hash", "") or "")
-        supplied_pack_hash = None if context_pack_hash is None else str(context_pack_hash).strip()
-        if supplied_pack_hash is not None and supplied_pack_hash != canonical_pack_hash:
-            return _task_result(
-                target,
-                prompt,
-                "",
-                applied=False,
-                status="blocked",
-                warnings=["CONTEXT_PACK_HASH_MISMATCH"],
-                blocked_preconditions=[
-                    {
-                        "code": "CONTEXT_PACK_HASH_MISMATCH",
-                        "message": (
-                            "supplied context_pack_hash does not match the canonical Mapper ContextPack"
-                        ),
-                    }
-                ],
-            )
+    except IntegratedPreparationError as exc:
+        return _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[exc.warning],
+            blocked_preconditions=[{"code": exc.code, "message": str(exc)}],
+        )
     except MapperContextError as exc:
         warning = (
             exc.code if exc.code in {"SOURCE_DRIFT", "CONTEXT_ROOT_PATH_MISMATCH"} else "INCOMPATIBLE_CONTEXT"
@@ -225,49 +419,17 @@ def run_integrated(
             status="blocked",
             warnings=[warning],
             blocked_preconditions=[
-                {
-                    "code": warning,
-                    "message": f"{exc.code}: snapshot/projection binding rejected",
-                }
+                {"code": warning, "message": f"{exc.code}: snapshot/projection binding rejected"}
             ],
-        )
-    context_snapshot_id = binding.snapshot.view.snapshot_id
-    revision = binding.snapshot.view.revision
-    context_handle = binding.context_handle.value
-    if attempt.context_handle != context_handle:
-        return _task_result(
-            target,
-            prompt,
-            "",
-            applied=False,
-            status="blocked",
-            warnings=["CONTEXT_HANDLE_MISMATCH"],
-            blocked_preconditions=[
-                {
-                    "code": "CONTEXT_HANDLE_MISMATCH",
-                    "message": "attempt context_handle must match the snapshot/projection digest binding",
-                }
-            ],
-        )
-    context_cache = ContextBindingCache(root)
-    cache_receipt = (
-        context_cache.refresh(binding) if context_refresh else context_cache.lookup(binding.context_handle)
-    )
-    try:
-        plan, effects, verifications = compile_task_spec_to_plan(
-            task_spec,
-            goal_id=goal_id,
-            context_snapshot_id=context_snapshot_id,
-            revision=revision,
-            context_handle=context_handle,
         )
     except PlanCompilationError as exc:
-        emit_event(
-            "validation_fail",
-            {"target": target, "warnings": [str(exc)[:500]], "mode": "integrated"},
-            level="warning",
-            root=root,
-        )
+        if not proposal_only:
+            emit_event(
+                "validation_fail",
+                {"target": target, "warnings": [str(exc)[:500]], "mode": "integrated"},
+                level="warning",
+                root=root,
+            )
         return _task_result(
             target,
             prompt,
@@ -277,89 +439,37 @@ def run_integrated(
             warnings=[str(exc)],
             blocked_preconditions=[{"code": "plan_compilation_failed", "message": str(exc)}],
         )
-
-    # The Mapper snapshot is checked before planning, but planning itself is a
-    # coordinator-owned interval in which another actor can change the source
-    # tree.  Revalidate immediately before entering the sole effect boundary;
-    # otherwise a Runtime receipt could be causally valid for a stale source.
-    # This is deliberately a second Mapper verification, not a local write or
-    # an implicit re-index, so integrated mode remains effect-free in Dev CLI.
-    try:
-        verify_context_sources(binding, source_root=root)
-        canonical_pack_hash = str(getattr(getattr(binding, "pack", None), "pack_hash", "") or "")
-        supplied_pack_hash = None if context_pack_hash is None else str(context_pack_hash).strip()
-        if supplied_pack_hash is not None and supplied_pack_hash != canonical_pack_hash:
-            return _task_result(
-                target,
-                prompt,
-                "",
-                applied=False,
-                status="blocked",
-                warnings=["CONTEXT_PACK_HASH_MISMATCH"],
-                blocked_preconditions=[
-                    {
-                        "code": "CONTEXT_PACK_HASH_MISMATCH",
-                        "message": (
-                            "supplied context_pack_hash does not match the canonical Mapper ContextPack"
-                        ),
-                    }
-                ],
-            )
-    except MapperContextError as exc:
-        warning = (
-            exc.code if exc.code in {"SOURCE_DRIFT", "CONTEXT_ROOT_PATH_MISMATCH"} else "INCOMPATIBLE_CONTEXT"
+    proposal = build_change_proposal(prepared.effect, prepared.dispatch_context)
+    if proposal_only:
+        envelope = _proposal_envelope(prepared, proposal)
+        result = _task_result(
+            target, prompt, "", applied=False, status="proposal_only", warnings=[], blocked_preconditions=[]
         )
-        return _task_result(
-            target,
-            prompt,
-            "",
-            applied=False,
-            status="blocked",
-            warnings=[warning],
-            blocked_preconditions=[
-                {
-                    "code": warning,
-                    "message": f"{exc.code}: source changed after plan compilation",
-                }
-            ],
+        result.update(
+            {
+                "proposal": envelope,
+                "proposal_digest": envelope["proposal_digest"],
+                "plan": prepared.plan.to_dict(),
+                "effects": [prepared.effect.to_dict()],
+                "verifications": [item.to_dict() for item in prepared.verifications],
+                "context_binding": _context_binding_payload(prepared.binding),
+                "dispatch_context": _dispatch_context_payload(prepared.dispatch_context),
+                "task_spec_hash": prepared.task_spec.canonical_hash(),
+            }
         )
-
-    effect_node = next(
-        node for node in plan.nodes if any(effect.plan_node_id == node.node_id for effect in effects)
-    )
-    dispatch_context = EffectDispatchContext(
-        plan_id=plan.plan_id,
-        goal_id=plan.goal_id,
-        plan_node=effect_node,
-        verifications=[item for item in verifications if item.plan_node_id == effect_node.node_id],
-        coordinator_kind=coordinator_kind,
-        coordinator_id=attempt.attempt_id,
-        session_id=session_id,
-        turn_id=turn_id,
-        attempt=attempt_number,
-        subworkflow_id=subworkflow_id,
-        deadline=deadline,
-        policy_revision=policy_revision,
-        base_hash=base_hash,
-        source_hash=task_spec.source_hash,
-        context_handle=context_handle,
-        lease_id=attempt.lease_id,
-        fencing_token=attempt.fencing_token,
-        authorization=authorization,
-        plan=plan,
-    )
+        return result
+    if effect_sink is None:
+        raise IntegratedModeRequiresSinkError("integrated mode requires a Runtime EffectSink")
+    if attempt is None:
+        raise IntegratedModeRequiresSinkError("integrated mode requires a coordinator attempt")
     observation = execute_work_item_once(
-        effect_node,
+        prepared.dispatch_context.plan_node,
         attempt,
-        effects=effects,
-        verifications=verifications,
+        effects=[prepared.effect],
+        verifications=prepared.verifications,
         effect_sink=effect_sink,
-        dispatch_context=dispatch_context,
+        dispatch_context=prepared.dispatch_context,
     )
-
-    # applied is true only when the production Runtime sink reports the
-    # atomic effect submission. Recording sinks prove handoff shape, not a
-    # committed mutation.
     result = _task_result(
         target,
         prompt,
@@ -367,16 +477,19 @@ def run_integrated(
         applied=isinstance(effect_sink, RuntimeEffectSink) and observation.outcome == "effect_submitted",
         status="integrated_atomic",
     )
-    result["plan"] = plan.to_dict()
-    result["effects"] = [effect.to_dict() for effect in effects]
-    result["verifications"] = [verification.to_dict() for verification in verifications]
-    result["observation"] = observation.to_dict()
-    result["task_spec_hash"] = task_spec.canonical_hash()
-    result["context_binding"] = {
-        **binding.context_handle.to_dict(),
-        "context_handle": context_handle,
-        "cache": cache_receipt,
-    }
+    result.update(
+        {
+            "plan": prepared.plan.to_dict(),
+            "effects": [prepared.effect.to_dict()],
+            "verifications": [item.to_dict() for item in prepared.verifications],
+            "observation": observation.to_dict(),
+            "task_spec_hash": prepared.task_spec.canonical_hash(),
+            "context_binding": {
+                **_context_binding_payload(prepared.binding),
+                "cache": prepared.cache_receipt,
+            },
+        }
+    )
     emit_event(
         "task_complete",
         {

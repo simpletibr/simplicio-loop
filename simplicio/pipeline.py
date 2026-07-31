@@ -311,6 +311,7 @@ def _run_task(
     constraints,
     *,
     dry_run_task=False,
+    proposal_only=False,
     bound_paths=None,
     quiet=False,
     mode: PipelineMode | None = None,
@@ -381,6 +382,7 @@ def _run_task(
             execution_context_path=execution_context_path,
             authorization_path=authorization_path,
             effect_sink=effect_sink,
+            proposal_only=proposal_only,
             runtime_handshake=runtime_handshake,
             attempt=integrated_attempt,
             attempt_id=attempt_id,
@@ -489,6 +491,7 @@ def _run_task(
         # preflighting this path, so it must not downgrade the typed handoff
         # to the legacy standalone profile.
         read_only=dry_run_task and requested_execution_mode != "integrated",
+        proposal_only=proposal_only,
     )
     profile = require_coordinator_attempt(profile, integrated_attempt)
     if profile.effective_mode == "integrated" and dry_run_task:
@@ -582,6 +585,7 @@ def _run_task(
             profile.effective_mode == "integrated"
             and authorization is None
             and isinstance(effect_sink, RuntimeEffectSink)
+            and not proposal_only
         ):
             result = _task_result(
                 target,
@@ -608,25 +612,27 @@ def _run_task(
             )
     migration_policy = StandalonePolicy(**profile.standalone_policy)
     mutation_route = "blocked" if dry_run_task else mutation_route_for_mode(profile.effective_mode)
-    emit_mutation_route(
-        root=root,
-        entrypoint="task",
-        route=mutation_route,
-        reason_code=profile.reason_code,
-        policy=migration_policy,
-    )
-    emit_event(
-        "execution_mode_selected",
-        {
-            "requested": profile.requested_mode,
-            "effective": profile.effective_mode,
-            "reason_code": profile.reason_code,
-            "fallback_reason": profile.fallback_reason,
-            "rollout": profile.rollout,
-        },
-        level="warning" if profile.effective_mode == "blocked" else "info",
-        root=root,
-    )
+    if not proposal_only:
+        emit_mutation_route(
+            root=root,
+            entrypoint="task",
+            route=mutation_route,
+            reason_code=profile.reason_code,
+            policy=migration_policy,
+        )
+    if not proposal_only:
+        emit_event(
+            "execution_mode_selected",
+            {
+                "requested": profile.requested_mode,
+                "effective": profile.effective_mode,
+                "reason_code": profile.reason_code,
+                "fallback_reason": profile.fallback_reason,
+                "rollout": profile.rollout,
+            },
+            level="warning" if profile.effective_mode == "blocked" else "info",
+            root=root,
+        )
     _remember_patch_receipt(None)
     prompt = build_prompt(root, stack, goal, target, criteria, constraints)
     primary_test_cmd = os.environ.get("SIMPLICIO_TEST_CMD", "").strip() or None
@@ -708,9 +714,12 @@ def _run_task(
             policy_revision=policy_revision,
             base_hash=base_hash,
             context_pack_hash=supplied_pack_hash,
+            proposal_only=proposal_only,
         )
         result["duration_ms"] = int((time.monotonic() - integrated_started_at) * 1000)
         result["execution_profile"] = profile.to_dict()
+        if proposal_only:
+            return result
         verification_plans = result.get("verifications")
         verification_commands = (
             [

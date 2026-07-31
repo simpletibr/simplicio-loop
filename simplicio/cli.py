@@ -252,6 +252,9 @@ def _build_parser() -> argparse.ArgumentParser:
     pt = sub.add_parser("task", help="run a task")
     _add_task_args(pt, target_required=True)
 
+    pp = sub.add_parser("proposal", help="compile a non-mutating Runtime ChangeProposal")
+    _add_task_args(pp, target_required=True)
+
     pr = sub.add_parser("run", help="run a task, feature, sprint, or scratch goal")
     _add_run_args(pr)
 
@@ -685,6 +688,7 @@ def _build_parser() -> argparse.ArgumentParser:
 _COMMAND_MODULES = {
     "index": "index",
     "task": "task",
+    "proposal": "proposal",
     "run": "run",
     "bench": "bench",
     "cache": "cache",
