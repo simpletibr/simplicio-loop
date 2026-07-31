@@ -111,6 +111,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ..scoped_context import run_scoped_context_cli
 
         return run_scoped_context_cli(argv[1:])
+    if argv and argv[0] == "background":
+        from ..background_work import run_background_cli
+
+        return run_background_cli(argv[1:])
     if argv and argv[0] == "fast-handoff":
         from ..fast_handoff import run_fast_handoff_cli
 

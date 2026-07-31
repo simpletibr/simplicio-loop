@@ -226,12 +226,12 @@ class ScopedContextTests(unittest.TestCase):
             build_scoped_context(str(self.root), target_hints=["src/target.py"], cache_root=str(self.cache), start_background=False)
         self.assertEqual(REASON_SCOPED_ARTIFACT_STALE, error.exception.reason_code)
 
-    def test_background_worker_is_queued_without_fake_completion(self):
-        payload = build_scoped_context(str(self.root), target_hints=["src/target.py"], cache_root=str(self.cache), start_background=True)
-        self.assertEqual(3, _run_background_worker(payload["background"]["work_id"], self.cache))
+    def test_background_worker_runs_and_promotes_valid_candidate(self):
+        payload = build_scoped_context(str(self.root), target_hints=["src/target.py"], cache_root=str(self.cache), start_background=False)
+        self.assertEqual(0, _run_background_worker(payload["background"]["work_id"], self.cache))
         state_path = next(self.cache.rglob(f"{payload['background']['work_id']}.json"))
         state = json.loads(state_path.read_text(encoding="utf-8"))
-        self.assertEqual("queued", state["state"])
+        self.assertEqual("promoted", state["state"])
         with self.assertRaises(ScopedContextError):
             _run_background_worker("*", self.cache)
 
