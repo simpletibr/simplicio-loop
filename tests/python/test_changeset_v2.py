@@ -181,3 +181,14 @@ def test_corrupt_payload_and_effect_unknown_are_explicit(monkeypatch, tmp_path):
     assert invalid["errors"][0]["code"] == "invalid_json"
     assert unknown["effect_unknown"] is True
     assert unknown["status"] == "effect_unknown"
+
+
+def test_fast_binary_changeset_v1_alias_is_accepted(tmp_path):
+    changeset = _changeset(
+        [{"kind": "create", "path": "legacy.txt", "content": "legacy"}],
+        ["legacy.txt"],
+    )
+    changeset["schema"] = "simplicio.fast.binary-changeset/v1"
+    receipt = execute_changeset(changeset, root=tmp_path, apply=True)
+    assert receipt["status"] == "ok"
+    assert (tmp_path / "legacy.txt").read_text(encoding="utf-8") == "legacy"

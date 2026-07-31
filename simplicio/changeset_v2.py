@@ -11,6 +11,7 @@ from typing import Any
 from .mechanical_edit import execute_plan
 
 CHANGESET_SCHEMA = "simplicio.fast.changeset/v2"
+LEGACY_BINARY_CHANGESET_SCHEMA = "simplicio.fast.binary-changeset/v1"
 RECEIPT_SCHEMA = "simplicio.fast.changeset-receipt/v2"
 MECHANICAL_SCHEMA = "simplicio.mechanical-edit/v1"
 OPERATION_MAP = {
@@ -33,8 +34,11 @@ class ChangesetError(ValueError):
 
 
 def adapt_changeset(changeset: dict[str, Any], *, current_generation: str | None = None) -> dict[str, Any]:
-    if changeset.get("schema") != CHANGESET_SCHEMA:
-        raise ChangesetError("incompatible_schema", f"schema must be {CHANGESET_SCHEMA}")
+    if changeset.get("schema") not in {CHANGESET_SCHEMA, LEGACY_BINARY_CHANGESET_SCHEMA}:
+        raise ChangesetError(
+            "incompatible_schema",
+            f"schema must be {CHANGESET_SCHEMA} or {LEGACY_BINARY_CHANGESET_SCHEMA}",
+        )
     generation = changeset.get("generation")
     if not isinstance(generation, str) or not generation:
         raise ChangesetError("invalid_generation", "generation must be a non-empty string")
