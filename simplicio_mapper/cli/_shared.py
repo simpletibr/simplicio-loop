@@ -113,6 +113,7 @@ OPTIONS
   index <path>          Idempotently create or refresh .simplicio artifacts.
   macro <path>          Instant shallow project skeleton (no content reads).
   scan <path>           Macro now + deep index in background (map-job envelope).
+  background status|cancel|resume|doctor|gc <path> [--json]
   status <path>         Report deep-pass phase from lock/state/map-job.
   inspect <path>        Rich machine-readable inspection over status/index/cache.
   handoff <path>        Status + compact context-pack for downstream agents.

@@ -671,8 +671,9 @@ def _budget_rows(rows: list[dict[str, Any]], budget: int) -> tuple[list[dict[str
     }
 
 def _background_paths(base: Path, repo_key: str, work_id: str) -> tuple[Path, Path]:
-    root = base / repo_key / "background"
-    return root / f"{work_id}.json", root / "queue.jsonl"
+    from .background_work import background_paths
+
+    return background_paths(base, repo_key, work_id)
 
 
 def _validate_work_id(work_id: str) -> str:
@@ -682,42 +683,19 @@ def _validate_work_id(work_id: str) -> str:
 
 
 def _start_background_work(base: Path, repo_key: str, payload: Mapping[str, Any], start: bool) -> dict[str, Any]:
-    work_id = _validate_work_id(_sha({"repo_key": repo_key, "generation_id": payload["generation_id"]})[:32])
-    state_path, queue_path = _background_paths(base, repo_key, work_id)
-    if not state_path.exists():
-        state = {"schema": BACKGROUND_SCHEMA, "work_id": work_id, "state": "queued", "generation_id": payload["generation_id"], "created_at": time.time()}
-        _atomic_json(state_path, state)
-        queue_path.parent.mkdir(parents=True, exist_ok=True)
-        with queue_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps({"schema": BACKGROUND_SCHEMA, "work_id": work_id, "state_path": state_path.as_posix()}, sort_keys=True) + "\n")
-    else:
-        state = _read_json(state_path, REASON_CACHE_INCOMPATIBLE)
-        if state.get("schema") != BACKGROUND_SCHEMA or state.get("work_id") != work_id or state.get("state") not in {"queued", "pending"}:
-            raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "background record")
-    return {
-        "schema": BACKGROUND_SCHEMA,
-        "state": "queued",
-        "work_id": work_id,
-        "queue_path": queue_path.as_posix(),
-        "started": False,
-        "pending": True,
-        "start_requested": bool(start),
-        "owner": "simplicio-loop/#408",
-    }
+    from .background_work import enqueue_background_work
+
+    return enqueue_background_work(base, repo_key, payload, start=start)
 
 
 def _run_background_worker(work_id: str, base: Path) -> int:
-    _validate_work_id(work_id)
-    matches = list((base).glob(f"*/background/{work_id}.json"))
-    if not matches:
-        return 2
-    state_path = matches[0]
-    state = _read_json(state_path, REASON_CACHE_INCOMPATIBLE)
-    if state.get("schema") != BACKGROUND_SCHEMA or state.get("work_id") != work_id:
-        raise ScopedContextError(REASON_CACHE_INCOMPATIBLE, "background record")
-    # #407 only owns the durable enqueue/start boundary. Loop/#408 must execute
-    # and validate the deep scan before changing this record to completed.
-    return 3 if state.get("state") == "queued" else 2
+    from .background_work import run_background_worker
+
+    try:
+        return run_background_worker(work_id, base)
+    except Exception as error:
+        reason = getattr(error, "reason_code", REASON_CACHE_INCOMPATIBLE)
+        raise ScopedContextError(reason, str(error)) from error
 
 
 def _metrics(
