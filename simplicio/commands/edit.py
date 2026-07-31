@@ -18,6 +18,7 @@ from typing import Any
 
 from ..runtime_bridge import delegated_command, record_delegation
 from ..standalone_migration import (
+    effect_unknown_details,
     effect_unknown_pending,
     emit_mutation_route,
     mutation_receipt,
@@ -131,12 +132,16 @@ def _translate_create_file_plan_for_native(plan: dict) -> list[dict] | None:
     return native_plans
 
 
-def _run_native_edit_plans(runtime: str, native_plans: list[dict], a: argparse.Namespace) -> dict[str, Any]:
-    """Delegate one or more single-file native plans, one subprocess call
-    per file (the native binary only ever addresses one file per `--plan`),
-    and combine the results into the same shape `run_mechanical_edit`
-    returns (`applied`/`files`/`errors`/`operation_count`) so callers see a
-    consistent result regardless of which path answered."""
+def _run_native_edit_plans(
+    runtime: str,
+    native_plans: list[dict],
+    a: argparse.Namespace,
+    *,
+    stdin_text: str | None = None,
+    plan_arg: str = "-",
+    plan_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Delegate validated plans while retaining exact stdin and causal proof."""
     files: list[dict] = []
     errors: list[dict] = []
     if a.apply and len(native_plans) > 1:
@@ -147,48 +152,40 @@ def _run_native_edit_plans(runtime: str, native_plans: list[dict], a: argparse.N
             "noop": False,
             "operation_count": 0,
             "files": [],
-            "errors": [
-                {
-                    "code": "RUNTIME_ATOMIC_MULTI_FILE_REQUIRED",
-                    "message": "multi-file apply requires one atomic Runtime transaction",
-                }
-            ],
+            "errors": [{"code": "RUNTIME_ATOMIC_MULTI_FILE_REQUIRED", "message": "multi-file apply requires one atomic Runtime transaction"}],
             "mutation_receipt": mutation_receipt("blocked", entrypoint="edit"),
         }
-    for native_plan in native_plans:
-        cmd = delegated_command(runtime, ["edit", "--plan", "-", "--repo", a.root, "--json"])
+    for index, native_plan in enumerate(native_plans):
+        current_plan_arg = plan_arg if len(native_plans) == 1 else "-"
+        cmd = delegated_command(runtime, ["edit", "--plan", current_plan_arg, "--repo", a.root, "--json"])
         if not a.apply:
             cmd.append("--dry-run")
-        completed = subprocess.run(cmd, input=json.dumps(native_plan), text=True, capture_output=True)
+        input_text = stdin_text if len(native_plans) == 1 else json.dumps(native_plan)
+        try:
+            completed = subprocess.run(cmd, input=input_text, text=True, capture_output=True)
+        except OSError as exc:
+            errors.append({"code": "native_delegation_failed", "message": str(exc), "path": native_plan.get("file")})
+            continue
         if completed.returncode != 0:
-            errors.append(
-                {
-                    "code": "native_delegation_failed",
-                    "message": completed.stderr.strip() or completed.stdout.strip(),
-                    "path": native_plan["file"],
-                }
-            )
+            errors.append({"code": "native_delegation_failed", "message": completed.stderr.strip() or completed.stdout.strip(), "path": native_plan.get("file")})
             continue
         try:
             result = json.loads(completed.stdout)
         except json.JSONDecodeError:
-            errors.append(
-                {
-                    "code": "native_delegation_malformed_output",
-                    "message": completed.stdout.strip(),
-                    "path": native_plan["file"],
-                }
-            )
+            errors.append({"code": "native_delegation_malformed_output", "message": completed.stdout.strip(), "path": native_plan.get("file")})
             continue
-        files.append(
-            {
-                "path": native_plan["file"],
-                "before_sha256": result.get("before_sha256"),
-                "after_sha256": result.get("after_sha256"),
-            }
-        )
+        if not isinstance(result, dict) or result.get("status") != "ok":
+            errors.append({"code": "native_delegation_invalid_result", "message": "Runtime returned no successful edit proof", "path": native_plan.get("file")})
+            continue
+        files.append({"path": native_plan.get("file"), "before_sha256": result.get("before_sha256"), "after_sha256": result.get("after_sha256")})
     if errors and a.apply:
-        record_effect_unknown(a.root)
+        context = effect_unknown_details(
+            a.root,
+            plan=plan_context,
+            native_plans=native_plans,
+            files=files,
+        )
+        record_effect_unknown(a.root, context)
     return {
         "schema": "simplicio.mechanical-edit-result/v1",
         "status": "ok" if not errors else ("effect_unknown" if a.apply else "error"),
@@ -197,10 +194,39 @@ def _run_native_edit_plans(runtime: str, native_plans: list[dict], a: argparse.N
         "operation_count": len(native_plans),
         "files": files,
         "errors": errors,
-        "mutation_receipt": mutation_receipt(
-            "runtime_effect_api", entrypoint="edit", runtime_gate_verified=not errors
-        ),
+        "mutation_receipt": mutation_receipt("runtime_effect_api", entrypoint="edit", runtime_gate_verified=not errors),
     }
+
+
+def _invalid_delegated_plan(plan: Any) -> list[dict[str, Any]]:
+    if not isinstance(plan, dict):
+        return [{"code": "invalid_json", "message": "plan root must be a JSON object"}]
+    if "file" in plan:
+        file_name = plan.get("file")
+        operations = plan.get("operations")
+        if not isinstance(file_name, str) or not file_name.strip() or Path(file_name).is_absolute() or ".." in Path(file_name).parts:
+            return [{"code": "invalid_plan", "message": "Runtime plan file must be a safe relative path"}]
+        if not isinstance(operations, list) or not operations:
+            return [{"code": "invalid_plan", "message": "Runtime plan operations must be a non-empty list"}]
+        if not all(isinstance(item, dict) and isinstance(item.get("op"), str) for item in operations):
+            return [{"code": "invalid_plan", "message": "Runtime plan operations must be objects with an op"}]
+        return []
+    if plan.get("schema") != "simplicio.mechanical-edit/v1":
+        return [{"code": "missing_schema", "message": "plan schema is unsupported"}]
+    operations = plan.get("operations")
+    if not isinstance(operations, list) or not operations:
+        return [{"code": "invalid_plan", "message": "mechanical-edit operations must be a non-empty list"}]
+    return [] if all(isinstance(item, dict) and isinstance(item.get("op"), str) for item in operations) else [{"code": "invalid_plan", "message": "mechanical-edit operations must be objects with an op"}]
+
+
+def _print_edit_result(result: dict[str, Any], a: argparse.Namespace) -> int:
+    if a.json:
+        print(json.dumps(result, sort_keys=True))
+    else:
+        print(f"{result['status']}: applied={result['applied']} noop={result['noop']}")
+        for error in result.get("errors", []):
+            print(f"error: {error.get('code')}: {error.get('message')}", file=sys.stderr)
+    return 0 if result["status"] == "ok" else 1
 
 
 def run_edit(a: argparse.Namespace) -> int:
@@ -213,87 +239,63 @@ def run_edit(a: argparse.Namespace) -> int:
             "noop": False,
             "operation_count": 0,
             "files": [],
-            "errors": [
-                {
-                    "code": "EFFECT_UNKNOWN_RECONCILIATION_REQUIRED",
-                    "message": "reconcile the prior Runtime effect before another mutation",
-                }
-            ],
+            "errors": [{"code": "EFFECT_UNKNOWN_RECONCILIATION_REQUIRED", "message": "reconcile the prior Runtime effect before another mutation"}],
             "mutation_receipt": mutation_receipt("blocked", entrypoint="edit", policy=policy),
         }
-        emit_mutation_route(
-            root=a.root,
-            entrypoint="edit",
-            route="blocked",
-            reason_code="EFFECT_UNKNOWN_RECONCILIATION_REQUIRED",
-            policy=policy,
-        )
-        if a.json:
-            print(json.dumps(blocked_result, sort_keys=True))
-        else:
-            print(f"{blocked_result['status']}: applied=False noop=False")
-            print("error: EFFECT_UNKNOWN_RECONCILIATION_REQUIRED", file=sys.stderr)
-        return 1
+        emit_mutation_route(root=a.root, entrypoint="edit", route="blocked", reason_code="EFFECT_UNKNOWN_RECONCILIATION_REQUIRED", policy=policy)
+        return _print_edit_result(blocked_result, a)
+    try:
+        plan_text = read_text_source(a.plan)
+        plan = json.loads(plan_text)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        result = {
+            "schema": "simplicio.mechanical-edit-result/v1",
+            "status": "refused",
+            "applied": False,
+            "noop": False,
+            "operation_count": 0,
+            "files": [],
+            "errors": [{"code": "invalid_plan", "message": str(exc)}],
+            "mutation_receipt": mutation_receipt("blocked", entrypoint="edit"),
+        }
+        emit_mutation_route(root=a.root, entrypoint="edit", route="blocked", reason_code="PLAN_VALIDATION_FAILED")
+        return _print_edit_result(result, a)
+    validation_errors = _invalid_delegated_plan(plan)
+    if validation_errors:
+        result = {"schema": "simplicio.mechanical-edit-result/v1", "status": "refused", "applied": False, "noop": False, "operation_count": 0, "files": [], "errors": validation_errors, "mutation_receipt": mutation_receipt("blocked", entrypoint="edit")}
+        emit_mutation_route(root=a.root, entrypoint="edit", route="blocked", reason_code="PLAN_VALIDATION_FAILED")
+        return _print_edit_result(result, a)
+
     runtime = None if a.no_runtime else _runtime_edit_binary()
     if runtime:
-        try:
-            plan_text = read_text_source(a.plan)
-            plan = json.loads(plan_text)
-        except (OSError, json.JSONDecodeError):
-            plan = None
         native_plans = None
         if isinstance(plan, dict) and "file" not in plan:
             native_plans = _translate_create_file_plan_for_native(plan)
         if native_plans is not None:
-            result = _run_native_edit_plans(runtime, native_plans, a)
+            result = _run_native_edit_plans(runtime, native_plans, a, plan_context=plan)
             record_delegation("edit", "native", root=a.root, reason="translated:create_file")
             if a.apply:
-                emit_mutation_route(
-                    root=a.root,
-                    entrypoint="edit",
-                    route="runtime_effect_api",
-                    reason_code="RUNTIME_NATIVE_EDIT",
-                )
-            if a.json:
-                print(json.dumps(result, sort_keys=True))
-            else:
-                print(f"{result['status']}: applied={result['applied']} noop={result['noop']}")
-                for error in result.get("errors", []):
-                    print(f"error: {error.get('code')}: {error.get('message')}", file=sys.stderr)
-            return 0 if result["status"] == "ok" else 1
-
-        cmd = delegated_command(runtime, ["edit", "--plan", a.plan, "--repo", a.root])
-        if a.json:
-            cmd.append("--json")
-        if not a.apply:
-            cmd.append("--dry-run")
-        try:
-            plan_stdin = read_text_source("-") if a.plan == "-" else None
-            completed = subprocess.run(cmd, input=plan_stdin, text=True)
-        except OSError as exc:
-            print(
-                f"{CLI_PROG} edit: runtime delegation failed ({exc}); using local fallback", file=sys.stderr
-            )
-            record_delegation("edit", "python-fallback", root=a.root, reason=f"delegation-error: {exc}")
-        else:
-            record_delegation("edit", "native", root=a.root)
-            if a.apply and completed.returncode != 0:
-                record_effect_unknown(a.root)
-            if a.apply:
-                emit_mutation_route(
-                    root=a.root,
-                    entrypoint="edit",
-                    route="runtime_effect_api",
-                    reason_code="RUNTIME_NATIVE_EDIT",
-                )
-            return completed.returncode
+                emit_mutation_route(root=a.root, entrypoint="edit", route="runtime_effect_api", reason_code="RUNTIME_NATIVE_EDIT")
+            return _print_edit_result(result, a)
+        result = _run_native_edit_plans(
+            runtime,
+            [plan],
+            a,
+            stdin_text=plan_text if a.plan == "-" else None,
+            plan_arg="-" if a.plan == "-" else a.plan,
+            plan_context=plan,
+        )
+        record_delegation("edit", "native", root=a.root)
+        if a.apply:
+            emit_mutation_route(root=a.root, entrypoint="edit", route="runtime_effect_api", reason_code="RUNTIME_NATIVE_EDIT")
+        return _print_edit_result(result, a)
+    if a.no_runtime:
+        reason = "user-forced-python (--no-runtime)"
+    elif os.environ.get("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT"):
+        reason = "user-forced-python (SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT)"
     else:
-        if a.no_runtime:
-            reason = "user-forced-python (--no-runtime)"
-        elif os.environ.get("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT"):
-            reason = "user-forced-python (SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT)"
-        else:
-            reason = "binary-not-found"
-        route = "python-forced" if reason.startswith("user-forced-python") else "python-fallback"
-        record_delegation("edit", route, root=a.root, reason=reason)
+        reason = "binary-not-found"
+    route = "python-forced" if reason.startswith("user-forced-python") else "python-fallback"
+    record_delegation("edit", route, root=a.root, reason=reason)
     return run_mechanical_edit(a)
+

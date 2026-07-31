@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from dataclasses import asdict, dataclass
@@ -90,12 +91,118 @@ def effect_unknown_pending(root: str) -> bool:
     return (Path(root) / EFFECT_UNKNOWN_LOCK).is_file()
 
 
-def record_effect_unknown(root: str) -> Path:
-    """Persist a secret-free reconciliation lock before another invocation."""
+def _canonical_json(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _sha256_text(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def _safe_lock_key(value: object) -> str:
+    text = str(value or "").strip()
+    return text if text and "\n" not in text and "\r" not in text else "unknown"
+
+
+def effect_unknown_details(
+    root: str,
+    *,
+    plan: Any = None,
+    native_plans: list[dict[str, Any]] | None = None,
+    files: list[dict[str, Any]] | None = None,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
+    """Build redacted causal metadata for an uncertain Runtime delegation."""
+    repo = str(Path(root).resolve())
+    plan_payload = plan if isinstance(plan, dict) else {}
+    plan_digest = _sha256_text(_canonical_json(plan_payload))
+    key = _safe_lock_key(idempotency_key or plan_payload.get("idempotency_key"))
+    if key == "unknown":
+        key = _sha256_text(f"{repo}\n{plan_digest}")
+    evidence_file = f".simplicio/runtime-effects/reconciliation/{key}.json"
+    preconditions: list[dict[str, Any]] = []
+    for native_plan in native_plans or []:
+        path = native_plan.get("file")
+        if not isinstance(path, str) or not path:
+            continue
+        operations = native_plan.get("operations")
+        if not isinstance(operations, list):
+            operations = []
+        for operation in operations or [{}]:
+            if not isinstance(operation, dict):
+                operation = {}
+            preconditions.append(
+                {
+                    "path": path,
+                    "before_sha256": operation.get("before_sha256") or operation.get("file_sha256") or "unknown",
+                    "expected_after_sha256": operation.get("after_sha256") or "unknown",
+                }
+            )
+    receipt_locator = {
+        "intent": f".simplicio/runtime-effects/{key}.intent.json",
+        "receipt": f".simplicio/runtime-effects/{key}.receipt.json",
+        "runtime_status_command": f"simplicio effect status --idempotency-key {key} --repo {repo} --json",
+    }
+    recovery_command = (
+        f"simplicio-py reconcile --root {repo} --idempotency-key {key} "
+        f"--evidence-file {repo}\{evidence_file.replace('/', chr(92))} --json"
+    )
+    return {
+        "idempotency_key": key,
+        "repo": repo,
+        "plan_digest": plan_digest,
+        "effect_digest": plan_digest,
+        "preconditions": preconditions,
+        "evidence_file": evidence_file,
+        "receipt_locator": receipt_locator,
+        "recovery_command": recovery_command,
+        "files": list(files or []),
+    }
+
+
+def record_effect_unknown(root: str, details: dict[str, Any] | None = None, **kwargs: Any) -> Path:
+    """Persist a complete, secret-free causal reconciliation lock."""
+    supplied = dict(details or {})
+    supplied.update(kwargs)
+    causal = effect_unknown_details(root)
+    causal.update({key: value for key, value in supplied.items() if value is not None})
+    if not causal.get("idempotency_key") or causal["idempotency_key"] == "unknown":
+        causal = effect_unknown_details(
+            root,
+            plan=supplied.get("plan"),
+            native_plans=supplied.get("native_plans"),
+            files=supplied.get("files"),
+            idempotency_key=supplied.get("idempotency_key"),
+        ) | {key: value for key, value in supplied.items() if key not in {"plan", "native_plans"}}
+    payload = {
+        "schema": "simplicio.dev-cli.effect-unknown-lock/v2",
+        "outcome": "effect_unknown",
+        **causal,
+        "causal": {
+            key: causal[key]
+            for key in ("idempotency_key", "repo", "plan_digest", "effect_digest", "preconditions")
+            if key in causal
+        },
+    }
     return write_text_atomic(
         Path(root) / EFFECT_UNKNOWN_LOCK,
-        "schema=simplicio.dev-cli.effect-unknown-lock/v1\noutcome=effect_unknown\n",
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
     )
+
+
+def load_effect_unknown_lock(root: str) -> dict[str, Any] | None:
+    """Read the JSON v2 lock, while recognizing the legacy text lock."""
+    path = Path(root) / EFFECT_UNKNOWN_LOCK
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        fields = dict(line.split("=", 1) for line in raw.splitlines() if "=" in line)
+        return fields or None
+    return payload if isinstance(payload, dict) else None
 
 
 def clear_effect_unknown(root: str, *, runtime_reconciled: bool) -> None:
