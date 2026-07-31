@@ -1032,12 +1032,12 @@ def load(api):
 
         out = StringIO()
         with redirect_stdout(out):
-            code = main(["index", str(self.dir), "--json"])
+            code = main(["index", str(self.dir), "--json", "--timeout", "0"])
 
         self.assertEqual(code, 0)
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["status"], "skipped")
-        self.assertEqual(payload["skipped_reason"], "locked")
+        self.assertEqual(payload["skipped_reason"], "locked_timeout")
 
     def test_background_index_reports_pid_and_log(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "background-host"}))

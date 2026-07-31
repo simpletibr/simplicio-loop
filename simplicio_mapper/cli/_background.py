@@ -104,6 +104,22 @@ def _run_index(opts: dict) -> int:
     out = opts["out"]
     lock = _acquire_index_lock(root, out)
     if lock is None:
+        # Index callers share one per-worktree lock.  Waiting here lets a
+        # foreground caller join the active refresh instead of reporting a
+        # misleading successful skip while the owner is still building.
+        deadline = time.monotonic() + max(0, int(opts.get("timeout", 120)))
+        while time.monotonic() < deadline:
+            lock_status = _inspect_index_lock(root, out)
+            if lock_status.get("reason_code") != "lock_live_owner":
+                lock = _acquire_index_lock(root, out)
+                if lock is not None:
+                    break
+            time.sleep(0.25)
+        if lock is not None:
+            try:
+                return _run_index_locked(opts, root, out, lock)
+            finally:
+                _release_index_lock(lock)
         # A live owner still holds the lock (or a reclaim is provably unsafe,
         # e.g. a fresh-but-malformed write). Surface the classification here
         # too -- not just via ``status`` -- so ``index --json`` alone carries
@@ -113,7 +129,7 @@ def _run_index(opts: dict) -> int:
             root,
             out,
             status="skipped",
-            skipped_reason="locked",
+            skipped_reason="locked_timeout",
             counts={
                 "files": 0,
                 "precedents": 0,
