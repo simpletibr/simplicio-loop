@@ -54,7 +54,11 @@ def _spawn_index_process(opts: dict) -> tuple[dict, subprocess.Popen]:
     if opts.get("canonical_reuse"):
         args.append("--canonical-reuse")
     env = os.environ.copy()
-    source_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    # ``__file__`` is normally ``.../simplicio_mapper/cli/_background.py``.
+    # The import root is the directory containing the package, not the
+    # package directory itself; the latter can make a detached worker resolve
+    # a different installed/cached module than its parent process.
+    source_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     python_path = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = os.pathsep.join([source_root, python_path]) if python_path else source_root
     with open(log_path, "ab") as log:
