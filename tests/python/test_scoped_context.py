@@ -355,7 +355,7 @@ class ScopedContextTests(unittest.TestCase):
         self.assertEqual(payload["artifact_digest"], payload["generation"]["artifact_digest"])
         records = _artifact_records(self.root, self.root / ".simplicio")[1]
         self.assertEqual(payload["artifact_digest"], _artifact_digest(records))
-        self.assertEqual("0.26.2", payload["generation"]["producer"]["version"])
+        self.assertEqual("0.26.3", payload["generation"]["producer"]["version"])
 
 
 if __name__ == "__main__":
