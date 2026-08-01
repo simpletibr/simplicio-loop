@@ -35,7 +35,7 @@ def build_manifest() -> dict:
             "payload_bytes": 16777216,
             "depth": 64,
         },
-        "files": {str(p.relative_to(ROOT)): _digest(p) for p in files},
+        "files": {p.relative_to(ROOT).as_posix(): _digest(p) for p in files},
     }
 
 
