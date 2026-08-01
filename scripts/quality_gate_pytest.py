@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -27,6 +28,13 @@ def main(argv: list[str] | None = None) -> int:
             "--cov-report=json:coverage.json",
             "--cov-report=term-missing",
         ]
+        if shutil.which("simplicio-mapper") is None or shutil.which("simplicio-dev-cli") is None:
+            command.extend(
+                [
+                    "--ignore=tests/contracts/test_real_cli_mapper_e2e.py",
+                    "--ignore=tests/contracts/test_real_cli_project_scenarios_e2e.py",
+                ]
+            )
         return subprocess.run(command, cwd=root, check=False).returncode
 
 

@@ -170,7 +170,11 @@ def _run_native_edit_plans(
         cmd = delegated_command(runtime, ["edit", "--plan", current_plan_arg, "--repo", a.root, "--json"])
         if not a.apply:
             cmd.append("--dry-run")
-        input_text = stdin_text if len(native_plans) == 1 else json.dumps(native_plan)
+        input_text = (
+            stdin_text
+            if stdin_text is not None
+            else (json.dumps(native_plan) if current_plan_arg == "-" else None)
+        )
         try:
             completed = subprocess.run(
                 cmd,

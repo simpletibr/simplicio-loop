@@ -25,9 +25,7 @@ from typing import Any
 SCHEMA = "simplicio.dev-cli.quality-gate-receipt/v1"
 DEFAULT_RECEIPT = Path(".simplicio/quality-gate-receipt.json")
 QUALITY_GATE_ENV_EXCLUSIONS = ("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY",)
-QUALITY_GATE_ENV_OVERRIDES = {
-    "SIMPLICIO_RUNTIME_OFFLINE": "1",
-}
+QUALITY_GATE_ENV_OVERRIDES: dict[str, str] = {}
 
 
 def _quality_gate_environment() -> dict[str, str]:
