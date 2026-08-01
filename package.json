@@ -96,6 +96,7 @@
     "docs:version": "npm --prefix docs-site run docs:version --",
     "evidence": "playwright test --project=chromium",
     "pack:dry": "npm pack --dry-run",
+    "quality:fastest-path": "npm run quality:release && python3 scripts/mapper_release_manifest.py --output artifacts/mapper-release-manifest.json",
     "quality:release": "python3 scripts/mapper_quality_gate.py --release --full --require-tools --require-runtime --evidence artifacts/release-evidence.toml",
     "prepublishOnly": "npm run quality:release",
     "release": "npm publish --access public"
