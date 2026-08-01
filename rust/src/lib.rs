@@ -151,13 +151,35 @@ fn merge_edges(mut edges: Vec<(String, String, String)>) -> Vec<(String, String,
     edges
 }
 
+/// Build the canonical symbol index from partition results.
+/// Output ordering is independent of partition completion order: symbol,
+/// path, then source line. Duplicate records are removed before return.
+#[pyfunction]
+fn build_symbol_index(mut records: Vec<(String, String, u32)>) -> Vec<(String, String, u32)> {
+    records.sort_by(|left, right| {
+        left.1
+            .cmp(&right.1)
+            .then_with(|| left.0.cmp(&right.0))
+            .then_with(|| left.2.cmp(&right.2))
+    });
+    records.dedup();
+    records
+}
+
 #[pymodule]
 fn simplicio_mapper_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", "0.1.0")?;
     m.add("__schema__", "simplicio.mapper-native/v1")?;
     m.add(
         "__features__",
-        vec!["sha256", "imports", "symbols", "batch", "graph-merge"],
+        vec![
+            "sha256",
+            "imports",
+            "symbols",
+            "symbol-index",
+            "batch",
+            "graph-merge",
+        ],
     )?;
     m.add(
         "__languages__",
@@ -175,12 +197,13 @@ fn simplicio_mapper_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(parse_batch, m)?)?;
     m.add_function(wrap_pyfunction!(parse_symbols_batch, m)?)?;
     m.add_function(wrap_pyfunction!(merge_edges, m)?)?;
+    m.add_function(wrap_pyfunction!(build_symbol_index, m)?)?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{merge_edges, parse_symbols};
+    use super::{build_symbol_index, merge_edges, parse_symbols};
 
     #[test]
     fn merge_edges_is_sorted_and_deduplicated() {
@@ -197,5 +220,18 @@ mod tests {
     fn parse_symbols_matches_reference_order_and_limit_shape() {
         let result = parse_symbols("def zebra(): pass\nclass Alpha: pass\nfunction beta() {}");
         assert_eq!(result, vec!["Alpha", "beta", "zebra"]);
+    }
+
+    #[test]
+    fn symbol_index_is_canonical_across_partition_order() {
+        let result = build_symbol_index(vec![
+            ("z.py".into(), "run".into(), 9),
+            ("a.py".into(), "run".into(), 4),
+            ("a.py".into(), "run".into(), 4),
+            ("a.py".into(), "Alpha".into(), 1),
+        ]);
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], ("a.py".into(), "Alpha".into(), 1));
+        assert_eq!(result[1], ("a.py".into(), "run".into(), 4));
     }
 }
