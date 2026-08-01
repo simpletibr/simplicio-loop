@@ -25,6 +25,13 @@ class ReleaseManifestTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 validate_manifest(root, manifest)
 
+    def test_manifest_metadata_tampering_fails_closed(self) -> None:
+        root = Path(__file__).parents[2]
+        manifest = build_manifest(root)
+        manifest["commit"] = "tampered"
+        with self.assertRaises(ValueError):
+            validate_manifest(root, manifest)
+
 
 if __name__ == "__main__":
     unittest.main()

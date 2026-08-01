@@ -14,6 +14,14 @@ from typing import Any
 SCHEMA = "simplicio.mapper-release-manifest/v1"
 
 
+def _reproducibility_key(manifest: dict[str, Any]) -> str:
+    payload = dict(manifest)
+    payload.pop("reproducibility_key", None)
+    return "sha256:" + hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -71,14 +79,16 @@ def build_manifest(root: str | Path, artifacts: list[str | Path] | None = None) 
         "versions": versions,
         "artifacts": artifact_rows,
     }
-    manifest["reproducibility_key"] = "sha256:" + hashlib.sha256(
-        json.dumps(manifest, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
+    manifest["reproducibility_key"] = _reproducibility_key(manifest)
     return manifest
 
 
 def validate_manifest(root: str | Path, manifest: dict[str, Any]) -> None:
-    if manifest.get("schema") != SCHEMA or not manifest.get("commit"):
+    if (
+        manifest.get("schema") != SCHEMA
+        or not manifest.get("commit")
+        or manifest.get("reproducibility_key") != _reproducibility_key(manifest)
+    ):
         raise ValueError("invalid release manifest schema or commit")
     for artifact in manifest.get("artifacts", []):
         path = Path(root) / artifact["path"]
