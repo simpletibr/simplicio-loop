@@ -33,6 +33,7 @@ from .graph import (
     _build_symbol_index,
     _collect_architecture_signals,
 )
+from .memory_budget import MemoryBudget, MemoryBudgetExceeded
 from .parse import (
     ARTIFACT_SCHEMA,
     ARTIFACT_VERSION,
@@ -67,6 +68,7 @@ _MAX_CONCURRENT_ENV = "SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES"
 _FILE_TIMEOUT_ENV = "SIMPLICIO_MAPPER_FILE_TIMEOUT_S"
 _BATCH_SIZE_ENV = "SIMPLICIO_MAPPER_ASYNC_BATCH_SIZE"
 _BATCH_FACTOR_ENV = "SIMPLICIO_MAPPER_ASYNC_BATCH_FACTOR"
+_MEMORY_HARD_LIMIT_ENV = "SIMPLICIO_MAPPER_MEMORY_HARD_LIMIT_BYTES"
 
 
 def _max_concurrent_files() -> int:
@@ -123,6 +125,19 @@ def _async_batch_factor() -> int:
         if value > 0:
             return min(value, 32)
     return 4
+
+
+def _memory_budget_from_env() -> MemoryBudget | None:
+    raw = os.environ.get(_MEMORY_HARD_LIMIT_ENV, "").strip()
+    if not raw:
+        return None
+    try:
+        hard = int(raw)
+    except ValueError:
+        return None
+    if hard <= 0:
+        return None
+    return MemoryBudget(soft_limit_bytes=max(1, int(hard * 0.8)), hard_limit_bytes=hard)
 
 
 def _install_uvloop_if_available() -> bool:
@@ -267,6 +282,7 @@ async def build_file_inventory_async(
     max_concurrent: int | None = None,
     timeout_s: float | None = None,
     degraded: dict[str, Any] | None = None,
+    memory_budget: MemoryBudget | None = None,
 ) -> list[ProjectFile]:
     """Async replacement for ``parse._build_file_inventory``'s walk-and-parse
     loop (ADR-009 plan steps 4-5).
@@ -295,6 +311,23 @@ async def build_file_inventory_async(
     quarantined: list[dict[str, str]] = []
 
     abs_paths = await asyncio.to_thread(_collect_text_files, cwd, skipped_large_files)
+    reserved_by_path: dict[str, int] = {}
+    if memory_budget is not None:
+        eligible_paths: list[str] = []
+        for abs_path in abs_paths:
+            try:
+                size_bytes = os.path.getsize(abs_path)
+                memory_budget.reserve(size_bytes)
+            except (OSError, MemoryBudgetExceeded) as exc:
+                if degraded is not None:
+                    degraded.setdefault("memory_budget_exceeded", []).append({
+                        "path": _normalize_rel(os.path.relpath(abs_path, cwd)),
+                        "error": str(exc),
+                    })
+                continue
+            reserved_by_path[abs_path] = size_bytes
+            eligible_paths.append(abs_path)
+        abs_paths = eligible_paths
 
     results: list[ProjectFile] = []
     async def _worker() -> None:
@@ -304,10 +337,15 @@ async def build_file_inventory_async(
                 if batch is None:
                     return
                 for abs_path in batch:
-                    entry = await _process_one_file(
-                        cwd, pkg, status_map, cache, contents, timeout,
-                        abs_path, timed_out, quarantined,
-                    )
+                    try:
+                        entry = await _process_one_file(
+                            cwd, pkg, status_map, cache, contents, timeout,
+                            abs_path, timed_out, quarantined,
+                        )
+                    finally:
+                        reserved = reserved_by_path.get(abs_path, 0)
+                        if memory_budget is not None and reserved and contents is None:
+                            memory_budget.release(reserved)
                     if entry is not None:
                         results.append(entry)
             finally:
@@ -379,6 +417,7 @@ async def build_artifacts_async(
     abs_out = os.path.abspath(os.path.join(abs_cwd, output_dir))
     pkg = await asyncio.to_thread(_parse_json_safe, os.path.join(abs_cwd, "package.json"))
     contents: dict[str, str] = {}
+    memory_budget = _memory_budget_from_env()
     skipped_large_files: list[str] = []
     degraded: dict[str, Any] = {
         "git_timeout": False,
@@ -400,6 +439,7 @@ async def build_artifacts_async(
             contents=contents,
             skipped_large_files=skipped_large_files,
             degraded=degraded,
+            memory_budget=memory_budget,
         )
     finally:
         # Deliberately synchronous, not `to_thread`-wrapped: `close()` is
@@ -494,6 +534,10 @@ async def build_artifacts_async(
 
     project_map["agent_tree"] = agent_tree
     contents.clear()
+    if memory_budget is not None and memory_budget.current_bytes:
+        memory_budget.release(memory_budget.current_bytes)
+        pipeline_metrics = dict(pipeline_metrics or {})
+        pipeline_metrics["memory_budget"] = memory_budget.receipt()
 
     return {
         "project_map": project_map,
