@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.26.9] - 2026-08-01
+
+### Fixed
+
+- Classify unavailable quality-gate tools consistently on localized Windows
+  systems (PR #470).
+
 ## [0.26.8] - 2026-08-01
 
 ### Fixed
