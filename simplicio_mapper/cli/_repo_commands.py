@@ -185,6 +185,13 @@ def _run_business(opts: dict) -> int:
 
 def _run_survey(opts: dict) -> int:
     root = os.path.abspath(opts["root"])
+    copied_to = None
+    if opts["target"]:
+        copied_to = os.path.abspath(os.path.join(root, opts["target"]))
+        if os.path.exists(copied_to):
+            print(f"survey target already exists: {copied_to}", file=sys.stderr)
+            return 2
+
     abs_out = os.path.abspath(os.path.join(root, opts["out"]))
     artifacts = build_artifacts(root, output_dir=opts["out"])
     flow_inventory = build_flow_inventory(root, artifacts)
@@ -199,12 +206,14 @@ def _run_survey(opts: dict) -> int:
         handle.write(markdown.rstrip() + "\n")
     os.replace(tmp_doc, doc_path)
 
-    copied_to = None
-    if opts["target"]:
-        copied_to = os.path.abspath(os.path.join(root, opts["target"]))
+    if copied_to:
         os.makedirs(os.path.dirname(copied_to) or ".", exist_ok=True)
-        with open(copied_to, "w", encoding="utf-8") as handle:
-            handle.write(markdown.rstrip() + "\n")
+        try:
+            with open(copied_to, "x", encoding="utf-8") as handle:
+                handle.write(markdown.rstrip() + "\n")
+        except FileExistsError:
+            print(f"survey target already exists: {copied_to}", file=sys.stderr)
+            return 2
 
     if opts["json"]:
         print(
