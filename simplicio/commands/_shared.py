@@ -27,6 +27,19 @@ def read_text_source(path: str) -> str:
         raise SystemExit(2) from exc
 
 
+def read_binary_source(path: str) -> bytes:
+    """Read an opaque binary plan from *path* or stdin without text decoding."""
+    if path == "-":
+        stream = getattr(sys.stdin, "buffer", None)
+        raw = stream.read() if stream is not None else sys.stdin.read()
+        return raw if isinstance(raw, bytes) else raw.encode("utf-8")
+    try:
+        return Path(path).read_bytes()
+    except (FileNotFoundError, OSError) as exc:
+        print(f"{Path(sys.argv[0]).name}: error: cannot read {path}: {exc}", file=sys.stderr)
+        raise SystemExit(2) from exc
+
+
 def force_local_if_requested(a: argparse.Namespace) -> None:
     """Reject the removed local-LLM execution mode."""
     if getattr(a, "local", False):
