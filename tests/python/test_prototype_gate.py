@@ -38,11 +38,14 @@ def _write(path: Path, payload: dict) -> None:
 
 def _make_plan(tmp_path: Path, prototype_type: str = "code_spike", **extra) -> Path:
     plan_path = tmp_path / "plan.json"
+    source_root = tmp_path / "source"
+    source_root.mkdir(parents=True, exist_ok=True)
     assert (
         prototype.run(
             _args(
                 prototype_cmd="plan",
                 output=str(plan_path),
+                root=str(source_root),
                 prototype_type=prototype_type,
                 **extra,
             )
@@ -59,7 +62,13 @@ def test_prototype_scaffold_supports_loop_contract_types(tmp_path):
 
         assert (
             prototype.run(
-                _args(prototype_cmd="scaffold", plan=str(plan_path), candidate=str(candidate), json=True)
+                _args(
+                    prototype_cmd="scaffold",
+                    plan=str(plan_path),
+                    candidate=str(candidate),
+                    root=str(tmp_path / kind / "source"),
+                    json=True,
+                )
             )
             == 0
         )
@@ -78,7 +87,13 @@ def test_dry_run_reports_writes_without_touching_target(tmp_path):
 
     assert (
         prototype.run(
-            _args(prototype_cmd="scaffold", plan=str(plan_path), candidate=str(candidate), json=True)
+            _args(
+                prototype_cmd="scaffold",
+                plan=str(plan_path),
+                candidate=str(candidate),
+                root=str(tmp_path / "source"),
+                json=True,
+            )
         )
         == 0
     )
@@ -91,6 +106,7 @@ def test_dry_run_reports_writes_without_touching_target(tmp_path):
                 plan=str(plan_path),
                 candidate=str(candidate),
                 target=str(target),
+                root=str(tmp_path / "source"),
                 json=True,
             )
         )
@@ -117,13 +133,25 @@ def test_validate_writes_evidence_and_blocks_failing_validator(tmp_path):
 
     assert (
         prototype.run(
-            _args(prototype_cmd="scaffold", plan=str(plan_path), candidate=str(candidate), json=True)
+            _args(
+                prototype_cmd="scaffold",
+                plan=str(plan_path),
+                candidate=str(candidate),
+                root=str(tmp_path / "source"),
+                json=True,
+            )
         )
         == 0
     )
     assert (
         prototype.run(
-            _args(prototype_cmd="validate", plan=str(plan_path), candidate=str(candidate), json=True)
+            _args(
+                prototype_cmd="validate",
+                plan=str(plan_path),
+                candidate=str(candidate),
+                root=str(tmp_path / "source"),
+                json=True,
+            )
         )
         == 1
     )
@@ -139,7 +167,13 @@ def test_promote_rejects_forged_decision(tmp_path):
     candidate = tmp_path / "candidate"
     assert (
         prototype.run(
-            _args(prototype_cmd="scaffold", plan=str(plan_path), candidate=str(candidate), json=True)
+            _args(
+                prototype_cmd="scaffold",
+                plan=str(plan_path),
+                candidate=str(candidate),
+                root=str(tmp_path / "source"),
+                json=True,
+            )
         )
         == 0
     )
@@ -162,6 +196,7 @@ def test_promote_rejects_forged_decision(tmp_path):
                 prototype_cmd="promote",
                 plan=str(plan_path),
                 candidate=str(candidate),
+                root=str(tmp_path / "source"),
                 target=str(tmp_path / "target"),
             )
         )
