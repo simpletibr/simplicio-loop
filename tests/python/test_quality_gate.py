@@ -15,6 +15,12 @@ def test_quality_gate_receipt_is_sha_bound_and_records_failures(tmp_path):
     assert passing["commit_sha"] is None
     assert passing["passed"] is False
     assert passing["commands"][0]["name"] == "pass"
+    assert passing["external_lanes"]["runtime"] == {
+        "status": "UNVERIFIED",
+        "value": None,
+        "reason": "runtime_backed_E2E_requires_a_compatible_installed_capability",
+    }
+    assert passing["external_lanes"]["fast"]["value"] is None
 
 
 def test_quality_gate_cli_persists_failure_receipt(tmp_path):
