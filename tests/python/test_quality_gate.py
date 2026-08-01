@@ -50,3 +50,14 @@ def test_quality_gate_verifier_rejects_tampering(tmp_path):
     ok, reason = verify_receipt(receipt, tmp_path)
     assert ok is False
     assert reason == "receipt_digest_invalid"
+
+
+def test_quality_gate_records_command_timeout(tmp_path):
+    payload = run_gate(
+        tmp_path,
+        commands=[("slow", [sys.executable, "-c", "import time; time.sleep(2)"])],
+        timeout_s=0.01,
+    )
+    assert payload["passed"] is False
+    assert payload["commands"][0]["exit_code"] == 124
+    assert "TimeoutExpired" in payload["commands"][0]["error"]
