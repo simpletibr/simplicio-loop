@@ -65,13 +65,25 @@ def _versions() -> dict[str, str | None]:
     return result
 
 
-def _command_result(root: Path, name: str, command: list[str]) -> dict[str, Any]:
+def _command_result(root: Path, name: str, command: list[str], *, timeout_s: float) -> dict[str, Any]:
     started = time.perf_counter()
     try:
-        completed = subprocess.run(command, cwd=root, capture_output=True, text=True, check=False)
+        completed = subprocess.run(
+            command, cwd=root, capture_output=True, text=True, check=False, timeout=timeout_s
+        )
         exit_code = completed.returncode
         output = (completed.stdout + completed.stderr)[-32_768:]
         error = None
+    except subprocess.TimeoutExpired as exc:
+        exit_code = 124
+        stdout = exc.stdout or ""
+        stderr = exc.stderr or ""
+        if isinstance(stdout, bytes):
+            stdout = stdout.decode(errors="replace")
+        if isinstance(stderr, bytes):
+            stderr = stderr.decode(errors="replace")
+        output = (stdout + stderr)[-32_768:]
+        error = f"TimeoutExpired: command exceeded {timeout_s:g}s"
     except (OSError, subprocess.SubprocessError) as exc:
         exit_code = 127
         output = ""
@@ -87,11 +99,19 @@ def _command_result(root: Path, name: str, command: list[str]) -> dict[str, Any]
     }
 
 
-def run_gate(root: Path, *, commands: list[tuple[str, list[str]]] | None = None) -> dict[str, Any]:
+def run_gate(
+    root: Path,
+    *,
+    commands: list[tuple[str, list[str]]] | None = None,
+    timeout_s: float = 120.0,
+) -> dict[str, Any]:
     root = root.resolve()
     sha = _git(root, "rev-parse", "HEAD")
     dirty = _git(root, "status", "--porcelain")
-    steps = [_command_result(root, name, argv) for name, argv in commands or DEFAULT_COMMANDS]
+    steps = [
+        _command_result(root, name, argv, timeout_s=timeout_s)
+        for name, argv in commands or DEFAULT_COMMANDS
+    ]
     limitations: list[str] = []
     if platform.system() != "Windows":
         limitations.append("windows_lane_not_run_on_non_windows_host")
@@ -160,6 +180,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--verify", action="store_true", help="verify an existing receipt against the current checkout"
     )
+    parser.add_argument("--timeout", type=float, default=120.0, help="per-command timeout in seconds")
     parser.add_argument(
         "--command",
         action="append",
@@ -167,6 +188,8 @@ def main(argv: list[str] | None = None) -> int:
         help="replace the default commands for deterministic harness tests; ARGV uses shell-like splitting",
     )
     args = parser.parse_args(argv)
+    if args.timeout <= 0:
+        parser.error("--timeout must be positive")
     receipt_path = args.receipt if args.receipt.is_absolute() else args.root / args.receipt
     if args.verify:
         ok, reason = verify_receipt(receipt_path, args.root)
@@ -180,7 +203,7 @@ def main(argv: list[str] | None = None) -> int:
             if not separator or not name or not raw:
                 parser.error("--command must use NAME=ARGV")
             commands.append((name, shlex.split(raw, posix=False)))
-    receipt = run_gate(args.root, commands=commands)
+    receipt = run_gate(args.root, commands=commands, timeout_s=args.timeout)
     _write_receipt(receipt_path, receipt)
     print(
         json.dumps(
