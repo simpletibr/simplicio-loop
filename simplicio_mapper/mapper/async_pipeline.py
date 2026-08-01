@@ -410,6 +410,7 @@ async def build_artifacts_async(
         file_cache.close()
 
     degraded["skipped_large_files"] = sorted(skipped_large_files)
+    pipeline_metrics = degraded.pop("async_pipeline", None)
     file_entries = [file.to_dict() for file in files]
     corpus = "\n".join(file.text_preview for file in files[:80])
     changed_files = _detect_changed_files(files, previous_map, status_map, incremental)
@@ -500,4 +501,5 @@ async def build_artifacts_async(
         "architecture_inventory": architecture_inventory,
         "symbol_index": symbol_index,
         "call_graph": call_graph,
+        "async_pipeline_metrics": pipeline_metrics,
     }
