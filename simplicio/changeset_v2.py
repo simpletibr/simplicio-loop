@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import platform
 import sys
@@ -11,7 +13,8 @@ from typing import Any
 from .mechanical_edit import execute_plan
 
 CHANGESET_SCHEMA = "simplicio.fast.changeset/v2"
-LEGACY_BINARY_CHANGESET_SCHEMA = "simplicio.fast.binary-changeset/v1"
+BINARY_SCHEMA = "simplicio.fast.binary-changeset/v1"
+BINARY_MAGIC = b"SFBCHG01"
 RECEIPT_SCHEMA = "simplicio.fast.changeset-receipt/v2"
 MECHANICAL_SCHEMA = "simplicio.mechanical-edit/v1"
 OPERATION_MAP = {
@@ -34,10 +37,10 @@ class ChangesetError(ValueError):
 
 
 def adapt_changeset(changeset: dict[str, Any], *, current_generation: str | None = None) -> dict[str, Any]:
-    if changeset.get("schema") not in {CHANGESET_SCHEMA, LEGACY_BINARY_CHANGESET_SCHEMA}:
+    if changeset.get("schema") != CHANGESET_SCHEMA:
         raise ChangesetError(
             "incompatible_schema",
-            f"schema must be {CHANGESET_SCHEMA} or {LEGACY_BINARY_CHANGESET_SCHEMA}",
+            f"schema must be {CHANGESET_SCHEMA}; binary input requires the bytes adapter",
         )
     generation = changeset.get("generation")
     if not isinstance(generation, str) or not generation:
@@ -181,6 +184,120 @@ def execute_changeset_json(
         apply=apply,
         current_generation=current_generation,
     )
+
+
+def execute_changeset_bytes(
+    payload: bytes,
+    *,
+    root: str | Path = ".",
+    apply: bool = False,
+    current_generation: str | None = None,
+) -> dict[str, Any]:
+    """Consume a sealed Fast binary changeset without decoding it as UTF-8/JSON."""
+    if not isinstance(payload, bytes) or not payload.startswith(BINARY_MAGIC):
+        return _refused_receipt(
+            {},
+            {"code": "binary_magic_invalid", "message": "payload is not a Fast binary changeset"},
+            apply=apply,
+        )
+    try:
+        from simplicio_fast.binary_changeset import decode_binary
+    except ImportError:
+        return _refused_receipt(
+            {},
+            {
+                "code": "binary_decoder_unavailable",
+                "message": "install the simplicio-fast binary conformance decoder",
+            },
+            apply=apply,
+        )
+    try:
+        binary = decode_binary(payload)
+        value = binary.to_dict()
+        root_path = Path(root).resolve()
+        if value.get("repository") != str(root_path):
+            raise ChangesetError("binary_repository_mismatch", "binary repository does not match --root")
+        if not value.get("base_generation") or not value.get("lease_id") or not value.get("fencing_token"):
+            raise ChangesetError("binary_authority_missing", "binary authority binding is incomplete")
+        changeset = _public_changeset_from_binary(value)
+        receipt = execute_changeset(
+            changeset,
+            root=root_path,
+            apply=apply,
+            current_generation=current_generation,
+        )
+        receipt.update(
+            {
+                "input_format": BINARY_SCHEMA,
+                "binary_sha256": hashlib.sha256(payload).hexdigest(),
+                "binary_changeset_id": value.get("changeset_id"),
+            }
+        )
+        return receipt
+    except ChangesetError as exc:
+        return _refused_receipt(
+            {},
+            exc.row | {"input_format": BINARY_SCHEMA},
+            apply=apply,
+        )
+    except Exception as exc:
+        return _refused_receipt(
+            {},
+            {
+                "code": "binary_decode_failed",
+                "message": f"Fast binary decoder rejected the envelope: {type(exc).__name__}",
+                "input_format": BINARY_SCHEMA,
+            },
+            apply=apply,
+        )
+
+
+def _public_changeset_from_binary(value: dict[str, Any]) -> dict[str, Any]:
+    operations = []
+    for index, raw in enumerate(value.get("operations", [])):
+        if not isinstance(raw, dict):
+            raise ChangesetError(
+                "binary_operation_invalid", "binary operation must be an object", operation_index=index
+            )
+        operation = dict(raw)
+        kind = operation.pop("op", None)
+        mapped = {
+            "replace-range": "replace_range",
+            "create": "create",
+            "delete": "delete",
+            "rename": "move",
+        }.get(kind)
+        if mapped is None:
+            raise ChangesetError(
+                "binary_operation_unsupported",
+                f"unsupported binary operation {kind!r}",
+                operation_index=index,
+            )
+        operation["kind"] = mapped
+        if "dest" in operation:
+            operation["target"] = operation.pop("dest")
+        if "line_map" in operation:
+            line_map = operation.pop("line_map")
+            if isinstance(line_map, dict):
+                operation.update(
+                    {key: line_map[key] for key in ("start_line", "end_line") if key in line_map}
+                )
+        if "content_b64" in operation and "content" not in operation:
+            try:
+                operation["content"] = base64.b64decode(operation.pop("content_b64"), validate=True).decode(
+                    operation.get("encoding") or "utf-8"
+                )
+            except (ValueError, UnicodeDecodeError) as exc:
+                raise ChangesetError("binary_content_invalid", "binary content is not valid text") from exc
+        operations.append(operation)
+    return {
+        "schema": CHANGESET_SCHEMA,
+        "changeset_id": value.get("changeset_id"),
+        "generation": value.get("base_generation"),
+        "allowlist": list(value.get("allowed_paths", [])),
+        "operations": operations,
+        "validation": [{"cmd": [command]} for command in value.get("verification_commands", [])],
+    }
 
 
 def benchmark_environment() -> dict[str, Any]:
