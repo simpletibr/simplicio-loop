@@ -25,11 +25,17 @@ from typing import Any
 SCHEMA = "simplicio.dev-cli.quality-gate-receipt/v1"
 DEFAULT_RECEIPT = Path(".simplicio/quality-gate-receipt.json")
 QUALITY_GATE_ENV_EXCLUSIONS = ("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY",)
+QUALITY_GATE_ENV_EXCLUSION_PREFIXES = ("SIMPLICIO_",)
 QUALITY_GATE_ENV_OVERRIDES: dict[str, str] = {}
 
 
 def _quality_gate_environment() -> dict[str, str]:
-    env = {key: value for key, value in os.environ.items() if key not in QUALITY_GATE_ENV_EXCLUSIONS}
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if key not in QUALITY_GATE_ENV_EXCLUSIONS
+        and not any(key.startswith(prefix) for prefix in QUALITY_GATE_ENV_EXCLUSION_PREFIXES)
+    }
     path_entries = []
     for entry in env.get("PATH", "").split(os.pathsep):
         if not entry:
@@ -229,6 +235,7 @@ def run_gate(
         "dependencies": _versions(),
         "environment": {
             "excluded": list(QUALITY_GATE_ENV_EXCLUSIONS),
+            "excluded_prefixes": list(QUALITY_GATE_ENV_EXCLUSION_PREFIXES),
             "overrides": dict(QUALITY_GATE_ENV_OVERRIDES),
         },
         "commands": steps,
