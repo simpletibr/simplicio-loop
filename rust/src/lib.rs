@@ -18,7 +18,11 @@ use sha2::{Digest, Sha256};
 fn sha256_hex(text: &str) -> String {
     let mut hasher = Sha256::new();
     hasher.update(text.as_bytes());
-    format!("{:x}", hasher.finalize())
+    hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 static RE_JS_TS_IMPORT: Lazy<Regex> =
@@ -53,7 +57,9 @@ fn collect_matches<'a>(text: &'a str, patterns: &[&Lazy<Regex>]) -> Vec<&'a str>
 #[pyfunction]
 fn parse_imports(text: &str, language: &str) -> PyResult<Vec<String>> {
     let raw: Vec<&str> = match language {
-        "javascript" | "typescript" => collect_matches(text, &[&RE_JS_TS_IMPORT, &RE_JS_TS_REQUIRE]),
+        "javascript" | "typescript" => {
+            collect_matches(text, &[&RE_JS_TS_IMPORT, &RE_JS_TS_REQUIRE])
+        }
         "python" => collect_matches(text, &[&RE_PY_FROM, &RE_PY_IMPORT]),
         "csharp" | "razor" => collect_matches(text, &[&RE_CSHARP_USING]),
         "go" => collect_matches(text, &[&RE_GO_IMPORT]),
@@ -75,10 +81,43 @@ fn parse_imports(text: &str, language: &str) -> PyResult<Vec<String>> {
     Ok(uniq)
 }
 
+/// Parse a batch of ``(path, language, utf8_text)`` records in one FFI call.
+///
+/// The path is carried through unchanged so callers can merge results
+/// deterministically without a second lookup. Per-record errors are returned
+/// as an empty import list only for unknown languages; malformed UTF-8 is
+/// rejected by PyO3 before entering this function, preserving the Python
+/// fallback as the safe path for such input.
+#[pyfunction]
+fn parse_batch(
+    items: Vec<(String, String, String)>,
+) -> PyResult<Vec<(String, String, Vec<String>)>> {
+    items
+        .into_iter()
+        .map(|(path, language, text)| {
+            Ok((path, sha256_hex(&text), parse_imports(&text, &language)?))
+        })
+        .collect()
+}
+
 #[pymodule]
 fn simplicio_mapper_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", "0.1.0")?;
+    m.add("__schema__", "simplicio.mapper-native/v1")?;
+    m.add("__features__", vec!["sha256", "imports", "batch"])?;
+    m.add(
+        "__languages__",
+        vec![
+            "javascript",
+            "typescript",
+            "python",
+            "csharp",
+            "razor",
+            "go",
+        ],
+    )?;
     m.add_function(wrap_pyfunction!(sha256_hex, m)?)?;
     m.add_function(wrap_pyfunction!(parse_imports, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_batch, m)?)?;
     Ok(())
 }
