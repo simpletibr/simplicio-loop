@@ -208,8 +208,12 @@ def _run_survey(opts: dict) -> int:
 
     if copied_to:
         os.makedirs(os.path.dirname(copied_to) or ".", exist_ok=True)
-        with open(copied_to, "w", encoding="utf-8") as handle:
-            handle.write(markdown.rstrip() + "\n")
+        try:
+            with open(copied_to, "x", encoding="utf-8") as handle:
+                handle.write(markdown.rstrip() + "\n")
+        except FileExistsError:
+            print(f"survey target already exists: {copied_to}", file=sys.stderr)
+            return 2
 
     if opts["json"]:
         print(

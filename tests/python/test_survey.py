@@ -6,9 +6,11 @@ Run with: python3 -m unittest discover -s tests/python
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
@@ -138,6 +140,24 @@ class SurveyTest(unittest.TestCase):
         target.parent.mkdir(parents=True)
         target.write_bytes(original)
         code = main(["survey", str(app_dir), "--target", "scripts/release.py"])
+        self.assertEqual(code, 2)
+        self.assertEqual(target.read_bytes(), original)
+
+    def test_survey_command_rejects_target_created_after_precheck(self) -> None:
+        app_dir = self._app()
+        target = app_dir / "scripts" / "release.py"
+        original = b"print('race winner')\n"
+        real_exists = os.path.exists
+
+        def create_after_precheck(path):
+            if os.path.abspath(path) == str(target):
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(original)
+                return False
+            return real_exists(path)
+
+        with patch("simplicio_mapper.cli._repo_commands.os.path.exists", side_effect=create_after_precheck):
+            code = main(["survey", str(app_dir), "--target", "scripts/release.py"])
         self.assertEqual(code, 2)
         self.assertEqual(target.read_bytes(), original)
 
