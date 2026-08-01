@@ -908,6 +908,11 @@ class ContextBindingCache:
         if not self.path.is_file():
             return
         legacy = self._read()
+        if legacy.get("chain_status") == "corrupt":
+            raise MapperContextError(
+                "CONTEXT_CACHE_CORRUPT",
+                "legacy context cache is corrupt; it was preserved for recovery",
+            )
         for key, entry in legacy.get("entries", {}).items():
             if isinstance(entry, dict) and isinstance(entry.get("identity"), dict):
                 self._append_event("put", str(key), identity=entry["identity"])

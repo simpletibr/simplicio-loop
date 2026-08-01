@@ -308,6 +308,19 @@ def test_context_binding_cache_migrates_legacy_json_once_and_removes_shadow_stor
     assert migrated.lookup(binding.context_handle)["hit"] is True
 
 
+def test_context_binding_cache_preserves_corrupt_legacy_store(
+    mapper_boundary: None, tmp_path: Any
+) -> None:
+    legacy = tmp_path / ".simplicio" / "context-bindings.json"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_text("{not-json", encoding="utf-8")
+
+    with pytest.raises(MapperContextError, match="legacy context cache is corrupt"):
+        ContextBindingCache(tmp_path)
+    assert legacy.is_file()
+    assert not (tmp_path / ".simplicio" / "context-bindings.hbp").exists()
+
+
 @pytest.mark.parametrize(
     ("mutation", "code"),
     [
