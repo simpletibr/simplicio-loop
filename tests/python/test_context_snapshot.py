@@ -268,5 +268,12 @@ class ContextSnapshotTest(unittest.TestCase):
         self.assertIn("[ok]", proc.stdout)
 
 
+    def test_budget_prunes_graph_and_records_omission(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        pm["files"] = [{"path": f"src/{index}.py", "language": "python"} for index in range(500)]
+        snap = build_context_snapshot("/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai, budget_tokens=256)
+        self.assertTrue(snap["needs_broader_context"])
+        self.assertTrue(any(item.startswith("budget-pruned:") for item in snap["task"]["omissions"]))
+        self.assertLess(len(json.dumps(snap).encode("utf-8")), 16 * 1024 * 1024)
 if __name__ == "__main__":
     unittest.main()

@@ -393,6 +393,22 @@ def build_context_graph(
 # ---------------------------------------------------------------------------
 
 
+def _bound_graph(graph_dict: dict, max_bytes: int) -> tuple[dict, int, int]:
+    """Keep a deterministic graph prefix within the serialized payload cap."""
+    nodes = sorted(graph_dict.get("nodes", []), key=lambda item: item.get("id", ""))
+    kept = []
+    for node in nodes:
+        candidate = {**graph_dict, "nodes": kept + [node], "edges": []}
+        if len(_stable_json(candidate).encode("utf-8")) > max_bytes:
+            break
+        kept.append(node)
+    ids = {node.get("id") for node in kept}
+    edges = [edge for edge in sorted(graph_dict.get("edges", []), key=lambda item: item.get("id", "")) if edge.get("source") in ids and edge.get("target") in ids]
+    while edges and len(_stable_json({**graph_dict, "nodes": kept, "edges": edges}).encode("utf-8")) > max_bytes:
+        edges.pop()
+    bounded = {**graph_dict, "nodes": kept, "edges": edges}
+    bounded["counts"] = {**dict(graph_dict.get("counts", {})), "nodes": len(kept), "edges": len(edges)}
+    return bounded, len(nodes) - len(kept), len(graph_dict.get("edges", [])) - len(edges)
 def build_context_snapshot(
     root: str,
     *,
@@ -456,7 +472,11 @@ def build_context_snapshot(
         architecture_inventory=architecture_inventory,
     )
     graph_dict = graph.to_dict()
-
+    omitted_nodes = omitted_edges = 0
+    if budget_tokens:
+        graph_dict, omitted_nodes, omitted_edges = _bound_graph(graph_dict, min(16 * 1024 * 1024 - 1024, budget_tokens * 4))
+        if omitted_nodes or omitted_edges:
+            omissions.append(f"budget-pruned:nodes={omitted_nodes},edges={omitted_edges}")
     freshness = {
         "root_hash": root_hash,
         "artifact_hashes": {
