@@ -90,9 +90,10 @@ def run_mechanical_edit(a: argparse.Namespace) -> int:
 
 
 def _runtime_edit_binary() -> str | None:
+    binary = shutil.which("simplicio")
     if os.environ.get("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT"):
         return None
-    return shutil.which("simplicio")
+    return binary
 
 
 # The native `simplicio edit` binary and this package's own Python
@@ -171,7 +172,13 @@ def _run_native_edit_plans(
             cmd.append("--dry-run")
         input_text = stdin_text if len(native_plans) == 1 else json.dumps(native_plan)
         try:
-            completed = subprocess.run(cmd, input=input_text, text=True, capture_output=True)
+            completed = subprocess.run(
+                cmd,
+                input=input_text,
+                text=True,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+            )
         except OSError as exc:
             errors.append(
                 {"code": "native_delegation_failed", "message": str(exc), "path": native_plan.get("file")}
@@ -181,18 +188,19 @@ def _run_native_edit_plans(
             errors.append(
                 {
                     "code": "native_delegation_failed",
-                    "message": completed.stderr.strip() or completed.stdout.strip(),
+                    "message": getattr(completed, "stderr", "").strip()
+                    or getattr(completed, "stdout", "").strip(),
                     "path": native_plan.get("file"),
                 }
             )
             continue
         try:
-            result = json.loads(completed.stdout)
+            result = json.loads(getattr(completed, "stdout", ""))
         except json.JSONDecodeError:
             errors.append(
                 {
                     "code": "native_delegation_malformed_output",
-                    "message": completed.stdout.strip(),
+                    "message": getattr(completed, "stdout", "").strip(),
                     "path": native_plan.get("file"),
                 }
             )

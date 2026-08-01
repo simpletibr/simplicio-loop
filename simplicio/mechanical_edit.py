@@ -170,9 +170,10 @@ def _native_edit_binary() -> str | None:
     ``run_mechanical_edit``), so a module-level import back here would invert
     that dependency.
     """
+    binary = shutil.which("simplicio")
     if os.environ.get("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT"):
         return None
-    return shutil.which("simplicio")
+    return binary
 
 
 def _try_native_edit(
@@ -213,6 +214,7 @@ def _try_native_edit(
         try:
             completed = subprocess.run(
                 cmd,
+                stdin=subprocess.DEVNULL,
                 capture_output=True,
                 text=True,
                 timeout=_NATIVE_EDIT_TIMEOUT_S,
@@ -227,7 +229,7 @@ def _try_native_edit(
             )
 
         try:
-            payload = json.loads(completed.stdout)
+            payload = json.loads(getattr(completed, "stdout", ""))
         except (json.JSONDecodeError, ValueError) as exc:
             if not apply:
                 return None

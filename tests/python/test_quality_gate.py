@@ -58,7 +58,7 @@ def test_quality_gate_records_command_timeout(tmp_path):
     payload = run_gate(
         tmp_path,
         commands=[("slow", [sys.executable, "-c", "import time; time.sleep(2)"])],
-        timeout_s=0.5,
+        timeout_s=1.0,
     )
     assert payload["passed"] is False
     assert payload["commands"][0]["exit_code"] == 124

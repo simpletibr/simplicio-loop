@@ -25,7 +25,26 @@ from typing import Any
 SCHEMA = "simplicio.dev-cli.quality-gate-receipt/v1"
 DEFAULT_RECEIPT = Path(".simplicio/quality-gate-receipt.json")
 QUALITY_GATE_ENV_EXCLUSIONS = ("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY",)
-QUALITY_GATE_ENV_OVERRIDES = {"SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT": "1"}
+QUALITY_GATE_ENV_OVERRIDES = {
+    "SIMPLICIO_RUNTIME_OFFLINE": "1",
+}
+
+
+def _quality_gate_environment() -> dict[str, str]:
+    env = {key: value for key, value in os.environ.items() if key not in QUALITY_GATE_ENV_EXCLUSIONS}
+    path_entries = []
+    for entry in env.get("PATH", "").split(os.pathsep):
+        if not entry:
+            continue
+        directory = Path(entry)
+        if any((directory / name).exists() for name in ("simplicio", "simplicio.exe")):
+            continue
+        path_entries.append(entry)
+    env["PATH"] = os.pathsep.join(path_entries)
+    env.update(QUALITY_GATE_ENV_OVERRIDES)
+    return env
+
+
 DEFAULT_COMMANDS = (
     ("ruff", [sys.executable, "-m", "ruff", "check", "simplicio"]),
     ("ruff-format", [sys.executable, "-m", "ruff", "format", "--check", "simplicio", "tests"]),
@@ -106,14 +125,7 @@ def _command_result(root: Path, name: str, command: list[str], *, timeout_s: flo
             "stdout": subprocess.PIPE,
             "stderr": subprocess.PIPE,
             "text": True,
-            "env": {
-                **{
-                    key: value
-                    for key, value in os.environ.items()
-                    if key not in QUALITY_GATE_ENV_EXCLUSIONS
-                },
-                **QUALITY_GATE_ENV_OVERRIDES,
-            },
+            "env": _quality_gate_environment(),
         }
         if os.name == "nt":
             launch["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
@@ -169,8 +181,7 @@ def run_gate(
     sha = _git(root, "rev-parse", "HEAD")
     dirty = _git(root, "status", "--porcelain")
     steps = [
-        _command_result(root, name, argv, timeout_s=timeout_s)
-        for name, argv in commands or DEFAULT_COMMANDS
+        _command_result(root, name, argv, timeout_s=timeout_s) for name, argv in commands or DEFAULT_COMMANDS
     ]
     limitations: list[str] = []
     if platform.system() != "Windows":
@@ -277,9 +288,7 @@ def main(argv: list[str] | None = None) -> int:
     receipt = run_gate(args.root, commands=commands, timeout_s=args.timeout)
     _write_receipt(receipt_path, receipt)
     print(
-        json.dumps(
-            {key: receipt[key] for key in ("schema", "passed", "commit_sha", "dirty")}, sort_keys=True
-        )
+        json.dumps({key: receipt[key] for key in ("schema", "passed", "commit_sha", "dirty")}, sort_keys=True)
     )
     return 0 if receipt["passed"] else 1
 

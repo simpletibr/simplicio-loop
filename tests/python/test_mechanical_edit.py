@@ -567,7 +567,8 @@ def test_cli_edit_alias_delegates_to_runtime_when_available(tmp_path, monkeypatc
     class Completed:
         returncode = 17
 
-    def fake_run(cmd, input=None, text=False):
+    def fake_run(cmd, input=None, text=False, **kwargs):
+        del kwargs
         calls.append({"cmd": cmd, "input": input, "text": text})
         return Completed()
 
@@ -1080,7 +1081,8 @@ def test_cli_edit_alias_falls_back_when_plan_has_non_create_file_ops(tmp_path, m
     class Completed:
         returncode = 0
 
-    def fake_run(cmd, input=None, text=False):
+    def fake_run(cmd, input=None, text=False, **kwargs):
+        del kwargs
         calls.append(cmd)
         return Completed()
 
