@@ -148,3 +148,91 @@ def test_proposal_only_rejects_path_escape(tmp_path, monkeypatch):
         integrated.prepare_integrated_work_item(
             **{key: value for key, value in inputs.items() if key != "binding"}, proposal_only=True
         )
+
+
+def test_preparation_rejects_duplicate_write_set(tmp_path, monkeypatch):
+    inputs = _inputs(tmp_path)
+    _install_pure_boundary(monkeypatch, inputs)
+    real_compile = integrated.compile_task_spec_to_plan
+
+    def duplicate_plan(*args, **kwargs):
+        plan, effects, verifications = real_compile(*args, **kwargs)
+        effect_node = effects[0].plan_node_id
+        nodes = [
+            replace(node, write_set=["src/app.py", "src/app.py"]) if node.node_id == effect_node else node
+            for node in plan.nodes
+        ]
+        return replace(plan, nodes=nodes), effects, verifications
+
+    monkeypatch.setattr(integrated, "compile_task_spec_to_plan", duplicate_plan)
+    with pytest.raises(integrated.IntegratedPreparationError, match="WRITE_SET_DUPLICATE"):
+        integrated.prepare_integrated_work_item(
+            **{key: value for key, value in inputs.items() if key != "binding"}, proposal_only=True
+        )
+
+
+def test_preparation_fail_closed_preconditions(tmp_path, monkeypatch):
+    inputs = _inputs(tmp_path)
+    _install_pure_boundary(monkeypatch, inputs)
+    common = {key: value for key, value in inputs.items() if key != "binding"}
+    with pytest.raises(integrated.IntegratedPreparationError, match="COORDINATOR_CONTEXT_REQUIRED"):
+        integrated.prepare_integrated_work_item(**{**common, "attempt": None}, proposal_only=True)
+    with pytest.raises(integrated.IntegratedPreparationError, match="PROPOSAL_CONTEXT_REFRESH_FORBIDDEN"):
+        integrated.prepare_integrated_work_item(**common, proposal_only=True, context_refresh=True)
+    with pytest.raises(integrated.IntegratedPreparationError, match="CONTEXT_REQUIRED"):
+        integrated.prepare_integrated_work_item(**{**common, "context_snapshot": None}, proposal_only=True)
+    with pytest.raises(integrated.IntegratedPreparationError, match="CONTEXT_PACK_REQUIRED"):
+        integrated.prepare_integrated_work_item(**{**common, "context_pack": None}, proposal_only=True)
+
+
+def test_run_integrated_returns_typed_block_on_preparation_error(tmp_path, monkeypatch):
+    inputs = _inputs(tmp_path)
+    _install_pure_boundary(monkeypatch, inputs)
+    result = integrated.run_integrated(
+        **{key: value for key, value in inputs.items() if key not in {"binding", "attempt"}},
+        prompt="deterministic prompt",
+        effect_sink=None,
+        attempt=None,
+        proposal_only=True,
+    )
+    assert result["status"] == "blocked"
+    assert result["warnings"] == ["COORDINATOR_CONTEXT_REQUIRED"]
+
+
+def test_run_integrated_maps_mapper_and_plan_errors(tmp_path, monkeypatch):
+    inputs = _inputs(tmp_path)
+    _install_pure_boundary(monkeypatch, inputs)
+    common = {key: value for key, value in inputs.items() if key != "binding"}
+
+    def mapper_failure(*args, **kwargs):
+        raise integrated.MapperContextError("SOURCE_DRIFT", "stale source")
+
+    monkeypatch.setattr(integrated, "prepare_integrated_work_item", mapper_failure)
+    mapped = integrated.run_integrated(**common, prompt="p", effect_sink=None, proposal_only=True)
+    assert mapped["warnings"] == ["SOURCE_DRIFT"]
+
+    def plan_failure(*args, **kwargs):
+        raise integrated.PlanCompilationError("invalid plan")
+
+    monkeypatch.setattr(integrated, "prepare_integrated_work_item", plan_failure)
+    planned = integrated.run_integrated(**common, prompt="p", effect_sink=None, proposal_only=True)
+    assert planned["warnings"] == ["invalid plan"]
+
+
+def test_run_integrated_dispatches_with_supplied_sink(tmp_path, monkeypatch):
+    inputs = _inputs(tmp_path)
+    _install_pure_boundary(monkeypatch, inputs)
+    common = {key: value for key, value in inputs.items() if key != "binding"}
+    fake_observation = type(
+        "Observation",
+        (),
+        {
+            "outcome": "effect_submitted",
+            "effect_ids": ["effect-405"],
+            "to_dict": lambda self: {"outcome": self.outcome, "effect_ids": self.effect_ids},
+        },
+    )()
+    monkeypatch.setattr(integrated, "execute_work_item_once", lambda *args, **kwargs: fake_observation)
+    result = integrated.run_integrated(**common, prompt="p", effect_sink=object(), proposal_only=False)
+    assert result["status"] == "integrated_atomic"
+    assert result["observation"]["effect_ids"] == ["effect-405"]
