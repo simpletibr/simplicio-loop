@@ -268,7 +268,7 @@ def test_source_drift_and_unsafe_paths_fail_before_dispatch(mapper_boundary: Non
     source.parent.mkdir()
     source.write_text("print('one')\n", encoding="utf-8")
     payload = _payload()
-    source_hash = hashlib.sha256(source.read_text(encoding="utf-8").encode()).hexdigest()
+    source_hash = hashlib.sha256(source.read_bytes()).hexdigest()
     pack = _pack(payload, files=[{"path": "src/main.py", "snapshot_hash": source_hash}])
     binding = bind_mapper_context(payload, pack)
 
@@ -282,6 +282,33 @@ def test_source_drift_and_unsafe_paths_fail_before_dispatch(mapper_boundary: Non
     with pytest.raises(MapperContextError) as mismatch:
         verify_context_sources(bind_mapper_context(payload, unsafe), source_root=str(tmp_path))
     assert mismatch.value.code == "CONTEXT_ROOT_PATH_MISMATCH"
+
+
+def test_incremental_source_verification_hashes_only_the_causal_set(
+    mapper_boundary: None, tmp_path: Any
+) -> None:
+    first = tmp_path / "src" / "main.py"
+    second = tmp_path / "src" / "other.py"
+    first.parent.mkdir()
+    first.write_bytes(b"one\r\n")
+    second.write_bytes(b"two\r\n")
+    payload = _payload()
+    pack = _pack(
+        payload,
+        files=[
+            {"path": "src/main.py", "snapshot_hash": hashlib.sha256(first.read_bytes()).hexdigest()},
+            {"path": "src/other.py", "snapshot_hash": hashlib.sha256(second.read_bytes()).hexdigest()},
+        ],
+    )
+    binding = bind_mapper_context(payload, pack)
+    second.write_bytes(b"changed\r\n")
+
+    metrics = verify_context_sources(binding, source_root=str(tmp_path), paths=("src/main.py",))
+    assert metrics["files_considered"] == 1
+    assert metrics["files_hashed"] == 1
+    assert metrics["bytes_read"] == len(first.read_bytes())
+    with pytest.raises(MapperContextError, match="src/other.py"):
+        verify_context_sources(binding, source_root=str(tmp_path), paths=("src/other.py",))
 
 
 def test_context_pack_requires_schema_provenance_files_and_valid_budget(
