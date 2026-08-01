@@ -45,6 +45,7 @@ from ._native import HAS_NATIVE
 from ._native import sha256_hex as _native_sha256_hex
 from .mapper import ARTIFACT_VERSION, _now_iso
 
+from .context_contract import MAX_SNAPSHOT_BYTES
 CONTEXT_SNAPSHOT_SCHEMA = "simplicio.context-snapshot/v1"
 CONTEXT_GRAPH_SCHEMA = "simplicio.context-graph/v1"
 SCHEMA_VERSION = "v1"
@@ -393,6 +394,89 @@ def build_context_graph(
 # ---------------------------------------------------------------------------
 
 
+def _bound_graph(graph_dict: dict, max_bytes: int) -> tuple[dict, int, int]:
+    """Keep a deterministic, endpoint-closed graph prefix within a byte cap."""
+    def valid_handle(handle: object) -> bool:
+        if not isinstance(handle, dict) or not isinstance(handle.get("file"), str):
+            return False
+        path = handle["file"]
+        try:
+            encoded = path.encode("utf-8")
+        except UnicodeEncodeError:
+            return False
+        return (
+            0 < len(encoded) <= 4096
+            and "\\" not in path
+            and not path.startswith("/")
+            and ".." not in path.split("/")
+        )
+
+    raw_nodes = graph_dict.get("nodes", [])
+    raw_nodes = raw_nodes if isinstance(raw_nodes, list) else []
+    nodes = sorted(
+        (
+            node
+            for node in raw_nodes
+            if isinstance(node, dict)
+            and isinstance(node.get("id"), str)
+            and valid_handle(node.get("source"))
+        ),
+        key=lambda node: node["id"],
+    )
+    kept: list[dict] = []
+    used = 0
+    for node in nodes:
+        size = len(_stable_json(node).encode("utf-8")) + (1 if kept else 0)
+        if used + size > max_bytes:
+            break
+        kept.append(node)
+        used += size
+
+    ids = {node["id"] for node in kept}
+    raw_edges = graph_dict.get("edges", [])
+    raw_edges = raw_edges if isinstance(raw_edges, list) else []
+    edges: list[dict] = []
+    for edge in sorted(
+        (edge for edge in raw_edges if isinstance(edge, dict)),
+        key=lambda edge: str(edge.get("id", "")),
+    ):
+        if (
+            edge.get("source") not in ids
+            or edge.get("target") not in ids
+            or not valid_handle(edge.get("source_handle"))
+        ):
+            continue
+        size = len(_stable_json(edge).encode("utf-8")) + (1 if edges else 0)
+        if used + size > max_bytes:
+            break
+        edges.append(edge)
+        used += size
+
+    bounded = {**graph_dict, "nodes": kept, "edges": edges}
+    bounded["counts"] = {
+        "nodes": len(kept),
+        "edges": len(edges),
+        "micro": sum(node.get("scale") == "micro" for node in kept),
+        "meso": sum(node.get("scale") == "meso" for node in kept),
+        "macro": sum(node.get("scale") == "macro" for node in kept),
+    }
+    return bounded, len(raw_nodes) - len(kept), len(raw_edges) - len(edges)
+
+def _bound_paths(paths: list[str], max_bytes: int) -> tuple[list[str], int]:
+    """Return a sorted, schema-valid prefix within an incremental byte budget."""
+    kept: list[str] = []
+    used = 2
+    for path in sorted(path for path in paths if isinstance(path, str)):
+        encoded = path.encode("utf-8")
+        if not encoded or len(encoded) > 4096 or len(kept) == 4096:
+            continue
+        addition = len(_stable_json(path).encode("utf-8")) + (1 if kept else 0)
+        if used + addition > max_bytes:
+            break
+        kept.append(path)
+        used += addition
+    return kept, len(paths) - len(kept)
+
 def build_context_snapshot(
     root: str,
     *,
@@ -421,6 +505,7 @@ def build_context_snapshot(
     emitting ``omissions`` and a ``needs_broader_context`` flag rather than
     fabricating a faithful snapshot.
     """
+    project_map_missing = not bool(project_map)
     omissions: list[str] = []
     project_map = project_map or {}
     symbol_index = symbol_index or {}
@@ -429,6 +514,13 @@ def build_context_snapshot(
 
     abs_root = os.path.abspath(root)
     repository_id = project_map.get("product", {}).get("name") or os.path.basename(abs_root)
+    raw_sources = source_set or [f.get("path") for f in project_map.get("files", []) if isinstance(f, Mapping)]
+    source_paths = sorted(path for path in raw_sources if isinstance(path, str) and 0 < len(path.encode("utf-8")) <= 4096 and "\\" not in path and not path.startswith("/") and ".." not in path.split("/"))
+    invalid_sources = len(raw_sources) - len(source_paths)
+    if invalid_sources:
+        omissions.append(f"invalid-source-paths={invalid_sources}")
+    if source_set is None:
+        project_map = {**project_map, "files": [f for f in project_map.get("files", []) if isinstance(f, Mapping) and f.get("path") in source_paths]}
     # A clone's absolute path is runtime metadata, not repository identity.
     # Keep root_hash stable across worktrees and machines while still changing
     # when the addressed source/revision changes.
@@ -436,11 +528,11 @@ def build_context_snapshot(
         {
             "repository_id": repository_id,
             "revision": revision or project_map.get("generated_at", ""),
-            "source_set": sorted(source_set or [f["path"] for f in project_map.get("files", [])]),
+            "source_set": source_paths,
         }
     )
 
-    if not project_map:
+    if project_map_missing:
         omissions.append("project-map")
     if not symbol_index:
         omissions.append("symbol-index")
@@ -456,7 +548,25 @@ def build_context_snapshot(
         architecture_inventory=architecture_inventory,
     )
     graph_dict = graph.to_dict()
-
+    graph_bytes = len(_stable_json(graph_dict).encode("utf-8"))
+    source_bytes = len(_stable_json(source_paths).encode("utf-8"))
+    needs_bound = bool(budget_tokens) or len(source_paths) > 4096 or any(len(path) > 4096 for path in source_paths) or graph_bytes + source_bytes > 15 * 1024 * 1024
+    omitted_nodes = omitted_edges = omitted_sources = 0
+    byte_budget = (
+        min(8 * 1024 * 1024, budget_tokens * 4)
+        if needs_bound and budget_tokens
+        else 8 * 1024 * 1024
+        if needs_bound
+        else MAX_SNAPSHOT_BYTES
+    )
+    graph_dict, omitted_nodes, omitted_edges = _bound_graph(graph_dict, byte_budget)
+    if needs_bound:
+        source_paths, omitted_sources = _bound_paths(source_paths, min(7 * 1024 * 1024, byte_budget))
+    if omitted_sources:
+        omissions.append(f"source-pruned:sources={omitted_sources}")
+    if omitted_nodes or omitted_edges:
+        omissions.append(f"budget-pruned:nodes={omitted_nodes},edges={omitted_edges}")
+    root_hash = _canonical_hash({"repository_id": repository_id, "revision": revision or project_map.get("generated_at", ""), "source_set": source_paths})
     freshness = {
         "root_hash": root_hash,
         "artifact_hashes": {
@@ -465,7 +575,7 @@ def build_context_snapshot(
             "call_graph": _artifact_fingerprint(call_graph),
             "architecture_inventory": _artifact_fingerprint(architecture_inventory),
         },
-        "source_count": len(sorted(source_set or [f["path"] for f in project_map.get("files", [])])),
+        "source_count": len(source_paths),
         "graph_hash": _canonical_hash(graph_dict),
     }
     fidelity_payload = _default_fidelity(omissions, graph_dict)
@@ -484,7 +594,7 @@ def build_context_snapshot(
             "version": __version__,
             "artifact_version": ARTIFACT_VERSION,
         },
-        "source_set": sorted(source_set or [f["path"] for f in project_map.get("files", [])]),
+        "source_set": source_paths,
         "exclusions": sorted(exclusions or []),
         "reason_codes": dict(reason_codes or {}),
         "graph": graph_dict,
@@ -509,8 +619,10 @@ def build_context_snapshot(
 
     # Content-addressed identity: hash the canonical serialization of the
     # addressable payload (everything except snapshot_id), then stamp it in.
-    addressable = {k: v for k, v in payload.items() if k not in {"snapshot_id", "generated_at"}}
+    addressable = {key: value for key, value in payload.items() if key not in {"snapshot_id", "generated_at"}}
     payload["snapshot_id"] = _sha256_text(_stable_json(addressable))
+    if len(_stable_json(payload).encode("utf-8")) > MAX_SNAPSHOT_BYTES:
+        raise ValueError("context snapshot exceeds 16 MiB contract limit")
     return payload
 
 
