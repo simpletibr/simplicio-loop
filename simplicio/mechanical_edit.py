@@ -281,7 +281,7 @@ def _translate_native_result(payload: Any, root_path: Path) -> dict[str, Any] | 
     if not isinstance(payload, dict) or payload.get("schema") != NATIVE_EDIT_RESULT_SCHEMA:
         return None
     native_status = payload.get("status")
-    if native_status == "checks_failed":
+    if native_status != "ok":
         return None
     file_abs = payload.get("file")
     changed = payload.get("changed")
@@ -312,18 +312,6 @@ def _translate_native_result(payload: Any, root_path: Path) -> dict[str, Any] | 
         if before_sha == after_sha
         else [{"path": rel_path, "before_sha256": before_sha, "after_sha256": after_sha}]
     )
-    errors: list[dict[str, Any]] = []
-    if native_status != "ok":
-        skipped_reason = payload.get("post_edit_skipped_reason")
-        errors.append(
-            {
-                "code": "post_edit_phase_skipped",
-                "message": skipped_reason
-                if isinstance(skipped_reason, str)
-                else f"native status: {native_status}",
-            }
-        )
-
     result = _base_result(root_path)
     result.update(
         {
@@ -338,7 +326,7 @@ def _translate_native_result(payload: Any, root_path: Path) -> dict[str, Any] | 
             "planned_diff": "",
             "files": files,
             "operation_count": operations_applied,
-            "errors": errors,
+            "errors": [],
             "validation": [],
         }
     )
