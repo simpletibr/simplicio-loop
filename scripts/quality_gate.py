@@ -38,6 +38,10 @@ DEFAULT_COMMANDS = (
         ],
     ),
     ("coverage-gate", [sys.executable, "scripts/coverage_gate.py"]),
+    (
+        "wheel-and-installed-smoke",
+        [sys.executable, "scripts/quality_gate_wheel.py", "--root", "."],
+    ),
 )
 
 
@@ -117,6 +121,13 @@ def run_gate(
         limitations.append("windows_lane_not_run_on_non_windows_host")
     else:
         limitations.append("runtime_and_fast_external_lanes_require_installed_capabilities")
+    wheel_sha256 = None
+    for step in steps:
+        if step["name"] == "wheel-and-installed-smoke" and step["exit_code"] == 0:
+            try:
+                wheel_sha256 = json.loads(step["output_tail"].splitlines()[-1]).get("wheel_sha256")
+            except (IndexError, json.JSONDecodeError, AttributeError):
+                wheel_sha256 = None
     passed = bool(sha) and not bool(dirty) and all(step["exit_code"] == 0 for step in steps)
     return {
         "schema": SCHEMA,
@@ -133,7 +144,7 @@ def run_gate(
         "limitations": limitations,
         "artifacts": {
             "coverage_json": str(root / "coverage.json") if (root / "coverage.json").is_file() else None,
-            "wheel_sha256": None,
+            "wheel_sha256": wheel_sha256,
         },
     }
 
