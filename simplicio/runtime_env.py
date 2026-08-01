@@ -72,6 +72,8 @@ def _portable_windows_command(command: str, extra_args: list[str]) -> list[str] 
         return [sys.executable, "-c", "raise SystemExit(0)", *extra_args]
     if argv[0] == "false":
         return [sys.executable, "-c", "raise SystemExit(1)", *extra_args]
+    if argv[0].lower() in {"pytest", "pytest.exe"}:
+        return [sys.executable, "-m", "pytest", *argv[1:], *extra_args]
     if len(argv) >= 4 and argv[0] == "grep" and argv[1] == "-q":
         pattern = argv[2]
         target = argv[3]
