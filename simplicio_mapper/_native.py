@@ -16,6 +16,7 @@ sha256_hex: Callable[[str], str] | None = None
 parse_imports: Callable[[str, str], list[str]] | None = None
 parse_batch: Callable[[list[tuple[str, str, str]]], list[tuple[str, str, list[str]]]] | None = None
 merge_edges: Callable[[list[tuple[str, str, str]]], list[tuple[str, str, str]]] | None = None
+parse_symbols_batch: Callable[[list[tuple[str, str, str]]], list[tuple[str, str, list[str], list[str]]]] | None = None
 CAPABILITIES: dict[str, object] = {
     "schema": "simplicio.mapper-native/v1",
     "version": None,
@@ -44,6 +45,7 @@ else:
     parse_imports = _native_parse_imports
     parse_batch = _native_parse_batch
     merge_edges = _native_merge_edges
+    parse_symbols_batch = getattr(_native_module, "parse_symbols_batch", None)
     HAS_NATIVE = True
     CAPABILITIES = {
         "schema": getattr(_native_module, "__schema__", "simplicio.mapper-native/v1"),
@@ -53,4 +55,4 @@ else:
     }
 
 
-__all__ = ["CAPABILITIES", "HAS_NATIVE", "merge_edges", "parse_batch", "parse_imports", "sha256_hex"]
+__all__ = ["CAPABILITIES", "HAS_NATIVE", "merge_edges", "parse_batch", "parse_imports", "parse_symbols_batch", "sha256_hex"]

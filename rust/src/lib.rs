@@ -37,6 +37,19 @@ static RE_CSHARP_USING: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?m)^\s*using\s+([A-Za-z0-9_.]+)\s*;").unwrap());
 static RE_GO_IMPORT: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"(?m)^\s*import\s+"([^"]+)""#).unwrap());
+static RE_SYMBOLS: Lazy<Vec<Regex>> = Lazy::new(|| {
+    [
+        r"\bclass\s+([A-Z][A-Za-z0-9_]*)",
+        r"\bfunction\s+([A-Za-z0-9_]+)",
+        r"\bexport\s+(?:async\s+)?function\s+([A-Za-z0-9_]+)",
+        r"\bexport\s+const\s+([A-Za-z0-9_]+)",
+        r"\bdef\s+([A-Za-z0-9_]+)",
+        r"\bfunc\s+([A-Za-z0-9_]+)",
+    ]
+    .into_iter()
+    .map(|pattern| Regex::new(pattern).unwrap())
+    .collect()
+});
 
 fn collect_matches<'a>(text: &'a str, patterns: &[&Lazy<Regex>]) -> Vec<&'a str> {
     let mut out: Vec<&str> = Vec::new();
@@ -81,6 +94,34 @@ fn parse_imports(text: &str, language: &str) -> PyResult<Vec<String>> {
     Ok(uniq)
 }
 
+fn parse_symbols(text: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    for regex in RE_SYMBOLS.iter() {
+        for capture in regex.captures_iter(text) {
+            if let Some(value) = capture.get(1) {
+                found.push(value.as_str().to_string());
+            }
+        }
+    }
+    found.sort();
+    found.dedup();
+    found.truncate(40);
+    found
+}
+
+#[pyfunction]
+fn parse_symbols_batch(
+    items: Vec<(String, String, String)>,
+) -> Vec<(String, String, Vec<String>, Vec<String>)> {
+    items
+        .into_iter()
+        .map(|(path, language, text)| {
+            let imports = parse_imports(&text, &language).unwrap_or_default();
+            (path, language, imports, parse_symbols(&text))
+        })
+        .collect()
+}
+
 /// Parse a batch of ``(path, language, utf8_text)`` records in one FFI call.
 ///
 /// The path is carried through unchanged so callers can merge results
@@ -116,7 +157,7 @@ fn simplicio_mapper_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__schema__", "simplicio.mapper-native/v1")?;
     m.add(
         "__features__",
-        vec!["sha256", "imports", "batch", "graph-merge"],
+        vec!["sha256", "imports", "symbols", "batch", "graph-merge"],
     )?;
     m.add(
         "__languages__",
@@ -132,13 +173,14 @@ fn simplicio_mapper_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sha256_hex, m)?)?;
     m.add_function(wrap_pyfunction!(parse_imports, m)?)?;
     m.add_function(wrap_pyfunction!(parse_batch, m)?)?;
+    m.add_function(wrap_pyfunction!(parse_symbols_batch, m)?)?;
     m.add_function(wrap_pyfunction!(merge_edges, m)?)?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::merge_edges;
+    use super::{merge_edges, parse_symbols};
 
     #[test]
     fn merge_edges_is_sorted_and_deduplicated() {
@@ -149,5 +191,11 @@ mod tests {
         ]);
         assert_eq!(result.len(), 2);
         assert_eq!(result[0].0, "a");
+    }
+
+    #[test]
+    fn parse_symbols_matches_reference_order_and_limit_shape() {
+        let result = parse_symbols("def zebra(): pass\nclass Alpha: pass\nfunction beta() {}");
+        assert_eq!(result, vec!["Alpha", "beta", "zebra"]);
     }
 }
