@@ -20,6 +20,7 @@ def main(argv: list[str] | None = None) -> int:
             sys.executable,
             "-m",
             "pytest",
+            "--timeout=30",
             "--basetemp",
             raw_basetemp,
             "--cov=simplicio",

@@ -31,5 +31,7 @@ def test_valid_trace_reaches_sealed_and_is_serializable():
 def test_terminal_states_cannot_return_to_mutation():
     with pytest.raises(InvalidPipelineTransition):
         transition(PipelineTrace((PipelineState.INPUT, PipelineState.BLOCKED)), PipelineState.STAGED)
-    assert result_trace({"status": "effect_unknown", "applied": False}).terminal is PipelineState.EFFECT_UNKNOWN
+    assert (
+        result_trace({"status": "effect_unknown", "applied": False}).terminal is PipelineState.EFFECT_UNKNOWN
+    )
     assert result_trace({"status": "ok", "applied": True}).terminal is PipelineState.SEALED

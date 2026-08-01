@@ -492,9 +492,12 @@ class ContextBindingCache:
                     }
                     if state.get("fence"):
                         event["fence"] = state["fence"]
-                    event["digest"] = "sha256:" + hashlib.sha256(
-                        json.dumps(event, sort_keys=True, separators=(",", ":")).encode("utf-8")
-                    ).hexdigest()
+                    event["digest"] = (
+                        "sha256:"
+                        + hashlib.sha256(
+                            json.dumps(event, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                        ).hexdigest()
+                    )
                     handle.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
                     previous = str(event["digest"])
                 handle.flush()
@@ -547,9 +550,12 @@ class ContextBindingCache:
                     break
                 unsigned = dict(event)
                 digest = unsigned.pop("digest", None)
-                expected = "sha256:" + hashlib.sha256(
-                    json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode("utf-8")
-                ).hexdigest()
+                expected = (
+                    "sha256:"
+                    + hashlib.sha256(
+                        json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                    ).hexdigest()
+                )
                 if digest != expected:
                     break
                 kind = event.get("kind")
@@ -645,9 +651,12 @@ class ContextBindingCache:
                 event["criteria"] = criteria
             if fence is not None:
                 event["fence"] = fence
-            event["digest"] = "sha256:" + hashlib.sha256(
-                json.dumps(event, sort_keys=True, separators=(",", ":")).encode("utf-8")
-            ).hexdigest()
+            event["digest"] = (
+                "sha256:"
+                + hashlib.sha256(
+                    json.dumps(event, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                ).hexdigest()
+            )
             with self.log_path.open("a", encoding="utf-8", newline="\n") as handle:
                 handle.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
                 handle.flush()

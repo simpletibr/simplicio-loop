@@ -68,10 +68,14 @@ def run(a: argparse.Namespace) -> int:
     try:
         payload = json.loads(completed.stdout or "")
     except json.JSONDecodeError:
-        result = _result("blocked", code="RUNTIME_RECONCILIATION_MALFORMED", runtime_exit_code=completed.returncode)
+        result = _result(
+            "blocked", code="RUNTIME_RECONCILIATION_MALFORMED", runtime_exit_code=completed.returncode
+        )
         return _emit(result, a)
     if not isinstance(payload, dict):
-        result = _result("blocked", code="RUNTIME_RECONCILIATION_MALFORMED", runtime_exit_code=completed.returncode)
+        result = _result(
+            "blocked", code="RUNTIME_RECONCILIATION_MALFORMED", runtime_exit_code=completed.returncode
+        )
         return _emit(result, a)
     verdict = payload.get("verdict")
     safe = payload.get("safe_to_clear_pending") is True and verdict in _SAFE_VERDICTS

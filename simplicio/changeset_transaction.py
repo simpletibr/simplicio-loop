@@ -131,7 +131,9 @@ def recover_changeset_transaction(
         except (OSError, json.JSONDecodeError) as exc:
             raise ChangesetTransactionError("RECOVERY_REQUIRED", "transaction journal is unreadable") from exc
         if state.get("changeset_digest") != changeset_digest_value:
-            raise ChangesetTransactionError("REPLAY_CONFLICT", "idempotency key is bound to another changeset")
+            raise ChangesetTransactionError(
+                "REPLAY_CONFLICT", "idempotency key is bound to another changeset"
+            )
         if state.get("state") == "COMMITTED" and isinstance(state.get("result"), dict):
             result = dict(state["result"])
             result["replayed"] = True
