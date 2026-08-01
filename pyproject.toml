@@ -99,6 +99,7 @@ Changelog = "https://github.com/wesleysimplicio/simplicio-dev-cli/releases"
 
 [project.scripts]
 simplicio-cli = "simplicio.cli:main"
+simplicio-codex-wrapper = "simplicio.codex_wrapper:main"
 simplicio-py = "simplicio.cli:main"
 simplicio-dev-cli = "simplicio.cli:main"
 
