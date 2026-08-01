@@ -10,6 +10,7 @@ exist locally.
 
 from __future__ import annotations
 
+import json
 import os
 import platform
 from dataclasses import asdict, dataclass
@@ -30,6 +31,7 @@ class ExecutionProfile(str, Enum):
 
 EXECUTION_PROFILE_ENV = "SIMPLICIO_MAPPER_EXECUTION_PROFILE"
 ASYNC_KILL_SWITCH_ENV = "SIMPLICIO_MAPPER_NO_ASYNC_PIPELINE"
+AUTO_CALIBRATION_ENV = "SIMPLICIO_MAPPER_AUTO_CALIBRATION"
 
 _SUPPORTED_LOCAL_PROFILES = {ExecutionProfile.SYNC, ExecutionProfile.ASYNC}
 _FUTURE_PROFILES = {ExecutionProfile.THREAD, ExecutionProfile.PROCESS, ExecutionProfile.HUB}
@@ -114,6 +116,25 @@ def plan_execution(file_count: int, threshold: int) -> ExecutionPlan:
         source = "fallback"
     else:
         reason_prefix = ""
+
+    calibration_path = os.environ.get(AUTO_CALIBRATION_ENV, "").strip()
+    if calibration_path:
+        try:
+            with open(calibration_path, encoding="utf-8") as handle:
+                calibration = json.load(handle)
+            profiles = calibration.get("profiles") if isinstance(calibration, dict) else None
+            sync_p95 = profiles.get("sync", {}).get("p95_ms") if isinstance(profiles, dict) else None
+            async_p95 = profiles.get("async", {}).get("p95_ms") if isinstance(profiles, dict) else None
+            if (isinstance(sync_p95, (int, float)) and isinstance(async_p95, (int, float))
+                    and sync_p95 >= 0 and async_p95 > 0 and sync_p95 <= async_p95 * 0.9):
+                return ExecutionPlan(
+                    requested_profile=requested.value, selected_profile=ExecutionProfile.SYNC.value,
+                    reason=f"auto selected sync from compatible calibration p95 ({sync_p95:g}ms <= 90% of {async_p95:g}ms)",
+                    file_count=safe_file_count, threshold=safe_threshold, async_disabled=False,
+                    platform=platform.system() or platform.platform(), source="calibration",
+                )
+        except (OSError, TypeError, ValueError, json.JSONDecodeError):
+            pass
 
     selected = ExecutionProfile.ASYNC
     reason = (
