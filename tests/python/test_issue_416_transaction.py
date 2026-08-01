@@ -1,6 +1,17 @@
 from __future__ import annotations
 
+import hashlib
+import json
+
+import pytest
+
 from simplicio.changeset_v2 import execute_changeset
+from simplicio.changeset_transaction import (
+    ChangesetTransactionError,
+    _state_path,
+    recover_changeset_transaction,
+    execute_changeset_transaction,
+)
 
 
 def _changeset(*, content: str = "new\n") -> dict:
@@ -61,3 +72,52 @@ def test_staging_does_not_touch_final_files(tmp_path, monkeypatch):
 
     assert result["status"] == "ok"
     assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "new\n"
+
+
+def test_same_idempotency_key_is_serialized(tmp_path):
+    state_path = _state_path(tmp_path, "busy-416")
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = state_path.with_suffix(".lock")
+    lock_path.write_text("pid=1\n", encoding="utf-8")
+
+    with pytest.raises(ChangesetTransactionError, match="another process"):
+        execute_changeset_transaction(
+            {"operations": []},
+            root=tmp_path,
+            idempotency_key="busy-416",
+            changeset_digest_value="digest-416",
+        )
+
+
+def test_recover_committing_journal_restores_before_hashes(tmp_path):
+    original = b"old\n"
+    target = tmp_path / "a.txt"
+    target.write_bytes(b"partial\n")
+    backup = tmp_path / ".simplicio-tx-crash.backup"
+    backup.mkdir()
+    (backup / "a.txt").write_bytes(original)
+    state_path = _state_path(tmp_path, "recover-416")
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(
+        json.dumps(
+            {
+                "schema": "simplicio.fast.changeset-transaction/v1",
+                "idempotency_key": "recover-416",
+                "changeset_digest": "digest-416",
+                "state": "COMMITTING",
+                "receipt_path": str(state_path),
+                "backup": str(backup),
+                "before": {"a.txt": hashlib.sha256(original).hexdigest()},
+            }
+        ),
+        encoding="utf-8",
+    )
+    recovered = recover_changeset_transaction(
+        tmp_path,
+        idempotency_key="recover-416",
+        changeset_digest_value="digest-416",
+    )
+
+    assert recovered["status"] == "recovered"
+    assert target.read_bytes() == original
+    assert json.loads(state_path.read_text(encoding="utf-8"))["state"] == "ROLLED_BACK"
