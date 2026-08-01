@@ -25,7 +25,8 @@ import pytest
 
 from simplicio import pipeline
 from simplicio.atomic_execution import AttemptContext
-from simplicio.plan_compiler import EffectPlan, PlanDAG, RecordingEffectSink
+from simplicio.pipeline_integrated import _causal_verification_paths
+from simplicio.plan_compiler import EffectPlan, PlanDAG, PlanNode, RecordingEffectSink
 
 READY_RUNTIME = {
     "verified": True,
@@ -115,6 +116,36 @@ def _valid_pipeline_diff() -> str:
             "TEST: pytest -q",
         ]
     )
+
+
+def test_causal_verification_paths_uses_typed_plan_sets_and_falls_back():
+    plan = PlanDAG(
+        plan_id="plan-1",
+        goal_id="goal-1",
+        context_snapshot_id="snapshot-1",
+        revision="revision-1",
+        nodes=[
+            PlanNode(
+                node_id="edit",
+                capability="edit",
+                read_set=["src/read.py", "src/shared.py"],
+                write_set=["src/write.py", "src/shared.py"],
+            )
+        ],
+    )
+
+    assert _causal_verification_paths(plan) == (
+        "src/read.py",
+        "src/shared.py",
+        "src/write.py",
+    )
+    empty = PlanDAG(
+        plan_id="plan-2",
+        goal_id="goal-2",
+        context_snapshot_id="snapshot-2",
+        revision="revision-2",
+    )
+    assert _causal_verification_paths(empty) is None
 
 
 def _snapshot(root: Path) -> dict[str, str]:
