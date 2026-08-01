@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 SCHEMA = "simplicio.mapper-perf-evidence/v1"
+MIN_SAMPLES = 10
 
 
 def _hash(value: Any) -> str:
@@ -60,7 +61,7 @@ def build_evidence(*, root: str | Path, corpus: Mapping[str, Any], profile: str,
 
 def compare(baseline: Mapping[str, Any], candidate: Mapping[str, Any], *, p50_limit: float = 0.05,
             p95_limit: float = 0.10) -> dict[str, Any]:
-    """Reject incompatible evidence or wall regressions over the explicit limits."""
+    """Reject incompatible, under-sampled, or regressed evidence."""
     base_fp = baseline.get("fingerprint") or {}
     candidate_fp = candidate.get("fingerprint") or {}
     compatible = all(candidate_fp.get(key) == value for key, value in base_fp.items())
@@ -69,9 +70,16 @@ def compare(baseline: Mapping[str, Any], candidate: Mapping[str, Any], *, p50_li
     for percentile, limit in (("p50", p50_limit), ("p95", p95_limit)):
         base_value = (base_metrics.get("wall_ms") or {}).get(percentile)
         candidate_value = (candidate_metrics.get("wall_ms") or {}).get(percentile)
+        base_samples = int(((base_metrics.get("wall_ms") or {}).get("samples") or 0))
+        candidate_samples = int(((candidate_metrics.get("wall_ms") or {}).get("samples") or 0))
         if base_value in (None, 0) or candidate_value is None:
-            checks.append({"metric": f"wall_ms.{percentile}", "status": "unavailable",
+            checks.append({"metric": f"wall_ms.{percentile}", "status": "fail",
                            "unavailable_reason": "compatible sample is missing"})
+            continue
+        if base_samples < MIN_SAMPLES or candidate_samples < MIN_SAMPLES:
+            checks.append({"metric": f"wall_ms.{percentile}", "status": "fail",
+                           "unavailable_reason": f"at least {MIN_SAMPLES} samples required",
+                           "baseline_samples": base_samples, "candidate_samples": candidate_samples})
             continue
         ratio = float(candidate_value) / float(base_value)
         checks.append({"metric": f"wall_ms.{percentile}", "baseline": base_value,
