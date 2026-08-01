@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 from simplicio_mapper.mapper.async_pipeline import build_file_inventory_async
+from simplicio_mapper.mapper.memory_budget import MemoryBudget
 
 
 class BoundedWorkerQueueTest(unittest.TestCase):
@@ -46,6 +47,20 @@ class BoundedWorkerQueueTest(unittest.TestCase):
             },
             degraded["async_pipeline"],
         )
+
+    def test_memory_budget_skips_file_before_read_and_reports_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "large.py").write_text("value = 'x' * 100\n", encoding="utf-8")
+            degraded: dict = {}
+            files = asyncio.run(
+                build_file_inventory_async(
+                    str(root), {}, {}, degraded=degraded,
+                    memory_budget=MemoryBudget(soft_limit_bytes=10, hard_limit_bytes=10),
+                )
+            )
+        self.assertEqual(files, [])
+        self.assertEqual(degraded["memory_budget_exceeded"][0]["path"], "large.py")
 
 
 if __name__ == "__main__":
