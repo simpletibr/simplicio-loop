@@ -263,7 +263,7 @@ def test_batch_enforces_concurrency_cap_never_exceeded(tmp_path, capsys, monkeyp
             state["active"] += 1
             state["peak"] = max(state["peak"], state["active"])
         try:
-            time.sleep(0.05)  # widen the window so overlapping calls are likely
+            time.sleep(0.2)  # widen the window so overlap remains observable under gate load
             return real_process_one_plan(plan_path, args)
         finally:
             with lock:
