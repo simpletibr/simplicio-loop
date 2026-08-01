@@ -1015,3 +1015,8 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 - Better support for mixed-stack monorepos (Angular + .NET + Python agents).
 
 These changes make `simplicio-mapper` significantly more useful for reverse-engineering and contract alignment tasks on existing large codebases.
+## 0.26.7 — 2026-08-01
+
+- Mapper Fastest Path follow-up: bounded async queue diagnostics, native batch
+  parser fallback, canonical native-capability identity, memory budgeting, and
+  the local fastest-path release quality command.
