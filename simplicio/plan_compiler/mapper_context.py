@@ -899,7 +899,10 @@ class ContextBindingCache:
                         criteria=event.get("criteria"),
                         fence=event.get("fence"),
                     )
-                self.legacy_log_path.rename(self.legacy_log_path.with_suffix(self.legacy_log_path.suffix + ".migrated"))
+                migrated_path = self.legacy_log_path.with_suffix(
+                    self.legacy_log_path.suffix + ".migrated"
+                )
+                self.legacy_log_path.rename(migrated_path)
             except (OSError, UnicodeError, TypeError, ValueError, json.JSONDecodeError) as exc:
                 raise MapperContextError(
                     "CONTEXT_CACHE_MIGRATION_FAILED", "legacy context cache migration failed"

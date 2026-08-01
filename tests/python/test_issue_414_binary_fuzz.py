@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import importlib.util
+from importlib import util
 from pathlib import Path
-
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "issue_414_binary_fuzz.py"
 
 
 def _module():
-    spec = importlib.util.spec_from_file_location("issue_414_binary_fuzz", SCRIPT)
+    spec = util.spec_from_file_location("issue_414_binary_fuzz", SCRIPT)
     assert spec and spec.loader
-    module = importlib.util.module_from_spec(spec)
+    module = util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
