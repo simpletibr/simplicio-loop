@@ -3,91 +3,91 @@
   "artifacts": {
     ".simplicio/architecture-inventory.json": {
       "label": "mapper artifact (architecture-inventory.json)",
-      "tokens": 141127,
+      "tokens": 141518,
       "words": 34987
     },
     ".simplicio/call-graph.json": {
       "label": "mapper artifact (call-graph.json)",
-      "tokens": 78747,
+      "tokens": 87860,
       "words": 15910
     },
     ".simplicio/index-state.json": {
       "label": "mapper artifact (index-state.json)",
-      "tokens": 131,
+      "tokens": 232,
       "words": 34
     },
     ".simplicio/precedent-index.json": {
       "label": "mapper artifact (precedent-index.json)",
-      "tokens": 37876,
+      "tokens": 42444,
       "words": 11324
     },
     ".simplicio/project-map.json": {
       "label": "mapper artifact (project-map.json)",
-      "tokens": 99386,
+      "tokens": 127055,
       "words": 20938
     },
     ".simplicio/symbol-index.json": {
       "label": "mapper artifact (symbol-index.json)",
-      "tokens": 177460,
+      "tokens": 192601,
       "words": 40487
     },
     "AGENTS.md": {
       "label": "AGENTS.md",
-      "tokens": 5800,
-      "words": 3159
+      "tokens": 6593,
+      "words": 3167
     },
     "CLAUDE.md": {
       "label": "CLAUDE.md",
-      "tokens": 5859,
-      "words": 3191
+      "tokens": 6669,
+      "words": 3199
     },
     "simplicio/cli.py": {
       "label": "cli.py",
-      "tokens": 6210,
-      "words": 1902
+      "tokens": 8165,
+      "words": 2643
     },
     "simplicio/commands/claims.py": {
       "label": "commands/claims.py",
-      "tokens": 6715,
+      "tokens": 6396,
       "words": 2452
     },
     "simplicio/intent.py": {
       "label": "intent.py",
-      "tokens": 2805,
+      "tokens": 3195,
       "words": 1038
     },
     "simplicio/mapper.py": {
       "label": "mapper.py",
-      "tokens": 7227,
+      "tokens": 6978,
       "words": 2805
     },
     "simplicio/mechanical_edit.py": {
       "label": "mechanical_edit.py",
-      "tokens": 7312,
-      "words": 2698
+      "tokens": 7250,
+      "words": 3018
     },
     "simplicio/observability.py": {
       "label": "observability.py",
-      "tokens": 4620,
-      "words": 2001
+      "tokens": 4812,
+      "words": 2099
     },
     "simplicio/pipeline.py": {
       "label": "pipeline.py",
-      "tokens": 7680,
-      "words": 2567
+      "tokens": 11456,
+      "words": 4287
     },
     "simplicio/pipeline_stages.py": {
       "label": "pipeline_stages.py",
-      "tokens": 6975,
-      "words": 2529
+      "tokens": 7191,
+      "words": 2786
     },
     "simplicio/providers.py": {
       "label": "providers.py",
-      "tokens": 11400,
-      "words": 3897
+      "tokens": 1055,
+      "words": 477
     }
   },
-  "estimator": "heuristic:chars-div-4",
-  "generated_at": "2026-07-17T23:48:48Z",
+  "estimator": "tiktoken:cl100k_base",
+  "generated_at": "2026-08-01T19:01:59Z",
   "threshold_growth": 0.25
 }
