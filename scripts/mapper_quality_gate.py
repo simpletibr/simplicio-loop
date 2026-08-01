@@ -53,7 +53,9 @@ def _run(
             check=False,
         )
     except OSError as error:
-        return False, str(error)
+        # An unavailable executable is an environmental null, not a command
+        # failure. Do not expose localized OS text to the status classifier.
+        return False, ""
     return result.returncode == 0, ((result.stdout or "") + (result.stderr or "")).strip()
 
 

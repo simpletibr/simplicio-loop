@@ -106,6 +106,14 @@ def test_status_distinguishes_pass_failure_and_missing_command(tmp_path):
     assert status == "null"
 
 
+def test_status_classifies_localized_missing_tool_without_matching_error_text(monkeypatch, tmp_path):
+    def missing_tool(*_args, **_kwargs):
+        raise FileNotFoundError(2, "O sistema não pode encontrar o arquivo especificado")
+
+    monkeypatch.setattr("scripts.mapper_quality_gate.subprocess.run", missing_tool)
+    assert _status(["missing-tool"], tmp_path) == ("null", "required local tool is unavailable")
+
+
 def test_status_preserves_fail_closed_result_for_undecodable_output(monkeypatch, tmp_path):
     def fake_run(command, **kwargs):
         assert command == ["probe"]
