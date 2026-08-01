@@ -106,7 +106,116 @@ def _result_with_transaction(result: dict[str, Any], state: dict[str, Any]) -> d
     return result
 
 
+def recover_changeset_transaction(
+    root: str | Path,
+    *,
+    idempotency_key: str,
+    changeset_digest_value: str,
+) -> dict[str, Any]:
+    """Restore a journal left before COMMITTED and prove the old hashes."""
+    root_path = Path(root).resolve()
+    state_path = _state_path(root_path, idempotency_key)
+    lock_path = state_path.with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        descriptor = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(f"pid={os.getpid()}\n")
+    except FileExistsError as exc:
+        raise ChangesetTransactionError(
+            "TRANSACTION_BUSY", "another process owns this idempotency key"
+        ) from exc
+    try:
+        try:
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ChangesetTransactionError("RECOVERY_REQUIRED", "transaction journal is unreadable") from exc
+        if state.get("changeset_digest") != changeset_digest_value:
+            raise ChangesetTransactionError("REPLAY_CONFLICT", "idempotency key is bound to another changeset")
+        if state.get("state") == "COMMITTED" and isinstance(state.get("result"), dict):
+            result = dict(state["result"])
+            result["replayed"] = True
+            return result
+        if state.get("state") not in {"STAGED", "COMMITTING", "ROLLING_BACK"}:
+            raise ChangesetTransactionError("RECOVERY_NOT_REQUIRED", "transaction has no recoverable commit")
+
+        before = state.get("before")
+        if not isinstance(before, dict):
+            raise ChangesetTransactionError("RECOVERY_REQUIRED", "transaction journal has no before hashes")
+        backup = Path(str(state.get("backup", "")))
+        if not backup.is_absolute():
+            raise ChangesetTransactionError("RECOVERY_REQUIRED", "transaction backup path is invalid")
+        for relative, digest in before.items():
+            target = _safe_path(root_path, str(relative))
+            saved = _safe_path(backup, str(relative))
+            if digest is None:
+                if target.exists():
+                    target.unlink()
+            elif saved.is_file():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(saved, target)
+            else:
+                raise ChangesetTransactionError(
+                    "RECOVERY_REQUIRED", f"missing backup for transaction path: {relative}"
+                )
+        after = {str(relative): _hash(_safe_path(root_path, str(relative))) for relative in before}
+        if after != {str(relative): digest for relative, digest in before.items()}:
+            raise ChangesetTransactionError("RECOVERY_REQUIRED", "recovery hashes do not match the journal")
+        state.update({"state": "ROLLED_BACK", "after": after, "recovered": True})
+        _write_state(state_path, state)
+        return {
+            "status": "recovered",
+            "applied": False,
+            "replayed": False,
+            "transaction": {
+                "schema": TRANSACTION_SCHEMA,
+                "idempotency_key": idempotency_key,
+                "changeset_digest": changeset_digest_value,
+                "state": "ROLLED_BACK",
+                "receipt_path": str(state_path),
+            },
+        }
+    finally:
+        try:
+            lock_path.unlink()
+        except OSError:
+            pass
+
+
 def execute_changeset_transaction(
+    plan: dict[str, Any],
+    *,
+    root: str | Path,
+    idempotency_key: str,
+    changeset_digest_value: str,
+) -> dict[str, Any]:
+    """Serialize one idempotency key before staging or committing it."""
+    state_path = _state_path(Path(root).resolve(), idempotency_key)
+    lock_path = state_path.with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        descriptor = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+            handle.write(f"pid={os.getpid()}\n")
+    except FileExistsError as exc:
+        raise ChangesetTransactionError(
+            "TRANSACTION_BUSY", "another process owns this idempotency key"
+        ) from exc
+    try:
+        return _execute_changeset_transaction(
+            plan,
+            root=root,
+            idempotency_key=idempotency_key,
+            changeset_digest_value=changeset_digest_value,
+        )
+    finally:
+        try:
+            lock_path.unlink()
+        except OSError:
+            pass
+
+
+def _execute_changeset_transaction(
     plan: dict[str, Any],
     *,
     root: str | Path,
@@ -143,6 +252,7 @@ def execute_changeset_transaction(
         "state": "INTENT",
         "receipt_path": str(state_path),
         "candidate": str(candidate),
+        "backup": str(backup),
     }
     _write_state(state_path, state)
     try:
