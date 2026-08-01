@@ -190,7 +190,10 @@ def test_run_integrated_returns_typed_block_on_preparation_error(tmp_path, monke
     _install_pure_boundary(monkeypatch, inputs)
     result = integrated.run_integrated(
         **{key: value for key, value in inputs.items() if key not in {"binding", "attempt"}},
-        prompt="deterministic prompt", effect_sink=None, attempt=None, proposal_only=True
+        prompt="deterministic prompt",
+        effect_sink=None,
+        attempt=None,
+        proposal_only=True,
     )
     assert result["status"] == "blocked"
     assert result["warnings"] == ["COORDINATOR_CONTEXT_REQUIRED"]
@@ -200,13 +203,17 @@ def test_run_integrated_maps_mapper_and_plan_errors(tmp_path, monkeypatch):
     inputs = _inputs(tmp_path)
     _install_pure_boundary(monkeypatch, inputs)
     common = {key: value for key, value in inputs.items() if key != "binding"}
+
     def mapper_failure(*args, **kwargs):
         raise integrated.MapperContextError("SOURCE_DRIFT", "stale source")
+
     monkeypatch.setattr(integrated, "prepare_integrated_work_item", mapper_failure)
     mapped = integrated.run_integrated(**common, prompt="p", effect_sink=None, proposal_only=True)
     assert mapped["warnings"] == ["SOURCE_DRIFT"]
+
     def plan_failure(*args, **kwargs):
         raise integrated.PlanCompilationError("invalid plan")
+
     monkeypatch.setattr(integrated, "prepare_integrated_work_item", plan_failure)
     planned = integrated.run_integrated(**common, prompt="p", effect_sink=None, proposal_only=True)
     assert planned["warnings"] == ["invalid plan"]
@@ -216,7 +223,15 @@ def test_run_integrated_dispatches_with_supplied_sink(tmp_path, monkeypatch):
     inputs = _inputs(tmp_path)
     _install_pure_boundary(monkeypatch, inputs)
     common = {key: value for key, value in inputs.items() if key != "binding"}
-    fake_observation = type("Observation", (), {"outcome": "effect_submitted", "effect_ids": ["effect-405"], "to_dict": lambda self: {"outcome": self.outcome, "effect_ids": self.effect_ids}})()
+    fake_observation = type(
+        "Observation",
+        (),
+        {
+            "outcome": "effect_submitted",
+            "effect_ids": ["effect-405"],
+            "to_dict": lambda self: {"outcome": self.outcome, "effect_ids": self.effect_ids},
+        },
+    )()
     monkeypatch.setattr(integrated, "execute_work_item_once", lambda *args, **kwargs: fake_observation)
     result = integrated.run_integrated(**common, prompt="p", effect_sink=object(), proposal_only=False)
     assert result["status"] == "integrated_atomic"
