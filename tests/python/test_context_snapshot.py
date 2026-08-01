@@ -65,7 +65,8 @@ def _minimal_artifacts():
         "schema": "simplicio.symbol-index/v1",
         "version": 1,
         "symbols": [
-            {"name": "main", "kind": "function", "qualified_name": "main", "defined_in": "app.py", "line": 3}
+            {"name": "main", "kind": "function", "qualified_name": "main", "defined_in": "app.py", "line": 3},
+            {"name": "helper", "kind": "function", "qualified_name": "helper", "defined_in": "app.py", "line": 4},
         ],
     }
     call_graph = {
@@ -275,5 +276,79 @@ class ContextSnapshotTest(unittest.TestCase):
         self.assertTrue(snap["needs_broader_context"])
         self.assertTrue(any(item.startswith("budget-pruned:") for item in snap["task"]["omissions"]))
         self.assertLess(len(json.dumps(snap).encode("utf-8")), 16 * 1024 * 1024)
+    def test_oversized_confidence_fails_closed(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        with self.assertRaisesRegex(ValueError, "context snapshot exceeds"):
+            build_context_snapshot("/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai, confidence={"blob": "x" * (17 * 1024 * 1024)})
+
+    def test_snapshot_bounds_mixed_multibyte_and_large_source_sets_deterministically(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        multibyte_path = "src/!" + ("é" * 2_000) + ".py"
+        oversized_path = "x" * 4_097
+        source_set = [multibyte_path, oversized_path, 7] + [f"src/{index}.py" for index in range(8_000)]
+        pm["files"] = [
+            {"path": multibyte_path, "language": "python"},
+            {"path": oversized_path, "language": "python"},
+            *[{"path": f"src/{index}.py", "language": "python"} for index in range(8_000)],
+        ]
+        first = build_context_snapshot(
+            "/repo", project_map=pm, symbol_index=si, call_graph=cg,
+            architecture_inventory=ai, source_set=source_set,
+        )
+        second = build_context_snapshot(
+            "/repo", project_map=pm, symbol_index=si, call_graph=cg,
+            architecture_inventory=ai, source_set=source_set,
+        )
+        contract_root = os.path.join(REPO_ROOT, "contracts", "context-snapshot", "v1")
+        _schema_id, errors = validate_payload(first, contract_root)
+        self.assertEqual(errors, [], errors)
+        self.assertEqual(first["snapshot_id"], second["snapshot_id"])
+        self.assertEqual(first["root_hash"], second["root_hash"])
+        self.assertEqual(first["graph"], second["graph"])
+        self.assertLessEqual(len(json.dumps(first).encode("utf-8")), 16 * 1024 * 1024)
+        self.assertIn(multibyte_path, first["source_set"])
+        self.assertNotIn(oversized_path, first["source_set"])
+        self.assertTrue(any(item.startswith("invalid-source-paths=2") for item in first["task"]["omissions"]))
+        self.assertTrue(any(item.startswith("source-pruned:sources=") for item in first["task"]["omissions"]))
+        node_ids = {node["id"] for node in first["graph"]["nodes"]}
+        self.assertEqual(first["graph"]["counts"]["nodes"], len(node_ids))
+        self.assertEqual(first["graph"]["counts"]["edges"], len(first["graph"]["edges"]))
+        self.assertTrue(all(edge["source"] in node_ids and edge["target"] in node_ids for edge in first["graph"]["edges"]))
+        self.assertTrue(all(len(node["source"]["file"].encode("utf-8")) <= 4_096 for node in first["graph"]["nodes"]))
+
+    def test_snapshot_prunes_dangling_edges_and_marks_partial(self):
+        pm, si, cg, ai = _minimal_artifacts()
+        si["symbols"] = [si["symbols"][0]]
+        snap = build_context_snapshot(
+            "/repo", project_map=pm, symbol_index=si, call_graph=cg, architecture_inventory=ai,
+        )
+        node_ids = {node["id"] for node in snap["graph"]["nodes"]}
+        self.assertTrue(all(edge["source"] in node_ids and edge["target"] in node_ids for edge in snap["graph"]["edges"]))
+        self.assertTrue(any(item.endswith("nodes=0,edges=1") for item in snap["task"]["omissions"]))
+        self.assertEqual(snap["fidelity"]["status"], "partial")
+        self.assertTrue(snap["needs_broader_context"])
+
+    def test_bound_graph_removes_invalid_handles_without_budget_pressure(self):
+        from simplicio_mapper.context_snapshot import _bound_graph
+
+        graph = {
+            "nodes": [
+                {"id": "file:ok.py", "scale": "micro", "source": {"file": "ok.py"}},
+                {"id": "file:bad.py", "scale": "micro", "source": {"file": "x" * 4_097}},
+            ],
+            "edges": [
+                {"id": "valid", "source": "file:ok.py", "target": "file:ok.py", "source_handle": {"file": "ok.py"}},
+                {"id": "bad-handle", "source": "file:ok.py", "target": "file:ok.py", "source_handle": {"file": "x" * 4_097}},
+                {"id": "bad-endpoint", "source": "file:bad.py", "target": "file:ok.py", "source_handle": {"file": "ok.py"}},
+            ],
+        }
+        bounded, omitted_nodes, omitted_edges = _bound_graph(graph, 1_000_000)
+        self.assertEqual(omitted_nodes, 1)
+        self.assertEqual(omitted_edges, 2)
+        self.assertEqual([node["id"] for node in bounded["nodes"]], ["file:ok.py"])
+        self.assertEqual([edge["id"] for edge in bounded["edges"]], ["valid"])
+        self.assertEqual(bounded["counts"]["nodes"], 1)
+        self.assertEqual(bounded["counts"]["edges"], 1)
+
 if __name__ == "__main__":
     unittest.main()
