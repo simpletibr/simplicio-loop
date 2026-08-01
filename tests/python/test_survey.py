@@ -131,5 +131,15 @@ class SurveyTest(unittest.TestCase):
         self.assertTrue((app_dir / "ONBOARDING.md").exists())
 
 
+    def test_survey_command_rejects_existing_target_without_clobbering(self) -> None:
+        app_dir = self._app()
+        target = app_dir / "scripts" / "release.py"
+        original = b"print('keep me')\n"
+        target.parent.mkdir(parents=True)
+        target.write_bytes(original)
+        code = main(["survey", str(app_dir), "--target", "scripts/release.py"])
+        self.assertEqual(code, 2)
+        self.assertEqual(target.read_bytes(), original)
+
 if __name__ == "__main__":
     unittest.main()
