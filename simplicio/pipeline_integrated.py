@@ -287,7 +287,12 @@ def prepare_integrated_work_item(
         revision=revision,
         context_handle=context_handle,
     )
-    verify_context_sources(binding, source_root=root)
+    causal_paths = None
+    if isinstance(plan, dict):
+        raw_paths = plan.get("touched_files") or plan.get("allowlist")
+        if isinstance(raw_paths, list) and all(isinstance(path, str) for path in raw_paths):
+            causal_paths = tuple(raw_paths)
+    verify_context_sources(binding, source_root=root, paths=causal_paths)
     if supplied_pack_hash is not None and supplied_pack_hash != str(
         getattr(getattr(binding, "pack", None), "pack_hash", "") or ""
     ):

@@ -673,11 +673,34 @@ def bind_mapper_context(
     return ContextBinding(snapshot=snapshot, pack=pack, context_handle=handle)
 
 
-def verify_context_sources(binding: ContextBinding, *, source_root: str) -> None:
-    """Fail closed when any projected source changed before effect dispatch."""
+def verify_context_sources(
+    binding: ContextBinding,
+    *,
+    source_root: str,
+    paths: tuple[str, ...] | list[str] | None = None,
+) -> dict[str, Any]:
+    """Fail closed when projected sources changed before effect dispatch.
+
+    ``paths`` is a causal verification set supplied by the compiler. An
+    absent set intentionally falls back to the complete ContextPack for old
+    Mapper producers; this keeps the safety proof stronger than the fast path.
+    """
 
     root = Path(source_root).resolve()
-    for entry in binding.pack.files:
+    requested = {str(path).replace("\\", "/") for path in paths or ()}
+    entries = [
+        entry
+        for entry in binding.pack.files
+        if not requested or str(entry["path"]).replace("\\", "/") in requested
+    ]
+    metrics: dict[str, Any] = {
+        "files_considered": len(entries),
+        "files_hashed": 0,
+        "bytes_read": 0,
+        "engine": "python-bytes",
+        "fallback_reason": None if requested else "causal_set_absent_full_verification",
+    }
+    for entry in entries:
         raw_path = str(entry["path"]).replace("\\", "/")
         relative = PurePosixPath(raw_path)
         if relative.is_absolute() or ".." in relative.parts:
@@ -692,14 +715,17 @@ def verify_context_sources(binding: ContextBinding, *, source_root: str) -> None
                 "CONTEXT_ROOT_PATH_MISMATCH", f"ContextPack source escapes root: {raw_path}"
             ) from exc
         try:
-            text = candidate.read_text(encoding="utf-8", errors="replace")
+            content = candidate.read_bytes()
         except OSError as exc:
             raise MapperContextError(
                 "SOURCE_DRIFT", f"ContextPack source is missing or unreadable: {raw_path}"
             ) from exc
-        actual = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        metrics["files_hashed"] += 1
+        metrics["bytes_read"] += len(content)
+        actual = hashlib.sha256(content).hexdigest()
         if actual != entry["snapshot_hash"]:
             raise MapperContextError("SOURCE_DRIFT", f"ContextPack source changed: {raw_path}")
+    return metrics
 
 
 def load_mapper_context(payload: Any, *, source_root: str | None = None) -> MapperContextAdapter:
