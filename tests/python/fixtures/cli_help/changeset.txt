@@ -1,6 +1,6 @@
 usage: simplicio-py changeset [-h] [--root ROOT] [--plan PLAN] [--apply]
                               [--current-generation CURRENT_GENERATION]
-                              [--json]
+                              [--fast-engine {auto,rust,python,none}] [--json]
 
 options:
   -h, --help            show this help message and exit
@@ -10,4 +10,7 @@ options:
   --current-generation CURRENT_GENERATION
                         reject the changeset unless its generation matches
                         this value
+  --fast-engine {auto,rust,python,none}
+                        select the in-memory Fast decoder; rust never silently
+                        falls back
   --json                emit a stable v2 receipt

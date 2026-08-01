@@ -24,6 +24,8 @@ from typing import Any
 
 SCHEMA = "simplicio.dev-cli.quality-gate-receipt/v1"
 DEFAULT_RECEIPT = Path(".simplicio/quality-gate-receipt.json")
+QUALITY_GATE_ENV_EXCLUSIONS = ("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY",)
+QUALITY_GATE_ENV_OVERRIDES = {"SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT": "1"}
 DEFAULT_COMMANDS = (
     ("ruff", [sys.executable, "-m", "ruff", "check", "simplicio"]),
     ("ruff-format", [sys.executable, "-m", "ruff", "format", "--check", "simplicio", "tests"]),
@@ -100,9 +102,18 @@ def _command_result(root: Path, name: str, command: list[str], *, timeout_s: flo
     try:
         launch: dict[str, Any] = {
             "cwd": root,
+            "stdin": subprocess.DEVNULL,
             "stdout": subprocess.PIPE,
             "stderr": subprocess.PIPE,
             "text": True,
+            "env": {
+                **{
+                    key: value
+                    for key, value in os.environ.items()
+                    if key not in QUALITY_GATE_ENV_EXCLUSIONS
+                },
+                **QUALITY_GATE_ENV_OVERRIDES,
+            },
         }
         if os.name == "nt":
             launch["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
@@ -185,6 +196,10 @@ def run_gate(
         "platform": platform.platform(),
         "python": sys.version,
         "dependencies": _versions(),
+        "environment": {
+            "excluded": list(QUALITY_GATE_ENV_EXCLUSIONS),
+            "overrides": dict(QUALITY_GATE_ENV_OVERRIDES),
+        },
         "commands": steps,
         "limitations": limitations,
         "artifacts": {

@@ -494,6 +494,7 @@ def _validate_candidate(args: Any, plan: dict[str, Any], candidate: Path) -> dic
             command_line,
             cwd=candidate,
             shell=True,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             encoding="utf-8",
             errors="replace",

@@ -1,8 +1,8 @@
 usage: simplicio-py [-h]
-                    {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,changeset,edit,file,test,token,score-skill,runtime,prototype,memory} ...
+                    {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory} ...
 
 positional arguments:
-  {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,changeset,edit,file,test,token,score-skill,runtime,prototype,memory}
+  {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory}
     index               index/cache the repo (once, or after changes)
     task                run a task
     proposal            compile a non-mutating Runtime ChangeProposal
@@ -30,6 +30,8 @@ positional arguments:
                         mechanical-edit boundary
     edit                apply a mechanical edit plan via simplicio-runtime
                         when available
+    reconcile           reconcile a pending Runtime effect from strict
+                        evidence-file proof
     file                read raw file contents
     test                run a test command and report results
     token               token-efficient execution primitives

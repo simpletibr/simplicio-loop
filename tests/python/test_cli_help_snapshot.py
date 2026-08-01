@@ -61,6 +61,7 @@ def _run_help(args: list[str]) -> str:
     ecosystem freshness sentinel, etc.) leaking between fixtures."""
     result = subprocess.run(
         [sys.executable, "-m", "simplicio.cli", *args, "--help"],
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         text=True,
         timeout=30,
