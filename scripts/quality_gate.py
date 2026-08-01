@@ -88,6 +88,28 @@ def _versions() -> dict[str, str | None]:
     return result
 
 
+def _external_lane_matrix() -> dict[str, dict[str, Any]]:
+    """Represent lanes not owned by this local gate without fake metrics."""
+
+    return {
+        "windows": {
+            "status": "PASS" if platform.system() == "Windows" else "UNAVAILABLE",
+            "value": True if platform.system() == "Windows" else None,
+            "reason": None if platform.system() == "Windows" else "windows_lane_requires_a_real_Windows_host",
+        },
+        "runtime": {
+            "status": "UNVERIFIED",
+            "value": None,
+            "reason": "runtime_backed_E2E_requires_a_compatible_installed_capability",
+        },
+        "fast": {
+            "status": "UNVERIFIED",
+            "value": None,
+            "reason": "Fast_Rust_Python_external_lanes_require_installed_producer_artifacts",
+        },
+    }
+
+
 def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
     if process.poll() is not None:
         return
@@ -211,6 +233,7 @@ def run_gate(
         },
         "commands": steps,
         "limitations": limitations,
+        "external_lanes": _external_lane_matrix(),
         "artifacts": {
             "coverage_json": str(root / "coverage.json") if (root / "coverage.json").is_file() else None,
             "wheel_sha256": wheel_sha256,
