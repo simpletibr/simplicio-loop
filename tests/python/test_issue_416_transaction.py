@@ -2,13 +2,18 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 
 import pytest
 
 from simplicio.changeset_v2 import execute_changeset
 from simplicio.changeset_transaction import (
     ChangesetTransactionError,
+    _hash,
+    _paths,
+    _safe_path,
     _state_path,
+    existing_transaction_result,
     recover_changeset_transaction,
     execute_changeset_transaction,
 )
@@ -121,3 +126,224 @@ def test_recover_committing_journal_restores_before_hashes(tmp_path):
     assert recovered["status"] == "recovered"
     assert target.read_bytes() == original
     assert json.loads(state_path.read_text(encoding="utf-8"))["state"] == "ROLLED_BACK"
+
+
+def test_transaction_path_and_hash_guards_fail_closed(tmp_path):
+    missing = tmp_path / "missing.txt"
+    assert _hash(missing) is None
+    with pytest.raises(ChangesetTransactionError, match="unsafe"):
+        _safe_path(tmp_path, "../escape.txt")
+    with pytest.raises(ChangesetTransactionError, match="unsafe"):
+        _safe_path(tmp_path, "")
+    with pytest.raises(ChangesetTransactionError, match="unsafe"):
+        _safe_path(tmp_path, str((tmp_path / "absolute.txt").resolve()))
+    file_path = tmp_path / "file.txt"
+    file_path.write_text("x", encoding="utf-8")
+    assert _hash(file_path)
+    with pytest.raises(ChangesetTransactionError, match="regular file"):
+        _hash(tmp_path)
+
+
+def test_transaction_paths_ignore_malformed_operations_and_deduplicate():
+    assert _paths(
+        {
+            "touched_files": ["b.txt", 3, "a.txt"],
+            "operations": [None, {"path": "c.txt", "dest": "d.txt"}, {"path": 4}],
+        }
+    ) == ["a.txt", "b.txt", "c.txt", "d.txt"]
+
+
+@pytest.mark.parametrize(
+    ("payload", "message"),
+    [
+        ("{broken", "unreadable"),
+        (json.dumps({"changeset_digest": "other"}), "another changeset"),
+        (json.dumps({"changeset_digest": "digest", "state": "STAGED"}), "requires recovery"),
+    ],
+)
+def test_existing_transaction_result_requires_recovery_or_rejects_conflict(tmp_path, payload, message):
+    state_path = _state_path(tmp_path, "existing")
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(payload, encoding="utf-8")
+    with pytest.raises(ChangesetTransactionError, match=message):
+        existing_transaction_result(
+            tmp_path,
+            idempotency_key="existing",
+            changeset_digest_value="digest",
+        )
+
+
+def test_existing_transaction_result_returns_committed_replay(tmp_path):
+    state_path = _state_path(tmp_path, "existing-ok")
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    state_path.write_text(
+        json.dumps({"changeset_digest": "digest", "state": "COMMITTED", "result": {"status": "ok"}}),
+        encoding="utf-8",
+    )
+    result = existing_transaction_result(
+        tmp_path,
+        idempotency_key="existing-ok",
+        changeset_digest_value="digest",
+    )
+    assert result == {"status": "ok", "replayed": True}
+
+
+def test_transaction_records_failed_before_commit_without_mutating_root(tmp_path, monkeypatch):
+    from simplicio import changeset_transaction
+
+    (tmp_path / "a.txt").write_text("old\n", encoding="utf-8")
+    monkeypatch.setattr(
+        changeset_transaction,
+        "execute_plan",
+        lambda *args, **kwargs: {"status": "refused", "applied": False, "errors": [{"code": "bad"}]},
+    )
+    result = execute_changeset_transaction(
+        {"operations": [{"path": "a.txt"}]},
+        root=tmp_path,
+        idempotency_key="failed-before-commit",
+        changeset_digest_value="digest",
+    )
+    assert result["status"] == "refused"
+    assert result["transaction"]["state"] == "FAILED_BEFORE_COMMIT"
+    assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "old\n"
+
+
+def _write_journal(tmp_path, key, payload):
+    path = _state_path(tmp_path, key)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def test_recovery_rejects_busy_malformed_conflict_and_nonrecoverable_journals(tmp_path):
+    key = "recovery-errors"
+    path = _state_path(tmp_path, key)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.with_suffix(".lock").write_text("busy", encoding="utf-8")
+    with pytest.raises(ChangesetTransactionError, match="another process"):
+        recover_changeset_transaction(tmp_path, idempotency_key=key, changeset_digest_value="digest")
+    path.with_suffix(".lock").unlink()
+    path.write_text("{broken", encoding="utf-8")
+    with pytest.raises(ChangesetTransactionError, match="unreadable"):
+        recover_changeset_transaction(tmp_path, idempotency_key=key, changeset_digest_value="digest")
+    path.write_text(json.dumps({"changeset_digest": "other"}), encoding="utf-8")
+    with pytest.raises(ChangesetTransactionError, match="another changeset"):
+        recover_changeset_transaction(tmp_path, idempotency_key=key, changeset_digest_value="digest")
+    path.write_text(json.dumps({"changeset_digest": "digest", "state": "INTENT"}), encoding="utf-8")
+    with pytest.raises(ChangesetTransactionError, match="no recoverable"):
+        recover_changeset_transaction(tmp_path, idempotency_key=key, changeset_digest_value="digest")
+
+
+def test_recovery_rejects_invalid_before_backup_and_missing_saved_file(tmp_path):
+    key = "recovery-shape"
+    path = _write_journal(tmp_path, key, {"changeset_digest": "digest", "state": "STAGED"})
+    with pytest.raises(ChangesetTransactionError, match="no before"):
+        recover_changeset_transaction(tmp_path, idempotency_key=key, changeset_digest_value="digest")
+    path.write_text(
+        json.dumps({"changeset_digest": "digest", "state": "STAGED", "before": {}, "backup": "relative"}),
+        encoding="utf-8",
+    )
+    with pytest.raises(ChangesetTransactionError, match="backup path"):
+        recover_changeset_transaction(tmp_path, idempotency_key=key, changeset_digest_value="digest")
+    backup = tmp_path / "backup"
+    backup.mkdir()
+    path.write_text(
+        json.dumps(
+            {
+                "changeset_digest": "digest",
+                "state": "STAGED",
+                "before": {"missing.txt": "a" * 64},
+                "backup": str(backup),
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ChangesetTransactionError, match="missing backup"):
+        recover_changeset_transaction(tmp_path, idempotency_key=key, changeset_digest_value="digest")
+
+
+def test_recovery_removes_new_file_and_rejects_hash_mismatch(tmp_path):
+    key = "recovery-hashes"
+    target = tmp_path / "new.txt"
+    target.write_text("new", encoding="utf-8")
+    backup = tmp_path / "backup"
+    backup.mkdir()
+    path = _write_journal(
+        tmp_path,
+        key,
+        {"changeset_digest": "digest", "state": "ROLLING_BACK", "before": {"new.txt": None}, "backup": str(backup)},
+    )
+    recovered = recover_changeset_transaction(tmp_path, idempotency_key=key, changeset_digest_value="digest")
+    assert recovered["status"] == "recovered"
+    assert not target.exists()
+    path.write_text(
+        json.dumps(
+            {
+                "changeset_digest": "digest",
+                "state": "ROLLING_BACK",
+                "before": {"bad.txt": "b" * 64},
+                "backup": str(backup),
+            }
+        ),
+        encoding="utf-8",
+    )
+    (backup / "bad.txt").write_text("actual", encoding="utf-8")
+    with pytest.raises(ChangesetTransactionError, match="hashes"):
+        recover_changeset_transaction(tmp_path, idempotency_key=key, changeset_digest_value="digest")
+
+
+def test_execute_transaction_replays_and_rejects_existing_journal_shapes(tmp_path):
+    from simplicio import changeset_transaction
+
+    key = "execute-existing"
+    _write_journal(tmp_path, key, {"changeset_digest": "other"})
+    with pytest.raises(ChangesetTransactionError, match="another changeset"):
+        execute_changeset_transaction({}, root=tmp_path, idempotency_key=key, changeset_digest_value="digest")
+    _write_journal(tmp_path, key, {"changeset_digest": "digest", "state": "STAGED"})
+    with pytest.raises(ChangesetTransactionError, match="requires recovery"):
+        execute_changeset_transaction({}, root=tmp_path, idempotency_key=key, changeset_digest_value="digest")
+    _write_journal(tmp_path, key, {"changeset_digest": "digest", "state": "COMMITTED", "result": {"status": "ok"}})
+    result = execute_changeset_transaction({}, root=tmp_path, idempotency_key=key, changeset_digest_value="digest")
+    assert result == {"status": "ok", "replayed": True}
+    assert changeset_transaction.existing_transaction_result(
+        tmp_path, idempotency_key=key, changeset_digest_value="digest"
+    )["replayed"] is True
+
+
+def test_transaction_commit_path_can_remove_deleted_target(tmp_path, monkeypatch):
+    from simplicio import changeset_transaction
+
+    target = tmp_path / "delete.txt"
+    target.write_text("old", encoding="utf-8")
+    def remove_from_candidate(*args, **kwargs):
+        (Path(kwargs["root"]) / "delete.txt").unlink()
+        return {"status": "ok", "applied": True, "validation": [], "planned_diff": ""}
+
+    monkeypatch.setattr(changeset_transaction, "execute_plan", remove_from_candidate)
+    result = execute_changeset_transaction(
+        {"touched_files": ["delete.txt"]},
+        root=tmp_path,
+        idempotency_key="delete-target",
+        changeset_digest_value="digest",
+    )
+    assert result["status"] == "ok"
+    assert not target.exists()
+
+
+def test_transaction_exception_is_recorded_as_commit_partial(tmp_path, monkeypatch):
+    from simplicio import changeset_transaction
+
+    target = tmp_path / "a.txt"
+    target.write_text("old", encoding="utf-8")
+    monkeypatch.setattr(
+        changeset_transaction,
+        "execute_plan",
+        lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    with pytest.raises(ChangesetTransactionError, match="rolled back"):
+        execute_changeset_transaction(
+            {"touched_files": ["a.txt"]},
+            root=tmp_path,
+            idempotency_key="partial",
+            changeset_digest_value="digest",
+        )
