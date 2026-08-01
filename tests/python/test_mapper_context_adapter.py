@@ -248,7 +248,38 @@ def test_context_binding_cache_uses_hashed_append_log_and_recovers_truncation(
     with log.open("a", encoding="utf-8") as handle:
         handle.write('{"schema":"simplicio.context-binding-log/v1","kind":"put"}\n')
     recovered = ContextBindingCache(tmp_path)
+    assert recovered.lookup(binding.context_handle)["hit"] is False
+    assert recovered.lookup(binding.context_handle)["reason"] == "corrupt_chain"
+    assert recovered.doctor()["chain_status"] == "corrupt"
+    assert recovered.compact()["chain_status"] == "valid"
     assert recovered.lookup(binding.context_handle)["hit"] is True
+
+
+def test_context_binding_cache_migrates_legacy_json_once_and_removes_shadow_store(
+    mapper_boundary: None, tmp_path: Any
+) -> None:
+    payload = _payload()
+    binding = bind_mapper_context(payload, _pack(payload))
+    cache = ContextBindingCache(tmp_path)
+    cache.path.parent.mkdir(parents=True, exist_ok=True)
+    cache.path.write_text(
+        json.dumps(
+            {
+                "schema": "simplicio.context-binding-cache/v1",
+                "entries": {
+                    binding.context_handle.value: {
+                        "identity": cache._identity(binding.context_handle),
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    migrated = ContextBindingCache(tmp_path)
+    assert migrated.log_path.is_file()
+    assert not migrated.path.is_file()
+    assert migrated.lookup(binding.context_handle)["hit"] is True
 
 
 @pytest.mark.parametrize(
