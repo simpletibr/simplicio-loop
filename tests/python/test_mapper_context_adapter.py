@@ -266,13 +266,13 @@ def test_context_binding_cache_uses_hashed_append_log_and_recovers_truncation(
     cache = ContextBindingCache(tmp_path)
     cache.put(binding)
 
-    log = tmp_path / ".simplicio" / "context-bindings.hbp.jsonl"
+    log = tmp_path / ".simplicio" / "context-bindings.hbp"
     assert log.is_file()
     assert not (tmp_path / ".simplicio" / "context-bindings.json").is_file()
     assert cache.lookup(binding.context_handle)["hit"] is True
 
-    with log.open("a", encoding="utf-8") as handle:
-        handle.write('{"schema":"simplicio.context-binding-log/v1","kind":"put"}\n')
+    with log.open("ab") as handle:
+        handle.write(b"\x03")
     recovered = ContextBindingCache(tmp_path)
     assert recovered.lookup(binding.context_handle)["hit"] is False
     assert recovered.lookup(binding.context_handle)["reason"] == "corrupt_chain"

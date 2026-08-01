@@ -16,6 +16,7 @@ import importlib.resources
 import json
 import os
 import re
+import struct
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -32,6 +33,9 @@ DEV_CLI_CONTEXT_HANDLE_SCHEMA = "simplicio.dev-cli.context-handle/v1"
 DEV_CLI_FALLBACK_CONTEXT_SCHEMA = "simplicio.dev-cli.context-fallback/v1"
 CONTEXT_BINDING_CACHE_SCHEMA = "simplicio.context-binding-cache/v1"
 CONTEXT_BINDING_LOG_SCHEMA = "simplicio.context-binding-log/v1"
+CONTEXT_BINDING_LOG_MAGIC = b"CBL1"
+CONTEXT_BINDING_LOG_VERSION = 1
+CONTEXT_BINDING_LOG_MAX_RECORD = 4 * 1024 * 1024
 MAPPER_CONTRACT_OWNER = "wesleysimplicio/simplicio-mapper"
 MAPPER_CONTRACT_MANIFEST_SHA256 = "db8cf791fe6442585f03b3fac220c0987ca5e4271a4955df02b1df77018c52b0"
 MAPPER_CONTRACT_COMMIT = "05ea96390762d4bba309abcbf4783d0637a4e53f"
@@ -261,7 +265,8 @@ class ContextBindingCache:
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root)
         self.path = self.root / ".simplicio" / "context-bindings.json"
-        self.log_path = self.root / ".simplicio" / "context-bindings.hbp.jsonl"
+        self.log_path = self.root / ".simplicio" / "context-bindings.hbp"
+        self.legacy_log_path = self.root / ".simplicio" / "context-bindings.hbp.jsonl"
         self.lock_path = self.root / ".simplicio" / "context-bindings.hbp.lock"
         self._read_cache_signature: tuple[int, int, int, int] | None = None
         self._read_cache: dict[str, Any] | None = None
@@ -518,16 +523,21 @@ class ContextBindingCache:
                 os.close(fd)
                 break
             except FileExistsError:
-                if time.monotonic() >= deadline:
-                    raise MapperContextError(
-                        "CONTEXT_CACHE_LOCK_TIMEOUT", "context cache writer lock is busy"
-                    ) from None
-                time.sleep(0.01)
+                pass
+            except PermissionError:
+                pass
+            if time.monotonic() >= deadline:
+                raise MapperContextError(
+                    "CONTEXT_CACHE_LOCK_TIMEOUT", "context cache writer lock is busy"
+                ) from None
+            time.sleep(0.01)
         temporary = self.log_path.with_name(f"{self.log_path.name}.{os.getpid()}.tmp")
         try:
             state = self._read_log()
             previous = ""
-            with temporary.open("w", encoding="utf-8", newline="\n") as handle:
+            with temporary.open("wb") as handle:
+                handle.write(CONTEXT_BINDING_LOG_MAGIC)
+                handle.write(struct.pack("<HH", CONTEXT_BINDING_LOG_VERSION, 0))
                 for key, entry in sorted(state.get("entries", {}).items()):
                     event: dict[str, Any] = {
                         "schema": CONTEXT_BINDING_LOG_SCHEMA,
@@ -544,7 +554,9 @@ class ContextBindingCache:
                             json.dumps(event, sort_keys=True, separators=(",", ":")).encode("utf-8")
                         ).hexdigest()
                     )
-                    handle.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
+                    encoded = self._encode_event(event)
+                    handle.write(struct.pack("<I", len(encoded)))
+                    handle.write(encoded)
                     previous = str(event["digest"])
                 handle.flush()
                 os.fsync(handle.fileno())
@@ -585,8 +597,8 @@ class ContextBindingCache:
         fence = ""
         chain_status = "valid"
         try:
-            lines = self.log_path.read_text(encoding="utf-8").splitlines()
-        except (OSError, UnicodeError):
+            raw = self.log_path.read_bytes()
+        except OSError:
             return {
                 "schema": CONTEXT_BINDING_CACHE_SCHEMA,
                 "entries": {},
@@ -594,10 +606,36 @@ class ContextBindingCache:
                 "fence": "",
                 "chain_status": "corrupt",
             }
-        for line in lines:
+        if len(raw) < 8 or raw[:4] != CONTEXT_BINDING_LOG_MAGIC:
+            chain_status = "corrupt"
+            events: tuple[dict[str, Any], ...] = ()
+        else:
+            version, reserved = struct.unpack("<HH", raw[4:8])
+            if version != CONTEXT_BINDING_LOG_VERSION or reserved != 0:
+                chain_status = "corrupt"
+                events = ()
+            else:
+                decoded: list[dict[str, Any]] = []
+                cursor = 8
+                while cursor < len(raw):
+                    if cursor + 4 > len(raw):
+                        chain_status = "corrupt"
+                        break
+                    length = struct.unpack("<I", raw[cursor : cursor + 4])[0]
+                    cursor += 4
+                    if length > CONTEXT_BINDING_LOG_MAX_RECORD or cursor + length > len(raw):
+                        chain_status = "corrupt"
+                        break
+                    try:
+                        decoded.append(self._decode_event(raw[cursor : cursor + length]))
+                    except (UnicodeError, ValueError, struct.error):
+                        chain_status = "corrupt"
+                        break
+                    cursor += length
+                events = tuple(decoded)
+        for event in events:
             try:
-                event = json.loads(line)
-                if not isinstance(event, dict) or event.get("schema") != CONTEXT_BINDING_LOG_SCHEMA:
+                if event.get("schema") != CONTEXT_BINDING_LOG_SCHEMA:
                     chain_status = "corrupt"
                     break
                 if event.get("previous_digest", "") != previous:
@@ -639,7 +677,7 @@ class ContextBindingCache:
                     break
                 previous = str(digest)
                 fence = str(event.get("fence") or fence)
-            except (TypeError, ValueError, json.JSONDecodeError):
+            except (TypeError, ValueError):
                 chain_status = "corrupt"
                 break
         return {
@@ -668,14 +706,16 @@ class ContextBindingCache:
                 os.close(fd)
                 break
             except FileExistsError:
-                if time.monotonic() >= deadline:
-                    raise MapperContextError(
-                        "CONTEXT_CACHE_LOCK_TIMEOUT", "context cache writer lock is busy"
-                    ) from None
-                time.sleep(0.01)
+                pass
+            except PermissionError:
+                pass
+            if time.monotonic() >= deadline:
+                raise MapperContextError(
+                    "CONTEXT_CACHE_LOCK_TIMEOUT", "context cache writer lock is busy"
+                ) from None
+            time.sleep(0.01)
         try:
             previous = ""
-            rows: list[str] = []
             if self.log_path.is_file():
                 current = self._read_log()
                 if current.get("chain_status") != "valid":
@@ -683,17 +723,15 @@ class ContextBindingCache:
                         "CONTEXT_CACHE_CORRUPT",
                         "context cache hash chain is corrupt; compact it before writing",
                     )
-                rows = self.log_path.read_text(encoding="utf-8").splitlines()
-                if rows:
-                    previous = str(json.loads(rows[-1]).get("digest", ""))
+                previous = str(current.get("revision", ""))
             if expected_revision is not None and expected_revision != previous:
                 raise MapperContextError(
                     "CONTEXT_CACHE_CAS_CONFLICT",
                     "context cache revision changed before the write",
                 )
             current_fence = ""
-            if self.log_path.is_file() and rows:
-                current_fence = str(json.loads(rows[-1]).get("fence") or "")
+            if self.log_path.is_file():
+                current_fence = str(current.get("fence") or "")
             if fence is not None and current_fence:
                 try:
                     stale = int(fence) < int(current_fence)
@@ -722,8 +760,14 @@ class ContextBindingCache:
                     json.dumps(event, sort_keys=True, separators=(",", ":")).encode("utf-8")
                 ).hexdigest()
             )
-            with self.log_path.open("a", encoding="utf-8", newline="\n") as handle:
-                handle.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
+            encoded = self._encode_event(event)
+            is_new = not self.log_path.exists()
+            with self.log_path.open("ab") as handle:
+                if is_new:
+                    handle.write(CONTEXT_BINDING_LOG_MAGIC)
+                    handle.write(struct.pack("<HH", CONTEXT_BINDING_LOG_VERSION, 0))
+                handle.write(struct.pack("<I", len(encoded)))
+                handle.write(encoded)
                 handle.flush()
                 os.fsync(handle.fileno())
             self._invalidate_read_cache()
@@ -731,8 +775,137 @@ class ContextBindingCache:
         finally:
             self.lock_path.unlink(missing_ok=True)
 
+    @staticmethod
+    def _pack_string(value: str) -> bytes:
+        encoded = value.encode("utf-8")
+        if len(encoded) > CONTEXT_BINDING_LOG_MAX_RECORD:
+            raise ValueError("context binding log field is too large")
+        return struct.pack("<I", len(encoded)) + encoded
+
+    @staticmethod
+    def _unpack_string(raw: bytes, cursor: int) -> tuple[str, int]:
+        if cursor + 4 > len(raw):
+            raise ValueError("truncated context binding log field")
+        length = struct.unpack("<I", raw[cursor : cursor + 4])[0]
+        cursor += 4
+        end = cursor + length
+        if end > len(raw):
+            raise ValueError("truncated context binding log value")
+        return raw[cursor:end].decode("utf-8"), end
+
+    @classmethod
+    def _pack_optional(cls, value: object) -> bytes:
+        if value is None:
+            return b"\x00"
+        return b"\x01" + cls._pack_string(str(value))
+
+    @classmethod
+    def _unpack_optional(cls, raw: bytes, cursor: int) -> tuple[str | None, int]:
+        if cursor >= len(raw):
+            raise ValueError("truncated context binding optional field")
+        marker = raw[cursor]
+        cursor += 1
+        if marker == 0:
+            return None, cursor
+        if marker != 1:
+            raise ValueError("invalid context binding optional field")
+        return cls._unpack_string(raw, cursor)
+
+    @classmethod
+    def _pack_map(cls, values: Mapping[str, Any] | None) -> bytes:
+        if values is None:
+            return struct.pack("<H", 0)
+        encoded = bytearray(struct.pack("<H", len(values)))
+        for key, value in sorted(values.items()):
+            encoded.extend(cls._pack_string(str(key)))
+            encoded.extend(cls._pack_string(str(value)))
+        return bytes(encoded)
+
+    @classmethod
+    def _unpack_map(cls, raw: bytes, cursor: int) -> tuple[dict[str, str], int]:
+        if cursor + 2 > len(raw):
+            raise ValueError("truncated context binding map")
+        count = struct.unpack("<H", raw[cursor : cursor + 2])[0]
+        cursor += 2
+        values: dict[str, str] = {}
+        for _ in range(count):
+            key, cursor = cls._unpack_string(raw, cursor)
+            value, cursor = cls._unpack_string(raw, cursor)
+            values[key] = value
+        return values, cursor
+
+    @classmethod
+    def _encode_event(cls, event: Mapping[str, Any]) -> bytes:
+        kind = event.get("kind")
+        if kind not in {"put", "invalidate"}:
+            raise ValueError("unknown context binding event")
+        output = bytearray(b"\x01" if kind == "put" else b"\x02")
+        output.extend(cls._pack_string(str(event.get("previous_digest", ""))))
+        output.extend(cls._pack_string(str(event.get("digest", ""))))
+        output.extend(cls._pack_optional(event.get("key")))
+        output.extend(cls._pack_optional(event.get("fence")))
+        output.extend(cls._pack_map(event.get("identity")))
+        output.extend(cls._pack_map(event.get("criteria")))
+        if len(output) > CONTEXT_BINDING_LOG_MAX_RECORD:
+            raise ValueError("context binding event is too large")
+        return bytes(output)
+
+    @classmethod
+    def _decode_event(cls, raw: bytes) -> dict[str, Any]:
+        if not raw:
+            raise ValueError("empty context binding event")
+        kind_code = raw[0]
+        kind = {1: "put", 2: "invalidate"}.get(kind_code)
+        if kind is None:
+            raise ValueError("unknown context binding event")
+        cursor = 1
+        previous, cursor = cls._unpack_string(raw, cursor)
+        digest, cursor = cls._unpack_string(raw, cursor)
+        key, cursor = cls._unpack_optional(raw, cursor)
+        fence, cursor = cls._unpack_optional(raw, cursor)
+        identity, cursor = cls._unpack_map(raw, cursor)
+        criteria, cursor = cls._unpack_map(raw, cursor)
+        if cursor != len(raw):
+            raise ValueError("trailing context binding event bytes")
+        event: dict[str, Any] = {
+            "schema": CONTEXT_BINDING_LOG_SCHEMA,
+            "kind": kind,
+            "previous_digest": previous,
+            "digest": digest,
+        }
+        if key is not None:
+            event["key"] = key
+        if fence is not None:
+            event["fence"] = fence
+        if identity:
+            event["identity"] = identity
+        if criteria:
+            event["criteria"] = criteria
+        return event
+
     def _migrate_legacy_once(self) -> None:
-        if self.log_path.is_file() or not self.path.is_file():
+        if self.log_path.is_file():
+            return
+        if self.legacy_log_path.is_file():
+            try:
+                for line in self.legacy_log_path.read_text(encoding="utf-8").splitlines():
+                    event = json.loads(line)
+                    if not isinstance(event, dict):
+                        raise ValueError("legacy context binding event is not an object")
+                    self._append_event(
+                        str(event.get("kind", "")),
+                        event.get("key"),
+                        identity=event.get("identity"),
+                        criteria=event.get("criteria"),
+                        fence=event.get("fence"),
+                    )
+                self.legacy_log_path.rename(self.legacy_log_path.with_suffix(self.legacy_log_path.suffix + ".migrated"))
+            except (OSError, UnicodeError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                raise MapperContextError(
+                    "CONTEXT_CACHE_MIGRATION_FAILED", "legacy context cache migration failed"
+                ) from exc
+            return
+        if not self.path.is_file():
             return
         legacy = self._read()
         for key, entry in legacy.get("entries", {}).items():
