@@ -212,6 +212,25 @@ def test_context_binding_cache_refresh_invalidates_prior_revision(
     assert cache.lookup(refreshed.context_handle)["hit"] is True
 
 
+def test_context_binding_cache_uses_hashed_append_log_and_recovers_truncation(
+    mapper_boundary: None, tmp_path: Any
+) -> None:
+    payload = _payload()
+    binding = bind_mapper_context(payload, _pack(payload))
+    cache = ContextBindingCache(tmp_path)
+    cache.put(binding)
+
+    log = tmp_path / ".simplicio" / "context-bindings.hbp.jsonl"
+    assert log.is_file()
+    assert not (tmp_path / ".simplicio" / "context-bindings.json").is_file()
+    assert cache.lookup(binding.context_handle)["hit"] is True
+
+    with log.open("a", encoding="utf-8") as handle:
+        handle.write('{"schema":"simplicio.context-binding-log/v1","kind":"put"}\n')
+    recovered = ContextBindingCache(tmp_path)
+    assert recovered.lookup(binding.context_handle)["hit"] is True
+
+
 @pytest.mark.parametrize(
     ("mutation", "code"),
     [
