@@ -293,6 +293,8 @@ async def build_file_inventory_async(
     timeout = timeout_s if timeout_s is not None else _per_file_timeout_s()
     timed_out: list[str] = []
     quarantined: list[dict[str, str]] = []
+    queue_depth_peak = 0
+    backpressure_events = 0
 
     abs_paths = await asyncio.to_thread(_collect_text_files, cwd, skipped_large_files)
 
@@ -316,7 +318,10 @@ async def build_file_inventory_async(
     tasks = [asyncio.create_task(_worker()) for _ in range(workers)]
     try:
         for offset in range(0, len(abs_paths), batch_size):
+            if work_queue.full():
+                backpressure_events += 1
             await work_queue.put(abs_paths[offset : offset + batch_size])
+            queue_depth_peak = max(queue_depth_peak, work_queue.qsize())
         for _ in tasks:
             await work_queue.put(None)
         await work_queue.join()
@@ -346,6 +351,9 @@ async def build_file_inventory_async(
             "queue_capacity": queue_capacity,
             "tasks_created": len(tasks),
             "batches_submitted": (len(abs_paths) + batch_size - 1) // batch_size,
+            "max_live_tasks": len(tasks),
+            "queue_depth_peak": queue_depth_peak,
+            "backpressure_events": backpressure_events,
         }
 
     return inventory

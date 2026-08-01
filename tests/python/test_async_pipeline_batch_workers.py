@@ -40,6 +40,9 @@ class BoundedWorkerQueueTest(unittest.TestCase):
                 "queue_capacity": 4,
                 "tasks_created": 2,
                 "batches_submitted": 3,
+                "max_live_tasks": 2,
+                "queue_depth_peak": 3,
+                "backpressure_events": 0,
             },
             degraded["async_pipeline"],
         )
