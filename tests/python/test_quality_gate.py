@@ -61,3 +61,4 @@ def test_quality_gate_records_command_timeout(tmp_path):
     assert payload["passed"] is False
     assert payload["commands"][0]["exit_code"] == 124
     assert "TimeoutExpired" in payload["commands"][0]["error"]
+    assert "process tree terminated" in payload["commands"][0]["error"]

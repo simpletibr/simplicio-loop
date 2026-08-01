@@ -12,8 +12,10 @@ import argparse
 import hashlib
 import importlib.metadata
 import json
+import os
 import platform
 import shlex
+import signal
 import subprocess
 import sys
 import time
@@ -69,25 +71,70 @@ def _versions() -> dict[str, str | None]:
     return result
 
 
+def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
+    if process.poll() is not None:
+        return
+    if os.name == "nt":
+        subprocess.run(
+            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    else:
+        killpg = getattr(os, "killpg", None)
+        getpgid = getattr(os, "getpgid", None)
+        sigkill = getattr(signal, "SIGKILL", signal.SIGTERM)
+        if callable(killpg) and callable(getpgid):
+            killpg(getpgid(process.pid), sigkill)
+        else:
+            process.kill()
+    try:
+        process.communicate(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.communicate()
+
+
 def _command_result(root: Path, name: str, command: list[str], *, timeout_s: float) -> dict[str, Any]:
     started = time.perf_counter()
+    error: str | None = None
     try:
-        completed = subprocess.run(
-            command, cwd=root, capture_output=True, text=True, check=False, timeout=timeout_s
-        )
-        exit_code = completed.returncode
-        output = (completed.stdout + completed.stderr)[-32_768:]
-        error = None
-    except subprocess.TimeoutExpired as exc:
-        exit_code = 124
-        stdout = exc.stdout or ""
-        stderr = exc.stderr or ""
-        if isinstance(stdout, bytes):
-            stdout = stdout.decode(errors="replace")
-        if isinstance(stderr, bytes):
-            stderr = stderr.decode(errors="replace")
-        output = (stdout + stderr)[-32_768:]
-        error = f"TimeoutExpired: command exceeded {timeout_s:g}s"
+        launch: dict[str, Any] = {
+            "cwd": root,
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
+            "text": True,
+        }
+        if os.name == "nt":
+            launch["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        else:
+            launch["start_new_session"] = True
+        process = subprocess.Popen(command, **launch)
+        try:
+            stdout, stderr = process.communicate(timeout=timeout_s)
+            exit_code = process.returncode
+            output = (stdout + stderr)[-32_768:]
+        except subprocess.TimeoutExpired as exc:
+            _terminate_process_tree(process)
+            partial_stdout = exc.stdout or ""
+            partial_stderr = exc.stderr or ""
+            if isinstance(partial_stdout, bytes):
+                partial_stdout = partial_stdout.decode(errors="replace")
+            if isinstance(partial_stderr, bytes):
+                partial_stderr = partial_stderr.decode(errors="replace")
+            exit_code = 124
+            output = (partial_stdout + partial_stderr)[-32_768:]
+            error = f"TimeoutExpired: command exceeded {timeout_s:g}s; process tree terminated"
+            return {
+                "name": name,
+                "argv": command,
+                "exit_code": exit_code,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 3),
+                "output_digest": _digest(output),
+                "output_tail": output,
+                "error": error,
+            }
     except (OSError, subprocess.SubprocessError) as exc:
         exit_code = 127
         output = ""
