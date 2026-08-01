@@ -197,6 +197,9 @@ def test_fast_binary_schema_alias_is_rejected_from_json_adapter(tmp_path):
 
 def test_fast_binary_bytes_are_decoded_by_the_official_adapter(tmp_path, monkeypatch):
     monkeypatch.syspath_prepend(r"C:\Users\Z0059V7A\m\repos\simplicio-fast\src")
+    import sys
+
+    monkeypatch.delitem(sys.modules, "simplicio_fast", raising=False)
     from simplicio_fast.binary_changeset import BinaryChangeSet, ChangeOperation
 
     content = b"binary\n"

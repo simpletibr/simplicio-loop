@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .fast_contracts import FastEngineError, select_fast_engine
 from .mechanical_edit import execute_plan
 
 CHANGESET_SCHEMA = "simplicio.fast.changeset/v2"
@@ -192,6 +193,7 @@ def execute_changeset_bytes(
     root: str | Path = ".",
     apply: bool = False,
     current_generation: str | None = None,
+    fast_engine: str | None = None,
 ) -> dict[str, Any]:
     """Consume a sealed Fast binary changeset without decoding it as UTF-8/JSON."""
     if not isinstance(payload, bytes) or not payload.startswith(BINARY_MAGIC):
@@ -201,8 +203,10 @@ def execute_changeset_bytes(
             apply=apply,
         )
     try:
-        from simplicio_fast.binary_changeset import decode_binary
-    except ImportError:
+        engine = select_fast_engine(fast_engine or "auto")
+    except FastEngineError as exc:
+        return _refused_receipt({}, {"code": exc.code, "message": str(exc)}, apply=apply)
+    if engine.name == "none":
         return _refused_receipt(
             {},
             {
@@ -212,8 +216,7 @@ def execute_changeset_bytes(
             apply=apply,
         )
     try:
-        binary = decode_binary(payload)
-        value = binary.to_dict()
+        value = engine.decode_binary(payload)
         root_path = Path(root).resolve()
         if value.get("repository") != str(root_path):
             raise ChangesetError("binary_repository_mismatch", "binary repository does not match --root")
@@ -231,6 +234,7 @@ def execute_changeset_bytes(
                 "input_format": BINARY_SCHEMA,
                 "binary_sha256": hashlib.sha256(payload).hexdigest(),
                 "binary_changeset_id": value.get("changeset_id"),
+                "fast_engine": engine.receipt(),
             }
         )
         return receipt
@@ -239,6 +243,10 @@ def execute_changeset_bytes(
             {},
             exc.row | {"input_format": BINARY_SCHEMA},
             apply=apply,
+        )
+    except FastEngineError as exc:
+        return _refused_receipt(
+            {}, {"code": exc.code, "message": str(exc), "input_format": BINARY_SCHEMA}, apply=apply
         )
     except Exception as exc:
         return _refused_receipt(

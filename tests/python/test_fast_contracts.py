@@ -5,7 +5,13 @@ import json
 import pytest
 
 from simplicio import cli
-from simplicio.fast_contracts import capabilities_contract, doctor_contract
+from simplicio.fast_contracts import (
+    FastEngineError,
+    PythonFastEngine,
+    capabilities_contract,
+    doctor_contract,
+    select_fast_engine,
+)
 
 
 @pytest.mark.parametrize(
@@ -63,6 +69,21 @@ def test_doctor_rejects_corrupt_snapshot(monkeypatch, tmp_path):
 
     assert payload["status"] == "degraded"
     assert payload["snapshot"]["reason"] == "snapshot-unreadable:JSONDecodeError"
+
+
+def test_fast_engine_selection_is_explicit_and_in_memory():
+    engine = select_fast_engine("python")
+    assert isinstance(engine, PythonFastEngine)
+    assert engine.decode_binary(b'{"generation":"g"}') == {"generation": "g"}
+    assert engine.receipt()["metrics"] == {
+        "decode_calls": 1,
+        "bytes_decoded": 18,
+        "serializations": 1,
+        "subprocesses": 0,
+    }
+    assert select_fast_engine("none").name == "none"
+    with pytest.raises(FastEngineError, match="fast engine must be"):
+        select_fast_engine("invalid")
 
 
 def test_cli_exit_codes_offline_help_and_metadata_receipt(monkeypatch, tmp_path, capsys):
