@@ -427,6 +427,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "--current-generation",
         help="reject the changeset unless its generation matches this value",
     )
+    p_changeset.add_argument(
+        "--fast-engine",
+        choices=["auto", "rust", "python", "none"],
+        default="auto",
+        help="select the in-memory Fast decoder; rust never silently falls back",
+    )
     p_changeset.add_argument("--json", action="store_true", help="emit a stable v2 receipt")
 
     p_edit = sub.add_parser(

@@ -22,6 +22,7 @@ def run(args) -> int:
             root=args.root,
             apply=args.apply,
             current_generation=args.current_generation,
+            fast_engine=args.fast_engine,
         )
     else:
         try:
@@ -32,6 +33,7 @@ def run(args) -> int:
                 root=args.root,
                 apply=args.apply,
                 current_generation=args.current_generation,
+                fast_engine=args.fast_engine,
             )
         else:
             receipt = execute_changeset_json(

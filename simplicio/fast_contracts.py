@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from importlib import metadata
 from pathlib import Path
@@ -19,6 +20,119 @@ DOCTOR_SCHEMA = "simplicio.fast-doctor/v1"
 RECEIPT_SCHEMA = "simplicio.fast-local-receipt/v1"
 SNAPSHOT_SCHEMAS = ("simplicio.context-snapshot/v1", "simplicio.mapper-context-snapshot/v1")
 BINARY_CHANGESET_SCHEMA = "simplicio.fast.binary-changeset/v1"
+
+
+class FastEngineError(RuntimeError):
+    """A requested Fast engine cannot satisfy the negotiated contract."""
+
+    def __init__(self, code: str, message: str) -> None:
+        self.code = code
+        super().__init__(message)
+
+
+@dataclass
+class FastEngineMetrics:
+    """Counters attached to one engine instance, not global process state."""
+
+    decode_calls: int = 0
+    bytes_decoded: int = 0
+    serializations: int = 0
+    subprocesses: int = 0
+
+    def to_dict(self) -> dict[str, int]:
+        return {
+            "decode_calls": self.decode_calls,
+            "bytes_decoded": self.bytes_decoded,
+            "serializations": self.serializations,
+            "subprocesses": self.subprocesses,
+        }
+
+
+class FastEngine(ABC):
+    """In-memory changeset adapter selected once before mutation admission."""
+
+    name: str
+
+    def __init__(self) -> None:
+        self.metrics = FastEngineMetrics()
+
+    @abstractmethod
+    def decode_binary(self, payload: bytes) -> dict[str, Any]:
+        raise NotImplementedError
+
+    def receipt(self) -> dict[str, Any]:
+        return {"name": self.name, "metrics": self.metrics.to_dict()}
+
+
+class RustFastEngine(FastEngine):
+    name = "rust"
+
+    def __init__(self, decoder: Any) -> None:
+        super().__init__()
+        self._decoder = decoder
+
+    def decode_binary(self, payload: bytes) -> dict[str, Any]:
+        self.metrics.decode_calls += 1
+        self.metrics.bytes_decoded += len(payload)
+        decoded = self._decoder(payload)
+        if hasattr(decoded, "to_dict"):
+            decoded = decoded.to_dict()
+        if not isinstance(decoded, dict):
+            raise FastEngineError("binary_decode_shape", "Fast decoder returned a non-object envelope")
+        return decoded
+
+
+class PythonFastEngine(FastEngine):
+    """Dependency-free in-memory adapter for JSON-compatible Fast payloads."""
+
+    name = "python"
+
+    def decode_binary(self, payload: bytes) -> dict[str, Any]:
+        self.metrics.decode_calls += 1
+        self.metrics.bytes_decoded += len(payload)
+        try:
+            decoded = json.loads(payload)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise FastEngineError(
+                "python_decode_failed", "Python Fast decoder requires a JSON envelope"
+            ) from exc
+        self.metrics.serializations += 1
+        if not isinstance(decoded, dict):
+            raise FastEngineError("binary_decode_shape", "Python Fast decoder returned a non-object envelope")
+        return decoded
+
+
+class NoFastEngine(FastEngine):
+    name = "none"
+
+    def decode_binary(self, payload: bytes) -> dict[str, Any]:
+        del payload
+        raise FastEngineError("fast_unavailable", "no compatible Fast binary decoder is installed")
+
+
+def select_fast_engine(preference: str = "auto") -> FastEngine:
+    """Select the decoder once; explicit Rust never silently degrades."""
+    requested = preference.strip().lower()
+    if requested not in {"auto", "rust", "python", "none"}:
+        raise FastEngineError("fast_engine_invalid", "fast engine must be auto, rust, python, or none")
+    preflight = fast_preflight()
+    if requested == "none":
+        return NoFastEngine()
+    if requested == "python":
+        return PythonFastEngine()
+    try:
+        from simplicio_fast.binary_changeset import decode_binary
+    except (ImportError, ModuleNotFoundError) as exc:
+        if requested == "rust":
+            raise FastEngineError("fast_rust_unavailable", "Rust Fast decoder is not installed") from exc
+        return NoFastEngine()
+    # A source checkout/wheel can expose the decoder without distribution
+    # metadata (common in isolated test/embedded environments). Importability
+    # is sufficient for auto; an explicitly incompatible installed version is
+    # still rejected by the preflight contract.
+    if requested == "rust" or preflight.status in {"ready", "absent", "degraded"}:
+        return RustFastEngine(decode_binary)
+    return NoFastEngine()
 
 
 def _version_tuple(value: str) -> tuple[int, int, int] | None:
