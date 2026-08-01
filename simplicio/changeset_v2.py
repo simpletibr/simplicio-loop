@@ -10,6 +10,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from .changeset_transaction import (
+    ChangesetTransactionError,
+    changeset_digest,
+    execute_changeset_transaction,
+    existing_transaction_result,
+)
 from .mechanical_edit import execute_plan
 
 CHANGESET_SCHEMA = "simplicio.fast.changeset/v2"
@@ -126,7 +132,70 @@ def execute_changeset(
     except ChangesetError as exc:
         return _refused_receipt(changeset, exc.row, apply=apply)
 
-    result = execute_plan(mechanical, root=root, apply=apply)
+    if apply:
+        key = str(
+            changeset.get("correlation_id") or changeset.get("changeset_id") or changeset_digest(changeset)
+        )
+        digest = changeset_digest(changeset)
+        try:
+            result = existing_transaction_result(
+                root,
+                idempotency_key=key,
+                changeset_digest_value=digest,
+            )
+        except ChangesetTransactionError as exc:
+            return _refused_receipt(
+                changeset,
+                {"code": exc.code, "message": str(exc), **exc.extra},
+                apply=apply,
+            )
+        preflight = (
+            None
+            if result is not None
+            else execute_plan(mechanical, root=root, apply=False, allow_native=False)
+        )
+        if preflight is not None and preflight.get("status") != "ok":
+            validation_failed = any(
+                error.get("code") == "validation_failed" for error in preflight.get("errors", [])
+            )
+            return {
+                "schema": RECEIPT_SCHEMA,
+                "changeset_id": changeset.get("changeset_id"),
+                "generation": changeset.get("generation"),
+                "correlation_id": changeset.get("correlation_id", changeset.get("changeset_id")),
+                "status": preflight["status"],
+                "applied": False,
+                "dry_run": False,
+                "noop": False,
+                "planned_diff": preflight.get("planned_diff", ""),
+                "effects": [],
+                "errors": preflight.get("errors", []),
+                "validation": preflight.get("validation", []),
+                "rollback": {
+                    "attempted": validation_failed,
+                    "succeeded": True if validation_failed else None,
+                    "reason": "validation-failed" if validation_failed else "no-effects-started",
+                },
+                "effect_unknown": preflight.get("status") == "effect_unknown",
+                "transaction": None,
+                "replayed": False,
+            }
+        try:
+            if result is None:
+                result = execute_changeset_transaction(
+                    mechanical,
+                    root=root,
+                    idempotency_key=key,
+                    changeset_digest_value=digest,
+                )
+        except ChangesetTransactionError as exc:
+            return _refused_receipt(
+                changeset,
+                {"code": exc.code, "message": str(exc), **exc.extra},
+                apply=apply,
+            )
+    else:
+        result = execute_plan(mechanical, root=root, apply=False)
     validation_failed = any(error.get("code") == "validation_failed" for error in result.get("errors", []))
     effects = [
         {
@@ -156,6 +225,8 @@ def execute_changeset(
             "reason": "validation-failed" if validation_failed else "not-required",
         },
         "effect_unknown": result.get("status") == "effect_unknown",
+        "transaction": result.get("transaction"),
+        "replayed": result.get("replayed", False),
     }
 
 
