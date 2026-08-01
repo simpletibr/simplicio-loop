@@ -88,6 +88,7 @@ def test_entrypoints_keep_cli_dev_cli_naming() -> None:
         "simplicio-cli": "simplicio.cli:main",
         "simplicio-py": "simplicio.cli:main",
         "simplicio-dev-cli": "simplicio.cli:main",
+        "simplicio-codex-wrapper": "simplicio.codex_wrapper:main",
     }
     assert scripts == expected
     for name in scripts:

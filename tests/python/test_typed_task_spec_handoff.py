@@ -223,7 +223,7 @@ def test_integrated_pipeline_passes_original_task_spec_to_compiler(tmp_path, mon
         context_snapshot=context,
         context_pack={"schema": "simplicio.context-pack/v1"},
         integrated_attempt=AttemptContext("attempt-299", "lease-299", "fence-299", "snapshot-299"),
-        dry_run_task=True,
+        dry_run_task=False,
         task_spec=task,
     )
 

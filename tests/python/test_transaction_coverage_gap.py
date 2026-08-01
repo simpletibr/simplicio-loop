@@ -75,7 +75,10 @@ def test_inside_rejects_symlink_component(tmp_path):
     real_dir = tmp_path / "real"
     real_dir.mkdir()
     link = tmp_path / "link"
-    link.symlink_to(real_dir)
+    try:
+        link.symlink_to(real_dir)
+    except OSError as exc:
+        pytest.skip(f"symlinks unavailable on this machine: {exc}")
     with pytest.raises(UnsafePathError, match="symlink"):
         tx_mod._inside(tmp_path, "link/file.py")
 
