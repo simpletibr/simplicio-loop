@@ -65,6 +65,8 @@ _DEFAULT_FILE_TIMEOUT_S = 30.0
 
 _MAX_CONCURRENT_ENV = "SIMPLICIO_MAPPER_MAX_CONCURRENT_FILES"
 _FILE_TIMEOUT_ENV = "SIMPLICIO_MAPPER_FILE_TIMEOUT_S"
+_BATCH_SIZE_ENV = "SIMPLICIO_MAPPER_ASYNC_BATCH_SIZE"
+_BATCH_FACTOR_ENV = "SIMPLICIO_MAPPER_ASYNC_BATCH_FACTOR"
 
 
 def _max_concurrent_files() -> int:
@@ -99,6 +101,30 @@ def _per_file_timeout_s() -> float:
     return _DEFAULT_FILE_TIMEOUT_S
 
 
+def _async_batch_size() -> int:
+    override = os.environ.get(_BATCH_SIZE_ENV)
+    if override:
+        try:
+            value = int(override)
+        except ValueError:
+            value = 0
+        if value > 0:
+            return min(value, 1024)
+    return 16
+
+
+def _async_batch_factor() -> int:
+    override = os.environ.get(_BATCH_FACTOR_ENV)
+    if override:
+        try:
+            value = int(override)
+        except ValueError:
+            value = 0
+        if value > 0:
+            return min(value, 32)
+    return 4
+
+
 def _install_uvloop_if_available() -> bool:
     """Install ``uvloop``'s event-loop policy when available.
 
@@ -128,7 +154,6 @@ async def _process_one_file(
     status_map: dict,
     cache: FileProcessingCache | None,
     contents: dict[str, str] | None,
-    semaphore: asyncio.Semaphore,
     timeout_s: float,
     abs_path: str,
     timed_out: list[str],
@@ -168,7 +193,6 @@ async def _process_one_file(
     awaited, this is safe without a separate lock.
     """
     rel = _normalize_rel(os.path.relpath(abs_path, cwd))
-    await semaphore.acquire()
     try:
         try:
             stat = await asyncio.to_thread(os.stat, abs_path)
@@ -210,9 +234,8 @@ async def _process_one_file(
         except Exception as exc:  # noqa: BLE001 -- deliberately broad: quarantine, never crash the whole run for one bad file (issue #279 step 13)
             quarantined.append({"path": rel, "error": f"{type(exc).__name__}: {exc}"})
             return None
-    finally:
-        semaphore.release()
-
+    except BaseException:
+        raise
     roles = _roles_for(rel, pkg)
     imports = list(parsed.get("imports") or [])
     exports = list(parsed.get("exports") or [])
@@ -250,10 +273,9 @@ async def build_file_inventory_async(
 
     Structurally equivalent to the sync version: same ``ProjectFile`` list
     contents, same final sort order (by ``path``), same Brown-Hilbert
-    address assignment pass after sorting. Concurrency is bounded by a
-    single ``asyncio.Semaphore`` (never unbounded ``asyncio.gather``, never
-    a per-file fire-and-forget task); every file's read+parse task acquires
-    the semaphore before starting and releases it in a ``finally``.
+    address assignment pass after sorting. Work is fed through a bounded
+    queue of batches to a fixed worker set, so task creation is O(workers),
+    never O(files).
 
     ``degraded`` (when provided) receives two independent fail-soft
     diagnostics, mirroring the existing ``skipped_large_files`` pattern:
@@ -264,47 +286,48 @@ async def build_file_inventory_async(
     quarantine"). Either category drops the affected file from the
     returned inventory but never aborts the run for the other files.
     """
-    semaphore = asyncio.Semaphore(max_concurrent or _max_concurrent_files())
+    workers = max_concurrent or _max_concurrent_files()
+    batch_size = _async_batch_size()
+    queue_capacity = max(1, workers * _async_batch_factor())
+    work_queue: asyncio.Queue[list[str] | None] = asyncio.Queue(maxsize=queue_capacity)
     timeout = timeout_s if timeout_s is not None else _per_file_timeout_s()
     timed_out: list[str] = []
     quarantined: list[dict[str, str]] = []
 
     abs_paths = await asyncio.to_thread(_collect_text_files, cwd, skipped_large_files)
 
-    tasks = [
-        asyncio.ensure_future(
-            _process_one_file(
-                cwd,
-                pkg,
-                status_map,
-                cache,
-                contents,
-                semaphore,
-                timeout,
-                abs_path,
-                timed_out,
-                quarantined,
-            )
-        )
-        for abs_path in abs_paths
-    ]
+    results: list[ProjectFile] = []
+    async def _worker() -> None:
+        while True:
+            batch = await work_queue.get()
+            try:
+                if batch is None:
+                    return
+                for abs_path in batch:
+                    entry = await _process_one_file(
+                        cwd, pkg, status_map, cache, contents, timeout,
+                        abs_path, timed_out, quarantined,
+                    )
+                    if entry is not None:
+                        results.append(entry)
+            finally:
+                work_queue.task_done()
 
+    tasks = [asyncio.create_task(_worker()) for _ in range(workers)]
     try:
-        results = await asyncio.gather(*tasks)
+        for offset in range(0, len(abs_paths), batch_size):
+            await work_queue.put(abs_paths[offset : offset + batch_size])
+        for _ in tasks:
+            await work_queue.put(None)
+        await work_queue.join()
+        await asyncio.gather(*tasks)
     except BaseException:
-        # asyncio.gather cancels the remaining tasks for us when the
-        # awaiting coroutine itself is cancelled or one task raises, but we
-        # still explicitly cancel + await-drain here so no task is ever
-        # left running past this function's return, matching issue #235's
-        # "no orphaned tasks" acceptance criterion even under a bug in a
-        # single task rather than only under external cancellation.
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
         raise
 
-    inventory = [entry for entry in results if entry is not None]
-    inventory.sort(key=lambda entry: entry.path)
+    inventory = sorted(results, key=lambda entry: entry.path)
 
     bh_map = _build_brown_hilbert_map(inventory)
     for entry in inventory:
@@ -316,9 +339,16 @@ async def build_file_inventory_async(
         degraded["timed_out_files"] = sorted(timed_out)
     if degraded is not None and quarantined:
         degraded["quarantined_files"] = sorted(quarantined, key=lambda entry: entry["path"])
+    if degraded is not None:
+        degraded["async_pipeline"] = {
+            "workers": workers,
+            "batch_size": batch_size,
+            "queue_capacity": queue_capacity,
+            "tasks_created": len(tasks),
+            "batches_submitted": (len(abs_paths) + batch_size - 1) // batch_size,
+        }
 
     return inventory
-
 
 async def build_artifacts_async(
     cwd: str,
