@@ -10,10 +10,13 @@ import pytest
 from simplicio import cli
 from simplicio.fast_contracts import (
     FastEngineError,
+    NoFastEngine,
     PythonFastEngine,
+    RustFastEngine,
     capabilities_contract,
     doctor_contract,
     select_fast_engine,
+    validate_snapshot,
 )
 
 
@@ -154,3 +157,88 @@ def test_python_engine_consumes_real_binary_envelope(monkeypatch, tmp_path):
     decoded = engine.decode_binary(changeset.encode())
     assert decoded["repository"] == str(tmp_path.resolve())
     assert engine.receipt()["metrics"]["serializations"] == 0
+
+
+def test_rust_engine_normalizes_object_decoder_and_rejects_bad_shape():
+    class Decoded:
+        def to_dict(self):
+            return {"repository": "repo"}
+
+    engine = RustFastEngine(lambda payload: Decoded())
+    assert engine.decode_binary(b"abc") == {"repository": "repo"}
+    assert engine.receipt()["metrics"] == {
+        "decode_calls": 1,
+        "bytes_decoded": 3,
+        "serializations": 0,
+        "subprocesses": 0,
+    }
+
+    bad = RustFastEngine(lambda payload: [payload])
+    with pytest.raises(FastEngineError, match="non-object envelope"):
+        bad.decode_binary(b"x")
+
+
+def test_python_engine_reports_decoder_failure(monkeypatch):
+    import simplicio_fast.binary_changeset as binary_changeset
+
+    monkeypatch.setattr(binary_changeset, "decode_binary", lambda _: (_ for _ in ()).throw(ValueError("bad")))
+    with pytest.raises(FastEngineError, match="rejected the envelope"):
+        PythonFastEngine().decode_binary(b"bad")
+
+
+def test_python_engine_reports_missing_decoder_and_bad_shape(monkeypatch):
+    import simplicio_fast.binary_changeset as binary_changeset
+
+    monkeypatch.setattr(binary_changeset, "decode_binary", lambda _: ["not", "an", "object"])
+    with pytest.raises(FastEngineError, match="non-object envelope"):
+        PythonFastEngine().decode_binary(b"bad")
+
+    monkeypatch.setitem(sys.modules, "simplicio_fast.binary_changeset", None)
+    with pytest.raises(FastEngineError, match="not installed"):
+        PythonFastEngine().decode_binary(b"bad")
+
+
+def test_no_fast_engine_is_explicitly_fail_closed():
+    with pytest.raises(FastEngineError, match="no compatible Fast"):
+        NoFastEngine().decode_binary(b"payload")
+
+
+def test_engine_selection_fails_closed_when_decoder_module_is_missing(monkeypatch):
+    import simplicio.fast_contracts as fast_contracts
+
+    monkeypatch.setenv("SIMPLICIO_FAST_VERSION", "2.0.18")
+    monkeypatch.setenv("SIMPLICIO_FAST_PARSER_AVAILABLE", "1")
+    monkeypatch.setitem(sys.modules, "simplicio_fast.binary_changeset", None)
+    with pytest.raises(FastEngineError, match="Rust Fast decoder is not installed"):
+        select_fast_engine("rust")
+    assert select_fast_engine("auto").name == "none"
+
+
+def test_engine_selection_rejects_incompatible_preflight(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_FAST_VERSION", "1.0.0")
+    monkeypatch.setenv("SIMPLICIO_FAST_PARSER_AVAILABLE", "1")
+    assert select_fast_engine("auto").name in {"rust", "none"}
+
+
+def test_private_fast_contract_edge_cases(monkeypatch):
+    import simplicio.fast_contracts as fast_contracts
+
+    assert fast_contracts._version_tuple("release") is None
+    monkeypatch.setattr(
+        fast_contracts.metadata,
+        "version",
+        lambda _: (_ for _ in ()).throw(fast_contracts.metadata.PackageNotFoundError()),
+    )
+    assert fast_contracts._installed_version("missing", "MISSING_OVERRIDE") is None
+
+
+def test_snapshot_validation_and_doctor_contract_cover_supported_and_missing_inputs(monkeypatch, tmp_path):
+    monkeypatch.setenv("SIMPLICIO_FAST_VERSION", "2.0.18")
+    monkeypatch.setenv("SIMPLICIO_FAST_PARSER_AVAILABLE", "1")
+    assert validate_snapshot(None)["status"] == "not_checked"
+    snapshot = tmp_path / "snapshot.json"
+    snapshot.write_text(json.dumps({"schema": "simplicio.context-snapshot/v1"}), encoding="utf-8")
+    assert validate_snapshot(str(snapshot))["status"] == "valid"
+    snapshot.write_text(json.dumps({"schema": "unknown"}), encoding="utf-8")
+    assert validate_snapshot(str(snapshot))["reason"] == "snapshot-schema-unsupported"
+    assert doctor_contract(snapshot=str(snapshot))["status"] == "degraded"
