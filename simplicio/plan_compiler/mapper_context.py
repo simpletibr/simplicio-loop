@@ -295,17 +295,37 @@ class ContextBindingCache:
         entry = store.get("entries", {}).get(key)
         identity = self._identity(handle)
         if not isinstance(entry, dict):
-            return self._receipt(key, handle, hit=False, reason="missing")
+            return self._receipt(key, handle, hit=False, reason="missing", revision=store.get("revision"))
         if entry.get("identity") != identity:
-            return self._receipt(key, handle, hit=False, reason="identity_mismatch")
-        return self._receipt(key, handle, hit=True, reason="exact_digest")
+            return self._receipt(
+                key, handle, hit=False, reason="identity_mismatch", revision=store.get("revision")
+            )
+        return self._receipt(key, handle, hit=True, reason="exact_digest", revision=store.get("revision"))
 
-    def put(self, binding: ContextBinding) -> dict[str, Any]:
+    def put(
+        self,
+        binding: ContextBinding,
+        *,
+        expected_revision: str | None = None,
+        fence: str | None = None,
+    ) -> dict[str, Any]:
         handle = binding.context_handle
-        self._append_event("put", handle.value, identity=self._identity(handle))
-        return self._receipt(handle.value, handle, hit=False, reason="stored", stored=True)
+        revision = self._append_event(
+            "put",
+            handle.value,
+            identity=self._identity(handle),
+            expected_revision=expected_revision,
+            fence=fence,
+        )
+        return self._receipt(handle.value, handle, hit=False, reason="stored", stored=True, revision=revision)
 
-    def refresh(self, binding: ContextBinding) -> dict[str, Any]:
+    def refresh(
+        self,
+        binding: ContextBinding,
+        *,
+        expected_revision: str | None = None,
+        fence: str | None = None,
+    ) -> dict[str, Any]:
         """Invalidate prior revisions for this snapshot, then record this one."""
 
         handle = binding.context_handle
@@ -315,9 +335,27 @@ class ContextBindingCache:
             identity = entry.get("identity") if isinstance(entry, dict) else None
             if isinstance(identity, dict) and identity.get("snapshot_id") == handle.snapshot_id:
                 invalidated += 1
-        self._append_event("invalidate", criteria={"snapshot_id": handle.snapshot_id})
-        self._append_event("put", handle.value, identity=self._identity(handle))
-        receipt = self._receipt(handle.value, handle, hit=False, reason="explicit_refresh", stored=True)
+        revision = self._append_event(
+            "invalidate",
+            criteria={"snapshot_id": handle.snapshot_id},
+            expected_revision=expected_revision,
+            fence=fence,
+        )
+        revision = self._append_event(
+            "put",
+            handle.value,
+            identity=self._identity(handle),
+            expected_revision=revision,
+            fence=fence,
+        )
+        receipt = self._receipt(
+            handle.value,
+            handle,
+            hit=False,
+            reason="explicit_refresh",
+            stored=True,
+            revision=revision,
+        )
         receipt["invalidated"] = invalidated
         return receipt
 
@@ -327,6 +365,8 @@ class ContextBindingCache:
         snapshot_id: str | None = None,
         source_root_identity: str | None = None,
         key: str | None = None,
+        expected_revision: str | None = None,
+        fence: str | None = None,
     ) -> dict[str, Any]:
         entries = self._read().setdefault("entries", {})
         removed = sum(
@@ -340,7 +380,7 @@ class ContextBindingCache:
                 source_root_identity=source_root_identity,
             )
         )
-        self._append_event(
+        revision = self._append_event(
             "invalidate",
             criteria={
                 name: value
@@ -351,8 +391,15 @@ class ContextBindingCache:
                 )
                 if value is not None
             },
+            expected_revision=expected_revision,
+            fence=fence,
         )
-        return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "removed": removed, "storage": "hbp-log"}
+        return {
+            "schema": CONTEXT_BINDING_CACHE_SCHEMA,
+            "removed": removed,
+            "storage": "hbp-log",
+            "revision": revision,
+        }
 
     def _receipt(
         self,
@@ -362,6 +409,7 @@ class ContextBindingCache:
         hit: bool,
         reason: str,
         stored: bool = False,
+        revision: str | None = None,
     ) -> dict[str, Any]:
         return {
             "schema": CONTEXT_BINDING_CACHE_SCHEMA,
@@ -369,6 +417,7 @@ class ContextBindingCache:
             "hit": hit,
             "reason": reason,
             "stored": stored,
+            "revision": revision,
             "identity": self._identity(handle),
         }
 
@@ -376,23 +425,85 @@ class ContextBindingCache:
         if self.log_path.is_file():
             return self._read_log()
         if not self.path.is_file():
-            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}}
+            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}, "revision": "", "fence": ""}
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError):
-            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}}
+            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}, "revision": "", "fence": ""}
         if not isinstance(payload, dict) or payload.get("schema") != CONTEXT_BINDING_CACHE_SCHEMA:
-            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}}
+            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}, "revision": "", "fence": ""}
         entries = payload.get("entries")
         return {
             "schema": CONTEXT_BINDING_CACHE_SCHEMA,
             "entries": entries if isinstance(entries, dict) else {},
+            "revision": "",
+            "fence": "",
         }
 
     def _write(self, payload: dict[str, Any]) -> None:
         for key, entry in payload.get("entries", {}).items():
             if isinstance(entry, dict) and isinstance(entry.get("identity"), dict):
                 self._append_event("put", str(key), identity=entry["identity"])
+
+    def doctor(self) -> dict[str, Any]:
+        """Report durable cache health without exposing context contents."""
+        state = self._read()
+        log_bytes = self.log_path.stat().st_size if self.log_path.is_file() else 0
+        return {
+            "schema": "simplicio.context-binding-cache-doctor/v1",
+            "storage": "hbp-log" if self.log_path.is_file() else "legacy-json",
+            "entries": len(state.get("entries", {})),
+            "bytes": log_bytes,
+            "chain_status": "valid" if not self.log_path.is_file() or state.get("revision") else "empty",
+            "revision": state.get("revision", ""),
+            "fence": state.get("fence", ""),
+            "lock_present": self.lock_path.exists(),
+        }
+
+    def compact(self) -> dict[str, Any]:
+        """Rewrite the live metadata entries into a shorter hash-chain log."""
+        if not self.log_path.is_file():
+            return self.doctor()
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        deadline = time.monotonic() + 10
+        while True:
+            try:
+                fd = os.open(self.lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.close(fd)
+                break
+            except FileExistsError:
+                if time.monotonic() >= deadline:
+                    raise MapperContextError(
+                        "CONTEXT_CACHE_LOCK_TIMEOUT", "context cache writer lock is busy"
+                    ) from None
+                time.sleep(0.01)
+        temporary = self.log_path.with_name(f"{self.log_path.name}.{os.getpid()}.tmp")
+        try:
+            state = self._read_log()
+            previous = ""
+            with temporary.open("w", encoding="utf-8", newline="\n") as handle:
+                for key, entry in sorted(state.get("entries", {}).items()):
+                    event: dict[str, Any] = {
+                        "schema": CONTEXT_BINDING_LOG_SCHEMA,
+                        "kind": "put",
+                        "previous_digest": previous,
+                        "key": key,
+                        "identity": entry["identity"],
+                    }
+                    if state.get("fence"):
+                        event["fence"] = state["fence"]
+                    event["digest"] = "sha256:" + hashlib.sha256(
+                        json.dumps(event, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                    ).hexdigest()
+                    handle.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
+                    previous = str(event["digest"])
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, self.log_path)
+            return self.doctor()
+        finally:
+            temporary.unlink(missing_ok=True)
+            self.lock_path.unlink(missing_ok=True)
 
     @staticmethod
     def _matches(
@@ -422,10 +533,11 @@ class ContextBindingCache:
     def _read_log(self) -> dict[str, Any]:
         entries: dict[str, dict[str, Any]] = {}
         previous = ""
+        fence = ""
         try:
             lines = self.log_path.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeError):
-            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}}
+            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}, "revision": "", "fence": ""}
         for line in lines:
             try:
                 event = json.loads(line)
@@ -463,9 +575,15 @@ class ContextBindingCache:
                 else:
                     break
                 previous = str(digest)
+                fence = str(event.get("fence") or fence)
             except (TypeError, ValueError, json.JSONDecodeError):
                 break
-        return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": entries}
+        return {
+            "schema": CONTEXT_BINDING_CACHE_SCHEMA,
+            "entries": entries,
+            "revision": previous,
+            "fence": fence,
+        }
 
     def _append_event(
         self,
@@ -474,7 +592,9 @@ class ContextBindingCache:
         *,
         identity: dict[str, str] | None = None,
         criteria: dict[str, str] | None = None,
-    ) -> None:
+        expected_revision: str | None = None,
+        fence: str | None = None,
+    ) -> str:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         deadline = time.monotonic() + 10
         while True:
@@ -490,10 +610,28 @@ class ContextBindingCache:
                 time.sleep(0.01)
         try:
             previous = ""
+            rows: list[str] = []
             if self.log_path.is_file():
                 rows = self.log_path.read_text(encoding="utf-8").splitlines()
                 if rows:
                     previous = str(json.loads(rows[-1]).get("digest", ""))
+            if expected_revision is not None and expected_revision != previous:
+                raise MapperContextError(
+                    "CONTEXT_CACHE_CAS_CONFLICT",
+                    "context cache revision changed before the write",
+                )
+            current_fence = ""
+            if self.log_path.is_file() and rows:
+                current_fence = str(json.loads(rows[-1]).get("fence") or "")
+            if fence is not None and current_fence:
+                try:
+                    stale = int(fence) < int(current_fence)
+                except ValueError:
+                    stale = fence != current_fence
+                if stale:
+                    raise MapperContextError(
+                        "CONTEXT_CACHE_FENCE_STALE", "writer fence is older than the cache fence"
+                    )
             event: dict[str, Any] = {
                 "schema": CONTEXT_BINDING_LOG_SCHEMA,
                 "kind": kind,
@@ -505,6 +643,8 @@ class ContextBindingCache:
                 event["identity"] = identity
             if criteria is not None:
                 event["criteria"] = criteria
+            if fence is not None:
+                event["fence"] = fence
             event["digest"] = "sha256:" + hashlib.sha256(
                 json.dumps(event, sort_keys=True, separators=(",", ":")).encode("utf-8")
             ).hexdigest()
@@ -512,6 +652,7 @@ class ContextBindingCache:
                 handle.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
                 handle.flush()
                 os.fsync(handle.fileno())
+            return str(event["digest"])
         finally:
             self.lock_path.unlink(missing_ok=True)
 
