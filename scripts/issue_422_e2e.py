@@ -26,6 +26,7 @@ from typing import Any
 from simplicio.changeset_v2 import execute_changeset, execute_changeset_bytes
 from simplicio.execution_mode import negotiate_execution_mode
 from simplicio.fast_contracts import fast_preflight
+from simplicio.runtime_contracts import runtime_verify_contract
 
 SCHEMA = "simplicio.dev-cli.issue-422-evidence/v1"
 
@@ -206,6 +207,28 @@ def _capability_scenario(name: str, available: bool, version: str | None) -> dic
     }
 
 
+def _runtime_scenario() -> dict[str, Any]:
+    """Report the real Runtime contract probe without claiming an E2E run."""
+    handshake = runtime_verify_contract(timeout=20)
+    if handshake.get("verified") is True:
+        return {
+            "scenario": "runtime_backed",
+            "status": "AVAILABLE_NOT_E2E",
+            "version": handshake.get("version"),
+            "binary": handshake.get("binary"),
+            "capabilities": handshake.get("capabilities", []),
+            "reason": "runtime contract verified; effect E2E requires a configured transport",
+        }
+    return {
+        "scenario": "runtime_backed",
+        "status": "UNVERIFIED",
+        "version": handshake.get("version"),
+        "binary": handshake.get("binary"),
+        "capabilities": handshake.get("capabilities", []),
+        "reason": str(handshake.get("reason") or "runtime-contract-not-verified"),
+    }
+
+
 def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
     preflight = fast_preflight(offline=True)
     rows = [_auto_without_runtime(root)]
@@ -220,7 +243,8 @@ def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
     )
     mapper_version = _version("simplicio-mapper")
     rows.append(_capability_scenario("mapper_producer", mapper_version is not None, mapper_version))
-    rows.append(_capability_scenario("runtime_backed", False, None))
+    runtime_row = _runtime_scenario()
+    rows.append(runtime_row)
     return {
         "schema": SCHEMA,
         "commit_sha": _git_sha(root),
@@ -232,7 +256,7 @@ def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
             "dev_cli": _version("simplicio-dev-cli"),
             "mapper": _version("simplicio-mapper"),
             "fast": preflight.to_dict(),
-            "runtime": None,
+            "runtime": runtime_row,
         },
         "scenarios": rows,
         "claims": {"performance_improvement": None, "reason": "no baseline comparison was run"},
