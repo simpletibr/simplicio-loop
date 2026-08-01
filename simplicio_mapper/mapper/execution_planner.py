@@ -111,12 +111,11 @@ def _compatible_calibration_profiles(
 def plan_execution(file_count: int, threshold: int) -> ExecutionPlan:
     """Resolve the mapper execution profile for the current run.
 
-    ``auto`` selects the bounded async pipeline so every normal mapper run
-    benefits from concurrent file I/O and parsing. Explicit ``sync`` remains
-    available for diagnosis and the async kill switch always wins. Future
-    profiles are accepted as configuration vocabulary but deterministically
-    fall back to ``auto`` until real worker/Hub protocols are implemented in
-    this package.
+    ``auto`` selects the lowest-p95 compatible calibrated local profile. With
+    no compatible calibration, it uses the conservative synchronous path:
+    missing evidence must not promote a more complex executor. Explicit
+    ``sync``/``async`` remain available for diagnosis and benchmarking, and
+    the async kill switch always wins.
     """
     requested = _requested_profile_from_env()
     async_disabled = os.environ.get(ASYNC_KILL_SWITCH_ENV, "").strip().lower() in {
@@ -185,10 +184,10 @@ def plan_execution(file_count: int, threshold: int) -> ExecutionPlan:
     else:
         fallback_reason = None
 
-    selected = ExecutionProfile.ASYNC
+    selected = ExecutionProfile.SYNC
     reason = (
-        f"{reason_prefix}auto selected bounded async pipeline "
-        "for concurrent file inventory"
+        f"{reason_prefix}auto fell back to the conservative synchronous path "
+        "because no compatible calibration evidence was available"
     )
 
     return ExecutionPlan(
@@ -200,6 +199,6 @@ def plan_execution(file_count: int, threshold: int) -> ExecutionPlan:
         async_disabled=False,
         platform=platform.system() or platform.platform(),
         source=source,
-        fallback_profile=selected.value if source == "fallback" else None,
+        fallback_profile=selected.value,
         fallback_reason=locals().get("fallback_reason"),
     )

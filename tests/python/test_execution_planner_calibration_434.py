@@ -33,7 +33,7 @@ class CalibrationPlanner434Test(unittest.TestCase):
 
     def test_mismatched_fingerprint_falls_back_explicitly(self) -> None:
         plan = self._plan({"fingerprint": {"machine": "definitely-not-this-host"}, "profiles": {"sync": {"p95_ms": 1}}})
-        self.assertEqual(plan.selected_profile, "async")
+        self.assertEqual(plan.selected_profile, "sync")
         self.assertEqual(plan.source, "auto")
         self.assertIn("fingerprint mismatch", plan.fallback_reason or "")
 

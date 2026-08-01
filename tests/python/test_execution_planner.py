@@ -31,17 +31,17 @@ def _make_tree(root: Path, count: int) -> None:
 
 
 class ExecutionPlannerUnitTest(unittest.TestCase):
-    def test_auto_selects_async_below_threshold_with_reason(self) -> None:
+    def test_auto_selects_conservative_sync_without_evidence(self) -> None:
         with mock.patch.dict(os.environ, {}, clear=True):
             plan = plan_execution(file_count=4, threshold=5)
-        self.assertEqual(plan.selected_profile, ExecutionProfile.ASYNC.value)
-        self.assertIn("bounded async pipeline", plan.reason)
+        self.assertEqual(plan.selected_profile, ExecutionProfile.SYNC.value)
+        self.assertIn("conservative synchronous path", plan.reason)
 
-    def test_auto_selects_async_at_threshold_with_reason(self) -> None:
+    def test_auto_selects_conservative_sync_at_threshold_without_evidence(self) -> None:
         with mock.patch.dict(os.environ, {}, clear=True):
             plan = plan_execution(file_count=5, threshold=5)
-        self.assertEqual(plan.selected_profile, ExecutionProfile.ASYNC.value)
-        self.assertIn("bounded async pipeline", plan.reason)
+        self.assertEqual(plan.selected_profile, ExecutionProfile.SYNC.value)
+        self.assertIn("no compatible calibration", plan.reason)
 
     def test_explicit_sync_overrides_auto(self) -> None:
         with mock.patch.dict(os.environ, {EXECUTION_PROFILE_ENV: "sync"}, clear=True):
@@ -64,14 +64,14 @@ class ExecutionPlannerUnitTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {EXECUTION_PROFILE_ENV: "hub"}, clear=True):
             plan = plan_execution(file_count=1, threshold=5)
         self.assertEqual(plan.requested_profile, "hub")
-        self.assertEqual(plan.selected_profile, "async")
+        self.assertEqual(plan.selected_profile, "sync")
         self.assertEqual(plan.source, "fallback")
 
     def test_unknown_profile_value_falls_back_to_auto(self) -> None:
         with mock.patch.dict(os.environ, {EXECUTION_PROFILE_ENV: "not-a-real-profile"}, clear=True):
             plan = plan_execution(file_count=999, threshold=5)
         self.assertEqual(plan.requested_profile, ExecutionProfile.AUTO.value)
-        self.assertEqual(plan.selected_profile, ExecutionProfile.ASYNC.value)
+        self.assertEqual(plan.selected_profile, ExecutionProfile.SYNC.value)
         self.assertEqual(plan.source, "env")
 
 
@@ -141,14 +141,14 @@ class ExecutionPlannerSystemTest(unittest.TestCase):
         )
         return json.loads(completed.stdout)
 
-    def test_real_cli_defaults_to_async_and_writes_receipt(self) -> None:
+    def test_real_cli_defaults_to_sync_without_calibration(self) -> None:
         payload = self._run_index()
 
-        self.assertEqual(payload["execution_plan"]["selected_profile"], "async")
+        self.assertEqual(payload["execution_plan"]["selected_profile"], "sync")
         receipt_path = Path(payload["paths"]["execution_plan"])
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
         self.assertEqual(receipt["schema"], "simplicio.execution-plan/v1")
-        self.assertEqual(receipt["selected_profile"], "async")
+        self.assertEqual(receipt["selected_profile"], "sync")
         self.assertEqual(receipt["source"], "auto")
 
     def test_real_cli_kill_switch_forces_sync_rollback(self) -> None:

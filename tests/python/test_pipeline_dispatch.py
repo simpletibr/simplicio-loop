@@ -105,7 +105,7 @@ class FastFileCountTest(unittest.TestCase):
 
 
 class DispatchRoutingTest(unittest.TestCase):
-    """Confirms build_artifacts() defaults to the bounded async path.
+    """Confirms build_artifacts() uses conservative sync without evidence.
     """
 
     def setUp(self) -> None:
@@ -115,37 +115,35 @@ class DispatchRoutingTest(unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp.cleanup()
 
-    def test_routes_to_async_below_threshold(self) -> None:
+    def test_routes_to_sync_below_threshold_without_calibration(self) -> None:
         _make_tree(self.dir, 3)
         with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES": "5"}), \
-                mock.patch.object(
-                    emit_module, "_build_artifacts_sync", wraps=_build_artifacts_sync
-                ) as spy_sync, \
+                mock.patch.object(emit_module, "_build_artifacts_sync", wraps=_build_artifacts_sync) as spy_sync, \
                 mock.patch("simplicio_mapper.mapper.async_pipeline.build_artifacts_async") as spy_async:
             build_artifacts(str(self.dir))
-        spy_sync.assert_not_called()
-        spy_async.assert_called_once()
+        spy_sync.assert_called_once()
+        spy_async.assert_not_called()
 
-    def test_routes_to_async_at_or_above_threshold(self) -> None:
+    def test_routes_to_sync_at_or_above_threshold_without_calibration(self) -> None:
         _make_tree(self.dir, 6)
         with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES": "5"}), \
                 mock.patch.object(emit_module, "_build_artifacts_sync") as spy_sync:
             build_artifacts(str(self.dir))
-        spy_sync.assert_not_called()
+        spy_sync.assert_called_once()
 
-    def test_boundary_threshold_minus_one_goes_async(self) -> None:
+    def test_boundary_threshold_minus_one_goes_sync(self) -> None:
         _make_tree(self.dir, 4)  # threshold(5) - 1 files
         with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES": "5"}), \
                 mock.patch.object(emit_module, "_build_artifacts_sync", wraps=_build_artifacts_sync) as spy_sync:
             build_artifacts(str(self.dir))
-        spy_sync.assert_not_called()
+        spy_sync.assert_called_once()
 
-    def test_boundary_exactly_at_threshold_goes_async(self) -> None:
+    def test_boundary_exactly_at_threshold_goes_sync(self) -> None:
         _make_tree(self.dir, 5)  # exactly threshold
         with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES": "5"}), \
                 mock.patch.object(emit_module, "_build_artifacts_sync") as spy_sync:
             build_artifacts(str(self.dir))
-        spy_sync.assert_not_called()
+        spy_sync.assert_called_once()
 
 
 class ByteIdenticalAcrossDispatchTest(unittest.TestCase):
@@ -236,7 +234,7 @@ class CalibrationOverrideTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {"SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES": "99"}):
             self.assertEqual(_async_pipeline_min_files(str(self.dir)), 99)
 
-    def test_build_artifacts_honors_calibration_file_for_dispatch(self) -> None:
+    def test_build_artifacts_does_not_promote_threshold_only_calibration(self) -> None:
         from simplicio_mapper.mapper.pipeline_calibration import write_calibration
 
         _make_tree(self.dir, 6)
@@ -249,8 +247,8 @@ class CalibrationOverrideTest(unittest.TestCase):
                 mock.patch.object(emit_module, "_build_artifacts_sync") as spy_sync:
             os.environ.pop("SIMPLICIO_MAPPER_ASYNC_PIPELINE_MIN_FILES", None)
             build_artifacts(str(self.dir))
-        # 6 files >= calibrated threshold (5) -> async path, sync never called.
-        spy_sync.assert_not_called()
+        # A threshold-only legacy file is not p95 evidence and cannot promote async.
+        spy_sync.assert_called_once()
 
 
 if __name__ == "__main__":
