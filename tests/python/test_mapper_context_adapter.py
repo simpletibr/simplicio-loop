@@ -212,6 +212,26 @@ def test_context_binding_cache_refresh_invalidates_prior_revision(
     assert cache.lookup(refreshed.context_handle)["hit"] is True
 
 
+def test_context_binding_cache_enforces_revision_cas_and_fencing(
+    mapper_boundary: None, tmp_path: Any
+) -> None:
+    payload = _payload()
+    binding = bind_mapper_context(payload, _pack(payload))
+    cache = ContextBindingCache(tmp_path)
+    stored = cache.put(binding, fence="10")
+    assert stored["revision"]
+    with pytest.raises(MapperContextError, match="CONTEXT_CACHE_CAS_CONFLICT"):
+        cache.put(binding, expected_revision="sha256:stale", fence="10")
+    with pytest.raises(MapperContextError, match="CONTEXT_CACHE_FENCE_STALE"):
+        cache.put(binding, expected_revision=stored["revision"], fence="9")
+    assert cache.doctor()["fence"] == "10"
+    before = cache.doctor()["bytes"]
+    compacted = cache.compact()
+    assert compacted["chain_status"] == "valid"
+    assert compacted["bytes"] <= before
+    assert cache.lookup(binding.context_handle)["hit"] is True
+
+
 def test_context_binding_cache_uses_hashed_append_log_and_recovers_truncation(
     mapper_boundary: None, tmp_path: Any
 ) -> None:
