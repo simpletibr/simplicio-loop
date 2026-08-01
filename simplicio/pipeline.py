@@ -23,6 +23,7 @@ from .execution_receipts import execution_mode_blocker
 from .mapper import map_ask
 from .observability import emit_event, estimate_tokens, info, log_run
 from .pipeline_fixers import try_static_fixers
+from .pipeline_input import prepare_pipeline_input
 from .pipeline_integrated import run_integrated
 from .pipeline_stages import (
     IMPACT_RESULT_FAILED,
@@ -424,22 +425,27 @@ def _run_task(
     effect_sink = cast(EffectSink | None, prepared.effect_sink)
     runtime_handshake = prepared.runtime_handshake
     integrated_attempt = prepared.attempt
-    actual_root = Path(root).resolve()
-    declared_repo_root = Path(repo_root if repo_root is not None else actual_root).resolve()
-    declared_scope_root = scope_root if scope_root is not None else actual_root
-    canonical_snapshot_id = str((context_snapshot or {}).get("snapshot_id") or "").strip()
-    canonical_pack_hash = str((context_pack or {}).get("pack_hash") or "").strip()
-    supplied_snapshot_id = None if context_snapshot_id is None else str(context_snapshot_id).strip()
-    supplied_pack_hash = None if context_pack_hash is None else str(context_pack_hash).strip()
-    snapshot_identity = canonical_snapshot_id
-    # Issue #301 compatibility: older ContextPack payloads may omit the raw
-    # pack_hash; integrated binding remains authoritative for that identity.
-    pack_identity = canonical_pack_hash or supplied_pack_hash or ""
-    attempt_identity = (
-        attempt_id
-        if attempt_id is not None
-        else (integrated_attempt.attempt_id if integrated_attempt else "")
+    pipeline_input = prepare_pipeline_input(
+        root,
+        repo_root=repo_root,
+        scope_root=scope_root,
+        context_snapshot=context_snapshot,
+        context_pack=context_pack,
+        context_snapshot_id=context_snapshot_id,
+        context_pack_hash=context_pack_hash,
+        attempt_id=attempt_id,
+        integrated_attempt=integrated_attempt,
     )
+    actual_root = pipeline_input.actual_root
+    declared_repo_root = pipeline_input.declared_repo_root
+    declared_scope_root = pipeline_input.declared_scope_root
+    canonical_snapshot_id = pipeline_input.canonical_snapshot_id
+    canonical_pack_hash = pipeline_input.canonical_pack_hash
+    supplied_snapshot_id = pipeline_input.supplied_snapshot_id
+    supplied_pack_hash = pipeline_input.supplied_pack_hash
+    snapshot_identity = pipeline_input.snapshot_identity
+    pack_identity = pipeline_input.pack_identity
+    attempt_identity = pipeline_input.attempt_identity
     try:
         if declared_repo_root != actual_root:
             raise TaskContextError(
