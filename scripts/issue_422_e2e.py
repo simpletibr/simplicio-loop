@@ -8,10 +8,13 @@ they are never converted to pass or silently replaced with synthetic data.
 from __future__ import annotations
 
 import argparse
+import base64
 import csv
 import hashlib
+import importlib
 import importlib.metadata
 import json
+import os
 import platform
 import statistics
 import sys
@@ -20,7 +23,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from simplicio.changeset_v2 import execute_changeset
+from simplicio.changeset_v2 import execute_changeset, execute_changeset_bytes
 from simplicio.execution_mode import negotiate_execution_mode
 from simplicio.fast_contracts import fast_preflight
 
@@ -96,6 +99,90 @@ def _transaction_scenario(count: int, repeats: int) -> dict[str, Any]:
         }
 
 
+def _fast_binary_module(root: Path) -> Any | None:
+    """Load the Fast producer from an installed package or sibling checkout."""
+    try:
+        return importlib.import_module("simplicio_fast.binary_changeset")
+    except ModuleNotFoundError:
+        candidates = [
+            Path(os.environ["SIMPLICIO_FAST_SOURCE"])
+            if os.environ.get("SIMPLICIO_FAST_SOURCE")
+            else root.parent / "simplicio-fast" / "src",
+        ]
+        for candidate in candidates:
+            if candidate.is_dir() and str(candidate) not in sys.path:
+                sys.path.insert(0, str(candidate))
+            sys.modules.pop("simplicio_fast", None)
+            try:
+                return importlib.import_module("simplicio_fast.binary_changeset")
+            except ModuleNotFoundError:
+                continue
+        return None
+
+
+def _fast_binary_scenario(root: Path, count: int, repeats: int) -> dict[str, Any]:
+    module = _fast_binary_module(root)
+    if module is None:
+        return {
+            "scenario": f"fast_python_binary_{count}",
+            "status": "UNVERIFIED",
+            "reason": "simplicio-fast binary producer is unavailable",
+        }
+    samples: list[float] = []
+    with tempfile.TemporaryDirectory(prefix=f"simplicio-422-fast-{count}-") as raw_root:
+        worktree = Path(raw_root)
+        operations = []
+        allowed = []
+        for index in range(count):
+            relative = f"files/file-{index:03d}.txt"
+            content = f"fast-value-{index}\n".encode()
+            allowed.append(relative)
+            operations.append(
+                module.ChangeOperation.from_dict(
+                    {
+                        "op": "create",
+                        "path": relative,
+                        "content_b64": base64.b64encode(content).decode("ascii"),
+                        "after_sha256": hashlib.sha256(content).hexdigest(),
+                    }
+                )
+            )
+        binary = module.BinaryChangeSet(
+            repository=str(worktree.resolve()),
+            base_generation="generation-1",
+            overlay_generation="generation-2",
+            attempt=f"issue-422-fast-{count}",
+            worktree_id=f"slot-422-{count}",
+            lease_id=f"lease-422-{count}",
+            fencing_token=f"fence-422-{count}",
+            allowed_paths=tuple(allowed),
+            operations=tuple(operations),
+        ).encode()
+        for _ in range(repeats):
+            started = time.perf_counter()
+            result = execute_changeset_bytes(binary, root=worktree, apply=True)
+            samples.append((time.perf_counter() - started) * 1000)
+            if result.get("status") != "ok":
+                return {
+                    "scenario": f"fast_python_binary_{count}",
+                    "status": "FAIL",
+                    "repetitions": len(samples),
+                    "error": result.get("errors"),
+                }
+        return {
+            "scenario": f"fast_python_binary_{count}",
+            "status": "PASS",
+            "repetitions": repeats,
+            "warmup": 1,
+            "p50_ms": statistics.median(samples),
+            "p95_ms": sorted(samples)[max(0, int(len(samples) * 0.95) - 1)],
+            "binary_bytes": len(binary),
+            "input_format": "simplicio.fast.binary-changeset/v1",
+            "replay_status": result.get("status"),
+            "replayed": result.get("replayed", False),
+        }
+
+
 def _auto_without_runtime(root: Path) -> dict[str, Any]:
     profile = negotiate_execution_mode(
         "auto",
@@ -123,6 +210,7 @@ def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
     preflight = fast_preflight(offline=True)
     rows = [_auto_without_runtime(root)]
     rows.extend(_transaction_scenario(count, repeats) for count in (1, 20, 200))
+    rows.extend(_fast_binary_scenario(root, count, repeats) for count in (1, 20, 200))
     rows.append(
         _capability_scenario(
             "fast_rust",
