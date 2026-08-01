@@ -63,10 +63,11 @@ def execute_plan(
     *,
     root: str | Path = ".",
     apply: bool = False,
+    allow_native: bool = True,
 ) -> dict[str, Any]:
     root_path = Path(root)
 
-    native_result = _try_native_edit(plan, root_path, apply=apply)
+    native_result = _try_native_edit(plan, root_path, apply=apply) if allow_native else None
     if native_result is not None:
         return native_result
 
