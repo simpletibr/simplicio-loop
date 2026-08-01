@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import os
 import platform
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
 
@@ -49,6 +49,11 @@ class ExecutionPlan:
     async_disabled: bool
     platform: str
     source: str
+    candidates: dict[str, Any] = field(default_factory=dict)
+    evidence: str | None = None
+    predicted_p95_ms: float | None = None
+    fallback_profile: str | None = None
+    fallback_reason: str | None = None
 
     def to_receipt(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -62,6 +67,45 @@ def _requested_profile_from_env() -> ExecutionProfile:
         return ExecutionProfile(raw)
     except ValueError:
         return ExecutionProfile.AUTO
+
+
+def _calibration_fingerprint() -> dict[str, str]:
+    return {
+        "platform": platform.system() or platform.platform(),
+        "machine": platform.machine(),
+        "python": platform.python_version(),
+    }
+
+
+def _compatible_calibration_profiles(
+    calibration: Any, file_count: int
+) -> tuple[dict[str, dict[str, Any]], str | None]:
+    if not isinstance(calibration, dict):
+        return {}, "calibration is not an object"
+    expected = calibration.get("fingerprint")
+    if isinstance(expected, dict):
+        actual = _calibration_fingerprint()
+        mismatches = [key for key, value in expected.items() if actual.get(key) != value]
+        if mismatches:
+            return {}, f"calibration fingerprint mismatch: {', '.join(sorted(mismatches))}"
+    raw_profiles = calibration.get("profiles")
+    if not isinstance(raw_profiles, dict):
+        return {}, "calibration profiles are missing"
+    profiles: dict[str, dict[str, Any]] = {}
+    for name in ("sync", "async"):
+        profile = raw_profiles.get(name)
+        if not isinstance(profile, dict):
+            continue
+        p95 = profile.get("p95_ms")
+        minimum, maximum = profile.get("file_count_min", 0), profile.get("file_count_max")
+        if not isinstance(p95, (int, float)) or p95 <= 0:
+            continue
+        if not isinstance(minimum, int) or (maximum is not None and not isinstance(maximum, int)):
+            continue
+        if file_count < minimum or (maximum is not None and file_count > maximum):
+            continue
+        profiles[name] = profile
+    return profiles, None if profiles else "no compatible calibrated profile"
 
 
 def plan_execution(file_count: int, threshold: int) -> ExecutionPlan:
@@ -122,19 +166,24 @@ def plan_execution(file_count: int, threshold: int) -> ExecutionPlan:
         try:
             with open(calibration_path, encoding="utf-8") as handle:
                 calibration = json.load(handle)
-            profiles = calibration.get("profiles") if isinstance(calibration, dict) else None
-            sync_p95 = profiles.get("sync", {}).get("p95_ms") if isinstance(profiles, dict) else None
-            async_p95 = profiles.get("async", {}).get("p95_ms") if isinstance(profiles, dict) else None
-            if (isinstance(sync_p95, (int, float)) and isinstance(async_p95, (int, float))
-                    and sync_p95 >= 0 and async_p95 > 0 and sync_p95 <= async_p95 * 0.9):
+            profiles, calibration_reason = _compatible_calibration_profiles(calibration, safe_file_count)
+            if profiles:
+                ordered = sorted(profiles.items(), key=lambda item: float(item[1]["p95_ms"]))
+                best_name, best = ordered[0]
+                candidates = {name: float(profile["p95_ms"]) for name, profile in ordered}
                 return ExecutionPlan(
-                    requested_profile=requested.value, selected_profile=ExecutionProfile.SYNC.value,
-                    reason=f"auto selected sync from compatible calibration p95 ({sync_p95:g}ms <= 90% of {async_p95:g}ms)",
+                    requested_profile=requested.value, selected_profile=best_name,
+                    reason=f"auto selected {best_name} from compatible calibration p95 ({float(best['p95_ms']):g}ms)",
                     file_count=safe_file_count, threshold=safe_threshold, async_disabled=False,
                     platform=platform.system() or platform.platform(), source="calibration",
+                    candidates=candidates, evidence="compatible calibration",
+                    predicted_p95_ms=float(best["p95_ms"]),
                 )
+            fallback_reason = calibration_reason or "calibration was not usable"
         except (OSError, TypeError, ValueError, json.JSONDecodeError):
-            pass
+            fallback_reason = "calibration could not be read or parsed"
+    else:
+        fallback_reason = None
 
     selected = ExecutionProfile.ASYNC
     reason = (
@@ -151,4 +200,6 @@ def plan_execution(file_count: int, threshold: int) -> ExecutionPlan:
         async_disabled=False,
         platform=platform.system() or platform.platform(),
         source=source,
+        fallback_profile=selected.value if source == "fallback" else None,
+        fallback_reason=locals().get("fallback_reason"),
     )
