@@ -271,7 +271,12 @@ def test_recovery_removes_new_file_and_rejects_hash_mismatch(tmp_path):
     path = _write_journal(
         tmp_path,
         key,
-        {"changeset_digest": "digest", "state": "ROLLING_BACK", "before": {"new.txt": None}, "backup": str(backup)},
+        {
+            "changeset_digest": "digest",
+            "state": "ROLLING_BACK",
+            "before": {"new.txt": None},
+            "backup": str(backup),
+        },
     )
     recovered = recover_changeset_transaction(tmp_path, idempotency_key=key, changeset_digest_value="digest")
     assert recovered["status"] == "recovered"
@@ -302,12 +307,19 @@ def test_execute_transaction_replays_and_rejects_existing_journal_shapes(tmp_pat
     _write_journal(tmp_path, key, {"changeset_digest": "digest", "state": "STAGED"})
     with pytest.raises(ChangesetTransactionError, match="requires recovery"):
         execute_changeset_transaction({}, root=tmp_path, idempotency_key=key, changeset_digest_value="digest")
-    _write_journal(tmp_path, key, {"changeset_digest": "digest", "state": "COMMITTED", "result": {"status": "ok"}})
-    result = execute_changeset_transaction({}, root=tmp_path, idempotency_key=key, changeset_digest_value="digest")
+    _write_journal(
+        tmp_path, key, {"changeset_digest": "digest", "state": "COMMITTED", "result": {"status": "ok"}}
+    )
+    result = execute_changeset_transaction(
+        {}, root=tmp_path, idempotency_key=key, changeset_digest_value="digest"
+    )
     assert result == {"status": "ok", "replayed": True}
-    assert changeset_transaction.existing_transaction_result(
-        tmp_path, idempotency_key=key, changeset_digest_value="digest"
-    )["replayed"] is True
+    assert (
+        changeset_transaction.existing_transaction_result(
+            tmp_path, idempotency_key=key, changeset_digest_value="digest"
+        )["replayed"]
+        is True
+    )
 
 
 def test_transaction_commit_path_can_remove_deleted_target(tmp_path, monkeypatch):
@@ -315,6 +327,7 @@ def test_transaction_commit_path_can_remove_deleted_target(tmp_path, monkeypatch
 
     target = tmp_path / "delete.txt"
     target.write_text("old", encoding="utf-8")
+
     def remove_from_candidate(*args, **kwargs):
         (Path(kwargs["root"]) / "delete.txt").unlink()
         return {"status": "ok", "applied": True, "validation": [], "planned_diff": ""}

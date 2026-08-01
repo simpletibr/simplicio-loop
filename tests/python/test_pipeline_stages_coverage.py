@@ -11,13 +11,22 @@ def test_timeout_and_patch_candidate_edge_cases(monkeypatch, tmp_path):
     monkeypatch.setenv("SIMPLICIO_TEST_TIMEOUT_S", "0")
     assert stages._verification_timeout_seconds() is None
     assert stages._extract_patch_candidate("text", str(tmp_path), None).reason.startswith("no unified")
-    assert stages._extract_patch_candidate("FILE: app.py\nnew\n", str(tmp_path), ["app.py"]).strategy == "full_file_artifact"
+    assert (
+        stages._extract_patch_candidate("FILE: app.py\nnew\n", str(tmp_path), ["app.py"]).strategy
+        == "full_file_artifact"
+    )
     (tmp_path / "app.py").write_text("same\n", encoding="utf-8")
-    assert stages._extract_patch_candidate("FILE: app.py\nsame\n", str(tmp_path), ["app.py"]).strategy == "full_file_noop"
+    assert (
+        stages._extract_patch_candidate("FILE: app.py\nsame\n", str(tmp_path), ["app.py"]).strategy
+        == "full_file_noop"
+    )
 
 
 def test_impact_paths_report_mapper_and_command_failures(tmp_path, monkeypatch):
-    assert stages.run_impact_tests(tmp_path, [], map_ask_fn=lambda *args: None)["result"] == stages.IMPACT_RESULT_NOT_NEEDED
+    assert (
+        stages.run_impact_tests(tmp_path, [], map_ask_fn=lambda *args: None)["result"]
+        == stages.IMPACT_RESULT_NOT_NEEDED
+    )
     no_mapper = stages.run_impact_tests(tmp_path, ["app.py"], map_ask_fn=lambda *args: None)
     assert no_mapper["status"] == "mapper_unavailable"
     no_callers = stages.run_impact_tests(tmp_path, ["app.py"], map_ask_fn=lambda *args: [])
@@ -28,7 +37,9 @@ def test_impact_paths_report_mapper_and_command_failures(tmp_path, monkeypatch):
 
     missing = stages.run_impact_tests(tmp_path, ["app.py"], map_ask_fn=mapper)
     assert missing["status"] == "missing_test_command"
-    monkeypatch.setattr(stages.subprocess, "run", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("no process")))
+    monkeypatch.setattr(
+        stages.subprocess, "run", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("no process"))
+    )
     errored = stages.run_impact_tests(tmp_path, ["app.py"], test_cmd="pytest", map_ask_fn=mapper)
     assert errored["status"] == "error"
 
@@ -37,10 +48,18 @@ def test_impact_paths_capture_nonzero_and_success_receipts(tmp_path, monkeypatch
     def mapper(_root, verb, _path):
         return [{"caller": "src/app.py"}] if verb == "impact" else [{"test_path": "tests/test_app.py"}]
 
-    monkeypatch.setattr(stages.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(returncode=1, stdout="out", stderr="err"))
+    monkeypatch.setattr(
+        stages.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=1, stdout="out", stderr="err"),
+    )
     failed = stages.run_impact_tests(tmp_path, ["app.py"], test_cmd="pytest", map_ask_fn=mapper)
     assert failed["status"] == "failed"
-    monkeypatch.setattr(stages.subprocess, "run", lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout="ok", stderr=""))
+    monkeypatch.setattr(
+        stages.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=0, stdout="ok", stderr=""),
+    )
     passed = stages.run_impact_tests(tmp_path, ["app.py"], test_cmd="pytest", map_ask_fn=mapper)
     assert passed["status"] == "ok"
     assert passed["receipt"]["exit_code"] == 0

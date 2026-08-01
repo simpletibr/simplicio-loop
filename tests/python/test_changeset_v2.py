@@ -345,7 +345,9 @@ def test_binary_adapter_reports_decoder_and_unexpected_errors(monkeypatch, tmp_p
         def receipt(self):
             return {"name": self.name, "metrics": {}}
 
-    monkeypatch.setattr(changeset_v2, "select_fast_engine", lambda _: ErrorEngine(FastEngineError("bad", "bad")))
+    monkeypatch.setattr(
+        changeset_v2, "select_fast_engine", lambda _: ErrorEngine(FastEngineError("bad", "bad"))
+    )
     result = execute_changeset_bytes(BINARY_MAGIC + b"payload", root=tmp_path)
     assert result["errors"][0]["code"] == "bad"
     monkeypatch.setattr(changeset_v2, "select_fast_engine", lambda _: ErrorEngine(RuntimeError("bad")))
@@ -380,9 +382,30 @@ def test_binary_adapter_rejects_missing_engine_and_authority(monkeypatch, tmp_pa
 @pytest.mark.parametrize(
     ("value", "code"),
     [
-        ({"repository": "wrong", "base_generation": "b", "lease_id": "l", "fencing_token": "f"}, "binary_repository_mismatch"),
-        ({"repository": "root", "base_generation": "b", "lease_id": "l", "fencing_token": "f", "operations": [None]}, "binary_operation_invalid"),
-        ({"repository": "root", "base_generation": "b", "lease_id": "l", "fencing_token": "f", "operations": [{"op": "bad"}]}, "binary_operation_unsupported"),
+        (
+            {"repository": "wrong", "base_generation": "b", "lease_id": "l", "fencing_token": "f"},
+            "binary_repository_mismatch",
+        ),
+        (
+            {
+                "repository": "root",
+                "base_generation": "b",
+                "lease_id": "l",
+                "fencing_token": "f",
+                "operations": [None],
+            },
+            "binary_operation_invalid",
+        ),
+        (
+            {
+                "repository": "root",
+                "base_generation": "b",
+                "lease_id": "l",
+                "fencing_token": "f",
+                "operations": [{"op": "bad"}],
+            },
+            "binary_operation_unsupported",
+        ),
     ],
 )
 def test_binary_adapter_rejects_invalid_envelope(monkeypatch, tmp_path, value, code):
@@ -420,9 +443,7 @@ def test_binary_public_adapter_maps_line_map_and_rejects_invalid_content():
     assert mapped["operations"][0]["kind"] == "replace_range"
     assert mapped["operations"][2]["target"] == "b.txt"
     with pytest.raises(ChangesetError, match="valid text"):
-        _public_changeset_from_binary(
-            {"operations": [{"op": "create", "content_b64": "%%%%"}]}
-        )
+        _public_changeset_from_binary({"operations": [{"op": "create", "content_b64": "%%%%"}]})
 
 
 def test_benchmark_environment_is_machine_readable():
