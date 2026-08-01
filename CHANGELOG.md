@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.26.8] - 2026-08-01
+
+### Fixed
+
+- Make the release quality gate deterministic on Windows when subprocess output
+  uses non-CP1252 bytes (PR #467).
+
 ## [0.26.6] - 2026-08-01
 
 ### Fixed
