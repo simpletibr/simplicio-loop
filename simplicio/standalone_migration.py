@@ -324,9 +324,10 @@ def mutation_receipt(
         "entrypoint": entrypoint,
         "route": route,
         "runtime_gated": runtime_gate_verified,
-        # Keep the field for receipt readers from older releases. New
-        # standalone selections use route=standalone and are not legacy.
-        "legacy": route == "legacy_standalone",
+        # Keep the field for receipt readers from older releases. Normal
+        # standalone selections are first-class; an explicit legacy opt-in
+        # remains marked for migration/compatibility consumers.
+        "legacy": route == "legacy_standalone" or bool(policy and policy.legacy_opt_in),
         "migration_phase": policy.phase if policy is not None else None,
         "available": available_payload,
         "available_tuple": [key for key, value in available_payload.items() if value is not None],
