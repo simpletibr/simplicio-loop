@@ -194,6 +194,32 @@ def test_context_binding_cache_is_cross_process_and_digest_scoped(
     assert miss["reason"] == "missing"
 
 
+def test_context_binding_cache_reuses_unchanged_log_read_and_invalidates_after_write(
+    mapper_boundary: None, tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = _payload()
+    binding = bind_mapper_context(payload, _pack(payload))
+    cache = ContextBindingCache(tmp_path)
+    cache.put(binding)
+
+    reads = 0
+    original = cache._read_log
+
+    def counted_read():
+        nonlocal reads
+        reads += 1
+        return original()
+
+    monkeypatch.setattr(cache, "_read_log", counted_read)
+    assert cache.lookup(binding.context_handle)["hit"] is True
+    assert cache.lookup(binding.context_handle)["hit"] is True
+    assert reads == 1
+
+    cache.invalidate(key=binding.context_handle.value)
+    assert cache.lookup(binding.context_handle)["hit"] is False
+    assert reads == 3  # initial read, writer validation, then invalidated lookup
+
+
 def test_context_binding_cache_refresh_invalidates_prior_revision(
     mapper_boundary: None, tmp_path: Any
 ) -> None:

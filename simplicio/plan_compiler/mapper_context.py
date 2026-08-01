@@ -263,6 +263,8 @@ class ContextBindingCache:
         self.path = self.root / ".simplicio" / "context-bindings.json"
         self.log_path = self.root / ".simplicio" / "context-bindings.hbp.jsonl"
         self.lock_path = self.root / ".simplicio" / "context-bindings.hbp.lock"
+        self._read_cache_signature: tuple[int, int, int, int] | None = None
+        self._read_cache: dict[str, Any] | None = None
         self._migrate_legacy_once()
 
     @staticmethod
@@ -431,7 +433,13 @@ class ContextBindingCache:
 
     def _read(self) -> dict[str, Any]:
         if self.log_path.is_file():
-            return self._read_log()
+            signature = self._log_signature()
+            if signature == self._read_cache_signature and self._read_cache is not None:
+                return self._read_cache
+            state = self._read_log()
+            self._read_cache_signature = signature
+            self._read_cache = state
+            return state
         if not self.path.is_file():
             return {
                 "schema": CONTEXT_BINDING_CACHE_SCHEMA,
@@ -466,6 +474,17 @@ class ContextBindingCache:
             "fence": "",
             "chain_status": "valid",
         }
+
+    def _log_signature(self) -> tuple[int, int, int, int] | None:
+        try:
+            stat = self.log_path.stat()
+        except OSError:
+            return None
+        return (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns)
+
+    def _invalidate_read_cache(self) -> None:
+        self._read_cache_signature = None
+        self._read_cache = None
 
     def _write(self, payload: dict[str, Any]) -> None:
         for key, entry in payload.get("entries", {}).items():
@@ -707,6 +726,7 @@ class ContextBindingCache:
                 handle.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
                 handle.flush()
                 os.fsync(handle.fileno())
+            self._invalidate_read_cache()
             return str(event["digest"])
         finally:
             self.lock_path.unlink(missing_ok=True)
