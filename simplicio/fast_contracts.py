@@ -18,6 +18,7 @@ CAPABILITIES_SCHEMA = "simplicio.fast-capabilities/v1"
 DOCTOR_SCHEMA = "simplicio.fast-doctor/v1"
 RECEIPT_SCHEMA = "simplicio.fast-local-receipt/v1"
 SNAPSHOT_SCHEMAS = ("simplicio.context-snapshot/v1", "simplicio.mapper-context-snapshot/v1")
+BINARY_CHANGESET_SCHEMA = "simplicio.fast.binary-changeset/v1"
 
 
 def _version_tuple(value: str) -> tuple[int, int, int] | None:
@@ -114,9 +115,21 @@ def capabilities_contract(*, offline: bool = False) -> dict[str, Any]:
         },
         "schemas": [
             *SNAPSHOT_SCHEMAS,
+            BINARY_CHANGESET_SCHEMA,
             "simplicio.fast.changeset/v2",
             "simplicio.fast.changeset-receipt/v2",
         ],
+        "formats": {
+            BINARY_CHANGESET_SCHEMA: {
+                "input": "bytes",
+                "magic": "SFBCHG01",
+                "adapter": "execute_changeset_bytes",
+            },
+            "simplicio.fast.changeset/v2": {
+                "input": "json",
+                "adapter": "legacy-json-adapter",
+            },
+        },
         "languages": ["python", "javascript", "typescript", "json"],
         "commands": ["fast capabilities", "fast doctor", "changeset"],
         "source_access": False,
