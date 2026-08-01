@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
+import sys
 
 import pytest
 
@@ -86,11 +89,10 @@ def test_doctor_rejects_corrupt_snapshot(monkeypatch, tmp_path):
 def test_fast_engine_selection_is_explicit_and_in_memory():
     engine = select_fast_engine("python")
     assert isinstance(engine, PythonFastEngine)
-    assert engine.decode_binary(b'{"generation":"g"}') == {"generation": "g"}
     assert engine.receipt()["metrics"] == {
-        "decode_calls": 1,
-        "bytes_decoded": 18,
-        "serializations": 1,
+        "decode_calls": 0,
+        "bytes_decoded": 0,
+        "serializations": 0,
         "subprocesses": 0,
     }
     assert select_fast_engine("none").name == "none"
@@ -118,3 +120,37 @@ def test_cli_exit_codes_offline_help_and_metadata_receipt(monkeypatch, tmp_path,
         "mapper_version",
         "source_included",
     }
+
+
+def test_python_engine_consumes_real_binary_envelope(monkeypatch, tmp_path):
+    monkeypatch.syspath_prepend(r"C:\Users\Z0059V7A\m\repos\simplicio-fast\src")
+    sys.modules.pop("simplicio_fast", None)
+    from simplicio_fast.binary_changeset import BinaryChangeSet, ChangeOperation
+
+    content = b"python-engine\n"
+    changeset = BinaryChangeSet(
+        repository=str(tmp_path.resolve()),
+        base_generation="base",
+        overlay_generation="overlay",
+        attempt="attempt",
+        worktree_id="slot-python",
+        lease_id="lease-python",
+        fencing_token="fence-python",
+        allowed_paths=("result.txt",),
+        operations=(
+            ChangeOperation.from_dict(
+                {
+                    "op": "create",
+                    "path": "result.txt",
+                    "content_b64": base64.b64encode(content).decode(),
+                    "after_sha256": hashlib.sha256(content).hexdigest(),
+                }
+            ),
+        ),
+    )
+    from simplicio.fast_contracts import select_fast_engine
+
+    engine = select_fast_engine("python")
+    decoded = engine.decode_binary(changeset.encode())
+    assert decoded["repository"] == str(tmp_path.resolve())
+    assert engine.receipt()["metrics"]["serializations"] == 0
