@@ -73,7 +73,21 @@ def canonical_mapper_boundary(monkeypatch):
         )
 
     monkeypatch.setattr("simplicio.pipeline_integrated.bind_mapper_context", bind)
-    monkeypatch.setattr("simplicio.pipeline_integrated.verify_context_sources", lambda *a, **k: None)
+
+    def verify_metrics(*_args, **kwargs):
+        paths = kwargs.get("paths")
+        count = 2 if paths else 10
+        return {
+            "files_considered": count,
+            "files_hashed": count,
+            "bytes_read": count * 10,
+            "generation": "generation-1",
+            "paths_requested": sorted(paths or ()),
+            "engine": "python-bytes",
+            "fallback_reason": None if paths else "causal_set_absent_full_verification",
+        }
+
+    monkeypatch.setattr("simplicio.pipeline_integrated.verify_context_sources", verify_metrics)
 
 
 class RuntimeTestSink(RecordingEffectSink):
@@ -472,6 +486,8 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
     assert result["context_binding"]["context_handle"] == CONTEXT_HANDLE
     assert result["context_binding"]["cache"]["schema"] == "simplicio.context-binding-cache/v1"
     assert result["context_binding"]["cache"]["hit"] is False
+    assert result["verification_metrics"]["bind"]["files_hashed"] == 10
+    assert result["verification_metrics"]["pre_effect"]["files_hashed"] == 10
     assert observation["resources"]["effect_calls"] == 1
     assert observation["resources"]["threads_created"] == 0
 

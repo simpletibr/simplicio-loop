@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from os import PathLike
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +16,7 @@ class PipelineInput:
 
     actual_root: Path
     declared_repo_root: Path
-    declared_scope_root: str | Path
+    declared_scope_root: str | PathLike[str]
     canonical_snapshot_id: str
     canonical_pack_hash: str
     supplied_snapshot_id: str | None
@@ -28,8 +29,8 @@ class PipelineInput:
 def prepare_pipeline_input(
     root: str | Path,
     *,
-    repo_root: str | Path | None,
-    scope_root: str | Path | None,
+    repo_root: str | PathLike[str] | None,
+    scope_root: str | PathLike[str] | None,
     context_snapshot: dict[str, Any] | None,
     context_pack: dict[str, Any] | None,
     context_snapshot_id: str | None,

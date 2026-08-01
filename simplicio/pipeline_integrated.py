@@ -111,6 +111,7 @@ class PreparedIntegratedWorkItem:
     dispatch_context: EffectDispatchContext
     task_spec: TaskSpec
     cache_receipt: dict[str, Any]
+    verification_metrics: dict[str, Any]
     goal_id: str
 
 
@@ -260,7 +261,7 @@ def prepare_integrated_work_item(
     binding = bind_mapper_context(
         context_snapshot, context_pack, source_root=root, execution_context_payload=execution_context
     )
-    verify_context_sources(binding, source_root=root)
+    bind_verification_metrics = verify_context_sources(binding, source_root=root) or {}
     canonical_pack_hash = str(getattr(getattr(binding, "pack", None), "pack_hash", "") or "")
     supplied_pack_hash = None if context_pack_hash is None else str(context_pack_hash).strip()
     if supplied_pack_hash is not None and supplied_pack_hash != canonical_pack_hash:
@@ -292,7 +293,9 @@ def prepare_integrated_work_item(
         raw_paths = plan.get("touched_files") or plan.get("allowlist")
         if isinstance(raw_paths, list) and all(isinstance(path, str) for path in raw_paths):
             causal_paths = tuple(raw_paths)
-    verify_context_sources(binding, source_root=root, paths=causal_paths)
+    pre_effect_verification_metrics = (
+        verify_context_sources(binding, source_root=root, paths=causal_paths) or {}
+    )
     if supplied_pack_hash is not None and supplied_pack_hash != str(
         getattr(getattr(binding, "pack", None), "pack_hash", "") or ""
     ):
@@ -336,7 +339,18 @@ def prepare_integrated_work_item(
     except AuthorizationError as exc:
         raise IntegratedPreparationError(exc.code, str(exc)) from exc
     return PreparedIntegratedWorkItem(
-        plan, effect, verifications, binding, dispatch, task_spec, cache_receipt, goal_id
+        plan,
+        effect,
+        verifications,
+        binding,
+        dispatch,
+        task_spec,
+        cache_receipt,
+        {
+            "bind": bind_verification_metrics,
+            "pre_effect": pre_effect_verification_metrics,
+        },
+        goal_id,
     )
 
 
@@ -458,6 +472,7 @@ def run_integrated(
                 "effects": [prepared.effect.to_dict()],
                 "verifications": [item.to_dict() for item in prepared.verifications],
                 "context_binding": _context_binding_payload(prepared.binding),
+                "verification_metrics": prepared.verification_metrics,
                 "dispatch_context": _dispatch_context_payload(prepared.dispatch_context),
                 "task_spec_hash": prepared.task_spec.canonical_hash(),
             }
@@ -493,6 +508,7 @@ def run_integrated(
                 **_context_binding_payload(prepared.binding),
                 "cache": prepared.cache_receipt,
             },
+            "verification_metrics": prepared.verification_metrics,
         }
     )
     emit_event(
