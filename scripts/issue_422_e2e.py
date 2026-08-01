@@ -336,19 +336,89 @@ def _mapper_producer_scenario() -> dict[str, Any]:
         }
 
 
+def _fast_rust_scenario(root: Path) -> dict[str, Any]:
+    """Smoke the real Rust Fast stdio ABI; never label Python fallback as Rust."""
+    candidates = []
+    if os.environ.get("SIMPLICIO_FAST_NATIVE"):
+        candidates.append(Path(os.environ["SIMPLICIO_FAST_NATIVE"]))
+    candidates.extend(
+        [
+            root.parent
+            / "simplicio-fast"
+            / "native"
+            / "fast-native"
+            / "target"
+            / "release"
+            / "simplicio-fast-native.exe",
+            root.parent
+            / "simplicio-fast"
+            / "native"
+            / "fast-native"
+            / "target"
+            / "release"
+            / "simplicio-fast-native",
+        ]
+    )
+    binary = next((path for path in candidates if path.is_file()), None)
+    if binary is None:
+        return {
+            "scenario": "fast_rust",
+            "status": "UNVERIFIED",
+            "reason": "Rust Fast native executable not found; no Python fallback substituted",
+        }
+    requests = [
+        {
+            "abi": "simplicio.fast-native/v1",
+            "operation": "sha256",
+            "payload": {"hex": "6869"},
+        },
+        {
+            "abi": "simplicio.fast-native/v1",
+            "operation": "overlay_merge",
+            "payload": {"base": {"keep": 1, "drop": 2}, "overlay": {"drop": None, "add": 3}},
+        },
+    ]
+    try:
+        completed_rows = [
+            subprocess.run(
+                [str(binary)],
+                input=json.dumps(request),
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=30,
+            )
+            for request in requests
+        ]
+        rows = [json.loads(item.stdout) for item in completed_rows]
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError) as exc:
+        return {"scenario": "fast_rust", "status": "FAIL", "binary": str(binary), "reason": str(exc)}
+    passed = (
+        all(item.returncode == 0 for item in completed_rows)
+        and len(rows) == 2
+        and rows[0].get("ok") is True
+        and rows[0].get("result") == "8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4"
+        and rows[1].get("result") == {"add": 3, "keep": 1}
+    )
+    return {
+        "scenario": "fast_rust",
+        "status": "PASS" if passed else "FAIL",
+        "binary": str(binary),
+        "abi": "simplicio.fast-native/v1",
+        "operations": ["sha256", "overlay_merge"],
+        "reason": None if passed else "Rust Fast ABI smoke returned an unexpected response",
+    }
+
+
 def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
     preflight = fast_preflight(offline=True)
     rows = [_auto_without_runtime(root)]
     rows.extend(_transaction_scenario(count, repeats) for count in (1, 20, 200))
     rows.append(_worktree_isolation_scenario())
     rows.extend(_fast_binary_scenario(root, count, repeats) for count in (1, 20, 200))
-    rows.append(
-        _capability_scenario(
-            "fast_rust",
-            preflight.status == "ready",
-            preflight.fast_version,
-        )
-    )
+    rust_row = _fast_rust_scenario(root)
+    rust_row["python_preflight"] = preflight.to_dict()
+    rows.append(rust_row)
     mapper_version = _version("simplicio-mapper")
     mapper_row = _mapper_producer_scenario()
     mapper_row["version"] = mapper_version
