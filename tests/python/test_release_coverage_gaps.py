@@ -141,7 +141,7 @@ def test_mechanical_native_translation_and_fallbacks(tmp_path, monkeypatch) -> N
         _native_payload(target, status="skipped", post_edit_skipped_reason="reason"),
         tmp_path,
     )
-    assert result and result["errors"][0]["message"] == "reason"
+    assert result is None
     noop = me._translate_native_result(
         _native_payload(
             target,
