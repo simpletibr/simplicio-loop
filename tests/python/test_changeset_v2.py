@@ -8,7 +8,16 @@ from pathlib import Path
 
 import pytest
 
-from simplicio.changeset_v2 import adapt_changeset, execute_changeset, execute_changeset_bytes
+from simplicio.changeset_v2 import (
+    BINARY_MAGIC,
+    ChangesetError,
+    _public_changeset_from_binary,
+    adapt_changeset,
+    benchmark_environment,
+    execute_changeset,
+    execute_changeset_bytes,
+    execute_changeset_json,
+)
 
 
 def _sha(text: str) -> str:
@@ -236,3 +245,188 @@ def test_json_renamed_as_binary_is_rejected_without_json_decode(tmp_path):
 
     assert receipt["status"] == "refused"
     assert receipt["errors"][0]["code"] == "binary_magic_invalid"
+
+
+@pytest.mark.parametrize(
+    ("change", "code"),
+    [
+        ({"generation": ""}, "invalid_generation"),
+        ({}, "stale_generation"),
+        ({"allowlist": []}, "invalid_allowlist"),
+        ({"allowlist": [1]}, "invalid_allowlist"),
+        ({"operations": "bad"}, "invalid_schema"),
+        ({"operations": [None]}, "invalid_schema"),
+        ({"operations": [{"kind": "unknown"}]}, "unsupported_operation"),
+    ],
+)
+def test_adapt_changeset_rejects_invalid_contract_shapes(change, code):
+    payload = _changeset([], ["a.txt"])
+    payload.update(change)
+    with pytest.raises(ChangesetError) as error:
+        adapt_changeset(payload, current_generation="gen-2" if code == "stale_generation" else None)
+    assert error.value.row["code"] == code
+
+
+def test_adapt_changeset_normalizes_legacy_operation_fields():
+    payload = _changeset(
+        [
+            {"kind": "create", "path": "a.txt", "content": "a"},
+            {"kind": "move", "source": "a.txt", "target": "b.txt", "before_sha256": "digest"},
+        ],
+        ["a.txt", "b.txt"],
+    )
+    mechanical = adapt_changeset(payload)
+    assert mechanical["operations"][0]["op"] == "create_file"
+    assert mechanical["operations"][0]["text"] == "a"
+    assert mechanical["operations"][1]["op"] == "move_file"
+    assert mechanical["operations"][1]["file_sha256"] == "digest"
+
+
+def test_execute_changeset_handles_non_object_json_and_preflight_failure(monkeypatch, tmp_path):
+    from simplicio import changeset_v2
+
+    assert execute_changeset_json("[]", root=tmp_path)["errors"][0]["code"] == "invalid_json"
+    monkeypatch.setattr(
+        changeset_v2,
+        "execute_plan",
+        lambda *args, **kwargs: {"status": "refused", "applied": False, "errors": [{"code": "bad"}]},
+    )
+    result = execute_changeset(
+        _changeset([{"kind": "create", "path": "a.txt", "content": "a"}], ["a.txt"]),
+        root=tmp_path,
+        apply=True,
+    )
+    assert result["status"] == "refused"
+    assert result["rollback"]["reason"] == "no-effects-started"
+
+
+def test_execute_changeset_json_accepts_object_payload(tmp_path):
+    payload = _changeset([{"kind": "create", "path": "json.txt", "content": "ok"}], ["json.txt"])
+    result = execute_changeset_json(json.dumps(payload), root=tmp_path)
+    assert result["status"] == "ok"
+    assert result["dry_run"] is True
+
+
+def test_execute_changeset_handles_existing_lookup_and_transaction_errors(monkeypatch, tmp_path):
+    from simplicio import changeset_v2
+
+    payload = _changeset([{"kind": "create", "path": "a.txt", "content": "a"}], ["a.txt"])
+    monkeypatch.setattr(
+        changeset_v2,
+        "existing_transaction_result",
+        lambda *args, **kwargs: {"status": "ok", "applied": True, "files": [], "replayed": True},
+    )
+    replay = execute_changeset(payload, root=tmp_path, apply=True)
+    assert replay["replayed"] is True
+    monkeypatch.setattr(
+        changeset_v2,
+        "existing_transaction_result",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            changeset_v2.ChangesetTransactionError("RECOVERY_REQUIRED", "recover")
+        ),
+    )
+    refused = execute_changeset(payload, root=tmp_path, apply=True)
+    assert refused["errors"][0]["code"] == "RECOVERY_REQUIRED"
+
+
+def test_binary_adapter_reports_decoder_and_unexpected_errors(monkeypatch, tmp_path):
+    from simplicio import changeset_v2
+    from simplicio.fast_contracts import FastEngineError
+
+    class ErrorEngine:
+        name = "python"
+
+        def __init__(self, error):
+            self.error = error
+
+        def decode_binary(self, _):
+            raise self.error
+
+        def receipt(self):
+            return {"name": self.name, "metrics": {}}
+
+    monkeypatch.setattr(changeset_v2, "select_fast_engine", lambda _: ErrorEngine(FastEngineError("bad", "bad")))
+    result = execute_changeset_bytes(BINARY_MAGIC + b"payload", root=tmp_path)
+    assert result["errors"][0]["code"] == "bad"
+    monkeypatch.setattr(changeset_v2, "select_fast_engine", lambda _: ErrorEngine(RuntimeError("bad")))
+    result = execute_changeset_bytes(BINARY_MAGIC + b"payload", root=tmp_path)
+    assert result["errors"][0]["code"] == "binary_decode_failed"
+
+
+def test_binary_adapter_rejects_missing_engine_and_authority(monkeypatch, tmp_path):
+    from simplicio import changeset_v2
+
+    class NoneEngine:
+        name = "none"
+
+    monkeypatch.setattr(changeset_v2, "select_fast_engine", lambda _: NoneEngine())
+    unavailable = execute_changeset_bytes(BINARY_MAGIC + b"payload", root=tmp_path)
+    assert unavailable["errors"][0]["code"] == "binary_decoder_unavailable"
+
+    class FakeEngine:
+        name = "python"
+
+        def decode_binary(self, _):
+            return {"repository": str(tmp_path.resolve()), "base_generation": "base"}
+
+        def receipt(self):
+            return {"name": self.name, "metrics": {}}
+
+    monkeypatch.setattr(changeset_v2, "select_fast_engine", lambda _: FakeEngine())
+    missing = execute_changeset_bytes(BINARY_MAGIC + b"payload", root=tmp_path)
+    assert missing["errors"][0]["code"] == "binary_authority_missing"
+
+
+@pytest.mark.parametrize(
+    ("value", "code"),
+    [
+        ({"repository": "wrong", "base_generation": "b", "lease_id": "l", "fencing_token": "f"}, "binary_repository_mismatch"),
+        ({"repository": "root", "base_generation": "b", "lease_id": "l", "fencing_token": "f", "operations": [None]}, "binary_operation_invalid"),
+        ({"repository": "root", "base_generation": "b", "lease_id": "l", "fencing_token": "f", "operations": [{"op": "bad"}]}, "binary_operation_unsupported"),
+    ],
+)
+def test_binary_adapter_rejects_invalid_envelope(monkeypatch, tmp_path, value, code):
+    from simplicio import changeset_v2
+
+    class FakeEngine:
+        name = "python"
+
+        def decode_binary(self, _):
+            resolved = dict(value)
+            if resolved.get("repository") == "root":
+                resolved["repository"] = str(tmp_path.resolve())
+            return resolved
+
+        def receipt(self):
+            return {"name": self.name, "metrics": {}}
+
+    monkeypatch.setattr(changeset_v2, "select_fast_engine", lambda _: FakeEngine())
+    result = execute_changeset_bytes(BINARY_MAGIC + b"payload", root=tmp_path)
+    assert result["errors"][0]["code"] == code
+
+
+def test_binary_public_adapter_maps_line_map_and_rejects_invalid_content():
+    mapped = _public_changeset_from_binary(
+        {
+            "base_generation": "base",
+            "allowed_paths": ["a.txt"],
+            "operations": [
+                {"op": "replace-range", "path": "a.txt", "line_map": {"start_line": 1, "end_line": 2}},
+                {"op": "replace-range", "path": "a.txt", "line_map": "not-a-map"},
+                {"op": "rename", "path": "a.txt", "dest": "b.txt"},
+            ],
+        }
+    )
+    assert mapped["operations"][0]["kind"] == "replace_range"
+    assert mapped["operations"][2]["target"] == "b.txt"
+    with pytest.raises(ChangesetError, match="valid text"):
+        _public_changeset_from_binary(
+            {"operations": [{"op": "create", "content_b64": "%%%%"}]}
+        )
+
+
+def test_benchmark_environment_is_machine_readable():
+    payload = benchmark_environment()
+    assert payload["python"]
+    assert payload["platform"]
+    assert payload["implementation"]
