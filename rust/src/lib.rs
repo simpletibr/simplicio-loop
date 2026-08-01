@@ -100,11 +100,24 @@ fn parse_batch(
         .collect()
 }
 
+/// Canonicalize graph edges without sharing mutable writer state.
+/// Each tuple is ``(source, target, edge_type)``; output is sorted and
+/// deduplicated by that full key so parallel partitions can merge safely.
+#[pyfunction]
+fn merge_edges(mut edges: Vec<(String, String, String)>) -> Vec<(String, String, String)> {
+    edges.sort();
+    edges.dedup();
+    edges
+}
+
 #[pymodule]
 fn simplicio_mapper_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", "0.1.0")?;
     m.add("__schema__", "simplicio.mapper-native/v1")?;
-    m.add("__features__", vec!["sha256", "imports", "batch"])?;
+    m.add(
+        "__features__",
+        vec!["sha256", "imports", "batch", "graph-merge"],
+    )?;
     m.add(
         "__languages__",
         vec![
@@ -119,5 +132,22 @@ fn simplicio_mapper_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(sha256_hex, m)?)?;
     m.add_function(wrap_pyfunction!(parse_imports, m)?)?;
     m.add_function(wrap_pyfunction!(parse_batch, m)?)?;
+    m.add_function(wrap_pyfunction!(merge_edges, m)?)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::merge_edges;
+
+    #[test]
+    fn merge_edges_is_sorted_and_deduplicated() {
+        let result = merge_edges(vec![
+            ("b".into(), "a".into(), "calls".into()),
+            ("a".into(), "b".into(), "imports".into()),
+            ("b".into(), "a".into(), "calls".into()),
+        ]);
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0].0, "a");
+    }
 }

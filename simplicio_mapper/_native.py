@@ -15,6 +15,7 @@ HAS_NATIVE: bool = False
 sha256_hex: Callable[[str], str] | None = None
 parse_imports: Callable[[str, str], list[str]] | None = None
 parse_batch: Callable[[list[tuple[str, str, str]]], list[tuple[str, str, list[str]]]] | None = None
+merge_edges: Callable[[list[tuple[str, str, str]]], list[tuple[str, str, str]]] | None = None
 CAPABILITIES: dict[str, object] = {
     "schema": "simplicio.mapper-native/v1",
     "version": None,
@@ -23,6 +24,9 @@ CAPABILITIES: dict[str, object] = {
 }
 
 try:
+    from simplicio_mapper_rs import (
+        merge_edges as _native_merge_edges,
+    )
     from simplicio_mapper_rs import (  # type: ignore[import-not-found]
         parse_batch as _native_parse_batch,
     )
@@ -39,6 +43,7 @@ else:
     sha256_hex = _native_sha256_hex
     parse_imports = _native_parse_imports
     parse_batch = _native_parse_batch
+    merge_edges = _native_merge_edges
     HAS_NATIVE = True
     CAPABILITIES = {
         "schema": getattr(_native_module, "__schema__", "simplicio.mapper-native/v1"),
@@ -48,4 +53,4 @@ else:
     }
 
 
-__all__ = ["CAPABILITIES", "HAS_NATIVE", "parse_batch", "parse_imports", "sha256_hex"]
+__all__ = ["CAPABILITIES", "HAS_NATIVE", "merge_edges", "parse_batch", "parse_imports", "sha256_hex"]
