@@ -7,6 +7,7 @@ import hashlib
 import json
 import platform
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -265,6 +266,7 @@ def execute_changeset_bytes(
     apply: bool = False,
     current_generation: str | None = None,
     fast_engine: str | None = None,
+    refresh_fn: Callable[[tuple[str, ...]], Any] | None = None,
 ) -> dict[str, Any]:
     """Consume a sealed Fast binary changeset without decoding it as UTF-8/JSON."""
     if not isinstance(payload, bytes) or not payload.startswith(BINARY_MAGIC):
@@ -300,6 +302,14 @@ def execute_changeset_bytes(
             apply=apply,
             current_generation=current_generation,
         )
+        refresh = None
+        transaction = receipt.get("transaction")
+        if apply and receipt.get("status") == "ok" and isinstance(transaction, dict):
+            if transaction.get("state") == "COMMITTED" and not receipt.get("replayed"):
+                refresh = engine.refresh(
+                    engine.changed_paths(value),
+                    refresh_fn=refresh_fn,
+                )
         receipt.update(
             {
                 "input_format": BINARY_SCHEMA,
@@ -308,6 +318,8 @@ def execute_changeset_bytes(
                 "fast_engine": engine.receipt(),
             }
         )
+        if refresh is not None:
+            receipt["refresh"] = refresh
         return receipt
     except ChangesetError as exc:
         return _refused_receipt(

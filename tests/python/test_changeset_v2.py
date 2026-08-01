@@ -237,7 +237,55 @@ def test_fast_binary_bytes_are_decoded_by_the_official_adapter(tmp_path, monkeyp
 
     assert receipt["status"] == "ok"
     assert receipt["input_format"] == "simplicio.fast.binary-changeset/v1"
+    assert receipt["refresh"]["status"] == "REFRESH_PENDING"
     assert (tmp_path / "binary.txt").read_bytes() == content
+
+
+def test_binary_adapter_refreshes_only_changed_paths_after_commit(monkeypatch, tmp_path):
+    from simplicio import changeset_v2
+
+    refreshed = []
+
+    class FakeEngine:
+        name = "python"
+
+        def decode_binary(self, _payload):
+            return {
+                "repository": str(tmp_path.resolve()),
+                "base_generation": "base",
+                "lease_id": "lease",
+                "fencing_token": "fence",
+                "allowed_paths": ["a.txt", "ignored.txt"],
+                "operations": [{"op": "create", "path": "a.txt", "content": "ok\n"}],
+            }
+
+        def changed_paths(self, value):
+            assert value["operations"]
+            return ("a.txt",)
+
+        def refresh(self, paths, *, refresh_fn=None):
+            assert refresh_fn is not None
+            return {"status": "refreshed", "paths": list(paths), "result": refresh_fn(paths)}
+
+        def receipt(self):
+            return {"name": self.name, "metrics": {}}
+
+    monkeypatch.setattr(changeset_v2, "select_fast_engine", lambda _: FakeEngine())
+    receipt = execute_changeset_bytes(
+        BINARY_MAGIC + b"payload",
+        root=tmp_path,
+        apply=True,
+        refresh_fn=lambda paths: refreshed.append(paths) or {"generation": "next"},
+    )
+
+    assert receipt["status"] == "ok"
+    assert receipt["refresh"] == {
+        "status": "refreshed",
+        "paths": ["a.txt"],
+        "result": {"generation": "next"},
+    }
+    assert refreshed == [("a.txt",)]
+    assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "ok\n"
 
 
 def test_json_renamed_as_binary_is_rejected_without_json_decode(tmp_path):
