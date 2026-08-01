@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import importlib.util
 import json
 import subprocess
 import sys
@@ -32,6 +33,18 @@ class ContextContractAssetsTest(unittest.TestCase):
             capture_output=True,
         )
         self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+    def test_manifest_builder_uses_portable_posix_keys(self):
+        script = ROOT / "scripts" / "check_context_contract_assets.py"
+        spec = importlib.util.spec_from_file_location("context_contract_assets", script)
+        self.assertIsNotNone(spec)
+        self.assertIsNotNone(spec.loader)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        generated = module.build_manifest()
+        self.assertTrue(generated["files"])
+        self.assertTrue(all("\\" not in path for path in generated["files"]))
+        self.assertEqual(generated, json.loads(module.MANIFEST.read_text()))
 
     def test_fixture_categories_exist(self):
         for name in ("minimal", "full", "graph-multi-scale", "delta-revision"):
