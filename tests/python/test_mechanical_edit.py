@@ -591,7 +591,7 @@ def test_cli_edit_alias_delegates_to_runtime_when_available(tmp_path, monkeypatc
         ]
     )
 
-    assert code == 17
+    assert code == 1
     delegated = [
         "/bin/simplicio",
         "edit",
@@ -781,13 +781,8 @@ def test_execute_plan_apply_true_omits_dry_run_flag_on_native_call(tmp_path, mon
     assert result["applied"] is True  # dry_run=False in the fake payload
 
 
-def test_execute_plan_falls_back_when_native_status_is_checks_failed(tmp_path, monkeypatch):
-    """Real semantic gap, not just caution: on a failed post-edit phase the
-    native binary does NOT roll back the write, while this module's own
-    Python path restores the pre-edit file on the same failure. Translating
-    "checks_failed" as a normal result would misrepresent that the file is
-    unchanged when it is not — must fall through to Python instead, which
-    genuinely rolls back."""
+def test_execute_plan_marks_native_checks_failed_as_effect_unknown(tmp_path, monkeypatch):
+    """A post-admission native failure must not fall through to Python."""
     from simplicio import mechanical_edit
 
     _write(tmp_path / "app.py", "old\n")
@@ -804,13 +799,12 @@ def test_execute_plan_falls_back_when_native_status_is_checks_failed(tmp_path, m
 
     result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
 
-    # fell through to the real Python path, which ran the edit itself
-    assert result["status"] == "ok"
-    assert result["applied"] is True
-    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
+    assert result["status"] == "effect_unknown"
+    assert result["applied"] is False
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "old\n"
 
 
-def test_execute_plan_falls_back_on_subprocess_oserror(tmp_path, monkeypatch):
+def test_execute_plan_marks_subprocess_oserror_as_effect_unknown(tmp_path, monkeypatch):
     from simplicio import mechanical_edit
 
     _write(tmp_path / "app.py", "old\n")
@@ -824,12 +818,12 @@ def test_execute_plan_falls_back_on_subprocess_oserror(tmp_path, monkeypatch):
 
     result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
 
-    assert result["status"] == "ok"
-    assert result["applied"] is True
-    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
+    assert result["status"] == "effect_unknown"
+    assert result["applied"] is False
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "old\n"
 
 
-def test_execute_plan_falls_back_on_subprocess_timeout(tmp_path, monkeypatch):
+def test_execute_plan_marks_subprocess_timeout_as_effect_unknown(tmp_path, monkeypatch):
     from simplicio import mechanical_edit
 
     _write(tmp_path / "app.py", "old\n")
@@ -843,12 +837,12 @@ def test_execute_plan_falls_back_on_subprocess_timeout(tmp_path, monkeypatch):
 
     result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
 
-    assert result["status"] == "ok"
-    assert result["applied"] is True
-    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
+    assert result["status"] == "effect_unknown"
+    assert result["applied"] is False
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "old\n"
 
 
-def test_execute_plan_falls_back_on_unparseable_json(tmp_path, monkeypatch):
+def test_execute_plan_marks_unparseable_json_as_effect_unknown(tmp_path, monkeypatch):
     from simplicio import mechanical_edit
 
     _write(tmp_path / "app.py", "old\n")
@@ -863,15 +857,14 @@ def test_execute_plan_falls_back_on_unparseable_json(tmp_path, monkeypatch):
 
     result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
 
-    assert result["status"] == "ok"
-    assert result["applied"] is True
-    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
+    assert result["status"] == "effect_unknown"
+    assert result["applied"] is False
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "old\n"
 
 
-def test_execute_plan_falls_back_when_native_schema_is_unknown(tmp_path, monkeypatch):
+def test_execute_plan_marks_unknown_native_schema_as_effect_unknown(tmp_path, monkeypatch):
     """An unrecognized schema (typo, future breaking change, wrong tool
-    entirely) must fall through to Python rather than being trusted
-    partially. The REAL native schema (`simplicio.edit-result/v1`) is
+    entirely) must not fall through to Python after admission. The REAL native schema (`simplicio.edit-result/v1`) is
     covered by the translation tests above — this covers anything else."""
     from simplicio import mechanical_edit
 
@@ -890,14 +883,14 @@ def test_execute_plan_falls_back_when_native_schema_is_unknown(tmp_path, monkeyp
     result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
 
     assert result["schema"] == "simplicio.mechanical-edit-result/v1"
-    assert result["status"] == "ok"
-    assert result["applied"] is True
-    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
+    assert result["status"] == "effect_unknown"
+    assert result["applied"] is False
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "old\n"
 
 
-def test_execute_plan_falls_back_when_native_payload_has_wrong_types(tmp_path, monkeypatch):
+def test_execute_plan_marks_native_payload_type_drift_as_effect_unknown(tmp_path, monkeypatch):
     """The real native schema tag, but a field of the wrong type (e.g. a
-    future minor field-shape drift) — must fall through rather than crash
+    future minor field-shape drift) — must fail closed rather than crash
     or trust a partially-shaped payload."""
     from simplicio import mechanical_edit
 
@@ -913,9 +906,9 @@ def test_execute_plan_falls_back_when_native_payload_has_wrong_types(tmp_path, m
 
     result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True)
 
-    assert result["status"] == "ok"
-    assert result["applied"] is True
-    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "new\n"
+    assert result["status"] == "effect_unknown"
+    assert result["applied"] is False
+    assert (tmp_path / "app.py").read_text(encoding="utf-8") == "old\n"
 
 
 def test_execute_plan_real_native_binary_activates_when_installed(tmp_path):
@@ -1052,7 +1045,7 @@ def test_cli_edit_alias_translates_multi_file_create_plan_to_native_calls(tmp_pa
     assert calls == []
 
 
-def test_cli_edit_alias_falls_back_when_plan_has_non_create_file_ops(tmp_path, monkeypatch):
+def test_cli_edit_alias_marks_non_create_file_ops_effect_unknown(tmp_path, monkeypatch):
     """A plan mixing create_file with any other op type must NOT be
     translated -- it should hit the untranslated pass-through path (single
     `simplicio edit --plan <path>` call), not be silently dropped or
@@ -1095,7 +1088,7 @@ def test_cli_edit_alias_falls_back_when_plan_has_non_create_file_ops(tmp_path, m
 
     code = cli.main(["edit", "--root", str(tmp_path), "--plan", str(plan_path), "--apply", "--json"])
 
-    assert code == 0
+    assert code == 1
     assert len(calls) == 1, "untranslatable plans pass straight through as one call, unchanged"
     assert "--plan" in calls[0] and str(plan_path) in calls[0]
 

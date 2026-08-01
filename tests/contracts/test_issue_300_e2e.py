@@ -126,7 +126,7 @@ def _pack(snapshot: dict[str, Any], root: Path, **overrides: Any) -> dict[str, A
         "files": [
             {
                 "path": "src/app.py",
-                "snapshot_hash": hashlib.sha256(source.read_text(encoding="utf-8").encode()).hexdigest(),
+                "snapshot_hash": hashlib.sha256(source.read_bytes()).hexdigest(),
                 "selectors": ["module"],
             }
         ],
