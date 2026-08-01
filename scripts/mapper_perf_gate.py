@@ -70,8 +70,8 @@ def compare(baseline: Mapping[str, Any], candidate: Mapping[str, Any], *, p50_li
     for percentile, limit in (("p50", p50_limit), ("p95", p95_limit)):
         base_value = (base_metrics.get("wall_ms") or {}).get(percentile)
         candidate_value = (candidate_metrics.get("wall_ms") or {}).get(percentile)
-        base_samples = int(((base_metrics.get("wall_ms") or {}).get("samples") or 0))
-        candidate_samples = int(((candidate_metrics.get("wall_ms") or {}).get("samples") or 0))
+        base_samples = int((base_metrics.get("wall_ms") or {}).get("samples") or 0)
+        candidate_samples = int((candidate_metrics.get("wall_ms") or {}).get("samples") or 0)
         if base_value in (None, 0) or candidate_value is None:
             checks.append({"metric": f"wall_ms.{percentile}", "status": "fail",
                            "unavailable_reason": "compatible sample is missing"})
