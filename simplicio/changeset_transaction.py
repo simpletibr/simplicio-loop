@@ -8,7 +8,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 from .mechanical_edit import execute_plan
 from .utils.fs import write_text_atomic
@@ -116,7 +116,7 @@ def _rollback_after_commit_failure(
     state: dict[str, Any],
     state_path: Path,
     cause: BaseException,
-) -> None:
+) -> NoReturn:
     """Restore the pre-commit snapshot and raise a typed partial-commit error."""
     state["state"] = "ROLLING_BACK"
     _write_state(state_path, state)
