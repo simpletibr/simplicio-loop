@@ -10,12 +10,14 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 import xml.etree.ElementTree as ET
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
@@ -34,7 +36,7 @@ from simplicio_mapper.cli import (  # noqa: E402
 # build_service_flowchart/render_service_flowchart_markdown are), so this test
 # reaches into the submodule directly rather than growing __init__.py's
 # re-export list for a white-box unit test.
-from simplicio_mapper.cli._background import _reap_background_index  # noqa: E402
+from simplicio_mapper.cli._background import _reap_background_index, _spawn_background_index  # noqa: E402
 from simplicio_mapper.cli._endpoints import _normalize_endpoint_path  # noqa: E402
 from simplicio_mapper.cli._index_engine import (  # noqa: E402
     _process_is_alive,
@@ -1100,6 +1102,49 @@ def load(api):
                 break
             time.sleep(0.05)
         self.assertFalse(_process_is_alive(payload["pid"]), "background process did not terminate")
+
+    def test_background_reaper_retries_for_late_job_and_spawn_wires_reaper(self) -> None:
+        class CompletedWorker:
+            pid = 412
+
+            def wait(self) -> int:
+                return 0
+
+        payload = {"pid": 412, "process_start": "late-start", "log": "background-index.log"}
+        job_path = self.dir / ".simplicio" / "map-job.json"
+        thread = threading.Thread(
+            target=_reap_background_index, args=(CompletedWorker(), payload, str(self.dir), ".simplicio")
+        )
+        thread.start()
+        time.sleep(0.02)
+        job_path.parent.mkdir(parents=True, exist_ok=True)
+        job_path.write_text(
+            json.dumps({"schema": "simplicio.map-job/v1", "phase": "macro_done", "deep": dict(payload)}),
+            encoding="utf-8",
+        )
+        thread.join(timeout=1)
+        self.assertFalse(thread.is_alive())
+        receipt = json.loads(job_path.read_text(encoding="utf-8"))
+        self.assertEqual(receipt["phase"], "failed")
+        self.assertEqual(receipt["deep"]["failure_reason"], "worker_exit_0_before_terminal")
+
+        captured = []
+
+        class CapturedThread:
+            def __init__(self, **kwargs) -> None:
+                captured.append(kwargs)
+
+            def start(self) -> None:
+                captured[-1]["started"] = True
+
+        with (
+            mock.patch("simplicio_mapper.cli._background._spawn_index_process", return_value=(payload, CompletedWorker())),
+            mock.patch("simplicio_mapper.cli._background.threading.Thread", side_effect=CapturedThread),
+        ):
+            self.assertEqual(_spawn_background_index({"root": str(self.dir), "out": ".simplicio"}), payload)
+        self.assertEqual(captured[0]["target"], _reap_background_index)
+        self.assertEqual(captured[0]["args"], (mock.ANY, payload, str(self.dir), ".simplicio"))
+        self.assertTrue(captured[0]["started"])
 
     def test_background_reaper_fails_closed_and_preserves_other_jobs(self) -> None:
         class CompletedWorker:
