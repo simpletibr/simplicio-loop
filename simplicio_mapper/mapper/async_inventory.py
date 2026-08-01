@@ -44,6 +44,7 @@ import asyncio
 import os
 from datetime import datetime, timezone
 
+from .. import _native
 from ..cache import FileProcessingCache
 from ..models import ProjectFile
 from . import async_io
@@ -76,6 +77,51 @@ def _parse_from_text(rel: str, text: str) -> dict:
         "exports": _parse_symbols(text),
         "text_preview": text[:3000],
     }
+
+
+def _parse_from_text_batch(records: list[tuple[str, str]]) -> dict[str, dict]:
+    """Parse cache misses in one native call when the capability is present.
+
+    The Rust batch API intentionally covers only its negotiated language set;
+    every other record stays on the complete Python reference path. Symbols
+    and previews are still derived by Python so the public inventory contract
+    remains unchanged while hashing/import FFI calls scale with batches.
+    """
+    if not records:
+        return {}
+    native_records: list[tuple[str, str, str]] = []
+    fallback: list[tuple[str, str]] = []
+    native_languages = set(_native.CAPABILITIES.get("languages") or ())
+    for rel, text in records:
+        language = _language_for(rel, text)
+        if (
+            _native.HAS_NATIVE
+            and _native.parse_batch is not None
+            and language in native_languages
+        ):
+            native_records.append((rel, language, text))
+        else:
+            fallback.append((rel, text))
+
+    parsed: dict[str, dict] = {
+        rel: _parse_from_text(rel, text) for rel, text in fallback
+    }
+    if native_records:
+        try:
+            native_text = {rel: text for rel, _language, text in native_records}
+            for rel, digest, imports in _native.parse_batch(native_records):
+                text = native_text[rel]
+                language = _language_for(rel, text)
+                parsed[rel] = {
+                    "language": language,
+                    "file_hash": digest,
+                    "imports": list(imports),
+                    "exports": _parse_symbols(text),
+                    "text_preview": text[:3000],
+                }
+        except Exception:  # noqa: BLE001 - native failure must fall back safely
+            parsed.update({rel: _parse_from_text(rel, text) for rel, _, text in native_records})
+    return parsed
 
 
 async def build_file_inventory_async(
@@ -159,6 +205,13 @@ async def build_file_inventory_async(
         # than surfacing async_io's richer per-file error information here.
         text_by_rel[rel] = result.content if result.ok else ""
 
+    batch_inputs = [
+        (rel, text_by_rel.get(rel, ""))
+        for _abs_path, rel in read_needed
+        if rel not in cache_hits
+    ]
+    parsed_batch = _parse_from_text_batch(batch_inputs)
+
     # Pass 3 (sync, CPU-bound -- intentionally sequential per ADR-009):
     # assemble each ProjectFile from either the cache hit or a fresh parse
     # of the just-read content, then apply cache writes for misses.
@@ -178,7 +231,7 @@ async def build_file_inventory_async(
             text = text_by_rel.get(rel, "")
             if contents is not None and rel not in contents:
                 contents[rel] = text
-            parsed = _parse_from_text(rel, text)
+            parsed = parsed_batch.get(rel) or _parse_from_text(rel, text)
             if cache is not None:
                 cache.set_processed_file(rel, stat.st_size, stat.st_mtime_ns, parsed)
 
