@@ -14,6 +14,7 @@ import os
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
 from ..runtime_bridge import delegated_command, record_delegation
@@ -64,7 +65,10 @@ def run_mechanical_edit(a: argparse.Namespace) -> int:
             policy=policy,
         )
     else:
-        result = execute_plan_json(plan_text, root=a.root, apply=a.apply)
+        # ``edit`` is the standalone local executor.  Runtime-backed callers
+        # use the explicit delegation path below; never let an installed
+        # Runtime binary silently change standalone ownership.
+        result = execute_plan_json(plan_text, root=a.root, apply=a.apply, allow_native=False)
         result["mutation_receipt"] = mutation_receipt("standalone", entrypoint="edit", policy=policy)
         if a.apply:
             emit_mutation_route(
