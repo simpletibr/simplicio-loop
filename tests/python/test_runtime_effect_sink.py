@@ -19,8 +19,12 @@ from simplicio.plan_compiler.runtime_effect_sink import (
     RECEIPT_SCHEMA,
     TRANSACTION_SCHEMA,
     HttpRuntimeTransport,
+    IntegratedModeRequiresSinkError,
+    OfflineRuntimeTransport,
     RuntimeEffectError,
     RuntimeEffectSink,
+    _contains_sensitive_key,
+    _safe_write_set,
 )
 
 
@@ -636,3 +640,65 @@ def test_http_transport_rejects_non_object_and_network_error(monkeypatch):
     monkeypatch.setattr("httpx.request", fail)
     with pytest.raises(RuntimeEffectError, match="RUNTIME_TRANSPORT_ERROR"):
         HttpRuntimeTransport("https://runtime.example").capabilities()
+
+
+def test_offline_artifact_paths_and_plan_shapes_fail_closed(tmp_path):
+    transport = OfflineRuntimeTransport(root=tmp_path)
+    for value in (None, ""):
+        with pytest.raises(RuntimeEffectError, match="artifact_ref"):
+            transport._artifact_path(value)
+    with pytest.raises(RuntimeEffectError, match="inside root"):
+        transport._artifact_path(str(tmp_path.parent / "escape.json"))
+    with pytest.raises(RuntimeEffectError, match="transaction effect"):
+        transport._apply_artifact({})
+    invalid = tmp_path / "invalid.json"
+    invalid.write_text("{broken", encoding="utf-8")
+    with pytest.raises(RuntimeEffectError, match="valid JSON"):
+        transport._apply_artifact({"effect": {"artifact_ref": str(invalid)}})
+    malformed = tmp_path / "malformed.json"
+    malformed.write_text(json.dumps({"operations": "no"}), encoding="utf-8")
+    with pytest.raises(RuntimeEffectError, match="mechanical edit plan"):
+        transport._apply_artifact({"effect": {"artifact_ref": str(malformed)}})
+
+
+def test_offline_submit_rejects_keys_schemas_and_persists_after_apply_failure(tmp_path):
+    transport = OfflineRuntimeTransport(root=tmp_path)
+    with pytest.raises(RuntimeEffectError, match="idempotency key"):
+        transport.submit({"idempotency_key": "bad"})
+    with pytest.raises(RuntimeEffectError, match="unsupported transaction schema"):
+        transport.submit({"idempotency_key": "a" * 16, "schema": "wrong"})
+    result = transport.submit(
+        {
+            "schema": TRANSACTION_SCHEMA,
+            "idempotency_key": "b" * 16,
+            "effect_digest": "effect",
+            "proposal_digest": "proposal",
+            "authorization_digest": "authorization",
+            "causal": {"effect_id": "effect-1", "plan_node_id": "node-1"},
+            "acceptance_criteria_refs": [],
+            "base_hash": "base",
+            "source_hash": "source",
+            "effect": {"artifact_ref": str(tmp_path / "missing.json")},
+        }
+    )
+    assert result["state"] == "denied"
+    assert result["reason_codes"] == ["OFFLINE_EFFECT_ARTIFACT_INVALID"]
+    assert transport.query("b" * 16)["state"] == "denied"
+
+
+def test_runtime_sink_environment_requires_explicit_transport(monkeypatch, tmp_path):
+    monkeypatch.delenv("SIMPLICIO_RUNTIME_OFFLINE", raising=False)
+    monkeypatch.delenv("SIMPLICIO_RUNTIME_URL", raising=False)
+    with pytest.raises(IntegratedModeRequiresSinkError, match="RUNTIME_NOT_CONFIGURED"):
+        RuntimeEffectSink.from_environment(root=tmp_path)
+    monkeypatch.setenv("SIMPLICIO_RUNTIME_OFFLINE", "1")
+    sink = RuntimeEffectSink.from_environment(root=tmp_path)
+    assert isinstance(sink.transport, OfflineRuntimeTransport)
+
+
+def test_sensitive_key_and_write_set_guards():
+    assert _contains_sensitive_key({"nested": [{"api_key": "secret"}]}) is True
+    assert _contains_sensitive_key({"safe": ["value"]}) is False
+    with pytest.raises(RuntimeEffectError, match="unsafe write path"):
+        _safe_write_set(["../secret"])
+    _safe_write_set(["src/a.py", "nested\\b.py"])

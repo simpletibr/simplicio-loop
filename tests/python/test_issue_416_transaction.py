@@ -297,6 +297,23 @@ def test_recovery_removes_new_file_and_rejects_hash_mismatch(tmp_path):
         recover_changeset_transaction(tmp_path, idempotency_key=key, changeset_digest_value="digest")
 
 
+def test_recovery_returns_committed_result_as_replay(tmp_path):
+    key = "recovery-committed"
+    _write_journal(
+        tmp_path,
+        key,
+        {
+            "changeset_digest": "digest",
+            "state": "COMMITTED",
+            "result": {"status": "ok", "applied": True},
+        },
+    )
+
+    result = recover_changeset_transaction(tmp_path, idempotency_key=key, changeset_digest_value="digest")
+
+    assert result == {"status": "ok", "applied": True, "replayed": True}
+
+
 def test_execute_transaction_replays_and_rejects_existing_journal_shapes(tmp_path):
     from simplicio import changeset_transaction
 
