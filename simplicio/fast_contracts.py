@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import json
 import os
@@ -183,7 +184,7 @@ class NoFastEngine(FastEngine):
 
 
 def select_fast_engine(preference: str = "auto") -> FastEngine:
-    """Select the decoder once; explicit Rust never silently degrades."""
+    """Select the decoder once without labelling Python as Rust."""
     requested = preference.strip().lower()
     if requested not in {"auto", "rust", "python", "none"}:
         raise FastEngineError("fast_engine_invalid", "fast engine must be auto, rust, python, or none")
@@ -193,17 +194,21 @@ def select_fast_engine(preference: str = "auto") -> FastEngine:
     if requested == "python":
         return PythonFastEngine()
     try:
-        from simplicio_fast.binary_changeset import decode_binary
+        importlib.import_module("simplicio_fast.binary_changeset")
     except (ImportError, ModuleNotFoundError) as exc:
         if requested == "rust":
             raise FastEngineError("fast_rust_unavailable", "Rust Fast decoder is not installed") from exc
         return NoFastEngine()
-    # A source checkout/wheel can expose the decoder without distribution
-    # metadata (common in isolated test/embedded environments). Importability
-    # is sufficient for auto; an explicitly incompatible installed version is
-    # still rejected by the preflight contract.
-    if requested == "rust" or preflight.status in {"ready", "absent", "degraded"}:
-        return RustFastEngine(decode_binary)
+    if requested == "rust":
+        raise FastEngineError(
+            "fast_rust_unavailable",
+            "the installed Fast binary changeset decoder is Python; Rust parity is unavailable",
+        )
+    # Importability is sufficient for the explicit Python/reference lane.
+    # Never wrap this decoder in RustFastEngine: the receipt is evidence and
+    # must identify the actual implementation that consumed the bytes.
+    if preflight.status in {"ready", "absent", "degraded"}:
+        return PythonFastEngine()
     return NoFastEngine()
 
 

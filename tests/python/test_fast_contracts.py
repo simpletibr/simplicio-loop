@@ -264,6 +264,21 @@ def test_engine_selection_rejects_incompatible_preflight(monkeypatch):
     assert select_fast_engine("auto").name in {"rust", "none"}
 
 
+def test_auto_never_labels_python_binary_decoder_as_rust(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_FAST_VERSION", "2.0.18")
+    monkeypatch.setenv("SIMPLICIO_FAST_PARSER_AVAILABLE", "1")
+    engine = select_fast_engine("auto")
+    assert engine.name == "python"
+    assert engine.__class__.__name__ == "PythonFastEngine"
+
+
+def test_explicit_rust_rejects_python_only_binary_decoder(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_FAST_VERSION", "2.0.18")
+    monkeypatch.setenv("SIMPLICIO_FAST_PARSER_AVAILABLE", "1")
+    with pytest.raises(FastEngineError, match="decoder is Python"):
+        select_fast_engine("rust")
+
+
 def test_private_fast_contract_edge_cases(monkeypatch):
     import simplicio.fast_contracts as fast_contracts
 
