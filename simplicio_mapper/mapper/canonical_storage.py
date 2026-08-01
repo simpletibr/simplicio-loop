@@ -18,7 +18,10 @@ command.
 
 from __future__ import annotations
 
+import json
 import os
+import time
+import uuid
 
 from simplicio_mapper.mapper.canonical import CanonicalMapKey
 
@@ -114,3 +117,61 @@ def canonical_build_lock_path(cache_root: str, key_digest: str) -> str:
     additional coordination, exactly like the manifest directory itself.
     """
     return os.path.join(cache_root, _CANONICAL_SUBDIR, f"{key_digest}.build.lock")
+
+
+def claim_canonical_build(
+    cache_root: str, key_digest: str, owner: str, lease_seconds: float = 300.0
+) -> dict[str, object]:
+    """Atomically claim one canonical build or return the live follower lease.
+
+    The lock is deliberately outside the promoted generation directory. A
+    stale lease is removed only after its expiry, then retried with a fresh
+    fencing token; callers must include that token in every promotion.
+    """
+    lock_path = canonical_build_lock_path(cache_root, key_digest)
+    os.makedirs(os.path.dirname(lock_path), exist_ok=True)
+    now = time.time()
+    payload = {
+        "schema": "simplicio.mapper-single-flight/v1",
+        "key_digest": key_digest,
+        "owner": owner,
+        "token": uuid.uuid4().hex,
+        "created_at": now,
+        "expires_at": now + max(0.01, lease_seconds),
+    }
+    encoded = json.dumps(payload, sort_keys=True).encode("utf-8")
+    try:
+        fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        try:
+            with open(lock_path, encoding="utf-8") as handle:
+                current = json.load(handle)
+        except (OSError, ValueError, TypeError):
+            return {"role": "follower", "reason": "malformed_lock", "path": lock_path}
+        if float(current.get("expires_at", 0)) > now:
+            return {"role": "follower", "path": lock_path, "lease": current}
+        try:
+            os.remove(lock_path)
+        except FileNotFoundError:
+            pass
+        return claim_canonical_build(cache_root, key_digest, owner, lease_seconds)
+    with os.fdopen(fd, "wb") as handle:
+        handle.write(encoded)
+    return {"role": "owner", "path": lock_path, "lease": payload}
+
+
+def release_canonical_build(cache_root: str, key_digest: str, token: str) -> bool:
+    """Release only the lock carrying the caller's fencing token."""
+    lock_path = canonical_build_lock_path(cache_root, key_digest)
+    try:
+        with open(lock_path, encoding="utf-8") as handle:
+            current = json.load(handle)
+    except (OSError, ValueError, TypeError):
+        return False
+    if current.get("token") != token:
+        return False
+    try:
+        os.remove(lock_path)
+    except FileNotFoundError:
+        return False
+    return True
