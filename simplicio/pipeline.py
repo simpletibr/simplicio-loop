@@ -24,7 +24,7 @@ from .mapper import map_ask
 from .observability import emit_event, estimate_tokens, info, log_run
 from .pipeline_fixers import try_static_fixers
 from .pipeline_input import prepare_pipeline_input
-from .pipeline_integrated import run_integrated
+from .pipeline_integrated import run_integrated_route
 from .pipeline_stages import (
     IMPACT_RESULT_FAILED,
     IMPACT_RESULT_NOT_NEEDED,
@@ -693,19 +693,16 @@ def _run_task(
         result["execution_profile"] = profile.to_dict()
         return result
     if profile.effective_mode == "integrated":
-        from .standalone_migration import mutation_receipt, record_effect_unknown
-
-        integrated_started_at = time.monotonic()
-        result = run_integrated(
-            root,
-            stack,
-            goal,
-            target,
-            criteria,
-            constraints,
-            prompt,
-            primary_test_cmd,
-            effect_sink,
+        return run_integrated_route(
+            root=root,
+            stack=stack,
+            goal=goal,
+            target=target,
+            criteria=criteria,
+            constraints=constraints,
+            prompt=prompt,
+            primary_test_cmd=primary_test_cmd,
+            effect_sink=effect_sink,
             authorization=authorization,
             context_snapshot=context_snapshot,
             context_pack=context_pack,
@@ -723,59 +720,11 @@ def _run_task(
             base_hash=base_hash,
             context_pack_hash=supplied_pack_hash,
             proposal_only=proposal_only,
-        )
-        result["duration_ms"] = int((time.monotonic() - integrated_started_at) * 1000)
-        result["execution_profile"] = profile.to_dict()
-        if proposal_only:
-            return result
-        verification_plans = result.get("verifications")
-        verification_commands = (
-            [
-                str(item.get("command"))
-                for item in verification_plans
-                if isinstance(item, dict) and item.get("command")
-            ]
-            if isinstance(verification_plans, list)
-            else []
-        )
-        observation_payload = result.get("observation")
-        observation_payload = observation_payload if isinstance(observation_payload, dict) else {}
-        result["mutation_receipt"] = mutation_receipt(
-            "runtime_effect_api",
-            entrypoint="task",
-            plan=result.get("plan"),
-            changeset=result.get("effects"),
-            files=result.get("files_changed"),
-            verification={
-                "commands": verification_commands,
-                "results": observation_payload.get("validation", []),
-            },
-            retry={
-                "attempt": attempt_number,
-                "max_attempts": 1,
-                "retryable": observation_payload.get("retryability") == "retryable",
-            },
-            duration_ms=result.get("duration_ms"),
-            final_status=_final_receipt_status(result, dry_run=result.get("status") == "dry_run"),
-        )
-        result = _attach_contract_receipt(
-            result,
+            execution_profile=profile.to_dict(),
             task_context=task_context,
-            route="runtime_effect_api",
-            effective_mode=profile.effective_mode,
-            authorization=authorization,
-            verification_status=str(result.get("observation", {}).get("outcome", "unverified")),
-            attempt=integrated_attempt,
-            duration_ms=result.get("duration_ms"),
-            retry={
-                "attempt": attempt_number,
-                "max_attempts": 1,
-                "retryable": result.get("observation", {}).get("retryability") == "retryable",
-            },
+            attach_contract_receipt=_attach_contract_receipt,
+            final_receipt_status=_final_receipt_status,
         )
-        if result.get("observation", {}).get("outcome") == "effect_unknown":
-            record_effect_unknown(root)
-        return result
     if not dry_run_task and primary_test_cmd is None:
         blocker = {
             "code": "verification_command_missing",

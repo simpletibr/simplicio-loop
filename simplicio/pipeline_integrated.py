@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import hashlib
 import os
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any
@@ -49,6 +51,7 @@ __all__ = [
     "IntegratedPreparationError",
     "PreparedIntegratedWorkItem",
     "prepare_integrated_work_item",
+    "run_integrated_route",
     "run_integrated",
 ]
 
@@ -531,4 +534,118 @@ def run_integrated(
         root=root,
         tokens_saved=0,
     )
+    return result
+
+
+def run_integrated_route(
+    *,
+    root: str,
+    stack: str,
+    goal: str,
+    target: str,
+    criteria: str,
+    constraints: str,
+    prompt: str,
+    primary_test_cmd: str | None,
+    effect_sink: EffectSink | None,
+    authorization: EffectAuthorization | None,
+    context_snapshot: dict[str, Any] | None,
+    context_pack: dict[str, Any] | None,
+    execution_context: dict[str, Any] | None,
+    context_refresh: bool,
+    attempt: AttemptContext | None,
+    task_spec: TaskSpec | None,
+    coordinator_kind: str,
+    session_id: str,
+    turn_id: str,
+    attempt_number: int,
+    subworkflow_id: str,
+    deadline: str | None,
+    policy_revision: str,
+    base_hash: str,
+    context_pack_hash: str | None,
+    proposal_only: bool,
+    execution_profile: dict[str, Any],
+    task_context: Any,
+    attach_contract_receipt: Callable[..., dict[str, Any]],
+    final_receipt_status: Callable[..., str],
+) -> dict[str, Any]:
+    """Own the integrated route's receipt and effect-boundary orchestration."""
+
+    from .standalone_migration import mutation_receipt, record_effect_unknown
+
+    started_at = time.monotonic()
+    result = run_integrated(
+        root,
+        stack,
+        goal,
+        target,
+        criteria,
+        constraints,
+        prompt,
+        primary_test_cmd,
+        effect_sink,
+        authorization=authorization,
+        context_snapshot=context_snapshot,
+        context_pack=context_pack,
+        execution_context=execution_context,
+        context_refresh=context_refresh,
+        attempt=attempt,
+        task_spec=task_spec,
+        coordinator_kind=coordinator_kind,
+        session_id=session_id,
+        turn_id=turn_id,
+        attempt_number=attempt_number,
+        subworkflow_id=subworkflow_id,
+        deadline=deadline,
+        policy_revision=policy_revision,
+        base_hash=base_hash,
+        context_pack_hash=context_pack_hash,
+        proposal_only=proposal_only,
+    )
+    result["duration_ms"] = int((time.monotonic() - started_at) * 1000)
+    result["execution_profile"] = execution_profile
+    if proposal_only:
+        return result
+
+    verification_plans = result.get("verifications")
+    verification_commands = (
+        [
+            str(item.get("command"))
+            for item in verification_plans
+            if isinstance(item, dict) and item.get("command")
+        ]
+        if isinstance(verification_plans, list)
+        else []
+    )
+    observation = result.get("observation")
+    observation = observation if isinstance(observation, dict) else {}
+    retryable = observation.get("retryability") == "retryable"
+    result["mutation_receipt"] = mutation_receipt(
+        "runtime_effect_api",
+        entrypoint="task",
+        plan=result.get("plan"),
+        changeset=result.get("effects"),
+        files=result.get("files_changed"),
+        verification={
+            "commands": verification_commands,
+            "results": observation.get("validation", []),
+        },
+        retry={"attempt": attempt_number, "max_attempts": 1, "retryable": retryable},
+        duration_ms=result.get("duration_ms"),
+        final_status=final_receipt_status(result, dry_run=result.get("status") == "dry_run"),
+    )
+    result = attach_contract_receipt(
+        result,
+        task_context=task_context,
+        route="runtime_effect_api",
+        effective_mode=execution_profile.get("effective_mode", "integrated"),
+        authorization=authorization,
+        verification_status=str(observation.get("outcome", "unverified")),
+        attempt=attempt,
+        duration_ms=result.get("duration_ms"),
+        retry={"attempt": attempt_number, "max_attempts": 1, "retryable": retryable},
+    )
+    if observation.get("outcome") == "effect_unknown":
+        record_effect_unknown(root)
     return result
