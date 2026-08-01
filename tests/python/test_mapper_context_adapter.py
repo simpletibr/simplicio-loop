@@ -327,6 +327,10 @@ def test_incremental_source_verification_hashes_only_the_causal_set(
     assert metrics["files_considered"] == 1
     assert metrics["files_hashed"] == 1
     assert metrics["bytes_read"] == len(first.read_bytes())
+    assert metrics["generation"] == "rev-2"
+    assert metrics["paths_requested"] == ["src/main.py"]
+    with pytest.raises(MapperContextError, match="GENERATION_DRIFT"):
+        verify_context_sources(binding, source_root=str(tmp_path), expected_generation="rev-1")
     with pytest.raises(MapperContextError, match="src/other.py"):
         verify_context_sources(binding, source_root=str(tmp_path), paths=("src/other.py",))
 

@@ -950,6 +950,7 @@ def verify_context_sources(
     *,
     source_root: str,
     paths: tuple[str, ...] | list[str] | None = None,
+    expected_generation: str | None = None,
 ) -> dict[str, Any]:
     """Fail closed when projected sources changed before effect dispatch.
 
@@ -959,6 +960,11 @@ def verify_context_sources(
     """
 
     root = Path(source_root).resolve()
+    if expected_generation is not None and binding.context_handle.generation != expected_generation:
+        raise MapperContextError(
+            "GENERATION_DRIFT",
+            "context generation does not match the generation admitted for this attempt",
+        )
     requested = {str(path).replace("\\", "/") for path in paths or ()}
     entries = [
         entry
@@ -969,6 +975,8 @@ def verify_context_sources(
         "files_considered": len(entries),
         "files_hashed": 0,
         "bytes_read": 0,
+        "generation": binding.context_handle.generation,
+        "paths_requested": sorted(requested),
         "engine": "python-bytes",
         "fallback_reason": None if requested else "causal_set_absent_full_verification",
     }
