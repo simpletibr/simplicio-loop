@@ -115,6 +115,18 @@ class PreparedIntegratedWorkItem:
     goal_id: str
 
 
+def _causal_verification_paths(plan: PlanDAG) -> tuple[str, ...] | None:
+    """Return the typed plan read/write surface, or request safe full scan."""
+
+    paths = {
+        str(path).strip()
+        for node in plan.nodes
+        for path in (*node.read_set, *node.write_set)
+        if str(path).strip()
+    }
+    return tuple(sorted(paths)) or None
+
+
 def _validate_write_set(write_set: list[str]) -> None:
     seen = set()
     for raw in write_set:
@@ -288,11 +300,7 @@ def prepare_integrated_work_item(
         revision=revision,
         context_handle=context_handle,
     )
-    causal_paths = None
-    if isinstance(plan, dict):
-        raw_paths = plan.get("touched_files") or plan.get("allowlist")
-        if isinstance(raw_paths, list) and all(isinstance(path, str) for path in raw_paths):
-            causal_paths = tuple(raw_paths)
+    causal_paths = _causal_verification_paths(plan)
     pre_effect_verification_metrics = (
         verify_context_sources(binding, source_root=root, paths=causal_paths) or {}
     )
