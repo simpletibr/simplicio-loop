@@ -9,6 +9,7 @@ import pytest
 from simplicio import cli
 from simplicio.atomic_execution import AttemptContext
 from simplicio.execution_mode import (
+    capabilities_report,
     negotiate_execution_mode,
     prepare_execution_inputs,
     requested_mode,
@@ -204,6 +205,21 @@ def test_capabilities_cli_json_is_clean_and_installed_entrypoint_parity(monkeypa
     assert captured.err == ""
     assert payload["execution_profile"]["requested_mode"] == "integrated"
     assert payload["execution_profile"]["effective_mode"] == "blocked"
+
+
+def test_capabilities_report_exposes_mode_readiness_without_runtime_probe(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "simplicio.runtime_contracts.runtime_verify_contract",
+        lambda: (_ for _ in ()).throw(AssertionError("standalone must not probe Runtime")),
+    )
+
+    payload = capabilities_report("standalone", root=str(tmp_path))
+
+    readiness = payload["readiness"]
+    assert readiness["standalone_ready"] == {"ready": True, "reason": "ready"}
+    assert readiness["runtime_ready"]["ready"] is False
+    assert readiness["runtime_ready"]["reason"] == "not-probed-standalone"
+    assert readiness["fast_ready"]["ready"] in {True, False}
 
 
 def test_task_cli_forwards_integrated_coordinator_inputs(monkeypatch, capsys):
