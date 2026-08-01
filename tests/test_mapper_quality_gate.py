@@ -106,6 +106,19 @@ def test_status_distinguishes_pass_failure_and_missing_command(tmp_path):
     assert status == "null"
 
 
+def test_status_preserves_fail_closed_result_for_undecodable_output(monkeypatch, tmp_path):
+    def fake_run(command, **kwargs):
+        assert command == ["probe"]
+        assert kwargs["encoding"] == "utf-8"
+        assert kwargs["errors"] == "replace"
+        return type("Completed", (), {"returncode": 3, "stdout": None, "stderr": "bad"})()
+
+    monkeypatch.setattr("scripts.mapper_quality_gate.subprocess.run", fake_run)
+    status, detail = _status(["probe"], tmp_path)
+    assert status == "fail"
+    assert detail == "bad"
+
+
 def test_main_writes_markdown_report(tmp_path, monkeypatch):
     monkeypatch.chdir(Path(__file__).parents[1])
     output = tmp_path / "quality.md"

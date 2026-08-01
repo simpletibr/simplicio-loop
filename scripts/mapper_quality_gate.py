@@ -47,12 +47,14 @@ def _run(
             cwd=cwd,
             env=env,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             capture_output=True,
             check=False,
         )
     except OSError as error:
         return False, str(error)
-    return result.returncode == 0, (result.stdout + result.stderr).strip()
+    return result.returncode == 0, ((result.stdout or "") + (result.stderr or "")).strip()
 
 
 def _status(
