@@ -292,6 +292,14 @@ class ContextBindingCache:
     def lookup(self, handle: ContextHandle) -> dict[str, Any]:
         key = handle.value
         store = self._read()
+        if store.get("chain_status") != "valid":
+            return self._receipt(
+                key,
+                handle,
+                hit=False,
+                reason="corrupt_chain",
+                revision=store.get("revision"),
+            )
         entry = store.get("entries", {}).get(key)
         identity = self._identity(handle)
         if not isinstance(entry, dict):
@@ -425,19 +433,38 @@ class ContextBindingCache:
         if self.log_path.is_file():
             return self._read_log()
         if not self.path.is_file():
-            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}, "revision": "", "fence": ""}
+            return {
+                "schema": CONTEXT_BINDING_CACHE_SCHEMA,
+                "entries": {},
+                "revision": "",
+                "fence": "",
+                "chain_status": "valid",
+            }
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError):
-            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}, "revision": "", "fence": ""}
+            return {
+                "schema": CONTEXT_BINDING_CACHE_SCHEMA,
+                "entries": {},
+                "revision": "",
+                "fence": "",
+                "chain_status": "corrupt",
+            }
         if not isinstance(payload, dict) or payload.get("schema") != CONTEXT_BINDING_CACHE_SCHEMA:
-            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}, "revision": "", "fence": ""}
+            return {
+                "schema": CONTEXT_BINDING_CACHE_SCHEMA,
+                "entries": {},
+                "revision": "",
+                "fence": "",
+                "chain_status": "corrupt",
+            }
         entries = payload.get("entries")
         return {
             "schema": CONTEXT_BINDING_CACHE_SCHEMA,
             "entries": entries if isinstance(entries, dict) else {},
             "revision": "",
             "fence": "",
+            "chain_status": "valid",
         }
 
     def _write(self, payload: dict[str, Any]) -> None:
@@ -454,7 +481,7 @@ class ContextBindingCache:
             "storage": "hbp-log" if self.log_path.is_file() else "legacy-json",
             "entries": len(state.get("entries", {})),
             "bytes": log_bytes,
-            "chain_status": "valid" if not self.log_path.is_file() or state.get("revision") else "empty",
+            "chain_status": state.get("chain_status", "valid"),
             "revision": state.get("revision", ""),
             "fence": state.get("fence", ""),
             "lock_present": self.lock_path.exists(),
@@ -537,16 +564,25 @@ class ContextBindingCache:
         entries: dict[str, dict[str, Any]] = {}
         previous = ""
         fence = ""
+        chain_status = "valid"
         try:
             lines = self.log_path.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeError):
-            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}, "revision": "", "fence": ""}
+            return {
+                "schema": CONTEXT_BINDING_CACHE_SCHEMA,
+                "entries": {},
+                "revision": "",
+                "fence": "",
+                "chain_status": "corrupt",
+            }
         for line in lines:
             try:
                 event = json.loads(line)
                 if not isinstance(event, dict) or event.get("schema") != CONTEXT_BINDING_LOG_SCHEMA:
+                    chain_status = "corrupt"
                     break
                 if event.get("previous_digest", "") != previous:
+                    chain_status = "corrupt"
                     break
                 unsigned = dict(event)
                 digest = unsigned.pop("digest", None)
@@ -557,6 +593,7 @@ class ContextBindingCache:
                     ).hexdigest()
                 )
                 if digest != expected:
+                    chain_status = "corrupt"
                     break
                 kind = event.get("kind")
                 if (
@@ -579,16 +616,19 @@ class ContextBindingCache:
                         )
                     }
                 else:
+                    chain_status = "corrupt"
                     break
                 previous = str(digest)
                 fence = str(event.get("fence") or fence)
             except (TypeError, ValueError, json.JSONDecodeError):
+                chain_status = "corrupt"
                 break
         return {
             "schema": CONTEXT_BINDING_CACHE_SCHEMA,
             "entries": entries,
             "revision": previous,
             "fence": fence,
+            "chain_status": chain_status,
         }
 
     def _append_event(
@@ -618,6 +658,12 @@ class ContextBindingCache:
             previous = ""
             rows: list[str] = []
             if self.log_path.is_file():
+                current = self._read_log()
+                if current.get("chain_status") != "valid":
+                    raise MapperContextError(
+                        "CONTEXT_CACHE_CORRUPT",
+                        "context cache hash chain is corrupt; compact it before writing",
+                    )
                 rows = self.log_path.read_text(encoding="utf-8").splitlines()
                 if rows:
                     previous = str(json.loads(rows[-1]).get("digest", ""))
@@ -672,6 +718,7 @@ class ContextBindingCache:
         for key, entry in legacy.get("entries", {}).items():
             if isinstance(entry, dict) and isinstance(entry.get("identity"), dict):
                 self._append_event("put", str(key), identity=entry["identity"])
+        self.path.unlink(missing_ok=True)
 
 
 def _source_handles(graph: Mapping[str, Any]) -> tuple[Mapping[str, Any], ...]:
