@@ -81,11 +81,9 @@ def requested_mode(explicit: str | None, root: str | os.PathLike[str] = ".") -> 
 def _allow_fallback(root: str | os.PathLike[str]) -> bool:
     raw = os.environ.get("SIMPLICIO_ALLOW_STANDALONE_FALLBACK")
     if raw is None:
-        # Auto must not turn an unavailable/incompatible Runtime into a
-        # mutating standalone execution by default. Coordinators may opt in
-        # during the migration window; explicit ``--mode standalone`` remains
-        # a separate, intentional lifecycle.
-        raw = str(_config(root).get("allow_standalone_fallback", False))
+        # Standalone is the supported local executor. Auto may select it when
+        # Runtime is unavailable; integrated remains explicit and fail-closed.
+        raw = str(_config(root).get("allow_standalone_fallback", True))
     return raw.lower() in {"1", "true", "yes", "on"}
 
 

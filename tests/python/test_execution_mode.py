@@ -165,9 +165,9 @@ def test_auto_blocks_without_explicit_standalone_fallback(monkeypatch):
         "auto", runtime_handshake={"verified": False, "capabilities": [], "reason": "runtime-absent"}
     )
 
-    assert profile.effective_mode == "blocked"
-    assert profile.reason_code == "INCOMPATIBLE_RUNTIME"
-    assert profile.fallback_reason is None
+    assert profile.effective_mode == "standalone"
+    assert profile.reason_code == "AUTO_DEGRADED"
+    assert profile.fallback_reason == "INCOMPATIBLE_RUNTIME"
 
 
 def test_shadow_observes_but_never_dispatches_integrated(monkeypatch):
