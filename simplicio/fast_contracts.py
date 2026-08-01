@@ -83,7 +83,7 @@ class RustFastEngine(FastEngine):
 
 
 class PythonFastEngine(FastEngine):
-    """Dependency-free in-memory adapter for JSON-compatible Fast payloads."""
+    """In-memory adapter using the Fast project's Python binary decoder."""
 
     name = "python"
 
@@ -91,12 +91,19 @@ class PythonFastEngine(FastEngine):
         self.metrics.decode_calls += 1
         self.metrics.bytes_decoded += len(payload)
         try:
-            decoded = json.loads(payload)
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            from simplicio_fast.binary_changeset import decode_binary
+        except (ImportError, ModuleNotFoundError) as exc:
             raise FastEngineError(
-                "python_decode_failed", "Python Fast decoder requires a JSON envelope"
+                "python_decoder_unavailable", "Fast Python binary decoder is not installed"
             ) from exc
-        self.metrics.serializations += 1
+        try:
+            decoded = decode_binary(payload)
+        except Exception as exc:
+            raise FastEngineError(
+                "python_decode_failed", "Python Fast decoder rejected the envelope"
+            ) from exc
+        if hasattr(decoded, "to_dict"):
+            decoded = decoded.to_dict()
         if not isinstance(decoded, dict):
             raise FastEngineError("binary_decode_shape", "Python Fast decoder returned a non-object envelope")
         return decoded
