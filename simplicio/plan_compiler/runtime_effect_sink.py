@@ -243,6 +243,10 @@ class HttpRuntimeTransport:
             response = httpx.request(method, self.base_url + path, json=payload, timeout=self.timeout_s)
             response.raise_for_status()
             result = response.json()
+        except httpx.HTTPStatusError as exc:
+            detail = exc.response.text.strip().replace("\n", " ")[:512]
+            suffix = f": {detail}" if detail else ""
+            raise RuntimeEffectError("RUNTIME_TRANSPORT_ERROR", f"{exc}{suffix}") from exc
         except (httpx.HTTPError, ValueError) as exc:
             raise RuntimeEffectError("RUNTIME_TRANSPORT_ERROR", str(exc)) from exc
         if not isinstance(result, dict):

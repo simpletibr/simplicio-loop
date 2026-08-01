@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import base64
 import csv
-from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import importlib
 import importlib.metadata
@@ -23,12 +22,15 @@ import subprocess
 import sys
 import tempfile
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 from simplicio.changeset_v2 import execute_changeset, execute_changeset_bytes
 from simplicio.execution_mode import negotiate_execution_mode
 from simplicio.fast_contracts import fast_preflight
+from simplicio.plan_compiler.canonical_hash import canonical_hash
+from simplicio.plan_compiler.runtime_effect_sink import HttpRuntimeTransport, RuntimeEffectError
 from simplicio.runtime_contracts import runtime_verify_contract
 
 SCHEMA = "simplicio.dev-cli.issue-422-evidence/v1"
@@ -250,24 +252,209 @@ def _capability_scenario(name: str, available: bool, version: str | None) -> dic
 
 
 def _runtime_scenario() -> dict[str, Any]:
-    """Report the real Runtime contract probe without claiming an E2E run."""
-    handshake = runtime_verify_contract(timeout=20)
-    if handshake.get("verified") is True:
-        return {
-            "scenario": "runtime_backed",
-            "status": "AVAILABLE_NOT_E2E",
-            "version": handshake.get("version"),
-            "binary": handshake.get("binary"),
-            "capabilities": handshake.get("capabilities", []),
-            "reason": "runtime contract verified; effect E2E requires a configured transport",
-        }
-    return {
+    """Exercise Runtime's real HTTP effect transport when explicitly configured.
+
+    The Runtime server owns its repository root, so the runner requires callers
+    to provide an isolated root that the server was started against.  This
+    avoids claiming an E2E run against a different checkout or mutating the
+    repository that launched the evidence runner.
+    """
+    probe_root = os.environ.get("SIMPLICIO_RUNTIME_E2E_ROOT", "").strip()
+    if probe_root:
+        os.environ.setdefault("SIMPLICIO_RUNTIME_PROBE_ROOT", probe_root)
+    handshake = runtime_verify_contract(timeout=60)
+    base = {
         "scenario": "runtime_backed",
-        "status": "UNVERIFIED",
         "version": handshake.get("version"),
         "binary": handshake.get("binary"),
         "capabilities": handshake.get("capabilities", []),
-        "reason": str(handshake.get("reason") or "runtime-contract-not-verified"),
+    }
+    if handshake.get("verified") is not True:
+        return {
+            **base,
+            "status": "UNVERIFIED",
+            "reason": str(handshake.get("reason") or "runtime-contract-not-verified"),
+        }
+    base_url = os.environ.get("SIMPLICIO_RUNTIME_EFFECT_URL", "").strip()
+    root_value = os.environ.get("SIMPLICIO_RUNTIME_E2E_ROOT", "").strip()
+    if not base_url or not root_value:
+        return {
+            **base,
+            "status": "AVAILABLE_NOT_E2E",
+            "reason": (
+                "runtime contract verified; set SIMPLICIO_RUNTIME_EFFECT_URL and SIMPLICIO_RUNTIME_E2E_ROOT"
+            ),
+        }
+    root = Path(root_value).resolve()
+    if not root.is_dir():
+        return {
+            **base,
+            "status": "UNVERIFIED",
+            "reason": "SIMPLICIO_RUNTIME_E2E_ROOT is not an existing directory",
+        }
+    run_id = f"issue-422-runtime-{os.getpid()}"
+    artifact_dir = root / ".simplicio" / "issue-422-runtime" / run_id
+    target = artifact_dir / "result.txt"
+    artifact = artifact_dir / "effect-plan.json"
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    target.write_text("before\n", encoding="utf-8")
+    artifact.write_text(
+        json.dumps(
+            {
+                "schema": "simplicio.mechanical-edit/v1",
+                "file": target.relative_to(root).as_posix(),
+                "operations": [{"op": "append", "text": "runtime-e2e\n"}],
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+        encoding="utf-8",
+    )
+    effect = {"artifact_ref": artifact.relative_to(root).as_posix()}
+    effect_digest = canonical_hash(effect)
+    source = {"revision": run_id, "files": [target.relative_to(root).as_posix()]}
+    context = {"task": "issue-422-runtime", "root": str(root)}
+    lease_id = f"lease-{run_id}"
+    issued_at = int(time.time())
+    proposal = {
+        "schema": "simplicio.change-proposal/v1",
+        "proposal_id": f"proposal-{run_id}",
+        "effect_id": run_id,
+        "repo": str(root),
+        "worktree": str(root),
+        "branch": "e2e",
+        "write_set": [target.relative_to(root).as_posix()],
+        "capability": "simplicio_edit",
+        "attempt_id": run_id,
+        "lease_id": lease_id,
+        "fencing_token": 1,
+        "policy_revision": "issue-422-e2e",
+        "issued_at": issued_at,
+        "expires_at": issued_at + 300,
+        "mode": "ask",
+        "route": "runtime",
+        "irreversible": False,
+        "human_gate_receipt": "issue-422-local-gate",
+        "source": source,
+        "context": context,
+        "source_digest": "sha256:" + canonical_hash(source),
+        "context_digest": "sha256:" + canonical_hash(context),
+        "plan_digest": "sha256:" + "f" * 64,
+        "effect_digest": "sha256:" + effect_digest,
+        "before_digest": "sha256:" + "0" * 64,
+        "after_digest": "sha256:" + "1" * 64,
+    }
+    proposal["proposal_digest"] = "sha256:" + canonical_hash(proposal)
+    binary = handshake.get("binary")
+    if not isinstance(binary, str) or not binary:
+        return {
+            **base,
+            "status": "UNVERIFIED",
+            "reason": "Runtime binary path missing for durable authorization",
+        }
+    try:
+        authorization_run = subprocess.run(
+            [
+                binary,
+                "effect",
+                "authorize",
+                "--proposal",
+                json.dumps(proposal, sort_keys=True, separators=(",", ":")),
+                "--repo",
+                str(root),
+                "--json",
+            ],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return {**base, "status": "UNVERIFIED", "reason": f"runtime-authorization-failed: {exc}"}
+    try:
+        authorization = json.loads(authorization_run.stdout or "{}")
+    except json.JSONDecodeError:
+        authorization = {}
+    if authorization_run.returncode != 0 or authorization.get("status") != "authorized":
+        detail = authorization.get("reason") or authorization_run.stderr.strip() or "authorization denied"
+        return {**base, "status": "UNVERIFIED", "reason": f"runtime-authorization-denied: {detail}"}
+    causal = {
+        "coordinator_kind": "issue-422-evidence",
+        "coordinator_id": run_id,
+        "session_id": run_id,
+        "turn_id": "runtime",
+        "attempt": "1",
+        "subworkflow_id": run_id,
+        "plan_id": run_id,
+        "goal_id": "issue-422",
+        "plan_node_id": "runtime-effect",
+        "effect_id": run_id,
+    }
+    key = canonical_hash([causal, canonical_hash(effect), None])
+    transaction = {
+        "schema": "simplicio.effect-transaction/v1",
+        "repo": str(root),
+        "worktree": str(root),
+        "branch": "e2e",
+        "capability": "simplicio_edit",
+        "context_digest": proposal["context_digest"],
+        "plan_digest": proposal["plan_digest"],
+        "policy_revision": "issue-422-e2e",
+        "source": source,
+        "context": context,
+        "human_gate_receipt": "issue-422-local-gate",
+        "idempotency_key": key,
+        "effect_digest": effect_digest,
+        "proposal_digest": proposal["proposal_digest"],
+        "authorization_digest": authorization["authorization_digest"],
+        "proposal": proposal,
+        "authorization": authorization,
+        "causal": causal,
+        "effect": effect,
+        "base_hash": proposal["before_digest"],
+        "source_hash": proposal["source_digest"],
+        "lease": {"id": lease_id, "fencing_token": 1},
+        "preconditions": [{"kind": "isolated-root", "root": str(root)}],
+        "write_set": [target.relative_to(root).as_posix()],
+        "acceptance_criteria_refs": ["simplicio-dev-cli#422"],
+    }
+    try:
+        transport = HttpRuntimeTransport(base_url, timeout_s=20.0)
+        capabilities = transport.capabilities()
+        schemas = capabilities.get("effect_transaction_schemas", [])
+        if "simplicio.effect-transaction/v1" not in schemas:
+            return {
+                **base,
+                "status": "UNVERIFIED",
+                "reason": "Runtime capability response lacks effect transaction schema",
+            }
+        receipt = transport.submit(transaction)
+        replay = transport.query(key)
+    except (RuntimeEffectError, OSError, ValueError) as exc:
+        return {**base, "status": "UNVERIFIED", "reason": f"runtime-effect-e2e-failed: {exc}"}
+    content = target.read_text(encoding="utf-8")
+    expected_content = "before\nruntime-e2e\n"
+    if (
+        receipt.get("state") != "completed"
+        or replay.get("state") != "completed"
+        or content != expected_content
+    ):
+        return {
+            **base,
+            "status": "FAIL",
+            "reason": "Runtime receipt or materialized artifact did not match the submitted transaction",
+            "receipt_state": receipt.get("state"),
+            "replay_state": replay.get("state"),
+            "content": content,
+        }
+    return {
+        **base,
+        "status": "PASS",
+        "transport": "http-json",
+        "idempotency_key": key,
+        "receipt_state": receipt.get("state"),
+        "replay_state": replay.get("state"),
+        "materialized": target.relative_to(root).as_posix(),
     }
 
 

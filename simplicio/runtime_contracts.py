@@ -238,12 +238,21 @@ def runtime_verify_contract(*, timeout: int | None = None) -> dict[str, Any]:
         }
     if binary is None:
         return {**base, "verified": False, "reason": "runtime-binary-not-found", "capabilities": []}
+    probe_root = os.environ.get("SIMPLICIO_RUNTIME_PROBE_ROOT", "").strip()
+    probe_cwd = Path(probe_root).resolve() if probe_root else None
+    if probe_cwd is not None and not probe_cwd.is_dir():
+        probe_cwd = None
+    probe_kwargs: dict[str, Any] = {
+        "capture_output": True,
+        "text": True,
+        "timeout": timeout,
+    }
+    if probe_cwd is not None:
+        probe_kwargs["cwd"] = str(probe_cwd)
     try:
         version_completed = subprocess.run(
             [binary, "version", "--json"],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
+            **probe_kwargs,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {
@@ -281,9 +290,7 @@ def runtime_verify_contract(*, timeout: int | None = None) -> dict[str, Any]:
     try:
         contracts_completed = subprocess.run(
             [binary, "contracts", "smoke", "--json"],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
+            **probe_kwargs,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {

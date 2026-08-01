@@ -32,7 +32,7 @@ def test_runtime_probe_reports_verified_contract_without_claiming_e2e(monkeypatc
 
     assert result["status"] == "AVAILABLE_NOT_E2E"
     assert result["version"] == "3.5.6"
-    assert "effect E2E" in result["reason"]
+    assert "SIMPLICIO_RUNTIME_EFFECT_URL" in result["reason"]
 
 
 def test_runtime_probe_keeps_failed_contract_unverified(monkeypatch):
@@ -51,6 +51,61 @@ def test_runtime_probe_keeps_failed_contract_unverified(monkeypatch):
 
     assert result["status"] == "UNVERIFIED"
     assert result["reason"] == "runtime-binary-not-found"
+
+
+def test_runtime_probe_executes_and_replays_configured_http_effect(monkeypatch, tmp_path):
+    runner = _runner_module()
+    monkeypatch.setattr(
+        runner,
+        "runtime_verify_contract",
+        lambda **_: {
+            "verified": True,
+            "version": "3.5.7",
+            "binary": "simplicio-runtime",
+            "capabilities": ["simplicio.effect-transaction/v1"],
+        },
+    )
+    monkeypatch.setenv("SIMPLICIO_RUNTIME_EFFECT_URL", "http://127.0.0.1:9119")
+    monkeypatch.setenv("SIMPLICIO_RUNTIME_E2E_ROOT", str(tmp_path))
+    monkeypatch.setattr(
+        runner.subprocess,
+        "run",
+        lambda *args, **kwargs: runner.subprocess.CompletedProcess(
+            args[0],
+            0,
+            runner.json.dumps({"status": "authorized", "authorization_digest": "sha256:" + "a" * 64}),
+            "",
+        ),
+    )
+
+    class FakeTransport:
+        def __init__(self, base_url, *, timeout_s):
+            assert base_url.endswith(":9119")
+            assert timeout_s == 20.0
+            self.receipt = None
+
+        def capabilities(self):
+            return {"effect_transaction_schemas": ["simplicio.effect-transaction/v1"]}
+
+        def submit(self, transaction):
+            artifact = tmp_path / transaction["effect"]["artifact_ref"]
+            plan = runner.json.loads(artifact.read_text(encoding="utf-8"))
+            target = tmp_path / plan["file"]
+            target.write_text("before\nruntime-e2e\n", encoding="utf-8")
+            self.receipt = {"state": "completed"}
+            return self.receipt
+
+        def query(self, key):
+            assert len(key) == 64
+            return self.receipt
+
+    monkeypatch.setattr(runner, "HttpRuntimeTransport", FakeTransport)
+
+    result = runner._runtime_scenario()
+
+    assert result["status"] == "PASS"
+    assert result["receipt_state"] == "completed"
+    assert result["replay_state"] == "completed"
 
 
 def test_worktree_isolation_scenario_uses_ten_distinct_roots():
