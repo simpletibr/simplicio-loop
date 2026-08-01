@@ -88,7 +88,9 @@ def existing_transaction_result(
         raise ChangesetTransactionError("RECOVERY_REQUIRED", "transaction journal is unreadable") from exc
     if previous.get("changeset_digest") != changeset_digest_value:
         raise ChangesetTransactionError("REPLAY_CONFLICT", "idempotency key is bound to another changeset")
-    if previous.get("state") == "COMMITTED" and isinstance(previous.get("result"), dict):
+    if previous.get("state") in {"COMMITTED", "FAILED_BEFORE_COMMIT"} and isinstance(
+        previous.get("result"), dict
+    ):
         result = dict(previous["result"])
         result["replayed"] = True
         return result
@@ -104,6 +106,39 @@ def _result_with_transaction(result: dict[str, Any], state: dict[str, Any]) -> d
         "receipt_path": state["receipt_path"],
     }
     return result
+
+
+def _rollback_after_commit_failure(
+    *,
+    root_path: Path,
+    before: dict[str, str | None],
+    backup: Path,
+    state: dict[str, Any],
+    state_path: Path,
+    cause: BaseException,
+) -> None:
+    """Restore the pre-commit snapshot and raise a typed partial-commit error."""
+    state["state"] = "ROLLING_BACK"
+    _write_state(state_path, state)
+    try:
+        for relative, digest in before.items():
+            target = _safe_path(root_path, relative)
+            saved = _safe_path(backup, relative)
+            if digest is None:
+                if target.exists():
+                    target.unlink()
+            elif saved.is_file():
+                shutil.copy2(saved, target)
+        state["state"] = "ROLLED_BACK"
+        _write_state(state_path, state)
+    except Exception as rollback_error:
+        state["state"] = "ROLLBACK_FAILED"
+        state["rollback_error"] = type(rollback_error).__name__
+        _write_state(state_path, state)
+        raise ChangesetTransactionError(
+            "ROLLBACK_FAILED", "transaction rollback could not be proven"
+        ) from rollback_error
+    raise ChangesetTransactionError("COMMIT_PARTIAL", "transaction failed and was rolled back") from cause
 
 
 def recover_changeset_transaction(
@@ -236,7 +271,9 @@ def _execute_changeset_transaction(
             raise ChangesetTransactionError(
                 "REPLAY_CONFLICT", "idempotency key is bound to another changeset"
             )
-        if previous.get("state") == "COMMITTED" and isinstance(previous.get("result"), dict):
+        if previous.get("state") in {"COMMITTED", "FAILED_BEFORE_COMMIT"} and isinstance(
+            previous.get("result"), dict
+        ):
             replay = dict(previous["result"])
             replay["replayed"] = True
             return replay
@@ -322,30 +359,42 @@ def _execute_changeset_transaction(
         state.update({"state": "COMMITTED", "after": after, "receipt": receipt, "result": result_payload})
         _write_state(state_path, state)
         return result_payload
-    except ChangesetTransactionError:
-        raise
+    except ChangesetTransactionError as exc:
+        # Validation and source-drift failures happen before the destructive
+        # commit boundary. Persist the refusal so a retry/replay cannot leave
+        # an orphaned STAGED journal that falsely demands recovery.
+        if state["state"] in {"INTENT", "STAGED"}:
+            result_payload = {
+                "status": "refused",
+                "applied": False,
+                "noop": False,
+                "files": [],
+                "validation": [],
+                "planned_diff": "",
+                "errors": [{"code": exc.code, "message": str(exc), **exc.extra}],
+            }
+            state.update({"state": "FAILED_BEFORE_COMMIT", "result": result_payload})
+            _write_state(state_path, state)
+            return _result_with_transaction(result_payload, state)
+        # Once COMMITTING has been persisted, route typed filesystem errors
+        # through the same rollback path as untyped OS errors.
+        _rollback_after_commit_failure(
+            root_path=root_path,
+            before=before,
+            backup=backup,
+            state=state,
+            state_path=state_path,
+            cause=exc,
+        )
     except Exception as exc:
-        state["state"] = "ROLLING_BACK"
-        _write_state(state_path, state)
-        try:
-            for relative, digest in before.items():
-                target = _safe_path(root_path, relative)
-                saved = _safe_path(backup, relative)
-                if digest is None:
-                    if target.exists():
-                        target.unlink()
-                elif saved.is_file():
-                    shutil.copy2(saved, target)
-            state["state"] = "ROLLED_BACK"
-            _write_state(state_path, state)
-        except Exception as rollback_error:
-            state["state"] = "ROLLBACK_FAILED"
-            state["rollback_error"] = type(rollback_error).__name__
-            _write_state(state_path, state)
-            raise ChangesetTransactionError(
-                "ROLLBACK_FAILED", "transaction rollback could not be proven"
-            ) from rollback_error
-        raise ChangesetTransactionError("COMMIT_PARTIAL", "transaction failed and was rolled back") from exc
+        _rollback_after_commit_failure(
+            root_path=root_path,
+            before=before,
+            backup=backup,
+            state=state,
+            state_path=state_path,
+            cause=exc,
+        )
     finally:
         shutil.rmtree(candidate, ignore_errors=True)
         shutil.rmtree(backup, ignore_errors=True)
