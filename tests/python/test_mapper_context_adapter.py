@@ -308,9 +308,7 @@ def test_context_binding_cache_migrates_legacy_json_once_and_removes_shadow_stor
     assert migrated.lookup(binding.context_handle)["hit"] is True
 
 
-def test_context_binding_cache_preserves_corrupt_legacy_store(
-    mapper_boundary: None, tmp_path: Any
-) -> None:
+def test_context_binding_cache_preserves_corrupt_legacy_store(mapper_boundary: None, tmp_path: Any) -> None:
     legacy = tmp_path / ".simplicio" / "context-bindings.json"
     legacy.parent.mkdir(parents=True, exist_ok=True)
     legacy.write_text("{not-json", encoding="utf-8")

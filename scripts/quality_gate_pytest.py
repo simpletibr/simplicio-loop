@@ -14,14 +14,22 @@ from pathlib import Path
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
+    parser.add_argument(
+        "--pytest-timeout",
+        type=int,
+        default=120,
+        help="per-test timeout in seconds; benchmark lanes need more than the historical 30s",
+    )
     args = parser.parse_args(argv)
+    if args.pytest_timeout <= 0:
+        parser.error("--pytest-timeout must be positive")
     root = args.root.resolve()
     with tempfile.TemporaryDirectory(prefix="simplicio-quality-pytest-") as raw_basetemp:
         command = [
             sys.executable,
             "-m",
             "pytest",
-            "--timeout=30",
+            f"--timeout={args.pytest_timeout}",
             "--basetemp",
             raw_basetemp,
             "--cov=simplicio",
