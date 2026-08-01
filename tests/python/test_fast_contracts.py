@@ -10,6 +10,7 @@ import pytest
 from simplicio import cli
 from simplicio.fast_contracts import (
     FastEngineError,
+    NativeFastDecoder,
     NoFastEngine,
     PythonFastEngine,
     RustFastEngine,
@@ -221,6 +222,65 @@ def test_rust_engine_normalizes_object_decoder_and_rejects_bad_shape():
     bad = RustFastEngine(lambda payload: [payload])
     with pytest.raises(FastEngineError, match="non-object envelope"):
         bad.decode_binary(b"x")
+
+
+def test_native_fast_decoder_reuses_session_and_returns_binary_view(monkeypatch):
+    import simplicio.fast_contracts as fast_contracts
+
+    class Stream:
+        def __init__(self, lines=()):
+            self.lines = iter(lines)
+            self.writes = []
+
+        def readline(self):
+            return next(self.lines, "")
+
+        def write(self, value):
+            self.writes.append(value)
+
+        def flush(self):
+            return None
+
+    class Process:
+        def __init__(self):
+            self.stdin = Stream()
+            self.stdout = Stream(
+                [
+                    json.dumps(
+                        {
+                            "abi": "simplicio.fast-native/v1",
+                            "ok": True,
+                            "capabilities": ["decode_changeset"],
+                        }
+                    )
+                    + "\n",
+                    json.dumps(
+                        {
+                            "abi": "simplicio.fast-native/v1",
+                            "ok": True,
+                            "result": {"schema": "simplicio.fast.binary-changeset/v1", "operations": []},
+                        }
+                    )
+                    + "\n",
+                ]
+            )
+            self.stderr = None
+
+        def poll(self):
+            return None
+
+        def terminate(self):
+            return None
+
+        def wait(self, timeout):
+            return None
+
+    process = Process()
+    monkeypatch.setattr(fast_contracts.subprocess, "Popen", lambda *args, **kwargs: process)
+
+    decoder = NativeFastDecoder("native.exe")
+    assert decoder(b"\x01") == {"schema": "simplicio.fast.binary-changeset/v1", "operations": []}
+    assert '"operation":"decode_changeset"' in process.stdin.writes[0]
 
 
 def test_python_engine_reports_decoder_failure(monkeypatch):

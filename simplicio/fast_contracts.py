@@ -6,6 +6,8 @@ import importlib
 import importlib.util
 import json
 import os
+import subprocess
+import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
@@ -148,6 +150,85 @@ class RustFastEngine(FastEngine):
         return decoded
 
 
+class NativeFastDecoder:
+    """Reuse one native Fast session for bounded binary decode calls."""
+
+    def __init__(self, executable: str) -> None:
+        try:
+            self._process = subprocess.Popen(
+                [executable, "--session"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                encoding="utf-8",
+                bufsize=1,
+            )
+            greeting = self._read()
+        except (OSError, ValueError) as exc:
+            raise FastEngineError("fast_rust_unavailable", "native Fast session could not start") from exc
+        if greeting.get("abi") != "simplicio.fast-native/v1" or greeting.get("ok") is not True:
+            self.close()
+            raise FastEngineError("fast_rust_unavailable", "native Fast session ABI is invalid")
+        if "decode_changeset" not in greeting.get("capabilities", []):
+            self.close()
+            raise FastEngineError(
+                "fast_rust_unavailable", "native Fast session lacks binary changeset decoder"
+            )
+        self._lock = threading.Lock()
+
+    def _read(self) -> dict[str, Any]:
+        stdout = self._process.stdout
+        if stdout is None:
+            raise FastEngineError("fast_rust_unavailable", "native Fast session has no stdout")
+        line = stdout.readline()
+        if not line:
+            raise FastEngineError("fast_rust_unavailable", "native Fast session closed")
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise FastEngineError("fast_rust_decode_failed", "native Fast returned invalid JSON") from exc
+        if not isinstance(value, dict):
+            raise FastEngineError("fast_rust_decode_failed", "native Fast returned a non-object response")
+        return value
+
+    def __call__(self, payload: bytes) -> dict[str, Any]:
+        with self._lock:
+            stdin = self._process.stdin
+            if stdin is None:
+                raise FastEngineError("fast_rust_unavailable", "native Fast session has no stdin")
+            request = {
+                "abi": "simplicio.fast-native/v1",
+                "operation": "decode_changeset",
+                "payload": {"hex": payload.hex()},
+            }
+            try:
+                stdin.write(json.dumps(request, separators=(",", ":")) + "\n")
+                stdin.flush()
+            except OSError as exc:
+                raise FastEngineError("fast_rust_decode_failed", "native Fast request failed") from exc
+            response = self._read()
+            if response.get("ok") is not True:
+                raise FastEngineError(
+                    "fast_rust_decode_failed",
+                    str(response.get("reason") or "native Fast rejected the envelope"),
+                )
+            result = response.get("result")
+            if not isinstance(result, dict):
+                raise FastEngineError("fast_rust_decode_shape", "native Fast returned a non-object envelope")
+            return result
+
+    def close(self) -> None:
+        process = getattr(self, "_process", None)
+        if process is None or process.poll() is not None:
+            return
+        process.terminate()
+        try:
+            process.wait(timeout=2)
+        except subprocess.TimeoutExpired:
+            process.kill()
+
+
 class PythonFastEngine(FastEngine):
     """In-memory adapter using the Fast project's Python binary decoder."""
 
@@ -193,6 +274,13 @@ def select_fast_engine(preference: str = "auto") -> FastEngine:
         return NoFastEngine()
     if requested == "python":
         return PythonFastEngine()
+    native_path = os.environ.get("SIMPLICIO_FAST_NATIVE", "").strip()
+    if native_path and Path(native_path).is_file():
+        try:
+            return RustFastEngine(NativeFastDecoder(native_path))
+        except FastEngineError:
+            if requested == "rust":
+                raise
     try:
         importlib.import_module("simplicio_fast.binary_changeset")
     except (ImportError, ModuleNotFoundError) as exc:
