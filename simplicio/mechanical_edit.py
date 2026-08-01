@@ -36,6 +36,7 @@ def execute_plan_json(
     *,
     root: str | Path = ".",
     apply: bool = False,
+    allow_native: bool = True,
 ) -> dict[str, Any]:
     try:
         plan = json.loads(plan_text)
@@ -56,7 +57,7 @@ def execute_plan_json(
             [{"code": "invalid_json", "message": "plan root must be a JSON object"}],
             root=root,
         )
-    return execute_plan(plan, root=root, apply=apply)
+    return execute_plan(plan, root=root, apply=apply, allow_native=allow_native)
 
 
 def execute_plan(
