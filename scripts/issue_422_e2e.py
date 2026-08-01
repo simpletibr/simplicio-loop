@@ -17,7 +17,9 @@ import importlib.metadata
 import json
 import os
 import platform
+import shutil
 import statistics
+import subprocess
 import sys
 import tempfile
 import time
@@ -103,6 +105,7 @@ def _transaction_scenario(count: int, repeats: int) -> dict[str, Any]:
 
 def _worktree_isolation_scenario() -> dict[str, Any]:
     """Exercise ten concurrent roots and verify each receives only its own edit."""
+
     def apply_one(index: int) -> dict[str, Any]:
         with tempfile.TemporaryDirectory(prefix=f"simplicio-422-worktree-{index}-") as raw_root:
             root = Path(raw_root)
@@ -127,8 +130,7 @@ def _worktree_isolation_scenario() -> dict[str, Any]:
     with ThreadPoolExecutor(max_workers=10) as pool:
         results = list(pool.map(apply_one, range(10)))
     passed = all(
-        row["status"] == "ok" and row["content"] == f"isolated-{index}\n"
-        for index, row in enumerate(results)
+        row["status"] == "ok" and row["content"] == f"isolated-{index}\n" for index, row in enumerate(results)
     )
     return {
         "scenario": "worktree_isolation_10",
@@ -269,6 +271,71 @@ def _runtime_scenario() -> dict[str, Any]:
     }
 
 
+def _mapper_producer_scenario() -> dict[str, Any]:
+    """Run the installed Mapper producer and validate its terminal handoff."""
+    binary = shutil.which("simplicio-mapper")
+    if binary is None:
+        return {
+            "scenario": "mapper_producer",
+            "status": "UNVERIFIED",
+            "reason": "simplicio-mapper executable not found; no synthetic replacement executed",
+        }
+    with tempfile.TemporaryDirectory(prefix="simplicio-422-mapper-") as raw_root:
+        worktree = Path(raw_root)
+        source = worktree / "src"
+        source.mkdir()
+        (source / "app.py").write_text("def run():\n    return 1\n", encoding="utf-8")
+        index = subprocess.run(
+            [binary, "index", str(worktree), "--json"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+        if index.returncode != 0:
+            return {
+                "scenario": "mapper_producer",
+                "status": "FAIL",
+                "reason": "mapper index failed",
+                "returncode": index.returncode,
+                "output_tail": (index.stdout + index.stderr)[-2000:],
+            }
+        handoff = subprocess.run(
+            [binary, "handoff", str(worktree), "--goal", "verify app", "--json"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=60,
+        )
+        try:
+            payload = json.loads(handoff.stdout)
+        except json.JSONDecodeError:
+            payload = {}
+        status = payload.get("status") if isinstance(payload, dict) else {}
+        counts = status.get("counts") if isinstance(status, dict) else {}
+        passed = (
+            handoff.returncode == 0
+            and isinstance(status, dict)
+            and status.get("terminal") is True
+            and status.get("fresh") is True
+            and status.get("lock") is False
+            and isinstance(counts, dict)
+            and int(counts.get("files", 0)) >= 1
+        )
+        return {
+            "scenario": "mapper_producer",
+            "status": "PASS" if passed else "FAIL",
+            "binary": binary,
+            "index_returncode": index.returncode,
+            "handoff_returncode": handoff.returncode,
+            "terminal": status.get("terminal") if isinstance(status, dict) else None,
+            "fresh": status.get("fresh") if isinstance(status, dict) else None,
+            "lock": status.get("lock") if isinstance(status, dict) else None,
+            "counts": counts,
+            "reason": None if passed else "Mapper handoff was not a fresh terminal unlocked receipt",
+        }
+
+
 def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
     preflight = fast_preflight(offline=True)
     rows = [_auto_without_runtime(root)]
@@ -283,7 +350,9 @@ def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
         )
     )
     mapper_version = _version("simplicio-mapper")
-    rows.append(_capability_scenario("mapper_producer", mapper_version is not None, mapper_version))
+    mapper_row = _mapper_producer_scenario()
+    mapper_row["version"] = mapper_version
+    rows.append(mapper_row)
     runtime_row = _runtime_scenario()
     rows.append(runtime_row)
     return {

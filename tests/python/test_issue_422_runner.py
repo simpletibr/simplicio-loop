@@ -62,3 +62,23 @@ def test_worktree_isolation_scenario_uses_ten_distinct_roots():
     assert result["worktrees"] == 10
     assert result["unique_roots"] == 10
     assert result["scheduler_count"] == 1
+
+
+def test_mapper_producer_requires_fresh_terminal_unlocked_handoff(monkeypatch):
+    runner = _runner_module()
+    monkeypatch.setattr(runner.shutil, "which", lambda name: "mapper.exe")
+
+    def fake_run(command, **kwargs):
+        if command[1] == "index":
+            return runner.subprocess.CompletedProcess(command, 0, "{}", "")
+        payload = {"status": {"terminal": True, "fresh": True, "lock": False, "counts": {"files": 1}}}
+        return runner.subprocess.CompletedProcess(command, 0, runner.json.dumps(payload), "")
+
+    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+
+    result = runner._mapper_producer_scenario()
+
+    assert result["status"] == "PASS"
+    assert result["terminal"] is True
+    assert result["fresh"] is True
+    assert result["lock"] is False
