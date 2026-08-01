@@ -51,3 +51,14 @@ def test_runtime_probe_keeps_failed_contract_unverified(monkeypatch):
 
     assert result["status"] == "UNVERIFIED"
     assert result["reason"] == "runtime-binary-not-found"
+
+
+def test_worktree_isolation_scenario_uses_ten_distinct_roots():
+    runner = _runner_module()
+
+    result = runner._worktree_isolation_scenario()
+
+    assert result["status"] == "PASS"
+    assert result["worktrees"] == 10
+    assert result["unique_roots"] == 10
+    assert result["scheduler_count"] == 1

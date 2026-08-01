@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import base64
 import csv
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import importlib
 import importlib.metadata
@@ -98,6 +99,45 @@ def _transaction_scenario(count: int, repeats: int) -> dict[str, Any]:
             "files": len(files),
             "first_transaction": first.get("transaction") if first else None,
         }
+
+
+def _worktree_isolation_scenario() -> dict[str, Any]:
+    """Exercise ten concurrent roots and verify each receives only its own edit."""
+    def apply_one(index: int) -> dict[str, Any]:
+        with tempfile.TemporaryDirectory(prefix=f"simplicio-422-worktree-{index}-") as raw_root:
+            root = Path(raw_root)
+            relative = f"files/worktree-{index:02d}.txt"
+            value = f"isolated-{index}\n"
+            changeset = {
+                "schema": "simplicio.fast.changeset/v2",
+                "changeset_id": f"issue-422-worktree-{index}",
+                "correlation_id": f"issue-422-worktree-{index}",
+                "generation": "generation-1",
+                "allowlist": [relative],
+                "operations": [{"kind": "create", "path": relative, "content": value}],
+            }
+            result = execute_changeset(changeset, root=root, apply=True)
+            path = root / relative
+            return {
+                "status": result.get("status"),
+                "content": path.read_text(encoding="utf-8") if path.is_file() else None,
+                "root": str(root),
+            }
+
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        results = list(pool.map(apply_one, range(10)))
+    passed = all(
+        row["status"] == "ok" and row["content"] == f"isolated-{index}\n"
+        for index, row in enumerate(results)
+    )
+    return {
+        "scenario": "worktree_isolation_10",
+        "status": "PASS" if passed and len({row["root"] for row in results}) == 10 else "FAIL",
+        "worktrees": len(results),
+        "unique_roots": len({row["root"] for row in results}),
+        "scheduler_count": 1,
+        "reason": None if passed else "one or more roots received an incorrect result",
+    }
 
 
 def _fast_binary_module(root: Path) -> Any | None:
@@ -233,6 +273,7 @@ def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
     preflight = fast_preflight(offline=True)
     rows = [_auto_without_runtime(root)]
     rows.extend(_transaction_scenario(count, repeats) for count in (1, 20, 200))
+    rows.append(_worktree_isolation_scenario())
     rows.extend(_fast_binary_scenario(root, count, repeats) for count in (1, 20, 200))
     rows.append(
         _capability_scenario(
