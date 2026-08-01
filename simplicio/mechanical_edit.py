@@ -68,9 +68,6 @@ def execute_plan(
 ) -> dict[str, Any]:
     root_path = Path(root)
 
-    native_result = _try_native_edit(plan, root_path, apply=apply) if allow_native else None
-    if native_result is not None:
-        return native_result
     errors = _validate_shape(plan)
     operations = plan.get("operations") if isinstance(plan.get("operations"), list) else []
     touched_files = _declared_touched_files(plan, operations)
@@ -89,7 +86,7 @@ def execute_plan(
             root=root_path,
         )
 
-    native_result = _try_native_edit(plan, root_path, apply=apply)
+    native_result = _try_native_edit(plan, root_path, apply=apply) if allow_native else None
     if native_result is not None:
         return native_result
 
