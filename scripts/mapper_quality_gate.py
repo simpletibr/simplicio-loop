@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import os
 import subprocess
 import sys
@@ -72,6 +73,24 @@ def _runtime_check(root: Path, binary: str) -> tuple[str, str]:
     return _status([binary, "ecosystem", "doctor", "--repo", "."], root)
 
 
+def _version_consistency(root: Path) -> tuple[str, str]:
+    """Fail closed when publishable Python/Node versions diverge."""
+    try:
+        pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+        package = json.loads((root / "package.json").read_text(encoding="utf-8"))
+        init_text = (root / "simplicio_mapper" / "__init__.py").read_text(encoding="utf-8")
+    except (OSError, KeyError, json.JSONDecodeError, tomllib.TOMLDecodeError) as error:
+        return "fail", f"version source unreadable: {error}"
+    py_version = str(pyproject.get("project", {}).get("version", ""))
+    node_version = str(package.get("version", ""))
+    marker = '__version__ = "'
+    init_version = init_text.split(marker, 1)[1].split('"', 1)[0] if marker in init_text else ""
+    versions = {"pyproject": py_version, "package": node_version, "python": init_version}
+    if not py_version or len(set(versions.values())) != 1:
+        return "fail", f"version mismatch: {versions}"
+    return "pass", f"all publish surfaces at {py_version}"
+
+
 def _release_evidence(path: Path | None) -> list[tuple[str, str, str]]:
     """Load explicit release observations without inventing unavailable results."""
     document: dict = {}
@@ -125,6 +144,7 @@ def build_report(
 
     runtime_status, runtime_detail = _runtime_check(root, runtime_binary)
     checks.append(("Runtime ecosystem doctor", runtime_status, runtime_detail))
+    checks.append(("Publish version consistency", *_version_consistency(root)))
 
     if full:
         npm = "npm.cmd" if os.name == "nt" else "npm"
