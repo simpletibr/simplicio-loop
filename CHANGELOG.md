@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.26.6] - 2026-08-01
+
+### Fixed
+
+- Prevent partial index state from being reported as already fresh (PR #429, Runtime #3711).
+- Persist detached worker terminal receipts and verify Windows Runtime scans reach fresh, complete state.
+
 ## [0.26.3] - 2026-07-31
 
 ### Fixed
