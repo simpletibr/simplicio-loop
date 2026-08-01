@@ -102,6 +102,7 @@ def _command_result(root: Path, name: str, command: list[str], *, timeout_s: flo
     try:
         launch: dict[str, Any] = {
             "cwd": root,
+            "stdin": subprocess.DEVNULL,
             "stdout": subprocess.PIPE,
             "stderr": subprocess.PIPE,
             "text": True,
