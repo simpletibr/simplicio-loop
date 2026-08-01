@@ -134,7 +134,9 @@ def effect_unknown_details(
             preconditions.append(
                 {
                     "path": path,
-                    "before_sha256": operation.get("before_sha256") or operation.get("file_sha256") or "unknown",
+                    "before_sha256": operation.get("before_sha256")
+                    or operation.get("file_sha256")
+                    or "unknown",
                     "expected_after_sha256": operation.get("after_sha256") or "unknown",
                 }
             )

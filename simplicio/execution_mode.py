@@ -650,10 +650,7 @@ def capabilities_report(
     )
     profile = require_coordinator_attempt(profile, prepared.attempt)
     standalone_policy = profile.standalone_policy
-    standalone_ready = bool(
-        standalone_policy.get("write_allowed")
-        and not effect_unknown_pending(root)
-    )
+    standalone_ready = bool(standalone_policy.get("write_allowed") and not effect_unknown_pending(root))
     runtime_ready = bool(
         profile.runtime.get("verified")
         and profile.runtime.get("capability_available")
@@ -669,7 +666,11 @@ def capabilities_report(
                 "reason": (
                     "effect-unknown-reconciliation-required"
                     if effect_unknown_pending(root)
-                    else ("standalone-policy-disabled" if not standalone_policy.get("write_allowed") else "ready")
+                    else (
+                        "standalone-policy-disabled"
+                        if not standalone_policy.get("write_allowed")
+                        else "ready"
+                    )
                 ),
             },
             "runtime_ready": {
