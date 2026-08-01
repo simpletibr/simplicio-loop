@@ -97,10 +97,53 @@ def test_fast_engine_selection_is_explicit_and_in_memory():
         "bytes_decoded": 0,
         "serializations": 0,
         "subprocesses": 0,
+        "refresh_calls": 0,
+        "refresh_pending": 0,
     }
     assert select_fast_engine("none").name == "none"
     with pytest.raises(FastEngineError, match="fast engine must be"):
         select_fast_engine("invalid")
+
+
+def test_fast_engine_validates_generation_and_extracts_changed_paths():
+    engine = NoFastEngine()
+    envelope = {
+        "base_generation": "gen-1",
+        "allowlist": ["src\\app.py", "src/app.py"],
+        "operations": [
+            {"op": "move", "source": "src/app.py", "target": "src/new.py"},
+            {"op": "replace", "path": "src/new.py"},
+        ],
+    }
+
+    assert engine.validate_generation(envelope, current="gen-1") == "gen-1"
+    assert engine.changed_paths(envelope) == ("src/app.py", "src/new.py")
+    with pytest.raises(FastEngineError, match="does not match"):
+        engine.validate_generation(envelope, current="gen-2")
+    with pytest.raises(FastEngineError, match="non-empty"):
+        engine.validate_generation({}, current=None)
+
+
+def test_fast_engine_refresh_is_selective_and_fail_closed():
+    engine = NoFastEngine()
+    called = []
+
+    refreshed = engine.refresh(
+        ["src\\a.py", "src/a.py"],
+        refresh_fn=lambda paths: called.append(paths) or {"generation": "gen-2"},
+    )
+    assert refreshed == {
+        "status": "refreshed",
+        "paths": ["src/a.py"],
+        "result": {"generation": "gen-2"},
+    }
+    assert called == [("src/a.py",)]
+
+    pending = engine.refresh(["src/a.py"])
+    assert pending["status"] == "REFRESH_PENDING"
+    assert pending["reason"] == "refresh_callback_required"
+    assert engine.receipt()["metrics"]["refresh_calls"] == 2
+    assert engine.receipt()["metrics"]["refresh_pending"] == 1
 
 
 def test_cli_exit_codes_offline_help_and_metadata_receipt(monkeypatch, tmp_path, capsys):
@@ -171,6 +214,8 @@ def test_rust_engine_normalizes_object_decoder_and_rejects_bad_shape():
         "bytes_decoded": 3,
         "serializations": 0,
         "subprocesses": 0,
+        "refresh_calls": 0,
+        "refresh_pending": 0,
     }
 
     bad = RustFastEngine(lambda payload: [payload])
@@ -204,7 +249,6 @@ def test_no_fast_engine_is_explicitly_fail_closed():
 
 
 def test_engine_selection_fails_closed_when_decoder_module_is_missing(monkeypatch):
-    import simplicio.fast_contracts as fast_contracts
 
     monkeypatch.setenv("SIMPLICIO_FAST_VERSION", "2.0.18")
     monkeypatch.setenv("SIMPLICIO_FAST_PARSER_AVAILABLE", "1")

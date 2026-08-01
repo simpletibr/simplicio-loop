@@ -6,6 +6,7 @@ import importlib.util
 import json
 import os
 from abc import ABC, abstractmethod
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from importlib import metadata
 from pathlib import Path
@@ -38,6 +39,8 @@ class FastEngineMetrics:
     bytes_decoded: int = 0
     serializations: int = 0
     subprocesses: int = 0
+    refresh_calls: int = 0
+    refresh_pending: int = 0
 
     def to_dict(self) -> dict[str, int]:
         return {
@@ -45,6 +48,8 @@ class FastEngineMetrics:
             "bytes_decoded": self.bytes_decoded,
             "serializations": self.serializations,
             "subprocesses": self.subprocesses,
+            "refresh_calls": self.refresh_calls,
+            "refresh_pending": self.refresh_pending,
         }
 
 
@@ -62,6 +67,66 @@ class FastEngine(ABC):
 
     def receipt(self) -> dict[str, Any]:
         return {"name": self.name, "metrics": self.metrics.to_dict()}
+
+    def validate_generation(self, envelope: Mapping[str, Any], current: str | None = None) -> str:
+        """Validate the immutable generation before an effect is admitted."""
+
+        generation = envelope.get("generation") or envelope.get("base_generation")
+        if not isinstance(generation, str) or not generation:
+            raise FastEngineError("invalid_generation", "changeset generation must be a non-empty string")
+        if current is not None and generation != str(current):
+            raise FastEngineError(
+                "stale_generation",
+                "changeset generation does not match the current generation",
+            )
+        return generation
+
+    def changed_paths(self, envelope: Mapping[str, Any]) -> tuple[str, ...]:
+        """Extract the deduplicated path surface without serializing the envelope."""
+
+        candidates: list[str] = []
+        for raw in envelope.get("touched_files", envelope.get("allowlist", ())) or ():
+            if isinstance(raw, str) and raw.strip():
+                candidates.append(raw.replace("\\", "/"))
+        operations = envelope.get("operations", ())
+        if isinstance(operations, list):
+            for operation in operations:
+                if not isinstance(operation, Mapping):
+                    continue
+                for key in ("path", "source", "dest", "target"):
+                    value = operation.get(key)
+                    if isinstance(value, str) and value.strip():
+                        candidates.append(value.replace("\\", "/"))
+        return tuple(dict.fromkeys(candidates))
+
+    def refresh(
+        self,
+        paths: Iterable[str],
+        *,
+        refresh_fn: Callable[[tuple[str, ...]], Any] | None = None,
+    ) -> dict[str, Any]:
+        """Refresh only admitted paths; missing/failing producers stay pending."""
+
+        selected = tuple(dict.fromkeys(str(path).replace("\\", "/") for path in paths if str(path)))
+        self.metrics.refresh_calls += 1
+        if refresh_fn is None:
+            self.metrics.refresh_pending += 1
+            return {
+                "status": "REFRESH_PENDING",
+                "paths": list(selected),
+                "reason": "refresh_callback_required",
+            }
+        try:
+            result = refresh_fn(selected)
+        except Exception as exc:  # producer boundary: pending is safer than retrying effects
+            self.metrics.refresh_pending += 1
+            return {
+                "status": "REFRESH_PENDING",
+                "paths": list(selected),
+                "reason": "refresh_failed",
+                "error_type": type(exc).__name__,
+            }
+        return {"status": "refreshed", "paths": list(selected), "result": result}
 
 
 class RustFastEngine(FastEngine):
