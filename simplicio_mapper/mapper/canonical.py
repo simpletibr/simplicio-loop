@@ -60,6 +60,7 @@ class CanonicalMapKey:
     mapper_version: str
     config_fingerprint: str
     platform_tag: str | None = None
+    native_capabilities: str = ""
 
     def digest(self) -> str:
         """Return a stable content-address for this key.
@@ -76,6 +77,7 @@ class CanonicalMapKey:
             self.mapper_version,
             self.config_fingerprint,
             self.platform_tag or "",
+            self.native_capabilities,
         )
         raw = "\x1f".join(parts).encode("utf-8")
         return hashlib.blake2b(raw, digest_size=24).hexdigest()

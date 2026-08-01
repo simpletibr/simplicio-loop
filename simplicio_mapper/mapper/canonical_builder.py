@@ -69,6 +69,7 @@ from typing import Any, NamedTuple
 
 import orjson
 
+from .. import _native
 from .canonical import (
     CANONICAL_MAP_SCHEMA,
     CANONICAL_MAP_SCHEMA_VERSION,
@@ -94,6 +95,12 @@ _MANIFEST_FILE_NAME = "manifest.json"
 #: any lock-file inspection/diagnostics without needing a second lock
 #: implementation.
 _BUILD_LOCK_OPERATION = "canonical-build"
+
+
+def _native_capabilities_fingerprint() -> str:
+    """Return a stable key component for Python-only vs native execution."""
+    payload = orjson.dumps(_native.CAPABILITIES, option=orjson.OPT_SORT_KEYS)
+    return "sha256:" + hashlib.sha256(payload).hexdigest()
 
 #: Environment override for how long a losing builder blocks waiting for the
 #: winner to finish and promote, before giving up (``blocking=True`` mode,
@@ -374,6 +381,7 @@ def _load_existing_manifest(digest_dir: str) -> CanonicalMapManifest | None:
             mapper_version=key_raw["mapper_version"],
             config_fingerprint=key_raw["config_fingerprint"],
             platform_tag=key_raw.get("platform_tag"),
+            native_capabilities=key_raw.get("native_capabilities", ""),
         )
         return CanonicalMapManifest(
             schema=raw["schema"],
@@ -509,6 +517,7 @@ def build_canonical_manifest_with_diagnostics(
         mapper_version=_mapper_version(),
         config_fingerprint=config_fingerprint,
         platform_tag=None,
+        native_capabilities=_native_capabilities_fingerprint(),
     )
     digest = key.digest()
     cache_root = os.path.abspath(storage_root)
@@ -636,6 +645,7 @@ def build_canonical_manifest_with_diagnostics(
                     "mapper_version": key.mapper_version,
                     "config_fingerprint": key.config_fingerprint,
                     "platform_tag": key.platform_tag,
+                    "native_capabilities": key.native_capabilities,
                 },
                 "storage_root": storage_root_field,
                 "artifact_paths": artifact_paths,
