@@ -13,7 +13,7 @@ from .observability import emit_event
 from .utils.fs import write_text_atomic
 
 MigrationPhase = Literal["shadow", "opt_in", "warning", "read_only", "removed"]
-MutationRoute = Literal["runtime_effect_api", "legacy_standalone", "blocked"]
+MutationRoute = Literal["runtime_effect_api", "standalone", "legacy_standalone", "blocked"]
 MIGRATION_PHASES = ("shadow", "opt_in", "warning", "read_only", "removed")
 MUTATION_ROUTE_SCHEMA = "simplicio.dev-cli.mutation-route/v1"
 ROLLOUT_EVIDENCE_SCHEMA = "simplicio.dev-cli.standalone-rollout-evidence/v1"
@@ -324,6 +324,8 @@ def mutation_receipt(
         "entrypoint": entrypoint,
         "route": route,
         "runtime_gated": runtime_gate_verified,
+        # Keep the field for receipt readers from older releases. New
+        # standalone selections use route=standalone and are not legacy.
         "legacy": route == "legacy_standalone",
         "migration_phase": policy.phase if policy is not None else None,
         "available": available_payload,
@@ -342,7 +344,7 @@ def mutation_route_for_mode(effective_mode: str) -> MutationRoute:
     if effective_mode == "integrated":
         return "runtime_effect_api"
     if effective_mode == "standalone":
-        return "legacy_standalone"
+        return "standalone"
     return "blocked"
 
 

@@ -42,6 +42,7 @@ from .pipeline_stages import (
 from .pipeline_stages import (
     _git_apply_patch as _stage_git_apply_patch,
 )
+from .pipeline_state import result_trace
 from .pipeline_task_result import (
     _dry_run_preconditions,
     _task_result,
@@ -209,9 +210,9 @@ def _remember_patch_receipt(receipt: dict[str, Any] | None) -> None:
         {
             "schema": "simplicio.dev-cli.mutation-route/v1",
             "entrypoint": "task",
-            "route": "legacy_standalone",
+            "route": "standalone",
             "runtime_gated": False,
-            "legacy": True,
+            "legacy": False,
         },
     )
     _LAST_PATCH_RECEIPT = payload
@@ -532,6 +533,7 @@ def _run_task(
         )
         or (
             profile.effective_mode == "standalone"
+            and requested_execution_mode != "standalone"
             and (
                 strict_authority
                 or context_snapshot is not None
@@ -1370,6 +1372,7 @@ def _finalize_task_result(
     result: dict[str, Any], args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> dict[str, Any]:
     if result.get("mutation_authorization_receipt") is not None:
+        result.setdefault("pipeline_state", result_trace(result).to_dict())
         return result
     root = str(kwargs.get("root") if kwargs.get("root") is not None else args[0])
     target = str(kwargs.get("target") if kwargs.get("target") is not None else args[3])
@@ -1382,9 +1385,10 @@ def _finalize_task_result(
     elif effective_mode == "integrated":
         route = "runtime_effect_api"
     else:
-        route = "legacy_standalone"
+        route = "standalone"
     context = _receipt_context(root, target, kwargs)
     attempt = kwargs.get("integrated_attempt")
+    result["pipeline_state"] = result_trace(result).to_dict()
     return _attach_contract_receipt(
         result,
         task_context=context,

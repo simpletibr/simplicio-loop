@@ -14,6 +14,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+from .standalone_migration import effect_unknown_details, effect_unknown_pending, record_effect_unknown
 from .token_primitives import sha256_text, summarize_log
 from .utils.fs import write_bytes_atomic
 
@@ -70,7 +71,6 @@ def execute_plan(
     native_result = _try_native_edit(plan, root_path, apply=apply) if allow_native else None
     if native_result is not None:
         return native_result
-
     errors = _validate_shape(plan)
     operations = plan.get("operations") if isinstance(plan.get("operations"), list) else []
     touched_files = _declared_touched_files(plan, operations)
@@ -78,6 +78,20 @@ def execute_plan(
     errors.extend(_validate_overlaps(operations))
     if errors:
         return _refused(errors, root=root_path)
+    if apply and effect_unknown_pending(str(root_path)):
+        return _refused(
+            [
+                {
+                    "code": "EFFECT_UNKNOWN_RECONCILIATION_REQUIRED",
+                    "message": "reconcile the prior native effect before another mutation",
+                }
+            ],
+            root=root_path,
+        )
+
+    native_result = _try_native_edit(plan, root_path, apply=apply)
+    if native_result is not None:
+        return native_result
 
     before = _snapshot(root_path, operations)
     try:
@@ -172,10 +186,10 @@ def _try_native_edit(
     """Attempt to delegate *plan* to the native ``simplicio edit`` binary.
 
     Returns the translated result dict on a clean, schema-matching success.
-    Returns ``None`` on ANY failure — binary missing, subprocess error,
-    timeout, non-JSON stdout, or a JSON payload that doesn't match
-    ``RESULT_SCHEMA`` — so the caller falls through to the pure-Python
-    implementation below. Never raises.
+    Returns ``None`` only when no native effect was admitted, allowing the
+    caller to use the pure-Python implementation. Once an apply subprocess
+    has been admitted, every ambiguous outcome becomes ``effect_unknown`` and
+    persists a reconciliation lock; falling through would risk double apply.
     """
     binary = _native_edit_binary()
     if binary is None:
@@ -205,15 +219,36 @@ def _try_native_edit(
                 text=True,
                 timeout=_NATIVE_EDIT_TIMEOUT_S,
             )
-        except (OSError, subprocess.TimeoutExpired):
-            return None
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            if not apply:
+                return None
+            return _native_effect_unknown(
+                plan,
+                root_path,
+                reason=f"native edit outcome is unknown: {type(exc).__name__}",
+            )
 
         try:
             payload = json.loads(completed.stdout)
-        except (json.JSONDecodeError, ValueError):
-            return None
+        except (json.JSONDecodeError, ValueError) as exc:
+            if not apply:
+                return None
+            return _native_effect_unknown(
+                plan,
+                root_path,
+                reason=f"native edit returned invalid JSON: {type(exc).__name__}",
+            )
 
-        return _translate_native_result(payload, root_path)
+        translated = _translate_native_result(payload, root_path)
+        if translated is not None:
+            return translated
+        if not apply:
+            return None
+        return _native_effect_unknown(
+            plan,
+            root_path,
+            reason="native edit returned an ambiguous or incompatible result",
+        )
     finally:
         if tmp_path is not None:
             try:
@@ -250,7 +285,7 @@ def _translate_native_result(payload: Any, root_path: Path) -> dict[str, Any] | 
     if not isinstance(payload, dict) or payload.get("schema") != NATIVE_EDIT_RESULT_SCHEMA:
         return None
     native_status = payload.get("status")
-    if native_status == "checks_failed":
+    if native_status != "ok":
         return None
     file_abs = payload.get("file")
     changed = payload.get("changed")
@@ -281,18 +316,6 @@ def _translate_native_result(payload: Any, root_path: Path) -> dict[str, Any] | 
         if before_sha == after_sha
         else [{"path": rel_path, "before_sha256": before_sha, "after_sha256": after_sha}]
     )
-    errors: list[dict[str, Any]] = []
-    if native_status != "ok":
-        skipped_reason = payload.get("post_edit_skipped_reason")
-        errors.append(
-            {
-                "code": "post_edit_phase_skipped",
-                "message": skipped_reason
-                if isinstance(skipped_reason, str)
-                else f"native status: {native_status}",
-            }
-        )
-
     result = _base_result(root_path)
     result.update(
         {
@@ -307,8 +330,41 @@ def _translate_native_result(payload: Any, root_path: Path) -> dict[str, Any] | 
             "planned_diff": "",
             "files": files,
             "operation_count": operations_applied,
-            "errors": errors,
+            "errors": [],
             "validation": [],
+        }
+    )
+    return result
+
+
+def _native_effect_unknown(
+    plan: dict[str, Any],
+    root_path: Path,
+    *,
+    reason: str,
+) -> dict[str, Any]:
+    details = effect_unknown_details(str(root_path), plan=plan)
+    record_effect_unknown(str(root_path), details)
+    result = _base_result(root_path)
+    result.update(
+        {
+            "status": "effect_unknown",
+            "effect_unknown": True,
+            "applied": False,
+            "noop": False,
+            "planned_diff": "",
+            "files": [],
+            "operation_count": len(plan.get("operations", [])),
+            "errors": [
+                {
+                    "code": "NATIVE_EFFECT_UNKNOWN",
+                    "message": reason,
+                    "recovery_command": details["recovery_command"],
+                    "idempotency_key": details["idempotency_key"],
+                }
+            ],
+            "validation": [],
+            "effect_unknown_lock": ".simplicio/effect-unknown.lock",
         }
     )
     return result

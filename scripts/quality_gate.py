@@ -1,0 +1,194 @@
+#!/usr/bin/env python3
+"""Run and persist the local, SHA-bound quality gate (issue #421).
+
+The receipt is deliberately boring: every command has an exit code, duration,
+and bounded output digest. A dirty checkout, missing command, or failed step is
+never converted into a green result.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib.metadata
+import json
+import platform
+import shlex
+import subprocess
+import sys
+import time
+from pathlib import Path
+from typing import Any
+
+SCHEMA = "simplicio.dev-cli.quality-gate-receipt/v1"
+DEFAULT_RECEIPT = Path(".simplicio/quality-gate-receipt.json")
+DEFAULT_COMMANDS = (
+    ("ruff", [sys.executable, "-m", "ruff", "check", "simplicio"]),
+    ("ruff-format", [sys.executable, "-m", "ruff", "format", "--check", "simplicio", "tests"]),
+    ("mypy", [sys.executable, "-m", "mypy", "simplicio"]),
+    (
+        "pytest",
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--cov=simplicio",
+            "--cov-report=json:coverage.json",
+            "--cov-report=term-missing",
+        ],
+    ),
+    ("coverage-gate", [sys.executable, "scripts/coverage_gate.py"]),
+)
+
+
+def _digest(text: str) -> str:
+    return "sha256:" + hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
+
+
+def _git(root: Path, *args: str) -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", *args], cwd=root, capture_output=True, text=True, check=False, timeout=30
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def _versions() -> dict[str, str | None]:
+    result: dict[str, str | None] = {}
+    for name in ("simplicio-dev-cli", "pytest", "ruff", "mypy", "coverage", "build", "twine"):
+        try:
+            result[name] = importlib.metadata.version(name)
+        except importlib.metadata.PackageNotFoundError:
+            result[name] = None
+    return result
+
+
+def _command_result(root: Path, name: str, command: list[str]) -> dict[str, Any]:
+    started = time.perf_counter()
+    try:
+        completed = subprocess.run(command, cwd=root, capture_output=True, text=True, check=False)
+        exit_code = completed.returncode
+        output = (completed.stdout + completed.stderr)[-32_768:]
+        error = None
+    except (OSError, subprocess.SubprocessError) as exc:
+        exit_code = 127
+        output = ""
+        error = f"{type(exc).__name__}: {exc}"
+    return {
+        "name": name,
+        "argv": command,
+        "exit_code": exit_code,
+        "duration_ms": round((time.perf_counter() - started) * 1000, 3),
+        "output_digest": _digest(output),
+        "output_tail": output,
+        "error": error,
+    }
+
+
+def run_gate(root: Path, *, commands: list[tuple[str, list[str]]] | None = None) -> dict[str, Any]:
+    root = root.resolve()
+    sha = _git(root, "rev-parse", "HEAD")
+    dirty = _git(root, "status", "--porcelain")
+    steps = [_command_result(root, name, argv) for name, argv in commands or DEFAULT_COMMANDS]
+    limitations: list[str] = []
+    if platform.system() != "Windows":
+        limitations.append("windows_lane_not_run_on_non_windows_host")
+    else:
+        limitations.append("runtime_and_fast_external_lanes_require_installed_capabilities")
+    passed = bool(sha) and not bool(dirty) and all(step["exit_code"] == 0 for step in steps)
+    return {
+        "schema": SCHEMA,
+        "receipt_version": 1,
+        "passed": passed,
+        "commit_sha": sha,
+        "dirty": bool(dirty),
+        "dirty_digest": _digest(dirty or ""),
+        "root": str(root),
+        "platform": platform.platform(),
+        "python": sys.version,
+        "dependencies": _versions(),
+        "commands": steps,
+        "limitations": limitations,
+        "artifacts": {
+            "coverage_json": str(root / "coverage.json") if (root / "coverage.json").is_file() else None,
+            "wheel_sha256": None,
+        },
+    }
+
+
+def _write_receipt(path: Path, payload: dict[str, Any]) -> None:
+    body = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    output = dict(payload)
+    output["receipt_digest"] = _digest(body)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(output, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def verify_receipt(path: Path, root: Path) -> tuple[bool, str]:
+    """Reject edited, truncated, stale, dirty, or failed receipts."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return False, "receipt_unreadable"
+    if not isinstance(payload, dict) or payload.get("schema") != SCHEMA:
+        return False, "receipt_schema_invalid"
+    supplied = payload.get("receipt_digest")
+    unsigned = dict(payload)
+    unsigned.pop("receipt_digest", None)
+    if not isinstance(supplied, str) or supplied != _digest(
+        json.dumps(unsigned, sort_keys=True, separators=(",", ":"))
+    ):
+        return False, "receipt_digest_invalid"
+    current_sha = _git(root.resolve(), "rev-parse", "HEAD")
+    if not current_sha or current_sha != payload.get("commit_sha"):
+        return False, "receipt_sha_stale"
+    if payload.get("dirty") or _git(root.resolve(), "status", "--porcelain"):
+        return False, "checkout_dirty"
+    if payload.get("passed") is not True or any(
+        not isinstance(step, dict) or step.get("exit_code") != 0 for step in payload.get("commands", [])
+    ):
+        return False, "gate_failed"
+    return True, "verified"
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path("."))
+    parser.add_argument("--receipt", type=Path, default=DEFAULT_RECEIPT)
+    parser.add_argument(
+        "--verify", action="store_true", help="verify an existing receipt against the current checkout"
+    )
+    parser.add_argument(
+        "--command",
+        action="append",
+        metavar="NAME=ARGV",
+        help="replace the default commands for deterministic harness tests; ARGV uses shell-like splitting",
+    )
+    args = parser.parse_args(argv)
+    receipt_path = args.receipt if args.receipt.is_absolute() else args.root / args.receipt
+    if args.verify:
+        ok, reason = verify_receipt(receipt_path, args.root)
+        print(json.dumps({"verified": ok, "reason": reason}, sort_keys=True))
+        return 0 if ok else 1
+    commands = None
+    if args.command:
+        commands = []
+        for item in args.command:
+            name, separator, raw = item.partition("=")
+            if not separator or not name or not raw:
+                parser.error("--command must use NAME=ARGV")
+            commands.append((name, shlex.split(raw, posix=False)))
+    receipt = run_gate(args.root, commands=commands)
+    _write_receipt(receipt_path, receipt)
+    print(
+        json.dumps(
+            {key: receipt[key] for key in ("schema", "passed", "commit_sha", "dirty")}, sort_keys=True
+        )
+    )
+    return 0 if receipt["passed"] else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

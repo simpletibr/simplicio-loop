@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from simplicio.changeset_v2 import adapt_changeset, execute_changeset
+from simplicio.changeset_v2 import adapt_changeset, execute_changeset, execute_changeset_bytes
 
 
 def _sha(text: str) -> str:
@@ -183,12 +183,53 @@ def test_corrupt_payload_and_effect_unknown_are_explicit(monkeypatch, tmp_path):
     assert unknown["status"] == "effect_unknown"
 
 
-def test_fast_binary_changeset_v1_alias_is_accepted(tmp_path):
+def test_fast_binary_schema_alias_is_rejected_from_json_adapter(tmp_path):
     changeset = _changeset(
         [{"kind": "create", "path": "legacy.txt", "content": "legacy"}],
         ["legacy.txt"],
     )
     changeset["schema"] = "simplicio.fast.binary-changeset/v1"
     receipt = execute_changeset(changeset, root=tmp_path, apply=True)
+    assert receipt["status"] == "refused"
+    assert receipt["errors"][0]["code"] == "incompatible_schema"
+    assert not (tmp_path / "legacy.txt").exists()
+
+
+def test_fast_binary_bytes_are_decoded_by_the_official_adapter(tmp_path, monkeypatch):
+    monkeypatch.syspath_prepend(r"C:\Users\Z0059V7A\m\repos\simplicio-fast\src")
+    from simplicio_fast.binary_changeset import BinaryChangeSet, ChangeOperation
+
+    content = b"binary\n"
+    changeset = BinaryChangeSet(
+        repository=str(tmp_path.resolve()),
+        base_generation="base",
+        overlay_generation="overlay",
+        attempt="attempt",
+        worktree_id="slot-414",
+        lease_id="lease-414",
+        fencing_token="fence-414",
+        allowed_paths=("binary.txt",),
+        operations=(
+            ChangeOperation.from_dict(
+                {
+                    "op": "create",
+                    "path": "binary.txt",
+                    "content_b64": __import__("base64").b64encode(content).decode(),
+                    "after_sha256": __import__("hashlib").sha256(content).hexdigest(),
+                }
+            ),
+        ),
+    )
+
+    receipt = execute_changeset_bytes(changeset.encode(), root=tmp_path, apply=True)
+
     assert receipt["status"] == "ok"
-    assert (tmp_path / "legacy.txt").read_text(encoding="utf-8") == "legacy"
+    assert receipt["input_format"] == "simplicio.fast.binary-changeset/v1"
+    assert (tmp_path / "binary.txt").read_bytes() == content
+
+
+def test_json_renamed_as_binary_is_rejected_without_json_decode(tmp_path):
+    receipt = execute_changeset_bytes(b'{"schema":"simplicio.fast.binary-changeset/v1"}', root=tmp_path)
+
+    assert receipt["status"] == "refused"
+    assert receipt["errors"][0]["code"] == "binary_magic_invalid"

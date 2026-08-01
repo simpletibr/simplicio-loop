@@ -14,7 +14,9 @@ import importlib
 import importlib.metadata
 import importlib.resources
 import json
+import os
 import re
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -22,7 +24,6 @@ from types import MappingProxyType
 from typing import Any
 
 from simplicio.plan_compiler.errors import PlanCompilerError
-from simplicio.utils.fs import write_text_atomic
 
 MAPPER_CONTEXT_SNAPSHOT_SCHEMA = "simplicio.context-snapshot/v1"
 MAPPER_CONTEXT_PACK_SCHEMA = "simplicio.context-pack/v1"
@@ -30,6 +31,7 @@ MAPPER_EXECUTION_CONTEXT_SCHEMA = "simplicio.execution-context/v1"
 DEV_CLI_CONTEXT_HANDLE_SCHEMA = "simplicio.dev-cli.context-handle/v1"
 DEV_CLI_FALLBACK_CONTEXT_SCHEMA = "simplicio.dev-cli.context-fallback/v1"
 CONTEXT_BINDING_CACHE_SCHEMA = "simplicio.context-binding-cache/v1"
+CONTEXT_BINDING_LOG_SCHEMA = "simplicio.context-binding-log/v1"
 MAPPER_CONTRACT_OWNER = "wesleysimplicio/simplicio-mapper"
 MAPPER_CONTRACT_MANIFEST_SHA256 = "db8cf791fe6442585f03b3fac220c0987ca5e4271a4955df02b1df77018c52b0"
 MAPPER_CONTRACT_COMMIT = "05ea96390762d4bba309abcbf4783d0637a4e53f"
@@ -259,6 +261,9 @@ class ContextBindingCache:
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root)
         self.path = self.root / ".simplicio" / "context-bindings.json"
+        self.log_path = self.root / ".simplicio" / "context-bindings.hbp.jsonl"
+        self.lock_path = self.root / ".simplicio" / "context-bindings.hbp.lock"
+        self._migrate_legacy_once()
 
     @staticmethod
     def _identity(handle: ContextHandle) -> dict[str, str]:
@@ -297,28 +302,21 @@ class ContextBindingCache:
 
     def put(self, binding: ContextBinding) -> dict[str, Any]:
         handle = binding.context_handle
-        store = self._read()
-        entries = store.setdefault("entries", {})
-        entries[handle.value] = {
-            "identity": self._identity(handle),
-        }
-        self._write(store)
+        self._append_event("put", handle.value, identity=self._identity(handle))
         return self._receipt(handle.value, handle, hit=False, reason="stored", stored=True)
 
     def refresh(self, binding: ContextBinding) -> dict[str, Any]:
         """Invalidate prior revisions for this snapshot, then record this one."""
 
         handle = binding.context_handle
-        store = self._read()
-        entries = store.setdefault("entries", {})
+        entries = self._read().setdefault("entries", {})
         invalidated = 0
-        for key, entry in list(entries.items()):
+        for entry in entries.values():
             identity = entry.get("identity") if isinstance(entry, dict) else None
             if isinstance(identity, dict) and identity.get("snapshot_id") == handle.snapshot_id:
-                del entries[key]
                 invalidated += 1
-        entries[handle.value] = {"identity": self._identity(handle)}
-        self._write(store)
+        self._append_event("invalidate", criteria={"snapshot_id": handle.snapshot_id})
+        self._append_event("put", handle.value, identity=self._identity(handle))
         receipt = self._receipt(handle.value, handle, hit=False, reason="explicit_refresh", stored=True)
         receipt["invalidated"] = invalidated
         return receipt
@@ -330,30 +328,31 @@ class ContextBindingCache:
         source_root_identity: str | None = None,
         key: str | None = None,
     ) -> dict[str, Any]:
-        store = self._read()
-        entries = store.setdefault("entries", {})
-        removed = 0
-        for candidate, entry in list(entries.items()):
-            identity = entry.get("identity") if isinstance(entry, dict) else None
-            matches = (
-                (key is None or candidate == key)
-                and (
-                    snapshot_id is None
-                    or (isinstance(identity, dict) and identity.get("snapshot_id") == snapshot_id)
-                )
-                and (
-                    source_root_identity is None
-                    or (
-                        isinstance(identity, dict)
-                        and identity.get("source_root_identity") == source_root_identity
-                    )
-                )
+        entries = self._read().setdefault("entries", {})
+        removed = sum(
+            1
+            for candidate, entry in entries.items()
+            if self._matches(
+                candidate,
+                entry,
+                key=key,
+                snapshot_id=snapshot_id,
+                source_root_identity=source_root_identity,
             )
-            if matches:
-                del entries[candidate]
-                removed += 1
-        self._write(store)
-        return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "removed": removed}
+        )
+        self._append_event(
+            "invalidate",
+            criteria={
+                name: value
+                for name, value in (
+                    ("key", key),
+                    ("snapshot_id", snapshot_id),
+                    ("source_root_identity", source_root_identity),
+                )
+                if value is not None
+            },
+        )
+        return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "removed": removed, "storage": "hbp-log"}
 
     def _receipt(
         self,
@@ -374,6 +373,8 @@ class ContextBindingCache:
         }
 
     def _read(self) -> dict[str, Any]:
+        if self.log_path.is_file():
+            return self._read_log()
         if not self.path.is_file():
             return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}}
         try:
@@ -389,8 +390,138 @@ class ContextBindingCache:
         }
 
     def _write(self, payload: dict[str, Any]) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        write_text_atomic(self.path, json.dumps(payload, sort_keys=True, separators=(",", ":")))
+        for key, entry in payload.get("entries", {}).items():
+            if isinstance(entry, dict) and isinstance(entry.get("identity"), dict):
+                self._append_event("put", str(key), identity=entry["identity"])
+
+    @staticmethod
+    def _matches(
+        candidate: str,
+        entry: Any,
+        *,
+        key: str | None,
+        snapshot_id: str | None,
+        source_root_identity: str | None,
+    ) -> bool:
+        identity = entry.get("identity") if isinstance(entry, dict) else None
+        return (
+            (key is None or candidate == key)
+            and (
+                snapshot_id is None
+                or (isinstance(identity, dict) and identity.get("snapshot_id") == snapshot_id)
+            )
+            and (
+                source_root_identity is None
+                or (
+                    isinstance(identity, dict)
+                    and identity.get("source_root_identity") == source_root_identity
+                )
+            )
+        )
+
+    def _read_log(self) -> dict[str, Any]:
+        entries: dict[str, dict[str, Any]] = {}
+        previous = ""
+        try:
+            lines = self.log_path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeError):
+            return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": {}}
+        for line in lines:
+            try:
+                event = json.loads(line)
+                if not isinstance(event, dict) or event.get("schema") != CONTEXT_BINDING_LOG_SCHEMA:
+                    break
+                if event.get("previous_digest", "") != previous:
+                    break
+                unsigned = dict(event)
+                digest = unsigned.pop("digest", None)
+                expected = "sha256:" + hashlib.sha256(
+                    json.dumps(unsigned, sort_keys=True, separators=(",", ":")).encode("utf-8")
+                ).hexdigest()
+                if digest != expected:
+                    break
+                kind = event.get("kind")
+                if (
+                    kind == "put"
+                    and isinstance(event.get("key"), str)
+                    and isinstance(event.get("identity"), dict)
+                ):
+                    entries[event["key"]] = {"identity": event["identity"]}
+                elif kind == "invalidate":
+                    criteria = event.get("criteria", {})
+                    entries = {
+                        candidate: value
+                        for candidate, value in entries.items()
+                        if not self._matches(
+                            candidate,
+                            value,
+                            key=criteria.get("key"),
+                            snapshot_id=criteria.get("snapshot_id"),
+                            source_root_identity=criteria.get("source_root_identity"),
+                        )
+                    }
+                else:
+                    break
+                previous = str(digest)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                break
+        return {"schema": CONTEXT_BINDING_CACHE_SCHEMA, "entries": entries}
+
+    def _append_event(
+        self,
+        kind: str,
+        key: str | None = None,
+        *,
+        identity: dict[str, str] | None = None,
+        criteria: dict[str, str] | None = None,
+    ) -> None:
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        deadline = time.monotonic() + 10
+        while True:
+            try:
+                fd = os.open(self.lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.close(fd)
+                break
+            except FileExistsError:
+                if time.monotonic() >= deadline:
+                    raise MapperContextError(
+                        "CONTEXT_CACHE_LOCK_TIMEOUT", "context cache writer lock is busy"
+                    ) from None
+                time.sleep(0.01)
+        try:
+            previous = ""
+            if self.log_path.is_file():
+                rows = self.log_path.read_text(encoding="utf-8").splitlines()
+                if rows:
+                    previous = str(json.loads(rows[-1]).get("digest", ""))
+            event: dict[str, Any] = {
+                "schema": CONTEXT_BINDING_LOG_SCHEMA,
+                "kind": kind,
+                "previous_digest": previous,
+            }
+            if key is not None:
+                event["key"] = key
+            if identity is not None:
+                event["identity"] = identity
+            if criteria is not None:
+                event["criteria"] = criteria
+            event["digest"] = "sha256:" + hashlib.sha256(
+                json.dumps(event, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest()
+            with self.log_path.open("a", encoding="utf-8", newline="\n") as handle:
+                handle.write(json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+        finally:
+            self.lock_path.unlink(missing_ok=True)
+
+    def _migrate_legacy_once(self) -> None:
+        if self.log_path.is_file() or not self.path.is_file():
+            return
+        legacy = self._read()
+        for key, entry in legacy.get("entries", {}).items():
+            if isinstance(entry, dict) and isinstance(entry.get("identity"), dict):
+                self._append_event("put", str(key), identity=entry["identity"])
 
 
 def _source_handles(graph: Mapping[str, Any]) -> tuple[Mapping[str, Any], ...]:
@@ -673,11 +804,34 @@ def bind_mapper_context(
     return ContextBinding(snapshot=snapshot, pack=pack, context_handle=handle)
 
 
-def verify_context_sources(binding: ContextBinding, *, source_root: str) -> None:
-    """Fail closed when any projected source changed before effect dispatch."""
+def verify_context_sources(
+    binding: ContextBinding,
+    *,
+    source_root: str,
+    paths: tuple[str, ...] | list[str] | None = None,
+) -> dict[str, Any]:
+    """Fail closed when projected sources changed before effect dispatch.
+
+    ``paths`` is a causal verification set supplied by the compiler. An
+    absent set intentionally falls back to the complete ContextPack for old
+    Mapper producers; this keeps the safety proof stronger than the fast path.
+    """
 
     root = Path(source_root).resolve()
-    for entry in binding.pack.files:
+    requested = {str(path).replace("\\", "/") for path in paths or ()}
+    entries = [
+        entry
+        for entry in binding.pack.files
+        if not requested or str(entry["path"]).replace("\\", "/") in requested
+    ]
+    metrics: dict[str, Any] = {
+        "files_considered": len(entries),
+        "files_hashed": 0,
+        "bytes_read": 0,
+        "engine": "python-bytes",
+        "fallback_reason": None if requested else "causal_set_absent_full_verification",
+    }
+    for entry in entries:
         raw_path = str(entry["path"]).replace("\\", "/")
         relative = PurePosixPath(raw_path)
         if relative.is_absolute() or ".." in relative.parts:
@@ -692,14 +846,17 @@ def verify_context_sources(binding: ContextBinding, *, source_root: str) -> None
                 "CONTEXT_ROOT_PATH_MISMATCH", f"ContextPack source escapes root: {raw_path}"
             ) from exc
         try:
-            text = candidate.read_text(encoding="utf-8", errors="replace")
+            content = candidate.read_bytes()
         except OSError as exc:
             raise MapperContextError(
                 "SOURCE_DRIFT", f"ContextPack source is missing or unreadable: {raw_path}"
             ) from exc
-        actual = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        metrics["files_hashed"] += 1
+        metrics["bytes_read"] += len(content)
+        actual = hashlib.sha256(content).hexdigest()
         if actual != entry["snapshot_hash"]:
             raise MapperContextError("SOURCE_DRIFT", f"ContextPack source changed: {raw_path}")
+    return metrics
 
 
 def load_mapper_context(payload: Any, *, source_root: str | None = None) -> MapperContextAdapter:

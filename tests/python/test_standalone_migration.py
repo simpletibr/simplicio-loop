@@ -249,14 +249,14 @@ def test_task_patch_receipt_is_always_marked_legacy():
 
     assert pipeline._LAST_PATCH_RECEIPT is not None
     route = pipeline._LAST_PATCH_RECEIPT["mutation_route"]
-    assert route["route"] == "legacy_standalone"
+    assert route["route"] == "standalone"
     assert route["runtime_gated"] is False
     pipeline._remember_patch_receipt(None)
 
 
 def test_effective_modes_map_to_stable_mutation_routes():
     assert mutation_route_for_mode("integrated") == "runtime_effect_api"
-    assert mutation_route_for_mode("standalone") == "legacy_standalone"
+    assert mutation_route_for_mode("standalone") == "standalone"
     assert mutation_route_for_mode("blocked") == "blocked"
 
 
@@ -306,7 +306,7 @@ def test_edit_opt_in_keeps_offline_legacy_compatibility(tmp_path, monkeypatch, c
     payload = json.loads(capsys.readouterr().out)
 
     assert code == 0
-    assert payload["mutation_receipt"]["route"] == "legacy_standalone"
+    assert payload["mutation_receipt"]["route"] == "standalone"
     assert (tmp_path / "product.txt").read_text(encoding="utf-8") == "changed\n"
 
 
