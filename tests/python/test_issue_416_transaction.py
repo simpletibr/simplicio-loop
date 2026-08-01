@@ -2,21 +2,24 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
-from simplicio.changeset_v2 import execute_changeset
 from simplicio.changeset_transaction import (
     ChangesetTransactionError,
     _hash,
     _paths,
     _safe_path,
     _state_path,
+    execute_changeset_transaction,
     existing_transaction_result,
     recover_changeset_transaction,
-    execute_changeset_transaction,
 )
+from simplicio.changeset_v2 import adapt_changeset, execute_changeset
 
 
 def _changeset(*, content: str = "new\n") -> dict:
@@ -126,6 +129,138 @@ def test_recover_committing_journal_restores_before_hashes(tmp_path):
     assert recovered["status"] == "recovered"
     assert target.read_bytes() == original
     assert json.loads(state_path.read_text(encoding="utf-8"))["state"] == "ROLLED_BACK"
+
+
+def test_concurrent_change_is_journaled_as_precommit_refusal_and_replayable(tmp_path, monkeypatch):
+    from simplicio import changeset_transaction
+
+    target = tmp_path / "a.txt"
+    target.write_text("old\n", encoding="utf-8")
+    original = changeset_transaction.execute_plan
+
+    def mutate_source_then_stage(plan, *, root, apply, allow_native):
+        target.write_text("external\n", encoding="utf-8")
+        return original(plan, root=root, apply=apply, allow_native=allow_native)
+
+    monkeypatch.setattr(changeset_transaction, "execute_plan", mutate_source_then_stage)
+    result = execute_changeset_transaction(
+        {
+            "schema": "simplicio.mechanical-edit/v1",
+            "touched_files": ["a.txt"],
+            "operations": [],
+        },
+        root=tmp_path,
+        idempotency_key="concurrent-refusal",
+        changeset_digest_value="digest",
+    )
+
+    assert result["status"] == "refused"
+    assert result["errors"][0]["code"] == "CONCURRENT_MODIFICATION"
+    assert result["transaction"]["state"] == "FAILED_BEFORE_COMMIT"
+    replay = existing_transaction_result(
+        tmp_path,
+        idempotency_key="concurrent-refusal",
+        changeset_digest_value="digest",
+    )
+    assert replay["status"] == "refused"
+    assert replay["replayed"] is True
+    assert target.read_text(encoding="utf-8") == "external\n"
+
+
+def test_typed_commit_filesystem_failure_enters_rollback_path(tmp_path, monkeypatch):
+    from simplicio import changeset_transaction
+
+    target = tmp_path / "a.txt"
+    target.write_text("old\n", encoding="utf-8")
+    real_replace = changeset_transaction.os.replace
+
+    def fail_replace(source, destination):
+        if Path(source).name.startswith(".a.txt.") and Path(destination).name == "a.txt":
+            raise changeset_transaction.ChangesetTransactionError(
+                "WINDOWS_SHARING_VIOLATION", "target is locked"
+            )
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(changeset_transaction.os, "replace", fail_replace)
+    with pytest.raises(ChangesetTransactionError, match="rolled back"):
+        execute_changeset_transaction(
+            adapt_changeset(_changeset()),
+            root=tmp_path,
+            idempotency_key="locked-target",
+            changeset_digest_value="digest-locked",
+        )
+    assert target.read_text(encoding="utf-8") == "old\n"
+
+
+@pytest.mark.parametrize("workers", [2, 10, 50])
+def test_process_concurrency_serializes_one_idempotency_key(tmp_path, workers):
+    """Real child processes must serialize the same transaction key."""
+    target = tmp_path / "a.txt"
+    target.write_text("old\n", encoding="utf-8")
+    worker = tmp_path / "worker.py"
+    worker.write_text(
+        """
+from __future__ import annotations
+import json
+import sys
+import time
+from pathlib import Path
+from simplicio.changeset_transaction import ChangesetTransactionError, execute_changeset_transaction
+
+root = Path(sys.argv[1])
+key = sys.argv[2]
+plan = json.loads(sys.argv[3])
+gate = Path(sys.argv[4])
+while not gate.exists():
+    time.sleep(0.01)
+try:
+    result = execute_changeset_transaction(
+        plan, root=root, idempotency_key=key, changeset_digest_value="digest-concurrent"
+    )
+except ChangesetTransactionError as exc:
+    print(json.dumps({"error": exc.code}), flush=True)
+    raise SystemExit(2)
+print(json.dumps(result), flush=True)
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    plan = {
+        "schema": "simplicio.mechanical-edit/v1",
+        "touched_files": ["a.txt"],
+        "operations": [
+            {"op": "replace_range", "path": "a.txt", "start_line": 1, "end_line": 1, "text": "new\n"}
+        ],
+        "validation": [{"cmd": [sys.executable, "-c", "import time; time.sleep(0.5)"]}],
+    }
+    env = os.environ.copy()
+    repo_root = str(Path(__file__).resolve().parents[2])
+    env["PYTHONPATH"] = repo_root + os.pathsep + env.get("PYTHONPATH", "")
+    encoded_plan = json.dumps(plan, separators=(",", ":"))
+    gate = tmp_path / "start.flag"
+    log_handles = []
+    processes = []
+    for index in range(workers):
+        log_handle = (tmp_path / f"worker-{index}.log").open("w", encoding="utf-8")
+        log_handles.append(log_handle)
+        processes.append(
+            subprocess.Popen(
+                [sys.executable, str(worker), str(tmp_path), "process-concurrent", encoded_plan, str(gate)],
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=log_handle,
+                stderr=log_handle,
+            )
+        )
+    gate.write_text("go\n", encoding="utf-8")
+    for process in processes:
+        process.wait(timeout=30)
+    for log_handle in log_handles:
+        log_handle.close()
+
+    assert sum(process.returncode == 0 for process in processes) == 1
+    assert sum(process.returncode == 2 for process in processes) == workers - 1
+    assert target.read_text(encoding="utf-8") == "new\n"
 
 
 def test_transaction_path_and_hash_guards_fail_closed(tmp_path):
