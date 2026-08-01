@@ -209,9 +209,9 @@ def _remember_patch_receipt(receipt: dict[str, Any] | None) -> None:
         {
             "schema": "simplicio.dev-cli.mutation-route/v1",
             "entrypoint": "task",
-            "route": "legacy_standalone",
+            "route": "standalone",
             "runtime_gated": False,
-            "legacy": True,
+            "legacy": False,
         },
     )
     _LAST_PATCH_RECEIPT = payload
@@ -1382,7 +1382,7 @@ def _finalize_task_result(
     elif effective_mode == "integrated":
         route = "runtime_effect_api"
     else:
-        route = "legacy_standalone"
+        route = "standalone"
     context = _receipt_context(root, target, kwargs)
     attempt = kwargs.get("integrated_attempt")
     return _attach_contract_receipt(

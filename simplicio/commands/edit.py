@@ -65,12 +65,12 @@ def run_mechanical_edit(a: argparse.Namespace) -> int:
         )
     else:
         result = execute_plan_json(plan_text, root=a.root, apply=a.apply)
-        result["mutation_receipt"] = mutation_receipt("legacy_standalone", entrypoint="edit", policy=policy)
+        result["mutation_receipt"] = mutation_receipt("standalone", entrypoint="edit", policy=policy)
         if a.apply:
             emit_mutation_route(
                 root=a.root,
                 entrypoint="edit",
-                route="legacy_standalone",
+                route="standalone",
                 reason_code=policy.reason_code,
                 policy=policy,
             )
