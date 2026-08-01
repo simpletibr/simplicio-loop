@@ -29,6 +29,7 @@ from simplicio_mapper.mapper.graph import (  # noqa: E402
     build_macro_map,
 )
 from simplicio_mapper.mapper.parse import _build_file_inventory, _now_iso  # noqa: E402
+from simplicio_mapper import _native  # noqa: E402
 from simplicio_mapper.models import ProjectFile  # noqa: E402
 
 
@@ -90,6 +91,31 @@ class SymbolAndCallGraphTest(unittest.TestCase):
         call_graph = _build_call_graph(str(self.dir), files, symbol_index, generated_at)
         self.assertEqual(call_graph["schema"], "simplicio.call-graph/v1")
         self.assertIsInstance(call_graph["edges"], list)
+
+    def test_native_symbol_index_canonicalizes_rich_records(self) -> None:
+        original_available = _native.HAS_NATIVE
+        original_builder = _native.build_symbol_index
+        calls: list[list[tuple[str, str, int]]] = []
+
+        def canonicalize(records: list[tuple[str, str, int]]) -> list[tuple[str, str, int]]:
+            calls.append(records)
+            return sorted(records, key=lambda item: (item[1], item[0], item[2]))
+
+        _native.HAS_NATIVE = True
+        _native.build_symbol_index = canonicalize
+        try:
+            files = _build_file_inventory(str(self.dir), {}, {}, None)
+            result = _build_symbol_index(str(self.dir), files, _now_iso())
+        finally:
+            _native.HAS_NATIVE = original_available
+            _native.build_symbol_index = original_builder
+
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(
+            [(item["name"], item["defined_in"]) for item in result["symbols"]],
+            [("greet", "src/greet.py"), ("run", "src/main.py")],
+        )
+        self.assertEqual(result["symbols"][0]["kind"], "function")
 
 
 class SymbolLineNumberBlankLinesTest(unittest.TestCase):

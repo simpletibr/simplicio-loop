@@ -13,6 +13,7 @@ import re
 import subprocess
 from bisect import bisect_right
 
+from .. import _native
 from ..models import ProjectFile
 from .parse import (
     _RE_CONFIG,
@@ -271,6 +272,20 @@ def _build_symbol_index(
     for file in files:
         text = _content_for(cwd, file.path, contents)
         symbols.extend(_symbol_definitions_for_file(file, text))
+    if _native.HAS_NATIVE and _native.build_symbol_index is not None and symbols:
+        # The native engine canonicalizes partition output by symbol/path/line.
+        # Reorder the rich Python records with that key while retaining kind,
+        # language, evidence, and every other schema field produced above.
+        records = [
+            (str(item["defined_in"]), str(item["name"]), int(item["line"]))
+            for item in symbols
+        ]
+        canonical = _native.build_symbol_index(records)
+        by_key = {
+            (str(item["defined_in"]), str(item["name"]), int(item["line"])): item
+            for item in symbols
+        }
+        symbols = [by_key[key] for key in canonical if key in by_key]
     return {
         "schema": SYMBOL_INDEX_SCHEMA,
         "version": ARTIFACT_VERSION,
