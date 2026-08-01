@@ -34,6 +34,7 @@ from simplicio_mapper.cli import (  # noqa: E402
 # build_service_flowchart/render_service_flowchart_markdown are), so this test
 # reaches into the submodule directly rather than growing __init__.py's
 # re-export list for a white-box unit test.
+from simplicio_mapper.cli._background import _reap_background_index  # noqa: E402
 from simplicio_mapper.cli._endpoints import _normalize_endpoint_path  # noqa: E402
 from simplicio_mapper.cli._index_engine import (  # noqa: E402
     _process_is_alive,
@@ -502,6 +503,29 @@ class CliTest(unittest.TestCase):
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["schema"], "simplicio.mapper-index/v1")
         self.assertEqual(payload["status"], "updated")
+
+    def test_index_rebuilds_partial_state_instead_of_fast_skip(self) -> None:
+        _write(self.dir, "package.json", json.dumps({"name": "partial-state-host"}))
+        _write(self.dir, "src/index.js", "export function run() {}\n")
+
+        self.assertEqual(main(["index", str(self.dir)]), 0)
+        state_path = self.dir / ".simplicio" / "index-state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["completeness"] = "partial"
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+
+        out = StringIO()
+        with redirect_stdout(out):
+            code = main(["index", str(self.dir), "--update", "--json"])
+
+        self.assertEqual(code, 0)
+        payload = json.loads(out.getvalue())
+        self.assertEqual(payload["status"], "updated")
+        self.assertNotEqual(payload["status"], "skipped")
+        self.assertIsNone(payload["skipped_reason"])
+        rebuilt_state = json.loads(state_path.read_text(encoding="utf-8"))
+        self.assertEqual(rebuilt_state["completeness"], "complete")
+        self.assertFalse((self.dir / ".simplicio" / "partial-scan.json").exists())
 
     def test_index_skips_fresh_artifacts_quietly(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "fresh-host"}))
@@ -1076,6 +1100,49 @@ def load(api):
                 break
             time.sleep(0.05)
         self.assertFalse(_process_is_alive(payload["pid"]), "background process did not terminate")
+
+    def test_background_reaper_fails_closed_and_preserves_other_jobs(self) -> None:
+        class CompletedWorker:
+            def __init__(self, exit_code: int) -> None:
+                self.exit_code = exit_code
+
+            def wait(self) -> int:
+                return self.exit_code
+
+        job_path = self.dir / ".simplicio" / "map-job.json"
+        job_path.parent.mkdir(parents=True, exist_ok=True)
+        for exit_code, reason in ((0, "worker_exit_0_before_terminal"), (7, "worker_exit_7")):
+            payload = {"pid": 412, "process_start": f"start-{exit_code}"}
+            job_path.write_text(
+                json.dumps({"schema": "simplicio.map-job/v1", "phase": "macro_done", "deep": dict(payload)}),
+                encoding="utf-8",
+            )
+            _reap_background_index(CompletedWorker(exit_code), payload, str(self.dir), ".simplicio")
+            job = json.loads(job_path.read_text(encoding="utf-8"))
+            self.assertEqual(job["phase"], "failed")
+            self.assertEqual(job["deep"]["exit_code"], exit_code)
+            self.assertEqual(job["deep"]["failure_reason"], reason)
+            self.assertIn("finished_at", job["deep"])
+
+        unchanged = {
+            "schema": "simplicio.map-job/v1",
+            "phase": "complete",
+            "deep": {"pid": 412, "process_start": "terminal", "exit_code": 0},
+        }
+        job_path.write_text(json.dumps(unchanged), encoding="utf-8")
+        _reap_background_index(CompletedWorker(7), unchanged["deep"], str(self.dir), ".simplicio")
+        self.assertEqual(json.loads(job_path.read_text(encoding="utf-8")), unchanged)
+
+        mismatch = {
+            "schema": "simplicio.map-job/v1",
+            "phase": "macro_done",
+            "deep": {"pid": 999, "process_start": "other"},
+        }
+        job_path.write_text(json.dumps(mismatch), encoding="utf-8")
+        _reap_background_index(
+            CompletedWorker(7), {"pid": 412, "process_start": "start-7"}, str(self.dir), ".simplicio"
+        )
+        self.assertEqual(json.loads(job_path.read_text(encoding="utf-8")), mismatch)
 
     def test_docs_only_renders_without_index_payload(self) -> None:
         _write(self.dir, "package.json", json.dumps({"name": "docs-only-host"}))

@@ -88,13 +88,47 @@ def _spawn_index_process(opts: dict) -> tuple[dict, subprocess.Popen]:
     return payload, child
 
 
+def _reap_background_index(child: subprocess.Popen, payload: dict, root: str, out: str) -> None:
+    """Persist one detached worker's terminal result without trusting a reused PID."""
+    exit_code = child.wait()
+    job_path = os.path.join(os.path.abspath(os.path.join(root, out)), "map-job.json")
+    for _ in range(50):
+        try:
+            with open(job_path, encoding="utf-8") as handle:
+                job = json.load(handle)
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            time.sleep(0.01)
+            continue
+        deep = job.get("deep") if isinstance(job.get("deep"), dict) else {}
+        if deep.get("pid") != payload["pid"] or deep.get("process_start") != payload["process_start"]:
+            return
+        if job.get("phase") in ("complete", "failed"):
+            return
+        deep["exit_code"] = exit_code
+        deep["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        deep["failure_reason"] = (
+            f"worker_exit_{exit_code}_before_terminal" if exit_code == 0 else f"worker_exit_{exit_code}"
+        )
+        job["deep"] = deep
+        job["phase"] = "failed"
+        temporary = f"{job_path}.tmp-{os.getpid()}"
+        with open(temporary, "w", encoding="utf-8") as handle:
+            json.dump(job, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        os.replace(temporary, job_path)
+        return
+
+
 def _spawn_background_index(opts: dict) -> dict:
     """Spawn a detached ``index`` refresh; return its ``pid``/``log`` payload."""
     payload, child = _spawn_index_process(opts)
-    # Keep the Popen object alive until the detached child exits. Besides
-    # reaping it, this prevents Python's Windows ResourceWarning from closing
-    # a still-active process handle during object finalization.
-    threading.Thread(target=child.wait, name=f"simplicio-index-{child.pid}", daemon=True).start()
+    root = os.path.abspath(opts["root"])
+    threading.Thread(
+        target=_reap_background_index,
+        args=(child, payload, root, opts["out"]),
+        name=f"simplicio-index-{child.pid}",
+        daemon=True,
+    ).start()
     return payload
 
 
@@ -169,6 +203,7 @@ def _run_index_locked(opts: dict, root: str, out: str, lock) -> int:
 
     if (
         state.get("schema") == INDEX_STATE_SCHEMA
+        and state.get("completeness", "complete") == "complete"
         and state.get("signature") == current_signature
         and _artifacts_exist(paths)
     ):
