@@ -10,6 +10,7 @@ import pytest
 from simplicio import cli
 from simplicio.fast_contracts import (
     FastEngineError,
+    FastEngineSession,
     NativeFastDecoder,
     NoFastEngine,
     PythonFastEngine,
@@ -104,6 +105,15 @@ def test_fast_engine_selection_is_explicit_and_in_memory():
     assert select_fast_engine("none").name == "none"
     with pytest.raises(FastEngineError, match="fast engine must be"):
         select_fast_engine("invalid")
+
+
+def test_fast_engine_session_reuses_engine_until_capability_fingerprint_changes(monkeypatch):
+    session = FastEngineSession()
+    first = session.select("python")
+    assert session.select("python") is first
+    monkeypatch.setenv("SIMPLICIO_FAST_VERSION", "2.0.18")
+    assert session.select("python") is not first
+    session.close()
 
 
 def test_fast_engine_validates_generation_and_extracts_changed_paths():
