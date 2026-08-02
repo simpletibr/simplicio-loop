@@ -143,9 +143,13 @@ def _external_lane_matrix(root: Path, commit_sha: str | None) -> tuple[dict[str,
     """Represent lanes not owned by this local gate without fake metrics."""
     lanes = {
         "windows": {
-            "status": "PASS" if platform.system() == "Windows" else "UNAVAILABLE",
-            "value": True if platform.system() == "Windows" else None,
-            "reason": None if platform.system() == "Windows" else "windows_lane_requires_a_real_Windows_host",
+            "status": "UNVERIFIED" if platform.system() == "Windows" else "UNAVAILABLE",
+            "value": None,
+            "reason": (
+                "windows_locked_file_external_e2e_requires_installed_evidence"
+                if platform.system() == "Windows"
+                else "windows_lane_requires_a_real_Windows_host"
+            ),
         },
         "runtime": {
             "status": "UNVERIFIED",
@@ -206,7 +210,7 @@ def _external_lane_matrix(root: Path, commit_sha: str | None) -> tuple[dict[str,
             lanes[lane_name].update({"status": "PASS", "value": True, "reason": None})
         elif status == "UNAVAILABLE":
             lanes[lane_name].update({"status": "UNAVAILABLE", "value": None, "reason": row.get("reason")})
-        elif status == "UNVERIFIED":
+        elif status in {"UNVERIFIED", "AVAILABLE_NOT_E2E"}:
             lanes[lane_name].update({"status": "UNVERIFIED", "value": None, "reason": row.get("reason")})
         else:
             lanes[lane_name].update({"status": "FAIL", "value": False, "reason": row.get("reason")})
