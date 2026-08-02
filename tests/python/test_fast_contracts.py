@@ -136,6 +136,12 @@ def test_fast_engine_validates_generation_and_extracts_changed_paths():
         engine.validate_generation({}, current=None)
 
 
+def test_fast_engine_changed_paths_ignores_non_list_and_non_mapping_operations():
+    engine = NoFastEngine()
+    assert engine.changed_paths({"touched_files": ["a.py", ""], "operations": ("ignored",)}) == ("a.py",)
+    assert engine.changed_paths({"operations": ["ignored", {"target": "b.py"}]}) == ("b.py",)
+
+
 def test_fast_engine_refresh_is_selective_and_fail_closed():
     engine = NoFastEngine()
     called = []
@@ -195,6 +201,16 @@ def test_fast_engine_refresh_failure_and_unknown_resume_are_fail_closed():
         "reason": "unknown_refresh",
         "refresh_id": "missing-refresh",
     }
+
+
+def test_fast_engine_refresh_callback_is_idempotent_when_selected_twice():
+    engine = NoFastEngine()
+    calls = []
+    first = engine.refresh(["a.py"], refresh_fn=lambda paths: calls.append(paths) or {"ok": True})
+    second = engine.refresh(["a.py"], refresh_fn=lambda _paths: pytest.fail("refresh repeated"))
+    assert first["status"] == "refreshed"
+    assert second["idempotent"] is True
+    assert calls == [("a.py",)]
 
 
 def test_cli_exit_codes_offline_help_and_metadata_receipt(monkeypatch, tmp_path, capsys):
@@ -384,6 +400,36 @@ def test_native_fast_decoder_rejects_process_start_and_read_failures(monkeypatch
     decoder._process = type("Process", (), {"stdout": None})()
     with pytest.raises(FastEngineError, match="no stdout"):
         decoder._read()
+
+    decoder._process = type("Process", (), {"stdout": type("Stream", (), {"readline": lambda _self: ""})()})()
+    with pytest.raises(FastEngineError, match="closed"):
+        decoder._read()
+
+
+def test_native_fast_decoder_rejects_missing_stdin_and_write_failure():
+    import simplicio.fast_contracts as fast_contracts
+
+    decoder = object.__new__(NativeFastDecoder)
+    decoder._lock = fast_contracts.threading.Lock()
+    decoder._process = type("Process", (), {"stdin": None})()
+    with pytest.raises(FastEngineError, match="no stdin"):
+        decoder(b"payload")
+
+    class BrokenStream:
+        def write(self, _value):
+            raise OSError("closed")
+
+        def flush(self):
+            return None
+
+    decoder._process = type("Process", (), {"stdin": BrokenStream()})()
+    with pytest.raises(FastEngineError, match="request failed"):
+        decoder(b"payload")
+
+
+def test_fast_session_fingerprint_handles_missing_native(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_FAST_NATIVE", "C:/does-not-exist/fast-native.exe")
+    assert FastEngineSession._fingerprint()[-1] == ("C:/does-not-exist/fast-native.exe", "missing")
 
 
 @pytest.mark.parametrize(
