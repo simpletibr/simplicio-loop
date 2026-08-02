@@ -23,11 +23,17 @@ from tests.python.test_issue_drain_bundle import _envelope
 
 def test_effect_store_failures_remain_typed(tmp_path, monkeypatch) -> None:
     transaction = EffectTransaction(tmp_path)
-    monkeypatch.setattr(transaction.store, "read", lambda _key: (_ for _ in ()).throw(StoreAdapterError("STORE_CORRUPT")))
+    monkeypatch.setattr(
+        transaction.store, "read", lambda _key: (_ for _ in ()).throw(StoreAdapterError("STORE_CORRUPT"))
+    )
     with pytest.raises(EffectTransactionError, match="RECOVERY_REQUIRED"):
         transaction.transitions("broken")
 
-    monkeypatch.setattr(transaction.store, "write", lambda _key, _value: (_ for _ in ()).throw(StoreAdapterError("STORE_WRITE_FAILED")))
+    monkeypatch.setattr(
+        transaction.store,
+        "write",
+        lambda _key, _value: (_ for _ in ()).throw(StoreAdapterError("STORE_WRITE_FAILED")),
+    )
     with pytest.raises(EffectTransactionError, match="STORE_WRITE_FAILED"):
         transaction._write_record("broken", {})
 
@@ -116,9 +122,12 @@ def test_write_set_mapper_unavailable_and_status_helpers(tmp_path, monkeypatch) 
     assert write_set_lock.WriteSetLockManager._record_path({"owner": {"write_set_path": 3}}) is None
     assert write_set_lock.WriteSetLockManager._handle_from_status(Path("x.lock"), {}) is None
     assert write_set_lock.WriteSetLockManager._handle_from_status(Path("x.lock"), {"owner": {}}) is None
-    assert write_set_lock.WriteSetLockManager._handle_from_status(
-        Path("x.lock"), {"owner": {"owner_token": "token"}}
-    ) is not None
+    assert (
+        write_set_lock.WriteSetLockManager._handle_from_status(
+            Path("x.lock"), {"owner": {"owner_token": "token"}}
+        )
+        is not None
+    )
 
 
 def test_write_set_active_status_and_malformed_owner(tmp_path, monkeypatch) -> None:
@@ -155,6 +164,7 @@ def test_write_set_conflict_acquire_and_partial_cleanup(tmp_path, monkeypatch) -
         manager.acquire(["a.txt"], owner="owner", lease_id="lease", fencing_token="fence")
 
     handles = []
+
     def acquire_then_fail(_path, *, operation, extra_fields):
         if not handles:
             handle = object()
@@ -326,9 +336,13 @@ def test_prism_conflict_fence_and_store_failures(tmp_path, monkeypatch) -> None:
     with pytest.raises(EffectTransactionError, match="RECOVERY_REQUIRED"):
         transaction._store(envelope, "GATED", None)
 
-    monkeypatch.setattr(transaction.store, "read", lambda _key: (_ for _ in ()).throw(StoreAdapterError("bad")))
+    monkeypatch.setattr(
+        transaction.store, "read", lambda _key: (_ for _ in ()).throw(StoreAdapterError("bad"))
+    )
     with pytest.raises(EffectTransactionError, match="RECOVERY_REQUIRED"):
         transaction._read("key")
-    monkeypatch.setattr(transaction.store, "write", lambda _key, _value: (_ for _ in ()).throw(StoreAdapterError("bad")))
+    monkeypatch.setattr(
+        transaction.store, "write", lambda _key, _value: (_ for _ in ()).throw(StoreAdapterError("bad"))
+    )
     with pytest.raises(EffectTransactionError, match="STORE_WRITE_FAILED"):
         transaction._write("key", {})

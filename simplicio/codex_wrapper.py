@@ -167,11 +167,21 @@ def route_through_runtime(
     environment["SIMPLICIO_CODEX_ARGV_JSON"] = json.dumps(argv)
     environment["SIMPLICIO_HOOK_GUARD"] = "1"
     environment["SIMPLICIO_CODEX_ROUTE"] = "runtime"
-    runtime_argv = [command, "run", prompt, "--repo", cwd or os.getcwd(), "--evidence", "--json"]
+    command_path = Path(command)
+    command_argv = [command]
+    if os.name == "nt" and command_path.is_file():
+        try:
+            first_line = command_path.open("rb").readline().lower()
+        except OSError:
+            first_line = b""
+        if first_line.startswith(b"#!") and b"python" in first_line:
+            command_argv = [sys.executable, command]
+    runtime_argv = [*command_argv, "run", prompt, "--repo", cwd or os.getcwd(), "--evidence", "--json"]
     return subprocess.run(
         runtime_argv,
         cwd=cwd,
         env=environment,
+        stdin=subprocess.DEVNULL,
         text=True,
         capture_output=True,
         check=False,
