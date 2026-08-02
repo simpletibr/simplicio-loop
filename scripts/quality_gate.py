@@ -357,9 +357,18 @@ def verify_receipt(path: Path, root: Path) -> tuple[bool, str]:
         return False, "receipt_sha_stale"
     if payload.get("dirty") or _git(root.resolve(), "status", "--porcelain"):
         return False, "checkout_dirty"
-    if payload.get("passed") is not True or any(
-        not isinstance(step, dict) or step.get("exit_code") != 0 for step in payload.get("commands", [])
+    commands = payload.get("commands", [])
+    external_lanes = payload.get("external_lanes", {})
+    if not isinstance(commands, list) or any(
+        not isinstance(step, dict) or step.get("exit_code") != 0 for step in commands
     ):
+        return False, "gate_failed"
+    if not isinstance(external_lanes, dict) or any(
+        isinstance(lane, dict) and lane.get("status") == "FAIL"
+        for lane in external_lanes.values()
+    ):
+        return False, "external_lane_failed"
+    if payload.get("passed") is not True:
         return False, "gate_failed"
     return True, "verified"
 
