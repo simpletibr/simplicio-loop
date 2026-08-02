@@ -519,9 +519,9 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
     assert result["context_binding"]["cache"]["hit"] is False
     assert result["verification_metrics"]["bind"]["files_hashed"] == 0
     assert result["verification_metrics"]["bind"]["fallback_reason"] == "causal_verification_deferred"
-    # This legacy task adapter has no typed causal set, so the safety fallback
-    # remains a full verification; it is still the only source scan.
-    assert result["verification_metrics"]["pre_effect"]["files_hashed"] == 10
+    # The raw integrated adapter now carries its known target as a typed
+    # causal set; only that target is hashed before the effect.
+    assert result["verification_metrics"]["pre_effect"]["files_hashed"] == 2
     assert observation["resources"]["effect_calls"] == 1
     assert observation["resources"]["threads_created"] == 0
 

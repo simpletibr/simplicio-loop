@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+from collections.abc import Iterable
 
 from simplicio.plan_compiler.errors import PlanCompilerError
 from simplicio.plan_compiler.models import EffectPlan, PlanDAG, PlanNode, VerificationPlan
@@ -23,6 +24,15 @@ from simplicio.task_spec import TaskSpec
 
 EDIT_NODE_ID = "edit"
 VERIFY_NODE_ID = "verify"
+
+
+def _causal_paths(task_spec: TaskSpec, field: str) -> list[str]:
+    raw = task_spec.extra_fields.get(field, ())
+    if isinstance(raw, str):
+        raw = (raw,)
+    if not isinstance(raw, Iterable):
+        return []
+    return sorted({str(path).replace("\\", "/").strip() for path in raw if str(path).strip()})
 
 
 class PlanCompilationError(PlanCompilerError):
@@ -98,6 +108,9 @@ def compile_task_spec_to_plan(
     if diagnostics:
         raise PlanCompilationError("; ".join(diagnostics))
 
+    causal_read_set = _causal_paths(task_spec, "causal_read_set")
+    causal_write_set = _causal_paths(task_spec, "causal_write_set")
+
     ac_refs = [str(criterion["id"]) for criterion in task_spec.acceptance_criteria]
     context_budget_tokens = int(task_spec.extra_fields.get("context_budget_tokens", 0))
     context_consumed_tokens = int(task_spec.extra_fields.get("context_consumed_tokens", 0))
@@ -113,6 +126,8 @@ def compile_task_spec_to_plan(
         node_id=EDIT_NODE_ID,
         capability="edit.apply",
         outputs=[task_spec.task_id],
+        read_set=causal_read_set,
+        write_set=causal_write_set,
         acceptance_criteria_refs=ac_refs,
         risk="medium",
         reason_codes=["task_spec_compile"],

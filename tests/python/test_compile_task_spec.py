@@ -42,6 +42,20 @@ def test_compile_task_spec_produces_valid_plan() -> None:
     plan.validate(effects=effects, verifications=verifications)
 
 
+def test_compile_task_spec_preserves_typed_causal_sets() -> None:
+    task_spec = _task_spec(
+        extra_fields={
+            "causal_read_set": ["src\\read.py", "src/shared.py"],
+            "causal_write_set": ["src/write.py", "src/shared.py"],
+        }
+    )
+
+    plan, _, _ = compile_task_spec_to_plan(task_spec, **COMPILE_KWARGS)
+
+    assert plan.nodes[0].read_set == ["src/read.py", "src/shared.py"]
+    assert plan.nodes[0].write_set == ["src/shared.py", "src/write.py"]
+
+
 def test_compile_task_spec_is_deterministic() -> None:
     task_spec = _task_spec()
     plan_a, _, _ = compile_task_spec_to_plan(task_spec, **COMPILE_KWARGS)
