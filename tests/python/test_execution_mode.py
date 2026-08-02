@@ -169,6 +169,15 @@ def test_auto_blocks_without_explicit_standalone_fallback(monkeypatch):
     assert profile.effective_mode == "standalone"
     assert profile.reason_code == "AUTO_DEGRADED"
     assert profile.fallback_reason == "INCOMPATIBLE_RUNTIME"
+    assert profile.runtime["runtime_absent_expected"] is True
+
+
+def test_auto_distinguishes_runtime_incompatibility_from_expected_absence(monkeypatch):
+    profile = negotiate_execution_mode(
+        "auto", runtime_handshake={"verified": False, "capabilities": [], "reason": "bad-version"}
+    )
+    assert profile.effective_mode == "standalone"
+    assert profile.runtime["runtime_absent_expected"] is False
 
 
 def test_shadow_observes_but_never_dispatches_integrated(monkeypatch):

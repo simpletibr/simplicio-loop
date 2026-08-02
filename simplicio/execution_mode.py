@@ -480,6 +480,12 @@ def negotiate_execution_mode(
     if not isinstance(capabilities, list):
         capabilities = []
     runtime_ready = bool(handshake.get("verified")) and RUNTIME_EFFECT_CAPABILITY in capabilities
+    runtime_reason = str(handshake.get("reason") or "")
+    runtime_absent_expected = (
+        not runtime_ready
+        and runtime_reason.lower().replace("_", "-")
+        in {"runtime-absent", "runtime-not-found", "runtime-unavailable", "not-found"}
+    )
     snapshot_schema = context_snapshot.get("schema") if isinstance(context_snapshot, dict) else None
     mapper_error: str | None = None
     mapper_adapter = None
@@ -498,6 +504,7 @@ def negotiate_execution_mode(
         "capability": RUNTIME_EFFECT_CAPABILITY,
         "capability_available": RUNTIME_EFFECT_CAPABILITY in capabilities,
         "reason": handshake.get("reason"),
+        "runtime_absent_expected": runtime_absent_expected,
     }
     mapper = {
         "schema": snapshot_schema,
