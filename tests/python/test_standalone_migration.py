@@ -260,6 +260,54 @@ def test_effective_modes_map_to_stable_mutation_routes():
     assert mutation_route_for_mode("blocked") == "blocked"
 
 
+@pytest.mark.parametrize(
+    ("effective_mode", "dry_run", "proposal_only", "expected_route"),
+    [
+        ("integrated", False, False, "runtime_effect_api"),
+        ("standalone", False, False, "standalone"),
+        ("blocked", False, False, "blocked"),
+        ("standalone", True, False, "blocked"),
+        ("standalone", False, True, "standalone"),
+    ],
+)
+def test_pipeline_route_publication_helper_preserves_mode_and_route(
+    monkeypatch, tmp_path, effective_mode, dry_run, proposal_only, expected_route
+):
+    from types import SimpleNamespace
+
+    from simplicio import pipeline
+
+    events = []
+    routes = []
+    monkeypatch.setattr(pipeline, "emit_event", lambda *args, **kwargs: events.append((args, kwargs)))
+    monkeypatch.setattr(
+        "simplicio.standalone_migration.emit_mutation_route",
+        lambda **kwargs: routes.append(kwargs),
+    )
+    profile = SimpleNamespace(
+        effective_mode=effective_mode,
+        standalone_policy={
+            "phase": "shadow",
+            "legacy_opt_in": False,
+            "write_allowed": effective_mode != "blocked",
+            "reason_code": "test",
+        },
+        requested_mode="auto",
+        reason_code="test",
+        fallback_reason=None,
+        rollout="test",
+    )
+
+    policy, route = pipeline._publish_execution_mode_selection(
+        root=str(tmp_path), profile=profile, proposal_only=proposal_only, dry_run_task=dry_run
+    )
+
+    assert policy.write_allowed is (effective_mode != "blocked")
+    assert route == expected_route
+    assert bool(routes) is (not proposal_only)
+    assert bool(events) is (not proposal_only)
+
+
 def _plan(path: Path) -> Path:
     path.write_text(
         json.dumps(
