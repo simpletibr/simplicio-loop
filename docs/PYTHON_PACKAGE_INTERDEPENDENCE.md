@@ -6,7 +6,7 @@
        python3 scripts/gen_package_interdependence.py --check
 -->
 
-Source of truth: this repo's `pyproject.toml` (`simplicio-cli` v0.18.4).
+Source of truth: this repo's `pyproject.toml` (`simplicio-cli` v0.18.5).
 
 ## Current Graph
 
@@ -15,7 +15,7 @@ simplicio-mapper >=0.26.2
 simplicio-prompt >=1.14.1
   ^          ^
   |          |
-simplicio-cli 0.18.4
+simplicio-cli 0.18.5
   ^
   |
 simplicio-sprint (downstream, depends on this package)
