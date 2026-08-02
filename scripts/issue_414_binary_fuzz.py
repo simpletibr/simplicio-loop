@@ -11,11 +11,18 @@ import argparse
 import base64
 import hashlib
 import json
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any
 
-from simplicio.changeset_v2 import execute_changeset_bytes
+# Run the evidence harness against the checkout under test, even when an
+# older installed simplicio package is present on PATH.
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from simplicio.changeset_v2 import execute_changeset_bytes  # noqa: E402
 
 SCHEMA = "simplicio.dev-cli.issue-414-binary-fuzz/v1"
 
