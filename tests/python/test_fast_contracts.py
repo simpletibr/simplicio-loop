@@ -336,6 +336,115 @@ def test_native_fast_decoder_reuses_session_and_returns_binary_view(monkeypatch)
     assert engine.receipt()["metrics"]["subprocesses"] == 1
 
 
+@pytest.mark.parametrize(
+    ("greeting", "message"),
+    [
+        ("not-json\n", "invalid JSON"),
+        ("[]\n", "non-object response"),
+        ('{"abi":"wrong","ok":true,"capabilities":["decode_changeset"]}\n', "native Fast session"),
+        ('{"abi":"simplicio.fast-native/v1","ok":true,"capabilities":[]}\n', "native Fast session"),
+    ],
+)
+def test_native_fast_decoder_rejects_invalid_session_greetings(monkeypatch, greeting, message):
+    import simplicio.fast_contracts as fast_contracts
+
+    class Stream:
+        def readline(self):
+            return greeting
+
+    class Process:
+        stdin = None
+        stdout = Stream()
+
+        def poll(self):
+            return None
+
+        def terminate(self):
+            return None
+
+        def wait(self, timeout):
+            return None
+
+    monkeypatch.setattr(fast_contracts.subprocess, "Popen", lambda *args, **kwargs: Process())
+    with pytest.raises(FastEngineError, match=message):
+        NativeFastDecoder("native.exe")
+
+
+def test_native_fast_decoder_rejects_process_start_and_read_failures(monkeypatch):
+    import simplicio.fast_contracts as fast_contracts
+
+    def fail_start(*_args, **_kwargs):
+        raise OSError("missing native")
+
+    monkeypatch.setattr(fast_contracts.subprocess, "Popen", fail_start)
+    with pytest.raises(FastEngineError, match="could not start"):
+        NativeFastDecoder("missing.exe")
+
+    decoder = object.__new__(NativeFastDecoder)
+    decoder._process = type("Process", (), {"stdout": None})()
+    with pytest.raises(FastEngineError, match="no stdout"):
+        decoder._read()
+
+
+@pytest.mark.parametrize(
+    ("response", "message"),
+    [
+        ('{"ok":false,"reason":"bad-envelope"}\n', "bad-envelope"),
+        ('{"ok":true,"result":[]}\n', "non-object envelope"),
+    ],
+)
+def test_native_fast_decoder_rejects_invalid_decode_responses(response, message):
+    import simplicio.fast_contracts as fast_contracts
+
+    class Stream:
+        def __init__(self):
+            self.stdout_lines = iter([response])
+            self.writes = []
+
+        def readline(self):
+            return next(self.stdout_lines, "")
+
+        def write(self, value):
+            self.writes.append(value)
+
+        def flush(self):
+            return None
+
+    process = type("Process", (), {"stdin": Stream(), "stdout": None})()
+    process.stdout = process.stdin
+    decoder = object.__new__(NativeFastDecoder)
+    decoder._process = process
+    decoder._lock = fast_contracts.threading.Lock()
+    with pytest.raises(FastEngineError, match=message):
+        decoder(b"payload")
+
+
+def test_native_fast_decoder_close_kills_unresponsive_process():
+    import simplicio.fast_contracts as fast_contracts
+
+    class Process:
+        stdin = None
+        stdout = None
+
+        def poll(self):
+            return None
+
+        def terminate(self):
+            return None
+
+        def wait(self, timeout):
+            raise fast_contracts.subprocess.TimeoutExpired("native", timeout)
+
+        def kill(self):
+            self.killed = True
+
+    process = Process()
+    decoder = object.__new__(NativeFastDecoder)
+    decoder._process = process
+    decoder.close()
+    assert process.killed is True
+
+
 def test_python_engine_reports_decoder_failure(monkeypatch):
     import simplicio_fast.binary_changeset as binary_changeset
 
