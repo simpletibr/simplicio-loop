@@ -44,6 +44,13 @@ PATTERNS = {
     "migration": re.compile(r"\b(?:migration|migrate|schema_version|user_version|upgrade|downgrade)\b", re.I),
     "command": re.compile(r"(?:\bsqlite3\b|\.backup\b|\bVACUUM\b|\bBEGIN\s+IMMEDIATE\b|\bwal\b|\bbusy_timeout\b)", re.I),
 }
+WRITE_EVIDENCE = re.compile(
+    r"\b(?:INSERT|UPDATE|DELETE|REPLACE|UPSERT|CREATE\s+(?:TEMP(?:ORARY)?\s+)?(?:VIRTUAL\s+)?(?:TABLE|INDEX|VIEW|TRIGGER)|"
+    r"ALTER\s+TABLE|DROP\s+(?:TABLE|INDEX|TRIGGER|VIEW)|ATTACH\s+DATABASE|VACUUM|BEGIN\s+IMMEDIATE|"
+    r"PRAGMA\s+(?:journal_mode|wal_checkpoint)|executemany)\b|"
+    r"\.execute(?:_batch)?\s*\(\s*['\"]\s*(?:INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP|PRAGMA\s+(?:journal_mode|wal_checkpoint))",
+    re.I,
+)
 SECRET_NAME = r"[A-Za-z0-9_-]*(?:token|access[_-]?token|auth[_-]?token|secret(?:[_-]?access[_-]?key)?|password|api[_-]?key|x[_-]?api[_-]?key|private[_-]?key|client[_-]?secret|credential)"  # noqa: S105
 SECRET_VALUE = re.compile(
     rf"(?i)(?<![A-Za-z0-9])({SECRET_NAME})"
@@ -159,6 +166,10 @@ def _is_behavioral_path(relative: str) -> bool:
     return Path(relative).suffix.lower() in BEHAVIOR_SUFFIXES
 
 
+def _has_write_evidence(lines: list[str]) -> bool:
+    return any(WRITE_EVIDENCE.search(line) for line in lines)
+
+
 def _classify(relative: str, kinds: set[str]) -> str:
     lowered = relative.lower()
     if _is_fixture_or_test(relative):
@@ -219,7 +230,7 @@ def _scan_sources(repo_id: str, root: Path, changed_files: set[str] | None = Non
         })
         behavioral = _is_behavioral_path(relative)
         evidence_text = " ".join(match["evidence"] for match in file_matches)
-        writers = [repo_id] if behavioral and {"ddl", "dsn_or_path", "command"} & kinds else []
+        writers = [repo_id] if behavioral and _has_write_evidence(lines) else []
         matrix.append({
             "repo": repo_id,
             "file": relative_text,

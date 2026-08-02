@@ -56,6 +56,16 @@ def test_policy_counts_only_critical_behavioral_legacy_writers() -> None:
     assert policy["legacy_ddl_files"] == [{"repo": "loop", "file": "src/store.py"}]
 
 
+def test_write_evidence_excludes_read_only_adapter_references() -> None:
+    assert INVENTORY._has_write_evidence([
+        "let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY);",
+        "conn.execute(\"SELECT COUNT(*) FROM ops_tasks\", [])?;",
+    ]) is False
+    assert INVENTORY._has_write_evidence([
+        "conn.execute(\"CREATE TABLE IF NOT EXISTS ops_tasks (...)\", [])?;",
+    ]) is True
+
+
 def test_redaction_covers_bearer_headers_and_sql_default_values(tmp_path: Path) -> None:
     _write(
         tmp_path,
