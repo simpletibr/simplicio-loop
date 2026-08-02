@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from simplicio import cli
+from simplicio import cli, execution_mode
 from simplicio.atomic_execution import AttemptContext
 from simplicio.execution_mode import (
     capabilities_report,
@@ -488,3 +488,63 @@ def test_negotiation_benchmark_hot_path_under_100_microseconds(monkeypatch):
         )
     elapsed = process_time() - start
     assert elapsed / 1000 < 0.0001
+
+
+@pytest.mark.parametrize(
+    ("loader", "filename", "message"),
+    [
+        (execution_mode._load_context_snapshot, "context.json", "context snapshot must be a JSON object"),
+        (execution_mode._load_context_pack, "pack.json", "context pack must be a JSON object"),
+        (
+            execution_mode._load_execution_context,
+            "execution.json",
+            "execution context must be a JSON object",
+        ),
+    ],
+)
+def test_execution_input_loaders_reject_non_object_json(tmp_path, loader, filename, message):
+    path = tmp_path / filename
+    path.write_text("[]", encoding="utf-8")
+    with pytest.raises(execution_mode.ExecutionInputError, match=message):
+        loader(tmp_path, path)
+
+
+def test_execution_input_loaders_resolve_relative_paths_and_reject_bad_json(tmp_path):
+    (tmp_path / "context.json").write_text("not-json", encoding="utf-8")
+    with pytest.raises(execution_mode.ExecutionInputError, match="cannot read canonical context snapshot"):
+        execution_mode._load_context_snapshot(tmp_path, "context.json")
+
+    (tmp_path / "auth.json").write_text("not-json", encoding="utf-8")
+    with pytest.raises(execution_mode.ExecutionInputError, match="effect authorization"):
+        execution_mode._load_authorization(tmp_path, "auth.json")
+
+
+def test_standalone_read_only_and_proposal_only_profiles(monkeypatch, tmp_path):
+    read_only = negotiate_execution_mode("standalone", root=tmp_path, read_only=True)
+    assert read_only.effective_mode == "standalone"
+    assert read_only.reason_code == "STANDALONE_READ_ONLY"
+
+    proposal = negotiate_execution_mode("auto", root=tmp_path, context_snapshot=CONTEXT, proposal_only=True)
+    assert proposal.reason_code == "PROPOSAL_ONLY_READY"
+    assert proposal.effective_mode == "integrated"
+
+    monkeypatch.setattr(
+        execution_mode,
+        "load_mapper_context",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(execution_mode.MapperContextError("bad", "bad")),
+    )
+    blocked = negotiate_execution_mode("auto", root=tmp_path, context_snapshot=CONTEXT, proposal_only=True)
+    assert blocked.reason_code == "CONTEXT_REQUIRED"
+
+
+def test_capabilities_report_returns_blocked_profile_for_invalid_input(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        execution_mode,
+        "prepare_execution_inputs",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            execution_mode.ExecutionInputError("INCOMPATIBLE_CONTEXT", "bad context")
+        ),
+    )
+    report = execution_mode.capabilities_report("auto", root=tmp_path)
+    assert report["execution_profile"]["effective_mode"] == "blocked"
+    assert report["execution_profile"]["reason_code"] == "INCOMPATIBLE_CONTEXT"
