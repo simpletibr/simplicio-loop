@@ -4,7 +4,13 @@ import json
 
 import pytest
 
-from simplicio.evidence_ledger import ArtifactMismatchError, EvidenceLedger, LedgerError, StaleEvidenceError
+from simplicio.evidence_ledger import (
+    ArtifactMismatchError,
+    EvidenceLedger,
+    LedgerError,
+    StaleEvidenceError,
+    artifact_digest,
+)
 
 
 def test_ledger_records_measured_artifact_and_matrix(tmp_path):
@@ -239,3 +245,66 @@ def test_matrix_reports_missing_and_invalid_attachment_hashes(tmp_path):
     assert ledger.matrix(["AC-HASH"])["claims"]["AC-HASH"]["invalid_receipts"][0]["watcher_reason"] == (
         "missing-attachment-hash"
     )
+
+
+@pytest.mark.parametrize(
+    ("row", "reason"),
+    [
+        ({"status": "MEASURED"}, "missing-artifact-path"),
+        ({"status": "MEASURED", "artifact": "out.txt"}, "stale-identity"),
+        (
+            {
+                "status": "MEASURED",
+                "artifact": "out.txt",
+                "base_sha": "base-1",
+                "plan_hash": "plan-1",
+                "commit_sha": "",
+            },
+            "stale-identity",
+        ),
+    ],
+)
+def test_matrix_reports_missing_or_stale_artifact_identity(tmp_path, row, reason):
+    ledger = EvidenceLedger(tmp_path / "evidence.jsonl", base_sha="base-1", plan_hash="plan-1")
+    row = {"criterion_id": "AC-STATE", **row}
+    ledger.path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    result = ledger.matrix(["AC-STATE"])
+    assert result["claims"]["AC-STATE"]["invalid_receipts"][0]["watcher_reason"] == reason
+
+
+@pytest.mark.parametrize(
+    ("attachment", "reason"),
+    [
+        ("not-an-object", "invalid-attachments"),
+        ({}, "missing-attachment-path"),
+        ({"path": "missing.zip"}, "attachment-missing"),
+    ],
+)
+def test_matrix_reports_invalid_attachment_shapes(tmp_path, attachment, reason):
+    artifact = tmp_path / "out.txt"
+    artifact.write_text("ok", encoding="utf-8")
+    ledger = EvidenceLedger(tmp_path / "evidence.jsonl", base_sha="base-1", plan_hash="plan-1")
+    row = {
+        "criterion_id": "AC-ATTACH-WATCH",
+        "status": "MEASURED",
+        "artifact": str(artifact),
+        "artifact_hash": artifact_digest(artifact),
+        "base_sha": "base-1",
+        "plan_hash": "plan-1",
+        "commit_sha": ledger.commit_sha,
+        "attachments": [attachment],
+    }
+    ledger.path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    result = ledger.matrix(["AC-ATTACH-WATCH"])
+    assert result["claims"]["AC-ATTACH-WATCH"]["invalid_receipts"][0]["watcher_reason"] == reason
+
+
+def test_matrix_ignores_unverified_receipt_without_watcher_failure(tmp_path):
+    ledger = EvidenceLedger(tmp_path / "evidence.jsonl", base_sha="base-1", plan_hash="plan-1")
+    ledger.path.write_text(
+        json.dumps({"criterion_id": "AC-UNVERIFIED", "status": "UNVERIFIED"}) + "\n",
+        encoding="utf-8",
+    )
+    result = ledger.matrix(["AC-UNVERIFIED"])
+    assert result["claims"]["AC-UNVERIFIED"]["status"] == "UNVERIFIED"
+    assert result["watcher"]["ok"] is True
