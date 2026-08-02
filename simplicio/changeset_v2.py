@@ -33,6 +33,17 @@ _BINARY_IDENTITY_FIELDS = (
     "lease_id",
     "fencing_token",
 )
+_CAUSAL_ID_FIELDS = (
+    "changeset_id",
+    "correlation_id",
+    "generation",
+    "base_generation",
+    "overlay_generation",
+    "attempt",
+    "worktree_id",
+    "lease_id",
+    "fencing_token",
+)
 OPERATION_MAP = {
     "replace_range": "replace_range",
     "create": "create_file",
@@ -50,6 +61,15 @@ class ChangesetError(ValueError):
     def __init__(self, code: str, message: str, **extra: Any) -> None:
         super().__init__(message)
         self.row = {"code": code, "message": message, **extra}
+
+
+def _causal_ids(source: dict[str, Any]) -> dict[str, str]:
+    result = {
+        field: value for field in _CAUSAL_ID_FIELDS if isinstance(value := source.get(field), str) and value
+    }
+    if "generation" not in result and isinstance(source.get("base_generation"), str):
+        result["generation"] = source["base_generation"]
+    return result
 
 
 def _validate_binary_identity(value: dict[str, Any]) -> None:
@@ -159,6 +179,7 @@ def execute_changeset(
     root: str | Path = ".",
     apply: bool = False,
     current_generation: str | None = None,
+    causal_ids: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     try:
         mechanical = adapt_changeset(changeset, current_generation=current_generation)
@@ -220,6 +241,7 @@ def execute_changeset(
                     root=root,
                     idempotency_key=key,
                     changeset_digest_value=digest,
+                    causal_ids=causal_ids or _causal_ids(changeset),
                 )
         except ChangesetTransactionError as exc:
             return _refused_receipt(
@@ -332,6 +354,7 @@ def execute_changeset_bytes(
             root=root_path,
             apply=apply,
             current_generation=current_generation,
+            causal_ids=_causal_ids(value),
         )
         refresh = None
         transaction = receipt.get("transaction")

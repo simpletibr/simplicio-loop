@@ -10,9 +10,9 @@ import json
 from collections import Counter
 from pathlib import Path
 
-# Reviewed 2026-08-02: the inventory includes the controlled checkpoint,
-# transaction, verification, write-set, causal-path and native Fast primitives
-# added since #353.
+# Reviewed 2026-08-02 at origin/main a1ab5ff: the inventory includes the
+# controlled checkpoint, transaction, verification, write-set, causal-path,
+# native Fast, and Mapper-delta primitives already merged before this baseline.
 BASELINE_SHA256 = "496295aa451c548a1334db54561d501bc1dee654feb1c9e05773aa879f323130"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
