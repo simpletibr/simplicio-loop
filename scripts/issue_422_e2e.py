@@ -26,12 +26,18 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from simplicio.changeset_v2 import execute_changeset, execute_changeset_bytes
-from simplicio.execution_mode import negotiate_execution_mode
-from simplicio.fast_contracts import fast_preflight
-from simplicio.plan_compiler.canonical_hash import canonical_hash
-from simplicio.plan_compiler.runtime_effect_sink import HttpRuntimeTransport, RuntimeEffectError
-from simplicio.runtime_contracts import runtime_verify_contract
+# Always exercise the checkout under test instead of an older installed
+# simplicio package that may be earlier on the interpreter's import path.
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from simplicio.changeset_v2 import execute_changeset, execute_changeset_bytes  # noqa: E402
+from simplicio.execution_mode import negotiate_execution_mode  # noqa: E402
+from simplicio.fast_contracts import fast_preflight  # noqa: E402
+from simplicio.plan_compiler.canonical_hash import canonical_hash  # noqa: E402
+from simplicio.plan_compiler.runtime_effect_sink import HttpRuntimeTransport, RuntimeEffectError  # noqa: E402
+from simplicio.runtime_contracts import runtime_verify_contract  # noqa: E402
 
 SCHEMA = "simplicio.dev-cli.issue-422-evidence/v1"
 
