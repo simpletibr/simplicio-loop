@@ -155,3 +155,11 @@ def test_same_key_with_different_changeset_is_rejected(tmp_path) -> None:
     payload["idempotency_key"] = "idem-364"
     with pytest.raises(EffectTransactionError, match="IDEMPOTENCY_LINEAGE_MISMATCH"):
         execute(transaction, ChangeSet.from_dict(payload), [])
+
+
+def test_effect_transaction_uses_mapper_store_without_sqlite(tmp_path) -> None:
+    transaction = EffectTransaction(tmp_path)
+    execute(transaction, change_set(), [])
+
+    assert not (tmp_path / ".simplicio" / "effect-transactions.sqlite3").exists()
+    assert list((tmp_path / ".simplicio" / "mapper-store" / "effect-transactions").glob("*.json"))

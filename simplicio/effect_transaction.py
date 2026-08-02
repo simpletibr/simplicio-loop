@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
-import sqlite3
+import os
 import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+from simplicio_mapper.mapper.file_lock import acquire_lock_at, release_lock_at
 
 from simplicio.plan_compiler import ChangeSet, canonical_hash
 
@@ -26,82 +29,89 @@ class EffectTransaction:
 
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root).resolve()
-        state_dir = self.root / ".simplicio"
-        state_dir.mkdir(parents=True, exist_ok=True)
-        self.db_path = state_dir / "effect-transactions.sqlite3"
-        with self._db() as database:
-            database.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS transactions(
-                    idempotency_key TEXT PRIMARY KEY,
-                    change_set_hash TEXT NOT NULL,
-                    state TEXT NOT NULL,
-                    receipt TEXT
-                );
-                CREATE TABLE IF NOT EXISTS transitions(
-                    sequence INTEGER PRIMARY KEY AUTOINCREMENT,
-                    idempotency_key TEXT NOT NULL,
-                    state TEXT NOT NULL,
-                    observed_ns INTEGER NOT NULL
-                );
-                """
-            )
+        self.store_dir = self.root / ".simplicio" / "mapper-store" / "effect-transactions"
+        self.store_dir.mkdir(parents=True, exist_ok=True)
 
-    def _db(self) -> sqlite3.Connection:
-        database = sqlite3.connect(self.db_path, isolation_level=None, timeout=30)
-        database.execute("PRAGMA journal_mode=WAL")
-        database.execute("PRAGMA synchronous=FULL")
-        return database
+    def _record_path(self, key: str) -> Path:
+        digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
+        return self.store_dir / f"{digest}.json"
+
+    def _lock_path(self, key: str) -> Path:
+        return self.store_dir / f"{hashlib.sha256(key.encode('utf-8')).hexdigest()}.lock"
+
+    def _read_record(self, key: str) -> dict[str, Any] | None:
+        path = self._record_path(key)
+        if not path.exists():
+            return None
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise EffectTransactionError("RECOVERY_REQUIRED") from exc
+        if not isinstance(value, dict):
+            raise EffectTransactionError("RECOVERY_REQUIRED")
+        return value
+
+    def _write_record(self, key: str, record: dict[str, Any]) -> None:
+        target = self._record_path(key)
+        temporary = target.with_suffix(f".tmp-{os.getpid()}")
+        temporary.write_text(json.dumps(record, sort_keys=True, separators=(",", ":")), encoding="utf-8")
+        with temporary.open("r+b") as handle:
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, target)
+
+    def _locked(self, key: str):
+        lock = acquire_lock_at(str(self._lock_path(key)), operation="effect-transaction")
+        if lock is None:
+            raise EffectTransactionError("RECOVERY_REQUIRED")
+        return lock
 
     def _transition(self, key: str, state: str, receipt: dict[str, Any] | None = None) -> None:
-        encoded = json.dumps(receipt, sort_keys=True, separators=(",", ":")) if receipt else None
-        with self._db() as database:
-            database.execute("BEGIN IMMEDIATE")
-            database.execute(
-                "UPDATE transactions SET state=?, receipt=COALESCE(?, receipt) WHERE idempotency_key=?",
-                (state, encoded, key),
-            )
-            database.execute(
-                "INSERT INTO transitions(idempotency_key,state,observed_ns) VALUES(?,?,?)",
-                (key, state, time.time_ns()),
-            )
-            database.execute("COMMIT")
+        lock = self._locked(key)
+        try:
+            record = self._read_record(key)
+            if record is None:
+                raise EffectTransactionError("RECOVERY_REQUIRED")
+            record["state"] = state
+            if receipt is not None:
+                record["receipt"] = receipt
+            record.setdefault("transitions", []).append({"state": state, "observed_ns": time.time_ns()})
+            self._write_record(key, record)
+        finally:
+            release_lock_at(lock)
 
     def transitions(self, key: str) -> list[str]:
-        with self._db() as database:
-            rows = database.execute(
-                "SELECT state FROM transitions WHERE idempotency_key=? ORDER BY sequence",
-                (key,),
-            ).fetchall()
-        return [str(row[0]) for row in rows]
+        record = self._read_record(key)
+        if record is None:
+            return []
+        return [str(item["state"]) for item in record.get("transitions", [])]
 
     def _reserve(self, change_set: ChangeSet) -> dict[str, Any] | None:
         key = change_set.idempotency_key
         digest = change_set.canonical_hash()
-        with self._db() as database:
-            database.execute("BEGIN IMMEDIATE")
-            row = database.execute(
-                "SELECT change_set_hash,state,receipt FROM transactions WHERE idempotency_key=?",
-                (key,),
-            ).fetchone()
+        lock = self._locked(key)
+        try:
+            row = self._read_record(key)
             if row:
-                database.execute("COMMIT")
-                if row[0] != digest:
+                if row.get("change_set_hash") != digest:
                     raise EffectTransactionError("IDEMPOTENCY_LINEAGE_MISMATCH")
-                if row[1] == "COMMITTED" and row[2]:
-                    return dict(json.loads(row[2]))
+                if row.get("state") == "COMMITTED" and row.get("receipt"):
+                    return dict(row["receipt"])
                 raise EffectTransactionError(
-                    "TRANSACTION_TERMINAL" if row[1] in _TERMINAL else "RECOVERY_REQUIRED"
+                    "TRANSACTION_TERMINAL" if row.get("state") in _TERMINAL else "RECOVERY_REQUIRED"
                 )
-            database.execute(
-                "INSERT INTO transactions VALUES(?,?,?,NULL)",
-                (key, digest, "GATED"),
+            self._write_record(
+                key,
+                {
+                    "idempotency_key": key,
+                    "change_set_hash": digest,
+                    "state": "GATED",
+                    "receipt": None,
+                    "transitions": [{"state": "GATED", "observed_ns": time.time_ns()}],
+                },
             )
-            database.execute(
-                "INSERT INTO transitions(idempotency_key,state,observed_ns) VALUES(?,?,?)",
-                (key, "GATED", time.time_ns()),
-            )
-            database.execute("COMMIT")
+        finally:
+            release_lock_at(lock)
         return None
 
     def execute(
