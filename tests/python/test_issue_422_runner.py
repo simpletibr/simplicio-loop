@@ -67,11 +67,14 @@ def test_runtime_probe_executes_and_replays_configured_http_effect(monkeypatch, 
     )
     monkeypatch.setenv("SIMPLICIO_RUNTIME_EFFECT_URL", "http://127.0.0.1:9119")
     monkeypatch.setenv("SIMPLICIO_RUNTIME_E2E_ROOT", str(tmp_path))
-    monkeypatch.setattr(
-        runner,
-        "_runtime_mcp_tool",
-        lambda *args, **kwargs: {"status": "authorized", "authorization_digest": "sha256:" + "a" * 64},
-    )
+    def fake_runtime_tool(_binary, name, _arguments, *, cwd):
+        assert cwd == tmp_path
+        if name == "simplicio_effect_authorize":
+            return {"status": "authorized", "authorization_digest": "sha256:" + "a" * 64}
+        assert name == "simplicio_effect_reconcile"
+        return {"status": "reconciled", "verdict": "proven-after"}
+
+    monkeypatch.setattr(runner, "_runtime_mcp_tool", fake_runtime_tool)
 
     class FakeTransport:
         def __init__(self, base_url, *, timeout_s):
