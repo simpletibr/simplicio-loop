@@ -242,6 +242,39 @@ def _auto_without_runtime(root: Path) -> dict[str, Any]:
     }
 
 
+def _adversarial_generation_replay_scenario() -> dict[str, Any]:
+    """Prove stale generation and conflicting replay fail before a second write."""
+
+    with tempfile.TemporaryDirectory(prefix="simplicio-422-adversarial-") as raw_root:
+        root = Path(raw_root)
+        original = _changeset(1)
+        stale = execute_changeset(original, root=root, apply=True, current_generation="generation-stale")
+        first = execute_changeset(original, root=root, apply=True)
+        conflicting = dict(original)
+        conflicting["operations"] = [{"kind": "create", "path": "files/file-000.txt", "content": "changed\n"}]
+        conflict = execute_changeset(conflicting, root=root, apply=True)
+        target = root / "files" / "file-000.txt"
+        stale_code = stale.get("errors", [{}])[0].get("code")
+        conflict_code = conflict.get("errors", [{}])[0].get("code")
+        passed = (
+            stale.get("status") == "refused"
+            and stale_code == "stale_generation"
+            and first.get("status") == "ok"
+            and conflict.get("status") == "refused"
+            and conflict_code == "REPLAY_CONFLICT"
+            and target.read_text(encoding="utf-8") == "value-0\n"
+        )
+        return {
+            "scenario": "adversarial_generation_replay",
+            "status": "PASS" if passed else "FAIL",
+            "stale_generation": stale_code,
+            "first_status": first.get("status"),
+            "conflict_status": conflict_code,
+            "final_content": target.read_text(encoding="utf-8") if target.is_file() else None,
+            "reason": None if passed else "stale or conflicting replay did not fail closed",
+        }
+
+
 def _capability_scenario(name: str, available: bool, version: str | None) -> dict[str, Any]:
     return {
         "scenario": name,
@@ -603,6 +636,7 @@ def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
     rows.extend(_transaction_scenario(count, repeats) for count in (1, 20, 200))
     rows.append(_worktree_isolation_scenario())
     rows.extend(_fast_binary_scenario(root, count, repeats) for count in (1, 20, 200))
+    rows.append(_adversarial_generation_replay_scenario())
     rust_row = _fast_rust_scenario(root)
     rust_row["python_preflight"] = preflight.to_dict()
     rows.append(rust_row)
