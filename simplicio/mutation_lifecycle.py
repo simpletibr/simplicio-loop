@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from simplicio_mapper.mapper.file_lock import release_lock_at
 
 from .mutation_worker import RECEIPT, MutationBlocked, MutationWorker, digest
 
@@ -66,7 +65,7 @@ def recover(worker: MutationWorker, key: str, observer: Callable[[], dict[str, A
             current.update({"state": "VERIFIED", "receipt": receipt})
             worker._write(key, current)
         finally:
-            release_lock_at(lock)
+            worker.store.release(lock)
         return receipt
     raise MutationBlocked("RECOVERY_OBSERVATION_INSUFFICIENT")
 
@@ -95,5 +94,5 @@ def rollback(
         current.update({"state": "ROLLED_BACK", "receipt": receipt})
         worker._write(key, current)
     finally:
-        release_lock_at(lock)
+        worker.store.release(lock)
     return receipt
