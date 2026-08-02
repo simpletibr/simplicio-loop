@@ -28,3 +28,44 @@ def test_prepare_pipeline_inputs_preserves_fail_closed_input_errors(monkeypatch,
 
     with pytest.raises(ExecutionInputError, match="INCOMPATIBLE_CONTEXT"):
         pipeline_preparation.prepare_pipeline_inputs("auto", root=tmp_path)
+
+
+def test_prepare_task_preflight_builds_context_and_identity_decisions(tmp_path):
+    prepared = pipeline_preparation.prepare_pipeline_inputs(
+        "standalone",
+        root=tmp_path,
+        repo_root=tmp_path,
+        scope_root=tmp_path,
+    )
+
+    preflight = pipeline_preparation.prepare_task_preflight(
+        prepared,
+        target="src/app.py",
+        dry_run_task=False,
+    )
+
+    assert preflight.context_error is None
+    assert preflight.identity_error is None
+    assert preflight.identity_required is False
+    assert preflight.task_context is not None
+    assert preflight.task_context.target == "src/app.py"
+    assert preflight.profile.effective_mode == "standalone"
+
+
+def test_prepare_task_preflight_preserves_repo_root_block(tmp_path):
+    prepared = pipeline_preparation.prepare_pipeline_inputs(
+        "standalone",
+        root=tmp_path,
+        repo_root=tmp_path / "declared-repo",
+        scope_root=tmp_path,
+    )
+
+    preflight = pipeline_preparation.prepare_task_preflight(
+        prepared,
+        target="app.py",
+        dry_run_task=False,
+    )
+
+    assert preflight.task_context is None
+    assert preflight.context_error is not None
+    assert preflight.context_error.code == "REPO_ROOT_MISMATCH"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from os import PathLike
 from typing import Any
@@ -18,6 +19,7 @@ from .execution_mode import (
 )
 from .pipeline_input import PipelineInput, prepare_pipeline_input
 from .plan_compiler.authority import EffectAuthorization
+from .task_context import TaskContext, TaskContextError
 
 
 @dataclass(frozen=True)
@@ -28,6 +30,26 @@ class PreparedPipeline:
     input: PipelineInput
     requested_execution_mode: ExecutionMode
     profile: ExecutionProfile
+
+
+@dataclass(frozen=True)
+class TaskPreflight:
+    """Prepared task context and identity decisions before route execution."""
+
+    context_snapshot: dict[str, Any] | None
+    context_pack: dict[str, Any] | None
+    execution_context: dict[str, Any] | None
+    authorization: EffectAuthorization | None
+    effect_sink: object | None
+    runtime_handshake: dict[str, Any] | None
+    integrated_attempt: AttemptContext | None
+    pipeline_input: PipelineInput
+    requested_execution_mode: ExecutionMode
+    profile: ExecutionProfile
+    task_context: TaskContext | None
+    context_error: TaskContextError | None
+    identity_error: TaskContextError | None
+    identity_required: bool
 
 
 def prepare_pipeline_inputs(
@@ -112,4 +134,123 @@ def prepare_pipeline_inputs(
         input=pipeline_input,
         requested_execution_mode=requested_execution_mode,
         profile=profile,
+    )
+
+
+def _identity_requirements(
+    *,
+    effective_mode: str,
+    requested_execution_mode: str | None,
+    context_snapshot: dict[str, Any] | None,
+    context_pack: dict[str, Any] | None,
+    snapshot_identity: str,
+    pack_identity: str,
+    attempt_identity: str,
+    supplied_snapshot_id: str | None,
+    canonical_snapshot_id: str,
+    supplied_pack_hash: str | None,
+    canonical_pack_hash: str,
+    dry_run_task: bool,
+) -> tuple[TaskContextError | None, bool]:
+    """Compute identity mismatch and authority requirements for one task."""
+    identity_error: TaskContextError | None = None
+    if supplied_snapshot_id is not None and supplied_snapshot_id != canonical_snapshot_id:
+        identity_error = TaskContextError(
+            "CONTEXT_SNAPSHOT_ID_MISMATCH",
+            "supplied context_snapshot_id does not match the canonical Mapper snapshot",
+        )
+    elif supplied_pack_hash is not None and canonical_pack_hash and supplied_pack_hash != canonical_pack_hash:
+        identity_error = TaskContextError(
+            "CONTEXT_PACK_HASH_MISMATCH",
+            "supplied context_pack_hash does not match the canonical Mapper ContextPack",
+        )
+    strict_authority = os.environ.get("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    identity_required = not dry_run_task and (
+        (
+            effective_mode == "integrated"
+            and context_snapshot is not None
+            and context_pack is not None
+            and bool(snapshot_identity and pack_identity and attempt_identity)
+        )
+        or (
+            effective_mode == "standalone"
+            and requested_execution_mode != "standalone"
+            and (
+                strict_authority
+                or context_snapshot is not None
+                or context_pack is not None
+                or supplied_snapshot_id is not None
+                or supplied_pack_hash is not None
+            )
+        )
+    )
+    return identity_error, identity_required
+
+
+def prepare_task_preflight(
+    prepared: PreparedPipeline,
+    *,
+    target: str,
+    dry_run_task: bool,
+) -> TaskPreflight:
+    """Build the task context and identity decisions before route execution."""
+    pipeline_input = prepared.input
+    context_error: TaskContextError | None = None
+    task_context: TaskContext | None = None
+    try:
+        if pipeline_input.declared_repo_root != pipeline_input.actual_root:
+            raise TaskContextError(
+                "REPO_ROOT_MISMATCH",
+                "declared repo_root must equal the actual mutation root",
+            )
+        task_context = TaskContext.from_values(
+            repo_root=pipeline_input.actual_root,
+            scope_root=pipeline_input.declared_scope_root,
+            target=target,
+            context_snapshot_id=pipeline_input.snapshot_identity,
+            context_pack_hash=pipeline_input.pack_identity,
+            attempt_id=pipeline_input.attempt_identity,
+            require_identity=False,
+        )
+    except TaskContextError as exc:
+        context_error = exc
+
+    identity_error: TaskContextError | None = None
+    identity_required = False
+    if task_context is not None:
+        identity_error, identity_required = _identity_requirements(
+            effective_mode=prepared.profile.effective_mode,
+            requested_execution_mode=prepared.requested_execution_mode,
+            context_snapshot=prepared.execution.context_snapshot,
+            context_pack=prepared.execution.context_pack,
+            snapshot_identity=pipeline_input.snapshot_identity,
+            pack_identity=pipeline_input.pack_identity,
+            attempt_identity=pipeline_input.attempt_identity,
+            supplied_snapshot_id=pipeline_input.supplied_snapshot_id,
+            canonical_snapshot_id=pipeline_input.canonical_snapshot_id,
+            supplied_pack_hash=pipeline_input.supplied_pack_hash,
+            canonical_pack_hash=pipeline_input.canonical_pack_hash,
+            dry_run_task=dry_run_task,
+        )
+
+    return TaskPreflight(
+        context_snapshot=prepared.execution.context_snapshot,
+        context_pack=prepared.execution.context_pack,
+        execution_context=prepared.execution.execution_context,
+        authorization=prepared.execution.authorization,
+        effect_sink=prepared.execution.effect_sink,
+        runtime_handshake=prepared.execution.runtime_handshake,
+        integrated_attempt=prepared.execution.attempt,
+        pipeline_input=pipeline_input,
+        requested_execution_mode=prepared.requested_execution_mode,
+        profile=prepared.profile,
+        task_context=task_context,
+        context_error=context_error,
+        identity_error=identity_error,
+        identity_required=identity_required,
     )
