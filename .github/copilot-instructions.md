@@ -51,6 +51,14 @@ gh pr create --fill
 # anexar ao PR os comandos e resultados do gate local
 ```
 
+## Codex → Runtime
+
+Quando uma tarefa de código for iniciada pelo Codex CLI, use a integração
+reversível documentada em [`docs/codex-wrapper.md`](../docs/codex-wrapper.md).
+O wrapper/hook roteia a tarefa de desenvolvimento para `simplicio run` e
+preserva `sandbox_mode`/`approval_policy`; nunca adicione flags de bypass nem
+execute uma mutação fora do Runtime.
+
 ---
 
 ## Padrão de sincronização deste projeto

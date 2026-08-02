@@ -1,21 +1,43 @@
-# Codex wrapper
+# Codex → Runtime integration
 
-`simplicio-codex-wrapper` is an explicit, reversible forwarding shim. It does
-not add or remove Codex sandbox, approval-policy, or mutation flags, and it
-sets `SIMPLICIO_HOOK_GUARD=1` to prevent recursive hook invocation.
+The integration has two guarded entry points:
 
-Install at an explicit path:
+- a PATH shim for one-shot `codex exec "..."` calls;
+- a `UserPromptSubmit` hook for interactive Codex sessions.
+
+For a developer task, both invoke `simplicio run <prompt> --repo <cwd>
+--evidence --json`. A successful Runtime route returns a blocking hook result
+only after a valid JSON evidence receipt is present, so Codex is not started a
+second time. A Runtime failure, invalid receipt, or classifier error is
+fail-closed and is never converted into a successful Codex run.
+
+Codex policy inputs are passed unchanged as Runtime metadata (`--sandbox`,
+`--ask-for-approval`, and the explicit bypass flag). The integration rejects
+the explicit bypass flag, never adds an approval or sandbox bypass, and always
+sets `SIMPLICIO_HOOK_GUARD=1` for nested provider calls.
+
+Install the wrapper and the marked Codex hook together. The wrapper directory
+must precede the real Codex binary in `PATH`; the installer does not rewrite a
+shell profile or overwrite an existing foreign executable:
+
+```text
+simplicio-codex-wrapper --install-codex ~/.codex --wrapper-path ~/.local/bin/codex
+```
+
+The installer preserves foreign hooks and writes a `.simplicio.bak` copy when
+it changes an existing `hooks.json`. Remove only the marked integration:
+
+```text
+simplicio-codex-wrapper --uninstall-codex ~/.codex --wrapper-path ~/.local/bin/codex
+```
+
+The legacy explicit operations remain available:
 
 ```text
 simplicio-codex-wrapper --install PATH
-```
-
-The installer refuses to overwrite a non-Simplicio file. Remove only a shim
-created by the installer:
-
-```text
 simplicio-codex-wrapper --uninstall PATH
 ```
 
-The wrapper does not auto-approve mutations or claim Runtime execution. A
-Runtime/Loop coordinator remains responsible for authorization and scheduling.
+The wrapper refuses to overwrite or remove non-Simplicio files. Runtime,
+approval, receipt, and rollback decisions remain owned by the Runtime/Loop
+coordinator.

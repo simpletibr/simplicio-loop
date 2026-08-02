@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python -m simplicio.codex_hooks"
+            "command": "python3 -m simplicio.codex_hooks --route runtime --marker simplicio-codex-runtime-hook/v1"
           }
         ]
       }
