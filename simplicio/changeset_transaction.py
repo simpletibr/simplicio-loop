@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import hashlib
 import json
 import os
@@ -191,6 +192,51 @@ def _rollback_after_commit_failure(
     raise ChangesetTransactionError("COMMIT_PARTIAL", "transaction failed and was rolled back") from cause
 
 
+def _lock_owned_by_live_process(lock_path: Path) -> bool:
+    try:
+        value = lock_path.read_text(encoding="utf-8").strip()
+        pid = int(value.removeprefix("pid="))
+    except (OSError, ValueError):
+        return True
+    if pid <= 0:
+        return True
+    if os.name == "nt":
+        handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return False
+        exit_code = ctypes.c_ulong()
+        ctypes.windll.kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+        ctypes.windll.kernel32.CloseHandle(handle)
+        return exit_code.value == 259
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    return True
+
+
+def _acquire_recovery_lock(lock_path: Path) -> int:
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    for _attempt in range(2):
+        try:
+            descriptor = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                handle.write(f"pid={os.getpid()}\n")
+            return descriptor
+        except FileExistsError as exc:
+            if _lock_owned_by_live_process(lock_path):
+                raise ChangesetTransactionError(
+                    "TRANSACTION_BUSY", "another process owns this idempotency key"
+                ) from exc
+            try:
+                lock_path.unlink()
+            except OSError as unlink_error:
+                raise ChangesetTransactionError(
+                    "TRANSACTION_BUSY", "stale transaction lock could not be reclaimed"
+                ) from unlink_error
+    raise ChangesetTransactionError("TRANSACTION_BUSY", "another process owns this idempotency key")
+
+
 def recover_changeset_transaction(
     root: str | Path,
     *,
@@ -201,15 +247,7 @@ def recover_changeset_transaction(
     root_path = Path(root).resolve()
     state_path = _state_path(root_path, idempotency_key)
     lock_path = state_path.with_suffix(".lock")
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        descriptor = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            handle.write(f"pid={os.getpid()}\n")
-    except FileExistsError as exc:
-        raise ChangesetTransactionError(
-            "TRANSACTION_BUSY", "another process owns this idempotency key"
-        ) from exc
+    _acquire_recovery_lock(lock_path)
     try:
         try:
             state = json.loads(state_path.read_text(encoding="utf-8"))

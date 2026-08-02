@@ -29,7 +29,12 @@ class EffectTransaction:
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root).resolve()
         self.store = MapperStoreAdapter(self.root, "effect-transactions")
-        self._process_lock = threading.Lock()
+        self._execution_locks: dict[str, threading.Lock] = {}
+        self._execution_locks_guard = threading.Lock()
+
+    def _execution_lock(self, key: str) -> threading.Lock:
+        with self._execution_locks_guard:
+            return self._execution_locks.setdefault(key, threading.Lock())
 
     def _read_record(self, key: str) -> dict[str, Any] | None:
         try:
@@ -43,12 +48,13 @@ class EffectTransaction:
         except StoreAdapterError as exc:
             raise EffectTransactionError("STORE_WRITE_FAILED") from exc
 
-    def _locked(self, key: str):
-        for attempt in range(_LOCK_RETRY_ATTEMPTS):
+    def _locked(self, key: str, *, retry: bool = True):
+        attempts = _LOCK_RETRY_ATTEMPTS if retry else 1
+        for attempt in range(attempts):
             try:
                 return self.store.acquire(key, operation="effect-transaction")
             except StoreAdapterError as exc:
-                if str(exc) != "STORE_LOCKED" or attempt == _LOCK_RETRY_ATTEMPTS - 1:
+                if str(exc) != "STORE_LOCKED" or attempt == attempts - 1:
                     raise EffectTransactionError("RECOVERY_REQUIRED") from exc
                 time.sleep(_LOCK_RETRY_DELAY_SECONDS)
         raise EffectTransactionError("RECOVERY_REQUIRED")
@@ -76,7 +82,7 @@ class EffectTransaction:
     def _reserve(self, change_set: ChangeSet) -> dict[str, Any] | None:
         key = change_set.idempotency_key
         digest = change_set.canonical_hash()
-        lock = self._locked(key)
+        lock = self._locked(key, retry=False)
         try:
             row = self._read_record(key)
             if row:
@@ -110,7 +116,7 @@ class EffectTransaction:
         verify: Callable[[ChangeSet, dict[str, Any]], dict[str, Any]],
         rollback: Callable[[ChangeSet, dict[str, Any]], dict[str, Any]],
     ) -> dict[str, Any]:
-        with self._process_lock:
+        with self._execution_lock(change_set.idempotency_key):
             return self._execute(
                 change_set,
                 checkpoint=checkpoint,
