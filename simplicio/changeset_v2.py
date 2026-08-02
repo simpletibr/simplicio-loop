@@ -323,10 +323,7 @@ def execute_changeset_bytes(
                 "input_format": BINARY_SCHEMA,
                 "binary_sha256": hashlib.sha256(payload).hexdigest(),
                 "binary_changeset_id": value.get("changeset_id"),
-                "fast_identity": {
-                    field: value.get(field)
-                    for field in required_identity
-                },
+                "fast_identity": {field: value.get(field) for field in required_identity},
                 "fast_engine": engine.receipt(),
             }
         )
