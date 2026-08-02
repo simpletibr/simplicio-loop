@@ -941,6 +941,44 @@ def _build_retry_feedback_state(
     return last_failure_fingerprint, consecutive_same_failure, feedback
 
 
+def _build_attempts_exhausted_result(
+    *,
+    root: str | Path,
+    target: str,
+    prompt: str,
+    quiet: bool,
+    last_output: str,
+    last_validation: Any,
+    last_log: str,
+    last_verify_receipt: dict[str, Any] | None,
+    impact_results: dict[str, Any] | None,
+    attempts_limit: int,
+) -> dict[str, Any]:
+    """Build the fail-closed terminal result after all attempts are exhausted."""
+    if not quiet:
+        info("attempts exhausted — manual review needed.")
+    warnings: list[str] = []
+    if last_validation and not last_validation.ok:
+        warnings.append(last_validation.reason)
+    elif last_log:
+        warnings.append(last_log[:500])
+    emit_event(
+        "validation_fail",
+        {"target": target, "attempts": attempts_limit, "warnings": warnings[:1]},
+        level="warning",
+        root=root,
+    )
+    return _task_result(
+        target,
+        prompt,
+        last_output,
+        applied=False,
+        warnings=warnings,
+        verify=last_verify_receipt,
+        impact=impact_results,
+    )
+
+
 def _run_task(
     root,
     stack,
@@ -1461,27 +1499,17 @@ def _run_task(
             last_failure_fingerprint=last_failure_fingerprint,
             consecutive_same_failure=consecutive_same_failure,
         )
-    if not quiet:
-        info("attempts exhausted — manual review needed.")
-    warnings = []
-    if last_validation and not last_validation.ok:
-        warnings.append(last_validation.reason)
-    elif last_log:
-        warnings.append(last_log[:500])
-    emit_event(
-        "validation_fail",
-        {"target": target, "attempts": attempts_limit, "warnings": warnings[:1]},
-        level="warning",
+    return _build_attempts_exhausted_result(
         root=root,
-    )
-    return _task_result(
-        target,
-        prompt,
-        last_output,
-        applied=False,
-        warnings=warnings,
-        verify=last_verify_receipt,
-        impact=impact_results,
+        target=target,
+        prompt=prompt,
+        quiet=quiet,
+        last_output=last_output,
+        last_validation=last_validation,
+        last_log=last_log,
+        last_verify_receipt=last_verify_receipt,
+        impact_results=impact_results,
+        attempts_limit=attempts_limit,
     )
 
 
