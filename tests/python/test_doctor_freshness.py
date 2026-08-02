@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 from simplicio import cli, doctor, ecosystem
 
@@ -93,6 +94,22 @@ def test_cli_forwards_new_doctor_flags(monkeypatch) -> None:
     assert seen["argv"] == ["--no-check-updates", "--refresh", "--upgrade"]
 
 
+def test_cli_forwards_storage_root(monkeypatch) -> None:
+    seen = {}
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+
+    def fake_doctor_main(argv):
+        seen["argv"] = argv
+        return 0
+
+    monkeypatch.setattr("simplicio.doctor.main", fake_doctor_main)
+
+    code = cli.main(["doctor", "--json", "--list-tiers", "--storage", "--root", "/tmp/project"])
+
+    assert code == 0
+    assert seen["argv"] == ["--json", "--list-tiers", "--storage", "--root", "/tmp/project"]
+
+
 # --------------------------------------------------------------------------- #
 # native-vs-python delegation aggregate (issue #111)
 # --------------------------------------------------------------------------- #
@@ -141,3 +158,106 @@ def test_doctor_human_output_renders_native_delegation_section(tmp_path, capsys)
     assert code == 0
     assert "native-vs-python delegation (issue #111):" in out
     assert "test-run" in out
+
+
+def test_doctor_storage_json_is_read_only_and_reports_route(tmp_path, capsys) -> None:
+    code = doctor.main(["--json", "--storage", "--no-check-updates", "--root", str(tmp_path)])
+    out = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert out["storage"]["read_only"] is True
+    assert out["storage"]["side_effects"] == {
+        "directories_created": 0,
+        "files_created": 0,
+        "writes": 0,
+    }
+    assert out["storage"]["route"]["frozen_before_effect"] is True
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_doctor_storage_human_output_reports_legacy_artifact(tmp_path, capsys) -> None:
+    legacy = tmp_path / ".simplicio" / "effect-transactions.sqlite3"
+    legacy.parent.mkdir()
+    legacy.write_bytes(b"legacy")
+
+    code = doctor.main(["--storage", "--no-check-updates", "--root", str(tmp_path)])
+    out = capsys.readouterr().out
+
+    assert code == 0
+    assert "storage capabilities (read-only):" in out
+    assert "legacy present   .simplicio/effect-transactions.sqlite3" in out
+
+
+def test_doctor_list_tiers_supports_json_and_human_output(capsys) -> None:
+    assert doctor.main(["--list-tiers", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert set(payload) == set(doctor.RECOMMENDATIONS)
+
+    assert doctor.main(["--list-tiers"]) == 0
+    out = capsys.readouterr().out
+    assert "tier" in out
+    assert "model id" in out
+
+
+def test_doctor_render_helpers_cover_status_variants(capsys) -> None:
+    statuses = [
+        SimpleNamespace(name="fresh", installed="1", floor="1", latest="1", needs_upgrade=False),
+        SimpleNamespace(name="stale", installed=None, floor=None, latest=None, needs_upgrade=True),
+    ]
+    doctor._render_ecosystem(statuses, [])
+    doctor._render_ecosystem(statuses[:1], [])
+    doctor._render_ecosystem(statuses[:1], ["fresh"])
+
+    profile = SimpleNamespace(
+        os_name="Darwin",
+        apple_silicon=False,
+        gpu_name=None,
+        ram_gb=1.0,
+        detected_via={},
+        vram_gb=0.0,
+        tier="low",
+    )
+    spec = SimpleNamespace(
+        label="Test",
+        model_id="test-model",
+        repo_id="test/repo",
+        filename="test.gguf",
+        size_gb_q4=1.0,
+        notes="test",
+    )
+    doctor._render_human(
+        SimpleNamespace(
+            spec=spec,
+            can_run=False,
+            can_download=False,
+            installed=False,
+            reason=None,
+        ),
+        profile,
+    )
+    doctor._render_mapper_versions(
+        {
+            "mapper": {
+                "installed": None,
+                "declared_range": None,
+                "tested_against": None,
+                "tested_against_reason": "not-run",
+                "unavailable_reason": "not-installed",
+            },
+            "drift": {"has_drift": False},
+        }
+    )
+    out, err = capsys.readouterr()
+    assert "all tracked packages are current" in out
+    assert "upgraded 1 package(s)" in out
+    assert "deterministic-only" in out
+    assert "simplicio-py doctor" in err
+
+
+def test_doctor_human_path_runs_dependency_render(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setattr(doctor, "_ecosystem_freshness", lambda **kwargs: ([], []))
+
+    assert doctor.main(["--root", str(tmp_path)]) == 0
+    out = capsys.readouterr().out
+
+    assert "dependency freshness (installed / floor / pypi-latest):" in out

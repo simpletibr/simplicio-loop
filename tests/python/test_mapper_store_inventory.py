@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import importlib.metadata
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts.mapper_store_inventory import ALLOWLIST, SCHEMA, inventory, main
-from simplicio.store_adapter import MapperStoreAdapter, storage_capabilities
+from simplicio.store_adapter import MapperStoreAdapter, StoreAdapterError, storage_capabilities
 
 
 def test_inventory_covers_current_production_sqlite_stores() -> None:
@@ -28,6 +31,92 @@ def test_mapper_store_adapter_round_trip_and_lock(tmp_path: Path) -> None:
         adapter.write("key-1", {"schema": "test/v1", "value": 1})
         assert adapter.read("key-1") == {"schema": "test/v1", "value": 1}
     assert list((tmp_path / ".simplicio" / "mapper-store" / "test-domain").glob("*.json"))
+
+
+def test_mapper_store_adapter_reads_missing_and_rejects_corrupt_records(tmp_path: Path) -> None:
+    adapter = MapperStoreAdapter(tmp_path, "test-domain")
+
+    assert adapter.read("missing") is None
+    adapter.record_path("invalid").write_text("not-json", encoding="utf-8")
+    with pytest.raises(StoreAdapterError, match="STORE_CORRUPT"):
+        adapter.read("invalid")
+    adapter.record_path("list").write_text("[]", encoding="utf-8")
+    with pytest.raises(StoreAdapterError, match="STORE_CORRUPT"):
+        adapter.read("list")
+
+
+def test_mapper_store_adapter_retries_transient_replace(tmp_path: Path, monkeypatch) -> None:
+    import simplicio.store_adapter as store_adapter
+
+    adapter = MapperStoreAdapter(tmp_path, "test-domain")
+    real_replace = store_adapter.os.replace
+    attempts = 0
+
+    def replace_once(source, target):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise PermissionError(5, "access denied")
+        real_replace(source, target)
+
+    monkeypatch.setattr(store_adapter.os, "replace", replace_once)
+    adapter.write("retry", {"value": 1})
+
+    assert attempts == 2
+    assert adapter.read("retry") == {"value": 1}
+
+
+def test_mapper_store_adapter_acquire_release_and_write_failure(tmp_path: Path, monkeypatch) -> None:
+    import simplicio.store_adapter as store_adapter
+
+    adapter = MapperStoreAdapter(tmp_path, "test-domain")
+    handle = adapter.acquire("key", operation="test")
+    adapter.release(handle)
+
+    monkeypatch.setattr(
+        store_adapter.os,
+        "replace",
+        lambda source, target: (_ for _ in ()).throw(PermissionError(5, "access denied")),
+    )
+    with pytest.raises(StoreAdapterError, match="STORE_WRITE_FAILED"):
+        adapter.write("failure", {"value": 1})
+
+
+def test_mapper_store_adapter_reports_lock_and_api_failures(tmp_path: Path, monkeypatch) -> None:
+    import simplicio.store_adapter as store_adapter
+
+    adapter = MapperStoreAdapter(tmp_path, "test-domain")
+    monkeypatch.setattr(store_adapter, "acquire_lock_at", lambda *args, **kwargs: None)
+    with pytest.raises(StoreAdapterError, match="STORE_LOCKED"):
+        adapter.acquire("locked", operation="test")
+    with pytest.raises(StoreAdapterError, match="STORE_LOCKED"):
+        with adapter.lock("locked", operation="test"):
+            pass
+
+    monkeypatch.setattr(store_adapter, "acquire_lock_at", None)
+    with pytest.raises(StoreAdapterError, match="mapper-api-unavailable"):
+        adapter.acquire("unavailable", operation="test")
+    with pytest.raises(StoreAdapterError, match="mapper-api-unavailable"):
+        with adapter.lock("unavailable", operation="test"):
+            pass
+    monkeypatch.setattr(store_adapter, "release_lock_at", None)
+    with pytest.raises(StoreAdapterError, match="mapper-api-unavailable"):
+        adapter.release(object())
+
+
+def test_mapper_status_reports_uninstalled_and_unparseable_versions(monkeypatch) -> None:
+    import simplicio.store_adapter as store_adapter
+
+    monkeypatch.delenv("SIMPLICIO_MAPPER_VERSION", raising=False)
+    monkeypatch.setattr(
+        importlib.metadata,
+        "version",
+        lambda name: (_ for _ in ()).throw(importlib.metadata.PackageNotFoundError(name)),
+    )
+    assert store_adapter._mapper_status() == (None, False, "mapper-package-not-installed")
+
+    monkeypatch.setenv("SIMPLICIO_MAPPER_VERSION", "development")
+    assert store_adapter._mapper_status() == ("development", False, "mapper-version-incompatible")
 
 
 def test_storage_capabilities_are_read_only_and_report_mapper_route(tmp_path: Path) -> None:
