@@ -6,6 +6,7 @@ import json
 import sqlite3
 from pathlib import Path
 
+from scripts import mapper_store_conformance as conformance
 from scripts.mapper_store_conformance import (
     _canonical_evidence_hash,
     _checkout_matches_default,
@@ -237,3 +238,23 @@ def test_evidence_file_accepts_loop_install_smoke_receipt(tmp_path: Path) -> Non
         encoding="utf-8",
     )
     assert _evidence_file_args([str(path)], tmp_path)["loop_standalone"]["ok"] is True
+
+
+def test_gate_fails_closed_for_unverified_status(tmp_path: Path, monkeypatch, capsys) -> None:
+    repos = []
+    for name in ("mapper", "loop", "dev-cli", "runtime"):
+        path = tmp_path / name
+        path.mkdir()
+        repos.append(f"{name}={path}")
+
+    monkeypatch.setattr(
+        conformance,
+        "build_conformance",
+        lambda *args, **kwargs: {"status": "unverified", "residual_unverified": [{"id": "external"}]},
+    )
+
+    arguments = ["--deterministic"]
+    for value in repos:
+        arguments.extend(["--repo", value])
+    assert conformance.main(arguments) == 1
+    assert '"status": "unverified"' in capsys.readouterr().out

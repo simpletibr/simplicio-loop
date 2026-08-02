@@ -538,7 +538,9 @@ def main(argv: list[str] | None = None) -> int:
         temporary.write_text(rendered, encoding="utf-8")
         temporary.replace(args.output)
     print(rendered, end="")
-    return 1 if payload["status"] == "fail" else 0
+    # unverified is deliberately non-zero: a release gate must never
+    # report success while any required external evidence is still missing.
+    return 0 if payload["status"] == "pass" else 1
 
 
 if __name__ == "__main__":
