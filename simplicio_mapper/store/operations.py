@@ -913,6 +913,27 @@ class OperationsStore:
                     )
         return {"schema": OPERATIONS_API_SCHEMA, "status": "cancelled", "task_id": task_id, "state": state}
 
+    def requeue(self, task_id: str) -> dict[str, Any]:
+        """Return a non-terminal failed task to the canonical queued state."""
+        if not isinstance(task_id, str) or not task_id.strip():
+            raise OperationsStoreError("TASK_IDENTITY_INVALID")
+        with self._write_lock():
+            with self._open() as store:
+                self._ensure_ready(store)
+                with transaction(store, "IMMEDIATE") as tx:
+                    row = tx.execute(
+                        "SELECT state, terminal_verified FROM ops_tasks WHERE task_id=?", (task_id,)
+                    ).fetchone()
+                    if not row:
+                        raise OperationsStoreError("TASK_NOT_FOUND", task_id)
+                    if row[1] or row[0] not in {"failed", "cancelled"}:
+                        raise OperationsStoreError("TASK_NOT_REQUEUEABLE", task_id)
+                    tx.execute(
+                        "UPDATE ops_tasks SET state='queued', cancellation_requested=0, updated_at=? WHERE task_id=?",
+                        (_now(), task_id),
+                    )
+        return {"schema": OPERATIONS_API_SCHEMA, "status": "requeued", "task_id": task_id, "state": "queued"}
+
     def request_cancel(self, task_id: str, *, reason: str = "cancelled") -> dict[str, Any]:
         """Request cooperative cancellation while retaining the current lease."""
         result = self.cancel(task_id)
