@@ -14,6 +14,7 @@ import json
 import os
 import subprocess
 import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -679,6 +680,128 @@ def _generate_attempt_output(
     return output, None
 
 
+@dataclass(frozen=True)
+class _FixerAttemptOutcome:
+    """Result of one optional static-fixer retry pass."""
+
+    ok: bool
+    log: str
+    verify_receipt: dict[str, Any] | None
+    impact: dict[str, Any] | None
+    terminal_result: dict[str, Any] | None = None
+
+
+def _run_static_fixer_attempt(
+    *,
+    output: str,
+    log: str,
+    root: str | Path,
+    target: str,
+    stack: str,
+    prompt: str,
+    bound_paths: list[str] | None,
+    declared_repo_root: str,
+    declared_scope_root: str,
+    scope_root: str | os.PathLike[str] | None,
+    primary_test_cmd: str | None,
+    attempt_number: int,
+    quiet: bool,
+    profile: Any,
+    mutation_route: str,
+    task_context: TaskContext,
+    authorization: EffectAuthorization | None,
+) -> _FixerAttemptOutcome | None:
+    """Run, verify and promote one authorized static-fixer result."""
+    fixer_paths = authorized_path_warnings(
+        extract_changed_files(output),
+        root=root,
+        repo_root=declared_repo_root,
+        scope_root=declared_scope_root,
+    )
+    fixer_result = None if fixer_paths or scope_root is not None else try_static_fixers(log, root)
+    if fixer_result is None or not fixer_result.applied:
+        return None
+    attempt = _apply_and_test_attempt(
+        output,
+        root,
+        bound_paths,
+        promote_on_success=False,
+        repo_root=declared_repo_root,
+        scope_root=declared_scope_root,
+    )
+    ok, fixed_log = attempt.ok, attempt.log
+    verify_receipt = _LAST_VERIFY_RECEIPT
+    log_run(
+        root,
+        {
+            "mode": "fixer",
+            "attempt": attempt_number,
+            "ok": ok,
+            "fixer": fixer_result.fixer,
+            "details": fixer_result.details,
+            "failure_class": "none" if ok else classify_failure(fixed_log).kind,
+            "target": target,
+            "stack": stack,
+        },
+    )
+    effective_log = fixed_log if ok else f"{fixer_result.details}\n{fixed_log}"
+    if not ok:
+        return _FixerAttemptOutcome(False, effective_log, verify_receipt, None)
+
+    files_changed = extract_changed_files(output)
+    candidate_root = str(attempt.tx.candidate) if attempt.tx is not None else root
+    impact = _run_impact_tests_compat(candidate_root, files_changed, primary_test_cmd)
+    impact_result = impact.get("result", IMPACT_RESULT_UNVERIFIED) if impact else IMPACT_RESULT_UNVERIFIED
+    if impact_result == IMPACT_RESULT_FAILED:
+        failure = (
+            "impact test failure after fixer — callers: "
+            + ", ".join(impact.get("callers", []))[:200]
+            + "\n"
+            + impact.get("output_tail", "")[:1500]
+        )
+        if not quiet:
+            info("impact test failed after fixer: %s", failure[:300])
+        return _FixerAttemptOutcome(False, failure, verify_receipt, impact)
+    if impact_result not in (IMPACT_RESULT_PASSED, IMPACT_RESULT_NOT_NEEDED):
+        failure = "impact verification unavailable after fixer — " + (impact or {}).get("status", "unknown")
+        return _FixerAttemptOutcome(False, failure, verify_receipt, impact)
+
+    try:
+        if attempt.tx is not None and attempt.receipt is not None:
+            attempt.tx.promote(attempt.receipt)
+    except Exception as exc:
+        return _FixerAttemptOutcome(False, str(exc), verify_receipt, impact)
+    if not quiet:
+        suffix = " (impact verified)" if impact_result == IMPACT_RESULT_PASSED else " (impact unverifiable)"
+        info(f"PASSED after static fixer {fixer_result.fixer}.{suffix} DONE.")
+    emit_event(
+        "task_complete",
+        {"target": target, "attempt": attempt_number, "fixer": fixer_result.fixer},
+        root=root,
+        tokens_saved=0,
+    )
+    result = _task_result(
+        target,
+        prompt,
+        output,
+        applied=True,
+        verify=verify_receipt,
+        impact=impact,
+    )
+    result["execution_profile"] = profile.to_dict()
+    terminal_result = _attach_contract_receipt(
+        result,
+        task_context=task_context,
+        route=mutation_route,
+        effective_mode=profile.effective_mode,
+        authorization=authorization,
+        verification_status=(
+            "verified" if result.get("verify", {}).get("status") == "verified" else "unverified"
+        ),
+    )
+    return _FixerAttemptOutcome(True, "", verify_receipt, impact, terminal_result)
+
+
 def _run_task(
     root,
     stack,
@@ -1231,110 +1354,33 @@ def _run_task(
                     impact=impact_results,
                 )
 
-        # ── Primary test or impact test failed — try fixers ──
-        fixer_paths = authorized_path_warnings(
-            extract_changed_files(output),
+        fixer_outcome = _run_static_fixer_attempt(
+            output=output,
+            log=log,
             root=root,
-            repo_root=declared_repo_root,
-            scope_root=declared_scope_root,
+            target=target,
+            stack=stack,
+            prompt=prompt,
+            bound_paths=bound_paths,
+            declared_repo_root=declared_repo_root,
+            declared_scope_root=declared_scope_root,
+            scope_root=scope_root,
+            primary_test_cmd=primary_test_cmd,
+            attempt_number=t,
+            quiet=quiet,
+            profile=profile,
+            mutation_route=mutation_route,
+            task_context=task_context,
+            authorization=authorization,
         )
-        fixer_result = None if fixer_paths or scope_root is not None else try_static_fixers(log, root)
-        if fixer_result is not None and fixer_result.applied:
-            attempt = _apply_and_test_attempt(
-                output,
-                root,
-                bound_paths,
-                promote_on_success=False,
-                repo_root=declared_repo_root,
-                scope_root=declared_scope_root,
-            )
-            ok, fixed_log = attempt.ok, attempt.log
-            last_verify_receipt = _LAST_VERIFY_RECEIPT
-            log_run(
-                root,
-                {
-                    "mode": "fixer",
-                    "attempt": t,
-                    "ok": ok,
-                    "fixer": fixer_result.fixer,
-                    "details": fixer_result.details,
-                    "failure_class": "none" if ok else classify_failure(fixed_log).kind,
-                    "target": target,
-                    "stack": stack,
-                },
-            )
-            last_log = fixed_log
-            log = fixed_log if ok else f"{fixer_result.details}\n{fixed_log}"
-            if ok:
-                # Re-run impact tests after fixer pass
-                files_changed = extract_changed_files(output)
-                candidate_root = str(attempt.tx.candidate) if attempt.tx is not None else root
-                impact_results = _run_impact_tests_compat(candidate_root, files_changed, primary_test_cmd)
-                impact_result = (
-                    impact_results.get("result", IMPACT_RESULT_UNVERIFIED)
-                    if impact_results
-                    else IMPACT_RESULT_UNVERIFIED
-                )
-
-                if impact_result == IMPACT_RESULT_FAILED:
-                    ok = False
-                    log = (
-                        "impact test failure after fixer — callers: "
-                        + ", ".join(impact_results.get("callers", []))[:200]
-                        + "\n"
-                        + impact_results.get("output_tail", "")[:1500]
-                    )
-                    if not quiet:
-                        info("impact test failed after fixer: %s", log[:300])
-                elif impact_result in (IMPACT_RESULT_PASSED, IMPACT_RESULT_NOT_NEEDED):
-                    try:
-                        if attempt.tx is not None and attempt.receipt is not None:
-                            attempt.tx.promote(attempt.receipt)
-                    except Exception as exc:
-                        ok = False
-                        log = str(exc)
-                        last_log = log
-                    else:
-                        if not quiet:
-                            suffix = (
-                                " (impact verified)"
-                                if impact_result == IMPACT_RESULT_PASSED
-                                else " (impact unverifiable)"
-                            )
-                            info(f"PASSED after static fixer {fixer_result.fixer}.{suffix} DONE.")
-                        emit_event(
-                            "task_complete",
-                            {"target": target, "attempt": t, "fixer": fixer_result.fixer},
-                            root=root,
-                            tokens_saved=0,
-                        )
-                        result = _task_result(
-                            target,
-                            prompt,
-                            output,
-                            applied=True,
-                            verify=last_verify_receipt,
-                            impact=impact_results,
-                        )
-                        result["execution_profile"] = profile.to_dict()
-                        result = _attach_contract_receipt(
-                            result,
-                            task_context=task_context,
-                            route=mutation_route,
-                            effective_mode=profile.effective_mode,
-                            authorization=authorization,
-                            verification_status=(
-                                "verified"
-                                if result.get("verify", {}).get("status") == "verified"
-                                else "unverified"
-                            ),
-                        )
-                        return result
-                else:
-                    ok = False
-                    log = "impact verification unavailable after fixer — " + (impact_results or {}).get(
-                        "status", "unknown"
-                    )
+        if fixer_outcome is not None:
+            last_verify_receipt = fixer_outcome.verify_receipt
+            impact_results = fixer_outcome.impact
+            if fixer_outcome.terminal_result is not None:
+                return fixer_outcome.terminal_result
+            ok = fixer_outcome.ok
+            log = fixer_outcome.log
+            last_log = log
         if not quiet:
             info("failed: %s", log[:300])
         # Issue #219: escalate once the same failure fingerprint repeats.
