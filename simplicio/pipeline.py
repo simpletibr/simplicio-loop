@@ -214,6 +214,16 @@ def _publish_execution_mode_selection(
     return policy, route
 
 
+def _promote_transaction(attempt: Any) -> tuple[bool, str | None]:
+    """Promote a verified attempt and normalize transaction failures."""
+    try:
+        if attempt.tx is not None and attempt.receipt is not None:
+            attempt.tx.promote(attempt.receipt)
+    except Exception as exc:
+        return False, str(exc)
+    return True, None
+
+
 def _failure_fingerprint(log: str | None) -> str:
     kind = classify_failure(log).kind
     digest = hashlib.sha256((log or "").encode("utf-8", errors="replace")).hexdigest()[:16]
@@ -798,11 +808,11 @@ def _run_static_fixer_attempt(
         failure = "impact verification unavailable after fixer — " + (impact or {}).get("status", "unknown")
         return _FixerAttemptOutcome(False, failure, verify_receipt, impact)
 
-    try:
-        if attempt.tx is not None and attempt.receipt is not None:
-            attempt.tx.promote(attempt.receipt)
-    except Exception as exc:
-        return _FixerAttemptOutcome(False, str(exc), verify_receipt, impact)
+    promoted, promotion_error = _promote_transaction(attempt)
+    if not promoted:
+        return _FixerAttemptOutcome(
+            False, promotion_error or "transaction promotion failed", verify_receipt, impact
+        )
     if not quiet:
         suffix = " (impact verified)" if impact_result == IMPACT_RESULT_PASSED else " (impact unverifiable)"
         info(f"PASSED after static fixer {fixer_result.fixer}.{suffix} DONE.")
@@ -890,11 +900,9 @@ def _handle_primary_attempt_success(
             impact=impact,
         )
         return False, failure, impact, terminal
-    try:
-        if attempt.tx is not None and attempt.receipt is not None:
-            attempt.tx.promote(attempt.receipt)
-    except Exception as exc:
-        return False, str(exc), impact, None
+    promoted, promotion_error = _promote_transaction(attempt)
+    if not promoted:
+        return False, promotion_error or "transaction promotion failed", impact, None
     if not quiet:
         info("PASSED the contract (impact verified). DONE.")
     emit_event(
