@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 from types import SimpleNamespace
 
@@ -280,6 +281,41 @@ def test_native_runtime_malformed_output_never_claims_runtime_gate(tmp_path, mon
     assert result["status"] == "effect_unknown"
     assert result["errors"][0]["code"] == "native_delegation_malformed_output"
     assert result["mutation_receipt"]["runtime_gated"] is False
+
+
+def test_native_runtime_receives_stdin_plan_without_conflicting_stdin_handle(tmp_path, monkeypatch):
+    calls = []
+
+    def fake_run(_argv, **kwargs):
+        calls.append(kwargs)
+        assert kwargs["input"]
+        assert kwargs["stdin"] is subprocess.PIPE
+        return SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps(
+                {
+                    "schema": "simplicio.edit-result/v1",
+                    "status": "ok",
+                    "file": "app.py",
+                    "before_sha256": "before",
+                    "after_sha256": "after",
+                }
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(edit_cmd.subprocess, "run", fake_run)
+    plan = json.dumps({"file": "app.py", "operations": [{"op": "replace", "text": "new\n"}]})
+    result = edit_cmd._run_native_edit_plans(
+        "simplicio",
+        [{"file": "app.py", "operations": [{"op": "replace", "text": "new\n"}]}],
+        argparse.Namespace(root=str(tmp_path), apply=True),
+        stdin_text=plan,
+        plan_arg="-",
+    )
+
+    assert result["status"] == "ok"
+    assert len(calls) == 1
 
 
 # --------------------------------------------------------------------------- #

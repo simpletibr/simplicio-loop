@@ -180,7 +180,7 @@ def _run_native_edit_plans(
                 cmd,
                 input=input_text,
                 text=True,
-                stdin=subprocess.DEVNULL,
+                stdin=subprocess.PIPE if input_text is not None else subprocess.DEVNULL,
                 capture_output=True,
             )
         except OSError as exc:
