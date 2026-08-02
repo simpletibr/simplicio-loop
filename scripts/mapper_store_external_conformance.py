@@ -17,6 +17,8 @@ import json
 import os
 import platform
 import shutil
+import signal
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -165,6 +167,8 @@ def _receipt(
     reason: str,
     platform_name: str,
     legacy_ddl_matches: int = 0,
+    rollback_verified: bool = False,
+    fault_injection_verified: bool = False,
     observations: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     value: dict[str, Any] = {
@@ -183,8 +187,8 @@ def _receipt(
         "writer_authority": "mapper-store",
         "legacy_ddl_matches": legacy_ddl_matches,
         "effects_attempted": False,
-        "rollback_verified": False,
-        "fault_injection_verified": False,
+        "rollback_verified": rollback_verified,
+        "fault_injection_verified": fault_injection_verified,
     }
     if observations:
         value["observations"] = dict(observations)
@@ -451,6 +455,79 @@ def _corrupt_legacy(*, mapper_root: Path, timeout: float) -> tuple[bool, str, di
         return True, "corrupt legacy source held with repair plan", observations
 
 
+def _crash_migration(*, mapper_root: Path, timeout: float) -> tuple[bool, str, dict[str, Any]]:
+    """Kill a real migration subprocess at a phase boundary, then recover."""
+    with tempfile.TemporaryDirectory(prefix="mapper-store-crash-migration-") as raw:
+        sandbox = Path(raw)
+        source = sandbox / "legacy.sqlite"
+        destination = sandbox / "mapper.sqlite"
+        with sqlite3.connect(source) as connection:
+            connection.execute("CREATE TABLE records (id INTEGER PRIMARY KEY, value TEXT NOT NULL)")
+            connection.executemany("INSERT INTO records VALUES (?, ?)", [(1, "one"), (2, "two")])
+            connection.commit()
+        env = os.environ.copy()
+        existing_pythonpath = env.get("PYTHONPATH")
+        env["PYTHONPATH"] = os.pathsep.join(
+            item for item in (str(mapper_root), existing_pythonpath) if item
+        )
+        crash = _run(
+            [
+                sys.executable,
+                "-c",
+                "import os, signal, sys; "
+                "from simplicio_mapper.store import MigrationCoordinator; "
+                "MigrationCoordinator(sys.argv[2], {'legacy': sys.argv[1]}).backup(); "
+                "os.kill(os.getpid(), signal.SIGKILL)",
+                str(source),
+                str(destination),
+            ],
+            cwd=sandbox,
+            env=env,
+            timeout=timeout,
+        )
+        observations: dict[str, Any] = {
+            "fault_boundary": "after_backup_before_import",
+            "fault_process": crash,
+            "migration_state_exists_after_kill": destination.with_suffix(destination.suffix + ".migration.jsonl").exists(),
+        }
+        if crash.get("returncode") != -signal.SIGKILL:
+            return False, "fault subprocess did not terminate at the requested boundary", observations
+
+        recover = _run(
+            [
+                sys.executable,
+                "-c",
+                "import json, sys; "
+                "from simplicio_mapper.store import MigrationCoordinator; "
+                "c=MigrationCoordinator(sys.argv[2], {'legacy': sys.argv[1]}); "
+                "imported=c.import_data(); validated=c.validate(record=True); cutover=c.cutover(); "
+                "rolled_back=c.rollback(); print(json.dumps({'imported': imported, 'validated': validated, 'cutover': cutover, 'rolled_back': rolled_back, 'status': c.status()}))",
+                str(source),
+                str(destination),
+            ],
+            cwd=sandbox,
+            env=env,
+            timeout=timeout,
+        )
+        observations["recovery_process"] = recover
+        recovery = _last_json(recover.get("stdout", ""))
+        observations["destination_exists_after_rollback"] = destination.exists()
+        observations["pointer_exists_after_rollback"] = destination.with_name(destination.name + ".active.json").exists()
+        observations["fault_injection_verified"] = crash.get("returncode") == -signal.SIGKILL
+        observations["rollback_verified"] = bool(
+            recovery
+            and (recovery.get("rolled_back") or {}).get("status") == "rolled_back"
+            and (recovery.get("status") or {}).get("state") == "ROLLBACK"
+            and not observations["destination_exists_after_rollback"]
+            and not observations["pointer_exists_after_rollback"]
+        )
+        if recover["status"] != "pass":
+            return False, "migration recovery process failed", observations
+        if not observations["rollback_verified"]:
+            return False, "migration did not recover and rollback cleanly", observations
+        return True, "crash-after-backup recovered and rollback verified", observations
+
+
 def _standalone(
     *,
     wheels: Mapping[str, Path],
@@ -621,6 +698,8 @@ def run_scenario(
             reason = "sqlite-vec absent Runtime lane passed with honest FTS5 fallback"
     elif scenario == "legacy database corrupted":
         ok, reason, observations = _corrupt_legacy(mapper_root=repos["mapper"], timeout=timeout)
+    elif scenario == "crash during migration":
+        ok, reason, observations = _crash_migration(mapper_root=repos["mapper"], timeout=timeout)
     elif scenario == "macOS":
         standalone_ok, standalone_reason, standalone_observations = _standalone(
             wheels=wheels,
@@ -689,6 +768,8 @@ def run_scenario(
         reason=reason,
         platform_name=host,
         legacy_ddl_matches=legacy_ddl_matches,
+        rollback_verified=bool(observations.get("rollback_verified")),
+        fault_injection_verified=bool(observations.get("fault_injection_verified")),
         observations=observations,
     )
 
