@@ -39,11 +39,13 @@ from pathlib import Path
 from typing import Any, cast
 
 from .store_adapter import MapperStoreAdapter, StoreAdapterError
+from .utils.fs import write_text_atomic
 
 MEMORY_SCHEMA = "simplicio.memory-store/v1"
 MEMORY_VALIDATION_SCHEMA = "simplicio.memory-store-validation/v1"
 MEMORY_HANDOFF_SCHEMA = "simplicio.memory-handoff/v1"
 MEMORY_INDEX_SCHEMA = "simplicio.memory-index/v1"
+MEMORY_IMPORT_SCHEMA = "simplicio.memory-import/v1"
 
 
 def memory_dir() -> Path:
@@ -160,6 +162,84 @@ def store_memory(
         "path": str(path),
         "ts": ts,
         "committed": committed,
+    }
+
+
+def import_memory(
+    source: str | os.PathLike[str],
+    *,
+    root: str | os.PathLike[str] | None = None,
+) -> dict[str, Any]:
+    """Import Markdown notes without duplicating existing timestamped entries.
+
+    The source is read-only. Existing target sections are compared by their
+    complete Markdown text, so re-importing the same source is deterministic
+    and preserves actor/timestamp/tags provenance verbatim.
+    """
+    source_base = Path(source).resolve()
+    source_notes = source_base / "notes" if (source_base / "notes").is_dir() else source_base
+    target_base = Path(root) if root is not None else memory_dir()
+    target_base = target_base.resolve()
+    if not source_notes.is_dir():
+        return {
+            "schema": MEMORY_IMPORT_SCHEMA,
+            "status": "blocked",
+            "reason": "source_notes_missing",
+            "source": str(source_base),
+            "dir": str(target_base),
+        }
+    if source_notes == _notes_dir(target_base).resolve():
+        return {
+            "schema": MEMORY_IMPORT_SCHEMA,
+            "status": "blocked",
+            "reason": "source_equals_target",
+            "source": str(source_base),
+            "dir": str(target_base),
+        }
+
+    init_memory(root=target_base)
+    imported = 0
+    merged_entries = 0
+    skipped = 0
+    files: list[dict[str, Any]] = []
+    for source_path in sorted(source_notes.glob("*.md")):
+        source_text = source_path.read_text(encoding="utf-8")
+        target_path = _notes_dir(target_base) / source_path.name
+        before = hashlib.sha256(target_path.read_bytes()).hexdigest() if target_path.exists() else None
+        if not target_path.exists():
+            target_path.write_bytes(source_path.read_bytes())
+            imported += 1
+        else:
+            target_text = target_path.read_text(encoding="utf-8")
+            target_sections = {section.strip() for section in _split_sections(target_text)}
+            missing = [
+                section.strip()
+                for section in _split_sections(source_text)
+                if section.strip() and section.strip() not in target_sections
+            ]
+            if missing:
+                separator = "" if target_text.endswith("\n") else "\n"
+                write_text_atomic(
+                    target_path,
+                    target_text + separator + "\n" + "\n\n".join(missing) + "\n",
+                )
+                merged_entries += len(missing)
+            else:
+                skipped += 1
+        after = hashlib.sha256(target_path.read_bytes()).hexdigest()
+        files.append({"path": str(target_path), "before_sha256": before, "after_sha256": after})
+    _rebuild_index(target_base)
+    validation = validate_memory(root=target_base)
+    return {
+        "schema": MEMORY_IMPORT_SCHEMA,
+        "status": "ok" if validation["ok"] else "blocked",
+        "source": str(source_base),
+        "dir": str(target_base),
+        "imported_files": imported,
+        "merged_entries": merged_entries,
+        "skipped_files": skipped,
+        "files": files,
+        "validation": {"ok": validation["ok"], "errors": validation["errors"]},
     }
 
 

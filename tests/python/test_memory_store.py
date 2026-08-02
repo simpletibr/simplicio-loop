@@ -145,6 +145,69 @@ def test_store_appends_without_overwriting_history(tmp_path):
     assert "second entry" in text
 
 
+def test_import_memory_is_idempotent_and_preserves_provenance(tmp_path):
+    source = tmp_path / "source"
+    target = tmp_path / "target"
+    (source / "notes").mkdir(parents=True)
+    (source / "notes" / "topic.md").write_text(
+        "# topic\n\n## 2026-01-01T00:00:00Z — source-agent\ntags: migration,unicode\n\nUnicode ✓\n",
+        encoding="utf-8",
+    )
+
+    first = memory_store.import_memory(source, root=target)
+    second = memory_store.import_memory(source, root=target)
+
+    assert first["status"] == "ok"
+    assert first["imported_files"] == 1
+    assert second["imported_files"] == 0
+    assert second["merged_entries"] == 0
+    assert second["skipped_files"] == 1
+    text = (target / "notes" / "topic.md").read_text(encoding="utf-8")
+    assert text.count("source-agent") == 1
+    assert "tags: migration,unicode" in text
+    assert memory_store.validate_memory(root=target)["ok"] is True
+
+
+def test_import_memory_merges_only_new_sections_and_rejects_invalid_source(tmp_path):
+    source = tmp_path / "source" / "notes"
+    target = tmp_path / "target"
+    source.mkdir(parents=True)
+    note = source / "topic.md"
+    note.write_text(
+        "# topic\n\n## 2026-01-01T00:00:00Z — agent-a\n\nfirst\n",
+        encoding="utf-8",
+    )
+    memory_store.import_memory(source, root=target)
+    note.write_text(
+        note.read_text(encoding="utf-8") + "\n## 2026-01-02T00:00:00Z — agent-b\n\ntwo\n",
+        encoding="utf-8",
+    )
+    merged = memory_store.import_memory(source, root=target)
+    assert merged["merged_entries"] == 1
+    assert (target / "notes" / "topic.md").read_text(encoding="utf-8").count("## ") == 2
+
+    blocked = memory_store.import_memory(tmp_path / "missing", root=target)
+    assert blocked["status"] == "blocked"
+    assert blocked["reason"] == "source_notes_missing"
+
+
+def test_cli_memory_import_reports_receipt(tmp_path, capsys):
+    from simplicio import cli
+
+    source = tmp_path / "source" / "notes"
+    source.mkdir(parents=True)
+    (source / "topic.md").write_text(
+        "# topic\n\n## 2026-01-01T00:00:00Z — source\n\ncontent\n",
+        encoding="utf-8",
+    )
+    target = tmp_path / "target"
+    code = cli.main(["memory", "import", str(source), "--dir", str(target), "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert code == 0
+    assert payload["schema"] == memory_store.MEMORY_IMPORT_SCHEMA
+    assert payload["imported_files"] == 1
+
+
 def test_store_topic_slugified():
     assert memory_store._slugify("Auth Flow!!") == "auth-flow"
     assert memory_store._slugify("   ") == "untitled"

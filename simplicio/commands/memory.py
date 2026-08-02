@@ -15,7 +15,14 @@ CLI_PROG = "simplicio-py"
 
 def run(a: argparse.Namespace) -> int:
     from ..memory_migration import backup_memory, restore_memory
-    from ..memory_store import build_handoff, init_memory, recall_memory, store_memory, validate_memory
+    from ..memory_store import (
+        build_handoff,
+        import_memory,
+        init_memory,
+        recall_memory,
+        store_memory,
+        validate_memory,
+    )
 
     if a.memory_cmd == "init":
         payload = init_memory(root=a.dir)
@@ -35,6 +42,17 @@ def run(a: argparse.Namespace) -> int:
         else:
             print(f"{CLI_PROG} memory store: {payload['path']} (committed={payload['committed']})")
         return 0
+    if a.memory_cmd == "import":
+        payload = import_memory(a.source, root=a.dir)
+        if a.json:
+            print(json.dumps(payload, sort_keys=True))
+        else:
+            print(
+                f"{CLI_PROG} memory import: {payload['status']} "
+                f"files={payload.get('imported_files', 0)} "
+                f"entries={payload.get('merged_entries', 0)}"
+            )
+        return 0 if payload["status"] == "ok" else 2
     if a.memory_cmd == "recall":
         results = recall_memory(a.query, limit=a.limit, root=a.dir, mode=a.mode)
         if a.json:
