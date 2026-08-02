@@ -1063,6 +1063,106 @@ def _build_attempts_exhausted_result(
     )
 
 
+def _prepare_attempt(
+    *,
+    root,
+    target,
+    prompt,
+    quiet,
+    attempt_number,
+    task_started_at,
+    task_deadline,
+    last_output,
+    last_verify_receipt,
+    impact_results,
+):
+    if not quiet:
+        _model = os.environ.get("SIMPLICIO_MODEL", "")
+        _base = os.environ.get("SIMPLICIO_BASE_URL", "")
+        _prov = (
+            _provider_id(_model, _base)
+            if (_model or _base)
+            else os.environ.get("SIMPLICIO_PROVIDER", "unknown")
+        )
+        info("--- attempt %s (provider=%s, validation=%s) ---", attempt_number, _prov, get_validation_mode())
+    elapsed_before_attempt = time.monotonic() - task_started_at
+    emit_event(
+        "task_progress",
+        {
+            "target": target,
+            "attempt": attempt_number,
+            "stage": "generate",
+            "elapsed_s": round(elapsed_before_attempt, 2),
+        },
+        root=root,
+    )
+    if task_deadline and elapsed_before_attempt >= task_deadline:
+        reason = (
+            f"task exceeded its configured deadline ({task_deadline:.0f}s, "
+            "SIMPLICIO_TASK_DEADLINE_S) with no successful attempt; stopping after "
+            f"{attempt_number - 1} attempt(s) instead of hanging indefinitely"
+        )
+        emit_event(
+            "task_no_progress",
+            {"target": target, "attempts": attempt_number - 1, "elapsed_s": round(elapsed_before_attempt, 2)},
+            level="warning",
+            root=root,
+        )
+        return elapsed_before_attempt, _task_result(
+            target,
+            prompt,
+            last_output,
+            applied=False,
+            status="stalled",
+            warnings=[reason],
+            verify=last_verify_receipt,
+            impact=impact_results,
+        )
+    return elapsed_before_attempt, None
+
+
+def _record_attempt_usage(*, root, target, prompt, output, ok, log, stack, attempt_number):
+    attempt_tokens = estimate_tokens(prompt) + estimate_tokens(output)
+    log_run(
+        root,
+        {
+            "mode": "pipeline",
+            "attempt": attempt_number,
+            "ok": ok,
+            "failure_class": "none" if ok else classify_failure(log).kind,
+            "tokens_estimated": attempt_tokens,
+            "target": target,
+            "stack": stack,
+        },
+    )
+    emit_event(
+        "token_usage",
+        {"target": target, "attempt": attempt_number, "tokens_estimated": attempt_tokens},
+        root=root,
+    )
+    return attempt_tokens
+
+
+def _validate_and_apply_attempt(*, output, bound_paths, root, declared_repo_root, declared_scope_root):
+    last_validation = validate_generated_output(
+        output,
+        bound_paths,
+        root=root,
+        repo_root=declared_repo_root,
+        scope_root=declared_scope_root,
+    )
+    attempt = _apply_and_test_attempt(
+        output,
+        root,
+        bound_paths,
+        promote_on_success=False,
+        repo_root=declared_repo_root,
+        scope_root=declared_scope_root,
+    )
+    ok, log = attempt.ok, attempt.log
+    return last_validation, attempt, ok, log, _LAST_VERIFY_RECEIPT
+
+
 def _run_attempt_loop(
     *,
     root,
@@ -1093,48 +1193,20 @@ def _run_attempt_loop(
     last_failure_fingerprint: str | None = None
     consecutive_same_failure = 0
     for t in range(1, attempts_limit + 1):
-        if not quiet:
-            _model = os.environ.get("SIMPLICIO_MODEL", "")
-            _base = os.environ.get("SIMPLICIO_BASE_URL", "")
-            _prov = (
-                _provider_id(_model, _base)
-                if (_model or _base)
-                else os.environ.get("SIMPLICIO_PROVIDER", "unknown")
-            )
-            info("--- attempt %s (provider=%s, validation=%s) ---", t, _prov, get_validation_mode())
-        elapsed_before_attempt = time.monotonic() - task_started_at
-        emit_event(
-            "task_progress",
-            {
-                "target": target,
-                "attempt": t,
-                "stage": "generate",
-                "elapsed_s": round(elapsed_before_attempt, 2),
-            },
+        _elapsed_before_attempt, terminal_result = _prepare_attempt(
             root=root,
+            target=target,
+            prompt=prompt,
+            quiet=quiet,
+            attempt_number=t,
+            task_started_at=task_started_at,
+            task_deadline=task_deadline,
+            last_output=last_output,
+            last_verify_receipt=last_verify_receipt,
+            impact_results=impact_results,
         )
-        if task_deadline and elapsed_before_attempt >= task_deadline:
-            reason = (
-                f"task exceeded its configured deadline ({task_deadline:.0f}s, "
-                "SIMPLICIO_TASK_DEADLINE_S) with no successful attempt; stopping after "
-                f"{t - 1} attempt(s) instead of hanging indefinitely"
-            )
-            emit_event(
-                "task_no_progress",
-                {"target": target, "attempts": t - 1, "elapsed_s": round(elapsed_before_attempt, 2)},
-                level="warning",
-                root=root,
-            )
-            return _task_result(
-                target,
-                prompt,
-                last_output,
-                applied=False,
-                status="stalled",
-                warnings=[reason],
-                verify=last_verify_receipt,
-                impact=impact_results,
-            )
+        if terminal_result is not None:
+            return terminal_result
         output, terminal_result = _generate_attempt_output(
             root=root,
             target=target,
@@ -1150,41 +1222,23 @@ def _run_attempt_loop(
             return terminal_result
         assert output is not None
         last_output = output or ""
-        last_validation = validate_generated_output(
-            output,
-            bound_paths,
+        last_validation, attempt, ok, log, last_verify_receipt = _validate_and_apply_attempt(
+            output=output,
+            bound_paths=bound_paths,
             root=root,
-            repo_root=declared_repo_root,
-            scope_root=declared_scope_root,
+            declared_repo_root=declared_repo_root,
+            declared_scope_root=declared_scope_root,
         )
-        attempt = _apply_and_test_attempt(
-            output,
-            root,
-            bound_paths,
-            promote_on_success=False,
-            repo_root=declared_repo_root,
-            scope_root=declared_scope_root,
-        )
-        ok, log = attempt.ok, attempt.log
-        last_verify_receipt = _LAST_VERIFY_RECEIPT
         last_log = log
-        attempt_tokens = estimate_tokens(prompt) + estimate_tokens(output)
-        log_run(
-            root,
-            {
-                "mode": "pipeline",
-                "attempt": t,
-                "ok": ok,
-                "failure_class": "none" if ok else classify_failure(log).kind,
-                "tokens_estimated": attempt_tokens,
-                "target": target,
-                "stack": stack,
-            },
-        )
-        emit_event(
-            "token_usage",
-            {"target": target, "attempt": t, "tokens_estimated": attempt_tokens},
+        _record_attempt_usage(
             root=root,
+            target=target,
+            prompt=prompt,
+            output=output,
+            ok=ok,
+            log=log,
+            stack=stack,
+            attempt_number=t,
         )
         if ok:
             ok, log, impact_results, terminal_result = _handle_primary_attempt_success(
