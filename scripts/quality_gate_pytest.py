@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -48,7 +49,12 @@ def main(argv: list[str] | None = None) -> int:
             )
             if "--timeout" in probe.stdout:
                 command.insert(1, f"--timeout={args.pytest_timeout}")
-        if shutil.which("simplicio-mapper") is None or shutil.which("simplicio-dev-cli") is None:
+        run_installed_e2e = os.environ.get("QUALITY_GATE_RUN_INSTALLED_E2E") == "1"
+        if (
+            not run_installed_e2e
+            or shutil.which("simplicio-mapper") is None
+            or shutil.which("simplicio-dev-cli") is None
+        ):
             command.extend(
                 [
                     "--ignore=tests/contracts/test_real_cli_mapper_e2e.py",
