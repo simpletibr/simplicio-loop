@@ -12,6 +12,7 @@ from .connection import (
     WriterIdentity,
 )
 from .locks import StoreFileLock, StoreLockError
+from .operations import OPERATIONS_API_SCHEMA, OPERATIONS_SCHEMA, OperationsStore, OperationsStoreError
 from .paths import StoreLocation, StorePathError, assert_within_root, resolve_store_location
 from .profiles import StoreMode, StoreProfile
 from .registry import (
@@ -71,6 +72,10 @@ __all__ = [
     "SEMANTIC_SCHEMA",
     "SemanticStore",
     "SemanticStoreError",
+    "OPERATIONS_API_SCHEMA",
+    "OPERATIONS_SCHEMA",
+    "OperationsStore",
+    "OperationsStoreError",
     "TransactionError",
     "WriterIdentity",
     "assert_within_root",
