@@ -100,6 +100,61 @@ def main(argv: list[str] | None = None) -> int:
                 raise RuntimeError(f"installed replay smoke failed: {replay}")
             if (smoke_root / "installed.txt").read_text(encoding="utf-8") != "installed-smoke\n":
                 raise RuntimeError("installed standalone smoke wrote unexpected content")
+            memory_root = smoke_root / "memory"
+            memory_backup = smoke_root / "memory-backup"
+            restored_memory = smoke_root / "memory-restored"
+            memory_command = [str(python), "-m", "simplicio.cli", "memory"]
+            _run_capture(
+                [*memory_command, "init", "--dir", str(memory_root), "--json"], cwd=smoke_root
+            )
+            _run_capture(
+                [
+                    *memory_command,
+                    "store",
+                    "installed-memory",
+                    "installed-memory-smoke",
+                    "--dir",
+                    str(memory_root),
+                    "--json",
+                ],
+                cwd=smoke_root,
+            )
+            memory_validation = json.loads(
+                _run_capture(
+                    [*memory_command, "validate", "--dir", str(memory_root), "--json"], cwd=smoke_root
+                )
+            )
+            if memory_validation.get("ok") is not True:
+                raise RuntimeError(f"installed memory validation failed: {memory_validation}")
+            _run_capture(
+                [
+                    *memory_command,
+                    "backup",
+                    "--dir",
+                    str(memory_root),
+                    "--output",
+                    str(memory_backup),
+                    "--json",
+                ],
+                cwd=smoke_root,
+            )
+            restore = json.loads(
+                _run_capture(
+                    [
+                        *memory_command,
+                        "restore",
+                        "--dir",
+                        str(restored_memory),
+                        "--backup",
+                        str(memory_backup),
+                        "--apply",
+                        "--json",
+                    ],
+                    cwd=smoke_root,
+                )
+            )
+            if restore.get("status") != "ok":
+                raise RuntimeError(f"installed memory restore failed: {restore}")
     print(
         json.dumps(
             {
@@ -109,6 +164,7 @@ def main(argv: list[str] | None = None) -> int:
                 "installed_module": module_path,
                 "installed_standalone": "pass",
                 "installed_replay": "pass",
+                "installed_memory": "pass",
                 "network": "disabled",
             },
             sort_keys=True,
