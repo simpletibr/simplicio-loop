@@ -25,7 +25,12 @@ from .mapper import map_ask
 from .observability import emit_event, estimate_tokens, info, log_run
 from .pipeline_fixers import try_static_fixers
 from .pipeline_integrated import run_integrated_route
-from .pipeline_preparation import prepare_pipeline_inputs
+from .pipeline_preparation import (
+    PreparedPipeline,
+    TaskPreflight,
+    prepare_pipeline_inputs,
+    prepare_task_preflight,
+)
 from .pipeline_stages import (
     IMPACT_RESULT_FAILED,
     IMPACT_RESULT_NOT_NEEDED,
@@ -418,59 +423,98 @@ def _run_dry_run_task(
     )
 
 
-def _identity_requirements(
+def _blocked_preflight_result(
+    target: str,
+    error: TaskContextError,
     *,
-    effective_mode: str,
-    requested_execution_mode: str | None,
-    context_snapshot: dict | None,
-    context_pack: dict | None,
-    snapshot_identity: str,
-    pack_identity: str,
-    attempt_identity: str,
-    supplied_snapshot_id: str | None,
-    canonical_snapshot_id: str,
-    supplied_pack_hash: str | None,
-    canonical_pack_hash: str,
-    dry_run_task: bool,
-) -> tuple[TaskContextError | None, bool]:
-    """Compute identity mismatch and authority requirements for one task."""
-    identity_error: TaskContextError | None = None
-    if supplied_snapshot_id is not None and supplied_snapshot_id != canonical_snapshot_id:
-        identity_error = TaskContextError(
-            "CONTEXT_SNAPSHOT_ID_MISMATCH",
-            "supplied context_snapshot_id does not match the canonical Mapper snapshot",
-        )
-    elif supplied_pack_hash is not None and canonical_pack_hash and supplied_pack_hash != canonical_pack_hash:
-        identity_error = TaskContextError(
-            "CONTEXT_PACK_HASH_MISMATCH",
-            "supplied context_pack_hash does not match the canonical Mapper ContextPack",
-        )
-    strict_authority = os.environ.get("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
+    profile: Any | None = None,
+    task_context: TaskContext | None = None,
+    authorization: EffectAuthorization | None = None,
+    include_reason: bool = True,
+) -> dict[str, Any]:
+    blocked = {
+        "code": error.code,
+        "message": str(error),
     }
-    identity_required = not dry_run_task and (
-        (
-            effective_mode == "integrated"
-            and context_snapshot is not None
-            and context_pack is not None
-            and bool(snapshot_identity and pack_identity and attempt_identity)
-        )
-        or (
-            effective_mode == "standalone"
-            and requested_execution_mode != "standalone"
-            and (
-                strict_authority
-                or context_snapshot is not None
-                or context_pack is not None
-                or supplied_snapshot_id is not None
-                or supplied_pack_hash is not None
-            )
-        )
+    if include_reason:
+        blocked["reason"] = "target_outside_root" if error.code == "TARGET_OUTSIDE_SCOPE" else error.code
+    result = _task_result(
+        target,
+        "",
+        "",
+        applied=False,
+        status="blocked",
+        warnings=[error.code],
+        blocked_preconditions=[blocked],
     )
-    return identity_error, identity_required
+    if profile is None:
+        return result
+    result["execution_profile"] = profile.to_dict()
+    if profile.effective_mode == "integrated" and task_context is not None:
+        return _attach_contract_receipt(
+            result,
+            task_context=task_context,
+            route="blocked",
+            effective_mode=profile.effective_mode,
+            authorization=authorization,
+            verification_status="not_run",
+        )
+    return result
+
+
+def _resolve_task_preflight(
+    preflight: TaskPreflight,
+    *,
+    target: str,
+    authorization: EffectAuthorization | None,
+    effect_sink: EffectSink | None,
+    proposal_only: bool,
+) -> tuple[TaskContext | None, dict[str, Any] | None]:
+    if preflight.context_error is not None:
+        return None, _blocked_preflight_result(target, preflight.context_error)
+    task_context = preflight.task_context
+    assert task_context is not None
+    if preflight.identity_error is not None or preflight.identity_required:
+        try:
+            if preflight.identity_error is not None:
+                raise preflight.identity_error
+            task_context = TaskContext.from_values(
+                repo_root=preflight.pipeline_input.actual_root,
+                scope_root=preflight.pipeline_input.declared_scope_root,
+                target=target,
+                context_snapshot_id=preflight.pipeline_input.snapshot_identity,
+                context_pack_hash=preflight.pipeline_input.pack_identity,
+                attempt_id=preflight.pipeline_input.attempt_identity,
+                require_identity=preflight.identity_required,
+            )
+        except TaskContextError as exc:
+            return None, _blocked_preflight_result(
+                target,
+                exc,
+                profile=preflight.profile,
+                task_context=task_context,
+                authorization=authorization,
+            )
+        if (
+            preflight.profile.effective_mode == "integrated"
+            and authorization is None
+            and isinstance(effect_sink, RuntimeEffectSink)
+            and not proposal_only
+        ):
+            error = TaskContextError(
+                "AUTHORIZATION_REQUIRED",
+                "integrated mutation requires a Runtime EffectAuthorization",
+            )
+            result = _blocked_preflight_result(
+                target,
+                error,
+                profile=preflight.profile,
+                task_context=task_context,
+                authorization=None,
+                include_reason=False,
+            )
+            return None, result
+    return task_context, None
 
 
 def _route_prepared_task(
@@ -1216,268 +1260,45 @@ def _run_attempt_loop(
     )
 
 
-def _run_task(
+def _run_prepared_task_route(
+    *,
     root,
     stack,
     goal,
     target,
     criteria,
     constraints,
-    *,
-    dry_run_task=False,
-    proposal_only=False,
-    bound_paths=None,
-    quiet=False,
-    mode: PipelineMode | None = None,
-    effect_sink: EffectSink | None = None,
-    authorization: EffectAuthorization | None = None,
-    context_snapshot: dict | None = None,
-    context_pack: dict | None = None,
-    context_delta: dict | None = None,
-    execution_context: dict | None = None,
-    context_refresh: bool = False,
-    runtime_handshake: dict | None = None,
-    coordinator_kind: str | None = None,
-    coordinator_id: str | None = None,
-    integrated_attempt: AttemptContext | None = None,
-    task_spec: TaskSpec | None = None,
-    context_snapshot_path: str | os.PathLike[str] | None = None,
-    context_pack_path: str | os.PathLike[str] | None = None,
-    execution_context_path: str | os.PathLike[str] | None = None,
-    authorization_path: str | os.PathLike[str] | None = None,
-    attempt_id: str | None = None,
-    lease_id: str | None = None,
-    fencing_token: str | None = None,
-    context_handle: str | None = None,
-    session_id: str = "",
-    turn_id: str = "",
-    attempt_number: int = 1,
-    subworkflow_id: str = "",
-    deadline: str | None = None,
-    policy_revision: str = "dev-cli-integrated-v1",
-    base_hash: str = "",
-    repo_root: str | os.PathLike[str] | None = None,
-    scope_root: str | os.PathLike[str] | None = None,
-    context_snapshot_id: str | None = None,
-    context_pack_hash: str | None = None,
-):
-    """Run one task through the pipeline.
-
-    ``mode="standalone"`` applies the generated patch directly against
-    ``root`` via ``git apply`` and runs ``SIMPLICIO_TEST_CMD`` locally. It is
-    an explicit legacy adapter; automatic negotiation requires an explicit
-    standalone-fallback opt-in before selecting it.
-
-    ``mode="integrated"`` (issues #166, #167) never applies anything itself:
-    it delegates to :func:`simplicio.pipeline_integrated.run_integrated`,
-    which compiles a ``PlanDAG``/``EffectPlan`` bundle from the task's
-    goal/criteria and hands each ``EffectPlan`` to ``effect_sink`` (required
-    in this mode). ``dry_run_task`` performs a typed Runtime preflight and
-    returns before plan compilation or sink dispatch.
-    """
-    from .execution_mode import ExecutionInputError, blocked_input_profile
-
-    try:
-        prepared = prepare_pipeline_inputs(
-            mode,
-            root=root,
-            repo_root=repo_root,
-            scope_root=scope_root,
-            context_snapshot=context_snapshot,
-            context_pack=context_pack,
-            context_snapshot_id=context_snapshot_id,
-            context_pack_hash=context_pack_hash,
-            execution_context=execution_context,
-            authorization=authorization,
-            context_snapshot_path=context_snapshot_path,
-            context_pack_path=context_pack_path,
-            execution_context_path=execution_context_path,
-            authorization_path=authorization_path,
-            effect_sink=effect_sink,
-            proposal_only=proposal_only,
-            runtime_handshake=runtime_handshake,
-            integrated_attempt=integrated_attempt,
-            attempt_id=attempt_id,
-            lease_id=lease_id,
-            fencing_token=fencing_token,
-            context_handle=context_handle,
-            dry_run_task=dry_run_task,
-            coordinator_kind=coordinator_kind,
-            coordinator_id=coordinator_id,
-        )
-    except ExecutionInputError as exc:
-        result = _task_result(
-            target,
-            "",
-            "",
-            applied=False,
-            status="blocked",
-            warnings=[exc.code],
-            blocked_preconditions=[
-                {
-                    "code": exc.code,
-                    "reason": ("target_outside_root" if exc.code == "TARGET_OUTSIDE_SCOPE" else exc.code),
-                    "message": str(exc),
-                }
-            ],
-        )
-        if task_spec is not None:
-            result["task_spec_hash"] = task_spec.canonical_hash()
-        result["execution_profile"] = blocked_input_profile(
-            mode,
-            exc,
-            root=root,
-            coordinator_kind=coordinator_kind,
-            coordinator_id=coordinator_id,
-        ).to_dict()
-        return result
-    context_snapshot = prepared.execution.context_snapshot
-    context_pack = prepared.execution.context_pack
-    execution_context = prepared.execution.execution_context
-    authorization = authorization or prepared.execution.authorization
-    effect_sink = cast(EffectSink | None, prepared.execution.effect_sink)
-    runtime_handshake = prepared.execution.runtime_handshake
-    integrated_attempt = prepared.execution.attempt
-    pipeline_input = prepared.input
-    actual_root = pipeline_input.actual_root
-    declared_repo_root = pipeline_input.declared_repo_root
-    declared_scope_root = pipeline_input.declared_scope_root
-    canonical_snapshot_id = pipeline_input.canonical_snapshot_id
-    canonical_pack_hash = pipeline_input.canonical_pack_hash
-    supplied_snapshot_id = pipeline_input.supplied_snapshot_id
-    supplied_pack_hash = pipeline_input.supplied_pack_hash
-    snapshot_identity = pipeline_input.snapshot_identity
-    pack_identity = pipeline_input.pack_identity
-    attempt_identity = pipeline_input.attempt_identity
-    try:
-        if declared_repo_root != actual_root:
-            raise TaskContextError(
-                "REPO_ROOT_MISMATCH",
-                "declared repo_root must equal the actual mutation root",
-            )
-        task_context = TaskContext.from_values(
-            repo_root=actual_root,
-            scope_root=declared_scope_root,
-            target=target,
-            context_snapshot_id=snapshot_identity,
-            context_pack_hash=pack_identity,
-            attempt_id=attempt_identity,
-            require_identity=False,
-        )
-    except TaskContextError as exc:
-        result = _task_result(
-            target,
-            "",
-            "",
-            applied=False,
-            status="blocked",
-            warnings=[exc.code],
-            blocked_preconditions=[
-                {
-                    "code": exc.code,
-                    "reason": ("target_outside_root" if exc.code == "TARGET_OUTSIDE_SCOPE" else exc.code),
-                    "message": str(exc),
-                }
-            ],
-        )
-        return result
-    requested_execution_mode = prepared.requested_execution_mode
-    profile = prepared.profile
-    if profile.effective_mode == "integrated" and dry_run_task:
-        result = _task_result(
-            target,
-            "",
-            "",
-            applied=False,
-            status="dry_run",
-            warnings=["integrated_effect_preflight_only"],
-            blocked_preconditions=[],
-        )
-        result["execution_profile"] = profile.to_dict()
-        return result
-    identity_error, identity_required = _identity_requirements(
-        effective_mode=profile.effective_mode,
-        requested_execution_mode=requested_execution_mode,
-        context_snapshot=context_snapshot,
-        context_pack=context_pack,
-        snapshot_identity=snapshot_identity,
-        pack_identity=pack_identity,
-        attempt_identity=attempt_identity,
-        supplied_snapshot_id=supplied_snapshot_id,
-        canonical_snapshot_id=canonical_snapshot_id,
-        supplied_pack_hash=supplied_pack_hash,
-        canonical_pack_hash=canonical_pack_hash,
-        dry_run_task=dry_run_task,
-    )
-    if identity_error is not None or identity_required:
-        try:
-            if identity_error is not None:
-                raise identity_error
-            task_context = TaskContext.from_values(
-                repo_root=actual_root,
-                scope_root=declared_scope_root,
-                target=target,
-                context_snapshot_id=snapshot_identity,
-                context_pack_hash=pack_identity,
-                attempt_id=attempt_identity,
-                require_identity=identity_required,
-            )
-        except TaskContextError as exc:
-            result = _task_result(
-                target,
-                "",
-                "",
-                applied=False,
-                status="blocked",
-                warnings=[exc.code],
-                blocked_preconditions=[
-                    {
-                        "code": exc.code,
-                        "reason": ("target_outside_root" if exc.code == "TARGET_OUTSIDE_SCOPE" else exc.code),
-                        "message": str(exc),
-                    }
-                ],
-            )
-            result["execution_profile"] = profile.to_dict()
-            if profile.effective_mode == "integrated":
-                return _attach_contract_receipt(
-                    result,
-                    task_context=task_context,
-                    route="blocked",
-                    effective_mode=profile.effective_mode,
-                    authorization=authorization,
-                    verification_status="not_run",
-                )
-            return result
-        if (
-            profile.effective_mode == "integrated"
-            and authorization is None
-            and isinstance(effect_sink, RuntimeEffectSink)
-            and not proposal_only
-        ):
-            result = _task_result(
-                target,
-                "",
-                "",
-                applied=False,
-                status="blocked",
-                warnings=["AUTHORIZATION_REQUIRED"],
-                blocked_preconditions=[
-                    {
-                        "code": "AUTHORIZATION_REQUIRED",
-                        "message": "integrated mutation requires a Runtime EffectAuthorization",
-                    }
-                ],
-            )
-            result["execution_profile"] = profile.to_dict()
-            return _attach_contract_receipt(
-                result,
-                task_context=task_context,
-                route="blocked",
-                effective_mode=profile.effective_mode,
-                authorization=None,
-                verification_status="not_run",
-            )
+    preflight: TaskPreflight,
+    task_context: TaskContext,
+    task_spec: TaskSpec | None,
+    effect_sink: EffectSink | None,
+    authorization: EffectAuthorization | None,
+    context_delta: dict | None,
+    context_refresh: bool,
+    coordinator_kind: str | None,
+    session_id: str,
+    turn_id: str,
+    attempt_number: int,
+    subworkflow_id: str,
+    deadline: str | None,
+    policy_revision: str,
+    base_hash: str,
+    proposal_only: bool,
+    dry_run_task: bool,
+    bound_paths,
+    quiet: bool,
+    scope_root,
+) -> dict[str, Any]:
+    """Run route selection and attempts after deterministic preflight."""
+    context_snapshot = preflight.context_snapshot
+    context_pack = preflight.context_pack
+    execution_context = preflight.execution_context
+    integrated_attempt = preflight.integrated_attempt
+    profile = preflight.profile
+    requested_execution_mode = preflight.requested_execution_mode
+    declared_repo_root = preflight.pipeline_input.declared_repo_root
+    declared_scope_root = preflight.pipeline_input.declared_scope_root
+    supplied_pack_hash = preflight.pipeline_input.supplied_pack_hash
     migration_policy, mutation_route = _publish_execution_mode_selection(
         root=root, profile=profile, proposal_only=proposal_only, dry_run_task=dry_run_task
     )
@@ -1542,9 +1363,7 @@ def _run_task(
     )
     if routed_result is not None:
         return routed_result
-    # Issue #107: structured "task_start" event — the dev-cli side of the
-    # unified evidence flow a host loop's journal (e.g. simplicio-loop's
-    # loop_journal.py) can consume. See observability.emit_event's contract.
+    # Issue #107: structured task_start event for the unified evidence flow.
     emit_event("task_start", {"target": target, "stack": stack, "goal": goal}, root=root)
     return _run_attempt_loop(
         root=root,
@@ -1560,6 +1379,243 @@ def _run_task(
         authorization=authorization,
         declared_repo_root=declared_repo_root,
         declared_scope_root=declared_scope_root,
+        scope_root=scope_root,
+    )
+
+
+def _prepare_pipeline_or_blocked(
+    mode: PipelineMode | None,
+    *,
+    root,
+    repo_root,
+    scope_root,
+    context_snapshot,
+    context_pack,
+    context_snapshot_id,
+    context_pack_hash,
+    execution_context,
+    authorization,
+    context_snapshot_path,
+    context_pack_path,
+    execution_context_path,
+    authorization_path,
+    effect_sink,
+    proposal_only,
+    runtime_handshake,
+    integrated_attempt,
+    attempt_id,
+    lease_id,
+    fencing_token,
+    context_handle,
+    dry_run_task,
+    coordinator_kind,
+    coordinator_id,
+    target,
+    task_spec,
+) -> tuple[PreparedPipeline | None, dict[str, Any] | None]:
+    """Prepare execution inputs and preserve the fail-closed input result."""
+    from .execution_mode import ExecutionInputError, blocked_input_profile
+
+    try:
+        prepared = prepare_pipeline_inputs(
+            mode,
+            root=root,
+            repo_root=repo_root,
+            scope_root=scope_root,
+            context_snapshot=context_snapshot,
+            context_pack=context_pack,
+            context_snapshot_id=context_snapshot_id,
+            context_pack_hash=context_pack_hash,
+            execution_context=execution_context,
+            authorization=authorization,
+            context_snapshot_path=context_snapshot_path,
+            context_pack_path=context_pack_path,
+            execution_context_path=execution_context_path,
+            authorization_path=authorization_path,
+            effect_sink=effect_sink,
+            proposal_only=proposal_only,
+            runtime_handshake=runtime_handshake,
+            integrated_attempt=integrated_attempt,
+            attempt_id=attempt_id,
+            lease_id=lease_id,
+            fencing_token=fencing_token,
+            context_handle=context_handle,
+            dry_run_task=dry_run_task,
+            coordinator_kind=coordinator_kind,
+            coordinator_id=coordinator_id,
+        )
+    except ExecutionInputError as exc:
+        result = _task_result(
+            target,
+            "",
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[exc.code],
+            blocked_preconditions=[
+                {
+                    "code": exc.code,
+                    "reason": ("target_outside_root" if exc.code == "TARGET_OUTSIDE_SCOPE" else exc.code),
+                    "message": str(exc),
+                }
+            ],
+        )
+        if task_spec is not None:
+            result["task_spec_hash"] = task_spec.canonical_hash()
+        result["execution_profile"] = blocked_input_profile(
+            mode,
+            exc,
+            root=root,
+            coordinator_kind=coordinator_kind,
+            coordinator_id=coordinator_id,
+        ).to_dict()
+        return None, result
+    return prepared, None
+
+
+def _run_task(
+    root,
+    stack,
+    goal,
+    target,
+    criteria,
+    constraints,
+    *,
+    dry_run_task=False,
+    proposal_only=False,
+    bound_paths=None,
+    quiet=False,
+    mode: PipelineMode | None = None,
+    effect_sink: EffectSink | None = None,
+    authorization: EffectAuthorization | None = None,
+    context_snapshot: dict | None = None,
+    context_pack: dict | None = None,
+    context_delta: dict | None = None,
+    execution_context: dict | None = None,
+    context_refresh: bool = False,
+    runtime_handshake: dict | None = None,
+    coordinator_kind: str | None = None,
+    coordinator_id: str | None = None,
+    integrated_attempt: AttemptContext | None = None,
+    task_spec: TaskSpec | None = None,
+    context_snapshot_path: str | os.PathLike[str] | None = None,
+    context_pack_path: str | os.PathLike[str] | None = None,
+    execution_context_path: str | os.PathLike[str] | None = None,
+    authorization_path: str | os.PathLike[str] | None = None,
+    attempt_id: str | None = None,
+    lease_id: str | None = None,
+    fencing_token: str | None = None,
+    context_handle: str | None = None,
+    session_id: str = "",
+    turn_id: str = "",
+    attempt_number: int = 1,
+    subworkflow_id: str = "",
+    deadline: str | None = None,
+    policy_revision: str = "dev-cli-integrated-v1",
+    base_hash: str = "",
+    repo_root: str | os.PathLike[str] | None = None,
+    scope_root: str | os.PathLike[str] | None = None,
+    context_snapshot_id: str | None = None,
+    context_pack_hash: str | None = None,
+):
+    """Run one task through the pipeline.
+
+    ``mode="standalone"`` applies the generated patch directly against
+    ``root`` via ``git apply`` and runs ``SIMPLICIO_TEST_CMD`` locally. It is
+    an explicit legacy adapter; automatic negotiation requires an explicit
+    standalone-fallback opt-in before selecting it.
+
+    ``mode="integrated"`` (issues #166, #167) never applies anything itself:
+    it delegates to :func:`simplicio.pipeline_integrated.run_integrated`,
+    which compiles a ``PlanDAG``/``EffectPlan`` bundle from the task's
+    goal/criteria and hands each ``EffectPlan`` to ``effect_sink`` (required
+    in this mode). ``dry_run_task`` performs a typed Runtime preflight and
+    returns before plan compilation or sink dispatch.
+    """
+    prepared, blocked_result = _prepare_pipeline_or_blocked(
+        mode,
+        root=root,
+        repo_root=repo_root,
+        scope_root=scope_root,
+        context_snapshot=context_snapshot,
+        context_pack=context_pack,
+        context_snapshot_id=context_snapshot_id,
+        context_pack_hash=context_pack_hash,
+        execution_context=execution_context,
+        authorization=authorization,
+        context_snapshot_path=context_snapshot_path,
+        context_pack_path=context_pack_path,
+        execution_context_path=execution_context_path,
+        authorization_path=authorization_path,
+        effect_sink=effect_sink,
+        proposal_only=proposal_only,
+        runtime_handshake=runtime_handshake,
+        integrated_attempt=integrated_attempt,
+        attempt_id=attempt_id,
+        lease_id=lease_id,
+        fencing_token=fencing_token,
+        context_handle=context_handle,
+        dry_run_task=dry_run_task,
+        coordinator_kind=coordinator_kind,
+        coordinator_id=coordinator_id,
+        target=target,
+        task_spec=task_spec,
+    )
+    if blocked_result is not None:
+        return blocked_result
+    assert prepared is not None
+    preflight = prepare_task_preflight(prepared, target=target, dry_run_task=dry_run_task)
+    authorization = authorization or preflight.authorization
+    effect_sink = cast(EffectSink | None, preflight.effect_sink)
+    task_context, blocked_result = _resolve_task_preflight(
+        preflight,
+        target=target,
+        authorization=authorization,
+        effect_sink=effect_sink,
+        proposal_only=proposal_only,
+    )
+    if blocked_result is not None:
+        return blocked_result
+    assert task_context is not None
+    profile = preflight.profile
+    if profile.effective_mode == "integrated" and dry_run_task:
+        result = _task_result(
+            target,
+            "",
+            "",
+            applied=False,
+            status="dry_run",
+            warnings=["integrated_effect_preflight_only"],
+            blocked_preconditions=[],
+        )
+        result["execution_profile"] = profile.to_dict()
+        return result
+    return _run_prepared_task_route(
+        root=root,
+        stack=stack,
+        goal=goal,
+        target=target,
+        criteria=criteria,
+        constraints=constraints,
+        preflight=preflight,
+        task_context=task_context,
+        task_spec=task_spec,
+        effect_sink=effect_sink,
+        authorization=authorization,
+        context_delta=context_delta,
+        context_refresh=context_refresh,
+        coordinator_kind=coordinator_kind,
+        session_id=session_id,
+        turn_id=turn_id,
+        attempt_number=attempt_number,
+        subworkflow_id=subworkflow_id,
+        deadline=deadline,
+        policy_revision=policy_revision,
+        base_hash=base_hash,
+        proposal_only=proposal_only,
+        dry_run_task=dry_run_task,
+        bound_paths=bound_paths,
+        quiet=quiet,
         scope_root=scope_root,
     )
 
