@@ -28,6 +28,16 @@ from .memory import (
     store_memory,
     validate_memory,
 )
+from .migration import (
+    MIGRATION_API_SCHEMA,
+    MIGRATION_DISCOVERY_SCHEMA,
+    MIGRATION_PLAN_SCHEMA,
+    MIGRATION_SCHEMA,
+    MIGRATION_STATUS_SCHEMA,
+    STATES,
+    MigrationCoordinator,
+    MigrationCoordinatorError,
+)
 from .operations import OPERATIONS_API_SCHEMA, OPERATIONS_SCHEMA, OperationsStore, OperationsStoreError
 from .paths import StoreLocation, StorePathError, assert_within_root, resolve_store_location
 from .profiles import StoreMode, StoreProfile
@@ -70,6 +80,14 @@ __all__ = [
     "StoreLocation",
     "StoreLockError",
     "StoreMissingError",
+    "MIGRATION_API_SCHEMA",
+    "MIGRATION_DISCOVERY_SCHEMA",
+    "MIGRATION_PLAN_SCHEMA",
+    "MIGRATION_SCHEMA",
+    "MIGRATION_STATUS_SCHEMA",
+    "MigrationCoordinator",
+    "MigrationCoordinatorError",
+    "STATES",
     "MEMORY_API_SCHEMA",
     "MEMORY_HANDOFF_SCHEMA",
     "MEMORY_SCHEMA",

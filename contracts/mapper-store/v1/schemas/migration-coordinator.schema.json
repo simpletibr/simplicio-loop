@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/migration-coordinator.schema.json",
+  "title": "simplicio.mapper-store.migration-api/v1",
+  "type": "object",
+  "required": ["schema", "status"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store.migration-api/v1"},
+    "status": {"type": "string"},
+    "ok": {"type": "boolean"},
+    "dry_run": {"type": "boolean"},
+    "reason_code": {"type": ["string", "null"]},
+    "parity": {"type": "array"},
+    "receipts": {"type": "array"},
+    "side_effects": {"type": "array"}
+  }
+}

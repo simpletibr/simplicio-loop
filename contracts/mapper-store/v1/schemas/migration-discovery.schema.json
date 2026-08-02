@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/migration-discovery.schema.json",
+  "title": "simplicio.mapper-store.discovery/v1",
+  "type": "object",
+  "required": ["schema", "destination", "sources", "blockers", "ok", "dry_run"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store.discovery/v1"},
+    "destination": {"type": "string"},
+    "sources": {"type": "array"},
+    "blockers": {"type": "array"},
+    "ok": {"type": "boolean"},
+    "dry_run": {"type": "boolean"}
+  }
+}

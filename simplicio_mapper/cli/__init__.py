@@ -107,7 +107,11 @@ __all__ = [
 
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    if argv and argv[0] in {"store-migrations", "mapper-store"}:
+    if argv and argv[0] == "mapper-store":
+        from ._store_migrations import run_store_migrations_cli
+
+        return run_store_migrations_cli(argv[1:], governed=True)
+    if argv and argv[0] == "store-migrations":
         from ._store_migrations import run_store_migrations_cli
 
         return run_store_migrations_cli(argv[1:])
