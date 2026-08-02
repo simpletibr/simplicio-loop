@@ -2,7 +2,8 @@ usage: simplicio-py changeset [-h] [--root ROOT]
                               [--mode {auto,standalone,integrated}]
                               [--plan PLAN] [--apply]
                               [--current-generation CURRENT_GENERATION]
-                              [--fast-engine {auto,rust,python,none}] [--json]
+                              [--fast-engine {auto,rust,python,none}]
+                              [--refresh-mapper] [--json]
 
 options:
   -h, --help            show this help message and exit
@@ -18,4 +19,6 @@ options:
   --fast-engine {auto,rust,python,none}
                         select the in-memory Fast decoder; rust never silently
                         falls back
+  --refresh-mapper      after a committed binary changeset, refresh Mapper
+                        once for all changed paths
   --json                emit a stable v2 receipt
