@@ -1282,6 +1282,22 @@ def _run_task(
             ),
             None,
         )
+    if dry_run_task:
+        # Dry-run is a non-mutating preview lane.  It must evaluate its own
+        # artifact/target preconditions before route-level write/read policy;
+        # otherwise a blocked standalone profile prevents valid previews from
+        # reaching the provider and masks the structured dry-run blockers.
+        return _run_dry_run_task(
+            root=root,
+            target=target,
+            prompt=prompt,
+            context_pack=context_pack,
+            requested_execution_mode=requested_execution_mode,
+            bound_paths=bound_paths,
+            declared_repo_root=str(declared_repo_root),
+            declared_scope_root=str(declared_scope_root),
+        )
+
     routed_result = _route_prepared_task(
         root=root,
         stack=stack,
@@ -1315,18 +1331,6 @@ def _run_task(
     )
     if routed_result is not None:
         return routed_result
-    if dry_run_task:
-        return _run_dry_run_task(
-            root=root,
-            target=target,
-            prompt=prompt,
-            context_pack=context_pack,
-            requested_execution_mode=requested_execution_mode,
-            bound_paths=bound_paths,
-            declared_repo_root=str(declared_repo_root),
-            declared_scope_root=str(declared_scope_root),
-        )
-
     # Issue #107: structured "task_start" event — the dev-cli side of the
     # unified evidence flow a host loop's journal (e.g. simplicio-loop's
     # loop_journal.py) can consume. See observability.emit_event's contract.

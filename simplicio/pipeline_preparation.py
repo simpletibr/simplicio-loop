@@ -98,7 +98,12 @@ def prepare_pipeline_inputs(
         effect_sink=execution.effect_sink,
         coordinator_kind=coordinator_kind,
         coordinator_id=coordinator_id,
-        read_only=dry_run_task and requested_execution_mode != "integrated",
+        # ``dry_run_task`` is itself the non-mutating route.  Passing
+        # ``read_only`` here short-circuits preparation before the dry-run
+        # preconditions can inspect artifacts and, in valid cases, before the
+        # provider can produce a preview diff.  Keep execution negotiation
+        # honest and let the dedicated dry-run path enforce no mutation.
+        read_only=False,
         proposal_only=proposal_only,
     )
     profile = require_coordinator_attempt(profile, execution.attempt)
