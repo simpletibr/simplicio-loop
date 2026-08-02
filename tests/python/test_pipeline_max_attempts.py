@@ -58,6 +58,7 @@ def test_run_task_makes_a_single_attempt_when_opted_out(monkeypatch, tmp_path):
     every attempt fails and MAX_ATTEMPTS (unchanged) would otherwise retry."""
 
     monkeypatch.setenv("SIMPLICIO_MAX_ATTEMPTS", "1")
+    monkeypatch.delenv("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", raising=False)
     monkeypatch.setattr("simplicio.pipeline.build_prompt", lambda *args, **kwargs: "BASE PROMPT")
     monkeypatch.setattr(
         "simplicio.pipeline.validate_generated_output",
