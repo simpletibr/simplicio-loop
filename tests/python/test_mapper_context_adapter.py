@@ -262,11 +262,12 @@ def test_context_binding_cache_enforces_revision_cas_and_fencing(
     assert cache.lookup(binding.context_handle)["hit"] is True
 
 
+@pytest.mark.parametrize("worker_count", [2, 10, 50])
 def test_context_binding_cache_concurrent_process_puts_preserve_all_entries(
-    mapper_boundary: None, tmp_path: Any
+    mapper_boundary: None, tmp_path: Any, worker_count: int
 ) -> None:
     handles = []
-    for index in range(10):
+    for index in range(worker_count):
         payload = {**_payload(), "snapshot_id": f"snap-concurrent-{index}"}
         binding = bind_mapper_context(payload, _pack(payload))
         handles.append(binding.context_handle.to_dict())
