@@ -2,6 +2,7 @@
 dir (issue #89 P0)."""
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -58,7 +59,8 @@ def test_store_then_recall_roundtrip(tmp_path):
     assert results[0]["topic"] == "auth-flow"
     assert "OAuth device flow" in results[0]["snippet"]
     assert results[0]["mode"] == "hybrid"
-    assert (base / "index.sqlite3").exists()
+    assert memory_store._index_path(base).exists()
+    assert not (base / "index.sqlite3").exists()
 
 
 def test_recall_supports_fts5_and_vector_modes(tmp_path):
@@ -67,7 +69,9 @@ def test_recall_supports_fts5_and_vector_modes(tmp_path):
     for mode in ("fts5", "vector", "hybrid"):
         results = memory_store.recall_memory("draft pull request", root=base, mode=mode)
         assert results
-        assert results[0]["mode"] == mode
+        assert results[0]["requested_mode"] == mode
+        assert results[0]["components"]
+        assert results[0]["mode"] != "ann"
 
 
 def test_recall_rejects_unknown_mode(tmp_path):
@@ -84,6 +88,29 @@ def test_recall_no_match_returns_empty(tmp_path):
 
 def test_recall_on_uninitialized_store_returns_empty(tmp_path):
     assert memory_store.recall_memory("anything", root=tmp_path / "nope") == []
+
+
+def test_recall_is_read_only_for_markdown_without_derived_index(tmp_path):
+    base = tmp_path / "mem"
+    memory_store.init_memory(root=base)
+    (base / "notes" / "topic.md").write_text(
+        "# topic\n\n## 2026-01-01T00:00:00Z — test\n\nmapper handoff\n",
+        encoding="utf-8",
+    )
+    assert memory_store.recall_memory("mapper handoff", root=base)
+    assert not memory_store._index_path(base).exists()
+
+
+def test_concurrent_memory_store_preserves_all_topics(tmp_path):
+    base = tmp_path / "mem"
+
+    def store(index: int):
+        return memory_store.store_memory(f"topic-{index}", f"entry {index}", root=base)
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(store, range(12)))
+    assert len(list((base / "notes").glob("*.md"))) == 12
+    assert memory_store.validate_memory(root=base)["ok"] is True
 
 
 def test_store_appends_without_overwriting_history(tmp_path):
@@ -125,7 +152,7 @@ def test_validate_memory_reports_missing_headers(tmp_path):
 def test_validate_memory_reports_corrupt_index(tmp_path):
     base = tmp_path / "mem"
     memory_store.store_memory("auth flow", "OAuth device flow.", root=base, actor="codex")
-    (base / "index.sqlite3").write_bytes(b"not-a-sqlite-db")
+    memory_store._index_path(base).write_bytes(b"not-a-json-index")
     payload = memory_store.validate_memory(root=base)
     assert payload["ok"] is False
     assert any(row["code"] == "invalid_index" for row in payload["errors"])
@@ -134,10 +161,10 @@ def test_validate_memory_reports_corrupt_index(tmp_path):
 def test_validate_memory_reports_stale_index_entry_count(tmp_path):
     base = tmp_path / "mem"
     memory_store.store_memory("auth flow", "OAuth device flow.", root=base, actor="codex")
-    with memory_store.sqlite3.connect(base / "index.sqlite3") as db:
-        db.execute("DELETE FROM entries")
-        db.execute("INSERT INTO entries_fts(entries_fts) VALUES ('rebuild')")
-        db.commit()
+    index_path = memory_store._index_path(base)
+    payload = json.loads(index_path.read_text(encoding="utf-8"))
+    payload["entries"] = []
+    index_path.write_text(json.dumps(payload), encoding="utf-8")
     payload = memory_store.validate_memory(root=base)
     assert payload["ok"] is False
     assert any(row["code"] == "stale_index" for row in payload["errors"])

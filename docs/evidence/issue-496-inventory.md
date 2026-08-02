@@ -9,18 +9,17 @@ python scripts/mapper_store_inventory.py --root . --strict --output .simplicio/m
 Current measured result on the clean branch:
 
 - schema: `simplicio-dev-cli.mapper-store-inventory/v1`
-- occurrences: `11`
-- production stores: `1`
+- occurrences: `1`
+- production stores: `0`
 - template/fixture detections: `1`
 - strict violations: `0`
-- inventory digest: `sha256:bf271bc75726abb0a956a3bae65488d893eb5c7a7721ad637644831fbf15e917`
+- inventory digest: `sha256:664b97b7a13c20aa6d6c7b35f5736d7695d529be4a24c02c5652e8c8b274b98f`
 
 | Path | Kind | Current source of truth | Target owner |
 |---|---|---|---|
-| `simplicio/memory_store.py` | derived index | memory Markdown/files | MapperStore memory/handoff |
 | `simplicio/templates/stacks/py-django/tree/config/settings.py` | fixture | generated project configuration | excluded from Dev CLI persistence |
 
-The former lock and transaction modules now route through the in-process
+The memory, lock, and transaction modules now route through the in-process
 `MapperStoreAdapter` and therefore no longer contain SQLite/DDL call sites.
 Their authoritative JSON records live under `.simplicio/mapper-store/`, while
 Dev CLI remains the owner of mutation decisions and receipts.

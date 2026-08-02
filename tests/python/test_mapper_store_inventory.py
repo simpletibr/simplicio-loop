@@ -12,7 +12,7 @@ def test_inventory_covers_current_production_sqlite_stores() -> None:
     payload = inventory(root)
     paths = {row["path"] for row in payload["stores"]}
     assert payload["schema"] == SCHEMA
-    assert {"simplicio/memory_store.py", "simplicio/templates/stacks/py-django/tree/config/settings.py"} <= paths
+    assert paths == {"simplicio/templates/stacks/py-django/tree/config/settings.py"}
     assert payload["direct_connections_outside_allowlist"] == []
     assert payload["strict_violations"] == []
     assert payload["strict"] is True
