@@ -304,6 +304,77 @@ def _apply_and_test(output, root, bound_paths=None):
 _DEFAULT_APPLY_AND_TEST = _apply_and_test
 
 
+def _run_dry_run_task(
+    *,
+    root: str | Path,
+    target: str,
+    prompt: str,
+    context_pack: dict | None,
+    requested_execution_mode: str | None,
+    bound_paths: list[str] | None,
+    declared_repo_root: str,
+    declared_scope_root: str,
+) -> dict[str, Any]:
+    """Run the standalone dry-run phase without entering the mutation loop."""
+    blockers = _dry_run_preconditions(
+        root,
+        target,
+        context_pack=context_pack,
+        allow_degraded_mapper=requested_execution_mode == "standalone",
+    )
+    if blockers:
+        return _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[item["message"] for item in blockers],
+            blocked_preconditions=blockers,
+            target_kind=target_kind(root, target),
+        )
+    if os.environ.get("SIMPLICIO_STANDALONE_PREFLIGHT", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        return _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="dry_run",
+            warnings=["standalone_preflight_provider_skipped"],
+            target_kind=target_kind(root, target),
+        )
+    # Bind paths before generate() so an out-of-band mutation during provider
+    # execution is caught even when the returned diff does not mention it.
+    bound_path_baseline = snapshot_bound_paths(root, bound_paths)
+    output = generate(prompt)
+    drift_warnings = bound_path_drift(root, bound_paths, bound_path_baseline)
+    validation = validate_generated_output(
+        output,
+        bound_paths,
+        mode=get_validation_mode(),
+        root=root,
+        repo_root=declared_repo_root,
+        scope_root=declared_scope_root,
+    )
+    warnings = list(drift_warnings)
+    if not validation.ok:
+        warnings.append(validation.reason)
+    return _task_result(
+        target,
+        prompt,
+        output,
+        applied=False,
+        status="dry_run",
+        warnings=warnings,
+        target_kind=target_kind(root, target),
+    )
+
+
 def _run_task(
     root,
     stack,
@@ -719,65 +790,15 @@ def _run_task(
             blocked_preconditions=[blocker],
         )
     if dry_run_task:
-        blockers = _dry_run_preconditions(
-            root,
-            target,
-            context_pack=context_pack,
-            allow_degraded_mapper=requested_execution_mode == "standalone",
-        )
-        if blockers:
-            warnings = [item["message"] for item in blockers]
-            return _task_result(
-                target,
-                prompt,
-                "",
-                applied=False,
-                status="blocked",
-                warnings=warnings,
-                blocked_preconditions=blockers,
-                target_kind=target_kind(root, target),
-            )
-        if os.environ.get("SIMPLICIO_STANDALONE_PREFLIGHT", "").strip().lower() in {
-            "1",
-            "true",
-            "yes",
-            "on",
-        }:
-            return _task_result(
-                target,
-                prompt,
-                "",
-                applied=False,
-                status="dry_run",
-                warnings=["standalone_preflight_provider_skipped"],
-                target_kind=target_kind(root, target),
-            )
-        # Issue #210 AC6: snapshot bound paths BEFORE generate() so an
-        # out-of-band mutation that happens while the provider subprocess is
-        # running (e.g. the target deleted mid-stall) is caught even though
-        # nothing in the returned diff would ever mention it.
-        bound_path_baseline = snapshot_bound_paths(root, bound_paths)
-        output = generate(prompt)
-        drift_warnings = bound_path_drift(root, bound_paths, bound_path_baseline)
-        validation = validate_generated_output(
-            output,
-            bound_paths,
-            mode=get_validation_mode(),
+        return _run_dry_run_task(
             root=root,
-            repo_root=declared_repo_root,
-            scope_root=declared_scope_root,
-        )
-        warnings = list(drift_warnings)
-        if not validation.ok:
-            warnings.append(validation.reason)
-        return _task_result(
-            target,
-            prompt,
-            output,
-            applied=False,
-            status="dry_run",
-            warnings=warnings,
-            target_kind=target_kind(root, target),
+            target=target,
+            prompt=prompt,
+            context_pack=context_pack,
+            requested_execution_mode=requested_execution_mode,
+            bound_paths=bound_paths,
+            declared_repo_root=declared_repo_root,
+            declared_scope_root=declared_scope_root,
         )
 
     # Issue #107: structured "task_start" event — the dev-cli side of the
