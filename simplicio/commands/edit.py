@@ -29,6 +29,7 @@ from ..standalone_migration import (
 from ._shared import read_text_source
 
 CLI_PROG = "simplicio-py"
+RUNTIME_EDIT_TIMEOUT_S = 30.0
 
 
 def run_mechanical_edit(a: argparse.Namespace) -> int:
@@ -175,14 +176,26 @@ def _run_native_edit_plans(
             if stdin_text is not None
             else (json.dumps(native_plan) if current_plan_arg == "-" else None)
         )
+        run_kwargs: dict[str, Any] = {
+            "text": True,
+            "capture_output": True,
+            "timeout": RUNTIME_EDIT_TIMEOUT_S,
+        }
+        if input_text is None:
+            run_kwargs["stdin"] = subprocess.DEVNULL
+        else:
+            run_kwargs["input"] = input_text
         try:
-            completed = subprocess.run(
-                cmd,
-                input=input_text,
-                text=True,
-                stdin=subprocess.PIPE if input_text is not None else subprocess.DEVNULL,
-                capture_output=True,
+            completed = subprocess.run(cmd, **run_kwargs)
+        except subprocess.TimeoutExpired:
+            errors.append(
+                {
+                    "code": "native_delegation_timeout",
+                    "message": f"Runtime edit exceeded {RUNTIME_EDIT_TIMEOUT_S:g}s",
+                    "path": native_plan.get("file"),
+                }
             )
+            continue
         except OSError as exc:
             errors.append(
                 {"code": "native_delegation_failed", "message": str(exc), "path": native_plan.get("file")}

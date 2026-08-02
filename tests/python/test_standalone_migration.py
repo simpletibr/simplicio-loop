@@ -358,6 +358,21 @@ def test_ambiguous_native_edit_records_lock_and_blocks_next_attempt(tmp_path, mo
     assert payload["errors"][0]["code"] == "EFFECT_UNKNOWN_RECONCILIATION_REQUIRED"
 
 
+def test_native_edit_timeout_records_effect_unknown_and_never_falls_back(tmp_path, monkeypatch):
+    args = argparse.Namespace(root=str(tmp_path), apply=True)
+    plan = [{"file": "one.txt", "operations": [{"op": "append", "text": "one"}]}]
+
+    def timeout(*_args, **_kwargs):
+        raise edit_cmd.subprocess.TimeoutExpired("simplicio edit", 30)
+
+    monkeypatch.setattr(edit_cmd.subprocess, "run", timeout)
+    result = edit_cmd._run_native_edit_plans("simplicio", plan, args)
+
+    assert result["status"] == "effect_unknown"
+    assert result["errors"][0]["code"] == "native_delegation_timeout"
+    assert effect_unknown_pending(str(tmp_path)) is True
+
+
 def test_feature_mode_guard_emits_blocked_route_without_running_planner(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("SIMPLICIO_STANDALONE_MIGRATION_PHASE", "opt_in")
     monkeypatch.setattr(
