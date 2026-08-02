@@ -498,6 +498,8 @@ def test_incremental_source_verification_hashes_only_the_causal_set(
         verify_context_sources(binding, source_root=str(tmp_path), expected_generation="rev-1")
     with pytest.raises(MapperContextError, match="src/other.py"):
         verify_context_sources(binding, source_root=str(tmp_path), paths=("src/other.py",))
+    with pytest.raises(MapperContextError, match="CONTEXT_CAUSAL_PATH_UNBOUND"):
+        verify_context_sources(binding, source_root=str(tmp_path), paths=("src/missing.py",))
 
 
 def test_context_pack_requires_schema_provenance_files_and_valid_budget(
