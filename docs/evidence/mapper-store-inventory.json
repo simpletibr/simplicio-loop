@@ -236,8 +236,9 @@
       "path": "headroom_memory.db",
       "read_only_inspection": true,
       "repo": "loop",
+      "reason": "historical database snapshot is not present in the current Loop checkout; re-run inventory from a clean consumer sandbox before treating it as readable evidence",
       "sha256": "dccaa6ed8acdb181e7fded356eb958976d370e9de26525560624e7fe6f0f984f",
-      "status": "readable",
+      "status": "unreadable",
       "user_version": 0
     }
   ],

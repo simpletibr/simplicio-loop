@@ -208,7 +208,13 @@ def test_committed_inventory_matches_the_versioned_schema() -> None:
     assert evidence["policy"]["status"] == "pass"
     assert {row["id"] for row in evidence["repos"]} == {"mapper", "loop", "dev-cli", "runtime"}
     assert next(row for row in evidence["repos"] if row["id"] == "runtime")["versions"]["rust"]
-    assert any(row["status"] == "readable" for row in evidence["databases"])
+    historical_database = next(
+        row
+        for row in evidence["databases"]
+        if row["repo"] == "loop" and row["path"] == "headroom_memory.db"
+    )
+    assert historical_database["status"] == "unreadable"
+    assert "not present in the current Loop checkout" in historical_database["reason"]
 
     repo_roots = {
         "mapper": ROOT,
