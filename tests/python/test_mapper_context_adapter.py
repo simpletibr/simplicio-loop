@@ -351,6 +351,33 @@ def test_context_binding_cache_uses_hashed_append_log_and_recovers_truncation(
     assert recovered.lookup(binding.context_handle)["hit"] is True
 
 
+def test_context_binding_cache_recovery_receipt_discards_torn_tail(
+    mapper_boundary: None, tmp_path: Any
+) -> None:
+    payload = _payload()
+    first = bind_mapper_context(payload, _pack(payload))
+    second_payload = {**payload, "snapshot_id": "recovery-second"}
+    second = bind_mapper_context(second_payload, _pack(second_payload))
+    cache = ContextBindingCache(tmp_path)
+    cache.put(first)
+    cache.put(second)
+
+    log = tmp_path / ".simplicio" / "context-bindings.hbp"
+    raw = bytearray(log.read_bytes())
+    raw[-1] ^= 0x01
+    log.write_bytes(raw)
+
+    receipt = ContextBindingCache(tmp_path).recover()
+
+    assert receipt["schema"] == "simplicio.context-binding-cache-recovery/v1"
+    assert receipt["recovered"] is True
+    assert receipt["chain_status"] == "valid"
+    assert receipt["discarded_bytes"] > 0
+    recovered = ContextBindingCache(tmp_path)
+    assert recovered.lookup(first.context_handle)["hit"] is True
+    assert recovered.lookup(second.context_handle)["hit"] is False
+
+
 def test_context_binding_cache_migrates_legacy_json_once_and_removes_shadow_store(
     mapper_boundary: None, tmp_path: Any
 ) -> None:
