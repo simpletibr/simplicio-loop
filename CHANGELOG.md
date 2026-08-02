@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.26.10] - 2026-08-02
+
+### Added
+
+- Publish the merged MapperStore conformance, crash-recovery, rollback, and
+  cross-repository evidence slices for the Mapper release train (#472, #481).
+
 ## [0.26.9] - 2026-08-01
 
 ### Fixed
