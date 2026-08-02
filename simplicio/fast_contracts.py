@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib
 import importlib.util
 import json
@@ -40,6 +41,7 @@ class FastEngineMetrics:
 
     decode_calls: int = 0
     bytes_decoded: int = 0
+    copies: int = 0
     serializations: int = 0
     subprocesses: int = 0
     refresh_calls: int = 0
@@ -49,6 +51,7 @@ class FastEngineMetrics:
         return {
             "decode_calls": self.decode_calls,
             "bytes_decoded": self.bytes_decoded,
+            "copies": self.copies,
             "serializations": self.serializations,
             "subprocesses": self.subprocesses,
             "refresh_calls": self.refresh_calls,
@@ -63,6 +66,8 @@ class FastEngine(ABC):
 
     def __init__(self) -> None:
         self.metrics = FastEngineMetrics()
+        self._pending_refreshes: dict[str, tuple[str, ...]] = {}
+        self._completed_refreshes: dict[str, dict[str, Any]] = {}
 
     @abstractmethod
     def decode_binary(self, payload: bytes) -> dict[str, Any]:
@@ -102,6 +107,47 @@ class FastEngine(ABC):
                         candidates.append(value.replace("\\", "/"))
         return tuple(dict.fromkeys(candidates))
 
+    @staticmethod
+    def _refresh_id(paths: tuple[str, ...]) -> str:
+        material = json.dumps(list(paths), separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+        return hashlib.sha256(material).hexdigest()
+
+    def _refresh_selected(
+        self,
+        selected: tuple[str, ...],
+        *,
+        refresh_fn: Callable[[tuple[str, ...]], Any] | None,
+    ) -> dict[str, Any]:
+        refresh_id = self._refresh_id(selected)
+        self.metrics.refresh_calls += 1
+        if refresh_fn is not None and refresh_id in self._completed_refreshes:
+            return dict(self._completed_refreshes[refresh_id], idempotent=True)
+        if refresh_fn is None:
+            self.metrics.refresh_pending += 1
+            self._pending_refreshes[refresh_id] = selected
+            return {
+                "status": "REFRESH_PENDING",
+                "paths": list(selected),
+                "reason": "refresh_callback_required",
+                "refresh_id": refresh_id,
+            }
+        try:
+            result = refresh_fn(selected)
+        except Exception as exc:  # producer boundary: pending is safer than retrying effects
+            self.metrics.refresh_pending += 1
+            self._pending_refreshes[refresh_id] = selected
+            return {
+                "status": "REFRESH_PENDING",
+                "paths": list(selected),
+                "reason": "refresh_failed",
+                "error_type": type(exc).__name__,
+                "refresh_id": refresh_id,
+            }
+        refreshed = {"status": "refreshed", "paths": list(selected), "result": result}
+        self._pending_refreshes.pop(refresh_id, None)
+        self._completed_refreshes[refresh_id] = refreshed
+        return refreshed
+
     def refresh(
         self,
         paths: Iterable[str],
@@ -111,25 +157,29 @@ class FastEngine(ABC):
         """Refresh only admitted paths; missing/failing producers stay pending."""
 
         selected = tuple(dict.fromkeys(str(path).replace("\\", "/") for path in paths if str(path)))
-        self.metrics.refresh_calls += 1
-        if refresh_fn is None:
-            self.metrics.refresh_pending += 1
+        return self._refresh_selected(selected, refresh_fn=refresh_fn)
+
+    def resume_refresh(
+        self,
+        pending: Mapping[str, Any] | str,
+        *,
+        refresh_fn: Callable[[tuple[str, ...]], Any] | None = None,
+    ) -> dict[str, Any]:
+        """Retry one pending refresh without replaying the committed changeset."""
+
+        refresh_id = str(pending.get("refresh_id", "")) if isinstance(pending, Mapping) else str(pending)
+        selected = self._pending_refreshes.get(refresh_id)
+        if selected is None:
+            completed = self._completed_refreshes.get(refresh_id)
+            if completed is not None:
+                return dict(completed, idempotent=True)
             return {
                 "status": "REFRESH_PENDING",
-                "paths": list(selected),
-                "reason": "refresh_callback_required",
+                "paths": [],
+                "reason": "unknown_refresh",
+                "refresh_id": refresh_id,
             }
-        try:
-            result = refresh_fn(selected)
-        except Exception as exc:  # producer boundary: pending is safer than retrying effects
-            self.metrics.refresh_pending += 1
-            return {
-                "status": "REFRESH_PENDING",
-                "paths": list(selected),
-                "reason": "refresh_failed",
-                "error_type": type(exc).__name__,
-            }
-        return {"status": "refreshed", "paths": list(selected), "result": result}
+        return self._refresh_selected(selected, refresh_fn=refresh_fn)
 
 
 class RustFastEngine(FastEngine):
@@ -145,6 +195,7 @@ class RustFastEngine(FastEngine):
         self.metrics.bytes_decoded += len(payload)
         decoded = self._decoder(payload)
         if hasattr(decoded, "to_dict"):
+            self.metrics.copies += 1
             decoded = decoded.to_dict()
         if not isinstance(decoded, dict):
             raise FastEngineError("binary_decode_shape", "Fast decoder returned a non-object envelope")
@@ -252,6 +303,7 @@ class PythonFastEngine(FastEngine):
                 "python_decode_failed", "Python Fast decoder rejected the envelope"
             ) from exc
         if hasattr(decoded, "to_dict"):
+            self.metrics.copies += 1
             decoded = decoded.to_dict()
         if not isinstance(decoded, dict):
             raise FastEngineError("binary_decode_shape", "Python Fast decoder returned a non-object envelope")
