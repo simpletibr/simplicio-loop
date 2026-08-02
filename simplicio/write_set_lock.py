@@ -70,12 +70,16 @@ class WriteSetLockManager:
         token = owner.get("owner_token", owner.get("token"))
         if not isinstance(token, str) or not token:
             return None
-        return LockHandle(path=str(lock_path), token=token, extra={
-            "write_set_path": owner.get("write_set_path", ""),
-            "owner": owner.get("owner", ""),
-            "lease_id": owner.get("lease_id", ""),
-            "fencing_token": owner.get("fencing_token", ""),
-        })
+        return LockHandle(
+            path=str(lock_path),
+            token=token,
+            extra={
+                "write_set_path": owner.get("write_set_path", ""),
+                "owner": owner.get("owner", ""),
+                "lease_id": owner.get("lease_id", ""),
+                "fencing_token": owner.get("fencing_token", ""),
+            },
+        )
 
     def _release_handles(self, handles: Sequence[LockHandle]) -> None:
         for handle in handles:

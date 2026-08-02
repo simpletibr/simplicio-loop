@@ -194,9 +194,7 @@ def test_real_child_crash_after_backup_is_recovered(tmp_path):
     process.communicate(timeout=5)
     state_path.with_suffix(".lock").unlink(missing_ok=True)
 
-    recovered = recover_changeset_transaction(
-        tmp_path, idempotency_key=key, changeset_digest_value=digest
-    )
+    recovered = recover_changeset_transaction(tmp_path, idempotency_key=key, changeset_digest_value=digest)
 
     assert recovered["status"] == "recovered"
     assert target.read_text(encoding="utf-8") == "old\n"
