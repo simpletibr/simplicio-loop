@@ -58,6 +58,40 @@ def test_pipeline_run_compatibility_returns_only_applied_result(monkeypatch):
     monkeypatch.setattr(pipeline, "run_task", lambda *args, **kwargs: {"applied": True})
     assert pipeline.run(".", "python", "goal", "app.py", "- works", "- local") == {"applied": True}
 
+
+def test_degraded_mapper_context_requires_explicit_unverified_opt_in(monkeypatch):
+    assert ptr._degraded_mapper_context_allowed(None) is False
+    assert (
+        ptr._degraded_mapper_context_allowed({"fidelity": {"gate": "ready", "status": "UNVERIFIED"}}) is False
+    )
+    context = {"fidelity": {"gate": "degraded_local", "status": "UNVERIFIED"}}
+    monkeypatch.delenv("SIMPLICIO_ALLOW_DEGRADED_MAPPER", raising=False)
+    assert ptr._degraded_mapper_context_allowed(context) is False
+    monkeypatch.setenv("SIMPLICIO_ALLOW_DEGRADED_MAPPER", "true")
+    assert ptr._degraded_mapper_context_allowed(context) is True
+
+
+def test_target_kind_distinguishes_existing_and_new_files(tmp_path):
+    existing = tmp_path / "existing.txt"
+    existing.write_text("ok", encoding="utf-8")
+    assert ptr.target_kind(tmp_path, "existing.txt") == "existing_file"
+    assert ptr.target_kind(tmp_path, "new.txt") == "new_file"
+
+
+def test_task_result_impact_builds_fallback_receipt_and_unverified_status(monkeypatch):
+    from simplicio import pipeline
+
+    monkeypatch.setattr(pipeline, "_LAST_PATCH_RECEIPT", None)
+    result = ptr._task_result(
+        "task",
+        "prompt",
+        "",
+        applied=False,
+        impact={"status": "pending", "command": "pytest", "returncode": None, "output_tail": "waiting"},
+    )
+    assert result["impact"]["status"] == "unverified"
+    assert result["impact"]["receipt"]["command"] == "pytest"
+
     monkeypatch.setattr(pipeline, "run_task", lambda *args, **kwargs: {"applied": False})
     assert pipeline.run(".", "python", "goal", "app.py", "- works", "- local") is None
 
