@@ -32,3 +32,8 @@ allowlist fails closed. No GitHub Actions workflow is added by this issue.
 The catalog is an inventory, not a migration receipt. A later issue must add
 discover → backup → import → validate → shadow-read → cutover → rollback receipts
 before any legacy writer or database can be changed.
+
+The Python foundation in `simplicio_mapper.store` owns path resolution,
+connection profiles, transactions, bounded busy retry, file locking and the
+side-effect-free `simplicio.mapper-store-status/v1` inspection shape. Domain
+schemas and migrations remain follow-up work.

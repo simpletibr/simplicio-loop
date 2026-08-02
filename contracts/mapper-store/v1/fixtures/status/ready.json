@@ -1,0 +1,17 @@
+{
+  "schema": "simplicio.mapper-store-status/v1",
+  "path": "/tmp/simplicio/semantic.sqlite",
+  "path_source": "explicit",
+  "persistence": "sqlite",
+  "mode": "read-only",
+  "timeout": 5.0,
+  "journal_mode": "wal",
+  "schema_version": 1,
+  "status": "ready",
+  "reason_code": null,
+  "capabilities": {
+    "wal": true,
+    "fts5": true,
+    "sqlite_vec": false
+  }
+}

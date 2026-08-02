@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/status.schema.json",
+  "title": "simplicio.mapper-store-status/v1",
+  "type": "object",
+  "required": ["schema", "path", "path_source", "persistence", "mode", "timeout", "journal_mode", "schema_version", "capabilities", "status", "reason_code"],
+  "properties": {
+    "schema": { "type": "string", "enum": ["simplicio.mapper-store-status/v1"] },
+    "path": { "type": "string" },
+    "path_source": { "type": "string", "enum": ["explicit", "flag", "env", "home", "repo", "temp"] },
+    "persistence": { "type": "string", "enum": ["sqlite"] },
+    "mode": { "type": "string", "enum": ["read-only", "backup"] },
+    "timeout": { "type": "number" },
+    "journal_mode": { "type": ["string", "null"], "enum": [null, "wal", "delete", "truncate", "persist", "memory", "off"] },
+    "schema_version": { "type": ["integer", "null"] },
+    "status": { "type": "string", "enum": ["missing", "ready", "corrupt", "unsafe"] },
+    "reason_code": { "type": ["string", "null"], "enum": [null, "STORE_MISSING", "STORE_UNSAFE_PATH", "STORE_WAL_INCOMPLETE", "STORE_WAL_INVALID", "STORE_OPEN_FAILED"] },
+    "error_type": { "type": "string" },
+    "capabilities": {
+      "type": "object",
+      "required": ["wal", "fts5", "sqlite_vec"],
+      "properties": {
+        "wal": { "type": "boolean" },
+        "fts5": { "type": "boolean" },
+        "sqlite_vec": { "type": "boolean" }
+      }
+    }
+  }
+}
