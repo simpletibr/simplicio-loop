@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-
 from .mutation_worker import RECEIPT, MutationBlocked, MutationWorker, digest
 
 MUTABLE_ENTRYPOINTS = {
