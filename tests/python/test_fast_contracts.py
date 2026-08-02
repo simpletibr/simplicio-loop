@@ -281,6 +281,8 @@ def test_native_fast_decoder_reuses_session_and_returns_binary_view(monkeypatch)
     decoder = NativeFastDecoder("native.exe")
     assert decoder(b"\x01") == {"schema": "simplicio.fast.binary-changeset/v1", "operations": []}
     assert '"operation":"decode_changeset"' in process.stdin.writes[0]
+    engine = RustFastEngine(decoder)
+    assert engine.receipt()["metrics"]["subprocesses"] == 1
 
 
 def test_python_engine_reports_decoder_failure(monkeypatch):

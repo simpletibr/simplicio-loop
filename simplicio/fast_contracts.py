@@ -138,6 +138,7 @@ class RustFastEngine(FastEngine):
     def __init__(self, decoder: Any) -> None:
         super().__init__()
         self._decoder = decoder
+        self.metrics.subprocesses = int(getattr(decoder, "subprocesses", 0))
 
     def decode_binary(self, payload: bytes) -> dict[str, Any]:
         self.metrics.decode_calls += 1
@@ -154,6 +155,7 @@ class NativeFastDecoder:
     """Reuse one native Fast session for bounded binary decode calls."""
 
     def __init__(self, executable: str) -> None:
+        self.subprocesses = 1
         try:
             self._process = subprocess.Popen(
                 [executable, "--session"],
