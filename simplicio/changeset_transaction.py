@@ -153,8 +153,9 @@ def _rollback_after_commit_failure(
                     target.unlink()
             elif saved.is_file():
                 shutil.copy2(saved, target)
-                if before_modes.get(relative) is not None:
-                    os.chmod(target, int(before_modes[relative]))
+                mode = before_modes.get(relative)
+                if isinstance(mode, int):
+                    os.chmod(target, mode)
         state["state"] = "ROLLED_BACK"
         _write_state(state_path, state)
     except Exception as rollback_error:
@@ -374,8 +375,9 @@ def _execute_changeset_transaction(
                 temporary = target.with_name(f".{target.name}.{idempotency_key}.tmp")
                 shutil.copy2(staged, temporary)
                 os.replace(temporary, target)
-                if before_modes.get(relative) is not None:
-                    os.chmod(target, int(before_modes[relative]))
+                mode = before_modes.get(relative)
+                if isinstance(mode, int):
+                    os.chmod(target, mode)
             elif target.exists():
                 target.unlink()
         after = {relative: _hash(_safe_path(root_path, relative)) for relative in paths}
