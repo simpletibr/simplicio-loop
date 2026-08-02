@@ -226,6 +226,31 @@ def _rust_test_filtered_lines(lines: list[str]) -> list[str]:
     return filtered
 
 
+def _python_ephemeral_fixture_filtered_lines(lines: list[str]) -> list[str]:
+    """Exclude the benchmark's in-memory SQL oracle from persistent DDL scans.
+
+    ``scripts/unbiased-benchmark.py`` executes candidate SQL against a
+    disposable ``:memory:`` fixture inside ``check_sql``.  Its schema is test
+    data, not a Runtime-owned persistent store.  Keep this narrow and
+    function-scoped so production Python DDL remains visible to the inventory.
+    """
+    filtered: list[str] = []
+    excluded_indent: int | None = None
+    for line in lines:
+        stripped = line.strip()
+        indent = len(line) - len(line.lstrip())
+        if excluded_indent is not None:
+            if stripped and indent <= excluded_indent:
+                excluded_indent = None
+            else:
+                continue
+        if excluded_indent is None and re.match(r"^\s*def\s+check_sql\s*\(", line):
+            excluded_indent = indent
+            continue
+        filtered.append(line)
+    return filtered
+
+
 def _has_persistent_write_evidence(lines: list[str], *, suffix: str = "") -> bool:
     """Return true only for executable, persistent SQLite mutation evidence.
 
@@ -251,7 +276,12 @@ def _has_persistent_write_evidence(lines: list[str], *, suffix: str = "") -> boo
 
 def _has_persistent_ddl_evidence(lines: list[str], *, suffix: str = "") -> bool:
     """Return true only when executable, non-temporary DDL is present."""
-    scan_lines = _rust_test_filtered_lines(lines) if suffix.lower() == ".rs" else lines
+    if suffix.lower() == ".rs":
+        scan_lines = _rust_test_filtered_lines(lines)
+    elif suffix.lower() == ".py":
+        scan_lines = _python_ephemeral_fixture_filtered_lines(lines)
+    else:
+        scan_lines = lines
     for index, line in enumerate(scan_lines):
         if _comment_only(line) or not PERSISTENT_DDL_SQL.search(line):
             continue

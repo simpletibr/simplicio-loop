@@ -92,6 +92,23 @@ def test_ddl_evidence_excludes_test_and_temporary_tables() -> None:
         ['conn.execute_batch("CREATE TABLE production_rows (id INTEGER);")?;'],
         suffix=".rs",
     ) is True
+    assert INVENTORY._has_persistent_ddl_evidence(
+        [
+            "def check_sql(query):",
+            '    con = sqlite3.connect(":memory:")',
+            '    con.executescript("CREATE TABLE customers(id INTEGER);")',
+            "    return con.execute(query).fetchall()",
+        ],
+        suffix=".py",
+    ) is False
+    assert INVENTORY._has_persistent_ddl_evidence(
+        [
+            "def create_store(path):",
+            '    con = sqlite3.connect(path)',
+            '    con.executescript("CREATE TABLE production_rows(id INTEGER);")',
+        ],
+        suffix=".py",
+    ) is True
 
 
 def test_write_evidence_tracks_multiline_execution_calls() -> None:
