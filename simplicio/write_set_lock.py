@@ -11,6 +11,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, cast
 
+from simplicio.store_adapter import _freeze_route, _mapper_status
+
 try:
     from simplicio_mapper.mapper.file_lock import (
         LockHandle,
@@ -46,6 +48,10 @@ class WriteSetLockManager:
         if _MAPPER_IMPORT_ERROR is not None:
             raise LockError("MAPPER_STORE_UNAVAILABLE", str(_MAPPER_IMPORT_ERROR))
         self.root = Path(root).resolve()
+        mapper_version, ready, reason = _mapper_status()
+        if not ready:
+            raise LockError("MAPPER_STORE_UNAVAILABLE", reason)
+        _freeze_route(self.root, mapper_version)
         self.lock_root: Path = self.root / ".simplicio" / "mapper-store" / "locks"
         self.lock_root.mkdir(parents=True, exist_ok=True)
         self._handles: dict[str, LockHandle] = {}

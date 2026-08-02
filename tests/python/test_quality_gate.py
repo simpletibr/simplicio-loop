@@ -18,6 +18,7 @@ def test_default_gate_contains_required_local_and_installed_lanes():
         "token-budget",
         "generated-docs",
         "wheel-and-installed-smoke",
+        "mapper-installed-matrix",
         "cli-help",
         "changeset-help",
     ]
