@@ -23,8 +23,8 @@ from .execution_receipts import execution_mode_blocker
 from .mapper import map_ask
 from .observability import emit_event, estimate_tokens, info, log_run
 from .pipeline_fixers import try_static_fixers
-from .pipeline_input import prepare_pipeline_input
 from .pipeline_integrated import run_integrated_route
+from .pipeline_preparation import prepare_pipeline_inputs
 from .pipeline_stages import (
     IMPACT_RESULT_FAILED,
     IMPACT_RESULT_NOT_NEEDED,
@@ -363,21 +363,18 @@ def _run_task(
     in this mode). ``dry_run_task`` performs a typed Runtime preflight and
     returns before plan compilation or sink dispatch.
     """
-    from .execution_mode import (
-        ExecutionInputError,
-        blocked_input_profile,
-        negotiate_execution_mode,
-        prepare_execution_inputs,
-        requested_mode,
-        require_coordinator_attempt,
-    )
+    from .execution_mode import ExecutionInputError, blocked_input_profile
 
     try:
-        prepared = prepare_execution_inputs(
+        prepared = prepare_pipeline_inputs(
             mode,
             root=root,
+            repo_root=repo_root,
+            scope_root=scope_root,
             context_snapshot=context_snapshot,
             context_pack=context_pack,
+            context_snapshot_id=context_snapshot_id,
+            context_pack_hash=context_pack_hash,
             execution_context=execution_context,
             authorization=authorization,
             context_snapshot_path=context_snapshot_path,
@@ -387,11 +384,14 @@ def _run_task(
             effect_sink=effect_sink,
             proposal_only=proposal_only,
             runtime_handshake=runtime_handshake,
-            attempt=integrated_attempt,
+            integrated_attempt=integrated_attempt,
             attempt_id=attempt_id,
             lease_id=lease_id,
             fencing_token=fencing_token,
             context_handle=context_handle,
+            dry_run_task=dry_run_task,
+            coordinator_kind=coordinator_kind,
+            coordinator_id=coordinator_id,
         )
     except ExecutionInputError as exc:
         result = _task_result(
@@ -419,24 +419,14 @@ def _run_task(
             coordinator_id=coordinator_id,
         ).to_dict()
         return result
-    context_snapshot = prepared.context_snapshot
-    context_pack = prepared.context_pack
-    execution_context = prepared.execution_context
-    authorization = authorization or prepared.authorization
-    effect_sink = cast(EffectSink | None, prepared.effect_sink)
-    runtime_handshake = prepared.runtime_handshake
-    integrated_attempt = prepared.attempt
-    pipeline_input = prepare_pipeline_input(
-        root,
-        repo_root=repo_root,
-        scope_root=scope_root,
-        context_snapshot=context_snapshot,
-        context_pack=context_pack,
-        context_snapshot_id=context_snapshot_id,
-        context_pack_hash=context_pack_hash,
-        attempt_id=attempt_id,
-        integrated_attempt=integrated_attempt,
-    )
+    context_snapshot = prepared.execution.context_snapshot
+    context_pack = prepared.execution.context_pack
+    execution_context = prepared.execution.execution_context
+    authorization = authorization or prepared.execution.authorization
+    effect_sink = cast(EffectSink | None, prepared.execution.effect_sink)
+    runtime_handshake = prepared.execution.runtime_handshake
+    integrated_attempt = prepared.execution.attempt
+    pipeline_input = prepared.input
     actual_root = pipeline_input.actual_root
     declared_repo_root = pipeline_input.declared_repo_root
     declared_scope_root = pipeline_input.declared_scope_root
@@ -485,23 +475,8 @@ def _run_task(
         mutation_route_for_mode,
     )
 
-    requested_execution_mode = requested_mode(mode, root)
-    profile = negotiate_execution_mode(
-        mode,
-        root=root,
-        runtime_handshake=runtime_handshake,
-        context_snapshot=context_snapshot,
-        effect_sink=effect_sink,
-        coordinator_kind=coordinator_kind,
-        coordinator_id=coordinator_id,
-        # An explicit integrated run is already effect-safe: the Runtime
-        # sink owns the effect boundary. Loop uses --dry-run-task while
-        # preflighting this path, so it must not downgrade the typed handoff
-        # to the legacy standalone profile.
-        read_only=dry_run_task and requested_execution_mode != "integrated",
-        proposal_only=proposal_only,
-    )
-    profile = require_coordinator_attempt(profile, integrated_attempt)
+    requested_execution_mode = prepared.requested_execution_mode
+    profile = prepared.profile
     if profile.effective_mode == "integrated" and dry_run_task:
         result = _task_result(
             target,
