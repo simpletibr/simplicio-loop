@@ -64,6 +64,30 @@ def test_claim_capacity_and_release_requeues_without_duplicate_active_lease(tmp_
     assert second["task_id"] == "one"
 
 
+def test_consumer_discovery_and_named_claim_preserve_operations_fencing(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    store.enqueue("low", {"n": 1}, idempotency_key="low", priority=1)
+    store.enqueue("high", {"n": 2}, idempotency_key="high", priority=5)
+    ready = store.list_ready(limit=10)
+    assert [item["task_id"] for item in ready["tasks"]] == ["high", "low"]
+    with pytest.raises(OperationsStoreError, match="TASK_NOT_FOUND"):
+        store.claim_task("missing", "worker")
+    claimed = store.claim_task("high", "worker")
+    assert claimed is not None
+    assert claimed["task_id"] == "high"
+    assert store.list_ready(limit=10)["tasks"][0]["task_id"] == "low"
+
+
+def test_assert_active_and_request_cancel_are_read_only_or_cooperative(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    claimed = _claim(store)
+    assert store.assert_active(claimed["attempt_id"], claimed["fence_token"])["status"] == "active"
+    result = store.request_cancel("task", reason="operator-stop")
+    assert result["cancel_requested"] is True
+    heartbeat = store.heartbeat(claimed["attempt_id"], claimed["fence_token"])
+    assert heartbeat["cancelled"] is True
+
+
 def test_stale_fence_cannot_heartbeat_complete_or_write_checkpoint(tmp_path: Path) -> None:
     store = _store(tmp_path)
     claimed = _claim(store)

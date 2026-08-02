@@ -350,7 +350,12 @@ class OperationsStore:
         return {"schema": OPERATIONS_API_SCHEMA, "status": "queued", "task_id": task_id, "state": "queued"}
 
     def claim(
-        self, worker_id: str, *, slot_id: str = "default", lease_seconds: float = 30.0
+        self,
+        worker_id: str,
+        *,
+        slot_id: str = "default",
+        lease_seconds: float = 30.0,
+        task_id: str | None = None,
     ) -> dict[str, Any] | None:
         if (
             not isinstance(worker_id, str)
@@ -358,6 +363,7 @@ class OperationsStore:
             or not isinstance(slot_id, str)
             or not slot_id.strip()
             or lease_seconds <= 0
+            or (task_id is not None and (not isinstance(task_id, str) or not task_id.strip()))
         ):
             raise OperationsStoreError("CLAIM_INVALID")
         now = _clock()
@@ -374,10 +380,23 @@ class OperationsStore:
                     ).fetchone()[0]
                     if int(active) >= int(slot[0]):
                         raise OperationsStoreError("SLOT_CAPACITY")
-                    task = tx.execute(
-                        "SELECT task_id, payload_json, priority FROM ops_tasks WHERE state='queued' AND terminal_verified=0 AND cancellation_requested=0 ORDER BY priority DESC, created_at, task_id LIMIT 1"
-                    ).fetchone()
+                    task_query = (
+                        "SELECT task_id, payload_json, priority FROM ops_tasks "
+                        "WHERE state='queued' AND terminal_verified=0 AND cancellation_requested=0"
+                    )
+                    task_params: tuple[Any, ...] = ()
+                    if task_id is not None:
+                        task_query += " AND task_id=?"
+                        task_params = (task_id,)
+                    task_query += " ORDER BY priority DESC, created_at, task_id LIMIT 1"
+                    task = tx.execute(task_query, task_params).fetchone()
                     if not task:
+                        if task_id is not None:
+                            exists = tx.execute(
+                                "SELECT task_id FROM ops_tasks WHERE task_id=?", (task_id,)
+                            ).fetchone()
+                            if not exists:
+                                raise OperationsStoreError("TASK_NOT_FOUND", task_id)
                         return None
                     attempt_id = uuid.uuid4().hex
                     token = uuid.uuid4().hex
@@ -406,6 +425,55 @@ class OperationsStore:
                         "payload": json.loads(task[1]),
                     }
 
+    def claim_task(
+        self,
+        task_id: str,
+        worker_id: str,
+        *,
+        slot_id: str = "default",
+        lease_seconds: float = 30.0,
+    ) -> dict[str, Any] | None:
+        """Claim one named queued task without duplicating lease semantics."""
+        return self.claim(
+            worker_id,
+            slot_id=slot_id,
+            lease_seconds=lease_seconds,
+            task_id=task_id,
+        )
+
+    def list_ready(self, *, limit: int = 20) -> dict[str, Any]:
+        """Return bounded ready-task summaries for consumer discovery."""
+        if not isinstance(limit, int) or limit < 1:
+            raise OperationsStoreError("LIST_INVALID")
+        if not self.database.is_file():
+            raise OperationsStoreError("STORE_NOT_INITIALIZED")
+        with self._open(read_only=True) as store:
+            try:
+                self._read_ready(store)
+                rows = store.execute(
+                    """SELECT task_id, state, payload_json, priority, created_at, updated_at
+                       FROM ops_tasks
+                       WHERE state='queued' AND terminal_verified=0 AND cancellation_requested=0
+                       ORDER BY priority DESC, created_at, task_id LIMIT ?""",
+                    (limit,),
+                ).fetchall()
+            except sqlite3.Error as error:
+                raise OperationsStoreError("STORE_NOT_INITIALIZED") from error
+        return {
+            "schema": OPERATIONS_API_SCHEMA,
+            "tasks": [
+                {
+                    "task_id": row[0],
+                    "state": row[1],
+                    "payload": json.loads(row[2]),
+                    "priority": int(row[3]),
+                    "created_at": row[4],
+                    "updated_at": row[5],
+                }
+                for row in rows
+            ],
+        }
+
     def heartbeat(self, attempt_id: str, fence_token: str, *, lease_seconds: float = 30.0) -> dict[str, Any]:
         if lease_seconds <= 0:
             raise OperationsStoreError("HEARTBEAT_INVALID")
@@ -415,6 +483,11 @@ class OperationsStore:
                 with transaction(store, "IMMEDIATE") as tx:
                     self._lease(tx, attempt_id, fence_token)
                     now = _clock()
+                    cancellation = tx.execute(
+                        "SELECT t.cancellation_requested FROM ops_tasks t "
+                        "JOIN ops_attempts a ON a.task_id=t.task_id WHERE a.attempt_id=?",
+                        (attempt_id,),
+                    ).fetchone()
                     tx.execute(
                         "UPDATE ops_leases SET heartbeat_at=?, expires_at=? WHERE attempt_id=?",
                         (now, now + lease_seconds, attempt_id),
@@ -427,7 +500,31 @@ class OperationsStore:
             "status": "heartbeated",
             "attempt_id": attempt_id,
             "expires_at": now + lease_seconds,
+            "cancelled": bool(cancellation[0]) if cancellation else False,
         }
+
+    def assert_active(self, attempt_id: str, fence_token: str) -> dict[str, Any]:
+        """Check a lease without extending it or writing a heartbeat."""
+        if not isinstance(attempt_id, str) or not attempt_id.strip() or not isinstance(fence_token, str):
+            raise OperationsStoreError("CLAIM_INVALID")
+        if not self.database.is_file():
+            raise OperationsStoreError("STORE_NOT_INITIALIZED")
+        with self._open(read_only=True) as store:
+            try:
+                self._read_ready(store)
+                row = store.execute(
+                    "SELECT state, expires_at FROM ops_leases WHERE attempt_id=? AND fence_token=?",
+                    (attempt_id, fence_token),
+                ).fetchone()
+            except sqlite3.Error as error:
+                raise OperationsStoreError("STORE_NOT_INITIALIZED") from error
+        if not row:
+            raise OperationsStoreError("STALE_FENCE", attempt_id)
+        if row[0] != "active":
+            raise OperationsStoreError("LEASE_NOT_ACTIVE", attempt_id)
+        if float(row[1]) <= _clock():
+            raise OperationsStoreError("LEASE_EXPIRED", attempt_id)
+        return {"schema": OPERATIONS_API_SCHEMA, "status": "active", "attempt_id": attempt_id}
 
     def release(self, attempt_id: str, fence_token: str) -> dict[str, Any]:
         with self._write_lock():
@@ -518,6 +615,14 @@ class OperationsStore:
                         (state, _now(), task_id),
                     )
         return {"schema": OPERATIONS_API_SCHEMA, "status": "cancelled", "task_id": task_id, "state": state}
+
+    def request_cancel(self, task_id: str, *, reason: str = "cancelled") -> dict[str, Any]:
+        """Request cooperative cancellation while retaining the current lease."""
+        result = self.cancel(task_id)
+        if result.get("state") == "running":
+            result["cancel_requested"] = True
+            result["reason"] = str(reason)
+        return result
 
     def reclaim_expired(self) -> dict[str, Any]:
         recovered = 0
