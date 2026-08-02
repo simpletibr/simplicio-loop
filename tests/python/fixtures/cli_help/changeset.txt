@@ -1,10 +1,15 @@
-usage: simplicio-py changeset [-h] [--root ROOT] [--plan PLAN] [--apply]
+usage: simplicio-py changeset [-h] [--root ROOT]
+                              [--mode {auto,standalone,integrated}]
+                              [--plan PLAN] [--apply]
                               [--current-generation CURRENT_GENERATION]
                               [--fast-engine {auto,rust,python,none}] [--json]
 
 options:
   -h, --help            show this help message and exit
   --root ROOT           repository root
+  --mode {auto,standalone,integrated}
+                        execution route; auto resolves to standalone when no
+                        Runtime authorization is supplied
   --plan PLAN           changeset JSON or Fast binary path, or - for stdin
   --apply               atomically apply; default is dry-run
   --current-generation CURRENT_GENERATION

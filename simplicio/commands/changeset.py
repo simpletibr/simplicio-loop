@@ -11,6 +11,30 @@ from ._shared import read_binary_source
 def run(args) -> int:
     from simplicio.changeset_v2 import BINARY_MAGIC, execute_changeset_bytes, execute_changeset_json
 
+    requested_mode = getattr(args, "mode", None) or "standalone"
+    if requested_mode == "integrated":
+        receipt = {
+            "schema": "simplicio.fast.changeset-receipt/v2",
+            "status": "refused",
+            "applied": False,
+            "dry_run": not args.apply,
+            "errors": [
+                {
+                    "code": "RUNTIME_AUTHORIZATION_REQUIRED",
+                    "message": (
+                        "changeset direct execution supports standalone/auto; "
+                        "use task for runtime-backed effects"
+                    ),
+                }
+            ],
+            "execution_mode": {"requested": requested_mode, "effective": "blocked", "runtime_required": True},
+        }
+        if args.json:
+            print(json.dumps(receipt, sort_keys=True))
+        else:
+            print(f"{receipt['status']}: applied=False dry_run={receipt['dry_run']}")
+        return 1
+
     try:
         source = read_binary_source(args.plan)
     except OSError as exc:
@@ -42,6 +66,13 @@ def run(args) -> int:
                 apply=args.apply,
                 current_generation=args.current_generation,
             )
+    receipt["execution_mode"] = {
+        "requested": requested_mode,
+        "effective": "standalone",
+        "runtime_required": False,
+        "provider_calls": 0,
+        "route": "standalone",
+    }
     if args.json:
         print(json.dumps(receipt, sort_keys=True))
     else:
