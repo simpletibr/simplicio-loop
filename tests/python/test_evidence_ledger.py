@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from simplicio.evidence_ledger import ArtifactMismatchError, EvidenceLedger, StaleEvidenceError
+from simplicio.evidence_ledger import ArtifactMismatchError, EvidenceLedger, LedgerError, StaleEvidenceError
 
 
 def test_ledger_records_measured_artifact_and_matrix(tmp_path):
@@ -141,3 +141,101 @@ def test_matrix_demotes_measured_claim_when_artifact_disappears(tmp_path):
     assert len(invalid) == 1
     assert invalid[0]["watcher_reason"] == "artifact-missing"
     assert matrix["watcher"]["ok"] is False
+
+
+@pytest.mark.parametrize(
+    ("receipt", "error", "message"),
+    [
+        ({"schema": "wrong"}, LedgerError, "unsupported evidence ledger schema"),
+        ({"criterion_id": "", "base_sha": "base-1", "plan_hash": "plan-1"}, LedgerError, "criterion_id"),
+        (
+            {"criterion_id": "AC1", "base_sha": "base-1", "plan_hash": "plan-1", "status": "BLOCKED"},
+            LedgerError,
+            "status",
+        ),
+        (
+            {
+                "criterion_id": "AC1",
+                "base_sha": "base-1",
+                "plan_hash": "plan-1",
+                "status": "MEASURED",
+                "artifact": "missing.txt",
+            },
+            LedgerError,
+            "command",
+        ),
+        (
+            {
+                "criterion_id": "AC1",
+                "base_sha": "base-1",
+                "plan_hash": "plan-1",
+                "status": "MEASURED",
+                "command": "pytest",
+                "exit_code": 0,
+            },
+            LedgerError,
+            "artifact",
+        ),
+        (
+            {
+                "criterion_id": "AC1",
+                "base_sha": "base-1",
+                "plan_hash": "plan-1",
+                "status": "MEASURED",
+                "command": "pytest",
+                "exit_code": 0,
+                "artifact": "missing.txt",
+            },
+            ArtifactMismatchError,
+            "unavailable",
+        ),
+    ],
+)
+def test_ledger_rejects_invalid_receipts(tmp_path, receipt, error, message):
+    ledger = EvidenceLedger(tmp_path / "evidence.jsonl", base_sha="base-1", plan_hash="plan-1")
+    with pytest.raises(error, match=message):
+        ledger.append(receipt)
+
+
+@pytest.mark.parametrize(
+    ("attachments", "message"),
+    [
+        ("not-a-list", "attachments must be a list"),
+        (["not-an-object"], "each attachment must be an object"),
+        ([{}], "each attachment requires path, artifact, or file"),
+        ([{"path": "missing.zip"}], "attachment is unavailable"),
+    ],
+)
+def test_ledger_rejects_invalid_attachments(tmp_path, attachments, message):
+    artifact = tmp_path / "result.json"
+    artifact.write_text("ok", encoding="utf-8")
+    ledger = EvidenceLedger(tmp_path / "evidence.jsonl", base_sha="base-1", plan_hash="plan-1")
+    with pytest.raises((LedgerError, ArtifactMismatchError), match=message):
+        ledger.record(
+            criterion_id="AC-ATTACH",
+            command="pytest",
+            exit_code=0,
+            artifact=artifact,
+            attachments=attachments,
+        )
+
+
+def test_matrix_reports_missing_and_invalid_attachment_hashes(tmp_path):
+    artifact = tmp_path / "result.json"
+    attachment = tmp_path / "trace.zip"
+    artifact.write_text("ok", encoding="utf-8")
+    attachment.write_bytes(b"trace")
+    ledger = EvidenceLedger(tmp_path / "evidence.jsonl", base_sha="base-1", plan_hash="plan-1")
+    ledger.record(
+        criterion_id="AC-HASH",
+        command="pytest",
+        exit_code=0,
+        artifact=artifact,
+        attachments=({"path": str(attachment), "kind": "trace"},),
+    )
+    row = ledger.rows()[0]
+    row["attachments"][0].pop("sha256")
+    ledger.path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+    assert ledger.matrix(["AC-HASH"])["claims"]["AC-HASH"]["invalid_receipts"][0]["watcher_reason"] == (
+        "missing-attachment-hash"
+    )

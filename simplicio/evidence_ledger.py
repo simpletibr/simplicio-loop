@@ -156,6 +156,11 @@ class EvidenceLedger:
         prototype: str | Path | None = None,
     ) -> dict[str, Any]:
         artifact_path = Path(artifact)
+        if attachments is not None:
+            if not isinstance(attachments, (list, tuple)):
+                raise LedgerError("attachments must be a list")
+            if any(not isinstance(item, Mapping) for item in attachments):
+                raise LedgerError("each attachment must be an object")
         return self.append(
             {
                 "criterion_id": criterion_id,
