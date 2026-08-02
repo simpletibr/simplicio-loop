@@ -12,6 +12,7 @@ import json
 import math
 import re
 import sqlite3
+import time
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import datetime, timezone
 from pathlib import Path
@@ -24,6 +25,7 @@ from .transactions import transaction
 
 SEMANTIC_SCHEMA = "simplicio.mapper-store.semantic-store/v1"
 SEMANTIC_API_SCHEMA = "simplicio.mapper-store.semantic-api/v1"
+BITEMPORAL_RELATION_SCHEMA = "simplicio.mapper-store.bitemporal-relation/v1"
 _SECRET_RE = re.compile(
     r"(?i)(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|authorization|password|client[_-]?secret|secret)\s*[:=]\s*['\"]?[^\s,;'\"]+|(?<![\w])Bearer\s+[A-Za-z0-9._~+/=-]+|(?<![\w])(?:sk|ghp|xox[baprs])-[A-Za-z0-9_-]+"
 )
@@ -664,6 +666,153 @@ class SemanticStore:
             "relation_id": relation_id,
             "capabilities": capabilities,
         }
+
+    def assert_bitemporal_relation(
+        self,
+        source_id: str,
+        target_id: str,
+        predicate: str,
+        memory_type: str,
+        valid_from: int,
+        *,
+        valid_to: int | None = None,
+        system_from: int | None = None,
+        provenance: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Assert an append-only bitemporal relation in the canonical table.
+
+        Unlike :meth:`upsert_relation`, this contract permits opaque graph node
+        identifiers. Runtime graph extraction uses identifiers for symbols and
+        external entities that are not semantic items themselves.
+        """
+        if not source_id or not target_id or not predicate:
+            raise SemanticStoreError("RELATION_INVALID")
+        if memory_type not in {"episodic", "semantic", "procedural"}:
+            raise SemanticStoreError("RELATION_TYPE_INVALID", memory_type)
+        if not isinstance(valid_from, int) or (valid_to is not None and not isinstance(valid_to, int)):
+            raise SemanticStoreError("RELATION_TIME_INVALID")
+        effective_system_from = system_from if system_from is not None else time.time_ns()
+        if not isinstance(effective_system_from, int):
+            raise SemanticStoreError("RELATION_TIME_INVALID")
+        relation_id = _sha(
+            {
+                "source_id": source_id,
+                "target_id": target_id,
+                "predicate": predicate,
+                "memory_type": memory_type,
+                "system_from": effective_system_from,
+            }
+        )
+        kind = f"edge:{memory_type}:{predicate}:{effective_system_from}"
+        payload = dict(_redact_value(provenance or {}))
+        payload.update(
+            {
+                "schema": BITEMPORAL_RELATION_SCHEMA,
+                "predicate": predicate,
+                "memory_type": memory_type,
+                "valid_from": valid_from,
+                "valid_to": valid_to,
+                "system_from": effective_system_from,
+                "system_to": None,
+                "invalidated_by": None,
+            }
+        )
+        encoded = _canonical(payload)
+        with StoreFileLock(self.lock_path, owner=f"{self.writer.component}:{self.writer.instance_id}"):
+            with self._open() as store:
+                capabilities = self._ensure_ready(store)
+                with transaction(store, "IMMEDIATE") as tx:
+                    tx.execute(
+                        "INSERT INTO semantic_relations(relation_id, source_id, target_id, kind, provenance_json, created_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(relation_id) DO UPDATE SET provenance_json=excluded.provenance_json",
+                        (relation_id, source_id, target_id, kind, encoded, _now()),
+                    )
+                    conflicts = tx.execute(
+                        "SELECT relation_id, target_id, provenance_json FROM semantic_relations WHERE source_id=? AND relation_id<>?",
+                        (source_id, relation_id),
+                    ).fetchall()
+                    for old_relation_id, old_target_id, old_encoded in conflicts:
+                        try:
+                            old = json.loads(old_encoded)
+                        except (TypeError, json.JSONDecodeError):
+                            continue
+                        if (
+                            old.get("schema") == BITEMPORAL_RELATION_SCHEMA
+                            and old.get("predicate") == predicate
+                            and old.get("memory_type") == memory_type
+                            and old_target_id != target_id
+                            and old.get("system_to") is None
+                        ):
+                            old["system_to"] = effective_system_from
+                            old["invalidated_by"] = relation_id
+                            tx.execute(
+                                "UPDATE semantic_relations SET provenance_json=? WHERE relation_id=?",
+                                (_canonical(old), old_relation_id),
+                            )
+        return {
+            "schema": SEMANTIC_API_SCHEMA,
+            "relation_schema": BITEMPORAL_RELATION_SCHEMA,
+            "status": "asserted",
+            "relation_id": relation_id,
+            "source_id": source_id,
+            "target_id": target_id,
+            "predicate": predicate,
+            "memory_type": memory_type,
+            "valid_from": valid_from,
+            "valid_to": valid_to,
+            "system_from": effective_system_from,
+            "system_to": None,
+            "capabilities": capabilities,
+        }
+
+    def bitemporal_relation_history(self, source_id: str) -> list[dict[str, Any]]:
+        """Return all canonical bitemporal relations for a source node."""
+        return self._bitemporal_relations(source_id)
+
+    def bitemporal_relations_as_of(
+        self, source_id: str, *, world_ts: int, system_ts: int
+    ) -> list[dict[str, Any]]:
+        """Return relations valid in both world and system time."""
+        return [
+            item
+            for item in self._bitemporal_relations(source_id)
+            if item["valid_from"] <= world_ts
+            and (item["valid_to"] is None or item["valid_to"] > world_ts)
+            and item["system_from"] <= system_ts
+            and (item["system_to"] is None or item["system_to"] > system_ts)
+        ]
+
+    def _bitemporal_relations(self, source_id: str) -> list[dict[str, Any]]:
+        with self._open(read_only=True) as store:
+            rows = store.execute(
+                "SELECT relation_id, source_id, target_id, kind, provenance_json, created_at FROM semantic_relations WHERE source_id=? ORDER BY created_at, relation_id",
+                (source_id,),
+            ).fetchall()
+        result = []
+        for relation_id, source, target, kind, encoded, created_at in rows:
+            try:
+                payload = json.loads(encoded)
+            except (TypeError, json.JSONDecodeError):
+                continue
+            if payload.get("schema") != BITEMPORAL_RELATION_SCHEMA:
+                continue
+            result.append(
+                {
+                    "relation_id": relation_id,
+                    "source_id": source,
+                    "target_id": target,
+                    "kind": kind,
+                    "predicate": payload.get("predicate"),
+                    "memory_type": payload.get("memory_type"),
+                    "valid_from": payload.get("valid_from"),
+                    "valid_to": payload.get("valid_to"),
+                    "system_from": payload.get("system_from"),
+                    "system_to": payload.get("system_to"),
+                    "invalidated_by": payload.get("invalidated_by"),
+                    "provenance": payload,
+                    "created_at": created_at,
+                }
+            )
+        return result
 
     def _fts_rows(self, store: StoreConnection, query: str, limit: int) -> list[dict[str, Any]]:
         try:

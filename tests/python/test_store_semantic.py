@@ -165,6 +165,33 @@ def test_relations_require_live_endpoints_and_are_idempotent(tmp_path: Path) -> 
         store.upsert_relation("left", "right", "supports")
 
 
+def test_bitemporal_relations_accept_opaque_nodes_and_preserve_history(tmp_path: Path) -> None:
+    store = SemanticStore(tmp_path / "semantic.sqlite")
+    first = store.assert_bitemporal_relation(
+        "s:subject",
+        "s:first",
+        "prefers",
+        "semantic",
+        100,
+        system_from=1_000,
+        provenance={"source": "runtime", "token": "secret-value"},
+    )
+    second = store.assert_bitemporal_relation(
+        "s:subject", "s:second", "prefers", "semantic", 200, system_from=2_000
+    )
+
+    history = store.bitemporal_relation_history("s:subject")
+    assert len(history) == 2
+    assert history[0]["target_id"] == "s:first"
+    assert history[0]["system_to"] == 2_000
+    assert history[0]["invalidated_by"] == second["relation_id"]
+    assert history[1]["system_to"] is None
+    assert history[0]["provenance"]["token"] == "[REDACTED]"
+    assert [row["target_id"] for row in store.bitemporal_relations_as_of("s:subject", world_ts=300, system_ts=1_500)] == ["s:first"]
+    assert [row["target_id"] for row in store.bitemporal_relations_as_of("s:subject", world_ts=300, system_ts=2_500)] == ["s:second"]
+    assert first["relation_schema"] == "simplicio.mapper-store.bitemporal-relation/v1"
+
+
 def test_tombstone_removes_relations_and_embeddings(tmp_path: Path) -> None:
     database = tmp_path / "semantic.sqlite"
     store = SemanticStore(database)

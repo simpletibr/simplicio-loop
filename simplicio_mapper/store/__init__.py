@@ -74,7 +74,13 @@ from .registry import (
     registry_fixture,
     sha256_json,
 )
-from .semantic import SEMANTIC_API_SCHEMA, SEMANTIC_SCHEMA, SemanticStore, SemanticStoreError
+from .semantic import (
+    BITEMPORAL_RELATION_SCHEMA,
+    SEMANTIC_API_SCHEMA,
+    SEMANTIC_SCHEMA,
+    SemanticStore,
+    SemanticStoreError,
+)
 from .status import inspect_store
 from .transactions import (
     FenceValidator,
@@ -146,6 +152,7 @@ __all__ = [
     "SEMANTIC_SCHEMA",
     "SemanticStore",
     "SemanticStoreError",
+    "BITEMPORAL_RELATION_SCHEMA",
     "OPERATIONS_API_SCHEMA",
     "OPERATIONS_SCHEMA",
     "OperationsStore",
