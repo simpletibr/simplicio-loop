@@ -95,6 +95,33 @@ def _case(size_name: str, count: int, writers: int) -> dict[str, Any]:
         binding = _binding(root, count)
         causal_path = (f"src/file-{count - 1:04d}.py",)
         causal_delta = _delta(causal_path[0])
+        worktree_tmp: tempfile.TemporaryDirectory[str] | None = None
+        worktree_lanes: list[tuple[Path, Any]] | None = None
+
+        def lanes() -> list[tuple[Path, Any]]:
+            nonlocal worktree_tmp, worktree_lanes
+            if worktree_lanes is not None:
+                return worktree_lanes
+            if shutil.which("git") is None:
+                raise RuntimeError("git is required for the worktree benchmark")
+            worktree_tmp = tempfile.TemporaryDirectory(prefix=f"issue-415-{size_name}-{writers}-git-")
+            repo = Path(worktree_tmp.name)
+            _binding(repo, count)
+            subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.email", "issue-415@example.invalid"], cwd=repo, check=True)
+            subprocess.run(["git", "config", "user.name", "issue-415-benchmark"], cwd=repo, check=True)
+            subprocess.run(["git", "add", "src"], cwd=repo, check=True)
+            subprocess.run(["git", "commit", "-qm", "benchmark fixture"], cwd=repo, check=True)
+            worktree_lanes = []
+            for lane in range(writers):
+                lane_root = repo / f"worktree-{lane}"
+                subprocess.run(
+                    ["git", "worktree", "add", "--detach", "-q", str(lane_root), "HEAD"],
+                    cwd=repo,
+                    check=True,
+                )
+                worktree_lanes.append((lane_root, _binding(lane_root, count)))
+            return worktree_lanes
 
         def full() -> dict[str, Any]:
             return verify_context_sources(binding, source_root=str(root))
@@ -107,54 +134,37 @@ def _case(size_name: str, count: int, writers: int) -> dict[str, Any]:
         def concurrent() -> dict[str, Any]:
             # Use detached Git worktrees rather than N threads over one
             # shared binding. This exercises independent roots and commits.
-            if shutil.which("git") is None:
-                raise RuntimeError("git is required for the worktree benchmark")
-            with tempfile.TemporaryDirectory(prefix=f"issue-415-{size_name}-{writers}-git-") as raw_repo:
-                repo = Path(raw_repo)
-                _binding(repo, count)
-                subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
-                subprocess.run(
-                    ["git", "config", "user.email", "issue-415@example.invalid"], cwd=repo, check=True
+            with ThreadPoolExecutor(max_workers=writers) as pool:
+                results = list(
+                    pool.map(
+                        lambda pair: verify_context_sources(
+                            pair[1],
+                            source_root=str(pair[0]),
+                            paths=causal_path,
+                            delta=causal_delta,
+                        ),
+                        lanes(),
+                    )
                 )
-                subprocess.run(["git", "config", "user.name", "issue-415-benchmark"], cwd=repo, check=True)
-                subprocess.run(["git", "add", "src"], cwd=repo, check=True)
-                subprocess.run(["git", "commit", "-qm", "benchmark fixture"], cwd=repo, check=True)
-                lanes = []
-                for lane in range(writers):
-                    lane_root = repo / f"worktree-{lane}"
-                    subprocess.run(
-                        ["git", "worktree", "add", "--detach", "-q", str(lane_root), "HEAD"],
-                        cwd=repo,
-                        check=True,
-                    )
-                    lanes.append((lane_root, _binding(lane_root, count)))
-                with ThreadPoolExecutor(max_workers=writers) as pool:
-                    results = list(
-                        pool.map(
-                            lambda pair: verify_context_sources(
-                                pair[1],
-                                source_root=str(pair[0]),
-                                paths=causal_path,
-                                delta=causal_delta,
-                            ),
-                            lanes,
-                        )
-                    )
             return {
                 "files_hashed": sum(row["files_hashed"] for row in results),
                 "bytes_read": sum(row["bytes_read"] for row in results),
             }
 
-        return {
-            "pack": size_name,
-            "files": count,
-            "writers": writers,
-            "worktrees": writers,
-            "worktree_kind": "git-detached",
-            "full": _measure(full),
-            "causal": _measure(causal),
-            "causal_concurrent": _measure(concurrent),
-        }
+        try:
+            return {
+                "pack": size_name,
+                "files": count,
+                "writers": writers,
+                "worktrees": writers,
+                "worktree_kind": "git-detached",
+                "full": _measure(full),
+                "causal": _measure(causal),
+                "causal_concurrent": _measure(concurrent),
+            }
+        finally:
+            if worktree_tmp is not None:
+                worktree_tmp.cleanup()
 
 
 def run_benchmark() -> dict[str, Any]:
