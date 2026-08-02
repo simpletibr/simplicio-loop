@@ -171,4 +171,9 @@ def run(args) -> int:
         print(json.dumps(receipt, sort_keys=True))
     else:
         print(f"{receipt['status']}: applied={receipt['applied']} dry_run={receipt['dry_run']}")
-    return 0 if receipt["status"] == "ok" else 1
+    if receipt["status"] != "ok":
+        return 1
+    refresh = receipt.get("refresh")
+    if isinstance(refresh, dict) and refresh.get("status") == "REFRESH_PENDING":
+        return 1
+    return 0

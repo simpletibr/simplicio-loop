@@ -30,6 +30,7 @@ from .pipeline_preparation import (
     TaskPreflight,
     prepare_pipeline_inputs,
     prepare_task_preflight,
+    resolve_task_spec_route,
 )
 from .pipeline_stages import (
     IMPACT_RESULT_FAILED,
@@ -572,18 +573,19 @@ def _route_prepared_task(
             authorization=authorization,
             verification_status="not_run",
         )
-    if task_spec is not None and profile.effective_mode != "integrated":
+    task_spec_route = resolve_task_spec_route(task_spec, profile.effective_mode)
+    if task_spec_route.blocked:
         result = _task_result(
             target,
             prompt,
             "",
             applied=False,
             status="blocked",
-            warnings=["TASK_SPEC_REQUIRES_INTEGRATED_MODE"],
+            warnings=[task_spec_route.code],
             blocked_preconditions=[
                 {
-                    "code": "TASK_SPEC_REQUIRES_INTEGRATED_MODE",
-                    "message": "typed TaskSpec input is accepted only by the integrated execution path",
+                    "code": task_spec_route.code,
+                    "message": task_spec_route.message,
                 }
             ],
         )
