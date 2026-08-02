@@ -13,8 +13,13 @@ import pytest
 
 from simplicio.changeset_transaction import (
     ChangesetTransactionError,
+    _acquire_recovery_lock,
     _hash,
+    _lock_owned_by_live_process,
+    _mode,
     _paths,
+    _pause_for_fault_injection,
+    _rollback_after_commit_failure,
     _safe_path,
     _state_path,
     execute_changeset_transaction,
@@ -609,3 +614,167 @@ def test_transaction_exception_is_recorded_as_commit_partial(tmp_path, monkeypat
             idempotency_key="partial",
             changeset_digest_value="digest",
         )
+
+
+def test_transaction_path_and_mode_guards_cover_non_regular_and_symlink(tmp_path):
+    regular = tmp_path / "regular.txt"
+    regular.write_text("value", encoding="utf-8")
+    assert _mode(regular) == stat.S_IMODE(regular.stat().st_mode)
+    assert _mode(tmp_path / "missing.txt") is None
+
+    with pytest.raises(ChangesetTransactionError, match="regular file"):
+        _mode(tmp_path)
+    with pytest.raises(ChangesetTransactionError, match="unsafe transaction path"):
+        _safe_path(tmp_path, "")
+    with pytest.raises(ChangesetTransactionError, match="unsafe transaction path"):
+        _safe_path(tmp_path, "../escape.txt")
+
+    link = tmp_path / "link"
+    try:
+        link.symlink_to(regular)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlink creation unavailable")
+    with pytest.raises(ChangesetTransactionError, match="symlink target"):
+        _safe_path(tmp_path, "link/child.txt")
+
+
+def test_transaction_fault_pause_and_lock_pid_shapes(tmp_path, monkeypatch):
+    slept: list[float] = []
+    monkeypatch.setenv("SIMPLICIO_TRANSACTION_PAUSE_AT", "stage")
+    monkeypatch.setenv("SIMPLICIO_TRANSACTION_PAUSE_SECONDS", "0.25")
+    monkeypatch.setattr(time, "sleep", slept.append)
+    _pause_for_fault_injection("other")
+    _pause_for_fault_injection("stage")
+    assert slept == [0.25]
+
+    malformed = tmp_path / "malformed.lock"
+    malformed.write_text("not-a-pid", encoding="utf-8")
+    assert _lock_owned_by_live_process(malformed) is True
+    malformed.write_text("pid=0", encoding="utf-8")
+    assert _lock_owned_by_live_process(malformed) is True
+
+
+def test_transaction_recovery_lock_reclaims_dead_pid(tmp_path, monkeypatch):
+    from simplicio import changeset_transaction
+
+    lock = tmp_path / "recovery.lock"
+    lock.write_text("pid=999999999", encoding="utf-8")
+    monkeypatch.setattr(changeset_transaction, "_lock_owned_by_live_process", lambda _path: False)
+    descriptor = changeset_transaction._acquire_recovery_lock(lock)
+    assert isinstance(descriptor, int)
+    assert lock.read_text(encoding="utf-8").startswith("pid=")
+    lock.unlink()
+
+
+def test_transaction_rollback_handles_created_file_and_restores_mode(tmp_path):
+    root = tmp_path / "root"
+    backup = tmp_path / "backup"
+    root.mkdir()
+    backup.mkdir()
+    created = root / "created.txt"
+    created.write_text("new", encoding="utf-8")
+    state_path = tmp_path / "state.json"
+    with pytest.raises(ChangesetTransactionError, match="rolled back"):
+        _rollback_after_commit_failure(
+            root_path=root,
+            before={"created.txt": None},
+            before_modes={},
+            backup=backup,
+            state={"state": "COMMITTING"},
+            state_path=state_path,
+            cause=RuntimeError("commit failed"),
+        )
+    assert not created.exists()
+
+    target = root / "existing.txt"
+    saved = backup / "existing.txt"
+    target.write_text("changed", encoding="utf-8")
+    saved.parent.mkdir(parents=True, exist_ok=True)
+    saved.write_text("original", encoding="utf-8")
+    with pytest.raises(ChangesetTransactionError, match="rolled back"):
+        _rollback_after_commit_failure(
+            root_path=root,
+            before={"existing.txt": _hash(saved)},
+            before_modes={"existing.txt": stat.S_IMODE(saved.stat().st_mode)},
+            backup=backup,
+            state={"state": "COMMITTING"},
+            state_path=state_path,
+            cause=RuntimeError("commit failed"),
+        )
+    assert target.read_text(encoding="utf-8") == "original"
+
+
+def test_transaction_rollback_reports_mismatch_and_internal_failure(tmp_path, monkeypatch):
+    root = tmp_path / "root"
+    backup = tmp_path / "backup"
+    root.mkdir()
+    backup.mkdir()
+    (backup / "a.txt").write_text("original", encoding="utf-8")
+    state_path = tmp_path / "state.json"
+
+    monkeypatch.setattr("simplicio.changeset_transaction._hash", lambda _path: "wrong")
+    with pytest.raises(ChangesetTransactionError, match="could not be proven"):
+        _rollback_after_commit_failure(
+            root_path=root,
+            before={"a.txt": "expected"},
+            before_modes={},
+            backup=backup,
+            state={"state": "COMMITTING"},
+            state_path=state_path,
+            cause=RuntimeError("commit failed"),
+        )
+
+    monkeypatch.setattr(
+        "simplicio.changeset_transaction._safe_path",
+        lambda *_args: (_ for _ in ()).throw(OSError("locked")),
+    )
+    with pytest.raises(ChangesetTransactionError, match="could not be proven"):
+        _rollback_after_commit_failure(
+            root_path=root,
+            before={"a.txt": "expected"},
+            before_modes={},
+            backup=backup,
+            state={"state": "COMMITTING"},
+            state_path=state_path,
+            cause=RuntimeError("commit failed"),
+        )
+
+
+def test_transaction_recovery_lock_reclaim_failure_and_windows_probe(tmp_path, monkeypatch):
+    from simplicio import changeset_transaction
+
+    lock = tmp_path / "busy.lock"
+    lock.write_text("pid=123", encoding="utf-8")
+    monkeypatch.setattr(changeset_transaction, "_lock_owned_by_live_process", lambda _path: False)
+    real_unlink = Path.unlink
+
+    def fail_busy_lock(path, *args, **kwargs):
+        if path == lock:
+            raise OSError("locked")
+        return real_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(
+        Path,
+        "unlink",
+        fail_busy_lock,
+    )
+    with pytest.raises(ChangesetTransactionError, match="could not be reclaimed"):
+        _acquire_recovery_lock(lock)
+
+    class _Kernel:
+        def OpenProcess(self, *_args):
+            return 0
+
+    monkeypatch.setattr(changeset_transaction.os, "name", "nt")
+    monkeypatch.setattr(changeset_transaction.ctypes, "windll", type("W", (), {"kernel32": _Kernel()})())
+    lock.write_text("pid=123", encoding="utf-8")
+    assert _lock_owned_by_live_process(lock) is False
+
+
+def test_transaction_replay_rejects_corrupt_journal(tmp_path):
+    key = "corrupt-journal"
+    path = _state_path(tmp_path.resolve(), key)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("not-json", encoding="utf-8")
+    with pytest.raises(ChangesetTransactionError, match="unreadable"):
+        execute_changeset_transaction({}, root=tmp_path, idempotency_key=key, changeset_digest_value="digest")
