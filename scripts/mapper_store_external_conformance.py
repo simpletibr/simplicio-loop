@@ -402,6 +402,55 @@ def _runtime_backed(
         ), observations
 
 
+def _corrupt_legacy(*, mapper_root: Path, timeout: float) -> tuple[bool, str, dict[str, Any]]:
+    """Prove a corrupt legacy source is held before any migration effect."""
+    with tempfile.TemporaryDirectory(prefix="mapper-store-corrupt-legacy-") as raw:
+        sandbox = Path(raw)
+        legacy = sandbox / "legacy" / "index.sqlite3"
+        legacy.parent.mkdir()
+        legacy.write_bytes(b"not a sqlite database")
+        before = _file_hash(legacy)
+        destination = sandbox / "memory.sqlite"
+        env = os.environ.copy()
+        existing_pythonpath = env.get("PYTHONPATH")
+        env["PYTHONPATH"] = os.pathsep.join(
+            item for item in (str(mapper_root), existing_pythonpath) if item
+        )
+        result = _run(
+            [
+                sys.executable,
+                "-c",
+                "import json, sys; "
+                "from simplicio_mapper.store import MigrationCoordinator; "
+                "report=MigrationCoordinator(sys.argv[2], {'legacy': sys.argv[1]}).discover(dry_run=True); "
+                "print(json.dumps(report))",
+                str(legacy),
+                str(destination),
+            ],
+            cwd=sandbox,
+            env=env,
+            timeout=timeout,
+        )
+        observations: dict[str, Any] = {
+            "discover": result,
+            "legacy_sha256_before": before,
+            "legacy_sha256_after": _file_hash(legacy),
+            "destination_exists": destination.exists(),
+            "repair_plan": "restore_verified_backup_then_reinspect_before_migration",
+        }
+        report = _last_json(result.get("stdout", ""))
+        blockers = (report or {}).get("blockers", [])
+        held = any(item.get("code") == "SOURCE_CORRUPT" for item in blockers if isinstance(item, dict))
+        observations["held"] = held
+        if result["status"] != "pass" or not held:
+            return False, "corrupt legacy source was not held by migration discovery", observations
+        if observations["legacy_sha256_before"] != observations["legacy_sha256_after"]:
+            return False, "corrupt legacy source changed during discovery", observations
+        if observations["destination_exists"]:
+            return False, "dry-run corruption discovery created a destination", observations
+        return True, "corrupt legacy source held with repair plan", observations
+
+
 def _standalone(
     *,
     wheels: Mapping[str, Path],
@@ -570,6 +619,32 @@ def run_scenario(
         )
         if scenario == "sqlite-vec absent" and ok:
             reason = "sqlite-vec absent Runtime lane passed with honest FTS5 fallback"
+    elif scenario == "legacy database corrupted":
+        ok, reason, observations = _corrupt_legacy(mapper_root=repos["mapper"], timeout=timeout)
+    elif scenario == "macOS":
+        standalone_ok, standalone_reason, standalone_observations = _standalone(
+            wheels=wheels,
+            legacy_memory_dir=None,
+            upgrade=False,
+            timeout=timeout,
+        )
+        runtime_ok, runtime_reason, runtime_observations = _runtime_backed(
+            mapper_root=repos["mapper"],
+            runtime_binary=runtime_binary,
+            legacy_memory_dir=None,
+            upgrade=False,
+            timeout=timeout,
+        )
+        ok = standalone_ok and runtime_ok
+        reason = (
+            "macOS installed standalone and Runtime-backed lanes passed"
+            if ok
+            else f"macOS lane failed: standalone={standalone_reason}; runtime={runtime_reason}"
+        )
+        observations = {
+            "standalone": standalone_observations,
+            "runtime_backed": runtime_observations,
+        }
     elif scenario in {"fresh standalone", "upgrade standalone"}:
         if scenario == "upgrade standalone" and legacy_memory_dir is None:
             return _receipt(
