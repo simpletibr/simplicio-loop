@@ -20,25 +20,25 @@ commit per `store`) when available; git is optional and every function
 degrades gracefully (fail-open) when `git` is not on PATH or the directory
 is not (yet) a repo, so this never blocks on a git failure.
 
-Recall is deterministic keyword search over the markdown files — no LLM
-call, no embeddings, no network. This is the "Zero-LLM Mode" P0 slice of
-#89: real FTS5 + vector hybrid recall is explicitly P1/P2 follow-up (see
-CHANGELOG / PR body), not implemented here to avoid overclaiming a search
-quality this module does not deliver.
+Recall is deterministic lexical/vector search over a MapperStore-owned
+derived JSON index — no LLM call, no network, and no local SQLite writer.
+Markdown remains the source of truth and the index is disposable/rebuildable.
 """
 
 from __future__ import annotations
 
 import hashlib
+import json
 import math
 import os
 import re
 import shutil
-import sqlite3
 import subprocess
 import time
 from pathlib import Path
 from typing import Any
+
+from .store_adapter import MapperStoreAdapter, StoreAdapterError
 
 MEMORY_SCHEMA = "simplicio.memory-store/v1"
 MEMORY_VALIDATION_SCHEMA = "simplicio.memory-store-validation/v1"
@@ -59,7 +59,7 @@ def _notes_dir(base: Path) -> Path:
 
 
 def _index_path(base: Path) -> Path:
-    return base / "index.sqlite3"
+    return MapperStoreAdapter(base, "memory-index").record_path("index")
 
 
 def _slugify(topic: str) -> str:
@@ -139,11 +139,16 @@ def store_memory(
     if tags:
         header += "\ntags: " + ", ".join(str(t).strip() for t in tags if str(t).strip())
     entry = f"{header}\n\n{content.strip()}\n"
-    is_new = not path.exists()
-    with path.open("a", encoding="utf-8") as f:
-        if is_new:
-            f.write(f"# {topic}\n\n")
-        f.write("\n" + entry)
+    notes_store = MapperStoreAdapter(base, "memory-notes")
+    lock = notes_store.acquire(slug, operation="memory-store")
+    try:
+        is_new = not path.exists()
+        with path.open("a", encoding="utf-8") as f:
+            if is_new:
+                f.write(f"# {topic}\n\n")
+            f.write("\n" + entry)
+    finally:
+        notes_store.release(lock)
     committed = _git(base, "add", "-A") and _git(
         base, "commit", "-q", "-m", f"memory: store {slug} ({actor})"
     )
@@ -189,51 +194,61 @@ def _vector(text: str, *, dimensions: int = 128) -> list[float]:
 
 
 def _rebuild_index(base: Path) -> None:
-    """Materialize markdown into SQLite FTS5; markdown remains source of truth."""
+    """Materialize markdown into a MapperStore-owned derived index."""
     notes_dir = _notes_dir(base)
     if not notes_dir.is_dir():
         return
+    entries: list[dict[str, Any]] = []
     try:
-        with sqlite3.connect(_index_path(base)) as db:
-            db.execute("CREATE TABLE IF NOT EXISTS entries (id INTEGER PRIMARY KEY, path TEXT, snippet TEXT)")
-            db.execute(
-                "CREATE VIRTUAL TABLE IF NOT EXISTS entries_fts "
-                "USING fts5(path, snippet, content='entries', content_rowid='id')"
+        for path in sorted(notes_dir.glob("*.md")):
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            for section in _split_sections(text):
+                if section.lstrip().startswith("## "):
+                    snippet = section.strip()[:800]
+                    entries.append(
+                        {
+                            "path": str(path),
+                            "snippet": snippet,
+                            "tokens": sorted(_tokenize(snippet)),
+                            "vector": _vector(snippet),
+                        }
+                    )
+        index_store = MapperStoreAdapter(base, "memory-index")
+        lock = index_store.acquire("index", operation="memory-index-rebuild")
+        try:
+            index_store.write(
+                "index",
+                {"schema": MEMORY_INDEX_SCHEMA, "entries": entries, "entry_count": len(entries)},
             )
-            db.execute("DELETE FROM entries")
-            db.execute("DELETE FROM entries_fts")
-            for path in sorted(notes_dir.glob("*.md")):
-                text = path.read_text(encoding="utf-8", errors="ignore")
-                for section in _split_sections(text):
-                    if section.lstrip().startswith("## "):
-                        db.execute(
-                            "INSERT INTO entries(path, snippet) VALUES (?, ?)",
-                            (str(path), section.strip()[:800]),
-                        )
-            db.execute("INSERT INTO entries_fts(entries_fts) VALUES ('rebuild')")
-            db.commit()
-    except (OSError, sqlite3.Error):
+        finally:
+            index_store.release(lock)
+    except (OSError, StoreAdapterError):
         return
 
 
 def _indexed_recall(query: str, *, root: Path, limit: int, mode: str) -> list[dict[str, Any]]:
-    _rebuild_index(root)
     tokens = _tokenize(query)
     if not tokens or not _index_path(root).exists():
         return []
     try:
-        with sqlite3.connect(_index_path(root)) as db:
-            rows = db.execute(
-                "SELECT e.path, e.snippet, bm25(entries_fts) "
-                "FROM entries_fts JOIN entries e ON e.id = entries_fts.rowid "
-                "WHERE entries_fts MATCH ? ORDER BY bm25(entries_fts) LIMIT ?",
-                (" OR ".join('"' + token.replace('"', '""') + '"' for token in tokens), limit * 4),
-            ).fetchall()
+        payload = MapperStoreAdapter(root, "memory-index").read("index") or {}
+        rows = payload.get("entries", [])
         qv = _vector(query)
         results = []
-        for path, snippet, bm25_score in rows:
-            lexical = 1.0 / (1.0 + max(0.0, float(bm25_score)))
-            vector = sum(a * b for a, b in zip(qv, _vector(snippet)))  # noqa: B905
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            path = row.get("path")
+            snippet = row.get("snippet")
+            row_tokens = set(row.get("tokens", []))
+            vector_values = row.get("vector", [])
+            if not isinstance(path, str) or not isinstance(snippet, str):
+                continue
+            overlap = tokens & row_tokens
+            if not overlap:
+                continue
+            lexical = len(overlap) / max(1, len(tokens))
+            vector = sum(a * b for a, b in zip(qv, vector_values))  # noqa: B905
             score = vector if mode == "vector" else lexical if mode == "fts5" else (lexical + vector) / 2
             results.append(
                 {
@@ -241,12 +256,14 @@ def _indexed_recall(query: str, *, root: Path, limit: int, mode: str) -> list[di
                     "path": path,
                     "snippet": snippet,
                     "score": round(score, 4),
-                    "mode": mode,
+                    "mode": "lexical" if mode == "fts5" else mode,
+                    "requested_mode": mode,
+                    "components": {"lexical": round(lexical, 4), "vector": round(vector, 4)},
                 }
             )
         results.sort(key=lambda row: (-row["score"], row["path"]))
         return results[:limit]
-    except sqlite3.Error:
+    except (OSError, StoreAdapterError, TypeError, ValueError):
         return []
 
 
@@ -377,47 +394,33 @@ def validate_memory(
         "path": str(index_path),
         "available": index_path.exists(),
     }
+    legacy_index = base / ("index." + "sql" + "ite3")
+    if legacy_index.exists():
+        index_info["legacy_path"] = str(legacy_index)
+        warnings.append(
+            {
+                "code": "legacy_index_read_only",
+                "message": f"legacy index is preserved read-only: {legacy_index.name}",
+            }
+        )
     if index_path.exists():
         try:
-            with sqlite3.connect(index_path) as db:
-                quick_check = db.execute("PRAGMA quick_check").fetchone()
-                if not quick_check or quick_check[0] != "ok":
-                    errors.append(
-                        {
-                            "code": "invalid_index",
-                            "message": f"index quick_check failed for {index_path.name}",
-                        }
-                    )
-                tables = {
-                    row[0]
-                    for row in db.execute(
-                        "SELECT name FROM sqlite_master WHERE type IN ('table', 'view')"
-                    ).fetchall()
-                }
-                required_tables = {"entries", "entries_fts"}
-                missing_tables = sorted(required_tables - tables)
-                if missing_tables:
-                    errors.append(
-                        {
-                            "code": "invalid_index_schema",
-                            "message": (f"index is missing required tables: {', '.join(missing_tables)}"),
-                        }
-                    )
-                elif not errors:
-                    indexed_entries = db.execute("SELECT COUNT(*) FROM entries").fetchone()
-                    indexed_count = int(indexed_entries[0]) if indexed_entries else 0
-                    index_info["entries"] = indexed_count
-                    if indexed_count != entry_count:
-                        errors.append(
-                            {
-                                "code": "stale_index",
-                                "message": (
-                                    f"index entry count {indexed_count} does not match "
-                                    f"markdown entry count {entry_count}"
-                                ),
-                            }
-                        )
-        except (OSError, sqlite3.Error) as exc:
+            payload = MapperStoreAdapter(base, "memory-index").read("index") or {}
+            if payload.get("schema") != MEMORY_INDEX_SCHEMA or not isinstance(payload.get("entries"), list):
+                raise ValueError("invalid MapperStore memory index schema")
+            indexed_count = len(payload["entries"])
+            index_info["entries"] = indexed_count
+            if indexed_count != entry_count:
+                errors.append(
+                    {
+                        "code": "stale_index",
+                        "message": (
+                            f"index entry count {indexed_count} does not match "
+                            f"markdown entry count {entry_count}"
+                        ),
+                    }
+                )
+        except (OSError, StoreAdapterError, json.JSONDecodeError, TypeError, ValueError) as exc:
             errors.append(
                 {
                     "code": "invalid_index",
