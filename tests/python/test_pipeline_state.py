@@ -55,3 +55,129 @@ def test_result_trace_validates_supplied_receipt_states():
     receipt["states"] = [PipelineState.INPUT.value, PipelineState.SEALED.value]
     with pytest.raises(InvalidPipelineTransition):
         result_trace({"pipeline_state": receipt})
+
+
+_VALID_PATHS = (
+    (
+        PipelineState.INPUT,
+        PipelineState.CONTEXT_BOUND,
+        PipelineState.ROUTE_SELECTED,
+        PipelineState.PROPOSED,
+        PipelineState.AUTHORIZED_OR_LOCAL_POLICY,
+        PipelineState.STAGED,
+        PipelineState.COMMITTED,
+        PipelineState.VERIFIED,
+        PipelineState.SEALED,
+    ),
+    (PipelineState.INPUT, PipelineState.BLOCKED),
+    (PipelineState.INPUT, PipelineState.REFUSED),
+    (PipelineState.INPUT, PipelineState.EFFECT_UNKNOWN),
+    (PipelineState.INPUT, PipelineState.ROLLED_BACK),
+    (PipelineState.INPUT, PipelineState.CONTEXT_BOUND, PipelineState.BLOCKED),
+    (PipelineState.INPUT, PipelineState.CONTEXT_BOUND, PipelineState.ROUTE_SELECTED, PipelineState.BLOCKED),
+    (
+        PipelineState.INPUT,
+        PipelineState.CONTEXT_BOUND,
+        PipelineState.ROUTE_SELECTED,
+        PipelineState.PROPOSED,
+        PipelineState.BLOCKED,
+    ),
+    (
+        PipelineState.INPUT,
+        PipelineState.CONTEXT_BOUND,
+        PipelineState.ROUTE_SELECTED,
+        PipelineState.PROPOSED,
+        PipelineState.REFUSED,
+    ),
+    (
+        PipelineState.INPUT,
+        PipelineState.CONTEXT_BOUND,
+        PipelineState.ROUTE_SELECTED,
+        PipelineState.PROPOSED,
+        PipelineState.AUTHORIZED_OR_LOCAL_POLICY,
+        PipelineState.BLOCKED,
+    ),
+    (
+        PipelineState.INPUT,
+        PipelineState.CONTEXT_BOUND,
+        PipelineState.ROUTE_SELECTED,
+        PipelineState.PROPOSED,
+        PipelineState.AUTHORIZED_OR_LOCAL_POLICY,
+        PipelineState.EFFECT_UNKNOWN,
+    ),
+    (
+        PipelineState.INPUT,
+        PipelineState.CONTEXT_BOUND,
+        PipelineState.ROUTE_SELECTED,
+        PipelineState.PROPOSED,
+        PipelineState.AUTHORIZED_OR_LOCAL_POLICY,
+        PipelineState.STAGED,
+        PipelineState.ROLLED_BACK,
+    ),
+    (
+        PipelineState.INPUT,
+        PipelineState.CONTEXT_BOUND,
+        PipelineState.ROUTE_SELECTED,
+        PipelineState.PROPOSED,
+        PipelineState.AUTHORIZED_OR_LOCAL_POLICY,
+        PipelineState.STAGED,
+        PipelineState.EFFECT_UNKNOWN,
+    ),
+    (
+        PipelineState.INPUT,
+        PipelineState.CONTEXT_BOUND,
+        PipelineState.ROUTE_SELECTED,
+        PipelineState.PROPOSED,
+        PipelineState.AUTHORIZED_OR_LOCAL_POLICY,
+        PipelineState.STAGED,
+        PipelineState.COMMITTED,
+        PipelineState.ROLLED_BACK,
+    ),
+    (
+        PipelineState.INPUT,
+        PipelineState.CONTEXT_BOUND,
+        PipelineState.ROUTE_SELECTED,
+        PipelineState.PROPOSED,
+        PipelineState.AUTHORIZED_OR_LOCAL_POLICY,
+        PipelineState.STAGED,
+        PipelineState.COMMITTED,
+        PipelineState.EFFECT_UNKNOWN,
+    ),
+    (
+        PipelineState.INPUT,
+        PipelineState.CONTEXT_BOUND,
+        PipelineState.ROUTE_SELECTED,
+        PipelineState.PROPOSED,
+        PipelineState.AUTHORIZED_OR_LOCAL_POLICY,
+        PipelineState.STAGED,
+        PipelineState.COMMITTED,
+        PipelineState.VERIFIED,
+        PipelineState.ROLLED_BACK,
+    ),
+)
+
+
+@pytest.mark.parametrize("path", _VALID_PATHS)
+def test_every_declared_transition_is_accepted(path):
+    trace = PipelineTrace((path[0],))
+    for next_state in path[1:]:
+        trace = transition(trace, next_state)
+    assert trace.states == path
+
+
+@pytest.mark.parametrize(
+    "payload",
+    (
+        {},
+        {"schema": "simplicio.dev-cli.pipeline-state/v1", "states": "INPUT"},
+        {"schema": "simplicio.dev-cli.pipeline-state/v1", "states": ["UNKNOWN"]},
+    ),
+)
+def test_pipeline_trace_rejects_malformed_payload(payload):
+    with pytest.raises(InvalidPipelineTransition):
+        PipelineTrace.from_dict(payload)
+
+
+@pytest.mark.parametrize("status", ["refused", "invalid"])
+def test_result_trace_maps_refused_statuses_to_terminal_refusal(status):
+    assert result_trace({"status": status, "applied": False}).terminal is PipelineState.REFUSED
