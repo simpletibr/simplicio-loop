@@ -8,7 +8,7 @@ import os
 import re
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
@@ -291,18 +291,12 @@ class MapperOperationsAdapter:
         try:
             from simplicio_mapper.store import OperationsStore
         except (ImportError, ModuleNotFoundError) as exc:
-            raise StoreAdapterError(
-                "MAPPER_STORE_UNAVAILABLE:operations-api-unavailable"
-            ) from exc
+            raise StoreAdapterError("MAPPER_STORE_UNAVAILABLE:operations-api-unavailable") from exc
         missing = [
-            name
-            for name in self._REQUIRED_METHODS
-            if not callable(getattr(OperationsStore, name, None))
+            name for name in self._REQUIRED_METHODS if not callable(getattr(OperationsStore, name, None))
         ]
         if missing:
-            raise StoreAdapterError(
-                "MAPPER_STORE_UNAVAILABLE:operations-api-missing:" + ",".join(missing)
-            )
+            raise StoreAdapterError("MAPPER_STORE_UNAVAILABLE:operations-api-missing:" + ",".join(missing))
         try:
             return OperationsStore(self.database, auto_create=auto_create)
         except Exception as exc:
@@ -330,7 +324,5 @@ class MapperOperationsAdapter:
     def find_task(self, idempotency_key: str) -> dict[str, Any] | None:
         return self._store(auto_create=False).find_task(idempotency_key)
 
-    def update_payload(
-        self, task_id: str, payload: Mapping[str, Any]
-    ) -> dict[str, Any]:
+    def update_payload(self, task_id: str, payload: Mapping[str, Any]) -> dict[str, Any]:
         return self._store(auto_create=False).update_payload(task_id, dict(payload))

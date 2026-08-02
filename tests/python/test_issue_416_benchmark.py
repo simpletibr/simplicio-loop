@@ -19,6 +19,7 @@ def test_issue_416_benchmark_requires_ten_repetitions():
         _module().run_benchmark(repeats=9)
 
 
+@pytest.mark.timeout(300)
 def test_issue_416_benchmark_reports_real_direct_and_transaction_lanes():
     report = _module().run_benchmark(repeats=10)
     assert report["schema"] == "simplicio.dev-cli.issue-416-transaction-benchmark/v1"
