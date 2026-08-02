@@ -308,6 +308,47 @@ def test_context_binding_cache_persists_a_disposable_lookup_index(
     assert third_process.lookup(binding.context_handle)["hit"] is True
 
 
+@pytest.mark.parametrize(
+    "index_payload",
+    [
+        {"log_signature": [0], "entries": {}, "revision": "stale"},
+        {"log_signature": [], "entries": {}, "revision": "stale"},
+        {"log_signature": "not-a-signature", "entries": {}, "revision": "stale"},
+        {"log_signature": [], "entries": [], "revision": "stale"},
+    ],
+)
+def test_context_binding_cache_replays_log_for_invalid_index_shapes(
+    mapper_boundary: None, tmp_path: Any, index_payload: dict[str, Any]
+) -> None:
+    binding = bind_mapper_context(_payload(), _pack(_payload()))
+    cache = ContextBindingCache(tmp_path)
+    cache.put(binding)
+    index = tmp_path / ".simplicio" / "context-bindings.hbp.idx"
+    index.write_text(json.dumps(index_payload), encoding="utf-8")
+
+    second_process = ContextBindingCache(tmp_path)
+    assert second_process.lookup(binding.context_handle)["hit"] is True
+
+
+def test_context_binding_cache_ignores_index_write_failure(
+    mapper_boundary: None, tmp_path: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from simplicio.plan_compiler import mapper_context
+
+    binding = bind_mapper_context(_payload(), _pack(_payload()))
+    monkeypatch.setattr(
+        mapper_context,
+        "write_text_atomic",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("index unavailable")),
+    )
+    cache = ContextBindingCache(tmp_path)
+
+    cache.put(binding)
+
+    assert cache.lookup(binding.context_handle)["hit"] is True
+    assert cache.doctor()["index_present"] is False
+
+
 def test_context_binding_cache_refresh_invalidates_prior_revision(
     mapper_boundary: None, tmp_path: Any
 ) -> None:
