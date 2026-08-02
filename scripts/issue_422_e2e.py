@@ -275,6 +275,46 @@ def _adversarial_generation_replay_scenario() -> dict[str, Any]:
         }
 
 
+def _windows_locked_file_scenario() -> dict[str, Any]:
+    """Exercise a real Windows sharing violation and verify rollback."""
+
+    if os.name != "nt":
+        return {
+            "scenario": "windows_locked_file",
+            "status": "UNAVAILABLE",
+            "reason": "locked-file lane requires a real Windows host",
+        }
+    with tempfile.TemporaryDirectory(prefix="simplicio-422-locked-") as raw_root:
+        root = Path(raw_root)
+        target = root / "files" / "locked.txt"
+        target.parent.mkdir(parents=True)
+        target.write_text("before\n", encoding="utf-8")
+        handle = target.open("r+b")
+        try:
+            changeset = {
+                "schema": "simplicio.fast.changeset/v2",
+                "changeset_id": "issue-422-locked-file",
+                "correlation_id": "issue-422-locked-file",
+                "generation": "generation-1",
+                "allowlist": ["files/locked.txt"],
+                "operations": [{"kind": "delete", "path": "files/locked.txt"}],
+            }
+            result = execute_changeset(changeset, root=root, apply=True)
+            preserved = target.is_file() and target.read_text(encoding="utf-8") == "before\n"
+            error_codes = [row.get("code") for row in result.get("errors", [])]
+            passed = result.get("status") == "refused" and "COMMIT_PARTIAL" in error_codes and preserved
+            return {
+                "scenario": "windows_locked_file",
+                "status": "PASS" if passed else "FAIL",
+                "receipt_status": result.get("status"),
+                "error_codes": error_codes,
+                "preserved": preserved,
+                "reason": None if passed else "locked-file failure did not preserve the original file",
+            }
+        finally:
+            handle.close()
+
+
 def _capability_scenario(name: str, available: bool, version: str | None) -> dict[str, Any]:
     return {
         "scenario": name,
@@ -697,6 +737,7 @@ def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
     rows.append(_worktree_isolation_scenario())
     rows.extend(_fast_binary_scenario(root, count, repeats) for count in (1, 20, 200))
     rows.append(_adversarial_generation_replay_scenario())
+    rows.append(_windows_locked_file_scenario())
     rust_row = _fast_rust_scenario(root)
     rust_row["python_preflight"] = preflight.to_dict()
     rows.append(rust_row)
