@@ -213,10 +213,19 @@ def _install_wheels(
     return _run(command, cwd=cwd, env=env, timeout=timeout)
 
 
+def _file_hash(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _standalone(
     *,
     wheels: Mapping[str, Path],
     legacy_memory_dir: Path | None,
+    upgrade: bool,
     timeout: float,
 ) -> tuple[bool, str, dict[str, Any]]:
     if legacy_memory_dir is not None and not legacy_memory_dir.is_dir():
@@ -231,6 +240,12 @@ def _standalone(
             shutil.copytree(legacy_memory_dir, memory)
         else:
             memory.mkdir()
+        legacy_candidates = [memory / "index.sqlite3", memory / "memory" / "index.sqlite3"]
+        legacy_before = {
+            str(path.relative_to(fixture)): _file_hash(path)
+            for path in legacy_candidates
+            if path.exists()
+        }
 
         venv_root = sandbox / "venv"
         venv.EnvBuilder(with_pip=True, system_site_packages=True, clear=True).create(venv_root)
@@ -275,15 +290,24 @@ def _standalone(
             if result["status"] != "pass":
                 return False, f"{name} failed", observations
 
-        legacy_paths = [fixture / "index.sqlite3", memory / "index.sqlite3", memory / "memory" / "index.sqlite3"]
+        legacy_paths = [fixture / "index.sqlite3", *legacy_candidates]
         observations["legacy_sqlite_paths"] = [str(path) for path in legacy_paths if path.exists()]
+        legacy_after = {
+            str(path.relative_to(fixture)): _file_hash(path)
+            for path in legacy_candidates
+            if path.exists()
+        }
+        observations["legacy_before"] = legacy_before
+        observations["legacy_after"] = legacy_after
         observations["mapper_store_paths"] = sorted(
             str(path.relative_to(fixture))
             for path in fixture.rglob("*")
             if path.is_file() and ".simplicio/mapper-store" in str(path.relative_to(fixture))
         )
-        if observations["legacy_sqlite_paths"]:
+        if not upgrade and observations["legacy_sqlite_paths"]:
             return False, "legacy SQLite writer materialized a database", observations
+        if upgrade and legacy_before != legacy_after:
+            return False, "upgrade changed the preserved legacy SQLite index", observations
         validate_payload = _last_json(observations["memory_validate"].get("stdout", ""))
         if not validate_payload or validate_payload.get("ok") is not True:
             return False, "installed memory validation did not report ok", observations
@@ -293,7 +317,11 @@ def _standalone(
         preflight_payload = _last_json(observations["loop_preflight"].get("stdout", ""))
         if not preflight_payload or preflight_payload.get("all_present") is not True:
             return False, "installed Loop preflight did not report required operators", observations
-        return True, "fresh standalone installed consumer lane passed", observations
+        return True, (
+            "upgrade standalone installed consumer lane passed"
+            if upgrade
+            else "fresh standalone installed consumer lane passed"
+        ), observations
 
 
 def run_scenario(
@@ -364,6 +392,7 @@ def run_scenario(
     ok, reason, observations = _standalone(
         wheels=wheels,
         legacy_memory_dir=legacy_memory_dir,
+        upgrade=scenario == "upgrade standalone",
         timeout=timeout,
     )
     observations["inventory"] = inventory_observation
