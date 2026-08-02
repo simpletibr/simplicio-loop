@@ -75,12 +75,15 @@ def _start_fault_window(tmp_path: Path, point: str) -> tuple[subprocess.Popen[st
             except json.JSONDecodeError:
                 time.sleep(0.05)
                 continue
-            if state.get("state") == {
-                "after_intent": "INTENT",
-                "after_staged": "STAGED",
-                "after_effect": "STAGED",
-                "after_receipt": "COMMITTED",
-            }[point]:
+            if (
+                state.get("state")
+                == {
+                    "after_intent": "INTENT",
+                    "after_staged": "STAGED",
+                    "after_effect": "STAGED",
+                    "after_receipt": "COMMITTED",
+                }[point]
+            ):
                 if point != "after_effect":
                     return process, state_path, key, digest, state
                 candidate = Path(str(state["candidate"]))
@@ -121,9 +124,7 @@ def test_real_process_kill_after_receipt_replays_and_cleans_artifacts(tmp_path: 
     process, state_path, key, digest, state = _start_fault_window(tmp_path, "after_receipt")
     try:
         _terminate(process)
-        replay = existing_transaction_result(
-            tmp_path, idempotency_key=key, changeset_digest_value=digest
-        )
+        replay = existing_transaction_result(tmp_path, idempotency_key=key, changeset_digest_value=digest)
     finally:
         _terminate(process)
 
