@@ -46,15 +46,9 @@ def _quality_gate_environment() -> dict[str, str]:
         if key not in QUALITY_GATE_ENV_EXCLUSIONS
         and not any(key.startswith(prefix) for prefix in QUALITY_GATE_ENV_EXCLUSION_PREFIXES)
     }
-    path_entries = []
-    for entry in env.get("PATH", "").split(os.pathsep):
-        if not entry:
-            continue
-        directory = Path(entry)
-        if any((directory / name).exists() for name in ("simplicio", "simplicio.exe")):
-            continue
-        path_entries.append(entry)
-    env["PATH"] = os.pathsep.join(path_entries)
+    # Keep shared tool directories intact.  Removing an entire directory just
+    # because it also contains a Simplicio executable can hide pytest/ruff/
+    # mypy and make the quality gate test a different Python environment.
     env.update(QUALITY_GATE_ENV_OVERRIDES)
     return env
 
