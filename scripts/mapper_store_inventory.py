@@ -84,6 +84,7 @@ def _repo_info(repo_id: str, root: Path) -> dict:
             line for line in (_run("git", "diff", "--name-only", f"{default_revision}...HEAD", cwd=root) or "").splitlines()
             if line
         )
+    working_tree_clean = (_run("git", "status", "--porcelain", "--untracked-files=all", cwd=root) or "") == ""
     return {
         "id": repo_id,
         "path": "." if repo_id == "mapper" else repo_id,
@@ -92,6 +93,7 @@ def _repo_info(repo_id: str, root: Path) -> dict:
         "default_branch": default_branch,
         "default_revision": default_revision,
         "changed_files": changed_files,
+        "working_tree_clean": working_tree_clean,
         "remote": remote,
         "versions": _versions(root),
     }

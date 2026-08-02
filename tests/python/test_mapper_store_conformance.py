@@ -6,10 +6,34 @@ import json
 import sqlite3
 from pathlib import Path
 
-from scripts.mapper_store_conformance import build_conformance
+from scripts.mapper_store_conformance import _checkout_matches_default, build_conformance
 from simplicio_mapper.contract import validate_instance
 
 ROOT = Path(__file__).parents[2]
+
+
+def test_clean_detached_checkout_at_default_sha_is_accepted() -> None:
+    assert _checkout_matches_default({
+        "branch": "main",
+        "checked_out_branch": None,
+        "sha": "abc123",
+        "checked_out_sha": "abc123",
+        "working_tree_clean": True,
+    })
+    assert not _checkout_matches_default({
+        "branch": "main",
+        "checked_out_branch": None,
+        "sha": "abc123",
+        "checked_out_sha": "def456",
+        "working_tree_clean": True,
+    })
+    assert not _checkout_matches_default({
+        "branch": "main",
+        "checked_out_branch": None,
+        "sha": "abc123",
+        "checked_out_sha": "abc123",
+        "working_tree_clean": False,
+    })
 
 
 def _repo(root: Path, name: str, content: str = "") -> Path:
