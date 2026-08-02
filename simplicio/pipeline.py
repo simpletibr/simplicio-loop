@@ -351,9 +351,9 @@ def _run_dry_run_task(
         )
     # Bind paths before generate() so an out-of-band mutation during provider
     # execution is caught even when the returned diff does not mention it.
-    bound_path_baseline = snapshot_bound_paths(root, bound_paths)
+    bound_path_baseline = snapshot_bound_paths(str(root), bound_paths)
     output = generate(prompt)
-    drift_warnings = bound_path_drift(root, bound_paths, bound_path_baseline)
+    drift_warnings = bound_path_drift(str(root), bound_paths, bound_path_baseline)
     validation = validate_generated_output(
         output,
         bound_paths,
@@ -505,7 +505,7 @@ def _route_prepared_task(
         return result
     if profile.effective_mode == "integrated":
         return run_integrated_route(
-            root=root,
+            root=str(root),
             stack=stack,
             goal=goal,
             target=target,
@@ -569,12 +569,12 @@ def _generate_attempt_output(
     impact_results: dict[str, Any] | None,
 ) -> tuple[str | None, dict[str, Any] | None]:
     """Generate one bounded attempt and return output or a terminal result."""
-    bound_path_baseline = snapshot_bound_paths(root, bound_paths)
+    bound_path_baseline = snapshot_bound_paths(str(root), bound_paths)
     try:
         output = generate(prompt, feedback)
     except ProviderExecutionError as exc:
         receipt = dict(exc.receipt)
-        emit_event("provider_terminal", receipt, level="warning", root=root)
+        emit_event("provider_terminal", receipt, level="warning", root=str(root))
         emit_event(
             "task_terminal",
             {
@@ -585,7 +585,7 @@ def _generate_attempt_output(
                 "provider_terminal": receipt,
             },
             level="warning",
-            root=root,
+            root=str(root),
         )
         result = _task_result(
             target,
@@ -608,7 +608,7 @@ def _generate_attempt_output(
         reloaded_receipt = getattr(exc, "receipt", None)
         if isinstance(reloaded_receipt, dict):
             receipt = dict(reloaded_receipt)
-            emit_event("provider_terminal", receipt, level="warning", root=root)
+            emit_event("provider_terminal", receipt, level="warning", root=str(root))
             emit_event(
                 "task_terminal",
                 {
@@ -619,7 +619,7 @@ def _generate_attempt_output(
                     "provider_terminal": receipt,
                 },
                 level="warning",
-                root=root,
+                root=str(root),
             )
             result = _task_result(
                 target,
@@ -643,7 +643,7 @@ def _generate_attempt_output(
             "task_no_progress",
             {"target": target, "attempt": attempt_number, "reason": reason},
             level="warning",
-            root=root,
+            root=str(root),
         )
         return None, _task_result(
             target,
@@ -655,13 +655,13 @@ def _generate_attempt_output(
             verify=last_verify_receipt,
             impact=impact_results,
         )
-    drift_warnings = bound_path_drift(root, bound_paths, bound_path_baseline)
+    drift_warnings = bound_path_drift(str(root), bound_paths, bound_path_baseline)
     if drift_warnings:
         emit_event(
             "validation_fail",
             {"target": target, "attempt": attempt_number, "warnings": drift_warnings},
             level="warning",
-            root=root,
+            root=str(root),
         )
         return None, _task_result(
             target,
@@ -723,7 +723,7 @@ def _run_static_fixer_attempt(
         return None
     attempt = _apply_and_test_attempt(
         output,
-        root,
+        str(root),
         bound_paths,
         promote_on_success=False,
         repo_root=declared_repo_root,
@@ -732,7 +732,7 @@ def _run_static_fixer_attempt(
     ok, fixed_log = attempt.ok, attempt.log
     verify_receipt = _LAST_VERIFY_RECEIPT
     log_run(
-        root,
+        str(root),
         {
             "mode": "fixer",
             "attempt": attempt_number,
@@ -777,7 +777,7 @@ def _run_static_fixer_attempt(
     emit_event(
         "task_complete",
         {"target": target, "attempt": attempt_number, "fixer": fixer_result.fixer},
-        root=root,
+        root=str(root),
         tokens_saved=0,
     )
     result = _task_result(
@@ -846,7 +846,7 @@ def _handle_primary_attempt_success(
             "validation_fail",
             {"target": target, "attempts": attempt_number, "warnings": [failure[:500]]},
             level="warning",
-            root=root,
+            root=str(root),
         )
         terminal = _task_result(
             target,
@@ -868,7 +868,7 @@ def _handle_primary_attempt_success(
     emit_event(
         "task_complete",
         {"target": target, "attempt": attempt_number, "impact": "verified"},
-        root=root,
+        root=str(root),
         tokens_saved=0,
     )
     result = _task_result(
@@ -930,7 +930,7 @@ def _build_retry_feedback_state(
                 "consecutive_same_failure": consecutive_same_failure,
             },
             level="warning",
-            root=root,
+            root=str(root),
         )
         feedback = (
             f"{feedback}\n\nESCALATION: the last {consecutive_same_failure} attempts failed with "
@@ -966,7 +966,7 @@ def _build_attempts_exhausted_result(
         "validation_fail",
         {"target": target, "attempts": attempts_limit, "warnings": warnings[:1]},
         level="warning",
-        root=root,
+        root=str(root),
     )
     return _task_result(
         target,
@@ -1323,8 +1323,8 @@ def _run_task(
             context_pack=context_pack,
             requested_execution_mode=requested_execution_mode,
             bound_paths=bound_paths,
-            declared_repo_root=declared_repo_root,
-            declared_scope_root=declared_scope_root,
+            declared_repo_root=str(declared_repo_root),
+            declared_scope_root=str(declared_scope_root),
         )
 
     # Issue #107: structured "task_start" event — the dev-cli side of the
@@ -1467,8 +1467,8 @@ def _run_task(
             stack=stack,
             prompt=prompt,
             bound_paths=bound_paths,
-            declared_repo_root=declared_repo_root,
-            declared_scope_root=declared_scope_root,
+            declared_repo_root=str(declared_repo_root),
+            declared_scope_root=str(declared_scope_root),
             scope_root=scope_root,
             primary_test_cmd=primary_test_cmd,
             attempt_number=t,
