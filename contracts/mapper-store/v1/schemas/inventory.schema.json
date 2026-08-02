@@ -5,14 +5,137 @@
   "type": "object",
   "required": ["schema", "repos", "matches", "databases", "ownership_matrix", "policy", "target_topology", "compatibility"],
   "properties": {
-    "schema": { "const": "simplicio.mapper-store-inventory/v1" },
+    "schema": { "type": "string", "enum": ["simplicio.mapper-store-inventory/v1"] },
     "generated_at": { "type": ["string", "null"] },
-    "repos": { "type": "array", "items": { "type": "object", "required": ["id", "revision", "default_branch", "versions"] } },
-    "matches": { "type": "array", "items": { "type": "object", "required": ["repo", "file", "classification", "kinds", "matches"] } },
-    "databases": { "type": "array", "items": { "type": "object", "required": ["repo", "path", "read_only_inspection", "status"] } },
-    "ownership_matrix": { "type": "array", "items": { "type": "object", "required": ["repo", "file", "current_owner", "target_owner", "readers", "writers", "authorized_writer_after_cutover", "source_of_truth", "receipt_authority", "durability", "criticality", "migration_strategy"] } },
-    "policy": { "type": "object", "required": ["schema", "allowlisted_paths", "violations", "status"] },
-    "target_topology": { "type": "object", "required": ["schema", "root", "stores", "excluded"] },
-    "compatibility": { "type": "object", "required": ["python_api", "rust_api", "installed_package_mode", "cross_domain_transactions"] }
+    "repos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "path", "revision", "default_branch", "versions", "files_scanned"],
+        "properties": {
+          "id": { "type": "string" },
+          "path": { "type": "string" },
+          "branch": { "type": ["string", "null"] },
+          "revision": { "type": ["string", "null"] },
+          "default_branch": { "type": "string" },
+          "default_revision": { "type": ["string", "null"] },
+          "remote": { "type": ["string", "null"] },
+          "versions": { "type": "object" },
+          "files_scanned": { "type": "integer" },
+          "changed_files": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "matches": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["repo", "file", "classification", "kinds", "matches"],
+        "properties": {
+          "repo": { "type": "string" },
+          "file": { "type": "string" },
+          "classification": { "type": "string" },
+          "kinds": { "type": "array", "items": { "type": "string" } },
+          "matches": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["kind", "line", "evidence"],
+              "properties": {
+                "kind": { "type": "string" },
+                "line": { "type": "integer" },
+                "evidence": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "databases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["repo", "path", "read_only_inspection", "status"],
+        "properties": {
+          "repo": { "type": "string" },
+          "path": { "type": "string" },
+          "read_only_inspection": { "type": "boolean" },
+          "status": { "type": "string", "enum": ["readable", "unreadable"] },
+          "sha256": { "type": "string" },
+          "journal_mode": { "type": ["string", "null"] },
+          "user_version": { "type": "integer" },
+          "objects": { "type": "array" },
+          "sidecar_sha256": { "type": "object" }
+        }
+      }
+    },
+    "ownership_matrix": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["repo", "file", "current_path", "target_path", "current_owner", "target_owner", "readers", "writers", "authorized_writer_after_cutover", "source_of_truth", "receipt_authority", "durability", "criticality", "migration_strategy"],
+        "properties": {
+          "repo": { "type": "string" },
+          "file": { "type": "string" },
+          "current_path": { "type": "string" },
+          "target_path": { "type": "string" },
+          "table": { "type": "string" },
+          "current_owner": { "type": "string" },
+          "target_owner": { "type": "string" },
+          "readers": { "type": "array", "items": { "type": "string" } },
+          "writers": { "type": "array", "items": { "type": "string" } },
+          "authorized_writer_after_cutover": { "type": "string" },
+          "source_of_truth": { "type": "string" },
+          "receipt_authority": { "type": "string" },
+          "durability": { "type": "string" },
+          "criticality": { "type": "string" },
+          "migration_strategy": { "type": "string" }
+          ,"changed_since_default": { "type": ["boolean", "null"] }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "required": ["schema", "allowlisted_paths", "violations", "status"],
+      "properties": {
+        "schema": { "type": "string", "enum": ["simplicio.mapper-store-ddl-policy/v1"] },
+        "allowlisted_paths": { "type": "array", "items": { "type": "string" } },
+        "violations": { "type": "array" },
+        "legacy_ddl_matches": { "type": "integer" },
+        "status": { "type": "string", "enum": ["pass", "fail"] },
+        "note": { "type": "string" }
+      }
+    },
+    "target_topology": {
+      "type": "object",
+      "required": ["schema", "root", "stores", "excluded"],
+      "properties": {
+        "schema": { "type": "string", "enum": ["MapperStore/v1"] },
+        "root": { "type": "string" },
+        "stores": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "owner", "domains"],
+            "properties": {
+              "name": { "type": "string" },
+              "owner": { "type": "string" },
+              "domains": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "excluded": { "type": "array" }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "required": ["python_api", "rust_api", "installed_package_mode", "cross_domain_transactions"],
+      "properties": {
+        "python_api": { "type": "string" },
+        "rust_api": { "type": "string" },
+        "installed_package_mode": { "type": "string" },
+        "cross_domain_transactions": { "type": "string" }
+      }
+    }
   }
 }

@@ -1,7 +1,8 @@
 # MapperStore/v1 inventory contract
 
 `simplicio.mapper-store-inventory/v1` is the read-only evidence envelope for the
-MapperStore foundation work. The producer is
+MapperStore foundation work. The producer is a review-time source-checkout
+tool, intentionally not an import-time or installed-package side effect:
 [`scripts/mapper_store_inventory.py`](../../../scripts/mapper_store_inventory.py).
 
 The scanner accepts named repository roots and existing database paths. It records
@@ -9,6 +10,10 @@ local and remote branch SHAs, package metadata, SQLite-related source matches,
 read-only `sqlite_master` observations, current/target ownership, and the DDL
 policy result. It never imports application modules, opens a database for writing,
 executes migrations, or removes legacy data.
+
+`repos[].revision` is the source checkout SHA used to produce the snapshot. The
+evidence JSON is committed in a follow-up evidence-only commit, so it must not
+be treated as a self-referential SHA for the commit that stores the JSON.
 
 ## Usage
 

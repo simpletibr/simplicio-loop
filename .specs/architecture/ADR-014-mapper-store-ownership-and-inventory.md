@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceito
+Aceito como contrato de inventário e topologia-alvo; não como migração executada
 
 ## Data
 
@@ -23,7 +23,9 @@ bancos materializados e ownership atual.
 O inventário é produzido por `scripts/mapper_store_inventory.py` e usa somente
 leitura. Source files são evidência de intenção; `sqlite_master` e PRAGMAs de um
 banco materializado são evidência do estado físico. Nenhuma dessas evidências
-autoriza importar, escrever, migrar, fazer cutover ou remover um banco.
+autoriza importar, escrever, migrar, fazer cutover ou remover um banco. A
+topologia e o ownership abaixo são alvos normativos para as próximas issues; não
+afirmam que os adapters ou schemas de produção já existem.
 
 ## Decisão
 

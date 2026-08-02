@@ -24,13 +24,16 @@
     ".specs/architecture/ADR-003-two-tier-async-mapper.md",
     ".specs/architecture/ADR-004-template-vs-product-content-manifest.md",
     ".specs/architecture/ADR-013-reproducible-issue-meta-audit.md",
+    ".specs/architecture/ADR-014-mapper-store-ownership-and-inventory.md",
     ".specs/sprints/BACKLOG.md",
     "docs/apply-edits.md",
     "docs/issue-meta-audit.md",
     "docs/evidence/issue-328-meta-audit.json",
     "docs/evidence/mapper-store-inventory.json",
     "docs/readme-globalization-standard.md",
-    "docs/sessionstart-hook.md"
+    "docs/sessionstart-hook.md",
+    "scripts/mapper_store_inventory.py",
+    "tests/python/test_mapper_store_inventory.py"
   ],
   "template_paths": [
     ".specs/README.md",

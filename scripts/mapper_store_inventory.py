@@ -24,12 +24,14 @@ from urllib.parse import quote
 SCHEMA = "simplicio.mapper-store-inventory/v1"
 MAX_FILE_BYTES = 1_000_000
 SKIP_DIRS = {
-    ".git", ".simplicio", ".venv", "__pycache__", "node_modules", "target",
-    "dist", "build", "coverage", "playwright-report", "test-results",
+    ".git", ".simplicio", ".venv", "__pycache__", ".mypy_cache", ".pytest_cache",
+    ".ruff_cache", ".hypothesis", ".tox", ".nox", ".cache", ".sfast", "node_modules",
+    "target", "dist", "build", "coverage", "playwright-report", "test-results",
 }
 TEXT_SUFFIXES = {".c", ".cc", ".cpp", ".go", ".h", ".hpp", ".js", ".jsx", ".json", ".md",
                  ".mjs", ".py", ".rs", ".sh", ".sql", ".toml", ".ts", ".tsx", ".yml", ".yaml"}
-DATABASE_SUFFIXES = {".db", ".sqlite", ".sqlite3", ".sqlite-wal", ".sqlite-shm"}
+DATABASE_SUFFIXES = {".db", ".sqlite", ".sqlite3"}
+BEHAVIOR_SUFFIXES = {".c", ".cc", ".cpp", ".go", ".h", ".hpp", ".js", ".jsx", ".mjs", ".py", ".rs", ".sh", ".sql", ".ts", ".tsx"}
 
 PATTERNS = {
     "library": re.compile(r"\b(?:sqlite3|rusqlite|sqlite[_-]vec|sqlite_vec|vec0|fts5|diskcache)\b", re.I),
@@ -38,11 +40,19 @@ PATTERNS = {
         r"(?:[\w./~-]+\.(?:db|sqlite3?|sqlite))|SIMPLICIO_[A-Z0-9_]*(?:DB|DATABASE|MEMORY|STORE)[A-Z0-9_]*)",
         re.I,
     ),
-    "ddl": re.compile(r"\b(?:CREATE\s+(?:VIRTUAL\s+)?TABLE|CREATE\s+(?:UNIQUE\s+)?INDEX|CREATE\s+TRIGGER|ALTER\s+TABLE|DROP\s+TABLE|PRAGMA\s+\w+|ATTACH\s+DATABASE|load_extension)\b", re.I),
+    "ddl": re.compile(r"\b(?:CREATE\s+(?:TEMP(?:ORARY)?\s+)?(?:VIRTUAL\s+)?TABLE|CREATE\s+(?:TEMP(?:ORARY)?\s+)?(?:UNIQUE\s+)?INDEX|CREATE\s+(?:TEMP(?:ORARY)?\s+)?VIEW|CREATE\s+(?:TEMP(?:ORARY)?\s+)?TRIGGER|ALTER\s+TABLE|DROP\s+(?:TABLE|INDEX|TRIGGER|VIEW)|PRAGMA\s+\w+|ATTACH\s+DATABASE|load_extension)\b", re.I),
     "migration": re.compile(r"\b(?:migration|migrate|schema_version|user_version|upgrade|downgrade)\b", re.I),
     "command": re.compile(r"(?:\bsqlite3\b|\.backup\b|\bVACUUM\b|\bBEGIN\s+IMMEDIATE\b|\bwal\b|\bbusy_timeout\b)", re.I),
 }
-SECRET_VALUE = re.compile(r"(?i)(token|secret|password|api[_-]?key)\s*([:=])\s*(['\"]?)[^'\"\s,;]+")
+SECRET_NAME = r"[A-Za-z0-9_-]*(?:token|access[_-]?token|auth[_-]?token|secret(?:[_-]?access[_-]?key)?|password|api[_-]?key|x[_-]?api[_-]?key|private[_-]?key|client[_-]?secret|credential)"  # noqa: S105
+SECRET_VALUE = re.compile(
+    rf"(?i)(?<![A-Za-z0-9])({SECRET_NAME})"
+    r"\s*([:=])\s*(?:(['\"])(.*?)\2|([^\s,;)]+))"
+)
+BEARER_VALUE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]+")
+SQL_DEFAULT_SECRET = re.compile(
+    rf"(?i)({SECRET_NAME}[^,;\n]*?\bDEFAULT\s+)(?:(['\"])(.*?)\2|([^\s,;)]+))"
+)
 PLACEHOLDER_VALUE = re.compile(r"<([A-Z][A-Z0-9_]+)>")
 
 
@@ -55,7 +65,10 @@ def _run(*args: str, cwd: Path) -> str | None:
 
 
 def _redact(value: str) -> str:
-    redacted = SECRET_VALUE.sub(lambda match: f"{match.group(1)}{match.group(2)}<redacted>", value.strip())
+    redacted = value.strip()
+    redacted = BEARER_VALUE.sub("Bearer <redacted>", redacted)
+    redacted = SECRET_VALUE.sub(lambda match: f"{match.group(1)}{match.group(2)}<redacted>", redacted)
+    redacted = SQL_DEFAULT_SECRET.sub(lambda match: f"{match.group(1)}<redacted>", redacted)
     return PLACEHOLDER_VALUE.sub("<placeholder>", redacted)
 
 
@@ -64,13 +77,21 @@ def _repo_info(repo_id: str, root: Path) -> dict:
     remote = _run("git", "remote", "get-url", "origin", cwd=root)
     default_ref = _run("git", "symbolic-ref", "--short", "refs/remotes/origin/HEAD", cwd=root)
     default_branch = (default_ref or "origin/main").removeprefix("origin/")
+    default_revision = _run("git", "rev-parse", f"refs/remotes/origin/{default_branch}", cwd=root)
+    changed_files = []
+    if default_revision:
+        changed_files = sorted(
+            line for line in (_run("git", "diff", "--name-only", f"{default_revision}...HEAD", cwd=root) or "").splitlines()
+            if line
+        )
     return {
         "id": repo_id,
         "path": "." if repo_id == "mapper" else repo_id,
         "branch": branch,
         "revision": _run("git", "rev-parse", "HEAD", cwd=root),
         "default_branch": default_branch,
-        "default_revision": _run("git", "rev-parse", f"refs/remotes/origin/{default_branch}", cwd=root),
+        "default_revision": default_revision,
+        "changed_files": changed_files,
         "remote": remote,
         "versions": _versions(root),
     }
@@ -78,28 +99,41 @@ def _repo_info(repo_id: str, root: Path) -> dict:
 
 def _versions(root: Path) -> dict:
     versions: dict[str, str] = {}
-    for name, pattern in (
-        ("python", re.compile(r"^version\s*=\s*[\"']([^\"']+)", re.M)),
-        ("node", re.compile(r"[\"']version[\"']\s*:\s*[\"']([^\"']+)", re.M)),
-        ("rust", re.compile(r"^version\s*=\s*[\"']([^\"']+)", re.M)),
-    ):
-        candidates = {"python": "pyproject.toml", "node": "package.json", "rust": "rust/Cargo.toml"}
-        path = root / candidates[name]
-        try:
-            match = pattern.search(path.read_text(encoding="utf-8", errors="replace"))
-        except OSError:
-            match = None
-        if match:
-            versions[name] = match.group(1)
+    candidates = {
+        "python": ("pyproject.toml",),
+        "node": ("package.json",),
+        "rust": ("Cargo.toml", "rust/Cargo.toml"),
+    }
+    patterns = {
+        "python": re.compile(r"^version\s*=\s*[\"']([^\"']+)", re.M),
+        "node": re.compile(r"[\"']version[\"']\s*:\s*[\"']([^\"']+)", re.M),
+        "rust": re.compile(r"^version\s*=\s*[\"']([^\"']+)", re.M),
+    }
+    for name in ("python", "node", "rust"):
+        pattern = patterns[name]
+        for candidate in candidates[name]:
+            path = root / candidate
+            try:
+                match = pattern.search(path.read_text(encoding="utf-8", errors="replace"))
+            except OSError:
+                match = None
+            if match:
+                versions[name] = match.group(1)
+                break
     return versions
 
 
 def _relative_files(root: Path):
     for directory, dirnames, filenames in os.walk(root):
-        dirnames[:] = sorted(name for name in dirnames if name not in SKIP_DIRS and not name.startswith("."))
+        dirnames[:] = sorted(
+            name for name in dirnames
+            if name not in SKIP_DIRS and not (Path(directory) / name).is_symlink()
+        )
         for filename in sorted(filenames):
             path = Path(directory) / filename
             if path.suffix.lower() not in TEXT_SUFFIXES:
+                continue
+            if path.is_symlink():
                 continue
             try:
                 if path.stat().st_size > MAX_FILE_BYTES:
@@ -110,8 +144,17 @@ def _relative_files(root: Path):
 
 
 def _is_fixture_or_test(relative: str) -> bool:
-    lowered = f"/{relative.lower()}/"
-    return any(token in lowered for token in ("/test", "/fixture", "/example", "/golden", "/spec/"))
+    parts = [part.lower() for part in Path(relative).parts]
+    filename = parts[-1] if parts else ""
+    return (
+        any(part in {"test", "tests", "fixture", "fixtures", "example", "examples", "golden", "spec", "specs"} for part in parts[:-1])
+        or filename.startswith("test_")
+        or filename.endswith(("_test.py", ".test.js", ".spec.ts", ".spec.js"))
+    )
+
+
+def _is_behavioral_path(relative: str) -> bool:
+    return Path(relative).suffix.lower() in BEHAVIOR_SUFFIXES
 
 
 def _classify(relative: str, kinds: set[str]) -> str:
@@ -124,12 +167,25 @@ def _classify(relative: str, kinds: set[str]) -> str:
         return "schema-or-migration"
     if "receipt" in lowered or "ledger" in lowered or "journal" in lowered:
         return "receipt"
-    if "ddl" in kinds or "dsn_or_path" in kinds:
+    if _is_behavioral_path(relative) and ("ddl" in kinds or "dsn_or_path" in kinds):
         return "production-candidate"
     return "reference"
 
 
-def _scan_sources(repo_id: str, root: Path) -> tuple[list[dict], list[dict]]:
+def _target_store_path(relative: str, kinds: set[str], hints: str = "") -> str:
+    lowered = f"{relative} {hints}".lower()
+    if any(token in lowered for token in ("queue", "lease", "fence", "journal", "receipt", "operation")):
+        store = "operations.sqlite"
+    elif any(token in lowered for token in ("memory", "handoff", "embedding", "fts", "vec")):
+        store = "memory.sqlite"
+    elif any(token in lowered for token in ("migration", "registry", "catalog", "schema")):
+        store = "catalog.sqlite"
+    else:
+        store = "semantic.sqlite"
+    return f"~/.simplicio/data/{store}"
+
+
+def _scan_sources(repo_id: str, root: Path, changed_files: set[str] | None = None) -> tuple[list[dict], list[dict]]:
     matches: list[dict] = []
     matrix: list[dict] = []
     for relative, path in _relative_files(root):
@@ -159,16 +215,21 @@ def _scan_sources(repo_id: str, root: Path) -> tuple[list[dict], list[dict]]:
             "kinds": sorted(kinds),
             "matches": file_matches,
         })
-        writers = [repo_id] if {"ddl", "dsn_or_path", "command"} & kinds else []
+        behavioral = _is_behavioral_path(relative)
+        evidence_text = " ".join(match["evidence"] for match in file_matches)
+        writers = [repo_id] if behavioral and {"ddl", "dsn_or_path", "command"} & kinds else []
         matrix.append({
             "repo": repo_id,
             "file": relative_text,
+            "current_path": relative_text,
+            "target_path": _target_store_path(relative_text, kinds, evidence_text),
             "kinds": sorted(kinds),
             "classification": classification,
             "current_owner": repo_id,
             "target_owner": "mapper-store",
             "readers": [repo_id],
             "writers": writers,
+            "changed_since_default": relative_text in (changed_files or set()) if changed_files is not None else None,
             "authorized_writer_after_cutover": "mapper-store",
             "source_of_truth": "derived-index" if classification == "derived-index" else "source-of-truth",
             "receipt_authority": "operations.sqlite",
@@ -183,6 +244,13 @@ def _database_info(path: Path, repo_id: str, display_path: str | None = None) ->
     record = {"repo": repo_id, "path": display_path or path.name, "read_only_inspection": True, "status": "unreadable"}
     try:
         record["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        sidecars = {}
+        for suffix in ("-wal", "-shm"):
+            sidecar = Path(f"{path}{suffix}")
+            if sidecar.is_file() and not sidecar.is_symlink():
+                sidecars[suffix[1:]] = hashlib.sha256(sidecar.read_bytes()).hexdigest()
+        if sidecars:
+            record["sidecar_sha256"] = sidecars
         uri = f"file:{quote(path.as_posix(), safe='/:')}?mode=ro"
         with sqlite3.connect(uri, uri=True) as connection:
             tables = []
@@ -205,15 +273,27 @@ def _database_info(path: Path, repo_id: str, display_path: str | None = None) ->
     return record
 
 
+def _is_database_path(path: Path) -> bool:
+    name = path.name.lower()
+    return path.suffix.lower() in DATABASE_SUFFIXES and not name.endswith(("-wal", "-shm"))
+
+
+def _is_database_sidecar(path: Path) -> bool:
+    return path.name.lower().endswith(("-wal", "-shm"))
+
+
 def _discover_databases(repo_id: str, root: Path) -> list[dict]:
     records = []
     for directory, dirnames, filenames in os.walk(root):
-        dirnames[:] = [name for name in dirnames if name not in SKIP_DIRS]
+        dirnames[:] = sorted(
+            name for name in dirnames
+            if name not in SKIP_DIRS and not (Path(directory) / name).is_symlink()
+        )
         for filename in sorted(filenames):
             path = Path(directory) / filename
-            if path.suffix.lower() in DATABASE_SUFFIXES:
+            if _is_database_path(path) and not path.is_symlink():
                 records.append(_database_info(path, repo_id, path.relative_to(root).as_posix()))
-    return records
+    return sorted(records, key=lambda item: (item["repo"], item["path"]))
 
 
 def _policy(matrix: list[dict]) -> dict:
@@ -225,7 +305,7 @@ def _policy(matrix: list[dict]) -> dict:
             continue
         if item["criticality"] == "test-only":
             continue
-        if "ddl" in item["kinds"] and not (
+        if "ddl" in item["kinds"] and item["writers"] and not (
             item["file"].startswith("simplicio_mapper/store/")
             or item["file"].startswith("contracts/mapper-store/")
             or item["file"] == "scripts/mapper_store_inventory.py"
@@ -237,12 +317,13 @@ def _policy(matrix: list[dict]) -> dict:
         "allowlisted_paths": ["simplicio_mapper/store/", "contracts/mapper-store/", "scripts/mapper_store_inventory.py", "tests/", "fixtures/"],
         "violations": violations,
         "legacy_ddl_matches": legacy_ddl_matches,
+        "scope": "Mapper repository DDL only; consumer repositories are inventoried as legacy evidence",
         "status": "pass" if not violations else "fail",
         "note": "This is a local/read-only gate; no GitHub Actions workflow is added by this issue.",
     }
 
 
-def build_inventory(repos: list[tuple[str, Path]], databases: list[tuple[str, Path]], deterministic: bool = False) -> dict:
+def build_inventory(repos: list[tuple[str, Path]], databases: list[tuple], deterministic: bool = False) -> dict:
     repo_records = []
     matches = []
     matrix = []
@@ -251,13 +332,20 @@ def build_inventory(repos: list[tuple[str, Path]], databases: list[tuple[str, Pa
         repo_info = _repo_info(repo_id, root)
         repo_info["files_scanned"] = 0
         repo_info["files_scanned"] = sum(1 for _ in _relative_files(root))
-        repo_matches, repo_matrix = _scan_sources(repo_id, root)
+        repo_matches, repo_matrix = _scan_sources(repo_id, root, set(repo_info["changed_files"]))
         repo_records.append(repo_info)
         matches.extend(repo_matches)
         matrix.extend(repo_matrix)
         db_records.extend(_discover_databases(repo_id, root))
-    for repo_id, path in databases:
-        db_records.append(_database_info(path, repo_id, path.name))
+    for database in databases:
+        repo_id, path = database[:2]
+        display_path = database[2] if len(database) > 2 else path.name
+        db_records.append(_database_info(path, repo_id, display_path))
+    if deterministic:
+        repo_records.sort(key=lambda item: item["id"])
+        matches.sort(key=lambda item: (item["repo"], item["file"]))
+        db_records.sort(key=lambda item: (item["repo"], item["path"]))
+        matrix.sort(key=lambda item: (item["repo"], item["file"], item.get("table", "")))
     for database in db_records:
         for database_object in database.get("objects", []):
             if database_object.get("kind") != "table":
@@ -265,6 +353,8 @@ def build_inventory(repos: list[tuple[str, Path]], databases: list[tuple[str, Pa
             matrix.append({
                 "repo": database["repo"],
                 "file": database["path"],
+                "current_path": database["path"],
+                "target_path": _target_store_path(database["path"], {"materialized-db"}),
                 "table": database_object["name"],
                 "kinds": ["materialized-db"],
                 "classification": "materialized-store",
@@ -272,6 +362,7 @@ def build_inventory(repos: list[tuple[str, Path]], databases: list[tuple[str, Pa
                 "target_owner": "mapper-store",
                 "readers": [database["repo"]],
                 "writers": [database["repo"]],
+                "changed_since_default": None,
                 "authorized_writer_after_cutover": "mapper-store",
                 "source_of_truth": "source-of-truth",
                 "receipt_authority": "operations.sqlite",
@@ -336,10 +427,14 @@ def main(argv: list[str] | None = None) -> int:
             repo_id, raw_path = value.split("=", 1)
         else:
             repo_id, raw_path = "external", value
-        path = (base / raw_path).resolve() if not os.path.isabs(raw_path) else Path(raw_path).resolve()
-        if not path.is_file():
+        raw_path_obj = (base / raw_path) if not os.path.isabs(raw_path) else Path(raw_path)
+        if raw_path_obj.is_symlink():
+            raise SystemExit(f"database must not be a symlink: {raw_path_obj}")
+        path = raw_path_obj.resolve()
+        if not path.is_file() or _is_database_sidecar(path):
             raise SystemExit(f"database does not exist: {path}")
-        databases.append((repo_id, path))
+        display_path = raw_path_obj.as_posix() if not raw_path_obj.is_absolute() else f"<external>/{path.name}"
+        databases.append((repo_id, path, display_path))
     payload = build_inventory(repos, databases, args.deterministic)
     rendered = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     if args.output:
