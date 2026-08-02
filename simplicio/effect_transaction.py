@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -12,6 +13,8 @@ from simplicio.store_adapter import MapperStoreAdapter, StoreAdapterError
 
 EFFECT_RECEIPT_SCHEMA = "simplicio.effect-receipt/v1"
 _TERMINAL = frozenset({"COMMITTED", "ROLLED_BACK", "FAILED_BEFORE_WRITE"})
+_LOCK_RETRY_ATTEMPTS = 200
+_LOCK_RETRY_DELAY_SECONDS = 0.01
 
 
 class EffectTransactionError(RuntimeError):
@@ -26,6 +29,7 @@ class EffectTransaction:
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root).resolve()
         self.store = MapperStoreAdapter(self.root, "effect-transactions")
+        self._process_lock = threading.Lock()
 
     def _read_record(self, key: str) -> dict[str, Any] | None:
         try:
@@ -40,10 +44,14 @@ class EffectTransaction:
             raise EffectTransactionError("STORE_WRITE_FAILED") from exc
 
     def _locked(self, key: str):
-        try:
-            return self.store.acquire(key, operation="effect-transaction")
-        except StoreAdapterError as exc:
-            raise EffectTransactionError("RECOVERY_REQUIRED") from exc
+        for attempt in range(_LOCK_RETRY_ATTEMPTS):
+            try:
+                return self.store.acquire(key, operation="effect-transaction")
+            except StoreAdapterError as exc:
+                if str(exc) != "STORE_LOCKED" or attempt == _LOCK_RETRY_ATTEMPTS - 1:
+                    raise EffectTransactionError("RECOVERY_REQUIRED") from exc
+                time.sleep(_LOCK_RETRY_DELAY_SECONDS)
+        raise EffectTransactionError("RECOVERY_REQUIRED")
 
     def _transition(self, key: str, state: str, receipt: dict[str, Any] | None = None) -> None:
         lock = self._locked(key)
@@ -94,6 +102,24 @@ class EffectTransaction:
         return None
 
     def execute(
+        self,
+        change_set: ChangeSet,
+        *,
+        checkpoint: Callable[[ChangeSet], dict[str, Any]],
+        apply: Callable[[ChangeSet], dict[str, Any]],
+        verify: Callable[[ChangeSet, dict[str, Any]], dict[str, Any]],
+        rollback: Callable[[ChangeSet, dict[str, Any]], dict[str, Any]],
+    ) -> dict[str, Any]:
+        with self._process_lock:
+            return self._execute(
+                change_set,
+                checkpoint=checkpoint,
+                apply=apply,
+                verify=verify,
+                rollback=rollback,
+            )
+
+    def _execute(
         self,
         change_set: ChangeSet,
         *,
