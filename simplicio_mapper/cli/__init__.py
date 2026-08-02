@@ -107,6 +107,10 @@ __all__ = [
 
 def main(argv: Sequence[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv and argv[0] in {"store-migrations", "mapper-store"}:
+        from ._store_migrations import run_store_migrations_cli
+
+        return run_store_migrations_cli(argv[1:])
     if argv and argv[0] == "scoped-handoff":
         from ..scoped_context import run_scoped_context_cli
 

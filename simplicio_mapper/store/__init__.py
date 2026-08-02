@@ -14,6 +14,24 @@ from .connection import (
 from .locks import StoreFileLock, StoreLockError
 from .paths import StoreLocation, StorePathError, assert_within_root, resolve_store_location
 from .profiles import StoreMode, StoreProfile
+from .registry import (
+    DEFAULT_MANIFEST,
+    MIGRATION_EVENT_SCHEMA,
+    SCHEMA_REGISTRY,
+    AmbiguousMigrationError,
+    IncompatibleWriterError,
+    MigrationEngine,
+    MigrationFault,
+    MigrationPreflightError,
+    MigrationSpec,
+    RegistryChecksumError,
+    RegistryError,
+    canonical_json,
+    default_migrations,
+    negotiate,
+    registry_fixture,
+    sha256_json,
+)
 from .status import inspect_store
 from .transactions import (
     FenceValidator,
@@ -37,12 +55,28 @@ __all__ = [
     "StoreMode",
     "StorePathError",
     "StoreProfile",
+    "AmbiguousMigrationError",
+    "DEFAULT_MANIFEST",
+    "IncompatibleWriterError",
+    "MIGRATION_EVENT_SCHEMA",
+    "MigrationEngine",
+    "MigrationFault",
+    "MigrationPreflightError",
+    "MigrationSpec",
+    "RegistryChecksumError",
+    "RegistryError",
+    "SCHEMA_REGISTRY",
     "TransactionError",
     "WriterIdentity",
     "assert_within_root",
+    "canonical_json",
+    "default_migrations",
     "inspect_store",
     "is_busy_error",
+    "negotiate",
+    "registry_fixture",
     "resolve_store_location",
     "run_with_retry",
+    "sha256_json",
     "transaction",
 ]
