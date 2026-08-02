@@ -96,3 +96,25 @@ def test_hbp_migration_validates_before_creating_target(tmp_path) -> None:
         ledger.migrate_jsonl(legacy)
     assert not ledger.path.exists()
     assert legacy.exists()
+
+
+def test_hbp_rejects_unsafe_file_names_and_scalar_violations(tmp_path) -> None:
+    for file_name in ("", "nested/ledger.bin", "ledger.lock"):
+        with pytest.raises(ValueError, match="plain file name"):
+            HbpEvidenceLedger(tmp_path, file_name=file_name)
+
+    ledger = HbpEvidenceLedger(tmp_path)
+    with pytest.raises(HbpError, match="field names"):
+        ledger.record_fields("topic", {"": "value"}, "agent:test")
+    with pytest.raises(HbpError, match="scalar"):
+        ledger.record_fields("topic", {"value": {"nested": True}}, "agent:test")
+
+
+def test_hbp_rejects_existing_lock_and_handles_missing_migration_source(tmp_path) -> None:
+    ledger = HbpEvidenceLedger(tmp_path)
+    ledger.directory.mkdir(parents=True, exist_ok=True)
+    ledger.lock_path.write_text("held", encoding="ascii")
+    with pytest.raises(HbpError, match="locked"):
+        ledger.append("topic", "payload", "agent:test")
+    ledger.lock_path.unlink()
+    assert ledger.migrate_jsonl(tmp_path / "missing.jsonl") == 0
