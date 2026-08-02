@@ -855,9 +855,11 @@ def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
 
 def write_reports(payload: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.with_suffix(".json").write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    json_path = output.with_suffix(".json")
+    markdown_path = (
+        output if output.suffix.lower() not in {".json", ".jsonl", ".csv"} else output.with_suffix(".md")
     )
+    json_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     jsonl = output.with_suffix(".jsonl")
     jsonl.write_text(
         "\n".join(json.dumps(row, sort_keys=True) for row in payload["scenarios"]) + "\n",
@@ -883,7 +885,7 @@ def write_reports(payload: dict[str, Any], output: Path) -> None:
             f"| {row['scenario']} | {row['status']} | {row.get('p50_ms', '')} | "
             f"{row.get('p95_ms', '')} | {row.get('reason', '') or ''} |"
         )
-    output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    markdown_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:
