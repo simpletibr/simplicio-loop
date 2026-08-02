@@ -284,6 +284,80 @@ def _capability_scenario(name: str, available: bool, version: str | None) -> dic
     }
 
 
+def _runtime_mcp_tool(binary: str, name: str, arguments: dict[str, Any], *, cwd: Path) -> dict[str, Any]:
+    """Call one Runtime-owned MCP tool over its real stdio server."""
+
+    messages = [
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": {"name": "simplicio-dev-cli-422", "version": "1"},
+            },
+        },
+        {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}},
+        {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {"name": name, "arguments": arguments},
+        },
+    ]
+    process = subprocess.Popen(
+        [binary, "serve", "--mcp", "--stdio"],
+        cwd=cwd,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+    )
+    request = "".join(json.dumps(message, separators=(",", ":")) + "\n" for message in messages)
+    try:
+        stdout, stderr = process.communicate(request, timeout=60)
+    except subprocess.TimeoutExpired as exc:
+        process.kill()
+        tail_stdout, tail_stderr = process.communicate()
+        stdout = (exc.stdout or "") + (tail_stdout or "")
+        stderr = (exc.stderr or "") + (tail_stderr or "")
+        raise RuntimeEffectError("runtime_mcp_timeout", "Runtime MCP authorization timed out") from exc
+    responses: list[dict[str, Any]] = []
+    for line in stdout.splitlines():
+        try:
+            value = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            responses.append(value)
+    response = next((value for value in responses if value.get("id") == 2), None)
+    if response is None:
+        detail = (stderr or stdout).strip()[-1000:]
+        raise RuntimeEffectError(
+            "runtime_mcp_no_response", f"Runtime MCP returned no tool response: {detail}"
+        )
+    if "error" in response:
+        raise RuntimeEffectError("runtime_mcp_error", str(response["error"]))
+    result = response.get("result")
+    content = result.get("content") if isinstance(result, dict) else None
+    text = content[0].get("text") if isinstance(content, list) and content else None
+    if not isinstance(text, str):
+        raise RuntimeEffectError(
+            "runtime_mcp_malformed", "Runtime MCP authorization response has no text content"
+        )
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise RuntimeEffectError(
+            "runtime_mcp_malformed", "Runtime MCP authorization returned non-JSON text"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise RuntimeEffectError("runtime_mcp_malformed", "Runtime MCP authorization returned a non-object")
+    return payload
+
+
 def _runtime_scenario() -> dict[str, Any]:
     """Exercise Runtime's real HTTP effect transport when explicitly configured.
 
@@ -386,30 +460,16 @@ def _runtime_scenario() -> dict[str, Any]:
             "reason": "Runtime binary path missing for durable authorization",
         }
     try:
-        authorization_run = subprocess.run(
-            [
-                binary,
-                "effect",
-                "authorize",
-                "--proposal",
-                json.dumps(proposal, sort_keys=True, separators=(",", ":")),
-                "--repo",
-                str(root),
-                "--json",
-            ],
+        authorization = _runtime_mcp_tool(
+            binary,
+            "simplicio_effect_authorize",
+            {"proposal": proposal, "repo": str(root)},
             cwd=root,
-            capture_output=True,
-            text=True,
-            timeout=60,
         )
-    except (OSError, subprocess.TimeoutExpired) as exc:
+    except (OSError, RuntimeEffectError) as exc:
         return {**base, "status": "UNVERIFIED", "reason": f"runtime-authorization-failed: {exc}"}
-    try:
-        authorization = json.loads(authorization_run.stdout or "{}")
-    except json.JSONDecodeError:
-        authorization = {}
-    if authorization_run.returncode != 0 or authorization.get("status") != "authorized":
-        detail = authorization.get("reason") or authorization_run.stderr.strip() or "authorization denied"
+    if authorization.get("status") != "authorized":
+        detail = authorization.get("reason") or "authorization denied"
         return {**base, "status": "UNVERIFIED", "reason": f"runtime-authorization-denied: {detail}"}
     causal = {
         "coordinator_kind": "issue-422-evidence",
