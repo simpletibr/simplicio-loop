@@ -6,6 +6,7 @@ import pytest
 
 from simplicio.effect_transaction import EffectTransaction, EffectTransactionError
 from simplicio.plan_compiler import ChangeSet
+from simplicio.store_adapter import StoreAdapterError
 from tests.python.test_execution_contracts_363 import changeset_payload
 
 
@@ -163,3 +164,55 @@ def test_effect_transaction_uses_mapper_store_without_sqlite(tmp_path) -> None:
 
     assert not (tmp_path / ".simplicio" / "effect-transactions.sqlite3").exists()
     assert list((tmp_path / ".simplicio" / "mapper-store" / "effect-transactions").glob("*.json"))
+
+
+def test_effect_transaction_maps_store_read_and_write_failures(tmp_path, monkeypatch) -> None:
+    transaction = EffectTransaction(tmp_path)
+
+    monkeypatch.setattr(
+        transaction.store, "read", lambda _key: (_ for _ in ()).throw(StoreAdapterError("read"))
+    )
+    with pytest.raises(EffectTransactionError, match="RECOVERY_REQUIRED"):
+        transaction._read_record("key")
+
+    monkeypatch.setattr(
+        transaction.store,
+        "write",
+        lambda _key, _record: (_ for _ in ()).throw(StoreAdapterError("write")),
+    )
+    with pytest.raises(EffectTransactionError, match="STORE_WRITE_FAILED"):
+        transaction._write_record("key", {})
+
+
+@pytest.mark.parametrize("error", ["STORE_LOCKED", "permission-denied"])
+def test_effect_transaction_maps_lock_failures(tmp_path, monkeypatch, error) -> None:
+    transaction = EffectTransaction(tmp_path)
+    monkeypatch.setattr(
+        transaction.store,
+        "acquire",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(StoreAdapterError(error)),
+    )
+
+    if error == "STORE_LOCKED":
+        with pytest.raises(EffectTransactionError, match="RECOVERY_REQUIRED"):
+            transaction._locked("key", retry=False)
+    else:
+        with pytest.raises(EffectTransactionError, match="RECOVERY_REQUIRED"):
+            transaction._locked("key", retry=False)
+
+
+def test_effect_transaction_rejects_unverified_checkpoint(tmp_path) -> None:
+    transaction = EffectTransaction(tmp_path)
+    with pytest.raises(EffectTransactionError, match="CHECKPOINT_UNVERIFIED"):
+        transaction.execute(
+            change_set("missing-checkpoint"),
+            checkpoint=lambda _change_set: {},
+            apply=lambda _change_set: pytest.fail("apply must not run"),
+            verify=lambda *_args: pytest.fail("verify must not run"),
+            rollback=lambda *_args: pytest.fail("rollback must not run"),
+        )
+    assert transaction.transitions("missing-checkpoint")[-1] == "FAILED_BEFORE_WRITE"
+
+
+def test_effect_transaction_transitions_missing_record_to_empty(tmp_path) -> None:
+    assert EffectTransaction(tmp_path).transitions("missing") == []
