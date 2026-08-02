@@ -159,6 +159,8 @@ def _freeze_route(root: Path, mapper_version: str | None) -> None:
         temporary.write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")), encoding="utf-8")
         os.replace(temporary, route_path)
     except OSError as exc:
+        if _read_route(route_path) is not None:
+            return
         raise StoreAdapterError("MAPPER_STORE_UNAVAILABLE:route-freeze-failed") from exc
 
 
