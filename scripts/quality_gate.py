@@ -150,7 +150,7 @@ def _versions() -> dict[str, str | None]:
 
 def _external_lane_matrix(root: Path, commit_sha: str | None) -> tuple[dict[str, dict[str, Any]], str | None]:
     """Represent lanes not owned by this local gate without fake metrics."""
-    lanes = {
+    lanes: dict[str, dict[str, Any]] = {
         "windows": {
             "status": "UNVERIFIED" if platform.system() == "Windows" else "UNAVAILABLE",
             "value": None,
