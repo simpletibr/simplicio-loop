@@ -14,6 +14,7 @@ import importlib.metadata
 import json
 import os
 import platform
+import re
 import shlex
 import signal
 import subprocess
@@ -28,6 +29,13 @@ QUALITY_GATE_ENV_EXCLUSIONS = ("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY",)
 QUALITY_GATE_ENV_EXCLUSION_PREFIXES = ("SIMPLICIO_",)
 QUALITY_GATE_ENV_OVERRIDES: dict[str, str] = {}
 EXTERNAL_E2E_REPORT_ENV = "SIMPLICIO_QUALITY_GATE_E2E_REPORT"
+_SECRET_OUTPUT_PATTERNS = (
+    (re.compile(r"(?i)\b(bearer)\s+[A-Za-z0-9._~+/=-]+"), r"\1 [REDACTED]"),
+    (
+        re.compile(r"(?i)\b(api[_-]?key|authorization|password|secret|token)\s*[:=]\s*([^\s,;]+)"),
+        r"\1=[REDACTED]",
+    ),
+)
 
 
 def _quality_gate_environment() -> dict[str, str]:
@@ -87,6 +95,15 @@ DEFAULT_COMMANDS = (
 
 def _digest(text: str) -> str:
     return "sha256:" + hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
+
+
+def _redact_output(text: str) -> str:
+    """Remove common credential-shaped values while retaining diagnostics."""
+
+    redacted = text
+    for pattern, replacement in _SECRET_OUTPUT_PATTERNS:
+        redacted = pattern.sub(replacement, redacted)
+    return redacted
 
 
 def _git(root: Path, *args: str) -> str | None:
@@ -253,7 +270,7 @@ def _command_result(root: Path, name: str, command: list[str], *, timeout_s: flo
                 "exit_code": exit_code,
                 "duration_ms": round((time.perf_counter() - started) * 1000, 3),
                 "output_digest": _digest(output),
-                "output_tail": output,
+                "output_tail": _redact_output(output),
                 "error": error,
             }
     except (OSError, subprocess.SubprocessError) as exc:
@@ -266,7 +283,7 @@ def _command_result(root: Path, name: str, command: list[str], *, timeout_s: flo
         "exit_code": exit_code,
         "duration_ms": round((time.perf_counter() - started) * 1000, 3),
         "output_digest": _digest(output),
-        "output_tail": output,
+        "output_tail": _redact_output(output),
         "error": error,
     }
 
