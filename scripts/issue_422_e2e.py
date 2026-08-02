@@ -44,7 +44,13 @@ def _git_sha(root: Path) -> str | None:
     import subprocess
 
     result = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=False
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=False,
+        close_fds=True,
     )
     return result.stdout.strip() if result.returncode == 0 else None
 
@@ -596,9 +602,7 @@ def _runtime_scenario() -> dict[str, Any]:
     }
     evidence["evidence_sha256"] = canonical_hash(evidence)
     evidence_file = artifact_dir / "reconciliation-evidence.json"
-    evidence_file.write_text(
-        json.dumps(evidence, sort_keys=True, separators=(",", ":")), encoding="utf-8"
-    )
+    evidence_file.write_text(json.dumps(evidence, sort_keys=True, separators=(",", ":")), encoding="utf-8")
     firewall_transaction = {
         "schema": "simplicio.effect-transaction/v1",
         "executor": "simplicio-runtime",
@@ -677,10 +681,12 @@ def _mapper_producer_scenario() -> dict[str, Any]:
         (source / "app.py").write_text("def run():\n    return 1\n", encoding="utf-8")
         index = subprocess.run(
             [binary, "index", str(worktree), "--json"],
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             check=False,
             timeout=60,
+            close_fds=True,
         )
         if index.returncode != 0:
             return {
@@ -692,10 +698,12 @@ def _mapper_producer_scenario() -> dict[str, Any]:
             }
         handoff = subprocess.run(
             [binary, "handoff", str(worktree), "--goal", "verify app", "--json"],
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             check=False,
             timeout=60,
+            close_fds=True,
         )
         try:
             payload = json.loads(handoff.stdout)
@@ -817,6 +825,8 @@ def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
     rows.append(mapper_row)
     runtime_row = _runtime_scenario()
     rows.append(runtime_row)
+    statuses = {row["status"] for row in rows}
+    overall = "FAIL" if "FAIL" in statuses else "PASS_WITH_UNVERIFIED" if "UNVERIFIED" in statuses else "PASS"
     return {
         "schema": SCHEMA,
         "commit_sha": _git_sha(root),
@@ -832,12 +842,15 @@ def run(root: Path, *, repeats: int = 10) -> dict[str, Any]:
         },
         "scenarios": rows,
         "claims": {"performance_improvement": None, "reason": "no baseline comparison was run"},
-        "overall": "PASS_WITH_UNVERIFIED" if any(row["status"] == "UNVERIFIED" for row in rows) else "PASS",
+        "overall": overall,
     }
 
 
 def write_reports(payload: dict[str, Any], output: Path) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
+    output.with_suffix(".json").write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     jsonl = output.with_suffix(".jsonl")
     jsonl.write_text(
         "\n".join(json.dumps(row, sort_keys=True) for row in payload["scenarios"]) + "\n",

@@ -27,6 +27,7 @@ DEFAULT_RECEIPT = Path(".simplicio/quality-gate-receipt.json")
 QUALITY_GATE_ENV_EXCLUSIONS = ("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY",)
 QUALITY_GATE_ENV_EXCLUSION_PREFIXES = ("SIMPLICIO_",)
 QUALITY_GATE_ENV_OVERRIDES: dict[str, str] = {}
+EXTERNAL_E2E_REPORT_ENV = "SIMPLICIO_QUALITY_GATE_E2E_REPORT"
 
 
 def _quality_gate_environment() -> dict[str, str]:
@@ -77,7 +78,13 @@ def _digest(text: str) -> str:
 def _git(root: Path, *args: str) -> str | None:
     try:
         result = subprocess.run(
-            ["git", *args], cwd=root, capture_output=True, text=True, check=False, timeout=30
+            ["git", *args],
+            cwd=root,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
         )
     except (OSError, subprocess.SubprocessError):
         return None
@@ -94,10 +101,9 @@ def _versions() -> dict[str, str | None]:
     return result
 
 
-def _external_lane_matrix() -> dict[str, dict[str, Any]]:
+def _external_lane_matrix(root: Path, commit_sha: str | None) -> tuple[dict[str, dict[str, Any]], str | None]:
     """Represent lanes not owned by this local gate without fake metrics."""
-
-    return {
+    lanes = {
         "windows": {
             "status": "PASS" if platform.system() == "Windows" else "UNAVAILABLE",
             "value": True if platform.system() == "Windows" else None,
@@ -114,6 +120,57 @@ def _external_lane_matrix() -> dict[str, dict[str, Any]]:
             "reason": "Fast_Rust_Python_external_lanes_require_installed_producer_artifacts",
         },
     }
+    report_value = os.environ.get(EXTERNAL_E2E_REPORT_ENV, "").strip()
+    if not report_value:
+        return lanes, None
+    report = Path(report_value)
+    if not report.is_absolute():
+        report = root / report
+    report_digest = None
+    try:
+        raw = report.read_bytes()
+        report_digest = "sha256:" + hashlib.sha256(raw).hexdigest()
+        payload = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        reason = f"external_e2e_report_unreadable: {type(exc).__name__}"
+        for lane in lanes.values():
+            lane.update({"status": "FAIL", "value": False, "reason": reason})
+        return lanes, report_digest
+    if not isinstance(payload, dict) or payload.get("schema") != "simplicio.dev-cli.issue-422-evidence/v1":
+        reason = "external_e2e_report_schema_invalid"
+        for lane in lanes.values():
+            lane.update({"status": "FAIL", "value": False, "reason": reason})
+        return lanes, report_digest
+    if not commit_sha or payload.get("commit_sha") != commit_sha:
+        reason = "external_e2e_report_sha_stale"
+        for lane in lanes.values():
+            lane.update({"status": "FAIL", "value": False, "reason": reason})
+        return lanes, report_digest
+    scenarios = {
+        row.get("scenario"): row
+        for row in payload.get("scenarios", [])
+        if isinstance(row, dict) and isinstance(row.get("scenario"), str)
+    }
+    mapping = {
+        "windows": "windows_locked_file",
+        "runtime": "runtime_backed",
+        "fast": "fast_rust",
+    }
+    for lane_name, scenario_name in mapping.items():
+        row = scenarios.get(scenario_name)
+        if row is None:
+            lanes[lane_name].update(
+                {"status": "FAIL", "value": False, "reason": f"external_scenario_missing:{scenario_name}"}
+            )
+            continue
+        status = row.get("status")
+        if status == "PASS":
+            lanes[lane_name].update({"status": "PASS", "value": True, "reason": None})
+        elif status == "UNAVAILABLE":
+            lanes[lane_name].update({"status": "UNAVAILABLE", "value": None, "reason": row.get("reason")})
+        else:
+            lanes[lane_name].update({"status": "FAIL", "value": False, "reason": row.get("reason")})
+    return lanes, report_digest
 
 
 def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
@@ -152,6 +209,7 @@ def _command_result(root: Path, name: str, command: list[str], *, timeout_s: flo
             "stderr": subprocess.PIPE,
             "text": True,
             "env": _quality_gate_environment(),
+            "close_fds": True,
         }
         if os.name == "nt":
             launch["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
@@ -221,7 +279,13 @@ def run_gate(
                 wheel_sha256 = json.loads(step["output_tail"].splitlines()[-1]).get("wheel_sha256")
             except (IndexError, json.JSONDecodeError, AttributeError):
                 wheel_sha256 = None
-    passed = bool(sha) and not bool(dirty) and all(step["exit_code"] == 0 for step in steps)
+    external_lanes, external_report_digest = _external_lane_matrix(root, sha)
+    passed = (
+        bool(sha)
+        and not bool(dirty)
+        and all(step["exit_code"] == 0 for step in steps)
+        and not any(lane.get("status") == "FAIL" for lane in external_lanes.values())
+    )
     return {
         "schema": SCHEMA,
         "receipt_version": 1,
@@ -240,7 +304,8 @@ def run_gate(
         },
         "commands": steps,
         "limitations": limitations,
-        "external_lanes": _external_lane_matrix(),
+        "external_lanes": external_lanes,
+        "external_e2e_report": external_report_digest,
         "artifacts": {
             "coverage_json": str(root / "coverage.json") if (root / "coverage.json").is_file() else None,
             "wheel_sha256": wheel_sha256,
