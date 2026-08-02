@@ -104,6 +104,16 @@ def test_mapper_store_adapter_reports_lock_and_api_failures(tmp_path: Path, monk
         adapter.release(object())
 
 
+def test_mapper_store_adapter_blocks_write_after_capability_drift(tmp_path: Path, monkeypatch) -> None:
+    adapter = MapperStoreAdapter(tmp_path, "drift")
+    monkeypatch.setenv("SIMPLICIO_MAPPER_VERSION", "0.25.9")
+
+    with pytest.raises(StoreAdapterError, match="MAPPER_STORE_UNAVAILABLE:mapper-version-incompatible"):
+        adapter.write("after-drift", {"value": 1})
+
+    assert not adapter.record_path("after-drift").exists()
+
+
 def test_mapper_status_reports_uninstalled_and_unparseable_versions(monkeypatch) -> None:
     import simplicio.store_adapter as store_adapter
 

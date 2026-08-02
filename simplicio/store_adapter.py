@@ -231,6 +231,7 @@ class MapperStoreAdapter:
         return value
 
     def write(self, key: str, value: dict[str, Any]) -> None:
+        _require_mapper_store()
         target = self.record_path(key)
         temporary = target.with_suffix(f".tmp-{os.getpid()}")
         try:
