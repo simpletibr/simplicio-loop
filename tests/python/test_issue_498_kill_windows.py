@@ -72,7 +72,7 @@ def _start_fault_window(tmp_path: Path, point: str) -> tuple[subprocess.Popen[st
         if state_path.is_file():
             try:
                 state = json.loads(state_path.read_text(encoding="utf-8"))
-            except json.JSONDecodeError:
+            except (json.JSONDecodeError, PermissionError):
                 time.sleep(0.05)
                 continue
             if (
