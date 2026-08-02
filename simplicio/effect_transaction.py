@@ -2,17 +2,13 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
-import os
 import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from simplicio_mapper.mapper.file_lock import acquire_lock_at, release_lock_at
-
 from simplicio.plan_compiler import ChangeSet, canonical_hash
+from simplicio.store_adapter import MapperStoreAdapter, StoreAdapterError
 
 EFFECT_RECEIPT_SCHEMA = "simplicio.effect-receipt/v1"
 _TERMINAL = frozenset({"COMMITTED", "ROLLED_BACK", "FAILED_BEFORE_WRITE"})
@@ -29,49 +25,25 @@ class EffectTransaction:
 
     def __init__(self, root: str | Path) -> None:
         self.root = Path(root).resolve()
-        self.store_dir = self.root / ".simplicio" / "mapper-store" / "effect-transactions"
-        self.store_dir.mkdir(parents=True, exist_ok=True)
-
-    def _record_path(self, key: str) -> Path:
-        digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
-        return self.store_dir / f"{digest}.json"
-
-    def _lock_path(self, key: str) -> Path:
-        return self.store_dir / f"{hashlib.sha256(key.encode('utf-8')).hexdigest()}.lock"
+        self.store = MapperStoreAdapter(self.root, "effect-transactions")
 
     def _read_record(self, key: str) -> dict[str, Any] | None:
-        path = self._record_path(key)
-        if not path.exists():
-            return None
         try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+            return self.store.read(key)
+        except StoreAdapterError as exc:
             raise EffectTransactionError("RECOVERY_REQUIRED") from exc
-        if not isinstance(value, dict):
-            raise EffectTransactionError("RECOVERY_REQUIRED")
-        return value
 
     def _write_record(self, key: str, record: dict[str, Any]) -> None:
-        target = self._record_path(key)
-        temporary = target.with_suffix(f".tmp-{os.getpid()}")
-        temporary.write_text(json.dumps(record, sort_keys=True, separators=(",", ":")), encoding="utf-8")
-        with temporary.open("r+b") as handle:
-            handle.flush()
-            os.fsync(handle.fileno())
-        for attempt in range(5):
-            try:
-                os.replace(temporary, target)
-                break
-            except PermissionError:
-                if attempt == 4:
-                    raise
-                time.sleep(0.02 * (attempt + 1))
+        try:
+            self.store.write(key, record)
+        except StoreAdapterError as exc:
+            raise EffectTransactionError("STORE_WRITE_FAILED") from exc
 
     def _locked(self, key: str):
-        lock = acquire_lock_at(str(self._lock_path(key)), operation="effect-transaction")
-        if lock is None:
-            raise EffectTransactionError("RECOVERY_REQUIRED")
-        return lock
+        try:
+            return self.store.acquire(key, operation="effect-transaction")
+        except StoreAdapterError as exc:
+            raise EffectTransactionError("RECOVERY_REQUIRED") from exc
 
     def _transition(self, key: str, state: str, receipt: dict[str, Any] | None = None) -> None:
         lock = self._locked(key)
@@ -85,7 +57,7 @@ class EffectTransaction:
             record.setdefault("transitions", []).append({"state": state, "observed_ns": time.time_ns()})
             self._write_record(key, record)
         finally:
-            release_lock_at(lock)
+            self.store.release(lock)
 
     def transitions(self, key: str) -> list[str]:
         record = self._read_record(key)
@@ -118,7 +90,7 @@ class EffectTransaction:
                 },
             )
         finally:
-            release_lock_at(lock)
+            self.store.release(lock)
         return None
 
     def execute(
