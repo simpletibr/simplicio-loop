@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import tempfile
 from pathlib import Path
 from typing import Any, NoReturn
@@ -36,6 +37,18 @@ def _hash(path: Path) -> str | None:
             "PATH_UNAUTHORIZED", f"transaction target is not a regular file: {path}"
         )
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _mode(path: Path) -> int | None:
+    """Return portable permission bits for a regular file, if it exists."""
+
+    if not path.exists():
+        return None
+    if not path.is_file() or path.is_symlink():
+        raise ChangesetTransactionError(
+            "PATH_UNAUTHORIZED", f"transaction target is not a regular file: {path}"
+        )
+    return stat.S_IMODE(path.stat().st_mode)
 
 
 def _safe_path(root: Path, relative: str) -> Path:
@@ -112,6 +125,7 @@ def _rollback_after_commit_failure(
     *,
     root_path: Path,
     before: dict[str, str | None],
+    before_modes: dict[str, int | None],
     backup: Path,
     state: dict[str, Any],
     state_path: Path,
@@ -129,6 +143,8 @@ def _rollback_after_commit_failure(
                     target.unlink()
             elif saved.is_file():
                 shutil.copy2(saved, target)
+                if before_modes.get(relative) is not None:
+                    os.chmod(target, int(before_modes[relative]))
         state["state"] = "ROLLED_BACK"
         _write_state(state_path, state)
     except Exception as rollback_error:
@@ -177,6 +193,7 @@ def recover_changeset_transaction(
             raise ChangesetTransactionError("RECOVERY_NOT_REQUIRED", "transaction has no recoverable commit")
 
         before = state.get("before")
+        before_modes = state.get("before_modes", {})
         if not isinstance(before, dict):
             raise ChangesetTransactionError("RECOVERY_REQUIRED", "transaction journal has no before hashes")
         backup = Path(str(state.get("backup", "")))
@@ -191,6 +208,8 @@ def recover_changeset_transaction(
             elif saved.is_file():
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(saved, target)
+                if isinstance(before_modes, dict) and before_modes.get(str(relative)) is not None:
+                    os.chmod(target, int(before_modes[str(relative)]))
             else:
                 raise ChangesetTransactionError(
                     "RECOVERY_REQUIRED", f"missing backup for transaction path: {relative}"
@@ -281,6 +300,7 @@ def _execute_changeset_transaction(
 
     paths = _paths(plan)
     before: dict[str, str | None] = {}
+    before_modes: dict[str, int | None] = {}
     candidate = Path(tempfile.mkdtemp(prefix=f".simplicio-tx-{idempotency_key}-", dir=root_path.parent))
     backup = candidate.with_name(candidate.name + ".backup")
     state: dict[str, Any] = {
@@ -298,12 +318,14 @@ def _execute_changeset_transaction(
         for relative in paths:
             source = _safe_path(root_path, relative)
             before[relative] = _hash(source)
+            before_modes[relative] = _mode(source)
             if source.is_file():
                 target = _safe_path(candidate, relative)
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(source, target)
         state["state"] = "STAGED"
         state["before"] = before
+        state["before_modes"] = before_modes
         _write_state(state_path, state)
 
         result = execute_plan(plan, root=candidate, apply=True, allow_native=False)
@@ -333,16 +355,25 @@ def _execute_changeset_transaction(
                 temporary = target.with_name(f".{target.name}.{idempotency_key}.tmp")
                 shutil.copy2(staged, temporary)
                 os.replace(temporary, target)
+                if before_modes.get(relative) is not None:
+                    os.chmod(target, int(before_modes[relative]))
             elif target.exists():
                 target.unlink()
         after = {relative: _hash(_safe_path(root_path, relative)) for relative in paths}
+        after_modes = {relative: _mode(_safe_path(root_path, relative)) for relative in paths}
         receipt = {
             "schema": TRANSACTION_SCHEMA,
             "idempotency_key": idempotency_key,
             "changeset_digest": changeset_digest_value,
             "state": "COMMITTED",
             "files": [
-                {"path": relative, "before_sha256": before[relative], "after_sha256": after[relative]}
+                {
+                    "path": relative,
+                    "before_sha256": before[relative],
+                    "after_sha256": after[relative],
+                    "before_mode": before_modes[relative],
+                    "after_mode": after_modes[relative],
+                }
                 for relative in paths
                 if before[relative] != after[relative]
             ],
@@ -356,7 +387,15 @@ def _execute_changeset_transaction(
             "planned_diff": result.get("planned_diff", ""),
             "transaction": receipt,
         }
-        state.update({"state": "COMMITTED", "after": after, "receipt": receipt, "result": result_payload})
+        state.update(
+            {
+                "state": "COMMITTED",
+                "after": after,
+                "after_modes": after_modes,
+                "receipt": receipt,
+                "result": result_payload,
+            }
+        )
         _write_state(state_path, state)
         return result_payload
     except ChangesetTransactionError as exc:
@@ -381,6 +420,7 @@ def _execute_changeset_transaction(
         _rollback_after_commit_failure(
             root_path=root_path,
             before=before,
+            before_modes=before_modes,
             backup=backup,
             state=state,
             state_path=state_path,
@@ -390,6 +430,7 @@ def _execute_changeset_transaction(
         _rollback_after_commit_failure(
             root_path=root_path,
             before=before,
+            before_modes=before_modes,
             backup=backup,
             state=state,
             state_path=state_path,
