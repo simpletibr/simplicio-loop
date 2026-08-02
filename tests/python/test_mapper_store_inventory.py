@@ -74,12 +74,54 @@ def test_write_evidence_ignores_policy_text_read_only_probes_and_temp_tables() -
     ]) is False
 
 
+def test_ddl_evidence_excludes_test_and_temporary_tables() -> None:
+    assert INVENTORY._has_persistent_ddl_evidence(
+        [
+            "#[cfg(test)]",
+            "mod tests {",
+            '    conn.execute_batch("CREATE TABLE fixture_rows (id INTEGER);")?;',
+            "}",
+        ],
+        suffix=".rs",
+    ) is False
+    assert INVENTORY._has_persistent_ddl_evidence(
+        ['conn.execute_batch("CREATE VIRTUAL TABLE temp.probe USING fts5(x);")?;'],
+        suffix=".rs",
+    ) is False
+    assert INVENTORY._has_persistent_ddl_evidence(
+        ['conn.execute_batch("CREATE TABLE production_rows (id INTEGER);")?;'],
+        suffix=".rs",
+    ) is True
+
+
 def test_write_evidence_tracks_multiline_execution_calls() -> None:
     assert INVENTORY._has_write_evidence([
         'connection.execute_batch(',
         '    "CREATE TABLE tasks (id INTEGER);",',
         ')',
     ]) is True
+
+
+def test_write_evidence_ignores_rust_cfg_test_module_schemas() -> None:
+    assert INVENTORY._has_write_evidence(
+        [
+            "#[cfg(test)]",
+            "mod tests {",
+            '    conn.execute_batch("CREATE TABLE fixture_rows (id INTEGER);")?;',
+            "}",
+        ],
+        suffix=".rs",
+    ) is False
+    assert INVENTORY._has_write_evidence(
+        [
+            'conn.execute_batch("CREATE TABLE production_rows (id INTEGER);")?;',
+            "#[cfg(test)]",
+            "mod tests {",
+            '    conn.execute_batch("CREATE TABLE fixture_rows (id INTEGER);")?;',
+            "}",
+        ],
+        suffix=".rs",
+    ) is True
 
 
 def test_write_evidence_does_not_treat_unexecuted_sql_strings_as_writers() -> None:

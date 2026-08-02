@@ -58,6 +58,11 @@ PERSISTENT_WRITE_SQL = re.compile(
     r"PRAGMA\s+(?:journal_mode|wal_checkpoint|user_version))\b",
     re.I,
 )
+PERSISTENT_DDL_SQL = re.compile(
+    r"\b(?:CREATE\s+(?!(?:TEMP(?:ORARY)?\b))(?:(?:VIRTUAL)\s+)?(?:TABLE|INDEX|VIEW|TRIGGER)|"
+    r"ALTER\s+TABLE|DROP\s+(?:TABLE|INDEX|TRIGGER|VIEW))\b",
+    re.I,
+)
 SECRET_NAME = r"[A-Za-z0-9_-]*(?:token|access[_-]?token|auth[_-]?token|secret(?:[_-]?access[_-]?key)?|password|api[_-]?key|x[_-]?api[_-]?key|private[_-]?key|client[_-]?secret|credential)"  # noqa: S105
 SECRET_VALUE = re.compile(
     rf"(?i)(?<![A-Za-z0-9])({SECRET_NAME})"
@@ -173,13 +178,52 @@ def _is_behavioral_path(relative: str) -> bool:
     return Path(relative).suffix.lower() in BEHAVIOR_SUFFIXES
 
 
-def _has_write_evidence(lines: list[str]) -> bool:
-    return _has_persistent_write_evidence(lines)
+def _has_write_evidence(lines: list[str], *, suffix: str = "") -> bool:
+    return _has_persistent_write_evidence(lines, suffix=suffix)
 
 
 def _comment_only(line: str) -> bool:
     stripped = line.lstrip()
     return not stripped or stripped.startswith(("#", "//", "/*", "*", "--"))
+
+
+def _rust_test_filtered_lines(lines: list[str]) -> list[str]:
+    """Exclude ``#[cfg(test)]`` items from production-writer detection.
+
+    Rust source files commonly keep fixture schemas in a test module beside
+    the production adapter.  Those schemas are not reachable in a release
+    build and must not be reported as legacy production writers.  This is a
+    deliberately small brace-aware filter; the inventory remains a static
+    evidence scanner rather than a Rust parser.
+    """
+    filtered: list[str] = []
+    pending_test_item = False
+    excluded_depth: int | None = None
+
+    for line in lines:
+        stripped = line.strip()
+        if excluded_depth is None and stripped.startswith("#[cfg(test)]"):
+            pending_test_item = True
+            continue
+
+        if excluded_depth is None and pending_test_item:
+            if not stripped or stripped.startswith("#["):
+                continue
+            if re.search(r"\b(?:mod|fn)\s+[A-Za-z_][A-Za-z0-9_]*\b", stripped) and "{" in stripped:
+                excluded_depth = line.count("{") - line.count("}")
+                pending_test_item = False
+                continue
+            else:
+                pending_test_item = False
+
+        if excluded_depth is None:
+            filtered.append(line)
+        elif excluded_depth != 0:
+            excluded_depth += line.count("{") - line.count("}")
+            if excluded_depth <= 0:
+                excluded_depth = None
+
+    return filtered
 
 
 def _has_persistent_write_evidence(lines: list[str], *, suffix: str = "") -> bool:
@@ -191,14 +235,33 @@ def _has_persistent_write_evidence(lines: list[str], *, suffix: str = "") -> boo
     handles multiline ``execute_batch``/``executescript`` statements without
     pretending to parse every host language.
     """
-    for index, line in enumerate(lines):
+    scan_lines = _rust_test_filtered_lines(lines) if suffix.lower() == ".rs" else lines
+    for index, line in enumerate(scan_lines):
         if _comment_only(line) or not PERSISTENT_WRITE_SQL.search(line):
             continue
         if suffix.lower() == ".sql":
             return True
         start = max(0, index - 3)
-        end = min(len(lines), index + 4)
-        window = " ".join(candidate for candidate in lines[start:end] if not _comment_only(candidate))
+        end = min(len(scan_lines), index + 4)
+        window = " ".join(candidate for candidate in scan_lines[start:end] if not _comment_only(candidate))
+        if EXECUTE_CALL.search(window):
+            return True
+    return False
+
+
+def _has_persistent_ddl_evidence(lines: list[str], *, suffix: str = "") -> bool:
+    """Return true only when executable, non-temporary DDL is present."""
+    scan_lines = _rust_test_filtered_lines(lines) if suffix.lower() == ".rs" else lines
+    for index, line in enumerate(scan_lines):
+        if _comment_only(line) or not PERSISTENT_DDL_SQL.search(line):
+            continue
+        if re.search(r"\btemp(?:orary)?\b|\btemp\.", line, re.I):
+            continue
+        if suffix.lower() == ".sql":
+            return True
+        start = max(0, index - 3)
+        end = min(len(scan_lines), index + 4)
+        window = " ".join(candidate for candidate in scan_lines[start:end] if not _comment_only(candidate))
         if EXECUTE_CALL.search(window):
             return True
     return False
@@ -269,6 +332,11 @@ def _scan_sources(repo_id: str, root: Path, changed_files: set[str] | None = Non
             if behavioral and _has_persistent_write_evidence(lines, suffix=path.suffix)
             else []
         )
+        ddl_writers = (
+            [repo_id]
+            if behavioral and _has_persistent_ddl_evidence(lines, suffix=path.suffix)
+            else []
+        )
         matrix.append({
             "repo": repo_id,
             "file": relative_text,
@@ -280,6 +348,7 @@ def _scan_sources(repo_id: str, root: Path, changed_files: set[str] | None = Non
             "target_owner": "mapper-store",
             "readers": [repo_id],
             "writers": writers,
+            "ddl_writers": ddl_writers,
             "changed_since_default": relative_text in (changed_files or set()) if changed_files is not None else None,
             "authorized_writer_after_cutover": "mapper-store",
             "source_of_truth": "derived-index" if classification == "derived-index" else "source-of-truth",
@@ -355,14 +424,14 @@ def _policy(matrix: list[dict]) -> dict:
             item["repo"] != "mapper"
             and "ddl" in item["kinds"]
             and item.get("criticality") == "critical"
-            and bool(item.get("writers"))
+            and bool(item.get("ddl_writers", item.get("writers")))
         )
         if is_legacy_writer:
             legacy_ddl_files.append({"repo": item["repo"], "file": item["file"]})
             continue
         if item["criticality"] == "test-only":
             continue
-        if "ddl" in item["kinds"] and item["writers"] and not (
+        if "ddl" in item["kinds"] and item.get("ddl_writers", item["writers"]) and not (
             item["file"].startswith("simplicio_mapper/store/")
             or item["file"].startswith("contracts/mapper-store/")
             or item["file"] == "scripts/mapper_store_inventory.py"
