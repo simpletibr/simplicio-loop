@@ -23,4 +23,8 @@ def run(a: argparse.Namespace) -> int:
         doctor_argv.append("--refresh")
     if a.upgrade:
         doctor_argv.append("--upgrade")
+    if getattr(a, "storage", False):
+        doctor_argv.append("--storage")
+    if getattr(a, "storage", False) and getattr(a, "root", None):
+        doctor_argv.extend(["--root", a.root])
     return doctor_main(doctor_argv)

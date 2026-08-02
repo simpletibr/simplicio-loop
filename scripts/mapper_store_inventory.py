@@ -28,6 +28,13 @@ ALLOWLIST = {
 }
 
 CLASSIFICATION = {
+    "simplicio/store_adapter.py": {
+        "kind": "detection",
+        "owner": "Dev CLI diagnostics",
+        "source_of_truth": "MapperStore capability and legacy-path presence",
+        "current_path": "read-only path inventory",
+        "target": "MapperStore domains; no local database writer",
+    },
     "simplicio/templates/stacks/py-django/tree/config/settings.py": {
         "kind": "fixture",
         "owner": "Django template consumer",
@@ -105,7 +112,8 @@ def inventory(root: Path) -> dict[str, Any]:
     strict_violations = [
         item
         for item in occurrences
-        if item["path"] not in ALLOWLIST and CLASSIFICATION.get(item["path"], {}).get("kind") != "fixture"
+        if item["path"] not in ALLOWLIST
+        and CLASSIFICATION.get(item["path"], {}).get("kind") not in {"fixture", "detection"}
     ]
     payload = {
         "schema": SCHEMA,

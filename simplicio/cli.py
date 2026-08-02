@@ -355,6 +355,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p_doctor.add_argument("--no-check-updates", action="store_true")
     p_doctor.add_argument("--refresh", action="store_true")
     p_doctor.add_argument("--upgrade", action="store_true")
+    p_doctor.add_argument(
+        "--storage", action="store_true", help="report MapperStore cutover state without writes"
+    )
+    p_doctor.add_argument("--root", default=".", help="repo root for read-only storage diagnostics")
 
     p_fast = sub.add_parser("fast", help="negotiate optional Simplicio Fast capabilities")
     fast_sub = p_fast.add_subparsers(dest="fast_cmd", required=True)

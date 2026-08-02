@@ -160,6 +160,19 @@ def _render_hub_status(status: dict) -> None:
     print(f"  local scheduler allowed {status['local_scheduler_allowed']}")
 
 
+def _render_storage(payload: dict) -> None:
+    print()
+    print("storage capabilities (read-only):")
+    mapper = payload["mapper_store"]
+    print(f"  mapper store     {'ready' if mapper['ready'] else 'BLOCKED'} ({mapper['reason']})")
+    print(f"  mapper version   {mapper['version'] or '(not installed)'}")
+    print(f"  route            {payload['route']['selected']} ({payload['route']['reason']})")
+    print(f"  side effects     {payload['side_effects']}")
+    for path, item in payload["legacy"].items():
+        if item["present"]:
+            print(f"  legacy present   {path}")
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="simplicio-py doctor")
     p.add_argument("--json", action="store_true", help="machine-readable output")
@@ -169,6 +182,7 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--upgrade", action="store_true", help="pip install -U every tracked package that is behind"
     )
+    p.add_argument("--storage", action="store_true", help="report MapperStore cutover state without writes")
     p.add_argument(
         "--root",
         default=".",
@@ -231,6 +245,11 @@ def main(argv: list[str] | None = None) -> int:
     # about the `simplicio-cli` checkout itself, a different root entirely
     # (see `commands/versions.py::versions_report`'s docstring).
     mapper_versions = versions_report()
+    storage = None
+    if args.storage:
+        from .store_adapter import storage_capabilities
+
+        storage = storage_capabilities(args.root)
 
     if args.json:
         payload = result.to_dict()
@@ -244,6 +263,8 @@ def main(argv: list[str] | None = None) -> int:
         payload["native_delegation"] = delegation
         payload["hub"] = hub_status
         payload["mapper_versions"] = mapper_versions
+        if storage is not None:
+            payload["storage"] = storage
         print(json.dumps(payload, indent=2))
         return 0
 
@@ -254,4 +275,6 @@ def main(argv: list[str] | None = None) -> int:
     _render_events(events)
     _render_native_delegation(delegation)
     _render_hub_status(hub_status)
+    if storage is not None:
+        _render_storage(storage)
     return 0
