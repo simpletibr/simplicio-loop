@@ -51,6 +51,10 @@ def _quality_gate_environment() -> dict[str, str]:
 
 
 DEFAULT_COMMANDS = (
+    (
+        "json-boundaries",
+        [sys.executable, "scripts/check_json_boundaries.py", "--strict"],
+    ),
     ("ruff", [sys.executable, "-m", "ruff", "check", "simplicio"]),
     ("ruff-format", [sys.executable, "-m", "ruff", "format", "--check", "simplicio", "tests"]),
     ("mypy", [sys.executable, "-m", "mypy", "simplicio"]),
@@ -65,9 +69,19 @@ DEFAULT_COMMANDS = (
     ),
     ("coverage-gate", [sys.executable, "scripts/coverage_gate.py"]),
     (
+        "token-budget",
+        [sys.executable, "scripts/token_budget.py", "--check"],
+    ),
+    (
+        "generated-docs",
+        [sys.executable, "scripts/gen_package_interdependence.py", "--check"],
+    ),
+    (
         "wheel-and-installed-smoke",
         [sys.executable, "scripts/quality_gate_wheel.py", "--root", "."],
     ),
+    ("cli-help", [sys.executable, "-m", "simplicio.cli", "--help"]),
+    ("changeset-help", [sys.executable, "-m", "simplicio.cli", "changeset", "--help"]),
 )
 
 

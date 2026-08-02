@@ -3,7 +3,24 @@ from __future__ import annotations
 import json
 import sys
 
-from scripts.quality_gate import SCHEMA, _write_receipt, main, run_gate, verify_receipt
+from scripts.quality_gate import DEFAULT_COMMANDS, SCHEMA, _write_receipt, main, run_gate, verify_receipt
+
+
+def test_default_gate_contains_required_local_and_installed_lanes():
+    names = [name for name, _argv in DEFAULT_COMMANDS]
+    assert names == [
+        "json-boundaries",
+        "ruff",
+        "ruff-format",
+        "mypy",
+        "pytest",
+        "coverage-gate",
+        "token-budget",
+        "generated-docs",
+        "wheel-and-installed-smoke",
+        "cli-help",
+        "changeset-help",
+    ]
 
 
 def test_quality_gate_receipt_is_sha_bound_and_records_failures(tmp_path):
