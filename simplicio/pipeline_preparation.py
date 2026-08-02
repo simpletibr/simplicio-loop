@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from os import PathLike
-from typing import Any
+from typing import Any, Literal
 
 from .atomic_execution import AttemptContext
 from .execution_mode import (
@@ -20,6 +20,33 @@ from .execution_mode import (
 from .pipeline_input import PipelineInput, prepare_pipeline_input
 from .plan_compiler.authority import EffectAuthorization
 from .task_context import TaskContext, TaskContextError
+from .task_spec import TaskSpec
+
+TASK_SPEC_REQUIRES_INTEGRATED_MODE = "TASK_SPEC_REQUIRES_INTEGRATED_MODE"
+TASK_SPEC_ROUTE_MESSAGE = "typed TaskSpec input is accepted only by the integrated execution path"
+
+
+@dataclass(frozen=True)
+class TaskSpecRouteDecision:
+    """Typed decision for routing a TaskSpec without consuming it."""
+
+    blocked: bool
+    code: str = ""
+    message: str = ""
+
+
+def resolve_task_spec_route(
+    task_spec: TaskSpec | None,
+    effective_mode: Literal["integrated", "standalone", "blocked"],
+) -> TaskSpecRouteDecision:
+    """Select the TaskSpec route without mutating the task or execution profile."""
+    if task_spec is None or effective_mode == "integrated":
+        return TaskSpecRouteDecision(blocked=False)
+    return TaskSpecRouteDecision(
+        blocked=True,
+        code=TASK_SPEC_REQUIRES_INTEGRATED_MODE,
+        message=TASK_SPEC_ROUTE_MESSAGE,
+    )
 
 
 @dataclass(frozen=True)
