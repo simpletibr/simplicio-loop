@@ -838,9 +838,11 @@ class ContextBindingCache:
         criteria: dict[str, str] | None = None,
         expected_revision: str | None = None,
         fence: str | None = None,
+        lock_held: bool = False,
     ) -> str:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
-        self._acquire_writer_lock()
+        if not lock_held:
+            self._acquire_writer_lock()
 
         try:
             previous = ""
@@ -901,7 +903,8 @@ class ContextBindingCache:
             self._invalidate_read_cache()
             return str(event["digest"])
         finally:
-            self.lock_path.unlink(missing_ok=True)
+            if not lock_held:
+                self.lock_path.unlink(missing_ok=True)
 
     @staticmethod
     def _pack_string(value: str) -> bytes:
@@ -1012,10 +1015,11 @@ class ContextBindingCache:
         return event
 
     def _migrate_legacy_once(self) -> None:
-        if self.log_path.is_file():
-            return
-        if self.legacy_log_path.is_file():
-            try:
+        self._acquire_writer_lock(recover_stale=True)
+        try:
+            if self.log_path.is_file():
+                return
+            if self.legacy_log_path.is_file():
                 for line in self.legacy_log_path.read_text(encoding="utf-8").splitlines():
                     event = json.loads(line)
                     if not isinstance(event, dict):
@@ -1026,26 +1030,31 @@ class ContextBindingCache:
                         identity=event.get("identity"),
                         criteria=event.get("criteria"),
                         fence=event.get("fence"),
+                        lock_held=True,
                     )
                 migrated_path = self.legacy_log_path.with_suffix(self.legacy_log_path.suffix + ".migrated")
                 self.legacy_log_path.rename(migrated_path)
-            except (OSError, UnicodeError, TypeError, ValueError, json.JSONDecodeError) as exc:
+                return
+            if not self.path.is_file():
+                return
+            legacy = self._read()
+            if legacy.get("chain_status") == "corrupt":
                 raise MapperContextError(
-                    "CONTEXT_CACHE_MIGRATION_FAILED", "legacy context cache migration failed"
-                ) from exc
-            return
-        if not self.path.is_file():
-            return
-        legacy = self._read()
-        if legacy.get("chain_status") == "corrupt":
+                    "CONTEXT_CACHE_CORRUPT",
+                    "legacy context cache is corrupt; it was preserved for recovery",
+                )
+            for key, entry in legacy.get("entries", {}).items():
+                if isinstance(entry, dict) and isinstance(entry.get("identity"), dict):
+                    self._append_event("put", str(key), identity=entry["identity"], lock_held=True)
+            self.path.unlink(missing_ok=True)
+        except MapperContextError:
+            raise
+        except (OSError, UnicodeError, TypeError, ValueError, json.JSONDecodeError) as exc:
             raise MapperContextError(
-                "CONTEXT_CACHE_CORRUPT",
-                "legacy context cache is corrupt; it was preserved for recovery",
-            )
-        for key, entry in legacy.get("entries", {}).items():
-            if isinstance(entry, dict) and isinstance(entry.get("identity"), dict):
-                self._append_event("put", str(key), identity=entry["identity"])
-        self.path.unlink(missing_ok=True)
+                "CONTEXT_CACHE_MIGRATION_FAILED", "legacy context cache migration failed"
+            ) from exc
+        finally:
+            self.lock_path.unlink(missing_ok=True)
 
 
 def _source_handles(graph: Mapping[str, Any]) -> tuple[Mapping[str, Any], ...]:

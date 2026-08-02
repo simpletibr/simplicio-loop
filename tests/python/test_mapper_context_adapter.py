@@ -510,6 +510,35 @@ def test_context_binding_cache_migrates_legacy_json_once_and_removes_shadow_stor
     assert migrated.lookup(binding.context_handle)["hit"] is True
 
 
+def test_context_binding_cache_migration_is_atomic_across_initializers(tmp_path: Any) -> None:
+    legacy = tmp_path / ".simplicio" / "context-bindings.json"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    key = "sha256:" + "a" * 64
+    legacy.write_text(
+        json.dumps(
+            {
+                "schema": "simplicio.context-binding-cache/v1",
+                "entries": {key: {"identity": {"snapshot_id": "concurrent-migration"}}},
+            }
+        ),
+        encoding="utf-8",
+    )
+    worker = (
+        "from simplicio.plan_compiler.mapper_context import ContextBindingCache; "
+        "ContextBindingCache(__import__('sys').argv[1])"
+    )
+    processes = [
+        subprocess.Popen([sys.executable, "-c", worker, str(tmp_path)], cwd=Path.cwd()) for _ in range(8)
+    ]
+
+    assert [process.wait(timeout=30) for process in processes] == [0] * len(processes)
+    migrated = ContextBindingCache(tmp_path)
+    assert migrated.log_path.is_file()
+    assert not migrated.path.is_file()
+    assert not legacy.with_suffix(legacy.suffix + ".migrated").is_file()
+    assert len(migrated._read_log()["entries"]) == 1
+
+
 def test_context_binding_cache_preserves_corrupt_legacy_store(mapper_boundary: None, tmp_path: Any) -> None:
     legacy = tmp_path / ".simplicio" / "context-bindings.json"
     legacy.parent.mkdir(parents=True, exist_ok=True)
