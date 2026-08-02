@@ -227,6 +227,7 @@ def _runtime_backed(
     runtime_binary: Path | None,
     legacy_memory_dir: Path | None,
     upgrade: bool,
+    expected_vec: bool | None = None,
     timeout: float,
 ) -> tuple[bool, str, dict[str, Any]]:
     """Exercise the installed Runtime memory-v2 process on a Mapper DB."""
@@ -351,6 +352,14 @@ def _runtime_backed(
             return False, "Runtime did not report the MapperStore memory schema", observations
         if status_payload.get("db_path") != str(database) or status_payload.get("fts_available") is not True:
             return False, "Runtime did not use the canonical FTS5 database", observations
+        vec_available = status_payload.get("vec_available") is True
+        observations["sqlite_vec_available"] = vec_available
+        if expected_vec is not None and vec_available != expected_vec:
+            return False, (
+                "sqlite-vec extension is unavailable"
+                if expected_vec
+                else "sqlite-vec extension was unexpectedly present"
+            ), observations
 
         inspect = _run(
             [
@@ -538,7 +547,7 @@ def run_scenario(
             legacy_ddl_matches=legacy_ddl_matches,
             observations={"inventory": inventory_observation},
         )
-    if scenario in {"fresh runtime-backed", "upgrade runtime-backed"}:
+    if scenario in {"fresh runtime-backed", "upgrade runtime-backed", "sqlite-vec absent"}:
         if scenario == "upgrade runtime-backed" and legacy_memory_dir is None:
             return _receipt(
                 scenario=scenario,
@@ -556,8 +565,11 @@ def run_scenario(
             runtime_binary=runtime_binary,
             legacy_memory_dir=legacy_memory_dir,
             upgrade=scenario == "upgrade runtime-backed",
+            expected_vec=False if scenario == "sqlite-vec absent" else None,
             timeout=timeout,
         )
+        if scenario == "sqlite-vec absent" and ok:
+            reason = "sqlite-vec absent Runtime lane passed with honest FTS5 fallback"
     elif scenario in {"fresh standalone", "upgrade standalone"}:
         if scenario == "upgrade standalone" and legacy_memory_dir is None:
             return _receipt(
