@@ -65,6 +65,10 @@ def test_changeset_cli_declares_standalone_route_without_runtime_probe(tmp_path,
 
     receipt = json.loads(capsys.readouterr().out)
     assert receipt["status"] == "ok"
+    assert receipt["execution_route"] == receipt["transaction"]["route_admission"]
+    assert receipt["execution_route"]["requested_mode"] == "standalone"
+    assert receipt["execution_route"]["phase"] == "ADMITTED"
+    assert receipt["execution_route"]["frozen_before_effect"] is True
     assert receipt["execution_mode"] == {
         "effective": "standalone",
         "provider_calls": 0,
@@ -103,12 +107,55 @@ def test_changeset_cli_auto_without_runtime_uses_standalone(tmp_path, capsys, mo
 
     receipt = json.loads(capsys.readouterr().out)
     assert receipt["status"] == "ok"
+    assert receipt["execution_route"] == receipt["transaction"]["route_admission"]
+    assert receipt["execution_route"]["requested_mode"] == "auto"
+    assert receipt["execution_route"]["phase"] == "ADMITTED"
+    assert receipt["execution_route"]["frozen_before_effect"] is True
     assert receipt["execution_mode"]["requested"] == "auto"
     assert receipt["execution_mode"]["effective"] == "standalone"
     assert receipt["execution_mode"]["route"] == "standalone"
     assert receipt["execution_mode"]["runtime_required"] is False
     assert receipt["execution_mode"]["provider_calls"] == 0
     assert (tmp_path / "auto.txt").read_text(encoding="utf-8") == "auto-standalone\n"
+
+
+def test_route_admission_is_frozen_before_transaction_and_replay(tmp_path):
+    from simplicio.changeset_transaction import ChangesetTransactionError, execute_changeset_transaction
+    from simplicio.standalone_migration import MutationRouteAdmission
+
+    payload = _changeset(
+        [{"kind": "create", "path": "frozen.txt", "content": "frozen\n"}],
+        ["frozen.txt"],
+    )
+    selected = MutationRouteAdmission("auto", "standalone")
+    admitted = selected.admit()
+    assert selected.phase == "SELECTED"
+    assert admitted.phase == "ADMITTED"
+    assert admitted.frozen_before_effect is True
+
+    with pytest.raises(ChangesetTransactionError) as error:
+        execute_changeset_transaction(
+            adapt_changeset(payload),
+            root=tmp_path,
+            idempotency_key="unadmitted-route",
+            changeset_digest_value="digest",
+            route_admission=selected.to_dict(),
+        )
+    assert error.value.code == "ROUTE_NOT_ADMITTED"
+    assert not (tmp_path / "frozen.txt").exists()
+
+    first = execute_changeset(payload, root=tmp_path, apply=True, route_admission=selected)
+    replay = execute_changeset(
+        payload,
+        root=tmp_path,
+        apply=True,
+        route_admission=MutationRouteAdmission("standalone", "standalone"),
+    )
+    assert first["execution_route"]["phase"] == "ADMITTED"
+    assert first["execution_route"]["frozen_before_effect"] is True
+    assert replay["replayed"] is True
+    assert replay["execution_route"] == first["execution_route"]
+    assert replay["transaction"]["route_admission"] == first["transaction"]["route_admission"]
 
 
 def test_changeset_cli_refuses_integrated_without_runtime_authorization(tmp_path, capsys):

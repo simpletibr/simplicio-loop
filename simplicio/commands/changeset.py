@@ -97,6 +97,7 @@ def _mapper_refresh_producer(root: Path, paths: tuple[str, ...]) -> dict[str, An
 
 def run(args) -> int:
     from simplicio.changeset_v2 import BINARY_MAGIC, execute_changeset_bytes, execute_changeset_json
+    from simplicio.standalone_migration import MutationRouteAdmission
 
     requested_mode = getattr(args, "mode", None) or "standalone"
     if requested_mode == "integrated":
@@ -122,6 +123,7 @@ def run(args) -> int:
             print(f"{receipt['status']}: applied=False dry_run={receipt['dry_run']}")
         return 1
 
+    route_admission = MutationRouteAdmission(requested_mode, "standalone")
     try:
         source = read_binary_source(args.plan)
     except OSError as exc:
@@ -133,6 +135,7 @@ def run(args) -> int:
             root=args.root,
             apply=args.apply,
             current_generation=args.current_generation,
+            route_admission=route_admission,
             fast_engine=args.fast_engine,
             refresh_producer=_mapper_refresh_producer if getattr(args, "refresh_mapper", False) else None,
         )
@@ -145,6 +148,7 @@ def run(args) -> int:
                 root=args.root,
                 apply=args.apply,
                 current_generation=args.current_generation,
+                route_admission=route_admission,
                 fast_engine=args.fast_engine,
                 refresh_producer=_mapper_refresh_producer if getattr(args, "refresh_mapper", False) else None,
             )
@@ -154,6 +158,7 @@ def run(args) -> int:
                 root=args.root,
                 apply=args.apply,
                 current_generation=args.current_generation,
+                route_admission=route_admission,
             )
     receipt["execution_mode"] = {
         "requested": requested_mode,

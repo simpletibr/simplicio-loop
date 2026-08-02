@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 from .mechanical_edit import execute_plan
+from .standalone_migration import ROUTE_ADMISSION_SCHEMA
 from .utils.fs import write_text_atomic
 
 TRANSACTION_SCHEMA = "simplicio.fast.changeset-transaction/v1"
@@ -24,6 +25,21 @@ class ChangesetTransactionError(ValueError):
         super().__init__(message)
         self.code = code
         self.extra = extra
+
+
+def _validate_route_admission(route_admission: dict[str, Any] | None) -> None:
+    if route_admission is None:
+        return
+    if (
+        not isinstance(route_admission, dict)
+        or route_admission.get("schema") != ROUTE_ADMISSION_SCHEMA
+        or route_admission.get("phase") != "ADMITTED"
+        or route_admission.get("frozen_before_effect") is not True
+    ):
+        raise ChangesetTransactionError(
+            "ROUTE_NOT_ADMITTED",
+            "changeset route must be admitted and frozen before staging",
+        )
 
 
 def changeset_digest(changeset: dict[str, Any]) -> str:
@@ -167,6 +183,8 @@ def _result_with_transaction(result: dict[str, Any], state: dict[str, Any]) -> d
         "timings_ms": state.get("timings_ms", {}),
         "causal_ids": state.get("causal_ids", {}),
     }
+    if state.get("route_admission") is not None:
+        result["transaction"]["route_admission"] = dict(state["route_admission"])
     return result
 
 
@@ -376,9 +394,11 @@ def execute_changeset_transaction(
     idempotency_key: str,
     changeset_digest_value: str,
     causal_ids: dict[str, str] | None = None,
+    route_admission: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Serialize one idempotency key before staging or committing it."""
     state_path = _state_path(Path(root).resolve(), idempotency_key)
+    _validate_route_admission(route_admission)
     lock_path = state_path.with_suffix(".lock")
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -396,6 +416,7 @@ def execute_changeset_transaction(
             idempotency_key=idempotency_key,
             changeset_digest_value=changeset_digest_value,
             causal_ids=causal_ids,
+            route_admission=route_admission,
         )
     finally:
         try:
@@ -411,6 +432,7 @@ def _execute_changeset_transaction(
     idempotency_key: str,
     changeset_digest_value: str,
     causal_ids: dict[str, str] | None = None,
+    route_admission: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Stage, verify, commit and journal one multi-file changeset."""
     root_path = Path(root).resolve()
@@ -456,6 +478,8 @@ def _execute_changeset_transaction(
         "operation": _operation_summary(plan, paths),
         "causal_ids": dict(causal_ids or {}),
     }
+    if route_admission is not None:
+        state["route_admission"] = dict(route_admission)
     started = time.perf_counter()
     stage_started = started
     _write_state(state_path, state)
@@ -543,6 +567,8 @@ def _execute_changeset_transaction(
                 if before[relative] != after[relative]
             ],
         }
+        if route_admission is not None:
+            receipt["route_admission"] = dict(route_admission)
         result_payload = {
             "status": "ok",
             "applied": True,

@@ -29,6 +29,44 @@ _REQUIRED_ROLLOUT_RECEIPTS = (
 )
 
 
+RouteAdmissionPhase = Literal["SELECTED", "ADMITTED"]
+ROUTE_ADMISSION_SCHEMA = "simplicio.dev-cli.route-admission/v1"
+
+
+@dataclass(frozen=True)
+class MutationRouteAdmission:
+    """Immutable route selection that can be admitted once before staging."""
+
+    requested_mode: str
+    route: MutationRoute
+    phase: RouteAdmissionPhase = "SELECTED"
+    frozen_before_effect: bool = False
+
+    def __post_init__(self) -> None:
+        if not self.requested_mode.strip():
+            raise ValueError("requested_mode must be non-empty")
+        if self.phase not in {"SELECTED", "ADMITTED"}:
+            raise ValueError("route admission phase is invalid")
+        if self.phase == "ADMITTED" and not self.frozen_before_effect:
+            raise ValueError("admitted route must be frozen before effect")
+        if self.phase == "SELECTED" and self.frozen_before_effect:
+            raise ValueError("selected route cannot be frozen before admission")
+
+    def admit(self) -> MutationRouteAdmission:
+        if self.phase == "ADMITTED":
+            return self
+        return MutationRouteAdmission(self.requested_mode, self.route, "ADMITTED", True)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema": ROUTE_ADMISSION_SCHEMA,
+            "requested_mode": self.requested_mode,
+            "route": self.route,
+            "phase": self.phase,
+            "frozen_before_effect": self.frozen_before_effect,
+        }
+
+
 @dataclass(frozen=True)
 class StandalonePolicy:
     phase: MigrationPhase

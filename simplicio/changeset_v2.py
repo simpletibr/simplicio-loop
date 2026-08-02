@@ -19,6 +19,7 @@ from .changeset_transaction import (
 )
 from .fast_contracts import FastEngineError, FastEngineSession, select_fast_engine
 from .mechanical_edit import execute_plan
+from .standalone_migration import MutationRouteAdmission
 
 CHANGESET_SCHEMA = "simplicio.fast.changeset/v2"
 BINARY_SCHEMA = "simplicio.fast.binary-changeset/v1"
@@ -156,9 +157,15 @@ def adapt_changeset(changeset: dict[str, Any], *, current_generation: str | None
     }
 
 
-def _refused_receipt(changeset: Any, error: dict[str, Any], *, apply: bool) -> dict[str, Any]:
+def _refused_receipt(
+    changeset: Any,
+    error: dict[str, Any],
+    *,
+    apply: bool,
+    route_admission: MutationRouteAdmission | None = None,
+) -> dict[str, Any]:
     source = changeset if isinstance(changeset, dict) else {}
-    return {
+    receipt = {
         "schema": RECEIPT_SCHEMA,
         "changeset_id": source.get("changeset_id"),
         "generation": source.get("generation"),
@@ -171,6 +178,21 @@ def _refused_receipt(changeset: Any, error: dict[str, Any], *, apply: bool) -> d
         "rollback": {"attempted": False, "succeeded": None, "reason": "no-effects-started"},
         "effect_unknown": False,
     }
+    if route_admission is not None:
+        receipt["execution_route"] = route_admission.to_dict()
+    return receipt
+
+
+def _execution_route(
+    result: dict[str, Any],
+    fallback: MutationRouteAdmission,
+) -> dict[str, Any]:
+    transaction = result.get("transaction")
+    if isinstance(transaction, dict):
+        recorded = transaction.get("route_admission")
+        if isinstance(recorded, dict):
+            return dict(recorded)
+    return fallback.to_dict()
 
 
 def execute_changeset(
@@ -180,11 +202,14 @@ def execute_changeset(
     apply: bool = False,
     current_generation: str | None = None,
     causal_ids: dict[str, str] | None = None,
+    route_admission: MutationRouteAdmission | None = None,
 ) -> dict[str, Any]:
+    admission = route_admission or MutationRouteAdmission("standalone", "standalone")
+    execution_admission = admission
     try:
         mechanical = adapt_changeset(changeset, current_generation=current_generation)
     except ChangesetError as exc:
-        return _refused_receipt(changeset, exc.row, apply=apply)
+        return _refused_receipt(changeset, exc.row, apply=apply, route_admission=admission)
 
     if apply:
         key = str(
@@ -202,6 +227,7 @@ def execute_changeset(
                 changeset,
                 {"code": exc.code, "message": str(exc), **exc.extra},
                 apply=apply,
+                route_admission=execution_admission,
             )
         preflight = (
             None
@@ -233,21 +259,25 @@ def execute_changeset(
                 "effect_unknown": preflight.get("status") == "effect_unknown",
                 "transaction": None,
                 "replayed": False,
+                "execution_route": admission.to_dict(),
             }
         try:
             if result is None:
+                execution_admission = admission.admit()
                 result = execute_changeset_transaction(
                     mechanical,
                     root=root,
                     idempotency_key=key,
                     changeset_digest_value=digest,
                     causal_ids=causal_ids or _causal_ids(changeset),
+                    route_admission=execution_admission.to_dict(),
                 )
         except ChangesetTransactionError as exc:
             return _refused_receipt(
                 changeset,
                 {"code": exc.code, "message": str(exc), **exc.extra},
                 apply=apply,
+                route_admission=execution_admission,
             )
     else:
         result = execute_plan(mechanical, root=root, apply=False)
@@ -282,6 +312,7 @@ def execute_changeset(
         "effect_unknown": result.get("status") == "effect_unknown",
         "transaction": result.get("transaction"),
         "replayed": result.get("replayed", False),
+        "execution_route": _execution_route(result, execution_admission),
     }
 
 
@@ -291,6 +322,7 @@ def execute_changeset_json(
     root: str | Path = ".",
     apply: bool = False,
     current_generation: str | None = None,
+    route_admission: MutationRouteAdmission | None = None,
 ) -> dict[str, Any]:
     try:
         payload = json.loads(text)
@@ -299,16 +331,21 @@ def execute_changeset_json(
             {},
             {"code": "invalid_json", "message": str(exc), "line": exc.lineno, "column": exc.colno},
             apply=apply,
+            route_admission=route_admission,
         )
     if not isinstance(payload, dict):
         return _refused_receipt(
-            {}, {"code": "invalid_json", "message": "changeset root must be an object"}, apply=apply
+            {},
+            {"code": "invalid_json", "message": "changeset root must be an object"},
+            apply=apply,
+            route_admission=route_admission,
         )
     return execute_changeset(
         payload,
         root=root,
         apply=apply,
         current_generation=current_generation,
+        route_admission=route_admission,
     )
 
 
@@ -318,6 +355,7 @@ def execute_changeset_bytes(
     root: str | Path = ".",
     apply: bool = False,
     current_generation: str | None = None,
+    route_admission: MutationRouteAdmission | None = None,
     fast_engine: str | None = None,
     refresh_fn: Callable[[tuple[str, ...]], Any] | None = None,
     refresh_producer: Callable[[Path, tuple[str, ...]], Any] | None = None,
@@ -361,6 +399,7 @@ def execute_changeset_bytes(
             apply=apply,
             current_generation=current_generation,
             causal_ids=_causal_ids(value),
+            route_admission=route_admission,
         )
         refresh = None
         transaction = receipt.get("transaction")
