@@ -170,11 +170,13 @@ exclude_lines = [
 threshold = 90
 modules = [
   "simplicio/cli.py",
+  "simplicio/commands/doctor.py",
   "simplicio/pipeline.py",
   "simplicio/mechanical_edit.py",
   "simplicio/mapper.py",
   "simplicio/execution_contract.py",
   "simplicio/doctor.py",
+  "simplicio/store_adapter.py",
 ]
 
 # --------------------------------------------------------------------------- #
@@ -266,4 +268,3 @@ module = [
   "simplicio.scratch.cli",
 ]
 ignore_errors = true
-
