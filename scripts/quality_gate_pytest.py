@@ -30,13 +30,24 @@ def main(argv: list[str] | None = None) -> int:
             pytest_executable if pytest_executable is not None else sys.executable,
             *([] if pytest_executable is not None else ["-m"]),
             *([] if pytest_executable is not None else ["pytest"]),
-            f"--timeout={args.pytest_timeout}",
             "--basetemp",
             raw_basetemp,
             "--cov=simplicio",
             "--cov-report=json:coverage.json",
             "--cov-report=term-missing",
         ]
+        if pytest_executable is None:
+            command.insert(3, f"--timeout={args.pytest_timeout}")
+        else:
+            probe = subprocess.run(
+                [pytest_executable, "--help"],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if "--timeout" in probe.stdout:
+                command.insert(1, f"--timeout={args.pytest_timeout}")
         if shutil.which("simplicio-mapper") is None or shutil.which("simplicio-dev-cli") is None:
             command.extend(
                 [
