@@ -97,6 +97,7 @@ def test_fast_engine_selection_is_explicit_and_in_memory():
     assert engine.receipt()["metrics"] == {
         "decode_calls": 0,
         "bytes_decoded": 0,
+        "copies": 0,
         "serializations": 0,
         "subprocesses": 0,
         "refresh_calls": 0,
@@ -155,6 +156,45 @@ def test_fast_engine_refresh_is_selective_and_fail_closed():
     assert pending["reason"] == "refresh_callback_required"
     assert engine.receipt()["metrics"]["refresh_calls"] == 2
     assert engine.receipt()["metrics"]["refresh_pending"] == 1
+
+
+def test_fast_engine_refresh_pending_can_resume_without_reapplying_effects():
+    engine = NoFastEngine()
+    calls = []
+    pending = engine.refresh(["src/a.py"])
+
+    resumed = engine.resume_refresh(
+        pending,
+        refresh_fn=lambda paths: calls.append(paths) or {"generation": "gen-2"},
+    )
+    replayed = engine.resume_refresh(
+        pending,
+        refresh_fn=lambda _paths: (_ for _ in ()).throw(AssertionError("replayed")),
+    )
+
+    assert resumed == {"status": "refreshed", "paths": ["src/a.py"], "result": {"generation": "gen-2"}}
+    assert replayed["idempotent"] is True
+    assert calls == [("src/a.py",)]
+
+
+def test_fast_engine_refresh_failure_and_unknown_resume_are_fail_closed():
+    engine = NoFastEngine()
+
+    pending = engine.refresh(
+        ["src/a.py"],
+        refresh_fn=lambda _paths: (_ for _ in ()).throw(RuntimeError("mapper offline")),
+    )
+    unknown = engine.resume_refresh("missing-refresh")
+
+    assert pending["status"] == "REFRESH_PENDING"
+    assert pending["reason"] == "refresh_failed"
+    assert pending["error_type"] == "RuntimeError"
+    assert unknown == {
+        "status": "REFRESH_PENDING",
+        "paths": [],
+        "reason": "unknown_refresh",
+        "refresh_id": "missing-refresh",
+    }
 
 
 def test_cli_exit_codes_offline_help_and_metadata_receipt(monkeypatch, tmp_path, capsys):
@@ -223,6 +263,7 @@ def test_rust_engine_normalizes_object_decoder_and_rejects_bad_shape():
     assert engine.receipt()["metrics"] == {
         "decode_calls": 1,
         "bytes_decoded": 3,
+        "copies": 1,
         "serializations": 0,
         "subprocesses": 0,
         "refresh_calls": 0,

@@ -403,11 +403,14 @@ def test_binary_adapter_refreshes_only_changed_paths_after_commit(monkeypatch, t
             return {"name": self.name, "metrics": {}}
 
     monkeypatch.setattr(changeset_v2, "select_fast_engine", lambda _: FakeEngine())
+    session = changeset_v2.FastEngineSession()
+    monkeypatch.setattr(session, "select", lambda _preference: FakeEngine())
     receipt = execute_changeset_bytes(
         BINARY_MAGIC + b"payload",
         root=tmp_path,
         apply=True,
-        refresh_fn=lambda paths: refreshed.append(paths) or {"generation": "next"},
+        engine_session=session,
+        refresh_producer=lambda root, paths: refreshed.append((root, paths)) or {"generation": "next"},
     )
 
     assert receipt["status"] == "ok"
@@ -428,7 +431,8 @@ def test_binary_adapter_refreshes_only_changed_paths_after_commit(monkeypatch, t
         "paths": ["a.txt"],
         "result": {"generation": "next"},
     }
-    assert refreshed == [("a.txt",)]
+    assert refreshed == [(tmp_path.resolve(), ("a.txt",))]
+    session.close()
     assert (tmp_path / "a.txt").read_text(encoding="utf-8") == "ok\n"
 
 
