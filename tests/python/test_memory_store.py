@@ -7,6 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 from simplicio import memory_store
+from simplicio.store_adapter import StoreAdapterError
 
 
 @pytest.fixture(autouse=True)
@@ -127,6 +128,125 @@ def test_store_appends_without_overwriting_history(tmp_path):
 def test_store_topic_slugified():
     assert memory_store._slugify("Auth Flow!!") == "auth-flow"
     assert memory_store._slugify("   ") == "untitled"
+
+
+def test_git_audit_failures_are_best_effort(monkeypatch, tmp_path):
+    monkeypatch.setattr(memory_store.shutil, "which", lambda _name: None)
+    assert memory_store._git(tmp_path, "status") is False
+
+    monkeypatch.setattr(memory_store.shutil, "which", lambda _name: "/usr/bin/git")
+
+    def raise_os_error(*_args, **_kwargs):
+        raise OSError("git unavailable")
+
+    monkeypatch.setattr(memory_store.subprocess, "run", raise_os_error)
+    assert memory_store._git(tmp_path, "status") is False
+
+
+def test_rebuild_index_without_notes_is_a_noop(tmp_path):
+    memory_store._rebuild_index(tmp_path / "missing")
+
+
+def test_indexed_recall_skips_malformed_rows(tmp_path):
+    base = tmp_path / "mem"
+    memory_store.init_memory(root=base)
+    index_path = memory_store._index_path(base)
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    index_path.write_text(
+        json.dumps(
+            {
+                "schema": memory_store.MEMORY_INDEX_SCHEMA,
+                "entries": [
+                    None,
+                    {"path": "bad-vector.md", "snippet": "query", "tokens": ["query"], "vector": ["bad"]},
+                    {"path": 42, "snippet": "query", "tokens": ["query"], "vector": [0.0]},
+                    {"path": "ok.md", "snippet": "query", "tokens": ["query"], "vector": [1.0]},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    results = memory_store.recall_memory("query", root=base)
+
+    assert [row["path"] for row in results] == ["ok.md"]
+
+
+def test_indexed_recall_returns_empty_on_adapter_error(monkeypatch, tmp_path):
+    base = tmp_path / "mem"
+    memory_store.init_memory(root=base)
+    memory_store._index_path(base).write_text("{}", encoding="utf-8")
+
+    def fail_read(*_args, **_kwargs):
+        raise StoreAdapterError("adapter unavailable")
+
+    monkeypatch.setattr(memory_store.MapperStoreAdapter, "read", fail_read)
+    assert memory_store.recall_memory("query", root=base) == []
+
+
+def test_recall_ignores_empty_query_and_unreadable_notes(monkeypatch, tmp_path):
+    base = tmp_path / "mem"
+    memory_store.init_memory(root=base)
+    note = base / "notes" / "broken.md"
+    note.write_text("# broken\n\n## entry — actor\n\nquery\n", encoding="utf-8")
+    original_read_text = memory_store.Path.read_text
+
+    def fail_note_read(path, *args, **kwargs):
+        if path == note:
+            raise OSError("note unavailable")
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(memory_store.Path, "read_text", fail_note_read)
+    assert memory_store.recall_memory("!!!", root=base) == []
+    assert memory_store.recall_memory("query", root=base) == []
+
+
+def test_validate_memory_reports_missing_store_and_layout(tmp_path):
+    missing = memory_store.validate_memory(root=tmp_path / "missing")
+    assert missing["ok"] is False
+    assert {row["code"] for row in missing["errors"]} == {"missing_store"}
+
+    incomplete = tmp_path / "incomplete"
+    incomplete.mkdir()
+    payload = memory_store.validate_memory(root=incomplete)
+    assert payload["ok"] is False
+    assert {row["code"] for row in payload["errors"]} == {"missing_readme", "missing_notes_dir"}
+
+
+def test_validate_memory_reports_unreadable_and_malformed_entries(monkeypatch, tmp_path):
+    base = tmp_path / "mem"
+    notes = base / "notes"
+    notes.mkdir(parents=True)
+    (notes / "unreadable.md").write_text("# topic\n", encoding="utf-8")
+    (notes / "malformed.md").write_text("# topic\n\n## malformed\n", encoding="utf-8")
+    original_read_text = memory_store.Path.read_text
+
+    def fail_one_note(path, *args, **kwargs):
+        if path.name == "unreadable.md":
+            raise OSError("permission denied")
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(memory_store.Path, "read_text", fail_one_note)
+    payload = memory_store.validate_memory(root=base)
+
+    assert payload["ok"] is False
+    assert {row["code"] for row in payload["errors"]} >= {"read_failed", "invalid_entry_header"}
+
+
+def test_validate_memory_reports_legacy_and_invalid_index(tmp_path):
+    base = tmp_path / "mem"
+    memory_store.store_memory("topic", "content", root=base)
+    (base / "index.sqlite3").write_bytes(b"legacy")
+    memory_store._index_path(base).write_text(
+        json.dumps({"schema": "wrong", "entries": []}), encoding="utf-8"
+    )
+
+    payload = memory_store.validate_memory(root=base)
+
+    assert payload["ok"] is False
+    assert payload["index"]["legacy_path"].endswith("index.sqlite3")
+    assert any(row["code"] == "legacy_index_read_only" for row in payload["warnings"])
+    assert any(row["code"] == "invalid_index" for row in payload["errors"])
 
 
 def test_validate_memory_reports_ok_for_initialized_store(tmp_path):
