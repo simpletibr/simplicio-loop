@@ -9,7 +9,7 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 try:
     from simplicio_mapper.mapper.file_lock import (
@@ -19,9 +19,9 @@ try:
         release_lock_at,
     )
 except ImportError as exc:  # pragma: no cover - exercised by dependency gate
-    LockHandle = None  # type: ignore[assignment,misc]
-    acquire_lock_at = inspect_lock_at = release_lock_at = None  # type: ignore[assignment]
-    _MAPPER_IMPORT_ERROR = exc
+    LockHandle = cast(Any, None)
+    acquire_lock_at = inspect_lock_at = release_lock_at = cast(Any, None)
+    _MAPPER_IMPORT_ERROR: ImportError | None = exc
 else:
     _MAPPER_IMPORT_ERROR = None
 
@@ -46,7 +46,7 @@ class WriteSetLockManager:
         if _MAPPER_IMPORT_ERROR is not None:
             raise LockError("MAPPER_STORE_UNAVAILABLE", str(_MAPPER_IMPORT_ERROR))
         self.root = Path(root).resolve()
-        self.lock_root = self.root / ".simplicio" / "mapper-store" / "locks"
+        self.lock_root: Path = self.root / ".simplicio" / "mapper-store" / "locks"
         self.lock_root.mkdir(parents=True, exist_ok=True)
         self._handles: dict[str, LockHandle] = {}
 

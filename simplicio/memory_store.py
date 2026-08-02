@@ -36,7 +36,7 @@ import shutil
 import subprocess
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from .store_adapter import MapperStoreAdapter, StoreAdapterError
 
@@ -242,6 +242,10 @@ def _indexed_recall(query: str, *, root: Path, limit: int, mode: str) -> list[di
             snippet = row.get("snippet")
             row_tokens = set(row.get("tokens", []))
             vector_values = row.get("vector", [])
+            if not isinstance(vector_values, list) or not all(
+                isinstance(value, (int, float)) for value in vector_values
+            ):
+                continue
             if not isinstance(path, str) or not isinstance(snippet, str):
                 continue
             overlap = tokens & row_tokens
@@ -261,7 +265,7 @@ def _indexed_recall(query: str, *, root: Path, limit: int, mode: str) -> list[di
                     "components": {"lexical": round(lexical, 4), "vector": round(vector, 4)},
                 }
             )
-        results.sort(key=lambda row: (-row["score"], row["path"]))
+        results.sort(key=lambda row: (-cast(float, row["score"]), str(row["path"])))
         return results[:limit]
     except (OSError, StoreAdapterError, TypeError, ValueError):
         return []
