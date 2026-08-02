@@ -17,12 +17,16 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from simplicio.plan_compiler.mapper_context import ContextBindingCache
-
 SCHEMA = "simplicio.dev-cli.issue-417-context-cache-benchmark/v1"
+_REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _writer(args: tuple[str, int]) -> None:
+    import sys
+
+    sys.path.insert(0, str(_REPO_ROOT))
+    from simplicio.plan_compiler.mapper_context import ContextBindingCache
+
     root, number = args
     cache = ContextBindingCache(root)
     key = f"sha256:{number:064x}"
@@ -37,6 +41,11 @@ def _writer(args: tuple[str, int]) -> None:
 
 
 def _run_case(root: Path, writers: int, repeats: int) -> dict[str, Any]:
+    import sys
+
+    sys.path.insert(0, str(_REPO_ROOT))
+    from simplicio.plan_compiler.mapper_context import ContextBindingCache
+
     case_root = root / f"writers-{writers}"
     case_root.mkdir(parents=True, exist_ok=True)
     samples: list[float] = []
@@ -49,7 +58,15 @@ def _run_case(root: Path, writers: int, repeats: int) -> dict[str, Any]:
             list(pool.map(_writer, ((str(case_root), repeat * writers + n) for n in range(writers))))
         samples.append((time.perf_counter() - started) * 1000.0)
     cache = ContextBindingCache(case_root)
-    health = cache.doctor()
+    state = cache._read()
+    log_path = case_root / ".simplicio" / "context-bindings.hbp"
+    health = {
+        "entries": len(state.get("entries", {})),
+        "bytes": log_path.stat().st_size if log_path.is_file() else 0,
+        "chain_status": state.get("chain_status", "unknown"),
+    }
+    if health["entries"] != writers or health["chain_status"] != "valid":
+        raise RuntimeError(f"cache benchmark health check failed: {health}")
     return {
         "writers": writers,
         "repeats": repeats,
@@ -68,6 +85,10 @@ def main() -> int:
     parser.add_argument("--output", default=None)
     parser.add_argument("--repeats", type=int, default=10)
     args = parser.parse_args()
+    existing_pythonpath = os.environ.get("PYTHONPATH", "")
+    os.environ["PYTHONPATH"] = os.pathsep.join(
+        item for item in (str(_REPO_ROOT), existing_pythonpath) if item
+    )
     if args.repeats < 10:
         parser.error("--repeats must be at least 10")
     owned_root = args.root is None
