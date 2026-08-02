@@ -300,10 +300,16 @@ def _discover_databases(repo_id: str, root: Path) -> list[dict]:
 
 def _policy(matrix: list[dict]) -> dict:
     violations = []
-    legacy_ddl_matches = 0
+    legacy_ddl_files = []
     for item in matrix:
-        if "ddl" in item["kinds"] and item["repo"] != "mapper":
-            legacy_ddl_matches += 1
+        is_legacy_writer = (
+            item["repo"] != "mapper"
+            and "ddl" in item["kinds"]
+            and item.get("criticality") == "critical"
+            and bool(item.get("writers"))
+        )
+        if is_legacy_writer:
+            legacy_ddl_files.append({"repo": item["repo"], "file": item["file"]})
             continue
         if item["criticality"] == "test-only":
             continue
@@ -318,7 +324,8 @@ def _policy(matrix: list[dict]) -> dict:
         "schema": "simplicio.mapper-store-ddl-policy/v1",
         "allowlisted_paths": ["simplicio_mapper/store/", "contracts/mapper-store/", "scripts/mapper_store_inventory.py", "tests/", "fixtures/"],
         "violations": violations,
-        "legacy_ddl_matches": legacy_ddl_matches,
+        "legacy_ddl_matches": len(legacy_ddl_files),
+        "legacy_ddl_files": legacy_ddl_files,
         "scope": "Mapper repository DDL only; consumer repositories are inventoried as legacy evidence",
         "status": "pass" if not violations else "fail",
         "note": "This is a local/read-only gate; no GitHub Actions workflow is added by this issue.",
