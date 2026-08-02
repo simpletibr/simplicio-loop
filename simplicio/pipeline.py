@@ -802,6 +802,97 @@ def _run_static_fixer_attempt(
     return _FixerAttemptOutcome(True, "", verify_receipt, impact, terminal_result)
 
 
+def _handle_primary_attempt_success(
+    *,
+    output: str,
+    attempt: Any,
+    root: str | Path,
+    target: str,
+    prompt: str,
+    primary_test_cmd: str | None,
+    attempt_number: int,
+    quiet: bool,
+    verify_receipt: dict[str, Any] | None,
+    profile: Any,
+    mutation_route: str,
+    task_context: TaskContext,
+    authorization: EffectAuthorization | None,
+) -> tuple[bool, str, dict[str, Any] | None, dict[str, Any] | None]:
+    """Handle impact verification and promotion after primary verification passes."""
+    files_changed = extract_changed_files(output)
+    candidate_root = str(attempt.tx.candidate) if attempt.tx is not None else root
+    impact = _run_impact_tests_compat(candidate_root, files_changed, primary_test_cmd)
+    impact_result = impact.get("result", IMPACT_RESULT_UNVERIFIED) if impact else IMPACT_RESULT_UNVERIFIED
+    if impact_result == IMPACT_RESULT_FAILED:
+        failure = (
+            "impact test failure — callers: "
+            + ", ".join(impact.get("callers", []))[:200]
+            + "\n"
+            + impact.get("output_tail", "")[:1500]
+        )
+        if not quiet:
+            info("impact test failed: %s", failure[:300])
+        return False, failure, impact, None
+    if impact_result not in (IMPACT_RESULT_PASSED, IMPACT_RESULT_NOT_NEEDED):
+        failure = (
+            "impact verification unavailable — "
+            + impact.get("status", "unknown")
+            + ": "
+            + impact.get("error", "no executable impact receipt")
+        )
+        if not quiet:
+            info("impact verification unavailable: %s", failure[:300])
+        emit_event(
+            "validation_fail",
+            {"target": target, "attempts": attempt_number, "warnings": [failure[:500]]},
+            level="warning",
+            root=root,
+        )
+        terminal = _task_result(
+            target,
+            prompt,
+            output,
+            applied=False,
+            warnings=[failure],
+            verify=verify_receipt,
+            impact=impact,
+        )
+        return False, failure, impact, terminal
+    try:
+        if attempt.tx is not None and attempt.receipt is not None:
+            attempt.tx.promote(attempt.receipt)
+    except Exception as exc:
+        return False, str(exc), impact, None
+    if not quiet:
+        info("PASSED the contract (impact verified). DONE.")
+    emit_event(
+        "task_complete",
+        {"target": target, "attempt": attempt_number, "impact": "verified"},
+        root=root,
+        tokens_saved=0,
+    )
+    result = _task_result(
+        target,
+        prompt,
+        output,
+        applied=True,
+        verify=verify_receipt,
+        impact=impact,
+    )
+    result["execution_profile"] = profile.to_dict()
+    terminal = _attach_contract_receipt(
+        result,
+        task_context=task_context,
+        route=mutation_route,
+        effective_mode=profile.effective_mode,
+        authorization=authorization,
+        verification_status=(
+            "verified" if result.get("verify", {}).get("status") == "verified" else "unverified"
+        ),
+    )
+    return True, "", impact, terminal
+
+
 def _run_task(
     root,
     stack,
@@ -1263,96 +1354,24 @@ def _run_task(
             root=root,
         )
         if ok:
-            # Issue #93: run impact tests after the primary test passes
-            files_changed = extract_changed_files(output)
-            candidate_root = str(attempt.tx.candidate) if attempt.tx is not None else root
-            impact_results = _run_impact_tests_compat(candidate_root, files_changed, primary_test_cmd)
-            impact_result = (
-                impact_results.get("result", IMPACT_RESULT_UNVERIFIED)
-                if impact_results
-                else IMPACT_RESULT_UNVERIFIED
+            ok, log, impact_results, terminal_result = _handle_primary_attempt_success(
+                output=output,
+                attempt=attempt,
+                root=root,
+                target=target,
+                prompt=prompt,
+                primary_test_cmd=primary_test_cmd,
+                attempt_number=t,
+                quiet=quiet,
+                verify_receipt=last_verify_receipt,
+                profile=profile,
+                mutation_route=mutation_route,
+                task_context=task_context,
+                authorization=authorization,
             )
-
-            if impact_result == IMPACT_RESULT_FAILED:
-                # Impact test failure → retry as a verify failure
-                ok = False
-                log = (
-                    "impact test failure — callers: "
-                    + ", ".join(impact_results.get("callers", []))[:200]
-                    + "\n"
-                    + impact_results.get("output_tail", "")[:1500]
-                )
-                if not quiet:
-                    info("impact test failed: %s", log[:300])
-            elif impact_result in (IMPACT_RESULT_PASSED, IMPACT_RESULT_NOT_NEEDED):
-                # Impact tests passed or nothing to verify → done
-                try:
-                    if attempt.tx is not None and attempt.receipt is not None:
-                        attempt.tx.promote(attempt.receipt)
-                except Exception as exc:
-                    ok = False
-                    log = str(exc)
-                    last_log = log
-                else:
-                    if not quiet:
-                        info("PASSED the contract (impact verified). DONE.")
-                    emit_event(
-                        "task_complete",
-                        {"target": target, "attempt": t, "impact": "verified"},
-                        root=root,
-                        tokens_saved=0,
-                    )
-                    result = _task_result(
-                        target,
-                        prompt,
-                        output,
-                        applied=True,
-                        verify=last_verify_receipt,
-                        impact=impact_results,
-                    )
-                    result["execution_profile"] = profile.to_dict()
-                    result = _attach_contract_receipt(
-                        result,
-                        task_context=task_context,
-                        route=mutation_route,
-                        effective_mode=profile.effective_mode,
-                        authorization=authorization,
-                        verification_status=(
-                            "verified"
-                            if result.get("verify", {}).get("status") == "verified"
-                            else "unverified"
-                        ),
-                    )
-                    return result
-            else:
-                ok = False
-                log = (
-                    "impact verification unavailable — "
-                    + impact_results.get("status", "unknown")
-                    + ": "
-                    + impact_results.get("error", "no executable impact receipt")
-                )
-                if not quiet:
-                    info("impact verification unavailable: %s", log[:300])
-                # The patch already passed its primary test, but the impact
-                # receipt is missing.  Stop fail-closed here; retrying the
-                # identical diff would reapply against the now-mutated file
-                # and obscure the real blocker with a secondary hunk error.
-                emit_event(
-                    "validation_fail",
-                    {"target": target, "attempts": t, "warnings": [log[:500]]},
-                    level="warning",
-                    root=root,
-                )
-                return _task_result(
-                    target,
-                    prompt,
-                    output,
-                    applied=False,
-                    warnings=[log],
-                    verify=last_verify_receipt,
-                    impact=impact_results,
-                )
+            if terminal_result is not None:
+                return terminal_result
+            last_log = log
 
         fixer_outcome = _run_static_fixer_attempt(
             output=output,
