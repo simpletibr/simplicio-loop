@@ -13,6 +13,7 @@ from typing import Any
 
 import pytest
 
+from simplicio.plan_compiler import mapper_context
 from simplicio.plan_compiler.mapper_context import (
     DEV_CLI_FALLBACK_CONTEXT_SCHEMA,
     MAPPER_CONTEXT_PACK_SCHEMA,
@@ -1130,3 +1131,48 @@ def test_context_binding_cache_recovers_after_writer_process_dies_mid_append(
     assert not lock.is_file()
     recovered = ContextBindingCache(tmp_path)
     assert recovered.lookup(binding.context_handle)["hit"] is True
+
+
+@pytest.mark.parametrize("legacy_line", ["[]", "not-json"])
+def test_context_binding_cache_rejects_malformed_legacy_jsonl(legacy_line: str, tmp_path: Any) -> None:
+    legacy = tmp_path / ".simplicio" / "context-bindings.hbp.jsonl"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_text(legacy_line + "\n", encoding="utf-8")
+
+    with pytest.raises(MapperContextError, match="legacy context cache migration failed"):
+        ContextBindingCache(tmp_path)
+    assert legacy.is_file()
+    assert not (tmp_path / ".simplicio" / "context-bindings.hbp").exists()
+
+
+def test_context_binding_cache_migrates_valid_legacy_jsonl(tmp_path: Any) -> None:
+    legacy = tmp_path / ".simplicio" / "context-bindings.hbp.jsonl"
+    legacy.parent.mkdir(parents=True, exist_ok=True)
+    legacy.write_text(
+        json.dumps(
+            {
+                "kind": "put",
+                "key": "handle-1",
+                "identity": {"source_snapshot_id": "snap-1"},
+                "fence": "1",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    cache = ContextBindingCache(tmp_path)
+    assert cache.log_path.is_file()
+    assert not legacy.exists()
+    assert cache._read()["entries"]["handle-1"]["identity"]["source_snapshot_id"] == "snap-1"
+
+
+def test_context_cache_canonical_helpers_cover_source_handles_and_nan() -> None:
+    graph = {
+        "nodes": [{"source": {"path": "a.py"}}, {"source": "ignored"}],
+        "edges": [{"source_handle": {"path": "b.py"}}, {"source_handle": None}],
+    }
+    handles = mapper_context._source_handles(graph)
+    assert [handle["path"] for handle in handles] == ["a.py", "b.py"]
+    with pytest.raises(MapperContextError, match="canonical JSON"):
+        mapper_context._canonical_json_bytes({"value": float("nan")})
