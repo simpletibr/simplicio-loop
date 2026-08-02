@@ -44,11 +44,18 @@ PATTERNS = {
     "migration": re.compile(r"\b(?:migration|migrate|schema_version|user_version|upgrade|downgrade)\b", re.I),
     "command": re.compile(r"(?:\bsqlite3\b|\.backup\b|\bVACUUM\b|\bBEGIN\s+IMMEDIATE\b|\bwal\b|\bbusy_timeout\b)", re.I),
 }
-WRITE_EVIDENCE = re.compile(
-    r"\b(?:INSERT|UPDATE|DELETE|REPLACE|UPSERT|CREATE\s+(?:TEMP(?:ORARY)?\s+)?(?:VIRTUAL\s+)?(?:TABLE|INDEX|VIEW|TRIGGER)|"
-    r"ALTER\s+TABLE|DROP\s+(?:TABLE|INDEX|TRIGGER|VIEW)|ATTACH\s+DATABASE|VACUUM|BEGIN\s+IMMEDIATE|"
-    r"PRAGMA\s+(?:journal_mode|wal_checkpoint)|executemany)\b|"
-    r"\.execute(?:_batch)?\s*\(\s*['\"]\s*(?:INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP|PRAGMA\s+(?:journal_mode|wal_checkpoint))",
+EXECUTE_CALL = re.compile(
+    r"(?:\.|::)\s*(?:execute|execute_batch|executescript|executemany|execute_sql|execute_query)\s*\(",
+    re.I,
+)
+# A file may mention SQL in policy text, examples, read-only probes, or tests.
+# Count a persistent writer only when a mutation is tied to an execution call.
+# Temporary tables and read-only PRAGMAs are deliberately excluded.
+PERSISTENT_WRITE_SQL = re.compile(
+    r"\b(?:INSERT|UPDATE|DELETE|REPLACE|UPSERT|"
+    r"CREATE\s+(?!(?:TEMP(?:ORARY)?\b))(?:(?:VIRTUAL)\s+)?(?:TABLE|INDEX|VIEW|TRIGGER)|"
+    r"ALTER\s+TABLE|DROP\s+(?:TABLE|INDEX|TRIGGER|VIEW)|"
+    r"PRAGMA\s+(?:journal_mode|wal_checkpoint|user_version))\b",
     re.I,
 )
 SECRET_NAME = r"[A-Za-z0-9_-]*(?:token|access[_-]?token|auth[_-]?token|secret(?:[_-]?access[_-]?key)?|password|api[_-]?key|x[_-]?api[_-]?key|private[_-]?key|client[_-]?secret|credential)"  # noqa: S105
@@ -167,7 +174,34 @@ def _is_behavioral_path(relative: str) -> bool:
 
 
 def _has_write_evidence(lines: list[str]) -> bool:
-    return any(WRITE_EVIDENCE.search(line) for line in lines)
+    return _has_persistent_write_evidence(lines)
+
+
+def _comment_only(line: str) -> bool:
+    stripped = line.lstrip()
+    return not stripped or stripped.startswith(("#", "//", "/*", "*", "--"))
+
+
+def _has_persistent_write_evidence(lines: list[str], *, suffix: str = "") -> bool:
+    """Return true only for executable, persistent SQLite mutation evidence.
+
+    The inventory scans source text, so a file-level ``CREATE TABLE`` match is
+    not enough: action-gate policy strings and read-only schema verifiers must
+    not be reported as database owners. A small nearby execution window also
+    handles multiline ``execute_batch``/``executescript`` statements without
+    pretending to parse every host language.
+    """
+    for index, line in enumerate(lines):
+        if _comment_only(line) or not PERSISTENT_WRITE_SQL.search(line):
+            continue
+        if suffix.lower() == ".sql":
+            return True
+        start = max(0, index - 3)
+        end = min(len(lines), index + 4)
+        window = " ".join(candidate for candidate in lines[start:end] if not _comment_only(candidate))
+        if EXECUTE_CALL.search(window):
+            return True
+    return False
 
 
 def _classify(relative: str, kinds: set[str]) -> str:
@@ -230,7 +264,11 @@ def _scan_sources(repo_id: str, root: Path, changed_files: set[str] | None = Non
         })
         behavioral = _is_behavioral_path(relative)
         evidence_text = " ".join(match["evidence"] for match in file_matches)
-        writers = [repo_id] if behavioral and _has_write_evidence(lines) else []
+        writers = (
+            [repo_id]
+            if behavioral and _has_persistent_write_evidence(lines, suffix=path.suffix)
+            else []
+        )
         matrix.append({
             "repo": repo_id,
             "file": relative_text,

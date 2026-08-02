@@ -66,6 +66,29 @@ def test_write_evidence_excludes_read_only_adapter_references() -> None:
     ]) is True
 
 
+def test_write_evidence_ignores_policy_text_read_only_probes_and_temp_tables() -> None:
+    assert INVENTORY._has_write_evidence([
+        '# the policy blocks "DROP TABLE" actions',
+        'cursor.execute("PRAGMA table_info(\\"tasks\\")")',
+        'conn.execute("CREATE TEMP TABLE probe (id INTEGER)")',
+    ]) is False
+
+
+def test_write_evidence_tracks_multiline_execution_calls() -> None:
+    assert INVENTORY._has_write_evidence([
+        'connection.execute_batch(',
+        '    "CREATE TABLE tasks (id INTEGER);",',
+        ')',
+    ]) is True
+
+
+def test_write_evidence_does_not_treat_unexecuted_sql_strings_as_writers() -> None:
+    assert INVENTORY._has_write_evidence([
+        'let sql = "CREATE TABLE vectors (id INTEGER)";',
+        'let risk = "DROP TABLE users";',
+    ]) is False
+
+
 def test_redaction_covers_bearer_headers_and_sql_default_values(tmp_path: Path) -> None:
     _write(
         tmp_path,
