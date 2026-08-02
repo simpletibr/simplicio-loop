@@ -193,6 +193,50 @@ def test_fast_v3_context_provenance_is_additive_and_engine_neutral() -> None:
         ).validate_engine_binding()
 
 
+@pytest.mark.parametrize(
+    ("overrides", "code"),
+    [
+        ({"engine": "wasm"}, "ENGINE_UNSUPPORTED"),
+        ({"engine": "rust", "capability_digest": "", "base_generation": "g"}, "ENGINE_CAPABILITIES_MISSING"),
+        ({"base_generation": "g-2", "generation": "g-1"}, "GENERATION_MISMATCH"),
+        ({"source_hashes": (("src/main.py", "not-a-sha"),)}, "SOURCE_HASH_INVALID"),
+    ],
+)
+def test_context_handle_rejects_invalid_engine_provenance(overrides: dict[str, Any], code: str) -> None:
+    values: dict[str, Any] = {
+        "snapshot_id": "snap",
+        "revision": "rev",
+        "source_digest": "a" * 64,
+        "pack_hash": "b" * 64,
+        "mapper_version": "0.26.9",
+        "source_root_identity": "root",
+        "projection_digest": "c" * 64,
+        "generation": "g-1",
+    }
+    values.update(overrides)
+    with pytest.raises(MapperContextError, match=code):
+        ContextHandle(**values).validate_engine_binding()
+
+
+def test_context_handle_rejects_storage_internals_in_public_view() -> None:
+    class LeakingHandle(ContextHandle):
+        def to_dict(self) -> dict[str, Any]:
+            return {"mmap_offset": 12}
+
+    handle = LeakingHandle(
+        snapshot_id="snap",
+        revision="rev",
+        source_digest="a" * 64,
+        pack_hash="b" * 64,
+        mapper_version="0.26.9",
+        source_root_identity="root",
+        projection_digest="c" * 64,
+        generation="g",
+    )
+    with pytest.raises(MapperContextError, match="ENGINE_INTERNAL_LEAK"):
+        handle.validate_engine_binding()
+
+
 def test_context_binding_cache_is_cross_process_and_digest_scoped(
     mapper_boundary: None, tmp_path: Any
 ) -> None:
@@ -433,6 +477,30 @@ def test_context_binding_cache_preserves_corrupt_legacy_store(mapper_boundary: N
         ContextBindingCache(tmp_path)
     assert legacy.is_file()
     assert not (tmp_path / ".simplicio" / "context-bindings.hbp").exists()
+
+
+@pytest.mark.parametrize(
+    "legacy",
+    [[], {"schema": "wrong", "entries": {}}],
+)
+def test_context_binding_cache_rejects_invalid_legacy_shapes(legacy: Any, tmp_path: Any) -> None:
+    path = tmp_path / ".simplicio" / "context-bindings.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(legacy), encoding="utf-8")
+
+    with pytest.raises(MapperContextError, match="legacy context cache is corrupt"):
+        ContextBindingCache(tmp_path)
+
+
+def test_context_binding_cache_handles_log_stat_failure(tmp_path: Any) -> None:
+    cache = ContextBindingCache(tmp_path)
+
+    class BrokenPath:
+        def stat(self) -> None:
+            raise OSError("stat unavailable")
+
+    cache.log_path = BrokenPath()  # type: ignore[assignment]
+    assert cache._log_signature() is None
 
 
 @pytest.mark.parametrize(
