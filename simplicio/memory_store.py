@@ -316,6 +316,13 @@ def recall_memory(
                         "path": str(path),
                         "snippet": section.strip()[:800],
                         "score": round(score, 4),
+                        "mode": "lexical",
+                        "requested_mode": mode,
+                        "components": {
+                            "lexical": round(score, 4),
+                            "vector": None,
+                            "vector_available": False,
+                        },
                     },
                 )
             )

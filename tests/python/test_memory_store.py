@@ -102,6 +102,26 @@ def test_recall_is_read_only_for_markdown_without_derived_index(tmp_path):
     assert not memory_store._index_path(base).exists()
 
 
+@pytest.mark.parametrize("mode", ("fts5", "vector", "hybrid"))
+def test_recall_fallback_reports_honest_lexical_components_without_index(tmp_path, mode):
+    base = tmp_path / "mem"
+    memory_store.init_memory(root=base)
+    (base / "notes" / "topic.md").write_text(
+        "# topic\n\n## 2026-01-01T00:00:00Z — test\n\nmapper handoff\n",
+        encoding="utf-8",
+    )
+
+    results = memory_store.recall_memory("mapper handoff", root=base, mode=mode)
+
+    assert results[0]["mode"] == "lexical"
+    assert results[0]["requested_mode"] == mode
+    assert results[0]["components"] == {
+        "lexical": 1.0,
+        "vector": None,
+        "vector_available": False,
+    }
+
+
 def test_concurrent_memory_store_preserves_all_topics(tmp_path):
     base = tmp_path / "mem"
 
