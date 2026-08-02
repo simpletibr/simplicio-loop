@@ -14,6 +14,7 @@ CLI_PROG = "simplicio-py"
 
 
 def run(a: argparse.Namespace) -> int:
+    from ..memory_migration import backup_memory, restore_memory
     from ..memory_store import build_handoff, init_memory, recall_memory, store_memory, validate_memory
 
     if a.memory_cmd == "init":
@@ -77,5 +78,21 @@ def run(a: argparse.Namespace) -> int:
             for row in payload["results"]:
                 print(f"[{row['score']}] {row['topic']}: {row['snippet'][:120]}")
         return 0
+    if a.memory_cmd == "backup":
+        payload = backup_memory(a.dir, a.output)
+        print(
+            json.dumps(payload, sort_keys=True)
+            if a.json
+            else f"{CLI_PROG} memory backup: {payload['status']}"
+        )
+        return 0 if payload["status"] == "ok" else 2
+    if a.memory_cmd == "restore":
+        payload = restore_memory(a.backup, a.dir, apply=a.apply)
+        print(
+            json.dumps(payload, sort_keys=True)
+            if a.json
+            else f"{CLI_PROG} memory restore: {payload['status']}"
+        )
+        return 0 if payload["status"] in {"ok", "dry_run"} else 2
     print(f"{CLI_PROG} memory: unsupported command", file=sys.stderr)
     return 2

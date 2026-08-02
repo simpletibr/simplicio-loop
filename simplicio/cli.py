@@ -694,6 +694,15 @@ def _build_parser() -> argparse.ArgumentParser:
     p_mem_handoff.add_argument("--from-agent", default=None)
     p_mem_handoff.add_argument("--to-agent", default=None)
     p_mem_handoff.add_argument("--json", action="store_true")
+    p_mem_backup = memory_sub.add_parser("backup", help="create a hash-bound memory backup")
+    p_mem_backup.add_argument("--dir", default=None)
+    p_mem_backup.add_argument("--output", required=True)
+    p_mem_backup.add_argument("--json", action="store_true")
+    p_mem_restore = memory_sub.add_parser("restore", help="preview or apply a hash-bound memory restore")
+    p_mem_restore.add_argument("--dir", default=None)
+    p_mem_restore.add_argument("--backup", required=True)
+    p_mem_restore.add_argument("--apply", action="store_true")
+    p_mem_restore.add_argument("--json", action="store_true")
 
     return ap
 
