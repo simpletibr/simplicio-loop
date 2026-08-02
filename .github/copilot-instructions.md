@@ -247,3 +247,11 @@ This section complements the repository-specific guidance already in this file. 
 - Stop only when the requested work is complete, validation is documented, and `GOAL_RESULT.md` reflects the outcome.
 - Do not rewrite unrelated architecture, fake successful validation, expose secrets, or push without explicit operator instruction for the active session.
 <!-- codex-long-running-agent-overlay:end -->
+
+## LLM command and feature index
+
+Use [`docs/CLI_COMMANDS.md`](../docs/CLI_COMMANDS.md) as the complete command
+map and run the most specific `--help` before using a command. New commands
+must include meaningful `help=` text and a help regression check. Work items
+use objective, implementation/deployment, and test evidence; do not add
+Acceptance Criteria sections to new or updated issues.

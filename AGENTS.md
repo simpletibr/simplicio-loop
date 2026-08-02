@@ -368,3 +368,15 @@ This section complements the repository-specific guidance already in this file. 
 - Stop only when the requested work is complete, validation is documented, and `GOAL_RESULT.md` reflects the outcome.
 - Do not rewrite unrelated architecture, fake successful validation, expose secrets, or push without explicit operator instruction for the active session.
 <!-- codex-long-running-agent-overlay:end -->
+
+## LLM command and feature index
+
+The complete user-facing command map is [`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.md).
+Before invoking a capability, run the most specific `--help` (`simplicio-py
+<command> --help`); every added command must have meaningful `help=` text and a
+regression check. The current train is Mapper 0.26.10, Dev CLI 0.18.6, and Fast
+2.0.22.
+
+For GitHub work items, use objective, implementation/deployment notes, and real
+test evidence. Do not add an Acceptance Criteria section to new or updated
+issues; report unverified work honestly.

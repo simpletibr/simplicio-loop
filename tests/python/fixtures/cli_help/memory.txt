@@ -1,5 +1,6 @@
 usage: simplicio-py memory [-h]
-                           {init,store,import,recall,validate,handoff,backup,restore} ...
+                           {init,store,import,recall,validate,handoff,backup,restore}
+                           ...
 
 positional arguments:
   {init,store,import,recall,validate,handoff,backup,restore}

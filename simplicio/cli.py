@@ -504,28 +504,46 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_token = sub.add_parser("token", help="token-efficient execution primitives")
     token_sub = p_token.add_subparsers(dest="token_cmd", required=True)
-    p_log = token_sub.add_parser("log-summary")
+    p_log = token_sub.add_parser(
+        "log-summary",
+        help="summarize token usage and savings events from a log",
+    )
     p_log.add_argument("--file", default="-")
     p_log.add_argument("--max-chars", type=int, default=1200)
-    p_diff = token_sub.add_parser("diff-review")
+    p_diff = token_sub.add_parser(
+        "diff-review",
+        help="review a diff for risk, scope and verification gaps",
+    )
     p_diff.add_argument("--root", default=".")
     p_diff.add_argument("--max-patch-chars", type=int, default=4000)
-    p_post = token_sub.add_parser("postconditions")
+    p_post = token_sub.add_parser(
+        "postconditions",
+        help="check postconditions recorded by a task run",
+    )
     p_post.add_argument("--file", default="-")
     p_post.add_argument("--root", default=".")
-    p_retry = token_sub.add_parser("retry")
+    p_retry = token_sub.add_parser(
+        "retry",
+        help="classify a failure and produce a bounded retry decision",
+    )
     p_retry.add_argument("--reason", required=True)
     p_retry.add_argument("--failure-json", default="{}")
     p_retry.add_argument("--log-file")
     p_retry.add_argument("--max-log-chars", type=int, default=1000)
-    p_route = token_sub.add_parser("model-routing")
+    p_route = token_sub.add_parser(
+        "model-routing",
+        help="inspect model/provider routing decisions without executing them",
+    )
     p_route.add_argument("--file", default="-")
-    p_cache = token_sub.add_parser("context-cache")
+    p_cache = token_sub.add_parser(
+        "context-cache",
+        help="read, write or invalidate the repository context cache",
+    )
     cache_sub = p_cache.add_subparsers(dest="cache_cmd", required=True)
     for p_cache_action in (
-        cache_sub.add_parser("get"),
-        cache_sub.add_parser("put"),
-        cache_sub.add_parser("invalidate"),
+        cache_sub.add_parser("get", help="read one cached context entry"),
+        cache_sub.add_parser("put", help="store one context entry in the cache"),
+        cache_sub.add_parser("invalidate", help="remove one cached context entry"),
     ):
         p_cache_action.add_argument("--root", default=".")
         p_cache_action.add_argument("--key")
@@ -576,7 +594,9 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_runtime = sub.add_parser("runtime", help="runtime-facing dev-cli contracts")
     runtime_sub = p_runtime.add_subparsers(dest="runtime_cmd", required=True)
-    p_runtime_doctor = runtime_sub.add_parser("doctor")
+    p_runtime_doctor = runtime_sub.add_parser(
+        "doctor", help="inspect Runtime availability and local contract readiness"
+    )
     p_runtime_doctor.add_argument("--root", default=".")
     p_runtime_doctor.add_argument("--json", action="store_true")
     p_runtime_verify = runtime_sub.add_parser(
@@ -588,7 +608,9 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="optional Runtime probe deadline in seconds (default: no deadline)",
     )
-    p_runtime_capabilities = runtime_sub.add_parser("capabilities")
+    p_runtime_capabilities = runtime_sub.add_parser(
+        "capabilities", help="render the Runtime capability handshake"
+    )
     p_runtime_capabilities.add_argument("--root", default=".")
     p_runtime_capabilities.add_argument("--mode", choices=["auto", "integrated", "standalone"])
     p_runtime_capabilities.add_argument(
@@ -613,7 +635,9 @@ def _build_parser() -> argparse.ArgumentParser:
         "prototype", help="Prototype-First plan, scaffold, validate and promotion gate"
     )
     prototype_sub = p_prototype.add_subparsers(dest="prototype_cmd", required=True)
-    p_proto_plan = prototype_sub.add_parser("plan")
+    p_proto_plan = prototype_sub.add_parser(
+        "plan", help="compile and freeze a prototype plan"
+    )
     p_proto_plan.add_argument("--input", help="Loop/Mapper prototype-plan JSON")
     p_proto_plan.add_argument("--goal", default="")
     p_proto_plan.add_argument(
@@ -639,8 +663,16 @@ def _build_parser() -> argparse.ArgumentParser:
     p_proto_plan.add_argument("--root", default=".", help="source tree the plan's source_sha is anchored to")
     p_proto_plan.add_argument("--output", default=".simplicio/prototype-plan.json")
     p_proto_plan.add_argument("--json", action="store_true")
+    prototype_help = {
+        "scaffold": "create a prototype candidate from a frozen plan",
+        "dry-run": "simulate prototype execution without changing the target",
+        "validate": "validate a prototype candidate and its receipt",
+        "diff": "show the proposed prototype diff",
+        "promote": "promote a validated prototype into the target",
+        "reject": "record rejection of a prototype candidate",
+    }
     for name in ("scaffold", "dry-run", "validate", "diff", "promote", "reject"):
-        p = prototype_sub.add_parser(name)
+        p = prototype_sub.add_parser(name, help=prototype_help[name])
         p.add_argument("--root", default=".")
         p.add_argument("--plan", required=True)
         p.add_argument("--candidate")
@@ -650,7 +682,9 @@ def _build_parser() -> argparse.ArgumentParser:
         p.add_argument("--force", action="store_true")
         p.add_argument("--timeout", type=float, default=60.0)
         p.add_argument("--json", action="store_true")
-    p_proto_doctor = prototype_sub.add_parser("doctor")
+    p_proto_doctor = prototype_sub.add_parser(
+        "doctor", help="health-check the prototype gate and tracked flows"
+    )
     p_proto_doctor.add_argument("--json", action="store_true")
     p_proto_batch = prototype_sub.add_parser(
         "batch", help="scaffold+validate many plans concurrently, bounded by --concurrency"

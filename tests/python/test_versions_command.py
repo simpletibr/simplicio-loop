@@ -27,7 +27,7 @@ def test_versions_report_shape(tmp_path_factory):
     assert payload["schema"] == "simplicio.dev-cli.versions/v1"
     mapper = payload["mapper"]
     assert mapper["installed"]
-    assert mapper["declared_range"] == ">=0.26.2"
+    assert mapper["declared_range"] == ">=0.26.10,<0.27"
     assert mapper["latest_known"] is None
     assert mapper["unavailable_reason"] == "no_registry_access"
     assert payload["drift"]["kind"] in {None, "stale_vs_tested", "out_of_range", "not_installed"}
@@ -74,7 +74,7 @@ def test_doctor_json_includes_mapper_versions_section(monkeypatch, tmp_path, cap
     payload = json.loads(capsys.readouterr().out)
     assert "mapper_versions" in payload
     assert payload["mapper_versions"]["schema"] == "simplicio.dev-cli.versions/v1"
-    assert payload["mapper_versions"]["mapper"]["declared_range"] == ">=0.26.2"
+    assert payload["mapper_versions"]["mapper"]["declared_range"] == ">=0.26.10,<0.27"
 
 
 # --------------------------------------------------------------------------- #
