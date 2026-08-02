@@ -9,6 +9,7 @@ from scripts.mapper_store_external_conformance import (
     _host_platform,
     _platform_for_scenario,
     _receipt,
+    _runtime_backed,
     canonical_hash,
 )
 from simplicio_mapper.contract import validate_instance
@@ -59,3 +60,15 @@ class ExternalConformanceProducerTest(unittest.TestCase):
     def test_platform_mapping_is_not_a_simulation(self) -> None:
         self.assertEqual(_platform_for_scenario("Windows"), "Windows")
         self.assertIsNone(_platform_for_scenario("fresh standalone"))
+
+    def test_runtime_lane_requires_an_installed_binary(self) -> None:
+        ok, reason, observations = _runtime_backed(
+            mapper_root=Path("."),
+            runtime_binary=None,
+            legacy_memory_dir=None,
+            upgrade=False,
+            timeout=1.0,
+        )
+        self.assertFalse(ok)
+        self.assertIn("--runtime-binary", reason)
+        self.assertEqual(observations, {})

@@ -5,8 +5,8 @@ The final Mapper gate is deliberately read-only and does not import consumer
 packages. This command is the complementary producer: it installs the
 supplied wheels into a disposable venv, runs one explicitly named scenario,
 and emits ``simplicio.mapper-store-conformance-evidence/v1``. Unsupported
-platforms or missing upgrade seeds remain ``unverified``; this tool never
-turns a skipped lane into a pass.
+platforms, missing runtime binaries, or missing upgrade seeds remain
+``unverified``; this tool never turns a skipped lane into a pass.
 """
 
 from __future__ import annotations
@@ -221,6 +221,178 @@ def _file_hash(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _runtime_backed(
+    *,
+    mapper_root: Path,
+    runtime_binary: Path | None,
+    legacy_memory_dir: Path | None,
+    upgrade: bool,
+    timeout: float,
+) -> tuple[bool, str, dict[str, Any]]:
+    """Exercise the installed Runtime memory-v2 process on a Mapper DB."""
+    if runtime_binary is None:
+        return False, "runtime-backed scenario requires --runtime-binary", {}
+    if not runtime_binary.is_file():
+        return False, "runtime binary does not exist", {"runtime_binary": str(runtime_binary)}
+    if legacy_memory_dir is not None and not legacy_memory_dir.is_dir():
+        return False, "upgrade seed directory does not exist", {}
+
+    with tempfile.TemporaryDirectory(prefix="mapper-store-runtime-conformance-") as raw:
+        sandbox = Path(raw)
+        fixture = sandbox / "fixture"
+        fixture.mkdir()
+        database = sandbox / "memory.sqlite"
+        legacy_root = sandbox / "legacy-memory"
+        if legacy_memory_dir is not None:
+            shutil.copytree(legacy_memory_dir, legacy_root)
+        legacy_before = {
+            str(path.relative_to(legacy_root)): _file_hash(path)
+            for path in legacy_root.rglob("*")
+            if path.is_file()
+        }
+
+        init_env = os.environ.copy()
+        existing_pythonpath = init_env.get("PYTHONPATH")
+        init_env["PYTHONPATH"] = os.pathsep.join(
+            item for item in (str(mapper_root), existing_pythonpath) if item
+        )
+        initialize = _run(
+            [
+                sys.executable,
+                "-c",
+                "from simplicio_mapper.store import init_memory; "
+                "import sys; init_memory(database=sys.argv[1])",
+                str(database),
+            ],
+            cwd=fixture,
+            env=init_env,
+            timeout=timeout,
+        )
+        observations: dict[str, Any] = {
+            "runtime_binary": str(runtime_binary),
+            "runtime_binary_sha256": _file_hash(runtime_binary),
+            "mapper_database": str(database),
+            "initialize_mapper_store": initialize,
+        }
+        if initialize["status"] != "pass":
+            return False, "MapperStore database initialization failed", observations
+
+        runtime_env = os.environ.copy()
+        runtime_env["SIMPLICIO_MEMORY_DB"] = str(database)
+        commands: list[tuple[str, list[str]]] = [
+            (
+                "runtime_status",
+                [str(runtime_binary), "memory-v2", "status", "--json", "--db", str(database)],
+            ),
+            (
+                "runtime_store",
+                [
+                    str(runtime_binary),
+                    "memory-v2",
+                    "store",
+                    "conformance",
+                    "runtime receipt",
+                    "--content",
+                    "runtime-backed mapper-store evidence",
+                    "--json",
+                    "--db",
+                    str(database),
+                ],
+            ),
+            (
+                "runtime_assert",
+                [
+                    str(runtime_binary),
+                    "memory-v2",
+                    "assert",
+                    "runtime.subject",
+                    "runtime.link",
+                    "runtime.object",
+                    "--type",
+                    "semantic",
+                    "--json",
+                    "--db",
+                    str(database),
+                ],
+            ),
+            (
+                "runtime_history",
+                [
+                    str(runtime_binary),
+                    "memory-v2",
+                    "history",
+                    "runtime.subject",
+                    "--json",
+                    "--db",
+                    str(database),
+                ],
+            ),
+            (
+                "runtime_graphify",
+                [
+                    str(runtime_binary),
+                    "memory-v2",
+                    "graphify",
+                    "--dry-run",
+                    "--json",
+                    "--db",
+                    str(database),
+                ],
+            ),
+        ]
+        for name, command in commands:
+            result = _run(command, cwd=fixture, env=runtime_env, timeout=timeout)
+            observations[name] = result
+            if result["status"] != "pass":
+                return False, f"{name} failed", observations
+
+        status_payload = _last_json(observations["runtime_status"].get("stdout", ""))
+        if not status_payload or status_payload.get("schema") != "simplicio.mapper-store.memory-api/v1":
+            return False, "Runtime did not report the MapperStore memory schema", observations
+        if status_payload.get("db_path") != str(database) or status_payload.get("fts_available") is not True:
+            return False, "Runtime did not use the canonical FTS5 database", observations
+
+        inspect = _run(
+            [
+                sys.executable,
+                "-c",
+                "import json, sqlite3, sys; "
+                "db=sqlite3.connect(sys.argv[1]); "
+                "tables=sorted(row[0] for row in db.execute(\"select name from sqlite_master where type='table' and name not like 'sqlite_%'\")); "
+                "print(json.dumps({'tables': tables, 'semantic_relations': 'semantic_relations' in tables, 'memory_entries': 'memory_entries' in tables}))",
+                str(database),
+            ],
+            cwd=fixture,
+            env=runtime_env,
+            timeout=timeout,
+        )
+        observations["database_inventory"] = inspect
+        inventory_payload = _last_json(inspect.get("stdout", ""))
+        if inspect["status"] != "pass" or not inventory_payload:
+            return False, "canonical database inventory failed", observations
+        observations["canonical_tables"] = inventory_payload.get("tables", [])
+        if not inventory_payload.get("memory_entries") or not inventory_payload.get("semantic_relations"):
+            return False, "Runtime database is missing canonical MapperStore tables", observations
+
+        legacy_paths = [path for path in sandbox.rglob("index.sqlite3") if path.is_file()]
+        if not upgrade and legacy_paths:
+            return False, "runtime-backed fresh lane materialized a legacy SQLite index", observations
+        legacy_after = {
+            str(path.relative_to(legacy_root)): _file_hash(path)
+            for path in legacy_root.rglob("*")
+            if path.is_file()
+        }
+        observations["legacy_before"] = legacy_before
+        observations["legacy_after"] = legacy_after
+        if upgrade and legacy_before != legacy_after:
+            return False, "runtime-backed upgrade changed the preserved legacy SQLite index", observations
+        return True, (
+            "upgrade runtime-backed installed Runtime lane passed"
+            if upgrade
+            else "fresh runtime-backed installed Runtime lane passed"
+        ), observations
+
+
 def _standalone(
     *,
     wheels: Mapping[str, Path],
@@ -330,6 +502,7 @@ def run_scenario(
     repos: Mapping[str, Path],
     wheels: Mapping[str, Path],
     legacy_memory_dir: Path | None,
+    runtime_binary: Path | None,
     timeout: float,
 ) -> dict[str, Any]:
     repository_revisions, clean = repository_evidence(repos)
@@ -365,7 +538,46 @@ def run_scenario(
             legacy_ddl_matches=legacy_ddl_matches,
             observations={"inventory": inventory_observation},
         )
-    if scenario not in {"fresh standalone", "upgrade standalone"}:
+    if scenario in {"fresh runtime-backed", "upgrade runtime-backed"}:
+        if scenario == "upgrade runtime-backed" and legacy_memory_dir is None:
+            return _receipt(
+                scenario=scenario,
+                repositories=repository_revisions,
+                working_tree_clean=clean,
+                status="unverified",
+                ok=False,
+                reason="upgrade requires an explicit legacy memory seed directory",
+                platform_name=host,
+                legacy_ddl_matches=legacy_ddl_matches,
+                observations={"inventory": inventory_observation},
+            )
+        ok, reason, observations = _runtime_backed(
+            mapper_root=repos["mapper"],
+            runtime_binary=runtime_binary,
+            legacy_memory_dir=legacy_memory_dir,
+            upgrade=scenario == "upgrade runtime-backed",
+            timeout=timeout,
+        )
+    elif scenario in {"fresh standalone", "upgrade standalone"}:
+        if scenario == "upgrade standalone" and legacy_memory_dir is None:
+            return _receipt(
+                scenario=scenario,
+                repositories=repository_revisions,
+                working_tree_clean=clean,
+                status="unverified",
+                ok=False,
+                reason="upgrade requires an explicit legacy memory seed directory",
+                platform_name=host,
+                legacy_ddl_matches=legacy_ddl_matches,
+                observations={"inventory": inventory_observation},
+            )
+        ok, reason, observations = _standalone(
+            wheels=wheels,
+            legacy_memory_dir=legacy_memory_dir,
+            upgrade=scenario == "upgrade standalone",
+            timeout=timeout,
+        )
+    else:
         return _receipt(
             scenario=scenario,
             repositories=repository_revisions,
@@ -377,24 +589,6 @@ def run_scenario(
             legacy_ddl_matches=legacy_ddl_matches,
             observations={"inventory": inventory_observation},
         )
-    if scenario == "upgrade standalone" and legacy_memory_dir is None:
-        return _receipt(
-            scenario=scenario,
-            repositories=repository_revisions,
-            working_tree_clean=clean,
-            status="unverified",
-            ok=False,
-            reason="upgrade requires an explicit legacy memory seed directory",
-            platform_name=host,
-            legacy_ddl_matches=legacy_ddl_matches,
-            observations={"inventory": inventory_observation},
-        )
-    ok, reason, observations = _standalone(
-        wheels=wheels,
-        legacy_memory_dir=legacy_memory_dir,
-        upgrade=scenario == "upgrade standalone",
-        timeout=timeout,
-    )
     observations["inventory"] = inventory_observation
     if legacy_ddl_matches:
         ok = False
@@ -436,6 +630,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", action="append", default=[], help="clean producer checkout as name=path")
     parser.add_argument("--wheel", action="append", default=[], help="consumer wheel as name=path (mapper, dev-cli, loop)")
     parser.add_argument("--legacy-memory-dir", type=Path)
+    parser.add_argument("--runtime-binary", type=Path, help="installed Runtime binary for runtime-backed scenarios")
     parser.add_argument("--timeout", type=float, default=60.0)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
@@ -447,6 +642,7 @@ def main(argv: list[str] | None = None) -> int:
         repos=repos,
         wheels=wheels,
         legacy_memory_dir=legacy,
+        runtime_binary=args.runtime_binary.expanduser().resolve() if args.runtime_binary else None,
         timeout=args.timeout,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
