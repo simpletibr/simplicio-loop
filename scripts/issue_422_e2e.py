@@ -580,6 +580,74 @@ def _runtime_scenario() -> dict[str, Any]:
             "replay_state": replay.get("state"),
             "content": content,
         }
+    before_hash = _sha(b"before\n")
+    after_hash = _sha(expected_content.encode("utf-8"))
+    evidence = {
+        "schema": "simplicio.effect-reconciliation-evidence/v1",
+        "idempotency_key": key,
+        "repo": str(root),
+        "files": [
+            {
+                "path": target.relative_to(root).as_posix(),
+                "before_sha256": before_hash,
+                "after_sha256": after_hash,
+            }
+        ],
+    }
+    evidence["evidence_sha256"] = canonical_hash(evidence)
+    evidence_file = artifact_dir / "reconciliation-evidence.json"
+    evidence_file.write_text(
+        json.dumps(evidence, sort_keys=True, separators=(",", ":")), encoding="utf-8"
+    )
+    firewall_transaction = {
+        "schema": "simplicio.effect-transaction/v1",
+        "executor": "simplicio-runtime",
+        "request": {
+            "schema": "simplicio.effect-request/v1",
+            "capability": "simplicio_effect_reconcile",
+            "identity": {
+                "session": run_id,
+                "turn": "runtime-reconcile",
+                "tool_call": key,
+                "attempt": "1",
+                "transaction": key,
+            },
+            "authority": "issue-422-evidence",
+            "policy_receipt": "issue-422-local-gate",
+            "idempotency_key": key,
+            "action_digest": "sha256:" + canonical_hash(evidence),
+            "validation_plan": "runtime-file-hashes",
+            "rollback_plan": "safe-boundary-only",
+            "redaction_plan": "none",
+            "write_set": [".simplicio/ops/mcp-effects/hbp-inbox.bin"],
+            "preconditions": ["isolated-root"],
+            "lease": {"id": lease_id, "fence": 1},
+            "deadline_ms": int(time.time() * 1000) + 300_000,
+            "cancellation": "safe_boundary_only",
+        },
+    }
+    try:
+        reconciliation = _runtime_mcp_tool(
+            binary,
+            "simplicio_effect_reconcile",
+            {
+                "idempotency_key": key,
+                "repo": str(root),
+                "evidence_file": str(evidence_file),
+                "transaction": transaction,
+                "__runtime_effect_transaction": firewall_transaction,
+            },
+            cwd=root,
+        )
+    except (OSError, RuntimeEffectError) as exc:
+        return {**base, "status": "UNVERIFIED", "reason": f"runtime-reconciliation-failed: {exc}"}
+    if reconciliation.get("status") != "reconciled" or reconciliation.get("verdict") != "proven-after":
+        return {
+            **base,
+            "status": "FAIL",
+            "reason": "Runtime positive reconciliation did not return proven-after",
+            "reconciliation": reconciliation,
+        }
     return {
         **base,
         "status": "PASS",
@@ -588,6 +656,8 @@ def _runtime_scenario() -> dict[str, Any]:
         "receipt_state": receipt.get("state"),
         "replay_state": replay.get("state"),
         "materialized": target.relative_to(root).as_posix(),
+        "reconciliation_status": reconciliation.get("status"),
+        "reconciliation_verdict": reconciliation.get("verdict"),
     }
 
 
