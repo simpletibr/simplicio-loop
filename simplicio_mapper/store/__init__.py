@@ -32,6 +32,7 @@ from .registry import (
     registry_fixture,
     sha256_json,
 )
+from .semantic import SEMANTIC_API_SCHEMA, SEMANTIC_SCHEMA, SemanticStore, SemanticStoreError
 from .status import inspect_store
 from .transactions import (
     FenceValidator,
@@ -66,6 +67,10 @@ __all__ = [
     "RegistryChecksumError",
     "RegistryError",
     "SCHEMA_REGISTRY",
+    "SEMANTIC_API_SCHEMA",
+    "SEMANTIC_SCHEMA",
+    "SemanticStore",
+    "SemanticStoreError",
     "TransactionError",
     "WriterIdentity",
     "assert_within_root",

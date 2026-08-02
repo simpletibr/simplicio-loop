@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/semantic-recall.schema.json",
+  "title": "simplicio.mapper-store.semantic-recall/v1",
+  "type": "object",
+  "required": ["schema", "query", "mode", "method", "ann_claimed", "results", "capabilities"],
+  "properties": {
+    "schema": { "enum": ["simplicio.mapper-store.semantic-api/v1"] },
+    "query": { "type": "string" },
+    "mode": { "enum": ["fts", "vector", "hybrid"] },
+    "method": { "enum": ["fts5", "brute-force", "hybrid"] },
+    "ann_claimed": { "enum": [false] },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["stable_id", "source", "content_hash", "provenance", "fts_score", "vector_score", "hybrid_score"],
+        "properties": {
+          "stable_id": { "type": "string" },
+          "chunk_id": { "type": "string" },
+          "snippet": { "type": "string" },
+          "source": { "type": "string" },
+          "content_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "provenance": { "type": "object" },
+          "fts_score": { "type": "number" },
+          "vector_score": { "type": "number" },
+          "hybrid_score": { "type": "number" },
+          "observed_at": { "type": "string" },
+          "updated_at": { "type": "string" }
+        }
+      }
+    },
+    "capabilities": { "type": "object" }
+  }
+}

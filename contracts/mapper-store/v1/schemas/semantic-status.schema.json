@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/semantic-status.schema.json",
+  "title": "simplicio.mapper-store.semantic-status/v1",
+  "type": "object",
+  "required": ["schema", "valid", "reason_code", "items", "tombstones", "capabilities"],
+  "properties": {
+    "schema": { "enum": ["simplicio.mapper-store.semantic-api/v1"] },
+    "valid": { "type": "boolean" },
+    "reason_code": { "type": ["string", "null"] },
+    "items": { "type": "integer", "minimum": 0 },
+    "tombstones": { "type": "integer", "minimum": 0 },
+    "fts_rows": { "type": ["integer", "null"], "minimum": 0 },
+    "orphan_fts": { "type": "integer", "minimum": 0 },
+    "capabilities": { "type": "object" }
+  }
+}
