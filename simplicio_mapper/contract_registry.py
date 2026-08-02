@@ -27,6 +27,19 @@ _CONTRACT_RE = re.compile(r"\bsimplicio[.][A-Za-z0-9_.-]+/v[0-9]+(?:[.][0-9]+)*\
 _SUFFIXES = {".c", ".cc", ".cpp", ".go", ".h", ".hpp", ".js", ".jsx", ".json", ".md", ".mjs", ".py", ".rs", ".sql", ".toml", ".ts", ".tsx", ".yml", ".yaml"}
 _SKIP_DIRS = {".git", ".simplicio", ".venv", "__pycache__", ".pytest_cache", ".ruff_cache", "node_modules", "target", "dist", "build"}
 
+_CONTRACTS_HELP = """usage: simplicio-mapper contracts <inventory|validate|diff|impact> [options]
+
+Inspect the cross-repository contract registry, validate its entries, compare
+registry snapshots, or show which consumers are affected by a contract.
+
+Options:
+  --root NAME=PATH       add a repository root for inventory
+  --registry PATH        use a registry JSON file
+  --old PATH --new PATH  compare two registry snapshots (diff)
+  --json                 emit the versioned machine-readable envelope
+  -h, --help             show this help and exit
+"""
+
 
 class ContractRegistryError(ValueError):
     """Raised when registry input is malformed or drift is ambiguous."""
@@ -244,6 +257,9 @@ def _parse_roots(values: list[str], base: Path) -> list[tuple[str, Path]]:
 
 
 def run_contracts_cli(argv: list[str]) -> int:
+    if "--help" in argv or "-h" in argv:
+        print(_CONTRACTS_HELP, end="")
+        return 0
     verb = argv[0] if argv else ""
     if verb not in {"inventory", "validate", "diff", "impact"}:
         print("usage: simplicio-mapper contracts <inventory|validate|diff|impact> ...", file=sys.stderr)

@@ -749,6 +749,17 @@ def run_prototype_context_cli(argv: list[str]) -> int:
     <type> --arg <target> [--json] [--limit N] [--token-budget N]
     [--no-canonical-reuse]``.
     """
+    if "--help" in argv or "-h" in argv:
+        print(
+            "usage: simplicio-mapper prototype-context [root] --type "
+            "{ui,api,data-model,bug,benchmark,prompt,workflow} --arg TARGET "
+            "[--json] [--limit N] [--token-budget N] [--plan FILE] "
+            "[--no-canonical-reuse]\n\n"
+            "Return bounded, type-aware impact context, tests, precedents and "
+            "negative-space hints for a prototype task.\n"
+            "Use --help to discover options; source files remain authoritative."
+        )
+        return 0
     root = os.getcwd()
     type_ = ""
     arg = ""

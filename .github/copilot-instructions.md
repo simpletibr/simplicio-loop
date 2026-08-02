@@ -15,6 +15,7 @@ Tudo que não é específico de Copilot Agent Mode vive em [`AGENTS.md`](../AGEN
 | Precisa de... | Onde está |
 |---|---|
 | Stack, comandos de dev/lint/test | `AGENTS.md` § Stack, § Comandos importantes |
+| Índice de funcionalidades e comandos públicos | `docs/CLI_COMMANDS.md` (sempre consulte o `--help` correspondente) |
 | Workflow loop obrigatório (incluindo critério de E2E, issue #162) | `AGENTS.md` § Workflow loop OBRIGATÓRIO |
 | Definition of Done | `AGENTS.md` § Definition of Done |
 | Padrões de código | `AGENTS.md` § Padrões de código (`.specs/architecture/PATTERNS.md`) |

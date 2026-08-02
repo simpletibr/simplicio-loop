@@ -14,6 +14,15 @@
 
 # AGENTS.md
 
+## Simplicio Ecosystem Contract (canonical)
+
+This repository is one component of the Simplicio ecosystem. For every non-trivial task: run `simplicio runtime map --repo . --for-llm markdown`, then `simplicio memory "<task>"`, rank/load relevant skills, execute through the native `simplicio` CLI, validate, and record evidence. MCP is fallback transport only.
+
+### Boundaries and handoff
+`simplicio-mapper` observes and emits bounded context; `simplicio-fast` owns snapshots/mmap/PlanDAG; `simplicio-dev-cli` owns focused implementation plans and deterministic edits; `simplicio-runtime` owns contracts, gates, validation and receipts; `simplicio-loop` owns convergence, journals, watcher/close-gates and learning; `simplicio-agent` owns the control plane and conversation. Providers are workers, never authorities.
+
+Use `simplicio`/`simplicio shell compact` for inspection, `simplicio edit --plan` or governed dev-cli for mutation, preserve `simplicio.io/v1`, run `simplicio contracts smoke --json` and `simplicio validate "<task>" --repo . --json`, and close only with real tests plus `simplicio evidence`. Facts are `MEASURED|` only with receipts; otherwise `UNVERIFIED|`. Savings come only from `simplicio savings report --repo . --json`. Missing dependencies fail closed; never fabricate context, tests, savings or provider output.
+
 > Canonical pattern spec: [YOOL_TUPLE_HAMT.md](YOOL_TUPLE_HAMT.md)
 >
 > Receipt schema reference: [YOOL_TUPLE_HAMT.md §1.8.4](YOOL_TUPLE_HAMT.md#184-receipt-schema-reference)
@@ -128,6 +137,34 @@ git checkout -b feat/<task-id>-<slug>
 gh pr create --fill                          # usa template de PR
 gh run watch                                 # acompanha CI do branch atual
 ```
+
+## Índice canônico para LLMs e contrato de `--help`
+
+O inventário completo de funcionalidades, comandos, aliases, subcomandos
+roteados e exemplos de descoberta está em
+[`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.md). Esse arquivo é a referência
+curta que um LLM deve carregar antes de escolher uma operação.
+
+Regras de descoberta:
+
+- `simplicio-mapper --help` e `node bin/cli.js --help` são os pontos de entrada
+  oficiais; não invente comandos a partir de nomes de módulos internos.
+- Todo comando público precisa responder a `--help` (ou `-h`) com propósito,
+  uso, opções e comportamento de saída. Os comandos roteados fora do parser
+  principal (`contract`, `canonical`, `benchmark`, `version`, `release-manifest`,
+  `changelog` e os demais listados no inventário) mantêm seu próprio help.
+- Antes de executar uma operação, consulte o help do nível correspondente:
+  `simplicio-mapper <comando> --help` e, quando houver, o subcomando também.
+- Saída para automação é JSON versionado quando `--json` estiver disponível;
+  preserve o campo `schema` e trate versões major desconhecidas como
+  incompatíveis.
+- Para issues do GitHub, descreva objetivo, implementação/implantação e testes
+  na seção `Execução`; não crie nem reintroduza uma seção `Acceptance Criteria`
+  ou `Critérios de aceite`.
+
+O mesmo contrato é espelhado em `CLAUDE.md`, `GEMINI.md`, `llms.txt` e no
+stub do Copilot. Ao alterar comandos ou funcionalidades, atualize o índice e
+rode `node scripts/check-doc-sync.js sync` antes de commitar.
 
 ## Shell token-smart (RTK CLI, opcional)
 

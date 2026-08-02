@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## [0.26.11] - 2026-08-02
+
+- Publish the cross-agent command and feature index for the Python and Node
+  entrypoints, including the routed contract, canonical, benchmark, release,
+  and handoff surfaces.
+- Keep `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `llms.txt`, and Copilot guidance
+  aligned so LLMs discover the same capabilities and use `--help` before every
+  public operation.
+
 ## [0.26.10] - 2026-08-02
 
 ### Added

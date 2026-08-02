@@ -39,6 +39,8 @@ _USAGE = (
     "[--out DIR] [--json]"
 )
 
+_HELP = _USAGE + "\n\nMeasure the local sync/async pipeline crossover or run an isolated shadow comparison.\n"
+
 
 def _parse_benchmark_args(argv: Sequence[str]) -> dict:
     opts: dict = {
@@ -169,6 +171,21 @@ def _run_shadow_rollout(argv: Sequence[str]) -> int:
 
 def run_benchmark_cli(argv: Sequence[str]) -> int:
     """Entry point for ``simplicio-mapper benchmark <verb> ...``."""
+    if "--help" in argv or "-h" in argv:
+        if argv and argv[0] == "pipeline-threshold":
+            print(
+                "usage: simplicio-mapper benchmark pipeline-threshold [path] "
+                "[--sizes N,N,N] [--runs N] [--out DIR] [--json]\n\n"
+                "Measure this machine's real sync-vs-async mapping crossover and write a receipt."
+            )
+        elif argv and argv[0] == "shadow-rollout":
+            print(
+                "usage: simplicio-mapper benchmark shadow-rollout [path] [--out DIR] [--json]\n\n"
+                "Run the configured pipeline and an isolated comparison without promoting the candidate."
+            )
+        else:
+            print(_HELP, end="")
+        return 0
     if not argv:
         print(_USAGE, file=sys.stderr)
         return 2

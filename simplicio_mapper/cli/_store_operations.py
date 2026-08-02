@@ -20,6 +20,13 @@ from ..store import (
 
 VERBS = {"doctor", "backup", "restore", "repair", "metrics", "benchmark", "capacity"}
 
+_HELP = """usage: simplicio-mapper mapper-store <doctor|backup|restore|repair|metrics|benchmark|capacity> [options]
+
+Inspect or operate the governed MapperStore backup, repair, metrics and capacity surfaces.
+Options include --database PATH, --destination PATH, --manifest PATH,
+--authorization VALUE, --apply, --json, and -h/--help.
+"""
+
 
 def _error(reason_code: str, reason: str, json_mode: bool) -> int:
     payload = {
@@ -36,6 +43,9 @@ def _error(reason_code: str, reason: str, json_mode: bool) -> int:
 
 
 def run_store_operations_cli(argv: list[str]) -> int:
+    if "--help" in argv or "-h" in argv:
+        print(_HELP, end="")
+        return 0
     verb = argv[0] if argv else ""
     if verb not in VERBS:
         return 2

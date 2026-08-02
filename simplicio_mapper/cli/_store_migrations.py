@@ -17,9 +17,30 @@ from ..store.registry import (
     negotiate,
 )
 
+_HELP = """usage: simplicio-mapper store-migrations <verb> [options]
+
+Plan, apply, validate, inspect or roll back governed MapperStore migrations.
+Verbs: discover, plan, backup, import, validate, shadow, cutover, rollback, status.
+
+Options:
+  --database PATH --state PATH --backup-dir PATH
+  --source NAME=PATH       source store to inspect or migrate
+  --dry-run                do not write migration state
+  --json                   emit the versioned receipt
+  -h, --help               show this help and exit
+"""
+
 
 def run_store_migrations_cli(argv: list[str], *, governed: bool = False) -> int:
     from ._store_migration import VERBS, run_migration_cli
+
+    if "--help" in argv or "-h" in argv:
+        print(_HELP, end="")
+        if governed:
+            from ._store_operations import _HELP as operations_help
+
+            print("\nGoverned operational verbs:\n" + operations_help, end="")
+        return 0
 
     if governed and argv and (argv[0] in VERBS or (argv[0] == "backup" and "--source" not in argv)):
         if argv[0] == "backup" and "--source" not in argv:

@@ -10,6 +10,13 @@ from ..store.migration import MigrationCoordinator, MigrationCoordinatorError
 
 VERBS = {"discover", "plan", "backup", "import", "validate", "shadow", "cutover", "rollback", "status"}
 
+_HELP = """usage: simplicio-mapper store-migrations <verb> [options]
+
+Plan, apply, validate, inspect or roll back governed MapperStore migrations.
+Verbs: discover, plan, backup, import, validate, shadow, cutover, rollback, status.
+Use --database PATH, --source NAME=PATH, --dry-run or --json as needed.
+"""
+
 
 def _error(reason_code: str, reason: str, json_mode: bool) -> int:
     payload = {
@@ -26,6 +33,9 @@ def _error(reason_code: str, reason: str, json_mode: bool) -> int:
 
 
 def run_migration_cli(argv: list[str]) -> int:
+    if "--help" in argv or "-h" in argv:
+        print(_HELP, end="")
+        return 0
     verb = argv[0] if argv else ""
     if verb not in VERBS:
         return 2

@@ -1,0 +1,37 @@
+# Simplicio Mapper LLM guide
+
+Canonical instructions: AGENTS.md
+Claude mirror: CLAUDE.md
+Gemini mirror: GEMINI.md
+Command and feature index: docs/CLI_COMMANDS.md
+
+Identity
+--------
+`simplicio-mapper` observes a repository and emits bounded, versioned context
+artifacts under `.simplicio/`. It supports mapping, incremental refresh,
+task-aware handoff/orientation, graph queries, impact/test analysis, endpoint
+and screen inventories, flowcharts, business-rule extraction, history/diffs,
+contract validation, canonical-map checks, Mapper-to-Fast handoff and release
+metadata. It is not an LLM, policy authority or source editor.
+
+Entry points
+------------
+`simplicio-mapper --help`
+`llm-project-mapper --help`
+`node bin/cli.js --help`
+`build-hamt-catalog --help`
+`apply-edits --help`
+`skillopt --help`
+
+Command rule
+------------
+Every public command and subcommand has `--help`/`-h`. Read help at the level
+being invoked before execution: `simplicio-mapper <command> --help`. The full
+inventory and routed command families are in `docs/CLI_COMMANDS.md`.
+
+Safety
+------
+Use `--json` for automation when available. Preserve `schema`, reject unknown
+major schema versions, treat unverified facts as unverified, and never apply
+source edits from stale context. Use Dev CLI for edits, Fast for snapshot and
+PlanDAG work, Runtime for authorization and Loop for convergence.

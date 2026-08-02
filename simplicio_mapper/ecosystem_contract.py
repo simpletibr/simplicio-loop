@@ -35,6 +35,20 @@ SCHEMA_FILENAMES = {
 
 _PINNED_REVISION = re.compile(r"^(?:[0-9a-f]{40}|[0-9a-f]{64})$")
 
+_DOCTOR_HELP = """usage: simplicio-mapper doctor --contracts [--cross-repo] [<path> ...]
+       simplicio-mapper doctor --fast [manifest.json] [--json]
+
+Validate the versioned Mapper and ecosystem contract fixtures, or diagnose
+Fast manifest availability and compatibility. The command is read-only.
+
+Options:
+  --contracts       validate bundled Mapper/ecosystem fixtures
+  --cross-repo      include cross-repository fixture checks
+  --fast            diagnose the Simplicio Fast integration
+  --json            emit the Fast diagnostic envelope as JSON
+  -h, --help        show this help and exit
+"""
+
 
 def find_ecosystem_contract_root(start: str | None = None) -> str:
     """Locate ``contracts/ecosystem/v1`` by walking upward from ``start``."""
@@ -250,6 +264,10 @@ def run_doctor_cli(argv: list[str]) -> int:
     (e.g. real ``.simplicio/*.json`` output is out of scope here -- use
     ``simplicio-mapper contract validate`` for that instead).
     """
+    if "--help" in argv or "-h" in argv:
+        print(_DOCTOR_HELP, end="", flush=True)
+        return 0
+
     if "--fast" in argv:
         from .fast_backend import diagnose_fast
 

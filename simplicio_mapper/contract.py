@@ -26,6 +26,15 @@ import re
 
 CONTRACT_VERSION = "v1"
 
+_CONTRACT_HELP = """usage: simplicio-mapper contract validate <path> [<path> ...]
+
+Validate Mapper artifact JSON files or every JSON file below a directory
+against the versioned contracts/mapper-artifacts/v1 schemas.
+
+Options:
+  -h, --help    show this help and exit
+"""
+
 # Maps a payload's own "schema" field to the schema file that describes it.
 SCHEMA_FILENAMES = {
     "simplicio.project-map/v1": "project-map.schema.json",
@@ -305,6 +314,9 @@ def iter_json_files(paths: list[str]) -> list[str]:
 
 def run_contract_cli(argv: list[str]) -> int:
     """Entry point for ``simplicio-mapper contract <subcommand> ...``."""
+    if "--help" in argv or "-h" in argv:
+        print(_CONTRACT_HELP, end="", flush=True)
+        return 0
     if not argv or argv[0] != "validate":
         print(
             "usage: simplicio-mapper contract validate <path> [<path> ...]",
