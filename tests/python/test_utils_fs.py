@@ -1,6 +1,17 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from simplicio.utils import fs
+
+
+def test_transient_windows_permission_error_without_winerror_attribute():
+    original_os = fs.os
+    try:
+        fs.os = SimpleNamespace(name="nt")
+        assert fs._is_transient_windows_replace_error(PermissionError(5, "access denied")) is True
+    finally:
+        fs.os = original_os
 
 
 def test_write_bytes_atomic_retries_transient_windows_replace_lock(tmp_path, monkeypatch):
@@ -17,6 +28,7 @@ def test_write_bytes_atomic_retries_transient_windows_replace_lock(tmp_path, mon
 
     monkeypatch.setattr(fs.os, "replace", delayed_replace)
     monkeypatch.setattr(fs.time, "sleep", lambda _delay: None)
+    monkeypatch.setattr(fs, "_is_transient_windows_replace_error", lambda _exc: True)
 
     assert fs.write_bytes_atomic(target, b"ok") == target
     assert target.read_bytes() == b"ok"

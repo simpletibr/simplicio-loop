@@ -14,7 +14,7 @@ def _is_transient_windows_replace_error(exc: PermissionError) -> bool:
     """Return whether an AV/indexer lock can safely be retried on Windows."""
     if os.name != "nt":
         return False
-    return exc.winerror in {5, 32} or exc.errno in {5, 13, 32}
+    return getattr(exc, "winerror", None) in {5, 32} or exc.errno in {5, 13, 32}
 
 
 def write_bytes_atomic(path: str | Path, data: bytes) -> Path:
