@@ -6,6 +6,7 @@ import argparse
 import base64
 import hashlib
 import json
+import os
 import platform
 import statistics
 import sys
@@ -89,8 +90,19 @@ def run_benchmark(*, repeats: int = 10) -> dict[str, Any]:
         raise ValueError("issue #414 benchmark requires at least 10 repetitions")
     rows: list[dict[str, Any]] = []
     for size in SIZES:
-        for lane in ("json_legacy_adapter", "binary_fast_adapter"):
-            if lane == "binary_fast_adapter":
+        for lane in ("json_legacy_adapter", "binary_fast_adapter", "binary_fast_rust_adapter"):
+            if lane in {"binary_fast_adapter", "binary_fast_rust_adapter"}:
+                if lane == "binary_fast_rust_adapter" and not os.environ.get("SIMPLICIO_FAST_NATIVE"):
+                    rows.append(
+                        {
+                            "size": size,
+                            "lane": lane,
+                            "status": "UNAVAILABLE",
+                            "repeats": 0,
+                            "reason": "SIMPLICIO_FAST_NATIVE is not configured",
+                        }
+                    )
+                    continue
                 with tempfile.TemporaryDirectory(prefix=f"issue-414-probe-{size}-") as directory:
                     available = _binary_payload(size, Path(directory)) is not None
                 if not available:
@@ -105,13 +117,13 @@ def run_benchmark(*, repeats: int = 10) -> dict[str, Any]:
                     )
                     continue
 
-                def run_binary(size: int = size) -> dict[str, Any]:
+                engine = "rust" if lane == "binary_fast_rust_adapter" else "python"
+
+                def run_binary(size: int = size, engine: str = engine) -> dict[str, Any]:
                     with tempfile.TemporaryDirectory(prefix="run-") as run_dir:
                         payload = _binary_payload(size, Path(run_dir))
                         assert payload is not None
-                        return execute_changeset_bytes(
-                            payload, root=run_dir, apply=True, fast_engine="python"
-                        )
+                        return execute_changeset_bytes(payload, root=run_dir, apply=True, fast_engine=engine)
 
                 rows.append({"size": size, "lane": lane, **_measure(run_binary, repeats)})
             else:
