@@ -25,6 +25,7 @@ from types import MappingProxyType
 from typing import Any
 
 from simplicio.plan_compiler.errors import PlanCompilerError
+from simplicio.utils.fs import write_text_atomic
 
 MAPPER_CONTEXT_SNAPSHOT_SCHEMA = "simplicio.context-snapshot/v1"
 MAPPER_CONTEXT_PACK_SCHEMA = "simplicio.context-pack/v1"
@@ -266,6 +267,7 @@ class ContextBindingCache:
         self.root = Path(root)
         self.path = self.root / ".simplicio" / "context-bindings.json"
         self.log_path = self.root / ".simplicio" / "context-bindings.hbp"
+        self.index_path = self.root / ".simplicio" / "context-bindings.hbp.idx"
         self.legacy_log_path = self.root / ".simplicio" / "context-bindings.hbp.jsonl"
         self.lock_path = self.root / ".simplicio" / "context-bindings.hbp.lock"
         self._read_cache_signature: tuple[int, int, int, int] | None = None
@@ -441,7 +443,14 @@ class ContextBindingCache:
             signature = self._log_signature()
             if signature == self._read_cache_signature and self._read_cache is not None:
                 return self._read_cache
+            indexed = self._read_index(signature)
+            if indexed is not None:
+                self._read_cache_signature = signature
+                self._read_cache = indexed
+                return indexed
             state = self._read_log()
+            if state.get("chain_status") == "valid" and signature is not None:
+                self._write_index(signature, state)
             self._read_cache_signature = signature
             self._read_cache = state
             return state
@@ -487,6 +496,52 @@ class ContextBindingCache:
             return None
         return (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns)
 
+    def _read_index(self, signature: tuple[int, int, int, int] | None) -> dict[str, Any] | None:
+        """Load a validated-log snapshot without replaying every HBP event.
+
+        The index is disposable metadata. It is accepted only when its exact
+        device/inode/size/mtime signature matches the log; otherwise the HBP
+        chain is replayed and a fresh index is derived. The log remains the
+        integrity authority and the index never stores context contents.
+        """
+        if signature is None or not self.index_path.is_file():
+            return None
+        try:
+            payload = json.loads(self.index_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return None
+        if not isinstance(payload, dict) or tuple(payload.get("log_signature", ())) != signature:
+            return None
+        entries = payload.get("entries")
+        if not isinstance(entries, dict) or not isinstance(payload.get("revision"), str):
+            return None
+        return {
+            "schema": CONTEXT_BINDING_CACHE_SCHEMA,
+            "entries": entries,
+            "revision": payload["revision"],
+            "fence": str(payload.get("fence") or ""),
+            "chain_status": "valid",
+        }
+
+    def _write_index(self, signature: tuple[int, int, int, int], state: dict[str, Any]) -> None:
+        """Atomically persist disposable lookup metadata after chain validation."""
+        payload = {
+            "schema": "simplicio.context-binding-cache-index/v1",
+            "log_signature": list(signature),
+            "revision": str(state.get("revision") or ""),
+            "fence": str(state.get("fence") or ""),
+            "entries": state.get("entries", {}),
+        }
+        try:
+            write_text_atomic(
+                self.index_path,
+                json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+            )
+        except OSError:
+            # An indexer/AV tool must never turn a valid cache write into a
+            # failed execution; the next lookup simply replays the HBP log.
+            return
+
     def _invalidate_read_cache(self) -> None:
         self._read_cache_signature = None
         self._read_cache = None
@@ -509,6 +564,7 @@ class ContextBindingCache:
             "revision": state.get("revision", ""),
             "fence": state.get("fence", ""),
             "lock_present": self.lock_path.exists(),
+            "index_present": self.index_path.is_file(),
         }
 
     def compact(self) -> dict[str, Any]:

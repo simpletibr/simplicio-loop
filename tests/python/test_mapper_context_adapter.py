@@ -224,6 +224,27 @@ def test_context_binding_cache_reuses_unchanged_log_read_and_invalidates_after_w
     assert reads == 3  # initial read, writer validation, then invalidated lookup
 
 
+def test_context_binding_cache_persists_a_disposable_lookup_index(
+    mapper_boundary: None, tmp_path: Any
+) -> None:
+    binding = bind_mapper_context(_payload(), _pack(_payload()))
+    cache = ContextBindingCache(tmp_path)
+    cache.put(binding)
+    assert cache.lookup(binding.context_handle)["hit"] is True
+
+    index = tmp_path / ".simplicio" / "context-bindings.hbp.idx"
+    assert index.is_file()
+    assert cache.doctor()["index_present"] is True
+
+    second_process = ContextBindingCache(tmp_path)
+    second_process._read_log = lambda: pytest.fail("matching index must avoid HBP replay")
+    assert second_process.lookup(binding.context_handle)["hit"] is True
+
+    index.write_text("{broken", encoding="utf-8")
+    third_process = ContextBindingCache(tmp_path)
+    assert third_process.lookup(binding.context_handle)["hit"] is True
+
+
 def test_context_binding_cache_refresh_invalidates_prior_revision(
     mapper_boundary: None, tmp_path: Any
 ) -> None:
