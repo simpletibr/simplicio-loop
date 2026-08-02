@@ -156,12 +156,28 @@ def _freeze_route(root: Path, mapper_version: str | None) -> None:
         "frozen_before_effect": True,
     }
     try:
-        temporary.write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")), encoding="utf-8")
-        os.replace(temporary, route_path)
-    except OSError as exc:
-        if _read_route(route_path) is not None:
-            return
-        raise StoreAdapterError("MAPPER_STORE_UNAVAILABLE:route-freeze-failed") from exc
+        serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"))
+        for attempt in range(3):
+            try:
+                temporary.write_text(serialized, encoding="utf-8")
+                os.replace(temporary, route_path)
+                return
+            except OSError as exc:
+                try:
+                    if _read_route(route_path) is not None:
+                        return
+                except StoreAdapterError:
+                    # A concurrent Windows replace can leave the route briefly
+                    # unreadable; retry the same atomic publication window.
+                    pass
+                if attempt == 2:
+                    raise StoreAdapterError("MAPPER_STORE_UNAVAILABLE:route-freeze-failed") from exc
+                time.sleep(0.01)
+    finally:
+        try:
+            temporary.unlink()
+        except OSError:
+            pass
 
 
 class MapperStoreAdapter:
