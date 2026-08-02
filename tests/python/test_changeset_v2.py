@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import sys
 from concurrent.futures import ThreadPoolExecutor
@@ -79,6 +80,20 @@ def test_changeset_cli_refuses_integrated_without_runtime_authorization(tmp_path
     receipt = json.loads(capsys.readouterr().out)
     assert receipt["execution_mode"]["effective"] == "blocked"
     assert receipt["errors"][0]["code"] == "RUNTIME_AUTHORIZATION_REQUIRED"
+
+
+@pytest.mark.parametrize("stdin_payload", ["", "{malformed"])
+def test_changeset_cli_empty_or_malformed_stdin_never_creates_unknown_lock(
+    tmp_path, monkeypatch, capsys, stdin_payload
+):
+    monkeypatch.setattr("sys.stdin", io.StringIO(stdin_payload))
+
+    assert cli.main(["changeset", "--root", str(tmp_path), "--plan", "-", "--apply", "--json"]) == 1
+
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["status"] == "refused"
+    assert receipt["errors"][0]["code"] == "invalid_json"
+    assert not (tmp_path / ".simplicio" / "effect-unknown.lock").exists()
 
 
 @pytest.mark.parametrize(
