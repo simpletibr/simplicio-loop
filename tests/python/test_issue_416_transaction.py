@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -51,6 +52,22 @@ def test_multifile_changeset_stages_once_and_replays_without_rewrite(tmp_path):
     assert replay["replayed"] is True
     assert (tmp_path / "a.txt").stat().st_mtime_ns == first_mtime
     assert (tmp_path / "b.txt").read_text(encoding="utf-8") == "created\n"
+
+
+def test_existing_file_mode_is_preserved_and_recorded_in_receipt(tmp_path):
+    target = tmp_path / "a.txt"
+    target.write_text("old\n", encoding="utf-8")
+    original_mode = stat.S_IMODE(target.stat().st_mode)
+    target.chmod(original_mode | stat.S_IXUSR)
+    expected_mode = stat.S_IMODE(target.stat().st_mode)
+
+    result = execute_changeset(_changeset(), root=tmp_path, apply=True)
+
+    assert result["status"] == "ok"
+    changed = {row["path"]: row for row in result["transaction"]["files"]}
+    assert changed["a.txt"]["before_mode"] == expected_mode
+    assert changed["a.txt"]["after_mode"] == expected_mode
+    assert stat.S_IMODE(target.stat().st_mode) == expected_mode
 
 
 def test_same_idempotency_key_with_different_digest_is_rejected(tmp_path):
