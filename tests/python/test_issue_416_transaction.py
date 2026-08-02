@@ -6,6 +6,7 @@ import os
 import stat
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -147,6 +148,58 @@ def test_recover_committing_journal_restores_before_hashes(tmp_path):
 
     assert recovered["status"] == "recovered"
     assert target.read_bytes() == original
+    assert json.loads(state_path.read_text(encoding="utf-8"))["state"] == "ROLLED_BACK"
+
+
+def test_real_child_crash_after_backup_is_recovered(tmp_path):
+    target = tmp_path / "a.txt"
+    target.write_text("old\n", encoding="utf-8")
+    key = "child-crash-416"
+    digest = "child-crash-digest"
+    plan = adapt_changeset(_changeset(content="crashed\n"))
+    worker = (
+        "import json, sys; "
+        "from simplicio.changeset_transaction import execute_changeset_transaction; "
+        "execute_changeset_transaction(json.loads(sys.argv[2]), root=sys.argv[1], "
+        "idempotency_key=sys.argv[3], changeset_digest_value=sys.argv[4])"
+    )
+    env = os.environ.copy()
+    repo_root = str(Path(__file__).resolve().parents[2])
+    env["PYTHONPATH"] = os.pathsep.join(item for item in (repo_root, env.get("PYTHONPATH", "")) if item)
+    env["SIMPLICIO_TRANSACTION_PAUSE_AT"] = "after_backup"
+    env["SIMPLICIO_TRANSACTION_PAUSE_SECONDS"] = "30"
+    process = subprocess.Popen(
+        [sys.executable, "-c", worker, str(tmp_path), json.dumps(plan), key, digest],
+        cwd=repo_root,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    state_path = _state_path(tmp_path, key)
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        if state_path.is_file():
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            backup = Path(str(state.get("backup", "")))
+            if state.get("state") == "COMMITTING" and (backup / "a.txt").is_file():
+                break
+        time.sleep(0.05)
+    else:
+        process.kill()
+        process.communicate(timeout=5)
+        pytest.fail("child did not reach the post-backup crash window")
+    process.kill()
+    process.communicate(timeout=5)
+    state_path.with_suffix(".lock").unlink(missing_ok=True)
+
+    recovered = recover_changeset_transaction(
+        tmp_path, idempotency_key=key, changeset_digest_value=digest
+    )
+
+    assert recovered["status"] == "recovered"
+    assert target.read_text(encoding="utf-8") == "old\n"
     assert json.loads(state_path.read_text(encoding="utf-8"))["state"] == "ROLLED_BACK"
 
 
