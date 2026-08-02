@@ -6,8 +6,13 @@ import json
 import sqlite3
 from pathlib import Path
 
-from scripts.mapper_store_conformance import _checkout_matches_default, build_conformance
+from scripts.mapper_store_conformance import (
+    _checkout_matches_default,
+    _valid_runtime_single_authority_evidence,
+    build_conformance,
+)
 from simplicio_mapper.contract import validate_instance
+
 
 ROOT = Path(__file__).parents[2]
 
@@ -110,3 +115,43 @@ def test_installed_loop_evidence_is_validated_before_passing(tmp_path: Path) -> 
     report = build_conformance(repos, [], deterministic=True, external_evidence={"loop_standalone": evidence})
     check = next(item for item in report["checks"] if item["id"] == "loop_standalone")
     assert check["status"] == "unverified"
+
+
+REVISION = "a" * 40
+
+
+def runtime_receipt(**overrides):
+    value = {
+        "schema": "simplicio.runtime-mapper-store-installed-smoke/v1",
+        "ok": True,
+        "runtime_revision": REVISION,
+        "installed_binary": "/tmp/runtime-installed/bin/simplicio",
+        "source_checkout": "/tmp/runtime-source",
+        "binary_sha256": "b" * 64,
+        "version": "3.5.7",
+        "mapper_store_capabilities": {
+            "status": "ready",
+            "store_schema": "simplicio.mapper-store.operations/v1",
+            "effect_ledger": True,
+            "fencing": True,
+            "operations_write": True,
+        },
+    }
+    value.update(overrides)
+    return value
+
+
+def test_runtime_installed_receipt_requires_matching_revision_and_capabilities() -> None:
+    assert _valid_runtime_single_authority_evidence(runtime_receipt(), REVISION)
+    assert not _valid_runtime_single_authority_evidence(
+        runtime_receipt(runtime_revision="c" * 40), REVISION
+    )
+    assert not _valid_runtime_single_authority_evidence(
+        runtime_receipt(mapper_store_capabilities={"status": "ready"}), REVISION
+    )
+
+
+def test_runtime_installed_receipt_rejects_source_checkout_as_installed_binary() -> None:
+    assert not _valid_runtime_single_authority_evidence(
+        runtime_receipt(installed_binary="/tmp/runtime-source"), REVISION
+    )

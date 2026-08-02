@@ -124,6 +124,36 @@ def _valid_loop_standalone_evidence(value: Any) -> bool:
     )
 
 
+def _valid_runtime_single_authority_evidence(value: Any, expected_revision: str) -> bool:
+    if not isinstance(value, dict):
+        return False
+    if value.get("schema") != "simplicio.runtime-mapper-store-installed-smoke/v1":
+        return False
+    if value.get("ok") is not True or value.get("runtime_revision") != expected_revision:
+        return False
+    binary = value.get("installed_binary")
+    source = value.get("source_checkout")
+    if not isinstance(binary, str) or not binary.strip() or not isinstance(source, str) or not source.strip():
+        return False
+    if Path(binary).resolve() == Path(source).resolve():
+        return False
+    if not re.fullmatch(r"[0-9a-f]{64}", str(value.get("binary_sha256", ""))):
+        return False
+    version = value.get("version")
+    if not isinstance(version, str) or not version.strip():
+        return False
+    capabilities = value.get("mapper_store_capabilities")
+    if not isinstance(capabilities, dict):
+        return False
+    return (
+        capabilities.get("status") == "ready"
+        and capabilities.get("store_schema") == "simplicio.mapper-store.operations/v1"
+        and capabilities.get("effect_ledger") is True
+        and capabilities.get("fencing") is True
+        and capabilities.get("operations_write") is True
+    )
+
+
 def _database_args(values: list[str], base: Path) -> list[tuple[str, Path, str]]:
     result: list[tuple[str, Path, str]] = []
     for value in values:
@@ -240,12 +270,21 @@ def build_conformance(
             loop_evidence if loop_evidence_valid else {"runtime_required": False},
         )
     )
+    runtime_evidence = (external_evidence or {}).get("runtime_single_authority")
+    runtime_evidence_valid = _valid_runtime_single_authority_evidence(
+        runtime_evidence,
+        default_refs["runtime"]["sha"],
+    )
     checks.append(
         _result(
             "runtime_single_authority",
-            "unverified",
-            "Runtime-backed cutover and Rust adapter smoke require the installed Runtime package",
-            {"runtime_revision": default_refs["runtime"]["sha"]},
+            "pass" if runtime_evidence_valid else "unverified",
+            "installed Runtime binary resolved the canonical MapperStore authority"
+            if runtime_evidence_valid
+            else "Runtime-backed cutover and Rust adapter smoke require a validated installed Runtime receipt",
+            runtime_evidence
+            if runtime_evidence_valid
+            else {"runtime_revision": default_refs["runtime"]["sha"]},
         )
     )
 
@@ -336,7 +375,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--run-external-smoke", action="store_true")
     parser.add_argument(
         "--evidence", action="append", default=[],
-        help="check=JSON receipt; currently supports loop_standalone",
+        help="check=JSON receipt; supports loop_standalone and runtime_single_authority",
     )
     args = parser.parse_args(argv)
     base = Path.cwd()
