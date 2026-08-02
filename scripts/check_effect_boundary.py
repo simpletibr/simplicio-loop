@@ -14,7 +14,7 @@ from pathlib import Path
 # controlled checkpoint, transaction, verification, write-set, causal-path,
 # native Fast, Mapper-delta, context-cache writer-lock, and MapperStore route
 # primitives already merged before this baseline.
-BASELINE_SHA256 = "3e207a4d8e75339a626ddf812f354dc128d870aadb79752e66f2d571bdc2b3b9"
+BASELINE_SHA256 = "c3c7889df20493d92c056aedade8f7fcd035e1f0406347bc5f02547921b81d94"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",
