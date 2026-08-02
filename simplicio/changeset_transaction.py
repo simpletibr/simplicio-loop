@@ -87,6 +87,15 @@ def _write_state(path: Path, state: dict[str, Any]) -> None:
     write_text_atomic(path, json.dumps(state, sort_keys=True, indent=2) + "\n")
 
 
+def _pause_for_fault_injection(point: str) -> None:
+    """Pause only when an explicit test harness requests a crash window."""
+
+    if os.environ.get("SIMPLICIO_TRANSACTION_PAUSE_AT") != point:
+        return
+    seconds = float(os.environ.get("SIMPLICIO_TRANSACTION_PAUSE_SECONDS", "30"))
+    time.sleep(max(0.0, seconds))
+
+
 def existing_transaction_result(
     root: str | Path,
     *,
@@ -352,11 +361,14 @@ def _execute_changeset_transaction(
         backup.mkdir(parents=True, exist_ok=True)
         for relative in paths:
             target = _safe_path(root_path, relative)
-            staged = _safe_path(candidate, relative)
             saved = _safe_path(backup, relative)
             if target.is_file():
                 saved.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(target, saved)
+        _pause_for_fault_injection("after_backup")
+        for relative in paths:
+            target = _safe_path(root_path, relative)
+            staged = _safe_path(candidate, relative)
             if staged.is_file():
                 target.parent.mkdir(parents=True, exist_ok=True)
                 temporary = target.with_name(f".{target.name}.{idempotency_key}.tmp")
