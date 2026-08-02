@@ -43,6 +43,19 @@ def test_source_scan_captures_cross_language_evidence_and_redacts_secrets(tmp_pa
     assert "secret-value" not in evidence
 
 
+def test_policy_counts_only_critical_behavioral_legacy_writers() -> None:
+    policy = INVENTORY._policy([
+        {"repo": "loop", "file": "README.md", "kinds": ["ddl"],
+         "criticality": "informational", "writers": []},
+        {"repo": "loop", "file": "src/store.py", "kinds": ["ddl"],
+         "criticality": "critical", "writers": ["loop"]},
+        {"repo": "loop", "file": "tests/test_store.py", "kinds": ["ddl"],
+         "criticality": "test-only", "writers": ["loop"]},
+    ])
+    assert policy["legacy_ddl_matches"] == 1
+    assert policy["legacy_ddl_files"] == [{"repo": "loop", "file": "src/store.py"}]
+
+
 def test_redaction_covers_bearer_headers_and_sql_default_values(tmp_path: Path) -> None:
     _write(
         tmp_path,
