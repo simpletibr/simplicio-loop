@@ -58,6 +58,19 @@ def _result(check_id: str, status: str, reason: str, evidence: Any = None) -> di
     return {"id": check_id, "status": status, "reason": reason, "evidence": evidence}
 
 
+def _checkout_matches_default(reference: dict[str, Any]) -> bool:
+    """Accept a clean detached worktree pinned exactly to the default SHA."""
+    if not reference.get("working_tree_clean", False):
+        return False
+    if reference.get("checked_out_branch") == reference.get("branch"):
+        return True
+    return (
+        reference.get("checked_out_branch") is None
+        and reference.get("checked_out_sha")
+        and reference.get("checked_out_sha") == reference.get("sha")
+    )
+
+
 def _repo_roots(values: list[str], base: Path) -> list[tuple[str, Path]]:
     roots: dict[str, Path] = {}
     for value in values:
@@ -107,6 +120,7 @@ def build_conformance(
             "sha": repo_by_id[repo_id].get("default_revision"),
             "checked_out_branch": repo_by_id[repo_id].get("branch"),
             "checked_out_sha": repo_by_id[repo_id].get("revision"),
+            "working_tree_clean": repo_by_id[repo_id].get("working_tree_clean", False),
         }
         for repo_id in REQUIRED_REPOS
     }
@@ -146,7 +160,8 @@ def build_conformance(
     )
 
     dirty_or_nondefault = {
-        repo_id: ref for repo_id, ref in default_refs.items() if ref["checked_out_branch"] != ref["branch"]
+        repo_id: ref for repo_id, ref in default_refs.items()
+        if not _checkout_matches_default(ref)
     }
     checks.append(
         _result(
