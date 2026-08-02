@@ -472,6 +472,110 @@ def prepare_integrated_work_item(
     )
 
 
+def _prepare_integrated_or_blocked(
+    *,
+    root: str,
+    stack: str,
+    goal: str,
+    target: str,
+    criteria: str,
+    constraints: str,
+    prompt: str,
+    primary_test_cmd: str | None,
+    authorization: EffectAuthorization | None,
+    context_snapshot: dict[str, Any] | None,
+    context_pack: dict[str, Any] | None,
+    context_delta: dict[str, Any] | None,
+    execution_context: dict[str, Any] | None,
+    context_refresh: bool,
+    attempt: AttemptContext | None,
+    task_spec: TaskSpec | None,
+    coordinator_kind: str,
+    session_id: str,
+    turn_id: str,
+    attempt_number: int,
+    subworkflow_id: str,
+    deadline: str | None,
+    policy_revision: str,
+    base_hash: str,
+    context_pack_hash: str | None,
+    proposal_only: bool,
+) -> tuple[PreparedIntegratedWorkItem | None, dict[str, Any] | None]:
+    try:
+        return (
+            prepare_integrated_work_item(
+                root,
+                stack,
+                goal,
+                target,
+                criteria,
+                constraints,
+                primary_test_cmd,
+                authorization=authorization,
+                context_snapshot=context_snapshot,
+                context_pack=context_pack,
+                context_delta=context_delta,
+                execution_context=execution_context,
+                context_refresh=context_refresh,
+                attempt=attempt,
+                task_spec=task_spec,
+                coordinator_kind=coordinator_kind,
+                session_id=session_id,
+                turn_id=turn_id,
+                attempt_number=attempt_number,
+                subworkflow_id=subworkflow_id,
+                deadline=deadline,
+                policy_revision=policy_revision,
+                base_hash=base_hash,
+                context_pack_hash=context_pack_hash,
+                proposal_only=proposal_only,
+            ),
+            None,
+        )
+    except IntegratedPreparationError as exc:
+        return None, _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[exc.warning],
+            blocked_preconditions=[{"code": exc.code, "message": str(exc)}],
+        )
+    except MapperContextError as exc:
+        warning = (
+            exc.code if exc.code in {"SOURCE_DRIFT", "CONTEXT_ROOT_PATH_MISMATCH"} else "INCOMPATIBLE_CONTEXT"
+        )
+        return None, _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[warning],
+            blocked_preconditions=[
+                {"code": warning, "message": f"{exc.code}: snapshot/projection binding rejected"}
+            ],
+        )
+    except PlanCompilationError as exc:
+        if not proposal_only:
+            emit_event(
+                "validation_fail",
+                {"target": target, "warnings": [str(exc)[:500]], "mode": "integrated"},
+                level="warning",
+                root=root,
+            )
+        return None, _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[str(exc)],
+            blocked_preconditions=[{"code": "plan_compilation_failed", "message": str(exc)}],
+        )
+
+
 def run_integrated(
     root: str,
     stack: str,
@@ -508,76 +612,37 @@ def run_integrated(
         emit_event(
             "task_start", {"target": target, "stack": stack, "goal": goal, "mode": "integrated"}, root=root
         )
-    try:
-        prepared = prepare_integrated_work_item(
-            root,
-            stack,
-            goal,
-            target,
-            criteria,
-            constraints,
-            primary_test_cmd,
-            authorization=authorization,
-            context_snapshot=context_snapshot,
-            context_pack=context_pack,
-            context_delta=context_delta,
-            execution_context=execution_context,
-            context_refresh=context_refresh,
-            attempt=attempt,
-            task_spec=task_spec,
-            coordinator_kind=coordinator_kind,
-            session_id=session_id,
-            turn_id=turn_id,
-            attempt_number=attempt_number,
-            subworkflow_id=subworkflow_id,
-            deadline=deadline,
-            policy_revision=policy_revision,
-            base_hash=base_hash,
-            context_pack_hash=context_pack_hash,
-            proposal_only=proposal_only,
-        )
-    except IntegratedPreparationError as exc:
-        return _task_result(
-            target,
-            prompt,
-            "",
-            applied=False,
-            status="blocked",
-            warnings=[exc.warning],
-            blocked_preconditions=[{"code": exc.code, "message": str(exc)}],
-        )
-    except MapperContextError as exc:
-        warning = (
-            exc.code if exc.code in {"SOURCE_DRIFT", "CONTEXT_ROOT_PATH_MISMATCH"} else "INCOMPATIBLE_CONTEXT"
-        )
-        return _task_result(
-            target,
-            prompt,
-            "",
-            applied=False,
-            status="blocked",
-            warnings=[warning],
-            blocked_preconditions=[
-                {"code": warning, "message": f"{exc.code}: snapshot/projection binding rejected"}
-            ],
-        )
-    except PlanCompilationError as exc:
-        if not proposal_only:
-            emit_event(
-                "validation_fail",
-                {"target": target, "warnings": [str(exc)[:500]], "mode": "integrated"},
-                level="warning",
-                root=root,
-            )
-        return _task_result(
-            target,
-            prompt,
-            "",
-            applied=False,
-            status="blocked",
-            warnings=[str(exc)],
-            blocked_preconditions=[{"code": "plan_compilation_failed", "message": str(exc)}],
-        )
+    prepared, blocked_result = _prepare_integrated_or_blocked(
+        root=root,
+        stack=stack,
+        goal=goal,
+        target=target,
+        criteria=criteria,
+        constraints=constraints,
+        prompt=prompt,
+        primary_test_cmd=primary_test_cmd,
+        authorization=authorization,
+        context_snapshot=context_snapshot,
+        context_pack=context_pack,
+        context_delta=context_delta,
+        execution_context=execution_context,
+        context_refresh=context_refresh,
+        attempt=attempt,
+        task_spec=task_spec,
+        coordinator_kind=coordinator_kind,
+        session_id=session_id,
+        turn_id=turn_id,
+        attempt_number=attempt_number,
+        subworkflow_id=subworkflow_id,
+        deadline=deadline,
+        policy_revision=policy_revision,
+        base_hash=base_hash,
+        context_pack_hash=context_pack_hash,
+        proposal_only=proposal_only,
+    )
+    if blocked_result is not None:
+        return blocked_result
+    assert prepared is not None
     proposal = build_change_proposal(prepared.effect, prepared.dispatch_context)
     if proposal_only:
         envelope = _proposal_envelope(prepared, proposal)
