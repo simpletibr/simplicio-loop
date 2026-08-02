@@ -44,6 +44,7 @@ from .utils.fs import write_text_atomic
 MEMORY_SCHEMA = "simplicio.memory-store/v1"
 MEMORY_VALIDATION_SCHEMA = "simplicio.memory-store-validation/v1"
 MEMORY_HANDOFF_SCHEMA = "simplicio.memory-handoff/v1"
+MEMORY_HANDOFF_VALIDATION_SCHEMA = "simplicio.memory-handoff-validation/v1"
 MEMORY_INDEX_SCHEMA = "simplicio.memory-index/v1"
 MEMORY_IMPORT_SCHEMA = "simplicio.memory-import/v1"
 
@@ -571,6 +572,87 @@ def build_handoff(
             "warnings": validation["warnings"],
         },
         "results": items,
+    }
+
+
+def validate_handoff(payload: Any) -> dict[str, Any]:
+    """Validate a cross-vendor handoff without accepting malformed input.
+
+    The validator is intentionally structural: it proves the local v1
+    envelope shape and preserves unknown additive fields for forward
+    compatibility, but it does not claim compatibility with an external
+    Mapper memory API.
+    """
+    errors: list[dict[str, str]] = []
+    if not isinstance(payload, dict):
+        errors.append({"code": "payload_not_object", "message": "handoff payload must be an object"})
+        return {
+            "schema": MEMORY_HANDOFF_VALIDATION_SCHEMA,
+            "ok": False,
+            "errors": errors,
+        }
+
+    required_strings = ("schema", "dir", "query", "from_agent", "to_agent")
+    for field in required_strings:
+        if not isinstance(payload.get(field), str) or not payload[field].strip():
+            errors.append(
+                {"code": "missing_string", "message": f"handoff field {field!r} must be a non-empty string"}
+            )
+    if payload.get("schema") != MEMORY_HANDOFF_SCHEMA:
+        errors.append(
+            {
+                "code": "unsupported_schema",
+                "message": f"expected {MEMORY_HANDOFF_SCHEMA}, got {payload.get('schema')!r}",
+            }
+        )
+
+    validation = payload.get("validation")
+    if not isinstance(validation, dict):
+        errors.append({"code": "invalid_validation", "message": "handoff validation must be an object"})
+    else:
+        if not isinstance(validation.get("ok"), bool):
+            errors.append(
+                {"code": "invalid_validation_ok", "message": "handoff validation.ok must be boolean"}
+            )
+        for field in ("errors", "warnings"):
+            if not isinstance(validation.get(field), list):
+                errors.append(
+                    {
+                        "code": "invalid_validation_rows",
+                        "message": f"handoff validation.{field} must be a list",
+                    }
+                )
+
+    results = payload.get("results")
+    if not isinstance(results, list):
+        errors.append({"code": "invalid_results", "message": "handoff results must be a list"})
+    else:
+        for index, result in enumerate(results):
+            if not isinstance(result, dict):
+                errors.append(
+                    {"code": "invalid_result", "message": f"handoff result {index} must be an object"}
+                )
+                continue
+            for field in ("topic", "path", "snippet"):
+                if not isinstance(result.get(field), str):
+                    errors.append(
+                        {
+                            "code": "invalid_result_field",
+                            "message": f"handoff result {index}.{field} must be a string",
+                        }
+                    )
+            if not isinstance(result.get("score"), (int, float)) or isinstance(result.get("score"), bool):
+                errors.append(
+                    {
+                        "code": "invalid_result_score",
+                        "message": f"handoff result {index}.score must be numeric",
+                    }
+                )
+
+    return {
+        "schema": MEMORY_HANDOFF_VALIDATION_SCHEMA,
+        "ok": not errors,
+        "errors": errors,
     }
 
 
