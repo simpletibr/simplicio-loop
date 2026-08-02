@@ -276,7 +276,25 @@ def prepare_integrated_work_item(
     binding = bind_mapper_context(
         context_snapshot, context_pack, source_root=root, execution_context_payload=execution_context
     )
-    bind_verification_metrics = verify_context_sources(binding, source_root=root) or {}
+    # Do not hash the complete ContextPack here. The plan below determines the
+    # causal read/write set; verification is performed once, immediately
+    # before effect dispatch, against that set. Keeping an explicit receipt
+    # entry preserves observability without paying for a redundant full scan.
+    bind_verification_metrics = {
+        "files_considered": 0,
+        "files_hashed": 0,
+        "bytes_read": 0,
+        "generation": str(
+            getattr(
+                binding.context_handle,
+                "generation",
+                getattr(getattr(binding.snapshot, "view", None), "revision", ""),
+            )
+        ),
+        "paths_requested": [],
+        "engine": "deferred-causal",
+        "fallback_reason": "causal_verification_deferred",
+    }
     canonical_pack_hash = str(getattr(getattr(binding, "pack", None), "pack_hash", "") or "")
     supplied_pack_hash = None if context_pack_hash is None else str(context_pack_hash).strip()
     if supplied_pack_hash is not None and supplied_pack_hash != canonical_pack_hash:

@@ -422,7 +422,7 @@ def test_integrated_mode_rechecks_source_after_plan_before_effect(tmp_path, monk
     def drift_after_plan(*_args, **_kwargs):
         nonlocal calls
         calls += 1
-        if calls == 2:
+        if calls == 1:
             raise MapperContextError("SOURCE_DRIFT", "src/app.py changed during plan compilation")
 
     monkeypatch.setattr("simplicio.pipeline_integrated.verify_context_sources", drift_after_plan)
@@ -444,7 +444,7 @@ def test_integrated_mode_rechecks_source_after_plan_before_effect(tmp_path, monk
         quiet=True,
     )
 
-    assert calls == 2
+    assert calls == 1
     assert result["status"] == "blocked"
     assert result["warnings"] == ["SOURCE_DRIFT"]
     assert result["blocked_preconditions"][0]["code"] == "SOURCE_DRIFT"
@@ -517,7 +517,10 @@ def test_integrated_mode_compiles_plan_and_dispatches_effect_without_writing(tmp
     assert result["context_binding"]["context_handle"] == CONTEXT_HANDLE
     assert result["context_binding"]["cache"]["schema"] == "simplicio.context-binding-cache/v1"
     assert result["context_binding"]["cache"]["hit"] is False
-    assert result["verification_metrics"]["bind"]["files_hashed"] == 10
+    assert result["verification_metrics"]["bind"]["files_hashed"] == 0
+    assert result["verification_metrics"]["bind"]["fallback_reason"] == "causal_verification_deferred"
+    # This legacy task adapter has no typed causal set, so the safety fallback
+    # remains a full verification; it is still the only source scan.
     assert result["verification_metrics"]["pre_effect"]["files_hashed"] == 10
     assert observation["resources"]["effect_calls"] == 1
     assert observation["resources"]["threads_created"] == 0
