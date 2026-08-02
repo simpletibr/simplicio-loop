@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import subprocess
+import sys
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
@@ -256,6 +260,50 @@ def test_context_binding_cache_enforces_revision_cas_and_fencing(
     assert compacted["chain_status"] == "valid"
     assert compacted["bytes"] <= before
     assert cache.lookup(binding.context_handle)["hit"] is True
+
+
+def test_context_binding_cache_concurrent_process_puts_preserve_all_entries(
+    mapper_boundary: None, tmp_path: Any
+) -> None:
+    handles = []
+    for index in range(10):
+        payload = {**_payload(), "snapshot_id": f"snap-concurrent-{index}"}
+        binding = bind_mapper_context(payload, _pack(payload))
+        handles.append(binding.context_handle.to_dict())
+
+    handle_file = tmp_path / "handles.json"
+    handle_file.write_text(json.dumps(handles), encoding="utf-8")
+    worker = (
+        "import json, os, sys; "
+        "from pathlib import Path; "
+        "from types import SimpleNamespace; "
+        "from simplicio.plan_compiler.mapper_context import ContextBindingCache, ContextHandle; "
+        "items=json.loads(Path(sys.argv[2]).read_text()); "
+        "item=items[int(sys.argv[3])]; "
+        "cache=ContextBindingCache(sys.argv[1]); "
+        "print(json.dumps(cache.put(SimpleNamespace(context_handle=ContextHandle(**{k:v for k,v in item.items() if k != 'schema'})), fence='10')));"
+    )
+    env = os.environ.copy()
+    repo_root = str(Path(__file__).resolve().parents[2])
+    env["PYTHONPATH"] = os.pathsep.join(item for item in (repo_root, env.get("PYTHONPATH", "")) if item)
+    processes = [
+        subprocess.Popen(
+            [sys.executable, "-c", worker, str(tmp_path), str(handle_file), str(index)],
+            cwd=repo_root,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        for index in range(len(handles))
+    ]
+    results = [process.communicate(timeout=30) for process in processes]
+
+    assert all(process.returncode == 0 for process in processes), results
+    cache = ContextBindingCache(tmp_path)
+    assert cache.doctor()["chain_status"] == "valid"
+    assert cache.doctor()["entries"] == len(handles)
 
 
 def test_context_binding_cache_uses_hashed_append_log_and_recovers_truncation(
