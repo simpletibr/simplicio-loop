@@ -266,6 +266,43 @@ class NoFastEngine(FastEngine):
         raise FastEngineError("fast_unavailable", "no compatible Fast binary decoder is installed")
 
 
+class FastEngineSession:
+    """Reuse one negotiated engine for a bounded worktree/session lifetime."""
+
+    def __init__(self) -> None:
+        self._engines: dict[tuple[str, tuple[object, ...]], FastEngine] = {}
+
+    @staticmethod
+    def _fingerprint() -> tuple[object, ...]:
+        native = os.environ.get("SIMPLICIO_FAST_NATIVE", "").strip()
+        native_stat: tuple[object, ...] = ()
+        if native:
+            try:
+                stat_result = Path(native).stat()
+                native_stat = (str(Path(native).resolve()), stat_result.st_size, stat_result.st_mtime_ns)
+            except OSError:
+                native_stat = (native, "missing")
+        return (
+            os.environ.get("SIMPLICIO_FAST_VERSION"),
+            os.environ.get("SIMPLICIO_FAST_PARSER_AVAILABLE"),
+            native_stat,
+        )
+
+    def select(self, preference: str = "auto") -> FastEngine:
+        key = (preference.strip().lower(), self._fingerprint())
+        if key not in self._engines:
+            self._engines[key] = select_fast_engine(preference)
+        return self._engines[key]
+
+    def close(self) -> None:
+        for engine in self._engines.values():
+            decoder = getattr(engine, "_decoder", None)
+            close = getattr(decoder, "close", None)
+            if callable(close):
+                close()
+        self._engines.clear()
+
+
 def select_fast_engine(preference: str = "auto") -> FastEngine:
     """Select the decoder once without labelling Python as Rust."""
     requested = preference.strip().lower()
