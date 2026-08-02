@@ -396,6 +396,46 @@ def test_build_handoff_includes_validation_and_actor_metadata(tmp_path):
     assert payload["results"][0]["tags"] == "release, workflow"
 
 
+def test_validate_handoff_accepts_build_handoff_payload(tmp_path):
+    base = tmp_path / "mem"
+    memory_store.store_memory("release process", "Ship via draft PR first.", root=base, actor="codex")
+
+    payload = memory_store.build_handoff("draft PR", root=base, from_agent="codex", to_agent="claude")
+    validation = memory_store.validate_handoff(payload)
+
+    assert validation == {
+        "schema": memory_store.MEMORY_HANDOFF_VALIDATION_SCHEMA,
+        "ok": True,
+        "errors": [],
+    }
+
+
+@pytest.mark.parametrize(
+    ("payload", "code"),
+    [
+        (None, "payload_not_object"),
+        ({"schema": "other"}, "missing_string"),
+        (
+            {
+                "schema": memory_store.MEMORY_HANDOFF_SCHEMA,
+                "dir": "/tmp/memory",
+                "query": "release",
+                "from_agent": "codex",
+                "to_agent": "claude",
+                "validation": {"ok": True, "errors": [], "warnings": []},
+                "results": [{"topic": "release", "path": "release.md", "snippet": "x", "score": "bad"}],
+            },
+            "invalid_result_score",
+        ),
+    ],
+)
+def test_validate_handoff_rejects_malformed_payload(payload, code):
+    validation = memory_store.validate_handoff(payload)
+
+    assert validation["ok"] is False
+    assert any(row["code"] == code for row in validation["errors"])
+
+
 def test_cli_memory_init_store_recall(tmp_path, capsys):
     from simplicio import cli
 
