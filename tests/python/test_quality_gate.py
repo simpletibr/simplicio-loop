@@ -109,6 +109,28 @@ def test_quality_gate_records_command_timeout(tmp_path):
     assert "process tree terminated" in payload["commands"][0]["error"]
 
 
+def test_quality_gate_redacts_secret_shaped_command_output(tmp_path):
+    payload = run_gate(
+        tmp_path,
+        commands=[
+            (
+                "secret-output",
+                [
+                    sys.executable,
+                    "-c",
+                    "print('Authorization: Bearer abc123 token=super-secret api_key=private')",
+                ],
+            )
+        ],
+    )
+
+    output = payload["commands"][0]["output_tail"]
+    assert "abc123" not in output
+    assert "super-secret" not in output
+    assert "private" not in output
+    assert "[REDACTED]" in output
+
+
 def test_quality_gate_accepts_sha_bound_external_e2e_report(monkeypatch, tmp_path):
     root = tmp_path
     (root / ".git").mkdir()
