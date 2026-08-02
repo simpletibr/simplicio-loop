@@ -458,3 +458,15 @@ def test_operations_fixture_is_accepted(tmp_path: Path) -> None:
     store = _store(tmp_path)
     result = store.enqueue(**fixture["request"])
     assert result == fixture["response"]
+
+
+def test_find_task_reads_idempotency_identity_without_mutation(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    store.enqueue("task", {"kind": "work"}, idempotency_key="same")
+    assert store.find_task("same") == {
+        "schema": "simplicio.mapper-store.operations-api/v1",
+        "task_id": "task",
+        "payload": {"kind": "work"},
+        "state": "queued",
+    }
+    assert store.find_task("missing") is None

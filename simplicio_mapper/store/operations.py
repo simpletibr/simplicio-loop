@@ -934,6 +934,54 @@ class OperationsStore:
                     )
         return {"schema": OPERATIONS_API_SCHEMA, "status": "requeued", "task_id": task_id, "state": "queued"}
 
+    def update_payload(self, task_id: str, payload: Mapping[str, Any]) -> dict[str, Any]:
+        """Update a task's canonical payload without changing its lifecycle state."""
+        if not isinstance(task_id, str) or not task_id.strip():
+            raise OperationsStoreError("TASK_IDENTITY_INVALID")
+        payload_json = _json_payload(payload, "task")
+        with self._write_lock():
+            with self._open() as store:
+                self._ensure_ready(store)
+                with transaction(store, "IMMEDIATE") as tx:
+                    row = tx.execute(
+                        "SELECT task_id FROM ops_tasks WHERE task_id=?", (task_id,)
+                    ).fetchone()
+                    if not row:
+                        raise OperationsStoreError("TASK_NOT_FOUND", task_id)
+                    tx.execute(
+                        "UPDATE ops_tasks SET payload_json=?, updated_at=? WHERE task_id=?",
+                        (payload_json, _now(), task_id),
+                    )
+        return {
+            "schema": OPERATIONS_API_SCHEMA,
+            "status": "payload_updated",
+            "task_id": task_id,
+        }
+
+    def find_task(self, idempotency_key: str) -> dict[str, Any] | None:
+        """Look up a canonical task by idempotency key without mutating it."""
+        if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+            raise OperationsStoreError("TASK_IDENTITY_INVALID")
+        if not self.database.is_file():
+            raise OperationsStoreError("STORE_NOT_INITIALIZED")
+        with self._open(read_only=True) as store:
+            try:
+                self._read_ready(store)
+                row = store.execute(
+                    "SELECT task_id, payload_json, state FROM ops_tasks WHERE idempotency_key=?",
+                    (idempotency_key,),
+                ).fetchone()
+            except sqlite3.Error as error:
+                raise OperationsStoreError("STORE_NOT_INITIALIZED") from error
+        if not row:
+            return None
+        return {
+            "schema": OPERATIONS_API_SCHEMA,
+            "task_id": str(row[0]),
+            "payload": json.loads(row[1]),
+            "state": str(row[2]),
+        }
+
     def request_cancel(self, task_id: str, *, reason: str = "cancelled") -> dict[str, Any]:
         """Request cooperative cancellation while retaining the current lease."""
         result = self.cancel(task_id)
