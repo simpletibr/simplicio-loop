@@ -100,6 +100,36 @@ def test_changeset_cli_wires_mapper_refresh_only_when_requested(monkeypatch, tmp
     assert receipt["execution_mode"]["route"] == "standalone"
 
 
+def test_changeset_cli_fails_closed_when_refresh_is_pending(monkeypatch, tmp_path, capsys):
+    plan = tmp_path / "changeset.sfb"
+    plan.write_bytes(changeset_v2.BINARY_MAGIC + b"payload")
+
+    def fake_execute(payload, **kwargs):
+        return {
+            "status": "ok",
+            "applied": True,
+            "dry_run": False,
+            "refresh": {"status": "REFRESH_PENDING", "paths": ["alpha.txt"]},
+        }
+
+    monkeypatch.setattr(changeset_v2, "execute_changeset_bytes", fake_execute)
+    args = SimpleNamespace(
+        mode="standalone",
+        root=str(tmp_path),
+        plan=str(plan),
+        apply=True,
+        current_generation=None,
+        fast_engine="python",
+        refresh_mapper=False,
+        json=True,
+    )
+
+    assert changeset_command.run(args) == 1
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["status"] == "ok"
+    assert receipt["refresh"]["status"] == "REFRESH_PENDING"
+
+
 def test_changeset_cli_without_flag_preserves_pending_contract(monkeypatch, tmp_path, capsys):
     plan = tmp_path / "changeset.sfb"
     plan.write_bytes(changeset_v2.BINARY_MAGIC + b"payload")
