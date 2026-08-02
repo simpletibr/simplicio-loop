@@ -77,6 +77,26 @@ def test_quality_gate_verifier_rejects_tampering(tmp_path):
     assert reason == "receipt_digest_invalid"
 
 
+def test_quality_gate_verifier_rejects_signed_failed_external_lane(monkeypatch, tmp_path):
+    receipt = tmp_path / "receipt.json"
+    payload = run_gate(tmp_path, commands=[("pass", [sys.executable, "-c", "pass"])])
+    payload["commit_sha"] = "abc123"
+    payload["passed"] = True
+    payload["external_lanes"] = {
+        "runtime": {"status": "FAIL", "reason": "receipt mismatch"},
+    }
+    monkeypatch.setattr(
+        "scripts.quality_gate._git",
+        lambda _root, *args: "abc123" if args == ("rev-parse", "HEAD") else None,
+    )
+    _write_receipt(receipt, payload)
+
+    ok, reason = verify_receipt(receipt, tmp_path)
+
+    assert ok is False
+    assert reason == "external_lane_failed"
+
+
 def test_quality_gate_records_command_timeout(tmp_path):
     payload = run_gate(
         tmp_path,
