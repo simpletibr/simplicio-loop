@@ -4,6 +4,7 @@ import pytest
 
 from simplicio import pipeline_preparation
 from simplicio.execution_mode import ExecutionInputError
+from simplicio.task_spec import TaskSpec
 
 
 def test_prepare_pipeline_inputs_builds_immutable_route_inputs(tmp_path):
@@ -69,3 +70,32 @@ def test_prepare_task_preflight_preserves_repo_root_block(tmp_path):
     assert preflight.task_context is None
     assert preflight.context_error is not None
     assert preflight.context_error.code == "REPO_ROOT_MISMATCH"
+
+
+def _task_spec() -> TaskSpec:
+    return TaskSpec(
+        task_id="task-420",
+        source={"kind": "argument"},
+        source_hash="0" * 64,
+        language="pt-BR",
+    )
+
+
+def test_resolve_task_spec_route_allows_missing_or_integrated_task():
+    assert pipeline_preparation.resolve_task_spec_route(None, "standalone") == (
+        pipeline_preparation.TaskSpecRouteDecision(blocked=False)
+    )
+    assert pipeline_preparation.resolve_task_spec_route(_task_spec(), "integrated") == (
+        pipeline_preparation.TaskSpecRouteDecision(blocked=False)
+    )
+
+
+@pytest.mark.parametrize("mode", ["standalone", "blocked"])
+def test_resolve_task_spec_route_rejects_non_integrated_task(mode):
+    decision = pipeline_preparation.resolve_task_spec_route(_task_spec(), mode)
+
+    assert decision == pipeline_preparation.TaskSpecRouteDecision(
+        blocked=True,
+        code="TASK_SPEC_REQUIRES_INTEGRATED_MODE",
+        message="typed TaskSpec input is accepted only by the integrated execution path",
+    )
