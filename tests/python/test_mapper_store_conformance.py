@@ -90,3 +90,23 @@ def test_fast_isolation_passes_only_when_fast_was_scanned(tmp_path: Path) -> Non
     report = build_conformance(repos, [], deterministic=True)
     check = next(item for item in report["checks"] if item["id"] == "fast_isolation")
     assert check["status"] == "fail"
+
+
+def test_installed_loop_evidence_is_validated_before_passing(tmp_path: Path) -> None:
+    repos = [(name, _repo(tmp_path, name)) for name in ("mapper", "loop", "dev-cli", "runtime")]
+    evidence = {
+        "schema": "simplicio.install-smoke/v1",
+        "ok": True,
+        "module_from_repo_checkout": False,
+        "observed_version": "3.38.28",
+        "artifact": {"sha256": "a" * 64},
+        "module_file": "/tmp/venv/lib/python/site-packages/simplicio_loop/__init__.py",
+        "probe": {"returncode": 0},
+    }
+    report = build_conformance(repos, [], deterministic=True, external_evidence={"loop_standalone": evidence})
+    check = next(item for item in report["checks"] if item["id"] == "loop_standalone")
+    assert check["status"] == "pass"
+    evidence["module_from_repo_checkout"] = True
+    report = build_conformance(repos, [], deterministic=True, external_evidence={"loop_standalone": evidence})
+    check = next(item for item in report["checks"] if item["id"] == "loop_standalone")
+    assert check["status"] == "unverified"

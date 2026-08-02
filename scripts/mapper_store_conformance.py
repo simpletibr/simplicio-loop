@@ -15,10 +15,11 @@ import importlib.util
 import json
 import os
 import platform
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 SCHEMA = "simplicio.mapper-store-conformance/v1"
 INVENTORY_PATH = Path(__file__).with_name("mapper_store_inventory.py")
@@ -89,6 +90,40 @@ def _repo_roots(values: list[str], base: Path) -> list[tuple[str, Path]]:
     return sorted(roots.items())
 
 
+def _evidence_args(values: list[str], base: Path) -> dict[str, Any]:
+    evidence: dict[str, Any] = {}
+    for value in values:
+        if "=" not in value:
+            raise SystemExit(f"evidence requires check=path: {value}")
+        check_id, raw_path = value.split("=", 1)
+        path = (base / raw_path).resolve() if not os.path.isabs(raw_path) else Path(raw_path).resolve()
+        if not check_id or not path.is_file() or path.is_symlink():
+            raise SystemExit(f"evidence must be an existing non-symlink file: {path}")
+        try:
+            evidence[check_id] = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            raise SystemExit(f"evidence is not valid JSON: {path}") from error
+    return evidence
+
+
+def _valid_loop_standalone_evidence(value: Any) -> bool:
+    if not isinstance(value, dict) or value.get("schema") != "simplicio.install-smoke/v1":
+        return False
+    if value.get("ok") is not True or value.get("module_from_repo_checkout") is not False:
+        return False
+    if not isinstance(value.get("observed_version"), str) or not value["observed_version"].strip():
+        return False
+    if not re.fullmatch(r"[0-9a-f]{64}", str(value.get("artifact", {}).get("sha256", ""))):
+        return False
+    probe = value.get("probe", {})
+    return (
+        isinstance(probe, dict)
+        and probe.get("returncode") == 0
+        and isinstance(value.get("module_file"), str)
+        and "site-packages" in value["module_file"]
+    )
+
+
 def _database_args(values: list[str], base: Path) -> list[tuple[str, Path, str]]:
     result: list[tuple[str, Path, str]] = []
     for value in values:
@@ -108,6 +143,7 @@ def build_conformance(
     *,
     deterministic: bool = False,
     run_external_smoke: bool = False,
+    external_evidence: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     inventory_module = _inventory_module()
     inventory = inventory_module.build_inventory(repos, databases, deterministic=deterministic)
@@ -192,12 +228,16 @@ def build_conformance(
             {"matches": fast_matches[:20]},
         )
     )
+    loop_evidence = (external_evidence or {}).get("loop_standalone")
+    loop_evidence_valid = _valid_loop_standalone_evidence(loop_evidence)
     checks.append(
         _result(
             "loop_standalone",
-            "unverified",
-            "standalone installed-package smoke must run outside this source checkout",
-            {"runtime_required": False},
+            "pass" if loop_evidence_valid else "unverified",
+            "clean-room installed Loop wheel smoke passed"
+            if loop_evidence_valid
+            else "standalone installed-package smoke must run outside this source checkout",
+            loop_evidence if loop_evidence_valid else {"runtime_required": False},
         )
     )
     checks.append(
@@ -294,6 +334,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", type=Path)
     parser.add_argument("--deterministic", action="store_true")
     parser.add_argument("--run-external-smoke", action="store_true")
+    parser.add_argument(
+        "--evidence", action="append", default=[],
+        help="check=JSON receipt; currently supports loop_standalone",
+    )
     args = parser.parse_args(argv)
     base = Path.cwd()
     repos = _repo_roots(
@@ -307,8 +351,13 @@ def main(argv: list[str] | None = None) -> int:
         base,
     )
     databases = _database_args(args.database, base)
+    external_evidence = _evidence_args(args.evidence, base)
     payload = build_conformance(
-        repos, databases, deterministic=args.deterministic, run_external_smoke=args.run_external_smoke
+        repos,
+        databases,
+        deterministic=args.deterministic,
+        run_external_smoke=args.run_external_smoke,
+        external_evidence=external_evidence,
     )
     rendered = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     if args.output:
