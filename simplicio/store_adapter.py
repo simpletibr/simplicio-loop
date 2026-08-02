@@ -265,3 +265,72 @@ class MapperStoreAdapter:
             yield handle
         finally:
             release_lock_at(handle)
+
+
+class MapperOperationsAdapter:
+    """Explicit Dev CLI boundary for the canonical Mapper operations store.
+
+    The compatibility JSON records above remain available to already-migrated
+    projections. New task/lease state must use this adapter so Dev CLI never
+    creates a second operations authority.
+    """
+
+    schema = "simplicio.dev-cli.mapper-operations-adapter/v1"
+    _REQUIRED_METHODS = ("initialize", "enqueue", "find_task", "update_payload")
+
+    def __init__(self, root: str | Path, *, database: str | Path | None = None) -> None:
+        _require_mapper_store()
+        self.root = Path(root).resolve()
+        self.database = (
+            Path(database).expanduser().resolve()
+            if database is not None
+            else self.root / ".simplicio" / "data" / "operations.sqlite"
+        )
+
+    def _store(self, *, auto_create: bool) -> Any:
+        try:
+            from simplicio_mapper.store import OperationsStore
+        except (ImportError, ModuleNotFoundError) as exc:
+            raise StoreAdapterError(
+                "MAPPER_STORE_UNAVAILABLE:operations-api-unavailable"
+            ) from exc
+        missing = [
+            name
+            for name in self._REQUIRED_METHODS
+            if not callable(getattr(OperationsStore, name, None))
+        ]
+        if missing:
+            raise StoreAdapterError(
+                "MAPPER_STORE_UNAVAILABLE:operations-api-missing:" + ",".join(missing)
+            )
+        try:
+            return OperationsStore(self.database, auto_create=auto_create)
+        except Exception as exc:
+            raise StoreAdapterError("MAPPER_STORE_UNAVAILABLE:operations-store-init") from exc
+
+    def initialize(self) -> dict[str, Any]:
+        self.database.parent.mkdir(parents=True, exist_ok=True)
+        return self._store(auto_create=True).initialize()
+
+    def enqueue(
+        self,
+        task_id: str,
+        payload: Mapping[str, Any],
+        *,
+        idempotency_key: str,
+        priority: int = 0,
+    ) -> dict[str, Any]:
+        return self._store(auto_create=False).enqueue(
+            task_id,
+            dict(payload),
+            idempotency_key=idempotency_key,
+            priority=priority,
+        )
+
+    def find_task(self, idempotency_key: str) -> dict[str, Any] | None:
+        return self._store(auto_create=False).find_task(idempotency_key)
+
+    def update_payload(
+        self, task_id: str, payload: Mapping[str, Any]
+    ) -> dict[str, Any]:
+        return self._store(auto_create=False).update_payload(task_id, dict(payload))
