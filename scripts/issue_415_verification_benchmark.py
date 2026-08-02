@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
+import shutil
 import statistics
 import subprocess
 import sys
@@ -54,6 +54,23 @@ def _binding(root: Path, count: int) -> Any:
     )
 
 
+def _delta(path: str) -> dict[str, Any]:
+    return {
+        "schema": "simplicio.graph-delta/v1",
+        "version": 1,
+        "event_type": "delta",
+        "mode": "incremental",
+        "base_revision": "benchmark-generation",
+        "scan_revision": "benchmark-generation-next",
+        "full_rescan": False,
+        "ordering": {"strategy": "op,entity_type,id", "deterministic": True},
+        "events": [],
+        "affected_paths": [path],
+        "diagnostics": [],
+        "snapshot": {},
+    }
+
+
 def _measure(fn: Any) -> dict[str, Any]:
     samples = []
     metrics = None
@@ -61,6 +78,7 @@ def _measure(fn: Any) -> dict[str, Any]:
         started = time.perf_counter()
         metrics = fn()
         samples.append((time.perf_counter() - started) * 1000.0)
+    assert metrics is not None
     ordered = sorted(samples)
     return {
         "repeats": REPEATS,
@@ -76,16 +94,52 @@ def _case(size_name: str, count: int, writers: int) -> dict[str, Any]:
         root = Path(raw_root)
         binding = _binding(root, count)
         causal_path = (f"src/file-{count - 1:04d}.py",)
+        causal_delta = _delta(causal_path[0])
 
         def full() -> dict[str, Any]:
             return verify_context_sources(binding, source_root=str(root))
 
         def causal() -> dict[str, Any]:
-            return verify_context_sources(binding, source_root=str(root), paths=causal_path)
+            return verify_context_sources(
+                binding, source_root=str(root), paths=causal_path, delta=causal_delta
+            )
 
         def concurrent() -> dict[str, Any]:
-            with ThreadPoolExecutor(max_workers=writers) as pool:
-                results = list(pool.map(lambda _: causal(), range(writers)))
+            # Use detached Git worktrees rather than N threads over one
+            # shared binding. This exercises independent roots and commits.
+            if shutil.which("git") is None:
+                raise RuntimeError("git is required for the worktree benchmark")
+            with tempfile.TemporaryDirectory(prefix=f"issue-415-{size_name}-{writers}-git-") as raw_repo:
+                repo = Path(raw_repo)
+                _binding(repo, count)
+                subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+                subprocess.run(
+                    ["git", "config", "user.email", "issue-415@example.invalid"], cwd=repo, check=True
+                )
+                subprocess.run(["git", "config", "user.name", "issue-415-benchmark"], cwd=repo, check=True)
+                subprocess.run(["git", "add", "src"], cwd=repo, check=True)
+                subprocess.run(["git", "commit", "-qm", "benchmark fixture"], cwd=repo, check=True)
+                lanes = []
+                for lane in range(writers):
+                    lane_root = repo / f"worktree-{lane}"
+                    subprocess.run(
+                        ["git", "worktree", "add", "--detach", "-q", str(lane_root), "HEAD"],
+                        cwd=repo,
+                        check=True,
+                    )
+                    lanes.append((lane_root, _binding(lane_root, count)))
+                with ThreadPoolExecutor(max_workers=writers) as pool:
+                    results = list(
+                        pool.map(
+                            lambda pair: verify_context_sources(
+                                pair[1],
+                                source_root=str(pair[0]),
+                                paths=causal_path,
+                                delta=causal_delta,
+                            ),
+                            lanes,
+                        )
+                    )
             return {
                 "files_hashed": sum(row["files_hashed"] for row in results),
                 "bytes_read": sum(row["bytes_read"] for row in results),
@@ -95,6 +149,8 @@ def _case(size_name: str, count: int, writers: int) -> dict[str, Any]:
             "pack": size_name,
             "files": count,
             "writers": writers,
+            "worktrees": writers,
+            "worktree_kind": "git-detached",
             "full": _measure(full),
             "causal": _measure(causal),
             "causal_concurrent": _measure(concurrent),
@@ -107,7 +163,7 @@ def run_benchmark() -> dict[str, Any]:
         "schema": SCHEMA,
         "commit_sha": _commit_sha(),
         "repeats": REPEATS,
-        "python": os.sys.version.split()[0],
+        "python": sys.version.split()[0],
         "rows": rows,
         "limitations": [
             "The harness measures Dev CLI verification with a validated-shaped binding;",

@@ -8,7 +8,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from types import MappingProxyType
+from types import MappingProxyType, SimpleNamespace
 from typing import Any
 
 import pytest
@@ -69,6 +69,25 @@ def _pack(payload: dict[str, Any], **overrides: Any) -> dict[str, Any]:
     }
     pack.update(overrides)
     return pack
+
+
+def _delta(*paths: str, base: str = "rev-2", scan: str = "rev-3", **overrides: Any) -> dict[str, Any]:
+    delta = {
+        "schema": "simplicio.graph-delta/v1",
+        "version": 1,
+        "event_type": "delta",
+        "mode": "incremental",
+        "base_revision": base,
+        "scan_revision": scan,
+        "full_rescan": False,
+        "ordering": {"strategy": "op,entity_type,id", "deterministic": True},
+        "events": [],
+        "affected_paths": list(paths),
+        "diagnostics": [],
+        "snapshot": {},
+    }
+    delta.update(overrides)
+    return delta
 
 
 @pytest.fixture
@@ -488,7 +507,12 @@ def test_incremental_source_verification_hashes_only_the_causal_set(
     binding = bind_mapper_context(payload, pack)
     second.write_bytes(b"changed\r\n")
 
-    metrics = verify_context_sources(binding, source_root=str(tmp_path), paths=("src/main.py",))
+    metrics = verify_context_sources(
+        binding,
+        source_root=str(tmp_path),
+        paths=("src/main.py",),
+        delta=_delta("src/main.py"),
+    )
     assert metrics["files_considered"] == 1
     assert metrics["files_hashed"] == 1
     assert metrics["bytes_read"] == len(first.read_bytes())
@@ -500,6 +524,306 @@ def test_incremental_source_verification_hashes_only_the_causal_set(
         verify_context_sources(binding, source_root=str(tmp_path), paths=("src/other.py",))
     with pytest.raises(MapperContextError, match="CONTEXT_CAUSAL_PATH_UNBOUND"):
         verify_context_sources(binding, source_root=str(tmp_path), paths=("src/missing.py",))
+
+
+def test_real_mapper_incremental_delta_is_consumed_without_schema_copy(
+    mapper_boundary: None, tmp_path: Any
+) -> None:
+    incremental = pytest.importorskip("simplicio_mapper.incremental")
+    source = tmp_path / "src" / "main.py"
+    source.parent.mkdir()
+    source.write_bytes(b"exact bytes\r\n")
+    payload = _payload()
+    pack = _pack(
+        payload,
+        files=[{"path": "src/main.py", "snapshot_hash": hashlib.sha256(source.read_bytes()).hexdigest()}],
+    )
+    previous = {
+        "schema": "simplicio.graph-snapshot/v1",
+        "version": 1,
+        "revision": "rev-2",
+        "snapshot_id": "previous",
+        "entities": [],
+        "edges": [],
+    }
+    current = {
+        **previous,
+        "revision": "rev-3",
+        "snapshot_id": "current",
+        "entities": [{"id": "file:src/main.py", "path": "src/main.py"}],
+    }
+    delta = incremental.compute_delta(previous, current, changed_paths=["src/main.py"])
+
+    metrics = verify_context_sources(
+        bind_mapper_context(payload, pack),
+        source_root=str(tmp_path),
+        paths=("src/main.py",),
+        delta=delta,
+    )
+
+    assert metrics["files_hashed"] == 1
+    assert metrics["engine"] == "mapper-delta"
+    assert metrics["delta_status"] == "accepted_causal_intersection"
+    assert metrics["fallback_reason"] is None
+
+
+def test_real_mapper_delta_dirty_causal_drift_blocks_before_effect(
+    mapper_boundary: None, tmp_path: Any
+) -> None:
+    source = tmp_path / "src" / "main.py"
+    source.parent.mkdir()
+    source.write_bytes(b"before\n")
+    payload = _payload()
+    pack = _pack(
+        payload,
+        files=[{"path": "src/main.py", "snapshot_hash": hashlib.sha256(source.read_bytes()).hexdigest()}],
+    )
+    binding = bind_mapper_context(payload, pack)
+    source.write_bytes(b"after\n")
+
+    with pytest.raises(MapperContextError, match="SOURCE_DRIFT"):
+        verify_context_sources(
+            binding,
+            source_root=str(tmp_path),
+            paths=("src/main.py",),
+            delta=_delta("src/main.py"),
+        )
+
+
+def test_graph_delta_outside_causal_set_skips_all_source_hashes(mapper_boundary: None, tmp_path: Any) -> None:
+    source = tmp_path / "src" / "main.py"
+    outside = tmp_path / "src" / "other.py"
+    source.parent.mkdir()
+    source.write_bytes(b"exact\r\nbytes")
+    outside.write_bytes(b"outside")
+    payload = _payload()
+    pack = _pack(
+        payload,
+        files=[
+            {"path": "src/main.py", "snapshot_hash": hashlib.sha256(source.read_bytes()).hexdigest()},
+            {"path": "src/other.py", "snapshot_hash": hashlib.sha256(outside.read_bytes()).hexdigest()},
+        ],
+    )
+    binding = bind_mapper_context(payload, pack)
+    outside.write_bytes(b"drift outside the plan")
+
+    metrics = verify_context_sources(
+        binding,
+        source_root=str(tmp_path),
+        paths=("src/main.py",),
+        delta=_delta("src/other.py"),
+    )
+
+    assert metrics["files_considered"] == 0
+    assert metrics["files_hashed"] == 0
+    assert metrics["bytes_read"] == 0
+    assert metrics["fallback_reason"] == "delta_no_causal_intersection"
+    assert metrics["delta_status"] == "accepted_no_causal_intersection"
+
+
+@pytest.mark.parametrize(
+    ("delta", "reason"),
+    [
+        ({"schema": "simplicio.graph-delta/v1"}, "delta_invalid_full_verification"),
+        (_delta("src/main.py", base="old-revision"), "delta_base_generation_mismatch_full_verification"),
+        (_delta("src/main.py", scan="rev-2"), "delta_same_generation_ambiguous_full_verification"),
+    ],
+)
+def test_graph_delta_invalid_or_ambiguous_falls_back_to_full_pack(
+    mapper_boundary: None, tmp_path: Any, delta: dict[str, Any], reason: str
+) -> None:
+    first = tmp_path / "src" / "main.py"
+    second = tmp_path / "src" / "other.py"
+    first.parent.mkdir()
+    first.write_bytes(b"one")
+    second.write_bytes(b"two")
+    payload = _payload()
+    pack = _pack(
+        payload,
+        files=[
+            {"path": "src/main.py", "snapshot_hash": hashlib.sha256(first.read_bytes()).hexdigest()},
+            {"path": "src/other.py", "snapshot_hash": hashlib.sha256(second.read_bytes()).hexdigest()},
+        ],
+    )
+    binding = bind_mapper_context(payload, pack)
+
+    metrics = verify_context_sources(
+        binding,
+        source_root=str(tmp_path),
+        paths=("src/main.py",),
+        delta=delta,
+    )
+
+    assert metrics["files_considered"] == 2
+    assert metrics["files_hashed"] == 2
+    assert metrics["fallback_reason"] == reason
+    assert metrics["delta_status"] in {"invalid", "stale", "ambiguous"}
+
+
+def test_legacy_mapper_without_delta_receipt_requires_full_verification(
+    mapper_boundary: None, tmp_path: Any
+) -> None:
+    source = tmp_path / "src" / "main.py"
+    other = tmp_path / "src" / "other.py"
+    source.parent.mkdir()
+    source.write_bytes(b"one")
+    other.write_bytes(b"two")
+    payload = _payload()
+    pack = _pack(
+        payload,
+        files=[
+            {"path": "src/main.py", "snapshot_hash": hashlib.sha256(source.read_bytes()).hexdigest()},
+            {"path": "src/other.py", "snapshot_hash": hashlib.sha256(other.read_bytes()).hexdigest()},
+        ],
+    )
+
+    metrics = verify_context_sources(
+        bind_mapper_context(payload, pack),
+        source_root=str(tmp_path),
+        paths=("src/main.py",),
+    )
+
+    assert metrics["files_hashed"] == 2
+    assert metrics["fallback_reason"] == "delta_unavailable_full_verification"
+
+
+def test_valid_delta_without_causal_set_falls_back_to_full_pack(mapper_boundary: None, tmp_path: Any) -> None:
+    source = tmp_path / "src" / "main.py"
+    source.parent.mkdir()
+    source.write_bytes(b"one")
+    payload = _payload()
+    pack = _pack(
+        payload,
+        files=[{"path": "src/main.py", "snapshot_hash": hashlib.sha256(source.read_bytes()).hexdigest()}],
+    )
+
+    metrics = verify_context_sources(
+        bind_mapper_context(payload, pack),
+        source_root=str(tmp_path),
+        delta=_delta("src/main.py"),
+    )
+
+    assert metrics["files_hashed"] == 1
+    assert metrics["fallback_reason"] == "causal_set_absent_full_verification"
+
+
+def test_delta_resync_request_falls_back_to_full_pack(mapper_boundary: None, tmp_path: Any) -> None:
+    source = tmp_path / "src" / "main.py"
+    source.parent.mkdir()
+    source.write_bytes(b"one")
+    payload = _payload()
+    pack = _pack(
+        payload,
+        files=[{"path": "src/main.py", "snapshot_hash": hashlib.sha256(source.read_bytes()).hexdigest()}],
+    )
+    delta = _delta("src/main.py", fallback={"required": True})
+
+    metrics = verify_context_sources(
+        bind_mapper_context(payload, pack),
+        source_root=str(tmp_path),
+        paths=("src/main.py",),
+        delta=delta,
+    )
+
+    assert metrics["files_hashed"] == 1
+    assert metrics["fallback_reason"] == "delta_requires_resync_full_verification"
+
+
+def test_delta_defensive_path_type_guard_falls_back(
+    monkeypatch: Any, mapper_boundary: None, tmp_path: Any
+) -> None:
+    source = tmp_path / "src" / "main.py"
+    source.parent.mkdir()
+    source.write_bytes(b"one")
+    payload = _payload()
+    pack = _pack(
+        payload,
+        files=[{"path": "src/main.py", "snapshot_hash": hashlib.sha256(source.read_bytes()).hexdigest()}],
+    )
+    delta = _delta("src/main.py")
+    delta["affected_paths"] = [None]
+
+    import simplicio.plan_compiler.mapper_context as mapper_context
+
+    monkeypatch.setattr(
+        mapper_context.importlib,
+        "import_module",
+        lambda _name: SimpleNamespace(
+            load_schema=lambda _schema, _root: {},
+            validate_instance=lambda _payload, _schema: [],
+        ),
+    )
+    monkeypatch.setattr(
+        mapper_context.importlib.resources,
+        "files",
+        lambda _name: SimpleNamespace(joinpath=lambda *_parts: "mapper-contract-root"),
+    )
+
+    metrics = verify_context_sources(
+        bind_mapper_context(payload, pack),
+        source_root=str(tmp_path),
+        paths=("src/main.py",),
+        delta=delta,
+    )
+
+    assert metrics["fallback_reason"] == "delta_affected_paths_invalid_full_verification"
+
+
+def test_delta_validator_unavailable_falls_back_to_full(
+    monkeypatch: Any, mapper_boundary: None, tmp_path: Any
+) -> None:
+    source = tmp_path / "src" / "main.py"
+    source.parent.mkdir()
+    source.write_bytes(b"one")
+    payload = _payload()
+    pack = _pack(
+        payload,
+        files=[{"path": "src/main.py", "snapshot_hash": hashlib.sha256(source.read_bytes()).hexdigest()}],
+    )
+    import simplicio.plan_compiler.mapper_context as mapper_context
+
+    def unavailable(_name: str) -> Any:
+        raise ImportError("Mapper contract unavailable")
+
+    monkeypatch.setattr(mapper_context.importlib, "import_module", unavailable)
+    metrics = verify_context_sources(
+        bind_mapper_context(payload, pack),
+        source_root=str(tmp_path),
+        paths=("src/main.py",),
+        delta=_delta("src/main.py"),
+    )
+
+    assert metrics["files_hashed"] == 1
+    assert metrics["fallback_reason"] == "delta_validator_unavailable_full_verification:ImportError"
+
+
+@pytest.mark.parametrize("entry_path", ["../outside.py", "/absolute.py"])
+def test_full_fallback_rejects_unsafe_pack_path(
+    mapper_boundary: None, tmp_path: Any, entry_path: str
+) -> None:
+    from simplicio.plan_compiler import mapper_context
+
+    binding = SimpleNamespace(
+        pack=SimpleNamespace(
+            files=({"path": entry_path, "snapshot_hash": hashlib.sha256(b"x").hexdigest()},)
+        ),
+        context_handle=SimpleNamespace(generation="rev-2"),
+    )
+
+    with pytest.raises(MapperContextError, match="CONTEXT_ROOT_PATH_MISMATCH"):
+        mapper_context.verify_context_sources(binding, source_root=str(tmp_path))
+
+
+def test_full_fallback_reports_missing_source_as_drift(mapper_boundary: None, tmp_path: Any) -> None:
+    from simplicio.plan_compiler import mapper_context
+
+    binding = SimpleNamespace(
+        pack=SimpleNamespace(files=({"path": "src/missing.py", "snapshot_hash": "a" * 64},)),
+        context_handle=SimpleNamespace(generation="rev-2"),
+    )
+
+    with pytest.raises(MapperContextError, match="SOURCE_DRIFT"):
+        mapper_context.verify_context_sources(binding, source_root=str(tmp_path))
 
 
 def test_context_pack_requires_schema_provenance_files_and_valid_budget(

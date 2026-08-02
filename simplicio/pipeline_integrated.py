@@ -236,6 +236,7 @@ def prepare_integrated_work_item(
     authorization: EffectAuthorization | None = None,
     context_snapshot: dict[str, Any] | None = None,
     context_pack: dict[str, Any] | None = None,
+    context_delta: dict[str, Any] | None = None,
     execution_context: dict[str, Any] | None = None,
     context_refresh: bool = False,
     attempt: AttemptContext | None = None,
@@ -329,7 +330,20 @@ def prepare_integrated_work_item(
     )
     causal_paths = _causal_verification_paths(plan)
     pre_effect_verification_metrics = (
-        verify_context_sources(binding, source_root=root, paths=causal_paths) or {}
+        verify_context_sources(
+            binding,
+            source_root=root,
+            paths=causal_paths,
+            expected_generation=str(
+                getattr(
+                    binding.context_handle,
+                    "generation",
+                    getattr(getattr(binding.snapshot, "view", None), "revision", ""),
+                )
+            ),
+            delta=context_delta,
+        )
+        or {}
     )
     if supplied_pack_hash is not None and supplied_pack_hash != str(
         getattr(getattr(binding, "pack", None), "pack_hash", "") or ""
@@ -403,6 +417,7 @@ def run_integrated(
     authorization: EffectAuthorization | None = None,
     context_snapshot: dict[str, Any] | None = None,
     context_pack: dict[str, Any] | None = None,
+    context_delta: dict[str, Any] | None = None,
     execution_context: dict[str, Any] | None = None,
     context_refresh: bool = False,
     attempt: AttemptContext | None = None,
@@ -436,6 +451,7 @@ def run_integrated(
             authorization=authorization,
             context_snapshot=context_snapshot,
             context_pack=context_pack,
+            context_delta=context_delta,
             execution_context=execution_context,
             context_refresh=context_refresh,
             attempt=attempt,
@@ -575,6 +591,7 @@ def run_integrated_route(
     authorization: EffectAuthorization | None,
     context_snapshot: dict[str, Any] | None,
     context_pack: dict[str, Any] | None,
+    context_delta: dict[str, Any] | None,
     execution_context: dict[str, Any] | None,
     context_refresh: bool,
     attempt: AttemptContext | None,
@@ -612,6 +629,7 @@ def run_integrated_route(
         authorization=authorization,
         context_snapshot=context_snapshot,
         context_pack=context_pack,
+        context_delta=context_delta,
         execution_context=execution_context,
         context_refresh=context_refresh,
         attempt=attempt,
