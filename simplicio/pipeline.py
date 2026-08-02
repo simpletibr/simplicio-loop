@@ -555,6 +555,130 @@ def _route_prepared_task(
     return None
 
 
+def _generate_attempt_output(
+    *,
+    root: str | Path,
+    target: str,
+    prompt: str,
+    feedback: str | None,
+    bound_paths: list[str] | None,
+    attempt_number: int,
+    last_output: str,
+    last_verify_receipt: dict[str, Any] | None,
+    impact_results: dict[str, Any] | None,
+) -> tuple[str | None, dict[str, Any] | None]:
+    """Generate one bounded attempt and return output or a terminal result."""
+    bound_path_baseline = snapshot_bound_paths(root, bound_paths)
+    try:
+        output = generate(prompt, feedback)
+    except ProviderExecutionError as exc:
+        receipt = dict(exc.receipt)
+        emit_event("provider_terminal", receipt, level="warning", root=root)
+        emit_event(
+            "task_terminal",
+            {
+                "target": target,
+                "attempt": attempt_number,
+                "status": receipt.get("status", "failed"),
+                "reason_code": receipt.get("reason_code", "provider_failure"),
+                "provider_terminal": receipt,
+            },
+            level="warning",
+            root=root,
+        )
+        result = _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status=receipt.get("status", "failed"),
+            warnings=[receipt.get("message", "provider execution failed")],
+            blocked_preconditions=[
+                {
+                    "reason": receipt.get("reason_code", "provider_failure"),
+                    "message": receipt.get("message", "provider execution failed"),
+                    "next_surface": "provider",
+                }
+            ],
+        )
+        result["provider_terminal"] = receipt
+        return None, result
+    except SystemExit as exc:
+        reloaded_receipt = getattr(exc, "receipt", None)
+        if isinstance(reloaded_receipt, dict):
+            receipt = dict(reloaded_receipt)
+            emit_event("provider_terminal", receipt, level="warning", root=root)
+            emit_event(
+                "task_terminal",
+                {
+                    "target": target,
+                    "attempt": attempt_number,
+                    "status": receipt.get("status", "failed"),
+                    "reason_code": receipt.get("reason_code", "provider_failure"),
+                    "provider_terminal": receipt,
+                },
+                level="warning",
+                root=root,
+            )
+            result = _task_result(
+                target,
+                prompt,
+                "",
+                applied=False,
+                status=receipt.get("status", "failed"),
+                warnings=[receipt.get("message", "provider execution failed")],
+                blocked_preconditions=[
+                    {
+                        "reason": receipt.get("reason_code", "provider_failure"),
+                        "message": receipt.get("message", "provider execution failed"),
+                        "next_surface": "provider",
+                    }
+                ],
+            )
+            result["provider_terminal"] = receipt
+            return None, result
+        reason = str(exc) or "provider produced no progress before its bounded deadline"
+        emit_event(
+            "task_no_progress",
+            {"target": target, "attempt": attempt_number, "reason": reason},
+            level="warning",
+            root=root,
+        )
+        return None, _task_result(
+            target,
+            prompt,
+            last_output,
+            applied=False,
+            status="stalled",
+            warnings=[reason],
+            verify=last_verify_receipt,
+            impact=impact_results,
+        )
+    drift_warnings = bound_path_drift(root, bound_paths, bound_path_baseline)
+    if drift_warnings:
+        emit_event(
+            "validation_fail",
+            {"target": target, "attempt": attempt_number, "warnings": drift_warnings},
+            level="warning",
+            root=root,
+        )
+        return None, _task_result(
+            target,
+            prompt,
+            output,
+            applied=False,
+            status="blocked",
+            warnings=drift_warnings,
+            blocked_preconditions=[
+                {
+                    "code": "bound_path_out_of_band_mutation",
+                    "message": "; ".join(drift_warnings),
+                }
+            ],
+        )
+    return output, None
+
+
 def _run_task(
     root,
     stack,
@@ -964,126 +1088,20 @@ def _run_task(
                 verify=last_verify_receipt,
                 impact=impact_results,
             )
-        # Issue #210 AC6/AC5: snapshot bound paths right before this attempt's
-        # generate() call. If the provider subprocess stalls or is killed by
-        # the bounded-timeout path in providers._shell_out and a bound file
-        # is deleted/mutated out-of-band in the meantime, this is caught here
-        # — before any apply is attempted against a corrupted worktree — and
-        # regardless of what the (possibly empty) returned diff claims.
-        bound_path_baseline = snapshot_bound_paths(root, bound_paths)
-        try:
-            output = generate(prompt, feedback)
-        except ProviderExecutionError as exc:
-            receipt = dict(exc.receipt)
-            emit_event("provider_terminal", receipt, level="warning", root=root)
-            emit_event(
-                "task_terminal",
-                {
-                    "target": target,
-                    "attempt": t,
-                    "status": receipt.get("status", "failed"),
-                    "reason_code": receipt.get("reason_code", "provider_failure"),
-                    "provider_terminal": receipt,
-                },
-                level="warning",
-                root=root,
-            )
-            result = _task_result(
-                target,
-                prompt,
-                "",
-                applied=False,
-                status=receipt.get("status", "failed"),
-                warnings=[receipt.get("message", "provider execution failed")],
-                blocked_preconditions=[
-                    {
-                        "reason": receipt.get("reason_code", "provider_failure"),
-                        "message": receipt.get("message", "provider execution failed"),
-                        "next_surface": "provider",
-                    }
-                ],
-            )
-            result["provider_terminal"] = receipt
-            return result
-        except SystemExit as exc:
-            # Some test runners and plugin hosts reload ``providers`` while
-            # keeping this module alive. The reloaded ProviderExecutionError
-            # is still a SystemExit carrying the same stable receipt contract,
-            # but it no longer has identical class identity.
-            reloaded_receipt = getattr(exc, "receipt", None)
-            if isinstance(reloaded_receipt, dict):
-                receipt = dict(reloaded_receipt)
-                emit_event("provider_terminal", receipt, level="warning", root=root)
-                emit_event(
-                    "task_terminal",
-                    {
-                        "target": target,
-                        "attempt": t,
-                        "status": receipt.get("status", "failed"),
-                        "reason_code": receipt.get("reason_code", "provider_failure"),
-                        "provider_terminal": receipt,
-                    },
-                    level="warning",
-                    root=root,
-                )
-                result = _task_result(
-                    target,
-                    prompt,
-                    "",
-                    applied=False,
-                    status=receipt.get("status", "failed"),
-                    warnings=[receipt.get("message", "provider execution failed")],
-                    blocked_preconditions=[
-                        {
-                            "reason": receipt.get("reason_code", "provider_failure"),
-                            "message": receipt.get("message", "provider execution failed"),
-                            "next_surface": "provider",
-                        }
-                    ],
-                )
-                result["provider_terminal"] = receipt
-                return result
-            # Issue #219: #210's bounded shell-out raises SystemExit on a stall;
-            # previously that crashed run_task uncaught with no receipt at all.
-            reason = str(exc) or "provider produced no progress before its bounded deadline"
-            emit_event(
-                "task_no_progress",
-                {"target": target, "attempt": t, "reason": reason},
-                level="warning",
-                root=root,
-            )
-            return _task_result(
-                target,
-                prompt,
-                last_output,
-                applied=False,
-                status="stalled",
-                warnings=[reason],
-                verify=last_verify_receipt,
-                impact=impact_results,
-            )
-        drift_warnings = bound_path_drift(root, bound_paths, bound_path_baseline)
-        if drift_warnings:
-            emit_event(
-                "validation_fail",
-                {"target": target, "attempt": t, "warnings": drift_warnings},
-                level="warning",
-                root=root,
-            )
-            return _task_result(
-                target,
-                prompt,
-                output,
-                applied=False,
-                status="blocked",
-                warnings=drift_warnings,
-                blocked_preconditions=[
-                    {
-                        "code": "bound_path_out_of_band_mutation",
-                        "message": "; ".join(drift_warnings),
-                    }
-                ],
-            )
+        output, terminal_result = _generate_attempt_output(
+            root=root,
+            target=target,
+            prompt=prompt,
+            feedback=feedback,
+            bound_paths=bound_paths,
+            attempt_number=t,
+            last_output=last_output,
+            last_verify_receipt=last_verify_receipt,
+            impact_results=impact_results,
+        )
+        if terminal_result is not None:
+            return terminal_result
+        assert output is not None
         last_output = output or ""
         last_validation = validate_generated_output(
             output,
