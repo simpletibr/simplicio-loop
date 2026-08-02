@@ -182,6 +182,15 @@ def test_kill_process_tree_windows_branch_swallows_kill_oserror(monkeypatch):
     task_operator.kill_process_tree(_FakeProc())
 
 
+def test_windows_descendant_probe_fails_closed_without_windll(monkeypatch):
+    import ctypes
+
+    from simplicio import task_operator
+
+    monkeypatch.delattr(ctypes, "WinDLL", raising=False)
+    assert task_operator._windows_descendant_pids(999) == []
+
+
 def test_kill_process_tree_posix_branch_swallows_kill_oserror(monkeypatch):
     from simplicio import task_operator
 

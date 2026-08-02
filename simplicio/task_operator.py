@@ -29,11 +29,13 @@ an arbitrary ``cmd`` list, exactly like ``subprocess.run`` would.
 
 from __future__ import annotations
 
+import ctypes
 import os
 import signal
 import subprocess
 import threading
 import time
+from ctypes import wintypes
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -142,8 +144,6 @@ def _windows_descendant_pids(root_pid: int) -> list[int]:
     fallback remain available when the Windows API cannot be read.
     """
     try:
-        import ctypes
-        from ctypes import wintypes
 
         class _ProcessEntry32(ctypes.Structure):
             _fields_ = [
@@ -159,7 +159,10 @@ def _windows_descendant_pids(root_pid: int) -> list[int]:
                 ("szExeFile", ctypes.c_wchar * 260),
             ]
 
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        win_dll = getattr(ctypes, "WinDLL", None)
+        if win_dll is None:
+            return []
+        kernel32 = win_dll("kernel32", use_last_error=True)
         kernel32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
         kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
         kernel32.Process32FirstW.argtypes = [wintypes.HANDLE, ctypes.POINTER(_ProcessEntry32)]
