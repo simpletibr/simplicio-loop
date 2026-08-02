@@ -5,13 +5,22 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from simplicio_mapper.mapper.file_lock import LockHandle, acquire_lock_at, release_lock_at
+try:
+    from simplicio_mapper.mapper.file_lock import LockHandle, acquire_lock_at, release_lock_at
+
+    _MAPPER_IMPORT_ERROR: Exception | None = None
+except (ImportError, ModuleNotFoundError) as exc:  # pragma: no cover - exercised in installed smoke
+    LockHandle = Any  # type: ignore[misc,assignment]
+    acquire_lock_at = None  # type: ignore[assignment]
+    release_lock_at = None  # type: ignore[assignment]
+    _MAPPER_IMPORT_ERROR = exc
 
 
 class StoreAdapterError(RuntimeError):
@@ -20,6 +29,7 @@ class StoreAdapterError(RuntimeError):
 
 STORAGE_CAPABILITIES_SCHEMA = "simplicio.dev-cli.storage-capabilities/v1"
 MAPPER_STORE_DOMAINS = ("effect-transactions", "mutation-worker", "prism-transactions", "write-set-locks")
+MAPPER_MIN_VERSION = (0, 26, 2)
 LEGACY_STORE_PATHS = (
     ".simplicio/effect-transactions.sqlite3",
     ".simplicio/mutation-worker.sqlite3",
@@ -33,16 +43,7 @@ def storage_capabilities(root: str | Path = ".") -> dict[str, Any]:
     """Return read-only cutover diagnostics without materializing state."""
     resolved = Path(root).resolve()
     mapper_store_root = resolved / ".simplicio" / "mapper-store"
-    try:
-        import importlib.metadata
-
-        mapper_version = importlib.metadata.version("simplicio-mapper")
-        mapper_ready = True
-        mapper_reason = "installed"
-    except importlib.metadata.PackageNotFoundError:
-        mapper_version = None
-        mapper_ready = False
-        mapper_reason = "mapper-package-not-installed"
+    mapper_version, mapper_ready, mapper_reason = _mapper_status()
     legacy = {
         path: {
             "present": (resolved / path).is_file(),
@@ -73,10 +74,35 @@ def storage_capabilities(root: str | Path = ".") -> dict[str, Any]:
     }
 
 
+def _mapper_status() -> tuple[str | None, bool, str]:
+    if _MAPPER_IMPORT_ERROR is not None:
+        return None, False, "mapper-api-unavailable"
+    try:
+        import importlib.metadata
+
+        mapper_version = os.environ.get("SIMPLICIO_MAPPER_VERSION") or importlib.metadata.version(
+            "simplicio-mapper"
+        )
+    except importlib.metadata.PackageNotFoundError:
+        return None, False, "mapper-package-not-installed"
+    match = re.match(r"^(\d+)\.(\d+)(?:\.(\d+))?", mapper_version)
+    parsed = tuple(int(part or 0) for part in match.groups()) if match else None
+    if parsed is None or parsed < MAPPER_MIN_VERSION:
+        return mapper_version, False, "mapper-version-incompatible"
+    return mapper_version, True, "installed"
+
+
+def _require_mapper_store() -> None:
+    _version, ready, reason = _mapper_status()
+    if not ready:
+        raise StoreAdapterError(f"MAPPER_STORE_UNAVAILABLE:{reason}")
+
+
 class MapperStoreAdapter:
     """Content-addressed JSON records guarded by Mapper-owned file locks."""
 
     def __init__(self, root: str | Path, domain: str) -> None:
+        _require_mapper_store()
         self.root = Path(root).resolve()
         self.directory = self.root / ".simplicio" / "mapper-store" / domain
         self.directory.mkdir(parents=True, exist_ok=True)
@@ -91,6 +117,9 @@ class MapperStoreAdapter:
         return self.directory / f"{self._digest(key)}.lock"
 
     def acquire(self, key: str, *, operation: str) -> LockHandle:
+        _require_mapper_store()
+        if acquire_lock_at is None:
+            raise StoreAdapterError("MAPPER_STORE_UNAVAILABLE:mapper-api-unavailable")
         handle = acquire_lock_at(str(self.lock_path(key)), operation=operation)
         if handle is None:
             raise StoreAdapterError("STORE_LOCKED")
@@ -98,6 +127,8 @@ class MapperStoreAdapter:
 
     @staticmethod
     def release(handle: LockHandle) -> None:
+        if release_lock_at is None:
+            raise StoreAdapterError("MAPPER_STORE_UNAVAILABLE:mapper-api-unavailable")
         release_lock_at(handle)
 
     def read(self, key: str) -> dict[str, Any] | None:
@@ -136,6 +167,9 @@ class MapperStoreAdapter:
 
     @contextmanager
     def lock(self, key: str, *, operation: str) -> Iterator[LockHandle]:
+        _require_mapper_store()
+        if acquire_lock_at is None or release_lock_at is None:
+            raise StoreAdapterError("MAPPER_STORE_UNAVAILABLE:mapper-api-unavailable")
         handle = acquire_lock_at(str(self.lock_path(key)), operation=operation)
         if handle is None:
             raise StoreAdapterError("STORE_LOCKED")

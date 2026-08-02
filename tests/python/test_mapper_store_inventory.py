@@ -42,6 +42,45 @@ def test_storage_capabilities_are_read_only_and_report_mapper_route(tmp_path: Pa
     assert payload["route"]["frozen_before_effect"] is True
 
 
+def test_storage_capabilities_fail_closed_for_incompatible_mapper(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("SIMPLICIO_MAPPER_VERSION", "0.25.9")
+    payload = storage_capabilities(tmp_path)
+
+    assert payload["mapper_store"]["ready"] is False
+    assert payload["mapper_store"]["reason"] == "mapper-version-incompatible"
+    assert payload["route"] == {
+        "selected": "blocked",
+        "frozen_before_effect": True,
+        "reason": "mapper-version-incompatible",
+    }
+    assert not (tmp_path / ".simplicio").exists()
+
+
+def test_mapper_store_adapter_refuses_incompatible_mapper_before_materializing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setenv("SIMPLICIO_MAPPER_VERSION", "0.25.9")
+    try:
+        MapperStoreAdapter(tmp_path, "blocked")
+    except RuntimeError as exc:
+        assert str(exc) == "MAPPER_STORE_UNAVAILABLE:mapper-version-incompatible"
+    else:
+        raise AssertionError("incompatible Mapper must block before adapter initialization")
+    assert not (tmp_path / ".simplicio").exists()
+
+
+def test_storage_capabilities_fail_closed_when_mapper_api_is_absent(tmp_path: Path, monkeypatch) -> None:
+    import simplicio.store_adapter as store_adapter
+
+    monkeypatch.setattr(store_adapter, "_MAPPER_IMPORT_ERROR", ModuleNotFoundError("simplicio_mapper"))
+    payload = storage_capabilities(tmp_path)
+
+    assert payload["mapper_store"]["ready"] is False
+    assert payload["mapper_store"]["reason"] == "mapper-api-unavailable"
+    assert payload["route"]["selected"] == "blocked"
+    assert not (tmp_path / ".simplicio").exists()
+
+
 def test_inventory_strict_gate_rejects_new_direct_connection(tmp_path: Path, capsys) -> None:
     source = tmp_path / "simplicio" / "new_store.py"
     source.parent.mkdir()
