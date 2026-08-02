@@ -521,7 +521,78 @@ def test_binary_adapter_rejects_missing_engine_and_authority(monkeypatch, tmp_pa
 
     monkeypatch.setattr(changeset_v2, "select_fast_engine", lambda _: FakeEngine())
     missing = execute_changeset_bytes(BINARY_MAGIC + b"payload", root=tmp_path)
-    assert missing["errors"][0]["code"] == "binary_authority_missing"
+    assert missing["errors"][0]["code"] == "binary_authority_invalid"
+
+
+def test_binary_authority_is_type_checked_before_transaction(monkeypatch, tmp_path):
+    from simplicio import changeset_v2
+
+    class FakeEngine:
+        name = "python"
+
+        def decode_binary(self, _):
+            return {
+                "repository": str(tmp_path.resolve()),
+                "base_generation": "base",
+                "overlay_generation": 2,
+                "attempt": "attempt",
+                "worktree_id": "worktree",
+                "lease_id": "lease",
+                "fencing_token": "fence",
+                "allowed_paths": ["a.txt"],
+                "operations": [],
+            }
+
+        def receipt(self):
+            return {"name": self.name, "metrics": {}}
+
+    monkeypatch.setattr(changeset_v2, "select_fast_engine", lambda _: FakeEngine())
+    monkeypatch.setattr(
+        changeset_v2,
+        "execute_changeset",
+        lambda *args, **kwargs: pytest.fail("transaction started before identity validation"),
+    )
+
+    result = execute_changeset_bytes(BINARY_MAGIC + b"payload", root=tmp_path)
+
+    assert result["status"] == "refused"
+    assert result["errors"][0]["code"] == "binary_authority_invalid"
+    assert result["errors"][0]["field"] == "overlay_generation"
+
+
+def test_binary_allowlist_is_validated_before_transaction(monkeypatch, tmp_path):
+    from simplicio import changeset_v2
+
+    class FakeEngine:
+        name = "python"
+
+        def decode_binary(self, _):
+            return {
+                "repository": str(tmp_path.resolve()),
+                "base_generation": "base",
+                "overlay_generation": "overlay",
+                "attempt": "attempt",
+                "worktree_id": "worktree",
+                "lease_id": "lease",
+                "fencing_token": "fence",
+                "allowed_paths": [""],
+                "operations": [],
+            }
+
+        def receipt(self):
+            return {"name": self.name, "metrics": {}}
+
+    monkeypatch.setattr(changeset_v2, "select_fast_engine", lambda _: FakeEngine())
+    monkeypatch.setattr(
+        changeset_v2,
+        "execute_changeset",
+        lambda *args, **kwargs: pytest.fail("transaction started before allowlist validation"),
+    )
+
+    result = execute_changeset_bytes(BINARY_MAGIC + b"payload", root=tmp_path)
+
+    assert result["status"] == "refused"
+    assert result["errors"][0]["code"] == "binary_allowlist_invalid"
 
 
 @pytest.mark.parametrize(
