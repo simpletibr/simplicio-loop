@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 
 from simplicio.commands import (
     bench as bench_cmd,
@@ -201,6 +202,33 @@ def test_memory_run_init_store_recall(tmp_path, capsys):
     handoff_payload = json.loads(capsys.readouterr().out)
     assert handoff_payload["from_agent"] == "codex"
     assert handoff_payload["to_agent"] == "claude"
+
+
+def test_memory_backup_and_restore_are_hash_bound(tmp_path, capsys):
+    mem_dir = str(tmp_path / "mem")
+    backup_dir = str(tmp_path / "backup")
+    memory_cmd.run(ns(memory_cmd="init", dir=mem_dir, json=True))
+    capsys.readouterr()
+    memory_cmd.run(
+        ns(memory_cmd="store", dir=mem_dir, topic="backup", content="preserve me", tags="", json=True)
+    )
+    capsys.readouterr()
+
+    assert memory_cmd.run(ns(memory_cmd="backup", dir=mem_dir, output=backup_dir, json=True)) == 0
+    backup_payload = json.loads(capsys.readouterr().out)
+    assert backup_payload["manifest"]["files_digest"].startswith("sha256:")
+
+    note = Path(mem_dir) / "notes" / "backup.md"
+    note.write_text("# backup\n\ncorrupted\n", encoding="utf-8")
+    assert (
+        memory_cmd.run(ns(memory_cmd="restore", dir=mem_dir, backup=backup_dir, apply=False, json=True)) == 0
+    )
+    assert json.loads(capsys.readouterr().out)["status"] == "dry_run"
+    assert (
+        memory_cmd.run(ns(memory_cmd="restore", dir=mem_dir, backup=backup_dir, apply=True, json=True)) == 0
+    )
+    assert json.loads(capsys.readouterr().out)["status"] == "ok"
+    assert "preserve me" in note.read_text(encoding="utf-8")
 
 
 def test_cache_run_stats(monkeypatch, capsys):
