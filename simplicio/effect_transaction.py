@@ -13,7 +13,7 @@ from simplicio.store_adapter import MapperStoreAdapter, StoreAdapterError
 
 EFFECT_RECEIPT_SCHEMA = "simplicio.effect-receipt/v1"
 _TERMINAL = frozenset({"COMMITTED", "ROLLED_BACK", "FAILED_BEFORE_WRITE"})
-_LOCK_RETRIES = 100
+_LOCK_RETRY_ATTEMPTS = 200
 _LOCK_RETRY_DELAY_SECONDS = 0.01
 
 
@@ -49,7 +49,7 @@ class EffectTransaction:
             raise EffectTransactionError("STORE_WRITE_FAILED") from exc
 
     def _locked(self, key: str, *, retry: bool = True):
-        attempts = _LOCK_RETRIES if retry else 1
+        attempts = _LOCK_RETRY_ATTEMPTS if retry else 1
         for attempt in range(attempts):
             try:
                 return self.store.acquire(key, operation="effect-transaction")

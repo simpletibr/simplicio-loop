@@ -126,6 +126,14 @@ gh pr create --fill            # usa template de PR
 # não usar gh run: Actions está fora do gate; anexar a evidência local ao PR
 ```
 
+## Codex → Runtime
+
+Quando uma tarefa de código for iniciada pelo Codex CLI, use a integração
+reversível documentada em [`docs/codex-wrapper.md`](docs/codex-wrapper.md).
+O wrapper/hook roteia a tarefa de desenvolvimento para `simplicio run` e
+preserva `sandbox_mode`/`approval_policy`; nunca adicione flags de bypass nem
+execute uma mutação fora do Runtime.
+
 ---
 
 ## Padrão de sincronização deste projeto

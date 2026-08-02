@@ -8,7 +8,7 @@ The same setting is available through the Python API (`mode=`), `SIMPLICIO_EXECU
 |---|---|
 | `standalone` | Explicit local lifecycle; receipts never claim Runtime gating or evidence. |
 | `integrated` | Requires a versioned Runtime EffectTransaction capability, production sink, and a Mapper-validated `simplicio.context-snapshot/v1`; otherwise blocks before planning/effects. A matching schema string alone is never accepted. |
-| `auto` | Selects integrated only from the versioned handshake and rollout policy. It blocks when integrated is unavailable unless standalone fallback is explicitly enabled, and records the reason. |
+| `auto` | Selects integrated only when the versioned handshake and rollout policy are ready; otherwise selects standalone and records the route reason. |
 
 Inspect negotiation without executing work:
 
@@ -31,7 +31,7 @@ simplicio-py runtime capabilities \
 Project configuration:
 
 ```json
-{"mode":"auto","allow_standalone_fallback":false,"rollout":"default"}
+{"mode":"auto","allow_standalone_fallback":true,"rollout":"default"}
 ```
 
 Execute one coordinator-owned atomic task from an installed entrypoint:
@@ -84,11 +84,11 @@ Mapper, the Runtime binary, or `SIMPLICIO_RUNTIME_URL`.
 
 Rollout values are `shadow`, `canary`, and `default`. The default is `default`, so auto
 selects the integrated Runtime path as soon as the versioned handshake, Mapper snapshot, and
-production effect sink are ready. If those contracts are unavailable, auto remains fail-closed
-unless `allow_standalone_fallback` is explicitly enabled. `SIMPLICIO_INTEGRATED_KILL_SWITCH=1` rolls back selection;
-integrated requests still fail closed, while auto follows the explicit fallback policy. Set
-`SIMPLICIO_ALLOW_STANDALONE_FALLBACK=true` only during a governed migration window.
-
+production effect sink are ready. If Runtime is absent or unavailable, auto selects standalone
+and records the expected absence without probing a provider or inventing a Runtime error.
+`SIMPLICIO_INTEGRATED_KILL_SWITCH=1` rolls back selection; integrated requests still fail closed,
+while auto follows the fallback policy. Set `SIMPLICIO_ALLOW_STANDALONE_FALLBACK=false` when a
+caller requires auto to remain fail-closed rather than selecting standalone.
 An `effect_unknown` outcome belongs to the selected Runtime transaction. Callers must reconcile it;
 they must not retry in standalone or renegotiate the mode. The production `RuntimeEffectSink` is selected
 only with a compatible Runtime endpoint; otherwise integrated requests fail closed rather than using the

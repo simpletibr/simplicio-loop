@@ -9,6 +9,7 @@ as canonical bytes and exposes only derived, immutable planner views.
 
 from __future__ import annotations
 
+import ctypes
 import hashlib
 import importlib
 import importlib.metadata
@@ -45,6 +46,7 @@ _MANIFEST_PATH = "contracts/context-snapshot/v1/contract-manifest.json"
 _LEGACY_SHADOW_FIELDS = frozenset({"snapshot_id", "revision", "base_sha", "captured_at", "root", "extra"})
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _SENSITIVE_KEYS = frozenset({"secret", "password", "access_token", "api_key", "private_key"})
+_MAPPER_GRAPH_DELTA_SCHEMA = "simplicio.graph-delta/v1"
 
 
 class MapperContextError(PlanCompilerError):
@@ -568,26 +570,76 @@ class ContextBindingCache:
             "index_present": self.index_path.is_file(),
         }
 
-    def compact(self) -> dict[str, Any]:
-        """Rewrite the live metadata entries into a shorter hash-chain log."""
-        if not self.log_path.is_file():
-            return self.doctor()
+    def _remove_stale_writer_lock(self) -> bool:
+        try:
+            owner = self.lock_path.read_text(encoding="ascii").strip()
+            pid = int(owner)
+        except (OSError, UnicodeError, ValueError):
+            return False
+        if pid <= 0 or pid == os.getpid():
+            return False
+        if os.name == "nt":
+            win_dll = getattr(ctypes, "WinDLL", None)
+            get_last_error = getattr(ctypes, "get_last_error", None)
+            if win_dll is None or get_last_error is None:
+                return False
+            kernel32 = win_dll("kernel32", use_last_error=True)
+            handle = kernel32.OpenProcess(0x1000, False, pid)
+            if handle:
+                exit_code = ctypes.c_ulong()
+                running = kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+                kernel32.CloseHandle(handle)
+                if not running or exit_code.value == 259:
+                    return False
+                return True
+            if get_last_error() != 87:
+                return False
+        else:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                pass
+            except OSError:
+                return False
+            else:
+                return False
+        try:
+            self.lock_path.unlink()
+        except FileNotFoundError:
+            pass
+        return True
+
+    def _acquire_writer_lock(self, *, recover_stale: bool = False) -> None:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         deadline = time.monotonic() + 10
         while True:
             try:
                 fd = os.open(self.lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                os.close(fd)
-                break
+                try:
+                    os.write(fd, f"{os.getpid()}\n".encode("ascii"))
+                finally:
+                    os.close(fd)
+                return
             except FileExistsError:
                 pass
             except PermissionError:
                 pass
             if time.monotonic() >= deadline:
+                if recover_stale and self._remove_stale_writer_lock():
+                    deadline = time.monotonic() + 10
+                    continue
                 raise MapperContextError(
                     "CONTEXT_CACHE_LOCK_TIMEOUT", "context cache writer lock is busy"
                 ) from None
             time.sleep(0.01)
+
+    def compact(self) -> dict[str, Any]:
+        """Rewrite the live metadata entries into a shorter hash-chain log."""
+        if not self.log_path.is_file():
+            return self.doctor()
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        self._acquire_writer_lock(recover_stale=True)
+
         temporary = self.log_path.with_name(f"{self.log_path.name}.{os.getpid()}.tmp")
         try:
             state = self._read_log()
@@ -788,21 +840,8 @@ class ContextBindingCache:
         fence: str | None = None,
     ) -> str:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
-        deadline = time.monotonic() + 10
-        while True:
-            try:
-                fd = os.open(self.lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                os.close(fd)
-                break
-            except FileExistsError:
-                pass
-            except PermissionError:
-                pass
-            if time.monotonic() >= deadline:
-                raise MapperContextError(
-                    "CONTEXT_CACHE_LOCK_TIMEOUT", "context cache writer lock is busy"
-                ) from None
-            time.sleep(0.01)
+        self._acquire_writer_lock()
+
         try:
             previous = ""
             if self.log_path.is_file():
@@ -1301,6 +1340,7 @@ def verify_context_sources(
     source_root: str,
     paths: tuple[str, ...] | list[str] | None = None,
     expected_generation: str | None = None,
+    delta: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Fail closed when projected sources changed before effect dispatch.
 
@@ -1323,10 +1363,47 @@ def verify_context_sources(
             "CONTEXT_CAUSAL_PATH_UNBOUND",
             "causal verification path is absent from the bound ContextPack: " + ", ".join(unmatched),
         )
+    verification_paths = requested
+    fallback_reason: str | None = None
+    engine = "python-bytes"
+    delta_status = "unavailable"
+    if delta is None:
+        # A pre-delta Mapper producer has no causal invalidation proof. Keep
+        # the safe compatibility path observable in the receipt instead of
+        # silently treating a local causal set as a complete proof.
+        verification_paths = set()
+        fallback_reason = "delta_unavailable_full_verification"
+        delta_status = "unavailable"
+    else:
+        delta_status, delta_reason, affected = _admit_mapper_delta(
+            delta,
+            binding.context_handle,
+        )
+        if delta_reason is not None:
+            verification_paths = set()
+            fallback_reason = delta_reason
+        elif not requested:
+            verification_paths = set()
+            fallback_reason = "causal_set_absent_full_verification"
+            delta_status = "accepted_without_causal_set"
+        else:
+            dirty = requested & affected
+            if not dirty:
+                # An accepted Mapper delta outside the plan's causal set does
+                # not invalidate this attempt, so no source bytes are read.
+                verification_paths = set()
+                fallback_reason = "delta_no_causal_intersection"
+                delta_status = "accepted_no_causal_intersection"
+            else:
+                verification_paths = dirty
+                engine = "mapper-delta"
+                fallback_reason = None
+                delta_status = "accepted_causal_intersection"
+    full_scan = fallback_reason is not None and fallback_reason != "delta_no_causal_intersection"
     entries = [
         entry
         for entry in binding.pack.files
-        if not requested or str(entry["path"]).replace("\\", "/") in requested
+        if full_scan or str(entry["path"]).replace("\\", "/") in verification_paths
     ]
     metrics: dict[str, Any] = {
         "files_considered": len(entries),
@@ -1335,8 +1412,9 @@ def verify_context_sources(
         "generation": binding.context_handle.generation,
         "paths_requested": sorted(requested),
         "paths_unmatched": [],
-        "engine": "python-bytes",
-        "fallback_reason": None if requested else "causal_set_absent_full_verification",
+        "engine": engine,
+        "fallback_reason": fallback_reason,
+        "delta_status": delta_status,
     }
     for entry in entries:
         raw_path = str(entry["path"]).replace("\\", "/")
@@ -1364,6 +1442,57 @@ def verify_context_sources(
         if actual != entry["snapshot_hash"]:
             raise MapperContextError("SOURCE_DRIFT", f"ContextPack source changed: {raw_path}")
     return metrics
+
+
+def _admit_mapper_delta(
+    delta: Mapping[str, Any],
+    handle: ContextHandle,
+) -> tuple[str, str | None, set[str]]:
+    """Validate and admit Mapper's public graph-delta envelope.
+
+    The schema is loaded from the installed Mapper package at runtime. Dev
+    CLI owns neither the producer schema nor its event model, so it does not
+    copy either into this repository. Any unavailable, malformed, stale, or
+    ambiguous envelope falls back to the complete ContextPack verification.
+    """
+
+    try:
+        contract = importlib.import_module("simplicio_mapper.contract")
+        package_root = str(
+            importlib.resources.files("simplicio_mapper").joinpath("contracts", "mapper-artifacts", "v1")
+        )
+        schema = contract.load_schema(_MAPPER_GRAPH_DELTA_SCHEMA, package_root)
+        errors = contract.validate_instance(dict(delta), schema)
+    except (ImportError, ModuleNotFoundError, OSError, TypeError, ValueError, AttributeError) as exc:
+        return "unavailable", f"delta_validator_unavailable_full_verification:{type(exc).__name__}", set()
+    if errors:
+        return "invalid", "delta_invalid_full_verification", set()
+    if (
+        delta.get("event_type") != "delta"
+        or delta.get("mode") != "incremental"
+        or delta.get("full_rescan") is not False
+        or (delta.get("fallback") or {}).get("required") is True
+    ):
+        return "ambiguous", "delta_requires_resync_full_verification", set()
+    base_revision = delta.get("base_revision")
+    generations = {
+        str(value)
+        for value in (
+            getattr(handle, "generation", ""),
+            getattr(handle, "revision", ""),
+            getattr(handle, "base_generation", ""),
+        )
+        if value
+    }
+    if not isinstance(base_revision, str) or base_revision not in generations:
+        return "stale", "delta_base_generation_mismatch_full_verification", set()
+    if delta.get("scan_revision") == base_revision:
+        return "ambiguous", "delta_same_generation_ambiguous_full_verification", set()
+    raw_paths = delta.get("affected_paths")
+    if not isinstance(raw_paths, list) or any(not isinstance(path, str) for path in raw_paths):
+        return "invalid", "delta_affected_paths_invalid_full_verification", set()
+    affected = {path.replace("\\", "/") for path in raw_paths if path}
+    return "accepted", None, affected
 
 
 def load_mapper_context(payload: Any, *, source_root: str | None = None) -> MapperContextAdapter:

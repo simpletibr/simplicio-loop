@@ -17,7 +17,7 @@ from .changeset_transaction import (
     execute_changeset_transaction,
     existing_transaction_result,
 )
-from .fast_contracts import FastEngineError, select_fast_engine
+from .fast_contracts import FastEngineError, FastEngineSession, select_fast_engine
 from .mechanical_edit import execute_plan
 
 CHANGESET_SCHEMA = "simplicio.fast.changeset/v2"
@@ -26,6 +26,17 @@ BINARY_MAGIC = b"SFBCHG01"
 RECEIPT_SCHEMA = "simplicio.fast.changeset-receipt/v2"
 MECHANICAL_SCHEMA = "simplicio.mechanical-edit/v1"
 _BINARY_IDENTITY_FIELDS = (
+    "base_generation",
+    "overlay_generation",
+    "attempt",
+    "worktree_id",
+    "lease_id",
+    "fencing_token",
+)
+_CAUSAL_ID_FIELDS = (
+    "changeset_id",
+    "correlation_id",
+    "generation",
     "base_generation",
     "overlay_generation",
     "attempt",
@@ -50,6 +61,15 @@ class ChangesetError(ValueError):
     def __init__(self, code: str, message: str, **extra: Any) -> None:
         super().__init__(message)
         self.row = {"code": code, "message": message, **extra}
+
+
+def _causal_ids(source: dict[str, Any]) -> dict[str, str]:
+    result = {
+        field: value for field in _CAUSAL_ID_FIELDS if isinstance(value := source.get(field), str) and value
+    }
+    if "generation" not in result and isinstance(source.get("base_generation"), str):
+        result["generation"] = source["base_generation"]
+    return result
 
 
 def _validate_binary_identity(value: dict[str, Any]) -> None:
@@ -159,6 +179,7 @@ def execute_changeset(
     root: str | Path = ".",
     apply: bool = False,
     current_generation: str | None = None,
+    causal_ids: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     try:
         mechanical = adapt_changeset(changeset, current_generation=current_generation)
@@ -220,6 +241,7 @@ def execute_changeset(
                     root=root,
                     idempotency_key=key,
                     changeset_digest_value=digest,
+                    causal_ids=causal_ids or _causal_ids(changeset),
                 )
         except ChangesetTransactionError as exc:
             return _refused_receipt(
@@ -298,6 +320,8 @@ def execute_changeset_bytes(
     current_generation: str | None = None,
     fast_engine: str | None = None,
     refresh_fn: Callable[[tuple[str, ...]], Any] | None = None,
+    refresh_producer: Callable[[Path, tuple[str, ...]], Any] | None = None,
+    engine_session: FastEngineSession | None = None,
 ) -> dict[str, Any]:
     """Consume a sealed Fast binary changeset without decoding it as UTF-8/JSON."""
     if not isinstance(payload, bytes) or not payload.startswith(BINARY_MAGIC):
@@ -306,8 +330,13 @@ def execute_changeset_bytes(
             {"code": "binary_magic_invalid", "message": "payload is not a Fast binary changeset"},
             apply=apply,
         )
+    root_path = Path(root).resolve()
     try:
-        engine = select_fast_engine(fast_engine or "auto")
+        engine = (
+            engine_session.select(fast_engine or "auto")
+            if engine_session is not None
+            else select_fast_engine(fast_engine or "auto")
+        )
     except FastEngineError as exc:
         return _refused_receipt({}, {"code": exc.code, "message": str(exc)}, apply=apply)
     if engine.name == "none":
@@ -321,7 +350,6 @@ def execute_changeset_bytes(
         )
     try:
         value = engine.decode_binary(payload)
-        root_path = Path(root).resolve()
         if value.get("repository") != str(root_path):
             raise ChangesetError("binary_repository_mismatch", "binary repository does not match --root")
         changeset = _public_changeset_from_binary(value)
@@ -332,14 +360,21 @@ def execute_changeset_bytes(
             root=root_path,
             apply=apply,
             current_generation=current_generation,
+            causal_ids=_causal_ids(value),
         )
         refresh = None
         transaction = receipt.get("transaction")
         if apply and receipt.get("status") == "ok" and isinstance(transaction, dict):
             if transaction.get("state") == "COMMITTED" and not receipt.get("replayed"):
+                refresh_callback = refresh_fn
+                if refresh_callback is None and refresh_producer is not None:
+                    def refresh_callback(paths: tuple[str, ...]) -> Any:
+                        assert refresh_producer is not None
+                        return refresh_producer(root_path, paths)
+
                 refresh = engine.refresh(
                     engine.changed_paths(value),
-                    refresh_fn=refresh_fn,
+                    refresh_fn=refresh_callback,
                 )
         receipt.update(
             {

@@ -57,6 +57,32 @@ def test_multifile_changeset_stages_once_and_replays_without_rewrite(tmp_path):
     assert (tmp_path / "b.txt").read_text(encoding="utf-8") == "created\n"
 
 
+def test_transaction_receipt_contains_operation_hash_validation_timing_and_causal_metadata(tmp_path):
+    (tmp_path / "a.txt").write_text("old\n", encoding="utf-8")
+    before_a = _hash(tmp_path / "a.txt")
+
+    result = execute_changeset(_changeset(), root=tmp_path, apply=True)
+
+    transaction = result["transaction"]
+    assert transaction["operation"] == {
+        "count": 2,
+        "kinds": ["replace_range", "create_file"],
+        "paths": ["a.txt", "b.txt"],
+    }
+    assert transaction["before_sha256"]["a.txt"] == before_a
+    assert transaction["before_sha256"]["b.txt"] is None
+    assert transaction["after_sha256"]["a.txt"] == result["effects"][0]["after_sha256"]
+    assert transaction["after_sha256"]["b.txt"] == result["effects"][1]["after_sha256"]
+    assert transaction["restored_sha256"] is None
+    assert transaction["validation"] == []
+    assert set(transaction["timings_ms"]) == {"stage", "commit", "total"}
+    assert transaction["causal_ids"] == {
+        "changeset_id": "cs-416",
+        "correlation_id": "idem-416",
+        "generation": "gen-416",
+    }
+
+
 def test_existing_file_mode_is_preserved_and_recorded_in_receipt(tmp_path):
     target = tmp_path / "a.txt"
     target.write_text("old\n", encoding="utf-8")
@@ -198,6 +224,8 @@ def test_real_child_crash_after_backup_is_recovered(tmp_path):
     assert recovered["status"] == "recovered"
     assert target.read_text(encoding="utf-8") == "old\n"
     assert json.loads(state_path.read_text(encoding="utf-8"))["state"] == "ROLLED_BACK"
+    restored = recovered["transaction"]["restored_sha256"]
+    assert restored["a.txt"] == _hash(target)
 
 
 def test_concurrent_change_is_journaled_as_precommit_refusal_and_replayable(tmp_path, monkeypatch):
