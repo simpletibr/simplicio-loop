@@ -75,6 +75,42 @@ def test_changeset_cli_declares_standalone_route_without_runtime_probe(tmp_path,
     assert (tmp_path / "offline.txt").read_text(encoding="utf-8") == "standalone\n"
 
 
+def test_changeset_cli_auto_without_runtime_uses_standalone(tmp_path, capsys, monkeypatch):
+    plan = _changeset([{"kind": "create", "path": "auto.txt", "content": "auto-standalone\n"}], ["auto.txt"])
+    plan_path = tmp_path / "plan.json"
+    plan_path.write_text(json.dumps(plan), encoding="utf-8")
+    monkeypatch.setattr(
+        "simplicio.runtime_contracts.runtime_verify_contract",
+        lambda: (_ for _ in ()).throw(AssertionError("auto changeset must not probe Runtime")),
+    )
+
+    assert (
+        cli.main(
+            [
+                "changeset",
+                "--root",
+                str(tmp_path),
+                "--plan",
+                str(plan_path),
+                "--mode",
+                "auto",
+                "--apply",
+                "--json",
+            ]
+        )
+        == 0
+    )
+
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["status"] == "ok"
+    assert receipt["execution_mode"]["requested"] == "auto"
+    assert receipt["execution_mode"]["effective"] == "standalone"
+    assert receipt["execution_mode"]["route"] == "standalone"
+    assert receipt["execution_mode"]["runtime_required"] is False
+    assert receipt["execution_mode"]["provider_calls"] == 0
+    assert (tmp_path / "auto.txt").read_text(encoding="utf-8") == "auto-standalone\n"
+
+
 def test_changeset_cli_refuses_integrated_without_runtime_authorization(tmp_path, capsys):
     assert cli.main(["changeset", "--root", str(tmp_path), "--mode", "integrated", "--json"]) == 1
     receipt = json.loads(capsys.readouterr().out)
