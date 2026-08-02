@@ -14,6 +14,33 @@ from scripts.quality_gate import (
 )
 
 
+def test_timeout_tree_falls_back_when_taskkill_is_unavailable(monkeypatch):
+    from scripts import quality_gate
+
+    class Process:
+        pid = 123
+        killed = False
+
+        def poll(self):
+            return None
+
+        def kill(self):
+            self.killed = True
+
+        def communicate(self, timeout=None):
+            return "", ""
+
+    process = Process()
+    monkeypatch.setattr(quality_gate.os, "name", "nt")
+    monkeypatch.setattr(
+        quality_gate.subprocess, "run", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError())
+    )
+
+    quality_gate._terminate_process_tree(process)
+
+    assert process.killed is True
+
+
 def test_tool_argv_prefers_path_entry_point(monkeypatch):
     monkeypatch.setattr("scripts.quality_gate.shutil.which", lambda name: f"/tools/{name}")
     assert _tool_argv("ruff", "check", "simplicio") == ["/tools/ruff", "check", "simplicio"]

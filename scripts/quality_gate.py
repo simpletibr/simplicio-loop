@@ -230,12 +230,21 @@ def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
     if process.poll() is not None:
         return
     if os.name == "nt":
-        subprocess.run(
-            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            # A stripped PATH or minimal Windows host may not expose taskkill.
+            # Falling back to the process handle must preserve the timeout
+            # receipt instead of turning it into a misleading launch error.
+            try:
+                process.kill()
+            except OSError:
+                pass
     else:
         killpg = getattr(os, "killpg", None)
         getpgid = getattr(os, "getpgid", None)
@@ -247,8 +256,13 @@ def _terminate_process_tree(process: subprocess.Popen[str]) -> None:
     try:
         process.communicate(timeout=5)
     except subprocess.TimeoutExpired:
-        process.kill()
+        try:
+            process.kill()
+        except OSError:
+            pass
         process.communicate()
+    except OSError:
+        pass
 
 
 def _command_result(root: Path, name: str, command: list[str], *, timeout_s: float) -> dict[str, Any]:
