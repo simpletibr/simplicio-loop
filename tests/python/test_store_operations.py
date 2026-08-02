@@ -70,6 +70,19 @@ def test_agent_slots_are_not_created_by_read_only_store(tmp_path: Path) -> None:
     assert not database.exists()
 
 
+def test_import_task_preserves_terminal_history_and_is_idempotent(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    queued = store.import_task("ready", {"kind": "work"}, idempotency_key="legacy:ready")
+    terminal = store.import_task("done", {"kind": "history"}, idempotency_key="legacy:done", state="completed")
+    assert queued["status"] == "imported"
+    assert queued["terminal_verified"] is False
+    assert terminal["terminal_verified"] is True
+    assert store.import_task("done", {"kind": "history"}, idempotency_key="legacy:done", state="completed")["status"] == "unchanged"
+    with pytest.raises(OperationsStoreError, match="IDEMPOTENCY_CONFLICT"):
+        store.import_task("done", {"kind": "different"}, idempotency_key="legacy:done", state="completed")
+    assert store.status("done")["terminal_verified"] is True
+
+
 def test_enqueue_is_idempotent_and_conflict_is_fail_closed(tmp_path: Path) -> None:
     store = _store(tmp_path)
     first = store.enqueue("task", {"x": 1}, idempotency_key="same")

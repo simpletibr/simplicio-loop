@@ -586,6 +586,64 @@ class OperationsStore:
                     )
         return {"schema": OPERATIONS_API_SCHEMA, "status": "queued", "task_id": task_id, "state": "queued"}
 
+    def import_task(
+        self,
+        task_id: str,
+        payload: Mapping[str, Any],
+        *,
+        idempotency_key: str,
+        state: str = "queued",
+        priority: int = 0,
+    ) -> dict[str, Any]:
+        """Import a task without synthesizing an attempt or lease.
+
+        Queued imports may be claimed normally. Terminal imports preserve
+        history with ``terminal_verified=1``; active legacy leases are not
+        representable here and must be reconciled by a caller first.
+        """
+        if (
+            not isinstance(task_id, str)
+            or not isinstance(idempotency_key, str)
+            or not task_id.strip()
+            or not idempotency_key.strip()
+        ):
+            raise OperationsStoreError("TASK_IDENTITY_INVALID")
+        if state not in {"queued", "completed", "cancelled", "failed"}:
+            raise OperationsStoreError("IMPORT_STATE_UNSUPPORTED")
+        payload_json = _json_payload(payload, "imported_task")
+        terminal = state in {"completed", "cancelled", "failed"}
+        now = _now()
+        with self._write_lock():
+            with self._open() as store:
+                self._ensure_ready(store)
+                with transaction(store, "IMMEDIATE") as tx:
+                    existing = tx.execute(
+                        "SELECT task_id,idempotency_key,payload_json,state FROM ops_tasks WHERE idempotency_key=? OR task_id=?",
+                        (idempotency_key, task_id),
+                    ).fetchone()
+                    if existing:
+                        if existing[0] != task_id or existing[1] != idempotency_key or existing[2] != payload_json:
+                            raise OperationsStoreError("IDEMPOTENCY_CONFLICT", idempotency_key)
+                        return {
+                            "schema": OPERATIONS_API_SCHEMA,
+                            "status": "unchanged",
+                            "task_id": task_id,
+                            "state": existing[3],
+                            "imported": True,
+                        }
+                    tx.execute(
+                        "INSERT INTO ops_tasks(task_id,idempotency_key,payload_json,state,priority,cancellation_requested,terminal_verified,created_at,updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (task_id, idempotency_key, payload_json, state, priority, int(state == "cancelled"), int(terminal), now, now),
+                    )
+        return {
+            "schema": OPERATIONS_API_SCHEMA,
+            "status": "imported",
+            "task_id": task_id,
+            "state": state,
+            "imported": True,
+            "terminal_verified": terminal,
+        }
+
     def claim(
         self,
         worker_id: str,
