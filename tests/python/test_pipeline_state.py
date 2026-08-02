@@ -35,3 +35,23 @@ def test_terminal_states_cannot_return_to_mutation():
         result_trace({"status": "effect_unknown", "applied": False}).terminal is PipelineState.EFFECT_UNKNOWN
     )
     assert result_trace({"status": "ok", "applied": True}).terminal is PipelineState.SEALED
+
+
+def test_pipeline_trace_rejects_empty_non_initial_and_terminal_mismatch():
+    with pytest.raises(InvalidPipelineTransition):
+        PipelineTrace(())
+    with pytest.raises(InvalidPipelineTransition):
+        PipelineTrace((PipelineState.BLOCKED,))
+
+    valid = result_trace({"status": "blocked", "applied": False}).to_dict()
+    valid["terminal"] = PipelineState.SEALED.value
+    with pytest.raises(InvalidPipelineTransition):
+        PipelineTrace.from_dict(valid)
+
+
+def test_result_trace_validates_supplied_receipt_states():
+    receipt = result_trace({"status": "blocked", "applied": False}).to_dict()
+    assert result_trace({"pipeline_state": receipt}).terminal is PipelineState.BLOCKED
+    receipt["states"] = [PipelineState.INPUT.value, PipelineState.SEALED.value]
+    with pytest.raises(InvalidPipelineTransition):
+        result_trace({"pipeline_state": receipt})

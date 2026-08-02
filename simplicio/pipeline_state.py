@@ -35,7 +35,13 @@ TERMINAL_STATES = frozenset(
 
 _NEXT: dict[PipelineState, frozenset[PipelineState]] = {
     PipelineState.INPUT: frozenset(
-        {PipelineState.CONTEXT_BOUND, PipelineState.BLOCKED, PipelineState.REFUSED}
+        {
+            PipelineState.CONTEXT_BOUND,
+            PipelineState.BLOCKED,
+            PipelineState.REFUSED,
+            PipelineState.EFFECT_UNKNOWN,
+            PipelineState.ROLLED_BACK,
+        }
     ),
     PipelineState.CONTEXT_BOUND: frozenset({PipelineState.ROUTE_SELECTED, PipelineState.BLOCKED}),
     PipelineState.ROUTE_SELECTED: frozenset({PipelineState.PROPOSED, PipelineState.BLOCKED}),
@@ -63,6 +69,13 @@ class InvalidPipelineTransition(ValueError):
 class PipelineTrace:
     states: tuple[PipelineState, ...]
 
+    def __post_init__(self) -> None:
+        if not self.states or self.states[0] is not PipelineState.INPUT:
+            raise InvalidPipelineTransition("pipeline trace must start at INPUT")
+        for current, next_state in zip(self.states, self.states[1:], strict=False):
+            if current in TERMINAL_STATES or next_state not in _NEXT.get(current, frozenset()):
+                raise InvalidPipelineTransition(f"{current.value} -> {next_state.value} is not allowed")
+
     @property
     def terminal(self) -> PipelineState:
         return self.states[-1]
@@ -74,6 +87,22 @@ class PipelineTrace:
             "terminal": self.terminal.value,
         }
 
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> PipelineTrace:
+        if payload.get("schema") != "simplicio.dev-cli.pipeline-state/v1":
+            raise InvalidPipelineTransition("pipeline trace schema is invalid")
+        raw_states = payload.get("states")
+        if not isinstance(raw_states, list):
+            raise InvalidPipelineTransition("pipeline trace states must be a list")
+        try:
+            states = tuple(PipelineState(value) for value in raw_states)
+        except (TypeError, ValueError) as exc:
+            raise InvalidPipelineTransition("pipeline trace contains an unknown state") from exc
+        trace = cls(states)
+        if payload.get("terminal") != trace.terminal.value:
+            raise InvalidPipelineTransition("pipeline trace terminal does not match states")
+        return trace
+
 
 def transition(trace: PipelineTrace, next_state: PipelineState) -> PipelineTrace:
     current = trace.terminal
@@ -84,6 +113,9 @@ def transition(trace: PipelineTrace, next_state: PipelineState) -> PipelineTrace
 
 def result_trace(result: dict[str, Any]) -> PipelineTrace:
     """Classify a legacy facade result into a terminal, non-mutating trace."""
+    supplied = result.get("pipeline_state")
+    if isinstance(supplied, dict):
+        return PipelineTrace.from_dict(supplied)
     status = str(result.get("status") or "").lower()
     applied = bool(result.get("applied"))
     if status == "effect_unknown" or result.get("effect_unknown") is True:
