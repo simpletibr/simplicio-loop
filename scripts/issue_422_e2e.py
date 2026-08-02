@@ -504,7 +504,8 @@ def _runtime_scenario() -> dict[str, Any]:
         "after_digest": "sha256:" + "1" * 64,
     }
     proposal["proposal_digest"] = "sha256:" + canonical_hash(proposal)
-    binary = handshake.get("binary")
+    binary_override = os.environ.get("SIMPLICIO_RUNTIME_BIN", "").strip()
+    binary = binary_override or handshake.get("binary")
     if not isinstance(binary, str) or not binary:
         return {
             **base,
