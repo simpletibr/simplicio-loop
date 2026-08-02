@@ -430,6 +430,131 @@ def _identity_requirements(
     return identity_error, identity_required
 
 
+def _route_prepared_task(
+    *,
+    root: str | Path,
+    stack: str,
+    goal: str,
+    target: str,
+    criteria: str,
+    constraints: str,
+    prompt: str,
+    primary_test_cmd: str | None,
+    profile: Any,
+    task_spec: TaskSpec | None,
+    effect_sink: EffectSink | None,
+    authorization: EffectAuthorization | None,
+    context_snapshot: dict | None,
+    context_pack: dict | None,
+    context_delta: dict | None,
+    execution_context: dict | None,
+    context_refresh: bool,
+    integrated_attempt: AttemptContext | None,
+    coordinator_kind: str | None,
+    session_id: str,
+    turn_id: str,
+    attempt_number: int,
+    subworkflow_id: str,
+    deadline: str | None,
+    policy_revision: str,
+    base_hash: str,
+    supplied_pack_hash: str | None,
+    proposal_only: bool,
+    task_context: TaskContext,
+) -> dict[str, Any] | None:
+    """Resolve terminal route decisions before entering the mutation loop."""
+    if profile.effective_mode == "blocked":
+        blocker = execution_mode_blocker(profile)
+        result = _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[profile.reason_code],
+            blocked_preconditions=[blocker],
+        )
+        if task_spec is not None:
+            result["task_spec_hash"] = task_spec.canonical_hash()
+        result["execution_profile"] = profile.to_dict()
+        return _attach_contract_receipt(
+            result,
+            task_context=task_context,
+            route="blocked",
+            effective_mode=profile.effective_mode,
+            authorization=authorization,
+            verification_status="not_run",
+        )
+    if task_spec is not None and profile.effective_mode != "integrated":
+        result = _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=["TASK_SPEC_REQUIRES_INTEGRATED_MODE"],
+            blocked_preconditions=[
+                {
+                    "code": "TASK_SPEC_REQUIRES_INTEGRATED_MODE",
+                    "message": "typed TaskSpec input is accepted only by the integrated execution path",
+                }
+            ],
+        )
+        result["execution_profile"] = profile.to_dict()
+        return result
+    if profile.effective_mode == "integrated":
+        return run_integrated_route(
+            root=root,
+            stack=stack,
+            goal=goal,
+            target=target,
+            criteria=criteria,
+            constraints=constraints,
+            prompt=prompt,
+            primary_test_cmd=primary_test_cmd,
+            effect_sink=effect_sink,
+            authorization=authorization,
+            context_snapshot=context_snapshot,
+            context_pack=context_pack,
+            context_delta=context_delta,
+            execution_context=execution_context,
+            context_refresh=context_refresh,
+            attempt=integrated_attempt,
+            task_spec=task_spec,
+            coordinator_kind=coordinator_kind or "simplicio-dev-cli",
+            session_id=session_id,
+            turn_id=turn_id,
+            attempt_number=attempt_number,
+            subworkflow_id=subworkflow_id,
+            deadline=deadline,
+            policy_revision=policy_revision,
+            base_hash=base_hash,
+            context_pack_hash=supplied_pack_hash,
+            proposal_only=proposal_only,
+            execution_profile=profile.to_dict(),
+            task_context=task_context,
+            attach_contract_receipt=_attach_contract_receipt,
+            final_receipt_status=_final_receipt_status,
+        )
+    if primary_test_cmd is None:
+        blocker = {
+            "code": "verification_command_missing",
+            "message": "verification command missing; set SIMPLICIO_TEST_CMD before execution",
+            "retryable": True,
+            "next_action": "set SIMPLICIO_TEST_CMD to a real project verification command, then retry",
+        }
+        return _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[blocker["message"]],
+            blocked_preconditions=[blocker],
+        )
+    return None
+
+
 def _run_task(
     root,
     stack,
@@ -733,95 +858,39 @@ def _run_task(
             ),
             None,
         )
-    if profile.effective_mode == "blocked":
-        blocker = execution_mode_blocker(profile)
-        result = _task_result(
-            target,
-            prompt,
-            "",
-            applied=False,
-            status="blocked",
-            warnings=[profile.reason_code],
-            blocked_preconditions=[blocker],
-        )
-        if task_spec is not None:
-            result["task_spec_hash"] = task_spec.canonical_hash()
-        result["execution_profile"] = profile.to_dict()
-        return _attach_contract_receipt(
-            result,
-            task_context=task_context,
-            route="blocked",
-            effective_mode=profile.effective_mode,
-            authorization=authorization,
-            verification_status="not_run",
-        )
-    if task_spec is not None and profile.effective_mode != "integrated":
-        result = _task_result(
-            target,
-            prompt,
-            "",
-            applied=False,
-            status="blocked",
-            warnings=["TASK_SPEC_REQUIRES_INTEGRATED_MODE"],
-            blocked_preconditions=[
-                {
-                    "code": "TASK_SPEC_REQUIRES_INTEGRATED_MODE",
-                    "message": "typed TaskSpec input is accepted only by the integrated execution path",
-                }
-            ],
-        )
-        result["execution_profile"] = profile.to_dict()
-        return result
-    if profile.effective_mode == "integrated":
-        return run_integrated_route(
-            root=root,
-            stack=stack,
-            goal=goal,
-            target=target,
-            criteria=criteria,
-            constraints=constraints,
-            prompt=prompt,
-            primary_test_cmd=primary_test_cmd,
-            effect_sink=effect_sink,
-            authorization=authorization,
-            context_snapshot=context_snapshot,
-            context_pack=context_pack,
-            context_delta=context_delta,
-            execution_context=execution_context,
-            context_refresh=context_refresh,
-            attempt=integrated_attempt,
-            task_spec=task_spec,
-            coordinator_kind=coordinator_kind or "simplicio-dev-cli",
-            session_id=session_id,
-            turn_id=turn_id,
-            attempt_number=attempt_number,
-            subworkflow_id=subworkflow_id,
-            deadline=deadline,
-            policy_revision=policy_revision,
-            base_hash=base_hash,
-            context_pack_hash=supplied_pack_hash,
-            proposal_only=proposal_only,
-            execution_profile=profile.to_dict(),
-            task_context=task_context,
-            attach_contract_receipt=_attach_contract_receipt,
-            final_receipt_status=_final_receipt_status,
-        )
-    if not dry_run_task and primary_test_cmd is None:
-        blocker = {
-            "code": "verification_command_missing",
-            "message": "verification command missing; set SIMPLICIO_TEST_CMD before execution",
-            "retryable": True,
-            "next_action": "set SIMPLICIO_TEST_CMD to a real project verification command, then retry",
-        }
-        return _task_result(
-            target,
-            prompt,
-            "",
-            applied=False,
-            status="blocked",
-            warnings=[blocker["message"]],
-            blocked_preconditions=[blocker],
-        )
+    routed_result = _route_prepared_task(
+        root=root,
+        stack=stack,
+        goal=goal,
+        target=target,
+        criteria=criteria,
+        constraints=constraints,
+        prompt=prompt,
+        primary_test_cmd=primary_test_cmd,
+        profile=profile,
+        task_spec=task_spec,
+        effect_sink=effect_sink,
+        authorization=authorization,
+        context_snapshot=context_snapshot,
+        context_pack=context_pack,
+        context_delta=context_delta,
+        execution_context=execution_context,
+        context_refresh=context_refresh,
+        integrated_attempt=integrated_attempt,
+        coordinator_kind=coordinator_kind,
+        session_id=session_id,
+        turn_id=turn_id,
+        attempt_number=attempt_number,
+        subworkflow_id=subworkflow_id,
+        deadline=deadline,
+        policy_revision=policy_revision,
+        base_hash=base_hash,
+        supplied_pack_hash=supplied_pack_hash,
+        proposal_only=proposal_only,
+        task_context=task_context,
+    )
+    if routed_result is not None:
+        return routed_result
     if dry_run_task:
         return _run_dry_run_task(
             root=root,
