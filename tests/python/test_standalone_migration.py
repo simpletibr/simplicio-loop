@@ -358,6 +358,26 @@ def test_edit_opt_in_keeps_offline_legacy_compatibility(tmp_path, monkeypatch, c
     assert (tmp_path / "product.txt").read_text(encoding="utf-8") == "changed\n"
 
 
+def test_edit_default_standalone_receipt_is_not_legacy(tmp_path, monkeypatch, capsys):
+    monkeypatch.delenv("SIMPLICIO_STANDALONE_MIGRATION_PHASE", raising=False)
+    monkeypatch.delenv("SIMPLICIO_ENABLE_LEGACY_STANDALONE_WRITE", raising=False)
+    args = argparse.Namespace(
+        root=str(tmp_path),
+        plan=str(_plan(tmp_path / "plan.json")),
+        apply=True,
+        json=True,
+    )
+
+    code = edit_cmd.run_mechanical_edit(args)
+    payload = json.loads(capsys.readouterr().out)
+
+    assert code == 0
+    assert payload["mutation_receipt"]["route"] == "standalone"
+    assert payload["mutation_receipt"]["legacy"] is False
+    assert payload["mutation_receipt"]["runtime_gated"] is False
+    assert (tmp_path / "product.txt").read_text(encoding="utf-8") == "changed\n"
+
+
 def test_native_multi_file_apply_is_refused_before_any_subprocess(tmp_path, monkeypatch):
     calls = []
     args = argparse.Namespace(root=str(tmp_path), apply=True)
