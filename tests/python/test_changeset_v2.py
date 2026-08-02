@@ -338,7 +338,8 @@ def test_fast_binary_bytes_are_decoded_by_the_official_adapter(tmp_path, monkeyp
     assert (tmp_path / "binary.txt").read_bytes() == content
 
 
-def test_fast_binary_bytes_are_produced_by_official_fast_and_consumed_by_dev_cli(tmp_path):
+def test_fast_binary_bytes_are_produced_by_official_fast_and_consumed_by_dev_cli(tmp_path, monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_FAST_NATIVE", raising=False)
     fast_binary_changeset = pytest.importorskip("simplicio_fast.binary_changeset")
     content = b"official-fast\n"
     changeset = fast_binary_changeset.prepare_from_json(
