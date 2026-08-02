@@ -569,26 +569,74 @@ class ContextBindingCache:
             "index_present": self.index_path.is_file(),
         }
 
-    def compact(self) -> dict[str, Any]:
-        """Rewrite the live metadata entries into a shorter hash-chain log."""
-        if not self.log_path.is_file():
-            return self.doctor()
+    def _remove_stale_writer_lock(self) -> bool:
+        try:
+            owner = self.lock_path.read_text(encoding="ascii").strip()
+            pid = int(owner)
+        except (OSError, UnicodeError, ValueError):
+            return False
+        if pid <= 0 or pid == os.getpid():
+            return False
+        if os.name == "nt":
+            import ctypes
+
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            handle = kernel32.OpenProcess(0x1000, False, pid)
+            if handle:
+                exit_code = ctypes.c_ulong()
+                running = kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+                kernel32.CloseHandle(handle)
+                if not running or exit_code.value == 259:
+                    return False
+                return True
+            if ctypes.get_last_error() != 87:
+                return False
+        else:
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                pass
+            except OSError:
+                return False
+            else:
+                return False
+        try:
+            self.lock_path.unlink()
+        except FileNotFoundError:
+            pass
+        return True
+
+    def _acquire_writer_lock(self, *, recover_stale: bool = False) -> None:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
         deadline = time.monotonic() + 10
         while True:
             try:
                 fd = os.open(self.lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                os.close(fd)
-                break
+                try:
+                    os.write(fd, f"{os.getpid()}\n".encode("ascii"))
+                finally:
+                    os.close(fd)
+                return
             except FileExistsError:
                 pass
             except PermissionError:
                 pass
             if time.monotonic() >= deadline:
+                if recover_stale and self._remove_stale_writer_lock():
+                    deadline = time.monotonic() + 10
+                    continue
                 raise MapperContextError(
                     "CONTEXT_CACHE_LOCK_TIMEOUT", "context cache writer lock is busy"
                 ) from None
             time.sleep(0.01)
+
+    def compact(self) -> dict[str, Any]:
+        """Rewrite the live metadata entries into a shorter hash-chain log."""
+        if not self.log_path.is_file():
+            return self.doctor()
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        self._acquire_writer_lock(recover_stale=True)
+
         temporary = self.log_path.with_name(f"{self.log_path.name}.{os.getpid()}.tmp")
         try:
             state = self._read_log()
@@ -789,21 +837,8 @@ class ContextBindingCache:
         fence: str | None = None,
     ) -> str:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
-        deadline = time.monotonic() + 10
-        while True:
-            try:
-                fd = os.open(self.lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-                os.close(fd)
-                break
-            except FileExistsError:
-                pass
-            except PermissionError:
-                pass
-            if time.monotonic() >= deadline:
-                raise MapperContextError(
-                    "CONTEXT_CACHE_LOCK_TIMEOUT", "context cache writer lock is busy"
-                ) from None
-            time.sleep(0.01)
+        self._acquire_writer_lock()
+
         try:
             previous = ""
             if self.log_path.is_file():
