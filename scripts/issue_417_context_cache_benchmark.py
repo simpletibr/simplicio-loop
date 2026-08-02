@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
 import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor
@@ -19,6 +20,18 @@ from typing import Any
 
 SCHEMA = "simplicio.dev-cli.issue-417-context-cache-benchmark/v1"
 _REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _commit_sha() -> str | None:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=_REPO_ROOT,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
 
 
 def _writer(args: tuple[str, int]) -> None:
@@ -98,6 +111,7 @@ def main() -> int:
         cases = [_run_case(root, writers, args.repeats) for writers in (1, 10, 50)]
         report = {
             "schema": SCHEMA,
+            "commit_sha": _commit_sha(),
             "python": os.sys.version.split()[0],
             "cases": cases,
             "all_chains_valid": all(case["chain_status"] == "valid" for case in cases),

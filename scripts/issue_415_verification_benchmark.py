@@ -7,6 +7,8 @@ import hashlib
 import json
 import os
 import statistics
+import subprocess
+import sys
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -14,11 +16,27 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-from simplicio.plan_compiler.mapper_context import verify_context_sources
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from simplicio.plan_compiler.mapper_context import verify_context_sources  # noqa: E402
 
 SCHEMA = "simplicio.dev-cli.issue-415-verification-benchmark/v1"
 PACK_SIZES = {"small": 10, "medium": 100, "large": 1000}
 REPEATS = 10
+
+
+def _commit_sha() -> str | None:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=_REPO_ROOT,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
 
 
 def _binding(root: Path, count: int) -> Any:
@@ -87,6 +105,7 @@ def run_benchmark() -> dict[str, Any]:
     rows = [_case(name, count, writers) for name, count in PACK_SIZES.items() for writers in (1, 5, 10)]
     return {
         "schema": SCHEMA,
+        "commit_sha": _commit_sha(),
         "repeats": REPEATS,
         "python": os.sys.version.split()[0],
         "rows": rows,
