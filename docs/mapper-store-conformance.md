@@ -65,6 +65,32 @@ read-only. This is also the handoff point for the Runtime `--evidence-file`
 workflow: Runtime/Dev CLI can publish a receipt, while Mapper decides whether
 it is current and sufficient for conformance.
 
+### Portable producer
+
+`scripts/mapper_store_external_conformance.py` is the portable producer for
+installed consumer lanes. It requires clean producer checkouts and three
+consumer wheels, creates a disposable `venv`, installs with `--no-index
+--no-deps`, and runs the explicitly selected scenario:
+
+```bash
+python3 scripts/mapper_store_external_conformance.py \
+  --scenario "fresh standalone" \
+  --repo mapper=/path/to/simplicio-mapper \
+  --repo loop=/path/to/simplicio-loop \
+  --repo dev-cli=/path/to/simplicio-dev-cli \
+  --repo runtime=/path/to/simplicio-runtime \
+  --wheel mapper=/path/to/simplicio_mapper.whl \
+  --wheel dev-cli=/path/to/simplicio_cli.whl \
+  --wheel loop=/path/to/simplicio_loop.whl \
+  --output /tmp/mapper-store-fresh-standalone.json
+```
+
+The current producer covers only the measured standalone installed lane. An
+upgrade requires `--legacy-memory-dir`; runtime-backed, vector, crash,
+corruption, and cross-platform lanes are emitted as `unverified` until a
+producer for that exact lane is implemented and executed. Platform names are
+never simulated from a flag.
+
 ## Current local evidence
 
 The local checkouts are intentionally not treated as release sources when they
