@@ -375,6 +375,61 @@ def _run_dry_run_task(
     )
 
 
+def _identity_requirements(
+    *,
+    effective_mode: str,
+    requested_execution_mode: str | None,
+    context_snapshot: dict | None,
+    context_pack: dict | None,
+    snapshot_identity: str,
+    pack_identity: str,
+    attempt_identity: str,
+    supplied_snapshot_id: str | None,
+    canonical_snapshot_id: str,
+    supplied_pack_hash: str | None,
+    canonical_pack_hash: str,
+    dry_run_task: bool,
+) -> tuple[TaskContextError | None, bool]:
+    """Compute identity mismatch and authority requirements for one task."""
+    identity_error: TaskContextError | None = None
+    if supplied_snapshot_id is not None and supplied_snapshot_id != canonical_snapshot_id:
+        identity_error = TaskContextError(
+            "CONTEXT_SNAPSHOT_ID_MISMATCH",
+            "supplied context_snapshot_id does not match the canonical Mapper snapshot",
+        )
+    elif supplied_pack_hash is not None and canonical_pack_hash and supplied_pack_hash != canonical_pack_hash:
+        identity_error = TaskContextError(
+            "CONTEXT_PACK_HASH_MISMATCH",
+            "supplied context_pack_hash does not match the canonical Mapper ContextPack",
+        )
+    strict_authority = os.environ.get("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    identity_required = not dry_run_task and (
+        (
+            effective_mode == "integrated"
+            and context_snapshot is not None
+            and context_pack is not None
+            and bool(snapshot_identity and pack_identity and attempt_identity)
+        )
+        or (
+            effective_mode == "standalone"
+            and requested_execution_mode != "standalone"
+            and (
+                strict_authority
+                or context_snapshot is not None
+                or context_pack is not None
+                or supplied_snapshot_id is not None
+                or supplied_pack_hash is not None
+            )
+        )
+    )
+    return identity_error, identity_required
+
+
 def _run_task(
     root,
     stack,
@@ -560,41 +615,19 @@ def _run_task(
         )
         result["execution_profile"] = profile.to_dict()
         return result
-    identity_error: TaskContextError | None = None
-    if supplied_snapshot_id is not None and supplied_snapshot_id != canonical_snapshot_id:
-        identity_error = TaskContextError(
-            "CONTEXT_SNAPSHOT_ID_MISMATCH",
-            "supplied context_snapshot_id does not match the canonical Mapper snapshot",
-        )
-    elif supplied_pack_hash is not None and canonical_pack_hash and supplied_pack_hash != canonical_pack_hash:
-        identity_error = TaskContextError(
-            "CONTEXT_PACK_HASH_MISMATCH",
-            "supplied context_pack_hash does not match the canonical Mapper ContextPack",
-        )
-    strict_authority = os.environ.get("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
-    identity_required = not dry_run_task and (
-        (
-            profile.effective_mode == "integrated"
-            and context_snapshot is not None
-            and context_pack is not None
-            and bool(snapshot_identity and pack_identity and attempt_identity)
-        )
-        or (
-            profile.effective_mode == "standalone"
-            and requested_execution_mode != "standalone"
-            and (
-                strict_authority
-                or context_snapshot is not None
-                or context_pack is not None
-                or supplied_snapshot_id is not None
-                or supplied_pack_hash is not None
-            )
-        )
+    identity_error, identity_required = _identity_requirements(
+        effective_mode=profile.effective_mode,
+        requested_execution_mode=requested_execution_mode,
+        context_snapshot=context_snapshot,
+        context_pack=context_pack,
+        snapshot_identity=snapshot_identity,
+        pack_identity=pack_identity,
+        attempt_identity=attempt_identity,
+        supplied_snapshot_id=supplied_snapshot_id,
+        canonical_snapshot_id=canonical_snapshot_id,
+        supplied_pack_hash=supplied_pack_hash,
+        canonical_pack_hash=canonical_pack_hash,
+        dry_run_task=dry_run_task,
     )
     if identity_error is not None or identity_required:
         try:
