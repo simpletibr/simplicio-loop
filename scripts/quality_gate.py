@@ -106,6 +106,10 @@ def _redact_output(text: str) -> str:
     return redacted
 
 
+def _redact_argv(command: list[str]) -> list[str]:
+    return [_redact_output(argument) for argument in command]
+
+
 def _git(root: Path, *args: str) -> str | None:
     try:
         result = subprocess.run(
@@ -266,7 +270,7 @@ def _command_result(root: Path, name: str, command: list[str], *, timeout_s: flo
             error = f"TimeoutExpired: command exceeded {timeout_s:g}s; process tree terminated"
             return {
                 "name": name,
-                "argv": command,
+                "argv": _redact_argv(command),
                 "exit_code": exit_code,
                 "duration_ms": round((time.perf_counter() - started) * 1000, 3),
                 "output_digest": _digest(output),
@@ -279,7 +283,7 @@ def _command_result(root: Path, name: str, command: list[str], *, timeout_s: flo
         error = f"{type(exc).__name__}: {exc}"
     return {
         "name": name,
-        "argv": command,
+        "argv": _redact_argv(command),
         "exit_code": exit_code,
         "duration_ms": round((time.perf_counter() - started) * 1000, 3),
         "output_digest": _digest(output),
