@@ -34,6 +34,18 @@ def test_write_set_lock_conflict_and_fence(tmp_path):
     mgr.acquire(["src/a.py"], owner="a2", lease_id="L2", fencing_token="F2")
 
 
+def test_write_set_lock_uses_mapper_store_files(tmp_path):
+    mgr = WriteSetLockManager(tmp_path)
+    mgr.acquire(["src/a.py"], owner="a1", lease_id="L1", fencing_token="F1")
+
+    assert not (tmp_path / ".simplicio" / "write-set-locks.sqlite3").exists()
+    lock_files = list((tmp_path / ".simplicio" / "mapper-store" / "locks").glob("*.lock"))
+    assert len(lock_files) == 1
+    assert mgr.held_paths() == ["src/a.py"]
+    assert mgr.release(owner="a1", lease_id="L1")["status"] == "released"
+    assert mgr.held_paths() == []
+
+
 def test_checkpoint_restore_only_write_set(tmp_path):
     root = tmp_path / "repo"
     root.mkdir()
