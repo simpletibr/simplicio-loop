@@ -443,6 +443,11 @@ def _build_parser() -> argparse.ArgumentParser:
         default="auto",
         help="select the in-memory Fast decoder; rust never silently falls back",
     )
+    p_changeset.add_argument(
+        "--refresh-mapper",
+        action="store_true",
+        help="after a committed binary changeset, refresh Mapper once for all changed paths",
+    )
     p_changeset.add_argument("--json", action="store_true", help="emit a stable v2 receipt")
 
     p_edit = sub.add_parser(
