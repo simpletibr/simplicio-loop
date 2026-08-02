@@ -182,6 +182,38 @@ def _retry_escalation_after() -> int:
     return value if value >= 1 else 2
 
 
+def _publish_execution_mode_selection(
+    *, root: str, profile: Any, proposal_only: bool, dry_run_task: bool
+) -> tuple[Any, str]:
+    """Publish route selection and return the policy consumed by later stages."""
+    from .standalone_migration import StandalonePolicy, emit_mutation_route, mutation_route_for_mode
+
+    policy = StandalonePolicy(**profile.standalone_policy)
+    route = "blocked" if dry_run_task else mutation_route_for_mode(profile.effective_mode)
+    if proposal_only:
+        return policy, route
+    emit_mutation_route(
+        root=root,
+        entrypoint="task",
+        route=route,
+        reason_code=profile.reason_code,
+        policy=policy,
+    )
+    emit_event(
+        "execution_mode_selected",
+        {
+            "requested": profile.requested_mode,
+            "effective": profile.effective_mode,
+            "reason_code": profile.reason_code,
+            "fallback_reason": profile.fallback_reason,
+            "rollout": profile.rollout,
+        },
+        level="warning" if profile.effective_mode == "blocked" else "info",
+        root=root,
+    )
+    return policy, route
+
+
 def _failure_fingerprint(log: str | None) -> str:
     kind = classify_failure(log).kind
     digest = hashlib.sha256((log or "").encode("utf-8", errors="replace")).hexdigest()[:16]
@@ -1144,12 +1176,6 @@ def _run_task(
             ],
         )
         return result
-    from .standalone_migration import (
-        StandalonePolicy,
-        emit_mutation_route,
-        mutation_route_for_mode,
-    )
-
     requested_execution_mode = prepared.requested_execution_mode
     profile = prepared.profile
     if profile.effective_mode == "integrated" and dry_run_task:
@@ -1247,29 +1273,9 @@ def _run_task(
                 authorization=None,
                 verification_status="not_run",
             )
-    migration_policy = StandalonePolicy(**profile.standalone_policy)
-    mutation_route = "blocked" if dry_run_task else mutation_route_for_mode(profile.effective_mode)
-    if not proposal_only:
-        emit_mutation_route(
-            root=root,
-            entrypoint="task",
-            route=mutation_route,
-            reason_code=profile.reason_code,
-            policy=migration_policy,
-        )
-    if not proposal_only:
-        emit_event(
-            "execution_mode_selected",
-            {
-                "requested": profile.requested_mode,
-                "effective": profile.effective_mode,
-                "reason_code": profile.reason_code,
-                "fallback_reason": profile.fallback_reason,
-                "rollout": profile.rollout,
-            },
-            level="warning" if profile.effective_mode == "blocked" else "info",
-            root=root,
-        )
+    migration_policy, mutation_route = _publish_execution_mode_selection(
+        root=root, profile=profile, proposal_only=proposal_only, dry_run_task=dry_run_task
+    )
     _remember_patch_receipt(None)
     prompt = build_prompt(root, stack, goal, target, criteria, constraints)
     primary_test_cmd = os.environ.get("SIMPLICIO_TEST_CMD", "").strip() or None
