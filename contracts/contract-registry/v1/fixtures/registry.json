@@ -1,0 +1,18 @@
+{
+  "schema": "simplicio.contract-registry/v1",
+  "registry_version": 1,
+  "policy": {"owner_authority": "mapper", "unknown_contracts": "fail"},
+  "contracts": [{
+    "id": "simplicio.example/v1",
+    "kind": "fixture",
+    "owner": "mapper",
+    "maintainers": ["mapper"],
+    "producers": ["mapper"],
+    "consumers": ["loop"],
+    "writer_authority": "mapper",
+    "versions": {"current": "v1", "minimum": "v1", "maximum": "v1", "deprecated": false},
+    "canonical": {"schema_path": null, "sha256": null, "fixture_paths": []},
+    "compatibility": {"unknown_fields": "reject", "unknown_enum": "reject", "defaults": "explicit", "policy": "versioned"},
+    "change_policy": {"breaking": "new-version", "additive": "compatible"}
+  }]
+}
