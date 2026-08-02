@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 
@@ -67,6 +68,7 @@ def test_runtime_probe_executes_and_replays_configured_http_effect(monkeypatch, 
     )
     monkeypatch.setenv("SIMPLICIO_RUNTIME_EFFECT_URL", "http://127.0.0.1:9119")
     monkeypatch.setenv("SIMPLICIO_RUNTIME_E2E_ROOT", str(tmp_path))
+
     def fake_runtime_tool(_binary, name, _arguments, *, cwd):
         assert cwd == tmp_path
         if name == "simplicio_effect_authorize":
@@ -164,3 +166,18 @@ def test_fast_rust_smoke_requires_native_abi_and_never_falls_back(monkeypatch, t
 
     assert result["status"] == "PASS"
     assert result["abi"] == "simplicio.fast-native/v1"
+
+
+def test_write_reports_keeps_json_output_machine_readable(tmp_path):
+    runner = _runner_module()
+    payload = {
+        "schema": runner.SCHEMA,
+        "commit_sha": "abc123",
+        "overall": "PASS_WITH_UNVERIFIED",
+        "scenarios": [{"scenario": "standalone", "status": "PASS"}],
+    }
+
+    runner.write_reports(payload, tmp_path / "evidence.json")
+
+    assert json.loads((tmp_path / "evidence.json").read_text(encoding="utf-8"))["schema"] == runner.SCHEMA
+    assert (tmp_path / "evidence.md").read_text(encoding="utf-8").startswith("# Issue #422 local evidence")
