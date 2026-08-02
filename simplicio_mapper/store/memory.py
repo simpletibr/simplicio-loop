@@ -125,6 +125,19 @@ def _parse_markdown(path: Path, text: str) -> tuple[str, list[dict[str, Any]], l
     return topic, entries, errors
 
 
+def _markdown_stable_id(item: Mapping[str, Any], topic: str) -> str:
+    """Derive an import identity from entry content, not its section ordinal."""
+    identity = {
+        "path": str(item["path"]),
+        "topic": topic,
+        "timestamp": str(item["timestamp"]),
+        "actor": str(item["actor"]),
+        "tags": list(item.get("tags", [])),
+        "content_hash": _sha_text(str(item["content"]).strip()),
+    }
+    return f"memory:markdown:{_sha(identity)[:32]}"
+
+
 def _safe_relative(path: Path, base: Path) -> str:
     try:
         return path.resolve(strict=False).relative_to(base.resolve(strict=False)).as_posix()
@@ -446,6 +459,21 @@ class MemoryStore:
             return default
         return (str(row[0]), int(row[1])) if row else default
 
+    def _existing_markdown_id(self, item: Mapping[str, Any]) -> str | None:
+        """Keep an old ordinal-based ID when upgrading an existing store."""
+        content_hash = _sha_text(_redact(str(item["content"]).strip()))
+        try:
+            with self._open(read_only=True) as store:
+                row = store.execute(
+                    """SELECT stable_id FROM memory_entries
+                       WHERE source='markdown' AND source_path=? AND content_hash=? AND tombstone=0
+                       ORDER BY created_at, stable_id LIMIT 1""",
+                    (str(item["path"]), content_hash),
+                ).fetchone()
+        except (OSError, StoreError, sqlite3.Error):
+            return None
+        return str(row[0]) if row else None
+
     def import_markdown(self, root: str | Path | None = None, *, strict: bool = False) -> dict[str, Any]:
         adapter = MarkdownGitAdapter(root or self.markdown_root or memory_dir())
         adapter.initialize()
@@ -455,7 +483,7 @@ class MemoryStore:
         imported = 0
         unchanged = 0
         for item in parsed[:_MAX_ENTRIES]:
-            stable_id = f"memory:markdown:{_sha_text(item['path'])[:32]}:{item['ordinal']}"
+            stable_id = self._existing_markdown_id(item) or _markdown_stable_id(item, str(item["topic"]))
             result = self.store(
                 item["topic"],
                 item["content"],

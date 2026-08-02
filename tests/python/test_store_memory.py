@@ -43,6 +43,45 @@ def test_markdown_import_is_idempotent_and_preserves_provenance(tmp_path: Path) 
     assert result["results"][0]["tags"] == ["auth", "decision"]
 
 
+def test_markdown_identity_survives_inserting_a_prior_section(tmp_path: Path) -> None:
+    root = tmp_path / "memory"
+    notes = root / "notes"
+    notes.mkdir(parents=True)
+    path = notes / "decisions.md"
+    path.write_text(
+        "# Decisions\n\n"
+        "## 2026-08-02T00:00:00Z — codex\n\nfirst\n\n"
+        "## 2026-08-02T00:01:00Z — codex\n\nsecond\n",
+        encoding="utf-8",
+    )
+    store = MemoryStore(markdown_root=root)
+    store.initialize()
+    store.import_markdown(strict=True)
+
+    with store._open(read_only=True) as connection:
+        before = dict(
+            connection.execute("SELECT content, stable_id FROM memory_entries ORDER BY content").fetchall()
+        )
+
+    path.write_text(
+        "# Decisions\n\n"
+        "## 2026-08-01T23:59:00Z — codex\n\ninserted\n\n"
+        "## 2026-08-02T00:00:00Z — codex\n\nfirst\n\n"
+        "## 2026-08-02T00:01:00Z — codex\n\nsecond\n",
+        encoding="utf-8",
+    )
+    result = store.import_markdown(strict=True)
+
+    assert result["imported"] == 1
+    assert result["unchanged"] == 2
+    with store._open(read_only=True) as connection:
+        after = dict(
+            connection.execute("SELECT content, stable_id FROM memory_entries ORDER BY content").fetchall()
+        )
+    assert after["first"] == before["first"]
+    assert after["second"] == before["second"]
+
+
 def test_store_reuses_semantic_index_without_copying_embedding(tmp_path: Path) -> None:
     store = MemoryStore(tmp_path / "memory.sqlite")
     store.initialize()

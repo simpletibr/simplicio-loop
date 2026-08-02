@@ -18,10 +18,12 @@ maintain a second FTS/vector index or copy vector columns.
 Each note may contain append-only sections in the form
 `## <ISO timestamp> — <actor>`, an optional `tags:` line and Markdown content.
 `import_markdown()` is idempotent: the stable ID is derived from the relative
-note path and section ordinal. The original path and file SHA-256 are stored as
-provenance. Import never rewrites the source Markdown. `export_markdown()` is
-explicit and produces readable files from canonical rows; `commit=True` makes
-the optional git audit commit.
+note path, entry metadata and content hash, so inserting a new section does not
+renumber later entries. Existing ordinal-based IDs are retained when their
+source path and content still match during an upgrade. The original path and
+file SHA-256 are stored as provenance. Import never rewrites the source
+Markdown. `export_markdown()` is explicit and produces readable files from
+canonical rows; `commit=True` makes the optional git audit commit.
 
 ## API and failure policy
 
