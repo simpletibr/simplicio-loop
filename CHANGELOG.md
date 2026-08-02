@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+## [0.18.5] - 2026-08-02
+
+### Added
+
+- Add the SHA-bound local quality gate, reproducible receipts, packaging
+  checks, and installed CLI validation for release evidence (#421).
+- Add MapperStore memory/ledger migration validation, inventory checks, and
+  deterministic lock/transaction evidence (#497, #498).
+
+### Changed
+
+- Refactor pipeline preparation, routing, and apply stages into typed,
+  bounded modules while preserving the coordinator ownership boundary (#420).
+- Make standalone route admission explicit and frozen before effects, and
+  fail closed when a post-commit Mapper refresh is still pending (#418, #419).
+- Keep sealed Fast changeset consumption and the multi-file transaction path
+  covered by focused contract, recovery, and benchmark suites (#414, #416).
+
+### Fixed
+
+- Harden Windows transaction state handling around process sharing and
+  kill-window recovery.
+
 ## [0.18.4] - 2026-07-31
 
 ### Changed
