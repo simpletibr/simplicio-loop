@@ -4,13 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
-import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from simplicio_mapper.mapper.file_lock import acquire_lock_at, release_lock_at
+from simplicio.store_adapter import MapperStoreAdapter, StoreAdapterError
 
 SCHEMA = "simplicio.mechanical-plan/v1"
 RECEIPT = "simplicio.mutation-receipt/v1"
@@ -60,48 +58,25 @@ def validate(plan: dict[str, Any], root: Path) -> dict[str, Any]:
 class MutationWorker:
     def __init__(self, root: str | Path):
         self.root = Path(root).resolve()
-        self.store_dir = self.root / ".simplicio" / "mapper-store" / "mutations"
-        self.store_dir.mkdir(parents=True, exist_ok=True)
-
-    def _record_path(self, key: str) -> Path:
-        return self.store_dir / f"{hashlib.sha256(key.encode()).hexdigest()}.json"
-
-    def _lock_path(self, key: str) -> Path:
-        return self.store_dir / f"{hashlib.sha256(key.encode()).hexdigest()}.lock"
+        self.store = MapperStoreAdapter(self.root, "mutations")
 
     def _read(self, key: str) -> dict[str, Any] | None:
-        path = self._record_path(key)
-        if not path.exists():
-            return None
         try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+            return self.store.read(key)
+        except StoreAdapterError as exc:
             raise MutationBlocked("RECOVERY_REQUIRED") from exc
-        if not isinstance(value, dict):
-            raise MutationBlocked("RECOVERY_REQUIRED")
-        return value
 
     def _write(self, key: str, value: dict[str, Any]) -> None:
-        target = self._record_path(key)
-        temporary = target.with_suffix(f".tmp-{os.getpid()}")
-        temporary.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")), encoding="utf-8")
-        with temporary.open("r+b") as handle:
-            handle.flush()
-            os.fsync(handle.fileno())
-        for attempt in range(5):
-            try:
-                os.replace(temporary, target)
-                break
-            except PermissionError:
-                if attempt == 4:
-                    raise
-                time.sleep(0.02 * (attempt + 1))
+        try:
+            self.store.write(key, value)
+        except StoreAdapterError as exc:
+            raise MutationBlocked("STORE_WRITE_FAILED") from exc
 
     def _locked(self, key: str):
-        lock = acquire_lock_at(str(self._lock_path(key)), operation="mutation-worker")
-        if lock is None:
-            raise MutationBlocked("RECOVERY_REQUIRED")
-        return lock
+        try:
+            return self.store.acquire(key, operation="mutation-worker")
+        except StoreAdapterError as exc:
+            raise MutationBlocked("RECOVERY_REQUIRED") from exc
 
     def execute(
         self, plan: dict[str, Any], executor: Callable[[dict[str, Any]], dict[str, Any]]
@@ -122,7 +97,7 @@ class MutationWorker:
                 {"key": key, "plan_hash": sealed["plan_hash"], "state": "RESERVED", "receipt": None},
             )
         finally:
-            release_lock_at(lock)
+            self.store.release(lock)
         try:
             result = executor(sealed)
         except BaseException:
@@ -132,7 +107,7 @@ class MutationWorker:
                 row["state"] = "UNCERTAIN"
                 self._write(key, row)
             finally:
-                release_lock_at(lock)
+                self.store.release(lock)
             raise
         if result.get("status") != "ok" or not result.get("applied"):
             lock = self._locked(key)
@@ -141,7 +116,7 @@ class MutationWorker:
                 row["state"] = "ROLLED_BACK"
                 self._write(key, row)
             finally:
-                release_lock_at(lock)
+                self.store.release(lock)
             raise MutationBlocked("EFFECT_NOT_COMMITTED")
         receipt = {
             "schema": RECEIPT,
@@ -160,5 +135,5 @@ class MutationWorker:
             row.update({"state": "VERIFIED", "receipt": receipt})
             self._write(key, row)
         finally:
-            release_lock_at(lock)
+            self.store.release(lock)
         return receipt

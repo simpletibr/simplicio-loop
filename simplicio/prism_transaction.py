@@ -2,19 +2,14 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
-import os
-import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from simplicio_mapper.mapper.file_lock import acquire_lock_at, release_lock_at
-
 from simplicio.effect_transaction import EffectTransaction, EffectTransactionError
 from simplicio.plan_compiler import ChangeSet, canonical_hash
 from simplicio.prism_envelope import PrismExecutionEnvelope
+from simplicio.store_adapter import MapperStoreAdapter, StoreAdapterError
 from simplicio.write_set_lock import LockError, WriteSetLockManager
 
 _TERMINAL = frozenset({"COMMITTED", "ROLLED_BACK", "FAILED_BEFORE_WRITE", "FENCE_LOST", "CONFLICT_BLOCKED"})
@@ -27,42 +22,19 @@ class PrismTransaction:
         self.root = Path(root).resolve()
         self.locks = WriteSetLockManager(self.root)
         self.inner = EffectTransaction(self.root)
-        self.store_dir = self.root / ".simplicio" / "mapper-store" / "prism-transactions"
-        self.store_dir.mkdir(parents=True, exist_ok=True)
-
-    def _record_path(self, tx_key: str) -> Path:
-        return self.store_dir / f"{hashlib.sha256(tx_key.encode()).hexdigest()}.json"
-
-    def _lock_path(self, tx_key: str) -> Path:
-        return self.store_dir / f"{hashlib.sha256(tx_key.encode()).hexdigest()}.lock"
+        self.store = MapperStoreAdapter(self.root, "prism-transactions")
 
     def _read(self, tx_key: str) -> dict[str, Any] | None:
-        path = self._record_path(tx_key)
-        if not path.exists():
-            return None
         try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+            return self.store.read(tx_key)
+        except StoreAdapterError as exc:
             raise EffectTransactionError("RECOVERY_REQUIRED") from exc
-        if not isinstance(value, dict):
-            raise EffectTransactionError("RECOVERY_REQUIRED")
-        return value
 
     def _write(self, tx_key: str, value: dict[str, Any]) -> None:
-        target = self._record_path(tx_key)
-        temporary = target.with_suffix(f".tmp-{os.getpid()}")
-        temporary.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")), encoding="utf-8")
-        with temporary.open("r+b") as handle:
-            handle.flush()
-            os.fsync(handle.fileno())
-        for attempt in range(5):
-            try:
-                os.replace(temporary, target)
-                break
-            except PermissionError:
-                if attempt == 4:
-                    raise
-                time.sleep(0.02 * (attempt + 1))
+        try:
+            self.store.write(tx_key, value)
+        except StoreAdapterError as exc:
+            raise EffectTransactionError("STORE_WRITE_FAILED") from exc
 
     def _tx_key(self, envelope: PrismExecutionEnvelope) -> str:
         return canonical_hash(
@@ -166,9 +138,10 @@ class PrismTransaction:
         receipt: dict[str, Any] | None,
     ) -> None:
         tx_key = self._tx_key(envelope)
-        lock = acquire_lock_at(str(self._lock_path(tx_key)), operation="prism-transaction")
-        if lock is None:
-            raise EffectTransactionError("RECOVERY_REQUIRED")
+        try:
+            lock = self.store.acquire(tx_key, operation="prism-transaction")
+        except StoreAdapterError as exc:
+            raise EffectTransactionError("RECOVERY_REQUIRED") from exc
         try:
             row = self._read(tx_key) or {
                 "tx_key": tx_key,
@@ -180,4 +153,4 @@ class PrismTransaction:
                 row["receipt"] = receipt
             self._write(tx_key, row)
         finally:
-            release_lock_at(lock)
+            self.store.release(lock)

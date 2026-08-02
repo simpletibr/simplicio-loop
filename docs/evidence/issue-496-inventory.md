@@ -9,20 +9,21 @@ python scripts/mapper_store_inventory.py --root . --strict --output .simplicio/m
 Current measured result on the clean branch:
 
 - schema: `simplicio-dev-cli.mapper-store-inventory/v1`
-- occurrences: `31`
-- production stores: `5`
+- occurrences: `11`
+- production stores: `1`
 - template/fixture detections: `1`
 - strict violations: `0`
-- inventory digest: `sha256:a59d252e7b8d01338a710bba864b40b014b52cf6da3b478aa6596bf13399e8ca`
+- inventory digest: `sha256:bf271bc75726abb0a956a3bae65488d893eb5c7a7721ad637644831fbf15e917`
 
 | Path | Kind | Current source of truth | Target owner |
 |---|---|---|---|
 | `simplicio/memory_store.py` | derived index | memory Markdown/files | MapperStore memory/handoff |
-| `simplicio/effect_transaction.py` | transaction ledger | transaction receipt state | MapperStore adapter; Dev CLI keeps receipt ownership |
-| `simplicio/mutation_worker.py` | mutation ledger | mutation lifecycle receipt | MapperStore transaction/ledger adapter |
-| `simplicio/prism_transaction.py` | transaction ledger | PRISM transaction receipt | MapperStore transaction adapter |
-| `simplicio/write_set_lock.py` | lock ledger | write-set fencing/lock state | MapperStore lock adapter |
 | `simplicio/templates/stacks/py-django/tree/config/settings.py` | fixture | generated project configuration | excluded from Dev CLI persistence |
+
+The former lock and transaction modules now route through the in-process
+`MapperStoreAdapter` and therefore no longer contain SQLite/DDL call sites.
+Their authoritative JSON records live under `.simplicio/mapper-store/`, while
+Dev CLI remains the owner of mutation decisions and receipts.
 
 The strict gate is source-only and fail-closed: a new SQLite connection or DDL
 outside the migration allowlist produces a non-zero exit and records the exact
