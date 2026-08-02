@@ -174,7 +174,11 @@ def build_conformance(
         )
     )
 
-    fast_matches = [item for item in inventory["matches"] if item["repo"] == "fast"]
+    fast_matches = [
+        item for item in inventory["matches"]
+        if item["repo"] == "fast"
+        and {"library", "dsn_or_path", "ddl", "command"}.intersection(item["kinds"])
+    ]
     fast_supplied = any(repo_id == "fast" for repo_id, _ in repos)
     checks.append(
         _result(
