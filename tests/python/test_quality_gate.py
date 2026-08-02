@@ -136,3 +136,31 @@ def test_quality_gate_rejects_stale_external_e2e_report(monkeypatch, tmp_path):
     payload = run_gate(tmp_path, commands=[])
     assert payload["passed"] is False
     assert payload["external_lanes"]["runtime"]["reason"] == "external_e2e_report_sha_stale"
+
+
+def test_quality_gate_keeps_optional_unverified_lanes_separate(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "scripts.quality_gate._git", lambda _root, *args: "abc123" if args == ("rev-parse", "HEAD") else None
+    )
+    report = tmp_path / "issue-422.json"
+    report.write_text(
+        json.dumps(
+            {
+                "schema": "simplicio.dev-cli.issue-422-evidence/v1",
+                "commit_sha": "abc123",
+                "scenarios": [
+                    {"scenario": "windows_locked_file", "status": "PASS"},
+                    {"scenario": "runtime_backed", "status": "UNVERIFIED", "reason": "ledger mismatch"},
+                    {"scenario": "fast_rust", "status": "UNVERIFIED", "reason": "native unavailable"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SIMPLICIO_QUALITY_GATE_E2E_REPORT", str(report))
+
+    payload = run_gate(tmp_path, commands=[("pass", [sys.executable, "-c", "pass"])])
+
+    assert payload["passed"] is True
+    assert payload["external_lanes"]["runtime"]["status"] == "UNVERIFIED"
+    assert payload["external_lanes"]["fast"]["status"] == "UNVERIFIED"
