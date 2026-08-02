@@ -16,6 +16,7 @@ import os
 import platform
 import re
 import shlex
+import shutil
 import signal
 import subprocess
 import sys
@@ -58,14 +59,22 @@ def _quality_gate_environment() -> dict[str, str]:
     return env
 
 
+def _tool_argv(name: str, *args: str) -> list[str]:
+    """Prefer the installed tool entry point over an unrelated Python runtime."""
+    executable = shutil.which(name)
+    if executable is not None:
+        return [executable, *args]
+    return [sys.executable, "-m", name, *args]
+
+
 DEFAULT_COMMANDS = (
     (
         "json-boundaries",
         [sys.executable, "scripts/check_json_boundaries.py", "--strict"],
     ),
-    ("ruff", [sys.executable, "-m", "ruff", "check", "simplicio"]),
-    ("ruff-format", [sys.executable, "-m", "ruff", "format", "--check", "simplicio", "tests"]),
-    ("mypy", [sys.executable, "-m", "mypy", "simplicio"]),
+    ("ruff", _tool_argv("ruff", "check", "simplicio")),
+    ("ruff-format", _tool_argv("ruff", "format", "--check", "simplicio", "tests")),
+    ("mypy", _tool_argv("mypy", "simplicio")),
     (
         "pytest",
         [

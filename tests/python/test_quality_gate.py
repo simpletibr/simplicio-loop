@@ -3,7 +3,20 @@ from __future__ import annotations
 import json
 import sys
 
-from scripts.quality_gate import DEFAULT_COMMANDS, SCHEMA, _write_receipt, main, run_gate, verify_receipt
+from scripts.quality_gate import (
+    DEFAULT_COMMANDS,
+    SCHEMA,
+    _tool_argv,
+    _write_receipt,
+    main,
+    run_gate,
+    verify_receipt,
+)
+
+
+def test_tool_argv_prefers_path_entry_point(monkeypatch):
+    monkeypatch.setattr("scripts.quality_gate.shutil.which", lambda name: f"/tools/{name}")
+    assert _tool_argv("ruff", "check", "simplicio") == ["/tools/ruff", "check", "simplicio"]
 
 
 def test_default_gate_contains_required_local_and_installed_lanes():

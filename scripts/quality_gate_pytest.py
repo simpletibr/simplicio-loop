@@ -25,10 +25,11 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--pytest-timeout must be positive")
     root = args.root.resolve()
     with tempfile.TemporaryDirectory(prefix="simplicio-quality-pytest-") as raw_basetemp:
+        pytest_executable = shutil.which("pytest")
         command = [
-            sys.executable,
-            "-m",
-            "pytest",
+            pytest_executable if pytest_executable is not None else sys.executable,
+            *([] if pytest_executable is not None else ["-m"]),
+            *([] if pytest_executable is not None else ["pytest"]),
             f"--timeout={args.pytest_timeout}",
             "--basetemp",
             raw_basetemp,
