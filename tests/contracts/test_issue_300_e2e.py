@@ -363,6 +363,7 @@ def test_context_binding_cache_is_visible_to_a_second_process(tmp_path: Path, ma
         ],
         cwd=repo_root,
         env=child_env,
+        stdin=subprocess.DEVNULL,
         check=True,
         capture_output=True,
         text=True,

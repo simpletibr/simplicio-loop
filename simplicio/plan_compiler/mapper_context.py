@@ -1141,6 +1141,12 @@ def load_mapper_context_pack(
             raise MapperContextError(
                 "CONTEXT_PACK_FILE_INVALID", "every ContextPack file needs path and snapshot_hash"
             )
+        relative = PurePosixPath(str(entry["path"]).translate({ord("\\"): "/"}))
+        if relative.is_absolute() or ".." in relative.parts:
+            raise MapperContextError(
+                "CONTEXT_ROOT_PATH_MISMATCH",
+                f"unsafe ContextPack source path: {entry['path']}",
+            )
     payload_bytes = _canonical_json_bytes(payload)
     # Issue #301 compatibility: schema-compatible legacy packs may omit the
     # raw field; bind their canonical projection digest as the identity.

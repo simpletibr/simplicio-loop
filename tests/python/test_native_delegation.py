@@ -16,7 +16,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import sys
 from types import SimpleNamespace
 
@@ -289,7 +288,7 @@ def test_native_runtime_receives_stdin_plan_without_conflicting_stdin_handle(tmp
     def fake_run(_argv, **kwargs):
         calls.append(kwargs)
         assert kwargs["input"]
-        assert kwargs["stdin"] is subprocess.PIPE
+        assert "stdin" not in kwargs
         return SimpleNamespace(
             returncode=0,
             stdout=json.dumps(
