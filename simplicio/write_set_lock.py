@@ -6,11 +6,24 @@ paths and rejects stale fencing tokens before mutation.
 
 from __future__ import annotations
 
-import sqlite3
-import time
+import hashlib
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
+
+try:
+    from simplicio_mapper.mapper.file_lock import (
+        LockHandle,
+        acquire_lock_at,
+        inspect_lock_at,
+        release_lock_at,
+    )
+except ImportError as exc:  # pragma: no cover - exercised by dependency gate
+    LockHandle = None  # type: ignore[assignment,misc]
+    acquire_lock_at = inspect_lock_at = release_lock_at = None  # type: ignore[assignment]
+    _MAPPER_IMPORT_ERROR = exc
+else:
+    _MAPPER_IMPORT_ERROR = None
 
 
 class LockError(RuntimeError):
@@ -27,30 +40,46 @@ def _normalize(path: str) -> str:
 
 
 class WriteSetLockManager:
-    """SQLite-backed exclusive locks ordered by normalized path."""
+    """MapperStore file-lock backed exclusive locks."""
 
     def __init__(self, root: str | Path) -> None:
+        if _MAPPER_IMPORT_ERROR is not None:
+            raise LockError("MAPPER_STORE_UNAVAILABLE", str(_MAPPER_IMPORT_ERROR))
         self.root = Path(root).resolve()
-        state = self.root / ".simplicio"
-        state.mkdir(parents=True, exist_ok=True)
-        self.db_path = state / "write-set-locks.sqlite3"
-        with self._db() as database:
-            database.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS locks(
-                    path TEXT PRIMARY KEY,
-                    owner TEXT NOT NULL,
-                    lease_id TEXT NOT NULL,
-                    fencing_token TEXT NOT NULL,
-                    acquired_ns INTEGER NOT NULL
-                );
-                """
-            )
+        self.lock_root = self.root / ".simplicio" / "mapper-store" / "locks"
+        self.lock_root.mkdir(parents=True, exist_ok=True)
+        self._handles: dict[str, LockHandle] = {}
 
-    def _db(self) -> sqlite3.Connection:
-        database = sqlite3.connect(self.db_path, isolation_level=None, timeout=30)
-        database.execute("PRAGMA journal_mode=WAL")
-        return database
+    def _lock_path(self, path: str) -> Path:
+        digest = hashlib.sha256(path.encode("utf-8")).hexdigest()
+        return self.lock_root / f"{digest}.lock"
+
+    @staticmethod
+    def _record_path(status: dict[str, Any]) -> str | None:
+        owner = status.get("owner")
+        if not isinstance(owner, dict):
+            return None
+        value = owner.get("write_set_path")
+        return value if isinstance(value, str) else None
+
+    @staticmethod
+    def _handle_from_status(lock_path: Path, status: dict[str, Any]) -> LockHandle | None:
+        owner = status.get("owner")
+        if not isinstance(owner, dict):
+            return None
+        token = owner.get("owner_token", owner.get("token"))
+        if not isinstance(token, str) or not token:
+            return None
+        return LockHandle(path=str(lock_path), token=token, extra={
+            "write_set_path": owner.get("write_set_path", ""),
+            "owner": owner.get("owner", ""),
+            "lease_id": owner.get("lease_id", ""),
+            "fencing_token": owner.get("fencing_token", ""),
+        })
+
+    def _release_handles(self, handles: Sequence[LockHandle]) -> None:
+        for handle in handles:
+            release_lock_at(handle)
 
     def acquire(
         self,
@@ -68,26 +97,47 @@ class WriteSetLockManager:
         ordered = sorted({_normalize(path) for path in paths})
         if not ordered:
             raise LockError("EMPTY_WRITE_SET")
-        now = time.time_ns()
-        with self._db() as database:
-            database.execute("BEGIN IMMEDIATE")
+
+        acquired: list[LockHandle] = []
+        try:
             for path in ordered:
-                row = database.execute(
-                    "SELECT owner, lease_id, fencing_token FROM locks WHERE path=?",
-                    (path,),
-                ).fetchone()
-                if row and (row[0] != owner or row[1] != lease_id):
-                    database.execute("ROLLBACK")
-                    raise LockError("CONFLICT_BLOCKED", f"{path} held by {row[0]}")
-                database.execute(
-                    "INSERT INTO locks(path,owner,lease_id,fencing_token,acquired_ns) "
-                    "VALUES(?,?,?,?,?) "
-                    "ON CONFLICT(path) DO UPDATE SET owner=excluded.owner, "
-                    "lease_id=excluded.lease_id, fencing_token=excluded.fencing_token, "
-                    "acquired_ns=excluded.acquired_ns",
-                    (path, owner, lease_id, fencing_token, now),
-                )
-            database.execute("COMMIT")
+                lock_path = self._lock_path(path)
+                status = inspect_lock_at(str(lock_path), recover=True)
+                if status.get("active"):
+                    record = status.get("owner") or {}
+                    if record.get("owner") != owner or record.get("lease_id") != lease_id:
+                        raise LockError(
+                            "CONFLICT_BLOCKED",
+                            f"{path} held by {record.get('owner', 'unknown')}",
+                        )
+                    handle = self._handle_from_status(lock_path, status)
+                    if handle is None:
+                        raise LockError("MAPPER_STORE_PERSISTENCE_FAILED", path)
+                else:
+                    handle = acquire_lock_at(
+                        str(lock_path),
+                        operation="write-set",
+                        extra_fields={
+                            "write_set_path": path,
+                            "owner": owner,
+                            "lease_id": lease_id,
+                            "fencing_token": fencing_token,
+                        },
+                    )
+                    if handle is None:
+                        raise LockError("CONFLICT_BLOCKED", path)
+                acquired.append(handle)
+                self._handles[path] = handle
+        except LockError:
+            self._release_handles(acquired)
+            for path in ordered:
+                self._handles.pop(path, None)
+            raise
+        except OSError as exc:
+            self._release_handles(acquired)
+            for path in ordered:
+                self._handles.pop(path, None)
+            raise LockError("MAPPER_STORE_PERSISTENCE_FAILED", str(exc)) from exc
         return {
             "schema": "simplicio.write-set-lock-receipt/v1",
             "owner": owner,
@@ -102,13 +152,17 @@ class WriteSetLockManager:
             raise LockError("STALE_FENCE", fencing_token)
 
     def release(self, *, owner: str, lease_id: str) -> dict[str, Any]:
-        with self._db() as database:
-            database.execute("BEGIN IMMEDIATE")
-            database.execute(
-                "DELETE FROM locks WHERE owner=? AND lease_id=?",
-                (owner, lease_id),
-            )
-            database.execute("COMMIT")
+        for lock_path in self.lock_root.glob("*.lock"):
+            status = inspect_lock_at(str(lock_path), recover=False)
+            if not status.get("active"):
+                continue
+            record = status.get("owner") or {}
+            if record.get("owner") == owner and record.get("lease_id") == lease_id:
+                handle = self._handle_from_status(lock_path, status)
+                release_lock_at(handle)
+                path = self._record_path(status)
+                if path:
+                    self._handles.pop(path, None)
         return {
             "schema": "simplicio.write-set-lock-receipt/v1",
             "owner": owner,
@@ -117,6 +171,11 @@ class WriteSetLockManager:
         }
 
     def held_paths(self) -> list[str]:
-        with self._db() as database:
-            rows = database.execute("SELECT path FROM locks ORDER BY path").fetchall()
-        return [str(row[0]) for row in rows]
+        paths: list[str] = []
+        for lock_path in self.lock_root.glob("*.lock"):
+            status = inspect_lock_at(str(lock_path), recover=False)
+            if status.get("active"):
+                path = self._record_path(status)
+                if path:
+                    paths.append(path)
+        return sorted(paths)
