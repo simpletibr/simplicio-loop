@@ -979,3 +979,45 @@ def test_context_pack_without_raw_hash_derives_canonical_identity(mapper_boundar
     expected = hashlib.sha256(_canonical_json(pack)).hexdigest()
     assert binding.pack.pack_hash == expected
     assert binding.context_handle.pack_hash == expected
+
+
+def test_context_binding_cache_recovers_after_writer_process_dies_mid_append(
+    mapper_boundary: None, tmp_path: Any
+) -> None:
+    payload = _payload()
+    binding = bind_mapper_context(payload, _pack(payload))
+    cache = ContextBindingCache(tmp_path)
+    cache.put(binding)
+
+    log = tmp_path / ".simplicio" / "context-bindings.hbp"
+    lock = tmp_path / ".simplicio" / "context-bindings.hbp.lock"
+    worker = (
+        "import os, struct, sys; "
+        "lock_fd=os.open(sys.argv[2], os.O_CREAT | os.O_EXCL | os.O_WRONLY); "
+        "os.write(lock_fd, f'{os.getpid()}\\n'.encode('ascii')); "
+        "os.close(lock_fd); "
+        "fd=os.open(sys.argv[1], os.O_WRONLY | os.O_APPEND); "
+        "os.write(fd, struct.pack('<I', 256)); "
+        "os.write(fd, b'\\x01\\x00'); "
+        "os.fsync(fd); "
+        "os._exit(17)"
+    )
+    process = subprocess.run(
+        [sys.executable, "-c", worker, str(log), str(lock)],
+        cwd=Path(__file__).resolve().parents[2],
+        check=False,
+    )
+
+    assert process.returncode == 17
+    crashed = ContextBindingCache(tmp_path)
+    assert crashed.lookup(binding.context_handle)["reason"] == "corrupt_chain"
+
+    receipt = crashed.recover()
+
+    assert receipt["schema"] == "simplicio.context-binding-cache-recovery/v1"
+    assert receipt["recovered"] is True
+    assert receipt["chain_status"] == "valid"
+    assert receipt["bytes_after"] < receipt["bytes_before"]
+    assert not lock.is_file()
+    recovered = ContextBindingCache(tmp_path)
+    assert recovered.lookup(binding.context_handle)["hit"] is True

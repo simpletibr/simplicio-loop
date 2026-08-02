@@ -165,8 +165,41 @@ def test_storage_capabilities_fail_closed_when_mapper_api_is_absent(tmp_path: Pa
     payload = storage_capabilities(tmp_path)
 
     assert payload["mapper_store"]["ready"] is False
-    assert payload["mapper_store"]["reason"] == "mapper-api-unavailable"
+    assert payload["mapper_store"]["reason"] == "mapper-package-not-installed"
     assert payload["route"]["selected"] == "blocked"
+    assert not (tmp_path / ".simplicio").exists()
+
+
+def test_mapper_store_adapter_freezes_route_before_first_record(tmp_path: Path, monkeypatch) -> None:
+
+    adapter = MapperStoreAdapter(tmp_path, "route-test")
+    route = tmp_path / ".simplicio" / "mapper-store" / "route.json"
+    first = json.loads(route.read_text(encoding="utf-8"))
+    assert first["selected"] == "mapper-store"
+    adapter.write("key", {"value": 1})
+
+    monkeypatch.setenv("SIMPLICIO_MAPPER_VERSION", "0.25.9")
+    with pytest.raises(StoreAdapterError, match="mapper-version-incompatible"):
+        MapperStoreAdapter(tmp_path, "route-test")
+    blocked = storage_capabilities(tmp_path)
+    assert blocked["route"]["selected"] == "mapper-store"
+    assert blocked["route"]["reason"] == "mapper-version-incompatible"
+    assert json.loads(route.read_text(encoding="utf-8")) == first
+    assert not (tmp_path / ".simplicio" / "effect-transactions.sqlite3").exists()
+    monkeypatch.delenv("SIMPLICIO_MAPPER_VERSION")
+    payload = storage_capabilities(tmp_path)
+    assert payload["route"]["frozen"] is True
+    assert payload["route"]["receipt"] == first
+
+
+def test_mapper_store_adapter_blocks_partial_mapper_capability_before_materializing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    import simplicio.store_adapter as store_adapter
+
+    monkeypatch.setattr(store_adapter, "release_lock_at", None)
+    with pytest.raises(StoreAdapterError, match="mapper-api-unavailable"):
+        MapperStoreAdapter(tmp_path, "partial")
     assert not (tmp_path / ".simplicio").exists()
 
 
@@ -178,6 +211,28 @@ def test_inventory_strict_gate_rejects_new_direct_connection(tmp_path: Path, cap
     payload = json.loads(capsys.readouterr().out)
     assert payload["strict"] is False
     assert payload["direct_connections_outside_allowlist"][0]["path"] == "simplicio/new_store.py"
+
+
+def test_inventory_reports_materialized_mapper_files_with_plans(tmp_path: Path) -> None:
+    route = tmp_path / ".simplicio" / "mapper-store" / "route.json"
+    record = tmp_path / ".simplicio" / "mapper-store" / "memory-index" / "record.json"
+    route.parent.mkdir(parents=True)
+    record.parent.mkdir(parents=True)
+    route.write_text('{"schema":"simplicio.dev-cli.storage-route/v1"}', encoding="utf-8")
+    record.write_text("{}", encoding="utf-8")
+
+    payload = inventory(tmp_path)
+    materialized = {row["path"]: row for row in payload["materialized_files"]}
+    assert set(materialized) == {
+        ".simplicio/mapper-store/route.json",
+        ".simplicio/mapper-store/memory-index/record.json",
+    }
+    assert (
+        materialized[".simplicio/mapper-store/memory-index/record.json"]["owner"] == "Dev CLI memory adapter"
+    )
+    assert materialized[".simplicio/mapper-store/route.json"]["target"]
+    assert len(payload["store_plans"]) == 7
+    assert payload["strict"] is True
 
 
 def test_inventory_writes_digest_bound_receipt(tmp_path: Path) -> None:
