@@ -192,6 +192,27 @@ def test_mapper_store_adapter_freezes_route_before_first_record(tmp_path: Path, 
     assert payload["route"]["receipt"] == first
 
 
+def test_mapper_store_route_freeze_retries_concurrent_replace(tmp_path: Path, monkeypatch) -> None:
+    import simplicio.store_adapter as store_adapter
+
+    real_replace = store_adapter.os.replace
+    calls = {"count": 0}
+
+    def flaky_replace(source, destination):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise PermissionError("route is temporarily shared")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(store_adapter.os, "replace", flaky_replace)
+    MapperStoreAdapter(tmp_path, "route-retry")
+
+    route = tmp_path / ".simplicio" / "mapper-store" / "route.json"
+    assert json.loads(route.read_text(encoding="utf-8"))["selected"] == "mapper-store"
+    assert calls["count"] == 2
+    assert not list(route.parent.glob("route.tmp-*"))
+
+
 def test_mapper_store_adapter_blocks_partial_mapper_capability_before_materializing(
     tmp_path: Path, monkeypatch
 ) -> None:
