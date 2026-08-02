@@ -11,8 +11,9 @@ from collections import Counter
 from pathlib import Path
 
 # Reviewed 2026-08-02: the inventory includes the controlled checkpoint,
-# transaction, verification, write-set and native Fast primitives added since #353.
-BASELINE_SHA256 = "154b864bb6ae9c399de63e74b512227d9dcf809c994722021d6f6a97536c3567"
+# transaction, verification, write-set, causal-path and native Fast primitives
+# added since #353.
+BASELINE_SHA256 = "496295aa451c548a1334db54561d501bc1dee654feb1c9e05773aa879f323130"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",
