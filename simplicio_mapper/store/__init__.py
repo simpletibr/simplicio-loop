@@ -12,6 +12,22 @@ from .connection import (
     WriterIdentity,
 )
 from .locks import StoreFileLock, StoreLockError
+from .memory import (
+    MEMORY_API_SCHEMA,
+    MEMORY_HANDOFF_SCHEMA,
+    MEMORY_SCHEMA,
+    MEMORY_SNAPSHOT_SCHEMA,
+    MEMORY_VALIDATION_SCHEMA,
+    MarkdownGitAdapter,
+    MemoryStore,
+    MemoryStoreError,
+    build_handoff,
+    init_memory,
+    memory_dir,
+    recall_memory,
+    store_memory,
+    validate_memory,
+)
 from .operations import OPERATIONS_API_SCHEMA, OPERATIONS_SCHEMA, OperationsStore, OperationsStoreError
 from .paths import StoreLocation, StorePathError, assert_within_root, resolve_store_location
 from .profiles import StoreMode, StoreProfile
@@ -54,6 +70,14 @@ __all__ = [
     "StoreLocation",
     "StoreLockError",
     "StoreMissingError",
+    "MEMORY_API_SCHEMA",
+    "MEMORY_HANDOFF_SCHEMA",
+    "MEMORY_SCHEMA",
+    "MEMORY_SNAPSHOT_SCHEMA",
+    "MEMORY_VALIDATION_SCHEMA",
+    "MarkdownGitAdapter",
+    "MemoryStore",
+    "MemoryStoreError",
     "StoreMode",
     "StorePathError",
     "StoreProfile",
@@ -82,11 +106,17 @@ __all__ = [
     "canonical_json",
     "default_migrations",
     "inspect_store",
+    "build_handoff",
+    "init_memory",
+    "memory_dir",
+    "recall_memory",
     "is_busy_error",
     "negotiate",
     "registry_fixture",
     "resolve_store_location",
     "run_with_retry",
     "sha256_json",
+    "store_memory",
     "transaction",
+    "validate_memory",
 ]
