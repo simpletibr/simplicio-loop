@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -13,12 +14,18 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from simplicio_mapper.mapper.file_lock import LockHandle, acquire_lock_at, release_lock_at
+    from simplicio_mapper.mapper.file_lock import (
+        LockHandle,
+        acquire_lock_at,
+        inspect_lock_at,
+        release_lock_at,
+    )
 
     _MAPPER_IMPORT_ERROR: Exception | None = None
 except (ImportError, ModuleNotFoundError) as exc:  # pragma: no cover - exercised in installed smoke
     LockHandle = Any  # type: ignore[misc,assignment]
     acquire_lock_at = None  # type: ignore[assignment]
+    inspect_lock_at = None  # type: ignore[assignment]
     release_lock_at = None  # type: ignore[assignment]
     _MAPPER_IMPORT_ERROR = exc
 
@@ -28,8 +35,17 @@ class StoreAdapterError(RuntimeError):
 
 
 STORAGE_CAPABILITIES_SCHEMA = "simplicio.dev-cli.storage-capabilities/v1"
-MAPPER_STORE_DOMAINS = ("effect-transactions", "mutation-worker", "prism-transactions", "write-set-locks")
+MAPPER_STORE_DOMAINS = (
+    "effect-transactions",
+    "mutations",
+    "prism-transactions",
+    "locks",
+    "memory-index",
+    "memory-notes",
+)
 MAPPER_MIN_VERSION = (0, 26, 2)
+ROUTE_SCHEMA = "simplicio.dev-cli.storage-route/v1"
+ROUTE_FILENAME = "route.json"
 LEGACY_STORE_PATHS = (
     ".simplicio/effect-transactions.sqlite3",
     ".simplicio/mutation-worker.sqlite3",
@@ -44,6 +60,8 @@ def storage_capabilities(root: str | Path = ".") -> dict[str, Any]:
     resolved = Path(root).resolve()
     mapper_store_root = resolved / ".simplicio" / "mapper-store"
     mapper_version, mapper_ready, mapper_reason = _mapper_status()
+    route_path = mapper_store_root / ROUTE_FILENAME
+    route_receipt = _read_route(route_path)
     legacy = {
         path: {
             "present": (resolved / path).is_file(),
@@ -52,7 +70,7 @@ def storage_capabilities(root: str | Path = ".") -> dict[str, Any]:
         }
         for path in LEGACY_STORE_PATHS
     }
-    return {
+    payload: dict[str, Any] = {
         "schema": STORAGE_CAPABILITIES_SCHEMA,
         "root": str(resolved),
         "read_only": True,
@@ -67,15 +85,23 @@ def storage_capabilities(root: str | Path = ".") -> dict[str, Any]:
         },
         "legacy": legacy,
         "route": {
-            "selected": "mapper-store" if mapper_ready else "blocked",
+            "selected": "mapper-store" if route_receipt is not None or mapper_ready else "blocked",
             "frozen_before_effect": True,
             "reason": "mapper-capability-ready" if mapper_ready else mapper_reason,
         },
     }
+    if route_receipt is not None:
+        payload["route"].update({"frozen": True, "receipt": route_receipt})
+    return payload
 
 
 def _mapper_status() -> tuple[str | None, bool, str]:
     if _MAPPER_IMPORT_ERROR is not None:
+        if isinstance(_MAPPER_IMPORT_ERROR, ModuleNotFoundError) and _MAPPER_IMPORT_ERROR.name in {
+            None,
+            "simplicio_mapper",
+        }:
+            return None, False, "mapper-package-not-installed"
         return None, False, "mapper-api-unavailable"
     try:
         import importlib.metadata
@@ -89,6 +115,8 @@ def _mapper_status() -> tuple[str | None, bool, str]:
     parsed = tuple(int(part or 0) for part in match.groups()) if match else None
     if parsed is None or parsed < MAPPER_MIN_VERSION:
         return mapper_version, False, "mapper-version-incompatible"
+    if not callable(acquire_lock_at) or not callable(inspect_lock_at) or not callable(release_lock_at):
+        return mapper_version, False, "mapper-api-unavailable"
     return mapper_version, True, "installed"
 
 
@@ -98,12 +126,51 @@ def _require_mapper_store() -> None:
         raise StoreAdapterError(f"MAPPER_STORE_UNAVAILABLE:{reason}")
 
 
+def _read_route(path: Path) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise StoreAdapterError("MAPPER_STORE_UNAVAILABLE:route-invalid") from exc
+    if not isinstance(payload, dict) or payload.get("schema") != ROUTE_SCHEMA:
+        raise StoreAdapterError("MAPPER_STORE_UNAVAILABLE:route-invalid")
+    if payload.get("selected") != "mapper-store":
+        raise StoreAdapterError("MAPPER_STORE_UNAVAILABLE:route-frozen")
+    return payload
+
+
+def _freeze_route(root: Path, mapper_version: str | None) -> None:
+    route_root = root / ".simplicio" / "mapper-store"
+    route_path = route_root / ROUTE_FILENAME
+    existing = _read_route(route_path)
+    if existing is not None:
+        return
+    route_root.mkdir(parents=True, exist_ok=True)
+    temporary = route_path.with_suffix(f".tmp-{os.getpid()}-{threading.get_ident()}")
+    payload = {
+        "schema": ROUTE_SCHEMA,
+        "selected": "mapper-store",
+        "mapper_min_version": ".".join(str(part) for part in MAPPER_MIN_VERSION),
+        "mapper_version": mapper_version,
+        "frozen_before_effect": True,
+    }
+    try:
+        temporary.write_text(json.dumps(payload, sort_keys=True, separators=(",", ":")), encoding="utf-8")
+        os.replace(temporary, route_path)
+    except OSError as exc:
+        raise StoreAdapterError("MAPPER_STORE_UNAVAILABLE:route-freeze-failed") from exc
+
+
 class MapperStoreAdapter:
     """Content-addressed JSON records guarded by Mapper-owned file locks."""
 
     def __init__(self, root: str | Path, domain: str) -> None:
-        _require_mapper_store()
+        mapper_version, ready, reason = _mapper_status()
+        if not ready:
+            raise StoreAdapterError(f"MAPPER_STORE_UNAVAILABLE:{reason}")
         self.root = Path(root).resolve()
+        _freeze_route(self.root, mapper_version)
         self.directory = self.root / ".simplicio" / "mapper-store" / domain
         self.directory.mkdir(parents=True, exist_ok=True)
 
