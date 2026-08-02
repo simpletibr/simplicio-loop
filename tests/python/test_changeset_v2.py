@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from simplicio import cli
 from simplicio.changeset_v2 import (
     BINARY_MAGIC,
     ChangesetError,
@@ -33,6 +34,51 @@ def _changeset(operations, allowlist):
         "allowlist": allowlist,
         "operations": operations,
     }
+
+
+def test_changeset_cli_declares_standalone_route_without_runtime_probe(tmp_path, capsys, monkeypatch):
+    plan = _changeset([{"kind": "create", "path": "offline.txt", "content": "standalone\n"}], ["offline.txt"])
+    plan_path = tmp_path / "plan.json"
+    plan_path.write_text(json.dumps(plan), encoding="utf-8")
+    monkeypatch.setattr(
+        "simplicio.runtime_contracts.runtime_verify_contract",
+        lambda: (_ for _ in ()).throw(AssertionError("standalone changeset must not probe Runtime")),
+    )
+
+    assert (
+        cli.main(
+            [
+                "changeset",
+                "--root",
+                str(tmp_path),
+                "--plan",
+                str(plan_path),
+                "--mode",
+                "standalone",
+                "--apply",
+                "--json",
+            ]
+        )
+        == 0
+    )
+
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["status"] == "ok"
+    assert receipt["execution_mode"] == {
+        "effective": "standalone",
+        "provider_calls": 0,
+        "requested": "standalone",
+        "route": "standalone",
+        "runtime_required": False,
+    }
+    assert (tmp_path / "offline.txt").read_text(encoding="utf-8") == "standalone\n"
+
+
+def test_changeset_cli_refuses_integrated_without_runtime_authorization(tmp_path, capsys):
+    assert cli.main(["changeset", "--root", str(tmp_path), "--mode", "integrated", "--json"]) == 1
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["execution_mode"]["effective"] == "blocked"
+    assert receipt["errors"][0]["code"] == "RUNTIME_AUTHORIZATION_REQUIRED"
 
 
 @pytest.mark.parametrize(

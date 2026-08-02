@@ -421,6 +421,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="execute simplicio.fast.changeset/v2 through the mechanical-edit boundary",
     )
     p_changeset.add_argument("--root", default=".", help="repository root")
+    p_changeset.add_argument(
+        "--mode",
+        choices=["auto", "standalone", "integrated"],
+        default="standalone",
+        help="execution route; auto resolves to standalone when no Runtime authorization is supplied",
+    )
     p_changeset.add_argument("--plan", default="-", help="changeset JSON or Fast binary path, or - for stdin")
     p_changeset.add_argument("--apply", action="store_true", help="atomically apply; default is dry-run")
     p_changeset.add_argument(
