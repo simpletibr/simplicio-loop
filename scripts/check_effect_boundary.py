@@ -18,7 +18,7 @@ from pathlib import Path
 # boundaries; their subprocess, route initialization, and string normalization
 # are not final source mutation. Transaction recovery also owns cleanup of its
 # validated candidate/backup directories after a crash-window replay.
-BASELINE_SHA256 = "1665693d892561b3f1889902b9e621d90de0c820111d2d5acd12743b744f195e"
+BASELINE_SHA256 = "c062c23d19740de60c4ccaf93af5a89e1c09f06198434c69760cfcad14bbbbf9"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",
