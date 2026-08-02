@@ -40,6 +40,19 @@ def test_quality_gate_receipt_is_sha_bound_and_records_failures(tmp_path):
     assert passing["external_lanes"]["fast"]["value"] is None
 
 
+def test_quality_gate_does_not_promote_windows_host_without_locked_file_evidence(monkeypatch, tmp_path):
+    monkeypatch.setattr("scripts.quality_gate.platform.system", lambda: "Windows")
+    monkeypatch.delenv("SIMPLICIO_QUALITY_GATE_E2E_REPORT", raising=False)
+
+    payload = run_gate(tmp_path, commands=[("pass", [sys.executable, "-c", "pass"])])
+
+    assert payload["external_lanes"]["windows"] == {
+        "status": "UNVERIFIED",
+        "value": None,
+        "reason": "windows_locked_file_external_e2e_requires_installed_evidence",
+    }
+
+
 def test_quality_gate_cli_persists_failure_receipt(tmp_path):
     receipt = tmp_path / "receipt.json"
     code = main(
@@ -203,7 +216,11 @@ def test_quality_gate_keeps_optional_unverified_lanes_separate(monkeypatch, tmp_
                 "commit_sha": "abc123",
                 "scenarios": [
                     {"scenario": "windows_locked_file", "status": "PASS"},
-                    {"scenario": "runtime_backed", "status": "UNVERIFIED", "reason": "ledger mismatch"},
+                    {
+                        "scenario": "runtime_backed",
+                        "status": "AVAILABLE_NOT_E2E",
+                        "reason": "effect URL unset",
+                    },
                     {"scenario": "fast_rust", "status": "UNVERIFIED", "reason": "native unavailable"},
                 ],
             }
@@ -216,4 +233,5 @@ def test_quality_gate_keeps_optional_unverified_lanes_separate(monkeypatch, tmp_
 
     assert payload["passed"] is True
     assert payload["external_lanes"]["runtime"]["status"] == "UNVERIFIED"
+    assert payload["external_lanes"]["runtime"]["reason"] == "effect URL unset"
     assert payload["external_lanes"]["fast"]["status"] == "UNVERIFIED"
