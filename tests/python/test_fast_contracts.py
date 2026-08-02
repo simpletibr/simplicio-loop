@@ -517,7 +517,7 @@ def test_no_fast_engine_is_explicitly_fail_closed():
 
 
 def test_engine_selection_fails_closed_when_decoder_module_is_missing(monkeypatch):
-
+    monkeypatch.delenv("SIMPLICIO_FAST_NATIVE", raising=False)
     monkeypatch.setenv("SIMPLICIO_FAST_VERSION", "2.0.18")
     monkeypatch.setenv("SIMPLICIO_FAST_PARSER_AVAILABLE", "1")
     monkeypatch.setitem(sys.modules, "simplicio_fast.binary_changeset", None)
@@ -533,6 +533,7 @@ def test_engine_selection_rejects_incompatible_preflight(monkeypatch):
 
 
 def test_auto_never_labels_python_binary_decoder_as_rust(monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_FAST_NATIVE", raising=False)
     monkeypatch.setenv("SIMPLICIO_FAST_VERSION", "2.0.18")
     monkeypatch.setenv("SIMPLICIO_FAST_PARSER_AVAILABLE", "1")
     engine = select_fast_engine("auto")
@@ -541,6 +542,7 @@ def test_auto_never_labels_python_binary_decoder_as_rust(monkeypatch):
 
 
 def test_explicit_rust_rejects_python_only_binary_decoder(monkeypatch):
+    monkeypatch.delenv("SIMPLICIO_FAST_NATIVE", raising=False)
     monkeypatch.setenv("SIMPLICIO_FAST_VERSION", "2.0.18")
     monkeypatch.setenv("SIMPLICIO_FAST_PARSER_AVAILABLE", "1")
     with pytest.raises(FastEngineError, match="decoder is Python"):
