@@ -766,7 +766,12 @@ def test_transaction_recovery_lock_reclaim_failure_and_windows_probe(tmp_path, m
             return 0
 
     monkeypatch.setattr(changeset_transaction.os, "name", "nt")
-    monkeypatch.setattr(changeset_transaction.ctypes, "windll", type("W", (), {"kernel32": _Kernel()})())
+    monkeypatch.setattr(
+        changeset_transaction.ctypes,
+        "windll",
+        type("W", (), {"kernel32": _Kernel()})(),
+        raising=False,
+    )
     lock.write_text("pid=123", encoding="utf-8")
     assert _lock_owned_by_live_process(lock) is False
 
