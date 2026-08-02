@@ -77,3 +77,15 @@ def test_conformance_never_claims_external_smoke_from_mapper_checkout(tmp_path: 
     assert report["read_only"] is True
     assert all("not executable" in item["reason"] for item in report["scenarios"])
     assert report["checks"]
+
+
+def test_fast_isolation_passes_only_when_fast_was_scanned(tmp_path: Path) -> None:
+    repos = [(name, _repo(tmp_path, name)) for name in ("mapper", "loop", "dev-cli", "runtime", "fast")]
+    report = build_conformance(repos, [], deterministic=True)
+    check = next(item for item in report["checks"] if item["id"] == "fast_isolation")
+    assert check["status"] == "pass"
+
+    repos[-1] = ("fast", _repo(tmp_path, "fast-sqlite", "import sqlite3\n"))
+    report = build_conformance(repos, [], deterministic=True)
+    check = next(item for item in report["checks"] if item["id"] == "fast_isolation")
+    assert check["status"] == "fail"
