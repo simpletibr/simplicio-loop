@@ -36,6 +36,7 @@ CONTEXT_BINDING_CACHE_SCHEMA = "simplicio.context-binding-cache/v1"
 CONTEXT_BINDING_LOG_SCHEMA = "simplicio.context-binding-log/v1"
 CONTEXT_BINDING_LOG_MAGIC = b"CBL1"
 CONTEXT_BINDING_LOG_VERSION = 1
+CONTEXT_CACHE_RECOVERY_SCHEMA = "simplicio.context-binding-cache-recovery/v1"
 CONTEXT_BINDING_LOG_MAX_RECORD = 4 * 1024 * 1024
 MAPPER_CONTRACT_OWNER = "wesleysimplicio/simplicio-mapper"
 MAPPER_CONTRACT_MANIFEST_SHA256 = "db8cf791fe6442585f03b3fac220c0987ca5e4271a4955df02b1df77018c52b0"
@@ -621,6 +622,38 @@ class ContextBindingCache:
         finally:
             temporary.unlink(missing_ok=True)
             self.lock_path.unlink(missing_ok=True)
+
+    def recover(self) -> dict[str, Any]:
+        """Safely compact a cache after a torn or corrupted append.
+
+        Only the valid prefix returned by the authenticated log replay is
+        retained.  The result is an explicit receipt so callers can audit
+        whether bytes were discarded instead of treating recovery as a hit.
+        """
+
+        before = self._read_log() if self.log_path.is_file() else self.doctor()
+        before_bytes = self.log_path.stat().st_size if self.log_path.is_file() else 0
+        if before.get("chain_status") == "valid":
+            return {
+                "schema": CONTEXT_CACHE_RECOVERY_SCHEMA,
+                "recovered": False,
+                "chain_status": "valid",
+                "bytes_before": before_bytes,
+                "bytes_after": before_bytes,
+                "discarded_bytes": 0,
+                "revision": before.get("revision", ""),
+            }
+        after = self.compact()
+        after_bytes = int(after.get("bytes", 0) or 0)
+        return {
+            "schema": CONTEXT_CACHE_RECOVERY_SCHEMA,
+            "recovered": True,
+            "chain_status": after.get("chain_status", "corrupt"),
+            "bytes_before": before_bytes,
+            "bytes_after": after_bytes,
+            "discarded_bytes": max(0, before_bytes - after_bytes),
+            "revision": after.get("revision", ""),
+        }
 
     @staticmethod
     def _matches(
