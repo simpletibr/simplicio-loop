@@ -55,6 +55,8 @@ def test_claim_capacity_and_release_requeues_without_duplicate_active_lease(tmp_
     store.enqueue("two", {"n": 2}, idempotency_key="two")
     first = store.claim("worker")
     assert first is not None
+    assert first["expires_at"] > 0
+    assert first["cancelled"] is False
     assert validate_instance(first, _schema("operations-claim.schema.json")) == []
     with pytest.raises(OperationsStoreError, match="SLOT_CAPACITY"):
         store.claim("other")

@@ -423,6 +423,8 @@ class OperationsStore:
                         "lease_id": lease_id,
                         "worker_id": worker_id,
                         "payload": json.loads(task[1]),
+                        "expires_at": now + lease_seconds,
+                        "cancelled": False,
                     }
 
     def claim_task(
