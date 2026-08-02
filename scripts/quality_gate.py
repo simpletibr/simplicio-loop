@@ -16,6 +16,7 @@ import os
 import platform
 import re
 import shlex
+import shutil
 import signal
 import subprocess
 import sys
@@ -45,17 +46,19 @@ def _quality_gate_environment() -> dict[str, str]:
         if key not in QUALITY_GATE_ENV_EXCLUSIONS
         and not any(key.startswith(prefix) for prefix in QUALITY_GATE_ENV_EXCLUSION_PREFIXES)
     }
-    path_entries = []
-    for entry in env.get("PATH", "").split(os.pathsep):
-        if not entry:
-            continue
-        directory = Path(entry)
-        if any((directory / name).exists() for name in ("simplicio", "simplicio.exe")):
-            continue
-        path_entries.append(entry)
-    env["PATH"] = os.pathsep.join(path_entries)
+    # Keep shared tool directories intact.  Removing an entire directory just
+    # because it also contains a Simplicio executable can hide pytest/ruff/
+    # mypy and make the quality gate test a different Python environment.
     env.update(QUALITY_GATE_ENV_OVERRIDES)
     return env
+
+
+def _tool_argv(name: str, *args: str) -> list[str]:
+    """Prefer the installed tool entry point over an unrelated Python runtime."""
+    executable = shutil.which(name)
+    if executable is not None:
+        return [executable, *args]
+    return [sys.executable, "-m", name, *args]
 
 
 DEFAULT_COMMANDS = (
@@ -63,9 +66,9 @@ DEFAULT_COMMANDS = (
         "json-boundaries",
         [sys.executable, "scripts/check_json_boundaries.py", "--strict"],
     ),
-    ("ruff", [sys.executable, "-m", "ruff", "check", "simplicio"]),
-    ("ruff-format", [sys.executable, "-m", "ruff", "format", "--check", "simplicio", "tests"]),
-    ("mypy", [sys.executable, "-m", "mypy", "simplicio"]),
+    ("ruff", _tool_argv("ruff", "check", "simplicio")),
+    ("ruff-format", _tool_argv("ruff", "format", "--check", "simplicio", "tests")),
+    ("mypy", _tool_argv("mypy", "simplicio")),
     (
         "pytest",
         [

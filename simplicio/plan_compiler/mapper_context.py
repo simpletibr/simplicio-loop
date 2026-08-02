@@ -9,6 +9,7 @@ as canonical bytes and exposes only derived, immutable planner views.
 
 from __future__ import annotations
 
+import ctypes
 import hashlib
 import importlib
 import importlib.metadata
@@ -578,9 +579,11 @@ class ContextBindingCache:
         if pid <= 0 or pid == os.getpid():
             return False
         if os.name == "nt":
-            import ctypes
-
-            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            win_dll = getattr(ctypes, "WinDLL", None)
+            get_last_error = getattr(ctypes, "get_last_error", None)
+            if win_dll is None or get_last_error is None:
+                return False
+            kernel32 = win_dll("kernel32", use_last_error=True)
             handle = kernel32.OpenProcess(0x1000, False, pid)
             if handle:
                 exit_code = ctypes.c_ulong()
@@ -589,7 +592,7 @@ class ContextBindingCache:
                 if not running or exit_code.value == 259:
                     return False
                 return True
-            if ctypes.get_last_error() != 87:
+            if get_last_error() != 87:
                 return False
         else:
             try:
