@@ -113,6 +113,81 @@ def test_doctor_freshness_upgrade_rechecks(monkeypatch) -> None:
     assert calls == [True, True]
 
 
+def test_doctor_main_covers_json_and_human_storage_routes(monkeypatch, tmp_path, capsys) -> None:
+    spec = SimpleNamespace(
+        label="Model",
+        model_id="model/id",
+        repo_id="repo/id",
+        filename="model.gguf",
+        size_gb_q4=1.5,
+        notes="notes",
+    )
+    profile = SimpleNamespace(
+        os_name="Windows",
+        apple_silicon=False,
+        gpu_name="",
+        ram_gb=16,
+        vram_gb=0,
+        detected_via={"ram": "test", "gpu": "test"},
+        tier="mid",
+    )
+    result = SimpleNamespace(
+        spec=spec,
+        can_run=False,
+        can_download=False,
+        installed=False,
+        reason="disabled",
+        to_dict=lambda: {"schema": "simplicio.doctor/v1", "can_run": False},
+    )
+    storage = {
+        "mapper_store": {"ready": True, "reason": "ready", "version": "0.26.9"},
+        "route": {"selected": "mapper", "reason": "capability"},
+        "side_effects": {"writes": 0},
+        "legacy": {"index.sqlite3": {"present": False}},
+    }
+    monkeypatch.setattr(doctor, "detect", lambda: profile)
+    monkeypatch.setattr(doctor, "ensure_recommended", lambda _: result)
+    monkeypatch.setattr(doctor, "events_summary", lambda *args, **kwargs: {"exists": False, "path": "events"})
+    monkeypatch.setattr(
+        doctor, "native_delegation_summary", lambda _: {"exists": False, "verbs": {}, "path": "events"}
+    )
+    monkeypatch.setattr(
+        doctor.HubTaskAdapter,
+        "create",
+        classmethod(
+            lambda cls: SimpleNamespace(
+                doctor_status=lambda: {
+                    "mode": "off",
+                    "identity_complete": False,
+                    "local_scheduler_allowed": True,
+                }
+            )
+        ),
+    )
+    monkeypatch.setattr(
+        doctor,
+        "versions_report",
+        lambda: {
+            "mapper": {
+                "installed": "0.26.9",
+                "declared_range": ">=0.26",
+                "tested_against": "0.26.9",
+                "tested_against_reason": "",
+                "unavailable_reason": "offline",
+            },
+            "drift": {"has_drift": False, "kind": None, "reason": ""},
+        },
+    )
+    monkeypatch.setattr("simplicio.store_adapter.storage_capabilities", lambda _: storage)
+
+    assert doctor.main(["--json", "--no-check-updates", "--storage", "--root", str(tmp_path)]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["storage"] == storage
+
+    assert doctor.main(["--no-check-updates", "--storage", "--root", str(tmp_path)]) == 0
+    assert "storage capabilities (read-only):" in capsys.readouterr().out
+
+
 def _native_payload(path: Path, **updates):
     payload = {
         "schema": me.NATIVE_EDIT_RESULT_SCHEMA,

@@ -93,6 +93,13 @@ def mapper_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(mapper_context, "_mapper_api", lambda: (validate, _canonical))
 
 
+@pytest.fixture(autouse=True)
+def disable_unrelated_global_native_edit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep this deterministic contract suite on its Python edit boundary."""
+
+    monkeypatch.setenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT", "1")
+
+
 def _snapshot(*, revision: str = "rev-1", root_hash: str = "root-hash") -> dict[str, Any]:
     return {
         "schema": MAPPER_CONTEXT_SNAPSHOT_SCHEMA,

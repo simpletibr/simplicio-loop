@@ -27,8 +27,7 @@ SCHEMA = "simplicio.dev-cli.quality-gate-receipt/v1"
 DEFAULT_RECEIPT = Path(".simplicio/quality-gate-receipt.json")
 QUALITY_GATE_ENV_EXCLUSIONS = ("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY",)
 QUALITY_GATE_ENV_EXCLUSION_PREFIXES = ("SIMPLICIO_",)
-# Keep the local gate deterministic when an unrelated native binary is on PATH.
-QUALITY_GATE_ENV_OVERRIDES: dict[str, str] = {"SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT": "1"}
+QUALITY_GATE_ENV_OVERRIDES: dict[str, str] = {}
 EXTERNAL_E2E_REPORT_ENV = "SIMPLICIO_QUALITY_GATE_E2E_REPORT"
 _SECRET_OUTPUT_PATTERNS = (
     (re.compile(r"(?i)\b(bearer)\s+[A-Za-z0-9._~+/=-]+"), r"\1 [REDACTED]"),
