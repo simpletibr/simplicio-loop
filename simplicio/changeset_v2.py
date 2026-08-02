@@ -368,6 +368,7 @@ def execute_changeset_bytes(
             if transaction.get("state") == "COMMITTED" and not receipt.get("replayed"):
                 refresh_callback = refresh_fn
                 if refresh_callback is None and refresh_producer is not None:
+
                     def refresh_callback(paths: tuple[str, ...]) -> Any:
                         assert refresh_producer is not None
                         return refresh_producer(root_path, paths)

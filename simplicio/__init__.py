@@ -14,4 +14,5 @@ def mapper_version():
 
     return resolve()
 
+
 __all__ = ["__version__", "mapper_module", "mapper_version"]
