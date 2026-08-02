@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/inventory.schema.json",
+  "title": "simplicio.mapper-store-inventory/v1",
+  "type": "object",
+  "required": ["schema", "repos", "matches", "databases", "ownership_matrix", "policy", "target_topology", "compatibility"],
+  "properties": {
+    "schema": { "const": "simplicio.mapper-store-inventory/v1" },
+    "generated_at": { "type": ["string", "null"] },
+    "repos": { "type": "array", "items": { "type": "object", "required": ["id", "revision", "default_branch", "versions"] } },
+    "matches": { "type": "array", "items": { "type": "object", "required": ["repo", "file", "classification", "kinds", "matches"] } },
+    "databases": { "type": "array", "items": { "type": "object", "required": ["repo", "path", "read_only_inspection", "status"] } },
+    "ownership_matrix": { "type": "array", "items": { "type": "object", "required": ["repo", "file", "current_owner", "target_owner", "readers", "writers", "authorized_writer_after_cutover", "source_of_truth", "receipt_authority", "durability", "criticality", "migration_strategy"] } },
+    "policy": { "type": "object", "required": ["schema", "allowlisted_paths", "violations", "status"] },
+    "target_topology": { "type": "object", "required": ["schema", "root", "stores", "excluded"] },
+    "compatibility": { "type": "object", "required": ["python_api", "rust_api", "installed_package_mode", "cross_domain_transactions"] }
+  }
+}
