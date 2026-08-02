@@ -19,6 +19,10 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 optional backport
 
 _WILDCARDS = "*?[]{}"
 _TARGETS = {"hbp", "hbi", "toml"}
+# These directories are disposable outputs from external/runtime probes. They
+# are not checked-in state and must not turn a clean test run into a dirty
+# inventory finding. Persistent JSON under .simplicio remains fail-closed.
+_EPHEMERAL_ROOTS = (".simplicio/issue-422-runtime", ".simplicio/update")
 
 
 @dataclass(frozen=True)
@@ -107,6 +111,8 @@ def check(root: Path, artifacts: Iterable[Path] = ()) -> list[str]:
             if not path.is_file() or path.suffix.lower() not in policy.formats:
                 continue
             rel = path.relative_to(root).as_posix()
+            if any(rel == ephemeral or rel.startswith(f"{ephemeral}/") for ephemeral in _EPHEMERAL_ROOTS):
+                continue
             entry = policy.exceptions.get(rel)
             if entry is None:
                 findings.append(f"UNCLASSIFIED {rel}")

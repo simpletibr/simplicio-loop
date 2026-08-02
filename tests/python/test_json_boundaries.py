@@ -29,6 +29,17 @@ def test_unclassified_internal_state_is_blocked(policy_root: Path):
     assert main(["--root", str(policy_root), "--strict"]) == 1
 
 
+def test_disposable_runtime_probe_outputs_are_not_checked_in_state(policy_root: Path):
+    for relative in (
+        ".simplicio/issue-422-runtime/run/effect-plan.json",
+        ".simplicio/update/first-party-adapters.json",
+    ):
+        path = policy_root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}", encoding="utf-8")
+    assert check(policy_root) == []
+
+
 @pytest.mark.parametrize("path", [".simplicio/*.json", ".simplicio/../state.json", "/.simplicio/state.json"])
 def test_exception_registry_rejects_non_exact_paths(policy_root: Path, path: str):
     registry = policy_root / "config" / "json-boundaries.toml"

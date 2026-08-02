@@ -185,6 +185,9 @@ def _run_native_edit_plans(
             run_kwargs["stdin"] = subprocess.DEVNULL
         else:
             run_kwargs["input"] = input_text
+            # ``input=`` owns the child's stdin handle. Supplying stdin=PIPE
+            # as well is rejected by subprocess.run and obscures the exact
+            # plan bytes being delegated.
         try:
             completed = subprocess.run(cmd, **run_kwargs)
         except subprocess.TimeoutExpired:
