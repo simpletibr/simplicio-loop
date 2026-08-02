@@ -73,3 +73,26 @@ Every bug fix must include a regression test that fails before the fix and
 passes afterward. This policy is reviewed locally together with the
 adversarial verification required by `DOD.md`; automation never replaces that
 review.
+
+## Issue #412 acceptance matrix
+
+The epic-level close decision is separate from the local quality receipt. After
+running the child benchmarks and installed E2E runner, bind their JSON reports
+to the checkout SHA with:
+
+```bash
+python3 scripts/issue_412_acceptance_gate.py \
+  --root . \
+  --report quality=.simplicio/quality-gate-receipt.json \
+  --report issue-414=/tmp/issue-414.json \
+  --report issue-415=/tmp/issue-415.json \
+  --report issue-416=/tmp/issue-416.json \
+  --report issue-417=/tmp/issue-417.json \
+  --report issue-422=/tmp/issue-422.json \
+  --output docs/evidence/issue-412-acceptance.json
+```
+
+The command exits non-zero and records `BLOCKED`, `UNVERIFIED`, or `FAIL` for
+missing, stale, unavailable, or incomplete evidence. It only returns zero when
+every required criterion is `PASS`; it never turns a missing Windows, Fast,
+Runtime, Mapper, or Loop lane into synthetic success.

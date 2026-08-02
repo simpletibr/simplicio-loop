@@ -9,6 +9,7 @@ import json
 import os
 import platform
 import statistics
+import subprocess
 import sys
 import tempfile
 import time
@@ -23,6 +24,18 @@ if str(_ROOT) not in sys.path:
 from simplicio.changeset_v2 import execute_changeset, execute_changeset_bytes  # noqa: E402
 
 SIZES = (1, 20, 200)
+
+
+def _commit_sha() -> str | None:
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=_ROOT,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.stdout.strip() if result.returncode == 0 else None
 
 
 def _json_changeset(size: int) -> dict[str, Any]:
@@ -136,6 +149,7 @@ def run_benchmark(*, repeats: int = 10) -> dict[str, Any]:
     return {
         "schema": "simplicio.dev-cli.issue-414-binary-benchmark/v1",
         "issue": 414,
+        "commit_sha": _commit_sha(),
         "repeats": repeats,
         "sizes": list(SIZES),
         "environment": {"python": platform.python_version(), "platform": platform.platform()},
