@@ -1310,6 +1310,13 @@ def verify_context_sources(
             "context generation does not match the generation admitted for this attempt",
         )
     requested = {str(path).replace("\\", "/") for path in paths or ()}
+    available = {str(entry["path"]).replace("\\", "/") for entry in binding.pack.files}
+    unmatched = sorted(requested - available)
+    if unmatched:
+        raise MapperContextError(
+            "CONTEXT_CAUSAL_PATH_UNBOUND",
+            "causal verification path is absent from the bound ContextPack: " + ", ".join(unmatched),
+        )
     entries = [
         entry
         for entry in binding.pack.files
@@ -1321,6 +1328,7 @@ def verify_context_sources(
         "bytes_read": 0,
         "generation": binding.context_handle.generation,
         "paths_requested": sorted(requested),
+        "paths_unmatched": [],
         "engine": "python-bytes",
         "fallback_reason": None if requested else "causal_set_absent_full_verification",
     }
