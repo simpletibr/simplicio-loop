@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/repair.schema.json",
+  "title": "simplicio.mapper-store.repair/v1",
+  "type": "object",
+  "required": ["schema", "status", "apply", "side_effects"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store.repair/v1"},
+    "status": {"enum": ["no_op", "planned", "repaired"]},
+    "apply": {"type": "boolean"},
+    "side_effects": {"type": "boolean"}
+  }
+}

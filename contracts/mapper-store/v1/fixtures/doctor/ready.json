@@ -1,0 +1,12 @@
+{
+  "schema": "simplicio.mapper-store.doctor/v1",
+  "path": "/var/lib/simplicio/mapper-store.sqlite",
+  "path_source": "explicit",
+  "state": "ready",
+  "reason_codes": [],
+  "side_effects": false,
+  "checks": {"integrity": "ok", "foreign_keys": {"ok": true, "violations": 0}},
+  "capabilities": {"fts5": true, "sqlite_vec": false, "vec_observed": false},
+  "counts": {"rows": {}, "database_bytes": 0, "wal_bytes": 0},
+  "alerts": []
+}

@@ -11,6 +11,20 @@ from .connection import (
     StoreMissingError,
     WriterIdentity,
 )
+from .health import (
+    CAPACITY_SCHEMA,
+    DOCTOR_SCHEMA,
+    HEALTH_STATES,
+    REPAIR_SCHEMA,
+    DoctorError,
+    backup_store,
+    capacity_report,
+    doctor_store,
+    redact,
+    repair_store,
+    restore_store,
+    secure_export,
+)
 from .locks import StoreFileLock, StoreLockError
 from .memory import (
     MEMORY_API_SCHEMA,
@@ -38,6 +52,7 @@ from .migration import (
     MigrationCoordinator,
     MigrationCoordinatorError,
 )
+from .observability import BENCHMARK_SCHEMA, METRICS_SCHEMA, Metrics, metrics_for_store, run_benchmark
 from .operations import OPERATIONS_API_SCHEMA, OPERATIONS_SCHEMA, OperationsStore, OperationsStoreError
 from .paths import StoreLocation, StorePathError, assert_within_root, resolve_store_location
 from .profiles import StoreMode, StoreProfile
@@ -80,6 +95,23 @@ __all__ = [
     "StoreLocation",
     "StoreLockError",
     "StoreMissingError",
+    "CAPACITY_SCHEMA",
+    "DOCTOR_SCHEMA",
+    "REPAIR_SCHEMA",
+    "DoctorError",
+    "HEALTH_STATES",
+    "backup_store",
+    "capacity_report",
+    "doctor_store",
+    "redact",
+    "repair_store",
+    "restore_store",
+    "secure_export",
+    "BENCHMARK_SCHEMA",
+    "METRICS_SCHEMA",
+    "Metrics",
+    "metrics_for_store",
+    "run_benchmark",
     "MIGRATION_API_SCHEMA",
     "MIGRATION_DISCOVERY_SCHEMA",
     "MIGRATION_PLAN_SCHEMA",

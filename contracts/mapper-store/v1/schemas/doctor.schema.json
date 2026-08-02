@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.simplicio.dev/mapper-store/v1/doctor.schema.json",
+  "title": "simplicio.mapper-store.doctor/v1",
+  "type": "object",
+  "required": ["schema", "path", "path_source", "state", "reason_codes", "side_effects", "checks", "capabilities", "counts", "alerts"],
+  "properties": {
+    "schema": {"const": "simplicio.mapper-store.doctor/v1"},
+    "path": {"type": "string"},
+    "path_source": {"enum": ["explicit", "flag", "env", "home", "repo", "temp"]},
+    "state": {"enum": ["missing", "legacy", "migrating", "ready", "stale", "corrupt", "split_brain", "rollback_required"]},
+    "reason_codes": {"type": "array", "items": {"type": "string"}},
+    "side_effects": {"const": false},
+    "checks": {"type": "object"},
+    "capabilities": {"type": "object"},
+    "counts": {"type": "object"},
+    "alerts": {"type": "array"}
+  }
+}

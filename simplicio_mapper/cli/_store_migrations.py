@@ -21,8 +21,16 @@ from ..store.registry import (
 def run_store_migrations_cli(argv: list[str], *, governed: bool = False) -> int:
     from ._store_migration import VERBS, run_migration_cli
 
-    if governed and argv and argv[0] in VERBS:
+    if governed and argv and (argv[0] in VERBS or (argv[0] == "backup" and "--source" not in argv)):
+        if argv[0] == "backup" and "--source" not in argv:
+            from ._store_operations import run_store_operations_cli
+
+            return run_store_operations_cli(argv)
         return run_migration_cli(argv)
+    if governed and argv and argv[0] in {"doctor", "restore", "repair", "metrics", "benchmark", "capacity"}:
+        from ._store_operations import run_store_operations_cli
+
+        return run_store_operations_cli(argv)
     if not argv or argv[0] not in {"plan", "apply", "status", "verify", "rollback", "negotiate"}:
         print(
             "usage: simplicio-mapper store-migrations <plan|apply|status|verify|rollback|negotiate> [--database PATH] [--json]",
