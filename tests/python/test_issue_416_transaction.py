@@ -48,6 +48,8 @@ def test_multifile_changeset_stages_once_and_replays_without_rewrite(tmp_path):
     assert first["applied"] is True
     assert len(first["effects"]) == 2
     assert first["transaction"]["state"] == "COMMITTED"
+    assert set(first["transaction"]["timings_ms"]) == {"stage", "commit", "total"}
+    assert all(value >= 0 for value in first["transaction"]["timings_ms"].values())
     assert replay["status"] == "ok"
     assert replay["replayed"] is True
     assert (tmp_path / "a.txt").stat().st_mtime_ns == first_mtime

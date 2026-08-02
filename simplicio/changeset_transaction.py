@@ -8,6 +8,7 @@ import os
 import shutil
 import stat
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, NoReturn
 
@@ -313,6 +314,8 @@ def _execute_changeset_transaction(
         "candidate": str(candidate),
         "backup": str(backup),
     }
+    started = time.perf_counter()
+    stage_started = started
     _write_state(state_path, state)
     try:
         for relative in paths:
@@ -326,6 +329,9 @@ def _execute_changeset_transaction(
         state["state"] = "STAGED"
         state["before"] = before
         state["before_modes"] = before_modes
+        state["timings_ms"] = {
+            "stage": round((time.perf_counter() - stage_started) * 1000, 3),
+        }
         _write_state(state_path, state)
 
         result = execute_plan(plan, root=candidate, apply=True, allow_native=False)
@@ -342,6 +348,7 @@ def _execute_changeset_transaction(
                 )
         state["state"] = "COMMITTING"
         _write_state(state_path, state)
+        commit_started = time.perf_counter()
         backup.mkdir(parents=True, exist_ok=True)
         for relative in paths:
             target = _safe_path(root_path, relative)
@@ -366,6 +373,11 @@ def _execute_changeset_transaction(
             "idempotency_key": idempotency_key,
             "changeset_digest": changeset_digest_value,
             "state": "COMMITTED",
+            "timings_ms": {
+                "stage": state["timings_ms"]["stage"],
+                "commit": round((time.perf_counter() - commit_started) * 1000, 3),
+                "total": round((time.perf_counter() - started) * 1000, 3),
+            },
             "files": [
                 {
                     "path": relative,
@@ -393,6 +405,7 @@ def _execute_changeset_transaction(
                 "after": after,
                 "after_modes": after_modes,
                 "receipt": receipt,
+                "timings_ms": receipt["timings_ms"],
                 "result": result_payload,
             }
         )
