@@ -5,6 +5,7 @@ import struct
 
 import pytest
 
+from simplicio import hbp
 from simplicio.hbp import HBP_FILE_NAME, HBP_MAGIC, HbpError, HbpEvidenceLedger, row_content_hash
 
 
@@ -118,3 +119,68 @@ def test_hbp_rejects_existing_lock_and_handles_missing_migration_source(tmp_path
         ledger.append("topic", "payload", "agent:test")
     ledger.lock_path.unlink()
     assert ledger.migrate_jsonl(tmp_path / "missing.jsonl") == 0
+
+
+def test_hbp_rejects_malformed_record_shapes() -> None:
+    with pytest.raises(HbpError, match="exceeds"):
+        hbp._put_string(bytearray(), "x" * (hbp.MAX_FIELD_BYTES + 1), "topic")
+    with pytest.raises(HbpError, match="truncated"):
+        hbp._take(b"x", 0, 2)
+    with pytest.raises(HbpError, match="exceeds"):
+        hbp._take_string(struct.pack("<I", hbp.MAX_FIELD_BYTES + 1), 0, "topic")
+    with pytest.raises(HbpError, match="UTF-8"):
+        hbp._take_string(struct.pack("<I", 1) + b"\xff", 0, "topic")
+    with pytest.raises(HbpError, match="record exceeds"):
+        hbp._decode_record(b"x" * (hbp.MAX_RECORD_BYTES + 1))
+
+
+def test_hbp_rejects_marker_trailing_chain_and_hash_errors() -> None:
+    ledger = HbpEvidenceLedger(".")
+    row = hbp.HbpRow(0, 1, "topic", "payload", "agent", "token", hbp.HBP_GENESIS, "hash")
+    body = bytearray(hbp._encode_record(row)[4:])
+    marker_offset = (
+        16 + 4 + len(row.topic.encode()) + 4 + len(row.payload.encode()) + 4 + len(row.provenance.encode())
+    )
+    body[marker_offset] = 2
+    with pytest.raises(HbpError, match="optional-token"):
+        hbp._decode_record(bytes(body))
+    with pytest.raises(HbpError, match="trailing"):
+        hbp._decode_record(hbp._encode_record(row)[4:] + b"x")
+
+    path = ledger.path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(HBP_MAGIC + struct.pack("<HH", hbp.HBP_VERSION, hbp.HBP_FLAGS) + hbp._encode_record(row))
+    with pytest.raises(HbpError, match="content hash"):
+        ledger.verify()
+
+
+def test_hbp_rejects_bad_file_header_and_sequence(tmp_path) -> None:
+    path = tmp_path / HBP_FILE_NAME
+    path.write_bytes(b"bad")
+    with pytest.raises(HbpError, match="explicit migration"):
+        HbpEvidenceLedger(tmp_path).verify()
+
+    ledger = HbpEvidenceLedger(tmp_path)
+    row = hbp.HbpRow(1, 1, "topic", "payload", "agent", None, hbp.HBP_GENESIS, "hash")
+    path.write_bytes(HBP_MAGIC + struct.pack("<HH", hbp.HBP_VERSION, hbp.HBP_FLAGS) + hbp._encode_record(row))
+    with pytest.raises(HbpError, match="sequence gap"):
+        ledger.verify()
+
+
+def test_hbp_migration_completes_existing_target_and_timestamp_default(tmp_path) -> None:
+    legacy = tmp_path / "events.jsonl"
+    legacy.write_text(json.dumps({"event": "done"}) + "\n", encoding="utf-8")
+    ledger = HbpEvidenceLedger(tmp_path / "hbp", file_name="events.hbp")
+    ledger.record("edit", "evidence", "agent")
+    assert ledger.migrate_jsonl(legacy) == 1
+    assert not legacy.exists()
+    assert (tmp_path / "events.jsonl.migrated").exists()
+
+
+def test_hbp_empty_file_and_oversized_ledger_are_rejected(tmp_path, monkeypatch) -> None:
+    ledger = HbpEvidenceLedger(tmp_path)
+    ledger.path.write_bytes(b"")
+    assert ledger.verify() == ()
+    monkeypatch.setattr(hbp, "MAX_LEDGER_BYTES", 1)
+    with pytest.raises(HbpError, match="ledger exceeds"):
+        ledger.record("edit", "evidence", "agent", timestamp=1)
