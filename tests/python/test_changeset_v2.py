@@ -241,6 +241,37 @@ def test_fast_binary_bytes_are_decoded_by_the_official_adapter(tmp_path, monkeyp
     assert (tmp_path / "binary.txt").read_bytes() == content
 
 
+def test_fast_binary_bytes_are_produced_by_official_fast_and_consumed_by_dev_cli(tmp_path):
+    fast_binary_changeset = pytest.importorskip("simplicio_fast.binary_changeset")
+    content = b"official-fast\n"
+    changeset = fast_binary_changeset.prepare_from_json(
+        {
+            "operations": [
+                {
+                    "op": "create",
+                    "path": "official-fast.txt",
+                    "content": content.decode("utf-8"),
+                    "after_sha256": hashlib.sha256(content).hexdigest(),
+                }
+            ]
+        },
+        root=tmp_path,
+        base_generation="generation-1",
+        overlay_generation="generation-2",
+        attempt="attempt-414-official",
+        worktree_id="worktree-414-official",
+        lease_id="lease-414-official",
+        fencing_token="fence-414-official",
+    )
+
+    receipt = execute_changeset_bytes(changeset.encode(), root=tmp_path, apply=True)
+
+    assert receipt["status"] == "ok"
+    assert receipt["input_format"] == "simplicio.fast.binary-changeset/v1"
+    assert receipt["fast_engine"]["name"] == "python"
+    assert (tmp_path / "official-fast.txt").read_bytes() == content
+
+
 def test_binary_adapter_refreshes_only_changed_paths_after_commit(monkeypatch, tmp_path):
     from simplicio import changeset_v2
 
