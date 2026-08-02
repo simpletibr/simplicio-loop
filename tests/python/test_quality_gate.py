@@ -131,6 +131,17 @@ def test_quality_gate_redacts_secret_shaped_command_output(tmp_path):
     assert "[REDACTED]" in output
 
 
+def test_quality_gate_redacts_secret_shaped_command_arguments(tmp_path):
+    payload = run_gate(
+        tmp_path,
+        commands=[("secret-argument", [sys.executable, "-c", "pass", "--token=private-value"])],
+    )
+
+    argv = payload["commands"][0]["argv"]
+    assert "private-value" not in " ".join(argv)
+    assert "token=[REDACTED]" in " ".join(argv)
+
+
 def test_quality_gate_accepts_sha_bound_external_e2e_report(monkeypatch, tmp_path):
     root = tmp_path
     (root / ".git").mkdir()
