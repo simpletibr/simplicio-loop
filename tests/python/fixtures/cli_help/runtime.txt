@@ -2,8 +2,11 @@ usage: simplicio-py runtime [-h] {doctor,verify,capabilities} ...
 
 positional arguments:
   {doctor,verify,capabilities}
+    doctor              inspect Runtime availability and local contract
+                        readiness
     verify              verify the real reserved Simplicio Runtime identity
                         and capabilities
+    capabilities        render the Runtime capability handshake
 
 options:
   -h, --help            show this help message and exit

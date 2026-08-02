@@ -374,3 +374,13 @@ This section complements the repository-specific guidance already in this file. 
 - Stop only when the requested work is complete, validation is documented, and `GOAL_RESULT.md` reflects the outcome.
 - Do not rewrite unrelated architecture, fake successful validation, expose secrets, or push without explicit operator instruction for the active session.
 <!-- codex-long-running-agent-overlay:end -->
+
+## LLM command and feature index
+
+Read [`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.md) for the complete command
+and feature map. Use the most specific `--help` before invoking a command;
+every command must explain itself through `help=` and a regression check. The
+current train is Mapper 0.26.10, Dev CLI 0.18.6, and Fast 2.0.22.
+
+For GitHub work items, record objective, implementation/deployment, and real
+tests. Do not add Acceptance Criteria sections to new or updated issues.

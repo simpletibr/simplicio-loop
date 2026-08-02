@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## [0.18.6] - 2026-08-02
+
+### Changed
+
+- Synchronize the Mapper floor with `simplicio-mapper` 0.26.10.
+- Align the optional Fast integration with `simplicio-fast` 2.0.22.
+- Refresh the lockfile and generated dependency-interdependence documentation for the
+  coordinated release train.
+
 ## [0.18.5] - 2026-08-02
 
 ### Added
