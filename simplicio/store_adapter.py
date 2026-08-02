@@ -18,6 +18,61 @@ class StoreAdapterError(RuntimeError):
     """A durable MapperStore record could not be read or written."""
 
 
+STORAGE_CAPABILITIES_SCHEMA = "simplicio.dev-cli.storage-capabilities/v1"
+MAPPER_STORE_DOMAINS = ("effect-transactions", "mutation-worker", "prism-transactions", "write-set-locks")
+LEGACY_STORE_PATHS = (
+    ".simplicio/effect-transactions.sqlite3",
+    ".simplicio/mutation-worker.sqlite3",
+    ".simplicio/prism-transactions.sqlite3",
+    ".simplicio/write-set-locks.sqlite3",
+    ".simplicio/memory/index.sqlite3",
+)
+
+
+def storage_capabilities(root: str | Path = ".") -> dict[str, Any]:
+    """Return read-only cutover diagnostics without materializing state."""
+    resolved = Path(root).resolve()
+    mapper_store_root = resolved / ".simplicio" / "mapper-store"
+    try:
+        import importlib.metadata
+
+        mapper_version = importlib.metadata.version("simplicio-mapper")
+        mapper_ready = True
+        mapper_reason = "installed"
+    except importlib.metadata.PackageNotFoundError:
+        mapper_version = None
+        mapper_ready = False
+        mapper_reason = "mapper-package-not-installed"
+    legacy = {
+        path: {
+            "present": (resolved / path).is_file(),
+            "path": path,
+            "authority": "legacy-read-only",
+        }
+        for path in LEGACY_STORE_PATHS
+    }
+    return {
+        "schema": STORAGE_CAPABILITIES_SCHEMA,
+        "root": str(resolved),
+        "read_only": True,
+        "side_effects": {"directories_created": 0, "files_created": 0, "writes": 0},
+        "mapper_store": {
+            "ready": mapper_ready,
+            "reason": mapper_reason,
+            "version": mapper_version,
+            "root": str(mapper_store_root),
+            "present": mapper_store_root.is_dir(),
+            "domains": {domain: (mapper_store_root / domain).is_dir() for domain in MAPPER_STORE_DOMAINS},
+        },
+        "legacy": legacy,
+        "route": {
+            "selected": "mapper-store" if mapper_ready else "blocked",
+            "frozen_before_effect": True,
+            "reason": "mapper-capability-ready" if mapper_ready else mapper_reason,
+        },
+    }
+
+
 class MapperStoreAdapter:
     """Content-addressed JSON records guarded by Mapper-owned file locks."""
 
