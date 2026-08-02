@@ -78,6 +78,15 @@ def _paths(plan: dict[str, Any]) -> list[str]:
     return sorted(values)
 
 
+def _operation_summary(plan: dict[str, Any], paths: list[str]) -> dict[str, Any]:
+    operations = plan.get("operations", [])
+    return {
+        "count": len(operations) if isinstance(operations, list) else 0,
+        "kinds": [str(item.get("op")) for item in operations if isinstance(item, dict)],
+        "paths": paths,
+    }
+
+
 def _state_path(root: Path, key: str) -> Path:
     digest = hashlib.sha256(key.encode("utf-8")).hexdigest()
     return root / ".simplicio" / "changeset-transactions" / f"{digest}.json"
@@ -127,6 +136,13 @@ def _result_with_transaction(result: dict[str, Any], state: dict[str, Any]) -> d
         "changeset_digest": state["changeset_digest"],
         "state": state["state"],
         "receipt_path": state["receipt_path"],
+        "operation": state.get("operation", {}),
+        "before_sha256": state.get("before", {}),
+        "after_sha256": state.get("after", {}),
+        "restored_sha256": state.get("restored"),
+        "validation": state.get("validation", result.get("validation", [])),
+        "timings_ms": state.get("timings_ms", {}),
+        "causal_ids": state.get("causal_ids", {}),
     }
     return result
 
@@ -156,7 +172,14 @@ def _rollback_after_commit_failure(
                 mode = before_modes.get(relative)
                 if isinstance(mode, int):
                     os.chmod(target, mode)
-        state["state"] = "ROLLED_BACK"
+        restored = {relative: _hash(_safe_path(root_path, relative)) for relative in before}
+        if restored != before:
+            state.update({"state": "ROLLBACK_FAILED", "restored": restored})
+            _write_state(state_path, state)
+            raise ChangesetTransactionError(
+                "ROLLBACK_FAILED", "rollback hashes do not match the original state"
+            )
+        state.update({"state": "ROLLED_BACK", "after": restored, "restored": restored})
         _write_state(state_path, state)
     except Exception as rollback_error:
         state["state"] = "ROLLBACK_FAILED"
@@ -228,7 +251,7 @@ def recover_changeset_transaction(
         after = {str(relative): _hash(_safe_path(root_path, str(relative))) for relative in before}
         if after != {str(relative): digest for relative, digest in before.items()}:
             raise ChangesetTransactionError("RECOVERY_REQUIRED", "recovery hashes do not match the journal")
-        state.update({"state": "ROLLED_BACK", "after": after, "recovered": True})
+        state.update({"state": "ROLLED_BACK", "after": after, "restored": after, "recovered": True})
         _write_state(state_path, state)
         return {
             "status": "recovered",
@@ -240,6 +263,13 @@ def recover_changeset_transaction(
                 "changeset_digest": changeset_digest_value,
                 "state": "ROLLED_BACK",
                 "receipt_path": str(state_path),
+                "operation": state.get("operation", {}),
+                "before_sha256": before,
+                "after_sha256": after,
+                "restored_sha256": after,
+                "validation": state.get("validation", []),
+                "timings_ms": state.get("timings_ms", {}),
+                "causal_ids": state.get("causal_ids", {}),
             },
         }
     finally:
@@ -255,6 +285,7 @@ def execute_changeset_transaction(
     root: str | Path,
     idempotency_key: str,
     changeset_digest_value: str,
+    causal_ids: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Serialize one idempotency key before staging or committing it."""
     state_path = _state_path(Path(root).resolve(), idempotency_key)
@@ -274,6 +305,7 @@ def execute_changeset_transaction(
             root=root,
             idempotency_key=idempotency_key,
             changeset_digest_value=changeset_digest_value,
+            causal_ids=causal_ids,
         )
     finally:
         try:
@@ -288,6 +320,7 @@ def _execute_changeset_transaction(
     root: str | Path,
     idempotency_key: str,
     changeset_digest_value: str,
+    causal_ids: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Stage, verify, commit and journal one multi-file changeset."""
     root_path = Path(root).resolve()
@@ -323,6 +356,8 @@ def _execute_changeset_transaction(
         "receipt_path": str(state_path),
         "candidate": str(candidate),
         "backup": str(backup),
+        "operation": _operation_summary(plan, paths),
+        "causal_ids": dict(causal_ids or {}),
     }
     started = time.perf_counter()
     stage_started = started
@@ -387,6 +422,12 @@ def _execute_changeset_transaction(
             "idempotency_key": idempotency_key,
             "changeset_digest": changeset_digest_value,
             "state": "COMMITTED",
+            "operation": state["operation"],
+            "before_sha256": before,
+            "after_sha256": after,
+            "restored_sha256": None,
+            "validation": result.get("validation", []),
+            "causal_ids": state["causal_ids"],
             "timings_ms": {
                 "stage": state["timings_ms"]["stage"],
                 "commit": round((time.perf_counter() - commit_started) * 1000, 3),
@@ -420,6 +461,7 @@ def _execute_changeset_transaction(
                 "after_modes": after_modes,
                 "receipt": receipt,
                 "timings_ms": receipt["timings_ms"],
+                "validation": receipt["validation"],
                 "result": result_payload,
             }
         )
