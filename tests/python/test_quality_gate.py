@@ -70,3 +70,52 @@ def test_quality_gate_records_command_timeout(tmp_path):
     assert payload["commands"][0]["exit_code"] == 124
     assert "TimeoutExpired" in payload["commands"][0]["error"]
     assert "process tree terminated" in payload["commands"][0]["error"]
+
+
+def test_quality_gate_accepts_sha_bound_external_e2e_report(monkeypatch, tmp_path):
+    root = tmp_path
+    (root / ".git").mkdir()
+    monkeypatch.setattr(
+        "scripts.quality_gate._git", lambda _root, *args: "abc123" if args == ("rev-parse", "HEAD") else None
+    )
+    report = root / "issue-422.json"
+    report.write_text(
+        json.dumps(
+            {
+                "schema": "simplicio.dev-cli.issue-422-evidence/v1",
+                "commit_sha": "abc123",
+                "scenarios": [
+                    {"scenario": "windows_locked_file", "status": "PASS"},
+                    {"scenario": "runtime_backed", "status": "PASS"},
+                    {"scenario": "fast_rust", "status": "PASS"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SIMPLICIO_QUALITY_GATE_E2E_REPORT", str(report))
+    payload = run_gate(root, commands=[("pass", [sys.executable, "-c", "pass"])])
+    assert payload["passed"] is True
+    assert all(lane["status"] == "PASS" for lane in payload["external_lanes"].values())
+    assert payload["external_e2e_report"].startswith("sha256:")
+
+
+def test_quality_gate_rejects_stale_external_e2e_report(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "scripts.quality_gate._git", lambda _root, *args: "abc123" if args == ("rev-parse", "HEAD") else None
+    )
+    report = tmp_path / "issue-422.json"
+    report.write_text(
+        json.dumps(
+            {
+                "schema": "simplicio.dev-cli.issue-422-evidence/v1",
+                "commit_sha": "different",
+                "scenarios": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SIMPLICIO_QUALITY_GATE_E2E_REPORT", str(report))
+    payload = run_gate(tmp_path, commands=[])
+    assert payload["passed"] is False
+    assert payload["external_lanes"]["runtime"]["reason"] == "external_e2e_report_sha_stale"

@@ -26,5 +26,6 @@ def test_issue_422_reports_are_reproducible_artifacts(tmp_path):
     output = tmp_path / "evidence.md"
     write_reports(payload, output)
     assert output.is_file()
+    assert output.with_suffix(".json").is_file()
     assert output.with_suffix(".jsonl").is_file()
     assert output.with_suffix(".csv").is_file()
