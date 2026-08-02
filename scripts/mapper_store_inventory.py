@@ -478,7 +478,6 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     base = Path.cwd()
     repo_values = args.repo or ["mapper=.", "loop=../simplicio-loop", "dev-cli=../simplicio-dev-cli", "runtime=../simplicio-runtime"]
-    repos = [_parse_repo(value, base) for value in repo_values]
     databases = []
     for value in args.database:
         if "=" in value:
@@ -493,6 +492,11 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit(f"database does not exist: {path}")
         display_path = raw_path_obj.as_posix() if not raw_path_obj.is_absolute() else f"<external>/{path.name}"
         databases.append((repo_id, path, display_path))
+    # Validate explicit database arguments before resolving default repository
+    # roots.  A malformed or symlinked database must fail with its actionable
+    # database error even when the caller is using the default cross-repo
+    # layout and one sibling checkout is unavailable.
+    repos = [_parse_repo(value, base) for value in repo_values]
     payload = build_inventory(repos, databases, args.deterministic)
     rendered = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     if args.output:

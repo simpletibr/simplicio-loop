@@ -74,6 +74,19 @@
       "change_policy": {"breaking": "new-version-adr-migration-fixture", "additive": "compatible-with-fixture"}
     },
     {
+      "id": "simplicio.mapper-store-conformance-evidence/v1",
+      "kind": "evidence",
+      "owner": "mapper",
+      "maintainers": ["mapper"],
+      "producers": ["loop", "dev-cli", "runtime"],
+      "consumers": ["mapper"],
+      "writer_authority": "mapper-store",
+      "versions": {"current": "v1", "minimum": "v1", "maximum": "v1", "deprecated": false},
+      "canonical": {"schema_path": "contracts/mapper-store/v1/schemas/conformance-evidence.schema.json", "sha256": "0361757245d7f61a1def144c71ecf1869c7b29c7fa1edc1f28ee7c9599dab0cb", "fixture_paths": []},
+      "compatibility": {"unknown_fields": "reject", "unknown_enum": "reject", "defaults": "explicit", "policy": "versioned"},
+      "change_policy": {"breaking": "new-version-adr-migration-fixture", "additive": "compatible-with-fixture"}
+    },
+    {
       "id": "simplicio.mapper-store-status/v1",
       "kind": "observability",
       "owner": "mapper",

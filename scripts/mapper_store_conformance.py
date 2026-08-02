@@ -17,11 +17,13 @@ import os
 import platform
 import re
 import sys
+from collections.abc import Mapping
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 SCHEMA = "simplicio.mapper-store-conformance/v1"
+EXTERNAL_EVIDENCE_SCHEMA = "simplicio.mapper-store-conformance-evidence/v1"
 INVENTORY_PATH = Path(__file__).with_name("mapper_store_inventory.py")
 REQUIRED_REPOS = ("mapper", "loop", "dev-cli", "runtime")
 SCENARIOS = (
@@ -125,6 +127,12 @@ def _valid_loop_standalone_evidence(value: Any) -> bool:
 
 
 def _valid_runtime_single_authority_evidence(value: Any, expected_revision: str) -> bool:
+    """Validate the pre-v1 Runtime install receipt for compatibility tooling.
+
+    The final gate below requires the stronger hash-bound cross-repo receipt.
+    Keeping this narrow validator public preserves the Runtime package's
+    existing installed-smoke harness while its producer migrates to v1.
+    """
     if not isinstance(value, dict):
         return False
     if value.get("schema") != "simplicio.runtime-mapper-store-installed-smoke/v1":
@@ -154,6 +162,67 @@ def _valid_runtime_single_authority_evidence(value: Any, expected_revision: str)
     )
 
 
+def _canonical_evidence_hash(value: Mapping[str, Any]) -> str:
+    return _sha({key: item for key, item in value.items() if key != "evidence_hash"})
+
+
+def _external_evidence_key(value: Mapping[str, Any]) -> str | None:
+    check = value.get("check")
+    if check == "scenario":
+        scenario_id = value.get("scenario_id")
+        return f"scenario:{scenario_id}" if isinstance(scenario_id, str) else None
+    return check if isinstance(check, str) else None
+
+
+def _validate_external_evidence(
+    key: str,
+    value: Any,
+    default_refs: Mapping[str, Mapping[str, Any]],
+) -> tuple[str, str]:
+    """Validate a cross-repo receipt without executing its producer.
+
+    External smoke is deliberately a separate process because this gate must
+    remain read-only.  A receipt is useful only when it is self-hashable,
+    produced in a disposable clean sandbox, pinned to the exact repository
+    revisions being gated, and proves MapperStore writer ownership.
+    """
+    if not isinstance(value, dict):
+        return "unverified", "external evidence must be a JSON object"
+    if value.get("schema") != EXTERNAL_EVIDENCE_SCHEMA:
+        return "unverified", "external evidence schema is missing or unsupported"
+    if _external_evidence_key(value) != key:
+        return "unverified", "external evidence check identifier does not match its input key"
+    if value.get("evidence_hash") != _canonical_evidence_hash(value):
+        return "unverified", "external evidence hash is missing or does not match its canonical payload"
+    sandbox = value.get("sandbox")
+    if not isinstance(sandbox, dict) or sandbox.get("disposable") is not True:
+        return "unverified", "external evidence must identify a disposable sandbox"
+    if sandbox.get("working_tree_clean") is not True:
+        return "unverified", "external evidence requires clean producer checkouts"
+    repositories = value.get("repositories")
+    if not isinstance(repositories, dict):
+        return "unverified", "external evidence must pin repository revisions"
+    for repo_id in REQUIRED_REPOS:
+        observed = repositories.get(repo_id)
+        expected = default_refs.get(repo_id, {}).get("sha")
+        if not isinstance(observed, dict) or not isinstance(observed.get("revision"), str):
+            return "unverified", f"external evidence is missing revision for {repo_id}"
+        if expected and observed["revision"] != expected:
+            return "unverified", f"external evidence revision mismatch for {repo_id}"
+    if value.get("writer_authority") != "mapper-store":
+        return "unverified", "external evidence does not prove MapperStore writer authority"
+    if value.get("legacy_ddl_matches") != 0:
+        return "unverified", "external evidence still reports legacy DDL writers"
+    if key == "runtime_single_authority" and value.get("runtime_store_subprocesses") != 0:
+        return "unverified", "Runtime evidence must prove zero Python store subprocesses"
+    status = value.get("status")
+    if status == "pass" and value.get("ok") is True:
+        return "pass", "validated external cross-repo evidence"
+    if status == "fail" or value.get("ok") is False:
+        return "fail", "external cross-repo evidence reports a failed scenario"
+    return "unverified", "external cross-repo evidence is not a passing receipt"
+
+
 def _database_args(values: list[str], base: Path) -> list[tuple[str, Path, str]]:
     result: list[tuple[str, Path, str]] = []
     for value in values:
@@ -165,6 +234,43 @@ def _database_args(values: list[str], base: Path) -> list[tuple[str, Path, str]]
             raise SystemExit(f"database must be an existing non-symlink file: {path}")
         result.append((repo_id, path, raw_path))
     return result
+
+
+def _evidence_file_args(values: list[str], base: Path) -> dict[str, Any]:
+    """Load one or more evidence bundles, including Runtime-compatible files.
+
+    A bundle may be either ``{"check": ..., ...}`` for one receipt or a map
+    from gate identifiers to receipt objects.  The file itself is never
+    modified and symlinks are rejected before path resolution.
+    """
+    evidence: dict[str, Any] = {}
+    for raw_value in values:
+        raw_path = Path(raw_value)
+        if raw_path.is_symlink():
+            raise SystemExit(f"evidence file must not be a symlink: {raw_path}")
+        path = (base / raw_path).resolve() if not raw_path.is_absolute() else raw_path.resolve()
+        if not path.is_file():
+            raise SystemExit(f"evidence file does not exist: {path}")
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError) as error:
+            raise SystemExit(f"evidence file is not valid JSON: {path}") from error
+        if isinstance(payload, dict) and payload.get("schema") == "simplicio.install-smoke/v1":
+            evidence["loop_standalone"] = payload
+            continue
+        if isinstance(payload, dict) and "check" in payload:
+            key = _external_evidence_key(payload)
+            if key is None:
+                raise SystemExit(f"evidence file has an invalid check identifier: {path}")
+            evidence[key] = payload
+            continue
+        if not isinstance(payload, dict):
+            raise SystemExit(f"evidence file must contain an object: {path}")
+        for key, value in payload.items():
+            if not isinstance(key, str) or not isinstance(value, dict):
+                raise SystemExit(f"evidence bundle entries must be object receipts: {path}")
+            evidence[key] = value
+    return evidence
 
 
 def build_conformance(
@@ -258,7 +364,8 @@ def build_conformance(
             {"matches": fast_matches[:20]},
         )
     )
-    loop_evidence = (external_evidence or {}).get("loop_standalone")
+    supplied_evidence = dict(external_evidence or {})
+    loop_evidence = supplied_evidence.get("loop_standalone")
     loop_evidence_valid = _valid_loop_standalone_evidence(loop_evidence)
     checks.append(
         _result(
@@ -270,20 +377,20 @@ def build_conformance(
             loop_evidence if loop_evidence_valid else {"runtime_required": False},
         )
     )
-    runtime_evidence = (external_evidence or {}).get("runtime_single_authority")
-    runtime_evidence_valid = _valid_runtime_single_authority_evidence(
-        runtime_evidence,
-        default_refs["runtime"]["sha"],
+    runtime_status, runtime_reason = _validate_external_evidence(
+        "runtime_single_authority",
+        supplied_evidence.get("runtime_single_authority"),
+        default_refs,
     )
     checks.append(
         _result(
             "runtime_single_authority",
-            "pass" if runtime_evidence_valid else "unverified",
-            "installed Runtime binary resolved the canonical MapperStore authority"
-            if runtime_evidence_valid
-            else "Runtime-backed cutover and Rust adapter smoke require a validated installed Runtime receipt",
-            runtime_evidence
-            if runtime_evidence_valid
+            runtime_status,
+            runtime_reason
+            if runtime_status != "unverified" or supplied_evidence.get("runtime_single_authority") is not None
+            else "Runtime-backed cutover and Rust adapter smoke require a validated external receipt",
+            supplied_evidence.get("runtime_single_authority")
+            if runtime_status == "pass"
             else {"runtime_revision": default_refs["runtime"]["sha"]},
         )
     )
@@ -300,38 +407,59 @@ def build_conformance(
             {"readable": len(readable), "unreadable": unreadable},
         )
     )
+    matrix_status, matrix_reason = _validate_external_evidence(
+        "installed_package_matrix",
+        supplied_evidence.get("installed_package_matrix"),
+        default_refs,
+    )
     checks.append(
         _result(
             "installed_package_matrix",
-            "unverified",
-            "fresh/upgrade and Windows/Linux/macOS installed-package matrix was not executed here",
-            {"host": platform.platform(), "python": sys.version.split()[0]},
+            matrix_status,
+            matrix_reason
+            if matrix_status != "unverified" or supplied_evidence.get("installed_package_matrix") is not None
+            else "fresh/upgrade and Windows/Linux/macOS installed-package matrix requires a validated external receipt",
+            supplied_evidence.get("installed_package_matrix")
+            if matrix_status == "pass"
+            else {"host": platform.platform(), "python": sys.version.split()[0]},
         )
     )
 
-    scenario_results = [
-        _result(
-            f"scenario:{scenario}",
-            "unverified",
-            "scenario requires a clean sandbox and external consumer packages",
+    scenario_results = []
+    for scenario in SCENARIOS:
+        scenario_id = f"scenario:{scenario}"
+        evidence = supplied_evidence.get(scenario_id)
+        status, reason = _validate_external_evidence(scenario_id, evidence, default_refs)
+        scenario_results.append(
+            _result(
+                scenario_id,
+                status,
+                reason
+                if status != "unverified" or evidence is not None
+                else "scenario requires a validated external consumer-package receipt",
+                evidence if status == "pass" else None,
+            )
         )
-        for scenario in SCENARIOS
-    ]
     if run_external_smoke:
         # The flag is intentionally an evidence declaration: this Mapper-only
         # command never imports or mutates consumer packages.
         for result in scenario_results:
-            result["reason"] = "external smoke requested but not executable by the read-only Mapper gate"
+            if result["status"] == "unverified":
+                result["reason"] = (
+                    "external smoke is read-only here and not executable by the Mapper gate; "
+                    "supply a hashed receipt from the clean sandbox"
+                )
 
     residual = [
         {"id": result["id"], "reason": result["reason"]}
         for result in checks + scenario_results
         if result["status"] == "unverified"
     ]
+    all_results = checks + scenario_results
     payload = {
         "schema": SCHEMA,
         "status": "fail"
-        if any(item["status"] == "fail" for item in checks)
+        if any(item["status"] == "fail" for item in all_results)
         else "unverified"
         if residual
         else "pass",
@@ -375,7 +503,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--run-external-smoke", action="store_true")
     parser.add_argument(
         "--evidence", action="append", default=[],
-        help="check=JSON receipt; supports loop_standalone and runtime_single_authority",
+        help="check=JSON receipt; repeatable for loop_standalone or cross-repo receipts",
+    )
+    parser.add_argument(
+        "--evidence-file", action="append", default=[],
+        help="JSON receipt or bundle produced by an external clean-room harness; repeatable",
     )
     args = parser.parse_args(argv)
     base = Path.cwd()
@@ -391,6 +523,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     databases = _database_args(args.database, base)
     external_evidence = _evidence_args(args.evidence, base)
+    external_evidence.update(_evidence_file_args(args.evidence_file, base))
     payload = build_conformance(
         repos,
         databases,

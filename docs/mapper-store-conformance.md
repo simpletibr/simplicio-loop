@@ -35,6 +35,36 @@ mismatch, cut over explicitly in sandboxes, fault-inject and rollback, promote
 MapperStore defaults, retain legacy read-only during the window, then remove
 legacy writers only after verified backup and migration evidence.
 
+## External cross-repo receipts
+
+The Mapper gate does not import or execute consumer code. A clean-room harness
+may produce a hash-bound receipt using
+`simplicio.mapper-store-conformance-evidence/v1`, then pass it back with either
+of these forms:
+
+```bash
+python3 scripts/mapper_store_conformance.py \
+  --repo mapper=. --repo loop=../simplicio-loop \
+  --repo dev-cli=../simplicio-dev-cli --repo runtime=../simplicio-runtime \
+  --evidence-file /tmp/mapper-store-evidence.json \
+  --deterministic
+```
+
+`--evidence-file` accepts one receipt or a JSON object mapping gate IDs to
+receipts. `--evidence runtime_single_authority=/tmp/runtime.json` remains
+available for individual files. A receipt is accepted only when its canonical
+SHA-256 matches `evidence_hash`, the sandbox is disposable and clean, all four
+repository revisions match the frozen gate refs, `writer_authority` is exactly
+`mapper-store`, and `legacy_ddl_matches` is zero. Invalid, stale, partial, or
+failed receipts remain `unverified`/`fail`; they can never turn a gate green.
+
+Scenario keys use `scenario:<name>`, for example
+`scenario:Windows` or `scenario:crash during migration`. The external harness
+may mutate only its disposable sandbox; the Mapper gate itself remains
+read-only. This is also the handoff point for the Runtime `--evidence-file`
+workflow: Runtime/Dev CLI can publish a receipt, while Mapper decides whether
+it is current and sufficient for conformance.
+
 ## Current local evidence
 
 The local checkouts are intentionally not treated as release sources when they
