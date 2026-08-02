@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sqlite3
+import os
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+from simplicio_mapper.mapper.file_lock import acquire_lock_at, release_lock_at
 
 SCHEMA = "simplicio.mechanical-plan/v1"
 RECEIPT = "simplicio.mutation-receipt/v1"
@@ -56,47 +59,89 @@ def validate(plan: dict[str, Any], root: Path) -> dict[str, Any]:
 
 class MutationWorker:
     def __init__(self, root: str | Path):
-        self.root = Path(root)
-        self.db_path = self.root / ".simplicio" / "mutation-worker.sqlite3"
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        with self._db() as db:
-            db.execute(
-                "CREATE TABLE IF NOT EXISTS mutations("
-                "key TEXT PRIMARY KEY, plan_hash TEXT, state TEXT, receipt TEXT)"
-            )
+        self.root = Path(root).resolve()
+        self.store_dir = self.root / ".simplicio" / "mapper-store" / "mutations"
+        self.store_dir.mkdir(parents=True, exist_ok=True)
 
-    def _db(self):
-        db = sqlite3.connect(self.db_path, isolation_level=None)
-        db.execute("PRAGMA journal_mode=WAL")
-        db.execute("PRAGMA synchronous=FULL")
-        return db
+    def _record_path(self, key: str) -> Path:
+        return self.store_dir / f"{hashlib.sha256(key.encode()).hexdigest()}.json"
+
+    def _lock_path(self, key: str) -> Path:
+        return self.store_dir / f"{hashlib.sha256(key.encode()).hexdigest()}.lock"
+
+    def _read(self, key: str) -> dict[str, Any] | None:
+        path = self._record_path(key)
+        if not path.exists():
+            return None
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise MutationBlocked("RECOVERY_REQUIRED") from exc
+        if not isinstance(value, dict):
+            raise MutationBlocked("RECOVERY_REQUIRED")
+        return value
+
+    def _write(self, key: str, value: dict[str, Any]) -> None:
+        target = self._record_path(key)
+        temporary = target.with_suffix(f".tmp-{os.getpid()}")
+        temporary.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")), encoding="utf-8")
+        with temporary.open("r+b") as handle:
+            handle.flush()
+            os.fsync(handle.fileno())
+        for attempt in range(5):
+            try:
+                os.replace(temporary, target)
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.02 * (attempt + 1))
+
+    def _locked(self, key: str):
+        lock = acquire_lock_at(str(self._lock_path(key)), operation="mutation-worker")
+        if lock is None:
+            raise MutationBlocked("RECOVERY_REQUIRED")
+        return lock
 
     def execute(
         self, plan: dict[str, Any], executor: Callable[[dict[str, Any]], dict[str, Any]]
     ) -> dict[str, Any]:
         sealed = validate(plan, self.root)
         key = sealed["idempotency_key"]
-        with self._db() as db:
-            db.execute("BEGIN IMMEDIATE")
-            row = db.execute("SELECT plan_hash,state,receipt FROM mutations WHERE key=?", (key,)).fetchone()
+        lock = self._locked(key)
+        try:
+            row = self._read(key)
             if row:
-                db.execute("COMMIT")
-                if row[0] != sealed["plan_hash"]:
+                if row.get("plan_hash") != sealed["plan_hash"]:
                     raise MutationBlocked("IDEMPOTENCY_LINEAGE_MISMATCH")
-                if row[1] == "VERIFIED":
-                    return json.loads(row[2])
+                if row.get("state") == "VERIFIED" and row.get("receipt"):
+                    return dict(row["receipt"])
                 raise MutationBlocked("RECOVERY_REQUIRED")
-            db.execute("INSERT INTO mutations VALUES(?,?,?,NULL)", (key, sealed["plan_hash"], "RESERVED"))
-            db.execute("COMMIT")
+            self._write(
+                key,
+                {"key": key, "plan_hash": sealed["plan_hash"], "state": "RESERVED", "receipt": None},
+            )
+        finally:
+            release_lock_at(lock)
         try:
             result = executor(sealed)
         except BaseException:
-            with self._db() as db:
-                db.execute("UPDATE mutations SET state='UNCERTAIN' WHERE key=?", (key,))
+            lock = self._locked(key)
+            try:
+                row = self._read(key) or {"key": key, "plan_hash": sealed["plan_hash"], "receipt": None}
+                row["state"] = "UNCERTAIN"
+                self._write(key, row)
+            finally:
+                release_lock_at(lock)
             raise
         if result.get("status") != "ok" or not result.get("applied"):
-            with self._db() as db:
-                db.execute("UPDATE mutations SET state='ROLLED_BACK' WHERE key=?", (key,))
+            lock = self._locked(key)
+            try:
+                row = self._read(key) or {"key": key, "plan_hash": sealed["plan_hash"], "receipt": None}
+                row["state"] = "ROLLED_BACK"
+                self._write(key, row)
+            finally:
+                release_lock_at(lock)
             raise MutationBlocked("EFFECT_NOT_COMMITTED")
         receipt = {
             "schema": RECEIPT,
@@ -109,11 +154,11 @@ class MutationWorker:
             "operations": result.get("operations", []),
         }
         receipt["receipt_hash"] = digest(receipt)
-        with self._db() as db:
-            db.execute("BEGIN IMMEDIATE")
-            db.execute(
-                "UPDATE mutations SET state='VERIFIED',receipt=? WHERE key=?",
-                (json.dumps(receipt, sort_keys=True), key),
-            )
-            db.execute("COMMIT")
+        lock = self._locked(key)
+        try:
+            row = self._read(key) or {"key": key, "plan_hash": sealed["plan_hash"]}
+            row.update({"state": "VERIFIED", "receipt": receipt})
+            self._write(key, row)
+        finally:
+            release_lock_at(lock)
         return receipt
