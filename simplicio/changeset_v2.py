@@ -293,9 +293,17 @@ def execute_changeset_bytes(
         root_path = Path(root).resolve()
         if value.get("repository") != str(root_path):
             raise ChangesetError("binary_repository_mismatch", "binary repository does not match --root")
-        if not value.get("base_generation") or not value.get("lease_id") or not value.get("fencing_token"):
-            raise ChangesetError("binary_authority_missing", "binary authority binding is incomplete")
         changeset = _public_changeset_from_binary(value)
+        required_identity = (
+            "base_generation",
+            "overlay_generation",
+            "attempt",
+            "worktree_id",
+            "lease_id",
+            "fencing_token",
+        )
+        if any(not value.get(field) for field in required_identity):
+            raise ChangesetError("binary_authority_missing", "binary authority binding is incomplete")
         receipt = execute_changeset(
             changeset,
             root=root_path,
@@ -315,6 +323,10 @@ def execute_changeset_bytes(
                 "input_format": BINARY_SCHEMA,
                 "binary_sha256": hashlib.sha256(payload).hexdigest(),
                 "binary_changeset_id": value.get("changeset_id"),
+                "fast_identity": {
+                    field: value.get(field)
+                    for field in required_identity
+                },
                 "fast_engine": engine.receipt(),
             }
         )

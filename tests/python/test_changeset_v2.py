@@ -343,9 +343,12 @@ def test_binary_adapter_refreshes_only_changed_paths_after_commit(monkeypatch, t
 
         def decode_binary(self, _payload):
             return {
-                "repository": str(tmp_path.resolve()),
-                "base_generation": "base",
-                "lease_id": "lease",
+                    "repository": str(tmp_path.resolve()),
+                    "base_generation": "base",
+                    "overlay_generation": "overlay",
+                    "attempt": "attempt",
+                    "worktree_id": "worktree",
+                    "lease_id": "lease",
                 "fencing_token": "fence",
                 "allowed_paths": ["a.txt", "ignored.txt"],
                 "operations": [{"op": "create", "path": "a.txt", "content": "ok\n"}],
@@ -371,6 +374,8 @@ def test_binary_adapter_refreshes_only_changed_paths_after_commit(monkeypatch, t
     )
 
     assert receipt["status"] == "ok"
+    assert receipt["fast_identity"]["attempt"] == "attempt"
+    assert receipt["fast_identity"]["worktree_id"] == "worktree"
     assert receipt["refresh"] == {
         "status": "refreshed",
         "paths": ["a.txt"],
@@ -527,23 +532,11 @@ def test_binary_adapter_rejects_missing_engine_and_authority(monkeypatch, tmp_pa
             "binary_repository_mismatch",
         ),
         (
-            {
-                "repository": "root",
-                "base_generation": "b",
-                "lease_id": "l",
-                "fencing_token": "f",
-                "operations": [None],
-            },
+            {"repository": "root", "base_generation": "b", "overlay_generation": "o", "attempt": "a", "worktree_id": "w", "lease_id": "l", "fencing_token": "f", "operations": [None]},
             "binary_operation_invalid",
         ),
         (
-            {
-                "repository": "root",
-                "base_generation": "b",
-                "lease_id": "l",
-                "fencing_token": "f",
-                "operations": [{"op": "bad"}],
-            },
+            {"repository": "root", "base_generation": "b", "overlay_generation": "o", "attempt": "a", "worktree_id": "w", "lease_id": "l", "fencing_token": "f", "operations": [{"op": "bad"}]},
             "binary_operation_unsupported",
         ),
     ],
