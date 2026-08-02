@@ -1120,6 +1120,247 @@ def test_context_pack_without_raw_hash_derives_canonical_identity(mapper_boundar
     assert binding.context_handle.pack_hash == expected
 
 
+def test_cache_index_rejects_missing_malformed_and_mismatched_metadata(tmp_path: Any) -> None:
+    from simplicio.plan_compiler.mapper_context import ContextBindingCache
+
+    cache = ContextBindingCache(tmp_path)
+    signature = (1, 2, 3, 4)
+    assert cache._read_index(None) is None
+    cache.index_path.write_text("not-json", encoding="utf-8")
+    assert cache._read_index(signature) is None
+    cache.index_path.write_text(
+        json.dumps({"log_signature": list(signature), "entries": [], "revision": "r"}),
+        encoding="utf-8",
+    )
+    assert cache._read_index(signature) is None
+    cache.index_path.write_text(
+        json.dumps({"log_signature": list(signature), "entries": {}, "revision": "r"}),
+        encoding="utf-8",
+    )
+    assert cache._read_index(signature)["revision"] == "r"
+
+
+def test_cache_stale_lock_parser_fails_closed(tmp_path: Any) -> None:
+    from simplicio.plan_compiler.mapper_context import ContextBindingCache
+
+    cache = ContextBindingCache(tmp_path)
+    cache.lock_path.write_text("not-a-pid", encoding="ascii")
+    assert cache._remove_stale_writer_lock() is False
+    cache.lock_path.write_text(str(os.getpid()), encoding="ascii")
+    assert cache._remove_stale_writer_lock() is False
+
+
+def test_cache_binary_codec_rejects_truncation_unknown_and_trailing_bytes() -> None:
+    from simplicio.plan_compiler.mapper_context import ContextBindingCache
+
+    with pytest.raises(ValueError, match="truncated"):
+        ContextBindingCache._unpack_string(b"\x01", 0)
+    with pytest.raises(ValueError, match="truncated"):
+        ContextBindingCache._unpack_optional(b"", 0)
+    with pytest.raises(ValueError, match="invalid"):
+        ContextBindingCache._unpack_optional(b"\x02", 0)
+    with pytest.raises(ValueError, match="truncated"):
+        ContextBindingCache._unpack_map(b"\x01", 0)
+    with pytest.raises(ValueError, match="unknown"):
+        ContextBindingCache._encode_event({"kind": "unknown"})
+    encoded = ContextBindingCache._encode_event({"kind": "put", "previous_digest": "", "digest": "d"})
+    with pytest.raises(ValueError, match="trailing"):
+        ContextBindingCache._decode_event(encoded + b"x")
+    with pytest.raises(ValueError, match="unknown"):
+        ContextBindingCache._decode_event(b"\x03")
+
+
+def test_execution_context_external_failures_are_typed(
+    mapper_boundary: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from simplicio.plan_compiler import mapper_context
+
+    snapshot = _payload()
+    binding = bind_mapper_context(snapshot, _pack(snapshot))
+    payload = {
+        "schema": MAPPER_EXECUTION_CONTEXT_SCHEMA,
+        "repository": {
+            "snapshot_id": snapshot["snapshot_id"],
+            "root_hash": snapshot["root_hash"],
+            "context_pack_hash": binding.pack.pack_hash,
+        },
+    }
+    original_import = mapper_context.importlib.import_module
+
+    def unavailable(name: str) -> Any:
+        if name == "simplicio_mapper.execution_context":
+            raise ModuleNotFoundError(name)
+        return original_import(name)
+
+    monkeypatch.setattr(mapper_context.importlib, "import_module", unavailable)
+    with pytest.raises(MapperContextError, match="MAPPER_EXECUTION_CONTEXT_API_UNAVAILABLE"):
+        load_mapper_execution_context(payload, snapshot=binding.snapshot, pack=binding.pack)
+
+    class FailingValidator:
+        @staticmethod
+        def validate_execution_context(_payload: Any) -> list[str]:
+            raise RuntimeError("validator down")
+
+    monkeypatch.setattr(
+        mapper_context.importlib,
+        "import_module",
+        lambda name: (
+            FailingValidator if name == "simplicio_mapper.execution_context" else original_import(name)
+        ),
+    )
+    with pytest.raises(MapperContextError, match="MAPPER_EXECUTION_CONTEXT_VALIDATOR_FAILED"):
+        load_mapper_execution_context(payload, snapshot=binding.snapshot, pack=binding.pack)
+
+
+def test_manifest_validates_owner_schema_and_json_contract(monkeypatch: pytest.MonkeyPatch) -> None:
+    from simplicio.plan_compiler import mapper_context
+
+    class Resource:
+        def __init__(self, raw: bytes) -> None:
+            self.raw = raw
+
+        def joinpath(self, _path: str) -> Resource:
+            return self
+
+        def read_bytes(self) -> bytes:
+            return self.raw
+
+    valid = json.dumps(
+        {
+            "owner": mapper_context.MAPPER_CONTRACT_OWNER,
+            "schema_ids": [mapper_context.MAPPER_CONTEXT_SNAPSHOT_SCHEMA],
+            "compatibility": {"current": "v1", "future": "fail-closed"},
+        },
+        separators=(",", ":"),
+    ).encode()
+    monkeypatch.setattr(mapper_context, "MAPPER_CONTRACT_MANIFEST_SHA256", hashlib.sha256(valid).hexdigest())
+    monkeypatch.setattr(mapper_context.importlib.resources, "files", lambda _package: Resource(valid))
+    assert mapper_context._read_manifest()["owner"] == mapper_context.MAPPER_CONTRACT_OWNER
+
+    for malformed in (b"not-json", json.dumps({"owner": "other"}).encode()):
+        monkeypatch.setattr(
+            mapper_context, "MAPPER_CONTRACT_MANIFEST_SHA256", hashlib.sha256(malformed).hexdigest()
+        )
+        monkeypatch.setattr(
+            mapper_context.importlib.resources, "files", lambda _package, raw=malformed: Resource(raw)
+        )
+        with pytest.raises(MapperContextError, match="MAPPER_MANIFEST"):
+            mapper_context._read_manifest()
+
+
+def test_mapper_api_success_and_pack_validation_branches(
+    mapper_boundary: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from simplicio.plan_compiler import mapper_context
+
+    def validate(_payload: Any, **_kwargs: Any) -> dict[str, Any]:
+        return {"valid": True, "reason_codes": []}
+
+    monkeypatch.setattr(mapper_context, "_mapper_api", lambda: (validate, _canonical_json))
+    assert callable(mapper_context._mapper_api()[0])
+    snapshot = load_mapper_context(_payload())
+    cases = [
+        ({**_pack(_payload()), "fidelity": []}, "CONTEXT_PACK_INVALID"),
+        ({**_pack(_payload()), "serialization_budget": {}}, "CONTEXT_PACK_BUDGET_INVALID"),
+        (
+            {**_pack(_payload()), "serialization_budget": {"token_budget": 1, "estimated_tokens": 2}},
+            "CONTEXT_PACK_BUDGET_EXCEEDED",
+        ),
+        (
+            {**_pack(_payload()), "files": [{"path": "a", "snapshot_hash": "bad"}]},
+            "CONTEXT_PACK_FILE_INVALID",
+        ),
+    ]
+    for pack, code in cases:
+        with pytest.raises(MapperContextError, match=code):
+            load_mapper_context_pack(pack, snapshot=snapshot)
+
+
+def test_execution_context_rejection_and_origin_mismatch_are_typed(
+    mapper_boundary: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from simplicio.plan_compiler import mapper_context
+
+    snapshot_payload = _payload()
+    binding = bind_mapper_context(snapshot_payload, _pack(snapshot_payload))
+    base = {
+        "schema": MAPPER_EXECUTION_CONTEXT_SCHEMA,
+        "repository": {
+            "snapshot_id": snapshot_payload["snapshot_id"],
+            "root_hash": snapshot_payload["root_hash"],
+            "context_pack_hash": binding.pack.pack_hash,
+        },
+    }
+
+    class Rejecting:
+        @staticmethod
+        def validate_execution_context(_payload: Any) -> list[str]:
+            return ["BAD_CONTEXT"]
+
+    monkeypatch.setattr(mapper_context.importlib, "import_module", lambda _name: Rejecting)
+    with pytest.raises(MapperContextError, match="MAPPER_EXECUTION_CONTEXT_REJECTED"):
+        load_mapper_execution_context(base, snapshot=binding.snapshot, pack=binding.pack)
+
+    class Accepting:
+        @staticmethod
+        def validate_execution_context(_payload: Any) -> list[str]:
+            return []
+
+    monkeypatch.setattr(mapper_context.importlib, "import_module", lambda _name: Accepting)
+    wrong = {**base, "repository": {**base["repository"], "root_hash": "wrong"}}
+    with pytest.raises(MapperContextError, match="CONTEXT_EXECUTION_ORIGIN_MISMATCH"):
+        load_mapper_execution_context(wrong, snapshot=binding.snapshot, pack=binding.pack)
+
+
+def test_cache_recovery_and_corrupt_log_paths_are_fail_closed(mapper_boundary: None, tmp_path: Any) -> None:
+    from simplicio.plan_compiler import mapper_context
+
+    payload = _payload()
+    binding = bind_mapper_context(payload, _pack(payload))
+    cache = ContextBindingCache(tmp_path)
+    assert cache._read_log()["chain_status"] == "corrupt"
+    assert cache.compact()["storage"] == "legacy-json"
+    cache._write(
+        {"entries": {binding.context_handle.value: {"identity": cache._identity(binding.context_handle)}}}
+    )
+    assert cache.lookup(binding.context_handle)["hit"] is True
+    cache.refresh(binding, expected_revision=cache.doctor()["revision"])
+    assert cache.lookup(binding.context_handle)["hit"] is True
+
+    cache.log_path.write_bytes(b"bad")
+    assert cache._read_log()["chain_status"] == "corrupt"
+    with pytest.raises(MapperContextError, match="CONTEXT_CACHE_CORRUPT"):
+        cache._append_event(
+            "put", binding.context_handle.value, identity=cache._identity(binding.context_handle)
+        )
+
+    for raw in (
+        mapper_context.CONTEXT_BINDING_LOG_MAGIC + b"\x02\x00\x00\x00",
+        mapper_context.CONTEXT_BINDING_LOG_MAGIC + b"\x01\x00\x00\x00\x05\x00\x00\x00",
+    ):
+        cache.log_path.write_bytes(raw)
+        assert cache._read_log()["chain_status"] == "corrupt"
+
+
+def test_cache_codec_rejects_oversized_and_truncated_values() -> None:
+    from simplicio.plan_compiler import mapper_context
+
+    with pytest.raises(ValueError, match="too large"):
+        ContextBindingCache._pack_string("x" * (mapper_context.CONTEXT_BINDING_LOG_MAX_RECORD + 1))
+    with pytest.raises(ValueError, match="truncated"):
+        ContextBindingCache._unpack_string(b"\xff\xff\xff\x7f", 0)
+    with pytest.raises(ValueError, match="empty"):
+        ContextBindingCache._decode_event(b"")
+    with pytest.raises(ValueError, match="too large"):
+        ContextBindingCache._encode_event(
+            {
+                "kind": "put",
+                "previous_digest": "",
+                "digest": "x" * mapper_context.CONTEXT_BINDING_LOG_MAX_RECORD,
+            }
+        )
+
+
 def test_context_binding_cache_recovers_after_writer_process_dies_mid_append(
     mapper_boundary: None, tmp_path: Any
 ) -> None:
@@ -1205,3 +1446,114 @@ def test_context_cache_canonical_helpers_cover_source_handles_and_nan() -> None:
     assert [handle["path"] for handle in handles] == ["a.py", "b.py"]
     with pytest.raises(MapperContextError, match="canonical JSON"):
         mapper_context._canonical_json_bytes({"value": float("nan")})
+
+
+def test_remaining_cache_and_boundary_guards_are_covered(
+    mapper_boundary: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    from simplicio.plan_compiler import mapper_context
+
+    payload = _payload()
+    binding = bind_mapper_context(payload, _pack(payload))
+    cache = ContextBindingCache(tmp_path)
+    cache.put(binding)
+    mismatch = SimpleNamespace(
+        value=binding.context_handle.value,
+        snapshot_id=binding.context_handle.snapshot_id,
+        revision="different",
+        source_digest=binding.context_handle.source_digest,
+        pack_hash=binding.context_handle.pack_hash,
+        mapper_version=binding.context_handle.mapper_version,
+        source_root_identity=binding.context_handle.source_root_identity,
+        projection_digest=binding.context_handle.projection_digest,
+        generation=binding.context_handle.generation,
+    )
+    assert cache.lookup(mismatch)["reason"] == "identity_mismatch"
+
+    class Contract:
+        validate_context_payload = staticmethod(lambda *_args, **_kwargs: {})
+        canonical_json = staticmethod(_canonical_json)
+
+    original_import = mapper_context.importlib.import_module
+    monkeypatch.setattr(
+        mapper_context.importlib,
+        "import_module",
+        lambda name: Contract if name == "simplicio_mapper.context_contract" else original_import(name),
+    )
+    assert callable(mapper_context._mapper_api()[0])
+
+    bad_budget = {**_pack(payload), "serialization_budget": []}
+    with pytest.raises(MapperContextError, match="CONTEXT_PACK_BUDGET_INVALID"):
+        load_mapper_context_pack(bad_budget, snapshot=binding.snapshot)
+    exceeded = {**_pack(payload), "serialization_budget": {"token_budget": 1, "estimated_tokens": 2}}
+    with pytest.raises(MapperContextError, match="CONTEXT_PACK_BUDGET_EXCEEDED"):
+        load_mapper_context_pack(exceeded, snapshot=binding.snapshot)
+
+    unsupported = {"schema": "unknown"}
+    with pytest.raises(MapperContextError, match="UNSUPPORTED_EXECUTION_CONTEXT_SCHEMA"):
+        load_mapper_execution_context(unsupported, snapshot=binding.snapshot, pack=binding.pack)
+
+    no_version = dict(payload)
+    no_version["producer"] = {}
+    monkeypatch.setattr(
+        mapper_context.importlib.metadata,
+        "version",
+        lambda _name: (_ for _ in ()).throw(mapper_context.importlib.metadata.PackageNotFoundError()),
+    )
+    with pytest.raises(MapperContextError, match="MAPPER_VERSION_UNAVAILABLE"):
+        bind_mapper_context(no_version, _pack(no_version))
+
+    bad_canonical = dict(payload)
+    monkeypatch.setattr(
+        mapper_context,
+        "_mapper_api",
+        lambda: (lambda *_args, **_kwargs: {"valid": True, "reason_codes": []}, lambda _value: b"not-json"),
+    )
+    with pytest.raises(MapperContextError, match="CANONICAL_PAYLOAD_UNAVAILABLE"):
+        load_mapper_context(bad_canonical)
+
+
+def test_remaining_context_validation_defenses_are_covered(
+    mapper_boundary: None, monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    from simplicio.plan_compiler import mapper_context
+
+    payload = _payload()
+    snapshot = load_mapper_context(payload)
+    valid_budget = {**_pack(payload), "serialization_budget": {"token_budget": 2, "estimated_tokens": 2}}
+    assert load_mapper_context_pack(valid_budget, snapshot=snapshot).pack_hash
+
+    class ValidReport:
+        @staticmethod
+        def validate_context_payload(_payload: Any, **_kwargs: Any) -> dict[str, Any]:
+            return {"valid": True, "reason_codes": []}
+
+    monkeypatch.setattr(
+        mapper_context, "_mapper_api", lambda: (ValidReport.validate_context_payload, _canonical_json)
+    )
+    escaped = SimpleNamespace(
+        pack=SimpleNamespace(files=({"path": "../escape", "snapshot_hash": "a" * 64},)),
+        context_handle=SimpleNamespace(generation="rev-2"),
+    )
+    with pytest.raises(MapperContextError, match="CONTEXT_ROOT_PATH_MISMATCH"):
+        mapper_context.verify_context_sources(escaped, source_root=str(tmp_path))
+
+    monkeypatch.setattr(
+        mapper_context,
+        "_mapper_api",
+        lambda: (lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("validator")), _canonical_json),
+    )
+    with pytest.raises(MapperContextError, match="MAPPER_VALIDATOR_FAILED"):
+        load_mapper_context(payload)
+
+    monkeypatch.setattr(
+        mapper_context,
+        "_mapper_api",
+        lambda: (lambda *_args, **_kwargs: {"valid": True, "reason_codes": []}, lambda _value: b"[]"),
+    )
+    with pytest.raises(MapperContextError, match="CANONICAL_PAYLOAD_UNAVAILABLE"):
+        load_mapper_context(payload)
+
+    monkeypatch.setattr(mapper_context, "_freeze", lambda _value: [])
+    with pytest.raises(MapperContextError, match="CONTEXT_PACK_INVALID"):
+        load_mapper_context_pack(_pack(payload), snapshot=snapshot)
