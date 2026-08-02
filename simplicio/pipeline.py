@@ -893,6 +893,54 @@ def _handle_primary_attempt_success(
     return True, "", impact, terminal
 
 
+def _build_retry_feedback_state(
+    *,
+    root: str | Path,
+    target: str,
+    attempt_number: int,
+    quiet: bool,
+    last_validation: Any,
+    log: str,
+    last_output: str,
+    last_failure_fingerprint: str | None,
+    consecutive_same_failure: int,
+) -> tuple[str, int, str]:
+    """Build bounded retry diagnostics and escalation feedback for one failure."""
+    fingerprint = _failure_fingerprint(log)
+    if fingerprint == last_failure_fingerprint:
+        consecutive_same_failure += 1
+    else:
+        last_failure_fingerprint = fingerprint
+        consecutive_same_failure = 1
+    feedback = build_retry_feedback(attempt_number + 1, last_validation, log)
+    retry_feedback = set_prompt_retry_delta(
+        reason="verification-failed",
+        failure_class=classify_failure(log).kind,
+        diagnostics=feedback,
+        affected_files=extract_changed_files(last_output),
+    )
+    if retry_feedback:
+        feedback = retry_feedback
+    if consecutive_same_failure >= _retry_escalation_after():
+        emit_event(
+            "retry_escalated",
+            {
+                "target": target,
+                "attempt": attempt_number,
+                "consecutive_same_failure": consecutive_same_failure,
+            },
+            level="warning",
+            root=root,
+        )
+        feedback = (
+            f"{feedback}\n\nESCALATION: the last {consecutive_same_failure} attempts failed with "
+            "the same failure signature. Do not repeat the previous diff verbatim. Narrow the "
+            "change to the smallest possible localized edit (a single hunk touching the minimum "
+            "number of lines) and use a different approach than the previous attempt."
+        )
+    return last_failure_fingerprint, consecutive_same_failure, feedback
+
+
 def _run_task(
     root,
     stack,
@@ -1402,35 +1450,17 @@ def _run_task(
             last_log = log
         if not quiet:
             info("failed: %s", log[:300])
-        # Issue #219: escalate once the same failure fingerprint repeats.
-        fingerprint = _failure_fingerprint(log)
-        if fingerprint == last_failure_fingerprint:
-            consecutive_same_failure += 1
-        else:
-            last_failure_fingerprint = fingerprint
-            consecutive_same_failure = 1
-        feedback = build_retry_feedback(t + 1, last_validation, log)
-        retry_feedback = set_prompt_retry_delta(
-            reason="verification-failed",
-            failure_class=classify_failure(log).kind,
-            diagnostics=feedback,
-            affected_files=extract_changed_files(last_output),
+        last_failure_fingerprint, consecutive_same_failure, feedback = _build_retry_feedback_state(
+            root=root,
+            target=target,
+            attempt_number=t,
+            quiet=quiet,
+            last_validation=last_validation,
+            log=log,
+            last_output=last_output,
+            last_failure_fingerprint=last_failure_fingerprint,
+            consecutive_same_failure=consecutive_same_failure,
         )
-        if retry_feedback:
-            feedback = retry_feedback
-        if consecutive_same_failure >= _retry_escalation_after():
-            emit_event(
-                "retry_escalated",
-                {"target": target, "attempt": t, "consecutive_same_failure": consecutive_same_failure},
-                level="warning",
-                root=root,
-            )
-            feedback = (
-                f"{feedback}\n\nESCALATION: the last {consecutive_same_failure} attempts failed with "
-                "the same failure signature. Do not repeat the previous diff verbatim. Narrow the "
-                "change to the smallest possible localized edit (a single hunk touching the minimum "
-                "number of lines) and use a different approach than the previous attempt."
-            )
     if not quiet:
         info("attempts exhausted — manual review needed.")
     warnings = []
