@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
-import sqlite3
+import os
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+from simplicio_mapper.mapper.file_lock import acquire_lock_at, release_lock_at
 
 from simplicio.effect_transaction import EffectTransaction, EffectTransactionError
 from simplicio.plan_compiler import ChangeSet, canonical_hash
@@ -23,25 +27,42 @@ class PrismTransaction:
         self.root = Path(root).resolve()
         self.locks = WriteSetLockManager(self.root)
         self.inner = EffectTransaction(self.root)
-        state = self.root / ".simplicio"
-        state.mkdir(parents=True, exist_ok=True)
-        self.db_path = state / "prism-transactions.sqlite3"
-        with self._db() as database:
-            database.executescript(
-                """
-                CREATE TABLE IF NOT EXISTS prism_tx(
-                    tx_key TEXT PRIMARY KEY,
-                    envelope_hash TEXT NOT NULL,
-                    state TEXT NOT NULL,
-                    receipt TEXT
-                );
-                """
-            )
+        self.store_dir = self.root / ".simplicio" / "mapper-store" / "prism-transactions"
+        self.store_dir.mkdir(parents=True, exist_ok=True)
 
-    def _db(self) -> sqlite3.Connection:
-        database = sqlite3.connect(self.db_path, isolation_level=None, timeout=30)
-        database.execute("PRAGMA journal_mode=WAL")
-        return database
+    def _record_path(self, tx_key: str) -> Path:
+        return self.store_dir / f"{hashlib.sha256(tx_key.encode()).hexdigest()}.json"
+
+    def _lock_path(self, tx_key: str) -> Path:
+        return self.store_dir / f"{hashlib.sha256(tx_key.encode()).hexdigest()}.lock"
+
+    def _read(self, tx_key: str) -> dict[str, Any] | None:
+        path = self._record_path(tx_key)
+        if not path.exists():
+            return None
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise EffectTransactionError("RECOVERY_REQUIRED") from exc
+        if not isinstance(value, dict):
+            raise EffectTransactionError("RECOVERY_REQUIRED")
+        return value
+
+    def _write(self, tx_key: str, value: dict[str, Any]) -> None:
+        target = self._record_path(tx_key)
+        temporary = target.with_suffix(f".tmp-{os.getpid()}")
+        temporary.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")), encoding="utf-8")
+        with temporary.open("r+b") as handle:
+            handle.flush()
+            os.fsync(handle.fileno())
+        for attempt in range(5):
+            try:
+                os.replace(temporary, target)
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.02 * (attempt + 1))
 
     def _tx_key(self, envelope: PrismExecutionEnvelope) -> str:
         return canonical_hash(
@@ -75,15 +96,11 @@ class PrismTransaction:
             raise EffectTransactionError("FENCE_LOST")
 
         tx_key = self._tx_key(envelope)
-        with self._db() as database:
-            row = database.execute(
-                "SELECT state,receipt FROM prism_tx WHERE tx_key=?",
-                (tx_key,),
-            ).fetchone()
-            if row and row[0] == "COMMITTED" and row[1]:
-                return dict(json.loads(row[1]))
-            if row and row[0] in _TERMINAL:
-                raise EffectTransactionError("TRANSACTION_TERMINAL")
+        row = self._read(tx_key)
+        if row and row.get("state") == "COMMITTED" and row.get("receipt"):
+            return dict(row["receipt"])
+        if row and row.get("state") in _TERMINAL:
+            raise EffectTransactionError("TRANSACTION_TERMINAL")
 
         try:
             self.locks.acquire(
@@ -149,13 +166,18 @@ class PrismTransaction:
         receipt: dict[str, Any] | None,
     ) -> None:
         tx_key = self._tx_key(envelope)
-        encoded = json.dumps(receipt, sort_keys=True, separators=(",", ":")) if receipt else None
-        with self._db() as database:
-            database.execute("BEGIN IMMEDIATE")
-            database.execute(
-                "INSERT INTO prism_tx(tx_key,envelope_hash,state,receipt) VALUES(?,?,?,?) "
-                "ON CONFLICT(tx_key) DO UPDATE SET state=excluded.state, "
-                "receipt=COALESCE(excluded.receipt, prism_tx.receipt)",
-                (tx_key, envelope.envelope_hash(), state, encoded),
-            )
-            database.execute("COMMIT")
+        lock = acquire_lock_at(str(self._lock_path(tx_key)), operation="prism-transaction")
+        if lock is None:
+            raise EffectTransactionError("RECOVERY_REQUIRED")
+        try:
+            row = self._read(tx_key) or {
+                "tx_key": tx_key,
+                "envelope_hash": envelope.envelope_hash(),
+                "receipt": None,
+            }
+            row["state"] = state
+            if receipt is not None:
+                row["receipt"] = receipt
+            self._write(tx_key, row)
+        finally:
+            release_lock_at(lock)

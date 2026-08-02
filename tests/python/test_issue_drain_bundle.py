@@ -191,6 +191,8 @@ def test_prism_envelope_and_transaction_exactly_once(tmp_path):
     assert first == second
     assert calls == ["checkpoint", "apply", "verify"]
     assert first["prism_id"] == "P1"
+    assert not (tmp_path / ".simplicio" / "prism-transactions.sqlite3").exists()
+    assert list((tmp_path / ".simplicio" / "mapper-store" / "prism-transactions").glob("*.json"))
     receipt = build_effect_receipt(
         env,
         status="committed",

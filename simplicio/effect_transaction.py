@@ -58,7 +58,14 @@ class EffectTransaction:
         with temporary.open("r+b") as handle:
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, target)
+        for attempt in range(5):
+            try:
+                os.replace(temporary, target)
+                break
+            except PermissionError:
+                if attempt == 4:
+                    raise
+                time.sleep(0.02 * (attempt + 1))
 
     def _locked(self, key: str):
         lock = acquire_lock_at(str(self._lock_path(key)), operation="effect-transaction")

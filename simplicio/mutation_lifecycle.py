@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from typing import Any
+
+from simplicio_mapper.mapper.file_lock import release_lock_at
 
 from .mutation_worker import RECEIPT, MutationBlocked, MutationWorker, digest
 
@@ -43,16 +44,15 @@ def verify_receipt(receipt: dict[str, Any]) -> bool:
 
 
 def recover(worker: MutationWorker, key: str, observer: Callable[[], dict[str, Any]]) -> dict[str, Any]:
-    with worker._db() as db:
-        row = db.execute("SELECT plan_hash,state,receipt FROM mutations WHERE key=?", (key,)).fetchone()
-    if not row or row[1] not in {"RESERVED", "UNCERTAIN"}:
+    row = worker._read(key)
+    if not row or row.get("state") not in {"RESERVED", "UNCERTAIN"}:
         raise MutationBlocked("RECOVERY_NOT_REQUIRED")
     observed = observer()
     if observed.get("status") == "committed":
         receipt = {
             "schema": RECEIPT,
             "plan_id": observed["plan_id"],
-            "plan_hash": row[0],
+            "plan_hash": row["plan_hash"],
             "idempotency_key": key,
             "before_hash": observed["before_hash"],
             "after_hash": observed["after_hash"],
@@ -60,11 +60,13 @@ def recover(worker: MutationWorker, key: str, observer: Callable[[], dict[str, A
             "operations": observed.get("operations", []),
         }
         receipt["receipt_hash"] = digest(receipt)
-        with worker._db() as db:
-            db.execute(
-                "UPDATE mutations SET state='VERIFIED',receipt=? WHERE key=?",
-                (json.dumps(receipt, sort_keys=True), key),
-            )
+        lock = worker._locked(key)
+        try:
+            current = worker._read(key) or {"key": key, "plan_hash": row["plan_hash"]}
+            current.update({"state": "VERIFIED", "receipt": receipt})
+            worker._write(key, current)
+        finally:
+            release_lock_at(lock)
         return receipt
     raise MutationBlocked("RECOVERY_OBSERVATION_INSUFFICIENT")
 
@@ -72,11 +74,10 @@ def recover(worker: MutationWorker, key: str, observer: Callable[[], dict[str, A
 def rollback(
     worker: MutationWorker, key: str, restorer: Callable[[dict[str, Any]], dict[str, Any]]
 ) -> dict[str, Any]:
-    with worker._db() as db:
-        row = db.execute("SELECT state,receipt FROM mutations WHERE key=?", (key,)).fetchone()
-    if not row or row[0] not in {"VERIFIED", "UNCERTAIN"}:
+    row = worker._read(key)
+    if not row or row.get("state") not in {"VERIFIED", "UNCERTAIN"}:
         raise MutationBlocked("ROLLBACK_NOT_ALLOWED")
-    prior = json.loads(row[1]) if row[1] else {}
+    prior = row.get("receipt") or {}
     result = restorer(prior)
     if result.get("status") != "restored":
         raise MutationBlocked("ROLLBACK_UNVERIFIED")
@@ -88,9 +89,11 @@ def rollback(
         "status": "restored",
     }
     receipt["receipt_hash"] = digest(receipt)
-    with worker._db() as db:
-        db.execute(
-            "UPDATE mutations SET state='ROLLED_BACK',receipt=? WHERE key=?",
-            (json.dumps(receipt, sort_keys=True), key),
-        )
+    lock = worker._locked(key)
+    try:
+        current = worker._read(key) or {"key": key, "plan_hash": row.get("plan_hash", "")}
+        current.update({"state": "ROLLED_BACK", "receipt": receipt})
+        worker._write(key, current)
+    finally:
+        release_lock_at(lock)
     return receipt
