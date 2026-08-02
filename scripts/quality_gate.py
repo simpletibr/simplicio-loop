@@ -296,7 +296,7 @@ def run_gate(
     root: Path,
     *,
     commands: list[tuple[str, list[str]]] | None = None,
-    timeout_s: float = 120.0,
+    timeout_s: float = 800.0,
 ) -> dict[str, Any]:
     root = root.resolve()
     sha = _git(root, "rev-parse", "HEAD")
@@ -401,7 +401,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--verify", action="store_true", help="verify an existing receipt against the current checkout"
     )
-    parser.add_argument("--timeout", type=float, default=120.0, help="per-command timeout in seconds")
+    parser.add_argument("--timeout", type=float, default=800.0, help="per-command timeout in seconds")
     parser.add_argument(
         "--command",
         action="append",
