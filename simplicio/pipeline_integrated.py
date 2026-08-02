@@ -224,6 +224,115 @@ def _proposal_envelope(prepared: PreparedIntegratedWorkItem, proposal: ChangePro
     }
 
 
+def _validated_context_pack_hash(binding, context_pack_hash):
+    canonical_pack_hash = str(getattr(getattr(binding, "pack", None), "pack_hash", "") or "")
+    supplied_pack_hash = None if context_pack_hash is None else str(context_pack_hash).strip()
+    if supplied_pack_hash is not None and supplied_pack_hash != canonical_pack_hash:
+        raise IntegratedPreparationError(
+            "CONTEXT_PACK_HASH_MISMATCH",
+            "supplied context_pack_hash does not match the canonical Mapper ContextPack",
+        )
+    return supplied_pack_hash
+
+
+def _build_integrated_effect_dispatch(
+    *,
+    plan,
+    effects,
+    verifications,
+    coordinator_kind,
+    attempt,
+    session_id,
+    turn_id,
+    attempt_number,
+    subworkflow_id,
+    deadline,
+    policy_revision,
+    base_hash,
+    task_spec,
+    context_handle,
+    authorization,
+):
+    if len(effects) != 1:
+        raise IntegratedPreparationError(
+            "MULTI_EFFECT", "proposal-only dispatch requires exactly one EffectPlan"
+        )
+    effect = effects[0]
+    nodes = [node for node in plan.nodes if node.node_id == effect.plan_node_id]
+    if len(nodes) != 1:
+        raise IntegratedPreparationError("EFFECT_PLAN_NODE_INVALID", "effect must bind exactly one PlanNode")
+    node = nodes[0]
+    _validate_write_set(node.write_set)
+    dispatch = EffectDispatchContext(
+        plan_id=plan.plan_id,
+        goal_id=plan.goal_id,
+        plan_node=node,
+        verifications=[item for item in verifications if item.plan_node_id == node.node_id],
+        coordinator_kind=coordinator_kind,
+        coordinator_id=attempt.attempt_id,
+        session_id=session_id,
+        turn_id=turn_id,
+        attempt=attempt_number,
+        subworkflow_id=subworkflow_id,
+        deadline=deadline,
+        policy_revision=policy_revision,
+        base_hash=base_hash,
+        source_hash=task_spec.source_hash,
+        context_handle=context_handle,
+        lease_id=attempt.lease_id,
+        fencing_token=attempt.fencing_token,
+        authorization=authorization,
+        plan=plan,
+    )
+    try:
+        build_change_proposal(effect, dispatch)
+    except AuthorizationError as exc:
+        raise IntegratedPreparationError(exc.code, str(exc)) from exc
+    return effect, dispatch
+
+
+def _bind_integrated_context(
+    *,
+    root: str,
+    context_snapshot: dict[str, Any],
+    context_pack: dict[str, Any],
+    execution_context: dict[str, Any] | None,
+    context_refresh: bool,
+    context_pack_hash: str | None,
+    attempt: AttemptContext,
+):
+    binding = bind_mapper_context(
+        context_snapshot, context_pack, source_root=root, execution_context_payload=execution_context
+    )
+    bind_verification_metrics = {
+        "files_considered": 0,
+        "files_hashed": 0,
+        "bytes_read": 0,
+        "generation": str(
+            getattr(
+                binding.context_handle,
+                "generation",
+                getattr(getattr(binding.snapshot, "view", None), "revision", ""),
+            )
+        ),
+        "paths_requested": [],
+        "engine": "deferred-causal",
+        "fallback_reason": "causal_verification_deferred",
+    }
+    _validated_context_pack_hash(binding, context_pack_hash)
+    context_snapshot_id = binding.snapshot.view.snapshot_id
+    revision = binding.snapshot.view.revision
+    context_handle = binding.context_handle.value
+    if attempt.context_handle != context_handle:
+        raise IntegratedPreparationError(
+            "CONTEXT_HANDLE_MISMATCH",
+            "attempt context_handle must match the snapshot/projection digest binding",
+        )
+    cache = ContextBindingCache(root)
+    cache_receipt = cache.refresh(binding) if context_refresh else cache.lookup(binding.context_handle)
+    return binding, bind_verification_metrics, context_snapshot_id, revision, context_handle, cache_receipt
+
+
 def prepare_integrated_work_item(
     root: str,
     stack: str,
@@ -280,45 +389,23 @@ def prepare_integrated_work_item(
         raise IntegratedPreparationError("CONTEXT_REQUIRED", "canonical Mapper ContextSnapshot is required")
     if context_pack is None:
         raise IntegratedPreparationError("CONTEXT_PACK_REQUIRED", "Mapper ContextPack is required")
-    binding = bind_mapper_context(
-        context_snapshot, context_pack, source_root=root, execution_context_payload=execution_context
+    (
+        binding,
+        bind_verification_metrics,
+        context_snapshot_id,
+        revision,
+        context_handle,
+        cache_receipt,
+    ) = _bind_integrated_context(
+        root=root,
+        context_snapshot=context_snapshot,
+        context_pack=context_pack,
+        execution_context=execution_context,
+        context_refresh=context_refresh,
+        context_pack_hash=context_pack_hash,
+        attempt=attempt,
     )
-    # Do not hash the complete ContextPack here. The plan below determines the
-    # causal read/write set; verification is performed once, immediately
-    # before effect dispatch, against that set. Keeping an explicit receipt
-    # entry preserves observability without paying for a redundant full scan.
-    bind_verification_metrics = {
-        "files_considered": 0,
-        "files_hashed": 0,
-        "bytes_read": 0,
-        "generation": str(
-            getattr(
-                binding.context_handle,
-                "generation",
-                getattr(getattr(binding.snapshot, "view", None), "revision", ""),
-            )
-        ),
-        "paths_requested": [],
-        "engine": "deferred-causal",
-        "fallback_reason": "causal_verification_deferred",
-    }
-    canonical_pack_hash = str(getattr(getattr(binding, "pack", None), "pack_hash", "") or "")
-    supplied_pack_hash = None if context_pack_hash is None else str(context_pack_hash).strip()
-    if supplied_pack_hash is not None and supplied_pack_hash != canonical_pack_hash:
-        raise IntegratedPreparationError(
-            "CONTEXT_PACK_HASH_MISMATCH",
-            "supplied context_pack_hash does not match the canonical Mapper ContextPack",
-        )
-    context_snapshot_id = binding.snapshot.view.snapshot_id
-    revision = binding.snapshot.view.revision
-    context_handle = binding.context_handle.value
-    if attempt.context_handle != context_handle:
-        raise IntegratedPreparationError(
-            "CONTEXT_HANDLE_MISMATCH",
-            "attempt context_handle must match the snapshot/projection digest binding",
-        )
-    cache = ContextBindingCache(root)
-    cache_receipt = cache.refresh(binding) if context_refresh else cache.lookup(binding.context_handle)
+    supplied_pack_hash = _validated_context_pack_hash(binding, context_pack_hash)
     goal_material = task_spec.canonical_hash() if typed_input else goal
     goal_id = f"goal-{hashlib.sha256(goal_material.encode('utf-8')).hexdigest()[:16]}"
     plan, effects, verifications = compile_task_spec_to_plan(
@@ -352,41 +439,23 @@ def prepare_integrated_work_item(
             "CONTEXT_PACK_HASH_MISMATCH",
             "supplied context_pack_hash does not match the canonical Mapper ContextPack",
         )
-    if len(effects) != 1:
-        raise IntegratedPreparationError(
-            "MULTI_EFFECT", "proposal-only dispatch requires exactly one EffectPlan"
-        )
-    effect = effects[0]
-    nodes = [node for node in plan.nodes if node.node_id == effect.plan_node_id]
-    if len(nodes) != 1:
-        raise IntegratedPreparationError("EFFECT_PLAN_NODE_INVALID", "effect must bind exactly one PlanNode")
-    node = nodes[0]
-    _validate_write_set(node.write_set)
-    dispatch = EffectDispatchContext(
-        plan_id=plan.plan_id,
-        goal_id=plan.goal_id,
-        plan_node=node,
-        verifications=[item for item in verifications if item.plan_node_id == node.node_id],
+    effect, dispatch = _build_integrated_effect_dispatch(
+        plan=plan,
+        effects=effects,
+        verifications=verifications,
         coordinator_kind=coordinator_kind,
-        coordinator_id=attempt.attempt_id,
+        attempt=attempt,
         session_id=session_id,
         turn_id=turn_id,
-        attempt=attempt_number,
+        attempt_number=attempt_number,
         subworkflow_id=subworkflow_id,
         deadline=deadline,
         policy_revision=policy_revision,
         base_hash=base_hash,
-        source_hash=task_spec.source_hash,
+        task_spec=task_spec,
         context_handle=context_handle,
-        lease_id=attempt.lease_id,
-        fencing_token=attempt.fencing_token,
         authorization=authorization,
-        plan=plan,
     )
-    try:
-        build_change_proposal(effect, dispatch)
-    except AuthorizationError as exc:
-        raise IntegratedPreparationError(exc.code, str(exc)) from exc
     return PreparedIntegratedWorkItem(
         plan,
         effect,
