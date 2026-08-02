@@ -24,5 +24,7 @@ def test_issue_414_benchmark_schema_has_all_sizes_and_lanes():
     assert report["schema"] == "simplicio.dev-cli.issue-414-binary-benchmark/v1"
     assert report["sizes"] == [1, 20, 200]
     assert {(row["size"], row["lane"]) for row in report["rows"]} == {
-        (size, lane) for size in (1, 20, 200) for lane in ("json_legacy_adapter", "binary_fast_adapter")
+        (size, lane)
+        for size in (1, 20, 200)
+        for lane in ("json_legacy_adapter", "binary_fast_adapter", "binary_fast_rust_adapter")
     }
