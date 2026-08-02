@@ -91,6 +91,10 @@ DEFAULT_COMMANDS = (
         "wheel-and-installed-smoke",
         [sys.executable, "scripts/quality_gate_wheel.py", "--root", "."],
     ),
+    (
+        "mapper-installed-matrix",
+        [sys.executable, "scripts/quality_gate_mapper_matrix.py", "--root", "."],
+    ),
     ("cli-help", [sys.executable, "-m", "simplicio.cli", "--help"]),
     ("changeset-help", [sys.executable, "-m", "simplicio.cli", "changeset", "--help"]),
 )
