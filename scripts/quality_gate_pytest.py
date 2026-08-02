@@ -59,6 +59,7 @@ def main(argv: list[str] | None = None) -> int:
                 [
                     "--ignore=tests/contracts/test_real_cli_mapper_e2e.py",
                     "--ignore=tests/contracts/test_real_cli_project_scenarios_e2e.py",
+                    "--ignore=tests/python/test_issue_419_cli_binary_e2e.py",
                 ]
             )
         return subprocess.run(command, cwd=root, check=False).returncode

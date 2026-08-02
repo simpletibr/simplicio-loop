@@ -24,7 +24,13 @@ def test_issue_416_benchmark_reports_real_direct_and_transaction_lanes():
     assert report["schema"] == "simplicio.dev-cli.issue-416-transaction-benchmark/v1"
     assert report["sizes"] == [1, 20, 200]
     measured = [row for row in report["rows"] if row["status"] == "PASS"]
-    assert len(measured) == 6
+    assert len(measured) == 9
+    assert {row["lane"] for row in measured} == {
+        "direct_mechanical",
+        "python_transaction",
+        "fast_python_apply",
+    }
     assert all(row["repeats"] == 10 and row["p50_ms"] > 0 and row["p95_ms"] > 0 for row in measured)
     unavailable = [row for row in report["rows"] if row["status"] == "UNAVAILABLE"]
-    assert len(unavailable) == 6
+    assert len(unavailable) == 3
+    assert {row["lane"] for row in unavailable} == {"fast_rust_apply"}

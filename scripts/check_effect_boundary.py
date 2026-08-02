@@ -10,11 +10,13 @@ import json
 from collections import Counter
 from pathlib import Path
 
-# Reviewed 2026-08-02 at origin/main 88f438c: the inventory includes the
+# Reviewed 2026-08-02 at origin/main a7a15d0: the inventory includes the
 # controlled checkpoint, transaction, verification, write-set, causal-path,
 # native Fast, Mapper-delta, context-cache writer-lock, and MapperStore route
-# primitives already merged before this baseline.
-BASELINE_SHA256 = "26edf9daa45e50c0696a367034e901aa90cfef87160975474294037b8d63c5e8"
+# primitives already merged before this baseline. The changeset refresh
+# producer is an explicit external Mapper boundary; its string normalization
+# and subprocess invocation are not final source mutation.
+BASELINE_SHA256 = "95de89592ff7529d588df9e696994b4b9c0e52e5763771473854e3ed3ab3dffc"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",
