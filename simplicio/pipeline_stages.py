@@ -683,6 +683,124 @@ def _copy_transaction_workspace(root: str, candidate: Path) -> None:
             shutil.copy2(item, destination)
 
 
+def _apply_patch_to_transaction(
+    root,
+    output,
+    bound_paths,
+    candidate,
+    patch,
+    changed_files,
+    patch_receipt,
+    git_apply_patch_fn,
+    begin_transaction_fn,
+    simplicio_dir,
+):
+    tx = begin_transaction_fn(root, dirty_policy="preserve")
+    _copy_transaction_workspace(root, tx.candidate)
+    applied, apply_log = git_apply_patch_fn(str(tx.candidate), patch)
+    if not applied and candidate.strategy == "unified_diff":
+        target = _single_bound_path(bound_paths)
+        content = _extract_full_file_artifact(output or "", target or "") if target else ""
+        fallback_patch = _diff_for_full_file(str(tx.candidate), target, content) if target and content else ""
+        if fallback_patch:
+            fallback_applied, fallback_log = git_apply_patch_fn(str(tx.candidate), fallback_patch)
+            if fallback_applied:
+                candidate = PatchCandidate(fallback_patch, "full_file_after_patch_failure")
+                patch = fallback_patch
+                changed_files = extract_changed_files(patch)
+                patch_receipt = _patch_receipt(candidate, changed_files)
+                applied = True
+                apply_log = ""
+                (simplicio_dir / "last_patch.diff").write_text(patch, encoding="utf-8")
+                (simplicio_dir / "last_patch_strategy.txt").write_text(
+                    candidate.strategy + "\n", encoding="utf-8"
+                )
+            else:
+                apply_log = apply_log + "\nfull-file fallback failed:\n" + fallback_log
+    return tx, candidate, patch, changed_files, patch_receipt, applied, apply_log
+
+
+def _verify_apply_transaction(
+    tx,
+    cmd,
+    prepare_project_command_fn,
+    changed_files,
+    patch_receipt,
+    promote_on_success,
+):
+    assert cmd is not None
+    prepared, use_shell = prepare_project_command_fn(str(tx.candidate), cmd)
+    verify_cmd = " ".join(prepared) if isinstance(prepared, list) else str(prepared)
+    try:
+        proc = subprocess.run(
+            prepared,
+            shell=use_shell,
+            cwd=str(tx.candidate),
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            timeout=_verification_timeout_seconds(),
+        )
+        output_tail = (proc.stdout + proc.stderr)[-2000:]
+        receipt = tx.receipt(
+            changed_files,
+            commands=[verify_cmd],
+            exit_codes=[proc.returncode],
+            stdout=proc.stdout,
+            stderr=proc.stderr,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = (
+            exc.output
+            if isinstance(exc.output, str)
+            else (exc.output or b"").decode("utf-8", errors="replace")
+        )
+        stderr = (
+            exc.stderr
+            if isinstance(exc.stderr, str)
+            else (exc.stderr or b"").decode("utf-8", errors="replace")
+        )
+        receipt = tx.receipt(
+            changed_files,
+            commands=[verify_cmd],
+            exit_codes=[124],
+            stdout=stdout,
+            stderr=stderr or f"timed out after {exc.timeout}s",
+        )
+        return ApplyStageResult(
+            False,
+            f"verification timed out after {exc.timeout}s",
+            receipt.to_dict(),
+            patch_receipt,
+            tx=tx,
+            receipt=receipt,
+            changed_files=changed_files,
+        )
+
+    if proc.returncode != 0:
+        return ApplyStageResult(
+            False,
+            output_tail,
+            receipt.to_dict(),
+            patch_receipt,
+            tx=tx,
+            receipt=receipt,
+            changed_files=changed_files,
+        )
+
+    if promote_on_success:
+        tx.promote(receipt)
+    return ApplyStageResult(
+        True,
+        output_tail,
+        receipt.to_dict(),
+        patch_receipt,
+        tx=tx,
+        receipt=receipt,
+        changed_files=changed_files,
+    )
+
+
 def run_apply_stage(
     output,
     root,
@@ -755,28 +873,26 @@ def run_apply_stage(
     (simplicio_dir / "last_patch.diff").write_text(patch, encoding="utf-8")
     (simplicio_dir / "last_patch_strategy.txt").write_text(candidate.strategy + "\n", encoding="utf-8")
 
-    tx = begin_transaction_fn(root, dirty_policy="preserve")
-    _copy_transaction_workspace(root, tx.candidate)
-    applied, apply_log = git_apply_patch_fn(str(tx.candidate), patch)
-    if not applied and candidate.strategy == "unified_diff":
-        target = _single_bound_path(bound_paths)
-        content = _extract_full_file_artifact(output or "", target or "") if target else ""
-        fallback_patch = _diff_for_full_file(str(tx.candidate), target, content) if target and content else ""
-        if fallback_patch:
-            fallback_applied, fallback_log = git_apply_patch_fn(str(tx.candidate), fallback_patch)
-            if fallback_applied:
-                candidate = PatchCandidate(fallback_patch, "full_file_after_patch_failure")
-                patch = fallback_patch
-                changed_files = extract_changed_files(patch)
-                patch_receipt = _patch_receipt(candidate, changed_files)
-                applied = True
-                apply_log = ""
-                (simplicio_dir / "last_patch.diff").write_text(patch, encoding="utf-8")
-                (simplicio_dir / "last_patch_strategy.txt").write_text(
-                    candidate.strategy + "\n", encoding="utf-8"
-                )
-            else:
-                apply_log = apply_log + "\nfull-file fallback failed:\n" + fallback_log
+    (
+        tx,
+        candidate,
+        patch,
+        changed_files,
+        patch_receipt,
+        applied,
+        apply_log,
+    ) = _apply_patch_to_transaction(
+        root,
+        output,
+        bound_paths,
+        candidate,
+        patch,
+        changed_files,
+        patch_receipt,
+        git_apply_patch_fn,
+        begin_transaction_fn,
+        simplicio_dir,
+    )
     if not applied:
         receipt = tx.receipt(
             changed_files,
@@ -795,74 +911,11 @@ def run_apply_stage(
             changed_files=changed_files,
         )
 
-    assert cmd is not None
-    prepared, use_shell = prepare_project_command_fn(str(tx.candidate), cmd)
-    verify_cmd = " ".join(prepared) if isinstance(prepared, list) else str(prepared)
-    try:
-        proc = subprocess.run(
-            prepared,
-            shell=use_shell,
-            cwd=str(tx.candidate),
-            stdin=subprocess.DEVNULL,
-            capture_output=True,
-            text=True,
-            timeout=_verification_timeout_seconds(),
-        )
-        output_tail = (proc.stdout + proc.stderr)[-2000:]
-        receipt = tx.receipt(
-            changed_files,
-            commands=[verify_cmd],
-            exit_codes=[proc.returncode],
-            stdout=proc.stdout,
-            stderr=proc.stderr,
-        )
-    except subprocess.TimeoutExpired as exc:
-        stdout = (
-            exc.output
-            if isinstance(exc.output, str)
-            else (exc.output or b"").decode("utf-8", errors="replace")
-        )
-        stderr = (
-            exc.stderr
-            if isinstance(exc.stderr, str)
-            else (exc.stderr or b"").decode("utf-8", errors="replace")
-        )
-        receipt = tx.receipt(
-            changed_files,
-            commands=[verify_cmd],
-            exit_codes=[124],
-            stdout=stdout,
-            stderr=stderr or f"timed out after {exc.timeout}s",
-        )
-        return ApplyStageResult(
-            False,
-            f"verification timed out after {exc.timeout}s",
-            receipt.to_dict(),
-            patch_receipt,
-            tx=tx,
-            receipt=receipt,
-            changed_files=changed_files,
-        )
-
-    if proc.returncode != 0:
-        return ApplyStageResult(
-            False,
-            output_tail,
-            receipt.to_dict(),
-            patch_receipt,
-            tx=tx,
-            receipt=receipt,
-            changed_files=changed_files,
-        )
-
-    if promote_on_success:
-        tx.promote(receipt)
-    return ApplyStageResult(
-        True,
-        output_tail,
-        receipt.to_dict(),
+    return _verify_apply_transaction(
+        tx,
+        cmd,
+        prepare_project_command_fn,
+        changed_files,
         patch_receipt,
-        tx=tx,
-        receipt=receipt,
-        changed_files=changed_files,
+        promote_on_success,
     )
