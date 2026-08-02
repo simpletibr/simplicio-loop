@@ -344,6 +344,7 @@ def test_binary_adapter_refreshes_only_changed_paths_after_commit(monkeypatch, t
         def decode_binary(self, _payload):
             return {
                 "repository": str(tmp_path.resolve()),
+                "changeset_id": "binary-cs-416",
                 "base_generation": "base",
                 "overlay_generation": "overlay",
                 "attempt": "attempt",
@@ -376,6 +377,16 @@ def test_binary_adapter_refreshes_only_changed_paths_after_commit(monkeypatch, t
     assert receipt["status"] == "ok"
     assert receipt["fast_identity"]["attempt"] == "attempt"
     assert receipt["fast_identity"]["worktree_id"] == "worktree"
+    assert receipt["transaction"]["causal_ids"] == {
+        "changeset_id": "binary-cs-416",
+        "generation": "base",
+        "base_generation": "base",
+        "overlay_generation": "overlay",
+        "attempt": "attempt",
+        "worktree_id": "worktree",
+        "lease_id": "lease",
+        "fencing_token": "fence",
+    }
     assert receipt["refresh"] == {
         "status": "refreshed",
         "paths": ["a.txt"],
