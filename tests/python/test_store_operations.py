@@ -39,6 +39,37 @@ def test_initialize_capabilities_and_status_contract(tmp_path: Path) -> None:
     assert store.capabilities()["capabilities"]["fencing"] is True
 
 
+def test_agent_slots_use_operations_store_capacity_and_receipts(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    assert store.configure_agent_slots(1)["capacity"] == 1
+    acquired = store.agent_slot_acquire("agent-a", worktree="wt-a", lease_id="lease-a")
+    assert acquired["accepted"] is True
+    assert acquired["reason_code"] == "slot_acquired"
+    assert store.agent_slot_acquire("agent-b")["reason_code"] == "slot_capacity_exhausted"
+    assert store.agent_slot_transition("agent-a", "running")["accepted"] is True
+    assert store.agent_slot_update_blockers("agent-a", lease_active=True)["accepted"] is True
+    completed = store.agent_slot_transition("agent-a", "completed", reason="done")
+    assert completed["accepted"] is True
+    assert completed["active_slots"] == 0
+    blocked = store.agent_slot_reclaim("agent-a")
+    assert blocked["accepted"] is False
+    assert blocked["reason_code"] == "reclaim_blocked"
+    assert store.agent_slot_update_blockers("agent-a")["accepted"] is True
+    assert store.agent_slot_reclaim("agent-a")["accepted"] is True
+    status = store.agent_slot_status()
+    assert status["capacity"] == 1
+    assert status["records"][0]["agent_id"] == "agent-a"
+    assert status["records"][0]["reclaimable"] is True
+
+
+def test_agent_slots_are_not_created_by_read_only_store(tmp_path: Path) -> None:
+    database = tmp_path / "operations.sqlite"
+    store = OperationsStore(database, auto_create=False)
+    with pytest.raises(OperationsStoreError, match="STORE_NOT_INITIALIZED"):
+        store.agent_slot_status()
+    assert not database.exists()
+
+
 def test_enqueue_is_idempotent_and_conflict_is_fail_closed(tmp_path: Path) -> None:
     store = _store(tmp_path)
     first = store.enqueue("task", {"x": 1}, idempotency_key="same")

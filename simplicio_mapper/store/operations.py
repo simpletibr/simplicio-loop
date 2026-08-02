@@ -26,6 +26,11 @@ OPERATIONS_SCHEMA = "simplicio.mapper-store.operations/v1"
 OPERATIONS_API_SCHEMA = "simplicio.mapper-store.operations-api/v1"
 _GENESIS = "GENESIS"
 _MAX_JSON_CHARS = 200_000
+_AGENT_SLOT_SCHEMA = "simplicio.mapper-store.agent-slots/v1"
+_AGENT_SLOT_RECEIPT_SCHEMA = "simplicio.mapper-store.agent-slot-receipt/v1"
+_AGENT_SLOT_STATES = ("pending", "running", "completed", "shutdown", "reclaimable")
+_AGENT_SLOT_ACTIVE = frozenset(("pending", "running"))
+_AGENT_SLOT_TERMINAL = frozenset(("completed", "shutdown"))
 
 
 class OperationsStoreError(StoreError):
@@ -146,6 +151,21 @@ class OperationsStore:
                 )"""
             )
             tx.execute(
+                """CREATE TABLE IF NOT EXISTS ops_agent_slots (
+                    agent_id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL CHECK(status IN ('pending','running','completed','shutdown','reclaimable')),
+                    attempt INTEGER NOT NULL CHECK(attempt > 0),
+                    worktree TEXT,
+                    lease_id TEXT,
+                    descendants INTEGER NOT NULL CHECK(descendants >= 0),
+                    worktree_active INTEGER NOT NULL CHECK(worktree_active IN (0,1)),
+                    lease_active INTEGER NOT NULL CHECK(lease_active IN (0,1)),
+                    reason TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )"""
+            )
+            tx.execute(
                 """CREATE TABLE IF NOT EXISTS ops_checkpoints (
                     attempt_id TEXT PRIMARY KEY REFERENCES ops_attempts(attempt_id),
                     cursor INTEGER NOT NULL CHECK(cursor >= 0),
@@ -196,6 +216,9 @@ class OperationsStore:
             tx.execute(
                 "INSERT OR IGNORE INTO ops_slots(slot_id, capacity, updated_at) VALUES ('default', 1, ?)",
                 (_now(),),
+            )
+            tx.execute(
+                "INSERT OR IGNORE INTO operations_meta(key, value) VALUES ('agent_slot_capacity', '6')"
             )
 
     def initialize(self) -> dict[str, Any]:
@@ -308,6 +331,220 @@ class OperationsStore:
             "slot_id": slot_id,
             "capacity": capacity,
         }
+
+    @staticmethod
+    def _agent_id(agent_id: str) -> str:
+        if not isinstance(agent_id, str) or not agent_id or agent_id != agent_id.strip() or len(agent_id) > 256:
+            raise OperationsStoreError("AGENT_ID_INVALID")
+        if any(ord(char) < 32 or ord(char) == 127 for char in agent_id):
+            raise OperationsStoreError("AGENT_ID_INVALID")
+        return agent_id
+
+    @staticmethod
+    def _agent_record(row: Any) -> dict[str, Any]:
+        columns = ("agent_id", "status", "attempt", "worktree", "lease_id", "descendants",
+                   "worktree_active", "lease_active", "reason", "created_at", "updated_at")
+        record = dict(zip(columns, tuple(row)))
+        for key in ("descendants", "attempt"):
+            record[key] = int(record[key])
+        for key in ("worktree_active", "lease_active"):
+            record[key] = bool(record[key])
+        record["reclaimable"] = (
+            record["status"] in _AGENT_SLOT_TERMINAL | frozenset(("reclaimable",))
+            and not OperationsStore._agent_blockers(record)
+        )
+        return record
+
+    @staticmethod
+    def _agent_blockers(record: Mapping[str, Any]) -> list[str]:
+        blockers = []
+        if int(record.get("descendants", 0)) > 0:
+            blockers.append("descendants")
+        if bool(record.get("worktree_active", False)):
+            blockers.append("worktree")
+        if bool(record.get("lease_active", False)):
+            blockers.append("lease")
+        return blockers
+
+    @staticmethod
+    def _agent_capacity(tx: Any) -> int:
+        row = tx.execute("SELECT value FROM operations_meta WHERE key='agent_slot_capacity'").fetchone()
+        return int(row[0]) if row else 6
+
+    @classmethod
+    def _agent_snapshot(cls, tx: Any) -> dict[str, Any]:
+        rows = [cls._agent_record(row) for row in tx.execute("SELECT * FROM ops_agent_slots ORDER BY agent_id")]
+        counts = {state: 0 for state in _AGENT_SLOT_STATES}
+        for record in rows:
+            counts[record["status"]] += 1
+        counts["reclaimable"] = sum(1 for record in rows if record["reclaimable"])
+        active = sum(counts[state] for state in _AGENT_SLOT_ACTIVE)
+        diagnostics = [
+            {"agent_id": record["agent_id"], "status": record["status"], "blockers": cls._agent_blockers(record)}
+            for record in rows if cls._agent_blockers(record)
+        ]
+        capacity = cls._agent_capacity(tx)
+        return {
+            "schema": _AGENT_SLOT_SCHEMA,
+            "capacity": capacity,
+            "active_slots": active,
+            "available_slots": capacity - active,
+            "counts": counts,
+            "records": rows,
+            "diagnostics": diagnostics,
+            "capacity_holders": [record["agent_id"] for record in rows if record["status"] in _AGENT_SLOT_ACTIVE],
+            "local_llm": False,
+        }
+
+    @classmethod
+    def _agent_receipt(cls, operation: str, *, accepted: bool, reason_code: str,
+                       agent_id: str = "", status: str | None = None,
+                       attempt: int | None = None, diagnostics: Mapping[str, Any] | None = None,
+                       active_slots: int | None = None, capacity: int | None = None) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "schema": _AGENT_SLOT_RECEIPT_SCHEMA,
+            "contract": _AGENT_SLOT_SCHEMA,
+            "operation": operation,
+            "accepted": accepted,
+            "reason_code": reason_code,
+            "agent_id": agent_id,
+            "status": status,
+            "attempt": attempt,
+            "diagnostics": dict(diagnostics or {}),
+            "active_slots": active_slots,
+            "capacity": capacity,
+            "local_llm": False,
+        }
+        payload["receipt_hash"] = _sha(payload)
+        return payload
+
+    def configure_agent_slots(self, capacity: int) -> dict[str, Any]:
+        if not isinstance(capacity, int) or isinstance(capacity, bool) or capacity < 1:
+            raise OperationsStoreError("AGENT_SLOT_CAPACITY_INVALID")
+        with self._write_lock():
+            with self._open() as store:
+                self._ensure_ready(store)
+                with transaction(store, "IMMEDIATE") as tx:
+                    active = tx.execute(
+                        "SELECT COUNT(*) FROM ops_agent_slots WHERE status IN ('pending','running')"
+                    ).fetchone()[0]
+                    if int(active) > capacity:
+                        raise OperationsStoreError("AGENT_SLOT_CAPACITY_BELOW_ACTIVE")
+                    tx.execute(
+                        "INSERT INTO operations_meta(key,value) VALUES ('agent_slot_capacity',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                        (str(capacity),),
+                    )
+        return {"schema": _AGENT_SLOT_SCHEMA, "status": "configured", "capacity": capacity, "local_llm": False}
+
+    def agent_slot_status(self) -> dict[str, Any]:
+        if not self.database.is_file():
+            raise OperationsStoreError("STORE_NOT_INITIALIZED")
+        with self._open(read_only=True) as store:
+            self._read_ready(store)
+            return self._agent_snapshot(store)
+
+    def agent_slot_acquire(self, agent_id: str, *, worktree: str | None = None,
+                           lease_id: str | None = None) -> dict[str, Any]:
+        agent_id = self._agent_id(agent_id)
+        with self._write_lock():
+            with self._open() as store:
+                self._ensure_ready(store)
+                with transaction(store, "IMMEDIATE") as tx:
+                    existing = tx.execute("SELECT * FROM ops_agent_slots WHERE agent_id=?", (agent_id,)).fetchone()
+                    snapshot = self._agent_snapshot(tx)
+                    if existing:
+                        record = self._agent_record(existing)
+                        return self._agent_receipt("acquire", accepted=False, reason_code="duplicate_agent",
+                                                   agent_id=agent_id, status=record["status"], attempt=record["attempt"],
+                                                   diagnostics={"existing": record, "snapshot": snapshot},
+                                                   active_slots=snapshot["active_slots"], capacity=snapshot["capacity"])
+                    if snapshot["active_slots"] >= snapshot["capacity"]:
+                        return self._agent_receipt("acquire", accepted=False, reason_code="slot_capacity_exhausted",
+                                                   agent_id=agent_id, diagnostics={"snapshot": snapshot},
+                                                   active_slots=snapshot["active_slots"], capacity=snapshot["capacity"])
+                    now = _now()
+                    tx.execute(
+                        "INSERT INTO ops_agent_slots(agent_id,status,attempt,worktree,lease_id,descendants,worktree_active,lease_active,reason,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                        (agent_id, "pending", 1, worktree, lease_id, 0, 0, 0, None, now, now),
+                    )
+                    return self._agent_receipt("acquire", accepted=True, reason_code="slot_acquired",
+                                               agent_id=agent_id, status="pending", attempt=1,
+                                               active_slots=snapshot["active_slots"] + 1, capacity=snapshot["capacity"])
+
+    def agent_slot_transition(self, agent_id: str, target: str, *, reason: str = "") -> dict[str, Any]:
+        agent_id = self._agent_id(agent_id)
+        if target not in _AGENT_SLOT_STATES or target == "reclaimable":
+            raise OperationsStoreError("AGENT_SLOT_TRANSITION_INVALID")
+        with self._write_lock():
+            with self._open() as store:
+                self._ensure_ready(store)
+                with transaction(store, "IMMEDIATE") as tx:
+                    row = tx.execute("SELECT * FROM ops_agent_slots WHERE agent_id=?", (agent_id,)).fetchone()
+                    if not row:
+                        return self._agent_receipt("transition", accepted=False, reason_code="unknown_agent", agent_id=agent_id)
+                    record = self._agent_record(row)
+                    snapshot = self._agent_snapshot(tx)
+                    if record["status"] == target:
+                        return self._agent_receipt("transition", accepted=False, reason_code="idempotent", agent_id=agent_id,
+                                                   status=target, attempt=record["attempt"], active_slots=snapshot["active_slots"], capacity=snapshot["capacity"])
+                    allowed = (record["status"] == "pending" and target == "running") or (
+                        record["status"] in _AGENT_SLOT_ACTIVE and target in _AGENT_SLOT_TERMINAL
+                    )
+                    if not allowed:
+                        return self._agent_receipt("transition", accepted=False, reason_code="invalid_transition",
+                                                   agent_id=agent_id, status=record["status"], attempt=record["attempt"],
+                                                   diagnostics={"target": target}, active_slots=snapshot["active_slots"], capacity=snapshot["capacity"])
+                    tx.execute("UPDATE ops_agent_slots SET status=?,reason=?,updated_at=? WHERE agent_id=?",
+                               (target, reason or "agent_terminal", _now(), agent_id))
+                    updated = self._agent_snapshot(tx)
+                    return self._agent_receipt("transition", accepted=True, reason_code=reason or "agent_terminal",
+                                               agent_id=agent_id, status=target, attempt=record["attempt"],
+                                               active_slots=updated["active_slots"], capacity=updated["capacity"],
+                                               diagnostics={"capacity_released": target in _AGENT_SLOT_TERMINAL})
+
+    def agent_slot_update_blockers(self, agent_id: str, *, descendants: int = 0,
+                                   worktree_active: bool = False, lease_active: bool = False) -> dict[str, Any]:
+        agent_id = self._agent_id(agent_id)
+        if not isinstance(descendants, int) or isinstance(descendants, bool) or descendants < 0:
+            raise OperationsStoreError("AGENT_SLOT_BLOCKERS_INVALID")
+        if not isinstance(worktree_active, bool) or not isinstance(lease_active, bool):
+            raise OperationsStoreError("AGENT_SLOT_BLOCKERS_INVALID")
+        with self._write_lock():
+            with self._open() as store:
+                self._ensure_ready(store)
+                with transaction(store, "IMMEDIATE") as tx:
+                    row = tx.execute("SELECT * FROM ops_agent_slots WHERE agent_id=?", (agent_id,)).fetchone()
+                    if not row:
+                        return self._agent_receipt("update_blockers", accepted=False, reason_code="unknown_agent", agent_id=agent_id)
+                    tx.execute("UPDATE ops_agent_slots SET descendants=?,worktree_active=?,lease_active=?,updated_at=? WHERE agent_id=?",
+                               (descendants, int(worktree_active), int(lease_active), _now(), agent_id))
+                    snapshot = self._agent_snapshot(tx)
+                    blockers = self._agent_blockers({"descendants": descendants, "worktree_active": worktree_active, "lease_active": lease_active})
+                    return self._agent_receipt("update_blockers", accepted=True, reason_code="blockers_updated",
+                                               agent_id=agent_id, status=row[1], attempt=int(row[2]),
+                                               diagnostics={"blockers": blockers}, active_slots=snapshot["active_slots"], capacity=snapshot["capacity"])
+
+    def agent_slot_reclaim(self, agent_id: str | None = None) -> dict[str, Any]:
+        selected = self._agent_id(agent_id) if agent_id is not None else None
+        with self._write_lock():
+            with self._open() as store:
+                self._ensure_ready(store)
+                with transaction(store, "IMMEDIATE") as tx:
+                    query = "SELECT * FROM ops_agent_slots WHERE status IN ('completed','shutdown','reclaimable')"
+                    params: tuple[Any, ...] = ()
+                    if selected is not None:
+                        query += " AND agent_id=?"
+                        params = (selected,)
+                    rows = [self._agent_record(row) for row in tx.execute(query, params)]
+                    reclaimed = [record["agent_id"] for record in rows if not self._agent_blockers(record)]
+                    blocked = [{"agent_id": record["agent_id"], "status": record["status"], "blockers": self._agent_blockers(record)}
+                               for record in rows if self._agent_blockers(record)]
+                    snapshot = self._agent_snapshot(tx)
+                    return self._agent_receipt("reclaim", accepted=not blocked,
+                                               reason_code="slots_reclaimed" if not blocked else "reclaim_blocked",
+                                               agent_id=selected or "", diagnostics={"reclaimed": reclaimed, "blocked": blocked,
+                                                                                       "available_slots": snapshot["available_slots"]},
+                                               active_slots=snapshot["active_slots"], capacity=snapshot["capacity"])
 
     def enqueue(
         self,
