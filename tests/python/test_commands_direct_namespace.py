@@ -231,6 +231,51 @@ def test_memory_backup_and_restore_are_hash_bound(tmp_path, capsys):
     assert "preserve me" in note.read_text(encoding="utf-8")
 
 
+def test_memory_restore_receipt_preserves_rollback_hashes_and_counts(tmp_path, capsys):
+    mem_dir = str(tmp_path / "mem")
+    backup_dir = str(tmp_path / "backup")
+    memory_cmd.run(ns(memory_cmd="init", dir=mem_dir, json=True))
+    capsys.readouterr()
+    memory_cmd.run(ns(memory_cmd="store", dir=mem_dir, topic="before", content="old", tags="", json=True))
+    capsys.readouterr()
+    assert memory_cmd.run(ns(memory_cmd="backup", dir=mem_dir, output=backup_dir, json=True)) == 0
+    backup_payload = json.loads(capsys.readouterr().out)
+
+    memory_cmd.run(ns(memory_cmd="store", dir=mem_dir, topic="after", content="new", tags="", json=True))
+    capsys.readouterr()
+    assert (
+        memory_cmd.run(ns(memory_cmd="restore", dir=mem_dir, backup=backup_dir, apply=True, json=True)) == 0
+    )
+    restore_payload = json.loads(capsys.readouterr().out)
+
+    rollback = restore_payload["rollback_manifest"]
+    assert rollback["file_count"] > restore_payload["manifest"]["file_count"]
+    assert rollback["entries"] >= restore_payload["manifest"]["entries"]
+    assert rollback["files_digest"].startswith("sha256:")
+    assert rollback["files_digest"] != backup_payload["manifest"]["files_digest"]
+    assert restore_payload["manifest"]["file_count"] > 0
+
+
+def test_memory_restore_rejects_tampered_backup_without_rollback(tmp_path, capsys):
+    mem_dir = str(tmp_path / "mem")
+    backup_dir = str(tmp_path / "backup")
+    memory_cmd.run(ns(memory_cmd="init", dir=mem_dir, json=True))
+    capsys.readouterr()
+    memory_cmd.run(ns(memory_cmd="store", dir=mem_dir, topic="safe", content="keep", tags="", json=True))
+    capsys.readouterr()
+    assert memory_cmd.run(ns(memory_cmd="backup", dir=mem_dir, output=backup_dir, json=True)) == 0
+    capsys.readouterr()
+    (Path(backup_dir) / "notes" / "safe.md").write_text("tampered\n", encoding="utf-8")
+
+    assert (
+        memory_cmd.run(ns(memory_cmd="restore", dir=mem_dir, backup=backup_dir, apply=True, json=True)) == 2
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "blocked"
+    assert payload["reason"] == "backup_hash_mismatch"
+    assert not (tmp_path / "mem.rollback").exists()
+
+
 def test_cache_run_stats(monkeypatch, capsys):
     class FakeCache:
         def stats(self):

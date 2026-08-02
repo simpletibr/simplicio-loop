@@ -43,6 +43,29 @@ def _manifest(root: Path, *, source: Path) -> dict[str, Any]:
     }
 
 
+def _rollback_manifest(root: Path) -> dict[str, Any]:
+    """Describe the displaced tree without requiring it to validate first."""
+    rows = _files(root)
+    payload: dict[str, Any] = {
+        "files": rows,
+        "file_count": len(rows),
+        "files_digest": _digest(rows),
+    }
+    try:
+        validation = validate_memory(root=root)
+    except (OSError, UnicodeError, ValueError):
+        validation = None
+    if isinstance(validation, dict):
+        payload.update(
+            {
+                "notes": validation.get("notes", 0),
+                "entries": validation.get("entries", 0),
+                "validation_ok": validation.get("ok", False),
+            }
+        )
+    return payload
+
+
 def backup_memory(root: str | Path, destination: str | Path) -> dict[str, Any]:
     source = Path(root).resolve()
     target = Path(destination).resolve()
@@ -108,6 +131,7 @@ def restore_memory(backup: str | Path, root: str | Path, *, apply: bool = False)
             "operation": "restore",
             "reason": "rollback_exists",
         }
+    rollback_manifest = _rollback_manifest(target) if target.exists() else None
     if target.exists():
         target.rename(rollback)
     try:
@@ -123,5 +147,6 @@ def restore_memory(backup: str | Path, root: str | Path, *, apply: bool = False)
         "status": "ok",
         "operation": "restore",
         "rollback": str(rollback) if rollback.exists() else None,
+        "rollback_manifest": rollback_manifest,
         "manifest": manifest,
     }
