@@ -106,13 +106,34 @@ def _pause_for_fault_injection(point: str) -> None:
     time.sleep(max(0.0, seconds))
 
 
+def _cleanup_transaction_artifacts(root_path: Path, state: dict[str, Any]) -> None:
+    """Remove only temporary directories owned by this transaction journal."""
+    key = str(state.get("idempotency_key", ""))
+    prefix = f".simplicio-tx-{key}-"
+    parent = root_path.resolve().parent
+    for field in ("candidate", "backup"):
+        raw_path = state.get(field)
+        if not isinstance(raw_path, str) or not raw_path:
+            continue
+        path = Path(raw_path)
+        if path.parent.resolve() != parent:
+            continue
+        if not path.name.startswith(prefix):
+            continue
+        if field == "backup" and not path.name.endswith(".backup"):
+            continue
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path, ignore_errors=True)
+
+
 def existing_transaction_result(
     root: str | Path,
     *,
     idempotency_key: str,
     changeset_digest_value: str,
 ) -> dict[str, Any] | None:
-    path = _state_path(Path(root).resolve(), idempotency_key)
+    root_path = Path(root).resolve()
+    path = _state_path(root_path, idempotency_key)
     if not path.is_file():
         return None
     try:
@@ -124,6 +145,7 @@ def existing_transaction_result(
     if previous.get("state") in {"COMMITTED", "FAILED_BEFORE_COMMIT"} and isinstance(
         previous.get("result"), dict
     ):
+        _cleanup_transaction_artifacts(root_path, previous)
         result = dict(previous["result"])
         result["replayed"] = True
         return result
@@ -258,10 +280,14 @@ def recover_changeset_transaction(
                 "REPLAY_CONFLICT", "idempotency key is bound to another changeset"
             )
         if state.get("state") == "COMMITTED" and isinstance(state.get("result"), dict):
+            _cleanup_transaction_artifacts(root_path, state)
             result = dict(state["result"])
             result["replayed"] = True
             return result
-        if state.get("state") not in {"STAGED", "COMMITTING", "ROLLING_BACK"}:
+        state_name = state.get("state")
+        if state_name == "INTENT" and not isinstance(state.get("before"), dict):
+            raise ChangesetTransactionError("RECOVERY_NOT_REQUIRED", "transaction has no recoverable commit")
+        if state_name not in {"INTENT", "STAGED", "COMMITTING", "ROLLING_BACK"}:
             raise ChangesetTransactionError("RECOVERY_NOT_REQUIRED", "transaction has no recoverable commit")
 
         before = state.get("before")
@@ -271,6 +297,31 @@ def recover_changeset_transaction(
         backup = Path(str(state.get("backup", "")))
         if not backup.is_absolute():
             raise ChangesetTransactionError("RECOVERY_REQUIRED", "transaction backup path is invalid")
+        expected = {str(relative): digest for relative, digest in before.items()}
+        after = {relative: _hash(_safe_path(root_path, relative)) for relative in expected}
+        if after == expected:
+            state.update({"state": "ROLLED_BACK", "after": after, "restored": after, "recovered": True})
+            _write_state(state_path, state)
+            _cleanup_transaction_artifacts(root_path, state)
+            return {
+                "status": "recovered",
+                "applied": False,
+                "replayed": False,
+                "transaction": {
+                    "schema": TRANSACTION_SCHEMA,
+                    "idempotency_key": idempotency_key,
+                    "changeset_digest": changeset_digest_value,
+                    "state": "ROLLED_BACK",
+                    "receipt_path": str(state_path),
+                    "operation": state.get("operation", {}),
+                    "before_sha256": before,
+                    "after_sha256": after,
+                    "restored_sha256": after,
+                    "validation": state.get("validation", []),
+                    "timings_ms": state.get("timings_ms", {}),
+                    "causal_ids": state.get("causal_ids", {}),
+                },
+            }
         for relative, digest in before.items():
             target = _safe_path(root_path, str(relative))
             saved = _safe_path(backup, str(relative))
@@ -291,6 +342,7 @@ def recover_changeset_transaction(
             raise ChangesetTransactionError("RECOVERY_REQUIRED", "recovery hashes do not match the journal")
         state.update({"state": "ROLLED_BACK", "after": after, "restored": after, "recovered": True})
         _write_state(state_path, state)
+        _cleanup_transaction_artifacts(root_path, state)
         return {
             "status": "recovered",
             "applied": False,
@@ -375,6 +427,7 @@ def _execute_changeset_transaction(
         if previous.get("state") in {"COMMITTED", "FAILED_BEFORE_COMMIT"} and isinstance(
             previous.get("result"), dict
         ):
+            _cleanup_transaction_artifacts(root_path, previous)
             replay = dict(previous["result"])
             replay["replayed"] = True
             return replay
@@ -383,6 +436,10 @@ def _execute_changeset_transaction(
     paths = _paths(plan)
     before: dict[str, str | None] = {}
     before_modes: dict[str, int | None] = {}
+    for relative in paths:
+        source = _safe_path(root_path, relative)
+        before[relative] = _hash(source)
+        before_modes[relative] = _mode(source)
     candidate = Path(tempfile.mkdtemp(prefix=f".simplicio-tx-{idempotency_key}-", dir=root_path.parent))
     backup = candidate.with_name(candidate.name + ".backup")
     state: dict[str, Any] = {
@@ -394,17 +451,18 @@ def _execute_changeset_transaction(
         "receipt_path": str(state_path),
         "candidate": str(candidate),
         "backup": str(backup),
+        "before": before,
+        "before_modes": before_modes,
         "operation": _operation_summary(plan, paths),
         "causal_ids": dict(causal_ids or {}),
     }
     started = time.perf_counter()
     stage_started = started
     _write_state(state_path, state)
+    _pause_for_fault_injection("after_intent")
     try:
         for relative in paths:
             source = _safe_path(root_path, relative)
-            before[relative] = _hash(source)
-            before_modes[relative] = _mode(source)
             if source.is_file():
                 target = _safe_path(candidate, relative)
                 target.parent.mkdir(parents=True, exist_ok=True)
@@ -416,6 +474,7 @@ def _execute_changeset_transaction(
             "stage": round((time.perf_counter() - stage_started) * 1000, 3),
         }
         _write_state(state_path, state)
+        _pause_for_fault_injection("after_staged")
 
         result = execute_plan(plan, root=candidate, apply=True, allow_native=False)
         if result.get("status") != "ok":
@@ -423,6 +482,7 @@ def _execute_changeset_transaction(
             state["result"] = result
             _write_state(state_path, state)
             return _result_with_transaction(result, state)
+        _pause_for_fault_injection("after_effect")
 
         for relative in paths:
             if _hash(_safe_path(root_path, relative)) != before[relative]:
@@ -504,6 +564,7 @@ def _execute_changeset_transaction(
             }
         )
         _write_state(state_path, state)
+        _pause_for_fault_injection("after_receipt")
         return result_payload
     except ChangesetTransactionError as exc:
         # Validation and source-drift failures happen before the destructive
