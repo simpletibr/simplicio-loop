@@ -216,7 +216,11 @@ def test_quality_gate_keeps_optional_unverified_lanes_separate(monkeypatch, tmp_
                 "commit_sha": "abc123",
                 "scenarios": [
                     {"scenario": "windows_locked_file", "status": "PASS"},
-                    {"scenario": "runtime_backed", "status": "UNVERIFIED", "reason": "ledger mismatch"},
+                    {
+                        "scenario": "runtime_backed",
+                        "status": "AVAILABLE_NOT_E2E",
+                        "reason": "effect URL unset",
+                    },
                     {"scenario": "fast_rust", "status": "UNVERIFIED", "reason": "native unavailable"},
                 ],
             }
@@ -229,4 +233,5 @@ def test_quality_gate_keeps_optional_unverified_lanes_separate(monkeypatch, tmp_
 
     assert payload["passed"] is True
     assert payload["external_lanes"]["runtime"]["status"] == "UNVERIFIED"
+    assert payload["external_lanes"]["runtime"]["reason"] == "effect URL unset"
     assert payload["external_lanes"]["fast"]["status"] == "UNVERIFIED"
