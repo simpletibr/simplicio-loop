@@ -25,6 +25,14 @@ BINARY_SCHEMA = "simplicio.fast.binary-changeset/v1"
 BINARY_MAGIC = b"SFBCHG01"
 RECEIPT_SCHEMA = "simplicio.fast.changeset-receipt/v2"
 MECHANICAL_SCHEMA = "simplicio.mechanical-edit/v1"
+_BINARY_IDENTITY_FIELDS = (
+    "base_generation",
+    "overlay_generation",
+    "attempt",
+    "worktree_id",
+    "lease_id",
+    "fencing_token",
+)
 OPERATION_MAP = {
     "replace_range": "replace_range",
     "create": "create_file",
@@ -42,6 +50,29 @@ class ChangesetError(ValueError):
     def __init__(self, code: str, message: str, **extra: Any) -> None:
         super().__init__(message)
         self.row = {"code": code, "message": message, **extra}
+
+
+def _validate_binary_identity(value: dict[str, Any]) -> None:
+    """Validate causal bindings before handing the changeset to the executor."""
+
+    for field in _BINARY_IDENTITY_FIELDS:
+        identity = value.get(field)
+        if not isinstance(identity, str) or not identity.strip():
+            raise ChangesetError(
+                "binary_authority_invalid",
+                f"binary authority field {field!r} must be a non-empty string",
+                field=field,
+            )
+    allowed_paths = value.get("allowed_paths")
+    if (
+        not isinstance(allowed_paths, list)
+        or not allowed_paths
+        or not all(isinstance(path, str) and path.strip() for path in allowed_paths)
+    ):
+        raise ChangesetError(
+            "binary_allowlist_invalid",
+            "binary allowed_paths must be a non-empty list of non-empty strings",
+        )
 
 
 def adapt_changeset(changeset: dict[str, Any], *, current_generation: str | None = None) -> dict[str, Any]:
@@ -294,16 +325,8 @@ def execute_changeset_bytes(
         if value.get("repository") != str(root_path):
             raise ChangesetError("binary_repository_mismatch", "binary repository does not match --root")
         changeset = _public_changeset_from_binary(value)
-        required_identity = (
-            "base_generation",
-            "overlay_generation",
-            "attempt",
-            "worktree_id",
-            "lease_id",
-            "fencing_token",
-        )
-        if any(not value.get(field) for field in required_identity):
-            raise ChangesetError("binary_authority_missing", "binary authority binding is incomplete")
+        _validate_binary_identity(value)
+        required_identity = _BINARY_IDENTITY_FIELDS
         receipt = execute_changeset(
             changeset,
             root=root_path,
