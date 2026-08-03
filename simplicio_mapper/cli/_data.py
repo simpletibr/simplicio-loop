@@ -15,36 +15,36 @@ from ..store.catalog import (
 )
 from ..store.fast_link import mapper_fast_status
 from ..store.neural import bootstrap_neural
+from ..store.project_scope import resolve_scoped_layout
 from ..store.unify import unify_memory, unify_status
 
 VERBS = {"status", "absorb", "layout", "init", "unify"}
 
 _HELP = """usage: simplicio-mapper data <verb> [options]
 
-Ecosystem data hub — Mapper centralizes every durable bank under SIMPLICIO_DATA_DIR.
+Scoped data hub under .simplicio (no cross-project mixing):
 
-Canonical memory SoT (single SQLite): $SIMPLICIO_DATA_DIR/memory.sqlite
-  MapperStore schema + FTS5. Runtime/MCP/agents must use this path.
-Legacy neural (simplicio-memory.sqlite) is absorbed and bridged by `unify`.
+  Core / Runtime:   ~/.simplicio/data/memory.sqlite
+  Project:          <repo>/.simplicio/data/<slug>/memory.sqlite
+
+  slug from: SIMPLICIO_PROJECT | git remote name | Codex/Cursor/Claude/Gemini
+             workspace name | directory name
 
 Verbs:
-  layout                 print canonical layout (all banks + paths)
-  status                 inventory Mapper root vs legacy ~/.simplicio sources
-  absorb [--bank ID]     copy legacy sources into Mapper root (default: all banks)
-  unify                  ensure memory.sqlite schema + bridge neural data + FTS rebuild
-  init                   ensure banks, absorb legacy, unify into single SoT
-
-Mapper↔Fast (repo-scoped, always with global memory SoT):
-  status --repo PATH     also reports fast-handoff / .sfast / project-map readiness
-  init --repo PATH       same + unify memory so Fast/Runtime share loaded data
+  layout                 print scoped layout (core + project)
+  status                 inventory core (+ project when --repo)
+  absorb [--bank ID]     copy legacy sources into the active data root
+  unify                  ensure memory.sqlite + bridge neural + FTS (core and/or project)
+  init                   ensure banks, absorb, unify for core (+ project with --repo)
 
 Options:
-  --data-dir PATH   override SIMPLICIO_DATA_DIR
-  --repo PATH       also scan repo .simplicio for agents.db / operations.sqlite / Fast
-  --bank ID         absorb a single bank (repeatable via multiple invocations)
-  --source PATH     explicit source for single --bank absorb
-  --no-backup       skip backup of existing destination
-  --json            machine-readable receipt
+  --data-dir PATH    override core data root
+  --repo PATH        project root → isolates under PATH/.simplicio/data/<slug>
+  --project SLUG     force project slug (overrides git/host inference)
+  --bank ID          absorb a single bank
+  --source PATH      explicit source for single --bank absorb
+  --no-backup        skip backup of existing destination
+  --json             machine-readable receipt
 """
 
 
@@ -93,6 +93,7 @@ def run_data_cli(argv: list[str]) -> int:
     backup = "--no-backup" not in argv
     data_dir = None
     repo = None
+    project = None
     bank = None
     source = None
     i = 1
@@ -109,6 +110,10 @@ def run_data_cli(argv: list[str]) -> int:
             repo = argv[i + 1]
             i += 2
             continue
+        if opt == "--project" and i + 1 < len(argv):
+            project = argv[i + 1]
+            i += 2
+            continue
         if opt == "--bank" and i + 1 < len(argv):
             bank = argv[i + 1]
             i += 2
@@ -120,50 +125,100 @@ def run_data_cli(argv: list[str]) -> int:
         print(f"unknown option: {opt}", file=sys.stderr)
         return 1
     try:
+        layout = resolve_scoped_layout(
+            repo_root=repo,
+            project=project,
+            data_dir=data_dir,
+            home=Path.home(),
+            include_project=bool(repo or project),
+        )
         if verb == "layout":
-            payload = layout_tree()
+            payload = {**layout_tree(), "resolved": layout.as_dict()}
         elif verb == "status":
-            catalog = data_status(data_dir=data_dir)
-            mem = unify_status(data_dir=data_dir)
-            fast = mapper_fast_status(repo=repo, data_dir=data_dir)
+            # Core inventory always; project inventory when scoped.
+            catalog = data_status(data_dir=str(layout.core.root))
+            mem = unify_status(data_dir=str(layout.core.root))
+            project_mem = None
+            if layout.project is not None:
+                project_mem = unify_status(data_dir=str(layout.project.root))
+            fast = mapper_fast_status(repo=repo, data_dir=str(layout.core.root))
             payload = {
                 **catalog,
+                "scopes": layout.as_dict(),
                 "memory_unify": mem,
+                "project_memory_unify": project_mem,
                 "mapper_fast": fast,
-                "env_hints": {**(mem.get("env_hints") or {}), **(fast.get("env_hints") or {})},
+                "env_hints": {
+                    **(mem.get("env_hints") or {}),
+                    **(fast.get("env_hints") or {}),
+                },
             }
         elif verb == "unify":
-            payload = unify_memory(data_dir=data_dir, absorb_legacy_home=True, rebuild_fts=True)
-            payload["mapper_fast"] = mapper_fast_status(repo=repo, data_dir=data_dir)
+            # Unify core always; also project when --repo given.
+            core = unify_memory(
+                data_dir=str(layout.core.root),
+                absorb_legacy_home=True,
+                rebuild_fts=True,
+            )
+            project_u = None
+            if layout.project is not None:
+                layout.project.ensure_root()
+                project_u = unify_memory(
+                    data_dir=str(layout.project.root),
+                    absorb_legacy_home=False,
+                    rebuild_fts=True,
+                )
+            payload = {
+                "schema": core.get("schema"),
+                "status": core.get("status"),
+                "scopes": layout.as_dict(),
+                "core": core,
+                "project": project_u,
+                "mapper_fast": mapper_fast_status(repo=repo, data_dir=str(layout.core.root)),
+                "env_hints": core.get("env_hints"),
+            }
         elif verb == "absorb":
+            target = str(layout.project.root) if layout.project is not None else str(layout.core.root)
+            Path(target).mkdir(parents=True, exist_ok=True)
             if bank:
                 payload = absorb_bank(
                     bank,
-                    data_dir=data_dir,
+                    data_dir=target,
                     source=source,
                     backup=backup,
                     repo_root=repo,
                 )
             else:
                 payload = absorb_all(
-                    data_dir=data_dir,
+                    data_dir=target,
                     backup=backup,
                     repo_root=repo,
                 )
+            payload["scopes"] = layout.as_dict()
         else:  # init
-            mem = ensure_mapper_memory(data_dir=data_dir)
-            neural = bootstrap_neural(data_dir=data_dir, apply_seeds=False)
-            absorbed = absorb_all(data_dir=data_dir, backup=backup, repo_root=repo)
+            layout.core.ensure_root()
+            mem = ensure_mapper_memory(data_dir=str(layout.core.root))
+            neural = bootstrap_neural(data_dir=str(layout.core.root), apply_seeds=False)
+            absorbed = absorb_all(data_dir=str(layout.core.root), backup=backup, repo_root=repo)
             unified = unify_memory(
-                data_dir=data_dir,
+                data_dir=str(layout.core.root),
                 absorb_legacy_home=True,
                 rebuild_fts=True,
             )
-            fast = mapper_fast_status(repo=repo, data_dir=data_dir)
+            project_u = None
+            if layout.project is not None:
+                layout.project.ensure_root()
+                project_u = unify_memory(
+                    data_dir=str(layout.project.root),
+                    absorb_legacy_home=False,
+                    rebuild_fts=True,
+                )
+            fast = mapper_fast_status(repo=repo, data_dir=str(layout.core.root))
             payload = {
                 "schema": absorbed["schema"],
                 "status": "initialized" if unified.get("status") == "ready" else "degraded",
-                "data_root": absorbed["data_root"],
+                "scopes": layout.as_dict(),
+                "data_root": str(layout.core.root),
                 "mapper_memory": mem,
                 "neural": {
                     "database": neural.get("database"),
@@ -178,6 +233,7 @@ def run_data_cli(argv: list[str]) -> int:
                     "memory_entries": unified.get("memory_entries"),
                     "fts": unified.get("fts"),
                 },
+                "project_unify": project_u,
                 "mapper_fast": fast,
                 "absorb": absorbed,
                 "env_hints": {

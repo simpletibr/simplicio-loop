@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## [0.26.15] - 2026-08-03
+
+### Changed
+- Scoped data roots: **core/runtime** at `~/.simplicio/data`; **project** at
+  `<repo>/.simplicio/data/<slug>` (slug from git remote / SIMPLICIO_PROJECT /
+  Codex·Cursor·Claude·Gemini workspace name). Memories and DBs no longer mix.
+- Default home store is `~/.simplicio/data` (not bare `~/data`).
+
+### Added
+- `store/project_scope.py` + `data status|unify --repo|--project` scopes block.
+
 ## [0.26.14] - 2026-08-03
 
 ### Added

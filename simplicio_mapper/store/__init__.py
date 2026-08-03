@@ -125,6 +125,14 @@ from .fast_link import (
     ensure_repo_fast_artifacts,
     mapper_fast_status,
 )
+from .project_scope import (
+    ScopedDataLayout,
+    core_data_root,
+    project_data_root,
+    resolve_project_slug,
+    resolve_scoped_layout,
+    sanitize_project_slug,
+)
 
 __all__ = [
     "FenceValidator",
@@ -238,4 +246,10 @@ __all__ = [
     "FAST_LINK_SCHEMA",
     "ensure_repo_fast_artifacts",
     "mapper_fast_status",
+    "ScopedDataLayout",
+    "core_data_root",
+    "project_data_root",
+    "resolve_project_slug",
+    "resolve_scoped_layout",
+    "sanitize_project_slug",
 ]

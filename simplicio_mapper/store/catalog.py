@@ -301,13 +301,36 @@ def layout_tree() -> dict[str, Any]:
     """Document the canonical Mapper data root layout."""
     return {
         "schema": CATALOG_API_SCHEMA,
-        "root_env": "SIMPLICIO_DATA_DIR",
-        "default_root": "~/data",
-        "policy": "Mapper is the sole durable data centralizer for the Simplicio ecosystem.",
+        "root_env": "SIMPLICIO_CORE_DATA_DIR / SIMPLICIO_DATA_DIR",
+        "default_root": "~/.simplicio/data",
+        "policy": (
+            "All durable files live under .simplicio. Core/Runtime memory is "
+            "~/.simplicio/data; each project isolates under "
+            "<repo>/.simplicio/data/<slug> so banks never mix."
+        ),
+        "scopes": {
+            "core_runtime": {
+                "root": "~/.simplicio/data",
+                "memory": "~/.simplicio/data/memory.sqlite",
+                "env": ["SIMPLICIO_CORE_DATA_DIR", "SIMPLICIO_DATA_DIR", "SIMPLICIO_MEMORY_DB"],
+            },
+            "project": {
+                "root": "<repo>/.simplicio/data/<project_slug>",
+                "memory": "<repo>/.simplicio/data/<project_slug>/memory.sqlite",
+                "slug_from": [
+                    "SIMPLICIO_PROJECT",
+                    "git remote origin name",
+                    "host workspace (Codex/Cursor/Claude/Gemini)",
+                    "directory name",
+                ],
+                "env": ["SIMPLICIO_PROJECT", "SIMPLICIO_PROJECT_DATA_DIR", "SIMPLICIO_PROJECT_MEMORY_DB"],
+            },
+        },
         "canonical_memory": {
             "path": CANONICAL_MEMORY_DB,
             "schema": "simplicio.mapper-store.memory/v1 + semantic + FTS5",
-            "env": "SIMPLICIO_MEMORY_DB → $SIMPLICIO_DATA_DIR/memory.sqlite",
+            "core_env": "SIMPLICIO_MEMORY_DB → ~/.simplicio/data/memory.sqlite",
+            "project_env": "SIMPLICIO_PROJECT_MEMORY_DB → <repo>/.simplicio/data/<slug>/memory.sqlite",
         },
         "banks": [
             {
@@ -324,28 +347,28 @@ def layout_tree() -> dict[str, Any]:
         "mapper_fast_integration": {
             "note": (
                 "Mapper extracts (project-map/context-snapshot); Fast builds disposable "
-                ".sfast under <repo>/.simplicio/fast/. Memory SoT stays global in "
-                "SIMPLICIO_DATA_DIR/memory.sqlite — Fast never owns durable memory."
+                ".sfast under <repo>/.simplicio/fast/. Core Runtime memory stays in "
+                "~/.simplicio/data; project memory under <repo>/.simplicio/data/<slug>."
             ),
             "commands": [
                 "simplicio-mapper status .",
+                "simplicio-mapper data status --repo .",
+                "simplicio-mapper data unify --repo .",
                 "simplicio-mapper fast-handoff .",
                 "simplicio-fast build . -o .simplicio/fast/project.sfast",
-                "simplicio-mapper doctor --fast",
-                "simplicio-mapper data unify",
             ],
             "dependency": "simplicio-fast depends on simplicio-mapper>=0.26.11,<0.27",
         },
         "repo_scoped_artifacts": {
             "note": (
-                "Repo-local .simplicio/project-map.json, precedent-index.json, "
-                "fast/project.sfast, and orchestrator scratchpads remain repo-scoped; "
-                "durable global state must live under SIMPLICIO_DATA_DIR."
+                "Working copies stay under <repo>/.simplicio/ (project-map, fast, "
+                "orchestrator). Durable project DBs live under .simplicio/data/<slug>."
             ),
             "examples": [
                 ".simplicio/project-map.json",
                 ".simplicio/precedent-index.json",
                 ".simplicio/fast/project.sfast",
+                ".simplicio/data/<slug>/memory.sqlite",
                 ".simplicio/orchestrator/",
             ],
         },

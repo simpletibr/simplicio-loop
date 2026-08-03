@@ -1,8 +1,9 @@
-"""Unify ecosystem memory onto a single MapperStore SQLite (memory.sqlite).
+"""Unify ecosystem memory onto MapperStore SQLite (memory.sqlite) per scope.
 
 Policy (always-on):
-- Canonical SoT: ``$SIMPLICIO_DATA_DIR/memory.sqlite`` (MapperStore schema).
-- Legacy neural ``simplicio-memory.sqlite`` is an absorb/import source only.
+- **Core / Runtime:** ``~/.simplicio/data/memory.sqlite``
+- **Project:** ``<repo>/.simplicio/data/<slug>/memory.sqlite`` (never mixed)
+- Legacy neural ``simplicio-memory.sqlite`` is absorb/import source only.
 - FTS5 (semantic_fts) is mandatory after unify; sqlite-vec remains optional.
 - ``unify_memory`` is idempotent: re-run is safe and fills gaps.
 """
@@ -68,16 +69,31 @@ def env_hints(
     *,
     data_dir: str | Path | None = None,
     environ: dict[str, str] | None = None,
+    repo_root: str | Path | None = None,
+    project: str | None = None,
 ) -> dict[str, str]:
-    location = _resolve_root(data_dir=data_dir, environ=environ)
-    root = str(location.root)
-    canonical = str(location.database(CANONICAL_DB_NAME))
-    return {
-        "SIMPLICIO_DATA_DIR": root,
-        # Canonical SoT for Runtime/MCP/memory tools (MapperStore file).
-        "SIMPLICIO_MEMORY_DB": canonical,
-        "SIMPLICIO_MAPPER_MEMORY_DB": canonical,
+    from .project_scope import resolve_scoped_layout
+
+    layout = resolve_scoped_layout(
+        repo_root=repo_root,
+        project=project,
+        data_dir=data_dir,
+        environ=environ,
+        home=Path.home(),
+        include_project=repo_root is not None or bool(project),
+    )
+    core_db = layout.core.database(CANONICAL_DB_NAME)
+    hints = {
+        "SIMPLICIO_CORE_DATA_DIR": str(layout.core.root),
+        "SIMPLICIO_DATA_DIR": str(layout.core.root),
+        "SIMPLICIO_MEMORY_DB": str(core_db),
+        "SIMPLICIO_MAPPER_MEMORY_DB": str(core_db),
     }
+    if layout.project is not None:
+        hints["SIMPLICIO_PROJECT"] = layout.project_slug or ""
+        hints["SIMPLICIO_PROJECT_DATA_DIR"] = str(layout.project.root)
+        hints["SIMPLICIO_PROJECT_MEMORY_DB"] = str(layout.project.database(CANONICAL_DB_NAME))
+    return hints
 
 
 def _schema_ready(db_path: Path) -> bool:
@@ -471,7 +487,8 @@ def unify_memory(
             except sqlite3.Error:
                 fts_rows = -1
 
-    ready = integrity == "ok" and semantic > 0 and entries > 0
+    # Empty DB with valid schema is ready (new project isolation); not degraded.
+    ready = integrity == "ok"
     pointer = _write_pointer(location.root, canonical)
     hints = env_hints(data_dir=location.root)
 
@@ -539,7 +556,7 @@ def unify_status(
         except sqlite3.Error:
             neural_items = -1
     in_sync = semantic >= neural_items if neural_items >= 0 else True
-    ready = integrity == "ok" and semantic > 0 and fts_ok
+    ready = integrity == "ok" and fts_ok
     return {
         "schema": UNIFY_API_SCHEMA,
         "status": "ready" if ready and in_sync else ("drift" if ready else "degraded"),

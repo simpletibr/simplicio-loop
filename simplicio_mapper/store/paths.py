@@ -89,11 +89,18 @@ def resolve_store_location(
     temp_dir: str | os.PathLike[str] | None = None,
     allow_temp: bool = False,
 ) -> StoreLocation:
-    """Resolve ``data_dir > SIMPLICIO_DATA_DIR > home > explicit temp``.
+    """Resolve store root with scoped ``.simplicio/data`` policy.
 
-    Resolution never creates a directory. A temporary root is accepted only
-    when the caller explicitly opts in, preventing read-only/status calls from
-    silently creating state in a shared system temp directory.
+    Precedence:
+
+    1. ``data_dir`` flag
+    2. ``SIMPLICIO_DATA_DIR`` / ``SIMPLICIO_CORE_DATA_DIR``
+    3. Project scope when ``repo_root`` is set (or ``SIMPLICIO_STORE_SCOPE=repo``):
+       ``<repo>/.simplicio/data/<project_slug>``
+    4. Core/runtime default: ``~/.simplicio/data`` (or ``$SIMPLICIO_HOME/.../data``)
+    5. Explicit temp only when ``allow_temp=True``
+
+    Resolution never creates a directory unless callers use ``ensure_root``.
     """
 
     env = os.environ if environ is None else environ
@@ -107,26 +114,46 @@ def resolve_store_location(
     if explicit is not None:
         return location(explicit, "flag")
 
-    configured = _candidate(env.get("SIMPLICIO_DATA_DIR"), "SIMPLICIO_DATA_DIR")
-    if configured is not None:
+    core_env = env.get("SIMPLICIO_CORE_DATA_DIR") or env.get("SIMPLICIO_DATA_DIR")
+    configured = _candidate(core_env, "SIMPLICIO_DATA_DIR")
+    # Only use env as global root when not resolving a project-scoped path.
+    project_scope = repo_root is not None or env.get("SIMPLICIO_STORE_SCOPE") == "repo"
+    if configured is not None and not project_scope:
         return location(configured, "env")
 
-    home_path = _candidate(home, "home")
-    if home_path is None and "SIMPLICIO_HOME" in env:
-        home_path = _candidate(env["SIMPLICIO_HOME"], "SIMPLICIO_HOME")
+    if project_scope and repo_root is not None:
+        from .project_scope import project_data_root
+
+        root, slug, slug_source = project_data_root(repo_root, environ=env)
+        return location(root, f"project:{slug}:{slug_source}")
+
     if repo_root is not None and env.get("SIMPLICIO_STORE_SCOPE") == "repo":
         repo = _candidate(repo_root, "repo_root")
         assert repo is not None
         return location(repo / ".simplicio" / "data", "repo")
-    if home_path is not None:
-        return location(home_path / "data", "home")
 
-    if allow_temp:
-        temporary = _candidate(temp_dir, "temp_dir")
-        if temporary is None:
-            temporary = Path(tempfile.gettempdir()) / "simplicio-mapper-store"
-        return location(temporary, "temp")
-    raise StorePathError("no store root resolved; pass data_dir, SIMPLICIO_DATA_DIR, or allow_temp=True")
+    # Core / Runtime default: ~/.simplicio/data (never bare ~/data)
+    from .project_scope import core_data_root
+
+    home_path = _candidate(home, "home")
+    if home_path is None and "SIMPLICIO_HOME" not in env and "USERPROFILE" not in env and "HOME" not in env:
+        if allow_temp:
+            temporary = _candidate(temp_dir, "temp_dir")
+            if temporary is None:
+                temporary = Path(tempfile.gettempdir()) / "simplicio-mapper-store"
+            return location(temporary, "temp")
+        raise StorePathError(
+            "no store root resolved; pass data_dir, SIMPLICIO_DATA_DIR, or allow_temp=True"
+        )
+    try:
+        return location(core_data_root(environ=env, home=home_path), "core:.simplicio/data")
+    except Exception:
+        if allow_temp:
+            temporary = _candidate(temp_dir, "temp_dir")
+            if temporary is None:
+                temporary = Path(tempfile.gettempdir()) / "simplicio-mapper-store"
+            return location(temporary, "temp")
+        raise
 
 
 def assert_within_root(root: Path, candidate: Path) -> Path:
