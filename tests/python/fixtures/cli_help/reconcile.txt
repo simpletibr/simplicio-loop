@@ -4,7 +4,7 @@ usage: simplicio-py reconcile [-h] [--root ROOT]
 
 options:
   -h, --help            show this help message and exit
-  --root ROOT, --repo ROOT
+  --root, --repo ROOT
   --idempotency-key IDEMPOTENCY_KEY
   --evidence-file EVIDENCE_FILE
   --json
