@@ -416,6 +416,22 @@ When `simplicio-mapper` has generated `.simplicio/project-map.json` and
 If those artifacts are missing, the CLI falls back to the older target-file
 inspection path, so existing projects keep working.
 
+#### Optional ECC advisory guidance
+
+When explicitly enabled, the CLI asks the installed Mapper for the separate
+`simplicio.ecc-guidance/v1` pack:
+
+```bash
+export SIMPLICIO_ECC_ROOT=/path/to/ECC
+export SIMPLICIO_ECC_ENABLED=1
+export SIMPLICIO_ECC_REQUIRED=1  # optional fail-closed mode
+```
+
+The pack is pinned, bounded and validated as `advisory-only`. Its text may
+shape standalone prompt context, while task results retain only the
+hash/provenance reference under `ecc_guidance_ref`; it never changes
+`TaskSpec`, `PlanDAG`, effect authorization or execution policy.
+
 #### Adaptive retry and observability
 
 The retry loop now validates generated output before applying/testing it,

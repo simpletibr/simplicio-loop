@@ -21,7 +21,12 @@ from typing import Any, Literal, cast
 from .adaptive import get_validation_mode
 from .atomic_execution import AttemptContext
 from .execution_receipts import execution_mode_blocker
-from .mapper import map_ask
+from .mapper import (
+    EccGuidanceValidationError,
+    ecc_guidance_reference,
+    map_ask,
+    map_ecc_guidance,
+)
 from .observability import emit_event, estimate_tokens, info, log_run
 from .pipeline_fixers import try_static_fixers
 from .pipeline_integrated import run_integrated_route
@@ -73,6 +78,15 @@ MAX_ATTEMPTS = 5
 # module's docstring for the full contract and pipeline.py's token-budget
 # rationale (issue #141 AC).
 PipelineMode = Literal["auto", "standalone", "integrated"]
+
+
+def _attach_ecc_guidance_reference(
+    result: dict[str, Any], reference: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Attach only ECC provenance; never expose advisory bodies in results."""
+    if reference is not None:
+        result["ecc_guidance_ref"] = reference
+    return result
 
 
 def _attach_contract_receipt(
@@ -1359,7 +1373,25 @@ def _run_prepared_task_route(
         root=root, profile=profile, proposal_only=proposal_only, dry_run_task=dry_run_task
     )
     _remember_patch_receipt(None)
-    prompt = build_prompt(root, stack, goal, target, criteria, constraints)
+    try:
+        prompt = build_prompt(root, stack, goal, target, criteria, constraints)
+        ecc_reference = ecc_guidance_reference(map_ecc_guidance(root))
+    except EccGuidanceValidationError as exc:
+        return _task_result(
+            target,
+            "",
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[str(exc)],
+            blocked_preconditions=[
+                {
+                    "reason": "ecc_guidance_required",
+                    "message": str(exc),
+                    "next_surface": "ecc_guidance",
+                }
+            ],
+        )
     primary_test_cmd = os.environ.get("SIMPLICIO_TEST_CMD", "").strip() or None
     if primary_test_cmd is None and task_spec is not None:
         primary_test_cmd = next(
@@ -1375,15 +1407,18 @@ def _run_prepared_task_route(
         # artifact/target preconditions before route-level write/read policy;
         # otherwise a blocked standalone profile prevents valid previews from
         # reaching the provider and masks the structured dry-run blockers.
-        return _run_dry_run_task(
-            root=root,
-            target=target,
-            prompt=prompt,
-            context_pack=context_pack,
-            requested_execution_mode=requested_execution_mode,
-            bound_paths=bound_paths,
-            declared_repo_root=str(declared_repo_root),
-            declared_scope_root=str(declared_scope_root),
+        return _attach_ecc_guidance_reference(
+            _run_dry_run_task(
+                root=root,
+                target=target,
+                prompt=prompt,
+                context_pack=context_pack,
+                requested_execution_mode=requested_execution_mode,
+                bound_paths=bound_paths,
+                declared_repo_root=str(declared_repo_root),
+                declared_scope_root=str(declared_scope_root),
+            ),
+            ecc_reference,
         )
 
     routed_result = _route_prepared_task(
@@ -1418,24 +1453,27 @@ def _run_prepared_task_route(
         task_context=task_context,
     )
     if routed_result is not None:
-        return routed_result
+        return _attach_ecc_guidance_reference(routed_result, ecc_reference)
     # Issue #107: structured task_start event for the unified evidence flow.
     emit_event("task_start", {"target": target, "stack": stack, "goal": goal}, root=root)
-    return _run_attempt_loop(
-        root=root,
-        stack=stack,
-        target=target,
-        prompt=prompt,
-        primary_test_cmd=primary_test_cmd,
-        bound_paths=bound_paths,
-        quiet=quiet,
-        profile=profile,
-        mutation_route=mutation_route,
-        task_context=task_context,
-        authorization=authorization,
-        declared_repo_root=declared_repo_root,
-        declared_scope_root=declared_scope_root,
-        scope_root=scope_root,
+    return _attach_ecc_guidance_reference(
+        _run_attempt_loop(
+            root=root,
+            stack=stack,
+            target=target,
+            prompt=prompt,
+            primary_test_cmd=primary_test_cmd,
+            bound_paths=bound_paths,
+            quiet=quiet,
+            profile=profile,
+            mutation_route=mutation_route,
+            task_context=task_context,
+            authorization=authorization,
+            declared_repo_root=declared_repo_root,
+            declared_scope_root=declared_scope_root,
+            scope_root=scope_root,
+        ),
+        ecc_reference,
     )
 
 

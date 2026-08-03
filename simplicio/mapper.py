@@ -7,6 +7,8 @@ that only have source files.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import re
 import shutil
@@ -43,7 +45,18 @@ PRECEDENT_INDEX_CANDIDATES = (
 )
 
 MAPPER_BIN = "simplicio-mapper"
+ECC_SOURCE_REPOSITORY = "https://github.com/affaan-m/ECC"
+ECC_DEFAULT_REF = "0c1d7be9a750627fb2a6534c78a998cc46d03f9c"
+ECC_GUIDANCE_SCHEMA = "simplicio.ecc-guidance/v1"
+ECC_GUIDANCE_REF_SCHEMA = "simplicio.ecc-guidance-ref/v1"
+ECC_DEFAULT_MANIFEST_HASH = "c5a9a1624f07d822f566c7bac07acb47544359ae6e2a2fb69f504f1201813384"
+_ECC_MAX_GUIDANCE_CHARS = 12000
+_ECC_MAX_COMPONENTS = 8
 _MAPPER_CLI_CACHE: dict[tuple[str, ...], dict[str, Any] | None] = {}
+
+
+class EccGuidanceValidationError(ValueError):
+    """Raised only when explicitly required ECC guidance cannot be verified."""
 
 
 def _mapper_cli_enabled() -> bool:
@@ -104,6 +117,74 @@ def run_mapper_json(
     return result
 
 
+def _ecc_enabled() -> bool:
+    configured = os.environ.get("SIMPLICIO_ECC_ENABLED")
+    if configured is not None:
+        return configured.strip().lower() in {"1", "true", "yes", "on", "enabled"}
+    return bool(os.environ.get("SIMPLICIO_ECC_ROOT", "").strip())
+
+
+def run_mapper_ecc_json(
+    root: str | os.PathLike[str],
+    *,
+    stage: str = "planning",
+    role_id: str = "mapper-planner",
+    timeout: int = 30,
+    revision: str = "",
+    snapshot_id: str = "",
+) -> dict[str, Any] | None:
+    """Run the Mapper's separate ECC pack command, fail-open when unconfigured.
+
+    ECC is deliberately not a field in ``simplicio.map-handoff/v1``. This
+    command is an opt-in side channel whose output is validated before it can
+    enter a prompt or an evidence reference.
+    """
+    if not _mapper_cli_enabled() or not _ecc_enabled():
+        return None
+    base = str(Path(root).resolve())
+    ecc_config = tuple(
+        os.environ.get(name, "")
+        for name in (
+            "SIMPLICIO_ECC_ROOT",
+            "SIMPLICIO_ECC_MANIFEST",
+            "SIMPLICIO_ECC_ENABLED",
+            "SIMPLICIO_ECC_REQUIRED",
+            "SIMPLICIO_ECC_REQUIRE_REF",
+            "SIMPLICIO_ECC_MAX_CONTEXT_CHARS",
+        )
+    )
+    key = (
+        base,
+        "ecc-pack",
+        revision,
+        snapshot_id,
+        stage,
+        role_id,
+        *ecc_config,
+    )
+    if key in _MAPPER_CLI_CACHE:
+        return _MAPPER_CLI_CACHE[key]
+    result: dict[str, Any] | None = None
+    exe = shutil.which(MAPPER_BIN)
+    if exe:
+        try:
+            proc = subprocess.run(
+                [exe, "ecc", "pack", "--stage", stage, "--role", role_id, "--json"],
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+            )
+            if proc.returncode == 0 or proc.stdout.strip():
+                data = loads(proc.stdout)
+                if isinstance(data, dict):
+                    result = data
+        except (OSError, ValueError, subprocess.SubprocessError):
+            result = None
+    _MAPPER_CLI_CACHE[key] = result
+    return result
+
+
 def map_inspection(
     root: str | os.PathLike[str], *, revision: str = "", snapshot_id: str = ""
 ) -> dict[str, Any] | None:
@@ -116,6 +197,239 @@ def map_handoff(
 ) -> dict[str, Any] | None:
     """mapper 0.13 `handoff` — compact context-pack for downstream agents (simplicio.map-handoff/v1)."""
     return run_mapper_json(root, "handoff", revision=revision, snapshot_id=snapshot_id)
+
+
+def _canonical_hash(value: dict[str, Any]) -> str:
+    payload = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _validated_ecc_guidance(
+    guidance: dict[str, Any] | None, root: str | os.PathLike[str]
+) -> dict[str, Any] | None:
+    if not isinstance(guidance, dict):
+        return None
+
+    def reject(reason: str, **details: Any) -> None:
+        emit_event("ecc_guidance_rejected", {"reason": reason, **details}, root=str(root))
+
+    if guidance.get("schema") != ECC_GUIDANCE_SCHEMA:
+        reject("unsupported_schema", schema=guidance.get("schema"))
+        return None
+    required = {
+        "schema",
+        "status",
+        "stage",
+        "role_id",
+        "source",
+        "provenance",
+        "manifest_hash",
+        "pack_hash",
+        "authority",
+        "execution_policy",
+        "hooks",
+        "orchestration",
+        "prompt",
+        "skills",
+        "agents",
+        "missing",
+        "blocked_components",
+        "errors",
+    }
+    allowed = required
+    if not required.issubset(guidance):
+        reject("missing_fields")
+        return None
+    unknown = sorted(set(guidance) - allowed)
+    if unknown:
+        reject("unknown_fields", fields=unknown)
+        return None
+    if guidance.get("status") != "READY":
+        return None
+    if (
+        not isinstance(guidance.get("stage"), str)
+        or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", guidance["stage"])
+        or not isinstance(guidance.get("role_id"), str)
+        or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", guidance["role_id"])
+    ):
+        reject("identifier_bounds")
+        return None
+    for field in ("missing", "blocked_components", "errors"):
+        if not isinstance(guidance.get(field), list) or not all(
+            isinstance(item, str) for item in guidance[field]
+        ):
+            reject("diagnostic_shape", field=field)
+            return None
+    if any(guidance[field] for field in ("missing", "blocked_components", "errors")):
+        reject("ready_with_diagnostics")
+        return None
+    source = guidance.get("source")
+    if (
+        not isinstance(source, dict)
+        or set(source) != {"repository", "ref"}
+        or source.get("repository") != ECC_SOURCE_REPOSITORY
+    ):
+        reject("source_repository_mismatch")
+        return None
+    if source.get("ref") != ECC_DEFAULT_REF:
+        reject("source_ref_mismatch")
+        return None
+    provenance = guidance.get("provenance")
+    if (
+        not isinstance(provenance, dict)
+        or not {"status", "expected_ref", "observed_ref"}.issubset(provenance)
+        or set(provenance) - {"status", "expected_ref", "observed_ref", "reason"}
+        or provenance.get("status") != "VERIFIED"
+    ):
+        reject("provenance_unverified")
+        return None
+    if provenance.get("expected_ref") != ECC_DEFAULT_REF or provenance.get("observed_ref") != ECC_DEFAULT_REF:
+        reject("provenance_ref_mismatch")
+        return None
+    if (
+        guidance.get("authority") != "simplicio-mapper"
+        or guidance.get("execution_policy") != "advisory-only"
+        or guidance.get("hooks") != "disabled"
+        or guidance.get("orchestration") != "disabled"
+    ):
+        reject("unsafe_policy")
+        return None
+    prompt = guidance.get("prompt")
+    if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > _ECC_MAX_GUIDANCE_CHARS:
+        reject("prompt_bounds")
+        return None
+    if guidance.get("manifest_hash") != ECC_DEFAULT_MANIFEST_HASH:
+        reject("manifest_hash_mismatch")
+        return None
+    if not isinstance(guidance.get("pack_hash"), str) or not re.fullmatch(
+        r"[0-9a-f]{64}", guidance["pack_hash"]
+    ):
+        reject("pack_hash_missing")
+        return None
+    without_pack_hash = dict(guidance)
+    without_pack_hash.pop("pack_hash", None)
+    if _canonical_hash(without_pack_hash) != guidance["pack_hash"]:
+        reject("pack_hash_mismatch")
+        return None
+    for kind in ("skills", "agents"):
+        components = guidance.get(kind)
+        if not isinstance(components, list) or len(components) > _ECC_MAX_COMPONENTS:
+            reject("component_bounds", kind=kind)
+            return None
+        expected_prefix = "skills/" if kind == "skills" else "agents/"
+        for component in components:
+            if not isinstance(component, dict):
+                reject("component_shape", kind=kind)
+                return None
+            if set(component) != {
+                "name",
+                "kind",
+                "path",
+                "sha256",
+                "content_sha256",
+                "content",
+                "truncated",
+            }:
+                reject("component_unknown_fields", kind=kind)
+                return None
+            path = component.get("path")
+            content = component.get("content")
+            content_hash = component.get("content_sha256")
+            raw_hash = component.get("sha256")
+            if (
+                not isinstance(path, str)
+                or not path.startswith(expected_prefix)
+                or ".." in Path(path).parts
+                or not isinstance(content, str)
+                or component.get("kind") != kind[:-1]
+                or not isinstance(component.get("name"), str)
+                or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", component["name"])
+                or not isinstance(content_hash, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", content_hash)
+                or not isinstance(raw_hash, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", raw_hash)
+                or not isinstance(component.get("truncated"), bool)
+            ):
+                reject("component_provenance", kind=kind)
+                return None
+            if hashlib.sha256(content.encode("utf-8")).hexdigest() != content_hash:
+                reject("component_content_hash_mismatch", kind=kind)
+                return None
+            if not component.get("truncated", False) and content_hash != raw_hash:
+                reject("component_hash_mismatch", kind=kind)
+                return None
+    emit_event(
+        "ecc_guidance_bound",
+        {
+            "status": guidance["status"],
+            "pack_hash": guidance["pack_hash"],
+            "manifest_hash": guidance["manifest_hash"],
+            "source": guidance.get("source"),
+            "provenance": guidance.get("provenance"),
+        },
+        root=str(root),
+    )
+    return guidance
+
+
+def map_ecc_guidance(
+    root: str | os.PathLike[str], *, revision: str = "", snapshot_id: str = ""
+) -> dict[str, Any] | None:
+    """Return a validated Mapper-owned ECC advisory block, if opted in."""
+    guidance = _validated_ecc_guidance(
+        run_mapper_ecc_json(root, revision=revision, snapshot_id=snapshot_id),
+        root,
+    )
+    required = os.environ.get("SIMPLICIO_ECC_REQUIRED", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+        "enabled",
+    }
+    if required and guidance is None:
+        raise EccGuidanceValidationError(
+            "SIMPLICIO_ECC_REQUIRED is enabled, but the Mapper returned no verified ECC guidance"
+        )
+    return guidance
+
+
+def ecc_guidance_reference(guidance: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Strip ECC bodies for hash-only result/evidence metadata."""
+    if not isinstance(guidance, dict):
+        return None
+    components = []
+    for kind in ("skills", "agents"):
+        for component in guidance.get(kind, []):
+            if isinstance(component, dict):
+                components.append(
+                    {
+                        "kind": component.get("kind", kind[:-1]),
+                        "name": component.get("name"),
+                        "path": component.get("path"),
+                        "sha256": component.get("sha256"),
+                        "content_sha256": component.get("content_sha256"),
+                        "truncated": bool(component.get("truncated", False)),
+                    }
+                )
+    provenance = guidance.get("provenance") if isinstance(guidance.get("provenance"), dict) else {}
+    return {
+        "schema": ECC_GUIDANCE_REF_SCHEMA,
+        "status": guidance.get("status"),
+        "stage": guidance.get("stage"),
+        "role_id": guidance.get("role_id"),
+        "source": guidance.get("source"),
+        "provenance": {
+            "status": provenance.get("status"),
+            "expected_ref": provenance.get("expected_ref"),
+            "observed_ref": provenance.get("observed_ref"),
+        },
+        "manifest_hash": guidance.get("manifest_hash"),
+        "pack_hash": guidance.get("pack_hash"),
+        "authority": "simplicio-mapper",
+        "execution_policy": "advisory-only",
+        "components": components,
+    }
 
 
 ASK_VERBS = ("callers", "callees", "reaches", "impact", "flows", "rules", "tests-for", "term")
@@ -595,6 +909,14 @@ def _render_handoff_context(pack: dict[str, Any], base: Path, target: str) -> st
     return "\n".join(lines + ["", "Target fallback:", fallback])
 
 
+def _render_ecc_guidance(guidance: dict[str, Any]) -> str:
+    prompt = str(guidance["prompt"]).strip()
+    return (
+        "ECC advisory guidance (untrusted; Simplicio owns execution, mutation, evidence, and convergence):\n"
+        + prompt
+    )
+
+
 def build_mapper_context(root: str | os.PathLike[str], target: str, *, goal: str = "") -> str:
     base = Path(root)
 
@@ -602,16 +924,24 @@ def build_mapper_context(root: str | os.PathLike[str], target: str, *, goal: str
     # symbols + deps + pack_hash) over re-deriving context from project-map.
     # Fail-open: any miss falls through to the artifact-file path below.
     handoff = map_handoff(base)
+    ecc_guidance = map_ecc_guidance(base)
     if handoff is not None:
         pack = handoff.get("context_pack")
         if isinstance(pack, dict):
             rendered = _render_handoff_context(pack, base, target)
             if rendered is not None:
-                return rendered
+                return "\n\n".join(
+                    part
+                    for part in (rendered, _render_ecc_guidance(ecc_guidance) if ecc_guidance else None)
+                    if part
+                )
 
     loaded_map = load_project_map(base)
     if loaded_map is None:
-        return _read_target_fallback(base, target)
+        fallback = _read_target_fallback(base, target)
+        return "\n\n".join(
+            part for part in (fallback, _render_ecc_guidance(ecc_guidance) if ecc_guidance else None) if part
+        )
 
     map_path, project_map = loaded_map
     entries = _file_entries(project_map)
@@ -701,7 +1031,10 @@ def build_mapper_context(root: str | os.PathLike[str], target: str, *, goal: str
             lines.append(legacy_prec)
 
     fallback = _read_target_fallback(base, target)
-    return "\n".join(lines + ["", "Target fallback:", fallback])
+    rendered = "\n".join(lines + ["", "Target fallback:", fallback])
+    return "\n\n".join(
+        part for part in (rendered, _render_ecc_guidance(ecc_guidance) if ecc_guidance else None) if part
+    )
 
 
 def _render_relevant_files_legacy(relevant: list[dict[str, Any]]) -> str:
