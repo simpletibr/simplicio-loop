@@ -119,6 +119,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ._neural import run_neural_cli
 
         return run_neural_cli(argv[1:])
+    if argv and argv[0] == "data":
+        from ._data import run_data_cli
+
+        return run_data_cli(argv[1:])
     if argv and argv[0] == "contracts":
         from ..contract_registry import run_contracts_cli
 

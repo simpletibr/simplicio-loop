@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.26.13] - 2026-08-03
+
+### Added
+- Ecosystem data catalog: Mapper owns every durable bank under `SIMPLICIO_DATA_DIR`.
+- CLI `simplicio-mapper data layout|status|absorb|init` with absorb-from-legacy (`~/.simplicio/**`).
+- Manifest `ecosystem-data-catalog.json` written on absorb; env hints for `SIMPLICIO_DATA_DIR` and `SIMPLICIO_MEMORY_DB`.
+
 ## [0.26.12] - 2026-08-03
 
 ### Added

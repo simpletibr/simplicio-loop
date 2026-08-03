@@ -101,6 +101,17 @@ from .neural import (
     neural_status,
     seed_neural,
 )
+from .catalog import (
+    CATALOG_API_SCHEMA,
+    CATALOG_MANIFEST_NAME,
+    ECOSYSTEM_BANKS,
+    absorb_all,
+    absorb_bank,
+    bank_by_id,
+    data_status,
+    ensure_mapper_memory,
+    layout_tree,
+)
 
 __all__ = [
     "FenceValidator",
@@ -196,4 +207,13 @@ __all__ = [
     "neural_database_path",
     "neural_status",
     "seed_neural",
+    "CATALOG_API_SCHEMA",
+    "CATALOG_MANIFEST_NAME",
+    "ECOSYSTEM_BANKS",
+    "absorb_all",
+    "absorb_bank",
+    "bank_by_id",
+    "data_status",
+    "ensure_mapper_memory",
+    "layout_tree",
 ]
