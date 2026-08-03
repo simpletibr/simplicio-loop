@@ -404,6 +404,52 @@ class EndToEndSelectorTest(unittest.TestCase):
         self.assertTrue(selection["abstained"])
         self.assertEqual(selection["abstention_reason"], "no_relevant_targets")
 
+    def test_selector_keeps_explicit_target_outside_ranked_limit(self) -> None:
+        (self.root / "src/noise.py").write_text("def alpha():\n    return 1\n", encoding="utf-8")
+        terms = "alpha beta gamma delta epsilon zeta eta theta iota kappa".split()
+        project_map = {
+            "files": [
+                {
+                    "path": "src/cache/token_cache.py",
+                    "roles": ["domain"],
+                    "importance": 0.1,
+                    "language": "python",
+                    "size_bytes": 100,
+                },
+                {
+                    "path": "src/noise.py",
+                    "roles": ["domain"],
+                    "importance": 0.9,
+                    "language": "python",
+                    "size_bytes": 100,
+                },
+            ]
+        }
+        symbol_index = {
+            "symbols": [
+                {
+                    "defined_in": "src/noise.py",
+                    "name": term,
+                    "kind": "function",
+                    "line": 1,
+                    "qualified_name": f"src/noise.py::{term}",
+                }
+                for term in terms
+            ]
+        }
+        selection = ri.select_context_targets(
+            str(self.root),
+            project_map,
+            goal=" ".join(terms),
+            target="src/cache/token_cache.py",
+            limit=1,
+            symbol_index=symbol_index,
+        )
+        paths = [target["path"] for target in selection["targets"]]
+        self.assertEqual(paths[0], "src/noise.py")
+        self.assertIn("src/cache/token_cache.py", paths)
+        self.assertEqual(selection["target_resolution"]["status"], "included")
+
 
 class FullContentFallbackTest(unittest.TestCase):
     """Regression coverage for issue #308: handoff must deliver real source

@@ -1665,6 +1665,24 @@ def select_context_targets(
 
     ranked = rank_candidates(index, plan, recent_paths=recent_paths, limit=limit)
 
+    # An explicit target is a caller-provided authority boundary. It must not
+    # be dropped merely because BM25 placed it just outside the bounded top-N
+    # list; keep the normal limit for ranked context while appending the exact
+    # target as one extra entry.
+    if plan.target_path and not any(row.get("path") == plan.target_path for row in ranked):
+        all_ranked = rank_candidates(
+            index,
+            plan,
+            recent_paths=recent_paths,
+            limit=max(limit, len(index.get("documents", []))),
+        )
+        explicit = next(
+            (row for row in all_ranked if row.get("path") == plan.target_path),
+            None,
+        )
+        if explicit is not None:
+            ranked.append(explicit)
+
     expanded = expand_spans(abs_root, ranked, index, symbol_index=symbol_index)
     fit = fit_token_budget(expanded, abs_root, token_budget=token_budget, plan=plan)
     added_content_tokens = fill_full_content_spans(abs_root, ranked, expanded, fit, plan)
