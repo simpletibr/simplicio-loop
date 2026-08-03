@@ -56,6 +56,8 @@ def test_minimal_flow_standalone(sample_project, stub_local_provider, monkeypatc
             str(sample_project),
             "--target",
             "src/app.py",
+            "--mode",
+            "standalone",
             "--json",
         ]
     )
@@ -86,6 +88,35 @@ def test_minimal_flow_standalone(sample_project, stub_local_provider, monkeypatc
     verify_payload = json.loads(capsys.readouterr().out)
     assert_schema_id(verify_payload, "simplicio.test-run/v1", where="test run --json (standalone)")
     assert verify_payload["exit_code"] == 0
+
+
+def test_auto_standalone_keeps_strict_mapper_identity_gate(
+    sample_project, monkeypatch, capsys
+):
+    """Automatic fallback remains fail-closed when production authority is required."""
+    monkeypatch.setenv("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", "1")
+    monkeypatch.setenv(
+        "SIMPLICIO_TEST_CMD", '"' + __import__("sys").executable + '" -c "raise SystemExit(0)"'
+    )
+    monkeypatch.setattr("simplicio.pipeline.map_ask", lambda *args, **kwargs: [])
+
+    code = cli.main(
+        [
+            "task",
+            "fix the greeting",
+            "--root",
+            str(sample_project),
+            "--target",
+            "src/app.py",
+            "--json",
+        ]
+    )
+
+    assert code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "blocked"
+    assert payload["warnings"] == ["MAPPER_CONTEXT_IDENTITY_REQUIRED"]
+    assert payload["blocked_preconditions"][0]["reason"] == "MAPPER_CONTEXT_IDENTITY_REQUIRED"
 
 
 def test_minimal_flow_runtime_integrated_leg_is_stubbed(sample_project, stub_runtime_binary, capsys):
