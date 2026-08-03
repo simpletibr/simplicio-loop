@@ -123,6 +123,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ._data import run_data_cli
 
         return run_data_cli(argv[1:])
+    if argv and argv[0] == "snapshot":
+        from ._snapshot import run_snapshot_cli
+
+        return run_snapshot_cli(argv[1:])
     if argv and argv[0] == "contracts":
         from ..contract_registry import run_contracts_cli
 

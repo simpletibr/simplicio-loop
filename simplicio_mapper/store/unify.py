@@ -80,13 +80,40 @@ def env_hints(
     }
 
 
+def _schema_ready(db_path: Path) -> bool:
+    """True when MapperStore meta tables already exist (no writer lock needed)."""
+    if not db_path.is_file():
+        return False
+    try:
+        with closing(sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True)) as conn:
+            conn.execute("SELECT 1 FROM memory_store_meta WHERE key='schema'").fetchone()
+            conn.execute("SELECT 1 FROM semantic_store_meta LIMIT 1").fetchone()
+            return True
+    except sqlite3.Error:
+        return False
+
+
 def ensure_canonical_schema(db_path: Path) -> dict[str, Any]:
-    """Create MapperStore schema if missing (idempotent)."""
+    """Create MapperStore schema if missing (idempotent).
+
+    Skips exclusive initialize when schema is already present so Runtime/MCP
+    concurrent readers do not trip Windows lock contention.
+    """
     db_path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
+    if _schema_ready(db_path):
+        return {"database": str(db_path), "init": {"ok": True, "skipped": "schema_ready"}}
     markdown_root = db_path.parent / "memory-markdown"
     markdown_root.mkdir(parents=True, exist_ok=True)
-    report = MemoryStore(db_path, markdown_root=markdown_root).initialize()
-    return {"database": str(db_path), "init": report if isinstance(report, dict) else {"ok": True}}
+    try:
+        report = MemoryStore(db_path, markdown_root=markdown_root).initialize()
+        return {"database": str(db_path), "init": report if isinstance(report, dict) else {"ok": True}}
+    except Exception as error:  # noqa: BLE001 — degrade if locked; status still useful
+        if _schema_ready(db_path):
+            return {
+                "database": str(db_path),
+                "init": {"ok": True, "skipped": "schema_ready_after_lock", "lock_error": str(error)},
+            }
+        raise
 
 
 def _count(conn: sqlite3.Connection, sql: str) -> int:
@@ -144,6 +171,29 @@ def bridge_neural_into_canonical(
     source_total = _count(src, "SELECT COUNT(*) FROM memory_items")
     before_entries = _count(dst, "SELECT COUNT(*) FROM memory_entries")
     before_semantic = _count(dst, "SELECT COUNT(*) FROM semantic_items WHERE tombstone=0")
+
+    # Fast path: already bridged (avoid re-walking 37k+ rows under locks).
+    if (
+        source_total > 0
+        and before_semantic >= source_total
+        and before_entries >= source_total
+    ):
+        src.close()
+        dst.close()
+        return {
+            "status": "unchanged",
+            "neural": str(neural),
+            "canonical": str(canonical),
+            "source_items": source_total,
+            "rows_processed": 0,
+            "errors": 0,
+            "error_samples": [],
+            "memory_entries_before": before_entries,
+            "memory_entries_after": before_entries,
+            "semantic_items_before": before_semantic,
+            "semantic_items_after": before_semantic,
+            "fts": "skipped_already_synced",
+        }
 
     src_cols = {
         str(r[1])
