@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+## [0.26.14] - 2026-08-03
+
+### Added
+- Single-SQLite memory unification: `$SIMPLICIO_DATA_DIR/memory.sqlite` is the only SoT (MapperStore + FTS5).
+- CLI `simplicio-mapper data unify` — ensure schema, absorb legacy neural, bridge into MapperStore, rebuild FTS.
+- `init`/`absorb` always run unify so Runtime/MCP see loaded data via `SIMPLICIO_MEMORY_DB=…/memory.sqlite`.
+- Receipt `memory-unify-receipt.json` + `CANONICAL_MEMORY.txt` under the data root.
+- Mapper↔Fast link status in `data status|unify|init --repo` (`mapper_fast`): handoff modules, Fast binary, project-map/.sfast.
+- Layout documents Mapper extract → Fast `.sfast` vs global memory SoT split.
+
+### Fixed
+- `fast_certification` imports on Windows (optional `resource` module).
+
+### Changed
+- Legacy `simplicio-memory.sqlite` is absorb/bridge source only (not MCP SoT).
+
 ## [0.26.13] - 2026-08-03
 
 ### Added

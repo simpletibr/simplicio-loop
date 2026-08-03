@@ -5,12 +5,16 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import resource
 import time
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
+
+try:
+    import resource as _resource  # Unix-only; optional on Windows
+except ImportError:  # pragma: no cover - Windows hosts
+    _resource = None  # type: ignore[assignment]
 
 CERTIFICATION_SCHEMA = "simplicio.mapper-fast-certification/v1"
 SUPPORTED_FAST_SCHEMAS = {"simplicio.fast-context/v1"}
@@ -137,6 +141,13 @@ def compare_shadow(
     }
 
 
+def _rusage_self() -> Any:
+    """Best-effort process rusage; None on platforms without resource module."""
+    if _resource is None:
+        return None
+    return _resource.getrusage(_resource.RUSAGE_SELF)
+
+
 def certify_fast(
     mapper_path: str,
     fast_path: str,
@@ -144,7 +155,7 @@ def certify_fast(
     requested_backend: str = "shadow",
 ) -> dict[str, Any]:
     started = time.perf_counter()
-    before = resource.getrusage(resource.RUSAGE_SELF)
+    before = _rusage_self()
     receipt = {"parsed": 0, "reused": 0, "fallback": 0, "degraded": 0}
     try:
         mapper = _read(mapper_path)
@@ -176,22 +187,15 @@ def certify_fast(
             "receipt": receipt,
         }
     shadow = compare_shadow(mapper, fast)
-    after = resource.getrusage(resource.RUSAGE_SELF)
+    after = _rusage_self()
     receipt["parsed"] = 1
     selected = "mapper"
     configured = os.environ.get("SIMPLICIO_MAPPER_CONTEXT_BACKEND", requested_backend).casefold()
     if configured == "fast" and shadow["canary"]["eligible"]:
         selected = "fast"
     elapsed = time.perf_counter() - started
-    return {
-        "schema": CERTIFICATION_SCHEMA,
-        "status": "ok",
-        "reason": "shadow_comparison_complete",
-        "requested_backend": configured,
-        "selected_backend": selected,
-        "shadow": shadow,
-        "receipt": receipt,
-        "observability": {
+    if before is not None and after is not None:
+        observability: dict[str, Any] = {
             "query_seconds": elapsed,
             "cpu_user_seconds": after.ru_utime - before.ru_utime,
             "cpu_system_seconds": after.ru_stime - before.ru_stime,
@@ -204,7 +208,28 @@ def certify_fast(
                 "value": None,
                 "reason": "not_observable_portably_for_process_subrange",
             },
-        },
+        }
+    else:
+        observability = {
+            "query_seconds": elapsed,
+            "cpu_user_seconds": None,
+            "cpu_system_seconds": None,
+            "rss_max_bytes": None,
+            "page_faults": {"major": None, "minor": None},
+            "bytes_read": {
+                "value": None,
+                "reason": "resource_module_unavailable_on_this_platform",
+            },
+        }
+    return {
+        "schema": CERTIFICATION_SCHEMA,
+        "status": "ok",
+        "reason": "shadow_comparison_complete",
+        "requested_backend": configured,
+        "selected_backend": selected,
+        "shadow": shadow,
+        "receipt": receipt,
+        "observability": observability,
         "compatibility": {
             "mapper": mapper.get("schema"),
             "fast": fast.get("schema"),

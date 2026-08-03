@@ -23,6 +23,10 @@ from .paths import StoreLocation, resolve_store_location
 CATALOG_API_SCHEMA = "simplicio.mapper-store.data-catalog/v1"
 CATALOG_MANIFEST_NAME = "ecosystem-data-catalog.json"
 
+# Single memory SoT (see store/unify.py). Legacy neural is absorb-only.
+CANONICAL_MEMORY_DB = "memory.sqlite"
+LEGACY_NEURAL_DB = "simplicio-memory.sqlite"
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -135,21 +139,27 @@ class BankSpec:
 ECOSYSTEM_BANKS: tuple[BankSpec, ...] = (
     BankSpec(
         bank_id="mapper-memory",
-        relative="memory.sqlite",
+        relative=CANONICAL_MEMORY_DB,
         kind="sqlite",
-        owners=("mapper", "runtime"),
-        description="MapperStore memory + semantic namespaces (canonical)",
+        owners=("mapper", "runtime", "loop", "fast", "mcp"),
+        description=(
+            "CANONICAL single SoT: MapperStore memory + semantic + FTS5 "
+            f"({CANONICAL_MEMORY_DB}). Runtime/MCP read this file only."
+        ),
         legacy=("memory.sqlite",),
         required=True,
     ),
     BankSpec(
         bank_id="neural",
-        relative="simplicio-memory.sqlite",
+        relative=LEGACY_NEURAL_DB,
         kind="sqlite",
         owners=("mapper", "runtime"),
-        description="Neural memory bank (Runtime FTS/vector; seeds+migrations in store/neural)",
+        description=(
+            "Legacy neural schema (memory_items); absorb source bridged into "
+            f"{CANONICAL_MEMORY_DB} by `data unify`. Not the Runtime MCP SoT."
+        ),
         legacy=("memory/simplicio-memory.sqlite",),
-        required=True,
+        required=False,
     ),
     BankSpec(
         bank_id="operations",
@@ -294,6 +304,11 @@ def layout_tree() -> dict[str, Any]:
         "root_env": "SIMPLICIO_DATA_DIR",
         "default_root": "~/data",
         "policy": "Mapper is the sole durable data centralizer for the Simplicio ecosystem.",
+        "canonical_memory": {
+            "path": CANONICAL_MEMORY_DB,
+            "schema": "simplicio.mapper-store.memory/v1 + semantic + FTS5",
+            "env": "SIMPLICIO_MEMORY_DB → $SIMPLICIO_DATA_DIR/memory.sqlite",
+        },
         "banks": [
             {
                 "id": b.bank_id,
@@ -306,15 +321,31 @@ def layout_tree() -> dict[str, Any]:
             }
             for b in ECOSYSTEM_BANKS
         ],
+        "mapper_fast_integration": {
+            "note": (
+                "Mapper extracts (project-map/context-snapshot); Fast builds disposable "
+                ".sfast under <repo>/.simplicio/fast/. Memory SoT stays global in "
+                "SIMPLICIO_DATA_DIR/memory.sqlite — Fast never owns durable memory."
+            ),
+            "commands": [
+                "simplicio-mapper status .",
+                "simplicio-mapper fast-handoff .",
+                "simplicio-fast build . -o .simplicio/fast/project.sfast",
+                "simplicio-mapper doctor --fast",
+                "simplicio-mapper data unify",
+            ],
+            "dependency": "simplicio-fast depends on simplicio-mapper>=0.26.11,<0.27",
+        },
         "repo_scoped_artifacts": {
             "note": (
                 "Repo-local .simplicio/project-map.json, precedent-index.json, "
-                "and orchestrator scratchpads remain repo-scoped working copies; "
+                "fast/project.sfast, and orchestrator scratchpads remain repo-scoped; "
                 "durable global state must live under SIMPLICIO_DATA_DIR."
             ),
             "examples": [
                 ".simplicio/project-map.json",
                 ".simplicio/precedent-index.json",
+                ".simplicio/fast/project.sfast",
                 ".simplicio/orchestrator/",
             ],
         },
@@ -521,19 +552,36 @@ def absorb_all(
                 repo_root=repo_root,
             )
         )
+    from .unify import env_hints, unify_memory
+
+    # Always bridge legacy neural into canonical MapperStore after absorb.
+    unify_report = unify_memory(
+        data_dir=location.root,
+        environ=environ,
+        absorb_legacy_home=False,
+        rebuild_fts=True,
+    )
     status = data_status(data_dir=location.root, environ=environ, home=home)
+    hints = env_hints(data_dir=location.root)
     manifest = {
         "schema": CATALOG_API_SCHEMA,
-        "version": 1,
+        "version": 2,
         "data_root": str(location.root),
         "updated_at": _now(),
-        "policy": "Mapper centralizes all ecosystem durable data under this root.",
+        "policy": (
+            "Mapper centralizes all ecosystem durable data under this root. "
+            f"Canonical memory SoT is {CANONICAL_MEMORY_DB} (MapperStore+FTS5)."
+        ),
+        "canonical_memory": str(location.root / CANONICAL_MEMORY_DB),
         "banks": status["banks"],
         "last_absorb": results,
-        "env": {
-            "SIMPLICIO_DATA_DIR": str(location.root),
-            "SIMPLICIO_MEMORY_DB": str(location.root / "simplicio-memory.sqlite"),
+        "unify": {
+            "status": unify_report.get("status"),
+            "semantic_items": unify_report.get("semantic_items"),
+            "memory_entries": unify_report.get("memory_entries"),
+            "fts": unify_report.get("fts"),
         },
+        "env": hints,
     }
     manifest_path = location.root / CATALOG_MANIFEST_NAME
     manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -542,6 +590,8 @@ def absorb_all(
         "status": "complete",
         "data_root": str(location.root),
         "manifest": str(manifest_path),
+        "canonical_memory": str(location.root / CANONICAL_MEMORY_DB),
+        "unify": manifest["unify"],
         "absorbed": [r for r in results if r.get("status") == "absorbed"],
         "unchanged": [r for r in results if r.get("status") == "unchanged"],
         "skipped": [r for r in results if r.get("status") == "skipped"],

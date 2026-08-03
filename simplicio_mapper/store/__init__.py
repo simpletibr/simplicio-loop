@@ -112,6 +112,19 @@ from .catalog import (
     ensure_mapper_memory,
     layout_tree,
 )
+from .unify import (
+    CANONICAL_DB_NAME,
+    UNIFY_API_SCHEMA,
+    canonical_memory_path,
+    env_hints as memory_env_hints,
+    unify_memory,
+    unify_status,
+)
+from .fast_link import (
+    FAST_LINK_SCHEMA,
+    ensure_repo_fast_artifacts,
+    mapper_fast_status,
+)
 
 __all__ = [
     "FenceValidator",
@@ -216,4 +229,13 @@ __all__ = [
     "data_status",
     "ensure_mapper_memory",
     "layout_tree",
+    "CANONICAL_DB_NAME",
+    "UNIFY_API_SCHEMA",
+    "canonical_memory_path",
+    "memory_env_hints",
+    "unify_memory",
+    "unify_status",
+    "FAST_LINK_SCHEMA",
+    "ensure_repo_fast_artifacts",
+    "mapper_fast_status",
 ]

@@ -1,4 +1,4 @@
-"""CLI: simplicio-mapper data status|absorb|layout|init"""
+"""CLI: simplicio-mapper data status|absorb|layout|init|unify"""
 
 from __future__ import annotations
 
@@ -13,23 +13,34 @@ from ..store.catalog import (
     ensure_mapper_memory,
     layout_tree,
 )
+from ..store.fast_link import mapper_fast_status
 from ..store.neural import bootstrap_neural
+from ..store.unify import unify_memory, unify_status
 
-VERBS = {"status", "absorb", "layout", "init"}
+VERBS = {"status", "absorb", "layout", "init", "unify"}
 
 _HELP = """usage: simplicio-mapper data <verb> [options]
 
 Ecosystem data hub — Mapper centralizes every durable bank under SIMPLICIO_DATA_DIR.
 
+Canonical memory SoT (single SQLite): $SIMPLICIO_DATA_DIR/memory.sqlite
+  MapperStore schema + FTS5. Runtime/MCP/agents must use this path.
+Legacy neural (simplicio-memory.sqlite) is absorbed and bridged by `unify`.
+
 Verbs:
   layout                 print canonical layout (all banks + paths)
   status                 inventory Mapper root vs legacy ~/.simplicio sources
   absorb [--bank ID]     copy legacy sources into Mapper root (default: all banks)
-  init                   ensure mapper-memory + neural banks exist, then absorb
+  unify                  ensure memory.sqlite schema + bridge neural data + FTS rebuild
+  init                   ensure banks, absorb legacy, unify into single SoT
+
+Mapper↔Fast (repo-scoped, always with global memory SoT):
+  status --repo PATH     also reports fast-handoff / .sfast / project-map readiness
+  init --repo PATH       same + unify memory so Fast/Runtime share loaded data
 
 Options:
   --data-dir PATH   override SIMPLICIO_DATA_DIR
-  --repo PATH       also scan repo .simplicio for agents.db / operations.sqlite
+  --repo PATH       also scan repo .simplicio for agents.db / operations.sqlite / Fast
   --bank ID         absorb a single bank (repeatable via multiple invocations)
   --source PATH     explicit source for single --bank absorb
   --no-backup       skip backup of existing destination
@@ -112,7 +123,18 @@ def run_data_cli(argv: list[str]) -> int:
         if verb == "layout":
             payload = layout_tree()
         elif verb == "status":
-            payload = data_status(data_dir=data_dir)
+            catalog = data_status(data_dir=data_dir)
+            mem = unify_status(data_dir=data_dir)
+            fast = mapper_fast_status(repo=repo, data_dir=data_dir)
+            payload = {
+                **catalog,
+                "memory_unify": mem,
+                "mapper_fast": fast,
+                "env_hints": {**(mem.get("env_hints") or {}), **(fast.get("env_hints") or {})},
+            }
+        elif verb == "unify":
+            payload = unify_memory(data_dir=data_dir, absorb_legacy_home=True, rebuild_fts=True)
+            payload["mapper_fast"] = mapper_fast_status(repo=repo, data_dir=data_dir)
         elif verb == "absorb":
             if bank:
                 payload = absorb_bank(
@@ -132,18 +154,36 @@ def run_data_cli(argv: list[str]) -> int:
             mem = ensure_mapper_memory(data_dir=data_dir)
             neural = bootstrap_neural(data_dir=data_dir, apply_seeds=False)
             absorbed = absorb_all(data_dir=data_dir, backup=backup, repo_root=repo)
+            unified = unify_memory(
+                data_dir=data_dir,
+                absorb_legacy_home=True,
+                rebuild_fts=True,
+            )
+            fast = mapper_fast_status(repo=repo, data_dir=data_dir)
             payload = {
                 "schema": absorbed["schema"],
-                "status": "initialized",
+                "status": "initialized" if unified.get("status") == "ready" else "degraded",
                 "data_root": absorbed["data_root"],
                 "mapper_memory": mem,
                 "neural": {
                     "database": neural.get("database"),
                     "migrations_present": neural.get("migrations_present"),
                     "memory_items": neural.get("memory_items"),
+                    "role": "legacy_absorb_source",
                 },
+                "canonical_memory": unified.get("canonical_database"),
+                "unify": {
+                    "status": unified.get("status"),
+                    "semantic_items": unified.get("semantic_items"),
+                    "memory_entries": unified.get("memory_entries"),
+                    "fts": unified.get("fts"),
+                },
+                "mapper_fast": fast,
                 "absorb": absorbed,
-                "env_hints": absorbed.get("env_hints"),
+                "env_hints": {
+                    **(unified.get("env_hints") or absorbed.get("env_hints") or {}),
+                    **(fast.get("env_hints") or {}),
+                },
             }
     except Exception as error:  # noqa: BLE001
         err = {
