@@ -988,12 +988,8 @@ def test_translate_create_file_plan_for_native_refuses_empty_or_missing_operatio
     assert _translate_create_file_plan_for_native({"operations": "not-a-list"}) is None
 
 
-def test_cli_edit_alias_translates_multi_file_create_plan_to_native_calls(tmp_path, monkeypatch):
-    """The exact regression this closes: a multi-file create_file plan (the
-    shape `simplicio-py prototype scaffold`-style callers naturally produce)
-    used to fail outright against the native binary ('edit plan must
-    specify a target "file"'). Proves it now issues one native subprocess
-    call per file instead."""
+def test_cli_edit_alias_translates_multi_file_create_plan_to_atomic_runtime_transaction(tmp_path, monkeypatch):
+    """Multi-file create plans use one atomic Runtime transaction."""
     from simplicio import cli
     from simplicio.commands import edit as edit_cmd
 
@@ -1016,33 +1012,39 @@ def test_cli_edit_alias_translates_multi_file_create_plan_to_native_calls(tmp_pa
         returncode = 0
         stderr = ""
 
-        def __init__(self, path):
+        def __init__(self, files):
             self.stdout = json.dumps(
                 {
-                    "schema": "simplicio.edit-result/v1",
-                    "status": "ok",
-                    "file": path,
-                    "before_sha256": "before",
-                    "after_sha256": "after",
+                    "status": "committed",
+                    "file_count": len(files),
+                    "files": [
+                        {"file": item["file"], "ops_applied": 1, "created": True}
+                        for item in files
+                    ],
                 }
             )
 
-    def fake_run(cmd, input=None, text=False, capture_output=False):
-        calls.append({"cmd": cmd, "input": input})
-        native_plan = json.loads(input)
-        return Completed(native_plan["file"])
+    def fake_run(cmd, **kwargs):
+        transaction = json.loads(cmd[cmd.index("--plan") + 1])
+        calls.append({"cmd": cmd, "transaction": transaction, "kwargs": kwargs})
+        return Completed(transaction["files"])
 
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     monkeypatch.delenv("SIMPLICIO_DEV_CLI_NO_RUNTIME_EDIT", raising=False)
     monkeypatch.setattr(
-        edit_cmd.shutil, "which", lambda name: "/bin/simplicio" if name == "simplicio" else None
+        edit_cmd.shutil, "which", lambda name: "/bin/simplicio.exe" if name == "simplicio" else None
     )
     monkeypatch.setattr(edit_cmd.subprocess, "run", fake_run)
 
     code = cli.main(["edit", "--root", str(tmp_path), "--plan", str(plan_path), "--apply", "--json"])
 
-    assert code == 1
-    assert calls == []
+    assert code == 0
+    assert len(calls) == 1
+    assert "cross-file-txn" in calls[0]["cmd"]
+    transaction_files = calls[0]["transaction"]["files"]
+    assert {Path(item["file"]).name for item in transaction_files} == {"a.py", "b.py"}
+    assert all(item["operations"][0]["op"] == "create" for item in transaction_files)
+    assert calls[0]["kwargs"]["stdin"] is not None
 
 
 def test_cli_edit_alias_marks_non_create_file_ops_effect_unknown(tmp_path, monkeypatch):

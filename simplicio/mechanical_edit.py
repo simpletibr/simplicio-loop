@@ -811,6 +811,7 @@ def _run_validation(raw: Any, root: Path) -> list[dict[str, Any]]:
         try:
             proc = subprocess.run(
                 cmd,
+                stdin=subprocess.DEVNULL,
                 cwd=root,
                 capture_output=True,
                 text=True,

@@ -378,24 +378,40 @@ def test_edit_default_standalone_receipt_is_not_legacy(tmp_path, monkeypatch, ca
     assert (tmp_path / "product.txt").read_text(encoding="utf-8") == "changed\n"
 
 
-def test_native_multi_file_apply_is_refused_before_any_subprocess(tmp_path, monkeypatch):
+def test_native_multi_file_apply_uses_atomic_runtime_transaction(tmp_path, monkeypatch):
     calls = []
     args = argparse.Namespace(root=str(tmp_path), apply=True)
     plans = [
-        {"file": "one.txt", "operations": [{"op": "append", "text": "one"}]},
-        {"file": "two.txt", "operations": [{"op": "append", "text": "two"}]},
+        {"file": "one.txt", "operations": [{"op": "create", "text": "one"}]},
+        {"file": "two.txt", "operations": [{"op": "create", "text": "two"}]},
     ]
-    monkeypatch.setattr(
-        edit_cmd.subprocess,
-        "run",
-        lambda *a, **k: calls.append((a, k)),
-    )
+
+    def fake_run(cmd, **kwargs):
+        transaction = json.loads(cmd[cmd.index("--plan") + 1])
+        calls.append((cmd, transaction, kwargs))
+        return SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps({
+                "status": "committed",
+                "file_count": len(transaction["files"]),
+                "files": [
+                    {"file": item["file"], "ops_applied": 1, "created": True}
+                    for item in transaction["files"]
+                ],
+            }),
+            stderr="",
+        )
+
+    monkeypatch.setattr(edit_cmd.subprocess, "run", fake_run)
 
     result = edit_cmd._run_native_edit_plans("simplicio", plans, args)
 
-    assert result["status"] == "refused"
-    assert result["errors"][0]["code"] == "RUNTIME_ATOMIC_MULTI_FILE_REQUIRED"
-    assert calls == []
+    assert result["status"] == "ok"
+    assert result["applied"] is True
+    assert len(calls) == 1
+    assert "cross-file-txn" in calls[0][0]
+    assert {Path(item["file"]).name for item in calls[0][1]["files"]} == {"one.txt", "two.txt"}
+    assert all(item["operations"][0]["op"] == "create" for item in calls[0][1]["files"])
 
 
 def test_ambiguous_native_edit_records_lock_and_blocks_next_attempt(tmp_path, monkeypatch, capsys):

@@ -138,6 +138,120 @@ def _translate_create_file_plan_for_native(plan: dict) -> list[dict] | None:
     return native_plans
 
 
+def _run_atomic_native_create_plans(
+    runtime: str, native_plans: list[dict], a: argparse.Namespace
+) -> dict[str, Any]:
+    """Apply a translated create-file batch through one Runtime transaction."""
+    root = Path(a.root).resolve()
+    transaction_files: list[dict[str, Any]] = []
+    for native_plan in native_plans:
+        relative = str(native_plan["file"])
+        target = (root / relative).resolve()
+        if not target.is_relative_to(root):
+            return {
+                "schema": "simplicio.mechanical-edit-result/v1",
+                "status": "refused",
+                "applied": False,
+                "noop": False,
+                "operation_count": 0,
+                "files": [],
+                "errors": [{"code": "unsafe_path", "message": f"path escapes root: {relative}"}],
+                "mutation_receipt": mutation_receipt("blocked", entrypoint="edit"),
+            }
+        if target.exists():
+            return {
+                "schema": "simplicio.mechanical-edit-result/v1",
+                "status": "refused",
+                "applied": False,
+                "noop": False,
+                "operation_count": 0,
+                "files": [],
+                "errors": [{"code": "file_exists", "message": f"{relative} already exists", "path": relative}],
+                "mutation_receipt": mutation_receipt("blocked", entrypoint="edit"),
+            }
+        operation = native_plan["operations"][0]
+        transaction_files.append(
+            {
+                "file": str(target),
+                "operations": [{"op": "create", "text": str(operation.get("text", ""))}],
+            }
+        )
+
+    try:
+        transaction_text = json.dumps({"files": transaction_files})
+        cmd = delegated_command(runtime, ["cross-file-txn", "--plan", transaction_text, "--json"])
+        completed = subprocess.run(
+            cmd,
+            stdin=subprocess.DEVNULL,
+            text=True,
+            capture_output=True,
+            timeout=RUNTIME_EDIT_TIMEOUT_S,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        record_effect_unknown(a.root)
+        return {
+            "schema": "simplicio.mechanical-edit-result/v1",
+            "status": "effect_unknown",
+            "applied": False,
+            "noop": False,
+            "operation_count": len(native_plans),
+            "files": [],
+            "errors": [{"code": "native_delegation_failed", "message": str(exc)}],
+            "mutation_receipt": mutation_receipt(
+                "runtime_effect_api", entrypoint="edit", runtime_gate_verified=False
+            ),
+        }
+
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        payload = None
+    result_files = payload.get("files") if isinstance(payload, dict) else None
+    actual_files = (
+        {str(item.get("file")) for item in result_files if isinstance(item, dict)}
+        if isinstance(result_files, list)
+        else set()
+    )
+    expected_files = {str(item["file"]) for item in transaction_files}
+    if (
+        completed.returncode != 0
+        or not isinstance(payload, dict)
+        or payload.get("status") != "committed"
+        or payload.get("file_count") != len(transaction_files)
+        or actual_files != expected_files
+    ):
+        record_effect_unknown(a.root)
+        message = (completed.stderr or completed.stdout).strip()
+        return {
+            "schema": "simplicio.mechanical-edit-result/v1",
+            "status": "effect_unknown",
+            "applied": False,
+            "noop": False,
+            "operation_count": len(native_plans),
+            "files": [],
+            "errors": [{"code": "native_delegation_failed", "message": message}],
+            "mutation_receipt": mutation_receipt(
+                "runtime_effect_api", entrypoint="edit", runtime_gate_verified=False
+            ),
+        }
+
+    return {
+        "schema": "simplicio.mechanical-edit-result/v1",
+        "status": "ok",
+        "applied": True,
+        "noop": False,
+        "operation_count": len(native_plans),
+        "files": [
+            {"path": native_plan["file"], "before_sha256": None, "after_sha256": None}
+            for native_plan in native_plans
+        ],
+        "errors": [],
+        "mutation_receipt": mutation_receipt(
+            "runtime_effect_api", entrypoint="edit", runtime_gate_verified=True
+        ),
+    }
+
+
 def _run_native_edit_plans(
     runtime: str,
     native_plans: list[dict],
@@ -151,21 +265,7 @@ def _run_native_edit_plans(
     files: list[dict] = []
     errors: list[dict] = []
     if a.apply and len(native_plans) > 1:
-        return {
-            "schema": "simplicio.mechanical-edit-result/v1",
-            "status": "refused",
-            "applied": False,
-            "noop": False,
-            "operation_count": 0,
-            "files": [],
-            "errors": [
-                {
-                    "code": "RUNTIME_ATOMIC_MULTI_FILE_REQUIRED",
-                    "message": "multi-file apply requires one atomic Runtime transaction",
-                }
-            ],
-            "mutation_receipt": mutation_receipt("blocked", entrypoint="edit"),
-        }
+        return _run_atomic_native_create_plans(runtime, native_plans, a)
     for _index, native_plan in enumerate(native_plans):
         current_plan_arg = plan_arg if len(native_plans) == 1 else "-"
         cmd = delegated_command(runtime, ["edit", "--plan", current_plan_arg, "--repo", a.root, "--json"])
