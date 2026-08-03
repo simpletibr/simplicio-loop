@@ -166,7 +166,9 @@ def _run_atomic_native_create_plans(
                 "noop": False,
                 "operation_count": 0,
                 "files": [],
-                "errors": [{"code": "file_exists", "message": f"{relative} already exists", "path": relative}],
+                "errors": [
+                    {"code": "file_exists", "message": f"{relative} already exists", "path": relative}
+                ],
                 "mutation_receipt": mutation_receipt("blocked", entrypoint="edit"),
             }
         operation = native_plan["operations"][0]
