@@ -10,7 +10,14 @@ from importlib import metadata
 from pathlib import Path
 from typing import Any
 
-from . import __version__
+try:
+    from . import __version__
+except ImportError:  # pragma: no cover - namespace/shadow edge on some entrypoints
+    try:
+        __version__ = metadata.version("simplicio-cli")
+    except metadata.PackageNotFoundError:
+        __version__ = "0.0.0"
+
 from .providers import LOCAL_DEFAULT_MODEL
 from .task_spec import TASK_SPEC_COMPATIBILITY
 
