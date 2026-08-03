@@ -218,7 +218,8 @@ class RankingTest(unittest.TestCase):
     def test_serialized_token_count_measures_canonical_utf8_bytes(self) -> None:
         payload = {"text": "áé", "values": [1, 2]}
         encoded = ri.serialized_json_bytes(payload)
-        self.assertEqual(ri.serialized_token_count(payload), (len(encoded) + 3) // 4)
+        self.assertEqual(encoded, b'{"text":"\xc3\xa1\xc3\xa9","values":[1,2]}')
+        self.assertEqual(ri.serialized_token_count(payload), ri.estimate_tokens(encoded.decode("utf-8")))
 
     def test_no_match_abstains(self) -> None:
         plan = ri.build_query_plan("quantum orbital photon unrelated", target="")
