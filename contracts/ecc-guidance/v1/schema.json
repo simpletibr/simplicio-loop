@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "simplicio.ecc-guidance/v1",
+  "title": "Simplicio bounded ECC advisory guidance (v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "stage",
+    "role_id",
+    "source",
+    "provenance",
+    "manifest_hash",
+    "authority",
+    "execution_policy",
+    "hooks",
+    "orchestration",
+    "skills",
+    "agents",
+    "missing",
+    "blocked_components",
+    "errors",
+    "prompt",
+    "pack_hash"
+  ],
+  "properties": {
+    "schema": {"const": "simplicio.ecc-guidance/v1"},
+    "status": {"enum": ["DISABLED", "UNAVAILABLE", "BLOCKED", "READY"]},
+    "stage": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "role_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+    "source": {"$ref": "#/$defs/source"},
+    "provenance": {"$ref": "#/$defs/provenance"},
+    "manifest_hash": {"$ref": "#/$defs/hash"},
+    "authority": {"const": "simplicio-mapper"},
+    "execution_policy": {"const": "advisory-only"},
+    "hooks": {"const": "disabled"},
+    "orchestration": {"const": "disabled"},
+    "skills": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/component"}},
+    "agents": {"type": "array", "maxItems": 8, "items": {"$ref": "#/$defs/component"}},
+    "missing": {"type": "array", "items": {"type": "string", "maxLength": 256}},
+    "blocked_components": {"type": "array", "items": {"type": "string", "maxLength": 128}},
+    "errors": {"type": "array", "items": {"type": "string", "maxLength": 1024}},
+    "prompt": {"type": "string", "maxLength": 100000},
+    "pack_hash": {"$ref": "#/$defs/hash"}
+  },
+  "$defs": {
+    "hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "ref"],
+      "properties": {
+        "repository": {"const": "https://github.com/affaan-m/ECC"},
+        "ref": {"const": "0c1d7be9a750627fb2a6534c78a998cc46d03f9c"}
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "expected_ref", "observed_ref"],
+      "properties": {
+        "status": {"enum": ["VERIFIED", "MISMATCH", "UNVERIFIED", "UNAVAILABLE"]},
+        "expected_ref": {"const": "0c1d7be9a750627fb2a6534c78a998cc46d03f9c"},
+        "observed_ref": {"type": "string", "pattern": "^[0-9a-fA-F]{0,40}$"},
+        "reason": {"type": "string", "maxLength": 256}
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind", "path", "sha256", "content_sha256", "content", "truncated"],
+      "properties": {
+        "name": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"},
+        "kind": {"enum": ["skill", "agent"]},
+        "path": {"type": "string", "pattern": "^(skills/[^./][^/]*/SKILL[.]md|agents/[^./][^/]*[.]md)$"},
+        "sha256": {"$ref": "#/$defs/hash"},
+        "content_sha256": {"$ref": "#/$defs/hash"},
+        "content": {"type": "string", "maxLength": 524288},
+        "truncated": {"type": "boolean"}
+      }
+    }
+  }
+}

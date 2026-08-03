@@ -78,6 +78,7 @@ CLI audits.
 | `version` | Print release identity and protocol/schema metadata | `simplicio-mapper version --help` |
 | `release-manifest` | Generate or check the local component release manifest | `simplicio-mapper release-manifest --help` |
 | `changelog` | Emit a machine-readable changelog report and rollback hint | `simplicio-mapper changelog --help` |
+| `ecc` | Inspect the pinned ECC checkout or emit bounded advisory guidance | `simplicio-mapper ecc --help`, `simplicio-mapper ecc doctor --help`, `simplicio-mapper ecc pack --help` |
 
 ## Safe operating sequence
 
@@ -90,4 +91,3 @@ Mapper observes and packages context. It does not authorize effects or replace
 tests, review or source control. Use `simplicio-dev-cli` for mechanical source
 edits, `simplicio-fast` for snapshots/PlanDAG, Runtime for policy/effects and
 Loop for retries/convergence.
-

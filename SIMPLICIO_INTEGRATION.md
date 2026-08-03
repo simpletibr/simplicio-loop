@@ -15,6 +15,26 @@ markdown starter docs.
 > (see that README for the compatibility policy and how downstream repos
 > should consume the fixtures).
 
+## Optional ECC advisory guidance
+
+The Mapper exposes a separate, versioned ECC guidance contract. It is disabled
+by default and never changes the strict `simplicio.map-handoff/v1` or
+`simplicio.context-pack/v1` schemas:
+
+```bash
+export SIMPLICIO_ECC_ROOT=/path/to/ECC
+export SIMPLICIO_ECC_ENABLED=1
+git -C /path/to/ECC checkout 0c1d7be9a750627fb2a6534c78a998cc46d03f9c
+simplicio-mapper ecc doctor --json
+simplicio-mapper ecc pack --stage planning --role mapper-planner --json
+```
+
+The Simplicio-owned manifest pins the ECC checkout ref and its own canonical
+digest, hashes raw components, bounds the guidance, and marks it
+`advisory-only`. Hooks, orchestration and autonomous-loop components are
+disabled or forbidden. Use `SIMPLICIO_ECC_REQUIRED=1` when an opted-in pack
+must fail closed if the checkout or selected guidance cannot be verified.
+
 ## Artifact Locations
 
 Default output directory: `.simplicio/`

@@ -55,6 +55,7 @@ packages = ["simplicio_mapper"]
 # requiring a source checkout.
 [tool.hatch.build.targets.wheel.force-include]
 "contracts" = "simplicio_mapper/contracts"
+"simplicio_mapper/_bundle/ecc/manifest.toml" = "simplicio_mapper/_bundle/ecc/manifest.toml"
 
 [tool.ruff]
 line-length = 110
@@ -114,4 +115,5 @@ include = [
   "LICENSE",
   "pyproject.toml",
   "contracts",
+  "simplicio_mapper/_bundle/ecc/manifest.toml",
 ]

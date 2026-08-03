@@ -99,6 +99,8 @@ USAGE
   simplicio-mapper doctor --fast [manifest.json] [--json]
   simplicio-mapper fast-handoff [path] [--changed-path file] [--base-commit sha]
   simplicio-mapper fast-certify --mapper mapper.json --fast fast.json
+  simplicio-mapper ecc doctor [--ecc-root <path>] [--json]
+  simplicio-mapper ecc pack [--stage planning] [--role mapper-planner] [--json]
   simplicio-mapper canonical build <path> [--json]
   simplicio-mapper canonical status <path> [--json]
   simplicio-mapper canonical verify <path> [--json] [--storage-root <dir>] [--config-fingerprint <value>] [--limit <n>]
@@ -158,6 +160,8 @@ OPTIONS
                         overlay) and a full remap of the same worktree;
                         exit 0 on match, 1 on mismatch/failure (issue #267).
   canonical gc <path>   Conservative, crash-safe GC of interrupted
+  ecc doctor            Inspect the opt-in ECC checkout and policy.
+  ecc pack              Emit bounded ECC guidance for a planning stage.
                         promotions and stale canonical-map snapshots under
                         the ADR-008 content-addressed storage root. Dry-run
                         by default; pass --apply to actually delete

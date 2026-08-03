@@ -126,6 +126,19 @@
       "change_policy": {"breaking": "cross-repo-adr-and-conformance", "additive": "consumer-compatible-fixture"}
     },
     {
+      "id": "simplicio.ecc-guidance-ref/v1",
+      "kind": "integration",
+      "owner": "mapper",
+      "maintainers": ["mapper", "dev-cli", "loop"],
+      "producers": ["dev-cli"],
+      "consumers": ["loop", "runtime"],
+      "writer_authority": "mapper",
+      "versions": {"current": "v1", "minimum": "v1", "maximum": "v1", "deprecated": false},
+      "canonical": {"schema_path": "contracts/ecc-guidance/v1/reference.schema.json", "sha256": "4b33669699de4df69329664f3324f443bfa3475ee425e72c12f1f98c3e49ffe6", "fixture_paths": []},
+      "compatibility": {"unknown_fields": "reject", "unknown_enum": "reject", "defaults": "explicit", "policy": "versioned"},
+      "change_policy": {"breaking": "cross-repo-adr-and-conformance", "additive": "consumer-compatible-fixture"}
+    },
+    {
       "id": "simplicio.map-handoff/v1",
       "kind": "integration",
       "owner": "mapper",
@@ -135,6 +148,19 @@
       "writer_authority": "mapper",
       "versions": {"current": "v1", "minimum": "v1", "maximum": "v1", "deprecated": false},
       "canonical": {"schema_path": null, "sha256": null, "fixture_paths": []},
+      "compatibility": {"unknown_fields": "reject", "unknown_enum": "reject", "defaults": "explicit", "policy": "versioned"},
+      "change_policy": {"breaking": "cross-repo-adr-and-conformance", "additive": "consumer-compatible-fixture"}
+    },
+    {
+      "id": "simplicio.ecc-guidance/v1",
+      "kind": "integration",
+      "owner": "mapper",
+      "maintainers": ["mapper", "dev-cli", "loop"],
+      "producers": ["mapper"],
+      "consumers": ["dev-cli", "loop"],
+      "writer_authority": "mapper",
+      "versions": {"current": "v1", "minimum": "v1", "maximum": "v1", "deprecated": false},
+      "canonical": {"schema_path": "contracts/ecc-guidance/v1/schema.json", "sha256": "bd7485ea283c5af2024343fef99e924f84075044b8022c8efda4dcbef64214c1", "fixture_paths": []},
       "compatibility": {"unknown_fields": "reject", "unknown_enum": "reject", "defaults": "explicit", "policy": "versioned"},
       "change_policy": {"breaking": "cross-repo-adr-and-conformance", "additive": "consumer-compatible-fixture"}
     },
