@@ -115,6 +115,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ._store_migrations import run_store_migrations_cli
 
         return run_store_migrations_cli(argv[1:])
+    if argv and argv[0] == "neural":
+        from ._neural import run_neural_cli
+
+        return run_neural_cli(argv[1:])
     if argv and argv[0] == "contracts":
         from ..contract_registry import run_contracts_cli
 

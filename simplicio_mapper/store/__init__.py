@@ -90,6 +90,17 @@ from .transactions import (
     run_with_retry,
     transaction,
 )
+from .neural import (
+    NEURAL_API_SCHEMA,
+    NEURAL_DB_NAME,
+    NeuralBankError,
+    absorb_runtime_neural,
+    apply_migrations,
+    bootstrap_neural,
+    neural_database_path,
+    neural_status,
+    seed_neural,
+)
 
 __all__ = [
     "FenceValidator",
@@ -176,4 +187,13 @@ __all__ = [
     "store_memory",
     "transaction",
     "validate_memory",
+    "NEURAL_API_SCHEMA",
+    "NEURAL_DB_NAME",
+    "NeuralBankError",
+    "absorb_runtime_neural",
+    "apply_migrations",
+    "bootstrap_neural",
+    "neural_database_path",
+    "neural_status",
+    "seed_neural",
 ]

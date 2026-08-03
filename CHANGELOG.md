@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## [0.26.12] - 2026-08-03
+
+### Added
+- Neural bank centralization: package Runtime seeds.sql, memory-schema.sql, and migrations under simplicio_mapper/store/neural/assets/.
+- CLI `simplicio-mapper neural init|absorb|status|seed` — Mapper owns SIMPLICIO_DATA_DIR/simplicio-memory.sqlite.
+- absorb copies ~/.simplicio/memory/simplicio-memory.sqlite into Mapper data root with backup + migrations.
+
 ## [0.26.11] - 2026-08-02
 
 - Publish the cross-agent command and feature index for the Python and Node
