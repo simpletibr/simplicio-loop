@@ -76,6 +76,7 @@ def _run_via_runtime(a: argparse.Namespace, extra_args: list[str]) -> tuple[int 
     try:
         completed = subprocess.run(
             cmd,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             timeout=a.timeout + RUNTIME_DELEGATION_TIMEOUT_SLACK_S,
@@ -139,6 +140,7 @@ def _run_fallback(a: argparse.Namespace, extra_args: list[str]) -> int:
     try:
         completed = subprocess.run(
             argv,
+            stdin=subprocess.DEVNULL,
             capture_output=True,
             text=True,
             cwd=repo_root,
