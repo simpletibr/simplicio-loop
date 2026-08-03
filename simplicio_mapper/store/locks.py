@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 from .paths import reject_network_path, reject_symlink_components
@@ -49,14 +50,28 @@ class StoreFileLock:
             if os.name == "nt":  # pragma: no cover - exercised by Windows CI
                 import msvcrt
 
-                self._handle.seek(0)
-                if self._handle.read(1) == "":
+                # A sibling handle cannot read byte 0 while it is locked on
+                # Windows.  Inspect the size instead; the first opener seeds
+                # the byte before taking the lock and later openers leave it
+                # untouched.
+                if os.fstat(self._handle.fileno()).st_size == 0:
                     self._handle.seek(0)
                     self._handle.write("\0")
                     self._handle.flush()
-                self._handle.seek(0)
-                mode = msvcrt.LK_LOCK if self.blocking else msvcrt.LK_NBLCK
-                msvcrt.locking(self._handle.fileno(), mode, 1)
+                # ``LK_LOCK`` is not reliably blocking for handles opened by
+                # sibling threads in the same Windows process: it can return
+                # ``PermissionError`` immediately.  Retry the non-blocking
+                # primitive explicitly so ``blocking=True`` has the same
+                # semantics as the POSIX implementation.
+                while True:
+                    try:
+                        self._handle.seek(0)
+                        msvcrt.locking(self._handle.fileno(), msvcrt.LK_NBLCK, 1)
+                        break
+                    except OSError:
+                        if not self.blocking:
+                            raise
+                        time.sleep(0.01)
             else:
                 import fcntl
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import multiprocessing
 import sqlite3
+import threading
 from pathlib import Path
 
 import pytest
@@ -539,13 +540,19 @@ def test_file_lock_reports_contention_and_releases(tmp_path: Path) -> None:
     finally:
         first.release()
     with StoreFileLock(path, owner="second"):
-        assert path.read_text(encoding="utf-8").find('"owner": "second"') >= 0
+        pass
+    assert path.read_text(encoding="utf-8").find('"owner": "second"') >= 0
     with pytest.raises(ValueError):
         StoreFileLock(path, owner="")
     target = tmp_path / "lock-target.txt"
     target.write_text("preserve", encoding="utf-8")
     symlink = tmp_path / "lock-link"
-    symlink.symlink_to(target)
+    try:
+        symlink.symlink_to(target)
+    except OSError as error:
+        if getattr(error, "winerror", None) != 1314:
+            raise
+        pytest.skip("symlink tests require the Windows SeCreateSymbolicLink privilege")
     with pytest.raises(StoreLockError):
         StoreFileLock(symlink, owner="unsafe").acquire()
     assert target.read_text(encoding="utf-8") == "preserve"
@@ -557,6 +564,43 @@ def test_file_lock_reports_contention_and_releases(tmp_path: Path) -> None:
     parent_file.write_text("not a directory", encoding="utf-8")
     with pytest.raises(StoreLockError):
         StoreFileLock(parent_file / "child.lock", owner="unsafe").acquire()
+
+
+def test_blocking_file_lock_waits_for_sibling_thread(tmp_path: Path) -> None:
+    path = tmp_path / "thread.lock"
+    held = threading.Event()
+    release = threading.Event()
+    acquired = threading.Event()
+    errors: list[BaseException] = []
+
+    def holder() -> None:
+        try:
+            with StoreFileLock(path, owner="holder", blocking=True):
+                held.set()
+                release.wait(5)
+        except BaseException as error:  # pragma: no cover - failure evidence
+            errors.append(error)
+
+    def waiter() -> None:
+        try:
+            with StoreFileLock(path, owner="waiter", blocking=True):
+                acquired.set()
+        except BaseException as error:  # pragma: no cover - failure evidence
+            errors.append(error)
+
+    holding_thread = threading.Thread(target=holder, daemon=True)
+    waiting_thread = threading.Thread(target=waiter, daemon=True)
+    holding_thread.start()
+    assert held.wait(5)
+    waiting_thread.start()
+    assert not acquired.wait(0.1)
+    release.set()
+    assert acquired.wait(5), errors
+    holding_thread.join(5)
+    waiting_thread.join(5)
+    assert not holding_thread.is_alive()
+    assert not waiting_thread.is_alive()
+    assert errors == []
 
 
 @pytest.mark.skipif("fork" not in multiprocessing.get_all_start_methods(), reason="requires POSIX fork")
