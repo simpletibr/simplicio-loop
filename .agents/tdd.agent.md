@@ -111,3 +111,22 @@ Quando termina, entrega:
 
 - `.skills/playwright-e2e/SKILL.md` — fixtures, page objects, evidências.
 - `.skills/conventional-commits/SKILL.md` — `test:` prefix pra commits que só adicionam teste.
+
+<!-- simplicio-global-llm-architecture-rules:start -->
+## Regras arquiteturais globais (obrigatórias)
+
+- Delete diretamente o obsoleto; não preserve compatibilidade retroativa, não crie
+  migrações e não deixe fallbacks.
+- Escolha a solução mais simples para a necessidade atual, sem abstrações
+  preventivas ou configuração desnecessária.
+- Faça o mínimo end-to-end funcionar primeiro e evolua por camadas longas, sem
+  desmontar o que funciona por complexidade inacabada.
+- Mantenha modularidade e separação de responsabilidades.
+- Prefira bibliotecas maduras e mantidas; reescreva do zero apenas com motivo
+  técnico explícito.
+- Inspecione dependências existentes antes de adicionar pacotes ou reimplementar.
+- Tome decisões para o longo prazo; não deixe soluções temporárias.
+- Reutilize padrões validados por produtos maduros; não reinvente a roda.
+
+<!-- simplicio-global-llm-architecture-rules:end -->
+

@@ -167,3 +167,22 @@ If it's a UI change, also run Playwright (`npx playwright test --reporter=list,h
 - **Bench reproduction**: `python3 bench/run_offline.py` (no API key needed for the offline scoring), or `simplicio-py bench --cases bench/cases.json --stack <s>` for real-test pass-rate.
 - **4-quadrant matrix**: `python3 bench/run_4quadrant.py` decomposes prompt-effect vs. loop-effect vs. composition. Q4 (simplicio + loop) wins on pass-rate AND stays close to Q2 on cost.
 - **Plug points** if extending: `prompt.py::_mapper` (real mapper), `pipeline.py::_aplicar_e_testar` (real diff/test), `skill_router.py` (your skills dir via `SIMPLICIO_SKILLS_DIR`).
+
+<!-- simplicio-global-llm-architecture-rules:start -->
+## Regras arquiteturais globais (obrigatórias)
+
+- Delete diretamente o que está obsoleto; não preserve compatibilidade retroativa,
+  não crie migrações e não deixe fallbacks.
+- Escolha a implementação mais simples para a necessidade atual; sem abstrações
+  preventivas ou configuração desnecessária.
+- Entregue primeiro o mínimo end-to-end e evolua por camadas longas, sem desmontar
+  o que funciona por complexidade inacabada.
+- Mantenha modularidade e separação clara de responsabilidades.
+- Prefira bibliotecas maduras e mantidas; reescreva do zero apenas com motivo
+  técnico explícito.
+- Inspecione as dependências existentes antes de adicionar pacotes ou reimplementar.
+- Tome decisões arquiteturais para o longo prazo; não deixe soluções temporárias.
+- Reutilize padrões validados por produtos maduros; não reinvente a roda.
+
+<!-- simplicio-global-llm-architecture-rules:end -->
+

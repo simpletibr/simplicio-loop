@@ -72,3 +72,22 @@ Registro: 1 bug real (string vazia) que o golden-path-only não pegou.
 
 - Esta skill é a operacionalização do item de DoD "Verificação independente/adversarial pós-verde" (ver `AGENTS.md` / `CLAUDE.md`).
 - Última revisão: 2026-05-27.
+
+<!-- simplicio-global-llm-architecture-rules:start -->
+## Regras arquiteturais globais (obrigatórias)
+
+- Delete diretamente o que está obsoleto; não preserve compatibilidade retroativa,
+  não crie migrações e não deixe fallbacks.
+- Escolha a implementação mais simples para a necessidade atual; sem abstrações
+  preventivas ou configuração desnecessária.
+- Entregue primeiro o mínimo end-to-end e evolua por camadas longas, sem desmontar
+  o que funciona por complexidade inacabada.
+- Mantenha modularidade e separação clara de responsabilidades.
+- Prefira bibliotecas maduras e mantidas; reescreva do zero apenas com motivo
+  técnico explícito.
+- Inspecione as dependências existentes antes de adicionar pacotes ou reimplementar.
+- Tome decisões arquiteturais para o longo prazo; não deixe soluções temporárias.
+- Reutilize padrões validados por produtos maduros; não reinvente a roda.
+
+<!-- simplicio-global-llm-architecture-rules:end -->
+

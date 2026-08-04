@@ -48,3 +48,22 @@ Return `route_id`, `intent`, `selected_capabilities`, `order`, `preconditions`, 
 - `references/capabilities.yaml`: cross-component registry and decision matrix.
 - `references/recipes.md`: tested compositions for common workflows.
 - `scripts/probe-capabilities.py`: validate the registry and detect duplicate IDs.
+
+<!-- simplicio-global-llm-architecture-rules:start -->
+## Regras arquiteturais globais (obrigatórias)
+
+- Delete diretamente o que está obsoleto; não preserve compatibilidade retroativa,
+  não crie migrações e não deixe fallbacks.
+- Escolha a implementação mais simples para a necessidade atual; sem abstrações
+  preventivas ou configuração desnecessária.
+- Entregue primeiro o mínimo end-to-end e evolua por camadas longas, sem desmontar
+  o que funciona por complexidade inacabada.
+- Mantenha modularidade e separação clara de responsabilidades.
+- Prefira bibliotecas maduras e mantidas; reescreva do zero apenas com motivo
+  técnico explícito.
+- Inspecione as dependências existentes antes de adicionar pacotes ou reimplementar.
+- Tome decisões arquiteturais para o longo prazo; não deixe soluções temporárias.
+- Reutilize padrões validados por produtos maduros; não reinvente a roda.
+
+<!-- simplicio-global-llm-architecture-rules:end -->
+
