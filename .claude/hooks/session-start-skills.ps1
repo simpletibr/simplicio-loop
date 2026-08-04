@@ -34,4 +34,9 @@ Padroes deste repo:
   - Sem emojis em codigo. Conventional Commits.
   - DoD bloqueado por .github/workflows/dod.yml.
   - Nunca commitar segredos. Nunca pular testes.
+
+Skills do ecossistema Simplicio disponiveis neste checkout:
+  - .skills/simplicio-mapper/SKILL.md — survey, snapshots e selecao de contexto.
+  - .skills/simplicio-prism/SKILL.md — roteamento entre Mapper, Fast, Dev CLI, Loop e Runtime.
+  Ative Mapper antes de mudancas; use Prism quando a tarefa atravessar componentes.
 '@

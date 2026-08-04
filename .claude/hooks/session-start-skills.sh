@@ -34,4 +34,9 @@ Padrões deste repo:
   - DoD bloqueado por .github/workflows/dod.yml.
   - Nunca commitar segredos. Nunca pular testes.
 
+Skills do ecossistema Simplicio disponíveis neste checkout:
+  - .skills/simplicio-mapper/SKILL.md — survey, snapshots e seleção de contexto.
+  - .skills/simplicio-prism/SKILL.md — roteamento entre Mapper, Fast, Dev CLI, Loop e Runtime.
+  Ative Mapper antes de mudanças; use Prism quando a tarefa atravessar componentes.
+
 EOF
