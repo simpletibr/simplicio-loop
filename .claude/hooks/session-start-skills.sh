@@ -34,4 +34,9 @@ Padrões deste repo:
   - DoD bloqueado pelo gate local documentado em docs/ci-quality-gate.md.
   - Nunca commitar segredos. Nunca pular testes.
 
+Skills do ecossistema Simplicio disponíveis neste checkout:
+  - .skills/simplicio-dev-cli/SKILL.md — edição, execução e validação determinísticas.
+  - .skills/simplicio-prism/SKILL.md — roteamento entre Mapper, Fast, Dev CLI, Loop e Runtime.
+  Faça survey com Mapper antes de mutar e use Prism quando a tarefa atravessar componentes.
+
 EOF

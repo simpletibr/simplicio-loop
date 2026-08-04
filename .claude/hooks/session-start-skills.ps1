@@ -34,4 +34,9 @@ Padroes deste repo:
   - Sem emojis em codigo. Conventional Commits.
   - DoD bloqueado pelo gate local documentado em docs/ci-quality-gate.md.
   - Nunca commitar segredos. Nunca pular testes.
+
+Skills do ecossistema Simplicio disponiveis neste checkout:
+  - .skills/simplicio-dev-cli/SKILL.md — edicao, execucao e validacao deterministicos.
+  - .skills/simplicio-prism/SKILL.md — roteamento entre Mapper, Fast, Dev CLI, Loop e Runtime.
+  Faca survey com Mapper antes de mutar e use Prism quando a tarefa atravessar componentes.
 '@
