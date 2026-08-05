@@ -283,6 +283,61 @@ def test_task_dry_run_json_fails_closed_with_structured_blocked_preconditions(tm
     assert called["generate"] == 0
 
 
+def test_task_dry_run_json_serializes_provider_block_with_context_reason(tmp_path, monkeypatch, capsys):
+    from simplicio.providers import ProviderExecutionError
+
+    _write(tmp_path / "app.py", "old\n")
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.setattr("simplicio.pipeline.build_prompt", lambda *a, **k: "prompt")
+    monkeypatch.setattr("simplicio.pipeline._dry_run_preconditions", lambda *a, **k: [])
+
+    def blocked_provider(*_args, **_kwargs):
+        raise ProviderExecutionError(
+            {
+                "schema": "simplicio.provider-terminal/v1",
+                "status": "blocked",
+                "reason_code": "llm_execution_disabled",
+                "provider": "disabled",
+                "surface": "generate",
+                "message": "provider is disabled for this deterministic test",
+                "next_action": "use an external orchestrator",
+            }
+        )
+
+    monkeypatch.setattr("simplicio.pipeline.generate", blocked_provider)
+    code = cli.main(
+        [
+            "task",
+            "update app",
+            "--root",
+            str(tmp_path),
+            "--target",
+            "app.py",
+            "--mode",
+            "integrated",
+            "--dry-run-task",
+            "--json",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    reasons = {item["reason"] for item in payload["blocked_preconditions"]}
+    assert code == 1
+    assert payload["status"] == "blocked"
+    assert payload["applied"] is False
+    assert payload["model_invoked"] is False
+    assert payload["next_surface"] == "context_pack"
+    assert payload["execution_profile"] == {
+        "requested_mode": "integrated",
+        "effective_mode": "blocked",
+        "reason_code": "CONTEXT_REQUIRED",
+    }
+    assert {"CONTEXT_REQUIRED", "llm_execution_disabled"} <= reasons
+    assert payload["provider_terminal"]["reason_code"] == "llm_execution_disabled"
+    assert "provider is disabled" in captured.err
+
+
 def test_task_dry_run_json_accepts_new_file_under_existing_parent(tmp_path, monkeypatch, capsys):
     _write(tmp_path / "src" / "existing.py", "old\n")
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")

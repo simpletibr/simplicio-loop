@@ -176,6 +176,9 @@ def run(a: argparse.Namespace) -> int:
         )
         if a.json:
             print(json.dumps(result, sort_keys=True))
+            terminal = result.get("provider_terminal")
+            if isinstance(terminal, dict) and terminal.get("message"):
+                print(str(terminal["message"]), file=sys.stderr)
         else:
             status = (
                 "BLOCKED" if result.get("status") == "blocked" else ("DRY-RUN" if a.dry_run_task else "DONE")

@@ -414,7 +414,55 @@ def _run_dry_run_task(
     # Bind paths before generate() so an out-of-band mutation during provider
     # execution is caught even when the returned diff does not mention it.
     bound_path_baseline = snapshot_bound_paths(str(root), bound_paths)
-    output = generate(prompt)
+    try:
+        output = generate(prompt)
+    except ProviderExecutionError as exc:
+        receipt = dict(exc.receipt)
+        provider_reason = str(receipt.get("reason_code") or "provider_execution_blocked")
+        provider_message = str(receipt.get("message") or "provider execution failed")
+        requested_mode = str(requested_execution_mode or "auto")
+        blocked_preconditions = []
+        if requested_mode == "integrated" and not context_pack:
+            blocked_preconditions.append(
+                {
+                    "code": "CONTEXT_REQUIRED",
+                    "reason": "CONTEXT_REQUIRED",
+                    "message": "integrated dry-run requires a Mapper context pack before generation",
+                    "next_surface": "context_pack",
+                    "next_action": "provide --context-pack from a fresh Mapper handoff, then retry",
+                    "retryable": True,
+                }
+            )
+        blocked_preconditions.append(
+            {
+                "code": provider_reason,
+                "reason": provider_reason,
+                "message": provider_message,
+                "next_surface": "provider",
+                "next_action": receipt.get("next_action") or "resolve the provider precondition, then retry",
+                "retryable": True,
+            }
+        )
+        result = _task_result(
+            target,
+            prompt,
+            "",
+            applied=False,
+            status="blocked",
+            warnings=[item["message"] for item in blocked_preconditions],
+            blocked_preconditions=blocked_preconditions,
+            target_kind=target_kind(root, target),
+        )
+        result["model_invoked"] = False
+        result["next_surface"] = blocked_preconditions[0]["next_surface"]
+        result["execution_profile"] = {
+            "requested_mode": requested_mode,
+            "effective_mode": "blocked",
+            "reason_code": blocked_preconditions[0]["reason"],
+        }
+        result["provider_terminal"] = receipt
+        emit_event("provider_terminal", receipt, level="warning", root=str(root))
+        return result
     drift_warnings = bound_path_drift(str(root), bound_paths, bound_path_baseline)
     validation = validate_generated_output(
         output,
