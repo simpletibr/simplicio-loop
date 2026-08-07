@@ -10,10 +10,15 @@
     "revision": {"type": "string"},
     "canonical_map": {
       "type": "object",
-      "required": ["id", "default_branch"],
+      "required": ["schema", "version", "id", "default_branch", "repository_id", "generation", "digest"],
       "properties": {
+        "schema": {"const": "simplicio.context-graph-contract/v1"},
+        "version": {"const": 1},
         "id": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-        "default_branch": {"type": "string", "minLength": 1}
+        "default_branch": {"type": "string", "minLength": 1},
+        "repository_id": {"type": ["string", "null"]},
+        "generation": {"type": "string", "minLength": 1},
+        "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
       },
       "additionalProperties": false
     },

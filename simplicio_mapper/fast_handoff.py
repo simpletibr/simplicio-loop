@@ -13,6 +13,9 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from .context_graph_contract import CONTRACT_SCHEMA as CONTEXT_GRAPH_CONTRACT_SCHEMA
+from .context_graph_contract import canonical_digest
+
 HANDOFF_SCHEMA = "simplicio.mapper-fast-handoff/v1"
 RECEIPT_SCHEMA = "simplicio.mapper-fast-handoff-receipt/v1"
 ARTIFACT_NAMES = (
@@ -190,21 +193,24 @@ def build_fast_handoff(
     revision = str(snapshot.get("revision") or _git(repo, "rev-parse", "HEAD"))
     generation = str(snapshot.get("snapshot_id") or _stable_hash(snapshot))
     normalized_paths = sorted({path.replace("\\", "/").lstrip("./") for path in changed_paths})
+    canonical_map_body = {
+        "schema": CONTEXT_GRAPH_CONTRACT_SCHEMA,
+        "version": 1,
+        "repository_id": snapshot.get("repository_id"),
+        "generation": generation,
+        "id": _stable_hash({
+            "repository_id": snapshot.get("repository_id"),
+            "default_branch": _default_branch(repo),
+            "snapshot_schema": snapshot.get("schema"),
+        }),
+        "default_branch": _default_branch(repo),
+    }
     handoff: dict[str, Any] = {
         "schema": HANDOFF_SCHEMA,
         "generation": generation,
         "repository_id": snapshot.get("repository_id"),
         "revision": revision,
-        "canonical_map": {
-            "id": _stable_hash(
-                {
-                    "repository_id": snapshot.get("repository_id"),
-                    "default_branch": _default_branch(repo),
-                    "snapshot_schema": snapshot.get("schema"),
-                }
-            ),
-            "default_branch": _default_branch(repo),
-        },
+        "canonical_map": {**canonical_map_body, "digest": canonical_digest(canonical_map_body)},
         "capabilities": {
             "snapshot_schemas": ["simplicio.context-snapshot/v1"],
             "handoff_schemas": [HANDOFF_SCHEMA],

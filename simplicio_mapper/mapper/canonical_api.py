@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import os
 
+from ..context_graph_contract import contract_from_snapshot
 from .canonical import EffectiveMapView
 from .canonical_builder import build_canonical_manifest
 from .canonical_identity import resolve_repo_identity_bundle
@@ -78,3 +79,12 @@ async def get_effective_map_view_async(
         config_fingerprint=config_fingerprint,
         storage_root=storage_root,
     )
+
+
+def get_context_graph_contract(snapshot: dict) -> dict:
+    """Return the stable public projection for a ContextSnapshot.
+
+    This is the preferred in-process seam for consumers that need graph
+    identity and relations without depending on parser or storage classes.
+    """
+    return contract_from_snapshot(snapshot)

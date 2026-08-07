@@ -8,6 +8,7 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 
+from simplicio_mapper.context_graph_contract import canonical_digest
 from simplicio_mapper.cli import main
 from simplicio_mapper.fast_handoff import (
     HANDOFF_SCHEMA,
@@ -67,6 +68,10 @@ class FastHandoffTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(payload["handoff"]["schema"], HANDOFF_SCHEMA)
         self.assertEqual(payload["handoff"]["generation"], "stable-generation")
+        canonical_map = payload["handoff"]["canonical_map"]
+        self.assertEqual(canonical_map["schema"], "simplicio.context-graph-contract/v1")
+        self.assertEqual(canonical_map["version"], 1)
+        self.assertEqual(canonical_map["digest"], canonical_digest({key: value for key, value in canonical_map.items() if key != "digest"}))
         self.assertEqual(payload["handoff"]["delta"]["node_ids"], ["py-main"])
         self.assertEqual(payload["handoff"]["delta"]["base_commit"], "base-1")
         self.assertEqual(payload["receipt"]["counters"]["parsed"], 1)

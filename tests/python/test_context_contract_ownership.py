@@ -13,8 +13,12 @@ SCHEMA_IDS = {"simplicio.context-snapshot/v1", "simplicio.context-graph/v1"}
 CANONICAL_OWNERS = {
     "cli/_snapshot.py",
     "context_contract.py",
+    "context_graph_contract.py",
+    "context_graph_v1.py",
     "context_snapshot.py",
     "contract.py",
+    "fast_backend.py",
+    "fast_handoff.py",
     "release_manifest.py",
 }
 
