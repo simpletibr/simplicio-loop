@@ -16,6 +16,18 @@ from pathlib import Path
 from ._shared import force_local_if_requested
 
 
+def _emit_blocked_diagnostics(result: dict) -> None:
+    if result.get("status") != "blocked":
+        return
+    for blocker in result.get("blocked_preconditions", []):
+        if not isinstance(blocker, dict):
+            continue
+        code = blocker.get("code") or blocker.get("reason") or "blocked_precondition"
+        message = blocker.get("message") or code
+        next_surface = blocker.get("next_surface") or "task_preconditions"
+        print(f"BLOCKED[{code}]: {message}; next_surface={next_surface}", file=sys.stderr)
+
+
 def _run_verification_only(a: argparse.Namespace) -> int:
     from ..pipeline_stages import _configured_test_command, _verification_timeout_seconds
     from ..runtime_env import prepare_project_command
@@ -176,9 +188,7 @@ def run(a: argparse.Namespace) -> int:
         )
         if a.json:
             print(json.dumps(result, sort_keys=True))
-            terminal = result.get("provider_terminal")
-            if isinstance(terminal, dict) and terminal.get("message"):
-                print(str(terminal["message"]), file=sys.stderr)
+            _emit_blocked_diagnostics(result)
         else:
             status = (
                 "BLOCKED" if result.get("status") == "blocked" else ("DRY-RUN" if a.dry_run_task else "DONE")

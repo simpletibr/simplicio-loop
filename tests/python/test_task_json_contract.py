@@ -1,5 +1,8 @@
 import json
+import os
+import subprocess
 import sys
+from pathlib import Path
 
 from simplicio import cli
 
@@ -273,14 +276,86 @@ def test_task_dry_run_json_fails_closed_with_structured_blocked_preconditions(tm
         ]
     )
 
+    captured = capsys.readouterr()
     assert code == 1
-    payload = json.loads(capsys.readouterr().out)
+    payload = json.loads(captured.out)
+    assert payload["schema"] == "simplicio.dev-cli.task-result/v1"
     assert payload["status"] == "blocked"
-    assert payload["blocked_preconditions"][0]["next_surface"]
+    assert payload["applied"] is False
+    assert payload["model_invoked"] is False
+    assert payload["next_surface"] == "mapper_artifacts"
+    assert payload["execution_profile"] == {
+        "requested_mode": "auto",
+        "effective_mode": "blocked",
+        "reason_code": "artifacts_missing",
+    }
+    expected_keys = {
+        "schema",
+        "code",
+        "reason",
+        "message",
+        "next_surface",
+        "next_action",
+        "retryable",
+        "details",
+    }
+    assert all(set(item) == expected_keys for item in payload["blocked_preconditions"])
     reasons = {item["reason"] for item in payload["blocked_preconditions"]}
     assert "artifacts_missing" in reasons
     assert "no_handoff_targets" in reasons
+    assert "BLOCKED[artifacts_missing]" in captured.err
     assert called["generate"] == 0
+
+
+def test_task_dry_run_subprocess_emits_single_actionable_json_receipt(tmp_path):
+    _write(tmp_path / "app.py", "old\n")
+    repo_root = Path(__file__).resolve().parents[2]
+    env = os.environ.copy()
+    env.update(
+        {
+            "PYTHONPATH": str(repo_root),
+            "SIMPLICIO_MAPPER_CLI": "0",
+            "SIMPLICIO_SKIP_AUTO_INIT": "1",
+        }
+    )
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "simplicio.cli",
+            "task",
+            "update app",
+            "--root",
+            str(tmp_path),
+            "--target",
+            "app.py",
+            "--dry-run-task",
+            "--json",
+        ],
+        cwd=repo_root,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+
+    payload = json.loads(completed.stdout)
+    assert completed.returncode == 1
+    assert completed.stdout.count("\n") == 1
+    assert payload["schema"] == "simplicio.dev-cli.task-result/v1"
+    assert payload["status"] == "blocked"
+    assert payload["applied"] is False
+    assert payload["model_invoked"] is False
+    assert payload["next_surface"] == "mapper_artifacts"
+    assert payload["execution_profile"]["effective_mode"] == "blocked"
+    assert {item["reason"] for item in payload["blocked_preconditions"]} == {
+        "artifacts_missing",
+        "no_handoff_targets",
+    }
+    assert "BLOCKED[artifacts_missing]" in completed.stderr
+    assert "BLOCKED[no_handoff_targets]" in completed.stderr
 
 
 def test_task_dry_run_json_serializes_provider_block_with_context_reason(tmp_path, monkeypatch, capsys):

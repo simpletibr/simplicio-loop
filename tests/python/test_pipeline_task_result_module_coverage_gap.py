@@ -307,7 +307,18 @@ def test_task_result_blocked_preconditions_included(monkeypatch):
     result = ptr._task_result(
         "T01", "prompt", "", applied=False, status="blocked", blocked_preconditions=blockers
     )
-    assert result["blocked_preconditions"] == blockers
+    assert result["blocked_preconditions"] == [
+        {
+            "schema": "simplicio.dev-cli.blocked-precondition/v1",
+            "code": "x",
+            "reason": "x",
+            "message": "m",
+            "next_surface": "task_preconditions",
+            "next_action": "resolve the blocked precondition, then retry",
+            "retryable": True,
+            "details": {},
+        }
+    ]
 
 
 def test_task_result_prompt_envelope_receipt(monkeypatch):

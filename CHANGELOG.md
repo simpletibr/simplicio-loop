@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Emit deterministic blocked-precondition schemas and stderr diagnostics for dry-run task receipts (#122).
+
 ## [0.18.6] - 2026-08-02
 
 ### Changed

@@ -28,6 +28,9 @@ from .pipeline_stages import IMPACT_RESULT_UNVERIFIED, extract_changed_files
 from .prompt import latest_prompt_envelope
 from .providers import _provider_id
 
+TASK_RESULT_SCHEMA = "simplicio.dev-cli.task-result/v1"
+BLOCKED_PRECONDITION_SCHEMA = "simplicio.dev-cli.blocked-precondition/v1"
+
 
 def _verify_receipt_payload(receipt: dict[str, Any] | None) -> dict[str, Any] | None:
     if not receipt:
@@ -54,6 +57,48 @@ def _diff_summary(files_changed):
     if not files_changed:
         return "no changed files reported"
     return "changed " + ", ".join(files_changed)
+
+
+_NEXT_SURFACE_BY_REASON = {
+    "CONTEXT_REQUIRED": "context_pack",
+    "MAPPER_CONTEXT_IDENTITY_REQUIRED": "context_pack",
+    "SOURCE_DRIFT": "context_snapshot",
+    "TARGET_OUTSIDE_SCOPE": "task_target",
+    "TASK_SPEC_REQUIRES_INTEGRATED_MODE": "execution_mode",
+    "plan_compilation_failed": "task_plan",
+    "target_outside_root": "task_target",
+}
+_NEXT_ACTION_BY_SURFACE = {
+    "context_pack": "provide a fresh Mapper context pack, then retry",
+    "context_snapshot": "refresh the Mapper context snapshot, then retry",
+    "execution_mode": "select the required execution mode, then retry",
+    "mapper_artifacts": "generate fresh Mapper artifacts, then retry",
+    "mapper_inspection": "refresh stale Mapper artifacts, then retry",
+    "provider": "resolve the provider precondition, then retry",
+    "task_plan": "correct the task plan, then retry",
+    "task_target": "select a valid task target, then retry",
+}
+
+
+def _normalize_blocked_precondition(value: dict[str, Any]) -> dict[str, Any]:
+    reason = str(value.get("reason") or value.get("code") or "blocked_precondition")
+    code = str(value.get("code") or reason)
+    next_surface = str(value.get("next_surface") or _NEXT_SURFACE_BY_REASON.get(reason, "task_preconditions"))
+    next_action = str(
+        value.get("next_action")
+        or _NEXT_ACTION_BY_SURFACE.get(next_surface, "resolve the blocked precondition, then retry")
+    )
+    details = value.get("details")
+    return {
+        "schema": BLOCKED_PRECONDITION_SCHEMA,
+        "code": code,
+        "reason": reason,
+        "message": str(value.get("message") or reason),
+        "next_surface": next_surface,
+        "next_action": next_action,
+        "retryable": bool(value.get("retryable", True)),
+        "details": dict(details) if isinstance(details, dict) else {},
+    }
 
 
 def _degraded_mapper_context_allowed(context_pack: dict[str, Any] | None) -> bool:
@@ -253,6 +298,7 @@ def _task_result(
     model = os.environ.get("SIMPLICIO_MODEL", "")
     cost_usd = float(_estimate_price(model, prompt_tokens, completion_tokens)) if priced else 0.0
     result = {
+        "schema": TASK_RESULT_SCHEMA,
         "task_id": task_id,
         "applied": bool(applied),
         "status": status or ("applied" if applied else "failed"),
@@ -281,7 +327,14 @@ def _task_result(
     if envelope is not None:
         result["prompt_envelope"] = envelope.receipt()
     if blocked_preconditions:
-        result["blocked_preconditions"] = blocked_preconditions
+        normalized = [
+            _normalize_blocked_precondition(item) for item in blocked_preconditions if isinstance(item, dict)
+        ]
+        if normalized:
+            result["blocked_preconditions"] = normalized
+            result["model_invoked"] = bool(output)
+            result["next_surface"] = normalized[0]["next_surface"]
+            result["reason_code"] = normalized[0]["code"]
     verify_receipt = _verify_receipt_payload(verify)
     if verify_receipt is not None:
         exit_codes = verify_receipt.get("exit_codes", [])

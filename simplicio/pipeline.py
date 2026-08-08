@@ -386,7 +386,7 @@ def _run_dry_run_task(
         allow_degraded_mapper=requested_execution_mode == "standalone",
     )
     if blockers:
-        return _task_result(
+        result = _task_result(
             target,
             prompt,
             "",
@@ -396,6 +396,12 @@ def _run_dry_run_task(
             blocked_preconditions=blockers,
             target_kind=target_kind(root, target),
         )
+        result["execution_profile"] = {
+            "requested_mode": str(requested_execution_mode or "auto"),
+            "effective_mode": "blocked",
+            "reason_code": str(blockers[0]["reason"]),
+        }
+        return result
     if os.environ.get("SIMPLICIO_STANDALONE_PREFLIGHT", "").strip().lower() in {
         "1",
         "true",
