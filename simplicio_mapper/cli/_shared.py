@@ -53,6 +53,7 @@ CANONICAL_STATUS_SCHEMA_VERSION = 1
 
 FRESHNESS_SKIP_DIRS = {
     ".git",
+    ".catalog",
     "node_modules",
     ".docusaurus",
     "build",

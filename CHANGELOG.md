@@ -8,6 +8,12 @@
   graph data, while preserving validated additive minor contracts through a
   shared Python, Node and optional Rust compatibility fixture.
 
+### Added
+
+- Generate deterministic, read-only project skills and agents after a fresh,
+  complete canonical index; preserve content-addressed last-known-good
+  generations under `.catalog` and leave human `.skills`/`.agents` untouched.
+
 ## [0.26.15] - 2026-08-03
 
 ### Changed

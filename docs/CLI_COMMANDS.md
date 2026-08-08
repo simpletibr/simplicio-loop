@@ -54,6 +54,13 @@ Read the help for the exact level being invoked before executing it.
 is available on the context-heavy commands listed by the help text. Preserve
 the returned `schema` and reject unknown major schema versions.
 
+After `index` proves a complete, fresh, unlocked canonical map, it also
+materializes deterministic read-only project descriptors below
+`.skills/_generated/` and `.agents/_generated/`, with the active registry and
+content-addressed generation receipts under `.catalog/`. Non-canonical or dirty
+Git worktrees remain preview-only, and deleting `.simplicio/*.json` does not
+delete or rewrite the last-known-good descriptors.
+
 ## Routed command families
 
 These families are dispatched before the legacy mapper parser and therefore

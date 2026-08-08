@@ -84,6 +84,10 @@ function walk(dir, onFile) {
 
   for (const entry of entries) {
     if (SKIP_DIRS.has(entry.name)) continue;
+    if (
+      entry.name === '_generated'
+      && ['.skills', '.agents'].includes(path.basename(dir))
+    ) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       walk(full, onFile);

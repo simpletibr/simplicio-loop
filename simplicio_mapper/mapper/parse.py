@@ -208,8 +208,21 @@ def _is_internal_worktree_dir(parent: str, name: str) -> bool:
     parent_name = normalized.rsplit("/", 1)[-1] if normalized else ""
     return parent_name == ".claude"
 
+
+def _is_managed_capability_dir(parent: str, name: str) -> bool:
+    """Exclude Mapper-owned projections without hiding human skills/agents."""
+
+    if name != "_generated":
+        return False
+    normalized = parent.replace("\\", "/").rstrip("/")
+    parent_name = normalized.rsplit("/", 1)[-1] if normalized else ""
+    return parent_name in {".skills", ".agents"}
+
+
 def _should_skip_dir(entry: os.DirEntry[str]) -> bool:
     if entry.name in SKIP_DIRS:
+        return True
+    if _is_managed_capability_dir(os.path.dirname(entry.path), entry.name):
         return True
     if _is_internal_worktree_dir(os.path.dirname(entry.path), entry.name):
         return True

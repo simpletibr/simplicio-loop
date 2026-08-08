@@ -8,6 +8,7 @@ import threading
 import time
 
 from ..mapper import write_architecture_docs
+from ..project_capabilities import sync_project_capabilities_after_mapping
 from ._index_engine import (
     _acquire_index_lock,
     _artifact_paths,
@@ -91,6 +92,17 @@ def _spawn_index_process(opts: dict) -> tuple[dict, subprocess.Popen]:
 def _reap_background_index(child: subprocess.Popen, payload: dict, root: str, out: str) -> None:
     """Persist one detached worker's terminal result without trusting a reused PID."""
     exit_code = child.wait()
+    state = _read_index_state(root, out)
+    if (
+        exit_code == 0
+        and state.get("completeness") == "complete"
+        and state.get("signature") == _freshness_signature(root, out)
+        and _artifacts_exist(_artifact_paths(root, out))
+    ):
+        # The worker committed its complete state before exiting. Status can
+        # derive ``complete`` from that state; rewriting map-job here only
+        # creates a Windows cleanup race with callers observing the dead PID.
+        return
     job_path = os.path.join(os.path.abspath(os.path.join(root, out)), "map-job.json")
     for _ in range(50):
         try:
@@ -158,10 +170,7 @@ def _run_index(opts: dict) -> int:
                     break
             time.sleep(0.25)
         if lock is not None:
-            try:
-                return _run_index_locked(opts, root, out, lock)
-            finally:
-                _release_index_lock(lock)
+            return _run_index_and_generate(opts, root, out, lock)
         # A live owner still holds the lock (or a reclaim is provably unsafe,
         # e.g. a fresh-but-malformed write). Surface the classification here
         # too -- not just via ``status`` -- so ``index --json`` alone carries
@@ -190,10 +199,29 @@ def _run_index(opts: dict) -> int:
                 f"({lock_status.get('reason_code')})"
             )
         return 0
+    return _run_index_and_generate(opts, root, out, lock)
+
+
+def _run_index_and_generate(opts: dict, root: str, out: str, lock) -> int:
+    """Finish the map, release its lock, then compile durable descriptors."""
+
     try:
-        return _run_index_locked(opts, root, out, lock)
+        exit_code = _run_index_locked(opts, root, out, lock)
     finally:
         _release_index_lock(lock)
+    if exit_code != 0:
+        return exit_code
+    state = _read_index_state(root, out)
+    paths = _artifact_paths(root, out)
+    generation = sync_project_capabilities_after_mapping(
+        root,
+        out,
+        complete=state.get("completeness", "unknown") == "complete",
+        fresh=state.get("signature") == _freshness_signature(root, out),
+        lock_active=bool(_inspect_index_lock(root, out).get("active")),
+        artifacts_present=_artifacts_exist(paths),
+    )
+    return 1 if generation.get("status") == "failed" else exit_code
 
 
 def _run_index_locked(opts: dict, root: str, out: str, lock) -> int:

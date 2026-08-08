@@ -8,7 +8,11 @@ import sys
 import time
 
 from ..history import append_changelog, create_snapshot
-from ..mapper import _is_internal_worktree_dir, write_mapping_artifacts
+from ..mapper import (
+    _is_internal_worktree_dir,
+    _is_managed_capability_dir,
+    write_mapping_artifacts,
+)
 from ..mapper.canonical_reuse import (
     attempt_canonical_reuse,
     is_canonical_reuse_enabled,
@@ -160,6 +164,7 @@ def _signature(root: str, out: str) -> tuple:
             if d not in FRESHNESS_SKIP_DIRS
             and os.path.abspath(os.path.join(current, d)) != abs_out
             and not _is_internal_worktree_dir(current, d)
+            and not _is_managed_capability_dir(current, d)
         ]
         for name in files:
             path = os.path.join(current, name)
@@ -271,6 +276,9 @@ def _git_signature(root: str, out: str) -> dict | None:
                 "--",
                 ".",
                 f":!{ignored_out}",
+                ":(exclude).skills/_generated/**",
+                ":(exclude).agents/_generated/**",
+                ":(exclude).catalog/**",
             ],
             cwd=root,
             capture_output=True,
@@ -301,6 +309,7 @@ def _tree_signature(root: str, out: str) -> dict:
             if d not in FRESHNESS_SKIP_DIRS
             and os.path.abspath(os.path.join(current, d)) != abs_out
             and not _is_internal_worktree_dir(current, d)
+            and not _is_managed_capability_dir(current, d)
         ]
         for name in sorted(files):
             path = os.path.join(current, name)
