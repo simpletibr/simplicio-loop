@@ -533,6 +533,8 @@ def _reconcile_toon_token_estimate(payload: dict, fallbacks: list[dict]) -> dict
     metrics = payload.get("metrics")
     if not isinstance(metrics, dict) or "estimated_tokens" not in metrics:
         return payload
+    if metrics.get("token_scope") and metrics.get("token_scope") != "serialized_output":
+        return payload
     text, _fallbacks = encode_toon_with_report(payload)
     real_tokens = estimate_tokens(text)
     if real_tokens <= metrics["estimated_tokens"]:

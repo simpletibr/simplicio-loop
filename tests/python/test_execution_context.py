@@ -142,7 +142,9 @@ class ExecutionContextTests(unittest.TestCase):
         self.assertEqual(first["envelope_hash"], second["envelope_hash"])
         source = first["sources"][0]
         self.assertEqual(source["path"], "src/service.py")
-        self.assertEqual(source["source_hash"], hashlib.sha256((self.root / source["path"]).read_bytes()).hexdigest())
+        self.assertEqual(
+            source["source_hash"], hashlib.sha256((self.root / source["path"]).read_bytes()).hexdigest()
+        )
         self.assertTrue(source["spans"])
         self.assertEqual(source["spans"][0]["start_line"], 1)
         self.assertIn("calculate_total", source["spans"][0]["text"])
@@ -310,8 +312,8 @@ class ExecutionContextTests(unittest.TestCase):
         result = self.build(token_budget=1)
         self.assertFalse(result["token_budget"]["within_budget"])
         self.assertTrue(result["abstention"]["abstained"])
-        self.assertTrue(result["needs_broader_context"])
-        self.assertIn("required_metadata_exceeds_budget", result["abstention"]["reasons"])
+        self.assertFalse(result["needs_broader_context"])
+        self.assertIn("required_context_exceeds_budget", result["abstention"]["reasons"])
         self.assertTrue(result["next_queries"])
 
     def test_invalid_budget_and_no_match_fail_closed(self) -> None:
@@ -556,10 +558,18 @@ class ExecutionContextTests(unittest.TestCase):
         )
         self.assertEqual(opted_in.returncode, 0, opted_in.stderr)
         payload = json.loads(opted_in.stdout)
+
+        def materialize(value: dict) -> dict:
+            if value.get("schema") != "simplicio.context-reference/v1":
+                return value
+            return json.loads((self.root / value["expansion_handle"]["path"]).read_text(encoding="utf-8"))
+
         self.assertEqual(payload["schema"], "simplicio.map-handoff/v1")
-        self.assertEqual(payload["execution_context"]["schema"], EXECUTION_CONTEXT_SCHEMA)
-        snapshot = payload["context_snapshot"]
-        provenance = payload["context_pack"]["source_snapshot"]
+        execution_context = materialize(payload["execution_context"])
+        snapshot = materialize(payload["context_snapshot"])
+        context_pack = materialize(payload["context_pack"])
+        self.assertEqual(execution_context["schema"], EXECUTION_CONTEXT_SCHEMA)
+        provenance = context_pack["source_snapshot"]
         self.assertEqual(provenance["snapshot_id"], snapshot["snapshot_id"])
         self.assertEqual(provenance["revision"], snapshot["revision"])
         self.assertEqual(provenance["root_hash"], snapshot["root_hash"])
@@ -576,7 +586,7 @@ class ExecutionContextTests(unittest.TestCase):
             ).hexdigest(),
         )
         self.assertEqual(
-            payload["execution_context"]["repository"]["snapshot_id"],
+            execution_context["repository"]["snapshot_id"],
             snapshot["snapshot_id"],
         )
 
@@ -589,8 +599,8 @@ class ExecutionContextTests(unittest.TestCase):
         )
         self.assertEqual(help_result.returncode, 0, help_result.stderr)
         self.assertIn(
-            "--token-budget <n>    handoff: token budget passed to indexed selection "
-            "diagnostics/fidelity\n                        (default 8000).\n"
+            "--token-budget <n>    handoff: maximum for the final serialized envelope; oversized context\n"
+            "                        is replaced by bounded expansion handles (default 8000).\n"
             "  --execution-context",
             help_result.stdout,
         )
@@ -598,7 +608,9 @@ class ExecutionContextTests(unittest.TestCase):
     def test_contract_schema_and_producer_fixture_are_packaged_assets(self) -> None:
         contract = ROOT / "contracts/execution-context/v1"
         schema = json.loads((contract / "schemas/execution-context.schema.json").read_text(encoding="utf-8"))
-        fixture = json.loads((contract / "fixtures/valid/minimal/execution-context.json").read_text(encoding="utf-8"))
+        fixture = json.loads(
+            (contract / "fixtures/valid/minimal/execution-context.json").read_text(encoding="utf-8")
+        )
         self.assertEqual(schema["$id"], EXECUTION_CONTEXT_SCHEMA)
         self.assertEqual(fixture["schema"], EXECUTION_CONTEXT_SCHEMA)
         self.assertEqual(set(schema["required"]) - set(fixture), set())

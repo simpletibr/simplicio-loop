@@ -125,8 +125,11 @@ def _fidelity_from_pack(
 
     explicit_target = bool(target.strip()) and target_ok
     contract_ids = {
-        item for item in exact_identifiers
-        if any(item.startswith(prefix) and item[len(prefix):].isdigit() for prefix in ("ac", "rn", "nfr", "us"))
+        item
+        for item in exact_identifiers
+        if any(
+            item.startswith(prefix) and item[len(prefix) :].isdigit() for prefix in ("ac", "rn", "nfr", "us")
+        )
     }
     identifier_match = {item for item in exact_identifiers if item in matched_lower}
     if explicit_target:
@@ -191,25 +194,46 @@ def enforce_serialized_budget(
     token_budget: int,
     estimated_tokens: int,
 ) -> dict[str, Any]:
-    """Fit optional metadata against the exact serialized JSON byte budget."""
+    """Bound the emitted context pack without conflating budget and fidelity."""
+
+    omissions = pack.setdefault("serialization_omissions", [])
+    prior_receipt = pack.get("serialization_budget")
+    uncompacted_tokens = (
+        int(prior_receipt.get("uncompacted_serialized_tokens", 0))
+        if isinstance(prior_receipt, Mapping)
+        else 0
+    )
+    compacted = bool(omissions) or bool(isinstance(prior_receipt, Mapping) and prior_receipt.get("compacted"))
 
     def measure() -> tuple[int, int]:
         serialized = serialized_json_bytes(pack)
         return len(serialized), serialized_token_count(pack)
 
-    def update_receipt() -> tuple[int, int]:
+    def update_receipt(status: str) -> tuple[int, int]:
+        nonlocal uncompacted_tokens
         previous: dict[str, Any] | None = None
-        for _ in range(8):
+        for _ in range(12):
             byte_count, token_count = measure()
+            if not compacted:
+                uncompacted_tokens = max(uncompacted_tokens, token_count)
+            within_budget = token_count <= token_budget
+            failed = status == "required_context_exceeds_budget" or not within_budget
             receipt = {
+                "scope": "context_pack",
                 "token_budget": token_budget,
                 "tokenizer_policy": TOKENIZER_POLICY,
                 "estimated_tokens": estimated_tokens,
+                "estimated_tokens_scope": "pre_compaction_context_pack",
+                "uncompacted_serialized_tokens": uncompacted_tokens,
                 "serialized_bytes": byte_count,
                 "serialized_tokens": token_count,
                 "measurement": "MEASURED",
                 "budget_declared": True,
-                "within_budget": token_count <= token_budget,
+                "within_budget": within_budget,
+                "compacted": compacted,
+                "status": status if within_budget else "required_context_exceeds_budget",
+                "budget_exceeded": failed,
+                "required_minimum_token_budget": token_count if failed else 0,
             }
             pack["serialization_budget"] = receipt
             if receipt == previous:
@@ -217,25 +241,116 @@ def enforce_serialized_budget(
             previous = receipt
         return measure()
 
-    _, token_count = update_receipt()
-    # Drop only optional metadata, in a fixed order. Source spans, hashes and
-    # target identity remain load-bearing and are never silently shortened.
-    for field in ("llm_directives", "recent_changes", "dependencies", "drilldown", "scales"):
+    def record_omission(
+        *,
+        kind: str,
+        fields: list[str],
+        expansion_handle: Mapping[str, Any],
+    ) -> None:
+        candidate = {
+            "kind": kind,
+            "reason_code": "serialized_budget_compaction",
+            "fields": fields,
+            "expansion_handle": dict(expansion_handle),
+        }
+        if candidate not in omissions:
+            omissions.append(candidate)
+
+    _, token_count = update_receipt("compacted" if compacted else "ready")
+    if token_count <= token_budget:
+        return pack
+
+    optional_fields = (
+        "llm_directives",
+        "recent_changes",
+        "dependencies",
+        "drilldown",
+        "scales",
+        "query_plan",
+    )
+    for field in optional_fields:
         if token_count <= token_budget:
             break
-        pack.pop(field, None)
-        _, token_count = update_receipt()
-
-    if token_count > token_budget:
-        pack["needs_broader_context"] = True
-        pack.setdefault("needs_broader_context_reason", "")
-        reason = (
-            f"serialized_output {token_count} tokens/{pack['serialization_budget']['serialized_bytes']} bytes "
-            f"exceeds budget {token_budget}; required metadata cannot fit"
+        if field not in pack:
+            continue
+        pack.pop(field)
+        compacted = True
+        record_omission(
+            kind="context_pack_metadata",
+            fields=[field],
+            expansion_handle={"kind": "context_pack", "pack_hash": str(pack.get("pack_hash") or "")},
         )
-        current = str(pack.get("needs_broader_context_reason", ""))
-        pack["needs_broader_context_reason"] = "; ".join(piece for piece in (current, reason) if piece)
-        update_receipt()
+        _, token_count = update_receipt("compacted")
+
+    derived_fields = (
+        "scale_context",
+        "freshness",
+        "symbols",
+        "callers",
+        "imports",
+        "tests",
+        "drilldown",
+        "score_components",
+        "reason_codes",
+        "relevance_reason",
+        "matched_terms",
+    )
+    for file_entry in pack.get("files", []):
+        if token_count <= token_budget:
+            break
+        if not isinstance(file_entry, dict):
+            continue
+        removed = [field for field in derived_fields if field in file_entry]
+        if not removed:
+            continue
+        for field in removed:
+            file_entry.pop(field, None)
+        compacted = True
+        record_omission(
+            kind="file_metadata",
+            fields=removed,
+            expansion_handle={
+                "kind": "file",
+                "file": str(file_entry.get("path") or ""),
+                "snapshot_hash": str(file_entry.get("snapshot_hash") or ""),
+            },
+        )
+        _, token_count = update_receipt("compacted")
+
+    for file_entry in pack.get("files", []):
+        if token_count <= token_budget:
+            break
+        if not isinstance(file_entry, dict):
+            continue
+        removed_ranges: list[dict[str, Any]] = []
+        for selected in file_entry.get("ranges", []):
+            if not isinstance(selected, dict) or "snippet" not in selected:
+                continue
+            selected.pop("snippet", None)
+            removed_ranges.append(
+                {
+                    "start_line": selected.get("start_line"),
+                    "end_line": selected.get("end_line"),
+                    "range_hash": selected.get("range_hash"),
+                }
+            )
+        if not removed_ranges:
+            continue
+        compacted = True
+        record_omission(
+            kind="source_snippet",
+            fields=["snippet"],
+            expansion_handle={
+                "kind": "ranges",
+                "file": str(file_entry.get("path") or ""),
+                "snapshot_hash": str(file_entry.get("snapshot_hash") or ""),
+                "ranges": removed_ranges,
+            },
+        )
+        _, token_count = update_receipt("compacted")
+
+    final_status = "compacted" if token_count <= token_budget else "required_context_exceeds_budget"
+    update_receipt(final_status)
     return pack
 
 
@@ -330,20 +445,21 @@ def apply_task_context(
     )
     pre_budget_payload = json.dumps(pack, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     estimated_tokens = estimate_tokens(pre_budget_payload)
-    budget_reasons: list[str] = []
     pack = enforce_serialized_budget(
         pack,
         token_budget=effective_token_budget,
         estimated_tokens=estimated_tokens,
     )
-    if not pack["serialization_budget"]["within_budget"]:
-        budget_reasons.append(
-            f"serialized_output {pack['serialization_budget']['serialized_tokens']} exceeds budget "
-            f"{effective_token_budget}"
-        )
-        budget_reasons.append(
-            f"next_query: tighten target or raise token budget (current={effective_token_budget})"
-        )
+    budget_receipt = pack["serialization_budget"]
+    if budget_receipt["budget_exceeded"]:
+        pack["budget_failure"] = {
+            "reason_code": "required_context_exceeds_budget",
+            "required_minimum_token_budget": budget_receipt["required_minimum_token_budget"],
+            "next_action": (
+                "raise --token-budget to at least "
+                f"{budget_receipt['required_minimum_token_budget']} or narrow --target"
+            ),
+        }
 
     fidelity = _fidelity_from_pack(
         paths={str(file_entry.get("path", "")).replace(os.sep, "/") for file_entry in pack.get("files", [])},
@@ -367,7 +483,6 @@ def apply_task_context(
     if ratio < minimum_query_coverage and terms and not explicit_target_selected:
         reasons.append(f"query coverage {ratio:.3f} below minimum {minimum_query_coverage:.3f}")
     reasons.extend(fidelity["reasons"])
-    reasons.extend(budget_reasons)
     if reasons:
         pack["needs_broader_context"] = True
         previous = str(pack.get("needs_broader_context_reason", ""))

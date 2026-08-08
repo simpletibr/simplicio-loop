@@ -314,7 +314,9 @@ def _graph_evidence(
                 "edge_hash": _canonical_hash(edge),
             }
         )
-    return sorted(out, key=lambda item: (item["dependency_distance"], item["source"], item["target"], item["kind"]))
+    return sorted(
+        out, key=lambda item: (item["dependency_distance"], item["source"], item["target"], item["kind"])
+    )
 
 
 def _test_evidence(
@@ -331,9 +333,7 @@ def _test_evidence(
         for path in row.get("tests", []):
             normalized = _normalize_path(str(path))
             if reason := _path_reason(root, normalized):
-                redactions.append(
-                    {"path": normalized, "reason": reason, "evidence_kind": "related_test"}
-                )
+                redactions.append({"path": normalized, "reason": reason, "evidence_kind": "related_test"})
                 continue
             out[normalized] = {
                 "path": normalized,
@@ -431,18 +431,13 @@ def _fit_budget(payload: dict[str, Any], token_budget: int) -> None:
     payload["token_budget"]["within_budget"] = within
     if not within:
         abstention_reasons = set(payload["abstention"].get("reasons", []))
-        abstention_reasons.add("required_metadata_exceeds_budget")
+        abstention_reasons.add("required_context_exceeds_budget")
         payload["abstention"] = {
             "abstained": True,
             "reasons": sorted(abstention_reasons),
         }
-        payload["needs_broader_context"] = True
-        payload["fidelity"]["sufficient"] = False
-        fidelity_reasons = set(payload["fidelity"].get("reasons", []))
-        fidelity_reasons.add("required_metadata_exceeds_budget")
-        payload["fidelity"]["reasons"] = sorted(fidelity_reasons)
         budget_queries = [
-            f"raise --token-budget above {token_count}",
+            f"raise --token-budget to at least {token_count}",
             "tighten --target or goal to reduce required exact spans",
         ]
         payload["next_queries"] = list(dict.fromkeys([*payload["next_queries"], *budget_queries]))
@@ -506,9 +501,11 @@ def build_execution_context(
         )
     )
     selection_fidelity = dict(selection.get("fidelity", {}))
+    selection_budget = dict(selection.get("token_budget_fit", {}) or {})
+    selection_budget_exceeded = bool(selection_budget.get("budget_exceeded"))
     abstained = (
         not sources
-        or not has_exact_spans
+        or (not has_exact_spans and not selection_budget_exceeded)
         or bool(selection.get("abstained"))
         or not bool(selection_fidelity.get("sufficient"))
     )
@@ -516,27 +513,32 @@ def build_execution_context(
     if not sources:
         reasons.append("no_safe_relevant_sources")
     elif not has_exact_spans:
-        reasons.append("exact_spans_omitted")
+        reasons.append(
+            "required_context_exceeds_budget" if selection_budget_exceeded else "exact_spans_omitted"
+        )
     if selection.get("abstention_reason"):
         reasons.append(str(selection["abstention_reason"]))
     reasons.extend(str(value) for value in selection_fidelity.get("reasons", []))
     omissions = [
         {
             "kind": "source_content",
-            "reason": "selection_pointer_only",
+            "reason": "token_budget" if selection_budget_exceeded else "selection_pointer_only",
             "expansion_handle": source["expansion_handle"],
         }
         for source in sources
         if not source["spans"]
     ]
     fidelity_reasons = [str(value) for value in selection_fidelity.get("reasons", [])]
-    if not has_exact_spans and "exact_spans_omitted" not in fidelity_reasons:
+    if (
+        not has_exact_spans
+        and not selection_budget_exceeded
+        and "exact_spans_omitted" not in fidelity_reasons
+    ):
         fidelity_reasons.append("exact_spans_omitted")
-    next_queries = list(
-        selection.get("broader_context", [])
-        or (selection.get("token_budget_fit", {}) or {}).get("broader_context", [])
-    )
-    if not has_exact_spans and "resolve source expansion handles" not in next_queries:
+    next_queries = list(selection.get("broader_context", []))
+    if selection_budget_exceeded:
+        next_queries.extend(str(value) for value in selection_budget.get("budget_reasons", []))
+    elif not has_exact_spans and "resolve source expansion handles" not in next_queries:
         next_queries.append("resolve source expansion handles")
     payload: dict[str, Any] = {
         "schema": EXECUTION_CONTEXT_SCHEMA,
@@ -560,7 +562,7 @@ def build_execution_context(
             "sufficient": (
                 bool(selection_fidelity.get("sufficient"))
                 and bool(sources)
-                and has_exact_spans
+                and (has_exact_spans or selection_budget_exceeded)
             ),
             "vector": dict(selection_fidelity.get("dimensions", {})),
             "coverage_ratio": selection_fidelity.get("coverage_ratio", 0.0),
@@ -568,7 +570,9 @@ def build_execution_context(
         },
         "omissions": omissions,
         "abstention": {"abstained": abstained, "reasons": sorted(set(reasons))},
-        "needs_broader_context": abstained or bool(selection.get("needs_broader_context")),
+        "needs_broader_context": (
+            (abstained and not selection_budget_exceeded) or bool(selection.get("needs_broader_context"))
+        ),
         "next_queries": next_queries,
         "trust": {
             "classification": "repository-local",

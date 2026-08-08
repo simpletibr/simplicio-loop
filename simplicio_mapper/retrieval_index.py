@@ -21,11 +21,10 @@ two-stage retrieval system:
   spans are expanded; every omitted adjacent/full block gets a stable
   ``expand_handle`` so downstream can retrieve it without rerunning whole-repo
   mapping.
-* **Stage E (token-budget fitting).** The serialized pack is fitted against an
-  explicit token budget using a declared tokenizer policy. When required spans
-  exceed the budget the engine returns ``needs_broader_context=True`` with
-  ``broader_context`` reason codes instead of silently truncating a load-bearing
-  span.
+* **Stage E (token-budget fitting).** Selected source content is fitted against
+  an explicit token budget using a declared tokenizer policy. Required overflow
+  is reported as ``budget_exceeded`` with an exact minimum and expansion handles;
+  it never masquerades as a request for broader context.
 * **Stage F (fidelity gate).** Before declaring the pack sufficient, a vector of
   measurable coverage dimensions (target, identifiers, AC/RN/NFR, referenced
   paths/versions, stack/layer coverage, a verification/test route) is checked
@@ -1324,9 +1323,12 @@ def fill_full_content_spans(
     if remaining <= 0:
         return 0
     added_tokens = 0
+    budgeted_paths = {str(entry.get("path") or "") for entry in fit.get("entries", [])}
     from .visualization import preview_source
 
     for index, (row, entry) in enumerate(zip(ranked, expanded, strict=False)):
+        if entry.get("path") not in budgeted_paths:
+            continue
         if not entry.get("readable") or entry.get("spans"):
             continue
         is_top_relevance = index == 0
@@ -1427,71 +1429,93 @@ def fit_token_budget(
     token_budget: int = DEFAULT_TOKEN_BUDGET,
     plan: QueryPlan | None = None,
 ) -> dict[str, Any]:
-    """Fit the serialized pack to an explicit token budget (Stage E).
+    """Fit selected source content to the declared budget (Stage E).
 
-    Required target/AC/symbol spans are allocated first; remaining budget is
-    shared across dependency/test context. If required spans cannot fit, the
-    engine reports ``needs_broader_context=True`` with ``broader_context``
-    reason codes instead of silently truncating a load-bearing span.
+    Required target/AC/symbol spans are allocated first. Optional context is
+    omitted with expansion handles when it does not fit. A required-span
+    overflow is a budget failure, not evidence that broader context is needed.
     """
     plan = plan or QueryPlan()
-    required_paths = set()
-    if plan.target_path:
-        required_paths.add(plan.target_path)
-
-    # Deterministic allocation by layer:
-    #   1. required target/spans
-    #   2. dependency/caller context
-    #   3. tests/evidence
-    #   4. safety margin
-    SAFETY_MARGIN = int(token_budget * 0.05)
-    usable = token_budget - SAFETY_MARGIN
+    required_paths = {plan.target_path} if plan.target_path else set()
+    safety_margin = int(token_budget * 0.05)
+    usable = max(0, token_budget - safety_margin)
 
     budgeted: list[dict[str, Any]] = []
+    omissions: list[dict[str, Any]] = []
     used = 0
+    required_minimum = 0
     overflow_required: list[str] = []
+    ordered_entries = sorted(
+        enumerate(expanded),
+        key=lambda item: (
+            not (item[1].get("path") in required_paths or item[1].get("required", False)),
+            item[0],
+        ),
+    )
 
-    # Layer 1: required target spans first.
-    for entry in expanded:
-        path = entry["path"]
-        is_required = bool(path in required_paths) or entry.get("required", False)
-        cost = 0
-        # Cost = sum of selected span token estimates (read only those spans).
-        for span in entry.get("spans", []):
-            cost += _span_cost(root, path, span)
-        # If no spans selected, estimate a single representative block.
-        if cost == 0:
-            cost = min(estimate_tokens(_read_head(root, path, 200)), usable)
-        if is_required and used + cost > usable:
-            overflow_required.append(path)
+    for _, entry in ordered_entries:
+        path = str(entry["path"])
+        is_required = bool(path in required_paths) or bool(entry.get("required", False))
+        content_cost = sum(_span_cost(root, path, span) for span in entry.get("spans", []))
+        if content_cost == 0:
+            content_cost = estimate_tokens(_read_head(root, path, 200))
+        metadata_cost = estimate_tokens(
+            json.dumps(
+                {
+                    "context_edges": entry.get("context_edges", []),
+                    "tests": entry.get("tests", []),
+                    "omitted_ranges": entry.get("omitted_ranges", []),
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+        )
+        cost = content_cost + metadata_cost
+        projected = used + cost
+        if projected > usable:
+            handle = entry.get("expand_handle") or _expand_handle(
+                root,
+                path,
+                str(entry.get("snapshot_hash") or ""),
+            )
+            omission = {
+                "path": path,
+                "reason": "token_budget",
+                "required": is_required,
+                "estimated_tokens": cost,
+                "expansion_handle": handle,
+            }
+            omissions.append(omission)
+            if is_required:
+                overflow_required.append(path)
+                required_minimum = max(required_minimum, projected + safety_margin)
             continue
         budgeted.append(
             {**entry, "estimated_tokens": cost, "layer": "required" if is_required else "context"}
         )
-        used += cost
+        used = projected
 
-    # Layer 2/3: context edges + tests metadata (cheap, deterministic).
-    for entry in budgeted:
-        extra = estimate_tokens(json.dumps(entry.get("context_edges", []), ensure_ascii=False))
-        extra += estimate_tokens(json.dumps(entry.get("tests", []), ensure_ascii=False))
-        used += extra
-
-    needs_broader = bool(overflow_required)
-    broader_context: list[str] = []
-    if needs_broader:
-        broader_context.append(
-            "required spans exceed token budget for: " + ", ".join(sorted(overflow_required))
-        )
-        broader_context.append(f"next_query: tighten target or raise --token-budget (current={token_budget})")
+    budget_exceeded = bool(overflow_required)
+    budget_reasons: list[str] = []
+    if budget_exceeded:
+        budget_reasons.append("required_context_exceeds_budget:" + ",".join(sorted(overflow_required)))
+        budget_reasons.append(f"required_minimum_token_budget:{required_minimum}")
 
     return {
+        "scope": "selected_source_content",
         "token_budget": token_budget,
         "tokenizer_policy": TOKENIZER_POLICY,
         "estimated_tokens": used,
-        "safety_margin_tokens": SAFETY_MARGIN,
+        "safety_margin_tokens": safety_margin,
         "budgeted_count": len(budgeted),
-        "needs_broader_context": needs_broader,
-        "broader_context": broader_context,
+        "within_budget": not budget_exceeded and used <= usable,
+        "budget_exceeded": budget_exceeded,
+        "required_minimum_token_budget": required_minimum,
+        "omissions": omissions,
+        "budget_reasons": budget_reasons,
+        "needs_broader_context": False,
+        "broader_context": [],
         "entries": budgeted,
     }
 
@@ -1538,10 +1562,7 @@ def fidelity_gate(
     # are task metadata, not required source symbols, when an explicit target
     # is selected. Unmatched identifiers without an explicit target still fail.
     explicit_target = bool(plan.target_path and target_ok)
-    contract_ids = {
-        i.lower() for i in plan.exact_identifiers
-        if _AC_RE.fullmatch(i)
-    }
+    contract_ids = {i.lower() for i in plan.exact_identifiers if _AC_RE.fullmatch(i)}
     id_match = {i.lower() for i in plan.exact_identifiers if i.lower() in all_matched}
     if explicit_target:
         id_match.update(contract_ids)
@@ -1690,6 +1711,32 @@ def select_context_targets(
         fit["estimated_tokens"] = int(fit["estimated_tokens"]) + added_content_tokens
     fidelity = fidelity_gate(ranked, expanded, plan, minimum_query_coverage=minimum_query_coverage)
 
+    budgeted_paths = {str(entry.get("path") or "") for entry in fit["entries"]}
+    selected_rows = [
+        row for row in ranked if row.get("path") in budgeted_paths or row.get("path") == plan.target_path
+    ]
+    selected_expanded: list[dict[str, Any]] = []
+    for entry in expanded:
+        path = str(entry.get("path") or "")
+        if path not in {str(row.get("path") or "") for row in selected_rows}:
+            continue
+        if path in budgeted_paths:
+            selected_expanded.append(entry)
+            continue
+        selected_expanded.append(
+            {
+                **entry,
+                "spans": [],
+                "omitted_ranges": [
+                    *list(entry.get("omitted_ranges", [])),
+                    {
+                        "reason": "required_context_exceeds_budget",
+                        "expand_handle": entry.get("expand_handle"),
+                    },
+                ],
+            }
+        )
+
     targets = [
         {
             "path": row["path"],
@@ -1700,7 +1747,7 @@ def select_context_targets(
             "score_components": row["score_components"],
             "reason_codes": row["reason_codes"],
         }
-        for row in ranked
+        for row in selected_rows
     ]
 
     query_terms = plan.all_terms
@@ -1725,9 +1772,7 @@ def select_context_targets(
             "reason": "explicit target selected" if t in sel_paths else "target excluded by limit",
         }
 
-    needs_broader = bool(
-        fidelity["reasons"] or fit["needs_broader_context"] or target_resolution["status"] == "missing"
-    )
+    needs_broader = bool(fidelity["reasons"] or target_resolution["status"] == "missing")
 
     return {
         "schema": RETRIEVAL_SELECTION_SCHEMA,
@@ -1735,13 +1780,20 @@ def select_context_targets(
         "query_fingerprint": plan.fingerprint(),
         "query_terms": query_terms,
         "targets": targets,
-        "expanded_spans": expanded,
+        "expanded_spans": selected_expanded,
         "token_budget_fit": {
+            "scope": fit["scope"],
             "token_budget": fit["token_budget"],
             "tokenizer_policy": fit["tokenizer_policy"],
             "estimated_tokens": fit["estimated_tokens"],
-            "needs_broader_context": fit["needs_broader_context"],
-            "broader_context": fit["broader_context"],
+            "safety_margin_tokens": fit["safety_margin_tokens"],
+            "within_budget": fit["within_budget"],
+            "budget_exceeded": fit["budget_exceeded"],
+            "required_minimum_token_budget": fit["required_minimum_token_budget"],
+            "omissions": fit["omissions"],
+            "budget_reasons": fit["budget_reasons"],
+            "needs_broader_context": False,
+            "broader_context": [],
         },
         "fidelity": fidelity,
         "coverage": {
@@ -1754,7 +1806,7 @@ def select_context_targets(
         "abstained": bool(fidelity["abstained"] or len(ranked) == 0),
         "abstention_reason": "; ".join(fidelity["reasons"]) or ("no_relevant_targets" if not ranked else ""),
         "needs_broader_context": needs_broader,
-        "needs_broader_context_reason": "; ".join(fidelity["reasons"] + fit["broader_context"]),
+        "needs_broader_context_reason": "; ".join(fidelity["reasons"]),
         "metrics": {
             "candidate_count": index.get("document_count", 0),
             "relevant_count": len(ranked),

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 import unittest
@@ -11,11 +12,25 @@ import simplicio_mapper.context_pack as context_pack_module
 from simplicio_mapper.cli import main
 from simplicio_mapper.cli._status_engine import _run_handoff
 from simplicio_mapper.context_pack import build_context_pack
-from simplicio_mapper.retrieval_index import serialized_json_bytes, serialized_token_count
+from simplicio_mapper.retrieval_index import (
+    estimate_tokens,
+    serialized_json_bytes,
+    serialized_token_count,
+)
 
 
 def select_context_targets(*args, **kwargs):
     return context_pack_module.select_context_targets(*args, **kwargs)
+
+
+def _materialize(root: Path, value: dict) -> dict:
+    if value.get("schema") != "simplicio.context-reference/v1":
+        return value
+    return json.loads((root / value["expansion_handle"]["path"]).read_text(encoding="utf-8"))
+
+
+def _summary(value: dict) -> dict:
+    return value["summary"] if value.get("schema") == "simplicio.context-reference/v1" else value
 
 
 class TaskAwareHandoffTest(unittest.TestCase):
@@ -195,7 +210,7 @@ class TaskAwareHandoffTest(unittest.TestCase):
         self.assertIn("query coverage", pack["needs_broader_context_reason"])
         self.assertLess(pack["query_coverage"]["ratio"], 0.5)
 
-    def test_declared_serialized_output_budget_sets_broader_context(self) -> None:
+    def test_declared_serialized_output_budget_fails_closed_without_requesting_broader_context(self) -> None:
         pack = build_context_pack(
             str(self.root),
             [
@@ -217,13 +232,17 @@ class TaskAwareHandoffTest(unittest.TestCase):
             query_terms=["structural"],
         )
 
-        self.assertTrue(pack["needs_broader_context"])
-        self.assertFalse(pack["serialization_budget"]["within_budget"])
-        self.assertIn("serialized_output", pack["needs_broader_context_reason"])
+        receipt = pack["serialization_budget"]
+        self.assertFalse(pack["needs_broader_context"])
+        self.assertFalse(receipt["within_budget"])
+        self.assertTrue(receipt["budget_exceeded"])
+        self.assertEqual(receipt["status"], "required_context_exceeds_budget")
+        self.assertGreater(receipt["required_minimum_token_budget"], 10)
+        self.assertEqual(receipt["scope"], "context_pack")
         encoded = serialized_json_bytes(pack)
-        self.assertEqual(pack["serialization_budget"]["serialized_bytes"], len(encoded))
-        self.assertEqual(pack["serialization_budget"]["serialized_tokens"], serialized_token_count(pack))
-        self.assertEqual(pack["serialization_budget"]["measurement"], "MEASURED")
+        self.assertEqual(receipt["serialized_bytes"], len(encoded))
+        self.assertEqual(receipt["serialized_tokens"], serialized_token_count(pack))
+        self.assertEqual(receipt["measurement"], "MEASURED")
 
 
 class TaskAwareHandoffEngineTest(unittest.TestCase):
@@ -280,29 +299,69 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
         )
 
         self.assertTrue(payload["ready"])
-        self.assertFalse(payload["context_pack"]["needs_broader_context"])
-        self.assertTrue(payload["context_pack"]["serialization_budget"]["within_budget"])
+        context_pack = _materialize(self.root, payload["context_pack"])
+        selection = _materialize(self.root, payload["selection"])
+        self.assertFalse(context_pack["needs_broader_context"])
+        self.assertTrue(context_pack["serialization_budget"]["within_budget"])
         self.assertEqual(payload["targets"][0], "src/modeling/sort_lines.py")
         self.assertNotIn("docs/release-notes.md", payload["targets"])
-        self.assertEqual(payload["selection"]["target_resolution"]["status"], "included")
-        self.assertEqual(
-            payload["evidence"]["query_fingerprint"], payload["context_pack"]["query_fingerprint"]
-        )
+        self.assertEqual(selection["target_resolution"]["status"], "included")
+        self.assertEqual(payload["evidence"]["query_fingerprint"], context_pack["query_fingerprint"])
         self.assertGreaterEqual(payload["metrics"]["selection_latency_ms"], 0)
         self.assertGreater(payload["metrics"]["estimated_tokens"], 0)
         self.assertGreater(payload["metrics"]["precision_at_k"], 0)
-        self.assertIn("token_budget_fit", payload["selection"])
-        self.assertIn("fidelity", payload["selection"])
+        self.assertIn("token_budget_fit", selection)
+        self.assertIn("fidelity", selection)
         self.assertEqual(
-            payload["metrics"]["estimated_tokens"],
-            payload["selection"]["token_budget_fit"]["estimated_tokens"],
+            payload["metrics"]["estimated_tokens"], selection["token_budget_fit"]["estimated_tokens"]
         )
         self.assertEqual(
-            payload["metrics"]["tokens_estimation_method"],
-            payload["selection"]["token_budget_fit"]["tokenizer_policy"],
+            payload["metrics"]["tokens_estimation_method"], selection["token_budget_fit"]["tokenizer_policy"]
         )
         self.assertIn("stats", payload["status"]["cache"])
         self.assertIn("pack_diagnostics", payload["cache"])
+
+    def test_final_json_envelope_is_measured_bounded_and_expandable(self) -> None:
+        output = StringIO()
+        with redirect_stdout(output):
+            code = _run_handoff(
+                {
+                    "root": str(self.root),
+                    "out": ".simplicio",
+                    "await": False,
+                    "timeout": 0,
+                    "json": True,
+                    "for_llm": "",
+                    "goal": "Order modeling lines: structural first, temporal and modeling by start date",
+                    "task_intent": None,
+                    "task_fingerprint": "task-planes",
+                    "target": "src/modeling/sort_lines.py",
+                    "minimum_query_coverage": 0.2,
+                    "token_budget": 8000,
+                    "limit": 8,
+                    "execution_context": True,
+                }
+            )
+        self.assertEqual(code, 0)
+        raw = output.getvalue()
+        payload = json.loads(raw)
+        receipt = payload["serialization_budget"]
+        self.assertTrue(payload["ready"])
+        self.assertTrue(receipt["within_budget"])
+        self.assertLessEqual(receipt["serialized_tokens"], 8000)
+        self.assertEqual(receipt["serialized_bytes"], len(raw.encode("utf-8")))
+        self.assertEqual(receipt["serialized_tokens"], estimate_tokens(raw))
+        self.assertEqual(receipt["scope"], "handoff_envelope")
+        self.assertEqual(payload["gate_precedence"]["outcome"], "ready")
+        self.assertFalse(payload["gate_precedence"]["gates"]["context_snapshot"]["mandatory"])
+        for field in receipt["referenced_fields"]:
+            reference = payload[field]
+            artifact = self.root / reference["expansion_handle"]["path"]
+            content = artifact.read_bytes()
+            decoded = json.loads(content)
+            canonical = serialized_json_bytes(decoded)
+            self.assertEqual(hashlib.sha256(canonical).hexdigest(), reference["canonical_sha256"])
+            self.assertEqual(decoded["schema"], reference["referent_schema"])
 
     def test_engine_accepts_token_budget_and_limit_and_reports_budget_fit(self) -> None:
         output = StringIO()
@@ -326,17 +385,29 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
             )
         self.assertEqual(code, 0)
         payload = json.loads(output.getvalue())
-        self.assertEqual(payload["selection"]["token_budget_fit"]["token_budget"], 64)
-        self.assertEqual(payload["selection"]["metrics"]["selected_count"], 1)
+        selection = _summary(payload["selection"])
+        self.assertEqual(selection["token_budget_fit"]["token_budget"], 64)
+        self.assertTrue(selection["token_budget_fit"]["budget_exceeded"])
+        self.assertFalse(selection["needs_broader_context"])
+        self.assertFalse(payload["ready"])
+        self.assertIn("budget_exceeded", payload["reason"])
+        self.assertNotIn("needs_broader_context", payload["reason"])
+        receipt = payload["serialization_budget"]
+        self.assertEqual(receipt["scope"], "handoff_envelope")
+        self.assertFalse(receipt["within_budget"])
+        self.assertEqual(receipt["required_minimum_token_budget"], receipt["serialized_tokens"])
+        self.assertEqual(selection["metrics"]["selected_count"], 1)
 
     def test_engine_abstains_when_repo_has_no_task_vocabulary(self) -> None:
         payload = self._handoff("quantum orbital photon")
 
         self.assertFalse(payload["ready"])
         self.assertEqual(payload["targets"], [])
-        self.assertTrue(payload["selection"]["abstained"])
+        selection = _materialize(self.root, payload["selection"])
+        context_pack = _materialize(self.root, payload["context_pack"])
+        self.assertTrue(selection["abstained"])
         self.assertIn("task_context_insufficient", payload["reason"])
-        self.assertTrue(payload["context_pack"]["needs_broader_context"])
+        self.assertTrue(context_pack["needs_broader_context"])
 
     def test_cli_accepts_goal_task_file_fingerprint_and_target(self) -> None:
         with tempfile.NamedTemporaryFile(
@@ -371,13 +442,16 @@ class TaskAwareHandoffEngineTest(unittest.TestCase):
                 self.fail(f"task-aware handoff flags rejected with exit {error.code}")
         self.assertEqual(code, 0)
         payload = json.loads(output.getvalue())
+        context_pack = _summary(payload["context_pack"])
+        selection = _summary(payload["selection"])
         self.assertFalse(payload["ready"])
-        self.assertTrue(payload["context_pack"]["needs_broader_context"])
-        self.assertFalse(payload["context_pack"]["serialization_budget"]["within_budget"])
-        self.assertEqual(payload["context_pack"]["task_fingerprint"], "task-planes-cli")
-        self.assertEqual(payload["selection"]["target_resolution"]["status"], "included")
-        self.assertEqual(payload["selection"]["targets"][0]["path"], "src/modeling/sort_lines.py")
-        self.assertEqual(payload["selection"]["token_budget_fit"]["token_budget"], 64)
+        self.assertFalse(context_pack["needs_broader_context"])
+        self.assertFalse(context_pack["serialization_budget"]["within_budget"])
+        self.assertTrue(context_pack["serialization_budget"]["budget_exceeded"])
+        self.assertFalse(selection["needs_broader_context"])
+        self.assertEqual(selection["target_resolution"]["status"], "included")
+        self.assertEqual(selection["token_budget_fit"]["token_budget"], 64)
+        self.assertIn("required_context_exceeds_budget", payload["reason"])
 
 
 if __name__ == "__main__":

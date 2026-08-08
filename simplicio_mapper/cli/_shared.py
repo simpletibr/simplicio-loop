@@ -226,8 +226,8 @@ OPTIONS
                         handoff: stable upstream task identity for cache/hash keys.
   --minimum-query-coverage <0..1>
                         handoff: minimum lexical coverage before context is sufficient (default 0.2).
-  --token-budget <n>    handoff: token budget passed to indexed selection diagnostics/fidelity
-                        (default 8000).
+  --token-budget <n>    handoff: maximum for the final serialized envelope; oversized context
+                        is replaced by bounded expansion handles (default 8000).
   --execution-context   handoff: add simplicio.execution-context/v1 without changing the outer contract.
   --docs                Render markdown docs after map/index.
   --no-docs             Keep map/index JSON-only.

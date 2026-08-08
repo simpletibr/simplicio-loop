@@ -123,27 +123,21 @@ class ForLlmToonWiringTest(unittest.TestCase):
         out = StringIO()
         err = StringIO()
         with redirect_stdout(out), redirect_stderr(err):
-            code = main(
-                ["handoff", str(self.dir), "--goal", "fix run function", "--for-llm", "toon"]
-            )
+            code = main(["handoff", str(self.dir), "--goal", "fix run function", "--for-llm", "toon"])
         self.assertEqual(code, 0)
         text = out.getvalue()
         fallback_report = json.loads(err.getvalue())
-        self.assertTrue(
-            fallback_report["toon_fallbacks"], "expected a non-empty toon_fallbacks report"
-        )
+        self.assertTrue(fallback_report["toon_fallbacks"], "expected a non-empty toon_fallbacks report")
         payload = decode_toon(text)
-        reported = payload["metrics"]["estimated_tokens"]
+        selection_estimate = payload["metrics"]["estimated_tokens"]
         real = estimate_tokens(text)
-        # Reported estimate must track the real emitted size (small slack for
-        # the digit-count of the number itself shifting the re-encoded text
-        # length by a few tokens), never silently understate it the way the
-        # pre-fallback-aware estimate did (that bug reported ~12 tokens here
-        # while the real payload runs into the thousands).
-        self.assertGreaterEqual(reported, real - 20)
-        self.assertLessEqual(reported, real + 20)
-        self.assertGreater(reported, 1000)
-        self.assertIn("toon_fallback_actual", payload["metrics"]["tokens_estimation_method"])
+        receipt = payload["serialization_budget"]
+        self.assertEqual(payload["metrics"]["token_scope"], "selected_source_content")
+        self.assertGreater(selection_estimate, 0)
+        self.assertEqual(receipt["scope"], "handoff_envelope")
+        self.assertEqual(receipt["format"], "toon")
+        self.assertEqual(receipt["serialized_tokens"], real)
+        self.assertEqual(receipt["within_budget"], real <= receipt["token_budget"])
 
 
 class AsolariaTaggingTest(unittest.TestCase):

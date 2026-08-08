@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import signal
@@ -12,10 +13,19 @@ from ..context_pack import build_context_pack
 from ..context_snapshot import build_context_snapshot
 from ..execution_context import build_execution_context
 from ..mapper import build_macro_map
-from ..retrieval_index import DEFAULT_TOKEN_BUDGET, load_retrieval_index, select_context_targets
+from ..retrieval_index import (
+    DEFAULT_TOKEN_BUDGET,
+    TOKENIZER_POLICY,
+    load_retrieval_index,
+    select_context_targets,
+    serialized_json_bytes,
+)
+from ..savings import estimate_tokens
 from ..task_batch import build_task_batch
+from ..task_context import enforce_serialized_budget
 from ..task_intent import parse_task_intent
 from ..task_traceability import build_task_traceability
+from ..toon import encode_toon_with_report
 from ._args import _read_json_safe
 from ._background import _spawn_background_index, _spawn_index_process
 from ._index_engine import (
@@ -59,6 +69,223 @@ def _write_json_atomic(path: str, payload: dict) -> None:
         json.dump(payload, handle, indent=2, sort_keys=True)
         handle.write("\n")
     os.replace(temporary, path)
+
+
+def _handoff_serialization(payload: Mapping[str, object], output_format: str) -> tuple[bytes, int]:
+    if output_format == "toon":
+        text, _fallbacks = encode_toon_with_report(payload)
+        serialized = (text + "\n").encode("utf-8")
+    else:
+        serialized = serialized_json_bytes(payload) + b"\n"
+    return serialized, estimate_tokens(serialized.decode("utf-8"))
+
+
+def _handoff_reference(root: str, out: str, kind: str, payload: Mapping[str, object]) -> dict:
+    serialized = serialized_json_bytes(payload)
+    digest = hashlib.sha256(serialized).hexdigest()
+    filename = f"{kind}-{digest}.json"
+    path = os.path.abspath(os.path.join(root, out, "handoff-objects", filename))
+    _write_json_atomic(path, dict(payload))
+    relative = os.path.relpath(path, root).replace(os.sep, "/")
+    summary_fields = {
+        "selection": (
+            "query_fingerprint",
+            "target_resolution",
+            "fidelity",
+            "coverage",
+            "token_budget_fit",
+            "metrics",
+            "needs_broader_context",
+            "needs_broader_context_reason",
+        ),
+        "context_snapshot": (
+            "snapshot_id",
+            "revision",
+            "root_hash",
+            "fidelity",
+            "needs_broader_context",
+        ),
+        "execution_context": (
+            "envelope_hash",
+            "task",
+            "repository",
+            "fidelity",
+            "abstention",
+            "needs_broader_context",
+            "token_budget",
+        ),
+        "context_pack": (
+            "pack_hash",
+            "fidelity",
+            "serialization_budget",
+            "needs_broader_context",
+            "needs_broader_context_reason",
+        ),
+    }
+    summary = {field: payload[field] for field in summary_fields.get(kind, ()) if field in payload}
+    return {
+        "schema": "simplicio.context-reference/v1",
+        "kind": kind,
+        "referent_schema": str(payload.get("schema") or ""),
+        "canonical_sha256": digest,
+        "serialized_bytes": len(serialized),
+        "serialized_tokens": estimate_tokens(serialized.decode("utf-8")),
+        "summary": summary,
+        "expansion_handle": {
+            "kind": "artifact",
+            "path": relative,
+            "canonical_sha256": digest,
+        },
+    }
+
+
+def _update_handoff_budget_receipt(
+    payload: dict,
+    *,
+    output_format: str,
+    token_budget: int,
+    inline_tokens: int,
+    referenced_fields: list[str],
+    status: str,
+) -> tuple[int, int]:
+    previous: dict | None = None
+    for _ in range(12):
+        serialized, token_count = _handoff_serialization(payload, output_format)
+        within_budget = token_count <= token_budget
+        effective_status = status if within_budget else "required_context_exceeds_budget"
+        receipt = {
+            "scope": "handoff_envelope",
+            "format": output_format,
+            "token_budget": token_budget,
+            "tokenizer_policy": TOKENIZER_POLICY,
+            "measurement": "MEASURED",
+            "inline_serialized_tokens": inline_tokens,
+            "serialized_bytes": len(serialized),
+            "serialized_tokens": token_count,
+            "within_budget": within_budget,
+            "compacted": bool(referenced_fields),
+            "referenced_fields": list(referenced_fields),
+            "status": effective_status,
+            "budget_exceeded": not within_budget or status == "budget_exceeded",
+            "required_minimum_token_budget": token_count if not within_budget else 0,
+        }
+        payload["serialization_budget"] = receipt
+        if receipt == previous:
+            return len(serialized), token_count
+        previous = receipt
+    serialized, token_count = _handoff_serialization(payload, output_format)
+    return len(serialized), token_count
+
+
+def _append_reason(payload: dict, reason: str) -> None:
+    reasons = [piece.strip() for piece in str(payload.get("reason") or "").split(";") if piece.strip()]
+    if reason not in reasons:
+        reasons.append(reason)
+    payload["reason"] = "; ".join(reasons)
+
+
+def _fit_handoff_serialization(
+    payload: dict,
+    *,
+    root: str,
+    out: str,
+    token_budget: int,
+    output_format: str,
+) -> dict:
+    referenced_fields: list[str] = []
+    _, inline_tokens = _update_handoff_budget_receipt(
+        payload,
+        output_format=output_format,
+        token_budget=token_budget,
+        inline_tokens=0,
+        referenced_fields=referenced_fields,
+        status="ready",
+    )
+    payload["serialization_budget"]["inline_serialized_tokens"] = inline_tokens
+    _, token_count = _update_handoff_budget_receipt(
+        payload,
+        output_format=output_format,
+        token_budget=token_budget,
+        inline_tokens=inline_tokens,
+        referenced_fields=referenced_fields,
+        status="ready",
+    )
+    if token_count <= token_budget:
+        return payload
+
+    for field in ("selection", "context_snapshot", "execution_context", "traceability", "task_batch"):
+        value = payload.get(field)
+        if not isinstance(value, Mapping):
+            continue
+        payload[field] = _handoff_reference(root, out, field, value)
+        referenced_fields.append(field)
+        _, token_count = _update_handoff_budget_receipt(
+            payload,
+            output_format=output_format,
+            token_budget=token_budget,
+            inline_tokens=inline_tokens,
+            referenced_fields=referenced_fields,
+            status="compacted",
+        )
+        if token_count <= token_budget:
+            return payload
+
+    context_pack = payload.get("context_pack")
+    if isinstance(context_pack, dict):
+        placeholder = payload["context_pack"]
+        payload["context_pack"] = {}
+        _, envelope_overhead = _handoff_serialization(payload, output_format)
+        payload["context_pack"] = placeholder
+        allocated_budget = max(1, token_budget - envelope_overhead)
+        pack_receipt = context_pack.get("serialization_budget", {})
+        context_pack = enforce_serialized_budget(
+            context_pack,
+            token_budget=allocated_budget,
+            estimated_tokens=int(pack_receipt.get("estimated_tokens", 0)),
+        )
+        payload["context_pack"] = context_pack
+        _, token_count = _update_handoff_budget_receipt(
+            payload,
+            output_format=output_format,
+            token_budget=token_budget,
+            inline_tokens=inline_tokens,
+            referenced_fields=referenced_fields,
+            status="compacted",
+        )
+        if token_count <= token_budget and not context_pack["serialization_budget"]["budget_exceeded"]:
+            return payload
+
+        payload["context_pack"] = _handoff_reference(root, out, "context_pack", context_pack)
+        referenced_fields.append("context_pack")
+        payload["ready"] = False
+        _append_reason(payload, "budget_exceeded")
+        if isinstance(payload.get("gate_precedence"), dict):
+            payload["gate_precedence"]["outcome"] = "blocked"
+            payload["gate_precedence"]["gates"]["context_pack"]["gate"] = "budget_exceeded"
+        _, token_count = _update_handoff_budget_receipt(
+            payload,
+            output_format=output_format,
+            token_budget=token_budget,
+            inline_tokens=inline_tokens,
+            referenced_fields=referenced_fields,
+            status="budget_exceeded",
+        )
+        if token_count <= token_budget:
+            return payload
+
+    payload["ready"] = False
+    _append_reason(payload, "required_context_exceeds_budget")
+    if isinstance(payload.get("gate_precedence"), dict):
+        payload["gate_precedence"]["outcome"] = "blocked"
+    _update_handoff_budget_receipt(
+        payload,
+        output_format=output_format,
+        token_budget=token_budget,
+        inline_tokens=inline_tokens,
+        referenced_fields=referenced_fields,
+        status="required_context_exceeds_budget",
+    )
+    return payload
 
 
 def _write_map_job(root: str, out: str, envelope: dict) -> None:
@@ -123,7 +350,11 @@ def _deep_phase(root: str, out: str) -> str:
     if job.get("schema") == MAP_JOB_SCHEMA:
         deep = job.get("deep") if isinstance(job.get("deep"), dict) else {}
         pid = deep.get("pid")
-        if job.get("phase") in ("macro_done", "deep_running") and isinstance(pid, int) and _process_is_alive(pid):
+        if (
+            job.get("phase") in ("macro_done", "deep_running")
+            and isinstance(pid, int)
+            and _process_is_alive(pid)
+        ):
             expected_start = deep.get("process_start")
             actual_start = _process_start_token(pid)
             if (
@@ -544,6 +775,10 @@ def _run_handoff(opts: dict) -> int:
         reasons.append("artifacts_not_fresh")
     if context_pack.get("needs_broader_context"):
         reasons.append("needs_broader_context")
+    if selection is not None and selection.get("token_budget_fit", {}).get("budget_exceeded"):
+        reasons.append("budget_exceeded")
+    if context_pack.get("serialization_budget", {}).get("budget_exceeded"):
+        reasons.append("budget_exceeded")
     payload = {
         "schema": MAP_HANDOFF_SCHEMA,
         "ready": not reasons,
@@ -571,6 +806,7 @@ def _run_handoff(opts: dict) -> int:
             "selection_latency_ms": selection_latency_ms,
             "estimated_tokens": selection["token_budget_fit"]["estimated_tokens"],
             "tokens_estimation_method": selection["token_budget_fit"]["tokenizer_policy"],
+            "token_scope": "selected_source_content",
             "coverage_ratio": selection["coverage"]["ratio"],
         }
         payload["evidence"]["query_fingerprint"] = selection["query_fingerprint"]
@@ -619,9 +855,7 @@ def _run_handoff(opts: dict) -> int:
             root,
             goal=goal,
             task_fingerprint=task_fingerprint,
-            acceptance_criteria=list(query_plan.get("ac_ids", []))
-            if isinstance(query_plan, dict)
-            else [],
+            acceptance_criteria=list(query_plan.get("ac_ids", [])) if isinstance(query_plan, dict) else [],
             task_intent=task_intent,
             project_map=project_map,
             symbol_index=symbol_index,
@@ -633,10 +867,76 @@ def _run_handoff(opts: dict) -> int:
             context_snapshot=context_snapshot,
             token_budget=token_budget,
         )
+        execution_context = payload["execution_context"]
+        if execution_context.get("needs_broader_context"):
+            reasons.append("needs_broader_context")
+        if not execution_context.get("token_budget", {}).get("within_budget", True):
+            reasons.append("budget_exceeded")
+
+    reasons = list(dict.fromkeys(reasons))
+    payload["ready"] = not reasons
+    payload["reason"] = "; ".join(reasons)
+    selection_gate = (
+        "not_applicable"
+        if selection is None
+        else "budget_exceeded"
+        if selection.get("token_budget_fit", {}).get("budget_exceeded")
+        else "needs_broader_context"
+        if selection.get("needs_broader_context")
+        else "ready"
+    )
+    pack_gate = (
+        "required_context_exceeds_budget"
+        if context_pack.get("serialization_budget", {}).get("budget_exceeded")
+        else "needs_broader_context"
+        if context_pack.get("needs_broader_context")
+        else "ready"
+    )
+    execution_value = payload.get("execution_context")
+    execution_gate = (
+        "not_requested"
+        if not isinstance(execution_value, Mapping)
+        else "budget_exceeded"
+        if not execution_value.get("token_budget", {}).get("within_budget", True)
+        else "needs_broader_context"
+        if execution_value.get("needs_broader_context")
+        else "ready"
+    )
+    payload["gate_precedence"] = {
+        "schema": "simplicio.handoff-gate-matrix/v1",
+        "version": 1,
+        "mandatory_order": ["status", "selection", "context_pack", "execution_context"],
+        "gates": {
+            "status": {
+                "mandatory": True,
+                "gate": "ready"
+                if status_payload["artifacts_present"] and status_payload["fresh"]
+                else "artifacts_unavailable",
+            },
+            "selection": {"mandatory": selection is not None, "gate": selection_gate},
+            "context_pack": {"mandatory": True, "gate": pack_gate},
+            "execution_context": {
+                "mandatory": bool(opts.get("execution_context")),
+                "gate": execution_gate,
+            },
+            "context_snapshot": {
+                "mandatory": False,
+                "gate": str(context_snapshot.get("fidelity", {}).get("gate") or "unknown"),
+            },
+        },
+        "outcome": "ready" if payload["ready"] else "blocked",
+    }
+    payload = _fit_handoff_serialization(
+        payload,
+        root=root,
+        out=out,
+        token_budget=token_budget,
+        output_format="toon" if opts.get("for_llm") == "toon" else "json",
+    )
     if opts.get("for_llm") == "toon":
         _print_toon(payload)
     elif opts["json"]:
-        print(json.dumps(payload, sort_keys=True))
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
     else:
         print(
             f"handoff phase={status_payload['phase']} targets={len(targets)} "

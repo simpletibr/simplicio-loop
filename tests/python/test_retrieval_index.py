@@ -298,16 +298,52 @@ class TokenBudgetTest(unittest.TestCase):
         fit = ri.fit_token_budget([], ".", token_budget=8000, plan=plan)
         self.assertFalse(fit["needs_broader_context"])
 
-    def test_required_span_overflow_requests_broader_context(self) -> None:
-        # Simulate a required path whose span cost exceeds the budget.
+    def test_required_span_overflow_reports_budget_failure_not_broader_context(self) -> None:
         entry = {
             "path": "big.py",
             "spans": [{"start_line": 1, "end_line": 100000, "symbol": "x", "kind": "function"}],
         }
         plan = ri.build_query_plan("Fix big", target="big.py")
         fit = ri.fit_token_budget([entry], ".", token_budget=10, plan=plan)
-        self.assertTrue(fit["needs_broader_context"])
-        self.assertTrue(any("big.py" in c for c in fit["broader_context"]))
+        self.assertFalse(fit["needs_broader_context"])
+        self.assertTrue(fit["budget_exceeded"])
+        self.assertFalse(fit["within_budget"])
+        self.assertGreater(fit["required_minimum_token_budget"], 10)
+        self.assertEqual(fit["scope"], "selected_source_content")
+        self.assertEqual(fit["omissions"][0]["path"], "big.py")
+        self.assertTrue(fit["omissions"][0]["expansion_handle"].startswith("expand:"))
+
+    def test_optional_context_is_omitted_before_selection_overruns_budget(self) -> None:
+        entries = [
+            {
+                "path": f"optional-{index}.py",
+                "spans": [{"start_line": 1, "end_line": 100000, "kind": "function"}],
+            }
+            for index in range(2)
+        ]
+        fit = ri.fit_token_budget(entries, ".", token_budget=100, plan=ri.build_query_plan("optional"))
+        self.assertTrue(fit["within_budget"])
+        self.assertFalse(fit["budget_exceeded"])
+        self.assertLessEqual(fit["estimated_tokens"], 95)
+        self.assertEqual(len(fit["omissions"]), 2)
+        self.assertTrue(all(item["expansion_handle"].startswith("expand:") for item in fit["omissions"]))
+
+    def test_required_context_is_allocated_before_optional_candidates(self) -> None:
+        entries = [
+            {
+                "path": "optional.py",
+                "spans": [{"start_line": 1, "end_line": 100000, "kind": "function"}],
+            },
+            {
+                "path": "required.py",
+                "spans": [{"start_line": 1, "end_line": 1, "kind": "function"}],
+            },
+        ]
+        plan = ri.build_query_plan("Fix required", target="required.py")
+        fit = ri.fit_token_budget(entries, ".", token_budget=100, plan=plan)
+        self.assertFalse(fit["budget_exceeded"])
+        self.assertEqual([entry["path"] for entry in fit["entries"]], ["required.py"])
+        self.assertEqual(fit["omissions"][0]["path"], "optional.py")
 
 
 class FidelityGateTest(unittest.TestCase):
@@ -335,7 +371,6 @@ class FidelityGateTest(unittest.TestCase):
         ranked = ri.rank_candidates(idx, plan, limit=3)
         fidelity = ri.fidelity_gate(ranked, ri.expand_spans(".", ranked, idx), plan)
         self.assertTrue(fidelity["sufficient"], fidelity)
-
 
     def test_high_generic_overlap_alone_cannot_pass(self) -> None:
         # A query whose terms all appear in generic docs only must not pass as
