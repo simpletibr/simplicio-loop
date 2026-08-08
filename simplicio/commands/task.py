@@ -188,7 +188,6 @@ def run(a: argparse.Namespace) -> int:
         )
         if a.json:
             print(json.dumps(result, sort_keys=True))
-            _emit_blocked_diagnostics(result)
         else:
             status = (
                 "BLOCKED" if result.get("status") == "blocked" else ("DRY-RUN" if a.dry_run_task else "DONE")

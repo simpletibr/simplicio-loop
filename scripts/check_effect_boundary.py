@@ -17,10 +17,7 @@ from pathlib import Path
 # producer and canonical Mapper operations adapter are explicit external
 # boundaries; their subprocess, route initialization, and string normalization
 # are not final source mutation. Transaction recovery also owns cleanup of its
-# validated candidate/backup directories after a crash-window replay. Issue
-# #650 adds the reviewed atomic deterministic-edit receipt and bounded apply
-# lock under the repository-local .simplicio/dev-cli-receipts directory. Issue
-# #649 changes recovery metadata to argv and adds MapperStore reconciliation receipts.
+# validated candidate/backup directories after a crash-window replay.
 BASELINE_SHA256 = "5f1b325a49bec6f42a22dc8d2a8c5a0a845da998b24b033d94963f1577ce2a37"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {

@@ -1457,6 +1457,20 @@ def _run_prepared_task_route(
             None,
         )
     if dry_run_task:
+        if profile.effective_mode == "blocked":
+            blocker = execution_mode_blocker(profile)
+            result = _task_result(
+                target,
+                prompt,
+                "",
+                applied=False,
+                status="blocked",
+                warnings=[profile.reason_code],
+                blocked_preconditions=[blocker],
+            )
+            result["execution_profile"] = profile.to_dict()
+            result["model_invoked"] = False
+            return _attach_ecc_guidance_reference(result, ecc_reference)
         # Dry-run is a non-mutating preview lane.  It must evaluate its own
         # artifact/target preconditions before route-level write/read policy;
         # otherwise a blocked standalone profile prevents valid previews from
