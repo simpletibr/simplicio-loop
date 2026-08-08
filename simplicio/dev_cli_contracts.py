@@ -368,4 +368,4 @@ def reconcile(*, root: str | Path, idempotency_key: str) -> dict[str, Any]:
             "outcome": "effect_unknown",
             "recovery_locator": lock.get("evidence_file"),
         }
-    return {"schema": RECONCILE_SCHEMA, "status": "failed", "outcome": "receipt_not_found"}
+    return {"schema": RECONCILE_SCHEMA, "status": "not-found", "outcome": "not-found"}

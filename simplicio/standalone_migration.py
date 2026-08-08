@@ -181,13 +181,28 @@ def effect_unknown_details(
     receipt_locator = {
         "intent": f".simplicio/runtime-effects/{key}.intent.json",
         "receipt": f".simplicio/runtime-effects/{key}.receipt.json",
-        "runtime_status_command": f"simplicio effect status --idempotency-key {key} --repo {repo} --json",
+        "runtime_status_command": [
+            "simplicio",
+            "effect",
+            "status",
+            "--idempotency-key",
+            key,
+            "--repo",
+            repo,
+            "--json",
+        ],
     }
-    windows_separator = chr(92)
-    recovery_command = (
-        f"simplicio-py reconcile --root {repo} --idempotency-key {key} "
-        f"--evidence-file {repo}{windows_separator}{evidence_file.replace('/', windows_separator)} --json"
-    )
+    recovery_command = [
+        "simplicio-py",
+        "reconcile",
+        "--root",
+        repo,
+        "--idempotency-key",
+        key,
+        "--evidence-file",
+        str(Path(repo) / Path(evidence_file)),
+        "--json",
+    ]
     return {
         "idempotency_key": key,
         "repo": repo,

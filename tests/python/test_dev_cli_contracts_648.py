@@ -52,7 +52,7 @@ def test_blocked_plan_and_precondition_failure_are_actionable(tmp_path: Path):
     assert result["preconditions"]["expected"] != result["preconditions"]["actual"]
 
 
-def test_reconcile_unknown_and_failure_states(tmp_path: Path):
+def test_reconcile_unknown_and_not_found_states(tmp_path: Path):
     record_effect_unknown(str(tmp_path), {"idempotency_key": "unknown-key", "evidence_file": "evidence.json"})
     unknown = reconcile(root=tmp_path, idempotency_key="unknown-key")
     assert unknown == {
@@ -61,6 +61,6 @@ def test_reconcile_unknown_and_failure_states(tmp_path: Path):
         "outcome": "effect_unknown",
         "recovery_locator": "evidence.json",
     }
-    failed = reconcile(root=tmp_path, idempotency_key="missing")
-    assert failed["status"] == "failed"
-    assert failed["outcome"] == "receipt_not_found"
+    not_found = reconcile(root=tmp_path, idempotency_key="missing")
+    assert not_found["status"] == "not-found"
+    assert not_found["outcome"] == "not-found"
