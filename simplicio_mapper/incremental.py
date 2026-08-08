@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from .mapper import build_artifacts
+from .mapper.file_lock import acquire_lock_at, release_lock_at
 
 SNAPSHOT_SCHEMA = "simplicio.graph-snapshot/v1"
 DELTA_SCHEMA = "simplicio.graph-delta/v1"
@@ -229,8 +230,8 @@ def _next_revision(previous: dict | None) -> str:
         return "r000001"
 
 
-def run_incremental_scan(root: str, *, out: str = ".simplicio", meta: dict | None = None,
-                         full_rescan: bool = False, changed_paths: list[str] | None = None) -> dict:
+def _run_incremental_scan_locked(root: str, *, out: str = ".simplicio", meta: dict | None = None,
+                                  full_rescan: bool = False, changed_paths: list[str] | None = None) -> dict:
     """Persist the consumer base snapshot and emit the v1 event envelope.
 
     A corrupt or incompatible base is never guessed at: the caller receives a
@@ -257,9 +258,7 @@ def run_incremental_scan(root: str, *, out: str = ".simplicio", meta: dict | Non
         }
     if full_rescan or previous is None:
         snapshot = initial_snapshot(root, revision=_next_revision(previous), meta=meta)
-        with open(state_path, "w", encoding="utf-8", newline="\n") as handle:
-            json.dump(snapshot, handle, ensure_ascii=False, sort_keys=True, indent=2)
-            handle.write("\n")
+        write_json(state_path, snapshot)
         is_resync = bool(full_rescan and previous)
         return {
             "schema": DELTA_SCHEMA, "version": CONTRACT_VERSION,
@@ -278,9 +277,7 @@ def run_incremental_scan(root: str, *, out: str = ".simplicio", meta: dict | Non
         probe = compute_delta(previous, current)
         changed_paths = sorted({path for event in probe["events"] for path in event.get("affected_paths", []) if path})
     delta = compute_delta(previous, current, changed_paths=changed_paths)
-    with open(state_path, "w", encoding="utf-8", newline="\n") as handle:
-        json.dump(current, handle, ensure_ascii=False, sort_keys=True, indent=2)
-        handle.write("\n")
+    write_json(state_path, current)
     return {
         "schema": DELTA_SCHEMA, "version": CONTRACT_VERSION, "event_type": "delta", "mode": "incremental",
         "base_revision": previous["revision"], "scan_revision": current["revision"], "full_rescan": False,
@@ -290,7 +287,46 @@ def run_incremental_scan(root: str, *, out: str = ".simplicio", meta: dict | Non
     }
 
 
+def run_incremental_scan(root: str, *, out: str = ".simplicio", meta: dict | None = None,
+                         full_rescan: bool = False, changed_paths: list[str] | None = None) -> dict:
+    """Serialize incremental writers and return a truthful lock receipt."""
+    resolved = os.path.abspath(root)
+    lock_path = os.path.join(resolved, out, "graph-snapshot.lock")
+    lock = acquire_lock_at(lock_path, operation="incremental-scan")
+    if lock is None:
+        return {
+            "schema": DELTA_SCHEMA,
+            "version": CONTRACT_VERSION,
+            "event_type": "blocked",
+            "mode": "incremental",
+            "full_rescan": bool(full_rescan),
+            "ordering": {"strategy": "op,entity_type,id", "deterministic": True},
+            "events": [],
+            "affected_paths": [],
+            "diagnostics": [{"code": "incremental_lock_held", "lock_path": lock_path.replace(os.sep, "/")}],
+            "fallback": {"required": True, "action": "retry_after_lock_release"},
+        }
+    try:
+        return _run_incremental_scan_locked(
+            resolved, out=out, meta=meta, full_rescan=full_rescan, changed_paths=changed_paths
+        )
+    finally:
+        release_lock_at(lock)
+
+
 def write_json(path: str, payload: dict) -> None:
-    with open(path, "w", encoding="utf-8", newline="\n") as handle:
-        json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
-        handle.write("\n")
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_suffix(f"{target.suffix}.tmp-{os.getpid()}")
+    try:
+        with temporary.open("w", encoding="utf-8", newline="\n") as handle:
+            json.dump(payload, handle, ensure_ascii=False, sort_keys=True, indent=2)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, target)
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass

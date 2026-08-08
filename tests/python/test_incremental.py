@@ -3,6 +3,7 @@ import unittest
 from pathlib import Path
 from shutil import copytree
 
+import simplicio_mapper.incremental as incremental_mod
 from simplicio_mapper.incremental import compute_delta, initial_snapshot, run_incremental_scan
 
 
@@ -49,6 +50,20 @@ class IncrementalDeltaTests(unittest.TestCase):
         second = initial_snapshot(str(source))
         self.assertEqual(first["snapshot_id"], second["snapshot_id"])
         self.assertEqual([item["id"] for item in first["entities"]], [item["id"] for item in second["entities"]])
+
+    def test_lock_contention_returns_truthful_blocked_receipt(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "repo"
+            root.mkdir()
+            original = incremental_mod.acquire_lock_at
+            incremental_mod.acquire_lock_at = lambda *_args, **_kwargs: None
+            try:
+                result = run_incremental_scan(str(root))
+            finally:
+                incremental_mod.acquire_lock_at = original
+            self.assertEqual(result["event_type"], "blocked")
+            self.assertEqual(result["diagnostics"][0]["code"], "incremental_lock_held")
+            self.assertTrue(result["fallback"]["required"])
 
     def test_incompatible_base_requests_resynchronization(self):
         source = Path("contracts/mapper-artifacts/v1/fixtures/python-minimal/source").resolve()
