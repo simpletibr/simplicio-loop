@@ -17,8 +17,8 @@
       "consumers": ["fast", "loop", "dev-cli", "runtime"],
       "writer_authority": "mapper",
       "versions": {"current": "v1", "minimum": "v1", "maximum": "v1", "deprecated": false},
-      "canonical": {"schema_path": "contracts/context-graph/v1/schema.json", "sha256": "9d28fd188b5c6dc5bbab3e62de8b6d43514e18a49ce2c6bc1907937f14f5c36c", "fixture_paths": ["contracts/context-graph/v1/fixtures/parity.json"]},
-      "compatibility": {"unknown_fields": "reject", "unknown_enum": "reject", "defaults": "explicit", "policy": "versioned"},
+      "canonical": {"schema_path": "contracts/context-graph/v1/schema.json", "sha256": "e722f21484512055453af1109294de91dfb16ea6a2cebd17ed43ac7119ea3f12", "fixture_paths": ["contracts/context-graph/v1/fixtures/parity.json", "contracts/context-graph/v1/fixtures/compatibility.json"]},
+      "compatibility": {"unknown_fields": "allow-additive-same-major", "unknown_enum": "reject", "defaults": "explicit", "policy": "same-major-additive"},
       "change_policy": {"breaking": "new-version-adr-migration-fixture", "additive": "compatible-with-fixture"}
     },
     {

@@ -66,6 +66,269 @@ fn schema_registry_sha256(document: &str) -> PyResult<String> {
     Ok(sha256_hex(&canonical_json(&value)))
 }
 
+static CONTEXT_GRAPH_CONTRACT_SCHEMA: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^simplicio[.]context-graph-contract/v([1-9][0-9]*)(?:[.][0-9]+)*$").unwrap()
+});
+
+fn contract_diagnostic(reason: &str, path: impl Into<String>, message: impl Into<String>) -> Value {
+    serde_json::json!({
+        "valid": false,
+        "reason": reason,
+        "path": path.into(),
+        "message": message.into(),
+    })
+}
+
+fn string_array(value: Option<&Value>) -> Option<Vec<&str>> {
+    value?.as_array()?.iter().map(Value::as_str).collect()
+}
+
+fn context_graph_contract_diagnostic(contract: &Value) -> Value {
+    let Some(object) = contract.as_object() else {
+        return contract_diagnostic(
+            "contract_not_object",
+            "$",
+            "ContextGraph contract must be an object",
+        );
+    };
+
+    let Some(schema) = object.get("schema").and_then(Value::as_str) else {
+        return contract_diagnostic(
+            "schema_invalid",
+            "$.schema",
+            "schema must identify a supported ContextGraph contract major",
+        );
+    };
+    let Some(captures) = CONTEXT_GRAPH_CONTRACT_SCHEMA.captures(schema) else {
+        return contract_diagnostic(
+            "schema_invalid",
+            "$.schema",
+            "schema must identify a supported ContextGraph contract major",
+        );
+    };
+    let major = captures[1].parse::<u64>().unwrap();
+    if major != 1 {
+        return contract_diagnostic(
+            "schema_major_unsupported",
+            "$.schema",
+            format!("schema major v{major} is unsupported; supported major is v1"),
+        );
+    }
+    if object.get("version").and_then(Value::as_u64) != Some(1) {
+        return contract_diagnostic(
+            "version_unsupported",
+            "$.version",
+            "version must be integer 1 for schema major v1",
+        );
+    }
+    if object
+        .get("repository_id")
+        .and_then(Value::as_str)
+        .is_none_or(str::is_empty)
+    {
+        return contract_diagnostic(
+            "repository_identity_missing",
+            "$.repository_id",
+            "repository_id must be a non-empty string",
+        );
+    }
+    if object
+        .get("generation")
+        .and_then(Value::as_str)
+        .is_none_or(str::is_empty)
+    {
+        return contract_diagnostic(
+            "generation_missing",
+            "$.generation",
+            "generation must be a non-empty string",
+        );
+    }
+
+    let Some(stable_ids) = object.get("stable_ids").and_then(Value::as_object) else {
+        return contract_diagnostic(
+            "stable_ids_invalid",
+            "$.stable_ids",
+            "stable_ids must be an object",
+        );
+    };
+    let Some(stable_node_ids) = string_array(stable_ids.get("nodes")) else {
+        return contract_diagnostic(
+            "stable_ids_invalid",
+            "$.stable_ids.nodes",
+            "stable_ids.nodes must be an array of strings",
+        );
+    };
+    let Some(stable_relation_ids) = string_array(stable_ids.get("edges")) else {
+        return contract_diagnostic(
+            "stable_ids_invalid",
+            "$.stable_ids.edges",
+            "stable_ids.edges must be an array of strings",
+        );
+    };
+
+    let Some(nodes) = object.get("nodes").and_then(Value::as_array) else {
+        return contract_diagnostic("nodes_invalid", "$.nodes", "nodes must be an array");
+    };
+    let mut node_ids = Vec::<String>::new();
+    for (index, node) in nodes.iter().enumerate() {
+        let item_path = format!("$.nodes[{index}]");
+        let Some(node) = node.as_object() else {
+            return contract_diagnostic("node_invalid", item_path, "node must be an object");
+        };
+        let Some(node_id) = node
+            .get("id")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+        else {
+            return contract_diagnostic(
+                "node_id_invalid",
+                format!("{item_path}.id"),
+                "node id must be a non-empty string",
+            );
+        };
+        if node_ids.iter().any(|value| value == node_id) {
+            return contract_diagnostic(
+                "node_id_duplicate",
+                format!("{item_path}.id"),
+                format!("duplicate node id: {node_id}"),
+            );
+        }
+        if node
+            .get("scale")
+            .and_then(Value::as_str)
+            .is_none_or(str::is_empty)
+        {
+            return contract_diagnostic(
+                "node_scale_invalid",
+                format!("{item_path}.scale"),
+                "node scale must be a string",
+            );
+        }
+        node_ids.push(node_id.to_string());
+    }
+
+    let Some(relations) = object.get("relations").and_then(Value::as_array) else {
+        return contract_diagnostic(
+            "relations_invalid",
+            "$.relations",
+            "relations must be an array",
+        );
+    };
+    let mut relation_ids = Vec::<String>::new();
+    for (index, relation) in relations.iter().enumerate() {
+        let item_path = format!("$.relations[{index}]");
+        let Some(relation) = relation.as_object() else {
+            return contract_diagnostic(
+                "relation_invalid",
+                item_path,
+                "relation must be an object",
+            );
+        };
+        let Some(relation_id) = relation
+            .get("id")
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+        else {
+            return contract_diagnostic(
+                "relation_id_invalid",
+                format!("{item_path}.id"),
+                "relation id must be a non-empty string",
+            );
+        };
+        if relation_ids.iter().any(|value| value == relation_id) {
+            return contract_diagnostic(
+                "relation_id_duplicate",
+                format!("{item_path}.id"),
+                format!("duplicate relation id: {relation_id}"),
+            );
+        }
+        for field in ["kind", "source", "target"] {
+            if relation
+                .get(field)
+                .and_then(Value::as_str)
+                .is_none_or(str::is_empty)
+            {
+                return contract_diagnostic(
+                    "relation_field_invalid",
+                    format!("{item_path}.{field}"),
+                    format!("relation {field} must be a non-empty string"),
+                );
+            }
+        }
+        relation_ids.push(relation_id.to_string());
+    }
+
+    let mut sorted_node_ids = node_ids.clone();
+    sorted_node_ids.sort();
+    if node_ids != sorted_node_ids {
+        return contract_diagnostic(
+            "node_ids_not_canonical",
+            "$.nodes",
+            "nodes must be ordered by id",
+        );
+    }
+    let mut sorted_relation_ids = relation_ids.clone();
+    sorted_relation_ids.sort();
+    if relation_ids != sorted_relation_ids {
+        return contract_diagnostic(
+            "relation_ids_not_canonical",
+            "$.relations",
+            "relations must be ordered by id",
+        );
+    }
+    if stable_node_ids != node_ids.iter().map(String::as_str).collect::<Vec<_>>() {
+        return contract_diagnostic(
+            "stable_ids_mismatch",
+            "$.stable_ids.nodes",
+            "stable node ids must exactly match ordered nodes",
+        );
+    }
+    if stable_relation_ids != relation_ids.iter().map(String::as_str).collect::<Vec<_>>() {
+        return contract_diagnostic(
+            "stable_ids_mismatch",
+            "$.stable_ids.edges",
+            "stable edge ids must exactly match ordered relations",
+        );
+    }
+
+    let Some(supplied_digest) = object.get("digest").and_then(Value::as_str) else {
+        return contract_diagnostic(
+            "digest_invalid",
+            "$.digest",
+            "digest must be a lowercase SHA-256 hex string",
+        );
+    };
+    if supplied_digest.len() != 64
+        || !supplied_digest
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return contract_diagnostic(
+            "digest_invalid",
+            "$.digest",
+            "digest must be a lowercase SHA-256 hex string",
+        );
+    }
+    let mut body = contract.clone();
+    body.as_object_mut().unwrap().remove("digest");
+    if supplied_digest != sha256_hex(&canonical_json(&body)) {
+        return contract_diagnostic(
+            "digest_mismatch",
+            "$.digest",
+            "digest does not match the canonical contract body",
+        );
+    }
+    serde_json::json!({"valid": true, "reason": null, "path": null, "message": null})
+}
+
+#[pyfunction]
+fn validate_context_graph_contract(document: &str) -> PyResult<String> {
+    let value: Value =
+        serde_json::from_str(document).map_err(|error| PyValueError::new_err(error.to_string()))?;
+    serde_json::to_string(&context_graph_contract_diagnostic(&value))
+        .map_err(|error| PyValueError::new_err(error.to_string()))
+}
+
 static RE_JS_TS_IMPORT: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"import\s+[^'"]*['"]([^'"]+)['"]"#).unwrap());
 static RE_JS_TS_REQUIRE: Lazy<Regex> =
@@ -221,6 +484,7 @@ fn simplicio_mapper_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
             "batch",
             "graph-merge",
             "schema-registry",
+            "context-graph-contract",
         ],
     )?;
     m.add(
@@ -241,14 +505,15 @@ fn simplicio_mapper_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(merge_edges, m)?)?;
     m.add_function(wrap_pyfunction!(build_symbol_index, m)?)?;
     m.add_function(wrap_pyfunction!(schema_registry_sha256, m)?)?;
+    m.add_function(wrap_pyfunction!(validate_context_graph_contract, m)?)?;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        build_symbol_index, canonical_json, merge_edges, parse_symbols, schema_registry_sha256,
-        sha256_hex,
+        build_symbol_index, canonical_json, context_graph_contract_diagnostic, merge_edges,
+        parse_symbols, schema_registry_sha256, sha256_hex,
     };
     use serde_json::Value;
 
@@ -298,6 +563,28 @@ mod tests {
         assert_eq!(canonical_json(&value).as_bytes().len() > 0, true);
     }
 
+    #[test]
+    fn context_graph_contract_fixture_matches_public_diagnostics() {
+        let path = format!(
+            "{}/../contracts/context-graph/v1/fixtures/compatibility.json",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let fixture: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        for case in fixture["cases"].as_array().unwrap() {
+            let report = context_graph_contract_diagnostic(&case["contract"]);
+            assert_eq!(
+                report["valid"], case["expected"]["valid"],
+                "{}",
+                case["name"]
+            );
+            assert_eq!(
+                report["reason"], case["expected"]["reason"],
+                "{}",
+                case["name"]
+            );
+            assert_eq!(report["path"], case["expected"]["path"], "{}", case["name"]);
+        }
+    }
     #[test]
     fn migration_and_negotiation_fixtures_have_shared_shape() {
         let root = format!(

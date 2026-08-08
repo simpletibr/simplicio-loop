@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- Reject unknown ContextGraph contract schema majors before exposing partial
+  graph data, while preserving validated additive minor contracts through a
+  shared Python, Node and optional Rust compatibility fixture.
+
 ## [0.26.15] - 2026-08-03
 
 ### Changed
