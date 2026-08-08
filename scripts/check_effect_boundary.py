@@ -17,8 +17,10 @@ from pathlib import Path
 # producer and canonical Mapper operations adapter are explicit external
 # boundaries; their subprocess, route initialization, and string normalization
 # are not final source mutation. Transaction recovery also owns cleanup of its
-# validated candidate/backup directories after a crash-window replay.
-BASELINE_SHA256 = "baee3dcd674f9f2324d43a4c8bdd66aef264c915d3bfbf1f166db7e81c09ea52"
+# validated candidate/backup directories after a crash-window replay. Issue
+# #650 adds the reviewed atomic deterministic-edit receipt and bounded apply
+# lock under the repository-local .simplicio/dev-cli-receipts directory.
+BASELINE_SHA256 = "b74e1d17bd5817a940962d84050a2a09c84740e6ae868f6fd72e71a609caf354"
 APPROVED_EFFECT_BOUNDARIES = frozenset(
     {
         "simplicio/hbp.py",

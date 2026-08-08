@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 import tokenize
 from copy import deepcopy
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from .standalone_migration import effect_unknown_details, effect_unknown_pending, record_effect_unknown
@@ -160,6 +160,11 @@ class MechanicalEditError(ValueError):
 # — generous enough for a real edit, short enough to never hang the caller
 # when the binary exists but misbehaves.
 _NATIVE_EDIT_TIMEOUT_S = 30.0
+_VALIDATION_DEFAULT_TIMEOUT_S = 120
+_VALIDATION_MAX_TIMEOUT_S = 300
+_VALIDATION_MAX_ARGV_ITEMS = 128
+_VALIDATION_MAX_ARGV_CHARS = 65_536
+_VALIDATION_MAX_OUTPUT_BYTES = 65_536
 
 
 def _native_edit_binary() -> str | None:
@@ -215,8 +220,10 @@ def _try_native_edit(
             completed = subprocess.run(
                 cmd,
                 stdin=subprocess.DEVNULL,
+                cwd=root_path.resolve(),
                 capture_output=True,
                 text=True,
+                shell=False,
                 timeout=_NATIVE_EDIT_TIMEOUT_S,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
@@ -400,6 +407,63 @@ def _validate_shape(plan: dict[str, Any]) -> list[dict[str, Any]]:
                     "code": "unknown_operation",
                     "message": f"unknown operation {name!r}",
                     "operation_index": index,
+                }
+            )
+    validation = plan.get("validation", [])
+    if not isinstance(validation, list):
+        errors.append(
+            {
+                "code": "invalid_validation",
+                "message": "validation must be a list",
+            }
+        )
+        return errors
+    for index, item in enumerate(validation):
+        if not isinstance(item, dict):
+            errors.append(
+                {
+                    "code": "invalid_validation",
+                    "message": "validation entry must be an object",
+                    "validation_index": index,
+                }
+            )
+            continue
+        cmd = item.get("cmd")
+        if (
+            not isinstance(cmd, list)
+            or not cmd
+            or len(cmd) > _VALIDATION_MAX_ARGV_ITEMS
+            or not all(isinstance(part, str) for part in cmd)
+            or not cmd[0]
+            or any("\0" in part for part in cmd)
+            or sum(len(part) for part in cmd) > _VALIDATION_MAX_ARGV_CHARS
+        ):
+            errors.append(
+                {
+                    "code": "invalid_validation",
+                    "message": "validation cmd must be a bounded non-empty list[str]",
+                    "validation_index": index,
+                }
+            )
+        timeout = item.get("timeout", _VALIDATION_DEFAULT_TIMEOUT_S)
+        if (
+            isinstance(timeout, bool)
+            or not isinstance(timeout, int)
+            or not 1 <= timeout <= _VALIDATION_MAX_TIMEOUT_S
+        ):
+            errors.append(
+                {
+                    "code": "invalid_validation",
+                    "message": f"validation timeout must be an integer from 1 to {_VALIDATION_MAX_TIMEOUT_S}",
+                    "validation_index": index,
+                }
+            )
+        if "cwd" in item or "shell" in item:
+            errors.append(
+                {
+                    "code": "invalid_validation",
+                    "message": "validation cwd and shell are fixed by the executor",
+                    "validation_index": index,
                 }
             )
     return errors
@@ -796,7 +860,7 @@ def _run_validation(raw: Any, root: Path) -> list[dict[str, Any]]:
             continue
         cmd = item.get("cmd")
         advisory = bool(item.get("advisory", False))
-        timeout = int(item.get("timeout", 120))
+        timeout = item.get("timeout", _VALIDATION_DEFAULT_TIMEOUT_S)
         if not isinstance(cmd, list) or not all(isinstance(part, str) for part in cmd):
             rows.append(
                 {
@@ -809,15 +873,22 @@ def _run_validation(raw: Any, root: Path) -> list[dict[str, Any]]:
             )
             continue
         try:
-            proc = subprocess.run(
-                cmd,
-                stdin=subprocess.DEVNULL,
-                cwd=root,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-            )
-            log = (proc.stdout or "") + (proc.stderr or "")
+            with tempfile.TemporaryFile() as output:
+                proc = subprocess.run(
+                    cmd,
+                    stdin=subprocess.DEVNULL,
+                    cwd=root.resolve(),
+                    stdout=output,
+                    stderr=subprocess.STDOUT,
+                    shell=False,
+                    timeout=timeout,
+                )
+                output.seek(0)
+                captured = output.read(_VALIDATION_MAX_OUTPUT_BYTES + 1)
+            truncated = len(captured) > _VALIDATION_MAX_OUTPUT_BYTES
+            log = captured[:_VALIDATION_MAX_OUTPUT_BYTES].decode("utf-8", errors="replace")
+            if truncated:
+                log += "\n[validation output truncated]\n"
             rows.append(
                 {
                     "cmd": cmd,
@@ -885,7 +956,16 @@ def _normalize_patch_text(patch_text: str, source_text: str) -> str:
 
 def _safe_path(root: Path, rel: str) -> Path:
     rel_path = Path(rel)
-    if rel_path.is_absolute() or ".." in rel_path.parts:
+    portable_path = PurePosixPath(rel.replace("\\", "/"))
+    if (
+        not rel
+        or "\0" in rel
+        or rel in {".", ".."}
+        or rel_path.is_absolute()
+        or PureWindowsPath(rel).is_absolute()
+        or portable_path.is_absolute()
+        or ".." in portable_path.parts
+    ):
         raise MechanicalEditError("unsafe_path", f"unsafe relative path: {rel}", path=rel)
     root_resolved = root.resolve()
     path = (root_resolved / rel_path).resolve()

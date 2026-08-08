@@ -14,7 +14,7 @@ import os
 import shutil
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from ..runtime_bridge import delegated_command, record_delegation
@@ -142,12 +142,15 @@ def _run_atomic_native_create_plans(
     runtime: str, native_plans: list[dict], a: argparse.Namespace
 ) -> dict[str, Any]:
     """Apply a translated create-file batch through one Runtime transaction."""
+    from ..mechanical_edit import MechanicalEditError, _safe_path
+
     root = Path(a.root).resolve()
     transaction_files: list[dict[str, Any]] = []
     for native_plan in native_plans:
         relative = str(native_plan["file"])
-        target = (root / relative).resolve()
-        if not target.is_relative_to(root):
+        try:
+            target = _safe_path(root, relative)
+        except MechanicalEditError:
             return {
                 "schema": "simplicio.mechanical-edit-result/v1",
                 "status": "refused",
@@ -185,8 +188,10 @@ def _run_atomic_native_create_plans(
         completed = subprocess.run(
             cmd,
             stdin=subprocess.DEVNULL,
+            cwd=root,
             text=True,
             capture_output=True,
+            shell=False,
             timeout=RUNTIME_EDIT_TIMEOUT_S,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -264,8 +269,32 @@ def _run_native_edit_plans(
     plan_context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Delegate validated plans while retaining exact stdin and causal proof."""
+    from ..mechanical_edit import MechanicalEditError, _safe_path
+
     files: list[dict] = []
     errors: list[dict] = []
+    root = Path(a.root).resolve()
+    for native_plan in native_plans:
+        paths = [native_plan.get("file")] if "file" in native_plan else []
+        for operation in native_plan.get("operations", []):
+            if isinstance(operation, dict):
+                paths.extend(operation.get(key) for key in ("path", "dest") if key in operation)
+        for relative in paths:
+            try:
+                if not isinstance(relative, str):
+                    raise MechanicalEditError("unsafe_path", "native plan path must be a string")
+                _safe_path(root, relative)
+            except MechanicalEditError as exc:
+                return {
+                    "schema": "simplicio.mechanical-edit-result/v1",
+                    "status": "refused",
+                    "applied": False,
+                    "noop": False,
+                    "operation_count": 0,
+                    "files": [],
+                    "errors": [exc.to_dict()],
+                    "mutation_receipt": mutation_receipt("blocked", entrypoint="edit"),
+                }
     if a.apply and len(native_plans) > 1:
         return _run_atomic_native_create_plans(runtime, native_plans, a)
     for _index, native_plan in enumerate(native_plans):
@@ -279,8 +308,10 @@ def _run_native_edit_plans(
             else (json.dumps(native_plan) if current_plan_arg == "-" else None)
         )
         run_kwargs: dict[str, Any] = {
+            "cwd": root,
             "text": True,
             "capture_output": True,
+            "shell": False,
             "timeout": RUNTIME_EDIT_TIMEOUT_S,
         }
         if input_text is None:
@@ -371,11 +402,13 @@ def _invalid_delegated_plan(plan: Any) -> list[dict[str, Any]]:
     if "file" in plan:
         file_name = plan.get("file")
         operations = plan.get("operations")
+        portable_path = PurePosixPath(file_name.replace("\\", "/")) if isinstance(file_name, str) else None
         if (
             not isinstance(file_name, str)
             or not file_name.strip()
             or Path(file_name).is_absolute()
-            or ".." in Path(file_name).parts
+            or PureWindowsPath(file_name).is_absolute()
+            or (portable_path is not None and (portable_path.is_absolute() or ".." in portable_path.parts))
         ):
             return [{"code": "invalid_plan", "message": "Runtime plan file must be a safe relative path"}]
         if not isinstance(operations, list) or not operations:
