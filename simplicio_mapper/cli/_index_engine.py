@@ -212,17 +212,20 @@ def _inspect_index_lock(root: str, out: str, *, recover: bool = False) -> dict:
     return _inspect_lock_at(_lock_path(root, out), recover=recover)
 
 
-def _acquire_index_lock(root: str, out: str) -> _IndexLockHandle | None:
-    """Acquire the per-worktree index lock (``operation="index"``).
-
-    Thin wrapper around
-    :func:`simplicio_mapper.mapper.file_lock.acquire_lock_at` -- no behavior
-    change versus the pre-extraction inline implementation.
-    """
+def _acquire_index_lock(
+    root: str,
+    out: str,
+    *,
+    map_job_owner_token: str = "",
+) -> _IndexLockHandle | None:
+    """Acquire the per-worktree index lock (``operation="index"``)."""
+    extra_fields = {"root_fingerprint": _root_fingerprint(root)}
+    if map_job_owner_token:
+        extra_fields["map_job_owner_token"] = map_job_owner_token
     return _acquire_lock_at(
         _lock_path(root, out),
         operation="index",
-        extra_fields={"root_fingerprint": _root_fingerprint(root)},
+        extra_fields=extra_fields,
     )
 
 

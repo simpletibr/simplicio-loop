@@ -15,6 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from simplicio_mapper.cli._background import _MAP_JOB_IDENTITY_ENV  # noqa: E402
 from simplicio_mapper.cli._index_engine import (  # noqa: E402
     INDEX_LOCK_SCHEMA,
     MALFORMED_LOCK_GRACE_SECONDS,
@@ -55,7 +56,7 @@ class IndexLockRecoveryTest(unittest.TestCase):
         )
 
     def test_lock_record_has_pid_start_token_and_owned_release(self) -> None:
-        lock = _acquire_index_lock(str(self.root), self.out)
+        lock = _acquire_index_lock(str(self.root), self.out, map_job_owner_token="job-owner")
         self.assertIsNotNone(lock)
         assert lock is not None
         record = json.loads(self.path.read_text(encoding="utf-8"))
@@ -67,6 +68,7 @@ class IndexLockRecoveryTest(unittest.TestCase):
         self.assertEqual(record["owner_token"], lock.token)
         self.assertEqual(record["root_fingerprint"].__class__, str)
         self.assertEqual(record["operation"], "index")
+        self.assertEqual(record["map_job_owner_token"], "job-owner")
         self.assertIn("heartbeat_at", record)
 
         _release_index_lock(_IndexLockHandle(str(self.path), "not-the-owner"))
@@ -118,6 +120,32 @@ class IndexLockRecoveryTest(unittest.TestCase):
             self.skipTest("OS does not expose process start identity")
         self.assertTrue(status["recovered"])
         self.assertEqual(status["reason"], "pid_reused")
+
+    def test_map_job_process_start_mismatch_is_not_treated_as_running(self) -> None:
+        if _process_start_token(os.getpid()) is None:
+            self.skipTest("OS does not expose process start identity")
+        job_path = self.path.parent / "map-job.json"
+        job_path.write_text(
+            json.dumps({
+                "schema": "simplicio.map-job/v1",
+                "phase": "macro_done",
+                "deep": {
+                    "pid": os.getpid(),
+                    "process_start": "reused-process-start",
+                    "owner_token": "reused-owner",
+                },
+            }),
+            encoding="utf-8",
+        )
+
+        payload = _status_payload(str(self.root), self.out)
+
+        self.assertEqual(payload["phase"], "failed")
+        self.assertEqual(payload["failure_reason"], "worker_died_before_terminal")
+        receipt = json.loads(job_path.read_text(encoding="utf-8"))
+        self.assertEqual(receipt["phase"], "failed")
+        self.assertEqual(receipt["deep"]["exit_code"], -1)
+        self.assertTrue(receipt["deep"]["finished_at"])
 
     def test_live_legacy_pid_lock_remains_compatible(self) -> None:
         self.path.write_text(f"{os.getpid()}\n", encoding="utf-8")
@@ -235,7 +263,7 @@ class IndexLockRecoveryTest(unittest.TestCase):
         # read owner/age/operation straight off the record (issue #201 AC:
         # "Lock de processo vivo nunca eh roubado; status retorna
         # owner/age/operation e retry guidance").
-        lock = _acquire_index_lock(str(self.root), self.out)
+        lock = _acquire_index_lock(str(self.root), self.out, map_job_owner_token="job-owner")
         self.assertIsNotNone(lock)
         assert lock is not None
         try:
@@ -248,6 +276,7 @@ class IndexLockRecoveryTest(unittest.TestCase):
             owner = status["owner"]
             self.assertEqual(owner["pid"], os.getpid())
             self.assertEqual(owner["operation"], "index")
+            self.assertEqual(owner["map_job_owner_token"], "job-owner")
             self.assertIn("age_seconds", status)
             payload = _status_payload(str(self.root), self.out)
             self.assertEqual(payload["retry_guidance"], "rerun scan; lock is owned by a live process")
@@ -385,8 +414,22 @@ class IndexLockCrashRecoveryIntegrationTest(unittest.TestCase):
 
         status_payload = self._cli("status", str(self.root), "--await", "--timeout", "20", "--json")
         self.assertTrue(status_payload["terminal"])
-        self.assertNotEqual(status_payload["phase"], "deep_running")
+        self.assertEqual(status_payload["phase"], "failed")
+        self.assertEqual(status_payload["failure_reason"], "worker_died_before_terminal")
         self.assertFalse(status_payload["lock"])
+        receipt = json.loads((self.root / ".simplicio" / "map-job.json").read_text(encoding="utf-8"))
+        self.assertEqual(receipt["phase"], "failed")
+        self.assertEqual(receipt["deep"]["exit_code"], -1)
+        self.assertEqual(receipt["deep"]["failure_reason"], "worker_died_before_terminal")
+        self.assertTrue(receipt["deep"]["finished_at"])
+
+        inspect_payload = self._cli("inspect", str(self.root), "--json")
+        handoff_payload = self._cli("handoff", str(self.root), "--json")
+        for payload in (inspect_payload["status"], handoff_payload["status"]):
+            self.assertEqual(payload["phase"], "failed")
+            self.assertEqual(payload["failure_reason"], "worker_died_before_terminal")
+            self.assertEqual(payload["job"]["exit_code"], -1)
+            self.assertEqual(payload["job"]["finished_at"], receipt["deep"]["finished_at"])
 
         # A follow-up scan must converge without any manual `Remove-Item
         # index.lock` -- the whole point of the issue.
@@ -398,6 +441,187 @@ class IndexLockCrashRecoveryIntegrationTest(unittest.TestCase):
 
         handoff_payload = self._cli("handoff", str(self.root), "--json")
         self.assertIn(handoff_payload["status"]["phase"], ("complete", "failed"))
+
+    def test_real_async_scan_outlives_cli_and_persists_terminal_success(self) -> None:
+        for index in range(600):
+            (self.root / "src" / f"module_{index:04d}.py").write_text(
+                f"def value_{index}() -> int:\n    return {index}\n", encoding="utf-8"
+            )
+
+        scan_payload = self._cli("scan", str(self.root), "--json", timeout=30)
+        pid = scan_payload["deep"]["pid"]
+        self.assertTrue(
+            _process_is_alive(pid),
+            "the real scan CLI must exit while its detached index child is still running",
+        )
+
+        deadline = time.time() + 90
+        while time.time() < deadline and _process_is_alive(pid):
+            time.sleep(0.05)
+        self.assertFalse(_process_is_alive(pid), "detached index child did not terminate")
+
+        job_path = self.root / ".simplicio" / "map-job.json"
+        receipt = json.loads(job_path.read_text(encoding="utf-8"))
+        self.assertEqual(receipt["phase"], "complete")
+        self.assertEqual(receipt["deep"]["exit_code"], 0)
+        self.assertIsNone(receipt["deep"].get("failure_reason"))
+        self.assertTrue(receipt["deep"]["finished_at"])
+        self.assertTrue(receipt["deep"]["owner_token"])
+
+        status_payload = self._cli("status", str(self.root), "--json")
+        inspect_payload = self._cli("inspect", str(self.root), "--json")
+        handoff_payload = self._cli("handoff", str(self.root), "--json")
+        for payload in (
+            status_payload,
+            inspect_payload["status"],
+            handoff_payload["status"],
+        ):
+            self.assertEqual(payload["phase"], "complete")
+            self.assertEqual(payload["job"]["phase"], "complete")
+            self.assertEqual(payload["job"]["exit_code"], 0)
+            self.assertEqual(payload["job"]["finished_at"], receipt["deep"]["finished_at"])
+
+        retry = self._cli("scan", str(self.root), "--sync", "--json", timeout=90)
+        self.assertEqual(retry["phase"], "complete")
+        self.assertEqual(retry["deep"]["exit_code"], 0)
+
+    def test_real_async_scan_persists_nonzero_terminal_failure(self) -> None:
+        index_state = self.root / ".simplicio" / "index-state.json"
+        index_state.parent.mkdir(parents=True, exist_ok=True)
+        index_state.mkdir()
+
+        scan_payload = self._cli("scan", str(self.root), "--json", timeout=30)
+        pid = scan_payload["deep"]["pid"]
+        deadline = time.time() + 30
+        while time.time() < deadline and _process_is_alive(pid):
+            time.sleep(0.05)
+        self.assertFalse(_process_is_alive(pid), "failing detached worker did not terminate")
+
+        receipt = json.loads((self.root / ".simplicio" / "map-job.json").read_text(encoding="utf-8"))
+        self.assertEqual(receipt["phase"], "failed")
+        self.assertNotEqual(receipt["deep"]["exit_code"], 0)
+        self.assertTrue(receipt["deep"]["failure_reason"])
+        self.assertTrue(receipt["deep"]["finished_at"])
+
+        status_payload = self._cli("status", str(self.root), "--json")
+        inspect_payload = self._cli("inspect", str(self.root), "--json")
+        handoff_payload = self._cli("handoff", str(self.root), "--json")
+        for payload in (
+            status_payload,
+            inspect_payload["status"],
+            handoff_payload["status"],
+        ):
+            self.assertEqual(payload["phase"], "failed")
+            self.assertEqual(payload["failure_reason"], receipt["deep"]["failure_reason"])
+            self.assertEqual(payload["job"]["exit_code"], receipt["deep"]["exit_code"])
+            self.assertEqual(payload["job"]["finished_at"], receipt["deep"]["finished_at"])
+
+    def test_real_index_worker_waits_for_late_map_job_creation(self) -> None:
+        owner_token = "late-job-owner"
+        env = os.environ.copy()
+        env["PYTHONPATH"] = os.pathsep.join(
+            [str(ROOT), env.get("PYTHONPATH", "")]
+        ).rstrip(os.pathsep)
+        env[_MAP_JOB_IDENTITY_ENV] = owner_token
+        process = subprocess.Popen(
+            [sys.executable, "-B", "-m", "simplicio_mapper.cli", "index", str(self.root), "--json"],
+            cwd=str(ROOT),
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        identity = {
+            "pid": process.pid,
+            "process_start": _process_start_token(process.pid) or "unknown",
+            "owner_token": owner_token,
+        }
+        time.sleep(0.2)
+        self.assertIsNone(process.poll(), "worker must wait for the delayed map-job receipt")
+        job_path = self.root / ".simplicio" / "map-job.json"
+        job_path.parent.mkdir(parents=True, exist_ok=True)
+        job_path.write_text(
+            json.dumps({
+                "schema": "simplicio.map-job/v1",
+                "phase": "macro_done",
+                "sync": False,
+                "deep": identity,
+            }),
+            encoding="utf-8",
+        )
+        stdout, stderr = process.communicate(timeout=30)
+        self.assertEqual(process.returncode, 0, stderr)
+        self.assertTrue(stdout.strip())
+        receipt = json.loads(job_path.read_text(encoding="utf-8"))
+        self.assertEqual(receipt["phase"], "complete")
+        self.assertEqual(receipt["deep"]["exit_code"], 0)
+        self.assertEqual(
+            {key: receipt["deep"][key] for key in identity},
+            identity,
+        )
+
+    def test_real_index_worker_never_overwrites_replaced_job_identity(self) -> None:
+        owner_token = "original-job-owner"
+        env = os.environ.copy()
+        env["PYTHONPATH"] = os.pathsep.join(
+            [str(ROOT), env.get("PYTHONPATH", "")]
+        ).rstrip(os.pathsep)
+        env[_MAP_JOB_IDENTITY_ENV] = owner_token
+        process = subprocess.Popen(
+            [sys.executable, "-B", "-m", "simplicio_mapper.cli", "index", str(self.root), "--json"],
+            cwd=str(ROOT),
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        replacement = {
+            "schema": "simplicio.map-job/v1",
+            "phase": "macro_done",
+            "sync": False,
+            "deep": {
+                "pid": process.pid + 1,
+                "process_start": "replacement-start",
+                "owner_token": "replacement-owner",
+            },
+        }
+        job_path = self.root / ".simplicio" / "map-job.json"
+        job_path.parent.mkdir(parents=True, exist_ok=True)
+        job_path.write_text(json.dumps(replacement), encoding="utf-8")
+        _stdout, stderr = process.communicate(timeout=30)
+        self.assertEqual(process.returncode, 0, stderr)
+        self.assertEqual(json.loads(job_path.read_text(encoding="utf-8")), replacement)
+
+    def test_status_durably_reconciles_fresh_nonterminal_job(self) -> None:
+        sync = self._cli("scan", str(self.root), "--sync", "--json", timeout=60)
+        self.assertEqual(sync["phase"], "complete")
+        job_path = self.root / ".simplicio" / "map-job.json"
+        dead_identity = {
+            "pid": 2_147_483_647,
+            "process_start": "dead-start",
+            "owner_token": "dead-owner",
+        }
+        job_path.write_text(
+            json.dumps({
+                "schema": "simplicio.map-job/v1",
+                "phase": "macro_done",
+                "sync": False,
+                "deep": dead_identity,
+            }),
+            encoding="utf-8",
+        )
+
+        status = self._cli("status", str(self.root), "--json")
+
+        self.assertEqual(status["phase"], "complete")
+        self.assertTrue(status["fresh"])
+        receipt = json.loads(job_path.read_text(encoding="utf-8"))
+        self.assertEqual(receipt["phase"], "complete")
+        self.assertEqual(receipt["deep"]["exit_code"], 0)
+        self.assertIsNone(receipt["deep"]["failure_reason"])
+        self.assertTrue(receipt["deep"]["finished_at"])
 
 
 class IndexLockConcurrentProcessRaceTest(unittest.TestCase):

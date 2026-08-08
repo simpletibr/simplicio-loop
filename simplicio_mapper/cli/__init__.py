@@ -44,7 +44,7 @@ from collections.abc import Sequence
 
 from ..mapper import write_architecture_docs
 from ._args import _parse_args, _read_json_safe
-from ._background import _run_background, _run_index, _watch
+from ._background import _finalize_background_job, _run_background, _run_index, _watch
 from ._endpoints import _run_endpoints
 from ._flowchart import (
     _run_flowchart,
@@ -275,8 +275,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if opts["command"] == "export-docs":
         return _run_export_docs(opts)
     if opts["command"] == "index":
+        exit_code = 1
         try:
-            return _run_index(opts)
+            exit_code = _run_index(opts)
         except Exception as error:  # noqa: BLE001 - CLI boundary must report a stable failure
             payload = _index_result(
                 os.path.abspath(opts["root"]),
@@ -288,7 +289,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 _emit_index_json(opts, payload)
             else:
                 print(f"index failed: {error}", file=sys.stderr)
-            return 1
+        finally:
+            _finalize_background_job(opts, exit_code)
+        return exit_code
     _run_once(opts)
     if opts["docs"]:
         write_architecture_docs(opts["root"], output_dir=opts["out"])

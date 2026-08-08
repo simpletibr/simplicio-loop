@@ -4,7 +4,6 @@ import json
 import os
 import subprocess
 import sys
-import threading
 import time
 
 from ..mapper import write_architecture_docs
@@ -25,25 +24,148 @@ from ._index_engine import (
     _signature,
     _write_index_state,
 )
-from ._shared import INDEX_STATE_SCHEMA
+from ._shared import INDEX_STATE_SCHEMA, MAP_JOB_SCHEMA
+
+_MAP_JOB_IDENTITY_ENV = "SIMPLICIO_MAPPER_MAP_JOB_OWNER_TOKEN"
+_MAP_JOB_FINALIZE_GRACE_SECONDS = 5.0
+_MAP_JOB_FINALIZE_POLL_SECONDS = 0.01
+_TERMINAL_JOB_PHASES = {"complete", "failed", "timeout"}
+
+def _map_job_path(root: str, out: str) -> str:
+    return os.path.join(os.path.abspath(os.path.join(root, out)), "map-job.json")
+
+
+def _same_job(deep: dict, identity: dict) -> bool:
+    pid = identity.get("pid")
+    process_start = identity.get("process_start")
+    owner_token = identity.get("owner_token")
+    return (
+        isinstance(pid, int)
+        and pid > 0
+        and isinstance(process_start, str)
+        and bool(process_start)
+        and process_start != "unknown"
+        and isinstance(owner_token, str)
+        and bool(owner_token)
+        and deep.get("pid") == pid
+        and deep.get("process_start") == process_start
+        and deep.get("owner_token") == owner_token
+    )
+
+
+def _write_terminal_map_job(job_path: str, job: dict, identity: dict) -> bool:
+    temporary = f"{job_path}.tmp-{os.getpid()}-{identity['owner_token'][:8]}"
+    try:
+        with open(temporary, "w", encoding="utf-8") as handle:
+            json.dump(job, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        with open(job_path, encoding="utf-8") as handle:
+            current = json.load(handle)
+        current_deep = current.get("deep") if isinstance(current.get("deep"), dict) else {}
+        if current.get("schema") != MAP_JOB_SCHEMA or not _same_job(current_deep, identity):
+            return False
+        os.replace(temporary, job_path)
+        return True
+    except (FileNotFoundError, OSError, json.JSONDecodeError, TypeError, ValueError):
+        return False
+    finally:
+        try:
+            os.remove(temporary)
+        except FileNotFoundError:
+            pass
+
+
+def _finalize_map_job(
+    root: str,
+    out: str,
+    identity: dict,
+    *,
+    exit_code: int,
+    phase: str,
+    failure_reason: str | None,
+    wait_for_job: bool,
+) -> bool:
+    """Atomically finalize only the map job owned by ``identity``.
+
+    The bounded wait closes the spawn-to-receipt race without ever allowing a
+    completed worker to overwrite a newer job. PID, process-start identity and
+    the per-job owner token must all match immediately before ``os.replace``.
+    """
+    if phase not in _TERMINAL_JOB_PHASES or not _same_job(identity, identity):
+        return False
+    deadline = time.monotonic() + (_MAP_JOB_FINALIZE_GRACE_SECONDS if wait_for_job else 0.0)
+    job_path = _map_job_path(root, out)
+    while True:
+        try:
+            with open(job_path, encoding="utf-8") as handle:
+                job = json.load(handle)
+        except (FileNotFoundError, OSError, json.JSONDecodeError):
+            job = {}
+        deep = job.get("deep") if isinstance(job.get("deep"), dict) else {}
+        if job.get("schema") == MAP_JOB_SCHEMA and _same_job(deep, identity):
+            if (
+                job.get("phase") in _TERMINAL_JOB_PHASES
+                and isinstance(deep.get("exit_code"), int)
+                and deep.get("finished_at")
+            ):
+                return True
+            deep.update(identity)
+            deep["exit_code"] = int(exit_code)
+            deep["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            deep["failure_reason"] = failure_reason
+            job["deep"] = deep
+            job["phase"] = phase
+            return _write_terminal_map_job(job_path, job, identity)
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(_MAP_JOB_FINALIZE_POLL_SECONDS)
+
+
+def _background_index_is_fresh(root: str, out: str) -> bool:
+    state = _read_index_state(root, out)
+    return (
+        state.get("schema") == INDEX_STATE_SCHEMA
+        and state.get("completeness", "complete") == "complete"
+        and state.get("signature") == _freshness_signature(root, out)
+        and _artifacts_exist(_artifact_paths(root, out))
+    )
+
+
+def _finalize_background_job(opts: dict, exit_code: int) -> bool:
+    """Finalize an async scan from inside the durable index worker process."""
+    owner_token = os.environ.get(_MAP_JOB_IDENTITY_ENV, "")
+    if not owner_token:
+        return False
+    root = os.path.abspath(opts["root"])
+    out = opts["out"]
+    identity = {
+        "pid": os.getpid(),
+        "process_start": _process_start_token(os.getpid()) or "unknown",
+        "owner_token": owner_token,
+    }
+    complete = exit_code == 0 and _background_index_is_fresh(root, out)
+    return _finalize_map_job(
+        root,
+        out,
+        identity,
+        exit_code=exit_code,
+        phase="complete" if complete else "failed",
+        failure_reason=None if complete else (
+            f"worker_exit_{exit_code}" if exit_code else "worker_exit_0_before_terminal"
+        ),
+        wait_for_job=True,
+    )
 
 
 def _spawn_index_process(opts: dict) -> tuple[dict, subprocess.Popen]:
-    """Spawn an index worker and return its receipt plus live process handle.
-
-    Keeping the process handle available lets ``scan --sync`` enforce its
-    timeout instead of running the deep pass in the CLI process forever. The
-    background entrypoint below deliberately discards the handle after
-    installing a reaper thread.
-    """
+    """Spawn an index worker and return its receipt plus live process handle."""
     root = os.path.abspath(opts["root"])
     out = opts["out"]
     abs_out = os.path.abspath(os.path.join(root, out))
     os.makedirs(abs_out, exist_ok=True)
     log_path = os.path.join(abs_out, "background-index.log")
-    # Do not let stale bytecode from an installed Mapper shadow the source tree
-    # selected for this worker, especially on Windows where timestamp checks can
-    # be coarser than rapid source updates.
     args = [sys.executable, "-B", "-m", "simplicio_mapper.cli", "index", root, "--out", out]
     if opts["stack"]:
         args.extend(["--stack", opts["stack"]])
@@ -57,12 +179,14 @@ def _spawn_index_process(opts: dict) -> tuple[dict, subprocess.Popen]:
         args.append("--verbose")
     if opts.get("canonical_reuse"):
         args.append("--canonical-reuse")
+    args.extend(["--timeout", str(max(0, int(opts.get("timeout", 120))))])
     env = os.environ.copy()
     env["PYTHONDONTWRITEBYTECODE"] = "1"
-    # ``__file__`` is normally ``.../simplicio_mapper/cli/_background.py``.
-    # The import root is the directory containing the package, not the
-    # package directory itself; the latter can make a detached worker resolve
-    # a different installed/cached module than its parent process.
+    owner_token = str(opts.get("_map_job_owner_token") or "")
+    if owner_token:
+        env[_MAP_JOB_IDENTITY_ENV] = owner_token
+    else:
+        env.pop(_MAP_JOB_IDENTITY_ENV, None)
     source_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     python_path = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = os.pathsep.join([source_root, python_path]) if python_path else source_root
@@ -76,9 +200,6 @@ def _spawn_index_process(opts: dict) -> tuple[dict, subprocess.Popen]:
             stderr=subprocess.STDOUT,
             start_new_session=True,
         )
-    # Keep the Popen object alive until the detached child exits. Besides
-    # reaping it, this prevents Python's Windows ResourceWarning from closing
-    # a still-active process handle during object finalization.
     payload = {
         "schema": "simplicio.background-index/v1",
         "status": "started",
@@ -86,63 +207,15 @@ def _spawn_index_process(opts: dict) -> tuple[dict, subprocess.Popen]:
         "process_start": _process_start_token(child.pid) or "unknown",
         "log": log_path.replace(os.sep, "/"),
     }
+    if owner_token:
+        payload["owner_token"] = owner_token
     return payload, child
 
 
-def _reap_background_index(child: subprocess.Popen, payload: dict, root: str, out: str) -> None:
-    """Persist one detached worker's terminal result without trusting a reused PID."""
-    exit_code = child.wait()
-    state = _read_index_state(root, out)
-    if (
-        exit_code == 0
-        and state.get("completeness") == "complete"
-        and state.get("signature") == _freshness_signature(root, out)
-        and _artifacts_exist(_artifact_paths(root, out))
-    ):
-        # The worker committed its complete state before exiting. Status can
-        # derive ``complete`` from that state; rewriting map-job here only
-        # creates a Windows cleanup race with callers observing the dead PID.
-        return
-    job_path = os.path.join(os.path.abspath(os.path.join(root, out)), "map-job.json")
-    for _ in range(50):
-        try:
-            with open(job_path, encoding="utf-8") as handle:
-                job = json.load(handle)
-        except (FileNotFoundError, OSError, json.JSONDecodeError):
-            time.sleep(0.01)
-            continue
-        deep = job.get("deep") if isinstance(job.get("deep"), dict) else {}
-        if deep.get("pid") != payload["pid"] or deep.get("process_start") != payload["process_start"]:
-            return
-        if job.get("phase") in ("complete", "failed"):
-            return
-        deep["exit_code"] = exit_code
-        deep["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-        deep["failure_reason"] = (
-            f"worker_exit_{exit_code}_before_terminal" if exit_code == 0 else f"worker_exit_{exit_code}"
-        )
-        job["deep"] = deep
-        job["phase"] = "failed"
-        temporary = f"{job_path}.tmp-{os.getpid()}"
-        with open(temporary, "w", encoding="utf-8") as handle:
-            json.dump(job, handle, indent=2, sort_keys=True)
-            handle.write("\n")
-        os.replace(temporary, job_path)
-        return
-
-
 def _spawn_background_index(opts: dict) -> dict:
-    """Spawn a detached ``index`` refresh; return its ``pid``/``log`` payload."""
-    payload, child = _spawn_index_process(opts)
-    root = os.path.abspath(opts["root"])
-    threading.Thread(
-        target=_reap_background_index,
-        args=(child, payload, root, opts["out"]),
-        name=f"simplicio-index-{child.pid}",
-        daemon=True,
-    ).start()
+    """Spawn a detached index refresh; the worker owns terminal persistence."""
+    payload, _child = _spawn_index_process(opts)
     return payload
-
 
 def _run_background(opts: dict) -> int:
     payload = _spawn_background_index(opts)
@@ -156,7 +229,8 @@ def _run_background(opts: dict) -> int:
 def _run_index(opts: dict) -> int:
     root = os.path.abspath(opts["root"])
     out = opts["out"]
-    lock = _acquire_index_lock(root, out)
+    map_job_owner_token = os.environ.get(_MAP_JOB_IDENTITY_ENV, "")
+    lock = _acquire_index_lock(root, out, map_job_owner_token=map_job_owner_token)
     if lock is None:
         # Index callers share one per-worktree lock.  Waiting here lets a
         # foreground caller join the active refresh instead of reporting a
@@ -165,7 +239,7 @@ def _run_index(opts: dict) -> int:
         while time.monotonic() < deadline:
             lock_status = _inspect_index_lock(root, out)
             if lock_status.get("reason_code") != "lock_live_owner":
-                lock = _acquire_index_lock(root, out)
+                lock = _acquire_index_lock(root, out, map_job_owner_token=map_job_owner_token)
                 if lock is not None:
                     break
             time.sleep(0.25)

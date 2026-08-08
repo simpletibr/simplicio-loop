@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import secrets
 import signal
 import subprocess
 import time
@@ -27,7 +28,7 @@ from ..task_intent import parse_task_intent
 from ..task_traceability import build_task_traceability
 from ..toon import encode_toon_with_report
 from ._args import _read_json_safe
-from ._background import _spawn_background_index, _spawn_index_process
+from ._background import _finalize_map_job, _spawn_background_index, _spawn_index_process
 from ._index_engine import (
     _artifact_paths,
     _artifacts_exist,
@@ -339,58 +340,97 @@ def _index_is_fresh(root: str, out: str) -> bool:
     return state.get("signature") == _freshness_signature(root, out)
 
 
+def _job_process_is_owner(deep: dict, lock_status: dict) -> bool:
+    pid = deep.get("pid")
+    if not isinstance(pid, int) or not _process_is_alive(pid):
+        return False
+    expected_start = deep.get("process_start")
+    actual_start = _process_start_token(pid)
+    owner_token = deep.get("owner_token")
+    if (
+        not isinstance(expected_start, str)
+        or not expected_start
+        or expected_start == "unknown"
+        or not actual_start
+        or expected_start != actual_start
+        or not isinstance(owner_token, str)
+        or not owner_token
+    ):
+        return False
+    if lock_status.get("active"):
+        owner = lock_status.get("owner") if isinstance(lock_status.get("owner"), dict) else {}
+        owner_start = owner.get("process_start_identity", owner.get("process_start"))
+        if (
+            owner.get("pid") != pid
+            or owner_start != expected_start
+            or owner.get("map_job_owner_token") != owner_token
+        ):
+            return False
+    return True
+
+
+def _reconcile_nonterminal_job(root: str, out: str, job: dict) -> str:
+    deep = job.get("deep") if isinstance(job.get("deep"), dict) else {}
+    identity = {key: deep.get(key) for key in ("pid", "process_start", "owner_token")}
+    complete = _index_is_fresh(root, out)
+    existing_exit = deep.get("exit_code")
+    exit_code = existing_exit if isinstance(existing_exit, int) else (0 if complete else -1)
+    failure_reason = None if complete else str(deep.get("failure_reason") or "worker_died_before_terminal")
+    finalized = _finalize_map_job(
+        root,
+        out,
+        identity,
+        exit_code=exit_code,
+        phase="complete" if complete else "failed",
+        failure_reason=failure_reason,
+        wait_for_job=False,
+    )
+    if finalized:
+        reconciled = _read_json_safe(_map_job_path(root, out))
+        if reconciled.get("phase") in ("complete", "failed", "timeout"):
+            return str(reconciled["phase"])
+    return "complete" if complete else "failed"
+
+
 def _deep_phase(root: str, out: str) -> str:
-    """Derive the deep-pass phase: ``deep_running|complete|failed|unknown``."""
+    """Derive one authoritative phase for status, inspect and handoff."""
     lock_status = _inspect_index_lock(root, out, recover=True)
-    if lock_status["active"]:
-        return "deep_running"
-    if _index_is_fresh(root, out):
-        return "complete"
     job = _read_json_safe(_map_job_path(root, out))
     if job.get("schema") == MAP_JOB_SCHEMA:
         deep = job.get("deep") if isinstance(job.get("deep"), dict) else {}
-        pid = deep.get("pid")
-        if (
-            job.get("phase") in ("macro_done", "deep_running")
-            and isinstance(pid, int)
-            and _process_is_alive(pid)
-        ):
-            expected_start = deep.get("process_start")
-            actual_start = _process_start_token(pid)
-            if (
-                not expected_start
-                or expected_start == "unknown"
-                or not actual_start
-                or expected_start == actual_start
-            ):
-                # Covers the short spawn -> lock creation window.
+        job_phase = job.get("phase")
+        if job_phase in ("complete", "failed", "timeout"):
+            if lock_status.get("active") and not _job_process_is_owner(deep, lock_status):
                 return "deep_running"
-        if job.get("phase") in ("macro_done", "deep_running", "failed", "timeout") or not _artifacts_exist(
-            _artifact_paths(root, out)
-        ):
-            # The background owner is gone (or its PID was reused) without a
-            # fresh index, so status must become terminal rather than hang.
+            return "failed" if job_phase == "timeout" else str(job_phase)
+        if job_phase in ("macro_done", "deep_running"):
+            if _job_process_is_owner(deep, lock_status):
+                return "deep_running"
+            return _reconcile_nonterminal_job(root, out, job)
+        if not _artifacts_exist(_artifact_paths(root, out)):
             return "failed"
+    if lock_status.get("active"):
+        return "deep_running"
+    if _index_is_fresh(root, out):
+        return "complete"
     return "unknown"
 
 
 def _worker_failure_reason(root: str, out: str) -> str | None:
-    """Return a terminal reason when a recorded deep worker disappeared."""
+    """Return the failure recorded by the same job classified by ``_deep_phase``."""
     job = _read_json_safe(_map_job_path(root, out))
     if job.get("schema") != MAP_JOB_SCHEMA:
         return None
     deep = job.get("deep") if isinstance(job.get("deep"), dict) else {}
-    pid = deep.get("pid")
-    if not isinstance(pid, int) or _process_is_alive(pid):
-        return None
     if job.get("phase") == "timeout":
         return str(deep.get("failure_reason") or "scan_timeout")
-    if job.get("phase") == "failed" and deep.get("failure_reason"):
-        return str(deep["failure_reason"])
+    if job.get("phase") == "failed":
+        return str(deep.get("failure_reason") or "worker_died_before_terminal")
     if job.get("phase") in ("macro_done", "deep_running"):
-        return "worker_died_before_terminal"
+        lock_status = _inspect_index_lock(root, out, recover=False)
+        if not _job_process_is_owner(deep, lock_status):
+            return str(deep.get("failure_reason") or "worker_died_before_terminal")
     return None
-
 
 def _await_terminal(root: str, out: str, timeout: int, poll: float = 0.2) -> str:
     """Block until the deep phase leaves ``deep_running`` or the timeout fires.
@@ -498,6 +538,8 @@ def _job_summary(root: str, out: str) -> dict | None:
         "log": deep.get("log"),
         "exit_code": deep.get("exit_code"),
         "failure_reason": deep.get("failure_reason"),
+        "finished_at": deep.get("finished_at"),
+        "owner_token": deep.get("owner_token"),
         "timeout_seconds": deep.get("timeout_seconds"),
         "poll": deep.get("poll"),
     }
@@ -983,6 +1025,7 @@ def _run_scan(opts: dict) -> int:
     if resuming:
         spawn_opts["incremental"] = True
     started = time.monotonic()
+    created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     macro_counts = dict(macro.get("counts") or {})
     progress = {
         "phase": "deep_running",
@@ -1014,6 +1057,7 @@ def _run_scan(opts: dict) -> int:
         "resuming": resuming,
     }
     if synchronous:
+        spawn_opts["timeout"] = max(0, int(opts["timeout"]) - 1)
         spawned, child = _spawn_index_process(spawn_opts)
         deep.update({key: spawned[key] for key in ("pid", "process_start", "log")})
         deep["timeout_seconds"] = max(0, int(opts["timeout"]))
@@ -1021,7 +1065,7 @@ def _run_scan(opts: dict) -> int:
             "schema": MAP_JOB_SCHEMA,
             "phase": "deep_running",
             "sync": True,
-            "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "created_at": created_at,
             "macro": macro,
             "deep": deep,
         }
@@ -1036,11 +1080,11 @@ def _run_scan(opts: dict) -> int:
         else:
             deep["exit_code"] = exit_code
             phase = "complete" if exit_code == 0 and _index_is_fresh(root, out) else "failed"
+        deep["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        if phase == "complete":
+            deep["failure_reason"] = None
 
         if phase != "complete":
-            # A killed worker cannot execute its finally block reliably on all
-            # platforms. Recover only a lock proven to belong to the dead
-            # worker; never remove a live owner's lock.
             deep["lock_status"] = _inspect_index_lock(root, out, recover=True)
             if phase == "failed" and deep.get("failure_reason") is None:
                 deep["failure_reason"] = "worker_failed_before_terminal"
@@ -1072,25 +1116,49 @@ def _run_scan(opts: dict) -> int:
                 os.remove(_partial_scan_path(root, out))
             except FileNotFoundError:
                 pass
+        envelope = {
+            "schema": MAP_JOB_SCHEMA,
+            "phase": phase,
+            "sync": True,
+            "created_at": created_at,
+            "macro": macro,
+            "deep": deep,
+        }
+        _write_map_job(root, out, envelope)
     else:
+        spawn_opts["_map_job_owner_token"] = secrets.token_hex(16)
         spawned = _spawn_background_index(spawn_opts)
-        deep["pid"] = spawned["pid"]
-        deep["process_start"] = spawned["process_start"]
-        deep["log"] = spawned["log"]
+        deep.update({
+            key: spawned[key]
+            for key in ("pid", "process_start", "owner_token", "log")
+        })
         phase = "macro_done"
-
-    if opts["await"] and not synchronous:
-        phase = _await_terminal(root, out, opts["timeout"])
-
-    envelope = {
-        "schema": MAP_JOB_SCHEMA,
-        "phase": phase,
-        "sync": synchronous,
-        "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "macro": macro,
-        "deep": deep,
-    }
-    _write_map_job(root, out, envelope)
+        envelope = {
+            "schema": MAP_JOB_SCHEMA,
+            "phase": phase,
+            "sync": False,
+            "created_at": created_at,
+            "macro": macro,
+            "deep": deep,
+        }
+        _write_map_job(root, out, envelope)
+        if opts["await"]:
+            phase = _await_terminal(root, out, opts["timeout"])
+            persisted = _read_json_safe(_map_job_path(root, out))
+            persisted_deep = persisted.get("deep") if isinstance(persisted.get("deep"), dict) else {}
+            same_job = all(
+                persisted_deep.get(key) == deep[key]
+                for key in ("pid", "process_start", "owner_token")
+            )
+            if (
+                persisted.get("schema") == MAP_JOB_SCHEMA
+                and same_job
+                and persisted.get("phase") in ("complete", "failed", "timeout")
+            ):
+                envelope = persisted
+                phase = str(persisted["phase"])
+            else:
+                envelope = {**envelope, "phase": phase}
 
     if opts["json"]:
         print(json.dumps(envelope, sort_keys=True))
@@ -1102,7 +1170,6 @@ def _run_scan(opts: dict) -> int:
             f"modules={counts['modules']} stack={macro['product']['stack']}{suffix}"
         )
     return 1 if phase == "timeout" else 0
-
 
 def _run_status(opts: dict) -> int:
     root = os.path.abspath(opts["root"])
