@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.26.16] - 2026-08-09
 
 ### Fixed
 
@@ -13,6 +13,8 @@
 - Generate deterministic, read-only project skills and agents after a fresh,
   complete canonical index; preserve content-addressed last-known-good
   generations under `.catalog` and leave human `.skills`/`.agents` untouched.
+
+## Unreleased
 
 ## [0.26.15] - 2026-08-03
 
