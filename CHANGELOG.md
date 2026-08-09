@@ -1,11 +1,13 @@
 # Changelog
 
-## Unreleased
+## [0.18.7] - 2026-08-09
 
 ### Fixed
 
 - Make unknown-effect reconciliation deterministic and idempotent with durable receipts.
 - Emit deterministic blocked-precondition schemas and stderr diagnostics for dry-run task receipts (#122).
+
+## Unreleased
 
 ## [0.18.6] - 2026-08-02
 
