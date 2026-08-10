@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.26.17] - 2026-08-10
+
+- Add the canonical `simplicio.io/v1` public envelope for cross-repository I/O.
+- Clarify component ownership and remove the need for producer-specific outer adapters.
+
 ## [0.26.16] - 2026-08-09
 
 ### Fixed
@@ -1105,3 +1110,4 @@ These changes make `simplicio-mapper` significantly more useful for reverse-engi
 - Mapper Fastest Path follow-up: bounded async queue diagnostics, native batch
   parser fallback, canonical native-capability identity, memory budgeting, and
   the local fastest-path release quality command.
+
