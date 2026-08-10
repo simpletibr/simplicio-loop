@@ -1,4 +1,4 @@
-__version__ = "0.18.8"
+__version__ = "0.18.9"
 
 
 def mapper_module():

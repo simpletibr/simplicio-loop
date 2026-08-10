@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.18.9] - 2026-08-10
+
+- Synchronize the Dev CLI release with the aggregate Loop stack.
+
+
 ## [0.18.8] - 2026-08-10
 
 - Consume the shared `simplicio.io/v1` public envelope while keeping Dev CLI's
