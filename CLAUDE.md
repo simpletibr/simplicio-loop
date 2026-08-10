@@ -629,3 +629,8 @@ These rules apply to analysis, planning, implementation, review, testing, releas
 Every subagent, worker, delegated agent, and capability invocation MUST first read this repository's `AGENTS.md`, then `CLAUDE.md`, then all relevant local skills (`skills/*/SKILL.md` and/or `.skills/*/SKILL.md`) before using any capability. Read the local operational docs named by those contracts and record bootstrap completion in the worker receipt. Missing or unreadable contract/skill files are hard failures; do not guess or fall back.
 
 The complete normative policy is [`docs/WORKER_ARTIFACT_CONTRACT.md`](docs/WORKER_ARTIFACT_CONTRACT.md). It requires one centrally generated, authoritative binary/Mapper bundle from default `main`; workers consume it read-only, never rebuild the binary or regenerate Mapper artifacts per worker, and use isolated worktrees only for source changes and receipts. The manifest and receipts must carry repository, `main` revision, binary version/digest, Mapper generation/artifact digest, bundle identity, and worker/worktree provenance. Missing, stale, incompatible, or digest-mismatched inputs fail closed; only the central coordinator may rebuild. Local builds/maps are allowed only as explicitly labelled, isolated `local-validation` outputs and never satisfy or replace the central bundle.
+
+
+## Language precedence
+
+[docs/LLM_OPERATING_INSTRUCTIONS.md](docs/LLM_OPERATING_INSTRUCTIONS.md) is the authoritative active instruction set and is written in English. Any other-language passage retained in this compatibility/reference file is non-normative; do not execute it as an instruction.

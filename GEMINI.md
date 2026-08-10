@@ -37,3 +37,8 @@ These rules apply to analysis, planning, implementation, review, testing, releas
 
 <!-- simplicio-global-llm-architecture-rules:end -->
 
+
+
+## Language precedence
+
+[docs/LLM_OPERATING_INSTRUCTIONS.md](docs/LLM_OPERATING_INSTRUCTIONS.md) is the authoritative active instruction set and is written in English. Any other-language passage retained in this compatibility/reference file is non-normative; do not execute it as an instruction.
