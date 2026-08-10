@@ -1,5 +1,10 @@
 # CLAUDE.md
 
+
+## Active English instruction surface
+
+Read [docs/LLM_OPERATING_INSTRUCTIONS.md](docs/LLM_OPERATING_INSTRUCTIONS.md) before acting. It is the normative English entry point for LLMs; the rest of this file supplies project-specific detail.
+
 > Este arquivo espelha [AGENTS.md](./AGENTS.md) e é **gerado**, não editado
 > a mão -- veja `scripts/check-doc-sync.js` (issue #163). Edite
 > `AGENTS.md`, depois rode `node scripts/check-doc-sync.js sync`. Não é
@@ -602,29 +607,18 @@ This section complements the repository-specific guidance already in this file. 
 <!-- codex-long-running-agent-overlay:end -->
 
 <!-- simplicio-global-llm-architecture-rules:start -->
-## Regras arquiteturais obrigatórias para qualquer LLM
+## Mandatory architecture rules for every LLM
 
-Estas regras valem para análise, planejamento, implementação, revisão, testes,
-release e documentação neste ecossistema. O agente deve lê-las antes de agir:
+These rules apply to analysis, planning, implementation, review, testing, release, and documentation. Read them before acting:
 
-1. **Não mantenha compatibilidade retroativa.** O que está obsoleto deve ser
-   deletado diretamente. Não adicione camadas de compatibilidade, migrações ou
-   fallbacks.
-2. **Escolha a implementação mais simples que atende à necessidade atual.**
-   Não crie abstrações preventivas nem camadas de configuração desnecessárias.
-3. **Divida o sistema em camadas longas.** Faça primeiro uma versão mínima
-   end-to-end funcionando; depois adicione capacidades por cima. Não desmonte
-   algo que funciona por complexidades inacabadas.
-4. **Mantenha os componentes modulares**, com responsabilidades claramente
-   separadas e limites explícitos.
-5. **Priorize bibliotecas maduras e mantidas.** Não reescreva do zero sem
-   motivo técnico explícito e registrado.
-6. **Inspecione primeiro as dependências existentes.** Antes de adicionar um
-   pacote ou escrever uma solução própria, verifique o que o projeto já possui.
-7. **Decida a arquitetura pensando no longo prazo.** Não aceite soluções
-   temporárias com a intenção de mudar depois.
-8. **Use padrões de produtos maduros.** Pesquise como soluções consolidadas
-   resolvem o mesmo problema e reutilize padrões validados; não reinvente a roda.
+1. **Do not preserve backward compatibility.** Delete obsolete behavior directly; do not add compatibility layers, migrations, or fallbacks.
+2. **Choose the simplest implementation that meets the current need.** Do not create speculative abstractions or unnecessary configuration layers.
+3. **Build long-lived layers incrementally.** Make the minimum end-to-end version work first, then add capabilities without dismantling working code.
+4. **Keep components modular**, with clear responsibilities and explicit boundaries.
+5. **Prefer mature, maintained libraries.** Do not rewrite from scratch without an explicit, recorded technical reason.
+6. **Inspect existing dependencies first.** Before adding a package or writing a custom solution, check what the project already provides.
+7. **Make architecture decisions for the long term.** Do not introduce temporary solutions intended to be replaced later.
+8. **Reuse validated patterns from mature products** instead of reinventing them.
 
 <!-- simplicio-global-llm-architecture-rules:end -->
 
