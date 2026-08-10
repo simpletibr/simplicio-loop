@@ -6,6 +6,7 @@ import os
 import secrets
 import signal
 import subprocess
+import sys
 import time
 from collections.abc import Mapping
 
@@ -1058,9 +1059,44 @@ def _run_scan(opts: dict) -> int:
     }
     if synchronous:
         spawn_opts["timeout"] = max(0, int(opts["timeout"]) - 1)
-        spawned, child = _spawn_index_process(spawn_opts)
-        deep.update({key: spawned[key] for key in ("pid", "process_start", "log")})
         deep["timeout_seconds"] = max(0, int(opts["timeout"]))
+        try:
+            spawned, child = _spawn_index_process(spawn_opts)
+        except OSError as error:
+            # Spawn failed before any worker/lock existed (historical WinError 6
+            # on invalid stdin inheritance). Emit a terminal receipt with
+            # reason_code; do not leave a live owner lock (issue #231).
+            deep["failure_reason"] = "worker_spawn_failed"
+            deep["reason_code"] = "worker_spawn_failed"
+            deep["error"] = str(error)
+            deep["winerror"] = getattr(error, "winerror", None)
+            deep["exit_code"] = None
+            deep["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            phase = "failed"
+            progress.update(
+                {
+                    "phase": phase,
+                    "elapsed_seconds": round(time.monotonic() - started, 3),
+                }
+            )
+            partial["progress"] = progress
+            partial["failure_reason"] = deep["failure_reason"]
+            _write_json_atomic(_partial_scan_path(root, out), partial)
+            envelope = {
+                "schema": MAP_JOB_SCHEMA,
+                "phase": phase,
+                "sync": True,
+                "created_at": created_at,
+                "macro": macro,
+                "deep": deep,
+            }
+            _write_map_job(root, out, envelope)
+            if opts["json"]:
+                print(json.dumps(envelope, sort_keys=True))
+            else:
+                print(f"scan phase={phase} spawn failed: {error}", file=sys.stderr)
+            return 1
+        deep.update({key: spawned[key] for key in ("pid", "process_start", "log")})
         initial_envelope = {
             "schema": MAP_JOB_SCHEMA,
             "phase": "deep_running",
@@ -1127,7 +1163,39 @@ def _run_scan(opts: dict) -> int:
         _write_map_job(root, out, envelope)
     else:
         spawn_opts["_map_job_owner_token"] = secrets.token_hex(16)
-        spawned = _spawn_background_index(spawn_opts)
+        try:
+            spawned = _spawn_background_index(spawn_opts)
+        except OSError as error:
+            deep["failure_reason"] = "worker_spawn_failed"
+            deep["reason_code"] = "worker_spawn_failed"
+            deep["error"] = str(error)
+            deep["winerror"] = getattr(error, "winerror", None)
+            deep["exit_code"] = None
+            deep["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            phase = "failed"
+            progress.update(
+                {
+                    "phase": phase,
+                    "elapsed_seconds": round(time.monotonic() - started, 3),
+                }
+            )
+            partial["progress"] = progress
+            partial["failure_reason"] = deep["failure_reason"]
+            _write_json_atomic(_partial_scan_path(root, out), partial)
+            envelope = {
+                "schema": MAP_JOB_SCHEMA,
+                "phase": phase,
+                "sync": False,
+                "created_at": created_at,
+                "macro": macro,
+                "deep": deep,
+            }
+            _write_map_job(root, out, envelope)
+            if opts["json"]:
+                print(json.dumps(envelope, sort_keys=True))
+            else:
+                print(f"scan phase={phase} spawn failed: {error}", file=sys.stderr)
+            return 1
         deep.update({
             key: spawned[key]
             for key in ("pid", "process_start", "owner_token", "log")

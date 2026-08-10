@@ -805,10 +805,20 @@ def _git_gate(root: Path, input_hash: str) -> GenerationGate:
     canonical_ref = os.environ.get("SIMPLICIO_MAPPER_CANONICAL_REF", "main").strip() or "main"
     try:
         head = subprocess.run(
-            ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, timeout=3
+            ["git", "rev-parse", "HEAD"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=3,
+            stdin=subprocess.DEVNULL,
         )
         branch = subprocess.run(
-            ["git", "branch", "--show-current"], cwd=root, capture_output=True, text=True, timeout=3
+            ["git", "branch", "--show-current"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=3,
+            stdin=subprocess.DEVNULL,
         )
         status = subprocess.run(
             [
@@ -827,6 +837,7 @@ def _git_gate(root: Path, input_hash: str) -> GenerationGate:
             capture_output=True,
             text=True,
             timeout=4,
+            stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         head = branch = status = None

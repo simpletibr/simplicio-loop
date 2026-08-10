@@ -218,7 +218,26 @@ def _spawn_background_index(opts: dict) -> dict:
     return payload
 
 def _run_background(opts: dict) -> int:
-    payload = _spawn_background_index(opts)
+    try:
+        payload = _spawn_background_index(opts)
+    except OSError as error:
+        # Windows hosts with a closed/captured stdin historically raised
+        # WinError 6 here before the child existed. stdin is pinned to
+        # DEVNULL in Popen; residual spawn failure still returns a structured
+        # reason code so callers never see a bare traceback as the only
+        # signal (issue #231).
+        payload = {
+            "schema": "simplicio.background-index/v1",
+            "status": "failed",
+            "reason_code": "worker_spawn_failed",
+            "error": str(error),
+            "winerror": getattr(error, "winerror", None),
+        }
+        if opts["json"]:
+            print(json.dumps(payload, sort_keys=True))
+        else:
+            print(f"background index failed: {error}", file=sys.stderr)
+        return 1
     if opts["json"]:
         print(json.dumps(payload, sort_keys=True))
     else:

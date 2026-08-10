@@ -39,7 +39,12 @@ def _version(path: Path, pattern: str) -> str:
 
 def _commit(root: Path) -> str:
     result = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=False
+        ["git", "rev-parse", "HEAD"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+        stdin=subprocess.DEVNULL,
     )
     if result.returncode != 0 or not result.stdout.strip():
         raise ValueError("git commit is unavailable")

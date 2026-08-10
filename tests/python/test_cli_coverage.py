@@ -15,6 +15,7 @@ These tests close the gap in tests/python/test_cli.py:
 from __future__ import annotations
 
 import contextlib
+import inspect
 import io
 import json
 import os
@@ -401,6 +402,72 @@ class BackgroundWorkerNeverInheritsStdinTest(unittest.TestCase):
                 break
             except OSError:
                 time.sleep(0.05)
+
+
+
+class BackgroundSpawnFailureReasonCodeTest(unittest.TestCase):
+    """Issue #231 AC: process creation failure returns reason_code, no orphan lock."""
+
+    def test_run_background_surfaces_worker_spawn_failed(self) -> None:
+        opts = {
+            "root": str(ROOT),
+            "out": ".simplicio",
+            "stack": None,
+            "product_name": None,
+            "docs": False,
+            "incremental": False,
+            "verbose": False,
+            "json": True,
+            "timeout": 5,
+        }
+        spawn_error = OSError(6, "Identificador invalido")
+        spawn_error.winerror = 6  # type: ignore[attr-defined]
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), mock.patch.object(
+            cli_background, "_spawn_background_index", side_effect=spawn_error
+        ):
+            code = cli_background._run_background(opts)
+        self.assertEqual(code, 1)
+        payload = json.loads(out.getvalue().strip().splitlines()[-1])
+        self.assertEqual(payload["status"], "failed")
+        self.assertEqual(payload["reason_code"], "worker_spawn_failed")
+        self.assertEqual(payload.get("winerror"), 6)
+
+    def test_scan_sync_surfaces_worker_spawn_failed_without_lock(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        target = Path(tmp.name)
+        _write(target, "package.json", json.dumps({"name": "spawn-fail-host"}))
+        spawn_error = OSError(6, "Identificador invalido")
+        spawn_error.winerror = 6  # type: ignore[attr-defined]
+        with mock.patch.object(status_engine, "_spawn_index_process", side_effect=spawn_error):
+            code, stdout, _ = _run([
+                "scan", str(target), "--sync", "--timeout", "2", "--json",
+            ])
+        self.assertEqual(code, 1)
+        envelope = json.loads(stdout)
+        self.assertEqual(envelope["phase"], "failed")
+        self.assertEqual(envelope["deep"]["reason_code"], "worker_spawn_failed")
+        self.assertEqual(envelope["deep"]["failure_reason"], "worker_spawn_failed")
+        lock_path = target / ".simplicio" / "index.lock"
+        self.assertFalse(lock_path.exists(), "spawn failure must not leave an orphan lock")
+
+
+class PackageSubprocessPinsStdinDevnullTest(unittest.TestCase):
+    """Residual package sites must pin stdin=DEVNULL (issue #231 follow-up)."""
+
+    def test_git_helpers_declare_stdin_devnull(self) -> None:
+        from simplicio_mapper.mapper import canonical_identity
+        from simplicio_mapper.store import memory as memory_store
+        from simplicio_mapper import project_capabilities
+
+        sources = [
+            inspect.getsource(canonical_identity._run_git),
+            inspect.getsource(memory_store._git),
+            inspect.getsource(project_capabilities._git_gate),
+        ]
+        for src in sources:
+            self.assertIn("stdin=subprocess.DEVNULL", src)
 
 
 class TerminateIndexWorkerNeverInheritsStdinTest(unittest.TestCase):

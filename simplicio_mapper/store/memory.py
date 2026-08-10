@@ -150,7 +150,13 @@ def _git(base: Path, *args: str) -> bool:
         return False
     try:
         result = subprocess.run(
-            ["git", *args], cwd=base, capture_output=True, text=True, timeout=15, check=False
+            ["git", *args],
+            cwd=base,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+            stdin=subprocess.DEVNULL,
         )
     except (OSError, subprocess.SubprocessError):
         return False

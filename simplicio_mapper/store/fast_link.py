@@ -200,6 +200,7 @@ def ensure_repo_fast_artifacts(
                 text=True,
                 timeout=timeout,
                 cwd=str(root),
+                stdin=subprocess.DEVNULL,
             )
             built = {
                 "returncode": proc.returncode,
