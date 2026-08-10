@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.26.18] - 2026-08-10
+
+- Synchronize the Mapper release with the aggregate Loop stack.
+
+
 ## [0.26.17] - 2026-08-10
 
 - Add the canonical `simplicio.io/v1` public envelope for cross-repository I/O.
