@@ -7,33 +7,25 @@ parses/validates ``simplicio.component-release/v1`` manifests
 `simplicio-mapper` against this repo's own declared compatibility range,
 and reports drift — all read-only, all local.
 
+``latest_known`` is best-effort via ``simplicio.ecosystem._pypi_latest``
+(24h disk cache, optional ``--refresh``). When the registry is unreachable
+and the cache is empty the field is ``null`` with
+``unavailable_reason: "registry_unreachable"`` — never a fabricated version.
+
 Explicitly NOT implemented here, and why:
 
-- **``latest_known`` via live PyPI/npm query** — no network registry
-  access in this environment. Reporting a fabricated "latest" would be
-  worse than reporting none, so this field is always ``null`` with an
-  explicit ``unavailable_reason: "no_registry_access"``. (Note:
-  `simplicio.ecosystem` *does* do a live PyPI lookup for its own
-  freshness check with a 24h cache; this command deliberately does not
-  reuse that here, to keep `versions --json`'s claims strictly limited to
-  what can be verified from files already on disk, per the issue's
-  "never fabricate a version number" instruction. A future revision could
-  wire `ecosystem._pypi_latest` in as a *best-effort, clearly labeled*
-  addition, but that's a separate, deliberate decision, not folded in.)
 - **Receiving a Mapper release event over a real transport** — no event
   bus/webhook receiver exists in this repo or session.
   `component_manifest.parse_component_manifest` is ready to validate a
   manifest the moment one arrives (see its docstring), but nothing
   delivers one today.
-- **Auto-creating/merging a version-bump PR** — this session does have
-  GitHub tooling available, but auto-merging a dependency bump without
-  human review directly contradicts this repo's own AGENTS.md rules
-  ("Adicionar dependência sem perguntar" is on the forbidden list, and the
-  DoD requires human review). Declared out of scope, not a capability gap.
+- **Auto-creating/merging a version-bump PR** — auto-merging a dependency
+  bump without human review contradicts this repo's AGENTS.md rules.
+  Declared out of scope, not a capability gap for this command.
 - **SBOM/signing/provenance** — no signing identity available in this
   environment.
-- **Triggering `simplicio-loop`** — that repo is not in this session's
-  scope.
+- **Triggering `simplicio-loop`** — cross-repo propagation is a separate
+  release-train step, not part of the local versions report.
 """
 
 from __future__ import annotations
@@ -51,6 +43,7 @@ from ..component_manifest import (
     detect_drift,
     tested_dependency_version,
 )
+from ..ecosystem import _pypi_latest
 
 CLI_PROG = "simplicio-py"
 MAPPER_DIST_NAME = "simplicio-mapper"
@@ -63,12 +56,30 @@ def _installed_mapper_version() -> str | None:
         return None
 
 
-def versions_report(root: str | Path | None = None) -> dict[str, Any]:
-    """Build the full `versions --json` payload. Pure read path: every
-    field comes from `importlib.metadata`, `pyproject.toml`, `uv.lock`, or
-    `git rev-parse` — no mutation, no lock/state touched, safe to call
-    concurrently with a running `pipeline.run_task` (issue #232 item 13;
-    see `tests/python/test_versions_command.py` for the concurrency
+def _latest_mapper_version(*, refresh: bool = False) -> tuple[str | None, str | None]:
+    """Best-effort PyPI latest for mapper. Returns ``(version, reason)``.
+
+    *reason* is set only when *version* is ``None`` (honest null, never
+    fabricated). When a version is returned, *reason* is ``None`` and the
+    source is the ecosystem 24h cache or a live lookup after ``refresh``.
+    """
+    latest = _pypi_latest(MAPPER_DIST_NAME, refresh=refresh)
+    if latest:
+        return latest, None
+    return None, "registry_unreachable"
+
+
+def versions_report(
+    root: str | Path | None = None,
+    *,
+    refresh: bool = False,
+) -> dict[str, Any]:
+    """Build the full `versions --json` payload. Read-only: every field
+    comes from `importlib.metadata`, `pyproject.toml`, `uv.lock`,
+    `git rev-parse`, or the ecosystem PyPI cache — no mutation, no
+    lock/state touched, safe to call concurrently with a running
+    `pipeline.run_task` (issue #232 item 13; see
+    `tests/python/test_versions_command.py` for the concurrency
     regression test).
 
     *root* names the `simplicio-cli` checkout to introspect (its own
@@ -80,11 +91,15 @@ def versions_report(root: str | Path | None = None) -> dict[str, Any]:
     root for `.simplicio/events.jsonl`) — the two roots answer different
     questions and are never the same path in the common case of a `pip
     install`ed `simplicio-cli` used against some other project.
+
+    *refresh* bypasses the 24h PyPI cache for ``latest_known`` (same
+    semantics as `doctor --refresh`).
     """
     root = str(root) if root is not None else None
     installed = _installed_mapper_version()
     declared_range = declared_dependency_range(MAPPER_DIST_NAME, root)
     tested_against, tested_reason = tested_dependency_version(MAPPER_DIST_NAME, root)
+    latest_known, unavailable_reason = _latest_mapper_version(refresh=refresh)
 
     compatibility = (
         check_version_against_range(installed, declared_range, name=MAPPER_DIST_NAME) if installed else None
@@ -102,10 +117,11 @@ def versions_report(root: str | Path | None = None) -> dict[str, Any]:
         "mapper": {
             "installed": installed,
             "declared_range": declared_range,
+            "required": declared_range,
             "tested_against": tested_against,
             "tested_against_reason": tested_reason,
-            "latest_known": None,
-            "unavailable_reason": "no_registry_access",
+            "latest_known": latest_known,
+            "unavailable_reason": unavailable_reason,
             "compatibility": compatibility.to_dict() if compatibility else None,
         },
         "drift": drift.to_dict(),
@@ -120,7 +136,11 @@ def _render_human(payload: dict[str, Any]) -> None:
     print(f"  simplicio-mapper declared_range    {mapper['declared_range'] or '(none declared)'}")
     tested_display = mapper["tested_against"] or f"null ({mapper['tested_against_reason']})"
     print(f"  simplicio-mapper tested_against    {tested_display}")
-    print(f"  simplicio-mapper latest_known      null ({mapper['unavailable_reason']})")
+    if mapper["latest_known"]:
+        print(f"  simplicio-mapper latest_known      {mapper['latest_known']}")
+    else:
+        reason = mapper["unavailable_reason"] or "unknown"
+        print(f"  simplicio-mapper latest_known      null ({reason})")
     if mapper["compatibility"]:
         print(
             f"  compatibility                     "
@@ -141,7 +161,10 @@ def _render_human(payload: dict[str, Any]) -> None:
 
 
 def run(a: argparse.Namespace) -> int:
-    payload = versions_report(getattr(a, "root", None))
+    payload = versions_report(
+        getattr(a, "root", None),
+        refresh=bool(getattr(a, "refresh", False)),
+    )
     if getattr(a, "json", False):
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:

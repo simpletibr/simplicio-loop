@@ -402,6 +402,11 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     p_versions.add_argument("--json", action="store_true", help="machine-readable output")
+    p_versions.add_argument(
+        "--refresh",
+        action="store_true",
+        help="bypass the 24h PyPI cache when resolving mapper latest_known",
+    )
 
     p_env_export = sub.add_parser(
         "env-export",

@@ -1,0 +1,24 @@
+{
+  "schema": "simplicio.release-train/v1",
+  "component": "simplicio-cli",
+  "purpose": "Minimal release-train stub for Mapper consumption evidence (issue #232 slice).",
+  "dependency": {
+    "name": "simplicio-mapper",
+    "declared_range": ">=0.26.11,<0.27",
+    "tested_against": "0.26.11",
+    "tested_against_source": "uv.lock",
+    "registry": "https://pypi.org/pypi/simplicio-mapper/json"
+  },
+  "surfaces": {
+    "versions_json": "simplicio-py versions --json",
+    "doctor_json": "simplicio-py doctor --json",
+    "component_manifest": "simplicio.component-release/v1 via build_own_manifest()"
+  },
+  "out_of_scope_this_slice": [
+    "auto PR on mapper release event",
+    "auto-merge",
+    "cross-repo loop bump after PyPI publish",
+    "SBOM/signing/provenance",
+    "yanked/revoked version blocking"
+  ]
+}

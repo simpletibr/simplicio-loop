@@ -1,4 +1,4 @@
-usage: simplicio-py versions [-h] [--root ROOT] [--json]
+usage: simplicio-py versions [-h] [--root ROOT] [--json] [--refresh]
 
 options:
   -h, --help   show this help message and exit
@@ -7,3 +7,4 @@ options:
                root); default: auto-detect (cwd, then this installed package's
                own directory)
   --json       machine-readable output
+  --refresh    bypass the 24h PyPI cache when resolving mapper latest_known

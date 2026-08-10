@@ -19,6 +19,14 @@
 
 ## Unreleased
 
+### Changed
+
+- Raise the `simplicio-mapper` dependency floor to `>=0.26.11,<0.27` (latest
+  published PyPI release at bump time) and refresh the lockfile pin.
+- `simplicio-py versions --json` now surfaces best-effort `latest_known` via
+  the ecosystem PyPI cache (`--refresh` bypasses the 24h cache) and aliases
+  the declared range as `required` for release-train consumers (#232 slice).
+
 ## [0.18.6] - 2026-08-02
 
 ### Changed

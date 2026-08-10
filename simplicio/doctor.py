@@ -121,7 +121,16 @@ def _render_mapper_versions(payload: dict) -> None:
     print(f"  declared_range   {mapper['declared_range'] or '(none declared)'}")
     tested = mapper["tested_against"] or f"null ({mapper['tested_against_reason']})"
     print(f"  tested_against   {tested}")
-    print(f"  latest_known     null ({mapper['unavailable_reason']})")
+    if mapper.get("latest_known"):
+        print(f"  latest_known     {mapper['latest_known']}")
+    else:
+        reason = mapper.get("unavailable_reason") or "unknown"
+        print(f"  latest_known     null ({reason})")
+    if mapper.get("compatibility"):
+        print(
+            f"  compatibility    {mapper['compatibility']['status']}"
+            f" — {mapper['compatibility']['reason']}"
+        )
     drift = payload["drift"]
     if drift["has_drift"]:
         print(f"  drift            {drift['kind']}: {drift['reason']}")
@@ -244,7 +253,7 @@ def main(argv: list[str] | None = None) -> int:
     # for `.simplicio/events.jsonl`) — the Mapper version/manifest state is
     # about the `simplicio-cli` checkout itself, a different root entirely
     # (see `commands/versions.py::versions_report`'s docstring).
-    mapper_versions = versions_report()
+    mapper_versions = versions_report(refresh=bool(args.refresh))
     storage = None
     if args.storage:
         from .store_adapter import storage_capabilities

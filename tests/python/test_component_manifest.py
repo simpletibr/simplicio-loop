@@ -151,7 +151,7 @@ def test_version_satisfies(version, range_spec, expected):
 
 def test_declared_dependency_range_reads_real_pyproject():
     # This is the exact case the issue reports as verified: the floor pin.
-    assert cm.declared_dependency_range("simplicio-mapper") == ">=0.26.10,<0.27"
+    assert cm.declared_dependency_range("simplicio-mapper") == ">=0.26.11,<0.27"
 
 
 def test_declared_dependency_range_unknown_package_returns_none():
@@ -170,7 +170,7 @@ def test_declared_own_version_matches_pyproject():
 
 def test_tested_dependency_version_reads_real_uv_lock():
     version, reason = cm.tested_dependency_version("simplicio-mapper")
-    assert version == "0.26.10"
+    assert version == "0.26.11"
     assert reason == "locked_in_uv.lock"
 
 
@@ -314,6 +314,6 @@ def test_build_own_manifest_shape():
     assert manifest.schema == cm.COMPONENT_MANIFEST_SCHEMA
     assert manifest.name == "simplicio-cli"
     assert manifest.compatibility_target == "simplicio-mapper"
-    assert manifest.compatibility_range == ">=0.26.10,<0.27"
+    assert manifest.compatibility_range == ">=0.26.11,<0.27"
     assert manifest.version  # non-empty
     assert "EVENT_SCHEMA" in manifest.schema_versions
