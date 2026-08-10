@@ -116,6 +116,8 @@ _BOOTSTRAP.md
 .codex/**
 .github/
 .github/**
+!.github/workflows/
+!.github/workflows/*.yml
 .skills/
 .skills/**
 .specs/**
@@ -180,6 +182,9 @@ scripts/**
 !scripts/async_pipeline_dispatch_benchmark.py
 !scripts/check_schema_registry_sync.py
 !scripts/schema_registry_baseline.json
+!scripts/check-version-sync.py
+!scripts/check-version-sync.js
+!scripts/README.md
 !scripts/prototype_context_benchmark.py
 !scripts/prototype_remap_cost_benchmark.py
 !scripts/prototype_impact_accuracy_benchmark.py

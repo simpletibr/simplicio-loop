@@ -39,6 +39,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Check package / pyproject / __init__ version alignment
+        run: python scripts/check-version-sync.py
+
       - name: Verify immutable tag and package version
         id: release
         shell: bash

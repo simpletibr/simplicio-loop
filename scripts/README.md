@@ -31,6 +31,23 @@ $env:LLM_PROJECT_MAPPER_SOURCE="C:\Users\you\source\repos\llm-project-mapper"
 .\scripts\update-starter.ps1
 ```
 
+## `check-version-sync.py` (issue #102)
+
+Fails if the three release version pins disagree:
+
+- `package.json` → `"version"`
+- `pyproject.toml` → `version = "..."`
+- `simplicio_mapper/__init__.py` → `__version__ = "..."`
+
+```bash
+python scripts/check-version-sync.py
+# optional Node twin (same contract):
+node scripts/check-version-sync.js
+```
+
+CI: `.github/workflows/version-sync.yml` on PR/push to `main`. Documented in
+`.specs/workflow/RELEASE.md` (version bump checklist).
+
 ## `meta_issue_audit.py` (issue #328)
 
 Builds the deterministic `simplicio.meta-issue-audit/v1` inventory from the

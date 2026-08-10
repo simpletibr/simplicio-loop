@@ -109,6 +109,8 @@ Mensagem squash = title do PR. Histórico de `main` fica linear e legível.
 - Merge em `main` dispara `deploy-staging.yml` automaticamente.
 - Verifica smoke em staging (link no Slack pós-deploy).
 - Para produção: bump versão e tag SemVer (ver `RELEASE.md`).
+  Em um único commit: `package.json`, `pyproject.toml` e
+  `simplicio_mapper/__init__.py` (`python scripts/check-version-sync.py`).
 - Para mudanças **release-relevant** neste repositório, o padrão é fechar tudo no mesmo ciclo: npm publicado, tag GitHub criada, GitHub Release correspondente e `main` limpa/sincronizada.
 
 ### 9. Fechamento release-relevant neste repositório

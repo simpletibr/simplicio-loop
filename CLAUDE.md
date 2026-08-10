@@ -122,7 +122,7 @@ python -m build                              # gera dist/*.whl + .tar.gz
 # qualidade
 npm run lint                                 # JS + shell lint (scripts/lint.js)
 ruff check simplicio_mapper tests/python     # Python lint
-node scripts/check-version-sync.js           # versões alinhadas (package/pyproject/__init__)
+python scripts/check-version-sync.py         # versões alinhadas (package/pyproject/__init__)
 python -m unittest discover -s tests/python  # Python unit
 node --test tests/unit/*.test.js             # Node unit
 npm test                                     # cross alias (chama node --test)

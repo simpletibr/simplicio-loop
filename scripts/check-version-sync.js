@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 /**
- * check-version-sync.js — verify version strings stay aligned across the
- * three release sources of truth: package.json (npm metadata), pyproject.toml
- * (PyPI metadata), and simplicio_mapper/__init__.py (`__version__`).
+ * check-version-sync.js — legacy Node twin of scripts/check-version-sync.py.
  *
- * Exits 0 when all three match, 1 otherwise. Intended to run on PR via the
- * scaffold-self-check workflow so a partial version bump fails CI before it
- * reaches the publish pipeline.
+ * Prefer the Python checker (wired in .github/workflows/version-sync.yml).
+ * Same contract: package.json, pyproject.toml, and
+ * simplicio_mapper/__init__.py must share one SemVer string (issue #102).
+ *
+ * Exits 0 when all three match, 1 otherwise.
  */
 "use strict";
 

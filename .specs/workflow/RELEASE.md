@@ -33,6 +33,30 @@ Local do número de versão depende do `<STACK>`:
 - .NET: `<Version>` no `.csproj` ou `Directory.Build.props`.
 - PHP/Laravel: `composer.json` campo `version`.
 
+### Version bump checklist (this repo — issue #102)
+
+This project dual-publishes and pins the SemVer string in **three** places.
+Update **all three in the same commit** (partial bumps fail CI):
+
+| Source | File | Field |
+|--------|------|--------|
+| npm | `package.json` | `"version"` |
+| PyPI | `pyproject.toml` | `project.version` |
+| Python runtime fallback | `simplicio_mapper/__init__.py` | `__version__ = "..."` |
+
+Installed wheels may also resolve `__version__` via `importlib.metadata`;
+the static string in `__init__.py` remains the source-tree SoT for the guard.
+
+```bash
+# after editing the three files:
+python scripts/check-version-sync.py
+# legacy Node twin (same contract):
+node scripts/check-version-sync.js
+```
+
+CI: `.github/workflows/version-sync.yml` runs the Python checker on every PR/push
+to `main`. A deliberate mismatch between any of the three strings exits non-zero.
+
 Bump idempotente:
 
 ```bash
@@ -42,7 +66,8 @@ npm version minor --no-git-tag-version
 # Python (uv/poetry)
 uv version --bump minor
 
-# manual: edita arquivo, commita
+# manual: edit package.json + pyproject.toml + simplicio_mapper/__init__.py, then:
+python scripts/check-version-sync.py
 ```
 
 ---
