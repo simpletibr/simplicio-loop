@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.18.8] - 2026-08-10
+
+- Consume the shared `simplicio.io/v1` public envelope while keeping Dev CLI's
+  mutation and verification contracts internal.
+
 ## [0.18.7] - 2026-08-09
 
 ### Fixed
@@ -1283,3 +1288,4 @@ with the new versions installed.
 - Better guidance and helpers for E2E contract validation tasks between frontend and backend.
 
 These changes were driven by the need to generate strong evidence that the Web is correctly wired to the real API + real PostgreSQL.
+

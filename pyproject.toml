@@ -1,6 +1,6 @@
 [project]
 name = "simplicio-cli"
-version = "0.18.7"
+version = "0.18.8"
 description = "Deterministic task-to-code contract and verification CLI. It never executes or provisions an LLM."
 readme = "README.md"
 license = { text = "MIT" }
@@ -129,6 +129,7 @@ simplicio = [
   # `simplicio-py score-skill` with no --scenario silently fails outside the
   # checkout (#167 AC "Package instalado contem docs/schemas esperados").
   "commands/scenarios/*.json",
+  "contracts/io/v1/*.json",
 ]
 
 [tool.pytest.ini_options]
@@ -268,3 +269,4 @@ module = [
   "simplicio.scratch.cli",
 ]
 ignore_errors = true
+

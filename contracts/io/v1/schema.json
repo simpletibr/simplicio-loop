@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "simplicio.io/v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "operation", "request_id", "repository", "payload", "evidence", "error"],
+  "properties": {
+    "schema": { "const": "simplicio.io/v1" },
+    "operation": { "enum": ["understand", "search", "change", "verify", "run"] },
+    "request_id": { "type": "string", "minLength": 1 },
+    "repository": { "type": "object", "required": ["id", "revision"], "properties": { "id": { "type": "string" }, "revision": { "type": "string" } } },
+    "payload": { "type": "object" },
+    "evidence": { "type": "array", "items": { "type": "string" } },
+    "error": { "type": ["object", "null"] }
+  }
+}
+
