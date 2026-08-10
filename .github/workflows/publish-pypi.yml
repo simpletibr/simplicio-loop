@@ -1,5 +1,10 @@
 name: Publish Mapper to PyPI
 
+# Immutable-tag release path (issue #423):
+# - automatic publish only on push of a new vX.Y.Z tag
+# - optional workflow_dispatch for a single explicit tag (never bulk history)
+# - tag shape + pyproject version + tag commit must agree before build
+# - sdist+wheel + twine check before upload via repository PYPI_API_TOKEN
 on:
   push:
     tags:
@@ -14,6 +19,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: publish-pypi-${{ inputs.tag || github.ref }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -23,6 +32,7 @@ jobs:
         with:
           ref: ${{ inputs.tag || github.ref }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v7
@@ -35,6 +45,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
+          set -euo pipefail
           tag="$RELEASE_TAG"
           if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Expected immutable vX.Y.Z tag" >&2
@@ -51,6 +62,9 @@ jobs:
           project = tomllib.loads(pathlib.Path("pyproject.toml").read_text(encoding="utf-8"))
           assert project["project"]["version"] == os.environ["VERSION"]
           PY
+          echo "release_tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "release_version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Install build tools
         run: python -m pip install --upgrade build twine
 
@@ -64,4 +78,10 @@ jobs:
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: python -m twine upload --non-interactive dist/*
+        run: |
+          set -euo pipefail
+          if [[ -z "${TWINE_PASSWORD:-}" ]]; then
+            echo "PYPI_API_TOKEN secret is not configured" >&2
+            exit 1
+          fi
+          python -m twine upload --non-interactive dist/*
