@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 FOR_LLM_FORMATS = {"toon"}
+DEFAULT_TOON_COMMANDS = frozenset({"handoff", "orient"})
 
 CONFIDENCE_TAG_ORDER = ("MEASURED", "OPERATOR", "CANON", "UNVERIFIED")
 
@@ -240,10 +241,10 @@ OPTIONS
   --await               scan/status/inspect/handoff: block until the deep pass is terminal.
   --timeout <s>         Bounded wait for --await (default 120).
   --json                Emit structured index output.
-  --for-llm <format>    index/inspect/handoff/ask: emit payload as <format>
-                         instead of JSON. Supported: toon (Token-Oriented
-                         Object Notation, see docs/toon-benchmark.md for
-                         measured reduction on this repo's own artifacts).
+  --for-llm <format>    emit payload as <format> (supported: toon).
+                         handoff and orient default to TOON for LLM context;
+                         --json is an explicit machine-readable override.
+                         Set SIMPLICIO_TOON=0 to disable the default.
                          Fallback arrays (if any) are logged as
                          toon_fallbacks JSON on stderr.
   --tagged               index: attach Asolaria confidence tags

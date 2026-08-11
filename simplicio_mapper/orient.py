@@ -12,6 +12,8 @@ from typing import Any
 
 from .context_pack import select_context_targets
 from .task_intent import TASK_CONTEXT_SCHEMA, canonical_json, parse_task_intent
+from .savings import estimate_tokens
+from .toon import encode_toon_with_report
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -122,6 +124,15 @@ def build_orientation(
     result_fingerprint = hashlib.sha256(canonical_json(provisional).encode("utf-8")).hexdigest()
     return {**provisional, "result_fingerprint": result_fingerprint, "selection": selection}
 
+def _should_emit_toon(opts: dict[str, Any], payload: dict[str, Any]) -> bool:
+    if opts.get("for_llm") != "toon":
+        return False
+    if not opts.get("_default_for_llm"):
+        return True
+    toon_text, _ = encode_toon_with_report(payload)
+    json_text = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return estimate_tokens(toon_text) < estimate_tokens(json_text)
+
 
 def run_orientation_cli(opts: dict[str, Any]) -> int:
     root = str(opts["root"])
@@ -145,7 +156,7 @@ def run_orientation_cli(opts: dict[str, Any]) -> int:
     except (OSError, TypeError, ValueError, json.JSONDecodeError) as error:
         print(f"orient failed: {error}", file=sys.stderr)
         return 2
-    if opts.get("for_llm") == "toon":
+    if _should_emit_toon(opts, payload):
         from .cli._index_engine import _print_toon
 
         _print_toon(payload)

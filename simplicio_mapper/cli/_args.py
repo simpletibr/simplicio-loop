@@ -6,8 +6,18 @@ import sys
 from collections.abc import Sequence
 
 from .. import __version__
-from ._shared import CONFIDENCE_RANK, CONFIDENCE_TAG_ORDER, FOR_LLM_FORMATS, HELP_TEXT
+from ._shared import (
+    CONFIDENCE_RANK,
+    CONFIDENCE_TAG_ORDER,
+    DEFAULT_TOON_COMMANDS,
+    FOR_LLM_FORMATS,
+    HELP_TEXT,
+)
 
+_DEFAULT_TOON_ENABLED = (
+    os.environ.get("SIMPLICIO_TOON", "1").strip().lower()
+    not in {"0", "false", "off", "no"}
+)
 
 def _read_json_safe(file: str) -> dict:
     try:
@@ -60,6 +70,7 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "threshold": 10,
         "scope": "all",
         "for_llm": "",
+        "_default_for_llm": False,
         "tagged": False,
         "confidence": "",
         "geometry": False,
@@ -401,4 +412,12 @@ def _parse_args(argv: Sequence[str]) -> dict:
             print("Run `simplicio-mapper --help` for usage.", file=sys.stderr)
             sys.exit(2)
         i += 1
+    if (
+        _DEFAULT_TOON_ENABLED
+        and not opts["json"]
+        and not opts["for_llm"]
+        and command in DEFAULT_TOON_COMMANDS
+    ):
+        opts["for_llm"] = "toon"
+        opts["_default_for_llm"] = True
     return opts

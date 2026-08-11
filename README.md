@@ -48,6 +48,7 @@ simplicio-mapper handoff . \
   --token-budget 1200 \
   --json
 ```
+By default, `handoff` and `orient` emit TOON for the LLM-facing context path. Use `--json` for machine-readable output or set `SIMPLICIO_TOON=0` to disable the default; canonical artifacts under `.simplicio/` remain JSON.
 
 For a fast shallow skeleton before the deep pass, use `simplicio-mapper macro . --json`. For a repository whose files changed, use `simplicio-mapper sync . --check --json` to see whether artifacts are stale, then `simplicio-mapper sync . --json` to refresh only what the diff affects.
 

@@ -82,6 +82,23 @@ def _handoff_serialization(payload: Mapping[str, object], output_format: str) ->
     return serialized, estimate_tokens(serialized.decode("utf-8"))
 
 
+def _default_handoff_output_format(payload: Mapping[str, object], token_budget: int) -> str:
+    """Choose the economical format without adding a second fit pass."""
+    toon_serialized, _ = _handoff_serialization(payload, "toon")
+    json_serialized, _ = _handoff_serialization(payload, "json")
+    toon_tokens = estimate_tokens(toon_serialized.decode("utf-8"))
+    json_tokens = estimate_tokens(json_serialized.decode("utf-8"))
+    if toon_tokens < json_tokens:
+        return "toon"
+    if (
+        toon_tokens > token_budget
+        and json_tokens > token_budget
+        and toon_tokens * 100 <= json_tokens * 125
+    ):
+        return "toon"
+    return "json"
+
+
 def _handoff_reference(root: str, out: str, kind: str, payload: Mapping[str, object]) -> dict:
     serialized = serialized_json_bytes(payload)
     digest = hashlib.sha256(serialized).hexdigest()
@@ -969,16 +986,19 @@ def _run_handoff(opts: dict) -> int:
         },
         "outcome": "ready" if payload["ready"] else "blocked",
     }
+    output_format = "toon" if opts.get("for_llm") == "toon" else "json"
+    if opts.get("_default_for_llm"):
+        output_format = _default_handoff_output_format(payload, token_budget)
     payload = _fit_handoff_serialization(
         payload,
         root=root,
         out=out,
         token_budget=token_budget,
-        output_format="toon" if opts.get("for_llm") == "toon" else "json",
+        output_format=output_format,
     )
-    if opts.get("for_llm") == "toon":
+    if output_format == "toon":
         _print_toon(payload)
-    elif opts["json"]:
+    elif opts["json"] or opts.get("_default_for_llm"):
         print(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
     else:
         print(

@@ -84,18 +84,31 @@ class OrientContractTest(unittest.TestCase):
         task = json.dumps({"system": "PLANES", "functionality": "Order lines"})
         stdin_output = StringIO()
         with patch("sys.stdin", StringIO(task)), redirect_stdout(stdin_output):
-            self.assertEqual(main(["orient", str(self.root), "--stdin"]), 0)
+            self.assertEqual(main(["orient", str(self.root), "--stdin", "--json"]), 0)
         task_file = self.root / "task.json"
         task_file.write_text(task, encoding="utf-8")
         file_output = StringIO()
         with redirect_stdout(file_output):
+            self.assertEqual(main(["orient", str(self.root), "--task-json", str(task_file), "--json"]), 0)
+        default_output = StringIO()
+        with redirect_stdout(default_output):
             self.assertEqual(main(["orient", str(self.root), "--task-json", str(task_file)]), 0)
         toon_output = StringIO()
         with redirect_stdout(toon_output):
             self.assertEqual(
                 main(["orient", str(self.root), "--task-json", str(task_file), "--for-llm", "toon"]), 0
             )
-        self.assertEqual(json.loads(file_output.getvalue()), decode_toon(toon_output.getvalue()))
+        expected = json.loads(file_output.getvalue())
+        default_text = default_output.getvalue()
+        default_payload = (
+            decode_toon(default_text)
+            if not default_text.lstrip().startswith("{")
+            else json.loads(default_text)
+        )
+        self.assertEqual(expected, default_payload)
+        self.assertEqual(expected, decode_toon(toon_output.getvalue()))
+        self.assertEqual(expected, json.loads(stdin_output.getvalue()))
+        self.assertEqual(expected, json.loads(file_output.getvalue()))
         self.assertEqual(json.loads(stdin_output.getvalue()), json.loads(file_output.getvalue()))
 
 
