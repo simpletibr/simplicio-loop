@@ -146,6 +146,7 @@ docs/**
 !docs/async-pipeline-dispatch-benchmark.md
 !docs/canonical-reuse-benchmark.md
 scripts/**
+!scripts/verify_pypi_release.py
 !scripts/mapper_store_inventory.py
 !scripts/build_hamt.py
 !scripts/async_pipeline_after_benchmark.py

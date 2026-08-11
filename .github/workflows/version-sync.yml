@@ -21,7 +21,9 @@ concurrency:
 jobs:
   version-sync:
     name: Align package / pyproject / __init__ versions
-    runs-on: ubuntu-latest
+    # Pin the guard to the same known hosted image as the release lane so a
+    # moving-label outage cannot fail the job before its first step.
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Checkout

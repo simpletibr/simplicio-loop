@@ -79,6 +79,18 @@ def test_publish_workflow_builds_sdist_wheel_and_twine_checks() -> None:
     assert check_pos < upload_pos
 
 
+def test_publish_workflow_uses_a_pinned_runner_and_verifies_pypi_after_upload() -> None:
+    text = _workflow_text()
+    assert re.search(r"(?m)^\s+runs-on:\s+ubuntu-24\.04\s*$", text)
+    upload_pos = text.index("python -m twine upload")
+    verify_pos = text.index("scripts/verify_pypi_release.py")
+    assert upload_pos < verify_pos
+    assert "--package \"$PYPI_PACKAGE\"" in text
+    assert "--version \"$PYPI_VERSION\"" in text
+    assert "--dist-dir dist" in text
+    assert "--attempts 12" in text
+
+
 def test_publish_workflow_uses_existing_pypi_secret_without_printing() -> None:
     text = _workflow_text()
     assert "secrets.PYPI_API_TOKEN" in text

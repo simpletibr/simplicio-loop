@@ -5,6 +5,7 @@ name: Publish Mapper to PyPI
 # - optional workflow_dispatch for a single explicit tag (never bulk history)
 # - tag shape + pyproject version + tag commit must agree before build
 # - sdist+wheel + twine check before upload via repository PYPI_API_TOKEN
+# - post-upload PyPI metadata and SHA256 verification before the job succeeds
 on:
   push:
     tags:
@@ -25,7 +26,10 @@ concurrency:
 
 jobs:
   publish:
-    runs-on: ubuntu-latest
+    # Keep the release lane on a known hosted image.  A transient failure of
+    # the moving ubuntu-latest label can fail a job before its first step.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - name: Check out immutable release ref
         uses: actions/checkout@v7
@@ -88,3 +92,16 @@ jobs:
             exit 1
           fi
           python -m twine upload --non-interactive dist/*
+
+      - name: Verify published PyPI distributions and SHA256 digests
+        env:
+          PYPI_PACKAGE: simplicio-mapper
+          PYPI_VERSION: ${{ steps.release.outputs.release_version }}
+        run: |
+          set -euo pipefail
+          python scripts/verify_pypi_release.py \
+            --package "$PYPI_PACKAGE" \
+            --version "$PYPI_VERSION" \
+            --dist-dir dist \
+            --attempts 12 \
+            --retry-delay 10
