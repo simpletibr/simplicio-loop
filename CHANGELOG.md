@@ -21,6 +21,8 @@
 
 ### Fixed
 
+- Name `simplicio.task-spec/v2` and print a minimal contract example when
+  intake rejects conventional task prose (`--print-contract-example`) (#674).
 - Refuse malformed mechanical-edit text operations instead of defaulting a
   missing line range and empty `text` to a destructive line-1 rewrite (#675).
 - Preserve the replaced range's terminal newline on line-based `replace_range`

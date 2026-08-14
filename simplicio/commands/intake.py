@@ -10,14 +10,43 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-from ..execution_contract import ContractCompilationError, compile_execution_contracts
+from ..execution_contract import (
+    SCHEMA as EXECUTION_CONTRACT_SCHEMA,
+)
+from ..execution_contract import (
+    ContractCompilationError,
+    ExecutionBlockedError,
+    compile_execution_contracts,
+)
 from ..orchestrator.multi_task import BatchBuildError, TaskBatch, build_batch_preview
 from ..plan_discovery import PlanDiscoveryError, build_plan_preview
-from ..task_spec import SourceRef, TaskSpecValidationError, parse_task_document
+from ..task_spec import TASK_SPEC_SCHEMA, SourceRef, TaskSpecValidationError, parse_task_document
 
 CLI_PROG = "simplicio-py"
 _URL_TIMEOUT_SECONDS = 10
 _MAX_URL_BYTES = 2 * 1024 * 1024
+CONTRACT_EXAMPLE = """System: Example
+Feature: Typed contract intake
+Tipo: Evolucao
+
+AS A operator,
+I WANT a valid simplicio.task-spec/v2 card,
+SO THAT unattended intake can compile an execution contract.
+
+## Acceptance criteria
+
+Scenario 1: typed card compiles
+  Given a TaskSpec v2 card with system, feature, type, narrative, and one AC
+  When intake runs with --contract --execution-mode --json
+  Then the result schema is simplicio.intake-result/v1
+"""
+ACCEPTED_SYNTAX = [
+    "System: / Sistema:",
+    "Feature: / Funcionalidade:",
+    "Tipo: / Task type:",
+    "AS A / I WANT / SO THAT or COMO / QUERO / PARA",
+    "Acceptance criteria section with Given/When/Then scenarios",
+]
 
 
 def _decode(raw: bytes) -> tuple[str, str]:
@@ -73,27 +102,58 @@ def _read_input(a: argparse.Namespace) -> tuple[str, SourceRef]:
     return text, SourceRef(kind="stdin", locator=a.source_url, encoding=encoding)
 
 
+def _contract_guidance() -> dict[str, object]:
+    return {
+        "required_schema": TASK_SPEC_SCHEMA,
+        "contract_schema": EXECUTION_CONTRACT_SCHEMA,
+        "accepted_syntax": list(ACCEPTED_SYNTAX),
+        "example": CONTRACT_EXAMPLE,
+        "print_contract_example": f"{CLI_PROG} intake --print-contract-example",
+    }
+
+
+def _emit_rejection(a: argparse.Namespace, schema: str, diagnostics: list[str]) -> None:
+    if a.json:
+        payload = {
+            "schema": schema,
+            "valid": False,
+            "errors": list(diagnostics),
+            **_contract_guidance(),
+        }
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+        return
+    for diagnostic in diagnostics:
+        print(f"{CLI_PROG} intake: {diagnostic}", file=sys.stderr)
+    print(
+        f"{CLI_PROG} intake: required schema is {TASK_SPEC_SCHEMA} "
+        f"(compile with {EXECUTION_CONTRACT_SCHEMA}); "
+        f"run `{CLI_PROG} intake --print-contract-example`",
+        file=sys.stderr,
+    )
+
+
 def run(a: argparse.Namespace) -> int:
-    try:
-        text, source = _read_input(a)
-        document = parse_task_document(text, source=source)
-    except (TaskSpecValidationError, ContractCompilationError) as exc:
-        diagnostics = getattr(exc, "diagnostics", None) or getattr(exc, "errors", None) or [str(exc)]
+    if getattr(a, "print_contract_example", False):
         if a.json:
             print(
                 json.dumps(
                     {
-                        "schema": "simplicio.task-spec-validation/v1",
-                        "valid": False,
-                        "errors": list(diagnostics),
+                        "schema": "simplicio.intake-contract-example/v1",
+                        **_contract_guidance(),
                     },
                     ensure_ascii=False,
                     sort_keys=True,
                 )
             )
         else:
-            for diagnostic in diagnostics:
-                print(f"{CLI_PROG} intake: {diagnostic}", file=sys.stderr)
+            print(CONTRACT_EXAMPLE, end="")
+        return 0
+    try:
+        text, source = _read_input(a)
+        document = parse_task_document(text, source=source)
+    except (TaskSpecValidationError, ContractCompilationError) as exc:
+        diagnostics = getattr(exc, "diagnostics", None) or getattr(exc, "errors", None) or [str(exc)]
+        _emit_rejection(a, "simplicio.task-spec-validation/v1", list(diagnostics))
         return 2
 
     payload = document.to_dict()
@@ -114,41 +174,18 @@ def run(a: argparse.Namespace) -> int:
                 document, execution_mode=getattr(a, "execution_mode", False)
             )
             batch_preview = build_batch_preview(document)
+        except ExecutionBlockedError as exc:
+            _emit_rejection(
+                a,
+                "simplicio.execution-contract-validation/v1",
+                list(exc.gate_ids) or [str(exc)],
+            )
+            return 2
         except ContractCompilationError as exc:
-            diagnostics = list(exc.errors)
-            if a.json:
-                print(
-                    json.dumps(
-                        {
-                            "schema": "simplicio.execution-contract-validation/v1",
-                            "valid": False,
-                            "errors": diagnostics,
-                        },
-                        ensure_ascii=False,
-                        sort_keys=True,
-                    )
-                )
-            else:
-                for diagnostic in diagnostics:
-                    print(f"{CLI_PROG} intake: {diagnostic}", file=sys.stderr)
+            _emit_rejection(a, "simplicio.execution-contract-validation/v1", list(exc.errors))
             return 2
         except BatchBuildError as exc:
-            diagnostics = list(exc.diagnostics)
-            if a.json:
-                print(
-                    json.dumps(
-                        {
-                            "schema": "simplicio.task-batch-validation/v1",
-                            "valid": False,
-                            "errors": diagnostics,
-                        },
-                        ensure_ascii=False,
-                        sort_keys=True,
-                    )
-                )
-            else:
-                for diagnostic in diagnostics:
-                    print(f"{CLI_PROG} intake: {diagnostic}", file=sys.stderr)
+            _emit_rejection(a, "simplicio.task-batch-validation/v1", list(exc.diagnostics))
             return 2
         contracts_payload = [contract.to_dict() for contract in contracts]
         if getattr(a, "batch_path", None):

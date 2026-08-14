@@ -344,6 +344,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--batch-path",
         help="persist the frozen multi-task batch at this path (explicitly mutating)",
     )
+    p_intake.add_argument(
+        "--print-contract-example",
+        action="store_true",
+        help="print a minimal simplicio.task-spec/v2 stdin example and exit",
+    )
     p_intake.add_argument("--json", action="store_true", help="emit stable structured JSON")
 
     p_doctor = sub.add_parser(
@@ -640,9 +645,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "prototype", help="Prototype-First plan, scaffold, validate and promotion gate"
     )
     prototype_sub = p_prototype.add_subparsers(dest="prototype_cmd", required=True)
-    p_proto_plan = prototype_sub.add_parser(
-        "plan", help="compile and freeze a prototype plan"
-    )
+    p_proto_plan = prototype_sub.add_parser("plan", help="compile and freeze a prototype plan")
     p_proto_plan.add_argument("--input", help="Loop/Mapper prototype-plan JSON")
     p_proto_plan.add_argument("--goal", default="")
     p_proto_plan.add_argument(

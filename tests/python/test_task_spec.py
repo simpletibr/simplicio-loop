@@ -446,6 +446,8 @@ def test_malformed_input_is_actionable_and_never_calls_generation(monkeypatch, c
     payload = json.loads(capsys.readouterr().out)
     assert payload["valid"] is False
     assert "no recognizable functionality" in " ".join(payload["errors"])
+    assert payload["required_schema"] == TASK_SPEC_SCHEMA
+    assert payload["print_contract_example"] == "simplicio-py intake --print-contract-example"
 
 
 def test_empty_and_ambiguous_sources_fail_with_actionable_diagnostics(capsys) -> None:
@@ -788,3 +790,72 @@ Backend: ✓
     # build_execution_plan's `missing.append("tests")`), not the raw verb
     # name — assert on the label that's actually emitted.
     assert any("missing" in item and "tests" in item for item in payload["blockers"])
+
+
+def test_intake_print_contract_example_names_required_schema(capsys) -> None:
+    code = intake_cmd.run(ns(print_contract_example=True, json=True))
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["required_schema"] == TASK_SPEC_SCHEMA
+    assert payload["contract_schema"] == "simplicio.execution-contract/v1"
+    assert "simplicio.task-spec/v2" in payload["example"]
+    assert payload["print_contract_example"] == "simplicio-py intake --print-contract-example"
+
+
+def test_intake_rejects_conventional_story_with_required_schema(capsys) -> None:
+    story = """Add logout button
+
+AS A signed-in user,
+I WANT a logout action,
+SO THAT I can end my session.
+
+Acceptance criteria
+- The header shows a logout button
+- Clicking it clears the session
+"""
+    code = intake_cmd.run(
+        ns(
+            text=story,
+            file=None,
+            stdin=False,
+            source_url=None,
+            validate_only=False,
+            contract=True,
+            execution_mode=True,
+            plan_only=True,
+            json=True,
+        )
+    )
+
+    assert code == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["valid"] is False
+    assert payload["required_schema"] == TASK_SPEC_SCHEMA
+    assert payload["contract_schema"] == "simplicio.execution-contract/v1"
+    assert "System:" in " ".join(payload["accepted_syntax"])
+    assert "simplicio.task-spec/v2" in payload["example"]
+    assert any(
+        item in payload["errors"]
+        for item in ("missing-field-system", "missing-field-task-type", "missing-acceptance-criteria")
+    )
+
+
+def test_intake_rejects_plain_language_with_required_schema(capsys) -> None:
+    code = intake_cmd.run(
+        ns(
+            text="please add a logout button to the header",
+            file=None,
+            stdin=False,
+            source_url=None,
+            validate_only=True,
+            json=True,
+        )
+    )
+
+    assert code == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["valid"] is False
+    assert payload["required_schema"] == TASK_SPEC_SCHEMA
+    assert "no recognizable functionality" in " ".join(payload["errors"])
+    assert payload["print_contract_example"] == "simplicio-py intake --print-contract-example"
