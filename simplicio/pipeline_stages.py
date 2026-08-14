@@ -5,6 +5,7 @@ from __future__ import annotations
 import difflib
 import fnmatch
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -14,7 +15,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from .adaptive import get_validation_mode
-from .runtime_env import prepare_project_command
+from .runtime_env import prepare_project_command, project_subprocess_env
 from .transaction import VerificationReceipt, begin_transaction
 
 IMPACT_RESULT_PASSED = "passed"
@@ -60,14 +61,50 @@ class ApplyStageResult:
     changed_files: list[str] | None = None
 
 
-def _configured_test_command() -> tuple[str | None, str | None]:
+def _infer_test_command(root: str | Path | None = None) -> str | None:
+    """Resolve a real project test command from the repository layout."""
+    repo = Path(root) if root is not None else Path.cwd()
+    if not repo.is_dir():
+        return None
+    pyproject = repo / "pyproject.toml"
+    if pyproject.is_file():
+        text = pyproject.read_text(encoding="utf-8", errors="ignore")
+        if "[tool.pytest" in text or "pytest" in text:
+            return "pytest -q"
+    if (repo / "pytest.ini").is_file() or (repo / "conftest.py").is_file():
+        return "pytest -q"
+    tests_dir = repo / "tests"
+    if tests_dir.is_dir() and any(tests_dir.rglob("test_*.py")):
+        return "pytest -q"
+    package_json = repo / "package.json"
+    if package_json.is_file():
+        try:
+            payload = json.loads(package_json.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            payload = {}
+        scripts = payload.get("scripts") if isinstance(payload, dict) else None
+        if isinstance(scripts, dict) and str(scripts.get("test") or "").strip():
+            return "npm test"
+    if list(repo.glob("*Tests*.csproj")) or list(repo.glob("**/*Tests*.csproj")):
+        return "dotnet test"
+    if list(repo.glob("*_test.go")) or list(repo.glob("**/*_test.go")):
+        return "go test ./..."
+    if (repo / "Cargo.toml").is_file():
+        return "cargo test"
+    return None
+
+
+def _configured_test_command(root: str | Path | None = None) -> tuple[str | None, str | None]:
     raw = os.environ.get("SIMPLICIO_TEST_CMD", "").strip()
-    if raw in _TEST_COMMAND_PLACEHOLDERS:
-        return None, (
-            "verification command missing: configure SIMPLICIO_TEST_CMD with a real "
-            "project test command before execution"
-        )
-    return raw, None
+    if raw not in _TEST_COMMAND_PLACEHOLDERS:
+        return raw, None
+    inferred = _infer_test_command(root)
+    if inferred:
+        return inferred, None
+    return None, (
+        "verification command missing: configure SIMPLICIO_TEST_CMD with a real "
+        "project test command before execution"
+    )
 
 
 def _verification_timeout_seconds() -> int | None:
@@ -195,6 +232,7 @@ def run_impact_tests(
             capture_output=True,
             text=True,
             timeout=_verification_timeout_seconds(),
+            env=project_subprocess_env(root_str),
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {
@@ -740,6 +778,7 @@ def _verify_apply_transaction(
             capture_output=True,
             text=True,
             timeout=_verification_timeout_seconds(),
+            env=project_subprocess_env(str(tx.candidate)),
         )
         output_tail = (proc.stdout + proc.stderr)[-2000:]
         receipt = tx.receipt(
@@ -813,7 +852,7 @@ def run_apply_stage(
     repo_root=None,
     scope_root=None,
 ) -> ApplyStageResult:
-    cmd, command_error = _configured_test_command()
+    cmd, command_error = _configured_test_command(root)
     if command_error:
         return ApplyStageResult(False, command_error, None, None)
 

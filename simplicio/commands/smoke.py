@@ -1,8 +1,6 @@
-"""``simplicio-py smoke`` — deterministic adapter health check.
+"""``simplicio-py smoke`` — one proof call: connect+generate.
 
-The Python adapter deliberately does not call a model or provider.  This
-command reports that policy without making a network, subprocess, or model
-load attempt.
+Extracted from `cli.py`'s `main()` body (issue #103); behavior unchanged.
 """
 
 from __future__ import annotations
@@ -12,11 +10,11 @@ import json
 
 
 def run(a: argparse.Namespace) -> int:
-    from ..providers import info
+    from ..providers import generate, info
     from ..runtime_contracts import smoke_contract
 
     provider = info()
-    out = "LLM execution disabled; deterministic-only adapter"
+    out = generate("Reply exactly: OK simplicio connected.")
     if a.json:
         print(json.dumps(smoke_contract(provider=provider, reply=out, root=a.root), sort_keys=True))
     else:

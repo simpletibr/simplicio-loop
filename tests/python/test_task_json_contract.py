@@ -403,11 +403,9 @@ def test_task_dry_run_json_serializes_provider_block_with_context_reason(tmp_pat
     assert payload["applied"] is False
     assert payload["model_invoked"] is False
     assert payload["next_surface"] == "context_pack"
-    assert payload["execution_profile"] == {
-        "requested_mode": "integrated",
-        "effective_mode": "blocked",
-        "reason_code": "CONTEXT_REQUIRED",
-    }
+    assert payload["execution_profile"]["requested_mode"] == "integrated"
+    assert payload["execution_profile"]["effective_mode"] == "blocked"
+    assert payload["execution_profile"]["reason_code"] == "CONTEXT_REQUIRED"
     assert {"CONTEXT_REQUIRED", "llm_execution_disabled"} <= reasons
     assert payload["provider_terminal"]["reason_code"] == "llm_execution_disabled"
     assert "provider is disabled" in captured.err

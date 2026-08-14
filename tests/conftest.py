@@ -18,6 +18,7 @@ def isolated_execution_environment(monkeypatch: pytest.MonkeyPatch):
     real callers; execution-mode tests can still delete or override it.
     """
     monkeypatch.setenv("SIMPLICIO_ALLOW_STANDALONE_FALLBACK", "true")
+    monkeypatch.delenv("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", raising=False)
     monkeypatch.setenv("NO_PROXY", "*")
     monkeypatch.setenv("no_proxy", "*")
     yield

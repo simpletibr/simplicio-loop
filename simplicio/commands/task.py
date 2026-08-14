@@ -30,9 +30,9 @@ def _emit_blocked_diagnostics(result: dict) -> None:
 
 def _run_verification_only(a: argparse.Namespace) -> int:
     from ..pipeline_stages import _configured_test_command, _verification_timeout_seconds
-    from ..runtime_env import prepare_project_command
+    from ..runtime_env import prepare_project_command, project_subprocess_env
 
-    command, configuration_error = _configured_test_command()
+    command, configuration_error = _configured_test_command(getattr(a, "root", None))
     if configuration_error:
         payload = {
             "schema": "simplicio.dev-cli.verification-only/v1",
@@ -70,6 +70,7 @@ def _run_verification_only(a: argparse.Namespace) -> int:
             text=True,
             timeout=_verification_timeout_seconds(),
             check=False,
+            env=project_subprocess_env(a.root),
         )
         exit_code = completed.returncode
         stdout_tail = completed.stdout[-2000:]
@@ -188,6 +189,7 @@ def run(a: argparse.Namespace) -> int:
         )
         if a.json:
             print(json.dumps(result, sort_keys=True))
+            _emit_blocked_diagnostics(result)
         else:
             status = (
                 "BLOCKED" if result.get("status") == "blocked" else ("DRY-RUN" if a.dry_run_task else "DONE")

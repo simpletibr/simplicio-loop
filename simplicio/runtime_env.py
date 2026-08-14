@@ -32,6 +32,20 @@ def wrap_project_command(root: str | os.PathLike[str], command: str) -> str:
     return f". {shlex.quote(str(nvm_sh))} >/dev/null 2>&1 && nvm use >/dev/null && {command}"
 
 
+def project_subprocess_env(root: str | os.PathLike[str]) -> dict[str, str]:
+    """Augment PYTHONPATH so src-layout packages import during verification."""
+    env = os.environ.copy()
+    repo = Path(root)
+    extras: list[str] = []
+    src = repo / "src"
+    if src.is_dir():
+        extras.append(str(src.resolve()))
+    extras.append(str(repo.resolve()))
+    previous = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = os.pathsep.join([*extras, previous] if previous else extras)
+    return env
+
+
 def prepare_project_command(
     root: str | os.PathLike[str],
     command: str,

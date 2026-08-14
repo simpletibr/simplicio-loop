@@ -1,14 +1,17 @@
-"""local model status compatibility layer.
+"""local_models.py - hardware-tier -> llama.cpp GGUF recommendation.
 
-Keeps the historical local-model status shape:
+Encodes the local LLM standard:
 
   all tiers -> openbmb/minicpm5:latest
                openbmb/MiniCPM5-1B-GGUF::MiniCPM5-1B-Q4_K_M.gguf
 
-``simplicio-py`` no longer executes or provisions local models.  The data-only
-status types remain for callers that still render hardware/model state.
+The model runs in-process through llama-cpp-python. No Ollama daemon, pull, or
+HTTP endpoint is required for the default local path.
 
-All model execution and provisioning is permanently disabled in this package.
+Hard rule (issue #32 follow-up):
+- NEVER auto-download a model that does not fit the detected tier.
+- Downloads require explicit opt-in (SIMPLICIO_AUTO_DOWNLOAD=1 or
+  `simplicio-py doctor --install`). We tell the user the command and stop.
 """
 
 from __future__ import annotations
@@ -18,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .hardware import HardwareProfile
+from .local_inference import LocalInferencePaused, require_enabled
 from .providers import (
     LOCAL_DEFAULT_FILE as DEFAULT_LOCAL_FILE,
 )
@@ -30,9 +34,9 @@ from .providers import (
 )
 
 DEFAULT_LOCAL_MODEL_ID = LOCAL_DEFAULT_MODEL
-DEFAULT_LOCAL_LABEL = "MiniCPM5 1B Q4_K_M GGUF (disabled status only)"
+DEFAULT_LOCAL_LABEL = "MiniCPM5 1B Q4_K_M GGUF (llama.cpp)"
 DEFAULT_LOCAL_SIZE_GB = 0.8
-DEFAULT_LOCAL_NOTES = "historical local model metadata; execution and provisioning disabled"
+DEFAULT_LOCAL_NOTES = "canonical local doer; openbmb/minicpm5:latest via llama.cpp"
 
 
 @dataclass
@@ -99,9 +103,31 @@ def is_installed(spec: ModelSpec | str) -> bool:
 
 
 def download(spec: ModelSpec) -> tuple[bool, str]:
-    """Refuse model provisioning; the adapter is deterministic-only."""
-    del spec
-    return False, "local LLM execution and model provisioning are disabled"
+    """Download the recommended GGUF into the executor model directory."""
+    require_enabled(surface="local_model_download", model=spec.model_id)
+    try:
+        from huggingface_hub import hf_hub_download
+    except ImportError:
+        return (
+            False,
+            "huggingface-hub not installed. Install extras: pip install 'simplicio-cli[local]'",
+        )
+
+    target_dir = local_model_dir()
+    target_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        path = Path(
+            hf_hub_download(
+                repo_id=spec.repo_id,
+                filename=spec.filename,
+                local_dir=str(target_dir),
+            )
+        )
+    except Exception as exc:  # noqa: BLE001 - rendered as CLI status
+        return False, str(exc)
+    if not _is_gguf_file(path):
+        return False, f"{path} is not a valid GGUF file"
+    return True, str(path)
 
 
 @dataclass
@@ -186,17 +212,50 @@ def ensure_recommended(
     *,
     auto_pull: bool | None = None,
 ) -> RecommendationResult:
-    """Return a deterministic disabled receipt for local-model requests."""
-    del auto_download, auto_pull
+    """High-level orchestrator for the default local llama.cpp model.
+
+    If the recommended GGUF is missing and auto_download is true, download it.
+    Otherwise return a result the CLI can render so the user knows what to do.
+    `auto_pull` remains as a keyword-only alias for older code paths, but still
+    performs a GGUF download rather than any Ollama action.
+    """
+    if auto_pull is not None:
+        auto_download = auto_download or auto_pull
 
     result = evaluate(profile)
-    result.can_run = False
-    result.can_download = False
-    result.reason = "llm_execution_disabled"
-    result.policy_receipt = {
-        "schema": "simplicio.provider-terminal/v1",
-        "status": "blocked",
-        "reason_code": "llm_execution_disabled",
-        "message": "local model execution and provisioning are disabled",
-    }
+    # A paused policy is intentionally observable but never mutates existing
+    # artifacts.  The gate happens before any download/module/network access.
+    try:
+        require_enabled(surface="local_model_provision", model=result.spec.model_id)
+    except LocalInferencePaused as exc:
+        result.can_download = False
+        result.reason = exc.receipt["reason_code"]
+        result.policy_receipt = exc.receipt
+        return result
+    if result.installed:
+        return result
+    if not result.can_download:
+        return result
+
+    do_download = auto_download or os.environ.get("SIMPLICIO_AUTO_DOWNLOAD", "").strip() in (
+        "1",
+        "true",
+        "True",
+        "yes",
+    )
+    if not do_download:
+        result.reason = (
+            "model not installed - opt in to download with "
+            "`simplicio-py doctor --install` or `SIMPLICIO_AUTO_DOWNLOAD=1 ...` "
+            f"(will fetch ~{result.spec.size_gb_q4:.1f} GB)"
+        )
+        return result
+
+    ok, log = download(result.spec)
+    if ok:
+        result.installed = True
+        result.can_download = False
+        result.reason = f"downloaded GGUF to {log}"
+    else:
+        result.reason = f"GGUF download failed: {log[-300:]}"
     return result

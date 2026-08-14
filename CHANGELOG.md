@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.18.10] - 2026-08-14
+
+- Ship the verified provider and QLT-001 operational flow.
+- Require Mapper 0.26.20 and Fast 2.0.28 so new Dev CLI installs resolve the
+  released ecosystem toolchain.
+
 ## [0.18.9] - 2026-08-10
 
 - Synchronize the Dev CLI release with the aggregate Loop stack.
