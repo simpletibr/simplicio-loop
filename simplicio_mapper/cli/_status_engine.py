@@ -73,6 +73,28 @@ def _write_json_atomic(path: str, payload: dict) -> None:
     os.replace(temporary, path)
 
 
+def _print_json_utf8(payload: object) -> None:
+    """Write JSON to stdout as UTF-8 bytes, ignoring the console code page.
+
+    Windows cp1252 cannot encode characters such as ``→``. ``handoff --json``
+    must still succeed when the payload is valid (#580).
+    """
+    text = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    encoded = (text + "\n").encode("utf-8")
+    buffer = getattr(sys.stdout, "buffer", None)
+    if buffer is not None:
+        buffer.write(encoded)
+        buffer.flush()
+        return
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if callable(reconfigure):
+        try:
+            reconfigure(encoding="utf-8", errors="surrogateescape")
+        except (OSError, ValueError, AttributeError):
+            pass
+    sys.stdout.write(text + "\n")
+
+
 def _handoff_serialization(payload: Mapping[str, object], output_format: str) -> tuple[bytes, int]:
     if output_format == "toon":
         text, _fallbacks = encode_toon_with_report(payload)
@@ -999,7 +1021,7 @@ def _run_handoff(opts: dict) -> int:
     if output_format == "toon":
         _print_toon(payload)
     elif opts["json"] or opts.get("_default_for_llm"):
-        print(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
+        _print_json_utf8(payload)
     else:
         print(
             f"handoff phase={status_payload['phase']} targets={len(targets)} "
