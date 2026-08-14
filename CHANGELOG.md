@@ -19,6 +19,11 @@
 
 ## Unreleased
 
+### Fixed
+
+- Preserve the replaced range's terminal newline on line-based `replace_range`
+  edits when the replacement text omits one, for both LF and CRLF sources (#676).
+
 ### Changed
 
 - Raise the `simplicio-mapper` dependency floor to `>=0.26.11,<0.27` (latest

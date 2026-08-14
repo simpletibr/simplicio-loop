@@ -693,12 +693,15 @@ def _apply_text_operation(snapshot: dict[str, bytes | None], operation: dict[str
     source_text = raw.decode("utf-8")
     lines = source_text.splitlines(keepends=True)
     text = _normalize_patch_text(str(operation.get("text", "")), source_text)
-    text_lines = text.splitlines(keepends=True)
     name = operation["op"]
     start = int(operation.get("start_line", operation.get("line", 1)))
     end = int(operation.get("end_line", start))
     if start < 1 or end < start or end > max(len(lines), 1):
         raise MechanicalEditError("invalid_range", f"invalid line range for {rel}", path=rel)
+    if name == "replace_range":
+        selected = "".join(lines[start - 1 : end])
+        text = _preserve_range_terminal_newline(text, selected)
+    text_lines = text.splitlines(keepends=True)
     if name == "replace_range":
         lines[start - 1 : end] = text_lines
     elif name == "delete_range":
@@ -952,6 +955,32 @@ def _normalize_patch_text(patch_text: str, source_text: str) -> str:
     if "\r\n" in source_text:
         return normalized.replace("\n", "\r\n")
     return normalized
+
+
+def _range_terminal_newline(selected: str) -> str:
+    """Return the selected range's terminal line ending, or empty if none."""
+    if selected.endswith("\r\n"):
+        return "\r\n"
+    if selected.endswith("\n"):
+        return "\n"
+    if selected.endswith("\r"):
+        return "\r"
+    return ""
+
+
+def _preserve_range_terminal_newline(text: str, selected: str) -> str:
+    """Keep a line-based replace_range from swallowing the next source line.
+
+    Line-oriented replacements that omit a trailing newline used to splice
+    the following untouched line onto the replacement. Preserve the selected
+    range's own terminator when the caller omitted one.
+    """
+    ending = _range_terminal_newline(selected)
+    if not ending:
+        return text
+    if _range_terminal_newline(text):
+        return text
+    return text + ending
 
 
 def _safe_path(root: Path, rel: str) -> Path:

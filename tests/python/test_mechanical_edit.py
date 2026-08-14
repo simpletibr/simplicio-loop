@@ -66,6 +66,97 @@ def test_dry_run_and_apply_replace_range_contract(tmp_path):
     assert target.read_text(encoding="utf-8") == "new\nkeep\n"
 
 
+def test_replace_range_preserves_lf_terminal_newline_when_text_omits_it(tmp_path):
+    target = tmp_path / "example.js"
+    source = "if (ready) {\n  run()\n}\nconst next = 1\n"
+    _write(target, source)
+    operation = {
+        "op": "replace_range",
+        "path": "example.js",
+        "start_line": 3,
+        "end_line": 3,
+        "text": "} // done",
+    }
+
+    result = execute_plan(_plan("example.js", operation), root=tmp_path, apply=True, allow_native=False)
+
+    assert result["status"] == "ok"
+    assert result["applied"] is True
+    assert target.read_text(encoding="utf-8") == "if (ready) {\n  run()\n} // done\nconst next = 1\n"
+    assert "} // doneconst next" not in target.read_text(encoding="utf-8")
+
+
+def test_replace_range_preserves_crlf_terminal_newline_when_text_omits_it(tmp_path):
+    target = tmp_path / "example.js"
+    source = b"if (ready) {\r\n  run()\r\n}\r\nconst next = 1\r\n"
+    _write(target, source)
+    operation = {
+        "op": "replace_range",
+        "path": "example.js",
+        "start_line": 3,
+        "end_line": 3,
+        "text": "} // done",
+    }
+
+    result = execute_plan(_plan("example.js", operation), root=tmp_path, apply=True, allow_native=False)
+
+    assert result["status"] == "ok"
+    assert result["applied"] is True
+    assert target.read_bytes() == b"if (ready) {\r\n  run()\r\n} // done\r\nconst next = 1\r\n"
+
+
+def test_replace_range_exact_issue_repro_does_not_coalesce_next_line(tmp_path):
+    target = tmp_path / "example.js"
+    _write(target, "if (ready) {\n  run()\n}\nconst next = 1\n")
+    operation = {
+        "op": "replace_range",
+        "path": "example.js",
+        "start_line": 3,
+        "end_line": 3,
+        "text": "}",
+    }
+
+    result = execute_plan(_plan("example.js", operation), root=tmp_path, apply=True, allow_native=False)
+
+    assert result["status"] == "ok"
+    assert target.read_text(encoding="utf-8") == "if (ready) {\n  run()\n}\nconst next = 1\n"
+    assert "}const next" not in target.read_text(encoding="utf-8")
+
+
+def test_replace_range_does_not_double_existing_replacement_newline(tmp_path):
+    target = tmp_path / "app.py"
+    _write(target, "old\nkeep\n")
+    operation = {
+        "op": "replace_range",
+        "path": "app.py",
+        "start_line": 1,
+        "end_line": 1,
+        "text": "new\n",
+    }
+
+    result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True, allow_native=False)
+
+    assert result["status"] == "ok"
+    assert target.read_text(encoding="utf-8") == "new\nkeep\n"
+
+
+def test_replace_range_last_line_without_newline_stays_unterminated(tmp_path):
+    target = tmp_path / "app.py"
+    target.write_bytes(b"keep\nold")
+    operation = {
+        "op": "replace_range",
+        "path": "app.py",
+        "start_line": 2,
+        "end_line": 2,
+        "text": "new",
+    }
+
+    result = execute_plan(_plan("app.py", operation), root=tmp_path, apply=True, allow_native=False)
+
+    assert result["status"] == "ok"
+    assert target.read_bytes() == b"keep\nnew"
+
+
 def test_hash_contract_accepts_lf_hashes_for_crlf_text_files(tmp_path):
     target = tmp_path / "app.py"
     _write(target, b"old\r\nkeep\r\n")
@@ -988,7 +1079,9 @@ def test_translate_create_file_plan_for_native_refuses_empty_or_missing_operatio
     assert _translate_create_file_plan_for_native({"operations": "not-a-list"}) is None
 
 
-def test_cli_edit_alias_translates_multi_file_create_plan_to_atomic_runtime_transaction(tmp_path, monkeypatch):
+def test_cli_edit_alias_translates_multi_file_create_plan_to_atomic_runtime_transaction(
+    tmp_path, monkeypatch
+):
     """Multi-file create plans use one atomic Runtime transaction."""
     from simplicio import cli
     from simplicio.commands import edit as edit_cmd
@@ -1017,10 +1110,7 @@ def test_cli_edit_alias_translates_multi_file_create_plan_to_atomic_runtime_tran
                 {
                     "status": "committed",
                     "file_count": len(files),
-                    "files": [
-                        {"file": item["file"], "ops_applied": 1, "created": True}
-                        for item in files
-                    ],
+                    "files": [{"file": item["file"], "ops_applied": 1, "created": True} for item in files],
                 }
             )
 
