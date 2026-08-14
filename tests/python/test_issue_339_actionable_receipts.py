@@ -23,6 +23,16 @@ def test_incompatible_runtime_blocker_is_actionable_and_retryable():
     assert "runtime verify --json" in blocker["next_action"]
 
 
+def test_coordinator_context_blocker_prints_acquisition_command():
+    profile = SimpleNamespace(reason_code="COORDINATOR_CONTEXT_REQUIRED", runtime={})
+
+    blocker = execution_mode_blocker(profile)
+
+    assert blocker["retryable"] is True
+    assert "acquire-coordinator-context --json" in blocker["next_action"]
+    assert "acquire-coordinator-context" in blocker["lifecycle"]
+
+
 def test_unknown_execution_blocker_remains_fail_closed():
     profile = SimpleNamespace(reason_code="INTEGRATED_KILLED", runtime={})
 

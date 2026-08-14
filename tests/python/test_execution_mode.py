@@ -465,6 +465,10 @@ def test_integrated_selection_without_attempt_fails_closed():
     assert blocked.effective_mode == "blocked"
     assert blocked.reason_code == "COORDINATOR_CONTEXT_REQUIRED"
     assert blocked.coordinator["attempt_ready"] is False
+    assert blocked.coordinator["acquisition_command"] == (
+        "simplicio-py runtime acquire-coordinator-context --json"
+    )
+    assert "acquire-coordinator-context" in blocked.coordinator["lifecycle"]
 
 
 def test_prepare_execution_inputs_bounds_snapshot_reads(tmp_path):
@@ -477,6 +481,37 @@ def test_prepare_execution_inputs_bounds_snapshot_reads(tmp_path):
             root=tmp_path,
             context_snapshot_path=snapshot_path,
         )
+
+
+def test_acquire_coordinator_context_derives_handle_without_fabricating_lease():
+    payload = execution_mode.acquire_coordinator_context(
+        context_snapshot=CONTEXT,
+        execution_context={"schema": "simplicio.execution-context/v1", "context_handle": "snap-from-exec"},
+        runtime_handshake={"verified": False, "reason": "runtime-absent"},
+    )
+
+    assert payload["schema"] == "simplicio.dev-cli.coordinator-context/v1"
+    assert payload["status"] == "blocked"
+    assert payload["mutation_authorized"] is False
+    assert payload["attempt_id"] is None
+    assert payload["lease_id"] is None
+    assert payload["fencing_token"] is None
+    assert payload["context_handle"] == "snap-from-exec"
+    assert payload["acquisition_command"] == "simplicio-py runtime acquire-coordinator-context --json"
+    assert payload["required_fields"] == ["attempt_id", "lease_id", "fencing_token", "context_handle"]
+
+
+def test_acquire_coordinator_context_names_runtime_lease_when_verified():
+    payload = execution_mode.acquire_coordinator_context(
+        context_snapshot=CONTEXT,
+        runtime_handshake=READY,
+    )
+
+    assert payload["status"] == "ready_for_runtime_lease"
+    assert payload["reason_code"] == "RUNTIME_LEASE_REQUIRED"
+    assert payload["context_handle"] == "real"
+    assert "simplicio effect authorize" in payload["next_command"]
+    assert payload["mutation_authorized"] is False
 
 
 def test_negotiation_benchmark_hot_path_under_100_microseconds(monkeypatch):

@@ -21,6 +21,8 @@
 
 ### Fixed
 
+- Document `simplicio-py runtime acquire-coordinator-context` and print that
+  command from `COORDINATOR_CONTEXT_REQUIRED` diagnostics (#673).
 - Name `simplicio.task-spec/v2` and print a minimal contract example when
   intake rejects conventional task prose (`--print-contract-example`) (#674).
 - Refuse malformed mechanical-edit text operations instead of defaulting a

@@ -22,6 +22,15 @@ from .standalone_migration import StandalonePolicy, effect_unknown_pending, stan
 ExecutionMode = Literal["auto", "integrated", "standalone"]
 RUNTIME_EFFECT_CAPABILITY = "simplicio.effect-transaction/v1"
 MAPPER_CONTEXT_SCHEMA = MAPPER_CONTEXT_SNAPSHOT_SCHEMA
+COORDINATOR_CONTEXT_SCHEMA = "simplicio.dev-cli.coordinator-context/v1"
+ACQUIRE_COORDINATOR_CONTEXT_COMMAND = "simplicio-py runtime acquire-coordinator-context --json"
+COORDINATOR_CONTEXT_FIELDS = ("attempt_id", "lease_id", "fencing_token", "context_handle")
+COORDINATOR_CONTEXT_LIFECYCLE = (
+    "acquire-coordinator-context",
+    "proposal --mode integrated",
+    "runtime effect authorize",
+    "mutate only with a Runtime lease",
+)
 
 
 @dataclass(frozen=True)
@@ -207,7 +216,8 @@ def _attempt_context(
     if not all(value and value.strip() for value in values):
         raise ExecutionInputError(
             "COORDINATOR_CONTEXT_REQUIRED",
-            "all coordinator attempt fields are required: attempt, lease, fence, and context handle",
+            "all coordinator attempt fields are required: attempt, lease, fence, and context handle; "
+            f"run `{ACQUIRE_COORDINATOR_CONTEXT_COMMAND}`",
         )
     return AttemptContext(*cast(tuple[str, str, str, str], values))
 
@@ -351,10 +361,104 @@ def require_coordinator_attempt(
     return replace(
         profile,
         effective_mode="blocked",
-        coordinator={**profile.coordinator, "attempt_ready": False},
+        coordinator={
+            **profile.coordinator,
+            "attempt_ready": False,
+            "acquisition_command": ACQUIRE_COORDINATOR_CONTEXT_COMMAND,
+            "lifecycle": list(COORDINATOR_CONTEXT_LIFECYCLE),
+        },
         default_eligible=False,
         reason_code="COORDINATOR_CONTEXT_REQUIRED",
     )
+
+
+def acquire_coordinator_context(
+    *,
+    root: str | os.PathLike[str] = ".",
+    context_snapshot: dict[str, Any] | None = None,
+    execution_context: dict[str, Any] | None = None,
+    context_snapshot_path: str | os.PathLike[str] | None = None,
+    execution_context_path: str | os.PathLike[str] | None = None,
+    runtime_handshake: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Documented local path to acquire the integrated coordinator tuple.
+
+    Mapper artifacts may yield a canonical ``context_handle``. Attempt, lease,
+    and fencing token remain Runtime-issued; this command never fabricates
+    those protected fields.
+    """
+    snapshot = (
+        context_snapshot
+        if context_snapshot is not None
+        else _load_context_snapshot(root, context_snapshot_path)
+    )
+    exec_ctx = (
+        execution_context
+        if execution_context is not None
+        else _load_execution_context(root, execution_context_path)
+    )
+    handle = _derived_context_handle(snapshot, exec_ctx)
+    from .runtime_contracts import runtime_verify_contract
+
+    handshake = runtime_handshake if runtime_handshake is not None else runtime_verify_contract()
+    runtime_ready = bool(isinstance(handshake, dict) and handshake.get("verified"))
+    payload: dict[str, Any] = {
+        "schema": COORDINATOR_CONTEXT_SCHEMA,
+        "status": "blocked",
+        "reason_code": "COORDINATOR_CONTEXT_REQUIRED",
+        "required_fields": list(COORDINATOR_CONTEXT_FIELDS),
+        "lifecycle": list(COORDINATOR_CONTEXT_LIFECYCLE),
+        "acquisition_command": ACQUIRE_COORDINATOR_CONTEXT_COMMAND,
+        "next_command": (
+            "simplicio-py proposal --mode integrated "
+            "--attempt-id <attempt_id> --lease-id <lease_id> "
+            "--fencing-token <fencing_token> --context-handle <context_handle>"
+        ),
+        "context_handle": handle,
+        "attempt_id": None,
+        "lease_id": None,
+        "fencing_token": None,
+        "mutation_authorized": False,
+        "runtime": {
+            "verified": runtime_ready,
+            "reason": handshake.get("reason") if isinstance(handshake, dict) else "RUNTIME_HANDSHAKE_INVALID",
+        },
+        "mapper": {
+            "snapshot_present": snapshot is not None,
+            "execution_context_present": exec_ctx is not None,
+        },
+    }
+    if handle and runtime_ready:
+        payload["status"] = "ready_for_runtime_lease"
+        payload["reason_code"] = "RUNTIME_LEASE_REQUIRED"
+        payload["next_command"] = (
+            f"simplicio effect authorize --json --context-handle {handle} && "
+            f"{ACQUIRE_COORDINATOR_CONTEXT_COMMAND} --context-snapshot "
+            "<snapshot> --execution-context <execution-context>"
+        )
+    elif handle:
+        payload["reason_code"] = "RUNTIME_LEASE_UNAVAILABLE"
+        payload["next_command"] = (
+            f"{ACQUIRE_COORDINATOR_CONTEXT_COMMAND} --context-snapshot <snapshot> "
+            "--execution-context <execution-context>"
+        )
+    return payload
+
+
+def _derived_context_handle(
+    snapshot: dict[str, Any] | None, execution_context: dict[str, Any] | None
+) -> str | None:
+    for payload in (execution_context, snapshot):
+        if not isinstance(payload, dict):
+            continue
+        for key in ("context_handle", "snapshot_id", "id"):
+            value = payload.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    if isinstance(snapshot, dict):
+        canonical = json.dumps(snapshot, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return None
 
 
 def negotiate_execution_mode(

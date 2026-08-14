@@ -313,6 +313,31 @@ def test_runtime_run_doctor(monkeypatch, capsys):
     assert payload["package"]["version"] == "9.9.9"
 
 
+def test_runtime_acquire_coordinator_context_is_documented(monkeypatch, capsys):
+    monkeypatch.setattr(
+        "simplicio.execution_mode.acquire_coordinator_context",
+        lambda **kwargs: {
+            "schema": "simplicio.dev-cli.coordinator-context/v1",
+            "status": "blocked",
+            "acquisition_command": "simplicio-py runtime acquire-coordinator-context --json",
+            "context_handle": "snap-1",
+        },
+    )
+    code = runtime_cmd.run(
+        ns(
+            runtime_cmd="acquire-coordinator-context",
+            root=".",
+            context_snapshot=None,
+            execution_context=None,
+            json=True,
+        )
+    )
+    assert code == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["schema"] == "simplicio.dev-cli.coordinator-context/v1"
+    assert "acquire-coordinator-context" in payload["acquisition_command"]
+
+
 def test_bench_run_calls_run_bench(monkeypatch):
     seen = {}
     monkeypatch.setattr(

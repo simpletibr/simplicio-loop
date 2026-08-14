@@ -362,9 +362,12 @@ def prepare_integrated_work_item(
     proposal_only: bool = False,
 ) -> PreparedIntegratedWorkItem:
     if attempt is None:
+        from .execution_mode import ACQUIRE_COORDINATOR_CONTEXT_COMMAND
+
         raise IntegratedPreparationError(
             "COORDINATOR_CONTEXT_REQUIRED",
-            "integrated proposal requires attempt, lease, fence, and context handle",
+            "integrated proposal requires attempt, lease, fence, and context handle; "
+            f"run `{ACQUIRE_COORDINATOR_CONTEXT_COMMAND}`",
         )
     if context_refresh and proposal_only:
         raise IntegratedPreparationError(

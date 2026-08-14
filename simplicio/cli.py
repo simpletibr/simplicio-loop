@@ -640,6 +640,16 @@ def _build_parser() -> argparse.ArgumentParser:
     p_runtime_capabilities.add_argument("--coordinator-kind")
     p_runtime_capabilities.add_argument("--coordinator-id")
     p_runtime_capabilities.add_argument("--json", action="store_true")
+    p_runtime_acquire = runtime_sub.add_parser(
+        "acquire-coordinator-context",
+        help="acquire or diagnose the integrated coordinator tuple without fabricating a lease",
+    )
+    p_runtime_acquire.add_argument("--root", default=".")
+    p_runtime_acquire.add_argument("--context-snapshot", help="canonical Mapper ContextSnapshot JSON path")
+    p_runtime_acquire.add_argument(
+        "--execution-context", help="Mapper execution-context/v1 provenance JSON path"
+    )
+    p_runtime_acquire.add_argument("--json", action="store_true")
 
     p_prototype = sub.add_parser(
         "prototype", help="Prototype-First plan, scaffold, validate and promotion gate"

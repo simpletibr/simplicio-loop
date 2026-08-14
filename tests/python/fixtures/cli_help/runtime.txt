@@ -1,12 +1,16 @@
-usage: simplicio-py runtime [-h] {doctor,verify,capabilities} ...
+usage: simplicio-py runtime [-h]
+                            {doctor,verify,capabilities,acquire-coordinator-context} ...
 
 positional arguments:
-  {doctor,verify,capabilities}
+  {doctor,verify,capabilities,acquire-coordinator-context}
     doctor              inspect Runtime availability and local contract
                         readiness
     verify              verify the real reserved Simplicio Runtime identity
                         and capabilities
     capabilities        render the Runtime capability handshake
+    acquire-coordinator-context
+                        acquire or diagnose the integrated coordinator tuple
+                        without fabricating a lease
 
 options:
   -h, --help            show this help message and exit

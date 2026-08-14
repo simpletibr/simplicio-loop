@@ -58,6 +58,20 @@ def run(a: argparse.Namespace) -> int:
             json.dumps(payload, sort_keys=True) if a.json else json.dumps(payload, indent=2, sort_keys=True)
         )
         return 0
+    if a.runtime_cmd == "acquire-coordinator-context":
+        from ..execution_mode import acquire_coordinator_context
+
+        payload = acquire_coordinator_context(
+            root=getattr(a, "root", "."),
+            context_snapshot_path=getattr(a, "context_snapshot", None),
+            execution_context_path=getattr(a, "execution_context", None),
+        )
+        if a.json:
+            print(json.dumps(payload, sort_keys=True))
+        else:
+            print(json.dumps(payload, indent=2, sort_keys=True))
+        return 0 if payload.get("status") == "ready_for_runtime_lease" else 2
+
     if a.runtime_cmd == "doctor":
         payload = doctor_contract(a.root)
         if a.json:

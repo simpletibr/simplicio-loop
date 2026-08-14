@@ -97,4 +97,14 @@ test-only recording sink.
 Malformed, missing, oversized, or non-object snapshot files return
 `INCOMPATIBLE_CONTEXT` before planning, provider calls, or Runtime/product
 writes. A partial attempt identity returns
-`COORDINATOR_CONTEXT_REQUIRED`.
+`COORDINATOR_CONTEXT_REQUIRED`. Acquire the tuple with the documented local
+command (never invent `lease_id` or `fencing_token`):
+
+```text
+simplicio-py runtime acquire-coordinator-context --json \
+  --context-snapshot <context_snapshot-*.json> \
+  --execution-context <execution_context-*.json>
+```
+
+Lifecycle: acquire-coordinator-context → `proposal --mode integrated` with the
+returned fields → Runtime effect authorize → mutate only with a Runtime lease.

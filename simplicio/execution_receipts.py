@@ -36,6 +36,17 @@ def execution_mode_blocker(profile: Any) -> dict[str, Any]:
                 "next_action": "provide --context-snapshot and retry",
             }
         )
+    elif code == "COORDINATOR_CONTEXT_REQUIRED":
+        from .execution_mode import ACQUIRE_COORDINATOR_CONTEXT_COMMAND, COORDINATOR_CONTEXT_LIFECYCLE
+
+        blocker.update(
+            {
+                "message": "coordinator attempt, lease, fence, and context handle are required",
+                "retryable": True,
+                "next_action": f"run `{ACQUIRE_COORDINATOR_CONTEXT_COMMAND}`",
+                "lifecycle": list(COORDINATOR_CONTEXT_LIFECYCLE),
+            }
+        )
     elif code == "RUNTIME_SINK_REQUIRED":
         blocker.update(
             {
