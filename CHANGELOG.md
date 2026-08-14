@@ -21,6 +21,8 @@
 
 ### Added
 
+- Reconcile partial Plugin v1 edits/tests with residual write-set and
+  inspect/resume/rollback dry-run UX; never git-reset user work (#671).
 - Consume Plugin v1 EffectLease and emit correlated DevExecutionReceipts
   without declaring convergence (#672).
 
