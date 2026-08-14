@@ -1,0 +1,6 @@
+{
+  "schema": "simplicio.plugin.route-decision/v1",
+  "task_id": "task-1",
+  "effect_class": "local_effect",
+  "route": "edit"
+}

@@ -1,0 +1,15 @@
+{
+  "schema": "simplicio.plugin.effect-lease/v1",
+  "lease_id": "lease:effect-1",
+  "effect_id": "effect-1",
+  "ttl_ms": 60000,
+  "fence": "fence-1",
+  "repo": ".",
+  "worktree": ".",
+  "branch": "main",
+  "write_set": ["plugin.js"],
+  "issued_at": 1,
+  "session_id": "session-1",
+  "task_id": "task-1",
+  "attempt_id": "attempt-1"
+}

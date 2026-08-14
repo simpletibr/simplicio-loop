@@ -19,6 +19,11 @@
 
 ## Unreleased
 
+### Added
+
+- Consume Plugin v1 EffectLease and emit correlated DevExecutionReceipts
+  without declaring convergence (#672).
+
 ### Fixed
 
 - Document `simplicio-py runtime acquire-coordinator-context` and print that
