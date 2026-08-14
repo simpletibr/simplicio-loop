@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.26.20] - 2026-08-14
+
+- Default CLI routing now emits immediate Fast-backed macro context, prioritizes
+  an explicit target corridor, and continues the deep index in the background.
+- Add regression coverage for the default Fast route and its fallback receipts.
+
 ## [0.26.18] - 2026-08-10
 
 - Synchronize the Mapper release with the aggregate Loop stack.
@@ -1115,4 +1121,3 @@ These changes make `simplicio-mapper` significantly more useful for reverse-engi
 - Mapper Fastest Path follow-up: bounded async queue diagnostics, native batch
   parser fallback, canonical native-capability identity, memory budgeting, and
   the local fastest-path release quality command.
-

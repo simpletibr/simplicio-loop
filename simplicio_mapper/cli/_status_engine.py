@@ -112,11 +112,7 @@ def _default_handoff_output_format(payload: Mapping[str, object], token_budget: 
     json_tokens = estimate_tokens(json_serialized.decode("utf-8"))
     if toon_tokens < json_tokens:
         return "toon"
-    if (
-        toon_tokens > token_budget
-        and json_tokens > token_budget
-        and toon_tokens * 100 <= json_tokens * 125
-    ):
+    if toon_tokens > token_budget and json_tokens > token_budget and toon_tokens * 100 <= json_tokens * 125:
         return "toon"
     return "json"
 
@@ -472,6 +468,7 @@ def _worker_failure_reason(root: str, out: str) -> str | None:
             return str(deep.get("failure_reason") or "worker_died_before_terminal")
     return None
 
+
 def _await_terminal(root: str, out: str, timeout: int, poll: float = 0.2) -> str:
     """Block until the deep phase leaves ``deep_running`` or the timeout fires.
 
@@ -744,7 +741,63 @@ def _run_inspect(opts: dict) -> int:
     return 1 if phase == "timeout" else 0
 
 
-def _run_handoff(opts: dict) -> int:
+def _task_aware(opts: dict) -> bool:
+    return bool(
+        str(opts.get("goal") or "").strip()
+        or str(opts.get("target") or "").strip()
+        or str(opts.get("task_file") or "").strip()
+        or str(opts.get("task_json") or "").strip()
+        or str(opts.get("task_batch_file") or "").strip()
+        or str(opts.get("task_fingerprint") or "").strip()
+    )
+
+
+def _attach_fast_route(opts: dict, envelope: dict, *, artifacts_fresh: bool) -> dict:
+    """Foreground corridor + background deep: the default fast route."""
+    if artifacts_fresh and _task_aware(opts):
+        envelope["route"] = "reuse_then_target"
+    elif artifacts_fresh:
+        envelope["route"] = "reuse"
+    elif _task_aware(opts):
+        envelope["route"] = "macro_then_target_then_background"
+    else:
+        envelope["route"] = "macro_then_background"
+    if not _task_aware(opts):
+        return envelope
+    if artifacts_fresh:
+        envelope["handoff"] = _build_handoff_payload(opts)
+        return envelope
+    target = str(opts.get("target") or "").strip()
+    if not target:
+        envelope["corridor"] = {
+            "schema": "simplicio.mapper-scoped-context/v1",
+            "ready": False,
+            "reason_code": "TARGET_REQUIRED_FOR_COLD_CORRIDOR",
+            "detail": "cold scan needs --target for a foreground corridor; deep continues in background",
+        }
+        return envelope
+    from ..scoped_context import ScopedContextError, build_scoped_context
+
+    try:
+        envelope["corridor"] = build_scoped_context(
+            opts["root"],
+            target_hints=[target],
+            task_fingerprint=str(opts.get("task_fingerprint") or ""),
+            context_budget=int(opts.get("token_budget") or 8000),
+            out=opts["out"],
+            start_background=False,
+        )
+    except ScopedContextError as error:
+        envelope["corridor"] = {
+            "schema": "simplicio.mapper-scoped-context/v1",
+            "ready": False,
+            "reason_code": error.reason_code,
+            "detail": str(error),
+        }
+    return envelope
+
+
+def _build_handoff_payload(opts: dict) -> dict:
     root = os.path.abspath(opts["root"])
     out = opts["out"]
     phase = _await_terminal(root, out, opts["timeout"]) if opts["await"] else _deep_phase(root, out)
@@ -1011,21 +1064,31 @@ def _run_handoff(opts: dict) -> int:
     output_format = "toon" if opts.get("for_llm") == "toon" else "json"
     if opts.get("_default_for_llm"):
         output_format = _default_handoff_output_format(payload, token_budget)
-    payload = _fit_handoff_serialization(
+    return _fit_handoff_serialization(
         payload,
         root=root,
         out=out,
         token_budget=token_budget,
         output_format=output_format,
     )
+
+
+def _run_handoff(opts: dict) -> int:
+    payload = _build_handoff_payload(opts)
+    output_format = "toon" if opts.get("for_llm") == "toon" else "json"
+    if opts.get("_default_for_llm"):
+        output_format = _default_handoff_output_format(
+            payload, int(opts.get("token_budget", DEFAULT_TOKEN_BUDGET) or DEFAULT_TOKEN_BUDGET)
+        )
     if output_format == "toon":
         _print_toon(payload)
     elif opts["json"] or opts.get("_default_for_llm"):
         _print_json_utf8(payload)
     else:
+        status_payload = payload.get("status") if isinstance(payload.get("status"), dict) else {}
         print(
-            f"handoff phase={status_payload['phase']} targets={len(targets)} "
-            f"pack_cached={payload['cache']['pack_cached']}"
+            f"handoff phase={status_payload.get('phase')} targets={len(payload.get('targets') or [])} "
+            f"pack_cached={payload.get('cache', {}).get('pack_cached')}"
         )
     return 0
 
@@ -1059,6 +1122,30 @@ def _run_scan(opts: dict) -> int:
     if opts["product_name"]:
         meta["product_name"] = opts["product_name"]
     macro = build_macro_map(root, meta)
+    created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    if _index_is_fresh(root, out):
+        envelope = {
+            "schema": MAP_JOB_SCHEMA,
+            "phase": "complete",
+            "sync": bool(opts["sync"]),
+            "created_at": created_at,
+            "macro": macro,
+            "deep": {
+                "skipped_reason": "already_fresh",
+                "poll": "simplicio-mapper status " + root,
+            },
+        }
+        _write_map_job(root, out, envelope)
+        envelope = _attach_fast_route(opts, envelope, artifacts_fresh=True)
+        if opts["json"]:
+            print(json.dumps(envelope, sort_keys=True))
+        else:
+            counts = macro["counts"]
+            print(
+                f"scan phase=complete route={envelope['route']} files={counts['files']} "
+                f"modules={counts['modules']} stack={macro['product']['stack']} reused"
+            )
+        return 0
 
     ci = os.environ.get("CI", "").strip().lower() in ("1", "true", "yes", "on")
     synchronous = ci or opts["sync"]
@@ -1068,7 +1155,6 @@ def _run_scan(opts: dict) -> int:
     if resuming:
         spawn_opts["incremental"] = True
     started = time.monotonic()
-    created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     macro_counts = dict(macro.get("counts") or {})
     progress = {
         "phase": "deep_running",
@@ -1238,10 +1324,7 @@ def _run_scan(opts: dict) -> int:
             else:
                 print(f"scan phase={phase} spawn failed: {error}", file=sys.stderr)
             return 1
-        deep.update({
-            key: spawned[key]
-            for key in ("pid", "process_start", "owner_token", "log")
-        })
+        deep.update({key: spawned[key] for key in ("pid", "process_start", "owner_token", "log")})
         phase = "macro_done"
         envelope = {
             "schema": MAP_JOB_SCHEMA,
@@ -1257,8 +1340,7 @@ def _run_scan(opts: dict) -> int:
             persisted = _read_json_safe(_map_job_path(root, out))
             persisted_deep = persisted.get("deep") if isinstance(persisted.get("deep"), dict) else {}
             same_job = all(
-                persisted_deep.get(key) == deep[key]
-                for key in ("pid", "process_start", "owner_token")
+                persisted_deep.get(key) == deep[key] for key in ("pid", "process_start", "owner_token")
             )
             if (
                 persisted.get("schema") == MAP_JOB_SCHEMA
@@ -1270,16 +1352,19 @@ def _run_scan(opts: dict) -> int:
             else:
                 envelope = {**envelope, "phase": phase}
 
+    envelope = _attach_fast_route(opts, envelope, artifacts_fresh=envelope.get("phase") == "complete")
     if opts["json"]:
         print(json.dumps(envelope, sort_keys=True))
     else:
         counts = macro["counts"]
         suffix = f" pid={deep.get('pid')}" if "pid" in deep else ""
         print(
-            f"scan phase={envelope['phase']} files={counts['files']} "
-            f"modules={counts['modules']} stack={macro['product']['stack']}{suffix}"
+            f"scan phase={envelope['phase']} route={envelope.get('route')} "
+            f"files={counts['files']} modules={counts['modules']} "
+            f"stack={macro['product']['stack']}{suffix}"
         )
     return 1 if phase == "timeout" else 0
+
 
 def _run_status(opts: dict) -> int:
     root = os.path.abspath(opts["root"])

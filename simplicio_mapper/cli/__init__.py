@@ -223,7 +223,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_docs(opts)
     if opts["command"] == "macro":
         return _run_macro(opts)
-    if opts["command"] == "scan":
+    if opts["command"] == "scan" or (opts["command"] == "map" and not opts.get("watch")):
         return _run_scan(opts)
     if opts["command"] == "status":
         return _run_status(opts)

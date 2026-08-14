@@ -14,10 +14,13 @@ from ._shared import (
     HELP_TEXT,
 )
 
-_DEFAULT_TOON_ENABLED = (
-    os.environ.get("SIMPLICIO_TOON", "1").strip().lower()
-    not in {"0", "false", "off", "no"}
-)
+_DEFAULT_TOON_ENABLED = os.environ.get("SIMPLICIO_TOON", "1").strip().lower() not in {
+    "0",
+    "false",
+    "off",
+    "no",
+}
+
 
 def _read_json_safe(file: str) -> dict:
     try:
@@ -44,7 +47,7 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "sync": False,
         "await": False,
         "timeout": 120,
-        "command": "map",
+        "command": "scan",
         "against": "",
         "target": "",
         "goal": "",
@@ -115,7 +118,7 @@ def _parse_args(argv: Sequence[str]) -> dict:
         "delta",
         "snapshot",
     )
-    command = argv[0] if argv and argv[0] in commands else "map"
+    command = argv[0] if argv and argv[0] in commands else "scan"
     opts["command"] = command
     if command == "index":
         opts["silent"] = True
@@ -139,6 +142,7 @@ def _parse_args(argv: Sequence[str]) -> dict:
             break
         elif command in (
             "index",
+            "map",
             "macro",
             "scan",
             "status",

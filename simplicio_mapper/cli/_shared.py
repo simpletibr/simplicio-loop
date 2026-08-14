@@ -66,14 +66,15 @@ FRESHNESS_SKIP_DIRS = {
     ".pytest_cache",
 }
 
-HELP_TEXT = """simplicio-mapper map
+HELP_TEXT = """simplicio-mapper scan
 
-Generate or update machine-readable mapper artifacts.
+Default route: macro now, user --target/--goal corridor in the foreground, deep index in the background.
 
 USAGE
+  simplicio-mapper [<path>] [--goal <text>] [--target <file>] [--json]
   simplicio-mapper index <path> [--json] [--for-llm toon] [--tagged] [--confidence <tag>] [--geometry] [--verbose] [--update]
   simplicio-mapper macro <path> [--json]
-  simplicio-mapper scan <path> [--json] [--sync] [--await] [--timeout <s>]
+  simplicio-mapper scan <path> [--json] [--sync] [--await] [--timeout <s>] [--goal <text>] [--target <file>]
   simplicio-mapper status <path> [--json] [--await] [--timeout <s>]
   simplicio-mapper inspect <path> [--json] [--for-llm toon] [--await] [--timeout <s>]
   simplicio-mapper handoff <path> [--goal <text>|--task-file <file>|--task-batch-file <file>] [--task-fingerprint <sha>] [--target <file>] [--minimum-query-coverage <0..1>] [--token-budget <n>] [--execution-context] [--limit <n>] [--json] [--for-llm toon] [--await] [--timeout <s>]
@@ -94,7 +95,7 @@ USAGE
   simplicio-mapper delta <path> [--json] [--out <dir>] [--changed-paths p1,p2] [--full-rescan]
   simplicio-mapper docs <path> [--json]
   simplicio-mapper export-docs <path> --target <dir> [--json]
-  simplicio-mapper map [--root <dir>] [--incremental] [--watch]
+  simplicio-mapper map [<path>] [--goal <text>] [--target <file>] [--json]
   simplicio-mapper update [--root <dir>] [--watch]
   simplicio-mapper contract validate <path> [<path> ...]
   simplicio-mapper doctor --contracts [--cross-repo] [<path> ...]
@@ -217,8 +218,8 @@ OPTIONS
   --retention <n>       Max history snapshots kept (default 50, oldest GC'd first).
   --threshold <n>       drift: max findings allowed before --check fails (default 10).
   --against <dir>       Compare endpoint client calls against server routes.
-  --target <file|dir>   handoff: required target hint; export-docs: destination.
-  --goal <text>         handoff: normalized task goal used for relevance ranking.
+  --target <file|dir>   scan/handoff: foreground corridor; export-docs: destination.
+  --goal <text>         scan/handoff: task goal for ranking the foreground corridor.
   --task-file <file>    handoff: Markdown/Gherkin/JSON task parsed into task intent.
   --task-batch-file <file>
                         handoff: JSON list/object of tasks; emits plan-only batch envelope.
@@ -237,7 +238,7 @@ OPTIONS
   --json-only           Compatibility alias for --no-docs.
   --changed-only        Compatibility alias for incremental refresh workflows.
   --background          Start an index refresh in a detached background process.
-  --sync                scan: run the deep pass synchronously (also when CI=true).
+  --sync                scan: block on the deep pass (also when CI=true). Default is background.
   --await               scan/status/inspect/handoff: block until the deep pass is terminal.
   --timeout <s>         Bounded wait for --await (default 120).
   --json                Emit structured index output.
