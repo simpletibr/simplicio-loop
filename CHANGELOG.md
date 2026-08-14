@@ -21,6 +21,8 @@
 
 ### Fixed
 
+- Refuse malformed mechanical-edit text operations instead of defaulting a
+  missing line range and empty `text` to a destructive line-1 rewrite (#675).
 - Preserve the replaced range's terminal newline on line-based `replace_range`
   edits when the replacement text omits one, for both LF and CRLF sources (#676).
 

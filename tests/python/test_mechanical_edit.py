@@ -157,6 +157,51 @@ def test_replace_range_last_line_without_newline_stays_unterminated(tmp_path):
     assert target.read_bytes() == b"keep\nnew"
 
 
+def test_malformed_replace_range_old_new_selectors_fail_closed(tmp_path):
+    target = tmp_path / "plugin.js"
+    original = "/** keep header */\nsecond line\n"
+    _write(target, original)
+    plan = _plan(
+        "plugin.js",
+        {
+            "op": "replace_range",
+            "path": "plugin.js",
+            "old": "intended anchor",
+            "new": "intended text",
+        },
+    )
+
+    result = execute_plan(plan, root=tmp_path, apply=False, allow_native=False)
+
+    assert result["status"] == "refused"
+    assert result["applied"] is False
+    assert result["planned_diff"] == ""
+    codes = {error["code"] for error in result["errors"]}
+    assert "unknown_selector" in codes
+    assert any(error.get("schema") == "simplicio.mechanical-edit/v1" for error in result["errors"])
+    assert any("start_line" in error["message"] for error in result["errors"])
+    assert target.read_text(encoding="utf-8") == original
+    assert not any("-/** keep header */" in result.get("planned_diff", "") for _ in [0])
+
+
+def test_replace_range_missing_line_fields_does_not_default_to_line_one(tmp_path):
+    target = tmp_path / "plugin.js"
+    original = "first\nsecond\n"
+    _write(target, original)
+    result = execute_plan(
+        _plan("plugin.js", {"op": "replace_range", "path": "plugin.js", "text": ""}),
+        root=tmp_path,
+        apply=False,
+        allow_native=False,
+    )
+
+    assert result["status"] == "refused"
+    assert result["planned_diff"] == ""
+    assert any(error["code"] == "invalid_schema" for error in result["errors"])
+    assert any("simplicio.mechanical-edit/v1" in error["message"] for error in result["errors"])
+    assert target.read_text(encoding="utf-8") == original
+
+
 def test_hash_contract_accepts_lf_hashes_for_crlf_text_files(tmp_path):
     target = tmp_path / "app.py"
     _write(target, b"old\r\nkeep\r\n")

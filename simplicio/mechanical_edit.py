@@ -29,6 +29,34 @@ ALLOWED_OPS = {
     "move_file",
     "delete_file",
 }
+TEXT_OP_REQUIRED_FIELDS = {
+    "replace_range": ("start_line", "end_line", "text"),
+    "delete_range": ("start_line", "end_line"),
+    "insert_before": ("text",),
+    "insert_after": ("text",),
+}
+TEXT_OP_ACCEPTED_FIELDS = {
+    "replace_range": ("start_line", "end_line", "text"),
+    "delete_range": ("start_line", "end_line"),
+    "insert_before": ("line", "start_line", "text"),
+    "insert_after": ("line", "end_line", "text"),
+}
+UNKNOWN_SELECTOR_FIELDS = frozenset(
+    {
+        "old",
+        "new",
+        "from",
+        "to",
+        "search",
+        "replace",
+        "pattern",
+        "anchor",
+        "selector",
+        "match",
+        "before",
+        "after",
+    }
+)
 
 
 def execute_plan_json(
@@ -409,6 +437,8 @@ def _validate_shape(plan: dict[str, Any]) -> list[dict[str, Any]]:
                     "operation_index": index,
                 }
             )
+            continue
+        errors.extend(_validate_text_operation_fields(op, index))
     validation = plan.get("validation", [])
     if not isinstance(validation, list):
         errors.append(
@@ -466,6 +496,100 @@ def _validate_shape(plan: dict[str, Any]) -> list[dict[str, Any]]:
                     "validation_index": index,
                 }
             )
+    return errors
+
+
+def _positive_line_number(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 1
+
+
+def _schema_error(message: str, index: int, *, accepted_fields: tuple[str, ...]) -> dict[str, Any]:
+    return {
+        "code": "invalid_schema",
+        "message": f"{message} (schema {PLAN_SCHEMA})",
+        "operation_index": index,
+        "schema": PLAN_SCHEMA,
+        "accepted_fields": list(accepted_fields),
+    }
+
+
+def _validate_text_operation_fields(operation: dict[str, Any], index: int) -> list[dict[str, Any]]:
+    name = operation.get("op")
+    if name not in TEXT_OPS:
+        return []
+    errors: list[dict[str, Any]] = []
+    accepted = TEXT_OP_ACCEPTED_FIELDS[name]
+    unknown = sorted(UNKNOWN_SELECTOR_FIELDS.intersection(operation))
+    if unknown:
+        errors.append(
+            {
+                "code": "unknown_selector",
+                "message": (
+                    f"{name} rejects mutation selector fields {', '.join(unknown)}; "
+                    f"accepted fields are {', '.join(accepted)} (schema {PLAN_SCHEMA})"
+                ),
+                "operation_index": index,
+                "schema": PLAN_SCHEMA,
+                "accepted_fields": list(accepted),
+                "unknown_fields": unknown,
+            }
+        )
+    for field_name in TEXT_OP_REQUIRED_FIELDS[name]:
+        if field_name not in operation:
+            errors.append(
+                _schema_error(
+                    f"{name} requires {field_name}",
+                    index,
+                    accepted_fields=accepted,
+                )
+            )
+    if name in {"insert_before", "insert_after"}:
+        line_key = "start_line" if name == "insert_before" else "end_line"
+        if "line" not in operation and line_key not in operation:
+            errors.append(
+                _schema_error(
+                    f"{name} requires line or {line_key}",
+                    index,
+                    accepted_fields=accepted,
+                )
+            )
+        for key in ("line", line_key):
+            if key in operation and not _positive_line_number(operation[key]):
+                errors.append(
+                    _schema_error(
+                        f"{name} {key} must be a positive integer",
+                        index,
+                        accepted_fields=accepted,
+                    )
+                )
+    if name in {"replace_range", "delete_range"}:
+        for key in ("start_line", "end_line"):
+            if key in operation and not _positive_line_number(operation[key]):
+                errors.append(
+                    _schema_error(
+                        f"{name} {key} must be a positive integer",
+                        index,
+                        accepted_fields=accepted,
+                    )
+                )
+        start = operation.get("start_line")
+        end = operation.get("end_line")
+        if _positive_line_number(start) and _positive_line_number(end) and end < start:
+            errors.append(
+                _schema_error(
+                    f"{name} end_line must be >= start_line",
+                    index,
+                    accepted_fields=accepted,
+                )
+            )
+    if name != "delete_range" and "text" in operation and not isinstance(operation["text"], str):
+        errors.append(
+            _schema_error(
+                f"{name} text must be a string",
+                index,
+                accepted_fields=accepted,
+            )
+        )
     return errors
 
 
@@ -529,12 +653,16 @@ def _validate_overlaps(operations: list[dict[str, Any]]) -> list[dict[str, Any]]
         if operation.get("op") not in TEXT_OPS:
             continue
         path = str(operation.get("path", ""))
-        start = int(operation.get("start_line", operation.get("line", 1)))
-        end = int(operation.get("end_line", start))
+        start_value = operation.get("start_line", operation.get("line"))
+        end_value = operation.get("end_line", start_value)
         if operation.get("op") == "insert_after":
-            start = end = int(operation.get("line", operation.get("end_line", start)))
+            start_value = end_value = operation.get("line", operation.get("end_line", start_value))
         if operation.get("op") == "insert_before":
-            start = end = int(operation.get("line", operation.get("start_line", start)))
+            start_value = end_value = operation.get("line", operation.get("start_line", start_value))
+        if not _positive_line_number(start_value) or not _positive_line_number(end_value):
+            continue
+        start = int(start_value)
+        end = int(end_value)
         ranges.setdefault(path, []).append((start, end, index, isinstance(operation.get("order"), int)))
     for path, rows in ranges.items():
         rows = sorted(rows)
@@ -692,10 +820,38 @@ def _apply_text_operation(snapshot: dict[str, bytes | None], operation: dict[str
     assert raw is not None
     source_text = raw.decode("utf-8")
     lines = source_text.splitlines(keepends=True)
-    text = _normalize_patch_text(str(operation.get("text", "")), source_text)
     name = operation["op"]
-    start = int(operation.get("start_line", operation.get("line", 1)))
-    end = int(operation.get("end_line", start))
+    if name != "delete_range" and "text" not in operation:
+        raise MechanicalEditError(
+            "invalid_schema",
+            f"{name} requires text (schema {PLAN_SCHEMA})",
+            path=rel,
+            schema=PLAN_SCHEMA,
+        )
+    text = _normalize_patch_text(str(operation.get("text", "")), source_text)
+    if name == "insert_after":
+        start_value = operation.get("line", operation.get("end_line", operation.get("start_line")))
+    elif name == "insert_before":
+        start_value = operation.get("line", operation.get("start_line", operation.get("end_line")))
+    else:
+        start_value = operation.get("start_line", operation.get("line"))
+    if not _positive_line_number(start_value):
+        raise MechanicalEditError(
+            "invalid_schema",
+            f"{name} requires a positive start_line or line (schema {PLAN_SCHEMA})",
+            path=rel,
+            schema=PLAN_SCHEMA,
+        )
+    start = int(start_value)
+    end_value = operation.get("end_line", start)
+    if not _positive_line_number(end_value):
+        raise MechanicalEditError(
+            "invalid_schema",
+            f"{name} requires a positive end_line (schema {PLAN_SCHEMA})",
+            path=rel,
+            schema=PLAN_SCHEMA,
+        )
+    end = int(end_value)
     if start < 1 or end < start or end > max(len(lines), 1):
         raise MechanicalEditError("invalid_range", f"invalid line range for {rel}", path=rel)
     if name == "replace_range":

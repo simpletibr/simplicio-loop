@@ -247,7 +247,10 @@ def test_mechanical_text_json_ast_and_filesystem_helpers(tmp_path, monkeypatch) 
         me._apply_text_operation(snapshot, operation)
         assert snapshot["a"].decode() == expected
     with pytest.raises(me.MechanicalEditError, match="invalid line range"):
-        me._apply_text_operation({"a": b"a\n"}, {"op": "replace_range", "path": "a", "start_line": 9})
+        me._apply_text_operation(
+            {"a": b"a\n"},
+            {"op": "replace_range", "path": "a", "start_line": 9, "end_line": 9, "text": "x\n"},
+        )
 
     snapshot = {"data.json": b'{"items":[1],"old":1}'}
     me._apply_json_patch(
