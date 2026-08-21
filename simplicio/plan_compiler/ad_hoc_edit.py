@@ -86,7 +86,9 @@ def _expected_hash(operation: Mapping[str, Any], *, old: str | None) -> tuple[st
     return None, "an old value or expected_content_hash is required"
 
 
-def _normalise_operations(payload: Mapping[str, Any]) -> tuple[list[dict[str, Any]] | None, list[str], list[str]]:
+def _normalise_operations(
+    payload: Mapping[str, Any],
+) -> tuple[list[dict[str, Any]] | None, list[str], list[str]]:
     raw_operations = payload.get("operations")
     if raw_operations is None and "target" in payload:
         raw_operations = [
@@ -188,7 +190,9 @@ def _normalise_operations(payload: Mapping[str, Any]) -> tuple[list[dict[str, An
     if normalised_declared and set(normalised_declared) != seen_targets:
         return None, ["AMBIGUOUS_TARGET"], ["declared targets must equal the operation write set"]
 
-    normalised.sort(key=lambda item: (item["target"], item["kind"], item.get("old", ""), item.get("anchor", "")))
+    normalised.sort(
+        key=lambda item: (item["target"], item["kind"], item.get("old", ""), item.get("anchor", ""))
+    )
     return normalised, [], []
 
 
@@ -277,12 +281,20 @@ def derive_ad_hoc_edit(payload: Mapping[str, Any]) -> dict[str, Any]:
         patch_ref=f"simplicio-ad-hoc:{input_digest}",
         context_handle=context_handle,
     )
+    raw_timeout = payload.get("verification_timeout_s", 60.0)
+    try:
+        timeout_s = float(raw_timeout)
+    except (TypeError, ValueError):
+        return _blocked(["UNSUPPORTED_EDIT"], ["verification_timeout_s must be numeric"])
+    if not 1.0 <= timeout_s <= 3600.0:
+        return _blocked(["UNSUPPORTED_EDIT"], ["verification_timeout_s must be between 1 and 3600 seconds"])
+
     verification = VerificationPlan(
         verification_id=verification_id,
         plan_node_id="verify",
         verifier="simplicio-runtime",
         command_or_capability="simplicio.edit.verify",
-        timeout_s=float(payload.get("verification_timeout_s", 60.0)),
+        timeout_s=timeout_s,
         environment={"input_digest": input_digest},
         acceptance_criteria_refs=[EDIT_BOUNDED_AC],
         expected_evidence=["write_set", "precondition_results", "postcondition", "receipt"],
@@ -307,7 +319,13 @@ def derive_ad_hoc_edit(payload: Mapping[str, Any]) -> dict[str, Any]:
         "operations": operations,
         "preconditions": preconditions,
         "effect": effect_dict,
-        "runtime_binding_required": ["context_snapshot_id", "lease", "fence", "policy_revision", "authorization"],
+        "runtime_binding_required": [
+            "context_snapshot_id",
+            "lease",
+            "fence",
+            "policy_revision",
+            "authorization",
+        ],
         "plan_digest": plan.canonical_hash(),
     }
     proposal_digest = canonical_hash(
