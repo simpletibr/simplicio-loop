@@ -6,6 +6,12 @@ schema definitions and ``docs/plan-compiler.md`` for the contract writeup.
 
 from __future__ import annotations
 
+from simplicio.plan_compiler.ad_hoc_edit import (
+    AD_HOC_EDIT_SCHEMA,
+    DERIVED_EDIT_PROPOSAL_SCHEMA,
+    DERIVED_EDIT_RECEIPT_SCHEMA,
+    derive_ad_hoc_edit,
+)
 from simplicio.plan_compiler.authority import (
     AUTHORIZATION_SCHEMA,
     PROPOSAL_SCHEMA,
@@ -102,6 +108,10 @@ from simplicio.plan_compiler.runtime_effect_sink import (
 )
 
 __all__ = [
+    "AD_HOC_EDIT_SCHEMA",
+    "DERIVED_EDIT_PROPOSAL_SCHEMA",
+    "DERIVED_EDIT_RECEIPT_SCHEMA",
+    "derive_ad_hoc_edit",
     "ContextBinding",
     "ContextHashes",
     "ContextBindingCache",
