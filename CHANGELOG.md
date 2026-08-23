@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.26.25] - 2026-08-23
+
+- Publish the current `main` state after synchronization with `origin/main`.
+
 ## [0.26.24] - 2026-08-23
 
 - Publish origin/main with the structural A/B quality gate.
