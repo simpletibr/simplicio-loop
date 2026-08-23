@@ -1,6 +1,6 @@
 [project]
 name = "simplicio-cli"
-version = "0.18.10"
+version = "0.18.11"
 description = "Deterministic task-to-code contract and verification CLI. It never executes or provisions an LLM."
 readme = "README.md"
 license = { text = "MIT" }
@@ -269,4 +269,3 @@ module = [
   "simplicio.scratch.cli",
 ]
 ignore_errors = true
-

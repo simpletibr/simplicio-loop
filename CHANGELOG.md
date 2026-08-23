@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.18.11] - 2026-08-23
+
+- Publish the latest `main` changes and the current tracked contract artifacts.
+
 ## [0.18.10] - 2026-08-14
 
 - Ship the verified provider and QLT-001 operational flow.
@@ -1325,4 +1329,3 @@ with the new versions installed.
 - Better guidance and helpers for E2E contract validation tasks between frontend and backend.
 
 These changes were driven by the need to generate strong evidence that the Web is correctly wired to the real API + real PostgreSQL.
-
