@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.26.24] - 2026-08-23
+
+- Publish origin/main with the structural A/B quality gate.
+
 ## [0.26.20] - 2026-08-14
 
 - Default CLI routing now emits immediate Fast-backed macro context, prioritizes
