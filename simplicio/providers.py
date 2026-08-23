@@ -1,39 +1,8 @@
-"""
-providers.py — provider-agnostic. Does NOT list specific models.
+"""Deterministic execution boundary and legacy provider helpers.
 
-Four modes, picked by SIMPLICIO_MODEL prefix (or by absence of config):
-
-1. Native Anthropic SDK
-     SIMPLICIO_MODEL=claude-opus-4-7
-     SIMPLICIO_API_KEY=<anthropic key>
-     SIMPLICIO_BASE_URL=(unset)
-
-2. Any OpenAI-compatible endpoint (OpenRouter, GLM, DeepSeek, Ollama, ...)
-     SIMPLICIO_MODEL=anthropic/claude-opus-4
-     SIMPLICIO_API_KEY=<provider key>
-     SIMPLICIO_BASE_URL=https://openrouter.ai/api/v1
-
-3. Shell-out to a logged-in CLI (zero API key — uses OAuth subscription)
-     SIMPLICIO_MODEL=claude-cli/<model>      -> spawns `claude -p`
-     SIMPLICIO_MODEL=codex-cli/<model>       -> spawns `codex exec`
-     No SIMPLICIO_API_KEY needed. Requires the CLI to be on PATH and the user
-     to be logged in (Claude Code session or `codex login`). Subprocess is
-     given SIMPLICIO_HOOK_GUARD=1 so the inner CLI does not re-trigger the
-     simplicio UserPromptSubmit hook (recursion guard).
-
-4. Local llama.cpp default (offline-first, zero key)
-     SIMPLICIO_MODEL=(unset)
-     SIMPLICIO_BASE_URL=(unset)
-     -> openbmb/minicpm5:latest, loaded in-process with llama-cpp-python
-
-5. Explicit in-process local inference via llama-cpp-python (zero key)
-     SIMPLICIO_MODEL=local-llama/<repo>::<file.gguf>   -> explicit HF GGUF
-     SIMPLICIO_MODEL=openbmb/minicpm5:latest           -> default MiniCPM5 GGUF
-     SIMPLICIO_MODEL=local-llama//abs/path/model.gguf  -> direct local path
-     The
-     GGUF is reused from ~/.simplicio/models/executor when present, otherwise
-     fetched once from the Hugging Face Hub. Requires the `local` extra:
-     pip install 'simplicio-cli[local]'.
+Public generation entry points fail closed with llm_execution_disabled.
+Compatibility helpers remain isolated so old receipts and diagnostics can be
+read without making a provider a runtime dependency.
 """
 
 import multiprocessing
@@ -57,6 +26,9 @@ from .local_inference import (
 from .local_inference import (
     require_enabled as require_local_inference_enabled,
 )
+
+from .llm_policy import execution_disabled_receipt
+
 
 _LAST_CACHE_RECEIPT: dict[str, Any] | None = None
 
@@ -588,7 +560,10 @@ def _local_terminal(reason_code: str, model: str, *, detail: str = "") -> Provid
 
 
 def _local_generate(prompt, feedback, model, max_tokens):
-    """Generate in an isolated, hard-deadline process."""
+    """Generation is disabled; no local worker may be created."""
+    raise ProviderExecutionError(
+        execution_disabled_receipt(surface="local_generate", model=model)
+    )
     timeout = _local_timeout_s()
     if timeout == 0:
         return _local_generate_direct(prompt, feedback, model, max_tokens)
@@ -1090,6 +1065,15 @@ def _openai_compatible_generate(model, base, key, prompt, feedback, max_tokens):
 
 
 def generate(prompt, feedback=None, max_tokens=4000, template_version=None):
+    # Generation is owned by an external coordinator. Keep this guard before
+    # cache/provider resolution so no local or remote side effect can occur.
+    raise ProviderExecutionError(
+        execution_disabled_receipt(
+            surface="generate",
+            model=os.environ.get("SIMPLICIO_MODEL"),
+            base_url=os.environ.get("SIMPLICIO_BASE_URL"),
+        )
+    )
     # Cache lookup BEFORE provider config. Key uses just SIMPLICIO_MODEL
     # (no credential check) so a hit returns without requiring an API key
     # to be set in the environment.
@@ -1330,65 +1314,15 @@ _DEFAULT_PLANNER = "deepseek-hf/deepseek-ai/DeepSeek-V3.1"
 
 
 def planner_cfg(require_key=True):
-    """Resolve the planner provider config without touching the doer config.
-
-    Returns a dict with keys: model, base, key, native_anthropic, shell_out.
-    Raises SystemExit if planner is selected but its credentials are missing.
-    """
-    raw = os.environ.get("SIMPLICIO_PLANNER", _DEFAULT_PLANNER).strip()
-    if not raw:
-        raw = _DEFAULT_PLANNER
-
-    if raw.startswith("claude-cli/") or raw.startswith("codex-cli/"):
-        return {
-            "model": raw,
-            "base": None,
-            "key": None,
-            "native_anthropic": False,
-            "shell_out": True,
-        }
-
-    if "/" in raw:
-        prefix, name = raw.split("/", 1)
-    else:
-        prefix, name = "", raw
-
-    if prefix == "anthropic":
-        key = os.environ.get("ANTHROPIC_API_KEY")
-        if not key and require_key:
-            raise SystemExit("SIMPLICIO_PLANNER=anthropic/* requires ANTHROPIC_API_KEY")
-        return {
-            "model": name,
-            "base": None,
-            "key": key,
-            "native_anthropic": True,
-            "shell_out": False,
-        }
-
-    if prefix in _PLANNER_ROUTES:
-        base, env_key = _PLANNER_ROUTES[prefix]
-        key = os.environ.get(env_key)
-        if not key and require_key:
-            raise SystemExit(f"SIMPLICIO_PLANNER={raw} requires {env_key}")
-        return {
-            "model": name,
-            "base": base,
-            "key": key,
-            "native_anthropic": False,
-            "shell_out": False,
-        }
-
-    # Bare model name — fall back to the same provider config the doer uses.
-    # Lets the user run planner against whatever they already configured.
-    c = _cfg()
+    """Return the deterministic planner boundary without resolving a provider."""
     return {
-        "model": raw,
-        "base": c["base"],
-        "key": c["key"],
-        "native_anthropic": not c["base"],
+        "model": None,
+        "base": None,
+        "key": None,
+        "native_anthropic": False,
         "shell_out": False,
+        "disabled": True,
     }
-
 
 def _planner_provider_id(cfg):
     model = cfg["model"]
@@ -1417,11 +1351,14 @@ def _planner_cache_key(cfg, prompt, max_tokens, temperature, template_version):
 
 
 def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=None):
-    """Call the planner provider. Used by simplicio.scratch.planner.
-
-    temperature defaults to 0.1 because plans must be reproducible and
-    schema-stable, not creative.
-    """
+    """Planning is disabled; plans come from a deterministic contract."""
+    raise ProviderExecutionError(
+        execution_disabled_receipt(
+            surface="planner_complete",
+            model=os.environ.get("SIMPLICIO_PLANNER") or os.environ.get("SIMPLICIO_MODEL"),
+            base_url=os.environ.get("SIMPLICIO_BASE_URL"),
+        )
+    )
     p = planner_cfg(require_key=False)
     if _is_local_inference_request(p["model"], p["base"]):
         try:
@@ -1546,9 +1483,5 @@ def planner_complete(prompt, max_tokens=8192, temperature=0.1, template_version=
 
 
 def planner_info():
-    p = planner_cfg()
-    if p["shell_out"]:
-        return f"planner={p['model']} (shell-out)"
-    if p["native_anthropic"]:
-        return f"planner={p['model']} provider=anthropic-native key={'set' if p['key'] else 'MISSING'}"
-    return f"planner={p['model']} base={p['base']} key={'set' if p['key'] else 'MISSING'}"
+    """Describe the active deterministic boundary without provider lookup."""
+    return "planner=disabled provider=deterministic-only"

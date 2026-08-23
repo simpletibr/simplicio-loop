@@ -1,8 +1,7 @@
-"""Fail-closed policy for optional local LLM inference (issue #259).
+"""Deterministic-only boundary for local model operations.
 
-Local engines are intentionally paused by default.  This module contains no
-provider imports and performs no I/O, so callers can apply the gate before
-model discovery, downloads, subprocesses, sockets, or cache reads.
+The Dev CLI never provisions or executes local inference. Model generation is
+owned by an external coordinator.
 """
 
 from __future__ import annotations
@@ -12,12 +11,11 @@ from urllib.parse import urlparse
 
 LOCAL_INFERENCE_PAUSED = "LOCAL_INFERENCE_PAUSED"
 LOCAL_INFERENCE_ENV = "SIMPLICIO_LOCAL_INFERENCE"
-_ENABLED_VALUES = {"enabled", "1", "true", "yes"}
 
 
 def local_inference_enabled() -> bool:
-    """Return true only after an explicit, process-scoped re-enable."""
-    return os.environ.get(LOCAL_INFERENCE_ENV, "").strip().lower() in _ENABLED_VALUES
+    """Local inference is never available inside the deterministic CLI."""
+    return False
 
 
 def is_local_endpoint(base_url: str | None) -> bool:
@@ -28,22 +26,35 @@ def is_local_endpoint(base_url: str | None) -> bool:
     return host in {"localhost", "127.0.0.1", "::1"}
 
 
-def pause_receipt(*, surface: str, model: str | None = None, base_url: str | None = None) -> dict:
-    """Stable, secret-free receipt emitted for every blocked local route."""
+def pause_receipt(
+    *,
+    surface: str,
+    model: str | None = None,
+    base_url: str | None = None,
+) -> dict:
+    """Return a stable, secret-free receipt for a blocked local route."""
+    endpoint = ""
+    if base_url:
+        parsed = urlparse(base_url)
+        endpoint = f"{parsed.scheme}://{parsed.hostname}" if parsed.hostname else "<configured>"
     return {
         "schema": "simplicio.local-inference-policy-receipt/v1",
         "reason_code": LOCAL_INFERENCE_PAUSED,
-        "policy": "disabled_by_default",
+        "policy": "deterministic_only",
         "surface": surface,
         "configuration_origin": LOCAL_INFERENCE_ENV,
         "correlation_id": os.environ.get("SIMPLICIO_TRACE_ID") or None,
         "requested_model": model or "",
-        "requested_base_url": base_url or "",
-        "refused_backend": "loopback-openai-compatible" if is_local_endpoint(base_url) else "local-inference",
+        "requested_base_url": endpoint,
+        "refused_backend": (
+            "loopback-openai-compatible" if is_local_endpoint(base_url) else "local-inference"
+        ),
         "effective_route": "blocked",
-        "retryable": True,
-        "reenable": f"set {LOCAL_INFERENCE_ENV}=enabled explicitly",
-        "next_action": f"set {LOCAL_INFERENCE_ENV}=enabled explicitly, then retry",
+        "retryable": False,
+        "reenable": "external orchestrator required",
+        "next_action": (
+            "provide an explicit mechanical-edit/changeset plan or use an external orchestrator"
+        ),
     }
 
 
@@ -55,7 +66,11 @@ class LocalInferencePaused(SystemExit):
         super().__init__(LOCAL_INFERENCE_PAUSED)
 
 
-def require_enabled(*, surface: str, model: str | None = None, base_url: str | None = None) -> None:
-    """Block before any local backend side effect unless explicitly enabled."""
-    if not local_inference_enabled():
-        raise LocalInferencePaused(pause_receipt(surface=surface, model=model, base_url=base_url))
+def require_enabled(
+    *,
+    surface: str,
+    model: str | None = None,
+    base_url: str | None = None,
+) -> None:
+    """Always block local model side effects inside the deterministic CLI."""
+    raise LocalInferencePaused(pause_receipt(surface=surface, model=model, base_url=base_url))

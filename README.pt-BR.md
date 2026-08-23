@@ -32,6 +32,10 @@
 
 Transforme uma tarefa de uma linha em mudança verificada: contexto do mapper, contrato em seis camadas, diff, teste e evidência.
 
+> **Limite operacional:** nenhuma LLM local ou remota é necessária. As entradas de mutação suportadas são um plano explícito de mechanical-edit, um changeset do Fast ou uma proposta Runtime EffectTransaction. A CLI valida, aplica, testa e registra evidências.
+>
+> O material posterior de benchmark e configuração de providers é histórico; essas rotas não são mais suportadas pelo pacote.
+
 ## DNA do projeto
 
 simplicio-cli é o operador focado de implementação e verificação do ecossistema. Ele recebe uma tarefa decidida, carrega contexto do repositório, aplica uma mudança limitada, executa testes e deixa uma evidência inspecionável.
@@ -127,9 +131,7 @@ A secao abaixo recupera o README tecnico original do `simplicio-cli` antes da pa
 [![pipeline do simplicio-dev-cli: tarefa até mudança verificada](https://raw.githubusercontent.com/wesleysimplicio/simplicio-dev-cli/main/output/imagegen/simplicio-cli-readme-hero-web.png)](output/imagegen/simplicio-cli-readme-hero.png)
 
 > *"hide the Delete button for non-admins"* → diff + test + applied + verified.
-> **Zero API key inside Claude Code** (auto-installs, uses your subscription) — or
-> bring your own key for any provider: OpenRouter, OpenAI, Anthropic, GLM,
-> DeepSeek, Ollama.
+> **No model or API key is required by the deterministic executor.** External coordinators may provide an explicit plan or changeset.
 
 ```bash
 pip install simplicio-cli
@@ -541,7 +543,7 @@ simplicio-py task "hide Delete button for non-admins" \
 - build passes"
 ```
 
-Provider-agnostic — see [Configure](#configure--any-llm-nothing-hardcoded) for the full matrix.
+Provider configuration is legacy documentation; the package no longer executes model providers.
 
 ---
 

@@ -11,6 +11,9 @@ SDK extras and the local-model extra were removed from `pyproject.toml`.
 
 ## Runtime behavior
 
+- task/run never synthesize a diff inside the package; mutation must arrive as an explicit mechanical-edit/changeset plan or through the negotiated Runtime Effect API.
+- Blocked provider receipts include requested_route, effective_route=deterministic, model_invoked=false, and side-effect flags.
+
 - `simplicio-py smoke` reports the deterministic-only adapter and performs no
   network or model operation.
 - Generation and planning entry points fail closed with

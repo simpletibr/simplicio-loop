@@ -34,6 +34,10 @@ Turn a one-line task into a verified code change: mapper context, six-layer cont
 
 > **Deterministic-only boundary:** `simplicio-py` never sends prompts or completions to a local model, OpenRouter, Anthropic, OpenAI-compatible endpoint, or CLI provider. It does not load or download model weights. Provider execution has been removed; the adapter only performs local contracts, edits, tests, and evidence.
 
+> **Operational boundary:** no local or remote LLM is required. The supported mutation inputs are an explicit mechanical-edit plan, a Fast changeset, or a Runtime EffectTransaction proposal. The CLI validates, applies, tests, and records evidence.
+>
+> The provider/model benchmark and setup material later in this file is historical evidence only; those routes are no longer supported by the package.
+
 ## Project DNA
 
 simplicio-dev-cli is the focused implementation and verification operator in the Simplicio ecosystem. It receives a decided task, loads repository context, applies a bounded diff, runs tests, and emits evidence that another operator can inspect. It is not the runtime, the mapper, or the LLM itself: it is the disciplined execution layer between a plan and a trustworthy change.
@@ -132,7 +136,7 @@ flowchart LR
 
 The section below restores the project-specific README material that existed before the globalization pass. Keep this substance when refreshing the top-level narrative: add polish, do not erase operational memory.
 
-**A focused execution operator for turning decided engineering tasks into verified changes across LLM providers.**
+**A focused execution operator for turning decided engineering tasks into verified deterministic changes.**
 
 [![PyPI](https://img.shields.io/pypi/v/simplicio-cli.svg)](https://pypi.org/project/simplicio-cli/)
 [![Python](https://img.shields.io/pypi/pyversions/simplicio-cli.svg)](https://pypi.org/project/simplicio-cli/)
@@ -141,9 +145,7 @@ The section below restores the project-specific README material that existed bef
 [![simplicio-dev-cli pipeline: task to verified code change](https://raw.githubusercontent.com/wesleysimplicio/simplicio-dev-cli/main/output/imagegen/simplicio-cli-readme-hero-web.png)](output/imagegen/simplicio-cli-readme-hero.png)
 
 > *"hide the Delete button for non-admins"* → diff + test + applied + verified.
-> **Zero API key inside Claude Code** (auto-installs, uses your subscription) — or
-> bring your own key for any provider: OpenRouter, OpenAI, Anthropic, GLM,
-> DeepSeek, Ollama.
+> **No model or API key is required by the deterministic executor.** External coordinators may provide an explicit plan or changeset.
 
 ```bash
 pip install simplicio-cli
@@ -647,7 +649,7 @@ simplicio-py task "hide Delete button for non-admins" \
 - build passes"
 ```
 
-Provider-agnostic — see [Configure](#configure--any-llm-nothing-hardcoded) for the full matrix.
+Provider configuration is legacy documentation; the package no longer executes model providers.
 
 ---
 
@@ -760,7 +762,7 @@ the machine-readable reason `LOCAL_INFERENCE_PAUSED`; it does not read a
 cached completion, load a model, download weights, start a process, or open a
 socket. Existing GGUF artifacts are preserved.
 
-Use an explicit remote provider for normal operation. To intentionally enable
+Use an explicit mechanical-edit plan, changeset, or Runtime Effect API for normal operation. To intentionally enable
 the local route for a process, set `SIMPLICIO_LOCAL_INFERENCE=enabled` first.
 The in-process [`llama-cpp-python`](https://github.com/abetlen/llama-cpp-python)
 backend then uses `openbmb/minicpm5:latest`, backed by
