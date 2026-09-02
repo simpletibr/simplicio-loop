@@ -59,6 +59,11 @@
       "required": ["status", "note"],
       "properties": {
         "status": { "type": "string" },
+        "transport": { "type": "string" },
+        "event_type": { "type": "string" },
+        "consumers": { "type": "array", "items": { "type": "string" } },
+        "deduplication": { "type": "string" },
+        "authentication_secret": { "type": "string" },
         "note": { "type": "string" }
       },
       "additionalProperties": false

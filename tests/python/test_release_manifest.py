@@ -135,7 +135,8 @@ class BuildReleaseManifestTest(unittest.TestCase):
 
     def test_downstream_events_block_is_an_explicit_placeholder(self) -> None:
         manifest = build_release_manifest(root=str(ROOT))
-        self.assertEqual(manifest["downstream_events"]["status"], "not-implemented")
+        self.assertEqual(manifest["downstream_events"]["status"], "dispatch-ready")
+        self.assertEqual(manifest["downstream_events"]["deduplication"], "event_id")
 
     def test_schema_versions_block_matches_registry(self) -> None:
         manifest = build_release_manifest(root=str(ROOT))

@@ -336,13 +336,21 @@ def build_release_manifest(root: str | None = None, dist_dir: str | None = None)
             ),
         },
         "downstream_events": {
-            "status": "not-implemented",
+            "status": "dispatch-ready",
+            "transport": "github.repository_dispatch",
+            "event_type": "simplicio-component-release",
+            "consumers": [
+                "wesleysimplicio/simplicio-dev-cli",
+                "wesleysimplicio/simplicio-loop",
+            ],
+            "deduplication": "event_id",
+            "authentication_secret": "RELEASE_TRAIN_DISPATCH_TOKEN",
             "note": (
-                "Cross-repo release events, canary channels and automatic "
-                "downstream (simplicio-dev-cli/simplicio-loop) version bumps "
-                "are out of scope for a mapper-repo-only change -- they "
-                "require coordinated infrastructure on the consumer side. "
-                "See ADR-010 and the parent epic wesleysimplicio/"
+                "The Mapper can now emit an idempotent, transport-authenticated "
+                "release event after registry verification. Downstream receiver "
+                "workflows and the dispatch secret remain consumer-owned; a "
+                "missing secret must skip delivery rather than publish a false "
+                "success. See ADR-010 and the parent epic wesleysimplicio/"
                 "simplicio-loop#558."
             ),
         },
