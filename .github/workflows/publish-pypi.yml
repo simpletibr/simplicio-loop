@@ -81,6 +81,15 @@ jobs:
       - name: Check distribution metadata
         run: python -m twine check dist/*
 
+      - name: Reconcile immutable tag, versions, manifest and artifacts
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.release_tag }}
+        run: |
+          python scripts/check_release_reconciliation.py \
+            --root . \
+            --tag "$RELEASE_TAG" \
+            --dist-dir dist
+
       - name: Publish to PyPI
         env:
           TWINE_USERNAME: __token__

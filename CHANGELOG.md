@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.26.26] - 2026-09-02
+
+- Add the typed `simplicio.plugin.context-handle/v2` contract with explicit
+  Mapper-local cache scope, producer/generation provenance, dirty/untracked
+  semantics, and coverage/truncation state.
+- Keep v1 readable and expose a fail-closed compatibility projection for
+  consumers that have not migrated yet.
+- Align the release manifest, package version sources, and documentation with
+  the real post-`v0.26.25` code change.
+
 ## [0.26.25] - 2026-08-23
 
 - Publish the current `main` state after synchronization with `origin/main`.
@@ -39,6 +49,8 @@
   generations under `.catalog` and leave human `.skills`/`.agents` untouched.
 
 ## Unreleased
+
+Changes after `v0.26.26` are unreleased until a new immutable tag is created.
 
 ## [0.26.15] - 2026-08-03
 
@@ -1096,7 +1108,9 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 - Remotion skills tutorial video in PT-BR. ([#1](https://github.com/wesleysimplicio/llm-project-mapper/pull/1))
 - i18n layer + English skills tutorial video. ([#2](https://github.com/wesleysimplicio/llm-project-mapper/pull/2))
 
-[Unreleased]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.26...HEAD
+[0.26.26]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.25...v0.26.26
+[0.26.25]: https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.26.25
 [0.19.0]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.17.0...v0.18.0
 [0.6.3]: https://github.com/wesleysimplicio/llm-project-mapper/compare/v0.6.2...v0.6.3

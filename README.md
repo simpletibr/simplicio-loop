@@ -2,7 +2,7 @@
 
 > Turn a repository into bounded, queryable context that people and AI agents can trust.
 
-[![PyPI](https://img.shields.io/pypi/v/simplicio-mapper?color=0ea5e9&label=PyPI)](https://pypi.org/project/simplicio-mapper/) [![Python](https://img.shields.io/pypi/pyversions/simplicio-mapper?color=22c55e&label=Python)](https://pypi.org/project/simplicio-mapper/) [![Release](https://img.shields.io/github/v/release/wesleysimplicio/simplicio-mapper?display_name=tag&color=f59e0b)](https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.25.0) [![License](https://img.shields.io/badge/license-MIT-a78bfa.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/simplicio-mapper?color=0ea5e9&label=PyPI)](https://pypi.org/project/simplicio-mapper/) [![Python](https://img.shields.io/pypi/pyversions/simplicio-mapper?color=22c55e&label=Python)](https://pypi.org/project/simplicio-mapper/) [![Release](https://img.shields.io/github/v/release/wesleysimplicio/simplicio-mapper?display_name=tag&color=f59e0b)](https://github.com/wesleysimplicio/simplicio-mapper/releases/latest) [![License](https://img.shields.io/badge/license-MIT-a78bfa.svg)](LICENSE)
 
 [Docs site](https://wesleysimplicio.github.io/simplicio-mapper/)
 
@@ -186,7 +186,8 @@ simplicio-mapper → simplicio-runtime → simplicio-dev-cli → simplicio-loop
 - [Architecture and evidence docs](docs/)
 - [Changelog](CHANGELOG.md)
 - [PyPI publishing notes](PYPI.md)
-- [v0.25.0 release](https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.25.0)
+- [GitHub releases](https://github.com/wesleysimplicio/simplicio-mapper/releases)
+- [Release verification guide](.specs/workflow/RELEASE.md)
 
 ## License
 

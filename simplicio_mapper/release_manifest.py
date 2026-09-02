@@ -74,6 +74,28 @@ RELEASE_PROTOCOLS = (
     "simplicio.worktree-overlay/v1",
 )
 
+# Capabilities are deliberately protocol-level names, not a copy of the CLI
+# help text. They are stable enough for downstream consumers to negotiate and
+# are derived from artifacts this package actually owns.
+RELEASE_CAPABILITIES = (
+    "simplicio.mapper-artifacts/v1",
+    "simplicio.precedent-index/v1",
+    "simplicio.context-snapshot/v1",
+    "simplicio.plugin.context-handle/v1",
+    "simplicio.plugin.context-handle/v2",
+)
+
+# This is a compatibility declaration, not a claim that downstream packages
+# are already installed. A consumer can use it to decide whether it may read
+# the emitted artifacts before attempting a live upgrade.
+RELEASE_COMPATIBILITY = {
+    "python": ">=3.10",
+    "pypi": "simplicio-mapper",
+    "npm": "@wesleysimplicio/llm-project-mapper",
+    "simplicio-dev-cli": {"mapper-artifacts": "v1", "plugin-context-handle": "v1|v2"},
+    "simplicio-loop": {"release-manifest": "v1", "mapper-artifacts": "v1"},
+}
+
 _PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(_PACKAGE_DIR)
 
@@ -294,6 +316,8 @@ def build_release_manifest(root: str | None = None, dist_dir: str | None = None)
         },
         "schema_versions": dict(sorted(schema_versions.items())),
         "protocols": list(RELEASE_PROTOCOLS),
+        "capabilities": list(RELEASE_CAPABILITIES),
+        "compatibility": RELEASE_COMPATIBILITY,
         "artifact_digest": None,
         "artifact_digests": artifact_digests,
         "signing": {
@@ -342,6 +366,8 @@ def build_release_artifact_digest(manifest: dict) -> str:
         "distribution": manifest["distribution"],
         "schema_versions": manifest["schema_versions"],
         "protocols": manifest["protocols"],
+        "capabilities": manifest["capabilities"],
+        "compatibility": manifest["compatibility"],
     }
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode(
         "utf-8"
@@ -362,6 +388,9 @@ def build_version_payload(root: str | None = None) -> dict:
         "release_manifest_schema": manifest["schema"],
         "schema_versions": manifest["schema_versions"],
         "distribution": manifest["distribution"],
+        "capabilities": manifest["capabilities"],
+        "compatibility": manifest["compatibility"],
+        "artifact_digests": manifest["artifact_digests"],
     }
 
 def check_registry_baseline(
