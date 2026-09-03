@@ -131,7 +131,7 @@ class BuildReleaseManifestTest(unittest.TestCase):
         self.assertIsNone(signing["digest"])
         self.assertIsNone(signing["signature"])
         self.assertIsNone(signing["sbom"])
-        self.assertIn("Phase-0", signing["note"])
+        self.assertIn("release-governance sign", signing["note"])
 
     def test_downstream_events_block_is_an_explicit_placeholder(self) -> None:
         manifest = build_release_manifest(root=str(ROOT))

@@ -31,7 +31,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+release = [
+  "cryptography>=43,<48",
+]
 dev = [
+  "cryptography>=43,<48",
   "ruff>=0.15,<0.17",
   "pytest>=8,<10",
   "pytest-cov>=6,<8",

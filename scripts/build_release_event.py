@@ -2,9 +2,9 @@
 """Build the authenticated, idempotent release event for Mapper consumers.
 
 The script does not send network requests. It converts a verified component
-manifest into a stable GitHub ``repository_dispatch`` payload. The workflow
-supplies the GitHub token and sends it only after the PyPI verification gate
-has succeeded. Consumers can deduplicate retries using ``event_id``.
+manifest into a stable GitHub ``repository_dispatch`` payload. An authenticated
+manual release caller sends it only after registry and promotion gates pass.
+Consumers can deduplicate retries using ``event_id``.
 """
 
 from __future__ import annotations
@@ -36,18 +36,29 @@ def _sha256(value: Any) -> str:
     return "sha256:" + hashlib.sha256(_canonical(value)).hexdigest()
 
 
-def build_release_event(manifest: dict[str, Any]) -> dict[str, Any]:
+def build_release_event(
+    manifest: dict[str, Any],
+    *,
+    channel: str = "canary",
+) -> dict[str, Any]:
+    if channel not in {"canary", "stable"}:
+        raise ReleaseEventError("channel must be canary or stable")
     if manifest.get("schema") != "simplicio.component-release/v1":
         raise ReleaseEventError("manifest schema is not simplicio.component-release/v1")
     required = ("component", "version", "commit_sha", "artifact_digest", "schema_versions", "capabilities", "compatibility")
     if any(not manifest.get(key) for key in required):
         raise ReleaseEventError("manifest is missing a release identity field")
-    if manifest.get("signing", {}).get("status") == "not-implemented":
-        # The transport is authenticated by GitHub, but the payload must not
-        # be presented as a cryptographically signed artifact attestation.
-        attestation = "transport-authenticated-only"
-    else:
-        attestation = "manifest-signing-status"
+    signing = manifest.get("signing", {})
+    signed = False
+    if signing.get("status") == "signed":
+        from simplicio_mapper.release_governance import verify_release_manifest_signature
+
+        signed = verify_release_manifest_signature(manifest)
+    if channel == "stable" and (not signed or not signing.get("sbom")):
+        raise ReleaseEventError(
+            "stable release events require a valid Ed25519 signature and CycloneDX SBOM digest"
+        )
+    attestation = "ed25519-signed" if signed else "transport-authenticated-only"
     identity = {
         "component": manifest["component"],
         "version": manifest["version"],
@@ -76,14 +87,19 @@ def build_release_event(manifest: dict[str, Any]) -> dict[str, Any]:
             "secret_name": "RELEASE_TRAIN_DISPATCH_TOKEN",
             "retry_safe": True,
             "consumer_ack_deadline_minutes": 15,
+            "channel": channel,
+            "stable_requires_consumer_ack": True,
         },
         "consumers": [
             {"repository": repository, "action": "update", "event_type": EVENT_TYPE}
             for repository in CONSUMERS
         ],
         "rollback": {
-            "supported": False,
-            "note": "Rollback requires a consumer release policy and registry rollback decision; this event is immutable and replayable.",
+            "supported": True,
+            "strategy": "revoke-current-and-restore-previous-pin",
+            "command": "simplicio-mapper release-governance rollback",
+            "immutable_artifacts_retained": True,
+            "note": "Consumers apply the deterministic rollback plan and deduplicate its immutable event identifier.",
         },
     }
     return event
@@ -98,10 +114,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--github-dispatch-payload", action="store_true")
+    parser.add_argument("--channel", choices=("canary", "stable"), default="canary")
     args = parser.parse_args(argv)
     try:
         manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
-        event = build_release_event(manifest)
+        event = build_release_event(manifest, channel=args.channel)
         output = github_dispatch_payload(event) if args.github_dispatch_payload else event
         args.output.write_text(json.dumps(output, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     except (OSError, json.JSONDecodeError, ReleaseEventError, TypeError) as error:

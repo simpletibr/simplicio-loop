@@ -1,6 +1,6 @@
 # RELEASE — `<PRODUCT_NAME>`
 
-Processo para cortar uma release de `<PRODUCT_NAME>` (`<DOMAIN>`, stack `<STACK>`). Releases são tagueadas, automatizadas via GitHub Actions e reversíveis. Dono do processo: `<TEAM>`.
+Processo manual para cortar uma release do Simplicio Mapper. GitHub Actions não fazem parte do caminho autorizado: build, assinatura, publicação, verificação e rollback são executados por um operador autenticado. Os gates e comandos específicos estão em [docs/RELEASE_GOVERNANCE.md](../../docs/RELEASE_GOVERNANCE.md).
 
 ---
 

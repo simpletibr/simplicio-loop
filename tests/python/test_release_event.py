@@ -29,6 +29,12 @@ class ReleaseEventTest(unittest.TestCase):
         self.assertEqual(first["event_type"], "simplicio-component-release")
         self.assertEqual(len(first["consumers"]), 2)
         self.assertEqual(first["attestation"], "transport-authenticated-only")
+        self.assertEqual(first["delivery"]["channel"], "canary")
+        self.assertTrue(first["rollback"]["supported"])
+
+    def test_unsigned_manifest_cannot_emit_stable_event(self) -> None:
+        with self.assertRaises(ValueError):
+            build_release_event(_manifest(), channel="stable")
 
     def test_dispatch_payload_has_github_shape(self) -> None:
         payload = github_dispatch_payload(build_release_event(_manifest()))

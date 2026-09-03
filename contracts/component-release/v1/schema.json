@@ -50,8 +50,28 @@
         "digest": { "type": ["string", "null"] },
         "signature": { "type": ["string", "null"] },
         "sbom": { "type": ["string", "null"] },
-        "note": { "type": "string" }
+        "note": { "type": "string" },
+        "algorithm": { "type": "string" },
+        "key_id": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "public_key": { "type": "string", "pattern": "^base64:" }
       },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "status": { "const": "signed" } },
+            "required": ["status"]
+          },
+          "then": {
+            "required": ["algorithm", "key_id", "public_key"],
+            "properties": {
+              "algorithm": { "const": "Ed25519" },
+              "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+              "signature": { "type": "string", "pattern": "^base64:" },
+              "sbom": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+            }
+          }
+        }
+      ],
       "additionalProperties": false
     },
     "downstream_events": {

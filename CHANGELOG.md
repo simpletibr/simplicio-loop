@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Add fail-closed manual release governance with Ed25519 manifest signing,
+  CycloneDX SBOM generation, PyPI/npm parity checks, compatibility classification,
+  missed-event reconciliation, canary promotion gates, and deterministic rollback.
+- Ship current and previous component-release fixtures for installed N/N-1
+  conformance testing.
+
 ## [0.26.26] - 2026-09-02
 
 - Add the typed `simplicio.plugin.context-handle/v2` contract with explicit
@@ -66,6 +76,13 @@
 ## Unreleased
 
 Changes after `v0.26.26` are unreleased until a new immutable tag is created.
+
+### Added
+
+- Add fail-closed release governance with Ed25519 manifest signing, deterministic
+  CycloneDX SBOM generation, PyPI/npm parity, version-ordered missed-event
+  reconciliation, canary promotion gates, reproducible rollback/revocation,
+  and installed N/N-1 component-release fixtures.
 
 ## [0.26.15] - 2026-08-03
 

@@ -1,27 +1,16 @@
-"""``simplicio-mapper release-manifest`` -- Phase-0 local release manifest (issue #280).
+"""Deterministic base manifest for the governed Mapper release train (issue #280).
 
 Parent (cross-repo release train epic): wesleysimplicio/simplicio-loop#558.
 Related: #236, #263, #279, wesleysimplicio/simplicio-dev-cli#231.
 Design record: ``.specs/architecture/ADR-010-release-manifest-phase0.md``.
 
-Issue #280 asks for a large, cross-repo release-train: signed manifests,
-SBOM, cross-repo authenticated release events, canary channels, automatic
-downstream consumer bumps within 15 minutes, digest/signature verification,
-rollback tooling. Almost all of that depends on infrastructure this repo
-alone does not own (a signing authority, a cross-repo event bus/webhook
-receiver on the Dev CLI side, a canary distribution channel) -- building any
-of it here would be speculation about systems that do not exist yet. See the
-ADR for the full scoping rationale.
-
-This module implements only the slice that is genuinely buildable and
-verifiable from within this repo today: a **local, deterministic, offline**
-generator for the ``simplicio.component-release/v1`` manifest shape --
-version (single source: :data:`simplicio_mapper.__version__`), commit SHA
-(``git rev-parse HEAD``), and every schema-version constant this package
-currently publishes (:data:`SCHEMA_VERSION_REGISTRY`, hand-maintained --
-Phase-0, see ADR). No signing, no SBOM, no network calls: the ``signing``
-block is a structured placeholder that says exactly that, so nothing
-downstream can mistake it for a real attestation.
+This module builds the unsigned, deterministic ``simplicio.component-release/v1``
+base from the package version, Git commit, schema registry, capabilities, and
+local artifact digests. The companion :mod:`simplicio_mapper.release_governance`
+module attaches a CycloneDX SBOM, applies and verifies real Ed25519 signatures,
+checks PyPI/npm parity, classifies compatibility, reconciles missed events, and
+gates stable promotion or deterministic rollback. Network publication remains
+an authenticated manual release operation; no GitHub Actions are required.
 
 Also implements the schema-version-registry half of issue #280 step 8
 ("impedir tag se ... schema version divergirem", to the extent verifiable
@@ -29,22 +18,14 @@ locally, without inventing PyPI/npm registry-divergence detection): the
 registry values above are compared against a checked-in baseline
 (``scripts/schema_registry_baseline.json``) via :func:`check_registry_baseline`,
 so an *unintentional* schema-version bump is caught the same way
-``scripts/check-version-sync.js`` catches a partial package-version bump --
-see ``scripts/check_schema_registry_sync.py`` for the CLI wrapper.
+``scripts/check-version-sync.js`` catches a partial package-version bump.
+See ``scripts/check_schema_registry_sync.py`` for the CLI wrapper.
 
-**Artifact digests (this change, still issue #280 step 3, honest sub-slice
-only)**: a cryptographic *signature* needs a signing authority this repo
-does not own (still deferred, see ``signing.status`` above, which stays
-``"not-implemented"`` for the signature itself). A SHA256 *digest* of the
-actual built ``dist/*.whl``/``dist/*.tar.gz`` files is different: it is a
-plain checksum of bytes already on disk, computable unilaterally, with zero
-external dependency and zero new infrastructure. :func:`compute_artifact_digests`
-and the manifest's new ``artifact_digests`` field carry that honest data;
-:func:`verify_artifact_digests` (and ``--verify-digests`` on the CLI) check a
-previously generated manifest against a ``dist/`` directory, matching the
-"impedir tag se ... divergirem" spirit of step 8 for the one thing checkable
-purely locally: artifact-vs-manifest integrity, not PyPI/npm-registry
-divergence (still out of scope, see ADR-010).
+The unsigned base deliberately keeps ``signing.status`` at
+``"not-implemented"`` so downstream consumers cannot confuse it with an
+attestation. :func:`compute_artifact_digests` records the actual wheel and
+sdist checksums; :func:`verify_artifact_digests` verifies those bytes before
+the governance signer is invoked.
 """
 
 from __future__ import annotations
@@ -72,6 +53,8 @@ RELEASE_PROTOCOLS = (
     "simplicio.execution-context/v1",
     "simplicio.canonical-map/v1",
     "simplicio.worktree-overlay/v1",
+    "simplicio.release-governance/v1",
+    "simplicio.release-rollback/v1",
 )
 
 # Capabilities are deliberately protocol-level names, not a copy of the CLI
@@ -83,6 +66,10 @@ RELEASE_CAPABILITIES = (
     "simplicio.context-snapshot/v1",
     "simplicio.plugin.context-handle/v1",
     "simplicio.plugin.context-handle/v2",
+    "simplicio.release.signature/ed25519",
+    "simplicio.release.registry-parity/v1",
+    "simplicio.release.event-reconciliation/v1",
+    "simplicio.release.rollback/v1",
 )
 
 # This is a compatibility declaration, not a claim that downstream packages
@@ -326,13 +313,12 @@ def build_release_manifest(root: str | None = None, dist_dir: str | None = None)
             "signature": None,
             "sbom": None,
             "note": (
-                "Phase-0 local generator only (issue #280). Cryptographic "
-                "signing and SBOM generation require a signing authority "
-                "this repo does not unilaterally own -- see ADR-010 for the "
-                "explicit scoping decision and follow-up plan. Real SHA256 "
-                "digests of built dist/ artifacts, when available, live in "
-                "the separate `artifact_digests` field -- a checksum is not "
-                "a signature."
+                "Unsigned base manifest. Use `simplicio-mapper "
+                "release-governance sign` with an external Ed25519 key to "
+                "attach a deterministic CycloneDX SBOM and verifiable "
+                "signature. The key is never embedded or generated here. "
+                "Real SHA256 digests of built dist/ artifacts live in the "
+                "separate `artifact_digests` field."
             ),
         },
         "downstream_events": {

@@ -112,6 +112,7 @@ USAGE
   simplicio-mapper benchmark shadow-rollout [path] [--out <dir>] [--json]
   simplicio-mapper version [--json] [--root <dir>]
   simplicio-mapper release-manifest [--json] [--root <dir>] [--check-registry] [--update-registry-baseline]
+  simplicio-mapper release-governance parity|classify|reconcile|sign|verify|promote|rollback [options]
   simplicio-mapper changelog [--json] [--version X.Y.Z] [--root <dir>] [--no-migration]
 
 OPTIONS
@@ -196,6 +197,11 @@ OPTIONS
                         --update-registry-baseline maintain the committed
                         schema-version-registry baseline used to catch
                         unintentional schema-version drift.
+  release-governance     Fail-closed release gates for registry parity,
+                        manifest-level compatibility, Ed25519 signing,
+                        CycloneDX SBOM, missed-event reconciliation,
+                        canary-to-stable promotion, and deterministic
+                        rollback/revocation (issue #280).
   changelog              Machine-readable extraction of CHANGELOG.md
                         (simplicio.changelog-report/v1): version, date and
                         sections copied verbatim, plus a rollback_hint

@@ -192,6 +192,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         from ..release_manifest import run_release_manifest_cli
 
         return run_release_manifest_cli(argv[1:])
+    # `release-governance` exposes the fail-closed signing, parity,
+    # reconciliation, canary promotion, and rollback gates from issue #280.
+    if argv and argv[0] == "release-governance":
+        from ..release_governance import run_release_governance_cli
+
+        return run_release_governance_cli(argv[1:])
     # `schema-compat` similarly takes flags rather than the usual
     # `<command> <root>` shape (issue #280, compatible/breaking schema-change
     # classifier for project-map/precedent-index/context-snapshot/overlays).

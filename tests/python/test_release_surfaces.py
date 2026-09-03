@@ -39,6 +39,8 @@ class ReleaseSurfaceTest(unittest.TestCase):
 
     def test_changelog_has_current_and_unreleased_boundaries(self) -> None:
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        self.assertIn("## [Unreleased]", changelog)
+        self.assertIn("fail-closed manual release governance", changelog)
         self.assertIn("## [0.26.26] - 2026-09-02", changelog)
         self.assertIn("[Unreleased]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.26...HEAD", changelog)
         self.assertIn("[0.26.25]: https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.26.25", changelog)
@@ -60,7 +62,15 @@ class ReleaseSurfaceTest(unittest.TestCase):
         )
         self.assertIn("capabilities", schema["required"])
         self.assertIn("compatibility", schema["required"])
+        self.assertIn("allOf", schema["properties"]["signing"])
         self.assertIn("simplicio.plugin.context-handle/v2", RELEASE_CAPABILITIES)
+        for capability in (
+            "simplicio.release.signature/ed25519",
+            "simplicio.release.registry-parity/v1",
+            "simplicio.release.event-reconciliation/v1",
+            "simplicio.release.rollback/v1",
+        ):
+            self.assertIn(capability, RELEASE_CAPABILITIES)
         self.assertEqual(RELEASE_COMPATIBILITY["simplicio-dev-cli"]["plugin-context-handle"], "v1|v2")
 
 
