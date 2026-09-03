@@ -24,6 +24,13 @@ class ReleaseSurfaceTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("0.26.26", result.stdout)
 
+    def test_npm_lockfile_tracks_the_release_version(self) -> None:
+        package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+        lockfile = json.loads((ROOT / "package-lock.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(lockfile["version"], package["version"])
+        self.assertEqual(lockfile["packages"][""]["version"], package["version"])
+
     def test_readme_uses_live_release_routes(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertNotIn("releases/tag/v0.25.0", readme)
@@ -35,6 +42,17 @@ class ReleaseSurfaceTest(unittest.TestCase):
         self.assertIn("## [0.26.26] - 2026-09-02", changelog)
         self.assertIn("[Unreleased]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.26...HEAD", changelog)
         self.assertIn("[0.26.25]: https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.26.25", changelog)
+        previous_versions = {
+            "0.26.21": "0.26.20",
+            "0.26.22": "0.26.21",
+            "0.26.23": "0.26.22",
+        }
+        for version, previous in previous_versions.items():
+            self.assertIn(f"## [{version}]", changelog)
+            self.assertIn(
+                f"[{version}]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v{previous}...v{version}",
+                changelog,
+            )
 
     def test_component_release_schema_and_manifest_vocabulary_exist(self) -> None:
         schema = json.loads(

@@ -18,6 +18,21 @@
 
 - Publish origin/main with the structural A/B quality gate.
 
+## [0.26.23] - 2026-08-23
+
+- Add the release-train evidence ADR and captured Runtime observations.
+
+## [0.26.22] - 2026-08-23
+
+- Add generation-bound incremental synchronization for deterministic index
+  refreshes.
+
+## [0.26.21] - 2026-08-23
+
+- Add the canonical deterministic structural graph, AST-first semantic
+  extraction, bounded structural graph queries, deterministic hybrid ranking,
+  and cross-repository fleet intelligence.
+
 ## [0.26.20] - 2026-08-14
 
 - Default CLI routing now emits immediate Fast-backed macro context, prioritizes
@@ -1111,6 +1126,10 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 [Unreleased]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.26...HEAD
 [0.26.26]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.25...v0.26.26
 [0.26.25]: https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.26.25
+[0.26.24]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.23...v0.26.24
+[0.26.23]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.22...v0.26.23
+[0.26.22]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.21...v0.26.22
+[0.26.21]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.20...v0.26.21
 [0.19.0]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.18.0...v0.19.0
 [0.18.0]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.17.0...v0.18.0
 [0.6.3]: https://github.com/wesleysimplicio/llm-project-mapper/compare/v0.6.2...v0.6.3
