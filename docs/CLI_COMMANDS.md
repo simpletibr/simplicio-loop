@@ -24,6 +24,7 @@ form available, for example `simplicio-py memory recall --help`.
 | `doctor` | Check dependency freshness and deterministic readiness. |
 | `fast` | Inspect optional Fast capabilities (`capabilities`, `doctor`). |
 | `versions` | Report installed, declared, and tested ecosystem versions. |
+| `release-train` | Verify Mapper release events and N/N-1 evidence (`verify`, `doctor`). |
 | `env-export` | Print safe exports from a dotenv file without sourcing it. |
 | `mechanical-edit` | Dry-run or apply a mechanical edit plan. |
 | `changeset` | Decode and apply a Fast changeset through the edit boundary. |
@@ -47,6 +48,6 @@ dispatched by their own modules and also expose `--help`.
 3. Use `simplicio-fast --help` only when the Fast extra is installed and the route is available.
 4. Verify with `simplicio-dev-cli test run --help` and the repository's real test command.
 
-The dependency train for this release is Mapper `0.26.10`, Dev CLI `0.18.6`,
+The dependency train for this release is Mapper `0.26.27`, Dev CLI `0.18.11`,
 and Fast `2.0.22` (Fast is available on Python 3.11+). Keep this file linked
 from agent instruction files whenever the command surface changes.

@@ -31,6 +31,9 @@
 
 ### Added
 
+- Add fail-closed Mapper release-event verification with immutable artifact
+  digests, lock/conformance proof, duplicate/out-of-order reconciliation, and
+  an explicit post-publish Loop handoff contract (#232).
 - Reconcile partial Plugin v1 edits/tests with residual write-set and
   inspect/resume/rollback dry-run UX; never git-reset user work (#671).
 - Consume Plugin v1 EffectLease and emit correlated DevExecutionReceipts

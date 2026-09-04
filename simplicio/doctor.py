@@ -136,6 +136,9 @@ def _render_mapper_versions(payload: dict) -> None:
         print(f"  drift            {drift['kind']}: {drift['reason']}")
     else:
         print("  drift            none")
+    train = payload.get("release_train")
+    if train:
+        print(f"  release train    {train['status']} — {train['reason_code']}")
 
 
 def _render_native_delegation(summary: dict) -> None:

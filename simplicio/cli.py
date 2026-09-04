@@ -413,6 +413,27 @@ def _build_parser() -> argparse.ArgumentParser:
         help="bypass the 24h PyPI cache when resolving mapper latest_known",
     )
 
+    p_release_train = sub.add_parser(
+        "release-train",
+        help="verify Mapper release events, immutable artifacts, and N/N-1 conformance",
+    )
+    release_train_sub = p_release_train.add_subparsers(dest="release_train_command", required=True)
+    release_verify = release_train_sub.add_parser(
+        "verify", help="fail-closed verification of one component-release-event/v1"
+    )
+    release_verify.add_argument("--event", required=True, help="Mapper release event JSON")
+    release_verify.add_argument("--conformance", help="installed N/N-1 conformance JSON")
+    release_verify.add_argument("--root", default=".", help="Dev CLI checkout containing pyproject.toml/uv.lock")
+    release_verify.add_argument("--declared-range")
+    release_verify.add_argument("--tested-against")
+    release_verify.add_argument("--state", default="", help="deduplication state JSON")
+    release_verify.add_argument("--record", action="store_true", help="record accepted event atomically")
+    release_verify.add_argument("--active-task", action="store_true", help="defer while a task is active")
+    release_verify.add_argument("--json", action="store_true", help="emit stable JSON")
+    release_doctor = release_train_sub.add_parser("doctor", help="report release-train evidence readiness")
+    release_doctor.add_argument("--root", default=".")
+    release_doctor.add_argument("--json", action="store_true", help="emit stable JSON")
+
     p_env_export = sub.add_parser(
         "env-export",
         help="print shell-safe exports from a dotenv file without sourcing it",
@@ -788,6 +809,7 @@ _COMMAND_MODULES = {
     "doctor": "doctor",
     "fast": "fast",
     "versions": "versions",
+    "release-train": "release_train",
     "env-export": "env_export",
     "changeset": "changeset",
     "file": "file",
