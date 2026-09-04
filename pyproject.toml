@@ -1,6 +1,6 @@
 [project]
 name = "simplicio-cli"
-version = "0.18.11"
+version = "0.18.12"
 description = "Deterministic task-to-code contract and verification CLI. It never executes or provisions an LLM."
 readme = "README.md"
 license = { text = "MIT" }

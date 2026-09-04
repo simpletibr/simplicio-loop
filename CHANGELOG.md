@@ -29,6 +29,8 @@
 
 ## Unreleased
 
+## [0.18.12] - 2026-09-04
+
 ### Added
 
 - Add fail-closed Mapper release-event verification with immutable artifact
@@ -52,7 +54,7 @@
 
 ### Changed
 
-- Raise the `simplicio-mapper` dependency floor to `>=0.26.11,<0.27` (latest
+- Raise the `simplicio-mapper` dependency floor to `>=0.26.27,<0.27` (latest
   published PyPI release at bump time) and refresh the lockfile pin.
 - `simplicio-py versions --json` now surfaces best-effort `latest_known` via
   the ecosystem PyPI cache (`--refresh` bypasses the 24h cache) and aliases
@@ -1332,3 +1334,4 @@ with the new versions installed.
 - Better guidance and helpers for E2E contract validation tasks between frontend and backend.
 
 These changes were driven by the need to generate strong evidence that the Web is correctly wired to the real API + real PostgreSQL.
+
