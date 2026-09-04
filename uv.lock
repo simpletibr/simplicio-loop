@@ -2453,7 +2453,7 @@ requires-dist = [
     { name = "simplicio-cli", extras = ["performance"], marker = "extra == 'all'" },
     { name = "simplicio-cli", extras = ["test"], marker = "extra == 'dev'" },
     { name = "simplicio-fast", marker = "python_full_version >= '3.11' and extra == 'fast'", specifier = ">=2.0.22,<3" },
-    { name = "simplicio-mapper", specifier = ">=0.26.11,<0.27" },
+    { name = "simplicio-mapper", specifier = ">=0.26.27,<0.27" },
     { name = "simplicio-prompt", specifier = ">=1.14.1" },
     { name = "tiktoken", specifier = ">=0.12.0,<1" },
     { name = "tomli", marker = "python_full_version < '3.11' and extra == 'test'", specifier = ">=2.0.1" },
@@ -2471,16 +2471,16 @@ wheels = [
 
 [[package]]
 name = "simplicio-mapper"
-version = "0.26.11"
+version = "0.26.27"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "diskcache" },
     { name = "orjson" },
     { name = "tiktoken" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f0/40/10aaf482c90da0068755d56fb0ae43b39b18712709dde53d0909ae5d258a/simplicio_mapper-0.26.11.tar.gz", hash = "sha256:f44e040d871d04315e597c96aa0ccaf269eb22e126366f5d3a705ef9d8040295", size = 576039, upload-time = "2026-08-03T15:56:50.962Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/89/43/c5717ab7861da7ad1c62abc9211a511a291d0333ad1e06cd6cf28e821f9b/simplicio_mapper-0.26.27.tar.gz", hash = "sha256:adbb8bbaea5beb2abb508aa01f1f6d97ef283522be79a6ea2445551f812bb2f6", size = 2550161, upload-time = "2026-09-04T15:27:43.555330Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/5c/c2/a56d3b68e784ab5c0213b7808b8d2748418e76598193482e667b4a170b25/simplicio_mapper-0.26.11-py3-none-any.whl", hash = "sha256:18246977437281861bc3e98ffefbf0c4166392a29be1288a31b7fcc599b7db40", size = 678391, upload-time = "2026-08-02T23:53:18.588Z" },
+    { url = "https://files.pythonhosted.org/packages/60/9e/228a09f380c37a519229bd7c2b58210db621d44421cd092b5f2edee5c6df/simplicio_mapper-0.26.27-py3-none-any.whl", hash = "sha256:d8178578253663413ba3e9f0d051e1b4e5b6770efdaeafefd6144efface53125", size = 2689421, upload-time = "2026-09-04T15:27:41.732495Z" },
 ]
 
 [[package]]

@@ -3,11 +3,11 @@ manifests and check them against this repo's own declared compatibility
 range (issue #232).
 
 Context (verified in the issue): `simplicio-cli` declares
-`simplicio-mapper>=0.23.1` in `pyproject.toml`, while the Mapper already
-publishes 0.24.0/0.24.1. That range lets a *clean* install resolve to the
+`simplicio-mapper>=0.26.27,<0.27` in `pyproject.toml`, while the Mapper already
+publishes the 0.26.x train. That range lets a *clean* install resolve to the
 newer Mapper, but it never proves the combination was actually exercised,
 and it never updates an *existing* environment/lock (this repo's own
-`uv.lock` still pins `simplicio-mapper==0.23.1` — see
+`uv.lock` is now expected to pin the verified train candidate — see
 :func:`tested_mapper_version`). Issue #280 on the Mapper side (built by a
 parallel agent, not visible from here) is expected to add a
 ``simplicio.component-release/v1`` manifest and a `simplicio-mapper version
@@ -20,7 +20,7 @@ parallel agent, not visible from here) is expected to add a
 - :func:`check_component_compatibility` — real semver-range logic deciding
   whether a candidate manifest's version is COMPATIBLE, INCOMPATIBLE, or
   NEEDS_REVIEW against a declared range (e.g. this repo's own
-  ``simplicio-mapper>=0.23.1``), parsed for real out of `pyproject.toml`.
+  ``simplicio-mapper>=0.26.27,<0.27``), parsed for real out of `pyproject.toml`.
 - :func:`build_own_manifest` — the reverse direction: build *this* repo's
   own ``simplicio.component-release/v1`` manifest (name=`simplicio-cli`,
   version from `pyproject.toml`/`__version__`, commit from

@@ -44,6 +44,7 @@ from ..component_manifest import (
     tested_dependency_version,
 )
 from ..ecosystem import _pypi_latest
+from ..release_train import release_train_doctor
 
 CLI_PROG = "simplicio-py"
 MAPPER_DIST_NAME = "simplicio-mapper"
@@ -111,6 +112,7 @@ def versions_report(
         tested_against=tested_against,
     )
     own_manifest = build_own_manifest(root)
+    release_train = release_train_doctor(root)
 
     return {
         "schema": "simplicio.dev-cli.versions/v1",
@@ -126,6 +128,7 @@ def versions_report(
         },
         "drift": drift.to_dict(),
         "own_manifest": own_manifest.to_dict(),
+        "release_train": release_train,
     }
 
 
@@ -158,6 +161,11 @@ def _render_human(payload: dict[str, Any]) -> None:
     print(f"  version       {own['version']}")
     print(f"  commit        {own['commit'] or '(unknown)'}")
     print(f"  schema count  {len(own['schema_versions'])}")
+    train = payload["release_train"]
+    print()
+    print("release train readiness:")
+    print(f"  status        {train['status']}")
+    print(f"  reason        {train['reason_code']}")
 
 
 def run(a: argparse.Namespace) -> int:
