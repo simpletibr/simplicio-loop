@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.26.27] - 2026-09-04
+
 ### Added
 
 - Add fail-closed manual release governance with Ed25519 manifest signing,
@@ -72,17 +74,6 @@
 - Generate deterministic, read-only project skills and agents after a fresh,
   complete canonical index; preserve content-addressed last-known-good
   generations under `.catalog` and leave human `.skills`/`.agents` untouched.
-
-## Unreleased
-
-Changes after `v0.26.26` are unreleased until a new immutable tag is created.
-
-### Added
-
-- Add fail-closed release governance with Ed25519 manifest signing, deterministic
-  CycloneDX SBOM generation, PyPI/npm parity, version-ordered missed-event
-  reconciliation, canary promotion gates, reproducible rollback/revocation,
-  and installed N/N-1 component-release fixtures.
 
 ## [0.26.15] - 2026-08-03
 
@@ -1140,7 +1131,8 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 - Remotion skills tutorial video in PT-BR. ([#1](https://github.com/wesleysimplicio/llm-project-mapper/pull/1))
 - i18n layer + English skills tutorial video. ([#2](https://github.com/wesleysimplicio/llm-project-mapper/pull/2))
 
-[Unreleased]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.26...HEAD
+[Unreleased]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.27...HEAD
+[0.26.27]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.26...v0.26.27
 [0.26.26]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.25...v0.26.26
 [0.26.25]: https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.26.25
 [0.26.24]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.23...v0.26.24
