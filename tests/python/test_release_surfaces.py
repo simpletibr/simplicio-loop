@@ -22,7 +22,7 @@ class ReleaseSurfaceTest(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("0.26.27", result.stdout)
+        self.assertIn("0.26.28", result.stdout)
 
     def test_npm_lockfile_tracks_the_release_version(self) -> None:
         package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
@@ -41,8 +41,8 @@ class ReleaseSurfaceTest(unittest.TestCase):
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         self.assertIn("## [Unreleased]", changelog)
         self.assertIn("fail-closed manual release governance", changelog)
-        self.assertIn("## [0.26.27] - 2026-09-04", changelog)
-        self.assertIn("[Unreleased]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.27...HEAD", changelog)
+        self.assertIn("## [0.26.28] - 2026-09-05", changelog)
+        self.assertIn("[Unreleased]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.28...HEAD", changelog)
         self.assertIn("[0.26.25]: https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.26.25", changelog)
         previous_versions = {
             "0.26.21": "0.26.20",

@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.26.28] - 2026-09-05
+
+### Fixed
+
+- Align the calibration fallback assertion and release metadata after the latest merged fixes.
+
 ## [0.26.27] - 2026-09-04
 
 ### Added
@@ -1131,7 +1137,8 @@ Format follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/) an
 - Remotion skills tutorial video in PT-BR. ([#1](https://github.com/wesleysimplicio/llm-project-mapper/pull/1))
 - i18n layer + English skills tutorial video. ([#2](https://github.com/wesleysimplicio/llm-project-mapper/pull/2))
 
-[Unreleased]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.27...HEAD
+[Unreleased]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.28...HEAD
+[0.26.28]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.27...v0.26.28
 [0.26.27]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.26...v0.26.27
 [0.26.26]: https://github.com/wesleysimplicio/simplicio-mapper/compare/v0.26.25...v0.26.26
 [0.26.25]: https://github.com/wesleysimplicio/simplicio-mapper/releases/tag/v0.26.25
