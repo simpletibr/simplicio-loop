@@ -11,8 +11,9 @@ import copy
 import hashlib
 import json
 import re
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any
 
 from .component_manifest import (
     COMPATIBLE,
@@ -391,6 +392,7 @@ def build_bump_plan(
             "dispatch_after": "pypi_publish",
             "deduplication": "event_id",
         },
+        "rollback": copy.deepcopy(dict(event.get("rollback", {}))),
         "automation_boundary": {
             "dev_cli": "prepare_and_verify_contract",
             "github": "authenticated_pr_adapter",
@@ -472,6 +474,27 @@ def evaluate_release_event(
                 )
         except ValueError as error:
             return _blocked("unparseable_version", str(error), event_id, version, state, (str(error),))
+
+    release_status = str(event.get("status", event.get("release_status", ""))).lower()
+    if event.get("revoked") is True or release_status in {"revoked", "recalled"}:
+        return _blocked(
+            "revoked_release",
+            "revoked Mapper releases are never accepted",
+            event_id, version, state,
+        )
+    if event.get("yanked") is True or release_status in {"yanked", "withdrawn"}:
+        return _blocked(
+            "yanked_release",
+            "yanked Mapper releases are never accepted",
+            event_id, version, state,
+        )
+    delivery = event.get("delivery")
+    if isinstance(delivery, Mapping) and delivery.get("authenticated") is False:
+        return _blocked(
+            "unauthenticated_delivery",
+            "release event delivery is not authenticated",
+            event_id, version, state,
+        )
 
     compatibility = check_version_against_range(version, declared_range, name=MAPPER_COMPONENT)
     if compatibility.status != COMPATIBLE:
@@ -568,6 +591,11 @@ def release_train_doctor(root: str | None = None) -> dict[str, Any]:
             "bump_pr": "authenticated external adapter",
             "loop_dispatch": "after PyPI publication",
         },
+        "adapter_contracts": {
+            "schema": "simplicio.release-train-adapter/v1",
+            "github_bump": "request-only-until-external-receipt",
+            "loop_dispatch": "request-only-after-pypi-receipt",
+        },
         "next_action": (
             "provide a verified component-release-event/v1 and conformance evidence"
             if configured else "declare a compatible simplicio-mapper dependency"
@@ -576,9 +604,23 @@ def release_train_doctor(root: str | None = None) -> dict[str, Any]:
 
 
 __all__ = [
-    "MANIFEST_SCHEMA", "EVENT_SCHEMA", "EVENT_TYPE", "PLAN_SCHEMA", "DOCTOR_SCHEMA",
-    "MAPPER_COMPONENT", "LOOP_REPOSITORY", "ReleaseTrainError", "ReleaseTrainDecision",
-    "canonical_json", "canonical_digest", "manifest_digest", "validate_mapper_manifest",
-    "validate_release_event", "build_release_event", "build_bump_plan",
-    "evaluate_release_event", "reconcile_release_events", "release_train_doctor",
+    "DOCTOR_SCHEMA",
+    "EVENT_SCHEMA",
+    "EVENT_TYPE",
+    "LOOP_REPOSITORY",
+    "MANIFEST_SCHEMA",
+    "MAPPER_COMPONENT",
+    "PLAN_SCHEMA",
+    "ReleaseTrainDecision",
+    "ReleaseTrainError",
+    "build_bump_plan",
+    "build_release_event",
+    "canonical_digest",
+    "canonical_json",
+    "evaluate_release_event",
+    "manifest_digest",
+    "reconcile_release_events",
+    "release_train_doctor",
+    "validate_mapper_manifest",
+    "validate_release_event",
 ]
