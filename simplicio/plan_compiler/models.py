@@ -17,6 +17,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from simplicio.mapper_binding import validate_mapper_binding
 from simplicio.plan_compiler.canonical_hash import canonical_hash
 from simplicio.plan_compiler.errors import PlanValidationError, SchemaMismatchError
 
@@ -273,6 +274,10 @@ class PlanDAG:
     # Preserve whether an optional field was explicitly serialized so legacy
     # v1 payloads round-trip without changing their canonical digest.
     _context_handle_present: bool = field(default=False, repr=False, compare=False)
+    # Optional Mapper-owned observation identity.  It is deliberately additive
+    # so legacy v1 plans remain byte-stable while new edit plans can be bound to
+    # a canonical generation and source-tree snapshot.
+    mapper_binding: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         payload = {
@@ -289,6 +294,8 @@ class PlanDAG:
         }
         if self.context_handle or self._context_handle_present:
             payload["context_handle"] = self.context_handle
+        if self.mapper_binding is not None:
+            payload["mapper_binding"] = self.mapper_binding
         return payload
 
     @classmethod
@@ -308,6 +315,7 @@ class PlanDAG:
             trace_id=str(raw_trace_id) if raw_trace_id is not None else None,
             context_handle=str(payload.get("context_handle", "")),
             _context_handle_present="context_handle" in payload,
+            mapper_binding=dict(payload["mapper_binding"]) if isinstance(payload.get("mapper_binding"), dict) else None,
         )
 
     def canonical_hash(self) -> str:
@@ -367,6 +375,12 @@ class PlanDAG:
             diagnostics.append(
                 f"consumer_id {self.consumer_id!r} is not a registered consumer "
                 f"(expected one of {sorted(PLAN_COMPILER_COMPATIBILITY['consumers'])})"
+            )
+
+        if self.mapper_binding is not None:
+            diagnostics.extend(
+                f"mapper_binding: {error}"
+                for error in validate_mapper_binding(self.mapper_binding)
             )
 
         if effective_budget is not None:

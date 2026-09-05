@@ -6,10 +6,16 @@ import hashlib
 import json
 import os
 import time
+from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
+from .mapper_binding import (
+    canonical_mapper_binding,
+    mapper_binding_digest,
+    validate_mapper_binding,
+)
 from .mechanical_edit import execute_plan
 from .standalone_migration import load_effect_unknown_lock
 from .utils.fs import write_text_atomic
@@ -109,7 +115,7 @@ def _diagnostics(result: dict[str, Any]) -> dict[str, Any]:
 def _preview(plan: dict[str, Any], root: Path) -> dict[str, Any]:
     try:
         return execute_plan(plan, root=root, apply=False, allow_native=False)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - convert any executor failure to a refusal
         return {
             "status": "refused",
             "planned_diff": "",
@@ -145,6 +151,11 @@ def _validated_preview(
         return empty, "plan_digest_mismatch", None
     if plan_envelope.get("effect_digest") != plan_envelope.get("plan_digest"):
         return empty, "effect_digest_mismatch", None
+    mapper_binding = plan.get("mapper_binding")
+    if mapper_binding is not None:
+        binding_errors = validate_mapper_binding(mapper_binding)
+        if binding_errors:
+            return empty, "mapper_binding_invalid", {"errors": binding_errors}
     result = _preview(plan, root)
     diagnostics = _diagnostics(result)
     if result.get("status") != "ok":
@@ -162,14 +173,32 @@ def _validated_preview(
     return diagnostics, None, None
 
 
-def compile_plan(plan: dict[str, Any], *, root: str | Path, idempotency_key: str) -> dict[str, Any]:
+def compile_plan(
+    plan: dict[str, Any],
+    *,
+    root: str | Path,
+    idempotency_key: str,
+    mapper_binding: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     """Validate and bind a mechanical plan without writing or spawning."""
     root_path = Path(root).resolve()
     if not isinstance(plan, dict):
-        raise ValueError("plan must be an object")
+        raise ValueError("plan must be an object")  # noqa: TRY004 - public contract error
     if not idempotency_key:
         raise ValueError("idempotency_key is required")
     normalized = _normalized_plan(plan)
+    supplied_binding = mapper_binding if mapper_binding is not None else normalized.get("mapper_binding")
+    if supplied_binding is not None:
+        binding_errors = validate_mapper_binding(supplied_binding)
+        if binding_errors:
+            return {
+                "schema": PLAN_SCHEMA,
+                "status": "blocked",
+                "idempotency_key": idempotency_key,
+                "reason": "mapper_binding_invalid",
+                "errors": binding_errors,
+            }
+        normalized["mapper_binding"] = canonical_mapper_binding(supplied_binding)
     preview = _preview(normalized, root_path)
     digest = _digest(normalized)
     diagnostics = _diagnostics(preview)
@@ -182,6 +211,9 @@ def compile_plan(plan: dict[str, Any], *, root: str | Path, idempotency_key: str
         "diagnostics": diagnostics,
         "provenance": {"producer": "simplicio-dev-cli", "operator": "native-deterministic"},
     }
+    if "mapper_binding" in normalized:
+        base["mapper_binding"] = normalized["mapper_binding"]
+        base["provenance"]["mapper_binding_digest"] = mapper_binding_digest(normalized["mapper_binding"])
     if preview.get("status") != "ok":
         return base | {"status": "blocked", "errors": preview.get("errors", [])}
     try:
@@ -210,6 +242,8 @@ def dry_run(plan_envelope: dict[str, Any], *, root: str | Path) -> dict[str, Any
         "diagnostics": diagnostics,
         "provenance": plan_envelope.get("provenance", {}),
     }
+    if isinstance(plan_envelope.get("mapper_binding"), dict):
+        payload["mapper_binding"] = plan_envelope["mapper_binding"]
     if reason:
         payload["reason"] = reason
     if preconditions is not None:
@@ -333,6 +367,9 @@ def apply(plan_envelope: dict[str, Any], *, root: str | Path) -> dict[str, Any]:
             "provenance": plan_envelope.get("provenance", {}),
             "recovery_locator": str(receipt_path.relative_to(root_path)),
         }
+        if isinstance(plan_envelope.get("mapper_binding"), dict):
+            receipt["mapper_binding"] = plan_envelope["mapper_binding"]
+            receipt["mapper_binding_digest"] = mapper_binding_digest(plan_envelope["mapper_binding"])
         receipt["receipt_digest"] = _receipt_digest(receipt)
         write_text_atomic(receipt_path, _canonical(receipt) + "\n")
         return receipt | {"replayed": False}

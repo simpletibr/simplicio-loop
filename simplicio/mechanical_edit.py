@@ -11,10 +11,20 @@ import subprocess
 import tempfile
 import tokenize
 from copy import deepcopy
+from itertools import pairwise
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
-from .standalone_migration import effect_unknown_details, effect_unknown_pending, record_effect_unknown
+from .mapper_binding import (
+    mapper_binding_digest,
+    validate_mapper_binding,
+    verify_mapper_sources,
+)
+from .standalone_migration import (
+    effect_unknown_details,
+    effect_unknown_pending,
+    record_effect_unknown,
+)
 from .token_primitives import sha256_text, summarize_log
 from .utils.fs import write_bytes_atomic
 
@@ -120,6 +130,21 @@ def execute_plan(
         return native_result
 
     before = _snapshot(root_path, operations)
+    mapper_binding = plan.get("mapper_binding")
+    if mapper_binding is not None:
+        binding_errors = validate_mapper_binding(mapper_binding)
+        if binding_errors:
+            return _refused(
+                [{"code": "mapper_binding_invalid", "message": error} for error in binding_errors],
+                root=root_path,
+            )
+        observed_hashes = {
+            path: None if raw is None else _contract_hash(raw)
+            for path, raw in before.items()
+        }
+        source_errors = verify_mapper_sources(mapper_binding, observed_hashes)
+        if source_errors:
+            return _refused(source_errors, root=root_path)
     try:
         after = _apply_operations_to_snapshot(root_path, before, operations)
     except MechanicalEditError as exc:
@@ -140,6 +165,9 @@ def execute_plan(
             "validation": [],
         }
     )
+    if mapper_binding is not None:
+        result["mapper_binding"] = mapper_binding
+        result["mapper_binding_digest"] = mapper_binding_digest(mapper_binding)
     if not apply or noop:
         return result
 
@@ -252,6 +280,7 @@ def _try_native_edit(
                 capture_output=True,
                 text=True,
                 shell=False,
+                check=False,
                 timeout=_NATIVE_EDIT_TIMEOUT_S,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
@@ -666,7 +695,7 @@ def _validate_overlaps(operations: list[dict[str, Any]]) -> list[dict[str, Any]]
         ranges.setdefault(path, []).append((start, end, index, isinstance(operation.get("order"), int)))
     for path, rows in ranges.items():
         rows = sorted(rows)
-        for left, right in zip(rows, rows[1:], strict=False):
+        for left, right in pairwise(rows):
             if left[1] >= right[0] and not (left[3] and right[3]):
                 return [
                     {
@@ -1040,6 +1069,7 @@ def _run_validation(raw: Any, root: Path) -> list[dict[str, Any]]:
                     stdout=output,
                     stderr=subprocess.STDOUT,
                     shell=False,
+                    check=False,
                     timeout=timeout,
                 )
                 output.seek(0)
@@ -1057,7 +1087,7 @@ def _run_validation(raw: Any, root: Path) -> list[dict[str, Any]]:
                     "log_summary": summarize_log(log, max_chars=900),
                 }
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - validation must become evidence
             rows.append(
                 {
                     "cmd": cmd,

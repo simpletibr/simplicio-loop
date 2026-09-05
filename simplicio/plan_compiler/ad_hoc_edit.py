@@ -13,8 +13,19 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
+from simplicio.mapper_binding import (
+    MapperBindingError,
+    canonical_mapper_binding,
+    mapper_binding_digest,
+    validate_mapper_binding,
+)
 from simplicio.plan_compiler.canonical_hash import canonical_hash
-from simplicio.plan_compiler.models import EffectPlan, PlanDAG, PlanNode, VerificationPlan
+from simplicio.plan_compiler.models import (
+    EffectPlan,
+    PlanDAG,
+    PlanNode,
+    VerificationPlan,
+)
 
 AD_HOC_EDIT_SCHEMA = "simplicio.ad-hoc-edit-intent/v1"
 DERIVED_EDIT_PROPOSAL_SCHEMA = "simplicio.derived-edit-proposal/v1"
@@ -55,8 +66,7 @@ def _safe_target(raw: Any) -> tuple[str | None, str | None]:
     if (
         not target
         or target in {".", ".."}
-        or target.startswith("/")
-        or target.startswith("//")
+        or target.startswith(("/", "//"))
         or _WINDOWS_DRIVE.match(target)
         or any(part in {"", ".", ".."} for part in target.split("/"))
         or any(ord(char) < 32 for char in target)
@@ -84,6 +94,28 @@ def _expected_hash(operation: Mapping[str, Any], *, old: str | None) -> tuple[st
     if old is not None:
         return hashlib.sha256(old.encode("utf-8")).hexdigest(), None
     return None, "an old value or expected_content_hash is required"
+
+
+def _mapper_binding_from_payload(
+    payload: Mapping[str, Any],
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """Read a Mapper binding without deriving any Mapper semantics."""
+    raw = payload.get("mapper_binding")
+    direct_fields = {"repository_id", "generation", "source_tree_id", "source_hashes"}
+    if raw is None and not any(field in payload for field in direct_fields):
+        return None, []
+    if raw is None:
+        raw = {field: payload.get(field) for field in direct_fields}
+        raw["schema"] = payload.get("mapper_binding_schema", "simplicio.mapper-binding/v1")
+    if not isinstance(raw, Mapping):
+        return None, ["mapper_binding must be an object"]
+    errors = validate_mapper_binding(raw)
+    if errors:
+        return None, errors
+    try:
+        return canonical_mapper_binding(raw), []
+    except MapperBindingError as exc:
+        return None, [str(exc)]
 
 
 def _normalise_operations(
@@ -217,6 +249,12 @@ def derive_ad_hoc_edit(payload: Mapping[str, Any]) -> dict[str, Any]:
     if not isinstance(context_snapshot_id, str) or not isinstance(context_handle, str):
         return _blocked(["UNSUPPORTED_EDIT"], ["context_snapshot_id and context_handle must be strings"])
 
+    mapper_binding, mapper_binding_errors = _mapper_binding_from_payload(payload)
+    if mapper_binding_errors:
+        return _blocked(["MAPPER_BINDING_INVALID"], mapper_binding_errors)
+    if payload.get("require_mapper_binding") and mapper_binding is None:
+        return _blocked(["MAPPER_BINDING_REQUIRED"], ["a canonical Mapper binding is required"])
+
     input_payload = {
         "schema": AD_HOC_EDIT_SCHEMA,
         "intent": intent.strip(),
@@ -224,6 +262,8 @@ def derive_ad_hoc_edit(payload: Mapping[str, Any]) -> dict[str, Any]:
         "context_snapshot_id": context_snapshot_id,
         "context_handle": context_handle,
     }
+    if mapper_binding is not None:
+        input_payload["mapper_binding"] = mapper_binding
     input_digest = canonical_hash(input_payload)
     plan_id = f"plan-edit-{input_digest[:16]}"
     effect_id = f"effect-edit-{input_digest[:16]}"
@@ -239,6 +279,8 @@ def derive_ad_hoc_edit(payload: Mapping[str, Any]) -> dict[str, Any]:
         )
         for item in operations
     ]
+    if mapper_binding is not None:
+        preconditions.append(f"mapper_binding:{mapper_binding_digest(mapper_binding)}")
     edit_node = PlanNode(
         node_id="edit",
         capability="edit.apply",
@@ -270,6 +312,7 @@ def derive_ad_hoc_edit(payload: Mapping[str, Any]) -> dict[str, Any]:
         consumer_id="simplicio-runtime",
         trace_id=payload.get("trace_id") if isinstance(payload.get("trace_id"), str) else None,
         context_handle=context_handle,
+        mapper_binding=mapper_binding,
     )
     effect = EffectPlan(
         effect_id=effect_id,
@@ -304,7 +347,7 @@ def derive_ad_hoc_edit(payload: Mapping[str, Any]) -> dict[str, Any]:
     )
     try:
         plan.validate(effects=[effect], verifications=[verification])
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - contract validation is reported as a block
         return _blocked(["UNSUPPORTED_EDIT"], [f"derived contract validation failed: {exc}"])
 
     plan_dict = plan.to_dict()
@@ -325,9 +368,13 @@ def derive_ad_hoc_edit(payload: Mapping[str, Any]) -> dict[str, Any]:
             "fence",
             "policy_revision",
             "authorization",
+            "mapper_binding",
         ],
         "plan_digest": plan.canonical_hash(),
     }
+    if mapper_binding is not None:
+        proposal["mapper_binding"] = mapper_binding
+        proposal["mapper_binding_digest"] = mapper_binding_digest(mapper_binding)
     proposal_digest = canonical_hash(
         {
             "proposal": proposal,
@@ -348,6 +395,9 @@ def derive_ad_hoc_edit(payload: Mapping[str, Any]) -> dict[str, Any]:
             "RUNTIME_ENVELOPE_REQUIRED",
         ],
     }
+    if mapper_binding is not None:
+        receipt["mapper_binding"] = mapper_binding
+        receipt["mapper_binding_digest"] = mapper_binding_digest(mapper_binding)
     return {
         "schema": DERIVED_EDIT_PROPOSAL_SCHEMA,
         "status": "derived",
