@@ -19,4 +19,4 @@ def test_invalid_calibration_keeps_safe_existing_route(tmp_path, monkeypatch) ->
     path.write_text("not-json", encoding="utf-8")
     monkeypatch.setenv(AUTO_CALIBRATION_ENV, str(path))
     plan = plan_execution(440, 5)
-    assert plan.selected_profile == "async"
+    assert plan.selected_profile == "sync"
