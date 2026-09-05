@@ -12,10 +12,16 @@ except ImportError:  # pragma: no cover - stdlib on supported Pythons
     PackageNotFoundError = Exception  # type: ignore[misc,assignment]
     _distribution_version = None  # type: ignore[assignment]
 
+# Prefer the checked-in source version when a stale or duplicate dist-info is
+# present in the ambient interpreter. A wheel built from this tree carries the
+# same value, so a matching metadata value is harmless; a mismatching value is
+# installation drift, not a reason to report the wrong checkout version.
 if _distribution_version is not None:
     try:
-        __version__ = _distribution_version("simplicio-mapper")
-    except PackageNotFoundError:
-        pass
+        detected_version = _distribution_version("simplicio-mapper")
+    except (PackageNotFoundError, ValueError):
+        detected_version = None
+    if isinstance(detected_version, str) and detected_version.strip() == __version__:
+        __version__ = detected_version.strip()
 
 __all__ = ["__version__"]
