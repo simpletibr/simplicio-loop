@@ -137,6 +137,21 @@ Only the Python backend emits the five public v1 ids in this release. The
 Node mirror emits `simplicio.mapper-native/<artifact>/v1` until differential
 parity is proven against the same fixture suite.
 
+### Language/capability parity (#617)
+
+The fail-closed matrix and per-stack fixtures live under
+[`contracts/mapper-capability/v1/`](../contracts/mapper-capability/v1/). Validate
+the complete 34-language × 15-capability catalog with:
+
+```bash
+python3 scripts/language_capability_matrix.py --repo .
+python3 scripts/language_capability_matrix.py --repo . --write
+```
+
+C#/Razor semantic calls use the optional
+`SIMPLICIO_MAPPER_SEMANTIC_COMMAND` JSON service; without it, call edges remain
+explicitly heuristic/inferred and are recorded as degraded in the receipt.
+
 ## `simplicio-mapper doctor --contracts` / `scripts/validate_ecosystem_contracts.py` (issue #164)
 
 Extends the above to two cross-repo payloads that originate *outside*

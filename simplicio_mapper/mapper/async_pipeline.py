@@ -26,6 +26,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from ..cache import FileProcessingCache
+from ..language_capabilities import build_capability_coverage
 from ..models import ProjectFile
 from .graph import (
     _build_architecture_inventory,
@@ -537,6 +538,13 @@ async def build_artifacts_async(
         call_graph,
         generated_at,
     )
+    capability_coverage = build_capability_coverage(
+        files,
+        semantic_resolution=call_graph.get("semantic_resolution"),
+    )
+    project_map["capability_coverage"] = capability_coverage
+    if call_graph.get("semantic_resolution", {}).get("status") in {"unavailable", "degraded"}:
+        degraded["semantic_resolution"] = call_graph["semantic_resolution"]
 
     bh_map = _build_brown_hilbert_map(files)
     agent_tree = _build_agent_tree(files, bh_map)

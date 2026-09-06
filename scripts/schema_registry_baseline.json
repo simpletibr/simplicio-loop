@@ -15,6 +15,7 @@
     "simplicio_mapper.flows:FLOW_ARTIFACT_VERSION": 1,
     "simplicio_mapper.history:DOC_HISTORY_VERSION": 1,
     "simplicio_mapper.incremental:CONTRACT_VERSION": 1,
+    "simplicio_mapper.language_capabilities:CAPABILITY_SCHEMA": "simplicio.mapper-capability-coverage/v1",
     "simplicio_mapper.mapper.canonical:CANONICAL_MAP_SCHEMA_VERSION": 1,
     "simplicio_mapper.mapper.canonical:EFFECTIVE_MAP_VIEW_SCHEMA_VERSION": 1,
     "simplicio_mapper.mapper.canonical:WORKTREE_OVERLAY_SCHEMA_VERSION": 1,
@@ -24,6 +25,8 @@
     "simplicio_mapper.mapper.canonical_verify:CANONICAL_VERIFY_SCHEMA_VERSION": 1,
     "simplicio_mapper.mapper.parse:ARTIFACT_VERSION": 1,
     "simplicio_mapper.retrieval_index:RETRIEVAL_INDEX_VERSION": 1,
+    "simplicio_mapper.semantic_resolution:REQUEST_SCHEMA": "simplicio.mapper-semantic-request/v1",
+    "simplicio_mapper.semantic_resolution:RESULT_SCHEMA": "simplicio.mapper-semantic-result/v1",
     "simplicio_mapper.survey:ONBOARDING_VERSION": 1,
     "simplicio_mapper.visualization:PREVIEW_VERSION": 1,
     "simplicio_mapper.visualization:VISUALIZATION_VERSION": 1

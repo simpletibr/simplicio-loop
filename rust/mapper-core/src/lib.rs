@@ -371,7 +371,7 @@ static RE_PY_FROM: Lazy<Regex> =
 static RE_PY_IMPORT: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"(?m)^\s*import\s+([A-Za-z0-9_.]+)").unwrap());
 static RE_CSHARP_USING: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?m)^\s*using\s+([A-Za-z0-9_.]+)\s*;").unwrap());
+    Lazy::new(|| Regex::new(r"(?m)^\s*@?using\s+([A-Za-z0-9_.]+)\s*;?").unwrap());
 static RE_GO_IMPORT: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"(?m)^\s*import\s+"([^"]+)""#).unwrap());
 static RE_SYMBOLS: Lazy<Vec<Regex>> = Lazy::new(|| {
@@ -515,6 +515,19 @@ mod tests {
         let result = parse_imports("import sys\nfrom os import path\nimport sys\n", "python")
             .expect("python imports");
         assert_eq!(result, vec!["os", "sys"]);
+    }
+
+    #[test]
+    fn csharp_and_razor_using_directives_are_imports() {
+        let text = "using System;\n@using Microsoft.AspNetCore.Mvc\n";
+        assert_eq!(
+            parse_imports(text, "csharp").expect("csharp imports"),
+            vec!["Microsoft.AspNetCore.Mvc", "System"]
+        );
+        assert_eq!(
+            parse_imports(text, "razor").expect("razor imports"),
+            vec!["Microsoft.AspNetCore.Mvc", "System"]
+        );
     }
 
     #[test]

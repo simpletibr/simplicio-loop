@@ -28,6 +28,7 @@
       "provenance": {
         "candidate_count": 0,
         "candidates": [],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "require"
       },
@@ -47,6 +48,7 @@
       "provenance": {
         "candidate_count": 0,
         "candidates": [],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "require"
       },
@@ -66,6 +68,7 @@
       "provenance": {
         "candidate_count": 0,
         "candidates": [],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "require"
       },
@@ -85,6 +88,7 @@
       "provenance": {
         "candidate_count": 0,
         "candidates": [],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "test"
       },
@@ -104,6 +108,7 @@
       "provenance": {
         "candidate_count": 0,
         "candidates": [],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "strictEqual"
       },
@@ -158,6 +163,7 @@
         "candidates": [
           "src/index.js::greet"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "greet"
       },
@@ -200,6 +206,7 @@
       "provenance": {
         "candidate_count": 0,
         "candidates": [],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "log"
       },
@@ -222,6 +229,7 @@
         "candidates": [
           "src/index.js::greet"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "greet"
       },
@@ -246,6 +254,7 @@
         "candidates": [
           "src/index.js::main"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "main"
       },
@@ -264,7 +273,7 @@
   "generated_at": "1970-01-01T00:00:00.000Z",
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:dc37e47f6fba17a1e8a3c1e50b9d27e5ce5c85b811f591f8386f1c41555939f5",
+    "canonical_digest": "sha256:185ca80d8d9951c65224670700f17ebbd856812f7fd02d09a85a8dbd910d8303",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",
@@ -285,6 +294,19 @@
     "version": "0.26.28"
   },
   "schema": "simplicio.call-graph/v1",
+  "semantic_resolution": {
+    "languages": [],
+    "protocol": "v1",
+    "provider_versions": [],
+    "providers": [],
+    "reasons": [
+      "no_csharp_or_razor_call_sites"
+    ],
+    "resolved_calls": 0,
+    "schema": "simplicio.mapper-semantic-resolution/v1",
+    "status": "not_required",
+    "symbols": 0
+  },
   "source_symbol_index": ".simplicio/symbol-index.json",
   "version": 1
 }

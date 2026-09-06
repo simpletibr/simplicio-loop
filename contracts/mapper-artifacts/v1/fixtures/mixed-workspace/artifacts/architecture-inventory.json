@@ -237,7 +237,7 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:83f187440ddea44091ce11f1f975cb266ceed444f79174220836e4994a192f9c",
+    "canonical_digest": "sha256:6d06c4bec55712e26dbb5934e1529a7e197fcaf8e25fa00bd124bf30749f9048",
     "capability_coverage": {
       "architecture": "full",
       "files": "full",
@@ -289,6 +289,7 @@
         "candidates": [
           "backend/server.py::handle_request"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "handle_request"
       },
@@ -313,6 +314,7 @@
         "candidates": [
           "backend/server.py::main"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "main"
       },
@@ -337,6 +339,7 @@
         "candidates": [
           "backend/server.py::handle_request"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "handle_request"
       },

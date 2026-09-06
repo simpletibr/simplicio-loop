@@ -42,13 +42,30 @@ _CORE_FEATURE_FOR_CAPABILITY = {
 }
 
 
-def native_default(capability: str) -> bool:
-    """Return whether one named core capability may run natively by default."""
+def native_default(capability: str, language: str | None = None) -> bool:
+    """Return whether a named core capability may run natively by default.
+
+    When *language* is supplied, the native module must explicitly advertise
+    that language as well as the feature.  The optional argument keeps callers
+    that only need a global kernel probe simple; language-aware callers must
+    use the stricter route.
+    """
     if not HAS_NATIVE or capability not in NATIVE_DEFAULT_CAPABILITIES:
         return False
     features = CAPABILITIES.get("features")
     feature = _CORE_FEATURE_FOR_CAPABILITY.get(capability, capability)
-    return isinstance(features, (list, tuple, set, frozenset)) and feature in features
+    if not isinstance(features, (list, tuple, set, frozenset)) or feature not in features:
+        return False
+    if language is None:
+        return True
+    languages = CAPABILITIES.get("languages")
+    # A hand-built test/dummy capability payload may omit languages.  An
+    # installed native extension always publishes the field, so an explicit
+    # empty list is treated as "nothing is advertised" rather than as a
+    # wildcard.
+    if languages is None:
+        return True
+    return isinstance(languages, (list, tuple, set, frozenset)) and language in languages
 
 try:
     from simplicio_mapper_rs import (

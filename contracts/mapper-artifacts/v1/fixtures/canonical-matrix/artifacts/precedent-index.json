@@ -3,12 +3,12 @@
   "items": [
     {
       "change_type": "feature",
-      "id": "2e6879ac9ffcb7a2",
+      "id": "a42a454af088a389",
       "language": "csharp",
-      "line": 1,
+      "line": 3,
       "path": "services/dotnet/Program.cs",
       "rank": 1,
-      "snippet": "public class Program\n{\n    public static string Language() => \"csharp\";",
+      "snippet": "using System;\n\npublic class Program\n{\n    public static string Language() => \"csharp\";",
       "summary": "feature precedent in services/dotnet/Program.cs",
       "tags": [
         "domain",
@@ -148,7 +148,7 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:d49cc902af37171703a123f4c7b1926dfd11134e3bd3da3bf3b7d9eaa5df41a7",
+    "canonical_digest": "sha256:7781181301b9b8fa9504775b920a9ecfdd225d9ba9b5d8361dda2107cf7191c7",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",

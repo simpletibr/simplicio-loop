@@ -16,6 +16,7 @@ from bisect import bisect_right
 from .. import _native
 from ..models import ProjectFile
 from ..relations import relation_coverage, relation_id
+from ..semantic_resolution import RoslynSemanticAdapter, resolution_key, resolve_semantic_calls
 from .parse import (
     _RE_CONFIG,
     _RE_DOMAIN,
@@ -60,6 +61,32 @@ _ARCH_CHECKS = [
 ]
 
 CALL_GRAPH_EDGE_LIMIT = 1000
+
+
+def _semantic_line(value: dict) -> int | None:
+    raw = value.get("line") or value.get("source_line")
+    if isinstance(raw, bool):
+        return None
+    try:
+        line = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return line if line >= 1 else None
+
+
+def _csharp_parameter_signature(parameters: str) -> str:
+    """Return a stable type-only signature for a C# method declaration."""
+    result: list[str] = []
+    for raw in parameters.split(","):
+        value = re.sub(r"\s*=.*$", "", raw.strip())
+        value = re.sub(r"\[[^]]*\]\s*", "", value)
+        value = re.sub(r"\b(?:this|ref|out|in|params|scoped)\b\s*", "", value)
+        tokens = value.split()
+        if len(tokens) > 1 and re.fullmatch(r"[A-Za-z_]\w*", tokens[-1]):
+            tokens.pop()
+        if tokens:
+            result.append(" ".join(tokens))
+    return ", ".join(result)
 
 
 def _call_graph_edge_limit(edge_limit: int | None = None) -> int:
@@ -136,7 +163,8 @@ def _symbol_definitions_for_file(file: ProjectFile, text: str) -> list[dict]:
         patterns = [
             (re.compile(r"\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:[\"`]?[A-Za-z_]\w*[\"`]?\.)?[\"`]?([A-Za-z_]\w*)[\"`]?", re.IGNORECASE), "table"),
             (re.compile(r"\bCREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+(?:[\"`]?[A-Za-z_]\w*[\"`]?\.)?[\"`]?([A-Za-z_]\w*)[\"`]?", re.IGNORECASE), "view"),
-            (re.compile(r"\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:FUNCTION|PROCEDURE)\s+(?:[\"`]?[A-Za-z_]\w*[\"`]?\.)?[\"`]?([A-Za-z_]\w*)[\"`]?", re.IGNORECASE), "function"),
+            (re.compile(r"\bCREATE\s+(?:OR\s+REPLACE\s+)?PROCEDURE\s+(?:[\"`]?[A-Za-z_]\w*[\"`]?\.)?[\"`]?([A-Za-z_]\w*)[\"`]?(?:\s|\(|$)", re.IGNORECASE), "procedure"),
+            (re.compile(r"\bCREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:[\"`]?[A-Za-z_]\w*[\"`]?\.)?[\"`]?([A-Za-z_]\w*)[\"`]?(?:\s|\(|$)", re.IGNORECASE), "function"),
         ]
     elif file.language == "elixir":
         patterns = [
@@ -189,7 +217,7 @@ def _symbol_definitions_for_file(file: ProjectFile, text: str) -> list[dict]:
             (re.compile(r"^\s*(?:public\s+|private\s+|protected\s+|internal\s+)?(?:sealed\s+|static\s+|partial\s+)?class\s+([A-Za-z_]\w*)", re.MULTILINE), "class"),
             (
                 re.compile(
-                    r"^\s*(?:public|private|protected|internal)\s+(?:static\s+)?(?:async\s+)?[A-Za-z0-9_<>,\[\]\s?.]+\s+([A-Za-z_]\w*)\s*\(",
+                    r"^\s*(?:public|private|protected|internal)\s+(?:static\s+)?(?:async\s+)?[A-Za-z0-9_<>,\[\]\s?.]+\s+([A-Za-z_]\w*)\s*\(([^)]*)\)",
                     re.MULTILINE,
                 ),
                 "method",
@@ -265,7 +293,7 @@ def _symbol_definitions_for_file(file: ProjectFile, text: str) -> list[dict]:
             if key in seen:
                 continue
             seen.add(key)
-            symbols.append({
+            symbol = {
                 "name": name,
                 "qualified_name": f"{file.path}::{name}",
                 "kind": kind,
@@ -273,7 +301,29 @@ def _symbol_definitions_for_file(file: ProjectFile, text: str) -> list[dict]:
                 "defined_in": file.path,
                 "line": line,
                 "evidence": {"file": file.path, "line": line},
-            })
+            }
+            if file.language in {"csharp", "razor"} and kind == "method":
+                parameter_text = match.group(2) if match.lastindex and match.lastindex >= 2 else ""
+                signature = f"{name}({_csharp_parameter_signature(parameter_text)})"
+                containing_class = max(
+                    (
+                        item
+                        for item in symbols
+                        if item["defined_in"] == file.path
+                        and item["kind"] == "class"
+                        and int(item["line"]) <= line
+                    ),
+                    key=lambda item: int(item["line"]),
+                    default=None,
+                )
+                identity_prefix = (
+                    f"{containing_class['name']}::" if containing_class is not None else ""
+                )
+                symbol["signature"] = signature
+                symbol["symbol_id"] = f"{file.path}::{identity_prefix}{signature}"
+                symbol["qualified_name"] = symbol["symbol_id"]
+                symbol["evidence"]["resolution"] = "heuristic"
+            symbols.append(symbol)
     return sorted(symbols, key=lambda item: (item["defined_in"], item["line"], item["name"]))
 
 def _build_symbol_index(
@@ -431,6 +481,7 @@ def _build_call_graph(
     contents: dict[str, str] | None = None,
     *,
     edge_limit: int | None = None,
+    semantic_adapter: RoslynSemanticAdapter | None = None,
 ) -> dict:
     """Build the canonical Mapper v1 relation envelope.
 
@@ -453,6 +504,145 @@ def _build_call_graph(
         path: [int(item["line"]) for item in definitions]
         for path, definitions in symbols_by_file.items()
     }
+
+    call_sites: list[dict] = []
+    definition_sites = {
+        (str(item.get("defined_in") or ""), int(item.get("line") or 0), str(item.get("name") or ""))
+        for item in symbols
+    }
+    for file in files:
+        if file.language not in _CALL_GRAPH_LANGUAGES:
+            continue
+        text = _content_for(cwd, file.path, contents)
+        for name, line in _call_expressions(text):
+            if (file.path, line, name) in definition_sites:
+                continue
+            call_sites.append({"source_file": file.path, "name": name, "line": line})
+
+    semantic_by_site: dict[tuple[str, int, str], dict] = {}
+    semantic_receipts: list[dict] = []
+    for language in ("csharp", "razor"):
+        language_sites = [item for item in call_sites if next(
+            (file.language for file in files if file.path == item["source_file"]), ""
+        ) == language]
+        if not language_sites:
+            continue
+        source_generation = [
+            {"path": file.path, "content": _content_for(cwd, file.path, contents)}
+            for file in files
+            if file.language == language
+        ]
+        result, receipt = resolve_semantic_calls(
+            cwd,
+            language,
+            source_generation,
+            symbols,
+            language_sites,
+            adapter=semantic_adapter,
+        )
+        semantic_receipts.append(receipt)
+        if isinstance(result, dict):
+            for item in result.get("resolutions", []):
+                if not isinstance(item, dict):
+                    continue
+                key = resolution_key(item)
+                if key is not None:
+                    semantic_by_site[key] = item
+            by_definition = {
+                (str(item.get("defined_in") or ""), int(item.get("line") or 0), str(item.get("name") or "")): item
+                for item in symbols
+            }
+            for item in result.get("symbols", []):
+                if not isinstance(item, dict):
+                    continue
+                line = _semantic_line(item)
+                if line is None:
+                    continue
+                key = (
+                    str(item.get("defined_in") or item.get("source_file") or ""),
+                    line,
+                    str(item.get("name") or ""),
+                )
+                symbol = by_definition.get(key)
+                if symbol is None:
+                    continue
+                resolved_name = item.get("symbol_id") or item.get("qualified_name")
+                if isinstance(resolved_name, str) and resolved_name:
+                    symbol["qualified_name"] = resolved_name
+                    symbol["symbol_id"] = resolved_name
+                if isinstance(item.get("signature"), str) and item["signature"]:
+                    symbol["signature"] = item["signature"]
+                evidence = symbol.setdefault("evidence", {})
+                evidence["resolution"] = "semantic"
+                evidence["semantic_provider"] = receipt.get("provider")
+
+    if semantic_receipts:
+        status_set = {str(item.get("status")) for item in semantic_receipts}
+        if status_set == {"available"}:
+            semantic_status = "available"
+        elif "available" in status_set:
+            semantic_status = "degraded"
+        else:
+            semantic_status = "unavailable"
+        semantic_resolution = {
+            "schema": "simplicio.mapper-semantic-resolution/v1",
+            "protocol": "v1",
+            "status": semantic_status,
+            "languages": sorted({language for item in semantic_receipts for language in item.get("languages", [])}),
+            "providers": sorted({item["provider"] for item in semantic_receipts if item.get("provider")}),
+            "provider_versions": sorted({item["provider_version"] for item in semantic_receipts if item.get("provider_version")}),
+            "resolved_calls": sum(int(item.get("resolved_calls") or 0) for item in semantic_receipts),
+            "symbols": sum(int(item.get("symbols") or 0) for item in semantic_receipts),
+            "reasons": sorted({item["reason"] for item in semantic_receipts if item.get("reason")}),
+        }
+    else:
+        semantic_resolution = {
+            "schema": "simplicio.mapper-semantic-resolution/v1",
+            "protocol": "v1",
+            "status": "not_required",
+            "languages": [],
+            "providers": [],
+            "provider_versions": [],
+            "resolved_calls": 0,
+            "symbols": 0,
+            "reasons": ["no_csharp_or_razor_call_sites"],
+        }
+
+    # Rebuild indexes after semantic services have supplied unique symbol
+    # identities for overloaded methods.
+    symbols_by_name = {}
+    symbols_by_file = {}
+    for symbol in symbols:
+        symbols_by_name.setdefault(symbol["name"], []).append(symbol)
+        symbols_by_file.setdefault(symbol["defined_in"], []).append(symbol)
+    for definitions in symbols_by_file.values():
+        definitions.sort(key=lambda item: (int(item["line"]), str(item.get("qualified_name") or item.get("name") or "")))
+    symbol_lines_by_file = {
+        path: [int(item["line"]) for item in definitions]
+        for path, definitions in symbols_by_file.items()
+    }
+    symbols_by_identity = {
+        str(item.get("symbol_id") or item.get("qualified_name") or ""): item
+        for item in symbols
+        if item.get("symbol_id") or item.get("qualified_name")
+    }
+    file_by_path = {file.path: file for file in files}
+
+    def semantic_target(resolution: dict) -> dict | None:
+        identity = resolution.get("target_symbol") or resolution.get("symbol_id") or resolution.get("target_symbol_id")
+        if isinstance(identity, str) and identity in symbols_by_identity:
+            return symbols_by_identity[identity]
+        target_file = resolution.get("target_file")
+        target_line = resolution.get("target_line")
+        target_name = resolution.get("target_name") or resolution.get("name")
+        if isinstance(target_file, str) and isinstance(target_line, int) and not isinstance(target_line, bool) and isinstance(target_name, str):
+            matches = [
+                item for item in symbols_by_file.get(target_file.replace("\\", "/"), [])
+                if int(item.get("line") or 0) == target_line and item.get("name") == target_name
+            ]
+            if len(matches) == 1:
+                return matches[0]
+        return None
 
     edges: list[dict] = []
     seen: set[str] = set()
@@ -506,70 +696,93 @@ def _build_call_graph(
                     "confidence": None,
                 })
 
-        if file.language in _CALL_GRAPH_LANGUAGES:
-            text = _content_for(cwd, file.path, contents)
-            for name, line in _call_expressions(text):
-                targets = list(symbols_by_name.get(name, []))
-                target_candidates = sorted(
-                    str(target.get("qualified_name") or target.get("name") or "")
-                    for target in targets
-                )
-                evidence_class = "lexical_unique" if len(targets) == 1 else "lexical_ambiguous"
-                if not targets:
-                    caller = _nearest_symbol(
-                        symbols,
-                        file.path,
-                        line,
-                        symbols_by_file=symbols_by_file,
-                        symbol_lines_by_file=symbol_lines_by_file,
-                    )
-                    add_edge({
-                        "type": "calls",
-                        "source_file": file.path,
-                        "source_symbol": caller["qualified_name"] if caller else None,
-                        "target_file": None,
-                        "target_symbol": None,
-                        "line": line,
-                        "target_candidates": [],
-                        "evidence_class": "heuristic",
-                        "resolution_status": "unknown",
-                        "provenance": {
-                            "method": "symbol-name-lookup",
-                            "queried_symbol": name,
-                            "candidate_count": 0,
-                            "candidates": [],
-                        },
-                        "confidence": None,
-                    })
-                for target in targets:
-                    if target["defined_in"] == file.path and target["line"] == line:
-                        continue
-                    caller = _nearest_symbol(
-                        symbols,
-                        file.path,
-                        line,
-                        symbols_by_file=symbols_by_file,
-                        symbol_lines_by_file=symbol_lines_by_file,
-                    )
-                    add_edge({
-                        "type": "calls",
-                        "source_file": file.path,
-                        "source_symbol": caller["qualified_name"] if caller else None,
-                        "target_file": target["defined_in"],
-                        "target_symbol": target["qualified_name"],
-                        "line": line,
-                        "target_candidates": target_candidates,
-                        "evidence_class": evidence_class,
-                        "resolution_status": "resolved" if len(targets) == 1 else "ambiguous",
-                        "provenance": {
-                            "method": "symbol-name-lookup",
-                            "queried_symbol": name,
-                            "candidate_count": len(targets),
-                            "candidates": target_candidates,
-                            "caller_resolution": "lexical_nearest" if caller else "unknown",
-                        },
-                        "confidence": None,
-                    })
+    for call_site in call_sites:
+        file = file_by_path[call_site["source_file"]]
+        name = call_site["name"]
+        line = call_site["line"]
+        resolution = semantic_by_site.get((file.path, line, name))
+        target = semantic_target(resolution) if resolution is not None else None
+        targets = [target] if target is not None else list(symbols_by_name.get(name, []))
+        target_candidates = sorted(
+            str(item.get("symbol_id") or item.get("qualified_name") or item.get("name") or "")
+            for item in targets
+        )
+        is_semantic = target is not None and resolution is not None
+        is_csharp = file.language in {"csharp", "razor"}
+        if not targets:
+            caller = _nearest_symbol(
+                symbols,
+                file.path,
+                line,
+                symbols_by_file=symbols_by_file,
+                symbol_lines_by_file=symbol_lines_by_file,
+            )
+            add_edge({
+                "type": "calls",
+                "source_file": file.path,
+                "source_symbol": caller["qualified_name"] if caller else None,
+                "target_file": None,
+                "target_symbol": None,
+                "line": line,
+                "target_candidates": [],
+                "evidence_class": "heuristic",
+                "resolution_status": "unknown",
+                "provenance": {
+                    "method": "semantic-service-fallback" if is_csharp else "symbol-name-lookup",
+                    "queried_symbol": name,
+                    "candidate_count": 0,
+                    "candidates": [],
+                    "fallback_reason": semantic_resolution.get("reasons", []) if is_csharp else None,
+                },
+                "confidence": None,
+            })
+        for candidate in targets:
+            if candidate["defined_in"] == file.path and candidate["line"] == line:
+                continue
+            caller = _nearest_symbol(
+                symbols,
+                file.path,
+                line,
+                symbols_by_file=symbols_by_file,
+                symbol_lines_by_file=symbol_lines_by_file,
+            )
+            evidence_class = "semantic_resolved" if is_semantic else (
+                "heuristic" if is_csharp else "lexical_unique" if len(targets) == 1 else "lexical_ambiguous"
+            )
+            resolution_status = "resolved" if is_semantic else (
+                "inferred" if is_csharp and len(targets) == 1 else "resolved" if len(targets) == 1 else "ambiguous"
+            )
+            provenance = {
+                "method": "roslyn-semantic-service" if is_semantic else "semantic-service-fallback" if is_csharp else "symbol-name-lookup",
+                "queried_symbol": name,
+                "candidate_count": len(targets),
+                "candidates": target_candidates,
+                "caller_resolution": "lexical_nearest" if caller else "unknown",
+            }
+            if is_semantic:
+                provenance.update({
+                    "provider": semantic_resolution.get("providers", [None])[0],
+                    "provider_version": semantic_resolution.get("provider_versions", [None])[0],
+                    "semantic_symbol_id": candidate.get("symbol_id") or candidate.get("qualified_name"),
+                    "overload_signature": candidate.get("signature"),
+                })
+            else:
+                provenance["fallback_reason"] = semantic_resolution.get("reasons", []) if is_csharp else None
+            add_edge({
+                "type": "calls",
+                "source_file": file.path,
+                "source_symbol": caller["qualified_name"] if caller else None,
+                "target_file": candidate["defined_in"],
+                "target_symbol": candidate.get("symbol_id") or candidate["qualified_name"],
+                "line": line,
+                "target_candidates": target_candidates,
+                "evidence_class": evidence_class,
+                "resolution_status": resolution_status,
+                "provenance": provenance,
+                "confidence": None,
+            })
+
+    symbol_index["semantic_resolution"] = semantic_resolution
 
     limit = _call_graph_edge_limit(edge_limit)
     ordered_edges = sorted(edges, key=lambda item: (
@@ -597,6 +810,7 @@ def _build_call_graph(
             observed_edges=len(ordered_edges),
             edge_limit=limit,
         ),
+        "semantic_resolution": semantic_resolution,
     }
 
 def _build_architecture_inventory(

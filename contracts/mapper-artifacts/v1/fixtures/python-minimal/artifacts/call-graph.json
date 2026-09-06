@@ -30,6 +30,7 @@
         "candidates": [
           "src/app.py::greet"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "greet"
       },
@@ -54,6 +55,7 @@
         "candidates": [
           "src/app.py::main"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "main"
       },
@@ -78,6 +80,7 @@
         "candidates": [
           "src/app.py::greet"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "greet"
       },
@@ -117,7 +120,7 @@
   "generated_at": "1970-01-01T00:00:00.000Z",
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:7cb4c382e25a9062e4d550e9b1a8e2ba9293519c8688003b75cf48cbd5f6f9aa",
+    "canonical_digest": "sha256:c2cbcb831e123aec195172ed9bc7a207efedba57deb4a43d294428007c648adf",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",
@@ -138,6 +141,19 @@
     "version": "0.26.28"
   },
   "schema": "simplicio.call-graph/v1",
+  "semantic_resolution": {
+    "languages": [],
+    "protocol": "v1",
+    "provider_versions": [],
+    "providers": [],
+    "reasons": [
+      "no_csharp_or_razor_call_sites"
+    ],
+    "resolved_calls": 0,
+    "schema": "simplicio.mapper-semantic-resolution/v1",
+    "status": "not_required",
+    "symbols": 0
+  },
   "source_symbol_index": ".simplicio/symbol-index.json",
   "version": 1
 }

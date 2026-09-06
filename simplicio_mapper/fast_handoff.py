@@ -154,6 +154,7 @@ def build_fast_handoff(
         snapshot = _read_json(artifact_dir / "context-snapshot.json")
         if snapshot.get("schema") != "simplicio.context-snapshot/v1":
             raise ValueError(f"unsupported snapshot schema: {snapshot.get('schema')!r}")
+        project_map = _read_json(artifact_dir / "project-map.json")
         artifacts = []
         for name in ARTIFACT_NAMES:
             path = artifact_dir / name
@@ -240,6 +241,7 @@ def build_fast_handoff(
             ],
             "relation_evidence_classes": relation_evidence_classes,
             "relation_coverage": dict(graph.get("relation_coverage", {})),
+            "language_capability_coverage": dict(project_map.get("capability_coverage") or {}),
         },
         "artifacts": artifacts,
         "delta": {
