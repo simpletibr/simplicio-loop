@@ -1,0 +1,85 @@
+name: Release train — Mapper reconcile
+
+on:
+  repository_dispatch:
+    types:
+      - simplicio-component-release
+      - simplicio.component-release-event/v1
+
+concurrency:
+  group: release-train-mapper
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the default branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python and uv
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Reconcile event, lock candidate, and digest receipt
+        run: |
+          uv sync --extra dev --frozen
+          uv run --frozen python scripts/release_train_reconcile.py reconcile \
+            --root . \
+            --event "$GITHUB_EVENT_PATH" \
+            --lock config/release-train-lock.json \
+            --json
+
+      - name: Validate the bounded bump diff
+        run: |
+          git diff --check
+          files=$( { git diff --name-only; git ls-files --others --exclude-standard; } | sort -u )
+          if [ -z "$files" ]; then
+            echo 'No release-train changes; the event is already reconciled.'
+            exit 0
+          fi
+          while IFS= read -r file; do
+            case "$file" in
+              pyproject.toml|uv.lock|config/release-train-mapper.json|config/release-train-lock.json) ;;
+              *) echo "Unexpected release-train mutation: $file"; exit 1 ;;
+            esac
+          done <<< "$files"
+
+      - name: Publish one deduplicated bump branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch='release-train/mapper-latest'
+          git switch -C "$branch"
+          git add pyproject.toml uv.lock config/release-train-mapper.json config/release-train-lock.json
+          if git diff --cached --quiet; then
+            echo 'No new release-train mutation; existing PR remains authoritative.'
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -m 'chore: consume verified Mapper release'
+          remote_sha=$(git ls-remote origin "refs/heads/$branch" | awk '{print $1}')
+          if [ -n "$remote_sha" ]; then
+            git push --force-with-lease="refs/heads/$branch:$remote_sha" origin "$branch"
+          else
+            git push origin "$branch"
+          fi
+          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" --state open --json number --jq '.[0].number // ""')
+          if [ -z "$pr" ]; then
+            gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" \
+              --title 'chore: consume verified simplicio-mapper release' \
+              --body "Automated release-train bump. Source repository_dispatch event: ${{ github.event.client_payload.event_id || 'envelope-payload' }}. The PR is merged only by the release-train gate after lock, digest, N/N-1, smoke, and quality evidence pass."
+          else
+            gh pr comment "$pr" --repo "$GITHUB_REPOSITORY" \
+              --body "Updated in place by the release-train event; deduplicated branch: $branch."
+          fi
