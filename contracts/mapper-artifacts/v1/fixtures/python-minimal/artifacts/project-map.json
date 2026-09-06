@@ -69,6 +69,12 @@
   "config_files": [
     "pyproject.toml"
   ],
+  "degraded": {
+    "git_status_unavailable": false,
+    "git_timeout": false,
+    "large_file_limit_bytes": 250000,
+    "skipped_large_files": []
+  },
   "dependencies": {
     "dev": [],
     "manifest": null,
@@ -110,7 +116,7 @@
       "importance": 0.32,
       "imports": [],
       "language": "toml",
-      "last_modified": "2026-07-07T04:32:12.449Z",
+      "last_modified": "1970-01-01T00:00:00.000Z",
       "path": "pyproject.toml",
       "roles": [
         "config"
@@ -129,7 +135,7 @@
       "importance": 0.65,
       "imports": [],
       "language": "python",
-      "last_modified": "2026-07-07T04:32:12.450Z",
+      "last_modified": "1970-01-01T00:00:00.000Z",
       "path": "src/app.py",
       "roles": [
         "entrypoint"
@@ -147,7 +153,7 @@
       "importance": 0.2,
       "imports": [],
       "language": "python",
-      "last_modified": "2026-07-07T04:32:12.450Z",
+      "last_modified": "1970-01-01T00:00:00.000Z",
       "path": "src/util.py",
       "roles": [],
       "size_bytes": 49
@@ -165,7 +171,7 @@
         "src.app"
       ],
       "language": "python",
-      "last_modified": "2026-07-07T04:32:12.450Z",
+      "last_modified": "1970-01-01T00:00:00.000Z",
       "path": "tests/test_app.py",
       "roles": [
         "test"
@@ -218,6 +224,28 @@
       ]
     }
   ],
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:74638984351b38deed045eb7c039e27c39fbab5a98f8fd8c65e6e5bef2697353",
+    "capability_coverage": {
+      "architecture": "full",
+      "files": "full",
+      "precedent": "unsupported",
+      "relationships": "unsupported",
+      "symbols": "unsupported"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
   "product": {
     "name": "source",
     "project_mode": "root",

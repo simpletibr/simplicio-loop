@@ -5,6 +5,7 @@
   "type": "object",
   "required": [
     "schema",
+    "producer",
     "version",
     "generated_at",
     "root",
@@ -22,6 +23,7 @@
   ],
   "properties": {
     "schema": { "type": "string", "enum": ["simplicio.architecture-inventory/v1"] },
+    "producer": { "$ref": "producer-metadata.schema.json" },
     "version": { "type": "integer" },
     "generated_at": { "type": "string" },
     "root": { "type": "string" },

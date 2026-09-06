@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import importlib.util
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 SCRIPT_PATH = ROOT / "scripts" / "regen_contract_fixtures.py"
@@ -48,9 +49,16 @@ class NormalizeTest(unittest.TestCase):
         )
 
     def test_pins_generated_at_regardless_of_value(self) -> None:
-        payload = {"generated_at": "2099-01-01T00:00:00Z"}
+        payload = {
+            "generated_at": "2099-01-01T00:00:00Z",
+            "files": [{"last_modified": "2099-01-01T00:00:00Z"}],
+        }
         normalized = self.mod._normalize(payload, "/abs/fixture/source")
         self.assertEqual(normalized["generated_at"], self.mod.NORMALIZED_TIMESTAMP)
+        self.assertEqual(
+            normalized["files"][0]["last_modified"],
+            self.mod.NORMALIZED_LAST_MODIFIED,
+        )
 
     def test_recurses_into_nested_lists_and_dicts(self) -> None:
         payload = {"a": [{"b": {"root": "/abs/fixture/source/x"}}]}
@@ -73,6 +81,34 @@ class CheckCommandTest(unittest.TestCase):
         output = buffer.getvalue()
         self.assertEqual(code, 0, output)
         self.assertIn("contract check OK", output)
+
+    def test_check_rejects_golden_fixture_drift(self) -> None:
+        mod = _load_module()
+        expected_path = (
+            ROOT
+            / "contracts"
+            / "mapper-artifacts"
+            / "v1"
+            / "fixtures"
+            / "python-minimal"
+            / "artifacts"
+            / "project-map.json"
+        ).resolve()
+        original = mod._read_json
+
+        def tampered_read(path: str) -> dict:
+            value = original(path)
+            if Path(path).resolve() == expected_path:
+                value = dict(value)
+                value["version"] = value["version"] + 1
+            return value
+
+        errors = StringIO()
+        with patch.object(mod, "_read_json", side_effect=tampered_read):
+            with redirect_stderr(errors):
+                code = mod.cmd_check()
+        self.assertEqual(code, 1)
+        self.assertIn("golden fixture drift", errors.getvalue())
 
 
 if __name__ == "__main__":

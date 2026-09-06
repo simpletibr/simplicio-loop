@@ -4,6 +4,28 @@
     "symbols": 2
   },
   "generated_at": "1970-01-01T00:00:00.000Z",
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:dea8eb7183821d4d55f6d1c554e6d0e0b0bc5e82a4ef6e7b6ad863c65e62aa07",
+    "capability_coverage": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "unsupported",
+      "relationships": "unsupported",
+      "symbols": "full"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
   "root": "<fixture-root>",
   "schema": "simplicio.symbol-index/v1",
   "symbols": [
@@ -11,11 +33,11 @@
       "defined_in": "src/index.js",
       "evidence": {
         "file": "src/index.js",
-        "line": 2
+        "line": 3
       },
       "kind": "function",
       "language": "javascript",
-      "line": 2,
+      "line": 3,
       "name": "greet",
       "qualified_name": "src/index.js::greet"
     },
@@ -23,11 +45,11 @@
       "defined_in": "src/index.js",
       "evidence": {
         "file": "src/index.js",
-        "line": 6
+        "line": 7
       },
       "kind": "function",
       "language": "javascript",
-      "line": 6,
+      "line": 7,
       "name": "main",
       "qualified_name": "src/index.js::main"
     }

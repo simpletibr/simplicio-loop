@@ -5,11 +5,14 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 
-const ARTIFACT_SCHEMA = 'simplicio.project-map/v1';
-const PRECEDENT_SCHEMA = 'simplicio.precedent-index/v1';
-const ARCHITECTURE_INVENTORY_SCHEMA = 'simplicio.architecture-inventory/v1';
-const SYMBOL_INDEX_SCHEMA = 'simplicio.symbol-index/v1';
-const CALL_GRAPH_SCHEMA = 'simplicio.call-graph/v1';
+// The Node mirror is not differential-parity certified against the canonical
+// Python producer.  It must not masquerade as a public v1 artifact: consumers
+// may opt into these private payloads only through an explicit migration seam.
+const ARTIFACT_SCHEMA = 'simplicio.mapper-native/project-map/v1';
+const PRECEDENT_SCHEMA = 'simplicio.mapper-native/precedent-index/v1';
+const ARCHITECTURE_INVENTORY_SCHEMA = 'simplicio.mapper-native/architecture-inventory/v1';
+const SYMBOL_INDEX_SCHEMA = 'simplicio.mapper-native/symbol-index/v1';
+const CALL_GRAPH_SCHEMA = 'simplicio.mapper-native/call-graph/v1';
 const ARTIFACT_VERSION = 1;
 
 // Directive contract handed to any LLM that consumes mapper artifacts. The

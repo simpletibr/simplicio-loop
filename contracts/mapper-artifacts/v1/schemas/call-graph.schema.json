@@ -3,9 +3,10 @@
   "title": "simplicio-mapper call-graph.json (v1)",
   "description": "calls/imports edges derived from symbol-index.json. Edge shape varies by `type`: an `imports` edge has no source_symbol/target_symbol/line; a `calls` edge has no `import`, and its source_symbol may be null when the caller could not be resolved to a specific symbol.",
   "type": "object",
-  "required": ["schema", "version", "generated_at", "source_symbol_index", "edges", "counts"],
+  "required": ["schema", "producer", "version", "generated_at", "source_symbol_index", "edges", "counts"],
   "properties": {
     "schema": { "type": "string", "enum": ["simplicio.call-graph/v1"] },
+    "producer": { "$ref": "producer-metadata.schema.json" },
     "version": { "type": "integer" },
     "generated_at": { "type": "string" },
     "source_symbol_index": { "type": "string" },

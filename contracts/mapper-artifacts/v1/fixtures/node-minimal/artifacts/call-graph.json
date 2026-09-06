@@ -23,16 +23,16 @@
     },
     {
       "confidence": 0.58,
-      "line": 3,
+      "line": 8,
       "source_file": "src/index.js",
-      "source_symbol": "src/index.js::greet",
+      "source_symbol": "src/index.js::main",
       "target_file": "src/index.js",
       "target_symbol": "src/index.js::greet",
       "type": "calls"
     },
     {
       "confidence": 0.58,
-      "line": 7,
+      "line": 12,
       "source_file": "src/index.js",
       "source_symbol": "src/index.js::main",
       "target_file": "src/index.js",
@@ -41,6 +41,28 @@
     }
   ],
   "generated_at": "1970-01-01T00:00:00.000Z",
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:4aac5563fdb96144308d76a89285b5ad8e84f0731acdbd44356b7bdac245af32",
+    "capability_coverage": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "unsupported",
+      "relationships": "full",
+      "symbols": "unsupported"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
   "schema": "simplicio.call-graph/v1",
   "source_symbol_index": ".simplicio/symbol-index.json",
   "version": 1

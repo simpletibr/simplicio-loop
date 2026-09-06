@@ -144,6 +144,7 @@ def test_full_gate_records_each_local_check(monkeypatch):
     monkeypatch.setattr("scripts.mapper_quality_gate._status", fake_status)
     report, code = build_report(root, full=True)
     assert code == 0
+    assert "Mapper artifact contract fixtures | pass | observed" in report
     assert "Python tests | pass | observed" in report
     assert "Node unit tests | pass | observed" in report
     assert "Package contents | pass | observed" in report

@@ -3,10 +3,28 @@
   "items": [
     {
       "change_type": "feature",
+      "id": "bb05cc2bfa2ff96f",
+      "language": "javascript",
+      "line": 3,
+      "path": "frontend/src/App.jsx",
+      "rank": 1,
+      "snippet": "import React from \"react\";\n\nexport function App() {\n  return <div>Hello from the frontend</div>;\n}",
+      "summary": "feature precedent in frontend/src/App.jsx",
+      "tags": [
+        "entrypoint",
+        "javascript",
+        "frontend",
+        "app",
+        "jsx"
+      ]
+    },
+    {
+      "change_type": "feature",
       "id": "1b468c42be9e1bf9",
       "language": "python",
       "line": 4,
       "path": "backend/server.py",
+      "rank": 1,
       "snippet": "\n\ndef handle_request(path: str) -> str:\n    if path == \"/health\":\n        return \"ok\"",
       "summary": "feature precedent in backend/server.py",
       "tags": [
@@ -22,6 +40,7 @@
       "language": "python",
       "line": 4,
       "path": "backend/tests/test_server.py",
+      "rank": 1,
       "snippet": "\n\ndef test_health():\n    assert handle_request(\"/health\") == \"ok\"\n",
       "summary": "test precedent in backend/tests/test_server.py",
       "tags": [
@@ -33,21 +52,43 @@
     },
     {
       "change_type": "feature",
-      "id": "bb05cc2bfa2ff96f",
-      "language": "javascript",
-      "line": 3,
-      "path": "frontend/src/App.jsx",
-      "snippet": "import React from \"react\";\n\nexport function App() {\n  return <div>Hello from the frontend</div>;\n}",
-      "summary": "feature precedent in frontend/src/App.jsx",
+      "id": "e33caeb33eeb96f9",
+      "language": "python",
+      "line": 10,
+      "path": "backend/server.py",
+      "rank": 2,
+      "snippet": "\n\ndef main() -> None:\n    print(handle_request(\"/health\"))\n",
+      "summary": "feature precedent in backend/server.py",
       "tags": [
         "entrypoint",
-        "javascript",
-        "frontend",
-        "app",
-        "jsx"
+        "python",
+        "backend",
+        "server"
       ]
     }
   ],
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:6f1aaffe2e5799fda1714e38baae3c473d7924f696a18c8ac87430ad62c9dc70",
+    "capability_coverage": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "full",
+      "relationships": "unsupported",
+      "symbols": "unsupported"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
   "schema": "simplicio.precedent-index/v1",
   "source_project_map": ".simplicio/project-map.json",
   "version": 1

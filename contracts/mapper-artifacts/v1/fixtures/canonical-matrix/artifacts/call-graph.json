@@ -1,0 +1,102 @@
+{
+  "counts": {
+    "calls": 7,
+    "edges": 7,
+    "imports": 0
+  },
+  "edges": [
+    {
+      "confidence": 0.58,
+      "line": 1,
+      "source_file": "crates/core/src/lib.rs",
+      "source_symbol": "crates/core/src/lib.rs::run",
+      "target_file": "duplicates/one.py",
+      "target_symbol": "duplicates/one.py::run",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "line": 1,
+      "source_file": "crates/core/src/lib.rs",
+      "source_symbol": "crates/core/src/lib.rs::run",
+      "target_file": "duplicates/two.py",
+      "target_symbol": "duplicates/two.py::run",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "line": 1,
+      "source_file": "duplicates/one.py",
+      "source_symbol": "duplicates/one.py::run",
+      "target_file": "crates/core/src/lib.rs",
+      "target_symbol": "crates/core/src/lib.rs::run",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "line": 1,
+      "source_file": "duplicates/one.py",
+      "source_symbol": "duplicates/one.py::run",
+      "target_file": "duplicates/two.py",
+      "target_symbol": "duplicates/two.py::run",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "line": 1,
+      "source_file": "duplicates/two.py",
+      "source_symbol": "duplicates/two.py::run",
+      "target_file": "crates/core/src/lib.rs",
+      "target_symbol": "crates/core/src/lib.rs::run",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "line": 1,
+      "source_file": "duplicates/two.py",
+      "source_symbol": "duplicates/two.py::run",
+      "target_file": "duplicates/one.py",
+      "target_symbol": "duplicates/one.py::run",
+      "type": "calls"
+    },
+    {
+      "confidence": 0.58,
+      "line": 2,
+      "source_file": "services/java/Main.java",
+      "source_symbol": "services/java/Main.java::Main",
+      "target_file": "services/kotlin/Main.kt",
+      "target_symbol": "services/kotlin/Main.kt::language",
+      "type": "calls"
+    }
+  ],
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:f9571e140688d5677b9d3dd8497095744cb5a31e7eda7f6021053fb981423b75",
+    "capability_coverage": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "unsupported",
+      "relationships": "partial",
+      "symbols": "unsupported"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [
+      "files:large/ignored.txt",
+      "generated:dist",
+      "symlink:links/app.py"
+    ],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
+  "schema": "simplicio.call-graph/v1",
+  "source_symbol_index": ".simplicio/symbol-index.json",
+  "version": 1
+}

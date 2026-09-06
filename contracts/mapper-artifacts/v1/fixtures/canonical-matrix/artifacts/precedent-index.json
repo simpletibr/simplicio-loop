@@ -1,0 +1,178 @@
+{
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "items": [
+    {
+      "change_type": "feature",
+      "id": "2e6879ac9ffcb7a2",
+      "language": "csharp",
+      "line": 1,
+      "path": "services/dotnet/Program.cs",
+      "rank": 1,
+      "snippet": "public class Program\n{\n    public static string Language() => \"csharp\";",
+      "summary": "feature precedent in services/dotnet/Program.cs",
+      "tags": [
+        "domain",
+        "entrypoint",
+        "csharp",
+        "services",
+        "dotnet",
+        "program"
+      ]
+    },
+    {
+      "change_type": "feature",
+      "id": "caffceb805db653b",
+      "language": "go",
+      "line": 3,
+      "path": "services/go/main.go",
+      "rank": 1,
+      "snippet": "package main\n\nfunc main() {}\n",
+      "summary": "feature precedent in services/go/main.go",
+      "tags": [
+        "domain",
+        "entrypoint",
+        "go",
+        "services"
+      ]
+    },
+    {
+      "change_type": "feature",
+      "id": "3475971f90b31a89",
+      "language": "java",
+      "line": 1,
+      "path": "services/java/Main.java",
+      "rank": 1,
+      "snippet": "class Main {\n    static String language() { return \"java\"; }\n}",
+      "summary": "feature precedent in services/java/Main.java",
+      "tags": [
+        "domain",
+        "entrypoint",
+        "java",
+        "services"
+      ]
+    },
+    {
+      "change_type": "feature",
+      "id": "b930df5e2d2678f2",
+      "language": "kotlin",
+      "line": 1,
+      "path": "services/kotlin/Main.kt",
+      "rank": 1,
+      "snippet": "class Main {\n    fun language(): String = \"kotlin\"\n}",
+      "summary": "feature precedent in services/kotlin/Main.kt",
+      "tags": [
+        "domain",
+        "entrypoint",
+        "kotlin",
+        "services"
+      ]
+    },
+    {
+      "change_type": "feature",
+      "id": "0d2386d44d6d12a3",
+      "language": "python",
+      "line": 1,
+      "path": "apps/python/app.py",
+      "rank": 1,
+      "snippet": "def serve():\n    return \"python\"\n",
+      "summary": "feature precedent in apps/python/app.py",
+      "tags": [
+        "entrypoint",
+        "python",
+        "apps",
+        "app"
+      ]
+    },
+    {
+      "change_type": "feature",
+      "id": "f8b231140308100f",
+      "language": "javascript",
+      "line": 1,
+      "path": "apps/web/src/index.js",
+      "rank": 1,
+      "snippet": "export function renderJavaScript() {\n  return \"javascript\";\n}",
+      "summary": "feature precedent in apps/web/src/index.js",
+      "tags": [
+        "entrypoint",
+        "javascript",
+        "apps",
+        "web"
+      ]
+    },
+    {
+      "change_type": "feature",
+      "id": "5527da0afe1d504d",
+      "language": "typescript",
+      "line": 1,
+      "path": "apps/web/src/index.ts",
+      "rank": 1,
+      "snippet": "export function render(): string {\n  return \"typescript\";\n}",
+      "summary": "feature precedent in apps/web/src/index.ts",
+      "tags": [
+        "entrypoint",
+        "typescript",
+        "apps",
+        "web"
+      ]
+    },
+    {
+      "change_type": "feature",
+      "id": "596618989d1972cc",
+      "language": "python",
+      "line": 1,
+      "path": "duplicates/one.py",
+      "rank": 1,
+      "snippet": "def run():\n    return 1\n",
+      "summary": "feature precedent in duplicates/one.py",
+      "tags": [
+        "python",
+        "duplicates",
+        "one"
+      ]
+    },
+    {
+      "change_type": "feature",
+      "id": "d79e51df7b3385e8",
+      "language": "python",
+      "line": 1,
+      "path": "duplicates/two.py",
+      "rank": 1,
+      "snippet": "def run():\n    return 2\n",
+      "summary": "feature precedent in duplicates/two.py",
+      "tags": [
+        "python",
+        "duplicates",
+        "two"
+      ]
+    }
+  ],
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:d49cc902af37171703a123f4c7b1926dfd11134e3bd3da3bf3b7d9eaa5df41a7",
+    "capability_coverage": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "partial",
+      "relationships": "unsupported",
+      "symbols": "unsupported"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [
+      "files:large/ignored.txt",
+      "generated:dist",
+      "symlink:links/app.py"
+    ],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
+  "schema": "simplicio.precedent-index/v1",
+  "source_project_map": ".simplicio/project-map.json",
+  "version": 1
+}

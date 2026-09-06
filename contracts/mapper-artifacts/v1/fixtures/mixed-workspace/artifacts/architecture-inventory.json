@@ -9,7 +9,7 @@
     "files": 4,
     "layers": 3,
     "modules": 3,
-    "relationships": 6,
+    "relationships": 4,
     "symbols": 4,
     "tests": 1
   },
@@ -235,6 +235,28 @@
     "Generated from deterministic repository inspection.",
     "Relationship confidence below 1.0 means the edge is heuristic and should be reviewed before making broad claims."
   ],
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:7cf03c6d9d1f2d948f18fbdf9787949134203a50f9126b8af127ea76270dc8f5",
+    "capability_coverage": {
+      "architecture": "full",
+      "files": "full",
+      "precedent": "unsupported",
+      "relationships": "full",
+      "symbols": "empty"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
   "product": {
     "name": "sample-mixed-workspace",
     "project_mode": "root",
@@ -243,16 +265,16 @@
   "relationships": [
     {
       "confidence": 0.58,
-      "line": 4,
+      "line": 11,
       "source_file": "backend/server.py",
-      "source_symbol": "backend/server.py::handle_request",
+      "source_symbol": "backend/server.py::main",
       "target_file": "backend/server.py",
       "target_symbol": "backend/server.py::handle_request",
       "type": "calls"
     },
     {
       "confidence": 0.58,
-      "line": 10,
+      "line": 15,
       "source_file": "backend/server.py",
       "source_symbol": "backend/server.py::main",
       "target_file": "backend/server.py",
@@ -274,24 +296,6 @@
       "source_file": "backend/tests/test_server.py",
       "target_file": "backend/server.py",
       "type": "imports"
-    },
-    {
-      "confidence": 0.58,
-      "line": 4,
-      "source_file": "backend/tests/test_server.py",
-      "source_symbol": "backend/tests/test_server.py::test_health",
-      "target_file": "backend/tests/test_server.py",
-      "target_symbol": "backend/tests/test_server.py::test_health",
-      "type": "calls"
-    },
-    {
-      "confidence": 0.58,
-      "line": 3,
-      "source_file": "frontend/src/App.jsx",
-      "source_symbol": "frontend/src/App.jsx::App",
-      "target_file": "frontend/src/App.jsx",
-      "target_symbol": "frontend/src/App.jsx::App",
-      "type": "calls"
     }
   ],
   "root": "<fixture-root>",

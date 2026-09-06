@@ -73,6 +73,12 @@
   "config_files": [
     "package.json"
   ],
+  "degraded": {
+    "git_status_unavailable": false,
+    "git_timeout": false,
+    "large_file_limit_bytes": 250000,
+    "skipped_large_files": []
+  },
   "dependencies": {
     "dev": [],
     "manifest": "package.json",
@@ -122,7 +128,7 @@
       "importance": 0.65,
       "imports": [],
       "language": "python",
-      "last_modified": "2026-07-07T04:32:12.448Z",
+      "last_modified": "1970-01-01T00:00:00.000Z",
       "path": "backend/server.py",
       "roles": [
         "entrypoint"
@@ -142,7 +148,7 @@
         "backend.server"
       ],
       "language": "python",
-      "last_modified": "2026-07-07T04:32:12.448Z",
+      "last_modified": "1970-01-01T00:00:00.000Z",
       "path": "backend/tests/test_server.py",
       "roles": [
         "test"
@@ -162,7 +168,7 @@
         "react"
       ],
       "language": "javascript",
-      "last_modified": "2026-07-07T04:32:12.449Z",
+      "last_modified": "1970-01-01T00:00:00.000Z",
       "path": "frontend/src/App.jsx",
       "roles": [
         "entrypoint"
@@ -178,7 +184,7 @@
       "importance": 0.32,
       "imports": [],
       "language": "json",
-      "last_modified": "2026-07-07T04:32:12.449Z",
+      "last_modified": "1970-01-01T00:00:00.000Z",
       "path": "package.json",
       "roles": [
         "config"
@@ -232,6 +238,28 @@
       ]
     }
   ],
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:cdac1793aceb43242ae02cc62c238aac1bd24e8d1cbb1a6f7cba2f5cda1ab0b8",
+    "capability_coverage": {
+      "architecture": "full",
+      "files": "full",
+      "precedent": "unsupported",
+      "relationships": "unsupported",
+      "symbols": "unsupported"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
   "product": {
     "name": "sample-mixed-workspace",
     "project_mode": "root",

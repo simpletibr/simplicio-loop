@@ -125,6 +125,7 @@ SCHEMA_VERSION_REGISTRY: tuple[tuple[str, str], ...] = (
     ("simplicio_mapper.mapper.canonical_gc", "CANONICAL_GC_SCHEMA_VERSION"),
     ("simplicio_mapper.mapper.canonical_reuse", "RECEIPT_SCHEMA_VERSION"),
     ("simplicio_mapper.mapper.canonical_verify", "CANONICAL_VERIFY_SCHEMA_VERSION"),
+    ("simplicio_mapper.mapper.canonical_artifacts", "CANONICAL_SCHEMA_VERSION"),
     ("simplicio_mapper.mapper.parse", "ARTIFACT_VERSION"),
     ("simplicio_mapper.retrieval_index", "RETRIEVAL_INDEX_VERSION"),
     ("simplicio_mapper.survey", "ONBOARDING_VERSION"),

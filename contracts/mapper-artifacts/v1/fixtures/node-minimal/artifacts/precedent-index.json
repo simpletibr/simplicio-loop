@@ -2,11 +2,26 @@
   "generated_at": "1970-01-01T00:00:00.000Z",
   "items": [
     {
+      "change_type": "feature",
+      "id": "dcece681b4e0aba6",
+      "language": "javascript",
+      "line": 3,
+      "path": "src/index.js",
+      "rank": 1,
+      "snippet": "\"use strict\";\n\nfunction greet(name) {\n  return `Hello, ${name}!`;\n}",
+      "summary": "feature precedent in src/index.js",
+      "tags": [
+        "entrypoint",
+        "javascript"
+      ]
+    },
+    {
       "change_type": "test",
       "id": "8dc24b7caabb3743",
       "language": "javascript",
       "line": 5,
       "path": "spec/greet.spec.js",
+      "rank": 1,
       "snippet": "const { greet } = require(\"../src/index.js\");\n\ntest(\"greet returns a greeting\", () => {\n  assert.strictEqual(greet(\"x\"), \"Hello, x!\");\n});",
       "summary": "test precedent in spec/greet.spec.js",
       "tags": [
@@ -15,21 +30,30 @@
         "spec",
         "greet"
       ]
-    },
-    {
-      "change_type": "feature",
-      "id": "dcece681b4e0aba6",
-      "language": "javascript",
-      "line": 3,
-      "path": "src/index.js",
-      "snippet": "\"use strict\";\n\nfunction greet(name) {\n  return `Hello, ${name}!`;\n}",
-      "summary": "feature precedent in src/index.js",
-      "tags": [
-        "entrypoint",
-        "javascript"
-      ]
     }
   ],
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:aed411d7985fae288fffa17197dadf6adfec6ffe5b66825b6efcc83750fb995a",
+    "capability_coverage": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "full",
+      "relationships": "unsupported",
+      "symbols": "unsupported"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
   "schema": "simplicio.precedent-index/v1",
   "source_project_map": ".simplicio/project-map.json",
   "version": 1

@@ -12,7 +12,8 @@ versioned schemas in ``contracts/mapper-artifacts/v1/schemas/``.
 Supported schema keywords (deliberately a subset — enough to catch real
 shape drift without becoming a general JSON Schema implementation):
 ``type`` (string or list of strings, including ``"null"``), ``required``,
-``properties``, ``items``, ``enum``, ``minItems``.  ``additionalProperties``
+``properties``, ``items``, ``enum``, ``minItems`` and local/external ``$ref``.
+``additionalProperties``
 is always allowed (unknown/added fields do not fail validation — only
 missing/mistyped required fields do), so the contract catches breaking
 changes without punishing purely additive ones.
@@ -42,6 +43,11 @@ SCHEMA_FILENAMES = {
     "simplicio.architecture-inventory/v1": "architecture-inventory.schema.json",
     "simplicio.symbol-index/v1": "symbol-index.schema.json",
     "simplicio.call-graph/v1": "call-graph.schema.json",
+    "simplicio.mapper-native/project-map/v1": "mapper-native-artifact.schema.json",
+    "simplicio.mapper-native/precedent-index/v1": "mapper-native-artifact.schema.json",
+    "simplicio.mapper-native/architecture-inventory/v1": "mapper-native-artifact.schema.json",
+    "simplicio.mapper-native/symbol-index/v1": "mapper-native-artifact.schema.json",
+    "simplicio.mapper-native/call-graph/v1": "mapper-native-artifact.schema.json",
     "simplicio.graph-delta/v1": "graph-delta.schema.json",
     "simplicio.graph-snapshot/v1": "graph-snapshot.schema.json",
     "simplicio.task-intent/v1": "task-intent.schema.json",
@@ -181,7 +187,43 @@ def _type_matches(value: object, expected: str) -> bool:
     return isinstance(value, py_type)
 
 
-def _validate_node(value: object, schema: dict, path: str, errors: list[str]) -> None:
+def _load_ref_schema(ref: str, schema_base: str | None, root_schema: dict) -> dict | None:
+    if ref.startswith("#/"):
+        current: object = root_schema
+        for component in ref[2:].split("/"):
+            if not isinstance(current, dict) or component not in current:
+                return None
+            current = current[component]
+        return current if isinstance(current, dict) else None
+    if not schema_base:
+        return None
+    path = os.path.join(schema_base, ref)
+    try:
+        with open(path, encoding="utf-8") as handle:
+            loaded = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return None
+    return loaded if isinstance(loaded, dict) else None
+
+
+def _validate_node(
+    value: object,
+    schema: dict,
+    path: str,
+    errors: list[str],
+    schema_base: str | None = None,
+    root_schema: dict | None = None,
+) -> None:
+    root_schema = root_schema or schema
+    if "$ref" in schema:
+        ref = schema.get("$ref")
+        target = _load_ref_schema(ref, schema_base, root_schema) if isinstance(ref, str) else None
+        if target is None:
+            errors.append(f"{path}: unresolved schema reference {ref!r}")
+            return
+        _validate_node(value, target, path, errors, schema_base, target)
+        return
+
     expected_types = schema.get("type")
     if expected_types:
         types = [expected_types] if isinstance(expected_types, str) else list(expected_types)
@@ -199,7 +241,7 @@ def _validate_node(value: object, schema: dict, path: str, errors: list[str]) ->
         properties = schema.get("properties", {})
         for key, sub_schema in properties.items():
             if key in value:
-                _validate_node(value[key], sub_schema, f"{path}.{key}", errors)
+                _validate_node(value[key], sub_schema, f"{path}.{key}", errors, schema_base, root_schema)
         if schema.get("additionalProperties") is False:
             for key in value:
                 if key not in properties:
@@ -208,7 +250,7 @@ def _validate_node(value: object, schema: dict, path: str, errors: list[str]) ->
         if isinstance(additional, dict):
             for key, child in value.items():
                 if key not in properties:
-                    _validate_node(child, additional, f"{path}.{key}", errors)
+                    _validate_node(child, additional, f"{path}.{key}", errors, schema_base, root_schema)
 
         min_properties = schema.get("minProperties")
         max_properties = schema.get("maxProperties")
@@ -238,7 +280,7 @@ def _validate_node(value: object, schema: dict, path: str, errors: list[str]) ->
         item_schema = schema.get("items")
         if item_schema:
             for index, item in enumerate(value):
-                _validate_node(item, item_schema, f"{path}[{index}]", errors)
+                _validate_node(item, item_schema, f"{path}[{index}]", errors, schema_base, root_schema)
 
     if isinstance(value, str):
         min_length = schema.get("minLength")
@@ -264,10 +306,10 @@ def _validate_node(value: object, schema: dict, path: str, errors: list[str]) ->
             errors.append(f"{path}: value {value} is greater than maximum {maximum}")
 
 
-def validate_instance(instance: dict, schema: dict) -> list[str]:
+def validate_instance(instance: dict, schema: dict, schema_base: str | None = None) -> list[str]:
     """Return a list of human-readable validation errors (empty = valid)."""
     errors: list[str] = []
-    _validate_node(instance, schema, "$", errors)
+    _validate_node(instance, schema, "$", errors, schema_base, schema)
     return errors
 
 
@@ -287,7 +329,8 @@ def validate_payload(payload: dict, contract_root: str) -> tuple[str, list[str]]
         report = validate_context_payload(payload)
         return schema_id, [f"{item['path']}: [{item['code']}] {item['message']}" for item in report["reason_codes"]]
     schema = load_schema(schema_id, contract_root)
-    return schema_id, validate_instance(payload, schema)
+    schema_base = os.path.join(contract_root, "schemas")
+    return schema_id, validate_instance(payload, schema, schema_base)
 
 
 def validate_file(path: str, contract_root: str) -> tuple[str, list[str]]:

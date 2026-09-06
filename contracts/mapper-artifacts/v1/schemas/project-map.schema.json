@@ -5,6 +5,7 @@
   "type": "object",
   "required": [
     "schema",
+    "producer",
     "version",
     "generated_at",
     "update_mode",
@@ -23,6 +24,7 @@
   ],
   "properties": {
     "schema": { "type": "string", "enum": ["simplicio.project-map/v1"] },
+    "producer": { "$ref": "producer-metadata.schema.json" },
     "version": { "type": "integer" },
     "generated_at": { "type": "string" },
     "update_mode": { "type": "string", "enum": ["full", "incremental"] },

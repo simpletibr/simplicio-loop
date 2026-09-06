@@ -1,11 +1,9 @@
-"""Parity test between the Node and Python mapper implementations (#98).
+"""Parity tests for the Node/Python Mapper surfaces (#98, #614).
 
-Both `bin/mapper-artifacts.js` (invoked via `node bin/cli.js map`) and the
-Python `simplicio_mapper.cli` emit `simplicio.*/v1` artifacts. Running them
-against the same fixture must produce equivalent shape — schema, file set,
-entry points, roles, architecture signals, symbol names, call-graph edge
-counts — modulo intentionally volatile fields like `generated_at` and the
-absolute host path.
+When the Node CLI delegates to Python, it exercises the canonical public
+artifacts. The uncertified Node mirror is deliberately covered separately and
+must use private `simplicio.mapper-native/*` IDs until differential parity is
+promoted.
 """
 
 from __future__ import annotations
@@ -195,7 +193,7 @@ class NodeThinShimTest(unittest.TestCase):
         # on its own -- this is the "Python-absent" contract, not just
         # "prints something".
         project_map = json.loads((self.root / ".simplicio" / "project-map.json").read_text())
-        self.assertEqual(project_map["schema"], "simplicio.project-map/v1")
+        self.assertEqual(project_map["schema"], "simplicio.mapper-native/project-map/v1")
 
     def test_python_genuinely_absent_from_path_falls_back_actionably(self) -> None:
         # Build a PATH that keeps node's and git's own bin dirs (both are
@@ -214,7 +212,7 @@ class NodeThinShimTest(unittest.TestCase):
         self.assertIn("→ wrote", result.stdout, result.stdout)
         self.assertNotIn("-> wrote", result.stdout)
         project_map = json.loads((self.root / ".simplicio" / "project-map.json").read_text())
-        self.assertEqual(project_map["schema"], "simplicio.project-map/v1")
+        self.assertEqual(project_map["schema"], "simplicio.mapper-native/project-map/v1")
 
 
 if __name__ == "__main__":

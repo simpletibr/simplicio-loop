@@ -7,7 +7,7 @@
     "files": 4,
     "layers": 4,
     "modules": 3,
-    "relationships": 5,
+    "relationships": 4,
     "symbols": 4,
     "tests": 1
   },
@@ -237,6 +237,28 @@
     "Generated from deterministic repository inspection.",
     "Relationship confidence below 1.0 means the edge is heuristic and should be reviewed before making broad claims."
   ],
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:f3c01232b8c677e6e84058455085037d4051b3194d8da7f2cee5d565fc950540",
+    "capability_coverage": {
+      "architecture": "full",
+      "files": "full",
+      "precedent": "unsupported",
+      "relationships": "full",
+      "symbols": "empty"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
   "product": {
     "name": "source",
     "project_mode": "root",
@@ -245,16 +267,16 @@
   "relationships": [
     {
       "confidence": 0.58,
-      "line": 4,
+      "line": 10,
       "source_file": "src/app.py",
-      "source_symbol": "src/app.py::greet",
+      "source_symbol": "src/app.py::main",
       "target_file": "src/app.py",
       "target_symbol": "src/app.py::greet",
       "type": "calls"
     },
     {
       "confidence": 0.58,
-      "line": 9,
+      "line": 14,
       "source_file": "src/app.py",
       "source_symbol": "src/app.py::main",
       "target_file": "src/app.py",
@@ -276,15 +298,6 @@
       "source_file": "tests/test_app.py",
       "target_file": "src/app.py",
       "type": "imports"
-    },
-    {
-      "confidence": 0.58,
-      "line": 4,
-      "source_file": "tests/test_app.py",
-      "source_symbol": "tests/test_app.py::test_greet",
-      "target_file": "tests/test_app.py",
-      "target_symbol": "tests/test_app.py::test_greet",
-      "type": "calls"
     }
   ],
   "root": "<fixture-root>",
