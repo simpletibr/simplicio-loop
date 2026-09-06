@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import difflib
+import hashlib
 import io
 import json
 import os
@@ -10,12 +11,15 @@ import shutil
 import subprocess
 import tempfile
 import tokenize
+from collections.abc import Mapping
 from copy import deepcopy
+from dataclasses import dataclass
 from itertools import pairwise
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from .mapper_binding import (
+    canonical_mapper_binding,
     mapper_binding_digest,
     validate_mapper_binding,
     verify_mapper_sources,
@@ -30,9 +34,13 @@ from .utils.fs import write_bytes_atomic
 
 PLAN_SCHEMA = "simplicio.mechanical-edit/v1"
 RESULT_SCHEMA = "simplicio.mechanical-edit-result/v1"
+EDIT_PLAN_SCHEMA = "simplicio.dev-cli.edit-plan/v1"
+EDIT_RECEIPT_SCHEMA = "simplicio.dev-cli.edit-receipt/v1"
 TEXT_OPS = {"replace_range", "insert_before", "insert_after", "delete_range"}
+ANCHOR_OPS = {"replace_anchor"}
 ALLOWED_OPS = {
     *TEXT_OPS,
+    *ANCHOR_OPS,
     "create_file",
     "json_patch",
     "ast_patch",
@@ -67,6 +75,266 @@ UNKNOWN_SELECTOR_FIELDS = frozenset(
         "after",
     }
 )
+
+
+@dataclass(frozen=True)
+class TextEdit:
+    """One deterministic, single-anchor text replacement.
+
+    This is the Dev CLI-owned primitive formerly embedded in the native
+    Mapper kernel.  It is intentionally pure data: applying it to a mapping
+    returns a new mapping and never writes a file.
+    """
+
+    path: str
+    find: str
+    replace: str
+    expected_sha256: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        value: dict[str, Any] = {
+            "path": self.path,
+            "find": self.find,
+            "replace": self.replace,
+        }
+        if self.expected_sha256 is not None:
+            value["expected_sha256"] = self.expected_sha256
+        return value
+
+
+@dataclass(frozen=True)
+class TextEditReceipt:
+    path: str
+    before_sha256: str
+    after_sha256: str
+    replacements: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "path": self.path,
+            "before_sha256": self.before_sha256,
+            "after_sha256": self.after_sha256,
+            "replacements": self.replacements,
+        }
+
+
+@dataclass(frozen=True)
+class EditBatchReceipt:
+    schema: str
+    edits: tuple[TextEditReceipt, ...]
+    batch_sha256: str
+    mapper_binding: dict[str, Any] | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        value: dict[str, Any] = {
+            "schema": self.schema,
+            "edits": [item.to_dict() for item in self.edits],
+            "batch_sha256": self.batch_sha256,
+        }
+        if self.mapper_binding is not None:
+            value["mapper_binding"] = self.mapper_binding
+            value["mapper_binding_digest"] = mapper_binding_digest(self.mapper_binding)
+        return value
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def apply_text_edits(
+    files: dict[str, str],
+    edits: list[TextEdit] | tuple[TextEdit, ...],
+    *,
+    mapper_binding: dict[str, Any] | None = None,
+) -> tuple[dict[str, str], EditBatchReceipt]:
+    """Apply exact single-anchor replacements to an in-memory file set.
+
+    The input mapping is never mutated.  Every edit is checked against the
+    staged bytes before it is applied, so a later conflict leaves the whole
+    batch unapplied.  Ordering and receipt serialization are stable across
+    repeated calls.
+    """
+
+    staged: dict[str, str] = {}
+    for raw_path, text in files.items():
+        path = _normalise_edit_path(raw_path)
+        if path in staged:
+            raise ValueError(
+                {
+                    "code": "invalid_path",
+                    "message": f"duplicate normalized edit path: {path}",
+                    "path": path,
+                }
+            )
+        if not isinstance(text, str):
+            raise ValueError(
+                {"code": "invalid_schema", "message": f"edit source must be text: {path}", "path": path}
+            )
+        staged[path] = text
+    binding: dict[str, Any] | None = None
+    if mapper_binding is not None:
+        errors = validate_mapper_binding(mapper_binding)
+        if errors:
+            raise ValueError({"code": "invalid_mapper_binding", "message": "; ".join(errors)})
+        binding = canonical_mapper_binding(mapper_binding)
+        observed = {path: _mapper_source_hash(value) for path, value in staged.items()}
+        source_errors = verify_mapper_sources(binding, observed)
+        if source_errors:
+            raise ValueError(source_errors[0])
+
+    if not all(isinstance(edit, TextEdit) for edit in edits):
+        raise ValueError({"code": "invalid_schema", "message": "edits must contain TextEdit values"})
+    ordered = sorted(enumerate(edits), key=lambda item: (_portable_edit_path(item[1].path), item[0]))
+    receipts: list[TextEditReceipt] = []
+    for _, edit in ordered:
+        path = _normalise_edit_path(edit.path)
+        current = staged.get(path)
+        if current is None:
+            raise ValueError(
+                {"code": "missing_target", "message": f"edit target is missing: {path}", "path": path}
+            )
+        before_sha256 = _mapper_source_hash(current)
+        if edit.expected_sha256 is not None and not _is_sha256_digest(edit.expected_sha256):
+            raise ValueError(
+                {
+                    "code": "invalid_schema",
+                    "message": "expected_sha256 must be a SHA-256 digest",
+                    "path": path,
+                }
+            )
+        if edit.expected_sha256 is not None and _normalise_digest(edit.expected_sha256) != before_sha256:
+            raise ValueError(
+                {
+                    "code": "hash_drift",
+                    "message": f"expected hash does not match {path}",
+                    "path": path,
+                    "expected": _normalise_digest(edit.expected_sha256),
+                    "actual": before_sha256,
+                }
+            )
+        if not isinstance(edit.find, str) or not edit.find:
+            raise ValueError(
+                {"code": "invalid_schema", "message": "edit anchor must not be empty", "path": path}
+            )
+        if not isinstance(edit.replace, str):
+            raise ValueError(
+                {"code": "invalid_schema", "message": "edit replacement must be text", "path": path}
+            )
+        occurrences = current.count(edit.find)
+        if occurrences == 0:
+            raise ValueError(
+                {"code": "missing_anchor", "message": f"edit anchor is missing in {path}", "path": path}
+            )
+        if occurrences > 1:
+            raise ValueError(
+                {"code": "ambiguous_anchor", "message": f"edit anchor is ambiguous in {path}", "path": path}
+            )
+        anchor = edit.find
+        index = current.find(anchor)
+        assert index >= 0
+        updated = current[:index] + edit.replace + current[index + len(anchor) :]
+        after_sha256 = _mapper_source_hash(updated)
+        staged[path] = updated
+        receipts.append(TextEditReceipt(path, before_sha256, after_sha256, 1))
+
+    receipts.sort(key=lambda item: item.path)
+    material = json.dumps(
+        [item.to_dict() for item in receipts], ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    return staged, EditBatchReceipt(
+        EDIT_RECEIPT_SCHEMA,
+        tuple(receipts),
+        hashlib.sha256(material).hexdigest(),
+        binding,
+    )
+
+
+def build_edit_plan(
+    edits: list[TextEdit] | tuple[TextEdit, ...],
+    *,
+    mapper_binding: dict[str, Any],
+) -> dict[str, Any]:
+    """Build a canonical Dev CLI edit plan without reading or writing files."""
+
+    binding_errors = validate_mapper_binding(mapper_binding)
+    if binding_errors:
+        raise ValueError({"code": "invalid_mapper_binding", "message": "; ".join(binding_errors)})
+    binding = canonical_mapper_binding(mapper_binding)
+    if not edits:
+        raise ValueError(
+            {"code": "invalid_schema", "message": "edit plans must contain at least one TextEdit"}
+        )
+    if not all(isinstance(edit, TextEdit) for edit in edits):
+        raise ValueError({"code": "invalid_schema", "message": "edits must contain TextEdit values"})
+    operations = []
+    seen_paths: set[str] = set()
+    for edit in sorted(enumerate(edits), key=lambda item: (_portable_edit_path(item[1].path), item[0])):
+        edit = edit[1]
+        path = _normalise_edit_path(edit.path)
+        if not isinstance(edit.find, str) or not edit.find:
+            raise ValueError(
+                {"code": "invalid_schema", "message": "edit anchor must not be empty", "path": path}
+            )
+        if not isinstance(edit.replace, str):
+            raise ValueError(
+                {"code": "invalid_schema", "message": "edit replacement must be text", "path": path}
+            )
+        expected = edit.expected_sha256
+        binding_hash = binding["source_hashes"].get(path)
+        if binding_hash is None:
+            raise ValueError(
+                {
+                    "code": "missing_target",
+                    "message": f"Mapper binding has no source hash for {path}",
+                    "path": path,
+                }
+            )
+        first_for_path = path not in seen_paths
+        if expected is None and first_for_path:
+            expected = binding_hash
+        if expected is not None and not _is_sha256_digest(expected):
+            raise ValueError(
+                {
+                    "code": "invalid_schema",
+                    "message": "expected_sha256 must be a SHA-256 digest",
+                    "path": path,
+                }
+            )
+        if first_for_path:
+            assert expected is not None
+        if first_for_path and _normalise_digest(expected) != binding_hash:
+            raise ValueError(
+                {
+                    "code": "hash_drift",
+                    "message": f"expected hash does not match Mapper binding for {path}",
+                    "path": path,
+                    "expected": _normalise_digest(expected),
+                    "actual": binding_hash,
+                }
+            )
+        operation: dict[str, Any] = {
+            "op": "replace_anchor",
+            "path": path,
+            "find": edit.find,
+            "replace": edit.replace,
+        }
+        if expected is not None:
+            operation["expected_sha256"] = _normalise_digest(expected)
+        operations.append(operation)
+        seen_paths.add(path)
+    body: dict[str, Any] = {
+        "schema": EDIT_PLAN_SCHEMA,
+        "touched_files": sorted({item["path"] for item in operations}),
+        "operations": operations,
+        "mapper_binding": binding,
+        "mapper_binding_digest": mapper_binding_digest(binding),
+        "runtime_authorization_required": True,
+    }
+    body["plan_digest"] = _canonical_digest(body)
+    return body
+
+
+# Short names keep the ownership boundary discoverable to Runtime adapters.
+plan_text_edits = build_edit_plan
 
 
 def execute_plan_json(
@@ -106,14 +374,25 @@ def execute_plan(
     allow_native: bool = True,
 ) -> dict[str, Any]:
     root_path = Path(root)
+    canonical_plan = plan.get("schema") == EDIT_PLAN_SCHEMA
+    result_schema = EDIT_RECEIPT_SCHEMA if canonical_plan else RESULT_SCHEMA
 
     errors = _validate_shape(plan)
     operations = plan.get("operations") if isinstance(plan.get("operations"), list) else []
     touched_files = _declared_touched_files(plan, operations)
-    errors.extend(_validate_paths(root_path, operations, touched_files))
+    path_errors = _validate_paths(root_path, operations, touched_files)
+    if canonical_plan:
+        for error in path_errors:
+            if error.get("code") == "unsafe_path":
+                error["code"] = "invalid_path"
+        errors.extend(path_errors)
+    else:
+        errors.extend(path_errors)
     errors.extend(_validate_overlaps(operations))
+    if canonical_plan:
+        errors.extend(_validate_canonical_plan(plan))
     if errors:
-        return _refused(errors, root=root_path)
+        return _refused(errors, root=root_path, schema=result_schema, plan=plan)
     if apply and effect_unknown_pending(str(root_path)):
         return _refused(
             [
@@ -123,9 +402,13 @@ def execute_plan(
                 }
             ],
             root=root_path,
+            schema=result_schema,
+            plan=plan,
         )
 
-    native_result = _try_native_edit(plan, root_path, apply=apply) if allow_native else None
+    native_result = (
+        _try_native_edit(plan, root_path, apply=apply) if allow_native and not canonical_plan else None
+    )
     if native_result is not None:
         return native_result
 
@@ -137,38 +420,54 @@ def execute_plan(
             return _refused(
                 [{"code": "mapper_binding_invalid", "message": error} for error in binding_errors],
                 root=root_path,
+                schema=result_schema,
+                plan=plan,
             )
-        observed_hashes = {
-            path: None if raw is None else _contract_hash(raw)
-            for path, raw in before.items()
-        }
+        source_hash = _mapper_source_hash if mapper_binding is not None else _contract_hash
+        observed_hashes = {path: None if raw is None else source_hash(raw) for path, raw in before.items()}
         source_errors = verify_mapper_sources(mapper_binding, observed_hashes)
         if source_errors:
-            return _refused(source_errors, root=root_path)
+            return _refused(source_errors, root=root_path, schema=result_schema, plan=plan)
     try:
         after = _apply_operations_to_snapshot(root_path, before, operations)
     except MechanicalEditError as exc:
-        return _refused([exc.to_dict()], root=root_path)
+        return _refused([exc.to_dict()], root=root_path, schema=result_schema, plan=plan)
 
     diff = _build_diff(before, after)
     noop = diff == ""
-    result = _base_result(root_path)
+    result = _base_result(root_path, schema=result_schema)
     result.update(
         {
             "status": "ok",
             "applied": False,
             "noop": noop,
             "planned_diff": diff,
-            "files": _file_hash_rows(before, after),
+            "files": _file_hash_rows(before, after, raw_hash=canonical_plan),
             "operation_count": len(operations),
             "errors": [],
             "validation": [],
         }
     )
+    if canonical_plan:
+        result["plan_digest"] = plan.get("plan_digest")
+        changed_paths = [
+            row["path"] for row in result["files"] if row.get("before_sha256") != row.get("after_sha256")
+        ]
+        binding = plan["mapper_binding"]
+        result["mapper_refresh"] = {
+            "status": "required" if not noop else "not_required",
+            "previous_generation": binding["generation"],
+            "changed_paths": changed_paths,
+            "effective_source_digest": _snapshot_digest(after, raw_hash=True),
+        }
     if mapper_binding is not None:
         result["mapper_binding"] = mapper_binding
         result["mapper_binding_digest"] = mapper_binding_digest(mapper_binding)
     if not apply or noop:
+        if canonical_plan:
+            result["receipt_digest"] = _canonical_digest(
+                {key: value for key, value in result.items() if key != "receipt_digest"}
+            )
         return result
 
     backups = _backup_existing(root_path, before)
@@ -188,8 +487,10 @@ def execute_plan(
                     }
                 ],
                 root=root_path,
+                schema=result_schema,
+                plan=plan,
                 planned_diff=diff,
-                files=_file_hash_rows(before, after),
+                files=_file_hash_rows(before, after, raw_hash=canonical_plan),
                 validation=validation,
             )
     except Exception:
@@ -197,6 +498,10 @@ def execute_plan(
         raise
 
     result["applied"] = True
+    if canonical_plan:
+        result["receipt_digest"] = _canonical_digest(
+            {key: value for key, value in result.items() if key != "receipt_digest"}
+        )
     return result
 
 
@@ -436,11 +741,12 @@ def _native_effect_unknown(
 
 def _validate_shape(plan: dict[str, Any]) -> list[dict[str, Any]]:
     errors = []
-    if plan.get("schema") != PLAN_SCHEMA:
+    schema = plan.get("schema")
+    if schema not in {PLAN_SCHEMA, EDIT_PLAN_SCHEMA}:
         errors.append(
             {
                 "code": "missing_schema",
-                "message": f"schema must be {PLAN_SCHEMA}",
+                "message": f"schema must be {PLAN_SCHEMA} or {EDIT_PLAN_SCHEMA}",
             }
         )
     operations = plan.get("operations")
@@ -467,7 +773,10 @@ def _validate_shape(plan: dict[str, Any]) -> list[dict[str, Any]]:
                 }
             )
             continue
-        errors.extend(_validate_text_operation_fields(op, index))
+        if name in ANCHOR_OPS:
+            errors.extend(_validate_anchor_operation_fields(op, index))
+        else:
+            errors.extend(_validate_text_operation_fields(op, index))
     validation = plan.get("validation", [])
     if not isinstance(validation, list):
         errors.append(
@@ -525,6 +834,114 @@ def _validate_shape(plan: dict[str, Any]) -> list[dict[str, Any]]:
                     "validation_index": index,
                 }
             )
+    return errors
+
+
+def _validate_canonical_plan(plan: dict[str, Any]) -> list[dict[str, Any]]:
+    errors: list[dict[str, Any]] = []
+    binding = plan.get("mapper_binding")
+    if binding is None:
+        errors.append(
+            {
+                "code": "invalid_mapper_binding",
+                "message": "canonical Dev CLI edit plans require mapper_binding provenance",
+            }
+        )
+    else:
+        binding_errors = validate_mapper_binding(binding)
+        errors.extend({"code": "invalid_mapper_binding", "message": error} for error in binding_errors)
+        if isinstance(binding, Mapping) and not binding_errors:
+            supplied_binding_digest = plan.get("mapper_binding_digest")
+            if supplied_binding_digest != mapper_binding_digest(binding):
+                errors.append(
+                    {
+                        "code": "invalid_mapper_binding",
+                        "message": (
+                            "canonical Dev CLI edit plan mapper_binding_digest does not match mapper_binding"
+                        ),
+                    }
+                )
+    operations = plan.get("operations")
+    if isinstance(operations, list):
+        if not operations:
+            errors.append(
+                {
+                    "code": "invalid_schema",
+                    "message": "canonical Dev CLI edit plans must contain at least one operation",
+                }
+            )
+        operation_paths: list[str] = []
+        for index, operation in enumerate(operations):
+            if not isinstance(operation, dict):
+                continue
+            if operation.get("op") != "replace_anchor":
+                errors.append(
+                    {
+                        "code": "unsupported_operation",
+                        "message": "canonical Dev CLI edit plans only support replace_anchor",
+                        "operation_index": index,
+                    }
+                )
+            path = operation.get("path")
+            if isinstance(path, str):
+                try:
+                    if _normalise_edit_path(path) != path:
+                        raise ValueError
+                except ValueError:
+                    errors.append(
+                        {
+                            "code": "invalid_path",
+                            "message": f"canonical edit path is not normalized: {path!r}",
+                            "operation_index": index,
+                            "path": path,
+                        }
+                    )
+                operation_paths.append(path)
+        touched_files = plan.get("touched_files")
+        if touched_files != sorted(set(operation_paths)):
+            errors.append(
+                {
+                    "code": "invalid_schema",
+                    "message": "canonical edit touched_files must equal sorted operation paths",
+                }
+            )
+    digest = plan.get("plan_digest")
+    if not isinstance(digest, str) or digest != _canonical_digest(
+        {key: value for key, value in plan.items() if key != "plan_digest"}
+    ):
+        errors.append(
+            {
+                "code": "plan_digest_mismatch",
+                "message": "canonical Dev CLI edit plan digest does not match its body",
+            }
+        )
+    if plan.get("runtime_authorization_required") is not True:
+        errors.append(
+            {
+                "code": "invalid_authorization",
+                "message": "canonical Dev CLI edit plans require Runtime authorization",
+            }
+        )
+    return errors
+
+
+def _validate_anchor_operation_fields(operation: dict[str, Any], index: int) -> list[dict[str, Any]]:
+    accepted = ("path", "find", "replace", "expected_sha256")
+    errors: list[dict[str, Any]] = []
+    if not isinstance(operation.get("find"), str) or not operation.get("find"):
+        errors.append(
+            _schema_error("replace_anchor requires a non-empty find", index, accepted_fields=accepted)
+        )
+    if not isinstance(operation.get("replace"), str):
+        errors.append(
+            _schema_error("replace_anchor requires string replace", index, accepted_fields=accepted)
+        )
+    if "expected_sha256" in operation and (not _is_sha256_digest(operation["expected_sha256"])):
+        errors.append(
+            _schema_error(
+                "replace_anchor expected_sha256 must be a SHA-256 digest", index, accepted_fields=accepted
+            )
+        )
     return errors
 
 
@@ -729,7 +1146,10 @@ def _apply_operations_to_snapshot(
     after = deepcopy(before)
     for operation in _operation_order(operations):
         name = operation["op"]
-        if name in TEXT_OPS:
+        if name in ANCHOR_OPS:
+            _check_anchor_preconditions(after, operation)
+            _apply_anchor_operation(after, operation)
+        elif name in TEXT_OPS:
             _check_text_preconditions(root, after, operation)
             _apply_text_operation(after, operation)
         elif name == "create_file":
@@ -756,6 +1176,50 @@ def _apply_operations_to_snapshot(
             _check_text_preconditions(root, after, operation)
             _apply_ast_patch(after, operation)
     return after
+
+
+def _check_anchor_preconditions(snapshot: dict[str, bytes | None], operation: dict[str, Any]) -> None:
+    rel = operation["path"]
+    raw = snapshot.get(rel)
+    if raw is None:
+        raise MechanicalEditError("missing_target", f"edit target is missing: {rel}", path=rel)
+    if b"\0" in raw:
+        raise MechanicalEditError("binary_file", f"{rel} appears to be binary", path=rel)
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise MechanicalEditError("binary_file", f"{rel} is not UTF-8 text", path=rel) from exc
+    expected = operation.get("expected_sha256")
+    actual = _mapper_source_hash(raw)
+    if expected is not None and _normalise_digest(expected) != actual:
+        raise MechanicalEditError(
+            "hash_drift",
+            f"expected hash does not match {rel}",
+            path=rel,
+            expected=_normalise_digest(expected),
+            actual=actual,
+        )
+    anchor = operation["find"]
+    occurrences = text.count(anchor)
+    if occurrences == 0:
+        raise MechanicalEditError(
+            "missing_anchor", f"edit anchor is missing in {rel}", path=rel, anchor=anchor
+        )
+    if occurrences > 1:
+        raise MechanicalEditError(
+            "ambiguous_anchor", f"edit anchor is ambiguous in {rel}", path=rel, anchor=anchor
+        )
+
+
+def _apply_anchor_operation(snapshot: dict[str, bytes | None], operation: dict[str, Any]) -> None:
+    rel = operation["path"]
+    raw = snapshot[rel]
+    assert raw is not None
+    text = raw.decode("utf-8")
+    anchor = operation["find"]
+    index = text.find(anchor)
+    assert index >= 0
+    snapshot[rel] = (text[:index] + operation["replace"] + text[index + len(anchor) :]).encode("utf-8")
 
 
 def _operation_order(operations: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -1104,8 +1568,11 @@ def _run_validation(raw: Any, root: Path) -> list[dict[str, Any]]:
 def _file_hash_rows(
     before: dict[str, bytes | None],
     after: dict[str, bytes | None],
+    *,
+    raw_hash: bool = False,
 ) -> list[dict[str, Any]]:
     rows = []
+    hash_value = _mapper_source_hash if raw_hash else _contract_hash
     for rel in sorted(set(before) | set(after)):
         old = before.get(rel)
         new = after.get(rel)
@@ -1114,8 +1581,8 @@ def _file_hash_rows(
         rows.append(
             {
                 "path": rel,
-                "before_sha256": None if old is None else _contract_hash(old),
-                "after_sha256": None if new is None else _contract_hash(new),
+                "before_sha256": None if old is None else hash_value(old),
+                "after_sha256": None if new is None else hash_value(new),
             }
         )
     return rows
@@ -1129,6 +1596,61 @@ def _contract_hash(value: str | bytes) -> str:
         except UnicodeDecodeError:
             return sha256_text(value)
     return sha256_text(_normalize_line_endings(value))
+
+
+def _mapper_source_hash(value: str | bytes) -> str:
+    """Hash the exact UTF-8/source bytes used by Mapper observations."""
+    return sha256_text(value)
+
+
+def _normalise_digest(value: str) -> str:
+    return value.removeprefix("sha256:")
+
+
+def _is_sha256_digest(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    digest = _normalise_digest(value)
+    return len(digest) == 64 and all(char in "0123456789abcdef" for char in digest)
+
+
+def _normalise_edit_path(value: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError({"code": "invalid_path", "message": "edit path must be a string"})
+    portable = "/".join(value.split("\\"))
+    path = PurePosixPath(portable)
+    windows_path = PureWindowsPath(value)
+    if (
+        not portable
+        or portable in {".", ".."}
+        or path.is_absolute()
+        or windows_path.drive
+        or windows_path.is_absolute()
+        or ".." in path.parts
+        or any(part in {"", "."} for part in portable.split("/"))
+        or any(ord(char) < 32 for char in portable)
+    ):
+        raise ValueError({"code": "invalid_path", "message": f"invalid edit path: {value!r}", "path": value})
+    return portable
+
+
+def _portable_edit_path(value: Any) -> str:
+    if not isinstance(value, str):
+        return ""
+    return "/".join(value.split("\\"))
+
+
+def _snapshot_digest(snapshot: dict[str, bytes | None], *, raw_hash: bool = False) -> str:
+    hash_value = _mapper_source_hash if raw_hash else _contract_hash
+    rows = [
+        {"path": path, "sha256": hash_value(raw)} for path, raw in sorted(snapshot.items()) if raw is not None
+    ]
+    return _canonical_digest(rows)
+
+
+def _canonical_digest(value: Any) -> str:
+    body = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(body.encode("utf-8")).hexdigest()
 
 
 def _normalize_line_endings(text: str) -> str:
@@ -1180,6 +1702,7 @@ def _safe_path(root: Path, rel: str) -> Path:
         or PureWindowsPath(rel).is_absolute()
         or portable_path.is_absolute()
         or ".." in portable_path.parts
+        or ":" in rel
     ):
         raise MechanicalEditError("unsafe_path", f"unsafe relative path: {rel}", path=rel)
     root_resolved = root.resolve()
@@ -1189,8 +1712,8 @@ def _safe_path(root: Path, rel: str) -> Path:
     return path
 
 
-def _base_result(root: Path) -> dict[str, Any]:
-    return {"schema": RESULT_SCHEMA, "root": str(root)}
+def _base_result(root: Path, *, schema: str = RESULT_SCHEMA) -> dict[str, Any]:
+    return {"schema": schema, "root": str(root)}
 
 
 def _refused(
@@ -1200,8 +1723,10 @@ def _refused(
     planned_diff: str = "",
     files: list[dict[str, Any]] | None = None,
     validation: list[dict[str, Any]] | None = None,
+    schema: str = RESULT_SCHEMA,
+    plan: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    result = _base_result(Path(root))
+    result = _base_result(Path(root), schema=schema)
     result.update(
         {
             "status": "refused",
@@ -1214,4 +1739,13 @@ def _refused(
             "validation": validation or [],
         }
     )
+    if schema == EDIT_RECEIPT_SCHEMA and isinstance(plan, dict):
+        binding = plan.get("mapper_binding")
+        if isinstance(binding, Mapping) and not validate_mapper_binding(binding):
+            result["plan_digest"] = plan.get("plan_digest")
+            result["mapper_binding"] = dict(binding)
+            result["mapper_binding_digest"] = mapper_binding_digest(binding)
+        result["receipt_digest"] = _canonical_digest(
+            {key: value for key, value in result.items() if key != "receipt_digest"}
+        )
     return result

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "simplicio.dev-cli.edit-receipt/v1",
+  "title": "Dev CLI deterministic edit receipt",
+  "type": "object",
+  "required": ["schema", "status", "applied", "noop", "errors", "receipt_digest"],
+  "properties": {
+    "schema": { "const": "simplicio.dev-cli.edit-receipt/v1" },
+    "status": { "enum": ["ok", "refused"] },
+    "applied": { "type": "boolean" },
+    "noop": { "type": "boolean" },
+    "receipt_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": {
+            "enum": [
+              "missing_target",
+              "missing_anchor",
+              "ambiguous_anchor",
+              "hash_drift",
+              "invalid_path",
+              "invalid_schema",
+              "invalid_mapper_binding",
+              "plan_digest_mismatch",
+              "invalid_authorization",
+              "unsupported_operation",
+              "validation_failed",
+              "EFFECT_UNKNOWN_RECONCILIATION_REQUIRED"
+            ]
+          },
+          "message": { "type": "string" }
+        }
+      }
+    }
+  }
+}

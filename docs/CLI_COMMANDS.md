@@ -28,7 +28,7 @@ form available, for example `simplicio-py memory recall --help`.
 | `env-export` | Print safe exports from a dotenv file without sourcing it. |
 | `mechanical-edit` | Dry-run or apply a mechanical edit plan. |
 | `changeset` | Decode and apply a Fast changeset through the edit boundary. |
-| `edit` | Apply a governed edit through Runtime or the local fallback. |
+| `edit` | Apply a Dev CLI-owned deterministic edit plan; legacy plans may delegate through Runtime. |
 | `reconcile` | Reconcile a pending Runtime effect from an evidence file. |
 | `file` | Read bounded file contents (`read`). |
 | `test` | Run a test command and report its result (`run`). |

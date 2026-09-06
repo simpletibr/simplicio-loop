@@ -1,9 +1,10 @@
 """``simplicio-py mechanical-edit`` / ``simplicio-py edit``.
 
 Extracted from `cli.py`'s `_run_mechanical_edit_command`/`_run_edit_command`
-(issue #103); behavior unchanged. ``edit`` delegates to the native
-``simplicio`` Rust binary when available, falling back to
-``run_mechanical_edit`` (the pure-Python implementation) otherwise.
+(issue #103). Legacy plans retain their established Runtime delegation
+behavior. Versioned ``simplicio.dev-cli.edit-plan/v1`` plans always use the
+Dev CLI-owned deterministic kernel so the native Runtime adapter cannot
+silently select a second Mapper edit vocabulary.
 """
 
 from __future__ import annotations
@@ -40,11 +41,21 @@ def run_mechanical_edit(a: argparse.Namespace) -> int:
     except OSError as exc:
         print(f"{CLI_PROG} mechanical-edit: {exc}", file=sys.stderr)
         return 2
+    try:
+        decoded_plan = json.loads(plan_text)
+        plan_schema = decoded_plan.get("schema") if isinstance(decoded_plan, dict) else None
+    except (TypeError, json.JSONDecodeError):
+        plan_schema = None
+    result_schema = (
+        "simplicio.dev-cli.edit-receipt/v1"
+        if plan_schema == "simplicio.dev-cli.edit-plan/v1"
+        else "simplicio.mechanical-edit-result/v1"
+    )
     policy = standalone_policy_for_root(a.root)
     result: dict[str, Any]
     if a.apply and not policy.write_allowed:
         result = {
-            "schema": "simplicio.mechanical-edit-result/v1",
+            "schema": result_schema,
             "status": "refused",
             "applied": False,
             "noop": False,
@@ -416,6 +427,15 @@ def _invalid_delegated_plan(plan: Any) -> list[dict[str, Any]]:
         if not all(isinstance(item, dict) and isinstance(item.get("op"), str) for item in operations):
             return [{"code": "invalid_plan", "message": "Runtime plan operations must be objects with an op"}]
         return []
+    if plan.get("schema") == "simplicio.dev-cli.edit-plan/v1":
+        operations = plan.get("operations")
+        if not isinstance(operations, list) or not operations:
+            return [{"code": "invalid_plan", "message": "Dev CLI edit operations must be a non-empty list"}]
+        return (
+            []
+            if all(isinstance(item, dict) and isinstance(item.get("op"), str) for item in operations)
+            else [{"code": "invalid_plan", "message": "Dev CLI edit operations must be objects with an op"}]
+        )
     if plan.get("schema") != "simplicio.mechanical-edit/v1":
         return [{"code": "missing_schema", "message": "plan schema is unsupported"}]
     operations = plan.get("operations")
@@ -498,6 +518,15 @@ def run_edit(a: argparse.Namespace) -> int:
             root=a.root, entrypoint="edit", route="blocked", reason_code="PLAN_VALIDATION_FAILED"
         )
         return _print_edit_result(result, a)
+
+    # The Dev CLI-owned plan is already in the canonical kernel vocabulary.
+    # Do not hand it to the legacy Runtime Mapper edit endpoint, whose older
+    # operation engine has different semantics. Runtime-backed callers can
+    # authorize the resulting effect at their boundary; the local kernel is
+    # the only implementation of this versioned plan.
+    if plan.get("schema") == "simplicio.dev-cli.edit-plan/v1":
+        record_delegation("edit", "python-forced", root=a.root, reason="canonical-dev-cli-plan")
+        return run_mechanical_edit(a)
 
     runtime = None if a.no_runtime else _runtime_edit_binary()
     if runtime:

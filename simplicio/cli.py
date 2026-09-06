@@ -483,7 +483,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_edit = sub.add_parser(
         "edit",
-        help="apply a mechanical edit plan via simplicio-runtime when available",
+        help="apply a Dev CLI edit plan; legacy plans may delegate to Runtime",
     )
     p_edit.add_argument("--root", "--repo", dest="root", default=".")
     p_edit.add_argument("--plan", default="-", help="plan JSON path, or - for stdin")

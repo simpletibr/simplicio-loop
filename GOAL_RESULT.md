@@ -312,3 +312,24 @@ bearing push with `refusing to allow an OAuth App to create or update workflow
 ... without workflow scope`. The active token exposes only `gist`, `read:org`,
 and `repo`; device authorization could not be completed here. No remote PR or
 merge is claimed.
+
+# Issue #691 result (2026-09-06)
+
+Status: implementation complete locally; external Runtime/Loop conformance,
+PR creation, and merge are unverified. Dev CLI now owns the deterministic
+single-anchor edit kernel, Mapper-generation/hash-bound edit plans and
+receipts, typed fail-closed conflicts, and deterministic Rust/Python/Node
+scaffold plans/receipts. Canonical `simplicio edit` plans do not delegate to
+the legacy native Mapper edit vocabulary. Runtime contract metadata and
+versioned JSON schemas define the authorization/effect boundary without
+adding a second edit engine here.
+
+Evidence: focused suite 153 passed and 2 skipped; full-suite critical module
+coverage is 92.53% (`mechanical_edit.py`) and focused coverage is 93.24%
+(`scaffold_contract.py`); bounded
+benchmark median 30.044 microseconds per call; independent adversarial checks
+passed. Full local pytest reached 2,743 passed, 23 skipped, and 21 unrelated
+baseline/environment failures with 85.60% global coverage. Full lint/type
+checks remain red on pre-existing findings, and the package build is blocked
+by the missing `build` module. No cross-repository Runtime E2E or hosted check
+is claimed.

@@ -30,8 +30,8 @@ positional arguments:
     mechanical-edit     execute simplicio.mechanical-edit/v1 dry-run or apply
     changeset           execute simplicio.fast.changeset/v2 through the
                         mechanical-edit boundary
-    edit                apply a mechanical edit plan via simplicio-runtime
-                        when available
+    edit                apply a Dev CLI edit plan; legacy plans may delegate
+                        to Runtime
     reconcile           reconcile a pending Runtime effect from strict
                         evidence-file proof
     file                read raw file contents

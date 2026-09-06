@@ -49,6 +49,7 @@ def _normalise_path(value: Any) -> str | None:
         or PureWindowsPath(path).is_absolute()
         or any(part in {"", ".", ".."} for part in portable.parts)
         or any(ord(char) < 32 for char in path)
+        or ":" in path
     ):
         return None
     return path
@@ -77,9 +78,7 @@ def _body(value: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def validate_mapper_binding(
-    value: Any, *, require_source_hashes: bool = True
-) -> list[str]:
+def validate_mapper_binding(value: Any, *, require_source_hashes: bool = True) -> list[str]:
     """Return stable diagnostics for a canonical Mapper observation binding."""
     if not isinstance(value, Mapping):
         return ["mapper_binding must be an object"]
@@ -90,11 +89,7 @@ def validate_mapper_binding(
     if not isinstance(repository_id, str) or not repository_id.strip():
         errors.append("mapper_binding.repository_id must be a non-empty string")
     generation = value.get("generation")
-    if (
-        isinstance(generation, bool)
-        or not isinstance(generation, (str, int))
-        or not str(generation).strip()
-    ):
+    if isinstance(generation, bool) or not isinstance(generation, (str, int)) or not str(generation).strip():
         errors.append("mapper_binding.generation must be a non-empty string or integer")
     source_tree_id = value.get("source_tree_id")
     if not isinstance(source_tree_id, str) or not source_tree_id.strip():
@@ -109,29 +104,19 @@ def validate_mapper_binding(
         for raw_path, raw_hash in source_hashes.items():
             path = _normalise_path(raw_path)
             if path is None:
-                errors.append(
-                    f"mapper_binding.source_hashes contains an unsafe path: {raw_path!r}"
-                )
+                errors.append(f"mapper_binding.source_hashes contains an unsafe path: {raw_path!r}")
             elif path in seen:
-                errors.append(
-                    f"mapper_binding.source_hashes contains duplicate path: {path!r}"
-                )
+                errors.append(f"mapper_binding.source_hashes contains duplicate path: {path!r}")
             else:
                 seen.add(path)
             if _normalise_hash(raw_hash) is None:
-                errors.append(
-                    f"mapper_binding.source_hashes[{raw_path!r}] must be a SHA-256 digest"
-                )
+                errors.append(f"mapper_binding.source_hashes[{raw_path!r}] must be a SHA-256 digest")
     if "binding_digest" in value:
         digest = value.get("binding_digest")
         if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
-            errors.append(
-                "mapper_binding.binding_digest must be a lowercase SHA-256 hex digest"
-            )
+            errors.append("mapper_binding.binding_digest must be a lowercase SHA-256 hex digest")
         elif not errors and digest != _digest(_body(value)):
-            errors.append(
-                "mapper_binding.binding_digest does not match the canonical binding"
-            )
+            errors.append("mapper_binding.binding_digest does not match the canonical binding")
     return sorted(set(errors))
 
 
@@ -205,6 +190,7 @@ def conflict_receipt(code: str, message: str, **details: Any) -> dict[str, Any]:
     """Create a typed, non-applying conflict outcome."""
     allowed = {
         "missing_target",
+        "missing_anchor",
         "ambiguous_anchor",
         "hash_drift",
         "invalid_path",

@@ -258,3 +258,24 @@
   `workflow` scope. `gh auth refresh --hostname github.com --scopes workflow`
   requires device authorization unavailable in this session. No remote branch,
   PR, merge, or hosted check is claimed.
+
+## Issue #691 local progress
+
+- 2026-09-06: implemented the Dev CLI-owned deterministic edit and scaffold
+  boundary from `origin/main`. `TextEdit`, single-anchor replacement,
+  expected-hash conflict detection, atomic pure batch planning/application,
+  versioned receipts, canonical Mapper binding, and Rust/Python/Node scaffold
+  planning now live in the Dev CLI. Canonical `simplicio edit` plans bypass
+  the legacy native Mapper edit vocabulary; Runtime contract metadata and
+  checked-in JSON schemas describe the authorization/effect handoff.
+- Focused validation: 153 passed, 2 skipped; full-suite critical coverage is
+  92.53% for `mechanical_edit.py` and focused coverage is 93.24% for
+  `scaffold_contract.py`.
+- The bounded kernel benchmark measured a 30.044 microsecond median per call over 10 x
+  1,000 iterations. Independent adversarial checks passed for effective edit,
+  CRLF/portable paths, hash drift, and all four scaffold kinds.
+- Full local validation remains limited by the existing environment baseline:
+  2,743 passed, 23 skipped, 21 unrelated failures; global coverage 85.60%;
+  full Ruff and mypy retain pre-existing failures; package build lacks the
+  uninstalled `build` module. Runtime #5525, Mapper #613, hosted Actions, and
+  cross-repository Loop E2E conformance were unavailable and are not claimed.
