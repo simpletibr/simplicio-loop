@@ -235,11 +235,11 @@
   ],
   "notes": [
     "Generated from deterministic repository inspection.",
-    "Relationship confidence below 1.0 means the edge is heuristic and should be reviewed before making broad claims."
+    "Relationship evidence_class and resolution_status describe how each edge was obtained; null confidence is not a calibrated probability."
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:f3c01232b8c677e6e84058455085037d4051b3194d8da7f2cee5d565fc950540",
+    "canonical_digest": "sha256:32dd85dca2f619958221a0054c38d9d3ede0fa065c1916e1418bcde2f33b5483",
     "capability_coverage": {
       "architecture": "full",
       "files": "full",
@@ -264,38 +264,112 @@
     "project_mode": "root",
     "stack": "unknown"
   },
+  "relationship_coverage": {
+    "ambiguous_relations": 0,
+    "edge_limit": 250,
+    "emitted_edges": 4,
+    "evidence_classes": {
+      "import_resolved": 1,
+      "lexical_unique": 3
+    },
+    "invalid_edges": 0,
+    "observed_edges": 4,
+    "omitted_edges": 0,
+    "status": "complete",
+    "truncated": false,
+    "unknown_relations": 0
+  },
   "relationships": [
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_unique",
       "line": 10,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "src/app.py::greet"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "greet"
+      },
+      "relation_id": "d9c094efd31d8035337a09bf69245f575f280bd8e1574f70cf39beae9135b6d7",
+      "resolution_status": "resolved",
       "source_file": "src/app.py",
       "source_symbol": "src/app.py::main",
+      "target_candidates": [
+        "src/app.py::greet"
+      ],
       "target_file": "src/app.py",
       "target_symbol": "src/app.py::greet",
       "type": "calls"
     },
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_unique",
       "line": 14,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "src/app.py::main"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "main"
+      },
+      "relation_id": "5412580ca881e3555ca28d91bafbec32cf3c015f715f4a02c04cd9e220990953",
+      "resolution_status": "resolved",
       "source_file": "src/app.py",
       "source_symbol": "src/app.py::main",
+      "target_candidates": [
+        "src/app.py::main"
+      ],
       "target_file": "src/app.py",
       "target_symbol": "src/app.py::main",
       "type": "calls"
     },
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_unique",
       "line": 5,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "src/app.py::greet"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "greet"
+      },
+      "relation_id": "f228e56120a13d33e3d80f816b2be79fe7632972a696d6a2b83085c40343d497",
+      "resolution_status": "resolved",
       "source_file": "tests/test_app.py",
       "source_symbol": "tests/test_app.py::test_greet",
+      "target_candidates": [
+        "src/app.py::greet"
+      ],
       "target_file": "src/app.py",
       "target_symbol": "src/app.py::greet",
       "type": "calls"
     },
     {
-      "confidence": 0.65,
+      "confidence": null,
+      "evidence_class": "import_resolved",
       "import": "src.app",
+      "provenance": {
+        "candidate_count": 1,
+        "candidates": [
+          "src/app.py"
+        ],
+        "import": "src.app",
+        "method": "import-resolution"
+      },
+      "relation_id": "552101f0e111e0ce555ec920880cdeced1519fbfdaebfbcafd92fd69e9560bcc",
+      "resolution_status": "resolved",
       "source_file": "tests/test_app.py",
+      "target_candidates": [
+        "src/app.py"
+      ],
       "target_file": "src/app.py",
       "type": "imports"
     }

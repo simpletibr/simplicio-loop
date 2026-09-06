@@ -111,8 +111,26 @@ class CallGraphAndDependencyTest(unittest.TestCase):
     def test_callers_and_imports_resolved(self) -> None:
         call_graph = {
             "edges": [
-                {"from": "sample.py", "to": "shared/util.py"},
-                {"from": "caller.py", "to": "sample.py"},
+                {
+                    "type": "imports",
+                    "source_file": "sample.py",
+                    "target_file": "shared/util.py",
+                    "evidence_class": "import_resolved",
+                    "resolution_status": "resolved",
+                    "relation_id": "sample-import",
+                    "provenance": {"method": "test-fixture"},
+                    "confidence": None,
+                },
+                {
+                    "type": "calls",
+                    "source_file": "caller.py",
+                    "target_file": "sample.py",
+                    "evidence_class": "lexical_unique",
+                    "resolution_status": "resolved",
+                    "relation_id": "sample-call",
+                    "provenance": {"method": "test-fixture"},
+                    "confidence": None,
+                },
             ]
         }
         pack = _pack(

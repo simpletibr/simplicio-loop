@@ -33,15 +33,31 @@ schema major; v1 is never silently repurposed.
 |---|---|---|
 | `simplicio.project-map/v1` | Repository file inventory, product, modules, entities, architecture, dependencies, changes and integration pointers. `agent_tree` is a deterministic Brown–Hilbert projection. | Files and path arrays ascending by repository-relative POSIX path; modules/entities/signals/dependencies sorted by their documented key; `changed_files` and `recent_changes` sorted by path. |
 | `simplicio.symbol-index/v1` | One record per detected definition; `qualified_name` is `<defined_in>::<name>`, so duplicate names are valid. | Symbols sorted by `name`, then `defined_in`, then `line`; counts equal the emitted records. |
-| `simplicio.call-graph/v1` | `imports` edges identify file dependencies; `calls` edges identify heuristic symbol calls. Optional edge fields retain their type-specific meaning. | Edges sorted by `source_file`, `target_file`, `type`, then `target_symbol` or `import`; duplicate logical edges are removed; counts equal the emitted edges. |
+| `simplicio.call-graph/v1` | Every relation uses `source_file`/`target_file` (never `from`/`to`), a stable `relation_id`, `evidence_class`, `resolution_status` and structured `provenance`. `target_file: null` is an explicit unknown target. | Edges sorted by `source_file`, `target_file`, `type`, then `target_symbol`/`import`, line and `relation_id`; duplicate logical edges are removed; counts equal the emitted edges. `coverage` reports observed/emitted/omitted edges, the configured limit, truncation, ambiguity and unknown targets. |
 | `simplicio.precedent-index/v1` | Bounded snippets with stable ids, source path/line, language, change type, tags and summary. | Per-file ranked items are interleaved by rank; files are ordered by descending importance then path; final output is capped deterministically. |
-| `simplicio.architecture-inventory/v1` | Join of the project map, symbol index and call graph with module/layer/file relationships and coverage. | Modules/layers/files and their path lists are ascending by name/path; relationships inherit call-graph ordering; coverage counts the emitted arrays. |
+| `simplicio.architecture-inventory/v1` | Join of the project map, symbol index and call graph with module/layer/file relationships and coverage. Relationships retain the canonical call-graph fields and `relationship_coverage` reports the inventory's own bound. | Modules/layers/files and their path lists are ascending by name/path; relationships inherit call-graph ordering; coverage counts the emitted arrays. |
 
 All repository paths use `/`, are relative to the mapped root, and are not
 resolved through symlinks. Text is decoded with replacement for invalid UTF-8;
 the resulting replacement text is the observed semantic input. Generated and
 ignored directories are omitted by the Mapper and are reported when the
 omission is a known degraded path.
+
+### Relation evidence
+
+`evidence_class` is an assertion about how the endpoint was obtained, not a
+calibrated probability: `semantic_resolved` and `runtime_observed` require
+language/runtime evidence; `import_resolved` is a unique import-path match;
+`lexical_unique` is a unique symbol-name match; `lexical_ambiguous` preserves
+all candidates without claiming semantic resolution; and `heuristic` covers
+unresolved or otherwise heuristic observations. `confidence` is `null` for
+the Python producer unless a calibrated value is actually available.
+`resolution_status` is `resolved`, `inferred`, `ambiguous` or `unknown`.
+Name-inferred test links are emitted separately as `inferred_by_name`; they
+must not be read as execution or coverage evidence. There is no implicit
+`from`/`to` migration alias: a legacy-shaped relation is rejected and counted
+as degraded coverage until an explicit producer migration supplies the
+canonical endpoints.
 
 The digest is SHA-256 over UTF-8 JSON with sorted object keys and producer
 canonical array order. It intentionally excludes timestamps and machine-local

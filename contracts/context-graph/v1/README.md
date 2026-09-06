@@ -9,7 +9,10 @@ projection, not parser or storage details.
 the repository, `generation` identifies the mapped revision, and `digest` is the
 SHA-256 of the canonical contract body without `digest`. `stable_ids.nodes` and
 `stable_ids.edges` are sorted logical IDs; relations are exposed as sorted
-`{id, kind, source, target}` records.
+`{id, kind, source, target}` records. Mapper call/import relations additionally
+carry `relation_id`, `evidence_class`, `resolution_status`, provenance and
+candidate targets when present. `relation_coverage` is carried when the graph
+has bounded, ambiguous or unknown call-graph evidence.
 
 `canonical_api` and `fast-handoff` are the preferred seams. File parsing,
 artifact layout, cache paths, mmap offsets, and Rust/Python implementation

@@ -141,7 +141,12 @@
           "confidence",
           "provenance",
           "source_handle",
-          "edge_hash"
+          "edge_hash",
+          "evidence_class",
+          "resolution_status",
+          "relation_id",
+          "target_candidates",
+          "provenance_detail"
         ],
         "properties": {
           "kind": { "type": "string" },
@@ -151,7 +156,12 @@
           "confidence": { "type": ["number", "null"] },
           "provenance": { "type": "string" },
           "source_handle": { "$ref": "#/$defs/sourceHandle" },
-          "edge_hash": { "$ref": "#/$defs/hash64" }
+          "edge_hash": { "$ref": "#/$defs/hash64" },
+          "evidence_class": { "type": "string" },
+          "resolution_status": { "type": "string" },
+          "relation_id": { "type": "string" },
+          "target_candidates": { "$ref": "#/$defs/stringArray" },
+          "provenance_detail": { "type": "object" }
         }
       }
     },
@@ -160,13 +170,15 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["path", "verifies", "route", "confidence", "provenance"],
+        "required": ["path", "verifies", "route", "confidence", "provenance", "confidence_semantics", "evidence_class"],
         "properties": {
           "path": { "type": "string" },
           "verifies": { "type": "string" },
           "route": { "type": "string" },
-          "confidence": { "type": "number" },
-          "provenance": { "type": "string" }
+          "confidence": { "type": ["number", "null"] },
+          "provenance": { "type": "string" },
+          "confidence_semantics": { "type": "string" },
+          "evidence_class": { "type": "string" }
         }
       }
     },
@@ -321,6 +333,7 @@
         "within_budget": { "type": "boolean" }
       }
     },
-    "envelope_hash": { "$ref": "#/$defs/hash64" }
+    "envelope_hash": { "$ref": "#/$defs/hash64" },
+    "graph_coverage": { "type": "object" }
   }
 }

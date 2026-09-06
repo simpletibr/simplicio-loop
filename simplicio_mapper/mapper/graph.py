@@ -15,6 +15,7 @@ from bisect import bisect_right
 
 from .. import _native
 from ..models import ProjectFile
+from ..relations import relation_coverage, relation_id
 from .parse import (
     _RE_CONFIG,
     _RE_DOMAIN,
@@ -57,6 +58,19 @@ _ARCH_CHECKS = [
     ("stripe", re.compile(r"stripe")),
     ("prisma", re.compile(r"prisma")),
 ]
+
+CALL_GRAPH_EDGE_LIMIT = 1000
+
+
+def _call_graph_edge_limit(edge_limit: int | None = None) -> int:
+    """Resolve the bounded graph output limit without hiding omissions."""
+    if edge_limit is not None:
+        return max(0, int(edge_limit))
+    raw = os.environ.get("SIMPLICIO_MAPPER_CALL_GRAPH_EDGE_LIMIT", "")
+    try:
+        return max(0, int(raw)) if raw else CALL_GRAPH_EDGE_LIMIT
+    except ValueError:
+        return CALL_GRAPH_EDGE_LIMIT
 
 
 def _collect_architecture_signals(pkg: dict, corpus: str, stack: str) -> list[str]:
@@ -415,7 +429,16 @@ def _build_call_graph(
     symbol_index: dict,
     generated_at: str,
     contents: dict[str, str] | None = None,
+    *,
+    edge_limit: int | None = None,
 ) -> dict:
+    """Build the canonical Mapper v1 relation envelope.
+
+    The parser is intentionally conservative: name lookup can enumerate
+    candidates, but it cannot claim language-semantic resolution.  Ambiguous
+    candidates stay as separate relations with the same call-site provenance;
+    unresolved call/import sites stay as explicit unknown relations.
+    """
     known_paths = {file.path for file in files}
     known_path_index = _known_path_suffix_index(known_paths)
     symbols = list(symbol_index.get("symbols") or [])
@@ -431,16 +454,12 @@ def _build_call_graph(
         for path, definitions in symbols_by_file.items()
     }
 
-    edges = []
-    seen: set[tuple[str, str, str, str]] = set()
+    edges: list[dict] = []
+    seen: set[str] = set()
 
     def add_edge(edge: dict) -> None:
-        key = (
-            str(edge.get("type")),
-            str(edge.get("source_file")),
-            str(edge.get("target_file")),
-            str(edge.get("target_symbol") or edge.get("import")),
-        )
+        edge["relation_id"] = relation_id(edge)
+        key = edge["relation_id"]
         if key in seen:
             return
         seen.add(key)
@@ -449,7 +468,25 @@ def _build_call_graph(
     for file in files:
         for imported in file.imports:
             targets = _candidate_import_targets(imported, file.path, known_paths, known_path_index)
-            for target in targets[:3]:
+            evidence_class = "import_resolved" if len(targets) == 1 else "lexical_ambiguous"
+            candidates = sorted(targets)
+            if not candidates:
+                add_edge({
+                    "type": "imports",
+                    "source_file": file.path,
+                    "target_file": None,
+                    "import": imported,
+                    "evidence_class": "heuristic",
+                    "resolution_status": "unknown",
+                    "provenance": {
+                        "method": "import-resolution",
+                        "import": imported,
+                        "candidate_count": 0,
+                        "candidates": [],
+                    },
+                    "confidence": None,
+                })
+            for target in candidates:
                 if target == file.path:
                     continue
                 add_edge({
@@ -457,13 +494,54 @@ def _build_call_graph(
                     "source_file": file.path,
                     "target_file": target,
                     "import": imported,
-                    "confidence": 0.82 if imported.startswith(".") else 0.65,
+                    "evidence_class": evidence_class,
+                    "resolution_status": "resolved" if len(candidates) == 1 else "ambiguous",
+                    "target_candidates": candidates,
+                    "provenance": {
+                        "method": "import-resolution",
+                        "import": imported,
+                        "candidate_count": len(candidates),
+                        "candidates": candidates,
+                    },
+                    "confidence": None,
                 })
 
         if file.language in _CALL_GRAPH_LANGUAGES:
             text = _content_for(cwd, file.path, contents)
             for name, line in _call_expressions(text):
-                for target in symbols_by_name.get(name, [])[:3]:
+                targets = list(symbols_by_name.get(name, []))
+                target_candidates = sorted(
+                    str(target.get("qualified_name") or target.get("name") or "")
+                    for target in targets
+                )
+                evidence_class = "lexical_unique" if len(targets) == 1 else "lexical_ambiguous"
+                if not targets:
+                    caller = _nearest_symbol(
+                        symbols,
+                        file.path,
+                        line,
+                        symbols_by_file=symbols_by_file,
+                        symbol_lines_by_file=symbol_lines_by_file,
+                    )
+                    add_edge({
+                        "type": "calls",
+                        "source_file": file.path,
+                        "source_symbol": caller["qualified_name"] if caller else None,
+                        "target_file": None,
+                        "target_symbol": None,
+                        "line": line,
+                        "target_candidates": [],
+                        "evidence_class": "heuristic",
+                        "resolution_status": "unknown",
+                        "provenance": {
+                            "method": "symbol-name-lookup",
+                            "queried_symbol": name,
+                            "candidate_count": 0,
+                            "candidates": [],
+                        },
+                        "confidence": None,
+                    })
+                for target in targets:
                     if target["defined_in"] == file.path and target["line"] == line:
                         continue
                     caller = _nearest_symbol(
@@ -480,25 +558,45 @@ def _build_call_graph(
                         "target_file": target["defined_in"],
                         "target_symbol": target["qualified_name"],
                         "line": line,
-                        "confidence": 0.58 if caller else 0.48,
+                        "target_candidates": target_candidates,
+                        "evidence_class": evidence_class,
+                        "resolution_status": "resolved" if len(targets) == 1 else "ambiguous",
+                        "provenance": {
+                            "method": "symbol-name-lookup",
+                            "queried_symbol": name,
+                            "candidate_count": len(targets),
+                            "candidates": target_candidates,
+                            "caller_resolution": "lexical_nearest" if caller else "unknown",
+                        },
+                        "confidence": None,
                     })
 
+    limit = _call_graph_edge_limit(edge_limit)
+    ordered_edges = sorted(edges, key=lambda item: (
+        item.get("source_file") or "",
+        item.get("target_file") or "",
+        item.get("type") or "",
+        item.get("target_symbol") or item.get("import") or "",
+        item.get("line") or 0,
+        item.get("relation_id") or "",
+    ))
+    emitted_edges = ordered_edges[:limit]
     return {
         "schema": CALL_GRAPH_SCHEMA,
         "version": ARTIFACT_VERSION,
         "generated_at": generated_at,
         "source_symbol_index": ".simplicio/symbol-index.json",
-        "edges": sorted(edges, key=lambda item: (
-            item.get("source_file") or "",
-            item.get("target_file") or "",
-            item.get("type") or "",
-            item.get("target_symbol") or item.get("import") or "",
-        ))[:1000],
+        "edges": emitted_edges,
         "counts": {
-            "edges": len(edges),
-            "imports": len([item for item in edges if item["type"] == "imports"]),
-            "calls": len([item for item in edges if item["type"] == "calls"]),
+            "edges": len(emitted_edges),
+            "imports": len([item for item in emitted_edges if item["type"] == "imports"]),
+            "calls": len([item for item in emitted_edges if item["type"] == "calls"]),
         },
+        "coverage": relation_coverage(
+            emitted_edges,
+            observed_edges=len(ordered_edges),
+            edge_limit=limit,
+        ),
     }
 
 def _build_architecture_inventory(
@@ -578,6 +676,7 @@ def _build_architecture_inventory(
             "evidence": [{"file": path} for path in sorted(layer["files"])[:10]],
         })
 
+    relationships = list(call_graph.get("edges") or [])[:250]
     return {
         "schema": ARCHITECTURE_INVENTORY_SCHEMA,
         "version": ARTIFACT_VERSION,
@@ -591,18 +690,23 @@ def _build_architecture_inventory(
         "modules": module_entries,
         "layers": layer_entries,
         "files": sorted(inventory_files, key=lambda item: item["path"]),
-        "relationships": list(call_graph.get("edges") or [])[:250],
+        "relationships": relationships,
         "coverage": {
             "files": len(files),
             "modules": len(module_entries),
             "layers": len(layer_entries),
             "symbols": len(symbol_index.get("symbols", []) or []),
-            "relationships": len(call_graph.get("edges", []) or []),
+            "relationships": len(relationships),
             "tests": len(project_map.get("test_files", []) or []),
         },
+        "relationship_coverage": relation_coverage(
+            relationships,
+            observed_edges=len(call_graph.get("edges", []) or []),
+            edge_limit=250,
+        ),
         "notes": [
             "Generated from deterministic repository inspection.",
-            "Relationship confidence below 1.0 means the edge is heuristic and should be reviewed before making broad claims.",
+            "Relationship evidence_class and resolution_status describe how each edge was obtained; null confidence is not a calibrated probability.",
         ],
     }
 

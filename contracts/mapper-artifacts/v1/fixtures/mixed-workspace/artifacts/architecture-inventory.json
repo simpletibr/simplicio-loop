@@ -9,7 +9,7 @@
     "files": 4,
     "layers": 3,
     "modules": 3,
-    "relationships": 4,
+    "relationships": 5,
     "symbols": 4,
     "tests": 1
   },
@@ -233,16 +233,16 @@
   ],
   "notes": [
     "Generated from deterministic repository inspection.",
-    "Relationship confidence below 1.0 means the edge is heuristic and should be reviewed before making broad claims."
+    "Relationship evidence_class and resolution_status describe how each edge was obtained; null confidence is not a calibrated probability."
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:7cf03c6d9d1f2d948f18fbdf9787949134203a50f9126b8af127ea76270dc8f5",
+    "canonical_digest": "sha256:83f187440ddea44091ce11f1f975cb266ceed444f79174220836e4994a192f9c",
     "capability_coverage": {
       "architecture": "full",
       "files": "full",
       "precedent": "unsupported",
-      "relationships": "full",
+      "relationships": "partial",
       "symbols": "empty"
     },
     "component": "simplicio-mapper",
@@ -262,39 +262,130 @@
     "project_mode": "root",
     "stack": "unknown"
   },
+  "relationship_coverage": {
+    "ambiguous_relations": 0,
+    "edge_limit": 250,
+    "emitted_edges": 5,
+    "evidence_classes": {
+      "heuristic": 1,
+      "import_resolved": 1,
+      "lexical_unique": 3
+    },
+    "invalid_edges": 0,
+    "observed_edges": 5,
+    "omitted_edges": 0,
+    "status": "degraded",
+    "truncated": false,
+    "unknown_relations": 1
+  },
   "relationships": [
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_unique",
       "line": 11,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "backend/server.py::handle_request"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "handle_request"
+      },
+      "relation_id": "bceba860e21fbffd94b8c9f49c6755e6797bfb277eedd5242473aa845dd6e157",
+      "resolution_status": "resolved",
       "source_file": "backend/server.py",
       "source_symbol": "backend/server.py::main",
+      "target_candidates": [
+        "backend/server.py::handle_request"
+      ],
       "target_file": "backend/server.py",
       "target_symbol": "backend/server.py::handle_request",
       "type": "calls"
     },
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_unique",
       "line": 15,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "backend/server.py::main"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "main"
+      },
+      "relation_id": "caa6de3edb252cb9a3bd4c8ba9c6a09c677096932f101393ac9412a23ca73ec3",
+      "resolution_status": "resolved",
       "source_file": "backend/server.py",
       "source_symbol": "backend/server.py::main",
+      "target_candidates": [
+        "backend/server.py::main"
+      ],
       "target_file": "backend/server.py",
       "target_symbol": "backend/server.py::main",
       "type": "calls"
     },
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_unique",
       "line": 5,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "backend/server.py::handle_request"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "handle_request"
+      },
+      "relation_id": "6b321aa8670a28d114231796cb9ba15f6da08017363386c74e0a6e19425a91c8",
+      "resolution_status": "resolved",
       "source_file": "backend/tests/test_server.py",
       "source_symbol": "backend/tests/test_server.py::test_health",
+      "target_candidates": [
+        "backend/server.py::handle_request"
+      ],
       "target_file": "backend/server.py",
       "target_symbol": "backend/server.py::handle_request",
       "type": "calls"
     },
     {
-      "confidence": 0.65,
+      "confidence": null,
+      "evidence_class": "import_resolved",
       "import": "backend.server",
+      "provenance": {
+        "candidate_count": 1,
+        "candidates": [
+          "backend/server.py"
+        ],
+        "import": "backend.server",
+        "method": "import-resolution"
+      },
+      "relation_id": "b1f7ef4e9ced9052f4f4e48d7f2854bc3e47d34244190806302c43852bc6c703",
+      "resolution_status": "resolved",
       "source_file": "backend/tests/test_server.py",
+      "target_candidates": [
+        "backend/server.py"
+      ],
       "target_file": "backend/server.py",
+      "type": "imports"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "heuristic",
+      "import": "react",
+      "provenance": {
+        "candidate_count": 0,
+        "candidates": [],
+        "import": "react",
+        "method": "import-resolution"
+      },
+      "relation_id": "875a629866012381c865c24d231b138d7c7909d25770a86fa5f0cbfefe09f517",
+      "resolution_status": "unknown",
+      "source_file": "frontend/src/App.jsx",
+      "target_file": null,
       "type": "imports"
     }
   ],

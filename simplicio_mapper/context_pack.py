@@ -29,6 +29,7 @@ from typing import Any
 
 from .context_contract import canonical_sha256
 from .mapper import LLM_DIRECTIVES
+from .relations import canonicalize_relation, relation_coverage, relation_summary
 from .task_context import apply_task_context, enforce_serialized_budget, select_context_targets
 
 CONTEXT_PACK_SCHEMA = "simplicio.context-pack/v1"
@@ -152,13 +153,39 @@ def _related_tests(project_files: dict, path: str) -> list[str]:
     return sorted(matches)
 
 
+def _related_test_evidence(project_files: dict, path: str, tests: list[str]) -> list[dict[str, Any]]:
+    """Classify name-paired tests separately from measured test evidence."""
+    out: list[dict[str, Any]] = []
+    for test_path in tests:
+        metadata = project_files.get(test_path, {})
+        declared = metadata.get("test_evidence", {}) if isinstance(metadata, dict) else {}
+        declared = declared if isinstance(declared, dict) else {}
+        evidence_class = str(declared.get("evidence_class") or "")
+        if evidence_class not in {"inferred_by_name", "runtime_observed"}:
+            evidence_class = "runtime_observed" if declared.get("measured") else "inferred_by_name"
+        out.append(
+            {
+                "path": test_path,
+                "verifies": path,
+                "evidence_class": evidence_class,
+                "provenance": {
+                    "method": declared.get("method") or "basename-role-match",
+                    "measured": evidence_class == "runtime_observed",
+                },
+            }
+        )
+    return out
+
+
 def _call_graph_edges(call_graph: dict) -> list[dict]:
-    """Return a flat list of edges from either `edges`, `imports`, or `calls`."""
+    """Return only canonical Mapper v1 relations."""
     edges: list[dict] = []
-    for key in ("edges", "imports", "calls"):
-        for edge in call_graph.get(key, []):
-            if isinstance(edge, dict) and edge.get("from") and edge.get("to"):
-                edges.append(edge)
+    for edge in call_graph.get("edges", []):
+        if not isinstance(edge, dict):
+            continue
+        normalized = canonicalize_relation(edge)
+        if normalized is not None:
+            edges.append(normalized)
     return edges
 
 
@@ -271,6 +298,30 @@ def build_context_pack(
     pm_files = {entry["path"]: entry for entry in project_map.get("files", [])}
     si_symbols = symbol_index.get("symbols", [])
     cg_edges = _call_graph_edges(call_graph)
+    cg_relation_summaries = [summary for edge in cg_edges if (summary := relation_summary(edge)) is not None]
+    raw_cg_edges = call_graph.get("edges", [])
+    raw_cg_edges = raw_cg_edges if isinstance(raw_cg_edges, list) else []
+    upstream_coverage = call_graph.get("coverage", {})
+    upstream_coverage = upstream_coverage if isinstance(upstream_coverage, dict) else {}
+    cg_coverage = relation_coverage(
+        cg_relation_summaries,
+        observed_edges=max(len(raw_cg_edges), int(upstream_coverage.get("observed_edges", 0) or 0)),
+        edge_limit=upstream_coverage.get("edge_limit"),
+        invalid_edges=max(
+            max(0, len(raw_cg_edges) - len(cg_relation_summaries)),
+            int(upstream_coverage.get("invalid_edges", 0) or 0),
+        ),
+    )
+    if upstream_coverage.get("status") == "degraded":
+        cg_coverage["status"] = "degraded"
+    producer = call_graph.get("producer", {})
+    producer = producer if isinstance(producer, dict) else {}
+    if call_graph.get("schema") == "simplicio.call-graph/v1" and producer.get("canonical_digest"):
+        cg_coverage["contract_status"] = "canonical"
+    else:
+        cg_coverage["contract_status"] = "degraded"
+        if cg_coverage["status"] == "complete":
+            cg_coverage["status"] = "degraded"
     layer_by_module: dict[str, list[str]] = {}
     for layer in architecture_inventory.get("layers", []):
         layer_name = layer.get("name")
@@ -307,11 +358,33 @@ def build_context_pack(
                 }
             )
         callers = sorted(
-            {edge["from"] for edge in cg_edges if edge.get("to") == path and edge.get("from") != path}
+            {
+                edge["source_file"]
+                for edge in cg_edges
+                if edge.get("target_file") == path
+                and edge.get("source_file") != path
+            }
         )
         imports = sorted(
-            {edge["to"] for edge in cg_edges if edge.get("from") == path and edge.get("to") != path}
+            {
+                edge["target_file"]
+                for edge in cg_edges
+                if edge.get("source_file") == path
+                and edge.get("target_file")
+                and edge.get("target_file") != path
+            }
         )
+        relation_evidence = [
+            relation_summary(edge)
+            for edge in cg_edges
+            if path in {edge.get("source_file"), edge.get("target_file")}
+        ]
+        relation_evidence = sorted(
+            (edge for edge in relation_evidence if edge is not None),
+            key=lambda edge: str(edge.get("relation_id") or ""),
+        )
+        tests = _related_tests(pm_files, path)
+        test_evidence = _related_test_evidence(pm_files, path, tests)
         symbols = _file_symbols(si_symbols, path)
         modules = _module_candidates(path)
         macro_layers = sorted({layer for module in modules for layer in layer_by_module.get(module, [])})
@@ -327,7 +400,9 @@ def build_context_pack(
                 "symbols": symbols,
                 "callers": callers,
                 "imports": imports,
-                "tests": _related_tests(pm_files, path),
+                "relation_evidence": relation_evidence,
+                "tests": tests,
+                "test_evidence": test_evidence,
                 "drilldown": {"reversible": True, "handles": drilldown},
                 "freshness": {
                     "snapshot_hash": _sha256_text(text),
@@ -339,7 +414,9 @@ def build_context_pack(
                         "path": path.replace(os.sep, "/"),
                         "imports": imports,
                         "callers": callers,
-                        "tests": _related_tests(pm_files, path),
+                        "tests": tests,
+                        "relation_evidence": relation_evidence,
+                        "test_evidence": test_evidence,
                     },
                     "macro": {"modules": modules, "layers": macro_layers},
                 },
@@ -388,6 +465,7 @@ def build_context_pack(
             "handles": [handle for entry in files_out for handle in entry["drilldown"]["handles"]],
         },
         "llm_directives": LLM_DIRECTIVES,
+        "relation_coverage": cg_coverage,
     }
     payload = apply_task_context(
         payload,

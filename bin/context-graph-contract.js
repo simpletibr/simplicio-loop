@@ -10,6 +10,15 @@ const GRAPH_SCHEMA = 'simplicio.context-graph/v1';
 const CONTRACT_VERSION = 1;
 const SCHEMA_PATTERN = /^simplicio[.]context-graph-contract\/v([1-9][0-9]*)(?:[.][0-9]+)*$/;
 const DIGEST_PATTERN = /^[0-9a-f]{64}$/;
+const RELATION_EVIDENCE = new Set([
+  'semantic_resolved',
+  'import_resolved',
+  'lexical_unique',
+  'lexical_ambiguous',
+  'heuristic',
+  'runtime_observed',
+]);
+const RELATION_STATUSES = new Set(['resolved', 'inferred', 'ambiguous', 'unknown']);
 
 function canonical(value) {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -119,6 +128,24 @@ function validatePublicContract(contract) {
         return diagnostic('relation_field_invalid', `${itemPath}.${field}`, `relation ${field} must be a non-empty string`);
       }
     }
+    if ('relation_id' in relation && (typeof relation.relation_id !== 'string' || !relation.relation_id)) {
+      return diagnostic('relation_id_invalid', `${itemPath}.relation_id`, 'relation_id must be a non-empty string');
+    }
+    if ('evidence_class' in relation && !RELATION_EVIDENCE.has(relation.evidence_class)) {
+      return diagnostic('relation_evidence_invalid', `${itemPath}.evidence_class`, 'unsupported evidence_class');
+    }
+    if ('resolution_status' in relation && !RELATION_STATUSES.has(relation.resolution_status)) {
+      return diagnostic('relation_resolution_invalid', `${itemPath}.resolution_status`, 'unsupported resolution_status');
+    }
+    if ('provenance' in relation && (!relation.provenance || typeof relation.provenance !== 'object' || Array.isArray(relation.provenance))) {
+      return diagnostic('relation_provenance_invalid', `${itemPath}.provenance`, 'provenance must be an object');
+    }
+    if ('target_candidates' in relation && (!Array.isArray(relation.target_candidates) || relation.target_candidates.some((candidate) => typeof candidate !== 'string'))) {
+      return diagnostic('relation_candidates_invalid', `${itemPath}.target_candidates`, 'target_candidates must be strings');
+    }
+    if ('confidence' in relation && relation.confidence !== null && (typeof relation.confidence !== 'number' || !Number.isFinite(relation.confidence))) {
+      return diagnostic('relation_confidence_invalid', `${itemPath}.confidence`, 'confidence must be a number or null');
+    }
     relationIds.push(relation.id);
   }
 
@@ -158,7 +185,13 @@ function buildPublicContract(graph, repositoryId, generation) {
     .sort((a, b) => a.id.localeCompare(b.id));
   const relations = (graph.edges || [])
     .filter((edge) => edge && edge.id)
-    .map((edge) => ({ id: String(edge.id), kind: String(edge.kind || ''), source: String(edge.source || ''), target: String(edge.target || '') }))
+    .map((edge) => {
+      const relation = { id: String(edge.id), kind: String(edge.kind || ''), source: String(edge.source || ''), target: String(edge.target || '') };
+      for (const field of ['relation_id', 'evidence_class', 'resolution_status', 'provenance', 'target_candidates', 'confidence']) {
+        if (field in edge) relation[field] = edge[field];
+      }
+      return relation;
+    })
     .sort((a, b) => a.id.localeCompare(b.id));
   const body = {
     schema: CONTRACT_SCHEMA,
@@ -169,6 +202,9 @@ function buildPublicContract(graph, repositoryId, generation) {
     nodes,
     relations,
   };
+  if (graph.relation_coverage && typeof graph.relation_coverage === 'object' && !Array.isArray(graph.relation_coverage) && Object.keys(graph.relation_coverage).length > 0) {
+    body.relation_coverage = graph.relation_coverage;
+  }
   return { ...body, digest: digest(body) };
 }
 

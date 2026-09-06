@@ -117,9 +117,20 @@ def _preflight(value: Any, max_bytes: int, max_depth: int) -> tuple[list[dict[st
 
 def _schema_reasons(payload: Mapping[str, Any], schema_id: str, prefix: str) -> list[dict[str, str]]:
     """Return structured schema failures without exceptions."""
+    schema = _load_context_schema(schema_id)
+    schema_base = os.path.dirname(
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "contracts",
+            "context-snapshot",
+            "v1",
+            "schemas",
+            "context-graph.schema.json",
+        )
+    )
     return [
         _reason(prefix, "$", error)
-        for error in validate_instance(dict(payload), _load_context_schema(schema_id))
+        for error in validate_instance(dict(payload), schema, schema_base)
     ]
 
 

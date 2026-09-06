@@ -171,6 +171,13 @@ def _capability_state(
     count = len(value) if isinstance(value, (list, dict, str)) else int(bool(value))
     if count == 0:
         return "empty"
+    if capability == "relationships":
+        coverage = payload.get("coverage")
+        coverage = coverage if isinstance(coverage, dict) else {}
+        relation_coverage = payload.get("relationship_coverage")
+        relation_coverage = relation_coverage if isinstance(relation_coverage, dict) else coverage
+        if relation_coverage.get("truncated") or relation_coverage.get("status") == "degraded":
+            return "partial"
     if degraded_paths or omitted_paths:
         return "partial"
     return "full"

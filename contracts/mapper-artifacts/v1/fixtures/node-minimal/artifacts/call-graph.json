@@ -1,40 +1,261 @@
 {
   "counts": {
-    "calls": 3,
-    "edges": 4,
-    "imports": 1
+    "calls": 9,
+    "edges": 12,
+    "imports": 3
+  },
+  "coverage": {
+    "ambiguous_relations": 0,
+    "edge_limit": 1000,
+    "emitted_edges": 12,
+    "evidence_classes": {
+      "heuristic": 8,
+      "import_resolved": 1,
+      "lexical_unique": 3
+    },
+    "invalid_edges": 0,
+    "observed_edges": 12,
+    "omitted_edges": 0,
+    "status": "degraded",
+    "truncated": false,
+    "unknown_relations": 8
   },
   "edges": [
     {
-      "confidence": 0.48,
-      "line": 6,
+      "confidence": null,
+      "evidence_class": "heuristic",
+      "line": 1,
+      "provenance": {
+        "candidate_count": 0,
+        "candidates": [],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "require"
+      },
+      "relation_id": "4ff9bca86fef3d2a3350071aea372f28d957dae33aecb02cadbacb7603445cf3",
+      "resolution_status": "unknown",
       "source_file": "spec/greet.spec.js",
       "source_symbol": null,
+      "target_candidates": [],
+      "target_file": null,
+      "target_symbol": null,
+      "type": "calls"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "heuristic",
+      "line": 2,
+      "provenance": {
+        "candidate_count": 0,
+        "candidates": [],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "require"
+      },
+      "relation_id": "5ea3781541c15ff0cfdbad3f621537d2c8d6a8958ca082cd88a11b3b6afd7e52",
+      "resolution_status": "unknown",
+      "source_file": "spec/greet.spec.js",
+      "source_symbol": null,
+      "target_candidates": [],
+      "target_file": null,
+      "target_symbol": null,
+      "type": "calls"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "heuristic",
+      "line": 3,
+      "provenance": {
+        "candidate_count": 0,
+        "candidates": [],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "require"
+      },
+      "relation_id": "110a674f5e7859a9cf5c5ff7e7adf7c0af707054790a1abc63d8b2e331452d05",
+      "resolution_status": "unknown",
+      "source_file": "spec/greet.spec.js",
+      "source_symbol": null,
+      "target_candidates": [],
+      "target_file": null,
+      "target_symbol": null,
+      "type": "calls"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "heuristic",
+      "line": 5,
+      "provenance": {
+        "candidate_count": 0,
+        "candidates": [],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "test"
+      },
+      "relation_id": "a64e492f16528255aba9dfb881326465fadf816a31436a2ee3b25802d49d3d90",
+      "resolution_status": "unknown",
+      "source_file": "spec/greet.spec.js",
+      "source_symbol": null,
+      "target_candidates": [],
+      "target_file": null,
+      "target_symbol": null,
+      "type": "calls"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "heuristic",
+      "line": 6,
+      "provenance": {
+        "candidate_count": 0,
+        "candidates": [],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "strictEqual"
+      },
+      "relation_id": "b8f13404e9cd921b44b60fbddb287d2c5b87364bba978337ece7d890fce3cf86",
+      "resolution_status": "unknown",
+      "source_file": "spec/greet.spec.js",
+      "source_symbol": null,
+      "target_candidates": [],
+      "target_file": null,
+      "target_symbol": null,
+      "type": "calls"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "heuristic",
+      "import": "node:assert",
+      "provenance": {
+        "candidate_count": 0,
+        "candidates": [],
+        "import": "node:assert",
+        "method": "import-resolution"
+      },
+      "relation_id": "8c5c2bca4b26535b9c9f00d1ad78357225c735365f82c440fb61c9cec75d727f",
+      "resolution_status": "unknown",
+      "source_file": "spec/greet.spec.js",
+      "target_file": null,
+      "type": "imports"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "heuristic",
+      "import": "node:test",
+      "provenance": {
+        "candidate_count": 0,
+        "candidates": [],
+        "import": "node:test",
+        "method": "import-resolution"
+      },
+      "relation_id": "26a89729f25c44c5199073b0992ed55e5e414c58bd0b765d5351dd744ae7f275",
+      "resolution_status": "unknown",
+      "source_file": "spec/greet.spec.js",
+      "target_file": null,
+      "type": "imports"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "lexical_unique",
+      "line": 6,
+      "provenance": {
+        "caller_resolution": "unknown",
+        "candidate_count": 1,
+        "candidates": [
+          "src/index.js::greet"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "greet"
+      },
+      "relation_id": "3afd67ec315a57698d958b9fd9ce4599c4f8996e235ed2cb5f0cad84962285ac",
+      "resolution_status": "resolved",
+      "source_file": "spec/greet.spec.js",
+      "source_symbol": null,
+      "target_candidates": [
+        "src/index.js::greet"
+      ],
       "target_file": "src/index.js",
       "target_symbol": "src/index.js::greet",
       "type": "calls"
     },
     {
-      "confidence": 0.82,
+      "confidence": null,
+      "evidence_class": "import_resolved",
       "import": "../src/index.js",
+      "provenance": {
+        "candidate_count": 1,
+        "candidates": [
+          "src/index.js"
+        ],
+        "import": "../src/index.js",
+        "method": "import-resolution"
+      },
+      "relation_id": "2baf5c793559c8f253b90f64d52b9cfd9d9262c22bbbb2e91dabb8998998e7d2",
+      "resolution_status": "resolved",
       "source_file": "spec/greet.spec.js",
+      "target_candidates": [
+        "src/index.js"
+      ],
       "target_file": "src/index.js",
       "type": "imports"
     },
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "heuristic",
       "line": 8,
+      "provenance": {
+        "candidate_count": 0,
+        "candidates": [],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "log"
+      },
+      "relation_id": "26ac0a2e8066308b194b6351f81d62c7eda3f5c64b2ec81801a561afe316719e",
+      "resolution_status": "unknown",
       "source_file": "src/index.js",
       "source_symbol": "src/index.js::main",
+      "target_candidates": [],
+      "target_file": null,
+      "target_symbol": null,
+      "type": "calls"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "lexical_unique",
+      "line": 8,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "src/index.js::greet"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "greet"
+      },
+      "relation_id": "51489a98889389174cfe0baa337d5a90ed61b6e44c30e6b646cc885621fae3ef",
+      "resolution_status": "resolved",
+      "source_file": "src/index.js",
+      "source_symbol": "src/index.js::main",
+      "target_candidates": [
+        "src/index.js::greet"
+      ],
       "target_file": "src/index.js",
       "target_symbol": "src/index.js::greet",
       "type": "calls"
     },
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_unique",
       "line": 12,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "src/index.js::main"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "main"
+      },
+      "relation_id": "5adc3c2df4919bd4b8cec0f1d7b06e8b051de85287bde2f054b05e2dda564f9d",
+      "resolution_status": "resolved",
       "source_file": "src/index.js",
       "source_symbol": "src/index.js::main",
+      "target_candidates": [
+        "src/index.js::main"
+      ],
       "target_file": "src/index.js",
       "target_symbol": "src/index.js::main",
       "type": "calls"
@@ -43,12 +264,12 @@
   "generated_at": "1970-01-01T00:00:00.000Z",
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:4aac5563fdb96144308d76a89285b5ad8e84f0731acdbd44356b7bdac245af32",
+    "canonical_digest": "sha256:dc37e47f6fba17a1e8a3c1e50b9d27e5ce5c85b811f591f8386f1c41555939f5",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",
       "precedent": "unsupported",
-      "relationships": "full",
+      "relationships": "partial",
       "symbols": "unsupported"
     },
     "component": "simplicio-mapper",

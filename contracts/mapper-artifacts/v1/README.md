@@ -14,7 +14,7 @@ else that reads `.simplicio/*.json`):
 | Task-relevant snippets | `.simplicio/precedent-index.json` | `simplicio.precedent-index/v1` |
 | Module/layer rollup | `.simplicio/architecture-inventory.json` | `simplicio.architecture-inventory/v1` |
 | Symbol table | `.simplicio/symbol-index.json` | `simplicio.symbol-index/v1` |
-| calls/imports edges | `.simplicio/call-graph.json` | `simplicio.call-graph/v1` |
+| canonical calls/imports relations | `.simplicio/call-graph.json` | `simplicio.call-graph/v1` |
 | `index --json` result | (stdout of `simplicio-mapper index <path> --json`) | `simplicio.mapper-index/v1` |
 | Renderer-neutral visualization bundle | `.simplicio/visualization-bundle.json` / fixture | `simplicio.visualization-bundle/v1` |
 | Bounded read-only source preview | `simplicio-mapper preview <path>` JSON | `simplicio.visualization-preview/v1` |

@@ -71,7 +71,16 @@ def _sample_symbols() -> dict:
 def _sample_call_graph() -> dict:
     return {
         "edges": [
-            {"from": "src/cache/token_cache.py", "to": "src/modeling/sort_lines.py"},
+            {
+                "type": "imports",
+                "source_file": "src/cache/token_cache.py",
+                "target_file": "src/modeling/sort_lines.py",
+                "evidence_class": "import_resolved",
+                "resolution_status": "resolved",
+                "relation_id": "sample-relation",
+                "provenance": {"method": "test-fixture"},
+                "confidence": None,
+            },
         ]
     }
 

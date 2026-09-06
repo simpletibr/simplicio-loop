@@ -231,20 +231,46 @@ def _edge_view(edge: dict) -> dict:
         "target_symbol": edge.get("target_symbol"),
         "line": edge.get("line"),
         "confidence": edge.get("confidence"),
+        "relation_id": edge.get("relation_id"),
+        "evidence_class": edge.get("evidence_class") or "heuristic",
+        "resolution_status": edge.get("resolution_status") or "inferred",
+        "target_candidates": list(edge.get("target_candidates") or []),
+        "provenance": dict(edge.get("provenance") or {}),
     }
 
 
 def _resolve_symbol_name(symbol_index: dict, name: str) -> str:
     """Accept both a short name and a fully qualified name; prefer an exact
-    qualified match, falling back to the first symbol whose short name
-    matches (and noting the qualified form so results stay disambiguated)."""
+    qualified match, and leave duplicate short names unresolved so results
+    stay disambiguated rather than selecting an arbitrary definition."""
     for symbol in symbol_index.get("symbols", []):
         if symbol.get("qualified_name") == name:
             return name
-    for symbol in symbol_index.get("symbols", []):
-        if symbol.get("name") == name:
-            return symbol["qualified_name"]
+    matches = [
+        symbol.get("qualified_name")
+        for symbol in symbol_index.get("symbols", [])
+        if symbol.get("name") == name and symbol.get("qualified_name")
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    # A short name with multiple definitions is intentionally left unresolved.
+    # Returning the first match would turn lexical ambiguity into a false edge.
     return name
+
+
+def _symbol_resolution(symbol_index: dict, name: str) -> dict[str, Any]:
+    qualified = [
+        symbol.get("qualified_name")
+        for symbol in symbol_index.get("symbols", [])
+        if symbol.get("name") == name and symbol.get("qualified_name")
+    ]
+    if any(symbol.get("qualified_name") == name for symbol in symbol_index.get("symbols", [])):
+        return {"requested": name, "status": "resolved", "candidates": [name]}
+    if len(qualified) == 1:
+        return {"requested": name, "status": "resolved", "candidates": qualified}
+    if len(qualified) > 1:
+        return {"requested": name, "status": "ambiguous", "candidates": sorted(qualified)}
+    return {"requested": name, "status": "unknown", "candidates": []}
 
 
 def _callers(call_graph: dict, name: str, limit: int) -> tuple[list[dict], int]:
@@ -302,12 +328,21 @@ def _impact(cwd: str, artifacts: dict, target_files: list[str]) -> dict:
     symbols = _symbols_for_files(artifacts["symbol_index"], target_set)
     flows = _flows_touching(flow_inventory, target_set)
     needs_review = _scan_manual_docs_for_references(cwd, target_set)
+    relation_evidence = [
+        _edge_view(edge)
+        for edge in artifacts.get("call_graph", {}).get("edges", [])
+        if isinstance(edge, dict)
+        and ({edge.get("source_file"), edge.get("target_file")} & target_set)
+    ]
+    relation_evidence.sort(key=lambda item: str(item.get("relation_id") or ""))
     return {
         "affected_symbols": [
             {"symbol": s.get("qualified_name") or s.get("name"), "path": s["defined_in"]} for s in symbols
         ],
         "affected_flows": flows,
         "needs_review": needs_review,
+        "relation_evidence": relation_evidence,
+        "relation_coverage": dict(artifacts.get("call_graph", {}).get("coverage", {})),
     }
 
 
@@ -540,21 +575,37 @@ def run_query(
         materialized = _artifacts()
         symbol_index = materialized["symbol_index"]
         call_graph = materialized["call_graph"]
+        resolution = _symbol_resolution(symbol_index, arg or "")
         resolved = _resolve_symbol_name(symbol_index, arg or "")
         matches, total = _callers(call_graph, resolved, limit)
-        payload = {"results": [_edge_view(e) for e in matches], "total": total}
+        payload = {
+            "results": [_edge_view(e) for e in matches],
+            "total": total,
+            "resolution": resolution,
+            "coverage": dict(call_graph.get("coverage", {})),
+        }
     elif verb == "callees":
         materialized = _artifacts()
         symbol_index = materialized["symbol_index"]
         call_graph = materialized["call_graph"]
+        resolution = _symbol_resolution(symbol_index, arg or "")
         resolved = _resolve_symbol_name(symbol_index, arg or "")
         matches, total = _callees(call_graph, resolved, limit)
-        payload = {"results": [_edge_view(e) for e in matches], "total": total}
+        payload = {
+            "results": [_edge_view(e) for e in matches],
+            "total": total,
+            "resolution": resolution,
+            "coverage": dict(call_graph.get("coverage", {})),
+        }
     elif verb == "reaches":
         materialized = _artifacts()
         call_graph = materialized["call_graph"]
         matches, total = _reaches(call_graph, arg or "", depth, limit)
-        payload = {"results": matches, "total": total}
+        payload = {
+            "results": matches,
+            "total": total,
+            "coverage": dict(call_graph.get("coverage", {})),
+        }
     elif verb == "impact":
         native, delegation_reason = _runtime_ask_query(abs_cwd, "impact", arg or "", limit)
         if native is not None:

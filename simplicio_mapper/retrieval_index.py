@@ -51,6 +51,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 from urllib.parse import quote, unquote
 
+from .relations import canonicalize_relation, relation_coverage, relation_summary
 from .savings import ESTIMATOR_LABEL, estimate_tokens
 
 # --------------------------------------------------------------------------- #
@@ -681,13 +682,6 @@ def build_retrieval_index(
         dfn = str(sym.get("defined_in") or "").replace(os.sep, "/")
         symbols_by_file.setdefault(dfn, []).append(dict(sym))
 
-    # Call-graph edges (callers/callees + imports).
-    edges = []
-    for key in ("edges", "imports", "calls"):
-        for edge in call_graph.get(key, []) or []:
-            if isinstance(edge, Mapping) and edge.get("from") and edge.get("to"):
-                edges.append((str(edge["from"]).replace(os.sep, "/"), str(edge["to"]).replace(os.sep, "/")))
-
     return update_retrieval_index(
         None,
         project_map,
@@ -764,15 +758,54 @@ def update_retrieval_index(
     df_counts = {tok: len(docset) for tok, docset in sorted(df.items())}
     N = len(file_docs)
 
-    edges = []
-    for key in ("edges", "imports", "calls"):
-        for edge in call_graph.get(key, []) or []:
-            if isinstance(edge, Mapping) and edge.get("from") and edge.get("to"):
-                edges.append((_normalized_path(str(edge["from"])), _normalized_path(str(edge["to"]))))
+    relations: list[dict[str, Any]] = []
+    invalid_relation_count = 0
+    raw_edges = call_graph.get("edges", []) or []
+    if not isinstance(raw_edges, list):
+        raw_edges = []
+        invalid_relation_count += 1
+    for edge in raw_edges:
+        if not isinstance(edge, Mapping):
+            invalid_relation_count += 1
+            continue
+        normalized = canonicalize_relation(edge)
+        if normalized is None:
+            invalid_relation_count += 1
+            continue
+        summary = relation_summary(normalized)
+        if summary is not None:
+            relations.append(summary)
+
+    upstream_coverage = call_graph.get("coverage", {})
+    upstream_coverage = upstream_coverage if isinstance(upstream_coverage, Mapping) else {}
+    graph_coverage = relation_coverage(
+        relations,
+        observed_edges=max(len(raw_edges), int(upstream_coverage.get("observed_edges", 0) or 0)),
+        edge_limit=upstream_coverage.get("edge_limit"),
+        invalid_edges=max(
+            invalid_relation_count,
+            int(upstream_coverage.get("invalid_edges", 0) or 0),
+        ),
+    )
+    if upstream_coverage.get("status") == "degraded":
+        graph_coverage["status"] = "degraded"
+    producer = call_graph.get("producer", {})
+    producer = producer if isinstance(producer, Mapping) else {}
+    canonical_envelope = bool(
+        call_graph.get("schema") == "simplicio.call-graph/v1"
+        and producer.get("canonical_digest")
+    )
+    graph_coverage["contract_status"] = "canonical" if canonical_envelope else "degraded"
+    if not canonical_envelope and graph_coverage["status"] == "complete":
+        graph_coverage["status"] = "degraded"
 
     callees: dict[str, set[str]] = {}
     callers: dict[str, set[str]] = {}
-    for src, dst in edges:
+    for relation in relations:
+        src = _normalized_path(str(relation.get("source_file") or ""))
+        dst = _normalized_path(str(relation.get("target_file") or ""))
+        if not src or not dst:
+            continue
         callees.setdefault(src, set()).add(dst)
         callers.setdefault(dst, set()).add(src)
 
@@ -782,7 +815,7 @@ def update_retrieval_index(
         graph_dependents.update(callers.get(path, set()))
     graph_dependents.difference_update(invalidated_paths)
 
-    related_tests = _related_tests_map(project_map, live_paths)
+    related_tests, related_test_evidence = _related_tests_map(project_map, live_paths)
     root_norm = _normalized_path(root)
     index_payload = {
         "documents": [
@@ -805,8 +838,15 @@ def update_retrieval_index(
         "call_graph": {
             "callees": {k: sorted(v) for k, v in callees.items()},
             "callers": {k: sorted(v) for k, v in callers.items()},
+            "relations": sorted(relations, key=lambda item: str(item.get("relation_id") or "")),
+            "coverage": graph_coverage,
+            "source_contract": {
+                "schema": call_graph.get("schema"),
+                "canonical_digest": producer.get("canonical_digest"),
+            },
         },
         "related_tests": related_tests,
+        "related_test_evidence": related_test_evidence,
         "root": root_norm,
         "rev": BUILDER_REVISION,
     }
@@ -821,6 +861,8 @@ def update_retrieval_index(
         "documents": file_docs,
         "call_graph": index_payload["call_graph"],
         "related_tests": related_tests,
+        "related_test_evidence": related_test_evidence,
+        "relation_coverage": graph_coverage,
         "root": root_norm,
         "index_id": _stable_hash(index_payload, size=24),
         "incremental": {
@@ -834,8 +876,21 @@ def update_retrieval_index(
     }
 
 
-def _related_tests_map(project_map: Mapping[str, Any], paths: set[str]) -> dict[str, list[str]]:
+def _related_tests_map(
+    project_map: Mapping[str, Any], paths: set[str]
+) -> tuple[dict[str, list[str]], dict[str, list[dict[str, Any]]]]:
+    def test_bases(base: str) -> set[str]:
+        names = {base}
+        for prefix in ("test_", "tests_"):
+            if base.startswith(prefix):
+                names.add(base[len(prefix):])
+        for suffix in ("_test", ".test"):
+            if base.endswith(suffix):
+                names.add(base[: -len(suffix)])
+        return names
+
     tests_by_base: dict[str, list[str]] = {}
+    test_metadata: dict[str, Mapping[str, Any]] = {}
     for entry in project_map.get("files", []):
         if not isinstance(entry, Mapping):
             continue
@@ -844,15 +899,38 @@ def _related_tests_map(project_map: Mapping[str, Any], paths: set[str]) -> dict[
         if "test" in roles:
             base = os.path.splitext(os.path.basename(path))[0]
             if base:
-                tests_by_base.setdefault(base, []).append(path)
+                for test_base in test_bases(base):
+                    tests_by_base.setdefault(test_base, []).append(path)
+                test_metadata[path] = entry
     out: dict[str, list[str]] = {}
+    evidence: dict[str, list[dict[str, Any]]] = {}
     for path in paths:
         base = os.path.splitext(os.path.basename(path))[0]
         matches = []
         if base:
             matches = tests_by_base.get(base, [])
-        out[path] = sorted(set(matches))
-    return out
+        matches = sorted(set(matches))
+        out[path] = matches
+        evidence[path] = []
+        for test_path in matches:
+            metadata = test_metadata.get(test_path, {})
+            declared = metadata.get("test_evidence")
+            declared = declared if isinstance(declared, Mapping) else {}
+            evidence_class = str(declared.get("evidence_class") or "")
+            if evidence_class not in {"inferred_by_name", "runtime_observed"}:
+                evidence_class = "runtime_observed" if declared.get("measured") else "inferred_by_name"
+            evidence[path].append(
+                {
+                    "path": test_path,
+                    "verifies": path,
+                    "evidence_class": evidence_class,
+                    "provenance": {
+                        "method": declared.get("method") or "basename-role-match",
+                        "measured": evidence_class == "runtime_observed",
+                    },
+                }
+            )
+    return out, evidence
 
 
 def write_retrieval_index(root: str, out: str, index: Mapping[str, Any]) -> str:
@@ -942,6 +1020,25 @@ def _graph_distance(index: Mapping[str, Any], src: str, targets: set[str]) -> in
     return None
 
 
+def _graph_relation_evidence(
+    index: Mapping[str, Any], path: str, graph_targets: set[str]
+) -> list[dict[str, Any]]:
+    """Explain direct graph-neighbor relevance without inventing resolution."""
+    call_graph = index.get("call_graph", {})
+    call_graph = call_graph if isinstance(call_graph, Mapping) else {}
+    rows: list[dict[str, Any]] = []
+    for relation in call_graph.get("relations", []) or []:
+        if not isinstance(relation, Mapping):
+            continue
+        source = str(relation.get("source_file") or "")
+        target = str(relation.get("target_file") or "")
+        if not target or not source:
+            continue
+        if (source == path and target in graph_targets) or (target == path and source in graph_targets):
+            rows.append(dict(relation))
+    return sorted(rows, key=lambda item: str(item.get("relation_id") or ""))
+
+
 def rank_candidates(
     index: Mapping[str, Any],
     plan: QueryPlan,
@@ -955,6 +1052,7 @@ def rank_candidates(
     document_count = max(1, index.get("document_count", 1))
     avg_len = _avg_doc_len(index)
     related_tests = index.get("related_tests", {})
+    related_test_evidence = index.get("related_test_evidence", {})
 
     target_path = plan.target_path
     exact_query_terms = [term.lower() for term in plan.all_terms]
@@ -1003,6 +1101,7 @@ def rank_candidates(
                 if t.lower() in {s.lower() for s in d2.get("symbols", [])}:
                     graph_targets.add(d2["path"])
         graph_dist = _graph_distance(index, path, graph_targets) if graph_targets else None
+        graph_neighbor_evidence = _graph_relation_evidence(index, path, graph_targets)
 
         # Affected-test relationship: the candidate's base name has a paired test
         # file (e.g. sort_lines.py <-> test_sort_lines.py) and the task's symbols
@@ -1010,6 +1109,11 @@ def rank_candidates(
         related = set(s.lower() for s in plan.symbol_terms) | {i.lower() for i in plan.exact_identifiers}
         paired_tests = related_tests.get(path, [])
         test_matches = sorted(set(t for t in (paired_tests or [])) if (related & symbols) else set())
+        test_match_evidence = [
+            item
+            for item in related_test_evidence.get(path, [])
+            if item.get("path") in test_matches
+        ]
 
         matched_terms = sorted(set(bm25_matched) | set(sym_matches) | set(path_matches) | set(test_matches))
 
@@ -1044,6 +1148,11 @@ def rank_candidates(
         if graph_dist is not None and graph_dist <= 2:
             components["call_graph_proximity"] = max(0.0, 1.5 - 0.5 * graph_dist)
             reason_codes.append(f"call_graph_proximity=dist{graph_dist}")
+            evidence_classes = sorted(
+                {str(item.get("evidence_class") or "heuristic") for item in graph_neighbor_evidence}
+            )
+            if evidence_classes:
+                reason_codes.append("call_graph_evidence=" + ",".join(evidence_classes))
         if "test" in roles:
             components["role_test"] = 0.5
             reason_codes.append("role_test")
@@ -1096,6 +1205,8 @@ def rank_candidates(
                 "large": large,
                 "language": doc.get("language", ""),
                 "roles": roles,
+                "graph_neighbor_evidence": graph_neighbor_evidence,
+                "test_match_evidence": test_match_evidence,
             }
         )
 
@@ -1138,7 +1249,9 @@ def expand_spans(
 
     callees = index.get("call_graph", {}).get("callees", {})
     callers = index.get("call_graph", {}).get("callers", {})
+    relations = index.get("call_graph", {}).get("relations", [])
     related_tests = index.get("related_tests", {})
+    related_test_evidence = index.get("related_test_evidence", {})
     docs_by_path = {
         _normalized_path(str(doc.get("path") or "")): doc
         for doc in index.get("documents", [])
@@ -1206,7 +1319,18 @@ def expand_spans(
 
         # Include callers/tests references as context metadata (not re-read).
         context_edges = sorted(set(callees.get(path, [])) | set(callers.get(path, [])))
+        context_relations = [
+            dict(relation)
+            for relation in relations
+            if isinstance(relation, Mapping)
+            and path in {
+                str(relation.get("source_file") or ""),
+                str(relation.get("target_file") or ""),
+            }
+        ]
+        context_relations.sort(key=lambda item: str(item.get("relation_id") or ""))
         tests = related_tests.get(path, [])
+        test_evidence = related_test_evidence.get(path, [])
 
         # Stable handle for retrieving the full / adjacent content later.
         content_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
@@ -1261,7 +1385,9 @@ def expand_spans(
                 "snapshot_hash": content_hash,
                 "spans": ranges,
                 "context_edges": context_edges,
+                "context_relations": context_relations,
                 "tests": tests,
+                "test_evidence": test_evidence,
                 "expand_handle": expand_handle,
                 "omitted_ranges": omitted_ranges,
             }
@@ -1463,7 +1589,9 @@ def fit_token_budget(
             json.dumps(
                 {
                     "context_edges": entry.get("context_edges", []),
+                    "context_relations": entry.get("context_relations", []),
                     "tests": entry.get("tests", []),
+                    "test_evidence": entry.get("test_evidence", []),
                     "omitted_ranges": entry.get("omitted_ranges", []),
                 },
                 ensure_ascii=False,
@@ -1746,6 +1874,8 @@ def select_context_targets(
             "recent_change_boost": row["recent_change_boost"],
             "score_components": row["score_components"],
             "reason_codes": row["reason_codes"],
+            "graph_neighbor_evidence": row.get("graph_neighbor_evidence", []),
+            "test_match_evidence": row.get("test_match_evidence", []),
         }
         for row in selected_rows
     ]
@@ -1802,6 +1932,7 @@ def select_context_targets(
             "query_term_count": len(query_terms),
             "ratio": round(coverage_ratio, 6),
         },
+        "relation_coverage": dict(index.get("relation_coverage", {})),
         "target_resolution": target_resolution,
         "abstained": bool(fidelity["abstained"] or len(ranked) == 0),
         "abstention_reason": "; ".join(fidelity["reasons"]) or ("no_relevant_targets" if not ranked else ""),
