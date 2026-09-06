@@ -134,7 +134,31 @@ from .project_scope import (
     sanitize_project_slug,
 )
 
+
+def __getattr__(name: str):
+    """Load the canonical facade lazily to keep the legacy export graph stable."""
+    if name in {"MapperStore", "MapperStoreError", "MapperStoreReader"}:
+        from .canonical import MapperStore, MapperStoreError, MapperStoreReader
+
+        return {"MapperStore": MapperStore, "MapperStoreError": MapperStoreError, "MapperStoreReader": MapperStoreReader}[name]
+    if name.startswith("MAPPER_STORE_"):
+        from . import contracts
+
+        return getattr(contracts, name)
+    raise AttributeError(name)
+
 __all__ = [
+    "MapperStore",
+    "MapperStoreError",
+    "MapperStoreReader",
+    "MAPPER_STORE_ABSORB_SCHEMA",
+    "MAPPER_STORE_API_SCHEMA",
+    "MAPPER_STORE_CAPABILITY_SCHEMA",
+    "MAPPER_STORE_CONFORMANCE_SCHEMA",
+    "MAPPER_STORE_READERS",
+    "MAPPER_STORE_RECORD_SCHEMA",
+    "MAPPER_STORE_SCHEMA",
+    "MAPPER_STORE_WRITER",
     "FenceValidator",
     "FenceViolationError",
     "StoreConnection",

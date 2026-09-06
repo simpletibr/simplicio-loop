@@ -1,4 +1,36 @@
-# MapperStore/v1 inventory contract
+# MapperStore/v1 canonical contract
+
+`MapperStore` is the single Mapper authority for `memory.sqlite` and
+`operations.sqlite`. Mapper owns DDL, migrations, writes, compaction/tombstones
+and semantic-index maintenance. Runtime, Fast, Loop and MCP consume the
+read-only `MapperStoreReader` contract and must not create schemas or write to
+these files directly.
+
+The Python facade is exposed as `simplicio_mapper.store.MapperStore` and the
+deterministic CLI surface is:
+
+```bash
+python3 -m simplicio_mapper.cli mapper-store canonical-status --json
+python3 -m simplicio_mapper.cli mapper-store capabilities --json
+python3 -m simplicio_mapper.cli mapper-store conformance --json
+python3 -m simplicio_mapper.cli mapper-store absorb-legacy --source PATH --json
+```
+
+Mapper record identities are stable hashes over record type, repository ID,
+generation and record identity. Run, change, repository-generation, precedent,
+recipe, decision and execution-outcome records retain source, producer, version,
+generation, consent and lineage. Precedents are stored as candidates; an
+applicability-evidence field is required and storage never approves one.
+
+`absorb-legacy` is explicit, idempotent and journaled in `operations.sqlite`.
+It reads `simplicio-memory.sqlite` without writing to it, preserves legacy
+stable IDs and row lineage, writes a read-only policy sidecar after successful
+verification, and never deletes the legacy database. Cleanup requires a
+separate human-approved policy.
+
+Search reports the actual backend/model/dimension. The current vector path is
+deterministic hash embeddings plus brute-force scoring; sqlite-vec is reported
+only as an available module and never as an ANN claim.
 
 `simplicio.mapper-store-inventory/v1` is the read-only evidence envelope for the
 MapperStore foundation work. The producer is a review-time source-checkout

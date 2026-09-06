@@ -141,7 +141,7 @@ ECOSYSTEM_BANKS: tuple[BankSpec, ...] = (
         bank_id="mapper-memory",
         relative=CANONICAL_MEMORY_DB,
         kind="sqlite",
-        owners=("mapper", "runtime", "loop", "fast", "mcp"),
+        owners=("mapper",),
         description=(
             "CANONICAL single SoT: MapperStore memory + semantic + FTS5 "
             f"({CANONICAL_MEMORY_DB}). Runtime/MCP read this file only."
@@ -153,7 +153,7 @@ ECOSYSTEM_BANKS: tuple[BankSpec, ...] = (
         bank_id="neural",
         relative=LEGACY_NEURAL_DB,
         kind="sqlite",
-        owners=("mapper", "runtime"),
+        owners=("mapper",),
         description=(
             "Legacy neural schema (memory_items); absorb source bridged into "
             f"{CANONICAL_MEMORY_DB} by `data unify`. Not the Runtime MCP SoT."
@@ -165,8 +165,8 @@ ECOSYSTEM_BANKS: tuple[BankSpec, ...] = (
         bank_id="operations",
         relative="operations.sqlite",
         kind="sqlite",
-        owners=("mapper", "runtime", "loop"),
-        description="Operations ledger / agent-store journal (Mapper ops namespace)",
+        owners=("mapper",),
+        description="Operations ledger / agent-store journal (Mapper-owned; consumers read through MapperStoreReader)",
         legacy=("data/operations.sqlite", "ops/operations.sqlite"),
         required=False,
     ),
@@ -634,14 +634,12 @@ def ensure_mapper_memory(
     environ: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Ensure MapperStore memory.sqlite exists at the data root."""
-    from .memory import MemoryStore
+    from .canonical import MapperStore
 
     location = _resolve_root(data_dir=data_dir, environ=environ)
     location.ensure_root()
     db_path = location.database("memory.sqlite")
-    markdown_root = location.root / "memory-markdown"
-    markdown_root.mkdir(parents=True, exist_ok=True)
-    result = MemoryStore(db_path, markdown_root=markdown_root).initialize()
+    result = MapperStore(data_dir=location.root).initialize()
     return {
         "schema": CATALOG_API_SCHEMA,
         "status": "ready",

@@ -75,7 +75,7 @@ CLI audits.
 | `canonical` | `build`, `status`, `verify`, `gc` for the content-addressed default-branch map | `simplicio-mapper canonical --help`, `simplicio-mapper canonical <verb> --help` |
 | `benchmark` | `pipeline-threshold`, `shadow-rollout` calibration and evidence | `simplicio-mapper benchmark --help`, `simplicio-mapper benchmark <verb> --help` |
 | `background` | `status`, `cancel`, `resume`, `doctor`, `gc` for detached scans | `simplicio-mapper background --help`, `simplicio-mapper background <verb> --help` |
-| `mapper-store` | Governed store migrations | `simplicio-mapper mapper-store --help` |
+| `mapper-store` | Canonical MapperStore status/capabilities/conformance and explicit legacy absorb, plus governed migrations | `simplicio-mapper mapper-store --help`, `simplicio-mapper mapper-store <canonical-status\|capabilities\|conformance\|absorb-legacy> --help` |
 | `store-migrations` | Store migration compatibility wrapper | `simplicio-mapper store-migrations --help` |
 | `scoped-handoff` | Bounded scoped context and handoff | `simplicio-mapper scoped-handoff --help` |
 | `fast-handoff` | Emit the Mapper-to-Fast handoff contract | `simplicio-mapper fast-handoff --help` |

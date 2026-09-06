@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from .connection import StoreConnection, StoreError, WriterIdentity
+from .contracts import MAPPER_STORE_SCHEMA, MAPPER_STORE_WRITER, OPERATIONS_STORE_VERSION
 from .locks import StoreFileLock
 from .profiles import StoreProfile
 from .transactions import transaction
@@ -107,6 +108,17 @@ class OperationsStore:
             tx.execute(
                 "CREATE TABLE IF NOT EXISTS operations_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
             )
+            marker = tx.execute("SELECT value FROM operations_meta WHERE key='schema'").fetchone()
+            if marker and marker[0] != OPERATIONS_SCHEMA:
+                raise OperationsStoreError("OPERATIONS_SCHEMA_INVALID", str(marker[0]))
+            for key, expected in (
+                ("store_schema", MAPPER_STORE_SCHEMA),
+                ("schema_version", str(OPERATIONS_STORE_VERSION)),
+                ("write_authority", MAPPER_STORE_WRITER),
+            ):
+                marker = tx.execute("SELECT value FROM operations_meta WHERE key=?", (key,)).fetchone()
+                if marker and marker[0] != expected:
+                    raise OperationsStoreError("OPERATIONS_SCHEMA_INVALID", key)
             tx.execute(
                 """CREATE TABLE IF NOT EXISTS ops_tasks (
                     task_id TEXT PRIMARY KEY,
@@ -210,8 +222,20 @@ class OperationsStore:
                 )"""
             )
             tx.execute(
-                "INSERT OR REPLACE INTO operations_meta(key, value) VALUES ('schema', ?)",
+                "INSERT OR IGNORE INTO operations_meta(key, value) VALUES ('schema', ?)",
                 (OPERATIONS_SCHEMA,),
+            )
+            tx.execute(
+                "INSERT OR IGNORE INTO operations_meta(key, value) VALUES ('store_schema', ?)",
+                (MAPPER_STORE_SCHEMA,),
+            )
+            tx.execute(
+                "INSERT OR IGNORE INTO operations_meta(key, value) VALUES ('schema_version', ?)",
+                (str(OPERATIONS_STORE_VERSION),),
+            )
+            tx.execute(
+                "INSERT OR IGNORE INTO operations_meta(key, value) VALUES ('write_authority', ?)",
+                (MAPPER_STORE_WRITER,),
             )
             tx.execute(
                 "INSERT OR IGNORE INTO ops_slots(slot_id, capacity, updated_at) VALUES ('default', 1, ?)",
@@ -233,10 +257,21 @@ class OperationsStore:
     @staticmethod
     def _validate_existing_schema(store: StoreConnection) -> None:
         try:
-            row = store.execute("SELECT value FROM operations_meta WHERE key='schema'").fetchone()
+            markers = {
+                str(row[0]): str(row[1])
+                for row in store.execute(
+                    "SELECT key,value FROM operations_meta WHERE key IN ('schema','store_schema','schema_version','write_authority')"
+                ).fetchall()
+            }
         except sqlite3.Error:
             return
-        if row and row[0] != OPERATIONS_SCHEMA:
+        expected = {
+            "schema": OPERATIONS_SCHEMA,
+            "store_schema": MAPPER_STORE_SCHEMA,
+            "schema_version": str(OPERATIONS_STORE_VERSION),
+            "write_authority": MAPPER_STORE_WRITER,
+        }
+        if markers and any(markers.get(key) not in {None, value} for key, value in expected.items()):
             raise OperationsStoreError("OPERATIONS_SCHEMA_INVALID")
 
     def _ensure_ready(self, store: StoreConnection) -> None:
@@ -245,14 +280,30 @@ class OperationsStore:
             self._ensure_schema(store)
             return
         try:
-            row = store.execute("SELECT value FROM operations_meta WHERE key='schema'").fetchone()
+            rows = store.execute(
+                "SELECT key,value FROM operations_meta WHERE key IN ('schema','store_schema','schema_version','write_authority')"
+            ).fetchall()
         except sqlite3.Error as error:
             raise OperationsStoreError("STORE_NOT_INITIALIZED") from error
-        if not row or row[0] != OPERATIONS_SCHEMA:
+        markers = {str(row[0]): str(row[1]) for row in rows}
+        expected = {
+            "schema": OPERATIONS_SCHEMA,
+            "store_schema": MAPPER_STORE_SCHEMA,
+            "schema_version": str(OPERATIONS_STORE_VERSION),
+            "write_authority": MAPPER_STORE_WRITER,
+        }
+        if not markers:
+            raise OperationsStoreError("STORE_NOT_INITIALIZED")
+        if markers.get("schema") != expected["schema"]:
+            raise OperationsStoreError("OPERATIONS_SCHEMA_INVALID")
+        if len(markers) < len(expected):
+            raise OperationsStoreError("STORE_NOT_INITIALIZED")
+        if any(markers.get(key) != value for key, value in expected.items()):
             raise OperationsStoreError("OPERATIONS_SCHEMA_INVALID")
 
     def capabilities(self) -> dict[str, Any]:
         with self._open(read_only=True) as store:
+            self._read_ready(store)
             modules = {
                 str(row[0]).casefold()
                 for row in store.connection.execute("SELECT name FROM pragma_module_list")
@@ -344,7 +395,7 @@ class OperationsStore:
     def _agent_record(row: Any) -> dict[str, Any]:
         columns = ("agent_id", "status", "attempt", "worktree", "lease_id", "descendants",
                    "worktree_active", "lease_active", "reason", "created_at", "updated_at")
-        record = dict(zip(columns, tuple(row)))
+        record = dict(zip(columns, tuple(row), strict=True))
         for key in ("descendants", "attempt"):
             record[key] = int(record[key])
         for key in ("worktree_active", "lease_active"):
@@ -1345,8 +1396,23 @@ class OperationsStore:
 
     @staticmethod
     def _read_ready(store: StoreConnection) -> None:
-        row = store.execute("SELECT value FROM operations_meta WHERE key='schema'").fetchone()
-        if not row or row[0] != OPERATIONS_SCHEMA:
+        markers = {
+            str(row[0]): str(row[1])
+            for row in store.execute(
+                "SELECT key,value FROM operations_meta WHERE key IN ('schema','store_schema','schema_version','write_authority')"
+            ).fetchall()
+        }
+        expected = {
+            "schema": OPERATIONS_SCHEMA,
+            "store_schema": MAPPER_STORE_SCHEMA,
+            "schema_version": str(OPERATIONS_STORE_VERSION),
+            "write_authority": MAPPER_STORE_WRITER,
+        }
+        if markers.get("schema") != expected["schema"]:
+            raise OperationsStoreError("OPERATIONS_SCHEMA_INVALID")
+        if len(markers) < len(expected):
+            raise OperationsStoreError("STORE_NOT_INITIALIZED")
+        if any(markers.get(key) != value for key, value in expected.items()):
             raise OperationsStoreError("OPERATIONS_SCHEMA_INVALID")
 
 

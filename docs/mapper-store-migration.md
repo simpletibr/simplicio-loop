@@ -4,6 +4,22 @@
 Runtime SQLite stores to a MapperStore destination. It does not run on import
 of the Python package and it never deletes a legacy source.
 
+For the legacy `simplicio-memory.sqlite` Mapper records (`mapper-run` and
+`mapper-change`), use the canonical facade's explicit absorb operation. It
+preserves stable IDs and full source rows under lineage metadata, journals one
+deterministic migration ID in `operations.sqlite`, and writes a read-only
+policy sidecar only after conformance verification:
+
+```bash
+python3 -m simplicio_mapper.cli mapper-store absorb-legacy \
+  --data-dir PATH/to/canonical-data --source PATH/to/simplicio-memory.sqlite --json
+```
+
+Re-running the same absorb against the unchanged source returns an unchanged
+receipt and imports no rows. A changed row with the same legacy stable ID is a
+conflict, not an overwrite. The source file is never deleted or chmodded;
+cleanup requires an explicit policy.
+
 The command family is exposed as `simplicio-mapper mapper-store`:
 
 ```text

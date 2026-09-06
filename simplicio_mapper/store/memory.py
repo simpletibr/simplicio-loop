@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from .connection import StoreConnection, StoreError, WriterIdentity
+from .contracts import MAPPER_STORE_SCHEMA, MAPPER_STORE_WRITER, MEMORY_STORE_VERSION
 from .locks import StoreFileLock
 from .profiles import StoreProfile
 from .semantic import (
@@ -254,6 +255,19 @@ class MemoryStore:
             tx.execute(
                 "CREATE TABLE IF NOT EXISTS memory_store_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
             )
+            marker = tx.execute(
+                "SELECT value FROM memory_store_meta WHERE key='schema'"
+            ).fetchone()
+            if marker and marker[0] != MEMORY_SCHEMA:
+                raise MemoryStoreError("MEMORY_SCHEMA_DRIFT", str(marker[0]))
+            for key, expected in (
+                ("store_schema", MAPPER_STORE_SCHEMA),
+                ("schema_version", str(MEMORY_STORE_VERSION)),
+                ("write_authority", MAPPER_STORE_WRITER),
+            ):
+                marker = tx.execute("SELECT value FROM memory_store_meta WHERE key=?", (key,)).fetchone()
+                if marker and marker[0] != expected:
+                    raise MemoryStoreError("MEMORY_SCHEMA_DRIFT", key)
             tx.execute(
                 """CREATE TABLE IF NOT EXISTS memory_entries (
                     stable_id TEXT PRIMARY KEY, topic TEXT NOT NULL, content TEXT NOT NULL,
@@ -279,7 +293,19 @@ class MemoryStore:
                 )"""
             )
             tx.execute(
-                "INSERT OR REPLACE INTO memory_store_meta(key,value) VALUES ('schema', ?)", (MEMORY_SCHEMA,)
+                "INSERT OR IGNORE INTO memory_store_meta(key,value) VALUES ('schema', ?)", (MEMORY_SCHEMA,)
+            )
+            tx.execute(
+                "INSERT OR IGNORE INTO memory_store_meta(key,value) VALUES ('store_schema', ?)",
+                (MAPPER_STORE_SCHEMA,),
+            )
+            tx.execute(
+                "INSERT OR IGNORE INTO memory_store_meta(key,value) VALUES ('schema_version', ?)",
+                (str(MEMORY_STORE_VERSION),),
+            )
+            tx.execute(
+                "INSERT OR IGNORE INTO memory_store_meta(key,value) VALUES ('write_authority', ?)",
+                (MAPPER_STORE_WRITER,),
             )
 
     def initialize(self) -> dict[str, Any]:
@@ -308,11 +334,22 @@ class MemoryStore:
             self._ensure_schema(store)
             return
         try:
-            row = store.execute("SELECT value FROM memory_store_meta WHERE key='schema'").fetchone()
+            rows = store.execute(
+                "SELECT key,value FROM memory_store_meta WHERE key IN ('schema','store_schema','schema_version','write_authority')"
+            ).fetchall()
         except Exception as error:
             raise MemoryStoreError("STORE_NOT_INITIALIZED") from error
-        if not row or row[0] != MEMORY_SCHEMA:
-            raise MemoryStoreError("MEMORY_SCHEMA_INVALID")
+        markers = {str(row[0]): str(row[1]) for row in rows}
+        expected = {
+            "schema": MEMORY_SCHEMA,
+            "store_schema": MAPPER_STORE_SCHEMA,
+            "schema_version": str(MEMORY_STORE_VERSION),
+            "write_authority": MAPPER_STORE_WRITER,
+        }
+        if not markers:
+            raise MemoryStoreError("STORE_NOT_INITIALIZED")
+        if any(markers.get(key) != value for key, value in expected.items()):
+            raise MemoryStoreError("MEMORY_SCHEMA_DRIFT")
 
     @staticmethod
     def _json(value: Mapping[str, Any] | None, name: str) -> str:
@@ -388,6 +425,11 @@ class MemoryStore:
         with StoreFileLock(
             self.lock_path, owner=f"{self.writer.component}:{self.writer.instance_id}", blocking=True
         ):
+            # Validate the canonical metadata before touching the semantic
+            # index; a drifted memory store must fail closed without a partial
+            # index write.
+            with self._open() as store:
+                self._ensure_ready(store)
             self.semantic.upsert(
                 stable_id,
                 safe_content,

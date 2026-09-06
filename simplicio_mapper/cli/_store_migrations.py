@@ -34,13 +34,24 @@ Options:
 def run_store_migrations_cli(argv: list[str], *, governed: bool = False) -> int:
     from ._store_migration import VERBS, run_migration_cli
 
+    if governed and argv and argv[0] in {"canonical-status", "capabilities", "conformance", "absorb-legacy", "absorb"} and ("--help" in argv or "-h" in argv):
+        from ._canonical_store import run_canonical_store_cli
+
+        return run_canonical_store_cli(argv)
+
     if "--help" in argv or "-h" in argv:
         print(_HELP, end="")
         if governed:
             from ._store_operations import _HELP as operations_help
 
             print("\nGoverned operational verbs:\n" + operations_help, end="")
+            print("\nCanonical MapperStore verbs:\n  canonical-status | capabilities | conformance | absorb-legacy", end="")
         return 0
+
+    if governed and argv and argv[0] in {"canonical-status", "capabilities", "conformance", "absorb-legacy", "absorb"}:
+        from ._canonical_store import run_canonical_store_cli
+
+        return run_canonical_store_cli(argv)
 
     if governed and argv and (argv[0] in VERBS or (argv[0] == "backup" and "--source" not in argv)):
         if argv[0] == "backup" and "--source" not in argv:

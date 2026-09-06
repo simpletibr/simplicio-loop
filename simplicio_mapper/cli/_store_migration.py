@@ -14,6 +14,7 @@ _HELP = """usage: simplicio-mapper store-migrations <verb> [options]
 
 Plan, apply, validate, inspect or roll back governed MapperStore migrations.
 Verbs: discover, plan, backup, import, validate, shadow, cutover, rollback, status.
+Canonical facade (via `mapper-store`): canonical-status, capabilities, conformance, absorb-legacy.
 Use --database PATH, --source NAME=PATH, --dry-run or --json as needed.
 """
 

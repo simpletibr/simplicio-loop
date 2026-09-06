@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from .connection import StoreConnection, StoreError, WriterIdentity
+from .contracts import MAPPER_STORE_SCHEMA, MAPPER_STORE_WRITER, SEMANTIC_STORE_VERSION
 from .locks import StoreFileLock
 from .profiles import StoreProfile
 from .transactions import transaction
@@ -139,15 +140,72 @@ class SemanticStore:
         return {
             "fts5": fts5,
             "sqlite_vec": sqlite_vec,
+            "search_backend": "brute-force",
             "vector_backend": "brute-force",
+            "embedding_backend": "none",
+            "model": None,
+            "dimensions": None,
+            "available_backends": ["brute-force"] + (["sqlite-vec"] if sqlite_vec else []),
+            "backend_provenance": {
+                "search": "mapper-semantic-store",
+                "vector": "no active embedding model",
+            },
             "ann_claimed": False,
-            "fallback_reason": None if sqlite_vec else "SQLITE_VEC_UNAVAILABLE",
+            "fallback_reason": "SQLITE_VEC_NOT_USED" if sqlite_vec else "SQLITE_VEC_UNAVAILABLE",
         }
+
+    @staticmethod
+    def _with_model_capabilities(store: StoreConnection, capabilities: dict[str, Any]) -> dict[str, Any]:
+        try:
+            row = store.execute(
+                "SELECT model, dimensions FROM semantic_models WHERE active=1 ORDER BY model LIMIT 1"
+            ).fetchone()
+        except sqlite3.Error:
+            return capabilities
+        if row:
+            model, dimensions = str(row[0]), int(row[1])
+            capabilities = dict(capabilities)
+            capabilities.update(
+                {
+                    "model": model,
+                    "dimensions": dimensions,
+                    "embedding_backend": "deterministic-hash" if model == "memory-lexical-v1" else "declared-model",
+                    "backend_provenance": {
+                        "search": "mapper-semantic-store",
+                        "vector": "semantic_models",
+                        "model": model,
+                        "dimensions": dimensions,
+                    },
+                }
+            )
+        return capabilities
 
     def capabilities(self) -> dict[str, Any]:
         with self._open(read_only=True) as store:
-            capabilities = self._capabilities(store)
+            capabilities = self._read_ready(store)
         return {"schema": SEMANTIC_API_SCHEMA, "capabilities": capabilities}
+
+    def _read_ready(self, store: StoreConnection) -> dict[str, Any]:
+        try:
+            markers = {
+                str(row[0]): str(row[1])
+                for row in store.execute(
+                    "SELECT key,value FROM semantic_store_meta WHERE key IN ('schema','store_schema','schema_version','write_authority')"
+                ).fetchall()
+            }
+        except sqlite3.Error as error:
+            raise SemanticStoreError("STORE_NOT_INITIALIZED") from error
+        expected = {
+            "schema": SEMANTIC_SCHEMA,
+            "store_schema": MAPPER_STORE_SCHEMA,
+            "schema_version": str(SEMANTIC_STORE_VERSION),
+            "write_authority": MAPPER_STORE_WRITER,
+        }
+        if not markers:
+            raise SemanticStoreError("STORE_NOT_INITIALIZED")
+        if any(markers.get(key) != value for key, value in expected.items()):
+            raise SemanticStoreError("SEMANTIC_SCHEMA_DRIFT")
+        return self._with_model_capabilities(store, self._capabilities(store))
 
     def _ensure_schema(self, store: StoreConnection) -> dict[str, Any]:
         capabilities = self._capabilities(store)
@@ -157,6 +215,17 @@ class SemanticStore:
                     key TEXT PRIMARY KEY, value TEXT NOT NULL
                 )"""
             )
+            marker = tx.execute("SELECT value FROM semantic_store_meta WHERE key='schema'").fetchone()
+            if marker and marker[0] != SEMANTIC_SCHEMA:
+                raise SemanticStoreError("SEMANTIC_SCHEMA_DRIFT", str(marker[0]))
+            for key, expected in (
+                ("store_schema", MAPPER_STORE_SCHEMA),
+                ("schema_version", str(SEMANTIC_STORE_VERSION)),
+                ("write_authority", MAPPER_STORE_WRITER),
+            ):
+                marker = tx.execute("SELECT value FROM semantic_store_meta WHERE key=?", (key,)).fetchone()
+                if marker and marker[0] != expected:
+                    raise SemanticStoreError("SEMANTIC_SCHEMA_DRIFT", key)
             tx.execute(
                 """CREATE TABLE IF NOT EXISTS semantic_items (
                     stable_id TEXT PRIMARY KEY,
@@ -248,12 +317,24 @@ class SemanticStore:
                 )"""
             )
             tx.execute(
-                "INSERT OR REPLACE INTO semantic_store_meta(key, value) VALUES ('schema', ?)",
+                "INSERT OR IGNORE INTO semantic_store_meta(key, value) VALUES ('schema', ?)",
                 (SEMANTIC_SCHEMA,),
             )
             tx.execute(
-                "INSERT OR REPLACE INTO semantic_store_meta(key, value) VALUES ('capabilities', ?)",
+                "INSERT OR IGNORE INTO semantic_store_meta(key, value) VALUES ('capabilities', ?)",
                 (_canonical(capabilities),),
+            )
+            tx.execute(
+                "INSERT OR IGNORE INTO semantic_store_meta(key, value) VALUES ('store_schema', ?)",
+                (MAPPER_STORE_SCHEMA,),
+            )
+            tx.execute(
+                "INSERT OR IGNORE INTO semantic_store_meta(key, value) VALUES ('schema_version', ?)",
+                (str(SEMANTIC_STORE_VERSION),),
+            )
+            tx.execute(
+                "INSERT OR IGNORE INTO semantic_store_meta(key, value) VALUES ('write_authority', ?)",
+                (MAPPER_STORE_WRITER,),
             )
             if capabilities["fts5"]:
                 tx.execute(
@@ -297,13 +378,7 @@ class SemanticStore:
     def _ensure_ready(self, store: StoreConnection) -> dict[str, Any]:
         if self.auto_create:
             return self._ensure_schema(store)
-        try:
-            row = store.execute("SELECT value FROM semantic_store_meta WHERE key='schema'").fetchone()
-        except sqlite3.Error as error:
-            raise SemanticStoreError("STORE_NOT_INITIALIZED") from error
-        if not row or row[0] != SEMANTIC_SCHEMA:
-            raise SemanticStoreError("SEMANTIC_SCHEMA_INVALID")
-        return self._capabilities(store)
+        return self._read_ready(store)
 
     @staticmethod
     def _json_object(value: Mapping[str, Any] | None, name: str) -> str:
@@ -818,7 +893,7 @@ class SemanticStore:
         try:
             rows = store.execute(
                 """SELECT f.stable_id, f.chunk_id, f.content, bm25(semantic_fts) AS rank,
-                   i.source, i.content_hash, c.provenance_json, i.observed_at, i.updated_at
+                   i.source, i.content_hash, c.provenance_json, i.metadata_json, i.observed_at, i.updated_at
                    FROM semantic_fts f JOIN semantic_items i ON i.stable_id=f.stable_id
                    JOIN semantic_chunks c ON c.chunk_id=f.chunk_id
                    WHERE semantic_fts MATCH ? AND i.tombstone=0 ORDER BY rank, f.stable_id, f.chunk_id LIMIT ?""",
@@ -835,8 +910,9 @@ class SemanticStore:
                 "source": row[4],
                 "content_hash": row[5],
                 "provenance": json.loads(row[6]),
-                "observed_at": row[7],
-                "updated_at": row[8],
+                "metadata": json.loads(row[7]),
+                "observed_at": row[8],
+                "updated_at": row[9],
             }
             for row in rows
         ]
@@ -859,7 +935,7 @@ class SemanticStore:
             raise SemanticStoreError("QUERY_LIMIT")
         safe_query = _redact(query)
         with self._open(read_only=True) as store:
-            capabilities = self._capabilities(store)
+            capabilities = self._read_ready(store)
             if mode in {"fts", "hybrid"} and not capabilities["fts5"]:
                 if mode == "fts":
                     raise SemanticStoreError("FTS5_UNAVAILABLE")
@@ -872,6 +948,7 @@ class SemanticStore:
             active_model = store.execute(
                 "SELECT model, dimensions FROM semantic_models WHERE active=1 ORDER BY model LIMIT 1"
             ).fetchone()
+            capabilities = self._with_model_capabilities(store, capabilities)
             if vector is not None:
                 if not model and active_model:
                     model, dimensions = str(active_model[0]), int(active_model[1])
@@ -910,7 +987,7 @@ class SemanticStore:
                 row.setdefault("vector_score", 0.0)
                 if "source" not in row:
                     source = store.execute(
-                        "SELECT source, content_hash, provenance_json, observed_at, updated_at FROM semantic_items WHERE stable_id=?",
+                        "SELECT source, content_hash, provenance_json, metadata_json, observed_at, updated_at FROM semantic_items WHERE stable_id=?",
                         (row["stable_id"],),
                     ).fetchone()
                     if source:
@@ -919,8 +996,9 @@ class SemanticStore:
                                 "source": source[0],
                                 "content_hash": source[1],
                                 "provenance": json.loads(source[2]),
-                                "observed_at": source[3],
-                                "updated_at": source[4],
+                                "metadata": json.loads(source[3]),
+                                "observed_at": source[4],
+                                "updated_at": source[5],
                             }
                         )
                 row["hybrid_score"] = round(
@@ -929,6 +1007,10 @@ class SemanticStore:
                     else max(row["fts_score"], row["vector_score"]),
                     8,
                 )
+                row["backend"] = capabilities["search_backend"]
+                row["model"] = capabilities.get("model")
+                row["dimensions"] = capabilities.get("dimensions")
+                row["embedding_provenance"] = capabilities["backend_provenance"]
             score_key = {"fts": "fts_score", "vector": "vector_score", "hybrid": "hybrid_score"}[mode]
             results = sorted(
                 by_id.values(),
@@ -946,6 +1028,10 @@ class SemanticStore:
                 else "hybrid"
             ),
             "ann_claimed": False,
+            "backend": capabilities["search_backend"],
+            "model": capabilities.get("model"),
+            "dimensions": capabilities.get("dimensions"),
+            "embedding_provenance": capabilities["backend_provenance"],
             "results": results,
             "capabilities": capabilities,
         }

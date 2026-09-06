@@ -102,9 +102,23 @@ def _schema_ready(db_path: Path) -> bool:
         return False
     try:
         with closing(sqlite3.connect(f"file:{db_path.as_posix()}?mode=ro", uri=True)) as conn:
-            conn.execute("SELECT 1 FROM memory_store_meta WHERE key='schema'").fetchone()
-            conn.execute("SELECT 1 FROM semantic_store_meta LIMIT 1").fetchone()
-            return True
+            memory = dict(conn.execute("SELECT key,value FROM memory_store_meta").fetchall())
+            semantic = dict(conn.execute("SELECT key,value FROM semantic_store_meta").fetchall())
+            expected_memory = {
+                "schema": "simplicio.mapper-store.memory/v1",
+                "store_schema": "simplicio.mapper-store/v1",
+                "schema_version": "1",
+                "write_authority": "mapper-store",
+            }
+            expected_semantic = {
+                "schema": "simplicio.mapper-store.semantic-store/v1",
+                "store_schema": "simplicio.mapper-store/v1",
+                "schema_version": "1",
+                "write_authority": "mapper-store",
+            }
+            return all(memory.get(key) == value for key, value in expected_memory.items()) and all(
+                semantic.get(key) == value for key, value in expected_semantic.items()
+            )
     except sqlite3.Error:
         return False
 
@@ -251,7 +265,7 @@ def bridge_neural_into_canonical(
             "columns": sorted(src_cols),
             "imported": 0,
         }
-    q = f"SELECT {', '.join(select_cols)} FROM memory_items"
+    q = f"SELECT {', '.join(select_cols)} FROM memory_items"  # noqa: S608 — select_cols is a fixed allowlist
     cursor = src.execute(q)
     imported = 0
     errors = 0

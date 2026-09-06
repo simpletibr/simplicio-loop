@@ -1,5 +1,11 @@
 # MapperStore memory and handoff
 
+`MapperStore` is the single canonical facade for Mapper memory, semantic
+indexes, operations provenance and record identity. It creates exactly
+`memory.sqlite` and `operations.sqlite`; the read-only `MapperStoreReader` is
+the consumer boundary for Runtime, Fast, Loop and MCP. Domain classes remain
+the implementation owners behind that facade, not parallel consumer stores.
+
 `simplicio_mapper.store.memory` is the canonical cross-agent memory adapter for
 MapperStore/v1. The SQLite `memory_entries` table owns identity, provenance,
 consent, retention and outcomes. Search is delegated to the existing
@@ -29,8 +35,14 @@ canonical rows; `commit=True` makes the optional git audit commit.
 
 - `store()` always redacts secret-like values and rejects empty, oversized or
   invalid JSON payloads before writing.
-- `recall()` accepts `fts5`, `vector` and `hybrid`; vector search reports the
-  shared semantic backend and `ann_claimed=false` when sqlite-vec is absent.
+- `recall()` accepts `fts5`, `vector` and `hybrid`; responses identify the
+  actual brute-force search backend, active model, dimension and embedding
+  provenance. `sqlite-vec` availability is not an ANN claim and is reported
+  separately.
+- `record_run()`, `record_change()`, `record_generation()`, `record_precedent()`,
+  `record_recipe()`, `record_decision()` and `record_execution_outcome()` use
+  stable IDs and retain source/producer/version/generation/consent metadata.
+  Precedents require applicability evidence and remain candidates.
 - `handoff()` emits a deterministic, hash-addressed
   `simplicio.mapper-store.handoff/v1` packet. Legacy
   `simplicio.memory-handoff/v1` packets are accepted by `validate_handoff()`.
