@@ -1,0 +1,93 @@
+name: Publish Dev CLI and propagate Loop
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to publish"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - name: Verify tag, lock, and package
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          test "$RELEASE_TAG" = "v$(python - <<'PY'
+          import tomllib
+          print(tomllib.loads(open('pyproject.toml').read())['project']['version'])
+          PY
+          )"
+          uv sync --extra dev --frozen
+          uv run --frozen --with build python -m build
+          uv run --frozen --with twine python -m twine check dist/*
+      - name: Build the signed component-release manifest
+        env:
+          DEV_CLI_RELEASE_SIGNATURE: ${{ secrets.DEV_CLI_RELEASE_SIGNATURE }}
+          DEV_CLI_RELEASE_SBOM: ${{ secrets.DEV_CLI_RELEASE_SBOM }}
+          DEV_CLI_RELEASE_PROVENANCE: ${{ secrets.DEV_CLI_RELEASE_PROVENANCE }}
+        run: |
+          uv run --frozen python scripts/build_component_release.py \
+            --channel stable --output .simplicio/component-release.json
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages-dir: dist/
+          skip-existing: true
+      - name: Verify PyPI artifacts before Loop dispatch
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          python - <<'PY'
+          import json, os, sys, urllib.request
+          from pathlib import Path
+          version = os.environ['RELEASE_TAG'].removeprefix('v')
+          manifest = json.loads(Path('.simplicio/component-release.json').read_text())
+          remote = json.load(urllib.request.urlopen(f'https://pypi.org/pypi/simplicio-cli/{version}/json'))
+          expected = {row['digest'].removeprefix('sha256:') for row in manifest['artifacts']}
+          actual = {row['digests']['sha256'] for row in remote['urls']}
+          if not expected.issubset(actual):
+              raise SystemExit(f'PyPI artifact digest mismatch: expected={expected} actual={actual}')
+          print(json.dumps({'status': 'pypi_published', 'version': version, 'artifact_count': len(expected)}))
+          PY
+      - name: Dispatch the verified release to Loop
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TRAIN_DISPATCH_TOKEN || github.token }}
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          python - <<'PY' > /tmp/loop-dispatch.json
+          import json, os
+          from pathlib import Path
+          manifest = json.loads(Path('.simplicio/component-release.json').read_text())
+          lock = json.loads(Path('config/release-train-lock.json').read_text())
+          payload = {
+              'event_type': 'simplicio.component-release-event/v1',
+              'client_payload': {
+                  'manifests': [manifest],
+                  'source_event_id': lock['event_id'],
+                  'dev_cli_release_id': os.environ['RELEASE_TAG'],
+                  'dev_cli_artifact_digest': manifest['artifacts'][0]['digest'],
+                  'dispatch_after': 'pypi_publish',
+              },
+          }
+          print(json.dumps(payload, sort_keys=True))
+          PY
+          gh api repos/wesleysimplicio/simplicio-loop/dispatches \
+            --method POST --input /tmp/loop-dispatch.json

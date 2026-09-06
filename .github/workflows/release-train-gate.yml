@@ -1,0 +1,75 @@
+name: Release train — gate
+
+on:
+  pull_request:
+    paths:
+      - pyproject.toml
+      - uv.lock
+      - config/release-train-*.json
+      - scripts/release_train_*.py
+      - simplicio/component_manifest.py
+      - simplicio/release_train.py
+      - simplicio/release_train_adapters.py
+      - tests/python/test_release_train*.py
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    if: startsWith(github.head_ref, 'release-train/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+      - name: Install the locked candidate
+        run: uv sync --extra dev --extra fast --frozen
+      - name: Verify lock, contracts, smoke, and N/N-1
+        env:
+          PYTHONPATH: tests/python:.
+        run: |
+          candidate=$(python -c "import json; print(json.load(open('config/release-train-lock.json'))['release_event']['version'])")
+          previous=$(python -c "import json; print(json.load(open('config/release-train-lock.json')).get('previous_locked_version') or '')")
+          commit_sha=$(python -c "import json; print(json.load(open('config/release-train-lock.json'))['release_event']['commit_sha'])")
+          mkdir -p .simplicio/release-train-sources
+          git clone --quiet --depth 1 --branch "v$candidate" \
+            https://github.com/wesleysimplicio/simplicio-mapper.git \
+            .simplicio/release-train-sources/n
+          test "$(git -C .simplicio/release-train-sources/n rev-parse HEAD)" = "$commit_sha"
+          args=()
+          args+=(--mapper-source .simplicio/release-train-sources/n)
+          if [ -n "$previous" ]; then
+            git clone --quiet --depth 1 --branch "v$previous" \
+              https://github.com/wesleysimplicio/simplicio-mapper.git \
+              .simplicio/release-train-sources/n-minus-1
+            args+=(--n-minus-1-version "$previous" --n-minus-1-source .simplicio/release-train-sources/n-minus-1)
+          fi
+          uv run --frozen python scripts/release_train_conformance.py \
+            --root . --event config/release-train-lock.json "${args[@]}"
+      - name: Run release-train contract tests
+        env:
+          PYTHONPATH: tests/python:.
+        run: uv run --frozen pytest tests/python/test_release_train.py tests/python/test_release_train_adapters.py tests/python/test_release_train_automation.py tests/python/test_component_manifest.py tests/python/test_versions_command.py tests/python/test_package_metadata.py
+      - name: Run quality gates
+        run: |
+          uv run --frozen ruff check \
+            simplicio/__init__.py simplicio/commands/versions.py \
+            simplicio/component_manifest.py simplicio/release_train.py \
+            simplicio/release_train_adapters.py \
+            scripts/release_train_reconcile.py scripts/release_train_conformance.py \
+            scripts/build_component_release.py
+          uv run --frozen ruff format --check \
+            simplicio/__init__.py simplicio/commands/versions.py \
+            simplicio/component_manifest.py simplicio/release_train.py \
+            simplicio/release_train_adapters.py \
+            scripts/release_train_reconcile.py scripts/release_train_conformance.py \
+            scripts/build_component_release.py
+          uv run --frozen mypy simplicio/__init__.py simplicio/commands/versions.py \
+            simplicio/component_manifest.py simplicio/release_train.py \
+            simplicio/release_train_adapters.py
