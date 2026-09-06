@@ -24,21 +24,23 @@ def test_versions_report_shape(monkeypatch, tmp_path_factory):
     # root=None auto-detects this repo checkout, exercising the actual
     # pyproject.toml/uv.lock/git state, same as `test_component_manifest.py`.
     # Pin latest_known so the shape test is offline-stable.
-    monkeypatch.setattr(versions_cmd, "_latest_mapper_version", lambda *, refresh=False: ("0.26.27", None))
+    monkeypatch.setattr(versions_cmd, "_latest_mapper_version", lambda *, refresh=False: ("0.26.28", None))
     payload = versions_cmd.versions_report(None)
     assert payload["schema"] == "simplicio.dev-cli.versions/v1"
     mapper = payload["mapper"]
     assert mapper["installed"]
-    assert mapper["declared_range"] == ">=0.26.27,<0.27"
-    assert mapper["required"] == ">=0.26.27,<0.27"
-    assert mapper["latest_known"] == "0.26.27"
+    assert mapper["declared_range"] == ">=0.26.28,<0.27"
+    assert mapper["required"] == ">=0.26.28,<0.27"
+    assert mapper["latest_known"] == "0.26.28"
     assert mapper["unavailable_reason"] is None
     assert payload["drift"]["kind"] in {None, "stale_vs_tested", "out_of_range", "not_installed"}
     assert payload["own_manifest"]["name"] == "simplicio-cli"
 
 
 def test_versions_report_latest_null_when_registry_unreachable(monkeypatch):
-    monkeypatch.setattr(versions_cmd, "_latest_mapper_version", lambda *, refresh=False: (None, "registry_unreachable"))
+    monkeypatch.setattr(
+        versions_cmd, "_latest_mapper_version", lambda *, refresh=False: (None, "registry_unreachable")
+    )
     payload = versions_cmd.versions_report(None)
     assert payload["mapper"]["latest_known"] is None
     assert payload["mapper"]["unavailable_reason"] == "registry_unreachable"
@@ -47,29 +49,29 @@ def test_versions_report_latest_null_when_registry_unreachable(monkeypatch):
 def test_versions_command_json_output(capsys, monkeypatch):
     import argparse
 
-    monkeypatch.setattr(versions_cmd, "_latest_mapper_version", lambda *, refresh=False: ("0.26.27", None))
+    monkeypatch.setattr(versions_cmd, "_latest_mapper_version", lambda *, refresh=False: ("0.26.28", None))
     ns = argparse.Namespace(root=".", json=True, refresh=False)
     rc = versions_cmd.run(ns)
     assert rc == 0
     out = capsys.readouterr().out
     payload = json.loads(out)
     assert payload["schema"] == "simplicio.dev-cli.versions/v1"
-    assert payload["mapper"]["required"] == ">=0.26.27,<0.27"
-    assert payload["mapper"]["tested_against"] == "0.26.27"
-    assert payload["mapper"]["latest_known"] == "0.26.27"
+    assert payload["mapper"]["required"] == ">=0.26.28,<0.27"
+    assert payload["mapper"]["tested_against"] == "0.26.28"
+    assert payload["mapper"]["latest_known"] == "0.26.28"
 
 
 def test_versions_command_human_output(capsys, monkeypatch):
     import argparse
 
-    monkeypatch.setattr(versions_cmd, "_latest_mapper_version", lambda *, refresh=False: ("0.26.27", None))
+    monkeypatch.setattr(versions_cmd, "_latest_mapper_version", lambda *, refresh=False: ("0.26.28", None))
     ns = argparse.Namespace(root=".", json=False, refresh=False)
     rc = versions_cmd.run(ns)
     assert rc == 0
     out = capsys.readouterr().out
     assert "simplicio-py versions" in out
     assert "own component manifest" in out
-    assert "0.26.27" in out
+    assert "0.26.28" in out
 
 
 def test_release_train_mapper_stub_matches_declared_floor():
@@ -85,7 +87,7 @@ def test_release_train_mapper_stub_matches_declared_floor():
     mapper_req = next(d for d in deps if d.startswith("simplicio-mapper"))
     assert stub["schema"] == "simplicio.release-train/v1"
     assert stub["dependency"]["declared_range"] in mapper_req
-    assert stub["dependency"]["tested_against"] == "0.26.27"
+    assert stub["dependency"]["tested_against"] == "0.26.28"
     version, reason = __import__(
         "simplicio.component_manifest", fromlist=["tested_dependency_version"]
     ).tested_dependency_version("simplicio-mapper", root)
@@ -111,8 +113,8 @@ def test_doctor_json_includes_mapper_versions_section(monkeypatch, tmp_path, cap
     payload = json.loads(capsys.readouterr().out)
     assert "mapper_versions" in payload
     assert payload["mapper_versions"]["schema"] == "simplicio.dev-cli.versions/v1"
-    assert payload["mapper_versions"]["mapper"]["declared_range"] == ">=0.26.27,<0.27"
-    assert payload["mapper_versions"]["mapper"]["required"] == ">=0.26.27,<0.27"
+    assert payload["mapper_versions"]["mapper"]["declared_range"] == ">=0.26.28,<0.27"
+    assert payload["mapper_versions"]["mapper"]["required"] == ">=0.26.28,<0.27"
 
 
 # --------------------------------------------------------------------------- #

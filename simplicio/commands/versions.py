@@ -12,20 +12,21 @@ and reports drift — all read-only, all local.
 and the cache is empty the field is ``null`` with
 ``unavailable_reason: "registry_unreachable"`` — never a fabricated version.
 
-Explicitly NOT implemented here, and why:
+This read-only command deliberately does not mutate the checkout. The checked-
+in release-train workflows own authenticated event receipt, deduplicated PR
+updates, PyPI publication, and Loop propagation; this command reports their
+local version/drift state and remains safe to run during an active task.
 
-- **Receiving a Mapper release event over a real transport** — no event
-  bus/webhook receiver exists in this repo or session.
-  `component_manifest.parse_component_manifest` is ready to validate a
-  manifest the moment one arrives (see its docstring), but nothing
-  delivers one today.
-- **Auto-creating/merging a version-bump PR** — auto-merging a dependency
-  bump without human review contradicts this repo's AGENTS.md rules.
-  Declared out of scope, not a capability gap for this command.
+The workflow boundary is intentional:
+
+- **Receiving a Mapper release event** is handled by
+  `.github/workflows/release-train-reconcile.yml`.
+- **Creating or merging a version-bump PR** is handled by the fixed
+  `release-train/mapper-latest` branch and its gate/promote workflows.
+- **Dispatching `simplicio-loop`** is handled only after the signed PyPI
+  publication receipt in `.github/workflows/publish.yml`.
 - **SBOM/signing/provenance** — no signing identity available in this
   environment.
-- **Triggering `simplicio-loop`** — cross-repo propagation is a separate
-  release-train step, not part of the local versions report.
 """
 
 from __future__ import annotations
@@ -41,6 +42,7 @@ from ..component_manifest import (
     check_version_against_range,
     declared_dependency_range,
     detect_drift,
+    tested_dependency_artifacts,
     tested_dependency_version,
 )
 from ..ecosystem import _pypi_latest
@@ -100,6 +102,9 @@ def versions_report(
     installed = _installed_mapper_version()
     declared_range = declared_dependency_range(MAPPER_DIST_NAME, root)
     tested_against, tested_reason = tested_dependency_version(MAPPER_DIST_NAME, root)
+    tested_artifact_version, tested_artifacts, tested_artifact_reason = tested_dependency_artifacts(
+        MAPPER_DIST_NAME, root
+    )
     latest_known, unavailable_reason = _latest_mapper_version(refresh=refresh)
 
     compatibility = (
@@ -113,6 +118,15 @@ def versions_report(
     )
     own_manifest = build_own_manifest(root)
     release_train = release_train_doctor(root)
+    latest_compatible = (
+        latest_known is not None
+        and declared_range is not None
+        and check_version_against_range(latest_known, declared_range, name=MAPPER_DIST_NAME).status
+        == "compatible"
+    )
+    upgrade_available = bool(
+        installed and latest_compatible and latest_known != installed and latest_known is not None
+    )
 
     return {
         "schema": "simplicio.dev-cli.versions/v1",
@@ -122,9 +136,19 @@ def versions_report(
             "required": declared_range,
             "tested_against": tested_against,
             "tested_against_reason": tested_reason,
+            "tested_artifact_version": tested_artifact_version,
+            "tested_artifacts": tested_artifacts,
+            "tested_artifacts_reason": tested_artifact_reason,
             "latest_known": latest_known,
             "unavailable_reason": unavailable_reason,
             "compatibility": compatibility.to_dict() if compatibility else None,
+            "upgrade": {
+                "available": upgrade_available,
+                "from": installed,
+                "to": latest_known if upgrade_available else None,
+                "action": "recreate environment from the updated lockfile" if upgrade_available else None,
+                "safe_while_task_active": True,
+            },
         },
         "drift": drift.to_dict(),
         "own_manifest": own_manifest.to_dict(),

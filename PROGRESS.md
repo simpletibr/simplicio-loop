@@ -226,3 +226,35 @@
   p95 0.313495 ms. Full baseline: 1,915 passed, 20 skipped and 41 pre-existing
   failures; cross-repository Loop/Runtime adoption remains an explicit closure
   gate.
+
+
+## Issue #232 release-train progress
+
+- 2026-09-06: worked from `origin/main` on `feat/232-mapper-release-train`; the
+  pre-existing `GEMINI.md` deletion remains intentionally untouched.
+- Added Mapper 0.26.28 as the verified lock candidate, immutable artifact
+  digests, component/release-event metadata, a fail-closed repository-dispatch
+  reconciler, fixed-branch single-PR automation, drift-issue deduplication,
+  scoped gate/auto-merge workflows, signed Dev CLI manifest publication, and
+  post-PyPI Loop propagation.
+- Added executable conformance for installed N/N-1 Mapper contract checkouts
+  and the real map -> retrieve -> edit -> test -> receipt smoke. The published
+  Mapper wheel does not contain source-only `contracts/`, so the proof uses the
+  exact immutable `v0.26.28`/`v0.26.27` tag checkouts and records this provenance.
+- Focused validation is green: 111 tests, targeted Ruff, targeted format, and
+  targeted mypy. Mapper source conformance is green for N/N-1 and the smoke
+  reports a measured 5,706 JSON bytes within the 30,000 ms budget. Package build,
+  Twine check, generated dependency documentation, JSON/TOML validation, and
+  reconciliation idempotence are green.
+- Full local pytest reached 2,702 passed and 24 skipped with 17 unrelated
+  baseline failures; global coverage is 85.42% (floor 85%). The independent
+  coverage script still reports the pre-existing critical `simplicio/mapper.py`
+  85.46% < 90% failure. GitHub Actions are disabled in repository settings, so
+  no hosted check result is treated as evidence. Stable promotion remains
+  fail-closed until signing/SBOM/provenance and external Loop receipts exist.
+
+- Push/PR handoff is blocked by the authenticated GitHub OAuth token: GitHub
+  rejected the workflow-bearing push because the token has `repo` but not
+  `workflow` scope. `gh auth refresh --hostname github.com --scopes workflow`
+  requires device authorization unavailable in this session. No remote branch,
+  PR, merge, or hosted check is claimed.

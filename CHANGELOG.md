@@ -29,6 +29,13 @@
 
 ## Unreleased
 
+### Changed
+
+- Release-train automation now reconciles verified Mapper events into the
+  exact `uv.lock` digest set, creates one deduplicated bump PR, and propagates
+  the signed Dev CLI component manifest to Simplicio Loop only after PyPI
+  publication.
+
 ## [0.18.12] - 2026-09-04
 
 ### Added
@@ -1334,4 +1341,3 @@ with the new versions installed.
 - Better guidance and helpers for E2E contract validation tasks between frontend and backend.
 
 These changes were driven by the need to generate strong evidence that the Web is correctly wired to the real API + real PostgreSQL.
-

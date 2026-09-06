@@ -3,7 +3,7 @@ manifests and check them against this repo's own declared compatibility
 range (issue #232).
 
 Context (verified in the issue): `simplicio-cli` declares
-`simplicio-mapper>=0.26.27,<0.27` in `pyproject.toml`, while the Mapper already
+`simplicio-mapper>=0.26.28,<0.27` in `pyproject.toml`, while the Mapper already
 publishes the 0.26.x train. That range lets a *clean* install resolve to the
 newer Mapper, but it never proves the combination was actually exercised,
 and it never updates an *existing* environment/lock (this repo's own
@@ -375,6 +375,73 @@ def tested_dependency_version(
     return None, "not_present_in_lockfile"
 
 
+def tested_dependency_artifacts(
+    name: str, root: str | os.PathLike[str] | None = None
+) -> tuple[str | None, dict[str, Any], str]:
+    """Return the locked version and its immutable distribution digests.
+
+    The result is ``(version, artifacts, reason)`` where ``artifacts`` has a
+    ``sdist`` object and a ``wheels`` list when the lock records them. Hashes
+    are normalized to the ``sha256:...`` form used by component-release
+    events. Missing or malformed lock data is reported, never guessed.
+    """
+    if root is not None:
+        candidates = [Path(root).resolve() / "uv.lock"]
+    else:
+        candidates = [
+            Path.cwd() / "uv.lock",
+            Path(__file__).resolve().parent.parent / "uv.lock",
+        ]
+    lock_path = next((p for p in candidates if p.is_file()), None)
+    if lock_path is None:
+        return None, {}, "no_lockfile_found"
+    try:
+        text = lock_path.read_text(encoding="utf-8")
+        import tomllib  # type: ignore[import-not-found]
+
+        data = tomllib.loads(text)
+    except ModuleNotFoundError:
+        try:
+            import tomli as tomllib  # type: ignore[import-not-found,no-redef]
+
+            data = tomllib.loads(text)
+        except ModuleNotFoundError:
+            return None, {}, "tomllib_unavailable"
+    except (OSError, ValueError) as exc:
+        return None, {}, f"lockfile_unparseable: {exc}"
+    for package in data.get("package", []) or []:
+        if not isinstance(package, dict) or package.get("name") != name:
+            continue
+        version = package.get("version")
+        if not isinstance(version, str) or not version:
+            return None, {}, "lockfile_entry_missing_version"
+
+        def artifact(raw: Any) -> dict[str, Any] | None:
+            if not isinstance(raw, dict):
+                return None
+            digest = raw.get("hash")
+            if not isinstance(digest, str) or not digest.startswith("sha256:"):
+                return None
+            url = raw.get("url")
+            return {
+                "filename": Path(url).name if isinstance(url, str) else None,
+                "digest": digest,
+                "size": raw.get("size"),
+            }
+
+        artifacts: dict[str, Any] = {}
+        sdist = artifact(package.get("sdist"))
+        if sdist is not None:
+            artifacts["sdist"] = sdist
+        wheels = [item for item in (artifact(raw) for raw in package.get("wheels", []) or []) if item]
+        if wheels:
+            artifacts["wheels"] = wheels
+        if not artifacts:
+            return version, {}, "locked_entry_has_no_artifact_digests"
+        return version, artifacts, "locked_in_uv.lock"
+    return None, {}, "not_present_in_lockfile"
+
+
 # ---------------------------------------------------------------------------#
 # Compatibility check
 # ---------------------------------------------------------------------------#
@@ -659,6 +726,7 @@ __all__ = [
     "declared_dependency_range",
     "declared_own_version",
     "tested_dependency_version",
+    "tested_dependency_artifacts",
     "COMPATIBLE",
     "INCOMPATIBLE",
     "NEEDS_REVIEW",

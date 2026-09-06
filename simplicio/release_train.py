@@ -1,8 +1,9 @@
 """Fail-closed release-train contracts for the Mapper consumer.
 
 The decisions in this module are deterministic and side-effect free. GitHub
-transport, package publication, PR creation and Loop dispatch remain explicit
-authenticated adapters outside the Dev CLI.
+transport, package publication, PR creation and Loop dispatch are performed by
+the checked-in release workflows, with every mutation bound to an immutable
+event id and a receipt.
 """
 
 from __future__ import annotations
@@ -90,24 +91,66 @@ def manifest_digest(manifest: Mapping[str, Any]) -> str:
     return canonical_digest(dict(manifest))
 
 
+def extract_release_event(value: Any) -> Any:
+    """Extract a release event from a GitHub or direct-delivery envelope.
+
+    ``repository_dispatch`` stores the producer payload under
+    ``client_payload`` while the local adapter accepts a direct event or a
+    generic ``payload`` wrapper. The returned object is not mutated. Unknown
+    shapes are returned unchanged so the normal validator reports the exact
+    missing fields instead of silently accepting a malformed envelope.
+    """
+    if not isinstance(value, Mapping):
+        return value
+    for key in ("client_payload", "payload"):
+        nested = value.get(key)
+        if isinstance(nested, Mapping) and (
+            "schema" in nested or "event_type" in nested or "event_id" in nested
+        ):
+            return dict(nested)
+    return dict(value)
+
+
 def validate_mapper_manifest(manifest: Any, *, require_signed: bool = False) -> list[str]:
     """Validate the Mapper component-release/v1 schema and release identity."""
     if not isinstance(manifest, Mapping):
         return ["manifest must be an object"]
 
     allowed = {
-        "schema", "component", "version", "commit_sha", "commit_sha_source",
-        "generated_at", "distribution", "schema_versions", "protocols",
-        "capabilities", "compatibility", "artifact_digest", "artifact_digests",
-        "signing", "downstream_events",
+        "schema",
+        "component",
+        "version",
+        "commit_sha",
+        "commit_sha_source",
+        "generated_at",
+        "distribution",
+        "schema_versions",
+        "protocols",
+        "capabilities",
+        "compatibility",
+        "artifact_digest",
+        "artifact_digests",
+        "signing",
+        "downstream_events",
     }
     unknown = sorted(set(manifest) - allowed, key=str)
     errors = [f"unknown manifest field(s): {unknown}"] if unknown else []
     required = (
-        "schema", "component", "version", "commit_sha", "commit_sha_source",
-        "generated_at", "distribution", "schema_versions", "protocols",
-        "capabilities", "compatibility", "artifact_digest", "artifact_digests",
-        "signing", "downstream_events",
+        "schema",
+        "component",
+        "version",
+        "commit_sha",
+        "commit_sha_source",
+        "generated_at",
+        "distribution",
+        "schema_versions",
+        "protocols",
+        "capabilities",
+        "compatibility",
+        "artifact_digest",
+        "artifact_digests",
+        "signing",
+        "downstream_events",
     )
     errors.extend(f"missing required manifest field: {name}" for name in required if name not in manifest)
 
@@ -117,7 +160,7 @@ def validate_mapper_manifest(manifest: Any, *, require_signed: bool = False) -> 
         errors.append(f"manifest.component must be {MAPPER_COMPONENT!r}")
 
     version = manifest.get("version")
-    if not _text(version):
+    if not isinstance(version, str) or not version.strip():
         errors.append("manifest.version must be a non-empty string")
     else:
         try:
@@ -144,8 +187,10 @@ def validate_mapper_manifest(manifest: Any, *, require_signed: bool = False) -> 
     schemas = manifest.get("schema_versions")
     if not isinstance(schemas, Mapping) or not schemas:
         errors.append("manifest.schema_versions must be a non-empty object")
-    elif any(not isinstance(k, str) or not isinstance(v, (str, int)) or isinstance(v, bool)
-             for k, v in schemas.items()):
+    elif any(
+        not isinstance(k, str) or not isinstance(v, (str, int)) or isinstance(v, bool)
+        for k, v in schemas.items()
+    ):
         errors.append("manifest.schema_versions values must be strings or integers")
 
     compatibility = manifest.get("compatibility")
@@ -208,20 +253,32 @@ def _event_identity(event: Mapping[str, Any]) -> dict[str, Any]:
 
 def validate_release_event(event: Any) -> list[str]:
     """Validate a Mapper release event and its canonical event identity."""
+    event = extract_release_event(event)
     if not isinstance(event, Mapping):
         return ["event must be an object"]
     required = (
-        "schema", "event_type", "event_id", "dedupe_key", "component", "version",
-        "commit_sha", "release_manifest_schema", "release_manifest_digest",
-        "artifact_digests", "schema_versions", "capabilities", "compatibility",
-        "attestation", "delivery", "consumers", "rollback",
+        "schema",
+        "event_type",
+        "event_id",
+        "dedupe_key",
+        "component",
+        "version",
+        "commit_sha",
+        "release_manifest_schema",
+        "release_manifest_digest",
+        "artifact_digests",
+        "schema_versions",
+        "capabilities",
+        "compatibility",
+        "attestation",
+        "delivery",
+        "consumers",
+        "rollback",
     )
     errors = [f"missing required event field: {name}" for name in required if name not in event]
     errors.extend([f"event.schema must be {EVENT_SCHEMA!r}"] if event.get("schema") != EVENT_SCHEMA else [])
     errors.extend(
-        [f"event.event_type must be {EVENT_TYPE!r}"]
-        if event.get("event_type") != EVENT_TYPE
-        else []
+        [f"event.event_type must be {EVENT_TYPE!r}"] if event.get("event_type") != EVENT_TYPE else []
     )
     errors.extend(
         [f"event.component must be {MAPPER_COMPONENT!r}"]
@@ -238,15 +295,19 @@ def validate_release_event(event: Any) -> list[str]:
         errors.append(f"event.release_manifest_schema must be {MANIFEST_SCHEMA!r}")
     if event.get("event_id") != event.get("dedupe_key"):
         errors.append("event.event_id and event.dedupe_key must match")
-    if (
-        isinstance(event.get("event_id"), str)
-        and event["event_id"] != canonical_digest(_event_identity(event))
+    if isinstance(event.get("event_id"), str) and event["event_id"] != canonical_digest(
+        _event_identity(event)
     ):
         errors.append("event.event_id does not match its immutable release identity")
 
     for name in ("artifact_digests", "schema_versions", "compatibility", "delivery", "rollback"):
         if not isinstance(event.get(name), Mapping):
             errors.append(f"event.{name} must be an object")
+    delivery = event.get("delivery")
+    if isinstance(delivery, Mapping):
+        channel = delivery.get("channel")
+        if channel not in {"canary", "stable"}:
+            errors.append("event.delivery.channel must be 'canary' or 'stable'")
     errors.extend(_strings(event.get("capabilities"), "event.capabilities"))
     if not isinstance(event.get("consumers"), list) or not event["consumers"]:
         errors.append("event.consumers must be a non-empty list")
@@ -264,7 +325,7 @@ def validate_release_event(event: Any) -> list[str]:
         if event.get("release_manifest_digest") not in _digests(artifacts):
             errors.append("event.release_manifest_digest is not present in artifact_digests")
     version = event.get("version")
-    if not _text(version):
+    if not isinstance(version, str) or not version.strip():
         errors.append("event.version must be a non-empty string")
     else:
         try:
@@ -355,6 +416,16 @@ def _conformance_errors(event: Mapping[str, Any], evidence: Any) -> list[str]:
     actual = evidence.get("schema_versions")
     if not isinstance(actual, Mapping) or any(actual.get(k) != v for k, v in expected.items()):
         errors.append("conformance.schema_versions do not match the candidate")
+    smoke = evidence.get("smoke")
+    if not isinstance(smoke, Mapping) or not _green(smoke.get("status")):
+        errors.append("conformance.smoke must prove map/retrieve/edit/test")
+    elif any(
+        not isinstance(smoke.get(phase), Mapping) or not _green(smoke[phase].get("status"))
+        for phase in ("map", "retrieve", "edit", "test")
+    ):
+        errors.append("conformance.smoke must prove map/retrieve/edit/test")
+    if not isinstance(smoke, Mapping) or not _text(smoke.get("receipt_digest")):
+        errors.append("conformance.smoke.receipt_digest is required")
     return sorted(set(errors))
 
 
@@ -448,15 +519,14 @@ def evaluate_release_event(
     last_processed_version: str | None = None,
 ) -> ReleaseTrainDecision:
     """Evaluate one event without changing files, locks, or task state."""
+    event = extract_release_event(event)
     processed = set(processed_event_ids)
     state = {"processed_event_ids": sorted(processed), "last_processed_version": last_processed_version}
     errors = validate_release_event(event)
     event_id = event.get("event_id") if isinstance(event, Mapping) else None
     version = event.get("version") if isinstance(event, Mapping) else None
     if errors:
-        return _blocked(
-            "invalid_event", "release event failed validation", event_id, version, state, errors
-        )
+        return _blocked("invalid_event", "release event failed validation", event_id, version, state, errors)
 
     event_id = str(event["event_id"])
     version = str(event["version"])
@@ -470,7 +540,9 @@ def evaluate_release_event(
                 return _blocked(
                     "out_of_order_event",
                     f"candidate {version} is not newer than processed {last_processed_version}",
-                    event_id, version, state,
+                    event_id,
+                    version,
+                    state,
                 )
         except ValueError as error:
             return _blocked("unparseable_version", str(error), event_id, version, state, (str(error),))
@@ -480,42 +552,70 @@ def evaluate_release_event(
         return _blocked(
             "revoked_release",
             "revoked Mapper releases are never accepted",
-            event_id, version, state,
+            event_id,
+            version,
+            state,
         )
     if event.get("yanked") is True or release_status in {"yanked", "withdrawn"}:
         return _blocked(
             "yanked_release",
             "yanked Mapper releases are never accepted",
-            event_id, version, state,
+            event_id,
+            version,
+            state,
         )
     delivery = event.get("delivery")
     if isinstance(delivery, Mapping) and delivery.get("authenticated") is False:
         return _blocked(
             "unauthenticated_delivery",
             "release event delivery is not authenticated",
-            event_id, version, state,
+            event_id,
+            version,
+            state,
         )
 
     compatibility = check_version_against_range(version, declared_range, name=MAPPER_COMPONENT)
     if compatibility.status != COMPATIBLE:
         return _blocked("incompatible_candidate", compatibility.reason, event_id, version, state)
-    if event.get("attestation") != "ed25519-signed":
+    channel = event.get("delivery", {}).get("channel")
+    if channel == "stable" and event.get("attestation") != "ed25519-signed":
         return _blocked(
             "attestation_missing",
             "stable acceptance requires an Ed25519-signed Mapper manifest",
-            event_id, version, state,
+            event_id,
+            version,
+            state,
+        )
+    if channel == "canary" and event.get("attestation") not in {
+        "transport-authenticated-only",
+        "ed25519-signed",
+    }:
+        return _blocked(
+            "attestation_invalid",
+            "canary acceptance requires transport authentication or an Ed25519 signature",
+            event_id,
+            version,
+            state,
         )
     if active_task:
         return ReleaseTrainDecision(
-            "deferred", "active_task", "an update is deferred while a task is active",
-            event_id, version, None, state,
+            "deferred",
+            "active_task",
+            "an update is deferred while a task is active",
+            event_id,
+            version,
+            None,
+            state,
         )
     errors = _conformance_errors(event, conformance)
     if errors:
         return _blocked(
             "conformance_not_proven",
             "candidate lacks complete installed N/N-1 evidence",
-            event_id, version, state, errors,
+            event_id,
+            version,
+            state,
+            errors,
         )
 
     next_state = {"processed_event_ids": sorted(processed | {event_id}), "last_processed_version": version}
@@ -546,9 +646,13 @@ def reconcile_release_events(
     results = []
     for event in events:
         decision = evaluate_release_event(
-            event, declared_range=declared_range, tested_against=tested_against,
-            conformance=conformance, active_task=active_task,
-            processed_event_ids=processed, last_processed_version=last,
+            event,
+            declared_range=declared_range,
+            tested_against=tested_against,
+            conformance=conformance,
+            active_task=active_task,
+            processed_event_ids=processed,
+            last_processed_version=last,
         )
         results.append(decision.to_dict())
         if decision.status == "accepted":
@@ -587,9 +691,9 @@ def release_train_doctor(root: str | None = None) -> dict[str, Any]:
             "N and N-1 conformance",
         ],
         "automation": {
-            "event_receiver": "authenticated external adapter",
-            "bump_pr": "authenticated external adapter",
-            "loop_dispatch": "after PyPI publication",
+            "event_receiver": ".github/workflows/release-train-reconcile.yml",
+            "bump_pr": "release-train/mapper-latest",
+            "loop_dispatch": ".github/workflows/publish.yml after PyPI publication",
         },
         "adapter_contracts": {
             "schema": "simplicio.release-train-adapter/v1",
@@ -598,7 +702,8 @@ def release_train_doctor(root: str | None = None) -> dict[str, Any]:
         },
         "next_action": (
             "provide a verified component-release-event/v1 and conformance evidence"
-            if configured else "declare a compatible simplicio-mapper dependency"
+            if configured
+            else "declare a compatible simplicio-mapper dependency"
         ),
     }
 
@@ -618,6 +723,7 @@ __all__ = [
     "canonical_digest",
     "canonical_json",
     "evaluate_release_event",
+    "extract_release_event",
     "manifest_digest",
     "reconcile_release_events",
     "release_train_doctor",

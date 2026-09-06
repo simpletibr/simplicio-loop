@@ -1,59 +1,60 @@
 {
-  "schema": "simplicio.release-train/v1",
-  "component": "simplicio-cli",
-  "purpose": "Fail-closed Mapper release consumption and evidence contract for issue #232.",
-  "dependency": {
-    "name": "simplicio-mapper",
-    "declared_range": ">=0.26.27,<0.27",
-    "tested_against": "0.26.27",
-    "tested_against_source": "uv.lock",
-    "release": {
-      "version": "0.26.27",
-      "tag": "v0.26.27",
-      "commit_sha": "50bbf5f6fff4357b66f7a2c2c4a59d3fe67e9c7f",
-      "artifact_digests": {
-        "whl": {
-          "filename": "simplicio_mapper-0.26.27-py3-none-any.whl",
-          "digest": "sha256:d8178578253663413ba3e9f0d051e1b4e5b6770efdaeafefd6144efface53125"
-        },
-        "sdist": {
-          "filename": "simplicio_mapper-0.26.27.tar.gz",
-          "digest": "sha256:adbb8bbaea5beb2abb508aa01f1f6d97ef283522be79a6ea2445551f812bb2f6"
-        }
-      },
-      "source": "PyPI 0.26.27 and immutable Mapper release tag"
-    }
+  "automation": {
+    "event_receiver": ".github/workflows/release-train-reconcile.yml",
+    "gate": ".github/workflows/release-train-gate.yml",
+    "loop_propagation": "after PyPI publication receipt",
+    "pypi_publication": ".github/workflows/publish.yml",
+    "single_bump_branch": "release-train/mapper-latest"
   },
+  "blocked_reason": "Candidate lock identity is reconciled; stable promotion still requires installed N/N-1 conformance and release evidence.",
+  "component": "simplicio-cli",
   "contract": {
-    "manifest_schema": "simplicio.component-release/v1",
-    "event_schema": "simplicio.component-release-event/v1",
-    "plan_schema": "simplicio.dev-cli.release-train/v1",
     "deduplication": "event_id",
+    "downstream": {
+      "dispatch": "after Dev CLI PyPI publication",
+      "repository": "wesleysimplicio/simplicio-loop",
+      "transport": "authenticated external adapter"
+    },
+    "event_schema": "simplicio.component-release-event/v1",
+    "manifest_schema": "simplicio.component-release/v1",
+    "plan_schema": "simplicio.dev-cli.release-train/v1",
     "requires": [
       "immutable commit_sha and artifact_digests",
       "Ed25519 signature and SBOM digest",
       "clean installed entrypoint ownership",
       "candidate lockfile resolution",
       "N and N-1 conformance"
-    ],
-    "downstream": {
-      "repository": "wesleysimplicio/simplicio-loop",
-      "dispatch": "after Dev CLI PyPI publication",
-      "transport": "authenticated external adapter"
-    }
-  },
-  "surfaces": {
-    "versions_json": "simplicio-py versions --json",
-    "doctor_json": "simplicio-py doctor --json",
-    "release_train_verify": "simplicio-py release-train verify --event EVENT --conformance PROOF --record",
-    "release_train_doctor": "simplicio-py release-train doctor --json"
+    ]
   },
   "current_release_status": "UNVERIFIED",
-  "blocked_reason": "Mapper 0.26.27 release metadata is unsigned; no stable acceptance claim is made until signed manifest and N/N-1 evidence exist.",
-  "out_of_scope_this_slice": [
-    "GitHub repository_dispatch receiver",
-    "automatic PR creation or merge",
-    "PyPI publication",
-    "cross-repository Loop mutation"
-  ]
+  "dependency": {
+    "declared_range": ">=0.26.28,<0.27",
+    "name": "simplicio-mapper",
+    "release": {
+      "artifact_digests": {
+        "sdist": {
+          "digest": "sha256:25acaf2bce08659b0d47dc6acbcb7f6c927359f3f6bf9f488c446758559c93c1",
+          "filename": "simplicio_mapper-0.26.28.tar.gz"
+        },
+        "whl": {
+          "digest": "sha256:49b68b815710b986a72fff6ec0b541f6e5683f22787f93a76edcd98819328d75",
+          "filename": "simplicio_mapper-0.26.28-py3-none-any.whl"
+        }
+      },
+      "commit_sha": "121e692104f751034a806e5d9e5fe7eabbd94d27",
+      "source": "Mapper component-release event and immutable PyPI artifacts",
+      "tag": "v0.26.28",
+      "version": "0.26.28"
+    },
+    "tested_against": "0.26.28",
+    "tested_against_source": "uv.lock"
+  },
+  "purpose": "Fail-closed Mapper release consumption and evidence contract for issue #232.",
+  "schema": "simplicio.release-train/v1",
+  "surfaces": {
+    "doctor_json": "simplicio-py doctor --json",
+    "release_train_doctor": "simplicio-py release-train doctor --json",
+    "release_train_verify": "simplicio-py release-train verify --event EVENT --conformance PROOF --record",
+    "versions_json": "simplicio-py versions --json"
+  }
 }

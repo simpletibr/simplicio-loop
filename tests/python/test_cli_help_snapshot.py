@@ -36,6 +36,7 @@ TOP_LEVEL_SUBCOMMANDS = [
     "doctor",
     "fast",
     "versions",
+    "release-train",
     "env-export",
     "mechanical-edit",
     "changeset",

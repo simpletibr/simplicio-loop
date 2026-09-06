@@ -48,6 +48,6 @@ dispatched by their own modules and also expose `--help`.
 3. Use `simplicio-fast --help` only when the Fast extra is installed and the route is available.
 4. Verify with `simplicio-dev-cli test run --help` and the repository's real test command.
 
-The dependency train for this release is Mapper `0.26.27`, Dev CLI `0.18.11`,
-and Fast `2.0.22` (Fast is available on Python 3.11+). Keep this file linked
+The dependency train for this release is Mapper `0.26.28`, Dev CLI `0.18.12`,
+and Fast `2.0.28` (Fast is available on Python 3.11+). Keep this file linked
 from agent instruction files whenever the command surface changes.
