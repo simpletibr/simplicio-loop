@@ -1,4 +1,23 @@
-# simplicio-mapper-rs
+# simplicio-mapper Rust adapters
+
+`mapper-core/` is the reusable, effect-free Rust semantic core introduced for
+Mapper #616. It owns deterministic hashing, import parsing, bounded batch
+parsing, and canonicalization kernels. It does not own filesystem lifecycle,
+auth, effects, fallback orchestration, source edits, or Runtime knowledge.
+
+The root crate is the optional Python/PyO3 adapter. `runtime-adapter/` is a
+thin, JSON-boundary Runtime adapter used by the local differential harness;
+the separate Simplicio Runtime repository consumes the core through the
+sequenced migration plan in `docs/evidence/mapper-616-runtime-migration-plan.md`.
+
+```bash
+cargo test --manifest-path rust/mapper-core/Cargo.toml
+cargo test --manifest-path rust/runtime-adapter/Cargo.toml
+cargo test --manifest-path rust/Cargo.toml --workspace
+python3 scripts/mapper_differential.py --repo . --json
+```
+
+## Python/PyO3 adapter
 
 Optional Rust acceleration crate for [simplicio-mapper](https://pypi.org/project/simplicio-mapper/).
 

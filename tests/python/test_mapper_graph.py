@@ -17,6 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
+from simplicio_mapper import _native  # noqa: E402
 from simplicio_mapper.mapper.graph import (  # noqa: E402
     _build_call_graph,
     _build_symbol_index,
@@ -29,7 +30,6 @@ from simplicio_mapper.mapper.graph import (  # noqa: E402
     build_macro_map,
 )
 from simplicio_mapper.mapper.parse import _build_file_inventory, _now_iso  # noqa: E402
-from simplicio_mapper import _native  # noqa: E402
 from simplicio_mapper.models import ProjectFile  # noqa: E402
 
 
@@ -95,6 +95,8 @@ class SymbolAndCallGraphTest(unittest.TestCase):
     def test_native_symbol_index_canonicalizes_rich_records(self) -> None:
         original_available = _native.HAS_NATIVE
         original_builder = _native.build_symbol_index
+        original_capabilities = _native.CAPABILITIES
+        original_defaults = _native.NATIVE_DEFAULT_CAPABILITIES
         calls: list[list[tuple[str, str, int]]] = []
 
         def canonicalize(records: list[tuple[str, str, int]]) -> list[tuple[str, str, int]]:
@@ -103,12 +105,16 @@ class SymbolAndCallGraphTest(unittest.TestCase):
 
         _native.HAS_NATIVE = True
         _native.build_symbol_index = canonicalize
+        _native.CAPABILITIES = {"features": ["symbol-index"]}
+        _native.NATIVE_DEFAULT_CAPABILITIES = original_defaults | {"symbol-index"}
         try:
             files = _build_file_inventory(str(self.dir), {}, {}, None)
             result = _build_symbol_index(str(self.dir), files, _now_iso())
         finally:
             _native.HAS_NATIVE = original_available
             _native.build_symbol_index = original_builder
+            _native.CAPABILITIES = original_capabilities
+            _native.NATIVE_DEFAULT_CAPABILITIES = original_defaults
 
         self.assertEqual(len(calls), 1)
         self.assertEqual(

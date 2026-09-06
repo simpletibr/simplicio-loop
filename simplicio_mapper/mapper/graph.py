@@ -286,7 +286,7 @@ def _build_symbol_index(
     for file in files:
         text = _content_for(cwd, file.path, contents)
         symbols.extend(_symbol_definitions_for_file(file, text))
-    if _native.HAS_NATIVE and _native.build_symbol_index is not None and symbols:
+    if _native.native_default("symbol-index") and _native.build_symbol_index is not None and symbols:
         # The native engine canonicalizes partition output by symbol/path/line.
         # Reorder the rich Python records with that key while retaining kind,
         # language, evidence, and every other schema field produced above.

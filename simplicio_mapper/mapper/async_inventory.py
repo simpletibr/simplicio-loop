@@ -95,7 +95,7 @@ def _parse_from_text_batch(records: list[tuple[str, str]]) -> dict[str, dict]:
     for rel, text in records:
         language = _language_for(rel, text)
         if (
-            _native.HAS_NATIVE
+            _native.native_default("batch")
             and _native.parse_batch is not None
             and language in native_languages
         ):

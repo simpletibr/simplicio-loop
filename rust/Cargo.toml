@@ -1,3 +1,7 @@
+[workspace]
+members = ["mapper-core", "runtime-adapter"]
+resolver = "2"
+
 [package]
 name = "simplicio_mapper_rs"
 version = "0.1.0"
@@ -10,9 +14,5 @@ name = "simplicio_mapper_rs"
 crate-type = ["cdylib"]
 
 [dependencies]
+simplicio-mapper-core = { path = "mapper-core" }
 pyo3 = { version = "0.29", features = ["extension-module"] }
-sha2 = "0.11"
-regex = "1.10"
-once_cell = "1.19"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"

@@ -40,8 +40,7 @@ import os
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from . import __version__
-from ._native import HAS_NATIVE
+from . import __version__, _native
 from ._native import sha256_hex as _native_sha256_hex
 from .context_contract import MAX_SNAPSHOT_BYTES
 from .mapper import ARTIFACT_VERSION, _now_iso
@@ -58,7 +57,7 @@ _PACKAGED_SCHEMAS_DIR = os.path.join(
 
 
 def _sha256_text(text: str) -> str:
-    if HAS_NATIVE and _native_sha256_hex is not None:
+    if _native.native_default("files") and _native_sha256_hex is not None:
         return _native_sha256_hex(text)
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 

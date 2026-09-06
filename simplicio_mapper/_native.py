@@ -28,6 +28,28 @@ CAPABILITIES: dict[str, object] = {
     "languages": [],
 }
 
+# Availability and selection are separate concerns.  The extension can expose
+# more kernels than the Python mapper is allowed to use as native defaults;
+# each default is negotiated by capability rather than by one global switch.
+NATIVE_DEFAULT_CAPABILITIES = frozenset(
+    {"files", "imports", "batch"}
+)
+_CORE_FEATURE_FOR_CAPABILITY = {
+    "files": "sha256",
+    "imports": "imports",
+    "batch": "batch",
+    "symbol-index": "symbol-index",
+}
+
+
+def native_default(capability: str) -> bool:
+    """Return whether one named core capability may run natively by default."""
+    if not HAS_NATIVE or capability not in NATIVE_DEFAULT_CAPABILITIES:
+        return False
+    features = CAPABILITIES.get("features")
+    feature = _CORE_FEATURE_FOR_CAPABILITY.get(capability, capability)
+    return isinstance(features, (list, tuple, set, frozenset)) and feature in features
+
 try:
     from simplicio_mapper_rs import (
         merge_edges as _native_merge_edges,
@@ -64,6 +86,7 @@ else:
 __all__ = [
     "CAPABILITIES",
     "HAS_NATIVE",
+    "NATIVE_DEFAULT_CAPABILITIES",
     "build_symbol_index",
     "merge_edges",
     "parse_batch",
@@ -71,4 +94,5 @@ __all__ = [
     "parse_symbols_batch",
     "schema_registry_sha256",
     "sha256_hex",
+    "native_default",
 ]

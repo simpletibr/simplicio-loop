@@ -161,7 +161,7 @@ def _content_for(cwd: str, rel: str, contents: dict[str, str] | None = None) -> 
     return text
 
 def _sha256(text: str) -> str:
-    if _native.HAS_NATIVE and _native.sha256_hex is not None:
+    if _native.native_default("files") and _native.sha256_hex is not None:
         return _native.sha256_hex(text)
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -310,7 +310,11 @@ _NATIVE_IMPORT_LANGUAGES = {"javascript", "typescript", "python", "csharp", "raz
 def _parse_imports(text: str, language: str) -> list[str]:
     # The optional Rust crate only implements the original language set; newer
     # languages always take the pure-Python path below.
-    if _native.HAS_NATIVE and _native.parse_imports is not None and language in _NATIVE_IMPORT_LANGUAGES:
+    if (
+        _native.native_default("imports")
+        and _native.parse_imports is not None
+        and language in _NATIVE_IMPORT_LANGUAGES
+    ):
         return _native.parse_imports(text, language)
     patterns: list[re.Pattern[str]] = []
     if language in ("javascript", "typescript"):

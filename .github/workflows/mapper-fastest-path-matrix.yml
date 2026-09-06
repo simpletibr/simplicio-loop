@@ -75,4 +75,11 @@ jobs:
           PY
 
       - name: Rust crate tests
-        run: cargo test --manifest-path rust/Cargo.toml
+        run: cargo test --manifest-path rust/Cargo.toml --workspace
+
+      - name: Differential shadow gate
+        shell: bash
+        run: |
+          python scripts/mapper_differential.py --repo . --output "$RUNNER_TEMP/mapper-616" --json
+          cmp artifacts/mapper-differential.json "$RUNNER_TEMP/mapper-616/mapper-differential.json"
+          python scripts/mapper_capability_matrix.py --repo .

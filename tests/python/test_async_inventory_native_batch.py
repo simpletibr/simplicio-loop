@@ -13,7 +13,7 @@ class AsyncInventoryNativeBatchTest(unittest.TestCase):
         digest = hashlib.sha256(records[0][1].encode()).hexdigest()
         with mock.patch.object(async_inventory._native, "HAS_NATIVE", True), \
                 mock.patch.object(async_inventory._native, "parse_batch", return_value=[("src/main.py", digest, ["os"])]), \
-                mock.patch.object(async_inventory._native, "CAPABILITIES", {"languages": ["python"]}):
+                mock.patch.object(async_inventory._native, "CAPABILITIES", {"languages": ["python"], "features": ["batch"]}):
             parsed = async_inventory._parse_from_text_batch(records)
 
         self.assertEqual(parsed["src/main.py"]["file_hash"], digest)
@@ -24,7 +24,7 @@ class AsyncInventoryNativeBatchTest(unittest.TestCase):
         records = [("src/main.py", "import os\n\ndef run():\n    return 1\n")]
         with mock.patch.object(async_inventory._native, "HAS_NATIVE", True), \
                 mock.patch.object(async_inventory._native, "parse_batch", side_effect=RuntimeError("ABI")), \
-                mock.patch.object(async_inventory._native, "CAPABILITIES", {"languages": ["python"]}):
+                mock.patch.object(async_inventory._native, "CAPABILITIES", {"languages": ["python"], "features": ["batch"]}):
             parsed = async_inventory._parse_from_text_batch(records)
 
         self.assertEqual(parsed["src/main.py"]["imports"], ["os"])
