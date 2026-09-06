@@ -141,7 +141,7 @@ def _node(nodes: list[dict], kind: str, key: str, name: str, path: str | None = 
     return node_id
 
 
-def _edge(edges: list[dict], edge_type: str, source: str, target: str, confidence: float, evidence: dict | None = None, language: str | None = None) -> None:
+def _edge(edges: list[dict], edge_type: str, source: str, target: str, confidence: float | None, evidence: dict | None = None, language: str | None = None) -> None:
     edges.append({
         "type": edge_type,
         "source": source,
@@ -401,8 +401,15 @@ def build_visualization_bundle(
         if relation.get("target_symbol"):
             target = symbol_ids.get((relation.get("target_file", ""), relation["target_symbol"]), target)
         if target is None:
-            target = _node(nodes, "external", relation.get("target_file", "unknown"), relation.get("target_file", "unknown"))
-        _edge(edges, relation.get("type", "depends-on"), source, target, float(relation.get("confidence", 0.0)), {"path": relation.get("source_file"), "line": relation.get("line")} if relation.get("line") else {"path": relation.get("source_file")})
+            unknown_key = relation.get("relation_id") or relation.get("target_symbol") or "unknown"
+            target = _node(nodes, "external", f"unknown:{unknown_key}", "unknown target")
+        relation_evidence = {
+            "path": relation.get("source_file"),
+            **({"line": relation.get("line")} if relation.get("line") else {}),
+            **({"relation_id": relation.get("relation_id")} if relation.get("relation_id") else {}),
+            **({"evidence_class": relation.get("evidence_class")} if relation.get("evidence_class") else {}),
+        }
+        _edge(edges, relation.get("type", "depends-on"), source, target, relation.get("confidence"), relation_evidence)
     for flow in flows.get("flows") or []:
         flow_id = _node(nodes, "flow", flow["id"], flow["id"], parent_id=repo_id, confidence=1.0 if flow.get("confidence") == "observed" else 0.5)
         _edge(edges, "contains", repo_id, flow_id, 1.0)
@@ -437,7 +444,7 @@ def build_visualization_bundle(
         "layout_hints": clustering["layout_hints"],
         "flows": flows.get("flows") or [],
         "language_diagnostics": language_diagnostics,
-        "diagnostics": [{"code": "heuristic-edge", "count": sum(1 for edge in edges if edge["confidence"] < 1.0)}, {"code": "unresolved-relation", "count": sum(1 for node in nodes if node["kind"] == "external")}],
+        "diagnostics": [{"code": "heuristic-edge", "count": sum(1 for edge in edges if edge["confidence"] is None or edge["confidence"] < 1.0)}, {"code": "unresolved-relation", "count": sum(1 for node in nodes if node["kind"] == "external")}],
     }
 
 

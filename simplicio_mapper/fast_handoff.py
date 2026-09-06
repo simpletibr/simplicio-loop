@@ -190,6 +190,15 @@ def build_fast_handoff(
             if isinstance(edge, Mapping) and (edge.get("kind") or edge.get("type"))
         }
     )
+    graph = snapshot.get("graph", {})
+    graph = graph if isinstance(graph, Mapping) else {}
+    relation_evidence_classes = sorted(
+        {
+            str(edge.get("evidence_class"))
+            for edge in graph.get("edges", [])
+            if isinstance(edge, Mapping) and edge.get("evidence_class")
+        }
+    )
     revision = str(snapshot.get("revision") or _git(repo, "rev-parse", "HEAD"))
     generation = str(snapshot.get("snapshot_id") or _stable_hash(snapshot))
     normalized_paths = sorted({path.replace("\\", "/").lstrip("./") for path in changed_paths})
@@ -216,7 +225,21 @@ def build_fast_handoff(
             "handoff_schemas": [HANDOFF_SCHEMA],
             "languages": languages,
             "edge_kinds": edge_kinds,
-            "fields": ["symbols", "imports", "references", "calls", "tests", "language", "confidence"],
+            "fields": [
+                "symbols",
+                "imports",
+                "references",
+                "calls",
+                "tests",
+                "language",
+                "confidence",
+                "relation_id",
+                "evidence_class",
+                "provenance",
+                "relation_coverage",
+            ],
+            "relation_evidence_classes": relation_evidence_classes,
+            "relation_coverage": dict(graph.get("relation_coverage", {})),
         },
         "artifacts": artifacts,
         "delta": {

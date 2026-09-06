@@ -12,7 +12,8 @@
     "generation": {"type": "string", "minLength": 1},
     "stable_ids": {"type": "object", "additionalProperties": false, "required": ["nodes", "edges"], "properties": {"nodes": {"type": "array", "items": {"type": "string", "minLength": 1}}, "edges": {"type": "array", "items": {"type": "string", "minLength": 1}}}},
     "nodes": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["id", "scale"], "properties": {"id": {"type": "string", "minLength": 1}, "scale": {"type": "string", "minLength": 1}}}},
-    "relations": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["id", "kind", "source", "target"], "properties": {"id": {"type": "string", "minLength": 1}, "kind": {"type": "string", "minLength": 1}, "source": {"type": "string", "minLength": 1}, "target": {"type": "string", "minLength": 1}}}},
+    "relations": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["id", "kind", "source", "target"], "properties": {"id": {"type": "string", "minLength": 1}, "kind": {"type": "string", "minLength": 1}, "source": {"type": "string", "minLength": 1}, "target": {"type": "string", "minLength": 1}, "relation_id": {"type": "string", "minLength": 1}, "evidence_class": {"type": "string", "enum": ["semantic_resolved", "import_resolved", "lexical_unique", "lexical_ambiguous", "heuristic", "runtime_observed"]}, "resolution_status": {"type": "string", "enum": ["resolved", "inferred", "ambiguous", "unknown"]}, "provenance": {"type": "object"}, "target_candidates": {"type": "array", "items": {"type": "string"}}, "confidence": {"type": ["number", "null"]}}}},
+    "relation_coverage": {"type": "object"},
     "digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
   }
 }

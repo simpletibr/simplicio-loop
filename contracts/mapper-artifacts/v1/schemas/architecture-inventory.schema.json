@@ -107,16 +107,21 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["type", "source_file", "target_file", "confidence"],
+        "required": ["type", "source_file", "target_file", "confidence", "evidence_class", "resolution_status", "relation_id", "provenance"],
         "properties": {
           "type": { "type": "string", "enum": ["calls", "imports"] },
           "source_file": { "type": "string" },
-          "target_file": { "type": "string" },
+          "target_file": { "type": ["string", "null"] },
           "source_symbol": { "type": ["string", "null"] },
           "target_symbol": { "type": ["string", "null"] },
           "import": { "type": "string" },
           "line": { "type": "integer" },
-          "confidence": { "type": "number" }
+          "confidence": { "type": ["number", "null"] },
+          "relation_id": { "type": "string", "minLength": 1 },
+          "evidence_class": { "type": "string", "enum": ["semantic_resolved", "import_resolved", "lexical_unique", "lexical_ambiguous", "heuristic", "runtime_observed"] },
+          "resolution_status": { "type": "string", "enum": ["resolved", "inferred", "ambiguous", "unknown"] },
+          "target_candidates": { "type": "array", "items": { "type": "string" } },
+          "provenance": { "type": "object" }
         }
       }
     },
@@ -132,6 +137,7 @@
         "tests": { "type": "integer" }
       }
     },
+    "relationship_coverage": { "type": "object", "maxProperties": 32 },
     "notes": { "type": "array", "items": { "type": "string" } }
   }
 }

@@ -287,8 +287,8 @@ def _graph_evidence(
     for edge in call_graph.get("edges", []):
         if not isinstance(edge, Mapping):
             continue
-        source = _normalize_path(str(edge.get("source_file") or edge.get("from") or ""))
-        target = _normalize_path(str(edge.get("target_file") or edge.get("to") or ""))
+        source = _normalize_path(str(edge.get("source_file") or ""))
+        target = _normalize_path(str(edge.get("target_file") or ""))
         if not source or not target or not ({source, target} & selected_paths):
             continue
         unsafe = [(path, _path_reason(root, path)) for path in (source, target)]
@@ -307,6 +307,11 @@ def _graph_evidence(
                 "dependency_distance": 0 if source == target else 1,
                 "confidence": edge.get("confidence"),
                 "provenance": "call-graph",
+                "evidence_class": str(edge.get("evidence_class") or "heuristic"),
+                "resolution_status": str(edge.get("resolution_status") or "inferred"),
+                "relation_id": str(edge.get("relation_id") or ""),
+                "target_candidates": list(edge.get("target_candidates") or []),
+                "provenance_detail": dict(edge.get("provenance") or {}),
                 "source_handle": {
                     "path": source,
                     "line": int(edge.get("line", 0) or 0) or None,
@@ -330,16 +335,27 @@ def _test_evidence(
         if not isinstance(row, Mapping):
             continue
         source = _normalize_path(str(row.get("path") or ""))
+        evidence_by_path = {
+            str(item.get("path") or ""): item
+            for item in row.get("test_evidence", [])
+            if isinstance(item, Mapping) and item.get("path")
+        }
         for path in row.get("tests", []):
             normalized = _normalize_path(str(path))
             if reason := _path_reason(root, normalized):
                 redactions.append({"path": normalized, "reason": reason, "evidence_kind": "related_test"})
                 continue
+            evidence = evidence_by_path.get(normalized, {})
+            evidence_class = str(evidence.get("evidence_class") or "inferred_by_name")
+            if evidence_class not in {"inferred_by_name", "runtime_observed"}:
+                evidence_class = "inferred_by_name"
             out[normalized] = {
                 "path": normalized,
                 "verifies": source,
                 "route": f"python -m pytest {normalized}",
-                "confidence": 1.0 if source in selected_paths else 0.5,
+                "confidence": None,
+                "confidence_semantics": "measured" if evidence_class == "runtime_observed" else "not_calibrated",
+                "evidence_class": evidence_class,
                 "provenance": "retrieval-index:related-tests",
             }
     return [out[path] for path in sorted(out)]
@@ -557,6 +573,7 @@ def build_execution_context(
         "sources": sources,
         "graph_edges": _graph_evidence(root, call_graph, selected_paths, redactions),
         "related_tests": _test_evidence(root, selection, selected_paths, redactions),
+        "graph_coverage": dict(selection.get("relation_coverage", {})),
         "precedents": _precedent_evidence(root, precedent_index or {}, goal, redactions),
         "fidelity": {
             "sufficient": (
@@ -639,7 +656,7 @@ def validate_execution_context(payload: Mapping[str, Any]) -> list[str]:
     if missing := sorted(required - set(payload)):
         errors.extend(f"MISSING_REQUIRED:{name}" for name in missing)
         return errors
-    allowed = required | {"schema"}
+    allowed = required | {"schema", "graph_coverage"}
     errors.extend(f"INVALID_SHAPE:{name}" for name in sorted(set(payload) - allowed))
 
     def expect(value: Any, expected: type, path: str) -> None:
@@ -870,6 +887,11 @@ def validate_execution_context(payload: Mapping[str, Any]) -> list[str]:
             "provenance",
             "source_handle",
             "edge_hash",
+            "evidence_class",
+            "resolution_status",
+            "relation_id",
+            "target_candidates",
+            "provenance_detail",
         }
         for index, value in enumerate(payload["graph_edges"]):
             path = f"graph_edges[{index}]"
@@ -881,9 +903,21 @@ def validate_execution_context(payload: Mapping[str, Any]) -> list[str]:
             )
             if edge is None:
                 continue
-            for field in ("kind", "source", "target", "provenance"):
+            for field in (
+                "kind",
+                "source",
+                "target",
+                "provenance",
+                "evidence_class",
+                "resolution_status",
+                "relation_id",
+            ):
                 if field in edge:
                     expect(edge[field], str, f"{path}.{field}")
+            if "target_candidates" in edge:
+                expect_string_list(edge["target_candidates"], f"{path}.target_candidates")
+            if "provenance_detail" in edge:
+                expect(edge["provenance_detail"], dict, f"{path}.provenance_detail")
             if "dependency_distance" in edge:
                 expect_integer(edge["dependency_distance"], f"{path}.dependency_distance", minimum=0)
             if "confidence" in edge:
@@ -895,7 +929,15 @@ def validate_execution_context(payload: Mapping[str, Any]) -> list[str]:
 
     expect(payload["related_tests"], list, "related_tests")
     if isinstance(payload["related_tests"], list):
-        required_fields = {"path", "verifies", "route", "confidence", "provenance"}
+        required_fields = {
+            "path",
+            "verifies",
+            "route",
+            "confidence",
+            "confidence_semantics",
+            "evidence_class",
+            "provenance",
+        }
         for index, value in enumerate(payload["related_tests"]):
             path = f"related_tests[{index}]"
             related_test = expect_object_fields(
@@ -906,11 +948,11 @@ def validate_execution_context(payload: Mapping[str, Any]) -> list[str]:
             )
             if related_test is None:
                 continue
-            for field in ("path", "verifies", "route", "provenance"):
+            for field in ("path", "verifies", "route", "confidence_semantics", "evidence_class", "provenance"):
                 if field in related_test:
                     expect(related_test[field], str, f"{path}.{field}")
             if "confidence" in related_test:
-                expect_number(related_test["confidence"], f"{path}.confidence")
+                expect_number(related_test["confidence"], f"{path}.confidence", nullable=True)
 
     expect(payload["precedents"], list, "precedents")
     if isinstance(payload["precedents"], list):

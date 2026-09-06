@@ -1,54 +1,145 @@
 {
   "counts": {
     "calls": 3,
-    "edges": 4,
-    "imports": 1
+    "edges": 5,
+    "imports": 2
+  },
+  "coverage": {
+    "ambiguous_relations": 0,
+    "edge_limit": 1000,
+    "emitted_edges": 5,
+    "evidence_classes": {
+      "heuristic": 1,
+      "import_resolved": 1,
+      "lexical_unique": 3
+    },
+    "invalid_edges": 0,
+    "observed_edges": 5,
+    "omitted_edges": 0,
+    "status": "degraded",
+    "truncated": false,
+    "unknown_relations": 1
   },
   "edges": [
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_unique",
       "line": 11,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "backend/server.py::handle_request"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "handle_request"
+      },
+      "relation_id": "bceba860e21fbffd94b8c9f49c6755e6797bfb277eedd5242473aa845dd6e157",
+      "resolution_status": "resolved",
       "source_file": "backend/server.py",
       "source_symbol": "backend/server.py::main",
+      "target_candidates": [
+        "backend/server.py::handle_request"
+      ],
       "target_file": "backend/server.py",
       "target_symbol": "backend/server.py::handle_request",
       "type": "calls"
     },
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_unique",
       "line": 15,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "backend/server.py::main"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "main"
+      },
+      "relation_id": "caa6de3edb252cb9a3bd4c8ba9c6a09c677096932f101393ac9412a23ca73ec3",
+      "resolution_status": "resolved",
       "source_file": "backend/server.py",
       "source_symbol": "backend/server.py::main",
+      "target_candidates": [
+        "backend/server.py::main"
+      ],
       "target_file": "backend/server.py",
       "target_symbol": "backend/server.py::main",
       "type": "calls"
     },
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_unique",
       "line": 5,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "backend/server.py::handle_request"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "handle_request"
+      },
+      "relation_id": "6b321aa8670a28d114231796cb9ba15f6da08017363386c74e0a6e19425a91c8",
+      "resolution_status": "resolved",
       "source_file": "backend/tests/test_server.py",
       "source_symbol": "backend/tests/test_server.py::test_health",
+      "target_candidates": [
+        "backend/server.py::handle_request"
+      ],
       "target_file": "backend/server.py",
       "target_symbol": "backend/server.py::handle_request",
       "type": "calls"
     },
     {
-      "confidence": 0.65,
+      "confidence": null,
+      "evidence_class": "import_resolved",
       "import": "backend.server",
+      "provenance": {
+        "candidate_count": 1,
+        "candidates": [
+          "backend/server.py"
+        ],
+        "import": "backend.server",
+        "method": "import-resolution"
+      },
+      "relation_id": "b1f7ef4e9ced9052f4f4e48d7f2854bc3e47d34244190806302c43852bc6c703",
+      "resolution_status": "resolved",
       "source_file": "backend/tests/test_server.py",
+      "target_candidates": [
+        "backend/server.py"
+      ],
       "target_file": "backend/server.py",
+      "type": "imports"
+    },
+    {
+      "confidence": null,
+      "evidence_class": "heuristic",
+      "import": "react",
+      "provenance": {
+        "candidate_count": 0,
+        "candidates": [],
+        "import": "react",
+        "method": "import-resolution"
+      },
+      "relation_id": "875a629866012381c865c24d231b138d7c7909d25770a86fa5f0cbfefe09f517",
+      "resolution_status": "unknown",
+      "source_file": "frontend/src/App.jsx",
+      "target_file": null,
       "type": "imports"
     }
   ],
   "generated_at": "1970-01-01T00:00:00.000Z",
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:70f69f1c3450971d4c213e1724c54426e91109d96b7ccdb8e5c40b8563517c1e",
+    "canonical_digest": "sha256:283b51881cb05f71c4d2122f8c85168d8d7298d339480cd89daf388da1ddf2cd",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",
       "precedent": "unsupported",
-      "relationships": "full",
+      "relationships": "partial",
       "symbols": "unsupported"
     },
     "component": "simplicio-mapper",

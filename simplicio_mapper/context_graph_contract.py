@@ -11,6 +11,8 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
+from .relations import CALL_GRAPH_RELATION_EVIDENCE, RELATION_RESOLUTION_STATUSES
+
 CONTRACT_SCHEMA = "simplicio.context-graph-contract/v1"
 GRAPH_SCHEMA = "simplicio.context-graph/v1"
 CONTRACT_VERSION = 1
@@ -30,19 +32,10 @@ def _public_projection(graph: Mapping[str, Any]) -> dict[str, Any]:
         key=lambda item: item["id"],
     )
     relations = sorted(
-        [
-            {
-                "id": str(edge["id"]),
-                "kind": str(edge.get("kind", "")),
-                "source": str(edge.get("source", "")),
-                "target": str(edge.get("target", "")),
-            }
-            for edge in graph.get("edges", [])
-            if isinstance(edge, Mapping) and edge.get("id")
-        ],
+        [_public_relation(edge) for edge in graph.get("edges", []) if isinstance(edge, Mapping) and edge.get("id")],
         key=lambda item: item["id"],
     )
-    return {
+    projection = {
         "stable_ids": {
             "nodes": [node["id"] for node in nodes],
             "edges": [relation["id"] for relation in relations],
@@ -50,6 +43,31 @@ def _public_projection(graph: Mapping[str, Any]) -> dict[str, Any]:
         "nodes": nodes,
         "relations": relations,
     }
+    coverage = graph.get("relation_coverage")
+    if isinstance(coverage, Mapping) and coverage:
+        projection["relation_coverage"] = dict(coverage)
+    return projection
+
+
+def _public_relation(edge: Mapping[str, Any]) -> dict[str, Any]:
+    """Project graph relations without dropping Mapper evidence metadata."""
+    relation = {
+        "id": str(edge["id"]),
+        "kind": str(edge.get("kind", "")),
+        "source": str(edge.get("source", "")),
+        "target": str(edge.get("target", "")),
+    }
+    for field in (
+        "relation_id",
+        "evidence_class",
+        "resolution_status",
+        "provenance",
+        "target_candidates",
+        "confidence",
+    ):
+        if field in edge:
+            relation[field] = edge[field]
+    return relation
 
 
 def build_public_contract(graph: Mapping[str, Any], *, repository_id: str, generation: str) -> dict[str, Any]:
@@ -172,6 +190,26 @@ def validate_public_contract(contract: Mapping[str, Any]) -> dict[str, Any]:
                     f"{path}.{field}",
                     f"relation {field} must be a non-empty string",
                 )
+        if "relation_id" in relation and (
+            not isinstance(relation["relation_id"], str) or not relation["relation_id"]
+        ):
+            return _diagnostic("relation_id_invalid", f"{path}.relation_id", "relation_id must be a non-empty string")
+        if "evidence_class" in relation and relation["evidence_class"] not in CALL_GRAPH_RELATION_EVIDENCE:
+            return _diagnostic("relation_evidence_invalid", f"{path}.evidence_class", "unsupported evidence_class")
+        if "resolution_status" in relation and relation["resolution_status"] not in RELATION_RESOLUTION_STATUSES:
+            return _diagnostic("relation_resolution_invalid", f"{path}.resolution_status", "unsupported resolution_status")
+        if "provenance" in relation and not isinstance(relation["provenance"], Mapping):
+            return _diagnostic("relation_provenance_invalid", f"{path}.provenance", "provenance must be an object")
+        if "target_candidates" in relation and (
+            not isinstance(relation["target_candidates"], list)
+            or any(not isinstance(candidate, str) for candidate in relation["target_candidates"])
+        ):
+            return _diagnostic("relation_candidates_invalid", f"{path}.target_candidates", "target_candidates must be strings")
+        if "confidence" in relation and (
+            relation["confidence"] is not None
+            and (not isinstance(relation["confidence"], (int, float)) or isinstance(relation["confidence"], bool))
+        ):
+            return _diagnostic("relation_confidence_invalid", f"{path}.confidence", "confidence must be a number or null")
         relation_ids.append(relation_id)
 
     if node_ids != sorted(node_ids):
@@ -188,6 +226,9 @@ def validate_public_contract(contract: Mapping[str, Any]) -> dict[str, Any]:
             "$.stable_ids.edges",
             "stable edge ids must exactly match ordered relations",
         )
+
+    if "relation_coverage" in contract and not isinstance(contract["relation_coverage"], Mapping):
+        return _diagnostic("relation_coverage_invalid", "$.relation_coverage", "relation_coverage must be an object")
 
     supplied = contract.get("digest")
     if not isinstance(supplied, str) or _DIGEST_PATTERN.fullmatch(supplied) is None:

@@ -20,6 +20,7 @@ import orjson
 from ..cache import FileProcessingCache
 from ..diagrams import render_flowchart, render_flowchart_svg, to_image_markdown, to_markdown_block
 from ..models import ProjectFile
+from ..relations import relation_id
 from .canonical_artifacts import attach_canonical_metadata
 from .execution_planner import ExecutionProfile, plan_execution
 from .graph import (
@@ -450,7 +451,8 @@ def _call_graph_file_graph(call_graph: dict) -> tuple[list[dict], list[dict]]:
         elif target_symbol:
             target_id, target_label = f"symbol:{target_symbol}", target_symbol
         else:
-            continue
+            target_id = f"unknown:{edge.get('relation_id') or relation_id(edge)}"
+            target_label = "unknown target"
         if source_file == target_id:
             continue
         seen_nodes.setdefault(source_file, {"id": source_file, "label": source_file})
@@ -533,7 +535,7 @@ def _render_call_graph_doc(call_graph: dict) -> str:
     lines = [
         "# Call Graph",
         "",
-        "Edges are deterministic or heuristic. Review `confidence` before using a relationship as proof.",
+        "Edges are deterministic or heuristic. Review `evidence_class` and `resolution_status` before using a relationship as proof.",
         "",
     ]
     graph_nodes, graph_edges = _call_graph_file_graph(call_graph)
@@ -547,15 +549,16 @@ def _render_call_graph_doc(call_graph: dict) -> str:
     for edge in call_graph.get("edges", [])[:300]:
         if edge.get("type") == "imports":
             lines.append(
-                f"- imports: {_file_ref(edge['source_file'])} -> {_file_ref(edge['target_file'])} "
-                f"(confidence {edge['confidence']})"
+                f"- imports: {_file_ref(edge['source_file'])} -> "
+                f"{_file_ref(edge['target_file']) if edge.get('target_file') else 'unknown target'} "
+                f"(evidence {edge.get('evidence_class')}, confidence {edge['confidence']})"
             )
         else:
-            target = edge.get("target_symbol") or edge.get("target_file")
+            target = edge.get("target_symbol") or edge.get("target_file") or "unknown target"
             line = edge.get("line")
             lines.append(
                 f"- calls: {_file_ref(edge['source_file'], line)} -> `{target}` "
-                f"(confidence {edge['confidence']})"
+                f"(evidence {edge.get('evidence_class')}, confidence {edge['confidence']})"
             )
     return "\n".join(lines)
 

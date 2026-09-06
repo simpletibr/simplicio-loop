@@ -43,9 +43,10 @@ from typing import Any
 from . import __version__
 from ._native import HAS_NATIVE
 from ._native import sha256_hex as _native_sha256_hex
-from .mapper import ARTIFACT_VERSION, _now_iso
-
 from .context_contract import MAX_SNAPSHOT_BYTES
+from .mapper import ARTIFACT_VERSION, _now_iso
+from .relations import canonicalize_relation, relation_coverage
+
 CONTEXT_SNAPSHOT_SCHEMA = "simplicio.context-snapshot/v1"
 CONTEXT_GRAPH_SCHEMA = "simplicio.context-graph/v1"
 SCHEMA_VERSION = "v1"
@@ -114,6 +115,11 @@ class ContextGraph:
     def __init__(self) -> None:
         self._nodes: dict[str, dict] = {}
         self._edges: dict[str, dict] = {}
+        self._relation_coverage: dict[str, Any] = {}
+
+    def set_relation_coverage(self, coverage: Mapping[str, Any] | None) -> None:
+        """Attach producer coverage so omitted graph edges stay observable."""
+        self._relation_coverage = dict(coverage or {})
 
     def add_node(self, scale: str, node_id: str, *, content: Any, source: dict) -> str:
         """Register a node; returns its content hash.
@@ -142,10 +148,15 @@ class ContextGraph:
         content: Any,
         source: dict,
         confidence: float | None = None,
+        relation_id: str | None = None,
+        evidence_class: str | None = None,
+        resolution_status: str | None = None,
+        provenance: Mapping[str, Any] | None = None,
+        target_candidates: list[str] | None = None,
     ) -> str:
         """Register a causal/dependency edge; returns its content hash."""
         content_hash = _canonical_hash(content)
-        edge_id = _canonical_hash({"kind": kind, "source": source_id, "target": target_id})
+        edge_id = relation_id or _canonical_hash({"kind": kind, "source": source_id, "target": target_id})
         self._edges[edge_id] = {
             "id": edge_id,
             "kind": kind,
@@ -156,6 +167,16 @@ class ContextGraph:
         }
         if confidence is not None:
             self._edges[edge_id]["confidence"] = float(confidence)
+        if relation_id is not None:
+            self._edges[edge_id]["relation_id"] = relation_id
+        if evidence_class is not None:
+            self._edges[edge_id]["evidence_class"] = evidence_class
+        if resolution_status is not None:
+            self._edges[edge_id]["resolution_status"] = resolution_status
+        if provenance is not None:
+            self._edges[edge_id]["provenance"] = dict(provenance)
+        if target_candidates is not None:
+            self._edges[edge_id]["target_candidates"] = list(target_candidates)
         return content_hash
 
     def to_dict(self) -> dict:
@@ -166,6 +187,7 @@ class ContextGraph:
             "version": 1,
             "nodes": nodes,
             "edges": edges,
+            "relation_coverage": dict(self._relation_coverage),
             "counts": {
                 "nodes": len(nodes),
                 "edges": len(edges),
@@ -349,7 +371,36 @@ def build_context_graph(
         )
 
     # -- edges: calls/imports (causal) ----------------------------------
-    for edge in call_graph.get("edges", []):
+    raw_edges = call_graph.get("edges", [])
+    raw_edges = raw_edges if isinstance(raw_edges, list) else []
+    graph_coverage = call_graph.get("coverage", {})
+    graph_coverage = graph_coverage if isinstance(graph_coverage, Mapping) else {}
+    canonical_edges = [
+        canonicalize_relation(raw_edge)
+        for raw_edge in raw_edges
+        if isinstance(raw_edge, Mapping)
+    ]
+    canonical_edges = [edge for edge in canonical_edges if edge is not None]
+    computed_coverage = relation_coverage(
+        canonical_edges,
+        observed_edges=max(len(raw_edges), int(graph_coverage.get("observed_edges", 0) or 0)),
+        edge_limit=graph_coverage.get("edge_limit"),
+        invalid_edges=max(
+            max(0, len(raw_edges) - len(canonical_edges)),
+            int(graph_coverage.get("invalid_edges", 0) or 0),
+        ),
+    )
+    computed_coverage.update(
+        {
+            key: value
+            for key, value in graph_coverage.items()
+            if key not in computed_coverage
+        }
+    )
+    if graph_coverage.get("status") == "degraded":
+        computed_coverage["status"] = "degraded"
+    graph.set_relation_coverage(computed_coverage)
+    for edge in canonical_edges:
         etype = edge.get("type")
         src_file = edge.get("source_file")
         tgt_file = edge.get("target_file")
@@ -357,12 +408,24 @@ def build_context_graph(
         if not src_file:
             continue
         source_id = f"file:{src_file}"
-        if tgt_symbol:
+        if not tgt_file:
+            target_id = f"unknown:{edge.get('relation_id')}"
+            graph.add_node(
+                "meso",
+                target_id,
+                content={
+                    "relation_id": edge.get("relation_id"),
+                    "target_file": None,
+                    "target_symbol": edge.get("target_symbol"),
+                    "evidence_class": edge.get("evidence_class"),
+                    "resolution_status": edge.get("resolution_status"),
+                },
+                source=source_handle(src_file, line=edge.get("line")),
+            )
+        elif tgt_symbol:
             target_id = f"symbol:{tgt_symbol}"
-        elif tgt_file:
-            target_id = f"file:{tgt_file}"
         else:
-            continue
+            target_id = f"file:{tgt_file}"
         if source_id == target_id:
             continue
         graph.add_edge(
@@ -372,6 +435,11 @@ def build_context_graph(
             content=edge,
             source=source_handle(src_file, line=edge.get("line")),
             confidence=edge.get("confidence"),
+            relation_id=edge.get("relation_id"),
+            evidence_class=edge.get("evidence_class"),
+            resolution_status=edge.get("resolution_status"),
+            provenance=edge.get("provenance"),
+            target_candidates=edge.get("target_candidates"),
         )
 
     # -- edges: module -> layer membership (structural) -----------------
@@ -548,6 +616,8 @@ def build_context_snapshot(
         architecture_inventory=architecture_inventory,
     )
     graph_dict = graph.to_dict()
+    if graph_dict.get("relation_coverage", {}).get("status") == "degraded":
+        omissions.append("call-graph-relation-coverage-degraded")
     graph_bytes = len(_stable_json(graph_dict).encode("utf-8"))
     source_bytes = len(_stable_json(source_paths).encode("utf-8"))
     needs_bound = bool(budget_tokens) or len(source_paths) > 4096 or any(len(path) > 4096 for path in source_paths) or graph_bytes + source_bytes > 15 * 1024 * 1024

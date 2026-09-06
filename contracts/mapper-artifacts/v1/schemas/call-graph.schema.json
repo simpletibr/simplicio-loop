@@ -1,7 +1,7 @@
 {
   "$id": "simplicio.call-graph/v1",
   "title": "simplicio-mapper call-graph.json (v1)",
-  "description": "calls/imports edges derived from symbol-index.json. Edge shape varies by `type`: an `imports` edge has no source_symbol/target_symbol/line; a `calls` edge has no `import`, and its source_symbol may be null when the caller could not be resolved to a specific symbol.",
+  "description": "Canonical calls/imports relations derived from symbol-index.json. Endpoints are always `source_file`/`target_file`; `target_file` may be null only when the relation is explicitly unknown. Evidence classes describe resolution without presenting heuristic scores as calibrated probabilities.",
   "type": "object",
   "required": ["schema", "producer", "version", "generated_at", "source_symbol_index", "edges", "counts"],
   "properties": {
@@ -14,16 +14,21 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["type", "source_file", "target_file", "confidence"],
+        "required": ["type", "source_file", "target_file", "confidence", "evidence_class", "resolution_status", "relation_id", "provenance"],
         "properties": {
           "type": { "type": "string", "enum": ["calls", "imports"] },
           "source_file": { "type": "string" },
-          "target_file": { "type": "string" },
+          "target_file": { "type": ["string", "null"] },
           "source_symbol": { "type": ["string", "null"] },
           "target_symbol": { "type": ["string", "null"] },
           "import": { "type": "string" },
           "line": { "type": "integer" },
-          "confidence": { "type": "number" }
+          "confidence": { "type": ["number", "null"] },
+          "relation_id": { "type": "string", "minLength": 1 },
+          "evidence_class": { "type": "string", "enum": ["semantic_resolved", "import_resolved", "lexical_unique", "lexical_ambiguous", "heuristic", "runtime_observed"] },
+          "resolution_status": { "type": "string", "enum": ["resolved", "inferred", "ambiguous", "unknown"] },
+          "target_candidates": { "type": "array", "items": { "type": "string" } },
+          "provenance": { "type": "object" }
         }
       }
     },
@@ -34,6 +39,22 @@
         "edges": { "type": "integer" },
         "imports": { "type": "integer" },
         "calls": { "type": "integer" }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "required": ["status", "observed_edges", "emitted_edges", "omitted_edges", "truncated", "unknown_relations", "ambiguous_relations", "evidence_classes"],
+      "properties": {
+        "status": { "type": "string", "enum": ["complete", "degraded"] },
+        "edge_limit": { "type": ["integer", "null"] },
+        "observed_edges": { "type": "integer" },
+        "emitted_edges": { "type": "integer" },
+        "omitted_edges": { "type": "integer" },
+        "truncated": { "type": "boolean" },
+        "invalid_edges": { "type": "integer" },
+        "unknown_relations": { "type": "integer" },
+        "ambiguous_relations": { "type": "integer" },
+        "evidence_classes": { "type": "object" }
       }
     }
   }

@@ -4,66 +4,210 @@
     "edges": 7,
     "imports": 0
   },
+  "coverage": {
+    "ambiguous_relations": 6,
+    "edge_limit": 1000,
+    "emitted_edges": 7,
+    "evidence_classes": {
+      "lexical_ambiguous": 6,
+      "lexical_unique": 1
+    },
+    "invalid_edges": 0,
+    "observed_edges": 7,
+    "omitted_edges": 0,
+    "status": "degraded",
+    "truncated": false,
+    "unknown_relations": 0
+  },
   "edges": [
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_ambiguous",
       "line": 1,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 3,
+        "candidates": [
+          "crates/core/src/lib.rs::run",
+          "duplicates/one.py::run",
+          "duplicates/two.py::run"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "run"
+      },
+      "relation_id": "c44c9f4ebf927e0364aac0e9c70aa4e5e1ad12bdba04e9ec862025bba5c1a722",
+      "resolution_status": "ambiguous",
       "source_file": "crates/core/src/lib.rs",
       "source_symbol": "crates/core/src/lib.rs::run",
+      "target_candidates": [
+        "crates/core/src/lib.rs::run",
+        "duplicates/one.py::run",
+        "duplicates/two.py::run"
+      ],
       "target_file": "duplicates/one.py",
       "target_symbol": "duplicates/one.py::run",
       "type": "calls"
     },
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_ambiguous",
       "line": 1,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 3,
+        "candidates": [
+          "crates/core/src/lib.rs::run",
+          "duplicates/one.py::run",
+          "duplicates/two.py::run"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "run"
+      },
+      "relation_id": "7a46514d90da28bddd641dac8032183a19b40c7f5e21ac5055b7749df80b245a",
+      "resolution_status": "ambiguous",
       "source_file": "crates/core/src/lib.rs",
       "source_symbol": "crates/core/src/lib.rs::run",
+      "target_candidates": [
+        "crates/core/src/lib.rs::run",
+        "duplicates/one.py::run",
+        "duplicates/two.py::run"
+      ],
       "target_file": "duplicates/two.py",
       "target_symbol": "duplicates/two.py::run",
       "type": "calls"
     },
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_ambiguous",
       "line": 1,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 3,
+        "candidates": [
+          "crates/core/src/lib.rs::run",
+          "duplicates/one.py::run",
+          "duplicates/two.py::run"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "run"
+      },
+      "relation_id": "dddd74b04c1e243b5aa949234452cfc334eaa40895fc7ece0c7c68122f74488c",
+      "resolution_status": "ambiguous",
       "source_file": "duplicates/one.py",
       "source_symbol": "duplicates/one.py::run",
+      "target_candidates": [
+        "crates/core/src/lib.rs::run",
+        "duplicates/one.py::run",
+        "duplicates/two.py::run"
+      ],
       "target_file": "crates/core/src/lib.rs",
       "target_symbol": "crates/core/src/lib.rs::run",
       "type": "calls"
     },
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_ambiguous",
       "line": 1,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 3,
+        "candidates": [
+          "crates/core/src/lib.rs::run",
+          "duplicates/one.py::run",
+          "duplicates/two.py::run"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "run"
+      },
+      "relation_id": "35feb0663ea0cee1f5ab6e059d9b244d5844304d28c5cf7d54e1eefb5a62a950",
+      "resolution_status": "ambiguous",
       "source_file": "duplicates/one.py",
       "source_symbol": "duplicates/one.py::run",
+      "target_candidates": [
+        "crates/core/src/lib.rs::run",
+        "duplicates/one.py::run",
+        "duplicates/two.py::run"
+      ],
       "target_file": "duplicates/two.py",
       "target_symbol": "duplicates/two.py::run",
       "type": "calls"
     },
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_ambiguous",
       "line": 1,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 3,
+        "candidates": [
+          "crates/core/src/lib.rs::run",
+          "duplicates/one.py::run",
+          "duplicates/two.py::run"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "run"
+      },
+      "relation_id": "4e3b27ab0c765cd013d32f269d709ed8937d9f8d42454243b737888108918a2f",
+      "resolution_status": "ambiguous",
       "source_file": "duplicates/two.py",
       "source_symbol": "duplicates/two.py::run",
+      "target_candidates": [
+        "crates/core/src/lib.rs::run",
+        "duplicates/one.py::run",
+        "duplicates/two.py::run"
+      ],
       "target_file": "crates/core/src/lib.rs",
       "target_symbol": "crates/core/src/lib.rs::run",
       "type": "calls"
     },
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_ambiguous",
       "line": 1,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 3,
+        "candidates": [
+          "crates/core/src/lib.rs::run",
+          "duplicates/one.py::run",
+          "duplicates/two.py::run"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "run"
+      },
+      "relation_id": "740d9f8fd071ca5c72c4dec0665ff6b9c01ac71b3266f9a98a6ef7c6c24263fa",
+      "resolution_status": "ambiguous",
       "source_file": "duplicates/two.py",
       "source_symbol": "duplicates/two.py::run",
+      "target_candidates": [
+        "crates/core/src/lib.rs::run",
+        "duplicates/one.py::run",
+        "duplicates/two.py::run"
+      ],
       "target_file": "duplicates/one.py",
       "target_symbol": "duplicates/one.py::run",
       "type": "calls"
     },
     {
-      "confidence": 0.58,
+      "confidence": null,
+      "evidence_class": "lexical_unique",
       "line": 2,
+      "provenance": {
+        "caller_resolution": "lexical_nearest",
+        "candidate_count": 1,
+        "candidates": [
+          "services/kotlin/Main.kt::language"
+        ],
+        "method": "symbol-name-lookup",
+        "queried_symbol": "language"
+      },
+      "relation_id": "0d4073c6ce99c02e9c52971b918cfe8f2ec0dcf24a9ccb18b02ece3ea208274f",
+      "resolution_status": "resolved",
       "source_file": "services/java/Main.java",
       "source_symbol": "services/java/Main.java::Main",
+      "target_candidates": [
+        "services/kotlin/Main.kt::language"
+      ],
       "target_file": "services/kotlin/Main.kt",
       "target_symbol": "services/kotlin/Main.kt::language",
       "type": "calls"
@@ -72,7 +216,7 @@
   "generated_at": "1970-01-01T00:00:00.000Z",
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:f9571e140688d5677b9d3dd8497095744cb5a31e7eda7f6021053fb981423b75",
+    "canonical_digest": "sha256:71c830118cdcef0570aa1839e5f070f8f7a9f63c1a2ab86e5b52fc100ab04a28",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",
