@@ -117,6 +117,26 @@ See that README for schemas, fixtures, the validate command, and how
 downstream repos (simplicio-dev-cli, simplicio-loop, simplicio-runtime)
 should consume the fixtures in their own tests.
 
+### Canonical v1 producer contract (#614)
+
+[`CANONICAL_CONTRACT.md`](../contracts/mapper-artifacts/v1/CANONICAL_CONTRACT.md)
+defines the shared producer metadata envelope, semantic digest exclusions,
+ordering rules and private-native migration policy. The required edge cases
+are indexed by [`fixture-matrix.json`](../contracts/mapper-artifacts/v1/fixtures/fixture-matrix.json).
+
+```bash
+python3 scripts/regen_contract_fixtures.py check
+python3 -m pytest tests/python/test_canonical_mapper_artifacts.py -q
+```
+
+The check re-runs the real Python entry point, validates all five artifacts,
+and compares normalized output with committed golden fixtures; semantic drift
+fails the local release quality gate and `.github/workflows/mapper-canonical-contracts.yml`.
+
+Only the Python backend emits the five public v1 ids in this release. The
+Node mirror emits `simplicio.mapper-native/<artifact>/v1` until differential
+parity is proven against the same fixture suite.
+
 ## `simplicio-mapper doctor --contracts` / `scripts/validate_ecosystem_contracts.py` (issue #164)
 
 Extends the above to two cross-repo payloads that originate *outside*

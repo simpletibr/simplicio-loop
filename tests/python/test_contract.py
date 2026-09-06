@@ -121,7 +121,12 @@ class RealFixtureValidationTest(unittest.TestCase):
     without invoking the mapper)."""
 
     def test_all_committed_artifact_fixtures_validate(self) -> None:
-        for fixture_name in ("python-minimal", "node-minimal", "mixed-workspace"):
+        for fixture_name in (
+            "python-minimal",
+            "node-minimal",
+            "mixed-workspace",
+            "canonical-matrix",
+        ):
             artifacts_dir = os.path.join(FIXTURES_ROOT, fixture_name, "artifacts")
             self.assertTrue(os.path.isdir(artifacts_dir), artifacts_dir)
             for filename in os.listdir(artifacts_dir):
@@ -136,9 +141,14 @@ class RealFixtureValidationTest(unittest.TestCase):
         self.assertEqual(schema_id, "simplicio.mapper-index/v1")
         self.assertEqual(errors, [])
 
-    def test_all_three_fixtures_cover_project_map(self) -> None:
-        # Issue #157 AC: "at least 3 fixtures cover Python/Node/mixed workspace".
-        for fixture_name in ("python-minimal", "node-minimal", "mixed-workspace"):
+    def test_all_fixtures_cover_project_map(self) -> None:
+        # Issue #157 AC plus #614's mixed-language matrix fixture.
+        for fixture_name in (
+            "python-minimal",
+            "node-minimal",
+            "mixed-workspace",
+            "canonical-matrix",
+        ):
             path = os.path.join(FIXTURES_ROOT, fixture_name, "artifacts", "project-map.json")
             self.assertTrue(os.path.isfile(path), path)
 

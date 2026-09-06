@@ -418,6 +418,7 @@ async def build_artifacts_async(
     # this top-level module never imports `.emit` at import time -- this
     # deferred import here mirrors that to keep the dependency direction
     # a call-time-only cycle, not a module-load-time one.
+    from .canonical_artifacts import attach_canonical_metadata
     from .emit import _build_agent_tree
 
     meta = meta or {}
@@ -547,7 +548,7 @@ async def build_artifacts_async(
         pipeline_metrics = dict(pipeline_metrics or {})
         pipeline_metrics["memory_budget"] = memory_budget.receipt()
 
-    return {
+    artifacts = {
         "project_map": project_map,
         "precedent_index": precedent_index,
         "architecture_inventory": architecture_inventory,
@@ -555,3 +556,9 @@ async def build_artifacts_async(
         "call_graph": call_graph,
         "async_pipeline_metrics": pipeline_metrics,
     }
+    public_artifacts = {
+        key: artifacts[key]
+        for key in ("project_map", "precedent_index", "architecture_inventory", "symbol_index", "call_graph")
+    }
+    attach_canonical_metadata(abs_cwd, public_artifacts, degraded=degraded)
+    return artifacts

@@ -59,18 +59,19 @@ test('autoMapProject emits rich project-map and precedent-index artifacts', () =
     const symbolIndex = readJson(dir, '.simplicio/symbol-index.json');
     const callGraph = readJson(dir, '.simplicio/call-graph.json');
 
-    assert.equal(projectMap.schema, 'simplicio.project-map/v1');
+    assert.equal(projectMap.schema, 'simplicio.mapper-native/project-map/v1');
     assert.equal(projectMap.product.name, 'Artifact Host');
     assert.ok(projectMap.files.some((file) => file.path === 'src/server.js' && file.language === 'javascript'));
     assert.ok(projectMap.entry_points.includes('src/server.js'));
     assert.ok(projectMap.test_files.includes('tests/server.test.js'));
     assert.ok(projectMap.architecture.signals.includes('express'));
     assert.ok(projectMap.entities.some((entity) => entity.name === 'server'));
-    assert.equal(precedentIndex.schema, 'simplicio.precedent-index/v1');
+    assert.equal(precedentIndex.schema, 'simplicio.mapper-native/precedent-index/v1');
     assert.ok(precedentIndex.items.some((item) => item.path === 'tests/server.test.js' && item.change_type === 'test'));
-    assert.equal(architectureInventory.schema, 'simplicio.architecture-inventory/v1');
-    assert.equal(symbolIndex.schema, 'simplicio.symbol-index/v1');
-    assert.equal(callGraph.schema, 'simplicio.call-graph/v1');
+    assert.equal(architectureInventory.schema, 'simplicio.mapper-native/architecture-inventory/v1');
+    assert.equal(symbolIndex.schema, 'simplicio.mapper-native/symbol-index/v1');
+    assert.equal(callGraph.schema, 'simplicio.mapper-native/call-graph/v1');
+    assert.notEqual(projectMap.schema, 'simplicio.project-map/v1');
     assert.ok(architectureInventory.layers.some((layer) => layer.name === 'service'));
     assert.ok(symbolIndex.symbols.some((symbol) => symbol.name === 'listUsers'));
   } finally {

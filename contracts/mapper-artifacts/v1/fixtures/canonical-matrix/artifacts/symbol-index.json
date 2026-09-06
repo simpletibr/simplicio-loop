@@ -1,0 +1,194 @@
+{
+  "counts": {
+    "files": 11,
+    "symbols": 13
+  },
+  "generated_at": "1970-01-01T00:00:00.000Z",
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:7cbf93db4dfaf325871a7ea17572fe7b54ff9c8fe20de8490a57ec4281da8b14",
+    "capability_coverage": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "unsupported",
+      "relationships": "unsupported",
+      "symbols": "partial"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [
+      "files:large/ignored.txt",
+      "generated:dist",
+      "symlink:links/app.py"
+    ],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
+  "root": "<fixture-root>",
+  "schema": "simplicio.symbol-index/v1",
+  "symbols": [
+    {
+      "defined_in": "apps/python/app.py",
+      "evidence": {
+        "file": "apps/python/app.py",
+        "line": 1
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 1,
+      "name": "serve",
+      "qualified_name": "apps/python/app.py::serve"
+    },
+    {
+      "defined_in": "apps/web/src/index.js",
+      "evidence": {
+        "file": "apps/web/src/index.js",
+        "line": 1
+      },
+      "kind": "function",
+      "language": "javascript",
+      "line": 1,
+      "name": "renderJavaScript",
+      "qualified_name": "apps/web/src/index.js::renderJavaScript"
+    },
+    {
+      "defined_in": "apps/web/src/index.ts",
+      "evidence": {
+        "file": "apps/web/src/index.ts",
+        "line": 1
+      },
+      "kind": "function",
+      "language": "typescript",
+      "line": 1,
+      "name": "render",
+      "qualified_name": "apps/web/src/index.ts::render"
+    },
+    {
+      "defined_in": "crates/core/src/lib.rs",
+      "evidence": {
+        "file": "crates/core/src/lib.rs",
+        "line": 1
+      },
+      "kind": "function",
+      "language": "rust",
+      "line": 1,
+      "name": "run",
+      "qualified_name": "crates/core/src/lib.rs::run"
+    },
+    {
+      "defined_in": "db/schema.sql",
+      "evidence": {
+        "file": "db/schema.sql",
+        "line": 1
+      },
+      "kind": "table",
+      "language": "sql",
+      "line": 1,
+      "name": "users",
+      "qualified_name": "db/schema.sql::users"
+    },
+    {
+      "defined_in": "duplicates/one.py",
+      "evidence": {
+        "file": "duplicates/one.py",
+        "line": 1
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 1,
+      "name": "run",
+      "qualified_name": "duplicates/one.py::run"
+    },
+    {
+      "defined_in": "duplicates/two.py",
+      "evidence": {
+        "file": "duplicates/two.py",
+        "line": 1
+      },
+      "kind": "function",
+      "language": "python",
+      "line": 1,
+      "name": "run",
+      "qualified_name": "duplicates/two.py::run"
+    },
+    {
+      "defined_in": "services/dotnet/Program.cs",
+      "evidence": {
+        "file": "services/dotnet/Program.cs",
+        "line": 1
+      },
+      "kind": "class",
+      "language": "csharp",
+      "line": 1,
+      "name": "Program",
+      "qualified_name": "services/dotnet/Program.cs::Program"
+    },
+    {
+      "defined_in": "services/dotnet/Program.cs",
+      "evidence": {
+        "file": "services/dotnet/Program.cs",
+        "line": 3
+      },
+      "kind": "method",
+      "language": "csharp",
+      "line": 3,
+      "name": "Language",
+      "qualified_name": "services/dotnet/Program.cs::Language"
+    },
+    {
+      "defined_in": "services/go/main.go",
+      "evidence": {
+        "file": "services/go/main.go",
+        "line": 3
+      },
+      "kind": "function",
+      "language": "go",
+      "line": 3,
+      "name": "main",
+      "qualified_name": "services/go/main.go::main"
+    },
+    {
+      "defined_in": "services/java/Main.java",
+      "evidence": {
+        "file": "services/java/Main.java",
+        "line": 1
+      },
+      "kind": "class",
+      "language": "java",
+      "line": 1,
+      "name": "Main",
+      "qualified_name": "services/java/Main.java::Main"
+    },
+    {
+      "defined_in": "services/kotlin/Main.kt",
+      "evidence": {
+        "file": "services/kotlin/Main.kt",
+        "line": 1
+      },
+      "kind": "class",
+      "language": "kotlin",
+      "line": 1,
+      "name": "Main",
+      "qualified_name": "services/kotlin/Main.kt::Main"
+    },
+    {
+      "defined_in": "services/kotlin/Main.kt",
+      "evidence": {
+        "file": "services/kotlin/Main.kt",
+        "line": 2
+      },
+      "kind": "function",
+      "language": "kotlin",
+      "line": 2,
+      "name": "language",
+      "qualified_name": "services/kotlin/Main.kt::language"
+    }
+  ],
+  "version": 1
+}

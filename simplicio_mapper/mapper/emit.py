@@ -20,6 +20,7 @@ import orjson
 from ..cache import FileProcessingCache
 from ..diagrams import render_flowchart, render_flowchart_svg, to_image_markdown, to_markdown_block
 from ..models import ProjectFile
+from .canonical_artifacts import attach_canonical_metadata
 from .execution_planner import ExecutionProfile, plan_execution
 from .graph import (
     _build_architecture_inventory,
@@ -277,13 +278,13 @@ def _build_artifacts_sync(cwd: str, meta: dict | None = None, incremental: bool 
     project_map["agent_tree"] = agent_tree
     contents.clear()
 
-    return {
+    return attach_canonical_metadata(abs_cwd, {
         "project_map": project_map,
         "precedent_index": precedent_index,
         "architecture_inventory": architecture_inventory,
         "symbol_index": symbol_index,
         "call_graph": call_graph,
-    }
+    }, degraded=degraded)
 
 
 def build_artifacts(cwd: str, meta: dict | None = None, incremental: bool = False,

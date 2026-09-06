@@ -1,22 +1,22 @@
 {
   "counts": {
-    "calls": 5,
-    "edges": 6,
+    "calls": 3,
+    "edges": 4,
     "imports": 1
   },
   "edges": [
     {
       "confidence": 0.58,
-      "line": 4,
+      "line": 11,
       "source_file": "backend/server.py",
-      "source_symbol": "backend/server.py::handle_request",
+      "source_symbol": "backend/server.py::main",
       "target_file": "backend/server.py",
       "target_symbol": "backend/server.py::handle_request",
       "type": "calls"
     },
     {
       "confidence": 0.58,
-      "line": 10,
+      "line": 15,
       "source_file": "backend/server.py",
       "source_symbol": "backend/server.py::main",
       "target_file": "backend/server.py",
@@ -38,27 +38,31 @@
       "source_file": "backend/tests/test_server.py",
       "target_file": "backend/server.py",
       "type": "imports"
-    },
-    {
-      "confidence": 0.58,
-      "line": 4,
-      "source_file": "backend/tests/test_server.py",
-      "source_symbol": "backend/tests/test_server.py::test_health",
-      "target_file": "backend/tests/test_server.py",
-      "target_symbol": "backend/tests/test_server.py::test_health",
-      "type": "calls"
-    },
-    {
-      "confidence": 0.58,
-      "line": 3,
-      "source_file": "frontend/src/App.jsx",
-      "source_symbol": "frontend/src/App.jsx::App",
-      "target_file": "frontend/src/App.jsx",
-      "target_symbol": "frontend/src/App.jsx::App",
-      "type": "calls"
     }
   ],
   "generated_at": "1970-01-01T00:00:00.000Z",
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:70f69f1c3450971d4c213e1724c54426e91109d96b7ccdb8e5c40b8563517c1e",
+    "capability_coverage": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "unsupported",
+      "relationships": "full",
+      "symbols": "unsupported"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
   "schema": "simplicio.call-graph/v1",
   "source_symbol_index": ".simplicio/symbol-index.json",
   "version": 1

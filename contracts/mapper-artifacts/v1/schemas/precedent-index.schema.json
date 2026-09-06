@@ -3,9 +3,10 @@
   "title": "simplicio-mapper precedent-index.json (v1)",
   "description": "Task-relevant precedent snippets (feature/test/fix examples) derived from project-map.json.",
   "type": "object",
-  "required": ["schema", "version", "generated_at", "source_project_map", "items"],
+  "required": ["schema", "producer", "version", "generated_at", "source_project_map", "items"],
   "properties": {
     "schema": { "type": "string", "enum": ["simplicio.precedent-index/v1"] },
+    "producer": { "$ref": "producer-metadata.schema.json" },
     "version": { "type": "integer" },
     "generated_at": { "type": "string" },
     "source_project_map": { "type": "string" },

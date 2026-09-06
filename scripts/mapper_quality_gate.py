@@ -52,7 +52,7 @@ def _run(
             capture_output=True,
             check=False,
         )
-    except OSError as error:
+    except OSError:
         # An unavailable executable is an environmental null, not a command
         # failure. Do not expose localized OS text to the status classifier.
         return False, ""
@@ -158,6 +158,11 @@ def build_report(
             value for value in (str(root), existing_pythonpath) if value
         )
         for name, command, env in (
+            (
+                "Mapper artifact contract fixtures",
+                [sys.executable, "scripts/regen_contract_fixtures.py", "check"],
+                test_env,
+            ),
             # Fixture projects have their own `src` roots and are exercised by
             # their dedicated contract/E2E tests. Collecting them from the
             # repository root makes pytest resolve the wrong import root.

@@ -7,10 +7,26 @@
       "language": "python",
       "line": 4,
       "path": "src/app.py",
+      "rank": 1,
       "snippet": "\n\ndef greet(name: str) -> str:\n    \"\"\"Return a greeting for ``name``.\"\"\"\n    return f\"Hello, {name}!\"",
       "summary": "feature precedent in src/app.py",
       "tags": [
         "entrypoint",
+        "python",
+        "app"
+      ]
+    },
+    {
+      "change_type": "test",
+      "id": "16271231ce0948ce",
+      "language": "python",
+      "line": 4,
+      "path": "tests/test_app.py",
+      "rank": 1,
+      "snippet": "\n\ndef test_greet():\n    assert greet(\"x\") == \"Hello, x!\"\n",
+      "summary": "test precedent in tests/test_app.py",
+      "tags": [
+        "test",
         "python",
         "app"
       ]
@@ -21,6 +37,7 @@
       "language": "python",
       "line": 1,
       "path": "src/util.py",
+      "rank": 1,
       "snippet": "def add(a: int, b: int) -> int:\n    return a + b\n",
       "summary": "feature precedent in src/util.py",
       "tags": [
@@ -29,20 +46,43 @@
       ]
     },
     {
-      "change_type": "test",
-      "id": "16271231ce0948ce",
+      "change_type": "feature",
+      "id": "1c3fea4c77d5cda6",
       "language": "python",
-      "line": 4,
-      "path": "tests/test_app.py",
-      "snippet": "\n\ndef test_greet():\n    assert greet(\"x\") == \"Hello, x!\"\n",
-      "summary": "test precedent in tests/test_app.py",
+      "line": 9,
+      "path": "src/app.py",
+      "rank": 2,
+      "snippet": "\n\ndef main() -> None:\n    print(greet(\"world\"))\n",
+      "summary": "feature precedent in src/app.py",
       "tags": [
-        "test",
+        "entrypoint",
         "python",
         "app"
       ]
     }
   ],
+  "producer": {
+    "backend": "python",
+    "canonical_digest": "sha256:745b7117ced0b717fa0c64d120d82f8411b2e77e9e3f2d88dcbc12b31bac7937",
+    "capability_coverage": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "full",
+      "relationships": "unsupported",
+      "symbols": "unsupported"
+    },
+    "component": "simplicio-mapper",
+    "degraded_paths": [],
+    "omitted_paths": [],
+    "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "schema_version": "v1",
+    "source_generation": {
+      "dirty": false,
+      "kind": "filesystem",
+      "revision": null
+    },
+    "version": "0.26.28"
+  },
   "schema": "simplicio.precedent-index/v1",
   "source_project_map": ".simplicio/project-map.json",
   "version": 1

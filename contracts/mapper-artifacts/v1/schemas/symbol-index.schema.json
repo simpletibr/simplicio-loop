@@ -3,9 +3,10 @@
   "title": "simplicio-mapper symbol-index.json (v1)",
   "description": "Flat list of defined symbols (functions/classes/etc.) across the repo, with per-symbol evidence.",
   "type": "object",
-  "required": ["schema", "version", "generated_at", "root", "symbols", "counts"],
+  "required": ["schema", "producer", "version", "generated_at", "root", "symbols", "counts"],
   "properties": {
     "schema": { "type": "string", "enum": ["simplicio.symbol-index/v1"] },
+    "producer": { "$ref": "producer-metadata.schema.json" },
     "version": { "type": "integer" },
     "generated_at": { "type": "string" },
     "root": { "type": "string" },

@@ -37,6 +37,14 @@ TOON codec in the Simplicio ecosystem. It does not mandate an
 implementation language or library — only observable behavior, verified by
 the golden corpus at `fixtures/toon-golden/` (§6).
 
+### Artifact format boundary
+
+Mapper's canonical artifact payloads are JSON. A JSON object with a `schema`
+header is not TOON and MUST NOT claim token-oriented TOON equivalence. A native
+producer may use a private/native artifact id while it is uncertified; it may
+reuse a public Mapper v1 id as a TOON-equivalent representation only after
+passing both the round-trip and token-shape fixtures in this document.
+
 ## 2. Flag convention — `SIMPLICIO_TOON`
 
 - Any tool that can emit either JSON or TOON for the same payload MUST gate

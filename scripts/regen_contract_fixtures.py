@@ -4,7 +4,7 @@
 The mapper-artifacts contract is only trustworthy if it is checked against
 *real* mapper output, not hand-written JSON that merely looks plausible.
 This script is that check: it runs the actual `simplicio-mapper` CLI against
-the three tiny source repos committed under
+the source repos committed under
 `contracts/mapper-artifacts/v1/fixtures/*/source/`, then either:
 
   update  - normalizes the fresh output (absolute paths -> a stable
@@ -15,12 +15,13 @@ the three tiny source repos committed under
             changes artifact shape, alongside a bump of the schema files
             under `contracts/mapper-artifacts/v1/schemas/`.
 
-  check   - regenerates fresh (unnormalized) output in a temp directory and
-            validates it against the versioned schemas
+  check   - regenerates fresh output in a temp directory, validates it against
+            the versioned schemas and compares normalized output to the
+            committed golden fixtures
             (simplicio_mapper.contract). Fails if the *current* mapper no
             longer produces output matching the committed contract — i.e.
             an incompatible artifact shipped without an explicit contract
-            bump. This is the CI gate (wired into python-ci.yml).
+            bump. The release quality gate invokes this check as well.
 
 Usage:
   python3 scripts/regen_contract_fixtures.py update
@@ -43,7 +44,7 @@ sys.path.insert(0, ROOT)
 
 from simplicio_mapper.contract import ContractError, validate_payload  # noqa: E402
 
-FIXTURE_NAMES = ["python-minimal", "node-minimal", "mixed-workspace"]
+FIXTURE_NAMES = ["python-minimal", "node-minimal", "mixed-workspace", "canonical-matrix"]
 ARTIFACT_FILENAMES = [
     "project-map.json",
     "precedent-index.json",
@@ -58,6 +59,8 @@ INDEX_RESULT_FILENAME = "mapper-index-result.json"
 
 NORMALIZED_ROOT_PLACEHOLDER = "<fixture-root>"
 NORMALIZED_TIMESTAMP = "1970-01-01T00:00:00.000Z"
+NORMALIZED_LAST_MODIFIED = NORMALIZED_TIMESTAMP
+NORMALIZED_REPOSITORY_ID = "sha256:" + ("0" * 64)
 
 
 def _source_dir(name: str) -> str:
@@ -71,8 +74,8 @@ def _artifacts_dir(name: str) -> str:
 def _run_map(source_dir: str, out_dir: str) -> None:
     subprocess.run(
         [
-            sys.executable, "-m", "simplicio_mapper.cli", "map",
-            "--root", source_dir, "--out", out_dir, "--silent",
+            sys.executable, "-m", "simplicio_mapper.cli", "index",
+            source_dir, "--out", out_dir, "--await", "--timeout", "120", "--silent",
         ],
         check=True,
         cwd=ROOT,
@@ -99,8 +102,8 @@ def _run_index_json(source_dir: str, out_dir: str) -> dict:
 
 def _normalize(value, source_dir_abs: str, out_dir_abs: str | None = None):
     """Replace the fixture's absolute source (and, when given, output)
-    directory paths with stable placeholders and pin any `generated_at`
-    field, so committed fixtures do not churn on every regen run for
+    directory paths with stable placeholders and pin runtime timestamps,
+    so committed fixtures do not churn on every regen run for
     reasons unrelated to real shape drift (temp dir names, timestamps)."""
     if isinstance(value, str):
         text = value
@@ -116,6 +119,10 @@ def _normalize(value, source_dir_abs: str, out_dir_abs: str | None = None):
         for key, sub_value in value.items():
             if key == "generated_at":
                 out[key] = NORMALIZED_TIMESTAMP
+            elif key == "last_modified":
+                out[key] = NORMALIZED_LAST_MODIFIED
+            elif key == "repository_id":
+                out[key] = NORMALIZED_REPOSITORY_ID
             else:
                 out[key] = _normalize(sub_value, source_dir_abs, out_dir_abs)
         return out
@@ -126,6 +133,14 @@ def _write_json(path: str, data: dict) -> None:
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(data, handle, indent=2, sort_keys=True)
         handle.write("\n")
+
+
+def _read_json(path: str) -> dict:
+    with open(path, encoding="utf-8") as handle:
+        value = json.load(handle)
+    if not isinstance(value, dict):
+        raise ValueError(f"expected JSON object: {path}")
+    return value
 
 
 def cmd_update() -> int:
@@ -184,9 +199,24 @@ def cmd_check() -> int:
         with tempfile.TemporaryDirectory() as tmp_out:
             _run_map(source_dir, tmp_out)
             for filename in ARTIFACT_FILENAMES:
-                with open(os.path.join(tmp_out, filename), encoding="utf-8") as handle:
-                    payload = json.load(handle)
+                payload = _read_json(os.path.join(tmp_out, filename))
                 all_errors.extend(_validate_and_report(f"fixtures/{name}/{filename}", payload))
+                expected_path = os.path.join(_artifacts_dir(name), filename)
+                try:
+                    expected = _read_json(expected_path)
+                    normalized = _normalize(
+                        payload,
+                        os.path.abspath(source_dir),
+                        os.path.abspath(tmp_out),
+                    )
+                    if normalized != expected:
+                        all_errors.append(
+                            f"fixtures/{name}/{filename}: golden fixture drift"
+                        )
+                except (OSError, ValueError, json.JSONDecodeError) as error:
+                    all_errors.append(
+                        f"fixtures/{name}/{filename}: cannot read golden fixture: {error}"
+                    )
 
         if name == INDEX_RESULT_FIXTURE:
             with tempfile.TemporaryDirectory() as tmp_out2:
@@ -194,6 +224,23 @@ def cmd_check() -> int:
                 all_errors.extend(
                     _validate_and_report(f"fixtures/{name}/{INDEX_RESULT_FILENAME}", index_payload)
                 )
+                expected_path = os.path.join(FIXTURES_ROOT, name, INDEX_RESULT_FILENAME)
+                try:
+                    expected = _read_json(expected_path)
+                    normalized = _normalize(
+                        index_payload,
+                        os.path.abspath(source_dir),
+                        os.path.abspath(tmp_out2),
+                    )
+                    if normalized != expected:
+                        all_errors.append(
+                            f"fixtures/{name}/{INDEX_RESULT_FILENAME}: golden fixture drift"
+                        )
+                except (OSError, ValueError, json.JSONDecodeError) as error:
+                    all_errors.append(
+                        f"fixtures/{name}/{INDEX_RESULT_FILENAME}: "
+                        f"cannot read golden fixture: {error}"
+                    )
 
     if all_errors:
         print(

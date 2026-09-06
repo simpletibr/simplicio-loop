@@ -1,4 +1,8 @@
-# Mapper artifacts contract — `v1` (issue #157)
+# Mapper artifacts contract — `v1` (issues #157/#614)
+
+The field-level and semantic contract is [`CANONICAL_CONTRACT.md`](CANONICAL_CONTRACT.md).
+The five public schemas below are canonical and all require the common
+`producer` envelope in `schemas/producer-metadata.schema.json`.
 
 `simplicio-mapper` produces six JSON payloads consumed across the Simplicio
 ecosystem (simplicio-dev-cli, simplicio-loop, simplicio-runtime, and anything
@@ -46,7 +50,10 @@ without a deliberate version bump.
 ```
 contracts/mapper-artifacts/v1/
   README.md                        - this file
+  CANONICAL_CONTRACT.md            - field-level semantics, ordering and compatibility
   schemas/
+    producer-metadata.schema.json  - shared public producer envelope
+    mapper-native-artifact.schema.json - private uncertified native shape gate
     project-map.schema.json
     precedent-index.schema.json
     architecture-inventory.schema.json
@@ -68,6 +75,10 @@ contracts/mapper-artifacts/v1/
     mixed-workspace/
       source/                      - a tiny mixed frontend(JS)/backend(Python) repo
       artifacts/
+    canonical-matrix/
+      source/                      - language and degradation edge-case corpus
+      artifacts/                   - golden Python v1 outputs
+    fixture-matrix.json             - machine-readable required-case index
 ```
 
 Every file under `fixtures/*/artifacts/` and `mapper-index-result.json` was
@@ -75,24 +86,30 @@ produced by running the real `simplicio-mapper` CLI against the sibling
 `source/` directory, not hand-written. Two things are normalized before
 committing so fixtures do not churn on irrelevant noise: the fixture's
 absolute source/output directory paths are replaced with the placeholder
-`<fixture-root>` (and `<fixture-root>/.simplicio` for output paths), and every
-`generated_at` field is pinned to `1970-01-01T00:00:00.000Z`. Nothing else is
-touched — the schemas describe exactly what the mapper produced.
+`<fixture-root>` (and `<fixture-root>/.simplicio` for output paths), and
+`generated_at`/`last_modified` fields are pinned to
+`1970-01-01T00:00:00.000Z`. The local `repository_id` is pinned to a fixture
+sentinel; the semantic digest is
+computed before normalization and excludes producer/runtime-local fields.
+Nothing else is touched — the schemas describe exactly what the mapper
+produced.
 
 ## Schema format
 
 Each `schemas/*.schema.json` file is a small **subset** of JSON Schema:
 `type` (including `["string", "null"]`-style unions), `required`,
-`properties`, `items`, `enum`, `minItems`. `additionalProperties` is always
+`properties`, `items`, `enum`, `minItems` and local/external `$ref`.
+`additionalProperties` is always
 implicitly allowed — new, additive fields do not fail validation, only
 missing/mistyped *required* fields do. This keeps the contract meaningful
 (it catches real breaking changes) without being so strict that every minor
 addition needs a version bump. See `simplicio_mapper/contract.py` for the
-~150-line validator (no `jsonschema` dependency was added; ask-before-adding
-applies).
+dependency-free validator (no `jsonschema` dependency was added;
+ask-before-adding applies).
 
 One known limitation: `project-map.json`'s `agent_tree` is a recursive
-Brown-Hilbert tree. The validator subset has no `$ref`/recursion support, so
+Brown-Hilbert tree. The validator subset resolves the shared external `$ref`
+but has no recursive-schema support, so
 `agent_tree` is only checked to be an object, not deep-validated. If that
 recursive shape needs a hard contract later, either extend the validator with
 minimal recursive-schema support or add a dedicated recursive checker.
@@ -133,18 +150,24 @@ follow-up if a consumer needs it outside a checkout.
 ## CI gate — `scripts/regen_contract_fixtures.py`
 
 ```bash
-python3 scripts/regen_contract_fixtures.py check    # CI gate (python-ci.yml)
+python3 scripts/regen_contract_fixtures.py check    # local/release gate
 python3 scripts/regen_contract_fixtures.py update   # regenerate fixtures after a deliberate mapper change
 ```
 
-`check` runs the real mapper fresh against all three `fixtures/*/source/`
+`check` runs the real mapper fresh against all `fixtures/*/source/`
 directories (in a temp output dir, so it never touches the committed
-fixtures) and validates the output against `schemas/`. If a code change makes
-the mapper emit something that no longer matches the contract, `check` fails
-— forcing either a mapper fix or a deliberate contract bump (edit the schema,
-run `update`, review the fixture diff, commit both together). This is what
-makes "the mapper can actually generate artifacts that validate against the
-schema" (issue #157 AC) an enforced fact rather than a one-time claim.
+fixtures), validates the output against `schemas/`, and compares normalized
+output to the committed golden fixtures. Normalization pins timestamps,
+repository identity and machine-local paths only. If a code change makes the mapper
+emit something that no longer matches the contract or golden semantic content,
+`check` fails — forcing either a mapper fix or a deliberate contract bump (edit
+the schema, run `update`, review the fixture diff, commit both together).
+This is what makes "the mapper can actually generate artifacts that validate
+against the schema" (issue #157 AC) and deterministic golden output an enforced
+fact rather than a one-time claim.
+
+The release quality gate (`scripts/mapper_quality_gate.py --full`) invokes
+`check`, so local release checks fail closed on accidental contract drift.
 
 `update` regenerates `fixtures/*/artifacts/*.json` (and
 `python-minimal/mapper-index-result.json`) from the current mapper. Run it,
@@ -156,8 +179,9 @@ simplicio-dev-cli / simplicio-loop / simplicio-runtime all parse
 `.simplicio/*.json`. Recommended pattern for their own test suites:
 
 1. Vendor or fetch `contracts/mapper-artifacts/v1/fixtures/<name>/artifacts/*.json`
-   (pick whichever of `python-minimal` / `node-minimal` / `mixed-workspace`
-   matches the scenario under test) as canned mapper output — no need to run
+   (pick whichever of `python-minimal` / `node-minimal` / `mixed-workspace` /
+   `canonical-matrix` matches the scenario under test) as canned mapper output
+   — no need to run
    the real mapper in the consumer's own CI.
 2. Parse those fixtures with the consumer's own mapper-artifact reader/parser
    and assert on the fields the consumer actually depends on.
