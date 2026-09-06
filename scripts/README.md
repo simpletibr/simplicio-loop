@@ -65,3 +65,12 @@ These are `--check`-able, deterministic scripts for the real Python product
   intentionally narrower than `simplicio-agent` issue #194's own scanner —
   see `scripts/scan_artifacts.py`'s module docstring for the scoping
   rationale.
+- `release_train_reconcile.py reconcile`: consumes one authenticated Mapper
+  release event, updates the bounded dependency floor, resolves the candidate
+  into `uv.lock`, and records the single-PR lock receipt.
+- `release_train_conformance.py`: verifies installed Mapper version/digests
+  and runs the observable map → retrieve → edit → test → receipt smoke. It
+  accepts immutable N/N-1 Mapper source checkouts for contract validation and
+  exits non-zero when that evidence is missing.
+- `build_component_release.py`: hashes `dist` artifacts and emits the signed
+  Dev CLI `component-release/v1` manifest used by the Loop dispatch workflow.

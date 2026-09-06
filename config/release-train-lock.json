@@ -1,0 +1,97 @@
+{
+  "artifact_digests": {
+    "sdist": {
+      "digest": "sha256:25acaf2bce08659b0d47dc6acbcb7f6c927359f3f6bf9f488c446758559c93c1",
+      "filename": "simplicio_mapper-0.26.28.tar.gz"
+    },
+    "whl": {
+      "digest": "sha256:49b68b815710b986a72fff6ec0b541f6e5683f22787f93a76edcd98819328d75",
+      "filename": "simplicio_mapper-0.26.28-py3-none-any.whl"
+    }
+  },
+  "changed": true,
+  "commit_sha": "121e692104f751034a806e5d9e5fe7eabbd94d27",
+  "component": "simplicio-mapper",
+  "conformance": {
+    "required": [
+      "n",
+      "n_minus_1",
+      "clean_installed_entrypoint",
+      "map_retrieve_edit_test_receipt"
+    ],
+    "status": "pending_gate"
+  },
+  "declared_range": ">=0.26.28,<0.27",
+  "downstream": {
+    "event_type": "simplicio.component-release-event/v1",
+    "repository": "wesleysimplicio/simplicio-loop",
+    "status": "pending_dev_cli_pypi_publication"
+  },
+  "event_id": "sha256:3924d70684869a7763135565e51e651ab6c8a0bd8c275f6e89bb9a98d436ba58",
+  "event_schema": "simplicio.component-release-event/v1",
+  "lockfile": "uv.lock",
+  "lockfile_digest": "sha256:168c6c010fe6519f19106723ff815e8ec285028d9d755ac41bd3dc5ab4668f30",
+  "plan_digest": "sha256:3c70c8445c88e00bb7bb3555fc04a659fa19f2a472d5f0105bb4e7bd83df7380",
+  "previous_locked_reason": "uv.lock before this release-train reconciliation",
+  "previous_locked_version": "0.26.27",
+  "release_event": {
+    "artifact_digests": {
+      "sdist": {
+        "digest": "sha256:25acaf2bce08659b0d47dc6acbcb7f6c927359f3f6bf9f488c446758559c93c1",
+        "filename": "simplicio_mapper-0.26.28.tar.gz"
+      },
+      "whl": {
+        "digest": "sha256:49b68b815710b986a72fff6ec0b541f6e5683f22787f93a76edcd98819328d75",
+        "filename": "simplicio_mapper-0.26.28-py3-none-any.whl"
+      }
+    },
+    "attestation": "transport-authenticated-only",
+    "capabilities": [
+      "simplicio.mapper-artifacts/v1"
+    ],
+    "commit_sha": "121e692104f751034a806e5d9e5fe7eabbd94d27",
+    "compatibility": {
+      "simplicio-dev-cli": {
+        "mapper-artifacts": "v1"
+      }
+    },
+    "component": "simplicio-mapper",
+    "consumers": [
+      {
+        "action": "prepare-bump",
+        "repository": "wesleysimplicio/simplicio-dev-cli"
+      },
+      {
+        "action": "dispatch-after-pypi-publish",
+        "repository": "wesleysimplicio/simplicio-loop"
+      }
+    ],
+    "dedupe_key": "sha256:3924d70684869a7763135565e51e651ab6c8a0bd8c275f6e89bb9a98d436ba58",
+    "delivery": {
+      "authentication": "github-token",
+      "channel": "canary",
+      "retry_safe": true,
+      "secret_name": "RELEASE_TRAIN_DISPATCH_TOKEN",
+      "transport": "github.repository_dispatch"
+    },
+    "event_id": "sha256:3924d70684869a7763135565e51e651ab6c8a0bd8c275f6e89bb9a98d436ba58",
+    "event_type": "simplicio-component-release",
+    "release_manifest_digest": "sha256:49b68b815710b986a72fff6ec0b541f6e5683f22787f93a76edcd98819328d75",
+    "release_manifest_schema": "simplicio.component-release/v1",
+    "rollback": {
+      "immutable_artifacts_retained": true,
+      "strategy": "revoke-current-and-restore-previous-pin",
+      "supported": true
+    },
+    "schema": "simplicio.component-release-event/v1",
+    "schema_versions": {
+      "component-release": "v1"
+    },
+    "version": "0.26.28"
+  },
+  "schema": "simplicio.dev-cli.release-train-lock/v1",
+  "status": "reconciled",
+  "tested_against": "0.26.28",
+  "tested_against_reason": "locked_in_uv.lock",
+  "version": "0.26.28"
+}

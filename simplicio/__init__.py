@@ -1,4 +1,4 @@
-__version__ = "0.18.10"
+__version__ = "0.18.12"
 
 
 def mapper_module():
@@ -16,4 +16,3 @@ def mapper_version():
 
 
 __all__ = ["__version__", "mapper_module", "mapper_version"]
-

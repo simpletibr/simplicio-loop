@@ -1,8 +1,8 @@
 usage: simplicio-py [-h]
-                    {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory} ...
+                    {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,release-train,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory} ...
 
 positional arguments:
-  {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory}
+  {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,release-train,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory}
     index               index/cache the repo (once, or after changes)
     task                run a task
     proposal            compile a non-mutating Runtime ChangeProposal
@@ -23,6 +23,8 @@ positional arguments:
     versions            report simplicio-mapper installed/declared/tested
                         versions, drift, and this repo's own component-release
                         manifest (issue #232)
+    release-train       verify Mapper release events, immutable artifacts, and
+                        N/N-1 conformance
     env-export          print shell-safe exports from a dotenv file without
                         sourcing it
     mechanical-edit     execute simplicio.mechanical-edit/v1 dry-run or apply

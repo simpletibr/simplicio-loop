@@ -286,3 +286,29 @@ submission, and returns a typed observation without retry, replan, scheduler,
 provider, subprocess, worktree, queue, or terminal-status ownership. PR evidence
 records 17 focused tests, 96% touched branch coverage, and a 5,000-attempt
 benchmark with one effect call per attempt.
+
+
+# Issue #232 result (2026-09-06)
+
+Status: implementation complete locally; PR/merge and stable publication remain
+pending. The release train now consumes Mapper component-release events,
+reconciles the exact lock/digest identity, updates one fixed bump PR, gates on
+N/N-1 contract evidence plus the map -> retrieve -> edit -> test -> receipt
+smoke, publishes a signed Dev CLI component manifest, and dispatches Loop only
+after PyPI artifact verification. A scheduled drift workflow opens one
+idempotent issue for unexplained installed-version drift.
+
+Evidence: focused release-train suite 111 passed; Mapper v0.26.28/v0.26.27
+source contract lanes passed; smoke passed with measured 5,706 JSON bytes and a
+30,000 ms budget; build and Twine checks passed; dependency-doc generation and
+reconciliation retry were verified. Full pytest had 2,702 passed, 24 skipped,
+and 17 pre-existing failures; global coverage was 85.42%, while the existing
+critical-module coverage gate remains red at `simplicio/mapper.py` 85.46% versus
+90%. Hosted Actions are disabled. #691 was not started after the P0 #232 slice.
+
+
+The final handoff is blocked before PR creation: GitHub rejected the workflow-
+bearing push with `refusing to allow an OAuth App to create or update workflow
+... without workflow scope`. The active token exposes only `gist`, `read:org`,
+and `repo`; device authorization could not be completed here. No remote PR or
+merge is claimed.
