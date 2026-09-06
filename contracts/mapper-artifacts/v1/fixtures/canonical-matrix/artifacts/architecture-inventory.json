@@ -7,7 +7,7 @@
     "files": 16,
     "layers": 8,
     "modules": 7,
-    "relationships": 7,
+    "relationships": 3,
     "symbols": 13,
     "tests": 0
   },
@@ -227,7 +227,9 @@
           "file": "services/dotnet/Pages/Index.razor"
         }
       ],
-      "imports": [],
+      "imports": [
+        "System"
+      ],
       "language": "razor",
       "layers": [
         "domain",
@@ -251,7 +253,9 @@
           "file": "services/dotnet/Program.cs"
         }
       ],
-      "imports": [],
+      "imports": [
+        "System"
+      ],
       "language": "csharp",
       "layers": [
         "domain",
@@ -753,7 +757,7 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:3e27471ce4c13aec0d21e00085ddd4670af51c15f70ce8344420606c981c6afb",
+    "canonical_digest": "sha256:ac11e6d24963f39d2959ca74b65517da19e2be48fb9e75167918045f7a658220",
     "capability_coverage": {
       "architecture": "partial",
       "files": "partial",
@@ -783,188 +787,52 @@
     "stack": "mixed"
   },
   "relationship_coverage": {
-    "ambiguous_relations": 6,
+    "ambiguous_relations": 0,
     "edge_limit": 250,
-    "emitted_edges": 7,
+    "emitted_edges": 3,
     "evidence_classes": {
-      "lexical_ambiguous": 6,
+      "heuristic": 2,
       "lexical_unique": 1
     },
     "invalid_edges": 0,
-    "observed_edges": 7,
+    "observed_edges": 3,
     "omitted_edges": 0,
     "status": "degraded",
     "truncated": false,
-    "unknown_relations": 0
+    "unknown_relations": 2
   },
   "relationships": [
     {
       "confidence": null,
-      "evidence_class": "lexical_ambiguous",
-      "line": 1,
+      "evidence_class": "heuristic",
+      "import": "System",
       "provenance": {
-        "caller_resolution": "lexical_nearest",
-        "candidate_count": 3,
-        "candidates": [
-          "crates/core/src/lib.rs::run",
-          "duplicates/one.py::run",
-          "duplicates/two.py::run"
-        ],
-        "method": "symbol-name-lookup",
-        "queried_symbol": "run"
+        "candidate_count": 0,
+        "candidates": [],
+        "import": "System",
+        "method": "import-resolution"
       },
-      "relation_id": "c44c9f4ebf927e0364aac0e9c70aa4e5e1ad12bdba04e9ec862025bba5c1a722",
-      "resolution_status": "ambiguous",
-      "source_file": "crates/core/src/lib.rs",
-      "source_symbol": "crates/core/src/lib.rs::run",
-      "target_candidates": [
-        "crates/core/src/lib.rs::run",
-        "duplicates/one.py::run",
-        "duplicates/two.py::run"
-      ],
-      "target_file": "duplicates/one.py",
-      "target_symbol": "duplicates/one.py::run",
-      "type": "calls"
+      "relation_id": "febdc74e9aca378579a5e5b3ba06b31cb2a25cef77e576b2e05efbe4b0e13a1b",
+      "resolution_status": "unknown",
+      "source_file": "services/dotnet/Pages/Index.razor",
+      "target_file": null,
+      "type": "imports"
     },
     {
       "confidence": null,
-      "evidence_class": "lexical_ambiguous",
-      "line": 1,
+      "evidence_class": "heuristic",
+      "import": "System",
       "provenance": {
-        "caller_resolution": "lexical_nearest",
-        "candidate_count": 3,
-        "candidates": [
-          "crates/core/src/lib.rs::run",
-          "duplicates/one.py::run",
-          "duplicates/two.py::run"
-        ],
-        "method": "symbol-name-lookup",
-        "queried_symbol": "run"
+        "candidate_count": 0,
+        "candidates": [],
+        "import": "System",
+        "method": "import-resolution"
       },
-      "relation_id": "7a46514d90da28bddd641dac8032183a19b40c7f5e21ac5055b7749df80b245a",
-      "resolution_status": "ambiguous",
-      "source_file": "crates/core/src/lib.rs",
-      "source_symbol": "crates/core/src/lib.rs::run",
-      "target_candidates": [
-        "crates/core/src/lib.rs::run",
-        "duplicates/one.py::run",
-        "duplicates/two.py::run"
-      ],
-      "target_file": "duplicates/two.py",
-      "target_symbol": "duplicates/two.py::run",
-      "type": "calls"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "lexical_ambiguous",
-      "line": 1,
-      "provenance": {
-        "caller_resolution": "lexical_nearest",
-        "candidate_count": 3,
-        "candidates": [
-          "crates/core/src/lib.rs::run",
-          "duplicates/one.py::run",
-          "duplicates/two.py::run"
-        ],
-        "method": "symbol-name-lookup",
-        "queried_symbol": "run"
-      },
-      "relation_id": "dddd74b04c1e243b5aa949234452cfc334eaa40895fc7ece0c7c68122f74488c",
-      "resolution_status": "ambiguous",
-      "source_file": "duplicates/one.py",
-      "source_symbol": "duplicates/one.py::run",
-      "target_candidates": [
-        "crates/core/src/lib.rs::run",
-        "duplicates/one.py::run",
-        "duplicates/two.py::run"
-      ],
-      "target_file": "crates/core/src/lib.rs",
-      "target_symbol": "crates/core/src/lib.rs::run",
-      "type": "calls"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "lexical_ambiguous",
-      "line": 1,
-      "provenance": {
-        "caller_resolution": "lexical_nearest",
-        "candidate_count": 3,
-        "candidates": [
-          "crates/core/src/lib.rs::run",
-          "duplicates/one.py::run",
-          "duplicates/two.py::run"
-        ],
-        "method": "symbol-name-lookup",
-        "queried_symbol": "run"
-      },
-      "relation_id": "35feb0663ea0cee1f5ab6e059d9b244d5844304d28c5cf7d54e1eefb5a62a950",
-      "resolution_status": "ambiguous",
-      "source_file": "duplicates/one.py",
-      "source_symbol": "duplicates/one.py::run",
-      "target_candidates": [
-        "crates/core/src/lib.rs::run",
-        "duplicates/one.py::run",
-        "duplicates/two.py::run"
-      ],
-      "target_file": "duplicates/two.py",
-      "target_symbol": "duplicates/two.py::run",
-      "type": "calls"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "lexical_ambiguous",
-      "line": 1,
-      "provenance": {
-        "caller_resolution": "lexical_nearest",
-        "candidate_count": 3,
-        "candidates": [
-          "crates/core/src/lib.rs::run",
-          "duplicates/one.py::run",
-          "duplicates/two.py::run"
-        ],
-        "method": "symbol-name-lookup",
-        "queried_symbol": "run"
-      },
-      "relation_id": "4e3b27ab0c765cd013d32f269d709ed8937d9f8d42454243b737888108918a2f",
-      "resolution_status": "ambiguous",
-      "source_file": "duplicates/two.py",
-      "source_symbol": "duplicates/two.py::run",
-      "target_candidates": [
-        "crates/core/src/lib.rs::run",
-        "duplicates/one.py::run",
-        "duplicates/two.py::run"
-      ],
-      "target_file": "crates/core/src/lib.rs",
-      "target_symbol": "crates/core/src/lib.rs::run",
-      "type": "calls"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "lexical_ambiguous",
-      "line": 1,
-      "provenance": {
-        "caller_resolution": "lexical_nearest",
-        "candidate_count": 3,
-        "candidates": [
-          "crates/core/src/lib.rs::run",
-          "duplicates/one.py::run",
-          "duplicates/two.py::run"
-        ],
-        "method": "symbol-name-lookup",
-        "queried_symbol": "run"
-      },
-      "relation_id": "740d9f8fd071ca5c72c4dec0665ff6b9c01ac71b3266f9a98a6ef7c6c24263fa",
-      "resolution_status": "ambiguous",
-      "source_file": "duplicates/two.py",
-      "source_symbol": "duplicates/two.py::run",
-      "target_candidates": [
-        "crates/core/src/lib.rs::run",
-        "duplicates/one.py::run",
-        "duplicates/two.py::run"
-      ],
-      "target_file": "duplicates/one.py",
-      "target_symbol": "duplicates/one.py::run",
-      "type": "calls"
+      "relation_id": "2a140eb10901b68bd0fd0970d5d91ba08b64247a5dea5aa057a75954a120d654",
+      "resolution_status": "unknown",
+      "source_file": "services/dotnet/Program.cs",
+      "target_file": null,
+      "type": "imports"
     },
     {
       "confidence": null,
@@ -976,6 +844,7 @@
         "candidates": [
           "services/kotlin/Main.kt::language"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "language"
       },

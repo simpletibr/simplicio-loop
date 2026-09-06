@@ -311,7 +311,7 @@ def _parse_imports(text: str, language: str) -> list[str]:
     # The optional Rust crate only implements the original language set; newer
     # languages always take the pure-Python path below.
     if (
-        _native.native_default("imports")
+        _native.native_default("imports", language)
         and _native.parse_imports is not None
         and language in _NATIVE_IMPORT_LANGUAGES
     ):
@@ -324,7 +324,7 @@ def _parse_imports(text: str, language: str) -> list[str]:
         patterns.append(re.compile(r"^\s*from\s+([A-Za-z0-9_.]+)\s+import\s+", re.MULTILINE))
         patterns.append(re.compile(r"^\s*import\s+([A-Za-z0-9_.]+)", re.MULTILINE))
     elif language in ("csharp", "razor"):
-        patterns.append(re.compile(r"^\s*using\s+([A-Za-z0-9_.]+)\s*;", re.MULTILINE))
+        patterns.append(re.compile(r"^\s*@?using\s+([A-Za-z0-9_.]+)\s*;?", re.MULTILINE))
     elif language == "go":
         patterns.append(re.compile(r'^\s*import\s+"([^"]+)"', re.MULTILINE))
     elif language == "rust":

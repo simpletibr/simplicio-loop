@@ -239,7 +239,7 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:32dd85dca2f619958221a0054c38d9d3ede0fa065c1916e1418bcde2f33b5483",
+    "canonical_digest": "sha256:4294fe1cacaea21cbab4200f6bf5ab065f496c07c1276f9c73304fe93f991fe8",
     "capability_coverage": {
       "architecture": "full",
       "files": "full",
@@ -290,6 +290,7 @@
         "candidates": [
           "src/app.py::greet"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "greet"
       },
@@ -314,6 +315,7 @@
         "candidates": [
           "src/app.py::main"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "main"
       },
@@ -338,6 +340,7 @@
         "candidates": [
           "src/app.py::greet"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "greet"
       },

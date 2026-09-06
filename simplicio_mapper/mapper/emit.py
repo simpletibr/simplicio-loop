@@ -19,6 +19,7 @@ import orjson
 
 from ..cache import FileProcessingCache
 from ..diagrams import render_flowchart, render_flowchart_svg, to_image_markdown, to_markdown_block
+from ..language_capabilities import build_capability_coverage
 from ..models import ProjectFile
 from ..relations import relation_id
 from .canonical_artifacts import attach_canonical_metadata
@@ -272,6 +273,13 @@ def _build_artifacts_sync(cwd: str, meta: dict | None = None, incremental: bool 
         call_graph,
         generated_at,
     )
+    capability_coverage = build_capability_coverage(
+        files,
+        semantic_resolution=call_graph.get("semantic_resolution"),
+    )
+    project_map["capability_coverage"] = capability_coverage
+    if call_graph.get("semantic_resolution", {}).get("status") in {"unavailable", "degraded"}:
+        degraded["semantic_resolution"] = call_graph["semantic_resolution"]
 
     bh_map = _build_brown_hilbert_map(files)
     agent_tree = _build_agent_tree(files, bh_map)

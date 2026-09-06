@@ -6,7 +6,7 @@
   "generated_at": "1970-01-01T00:00:00.000Z",
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:7cbf93db4dfaf325871a7ea17572fe7b54ff9c8fe20de8490a57ec4281da8b14",
+    "canonical_digest": "sha256:b3d014108acbf26dbfc132c868c4cb520d719f49f4ec99ca8bc4f601310d30cd",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",
@@ -32,6 +32,19 @@
   },
   "root": "<fixture-root>",
   "schema": "simplicio.symbol-index/v1",
+  "semantic_resolution": {
+    "languages": [],
+    "protocol": "v1",
+    "provider_versions": [],
+    "providers": [],
+    "reasons": [
+      "no_csharp_or_razor_call_sites"
+    ],
+    "resolved_calls": 0,
+    "schema": "simplicio.mapper-semantic-resolution/v1",
+    "status": "not_required",
+    "symbols": 0
+  },
   "symbols": [
     {
       "defined_in": "apps/python/app.py",
@@ -121,11 +134,11 @@
       "defined_in": "services/dotnet/Program.cs",
       "evidence": {
         "file": "services/dotnet/Program.cs",
-        "line": 1
+        "line": 3
       },
       "kind": "class",
       "language": "csharp",
-      "line": 1,
+      "line": 3,
       "name": "Program",
       "qualified_name": "services/dotnet/Program.cs::Program"
     },
@@ -133,13 +146,16 @@
       "defined_in": "services/dotnet/Program.cs",
       "evidence": {
         "file": "services/dotnet/Program.cs",
-        "line": 3
+        "line": 5,
+        "resolution": "heuristic"
       },
       "kind": "method",
       "language": "csharp",
-      "line": 3,
+      "line": 5,
       "name": "Language",
-      "qualified_name": "services/dotnet/Program.cs::Language"
+      "qualified_name": "services/dotnet/Program.cs::Program::Language()",
+      "signature": "Language()",
+      "symbol_id": "services/dotnet/Program.cs::Program::Language()"
     },
     {
       "defined_in": "services/go/main.go",

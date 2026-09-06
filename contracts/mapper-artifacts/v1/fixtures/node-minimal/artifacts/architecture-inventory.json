@@ -197,7 +197,7 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:9f8b700d121fd78b2b26ef06fc3c865d20ea4c124c57bb16da19d926902696c5",
+    "canonical_digest": "sha256:4214af5154622c17de3aa27109e05c8b550f4f0e0f5ba43ac47d6ac5dc307db5",
     "capability_coverage": {
       "architecture": "full",
       "files": "full",
@@ -246,6 +246,7 @@
       "provenance": {
         "candidate_count": 0,
         "candidates": [],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "require"
       },
@@ -265,6 +266,7 @@
       "provenance": {
         "candidate_count": 0,
         "candidates": [],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "require"
       },
@@ -284,6 +286,7 @@
       "provenance": {
         "candidate_count": 0,
         "candidates": [],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "require"
       },
@@ -303,6 +306,7 @@
       "provenance": {
         "candidate_count": 0,
         "candidates": [],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "test"
       },
@@ -322,6 +326,7 @@
       "provenance": {
         "candidate_count": 0,
         "candidates": [],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "strictEqual"
       },
@@ -376,6 +381,7 @@
         "candidates": [
           "src/index.js::greet"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "greet"
       },
@@ -418,6 +424,7 @@
       "provenance": {
         "candidate_count": 0,
         "candidates": [],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "log"
       },
@@ -440,6 +447,7 @@
         "candidates": [
           "src/index.js::greet"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "greet"
       },
@@ -464,6 +472,7 @@
         "candidates": [
           "src/index.js::main"
         ],
+        "fallback_reason": null,
         "method": "symbol-name-lookup",
         "queried_symbol": "main"
       },

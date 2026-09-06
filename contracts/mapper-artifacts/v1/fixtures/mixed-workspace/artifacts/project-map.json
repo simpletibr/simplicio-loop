@@ -69,6 +69,329 @@
     ],
     "system_type": "web"
   },
+  "capability_coverage": {
+    "contract_version": "v1",
+    "languages": {
+      "javascript": {
+        "capabilities": {
+          "backend": {
+            "python-reference": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "evidence": {
+            "reference": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "route_status": {
+            "fallback": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "status": {
+            "MISSING": [
+              "local-references",
+              "sql-objects"
+            ],
+            "NATIVE_PARITY": [
+              "imports"
+            ],
+            "SHADOW": [
+              "language-detection",
+              "file-inventory",
+              "symbols",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          }
+        },
+        "degraded": [],
+        "file_count": 1
+      },
+      "json": {
+        "capabilities": {
+          "backend": {
+            "python-reference": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "evidence": {
+            "reference": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "route_status": {
+            "fallback": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "status": {
+            "MISSING": [
+              "imports",
+              "local-references",
+              "sql-objects"
+            ],
+            "SHADOW": [
+              "language-detection",
+              "file-inventory",
+              "symbols",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          }
+        },
+        "degraded": [],
+        "file_count": 1
+      },
+      "python": {
+        "capabilities": {
+          "backend": {
+            "python-reference": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "evidence": {
+            "reference": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "route_status": {
+            "fallback": [
+              "language-detection",
+              "file-inventory",
+              "imports",
+              "symbols",
+              "local-references",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "sql-objects",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          },
+          "status": {
+            "MISSING": [
+              "local-references",
+              "sql-objects"
+            ],
+            "NATIVE_PARITY": [
+              "imports"
+            ],
+            "SHADOW": [
+              "language-detection",
+              "file-inventory",
+              "symbols",
+              "calls",
+              "endpoints-routes",
+              "screens-templates",
+              "business-rules",
+              "flows",
+              "tests",
+              "architecture",
+              "precedents",
+              "retrieval-hints"
+            ]
+          }
+        },
+        "degraded": [],
+        "file_count": 2
+      }
+    },
+    "native_promotion": {
+      "javascript": {
+        "blocking_capabilities": [
+          "local-references",
+          "sql-objects"
+        ],
+        "eligible": false,
+        "native_default": false,
+        "rule": "native promotion requires every advertised capability to be NATIVE_PARITY"
+      },
+      "json": {
+        "blocking_capabilities": [
+          "imports",
+          "local-references",
+          "sql-objects"
+        ],
+        "eligible": false,
+        "native_default": false,
+        "rule": "native promotion requires every advertised capability to be NATIVE_PARITY"
+      },
+      "python": {
+        "blocking_capabilities": [
+          "local-references",
+          "sql-objects"
+        ],
+        "eligible": false,
+        "native_default": false,
+        "rule": "native promotion requires every advertised capability to be NATIVE_PARITY"
+      }
+    },
+    "required_capabilities": [
+      "language-detection",
+      "file-inventory",
+      "imports",
+      "symbols",
+      "local-references",
+      "calls",
+      "endpoints-routes",
+      "screens-templates",
+      "sql-objects",
+      "business-rules",
+      "flows",
+      "tests",
+      "architecture",
+      "precedents",
+      "retrieval-hints"
+    ],
+    "schema": "simplicio.mapper-capability-coverage/v1",
+    "semantic_resolution": {
+      "languages": [],
+      "protocol": "v1",
+      "provider_versions": [],
+      "providers": [],
+      "reasons": [
+        "no_csharp_or_razor_call_sites"
+      ],
+      "resolved_calls": 0,
+      "schema": "simplicio.mapper-semantic-resolution/v1",
+      "status": "not_required",
+      "symbols": 0
+    },
+    "version": 1
+  },
   "changed_files": [],
   "config_files": [
     "package.json"
@@ -240,7 +563,7 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:cdac1793aceb43242ae02cc62c238aac1bd24e8d1cbb1a6f7cba2f5cda1ab0b8",
+    "canonical_digest": "sha256:2f8b1025dc8da2261a444927f5911e2729a846b79003304a960e26d941d53709",
     "capability_coverage": {
       "architecture": "full",
       "files": "full",

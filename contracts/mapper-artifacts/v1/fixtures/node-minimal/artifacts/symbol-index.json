@@ -6,7 +6,7 @@
   "generated_at": "1970-01-01T00:00:00.000Z",
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:dea8eb7183821d4d55f6d1c554e6d0e0b0bc5e82a4ef6e7b6ad863c65e62aa07",
+    "canonical_digest": "sha256:861f025123189d5174720b07c3b5743e0e0f206b3f97aee3be9430c808947808",
     "capability_coverage": {
       "architecture": "unsupported",
       "files": "unsupported",
@@ -28,6 +28,19 @@
   },
   "root": "<fixture-root>",
   "schema": "simplicio.symbol-index/v1",
+  "semantic_resolution": {
+    "languages": [],
+    "protocol": "v1",
+    "provider_versions": [],
+    "providers": [],
+    "reasons": [
+      "no_csharp_or_razor_call_sites"
+    ],
+    "resolved_calls": 0,
+    "schema": "simplicio.mapper-semantic-resolution/v1",
+    "status": "not_required",
+    "symbols": 0
+  },
   "symbols": [
     {
       "defined_in": "src/index.js",
