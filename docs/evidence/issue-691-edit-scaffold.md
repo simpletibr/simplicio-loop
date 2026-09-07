@@ -58,4 +58,6 @@ No hosted GitHub check, Runtime #5525 implementation, or live
 Loop -> Runtime -> Dev CLI E2E was available in this checkout. The local
 offline/effect boundary reuses `simplicio.mechanical_edit.execute_plan`, but
 cross-repository Runtime conformance remains unverified and is not claimed as
-local evidence.
+local evidence. PR #696 merged the measured local implementation into `main`
+as `6f022cf2dda54865005f1b9ab88287021299c4b4`; its check-runs and commit
+status lists were empty.

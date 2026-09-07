@@ -313,7 +313,7 @@ bearing push with `refusing to allow an OAuth App to create or update workflow
 and `repo`; device authorization could not be completed here. No remote PR or
 merge is claimed.
 
-# Issue #691 result (2026-09-06)
+# Issue #691 initial local result (2026-09-06)
 
 Status: implementation complete locally; external Runtime/Loop conformance,
 PR creation, and merge are unverified. Dev CLI now owns the deterministic
@@ -351,3 +351,9 @@ independent post-validation pass exercised the real canonical CLI path plus
 hash drift, ambiguous anchors, workspace escape, and stable four-kind scaffold
 planning. Cross-repository Runtime #5525, Mapper #613, hosted checks, and Loop
 E2E remain unverified and are not claimed.
+
+PR #696 (`feat: own deterministic edit and scaffold primitives`) was pushed,
+merged into `main` as `6f022cf2dda54865005f1b9ab88287021299c4b4`, and closed
+issue #691. GitHub exposed zero check runs and zero status entries for the
+merge commit; the measured local evidence above is the evidence used for the
+merge decision.

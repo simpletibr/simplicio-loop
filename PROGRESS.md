@@ -290,3 +290,7 @@
   ambiguous anchor, workspace escape, and deterministic four-kind scaffold
   planning. The full critical coverage gate remains red only for the
   pre-existing `simplicio/mapper.py` 85.46% versus 90% floor.
+- PR #696 was pushed and merged into `main` as
+  `6f022cf2dda54865005f1b9ab88287021299c4b4`; issue #691 is closed. GitHub
+  exposed zero check runs and zero status entries, so the local evidence above
+  was used for the merge decision.
