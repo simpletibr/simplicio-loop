@@ -31,6 +31,9 @@
 
 ### Changed
 
+- Make Dev CLI the owner of deterministic single-anchor edit plans, receipts,
+  Mapper-generation/hash provenance, and Rust/Python/Node scaffold planning
+  (#691).
 - Release-train automation now reconciles verified Mapper events into the
   exact `uv.lock` digest set, creates one deduplicated bump PR, and propagates
   the signed Dev CLI component manifest to Simplicio Loop only after PyPI

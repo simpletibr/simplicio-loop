@@ -46,6 +46,10 @@ RUNTIME_CAPABILITIES = [
     "simplicio.dev-cli.patch-receipt/v1",
     "simplicio.dev-cli.evidence-ledger/v1",
     "simplicio.dev-cli.task-batch/v1",
+    "simplicio.dev-cli.edit-plan/v1",
+    "simplicio.dev-cli.edit-receipt/v1",
+    "simplicio.dev-cli.scaffold-plan/v1",
+    "simplicio.dev-cli.scaffold-receipt/v1",
     "simplicio.prompt-envelope/v1",
     "simplicio.plan-dag/v1",
     "simplicio.plan-projection/v1",
@@ -160,6 +164,26 @@ def agent_first_boundary_contract() -> dict[str, Any]:
         "evidence": {
             "dev_cli_integrated_mode": "compile plan -> hand EffectPlan to sink -> never write directly",
             "runtime_handoff_scope": "PlanDAG/EffectPlan/VerificationPlan payloads stay effect-focused",
+        },
+        "deterministic_edit_boundary": {
+            "schema": "simplicio.dev-cli.deterministic-edit-boundary/v1",
+            "dev_cli_owns": [
+                "text_edit",
+                "edit_plan",
+                "edit_receipt",
+                "scaffold_plan",
+                "scaffold_receipt",
+            ],
+            "mapper_owns": ["repository_id", "generation", "source_tree_id", "source_hashes"],
+            "runtime_owns": ["authorization", "effect_application", "rollback", "effect_receipt"],
+            "mapper_must_not_own": [
+                "text_edit",
+                "edit_plan",
+                "edit_receipt",
+                "scaffold_plan",
+                "scaffold_receipt",
+            ],
+            "dev_cli_must_not_apply_effects": True,
         },
     }
 

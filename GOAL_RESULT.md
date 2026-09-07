@@ -312,3 +312,42 @@ bearing push with `refusing to allow an OAuth App to create or update workflow
 ... without workflow scope`. The active token exposes only `gist`, `read:org`,
 and `repo`; device authorization could not be completed here. No remote PR or
 merge is claimed.
+
+# Issue #691 result (2026-09-06)
+
+Status: implementation complete locally; external Runtime/Loop conformance,
+PR creation, and merge are unverified. Dev CLI now owns the deterministic
+single-anchor edit kernel, Mapper-generation/hash-bound edit plans and
+receipts, typed fail-closed conflicts, and deterministic Rust/Python/Node
+scaffold plans/receipts. Canonical `simplicio edit` plans do not delegate to
+the legacy native Mapper edit vocabulary. Runtime contract metadata and
+versioned JSON schemas define the authorization/effect boundary without
+adding a second edit engine here.
+
+Evidence: focused suite 153 passed and 2 skipped; full-suite critical module
+coverage is 92.53% (`mechanical_edit.py`) and focused coverage is 93.24%
+(`scaffold_contract.py`); bounded
+benchmark median 30.044 microseconds per call; independent adversarial checks
+passed. Full local pytest reached 2,743 passed, 23 skipped, and 21 unrelated
+baseline/environment failures with 85.60% global coverage. Full lint/type
+checks remain red on pre-existing findings, and the package build is blocked
+by the missing `build` module. No cross-repository Runtime E2E or hosted check
+is claimed.
+
+# Issue #691 closure update (2026-09-07)
+
+The Runtime compatibility boundary is now verified against the installed
+Runtime v3.8.47 receipt contract: dry-run text is ignored in favour of the
+final JSON object, `success`/`final_status` are accepted, and only an
+unambiguous single-line legacy operation is translated. Canonical
+Mapper-bound plans continue to execute in the Dev CLI kernel, preserving
+expected-hash, binding, and atomicity checks.
+
+Focused regression validation: 167 passed, 2 skipped. Full local validation:
+2,745 passed, 22 skipped, 21 unrelated baseline/environment failures; global
+coverage 85.56%. The repository-wide critical coverage gate remains red only
+for the pre-existing `simplicio/mapper.py` 85.46% versus 90% floor. The
+independent post-validation pass exercised the real canonical CLI path plus
+hash drift, ambiguous anchors, workspace escape, and stable four-kind scaffold
+planning. Cross-repository Runtime #5525, Mapper #613, hosted checks, and Loop
+E2E remain unverified and are not claimed.
