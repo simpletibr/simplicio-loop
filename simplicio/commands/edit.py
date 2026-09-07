@@ -33,6 +33,21 @@ CLI_PROG = "simplicio-py"
 RUNTIME_EDIT_TIMEOUT_S = 30.0
 
 
+def _decode_native_json(stdout: Any) -> Any:
+    """Decode Runtime's final JSON receipt after any human-readable output."""
+    if not isinstance(stdout, str):
+        return None
+    for line in reversed(stdout.splitlines()):
+        candidate = line.strip()
+        if not candidate.startswith("{"):
+            continue
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+    return None
+
+
 def run_mechanical_edit(a: argparse.Namespace) -> int:
     from ..mechanical_edit import execute_plan_json
 
@@ -220,10 +235,7 @@ def _run_atomic_native_create_plans(
             ),
         }
 
-    try:
-        payload = json.loads(completed.stdout)
-    except json.JSONDecodeError:
-        payload = None
+    payload = _decode_native_json(completed.stdout)
     result_files = payload.get("files") if isinstance(payload, dict) else None
     actual_files = (
         {str(item.get("file")) for item in result_files if isinstance(item, dict)}
@@ -358,9 +370,8 @@ def _run_native_edit_plans(
                 }
             )
             continue
-        try:
-            result = json.loads(getattr(completed, "stdout", ""))
-        except json.JSONDecodeError:
+        result = _decode_native_json(getattr(completed, "stdout", ""))
+        if result is None:
             errors.append(
                 {
                     "code": "native_delegation_malformed_output",
@@ -369,7 +380,9 @@ def _run_native_edit_plans(
                 }
             )
             continue
-        if not isinstance(result, dict) or result.get("status") != "ok":
+        native_status = result.get("status") if isinstance(result, dict) else None
+        final_status = result.get("final_status", native_status) if isinstance(result, dict) else None
+        if native_status not in {"ok", "success"} or final_status not in {"ok", "success"}:
             errors.append(
                 {
                     "code": "native_delegation_invalid_result",

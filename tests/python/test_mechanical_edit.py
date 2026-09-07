@@ -805,7 +805,8 @@ def _native_edit_payload(root, **overrides):
     """
     payload = {
         "schema": "simplicio.edit-result/v1",
-        "status": "ok",
+        "status": "success",
+        "final_status": "success",
         "file": str(Path(root) / "app.py"),
         "created": False,
         "dry_run": False,
@@ -845,7 +846,7 @@ def test_execute_plan_delegates_and_translates_native_result_when_binary_present
 
     class FakeCompleted:
         returncode = 0
-        stdout = json.dumps(fake_payload)
+        stdout = "--- app.py\n+++ app.py\n" + json.dumps(fake_payload)
 
     def fake_run(cmd, **kwargs):
         calls.append(cmd)

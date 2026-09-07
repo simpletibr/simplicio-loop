@@ -317,6 +317,37 @@ def test_native_runtime_receives_stdin_plan_without_conflicting_stdin_handle(tmp
     assert len(calls) == 1
 
 
+def test_native_runtime_accepts_current_success_receipt_after_dry_run_text(tmp_path, monkeypatch):
+    def fake_run(_argv, **_kwargs):
+        return SimpleNamespace(
+            returncode=0,
+            stdout=(
+                "--- app.py\n+++ app.py\n"
+                + json.dumps(
+                    {
+                        "schema": "simplicio.edit-result/v1",
+                        "status": "success",
+                        "final_status": "success",
+                        "file": str(tmp_path / "app.py"),
+                        "before_sha256": "before",
+                        "after_sha256": "after",
+                    }
+                )
+            ),
+            stderr="",
+        )
+
+    monkeypatch.setattr(edit_cmd.subprocess, "run", fake_run)
+    result = edit_cmd._run_native_edit_plans(
+        "simplicio",
+        [{"file": "app.py", "operations": [{"op": "replace", "text": "new"}]}],
+        argparse.Namespace(root=str(tmp_path), apply=False),
+    )
+
+    assert result["status"] == "ok"
+    assert result["mutation_receipt"]["runtime_gated"] is True
+
+
 # --------------------------------------------------------------------------- #
 # file read (commands/file_read.py::run)
 # --------------------------------------------------------------------------- #

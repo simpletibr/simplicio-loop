@@ -333,3 +333,21 @@ baseline/environment failures with 85.60% global coverage. Full lint/type
 checks remain red on pre-existing findings, and the package build is blocked
 by the missing `build` module. No cross-repository Runtime E2E or hosted check
 is claimed.
+
+# Issue #691 closure update (2026-09-07)
+
+The Runtime compatibility boundary is now verified against the installed
+Runtime v3.8.47 receipt contract: dry-run text is ignored in favour of the
+final JSON object, `success`/`final_status` are accepted, and only an
+unambiguous single-line legacy operation is translated. Canonical
+Mapper-bound plans continue to execute in the Dev CLI kernel, preserving
+expected-hash, binding, and atomicity checks.
+
+Focused regression validation: 167 passed, 2 skipped. Full local validation:
+2,745 passed, 22 skipped, 21 unrelated baseline/environment failures; global
+coverage 85.56%. The repository-wide critical coverage gate remains red only
+for the pre-existing `simplicio/mapper.py` 85.46% versus 90% floor. The
+independent post-validation pass exercised the real canonical CLI path plus
+hash drift, ambiguous anchors, workspace escape, and stable four-kind scaffold
+planning. Cross-repository Runtime #5525, Mapper #613, hosted checks, and Loop
+E2E remain unverified and are not claimed.

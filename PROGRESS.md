@@ -261,6 +261,12 @@
 
 ## Issue #691 local progress
 
+- 2026-09-07: aligned the legacy Runtime adapter with the installed Runtime
+  `simplicio.edit --json` receipt (`simplicio.edit-result/v1`, `success`, and
+  `final_status`) and its single-file line-operation shape. The adapter now
+  parses a final JSON receipt after dry-run text, translates only unambiguous
+  single-line legacy operations, and refuses native delegation when canonical
+  hash/binding/validation semantics would be lost.
 - 2026-09-06: implemented the Dev CLI-owned deterministic edit and scaffold
   boundary from `origin/main`. `TextEdit`, single-anchor replacement,
   expected-hash conflict detection, atomic pure batch planning/application,
@@ -268,14 +274,19 @@
   planning now live in the Dev CLI. Canonical `simplicio edit` plans bypass
   the legacy native Mapper edit vocabulary; Runtime contract metadata and
   checked-in JSON schemas describe the authorization/effect handoff.
-- Focused validation: 153 passed, 2 skipped; full-suite critical coverage is
-  92.53% for `mechanical_edit.py` and focused coverage is 93.24% for
-  `scaffold_contract.py`.
+- Focused validation after the Runtime receipt adaptation: 167 passed, 2
+  skipped. Full-suite critical coverage is 90.70% for `mechanical_edit.py`;
+  the global report is 85.56%.
 - The bounded kernel benchmark measured a 30.044 microsecond median per call over 10 x
   1,000 iterations. Independent adversarial checks passed for effective edit,
   CRLF/portable paths, hash drift, and all four scaffold kinds.
 - Full local validation remains limited by the existing environment baseline:
-  2,743 passed, 23 skipped, 21 unrelated failures; global coverage 85.60%;
+  2,745 passed, 22 skipped, 21 unrelated failures; global coverage 85.56%;
   full Ruff and mypy retain pre-existing failures; package build lacks the
   uninstalled `build` module. Runtime #5525, Mapper #613, hosted Actions, and
   cross-repository Loop E2E conformance were unavailable and are not claimed.
+- Independent post-validation pass exercised the real canonical `simplicio-py
+  edit --apply --json` path and verified an effective edit, hash drift,
+  ambiguous anchor, workspace escape, and deterministic four-kind scaffold
+  planning. The full critical coverage gate remains red only for the
+  pre-existing `simplicio/mapper.py` 85.46% versus 90% floor.

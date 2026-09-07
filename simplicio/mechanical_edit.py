@@ -559,11 +559,53 @@ def _try_native_edit(
     binary = _native_edit_binary()
     if binary is None:
         return None
+    if plan.get("schema") == PLAN_SCHEMA and not _native_legacy_preflight(plan, root_path):
+        return None
 
+    payload, error = _run_native_edit(binary, plan, root_path, apply=apply)
+    if error is not None:
+        if not apply:
+            return None
+        return _native_effect_unknown(plan, root_path, reason=error)
+
+    translated = _translate_native_result(payload, root_path)
+    if translated is not None:
+        return translated
+
+    # The installed Runtime currently accepts its own single-file plan shape.
+    # Retry only after its explicit pre-effect "file"-missing rejection, never
+    # after an ambiguous or post-effect failure.
+    native_plan = _legacy_plan_for_native(plan)
+    if native_plan is not None and _native_rejected_missing_file(payload):
+        retry_payload, retry_error = _run_native_edit(binary, native_plan, root_path, apply=apply)
+        if retry_error is not None:
+            if not apply:
+                return None
+            return _native_effect_unknown(plan, root_path, reason=retry_error)
+        translated = _translate_native_result(retry_payload, root_path)
+        if translated is not None:
+            return translated
+
+    if not apply:
+        return None
+    return _native_effect_unknown(
+        plan,
+        root_path,
+        reason="native edit returned an ambiguous or incompatible result",
+    )
+
+
+def _run_native_edit(
+    binary: str,
+    plan: dict[str, Any],
+    root_path: Path,
+    *,
+    apply: bool,
+) -> tuple[Any, str | None]:
     try:
         plan_text = json.dumps(plan)
     except (TypeError, ValueError):
-        return None
+        return None, "native edit plan is not JSON serializable"
 
     tmp_path: str | None = None
     try:
@@ -572,7 +614,7 @@ def _try_native_edit(
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
                 handle.write(plan_text)
         except OSError:
-            return None
+            return None, "native edit plan could not be staged"
 
         cmd = [binary, "edit", "--plan", tmp_path, "--repo", str(root_path), "--json"]
         if not apply:
@@ -589,41 +631,101 @@ def _try_native_edit(
                 timeout=_NATIVE_EDIT_TIMEOUT_S,
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
-            if not apply:
-                return None
-            return _native_effect_unknown(
-                plan,
-                root_path,
-                reason=f"native edit outcome is unknown: {type(exc).__name__}",
-            )
+            return None, f"native edit outcome is unknown: {type(exc).__name__}"
 
-        try:
-            payload = json.loads(getattr(completed, "stdout", ""))
-        except (json.JSONDecodeError, ValueError) as exc:
-            if not apply:
-                return None
-            return _native_effect_unknown(
-                plan,
-                root_path,
-                reason=f"native edit returned invalid JSON: {type(exc).__name__}",
-            )
-
-        translated = _translate_native_result(payload, root_path)
-        if translated is not None:
-            return translated
-        if not apply:
-            return None
-        return _native_effect_unknown(
-            plan,
-            root_path,
-            reason="native edit returned an ambiguous or incompatible result",
-        )
+        payload = _decode_native_json(getattr(completed, "stdout", ""))
+        if payload is None:
+            return None, "native edit returned invalid JSON"
+        return payload, None
     finally:
         if tmp_path is not None:
             try:
                 os.unlink(tmp_path)
             except OSError:
                 pass
+
+
+def _legacy_plan_for_native(plan: dict[str, Any]) -> dict[str, Any] | None:
+    """Translate one unambiguous legacy line edit for Runtime's native API."""
+    if plan.get("schema") != PLAN_SCHEMA or len(plan.get("operations", [])) != 1:
+        return None
+    operation = plan["operations"][0]
+    if not isinstance(operation, dict):
+        return None
+    if any(key in operation for key in ("file_sha256", "range_sha256")):
+        return None
+    path = operation.get("path")
+    name = operation.get("op")
+    if not isinstance(path, str):
+        return None
+    if name == "replace_range" and operation.get("start_line") == operation.get("end_line"):
+        text = _native_line_text(operation.get("text", ""))
+        if text is None:
+            return None
+        return {
+            "file": path,
+            "operations": [
+                {
+                    "op": "replace_line",
+                    "line": operation["start_line"],
+                    "text": text,
+                }
+            ],
+        }
+    if name in {"insert_before", "insert_after"}:
+        line = operation.get("line", operation.get("start_line", operation.get("end_line")))
+        text = _native_line_text(operation.get("text", ""))
+        if text is None:
+            return None
+        return {
+            "file": path,
+            "operations": [{"op": name, "line": line, "text": text}],
+        }
+    if name == "delete_range" and operation.get("start_line") == operation.get("end_line"):
+        return {
+            "file": path,
+            "operations": [{"op": "delete_line", "line": operation["start_line"]}],
+        }
+    return None
+
+
+def _native_line_text(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    if value.endswith("\r\n"):
+        value = value[:-2]
+    elif value.endswith(("\n", "\r")):
+        value = value[:-1]
+    return value if "\n" not in value and "\r" not in value else None
+
+
+def _native_legacy_preflight(plan: dict[str, Any], root_path: Path) -> bool:
+    """Admit only changed, locally valid legacy plans to Runtime translation."""
+    if plan.get("validation") or plan.get("mapper_binding"):
+        return False
+    operations = plan.get("operations")
+    if not isinstance(operations, list) or len(operations) != 1:
+        return False
+    operation = operations[0]
+    if not isinstance(operation, dict) or any(key in operation for key in ("file_sha256", "range_sha256")):
+        return False
+    if _legacy_plan_for_native(plan) is None:
+        return False
+    try:
+        before = _snapshot(root_path, operations)
+        after = _apply_operations_to_snapshot(root_path, before, operations)
+    except MechanicalEditError:
+        return False
+    return before != after
+
+
+def _native_rejected_missing_file(payload: Any) -> bool:
+    if not isinstance(payload, dict) or payload.get("schema") != NATIVE_EDIT_RESULT_SCHEMA:
+        return False
+    if payload.get("status") not in {"failed", "error"}:
+        return False
+    message = " ".join(str(payload.get(key, "")) for key in ("error", "cause", "original_cause")).lower()
+    return "must specify a target" in message and '"file"' in message
 
 
 # The native binary's *actual* `simplicio edit --json` output schema today —
@@ -633,6 +735,26 @@ def _try_native_edit(
 # `noop`/`files`/`operation_count`), not just a schema-string typo. Translated
 # below rather than requiring the runtime to change its established contract.
 NATIVE_EDIT_RESULT_SCHEMA = "simplicio.edit-result/v1"
+
+
+def _decode_native_json(stdout: Any) -> Any:
+    """Decode the last JSON object from Runtime stdout.
+
+    Runtime may print a human-readable dry-run diff before its machine-readable
+    JSON receipt. The receipt remains authoritative; accepting only the final
+    JSON line keeps the adapter strict without confusing the two streams.
+    """
+    if not isinstance(stdout, str):
+        return None
+    for line in reversed(stdout.splitlines()):
+        candidate = line.strip()
+        if not candidate.startswith("{"):
+            continue
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+    return None
 
 
 def _translate_native_result(payload: Any, root_path: Path) -> dict[str, Any] | None:
@@ -654,7 +776,7 @@ def _translate_native_result(payload: Any, root_path: Path) -> dict[str, Any] | 
     if not isinstance(payload, dict) or payload.get("schema") != NATIVE_EDIT_RESULT_SCHEMA:
         return None
     native_status = payload.get("status")
-    if native_status != "ok":
+    if native_status not in {"ok", "success"}:
         return None
     file_abs = payload.get("file")
     changed = payload.get("changed")
