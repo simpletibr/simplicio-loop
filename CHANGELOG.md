@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.26.30] - 2026-09-10
+### Fixed
+- Add canonical symbol artifact interoperability regression coverage for Runtime consumers.
+
 ## [Unreleased]
 
 ## [0.26.28] - 2026-09-05
