@@ -335,6 +335,33 @@ def build_context_pack(
         ranges = list(target_row.get("ranges", []))
         abs_path = os.path.join(abs_root, path) if not os.path.isabs(path) else path
         if not os.path.exists(abs_path):
+            if target_row.get("creation_target") is True:
+                empty_hash = hashlib.sha256(b"").hexdigest()
+                files_out.append(
+                    {
+                        "path": path.replace(os.sep, "/"),
+                        "language": "",
+                        "snapshot_hash": empty_hash,
+                        "line_count": 0,
+                        "compact": False,
+                        "ranges": [],
+                        "symbols": [],
+                        "callers": [],
+                        "imports": [],
+                        "relation_evidence": [],
+                        "tests": [],
+                        "test_evidence": [],
+                        "drilldown": {"reversible": True, "handles": []},
+                        "freshness": {"snapshot_hash": empty_hash, "range_hashes": []},
+                        "scale_context": {
+                            "micro": {"symbols": [], "symbol_count": 0},
+                            "meso": {"path": path.replace(os.sep, "/"), "imports": [], "callers": [], "tests": [], "relation_evidence": [], "test_evidence": []},
+                            "macro": {"modules": [], "layers": []},
+                        },
+                        "creation_target": True,
+                    }
+                )
+                continue
             reasons.append(f"target missing: {path}")
             continue
         text = _read_safe(abs_path)

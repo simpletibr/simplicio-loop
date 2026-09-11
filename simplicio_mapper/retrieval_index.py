@@ -1814,6 +1814,32 @@ def select_context_targets(
 
     ranked = rank_candidates(index, plan, recent_paths=recent_paths, limit=limit)
 
+    creation_target_reserved = False
+    if plan.target_path and not os.path.isfile(os.path.join(abs_root, plan.target_path)):
+        # A missing explicit target is valid mutation authority for a creation
+        # task. Keep it in the bounded selection as a zero-content placeholder;
+        # context_pack.py will emit a canonical empty-file entry for it.
+        ranked.append({
+            "path": plan.target_path,
+            "relevance_score": 5.0,
+            "score_components": {"explicit_target_creation": 5.0},
+            "idf_terms": {},
+            "reason_codes": ["explicit_target_creation"],
+            "matched_terms": [],
+            "symbol_matches": [],
+            "path_matches": [],
+            "recent_change_boost": False,
+            "generated": False,
+            "generic_flags": [],
+            "large": False,
+            "language": "",
+            "roles": [],
+            "graph_neighbor_evidence": [],
+            "test_match_evidence": [],
+            "creation_target": True,
+        })
+        creation_target_reserved = True
+
     # An explicit target is a caller-provided authority boundary. It must not
     # be dropped merely because BM25 placed it just outside the bounded top-N
     # list; keep the normal limit for ranked context while appending the exact
@@ -1876,6 +1902,7 @@ def select_context_targets(
             "reason_codes": row["reason_codes"],
             "graph_neighbor_evidence": row.get("graph_neighbor_evidence", []),
             "test_match_evidence": row.get("test_match_evidence", []),
+            "creation_target": bool(row.get("creation_target")),
         }
         for row in selected_rows
     ]
@@ -1890,8 +1917,12 @@ def select_context_targets(
     elif not target_exists:
         target_resolution = {
             "requested": target.replace(os.sep, "/"),
-            "status": "missing",
-            "reason": f"target does not exist: {target.replace(os.sep, '/')}",
+            "status": "reserved" if creation_target_reserved else "missing",
+            "reason": (
+                "explicit target reserved for creation"
+                if creation_target_reserved
+                else f"target does not exist: {target.replace(os.sep, '/') }"
+            ),
         }
     else:
         sel_paths = {row["path"] for row in ranked}
