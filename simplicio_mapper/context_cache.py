@@ -220,6 +220,8 @@ class CacheReceipt:
     tokens_avoided: int = 0
     latency_avoided_ms: float = 0.0
     consumed: bool = False
+    produced: bool = False
+    reused: bool = False
     baseline: str = ""
     method: str = ""
     created_at: str = field(default_factory=lambda: _now_iso())
@@ -236,6 +238,8 @@ class CacheReceipt:
             "tokens_avoided": int(self.tokens_avoided),
             "latency_avoided_ms": round(float(self.latency_avoided_ms), 3),
             "consumed": bool(self.consumed),
+            "produced": bool(self.produced),
+            "reused": bool(self.reused),
             "baseline": self.baseline,
             "method": self.method,
             "created_at": self.created_at,
@@ -485,6 +489,16 @@ class ContextCache:
             self._persist()
 
         self._with_lock(_action)
+        self._push_receipt(
+            self._receipt(
+                OUTCOME_MISS,
+                key_hash,
+                layer,
+                "written",
+                kind="context",
+                produced=True,
+            )
+        )
         return key_hash
 
     def get_entry(
@@ -521,6 +535,7 @@ class ContextCache:
                     kind="context",
                 )
                 self._stats["misses"] += 1
+                self._push_receipt(receipt)
                 return None, receipt
             if not entry.is_valid():
                 self._quarantine(key_hash, entry, "checksum_mismatch")
@@ -533,6 +548,7 @@ class ContextCache:
                 )
                 self._stats["misses"] += 1
                 self._stats["quarantined"] += 1
+                self._push_receipt(receipt)
                 return None, receipt
             self._stats["hits"] += 1
             if mark_consumed:
@@ -547,6 +563,7 @@ class ContextCache:
                 tokens_avoided=_estimate_tokens(_stable_json(entry.payload)),
                 latency_avoided_ms=latency_on_build_ms,
                 consumed=mark_consumed,
+                reused=True,
             )
             self._stats["bytes_avoided"] += receipt.bytes_avoided
             self._stats["tokens_avoided"] += receipt.tokens_avoided
@@ -556,7 +573,20 @@ class ContextCache:
 
         self._stats["misses"] += 1
         reason = "cold" if not self._structured else "no_matching_identity"
-        receipt = self._receipt(OUTCOME_MISS, key_hash, layer, reason, kind="context")
+        quarantined = next(
+            (item for item in reversed(self._quarantined) if item.get("key_hash") == key_hash),
+            None,
+        )
+        if quarantined is not None:
+            receipt = self._receipt(
+                OUTCOME_CORRUPT,
+                key_hash,
+                layer,
+                str(quarantined.get("reason") or "corrupt_entry_recomputed"),
+                kind="context",
+            )
+        else:
+            receipt = self._receipt(OUTCOME_MISS, key_hash, layer, reason, kind="context")
         self._push_receipt(receipt)
         return None, receipt
 
@@ -668,6 +698,8 @@ class ContextCache:
         tokens_avoided: int = 0,
         latency_avoided_ms: float = 0.0,
         consumed: bool = False,
+        produced: bool = False,
+        reused: bool = False,
         baseline: str = "",
         method: str = "",
     ) -> CacheReceipt:
@@ -681,6 +713,8 @@ class ContextCache:
             tokens_avoided=tokens_avoided,
             latency_avoided_ms=latency_avoided_ms,
             consumed=consumed,
+            produced=produced,
+            reused=reused,
             baseline=baseline,
             method=method,
         )

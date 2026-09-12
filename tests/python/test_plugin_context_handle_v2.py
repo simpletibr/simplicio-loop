@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -54,6 +55,29 @@ class PluginContextHandleV2Test(unittest.TestCase):
         self.assertEqual(second["local_map_cache"]["status"], "hit")
         self.assertEqual(second["local_map_cache"]["scope"], "local_mapper_artifact")
         self.assertIsNone(second["provider_prompt_cache"])
+
+    def test_v2_cache_lifecycle_miss_write_hit_invalidation_and_corruption(self) -> None:
+        first = build_plugin_context_handle_v2(self.root, ref="main")
+        self.assertEqual(first["local_map_cache"]["status"], "miss")
+        self.assertTrue(first["local_map_cache"]["receipt"]["produced"])
+        second = build_plugin_context_handle_v2(self.root, ref="main")
+        self.assertEqual(second["local_map_cache"]["status"], "hit")
+        self.assertTrue(second["local_map_cache"]["receipt"]["reused"])
+
+        (self.root / "src" / "app.py").write_text("def app():\n    return 2\n", encoding="utf-8")
+        invalidated = build_plugin_context_handle_v2(self.root, ref="main")
+        self.assertEqual(invalidated["local_map_cache"]["status"], "miss")
+        self.assertNotEqual(invalidated["context_id"], first["context_id"])
+
+        cache_path = self.root / ".simplicio" / "plugin-context-handle.json"
+        raw = json.loads(cache_path.read_text(encoding="utf-8"))
+        for entry in raw["structured"]["entries"].values():
+            entry["checksum"] = "corrupt"
+        cache_path.write_text(json.dumps(raw), encoding="utf-8")
+        corrupted = build_plugin_context_handle_v2(self.root, ref="main")
+        self.assertEqual(corrupted["local_map_cache"]["status"], "stale")
+        self.assertEqual(corrupted["local_map_cache"]["receipt"]["outcome"], "corrupt")
+        self.assertIsNone(corrupted["provider_prompt_cache"])
 
     def test_v2_partial_coverage_never_claims_complete(self) -> None:
         for index in range(4):

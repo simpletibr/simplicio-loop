@@ -58,7 +58,7 @@ class ContextCacheQueryTest(unittest.TestCase):
         reloaded = ContextCache(self.cache_path)
         value, receipt = reloaded.get_entry(LAYER_CONTEXT_SUMMARY, key)
         self.assertIsNone(value)
-        self.assertEqual(receipt.outcome, "miss")
+        self.assertEqual(receipt.outcome, "corrupt")
         explain = reloaded.explain(key_hash)
         self.assertTrue(explain["quarantined"])
         self.assertEqual(explain["reason"], "checksum_mismatch")

@@ -339,12 +339,18 @@ def build_plugin_context_handle_v2(
     )
     cache_key = "sha256:" + cache_identity.content_hash()
     cached: dict[str, Any] | None = None
+    cache_receipt: dict[str, Any] | None = None
     cache_status = "rebuilt" if dirty else "miss"
     cache_reason = "dirty_rebuild" if dirty else "cache_miss"
+    cache: ContextCache | None = None
     try:
         cache = _cache(root_path)
         if not dirty:
             cached, _receipt = cache.get_entry(LAYER_RENDERED_PACK, cache_identity)
+            cache_receipt = _receipt.to_dict()
+            if _receipt.outcome == "corrupt":
+                cache_status = "stale"
+                cache_reason = "corrupt_entry_recomputed"
         if cached is not None:
             payload = dict(cached)
             payload["local_map_cache"] = {
@@ -353,6 +359,7 @@ def build_plugin_context_handle_v2(
                 "status": "hit",
                 "key": cache_key,
                 "reason": "cache_hit",
+                "receipt": cache_receipt,
             }
             _HANDLES[str(payload["context_id"])]=payload
             return payload
@@ -409,6 +416,7 @@ def build_plugin_context_handle_v2(
             "status": cache_status,
             "key": cache_key,
             "reason": cache_reason,
+            "receipt": cache_receipt,
         },
         "provider_prompt_cache": None,
         "fidelity": {
@@ -421,11 +429,19 @@ def build_plugin_context_handle_v2(
     if not validation["valid"]:
         raise ValueError(f"invalid v2 context handle: {validation['reason']}")
     try:
+        if cache is None:
+            raise OSError("cache unavailable")
         cache.put(
             LAYER_RENDERED_PACK,
             cache_identity,
             {key: value for key, value in payload.items() if key != "local_map_cache"},
         )
+        receipts = cache.receipts()
+        if receipts:
+            write_receipt = receipts[-1]
+            payload["local_map_cache"]["write_receipt"] = write_receipt
+            if cache_status != "stale":
+                payload["local_map_cache"]["receipt"] = write_receipt
     except (OSError, ValueError, TypeError):
         payload["local_map_cache"] = {
             **payload["local_map_cache"],
