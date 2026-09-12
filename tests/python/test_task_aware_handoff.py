@@ -97,8 +97,8 @@ class TaskAwareHandoffTest(unittest.TestCase):
 
         self.assertIn("src/modeling/sort_lines.py", [row["path"] for row in included["targets"]])
         self.assertEqual(included["target_resolution"]["status"], "included")
-        self.assertEqual(missing["target_resolution"]["status"], "missing")
-        self.assertIn("does not exist", missing["target_resolution"]["reason"])
+        self.assertEqual(missing["target_resolution"]["status"], "reserved")
+        self.assertEqual(missing["target_resolution"]["reason"], "explicit target reserved for creation")
 
     def test_docs_query_can_select_docs_conditionally(self) -> None:
         selection = select_context_targets(

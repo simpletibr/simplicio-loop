@@ -1,10 +1,5 @@
 # CLAUDE.md
 
-
-## Active English instruction surface
-
-Read [docs/LLM_OPERATING_INSTRUCTIONS.md](docs/LLM_OPERATING_INSTRUCTIONS.md) before acting. It is the normative English entry point for LLMs; the rest of this file supplies project-specific detail.
-
 > Este arquivo espelha [AGENTS.md](./AGENTS.md) e é **gerado**, não editado
 > a mão -- veja `scripts/check-doc-sync.js` (issue #163). Edite
 > `AGENTS.md`, depois rode `node scripts/check-doc-sync.js sync`. Não é
@@ -18,6 +13,11 @@ Read [docs/LLM_OPERATING_INSTRUCTIONS.md](docs/LLM_OPERATING_INSTRUCTIONS.md) be
 ---
 
 # AGENTS.md
+
+
+## Active English instruction surface
+
+Read [docs/LLM_OPERATING_INSTRUCTIONS.md](docs/LLM_OPERATING_INSTRUCTIONS.md) before acting. It is the normative English entry point for LLMs; the rest of this file supplies project-specific detail.
 
 ## Simplicio Ecosystem Contract (canonical)
 

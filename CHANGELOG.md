@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.31] - 2026-09-12
+
+### Fixed
+
+- Preserve explicit creation targets in context packs so downstream consumers
+  receive the requested target set without inferred replacements.
+
 ## [0.26.30] - 2026-09-10
 ### Fixed
 - Add canonical symbol artifact interoperability regression coverage for Runtime consumers.
