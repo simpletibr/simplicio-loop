@@ -572,7 +572,7 @@ class ContextCache:
             return entry.payload, receipt
 
         self._stats["misses"] += 1
-        reason = "cold" if not self._structured else "no_matching_identity"
+        reason = "cold" if not self._structured else "invalidated"
         quarantined = next(
             (item for item in reversed(self._quarantined) if item.get("key_hash") == key_hash),
             None,

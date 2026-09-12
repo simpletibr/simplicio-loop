@@ -63,10 +63,13 @@ class PluginContextHandleV2Test(unittest.TestCase):
         second = build_plugin_context_handle_v2(self.root, ref="main")
         self.assertEqual(second["local_map_cache"]["status"], "hit")
         self.assertTrue(second["local_map_cache"]["receipt"]["reused"])
+        self.assertTrue(second["local_map_cache"]["receipt"]["consumed"])
 
         (self.root / "src" / "app.py").write_text("def app():\n    return 2\n", encoding="utf-8")
         invalidated = build_plugin_context_handle_v2(self.root, ref="main")
         self.assertEqual(invalidated["local_map_cache"]["status"], "miss")
+        self.assertEqual(invalidated["local_map_cache"]["lookup_receipt"]["reason"], "invalidated")
+        self.assertTrue(invalidated["local_map_cache"]["receipt"]["produced"])
         self.assertNotEqual(invalidated["context_id"], first["context_id"])
 
         cache_path = self.root / ".simplicio" / "plugin-context-handle.json"

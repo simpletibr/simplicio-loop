@@ -360,6 +360,7 @@ def build_plugin_context_handle_v2(
                 "key": cache_key,
                 "reason": "cache_hit",
                 "receipt": cache_receipt,
+                "lookup_receipt": cache_receipt,
             }
             _HANDLES[str(payload["context_id"])]=payload
             return payload
@@ -417,6 +418,7 @@ def build_plugin_context_handle_v2(
             "key": cache_key,
             "reason": cache_reason,
             "receipt": cache_receipt,
+            "lookup_receipt": cache_receipt,
         },
         "provider_prompt_cache": None,
         "fidelity": {
