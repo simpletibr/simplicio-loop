@@ -22,3 +22,11 @@ def test_provider_policy_receipt_is_separate_from_cache() -> None:
     assert receipt["requested_route"] == "remote"
     assert receipt["effective_route"] == "deterministic"
     assert receipt["side_effects"]["network"] is False
+
+
+def test_provider_policy_receipt_exposes_actionable_disabled_message() -> None:
+    from simplicio.llm_policy import execution_disabled_receipt
+
+    receipt = execution_disabled_receipt(surface="task", model="deepseek/deepseek-v4.1-flash")
+
+    assert "LLM execution is disabled" in receipt["message"]
