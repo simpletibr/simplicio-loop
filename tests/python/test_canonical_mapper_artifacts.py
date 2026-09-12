@@ -16,8 +16,13 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper.contract import validate_payload  # noqa: E402
-from simplicio_mapper.mapper import build_artifacts  # noqa: E402
-from simplicio_mapper.mapper.canonical_artifacts import canonical_digest  # noqa: E402
+from simplicio_mapper.mapper import build_artifacts, write_mapping_artifacts  # noqa: E402
+from simplicio_mapper.mapper.canonical_artifacts import (  # noqa: E402
+    ARTIFACT_SET_SCHEMA,
+    build_artifact_manifest,
+    canonical_digest,
+    validate_artifact_manifest,
+)
 
 CONTRACT_ROOT = str(ROOT / "contracts" / "mapper-artifacts" / "v1")
 FIXTURES = ROOT / "contracts" / "mapper-artifacts" / "v1" / "fixtures"
@@ -141,6 +146,13 @@ class CanonicalMapperArtifactsTest(unittest.TestCase):
         for name in PUBLIC_ARTIFACTS:
             payload = json.loads((fixture / "artifacts" / f"{name.replace('_', '-')}.json").read_text())
             self.assertEqual(validate_payload(payload, CONTRACT_ROOT)[1], [])
+        manifest = json.loads((fixture / "artifacts" / "artifact-manifest.json").read_text())
+        fixture_artifacts = {
+            name: json.loads((fixture / "artifacts" / f"{name.replace('_', '-')}.json").read_text())
+            for name in PUBLIC_ARTIFACTS
+        }
+        self.assertEqual(validate_payload(manifest, CONTRACT_ROOT)[1], [])
+        self.assertEqual(validate_artifact_manifest(manifest, fixture_artifacts), [])
 
     def test_empty_repository_reports_empty_supported_capabilities(self) -> None:
         with tempfile.TemporaryDirectory(prefix="mapper-614-empty-") as temp:
@@ -173,6 +185,48 @@ class CanonicalMapperArtifactsTest(unittest.TestCase):
             statuses = {item["path"]: item["git_status"] for item in payload["files"]}
             self.assertEqual(statuses["untracked.py"], "??")
             self.assertIn("untracked.py", payload["changed_files"])
+
+    def test_write_mapping_artifacts_publishes_artifact_set_manifest(self) -> None:
+        source = FIXTURES / "python-minimal" / "source"
+        with tempfile.TemporaryDirectory(prefix="mapper-624-output-") as output:
+            result = write_mapping_artifacts(str(source), output_dir=output)
+            manifest_path = Path(result["artifact_manifest_path"])
+            self.assertTrue(manifest_path.exists())
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            artifacts = {
+                name: result[name]
+                for name in PUBLIC_ARTIFACTS
+            }
+            self.assertEqual(validate_artifact_manifest(manifest, artifacts), [])
+            schema_id, errors = validate_payload(manifest, CONTRACT_ROOT)
+            self.assertEqual(schema_id, ARTIFACT_SET_SCHEMA)
+            self.assertEqual(errors, [])
+
+        source = FIXTURES / "python-minimal" / "source"
+        with tempfile.TemporaryDirectory(prefix="mapper-624-output-") as output:
+            artifacts = build_artifacts(str(source), output_dir=output)
+            manifest = build_artifact_manifest(artifacts)
+            self.assertEqual(manifest["schema"], ARTIFACT_SET_SCHEMA)
+            self.assertEqual(set(manifest["artifacts"]), set(PUBLIC_ARTIFACTS))
+            self.assertEqual(manifest["generation"], artifacts["project_map"]["producer"]["source_generation"])
+            self.assertTrue(manifest["artifact_set_digest"].startswith("sha256:"))
+            self.assertEqual(validate_artifact_manifest(manifest, artifacts), [])
+
+            altered = copy.deepcopy(artifacts)
+            altered["symbol_index"]["symbols"][0]["name"] += "_changed"
+            self.assertNotEqual(validate_artifact_manifest(manifest, altered), [])
+
+    def test_artifact_set_rejects_mixed_generation_and_same_schema_wrong_shape(self) -> None:
+        source = FIXTURES / "python-minimal" / "source"
+        with tempfile.TemporaryDirectory(prefix="mapper-624-output-") as output:
+            artifacts = build_artifacts(str(source), output_dir=output)
+            manifest = build_artifact_manifest(artifacts)
+            mixed = copy.deepcopy(artifacts)
+            mixed["symbol_index"]["producer"]["source_generation"]["revision"] = "stale"
+            self.assertTrue(any("generation" in error for error in validate_artifact_manifest(manifest, mixed)))
+            wrong_shape = copy.deepcopy(artifacts)
+            wrong_shape["symbol_index"]["schema"] = "simplicio.project-map/v1"
+            self.assertTrue(any("schema" in error for error in validate_artifact_manifest(manifest, wrong_shape)))
 
     def test_uncertified_node_mirror_cannot_masquerade_as_public_v1(self) -> None:
         with tempfile.TemporaryDirectory(prefix="mapper-614-node-") as temp:

@@ -7,7 +7,11 @@ passes the differential fixture suite.
 ## Public schema envelope
 
 Each artifact keeps its existing v1 fields and MUST additionally contain
-`producer`, validated by `schemas/producer-metadata.schema.json`:
+`producer`, validated by `schemas/producer-metadata.schema.json`. The producer
+also writes `.simplicio/artifact-manifest.json`, a versioned commit marker for
+the complete five-artifact set. Consumers must validate that marker against the
+loaded files before accepting a set; this rejects mixed generations even when
+every individual file passes the same schema.
 
 | Field | Type | Semantics |
 |---|---|---|

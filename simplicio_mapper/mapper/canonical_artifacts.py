@@ -20,6 +20,7 @@ from .. import __version__
 
 CANONICAL_SCHEMA_VERSION = "v1"
 CANONICAL_DIGEST_PREFIX = "sha256:"
+ARTIFACT_SET_SCHEMA = "simplicio.mapper-artifact-set/v1"
 
 CAPABILITY_NAMES = ("files", "symbols", "relationships", "precedent", "architecture")
 CAPABILITY_STATES = ("full", "partial", "empty", "unsupported")
@@ -72,6 +73,14 @@ _ARTIFACT_CAPABILITIES: dict[str, dict[str, str]] = {
         "precedent": "unsupported",
         "architecture": "modules",
     },
+}
+
+_PUBLIC_ARTIFACT_SCHEMAS = {
+    "project_map": "simplicio.project-map/v1",
+    "precedent_index": "simplicio.precedent-index/v1",
+    "architecture_inventory": "simplicio.architecture-inventory/v1",
+    "symbol_index": "simplicio.symbol-index/v1",
+    "call_graph": "simplicio.call-graph/v1",
 }
 
 
@@ -156,6 +165,88 @@ def canonical_digest(artifact: dict[str, Any]) -> str:
     semantic = _semantic_value(artifact)
     encoded = orjson.dumps(semantic, option=orjson.OPT_SORT_KEYS)
     return CANONICAL_DIGEST_PREFIX + hashlib.sha256(encoded).hexdigest()
+
+
+def _set_digest(manifest: dict[str, Any]) -> str:
+    unsigned = {key: value for key, value in manifest.items() if key != "artifact_set_digest"}
+    encoded = orjson.dumps(unsigned, option=orjson.OPT_SORT_KEYS)
+    return CANONICAL_DIGEST_PREFIX + hashlib.sha256(encoded).hexdigest()
+
+
+def build_artifact_manifest(artifacts: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """Build the commit marker shared by the five public artifact files."""
+    missing = sorted(set(_PUBLIC_ARTIFACT_SCHEMAS) - set(artifacts))
+    if missing:
+        raise ValueError(f"missing public artifacts: {', '.join(missing)}")
+    first_producer = artifacts["project_map"].get("producer", {})
+    generation = first_producer.get("source_generation")
+    repository_id = first_producer.get("repository_id")
+    schema_version = first_producer.get("schema_version")
+    if not isinstance(generation, dict) or not isinstance(repository_id, str):
+        raise ValueError("public artifacts require producer generation and repository_id")
+    if schema_version != CANONICAL_SCHEMA_VERSION:
+        raise ValueError(f"unsupported public artifact schema version: {schema_version!r}")
+    entries: dict[str, Any] = {}
+    coverage: dict[str, Any] = {}
+    for name, schema in _PUBLIC_ARTIFACT_SCHEMAS.items():
+        payload = artifacts[name]
+        producer = payload.get("producer", {})
+        if payload.get("schema") != schema:
+            raise ValueError(f"{name}: unexpected schema {payload.get('schema')!r}")
+        if producer.get("source_generation") != generation:
+            raise ValueError(f"{name}: mixed source generation")
+        if producer.get("repository_id") != repository_id:
+            raise ValueError(f"{name}: mixed repository identity")
+        entries[name] = {"schema": schema, "canonical_digest": producer.get("canonical_digest")}
+        coverage[name] = producer.get("capability_coverage", {})
+    manifest = {
+        "schema": ARTIFACT_SET_SCHEMA,
+        "schema_version": schema_version,
+        "repository_id": repository_id,
+        "generation": generation,
+        "artifacts": entries,
+        "coverage": coverage,
+    }
+    manifest["artifact_set_digest"] = _set_digest(manifest)
+    return manifest
+
+
+def validate_artifact_manifest(
+    manifest: dict[str, Any], artifacts: dict[str, dict[str, Any]]
+) -> list[str]:
+    """Return actionable errors for a manifest/artifact set mismatch."""
+    errors: list[str] = []
+    if manifest.get("schema") != ARTIFACT_SET_SCHEMA:
+        errors.append("manifest schema is not the public artifact-set schema")
+    if manifest.get("schema_version") != CANONICAL_SCHEMA_VERSION:
+        errors.append("manifest schema major is unsupported")
+    if manifest.get("artifact_set_digest") != _set_digest(manifest):
+        errors.append("artifact set digest mismatch")
+    if set(manifest.get("artifacts", {})) != set(_PUBLIC_ARTIFACT_SCHEMAS):
+        errors.append("manifest artifact names do not match the public set")
+    for name, schema in _PUBLIC_ARTIFACT_SCHEMAS.items():
+        payload = artifacts.get(name)
+        entry = manifest.get("artifacts", {}).get(name, {})
+        if not isinstance(payload, dict):
+            errors.append(f"{name}: artifact is missing")
+            continue
+        if payload.get("schema") != schema or entry.get("schema") != schema:
+            errors.append(f"{name}: schema collision or wrong shape")
+        producer = payload.get("producer", {})
+        if producer.get("schema_version") != manifest.get("schema_version"):
+            errors.append(f"{name}: schema major mismatch")
+        if producer.get("source_generation") != manifest.get("generation"):
+            errors.append(f"{name}: generation mismatch")
+        if producer.get("repository_id") != manifest.get("repository_id"):
+            errors.append(f"{name}: repository identity mismatch")
+        digest = canonical_digest(payload)
+        if producer.get("canonical_digest") != digest:
+            errors.append(f"{name}: producer digest mismatch")
+        if entry.get("canonical_digest") != digest:
+            errors.append(f"{name}: manifest digest mismatch")
+        if manifest.get("coverage", {}).get(name) != producer.get("capability_coverage"):
+            errors.append(f"{name}: coverage mismatch")
+    return errors
 
 
 def _capability_state(
@@ -287,10 +378,13 @@ def attach_canonical_metadata(
 
 
 __all__ = [
+    "ARTIFACT_SET_SCHEMA",
     "CANONICAL_DIGEST_PREFIX",
     "CANONICAL_SCHEMA_VERSION",
     "CAPABILITY_NAMES",
     "CAPABILITY_STATES",
     "attach_canonical_metadata",
+    "build_artifact_manifest",
     "canonical_digest",
+    "validate_artifact_manifest",
 ]

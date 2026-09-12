@@ -179,7 +179,7 @@ class TamperedFixtureDetectionTest(unittest.TestCase):
 class IterJsonFilesTest(unittest.TestCase):
     def test_expands_directory_recursively(self) -> None:
         found = iter_json_files([os.path.join(FIXTURES_ROOT, "python-minimal", "artifacts")])
-        self.assertEqual(len(found), 5)
+        self.assertEqual(len(found), 6)
         self.assertTrue(all(f.endswith(".json") for f in found))
 
     def test_missing_path_raises(self) -> None:

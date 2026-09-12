@@ -1,0 +1,70 @@
+{
+  "artifact_set_digest": "sha256:5aef4f08cc30f8d0a533a60d1f22dfd0859100c2ab6606be0cfda43d88178eca",
+  "artifacts": {
+    "architecture_inventory": {
+      "canonical_digest": "sha256:6d06c4bec55712e26dbb5934e1529a7e197fcaf8e25fa00bd124bf30749f9048",
+      "schema": "simplicio.architecture-inventory/v1"
+    },
+    "call_graph": {
+      "canonical_digest": "sha256:2663d9796e5d80ceb67709c2e107951cde944931223e357ad0e97bbd177d388e",
+      "schema": "simplicio.call-graph/v1"
+    },
+    "precedent_index": {
+      "canonical_digest": "sha256:6f1aaffe2e5799fda1714e38baae3c473d7924f696a18c8ac87430ad62c9dc70",
+      "schema": "simplicio.precedent-index/v1"
+    },
+    "project_map": {
+      "canonical_digest": "sha256:2f8b1025dc8da2261a444927f5911e2729a846b79003304a960e26d941d53709",
+      "schema": "simplicio.project-map/v1"
+    },
+    "symbol_index": {
+      "canonical_digest": "sha256:2f0b4eb7e4fb4fc9d60656a692975192e75b93dcb20ccecd94cee2e2306989fc",
+      "schema": "simplicio.symbol-index/v1"
+    }
+  },
+  "coverage": {
+    "architecture_inventory": {
+      "architecture": "full",
+      "files": "full",
+      "precedent": "unsupported",
+      "relationships": "partial",
+      "symbols": "empty"
+    },
+    "call_graph": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "unsupported",
+      "relationships": "partial",
+      "symbols": "unsupported"
+    },
+    "precedent_index": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "full",
+      "relationships": "unsupported",
+      "symbols": "unsupported"
+    },
+    "project_map": {
+      "architecture": "full",
+      "files": "full",
+      "precedent": "unsupported",
+      "relationships": "unsupported",
+      "symbols": "unsupported"
+    },
+    "symbol_index": {
+      "architecture": "unsupported",
+      "files": "unsupported",
+      "precedent": "unsupported",
+      "relationships": "unsupported",
+      "symbols": "full"
+    }
+  },
+  "generation": {
+    "dirty": false,
+    "kind": "filesystem",
+    "revision": null
+  },
+  "repository_id": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "schema": "simplicio.mapper-artifact-set/v1",
+  "schema_version": "v1"
+}

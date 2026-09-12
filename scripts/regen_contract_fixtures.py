@@ -30,11 +30,14 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
 import sys
 import tempfile
+
+import orjson
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONTRACT_ROOT = os.path.join(ROOT, "contracts", "mapper-artifacts", "v1")
@@ -51,6 +54,7 @@ ARTIFACT_FILENAMES = [
     "architecture-inventory.json",
     "symbol-index.json",
     "call-graph.json",
+    "artifact-manifest.json",
 ]
 # Only one fixture also carries the `index --json` payload (issue #157 AC:
 # "the `simplicio-mapper index . --json` payload is covered by a fixture").
@@ -61,6 +65,7 @@ NORMALIZED_ROOT_PLACEHOLDER = "<fixture-root>"
 NORMALIZED_TIMESTAMP = "1970-01-01T00:00:00.000Z"
 NORMALIZED_LAST_MODIFIED = NORMALIZED_TIMESTAMP
 NORMALIZED_REPOSITORY_ID = "sha256:" + ("0" * 64)
+NORMALIZED_VERSION = "0.26.28"
 
 
 def _source_dir(name: str) -> str:
@@ -123,10 +128,21 @@ def _normalize(value, source_dir_abs: str, out_dir_abs: str | None = None):
                 out[key] = NORMALIZED_LAST_MODIFIED
             elif key == "repository_id":
                 out[key] = NORMALIZED_REPOSITORY_ID
+            elif key == "version" and isinstance(sub_value, str):
+                out[key] = NORMALIZED_VERSION
             else:
                 out[key] = _normalize(sub_value, source_dir_abs, out_dir_abs)
         return out
     return value
+
+
+def _normalize_manifest_digest(manifest: dict) -> dict:
+    """Recompute the set digest after fixture identity normalization."""
+    unsigned = {key: value for key, value in manifest.items() if key != "artifact_set_digest"}
+    manifest["artifact_set_digest"] = "sha256:" + hashlib.sha256(
+        orjson.dumps(unsigned, option=orjson.OPT_SORT_KEYS)
+    ).hexdigest()
+    return manifest
 
 
 def _write_json(path: str, data: dict) -> None:
@@ -157,10 +173,10 @@ def cmd_update() -> int:
             for filename in ARTIFACT_FILENAMES:
                 with open(os.path.join(tmp_out, filename), encoding="utf-8") as handle:
                     payload = json.load(handle)
-                _write_json(
-                    os.path.join(artifacts_dir, filename),
-                    _normalize(payload, source_dir_abs),
-                )
+                normalized = _normalize(payload, source_dir_abs)
+                if filename == "artifact-manifest.json":
+                    normalized = _normalize_manifest_digest(normalized)
+                _write_json(os.path.join(artifacts_dir, filename), normalized)
             print(f"[update] wrote {len(ARTIFACT_FILENAMES)} artifacts for fixtures/{name}/")
 
         if name == INDEX_RESULT_FIXTURE:
@@ -209,6 +225,8 @@ def cmd_check() -> int:
                         os.path.abspath(source_dir),
                         os.path.abspath(tmp_out),
                     )
+                    if filename == "artifact-manifest.json":
+                        normalized = _normalize_manifest_digest(normalized)
                     if normalized != expected:
                         all_errors.append(
                             f"fixtures/{name}/{filename}: golden fixture drift"

@@ -43,6 +43,7 @@ SCHEMA_FILENAMES = {
     "simplicio.architecture-inventory/v1": "architecture-inventory.schema.json",
     "simplicio.symbol-index/v1": "symbol-index.schema.json",
     "simplicio.call-graph/v1": "call-graph.schema.json",
+    "simplicio.mapper-artifact-set/v1": "artifact-set.schema.json",
     "simplicio.mapper-native/project-map/v1": "mapper-native-artifact.schema.json",
     "simplicio.mapper-native/precedent-index/v1": "mapper-native-artifact.schema.json",
     "simplicio.mapper-native/architecture-inventory/v1": "mapper-native-artifact.schema.json",

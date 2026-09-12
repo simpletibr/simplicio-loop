@@ -22,7 +22,7 @@ from ..diagrams import render_flowchart, render_flowchart_svg, to_image_markdown
 from ..language_capabilities import build_capability_coverage
 from ..models import ProjectFile
 from ..relations import relation_id
-from .canonical_artifacts import attach_canonical_metadata
+from .canonical_artifacts import attach_canonical_metadata, build_artifact_manifest
 from .execution_planner import ExecutionProfile, plan_execution
 from .graph import (
     _build_architecture_inventory,
@@ -364,12 +364,17 @@ def write_mapping_artifacts(cwd: str, meta: dict | None = None, incremental: boo
     architecture_inventory_path = os.path.join(abs_out, "architecture-inventory.json")
     symbol_index_path = os.path.join(abs_out, "symbol-index.json")
     call_graph_path = os.path.join(abs_out, "call-graph.json")
+    artifact_manifest = build_artifact_manifest(artifacts)
+    artifact_manifest_path = os.path.join(abs_out, "artifact-manifest.json")
     execution_plan_path = os.path.join(abs_out, "execution-plan.json")
     _write_json_stable(project_map_path, project_map)
     _write_json_stable(precedent_path, precedent_index)
     _write_json_stable(architecture_inventory_path, architecture_inventory)
     _write_json_stable(symbol_index_path, symbol_index)
     _write_json_stable(call_graph_path, call_graph)
+    # Publish the manifest last: readers can reject any in-flight mixed set by
+    # validating the commit marker against the five artifact digests.
+    _write_json_stable(artifact_manifest_path, artifact_manifest)
     if execution_plan:
         _write_json_stable(execution_plan_path, execution_plan)
     log(f"-> wrote {os.path.relpath(project_map_path, abs_cwd)} "
@@ -391,6 +396,8 @@ def write_mapping_artifacts(cwd: str, meta: dict | None = None, incremental: boo
         "architecture_inventory_path": architecture_inventory_path,
         "symbol_index_path": symbol_index_path,
         "call_graph_path": call_graph_path,
+        "artifact_manifest_path": artifact_manifest_path,
+        "artifact_manifest": artifact_manifest,
         "execution_plan_path": execution_plan_path if execution_plan else None,
         "project_map": project_map,
         "precedent_index": precedent_index,
