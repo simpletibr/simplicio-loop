@@ -177,6 +177,8 @@ class ContextCacheEntry:
     checksum: str
     created_at: str = ""
     bytes: int = 0
+    generation: str = ""
+    digest: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -186,6 +188,8 @@ class ContextCacheEntry:
             "checksum": self.checksum,
             "created_at": self.created_at,
             "bytes": int(self.bytes),
+            "generation": self.generation,
+            "digest": self.digest,
         }
 
     @classmethod
@@ -197,6 +201,8 @@ class ContextCacheEntry:
             checksum=data.get("checksum", ""),
             created_at=data.get("created_at", ""),
             bytes=int(data.get("bytes", 0)),
+            generation=str(data.get("generation") or ""),
+            digest=str(data.get("digest") or ""),
         )
 
     @staticmethod
@@ -224,6 +230,10 @@ class CacheReceipt:
     reused: bool = False
     baseline: str = ""
     method: str = ""
+    cache_scope: str = "local_mapper"
+    provider_cache: str = "unclaimed"
+    generation: str = ""
+    digest: str = ""
     created_at: str = field(default_factory=lambda: _now_iso())
 
     def to_dict(self) -> dict:
@@ -242,6 +252,10 @@ class CacheReceipt:
             "reused": bool(self.reused),
             "baseline": self.baseline,
             "method": self.method,
+            "cache_scope": self.cache_scope,
+            "provider_cache": self.provider_cache,
+            "generation": self.generation,
+            "digest": self.digest,
             "created_at": self.created_at,
         }
 
@@ -464,6 +478,8 @@ class ContextCache:
         bytes_avoided: int = 0,
         tokens_avoided: int = 0,
         latency_avoided_ms: float = 0.0,
+        generation: str = "",
+        digest: str = "",
     ) -> str:
         """Persist ``payload`` under ``layer`` + ``key`` (atomic, checksummed).
 
@@ -481,6 +497,8 @@ class ContextCache:
             checksum=checksum,
             created_at=_now_iso(),
             bytes=int(bytes_avoided) or 0,
+            generation=generation,
+            digest=digest or checksum,
         )
 
         def _action() -> None:
@@ -497,6 +515,8 @@ class ContextCache:
                 "written",
                 kind="context",
                 produced=True,
+                generation=entry.generation,
+                digest=entry.digest,
             )
         )
         return key_hash
@@ -510,6 +530,8 @@ class ContextCache:
         bytes_on_build: int = 0,
         tokens_on_build: int = 0,
         latency_on_build_ms: float = 0.0,
+        expected_generation: str = "",
+        expected_digest: str = "",
     ) -> tuple[Any | None, CacheReceipt]:
         """Return ``(payload, receipt)`` for ``layer`` + ``key``.
 
@@ -550,6 +572,19 @@ class ContextCache:
                 self._stats["quarantined"] += 1
                 self._push_receipt(receipt)
                 return None, receipt
+            if (expected_generation and entry.generation != expected_generation) or (
+                expected_digest and entry.digest != expected_digest
+            ):
+                self._quarantine(key_hash, entry, "generation_or_digest_mismatch")
+                receipt = self._receipt(
+                    OUTCOME_CORRUPT, key_hash, layer,
+                    "generation_or_digest_mismatch", kind="context",
+                    generation=entry.generation, digest=entry.digest,
+                )
+                self._stats["misses"] += 1
+                self._stats["quarantined"] += 1
+                self._push_receipt(receipt)
+                return None, receipt
             self._stats["hits"] += 1
             if mark_consumed:
                 self._stats["hits_consumed"] += 1
@@ -564,6 +599,8 @@ class ContextCache:
                 latency_avoided_ms=latency_on_build_ms,
                 consumed=mark_consumed,
                 reused=True,
+                generation=entry.generation,
+                digest=entry.digest,
             )
             self._stats["bytes_avoided"] += receipt.bytes_avoided
             self._stats["tokens_avoided"] += receipt.tokens_avoided
@@ -702,6 +739,8 @@ class ContextCache:
         reused: bool = False,
         baseline: str = "",
         method: str = "",
+        generation: str = "",
+        digest: str = "",
     ) -> CacheReceipt:
         return CacheReceipt(
             outcome=outcome,
@@ -717,6 +756,10 @@ class ContextCache:
             reused=reused,
             baseline=baseline,
             method=method,
+            cache_scope="local_mapper" if kind == "context" else "runtime_provider",
+            provider_cache="unclaimed" if kind == "context" else "reported",
+            generation=generation,
+            digest=digest,
         )
 
     def _push_receipt(self, receipt: CacheReceipt) -> None:

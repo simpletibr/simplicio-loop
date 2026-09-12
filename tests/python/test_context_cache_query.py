@@ -107,6 +107,17 @@ class ContextCacheQueryTest(unittest.TestCase):
         self.assertEqual(payload["baseline"], "local fallback")
         self.assertEqual(payload["method"], "runtime-native")
 
+    def test_generation_mismatch_is_not_served_and_local_boundary_is_explicit(self) -> None:
+        cache = ContextCache(self.cache_path)
+        key = ContextCacheKey.for_files(str(self.root), ["src/app.py"], repo_identity="repo", query_task_hash="q")
+        cache.put(LAYER_CONTEXT_SUMMARY, key, {"selected": ["src/app.py"]}, generation="gen-1")
+        value, receipt = cache.get_entry(LAYER_CONTEXT_SUMMARY, key, expected_generation="gen-2")
+        self.assertIsNone(value)
+        self.assertEqual(receipt.outcome, "corrupt")
+        self.assertEqual(receipt.reason, "generation_or_digest_mismatch")
+        self.assertEqual(receipt.cache_scope, "local_mapper")
+        self.assertEqual(receipt.provider_cache, "unclaimed")
+
 
 if __name__ == "__main__":
     unittest.main()

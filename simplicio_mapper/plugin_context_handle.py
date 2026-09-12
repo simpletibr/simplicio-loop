@@ -20,6 +20,7 @@ from typing import Any, Mapping
 
 from .context_cache import (
     LAYER_RENDERED_PACK,
+    LAYER_SELECTED_CONTEXT,
     ContextCache,
     ContextCacheKey,
 )
@@ -337,6 +338,16 @@ def build_plugin_context_handle_v2(
         renderer=fidelity,
         output_format="plugin-handle-v2",
     )
+    selected_identity = ContextCacheKey.for_files(
+        str(root_path),
+        [item["path"] for item in all_rows],
+        repo_identity=f"{ref}:plugin-context-handle/v2",
+        mapper_schema_version=GENERATOR_V2,
+        query_task_hash=_digest(intent),
+        token_budget=token_budget,
+        renderer="selected-context-v2",
+        output_format="plugin-selected-context-v2",
+    )
     cache_key = "sha256:" + cache_identity.content_hash()
     cached: dict[str, Any] | None = None
     cache_receipt: dict[str, Any] | None = None
@@ -346,7 +357,11 @@ def build_plugin_context_handle_v2(
     try:
         cache = _cache(root_path)
         if not dirty:
-            cached, _receipt = cache.get_entry(LAYER_RENDERED_PACK, cache_identity)
+            cached, _receipt = cache.get_entry(
+                LAYER_RENDERED_PACK,
+                cache_identity,
+                expected_generation=generation_id,
+            )
             cache_receipt = _receipt.to_dict()
             if _receipt.outcome == "corrupt":
                 cache_status = "stale"
@@ -434,9 +449,16 @@ def build_plugin_context_handle_v2(
         if cache is None:
             raise OSError("cache unavailable")
         cache.put(
+            LAYER_SELECTED_CONTEXT,
+            selected_identity,
+            {"generation": generation_id, "spans": selected},
+            generation=generation_id,
+        )
+        cache.put(
             LAYER_RENDERED_PACK,
             cache_identity,
             {key: value for key, value in payload.items() if key != "local_map_cache"},
+            generation=generation_id,
         )
         receipts = cache.receipts()
         if receipts:

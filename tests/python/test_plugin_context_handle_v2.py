@@ -64,6 +64,8 @@ class PluginContextHandleV2Test(unittest.TestCase):
         self.assertEqual(second["local_map_cache"]["status"], "hit")
         self.assertTrue(second["local_map_cache"]["receipt"]["reused"])
         self.assertTrue(second["local_map_cache"]["receipt"]["consumed"])
+        self.assertEqual(second["local_map_cache"]["receipt"]["cache_scope"], "local_mapper")
+        self.assertEqual(second["local_map_cache"]["receipt"]["provider_cache"], "unclaimed")
 
         (self.root / "src" / "app.py").write_text("def app():\n    return 2\n", encoding="utf-8")
         invalidated = build_plugin_context_handle_v2(self.root, ref="main")
