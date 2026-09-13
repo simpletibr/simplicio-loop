@@ -73,6 +73,11 @@ from .runner import (
     read_status,
     reconcile_delivery,
     sync_source_state,
+    verify_run,
+)
+from .loop_execution_receipt import (
+    SCHEMA as LOOP_EXECUTION_SCHEMA,
+    publish_loop_execution_for_flow,
 )
 from .task_contract import compile_many, main as task_contract_main, preview_contract
 from .ops_ledger import (
@@ -312,10 +317,15 @@ def run(repo: str, task_path: str, delivery_arg: str, max_iterations: int,
         print(f"error: {exc}", file=sys.stderr)
         return 2
     try:
+        conduct_kwargs = {
+            "quality_provider": quality_provider,
+            "quality_policy": quality_policy,
+        }
+        if provider_worker is not None:
+            conduct_kwargs["provider_worker"] = provider_worker
         payload = conduct_run(
             repo, task_path, delivery_target, max_iterations,
-            quality_provider=quality_provider, quality_policy=quality_policy,
-            provider_worker=provider_worker,
+            **conduct_kwargs,
         )
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         outcome = {
@@ -329,15 +339,25 @@ def run(repo: str, task_path: str, delivery_arg: str, max_iterations: int,
             target = Path(result_file)
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(json.dumps(outcome, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        print(json.dumps({"outcome": outcome, "error": str(exc)}, ensure_ascii=False, indent=2))
+        diagnostic = publish_loop_execution_for_flow(
+            repo=Path(repo),
+            run_dir=Path(repo).resolve() / ".simplicio" / "loop-runs" / "run-failed",
+            flow="run",
+            flow_result={"status": "infrastructure_failure"},
+        )
+        diagnostic["error"] = redact_sensitive_text(str(exc))
+        print(json.dumps(diagnostic, ensure_ascii=False, indent=2))
         return 24
     outcome = payload["outcome"]
     if result_file:
         target = Path(result_file)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(outcome, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(__import__("json").dumps(payload, ensure_ascii=False, indent=2))
-    return int(outcome["exit_code"])
+    public_payload = _public_flow_from_status(payload, "run", payload)
+    print(json.dumps(public_payload, ensure_ascii=False, indent=2))
+    if public_payload.get("status") == "VERIFIED" and public_payload.get("verified") is True:
+        return 0
+    return int(outcome["exit_code"]) if int(outcome.get("exit_code") or 0) != 0 else 2
 
 ORIENT_SCHEMA = "simplicio.loop-orient/v1"
 ORIENT_RECEIPT_SCHEMA = "simplicio.loop-orient-receipt/v1"
@@ -837,6 +857,128 @@ def _reconcile_prism_wave(task_indices: Sequence[int], result: Mapping[str, Any]
     }
 
 
+def _public_flow_run_dir(repo: str, run_id: str) -> Path:
+    """Resolve the run directory without inventing a successful artifact."""
+    try:
+        status = read_status(repo, run_id)
+        candidate = Path(status["run_dir"])
+        return candidate
+    except (KeyError, OSError, TypeError, ValueError):
+        return Path(repo).resolve() / ".simplicio" / "loop-runs" / str(run_id)
+
+
+def _attach_dispatch(public_payload: Mapping[str, Any], dispatch: Mapping[str, Any]) -> dict[str, Any]:
+    payload = dict(public_payload)
+    payload["dispatch"] = dict(dispatch)
+    for key in ("route", "reason_code", "missing_tools", "provider_worker"):
+        if key in dispatch and (key not in payload or key == "reason_code"):
+            payload[key] = dispatch[key]
+    return payload
+
+
+def _finalize_public_flow(repo: str, run_id: str, flow: str, dispatch: Mapping[str, Any]) -> dict[str, Any]:
+    """Return one v1 public result and let the runner own the sole publication."""
+    raw_status = str(
+        dispatch.get("status")
+        or dispatch.get("phase")
+        or dispatch.get("execution_state")
+        or ""
+    ).strip().lower()
+    nonterminal = {
+        "blocked", "partial", "error", "failed", "held", "cancelled", "canceled",
+        "unverified", "infrastructure_failure",
+    }
+    if raw_status in nonterminal or _dispatch_exit_code(dispatch) != 0:
+        diagnostic = publish_loop_execution_for_flow(
+            repo=Path(repo),
+            run_dir=_public_flow_run_dir(repo, run_id),
+            flow=flow,
+            flow_result={"status": raw_status or "blocked", "run_id": run_id},
+        )
+        return _attach_dispatch(diagnostic, dispatch)
+    try:
+        verified_status = verify_run(repo, run_id, flow=flow)
+        state = verified_status.get("state") if isinstance(verified_status, Mapping) else {}
+        loop_execution = state.get("loop_execution") if isinstance(state, Mapping) else {}
+        if (
+            isinstance(state, Mapping)
+            and state.get("phase") == "done"
+            and isinstance(loop_execution, Mapping)
+            and loop_execution.get("status") == "VERIFIED"
+        ):
+            receipt_path = Path(repo).resolve() / ".simplicio" / "loop-execution.json"
+            envelope = json.loads(receipt_path.read_text(encoding="utf-8"))
+            if (
+                isinstance(envelope, Mapping)
+                and envelope.get("schema") == LOOP_EXECUTION_SCHEMA
+                and (envelope.get("result") or {}).get("status") == "VERIFIED"
+                and (envelope.get("result") or {}).get("verified") is True
+            ):
+                result = dict(envelope)
+                result["status"] = "VERIFIED"
+                result["verified"] = True
+                return _attach_dispatch(result, dispatch)
+        phase = str((state or {}).get("phase") or "blocked")
+        diagnostic = publish_loop_execution_for_flow(
+            repo=Path(repo),
+            run_dir=_public_flow_run_dir(repo, run_id),
+            flow=flow,
+            flow_result={"status": phase, "run_id": run_id},
+        )
+        return _attach_dispatch(diagnostic, dispatch)
+    except Exception as exc:
+        diagnostic = publish_loop_execution_for_flow(
+            repo=Path(repo),
+            run_dir=_public_flow_run_dir(repo, run_id),
+            flow=flow,
+            flow_result={"status": "blocked", "run_id": run_id},
+        )
+        diagnostic["reason_code"] = "v1_publication_failed"
+        diagnostic["reason"] = f"public flow could not reach a verified v1 receipt: {redact_sensitive_text(str(exc))}"
+        return _attach_dispatch(diagnostic, dispatch)
+
+
+def _public_flow_from_status(status: Mapping[str, Any], flow: str, dispatch: Mapping[str, Any]) -> dict[str, Any]:
+    """Project an already-conducted run without invoking publication again."""
+    state = status.get("state") if isinstance(status, Mapping) else {}
+    loop_execution = state.get("loop_execution") if isinstance(state, Mapping) else {}
+    run_id = str(
+        (status.get("manifest") or {}).get("run_id")
+        or dispatch.get("run_id")
+        or ""
+    ) if isinstance(status, Mapping) else str(dispatch.get("run_id") or "")
+    if (
+        isinstance(state, Mapping)
+        and state.get("phase") == "done"
+        and isinstance(loop_execution, Mapping)
+        and loop_execution.get("status") == "VERIFIED"
+    ):
+        repo = str((status.get("manifest") or {}).get("repo") or dispatch.get("repo") or ".")
+        receipt_path = Path(repo).resolve() / ".simplicio" / "loop-execution.json"
+        try:
+            envelope = json.loads(receipt_path.read_text(encoding="utf-8"))
+        except (OSError, TypeError, ValueError):
+            envelope = {}
+        if (
+            isinstance(envelope, Mapping)
+            and envelope.get("schema") == LOOP_EXECUTION_SCHEMA
+            and (envelope.get("result") or {}).get("status") == "VERIFIED"
+            and (envelope.get("result") or {}).get("verified") is True
+        ):
+            result = dict(envelope)
+            result["status"] = "VERIFIED"
+            result["verified"] = True
+            return _attach_dispatch(result, dispatch)
+    phase = str((state or {}).get("phase") or "blocked")
+    diagnostic = publish_loop_execution_for_flow(
+        repo=Path(str((status.get("manifest") or {}).get("repo") or dispatch.get("repo") or ".")),
+        run_dir=Path(str(status.get("run_dir") or "")) if status.get("run_dir") else Path("."),
+        flow=flow,
+        flow_result={"status": phase, "run_id": run_id},
+    )
+    return _attach_dispatch(diagnostic, dispatch)
+
+
 def _persist_prism_wave_receipt(repo: str, run_id: str, payload: dict) -> str:
     try:
         status = read_status(repo, run_id)
@@ -858,16 +1000,20 @@ def _persist_prism_wave_receipt(repo: str, run_id: str, payload: dict) -> str:
 
 def tick(repo: str, run_id: str, task_index: int, provider_worker: str | None = None) -> int:
     try:
-        payload = execute_operator(repo, run_id, task_index=task_index, provider_worker=provider_worker)
+        operator_kwargs = {"task_index": task_index}
+        if provider_worker is not None:
+            operator_kwargs["provider_worker"] = provider_worker
+        payload = execute_operator(repo, run_id, **operator_kwargs)
     except Exception as exc:
         payload = _dispatch_failure_payload("simplicio.tick-receipt/v1", repo, run_id, exc, [task_index])
-    print(__import__("json").dumps(payload, ensure_ascii=False, indent=2))
-    return _dispatch_exit_code(payload)
+    public_payload = _finalize_public_flow(repo, run_id, "tick", payload)
+    print(json.dumps(public_payload, ensure_ascii=False, indent=2))
+    return _dispatch_exit_code(public_payload)
 
 
 def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_budget: int,
           serial: bool = False, batch_size: Optional[int] = None,
-          provider_worker: str | None = None) -> int:
+          provider_worker: str | None = None, *, flow: str = "batch") -> int:
     """Route up to three tasks directly; dispatch larger work in Prism waves."""
     indices = None
     if task_indices.strip():
@@ -888,20 +1034,20 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
     eligibility = prism_is_eligible(len(indices or []), explicit_serial=serial)
     if not eligibility["eligible"]:
         try:
-            payload = execute_operator_batch(
-                repo,
-                run_id,
-                indices,
-                max_workers=max_workers or None,
-                retry_budget=retry_budget,
-                auto_fan_out=not serial,
-                provider_worker=provider_worker,
-            )
+            batch_kwargs = {
+                "max_workers": max_workers or None,
+                "retry_budget": retry_budget,
+                "auto_fan_out": not serial,
+            }
+            if provider_worker is not None:
+                batch_kwargs["provider_worker"] = provider_worker
+            payload = execute_operator_batch(repo, run_id, indices, **batch_kwargs)
         except Exception as exc:
             payload = _dispatch_failure_payload("simplicio.operator-batch-receipt/v1", repo, run_id, exc, indices)
         payload["prism"] = {**eligibility, "batch_size": None, "waves": 1}
-        print(json.dumps(payload, ensure_ascii=False, indent=2))
-        return _dispatch_exit_code(payload)
+        public_payload = _finalize_public_flow(repo, run_id, flow, payload)
+        print(json.dumps(public_payload, ensure_ascii=False, indent=2))
+        return _dispatch_exit_code(public_payload)
 
     width = resolve_prism_batch_size(batch_size)
     waves = prism_batches(indices, width)
@@ -910,15 +1056,14 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
     all_reconciled = True
     for wave_number, wave in enumerate(waves, start=1):
         try:
-            result = execute_operator_batch(
-                repo,
-                run_id,
-                wave,
-                max_workers=worker_limit,
-                retry_budget=retry_budget,
-                auto_fan_out=True,
-                provider_worker=provider_worker,
-            )
+            batch_kwargs = {
+                "max_workers": worker_limit,
+                "retry_budget": retry_budget,
+                "auto_fan_out": True,
+            }
+            if provider_worker is not None:
+                batch_kwargs["provider_worker"] = provider_worker
+            result = execute_operator_batch(repo, run_id, wave, **batch_kwargs)
         except Exception as exc:
             result = _dispatch_failure_payload("simplicio.operator-batch-receipt/v1", repo, run_id, exc, wave)
         reconciliation = _reconcile_prism_wave(wave, result)
@@ -943,8 +1088,9 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
         "workers": workers,
     }
     _persist_prism_wave_receipt(repo, run_id, payload)
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
-    return _dispatch_exit_code(payload)
+    public_payload = _finalize_public_flow(repo, run_id, flow, payload)
+    print(json.dumps(public_payload, ensure_ascii=False, indent=2))
+    return _dispatch_exit_code(public_payload)
 
 
 def cancel(repo: str, run_id: str) -> int:
@@ -1926,8 +2072,18 @@ def main(argv=None) -> int:
         return resume(args.repo, args.run_id)
     if command == "tick":
         return tick(args.repo, args.run_id, args.task_index, args.provider_worker)
-    if command in {"batch", "wave", "prism"}:
-        return batch(args.repo, args.run_id, args.task_indices, args.max_workers, args.retry_budget, args.serial, args.batch_size, args.provider_worker)
+    if command == "batch":
+        batch_args = [args.repo, args.run_id, args.task_indices, args.max_workers,
+                      args.retry_budget, args.serial, args.batch_size]
+        if args.provider_worker is not None:
+            batch_args.append(args.provider_worker)
+        return batch(*batch_args)
+    if command in {"wave", "prism"}:
+        batch_args = [args.repo, args.run_id, args.task_indices, args.max_workers,
+                      args.retry_budget, args.serial, args.batch_size]
+        if args.provider_worker is not None:
+            batch_args.append(args.provider_worker)
+        return batch(*batch_args, flow=command)
     if command == "cancel":
         return cancel(args.repo, args.run_id)
     if command == "checkpoint":
@@ -1983,10 +2139,34 @@ def main(argv=None) -> int:
             tasks = payload if isinstance(payload, list) else [payload]
             result = dispatch_single_task_fast(tasks)
         except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
-            print(json.dumps({"status": "BLOCKED", "reason_code": "invalid_task_file", "error": str(exc)}, sort_keys=True))
+            diagnostic = publish_loop_execution_for_flow(
+                repo=Path("."),
+                run_dir=Path(".") / ".simplicio" / "loop-runs" / "single-task-fast-invalid",
+                flow="single-task-fast",
+                flow_result={"status": "blocked"},
+            )
+            diagnostic.update({"reason_code": "invalid_task_file", "error": redact_sensitive_text(str(exc))})
+            print(json.dumps(diagnostic, sort_keys=True))
             return 2
-        print(json.dumps(result, sort_keys=True))
-        return 0 if result["status"] == "COMPLETED" else 2
+        task = tasks[0] if tasks and isinstance(tasks[0], Mapping) else {}
+        repo = str(result.get("repo") or task.get("repo") or ".")
+        run_id = str(result.get("run_id") or task.get("run_id") or "")
+        raw_run_dir = result.get("run_dir") or task.get("run_dir")
+        if raw_run_dir:
+            run_dir = Path(str(raw_run_dir))
+            if not run_dir.is_absolute():
+                run_dir = Path(repo).resolve() / run_dir
+        else:
+            run_dir = Path(repo).resolve() / ".simplicio" / "loop-runs" / (run_id or "single-task-fast-unbound")
+        public_payload = publish_loop_execution_for_flow(
+            repo=Path(repo),
+            run_dir=run_dir,
+            flow="single-task-fast",
+            flow_result={**dict(result), "run_id": run_id},
+        )
+        public_payload = _attach_dispatch(public_payload, result)
+        print(json.dumps(public_payload, sort_keys=True))
+        return 0 if public_payload.get("status") == "VERIFIED" and public_payload.get("verified") is True else 2
     if command == "ledger":
         return ledger_replay(
             args.path,
