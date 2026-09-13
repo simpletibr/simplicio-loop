@@ -13,6 +13,7 @@ import json
 import math
 import os
 import re
+import stat
 import tempfile
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -44,7 +45,10 @@ _PHASE_FILE_NAMES = {
     "mapper": ("mapper-context.json", "mapper-receipt.json", "context-receipt.json"),
     "fast": ("plan.json", "fast-receipt.json", "fast-ingest-receipt.json", "fast-plan-receipt.json", "ingest-receipt.json", "plan-receipt.json"),
     "dev_cli": ("operator-receipt.json", "dev-cli-receipt.json", "mutation-receipt.json"),
-    "loop": ("evidence-receipt.json", "watcher-receipt.json", "completion-receipt.json", "oracle-matrix.json"),
+    "loop": (
+        "evidence-receipt.json", "watcher-receipt.json", "independent-watcher-receipt.json",
+        "completion-receipt.json", "oracle-matrix.json",
+    ),
 }
 _PHASE_SCHEMAS = {
     "mapper": frozenset({"simplicio.mapper-receipt/v1", "simplicio.mapper-index/v1"}),
@@ -94,6 +98,12 @@ def _state_for_phase(state: Mapping[str, Any], phase: str) -> Mapping[str, Any]:
 
 
 def _read_json(path: Path) -> Mapping[str, Any] | None:
+    try:
+        info = path.lstat()
+    except (OSError, ValueError):
+        return None
+    if path.suffix.lower() != ".json" or not stat.S_ISREG(info.st_mode):
+        return None
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, TypeError, ValueError):
@@ -227,13 +237,25 @@ def _valid_phase_receipt(value: Mapping[str, Any], phase: str) -> bool:
             )
         if schema == "simplicio.fast.ingest/v2":
             metrics = _mapping(value.get("metrics"))
-            return _text_value(value.get("generation") or metrics.get("generation")) and _text_value(value.get("snapshot") or metrics.get("snapshot"))
+            return (
+                _text_value(value.get("generation") or metrics.get("generation"))
+                and _text_value(value.get("snapshot") or metrics.get("snapshot"))
+                and (isinstance(value.get("receipt"), Mapping) or isinstance(value.get("result"), Mapping) or isinstance(value.get("metrics"), Mapping))
+            )
         if schema == "simplicio.fast.understanding/v2":
             metrics = _mapping(value.get("metrics"))
-            return _text_value(value.get("generation") or metrics.get("generation")) and isinstance(value.get("context"), list)
+            return (
+                _text_value(value.get("generation") or metrics.get("generation"))
+                and isinstance(value.get("context"), list)
+                and bool(value.get("context"))
+            )
         if schema == "simplicio.fast.plandag/v2":
             metrics = _mapping(value.get("metrics"))
-            return _text_value(value.get("generation") or metrics.get("generation")) and isinstance(value.get("nodes"), list)
+            return (
+                _text_value(value.get("generation") or metrics.get("generation"))
+                and isinstance(value.get("nodes"), list)
+                and bool(value.get("nodes"))
+            )
         return (
             _text_value(value.get("task_contract_hash"))
             and isinstance(value.get("steps"), list)
@@ -272,14 +294,36 @@ def _valid_phase_receipt(value: Mapping[str, Any], phase: str) -> bool:
 
     if schema in {"simplicio.evidence-receipt/v1"}:
         verdict = verify_receipt(value, schema=EVIDENCE_RECEIPT_SCHEMA)
-        return verdict.status == ReceiptStatus.VERIFIED and value.get("status") == "VERIFIED" and isinstance(value.get("summary"), Mapping)
-    if schema in {"simplicio.watcher-receipt/v1", "simplicio.independent-watcher-receipt/v1"}:
+        summary = _mapping(value.get("summary"))
+        criteria = value.get("criteria")
+        return (
+            verdict.status == ReceiptStatus.VERIFIED
+            and value.get("status") == "VERIFIED"
+            and isinstance(value.get("summary"), Mapping)
+            and isinstance(criteria, list)
+            and all(isinstance(item, Mapping) for item in criteria)
+            and summary.get("criteria_verified") is not None
+        )
+    if schema == "simplicio.watcher-receipt/v1":
         return (
             value.get("status") == "MEASURED"
             and value.get("match") is True
             and _text_value(value.get("checked_at"))
             and _text_value(value.get("run_id"))
+            and _text_value(value.get("challenge"))
             and value.get("recomputed_truth") is True
+            and isinstance(value.get("criteria_results"), list)
+            and bool(value.get("criteria_results"))
+        )
+    if schema == "simplicio.independent-watcher-receipt/v1":
+        return (
+            value.get("status") == "MEASURED"
+            and value.get("match") is True
+            and _text_value(value.get("checked_at"))
+            and _text_value(value.get("run_id"))
+            and _text_value(value.get("challenge"))
+            and isinstance(value.get("criteria_results"), list)
+            and bool(value.get("criteria_results"))
         )
     if schema == "simplicio.watcher-invocation/v1":
         return value.get("returncode") == 0 and _text_value(value.get("receipt")) and _text_value(value.get("checked_at"))
@@ -289,6 +333,7 @@ def _valid_phase_receipt(value: Mapping[str, Any], phase: str) -> bool:
             and value.get("verdict") in {"VERIFIED", "COMPLETE", "PASSED"}
             and _text_value(value.get("run_id"))
             and _text_value(value.get("generated_at"))
+            and _text_value(value.get("reason_code"))
             and value.get("watcher_status") == "MEASURED"
             and value.get("watcher_match") is True
         )
@@ -300,7 +345,7 @@ def _valid_phase_receipt(value: Mapping[str, Any], phase: str) -> bool:
 def _pointer(
     value: Any, *, root: Path, artifact_dir: Path, flow: str, phase: str,
     expected_run_id: str = "", expected_repo: str = "", expected_task_id: str = "",
-    expected_task_index: int | None = None,
+    expected_task_index: int | None = None, require_task_identity: bool = False,
 ) -> dict[str, str] | None:
     """Return a pointer only for a durable, typed receipt inside ``root``."""
     if isinstance(value, Mapping):
@@ -310,7 +355,7 @@ def _pointer(
     path = Path(value.strip())
     if not path.is_absolute():
         path = artifact_dir / path
-    if not path.is_file() or path.is_symlink() or not _within(root, path):
+    if path.suffix.lower() != ".json" or not path.is_file() or path.is_symlink() or not _within(root, path):
         return None
     payload = _read_json(path)
     if payload is None or not payload or not _valid_phase_receipt(payload, phase):
@@ -327,6 +372,27 @@ def _pointer(
         return None
     if expected_task_index is not None and payload.get("task_index") not in (None, expected_task_index):
         return None
+    if require_task_identity:
+        has_task_id = _text_value(payload.get("task_id"))
+        has_task_index = (
+            isinstance(payload.get("task_index"), int)
+            and not isinstance(payload.get("task_index"), bool)
+        )
+        if not (has_task_id or has_task_index):
+            # The production runner also emits immutable per-task filenames for
+            # operator receipts. A scoped filename is an identity binding; the
+            # run-level "operator-receipt.json" is deliberately not one.
+            scoped = re.search(
+                r"(?:operator|dev[-_]cli|mutation|evidence|watcher|completion)[-_]task[-_](\d+)|"
+                r"(?:operator|dev[-_]cli|mutation|evidence|watcher|completion)[-_](\d+)",
+                path.stem,
+                re.IGNORECASE,
+            )
+            if not scoped:
+                return None
+            scoped_index = int(scoped.group(1) or scoped.group(2))
+            if expected_task_index is None or scoped_index != expected_task_index:
+                return None
     return {"kind": "receipt", "ref": _relative_ref(artifact_dir, path)}
 
 
