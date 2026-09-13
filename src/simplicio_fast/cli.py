@@ -10,7 +10,7 @@ from pathlib import Path
 from . import __version__
 from .processor import ProjectProcessor, load_changeset
 from .parser_adapter import adapter_capability, build_payload_from_mapper
-from .mapper_ingest import validate_handoff
+from .mapper_ingest import MapperIngestError, validate_handoff
 from .mapper_snapshot import compile_mapper_payload
 from .rollout import RolloutController
 from .snapshot import (
@@ -1473,6 +1473,8 @@ def main() -> int:
                     "detail": error.detail,
                 }
             )
+        if isinstance(error, MapperIngestError):
+            payload["reason_code"] = error.reason_code
         if isinstance(error, SnapshotBuildTimeout):
             payload.update(
                 {

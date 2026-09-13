@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+from importlib.metadata import PackageNotFoundError, version as distribution_version
 import json
 import subprocess
 import tempfile
@@ -86,6 +87,14 @@ def _head(root: Path) -> str:
     return commit
 
 
+def _installed_mapper_version() -> str:
+    """Return the observed Mapper distribution version when it is available."""
+    try:
+        return distribution_version("simplicio-mapper")
+    except PackageNotFoundError:
+        return "unknown"
+
+
 def validate_handoff(
     root: Path,
     envelope: dict[str, Any],
@@ -133,6 +142,19 @@ def validate_handoff(
     if receipt_generation is not None and receipt_generation != generation:
         raise MapperIngestError("mapper_generation_stale")
     producer = handoff.get("producer")
+    if producer is None:
+        capabilities = handoff.get("capabilities")
+        handoff_schemas = (
+            capabilities.get("handoff_schemas")
+            if isinstance(capabilities, dict)
+            else None
+        )
+        if not isinstance(handoff_schemas, list) or HANDOFF_SCHEMA not in handoff_schemas:
+            raise MapperIngestError("mapper_schema_unsupported")
+        producer = {
+            "name": "simplicio-mapper",
+            "version": _installed_mapper_version(),
+        }
     if (
         not isinstance(producer, dict)
         or producer.get("name") != "simplicio-mapper"

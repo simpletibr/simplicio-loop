@@ -27,7 +27,7 @@ from .adapters import (
 )
 from .mapper_ingest import MapperIngestError, validate_handoff
 from .projection import ProjectionEnvelope
-from .snapshot import _parse_file, stable_id
+from .snapshot import SourceParseError, _parse_file, stable_id
 
 SCHEMA = "simplicio.fast.parser-adapter/v1"
 SUPPORTED_MODES = {"bootstrap", "integrated"}
@@ -324,6 +324,15 @@ def build_payload_from_mapper(
             )
             continue
         confidence = edge.get("confidence")
+        if confidence is None:
+            diagnostics.append(
+                {
+                    "path": source_file,
+                    "code": "mapper_relation_confidence_unavailable",
+                    "detail": f"{origin}->{destination}",
+                }
+            )
+            continue
         if not isinstance(confidence, (int, float)) or isinstance(confidence, bool) or not 0 <= confidence <= 1:
             raise ParserAdapterError("mapper_relation_confidence_invalid")
         relations.append(
@@ -659,7 +668,7 @@ def build_payload(
                 parsed_relations = _lexical_relations(
                     path, relative, language, parsed, lexical_ids
                 )
-        except (OSError, SyntaxError, UnicodeDecodeError) as error:
+        except (OSError, SourceParseError, SyntaxError, UnicodeDecodeError) as error:
             diagnostics.append(
                 {
                     "path": relative,

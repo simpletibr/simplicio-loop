@@ -12,9 +12,11 @@ from unittest.mock import patch
 import pytest
 
 from simplicio_fast.mapper_ingest import MapperIngestError, validate_handoff
+from simplicio_fast.mapper_snapshot import compile_mapper_payload
+from simplicio_fast.parser_adapter import build_payload_from_mapper
 from simplicio_fast.delivery import DeliveryEngine
 from simplicio_fast.engine import select_engine
-from simplicio_fast.snapshot import Snapshot, build_snapshot
+from simplicio_fast.snapshot import Snapshot
 
 
 def _run_mapper(
@@ -225,7 +227,14 @@ def test_installed_mapper_handoff_is_accepted(tmp_path: Path) -> None:
     assert reused_provenance["generation"] == provenance["generation"]
 
     snapshot = root / "fast.sfast"
-    build_snapshot(root, snapshot)
+    compile_mapper_payload(
+        root,
+        build_payload_from_mapper(root, envelope),
+        snapshot,
+        mapper_generation=str(provenance["generation"]),
+        handoff_sha256=str(provenance["handoff_sha256"]),
+        mapper_provenance=provenance,
+    )
     receipt = DeliveryEngine(root, snapshot).prepare(
         "understand helper",
         profile="loop-standalone",
