@@ -94,6 +94,7 @@ from ..mapper.canonical import CANONICAL_MAP_SCHEMA_VERSION, CanonicalMapKey
 from ..mapper.canonical_builder import (
     _load_existing_manifest,
     _mapper_version,
+    _native_capabilities_fingerprint,
     build_canonical_manifest_with_diagnostics,
 )
 from ..mapper.canonical_gc import _relativize, scan_canonical_gc
@@ -267,6 +268,7 @@ def _resolve_key_and_paths(root: str):
         mapper_version=_mapper_version(),
         config_fingerprint=_DEFAULT_CONFIG_FINGERPRINT,
         platform_tag=None,
+        native_capabilities=_native_capabilities_fingerprint(),
     )
     cache_root = os.path.abspath(resolve_canonical_cache_root(identity.common_git_dir))
     digest_dir = os.path.normpath(canonical_manifest_dir(cache_root, key.digest()))

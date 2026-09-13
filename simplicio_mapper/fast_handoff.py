@@ -13,7 +13,6 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from . import __version__
 from .context_graph_contract import CONTRACT_SCHEMA as CONTEXT_GRAPH_CONTRACT_SCHEMA
 from .context_graph_contract import canonical_digest
 

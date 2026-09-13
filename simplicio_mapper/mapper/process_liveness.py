@@ -57,6 +57,18 @@ def process_is_alive(pid: int) -> bool:
                 kernel32.CloseHandle(process)
         except (AttributeError, OSError):
             pass
+    elif os.path.exists(f"/proc/{pid}/stat"):
+        # POSIX signal 0 also succeeds for a zombie that has not yet been
+        # reaped by its parent.  A zombie has finished executing and must not
+        # keep Mapper locks or background jobs classified as live.
+        try:
+            with open(f"/proc/{pid}/stat", encoding="utf-8") as handle:
+                raw = handle.read()
+            state = raw[raw.rfind(")") + 2 :].split()[0]
+            if state == "Z":
+                return False
+        except (OSError, IndexError):
+            pass
     try:
         os.kill(pid, 0)
     except ProcessLookupError:

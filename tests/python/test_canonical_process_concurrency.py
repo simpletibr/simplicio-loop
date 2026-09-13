@@ -48,6 +48,7 @@ from simplicio_mapper.mapper.canonical import (  # noqa: E402
 )
 from simplicio_mapper.mapper.canonical_builder import (  # noqa: E402
     _mapper_version,
+    _native_capabilities_fingerprint,
     build_canonical_manifest,
 )
 from simplicio_mapper.mapper.canonical_gc import scan_canonical_gc  # noqa: E402
@@ -80,7 +81,7 @@ def _expected_digest(repo: Path, config_fingerprint: str) -> str:
 
     Mirrors ``build_canonical_manifest``'s own key construction so the test
     can compute the exact on-disk staging path *before* spawning the real
-    builder subprocess, without importing any private builder internals.
+    builder subprocess.
     """
     identity = resolve_repo_identity_bundle(str(repo))
     assert identity is not None
@@ -93,6 +94,7 @@ def _expected_digest(repo: Path, config_fingerprint: str) -> str:
         mapper_version=_mapper_version(),
         config_fingerprint=config_fingerprint,
         platform_tag=None,
+        native_capabilities=_native_capabilities_fingerprint(),
     )
     return key.digest()
 
