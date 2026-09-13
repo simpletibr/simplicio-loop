@@ -7,8 +7,9 @@ import tempfile
 import pytest
 
 from simplicio_fast.delivery import _mapper_symbol_handles
-from simplicio_fast.mapper_ingest import MapperIngestError
-from simplicio_fast.snapshot import build_snapshot
+from simplicio_fast.mapper_ingest import MapperIngestError, validate_handoff
+from simplicio_fast.mapper_snapshot import compile_mapper_payload
+from simplicio_fast.parser_adapter import build_payload_from_mapper
 
 
 def test_delivery_cli_defaults_to_integrated_mode() -> None:
@@ -149,7 +150,15 @@ def test_installed_mapper_to_integrated_delivery_traceability(tmp_path: Path) ->
     run(executable, "snapshot", "build", "--root", str(root))
     envelope = json.loads(run(executable, "fast-handoff", str(root)))
     snapshot = root / "fast.sfast"
-    build_snapshot(root, snapshot)
+    provenance = validate_handoff(root, envelope)
+    compile_mapper_payload(
+        root,
+        build_payload_from_mapper(root, envelope),
+        snapshot,
+        mapper_generation=str(provenance["generation"]),
+        handoff_sha256=str(provenance["handoff_sha256"]),
+        mapper_provenance=provenance,
+    )
 
     from simplicio_fast.delivery import DeliveryEngine
 

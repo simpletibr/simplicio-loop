@@ -10,9 +10,10 @@ from simplicio_fast.delivery import DeliveryEngine
 from simplicio_fast.engine import select_engine
 from simplicio_fast.knowledge_projection import KnowledgeFact, KnowledgeProjection
 from simplicio_fast.mapper_ingest import validate_handoff
+from simplicio_fast.mapper_snapshot import compile_mapper_payload
 from simplicio_fast.operations_projection import OperationReceipt, OperationsProjection
+from simplicio_fast.parser_adapter import build_payload_from_mapper
 from simplicio_fast.projection import ProjectionEnvelope
-from simplicio_fast.snapshot import build_snapshot
 from simplicio_fast.universal_context import compile_context
 
 
@@ -75,7 +76,14 @@ def test_real_mapper_runtime_devcli_loop_to_context_e2e(tmp_path: Path) -> None:
     handoff = _run_mapper(root, "fast-handoff", str(root))
     mapper = validate_handoff(root, handoff)
     snapshot = root / "fast.sfast"
-    build_snapshot(root, snapshot)
+    compile_mapper_payload(
+        root,
+        build_payload_from_mapper(root, handoff),
+        snapshot,
+        mapper_generation=str(mapper["generation"]),
+        handoff_sha256=str(mapper["handoff_sha256"]),
+        mapper_provenance=mapper,
+    )
     delivery = DeliveryEngine(root, snapshot).prepare(
         "understand helper",
         profile="loop-standalone",
