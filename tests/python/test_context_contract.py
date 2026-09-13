@@ -48,6 +48,49 @@ class ContextContractTest(unittest.TestCase):
         self.assertEqual(canonical_sha256(snapshot["graph"]), snapshot["freshness"]["graph_hash"])
         self.assertEqual(json.loads(canonical_json({"b": 1, "a": "é"})), {"a": "é", "b": 1})
 
+    def test_builder_snapshot_with_mapper_relation_is_valid(self):
+        snapshot = build_context_snapshot(
+            "/repo",
+            project_map={
+                "product": {"name": "demo"},
+                "files": [{"path": "src/caller.py"}, {"path": "src/target.py"}],
+            },
+            symbol_index={
+                "symbols": [
+                    {
+                        "name": "invoke",
+                        "kind": "function",
+                        "qualified_name": "invoke",
+                        "defined_in": "src/caller.py",
+                        "line": 2,
+                    },
+                    {
+                        "name": "target",
+                        "kind": "function",
+                        "qualified_name": "target",
+                        "defined_in": "src/target.py",
+                        "line": 1,
+                    },
+                ]
+            },
+            call_graph={
+                "edges": [
+                    {
+                        "type": "calls",
+                        "source_file": "src/caller.py",
+                        "source_symbol": "invoke",
+                        "target_file": "src/target.py",
+                        "target_symbol": "target",
+                        "line": 3,
+                    }
+                ]
+            },
+            architecture_inventory={"layers": []},
+            revision="abc",
+        )
+        report = validate_context_snapshot(snapshot)
+        self.assertTrue(report["valid"], report["reason_codes"])
+
     def test_canonical_json_rejects_non_json_numbers(self):
         for value in (math.nan, math.inf, -math.inf):
             with self.assertRaises(ValueError):

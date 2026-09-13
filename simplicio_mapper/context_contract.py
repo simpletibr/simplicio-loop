@@ -222,8 +222,12 @@ def _graph_invariants(graph: Mapping[str, Any], source_root: str | None) -> list
         if not isinstance(edge.get("source"), str) or not isinstance(edge.get("target"), str):
             reasons.append(_reason("EDGE_ENDPOINT_INVALID", path, "edge source and target must be strings"))
         else:
-            derived_id = canonical_sha256(
-                {"kind": edge.get("kind"), "source": edge["source"], "target": edge["target"]}
+            derived_id = (
+                edge.get("relation_id")
+                if isinstance(edge.get("relation_id"), str) and edge.get("relation_id")
+                else canonical_sha256(
+                    {"kind": edge.get("kind"), "source": edge["source"], "target": edge["target"]}
+                )
             )
             if edge.get("id") != derived_id:
                 reasons.append(_reason("EDGE_ID_MISMATCH", f"{path}.id", "edge id does not match producer derivation"))

@@ -13,6 +13,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
+from . import __version__
 from .context_graph_contract import CONTRACT_SCHEMA as CONTEXT_GRAPH_CONTRACT_SCHEMA
 from .context_graph_contract import canonical_digest
 
@@ -202,6 +203,8 @@ def build_fast_handoff(
     )
     revision = str(snapshot.get("revision") or _git(repo, "rev-parse", "HEAD"))
     generation = str(snapshot.get("snapshot_id") or _stable_hash(snapshot))
+    raw_fidelity = snapshot.get("fidelity")
+    fidelity = dict(raw_fidelity) if isinstance(raw_fidelity, Mapping) else {"gate": "ready"}
     normalized_paths = sorted({path.replace("\\", "/").lstrip("./") for path in changed_paths})
     canonical_map_body = {
         "schema": CONTEXT_GRAPH_CONTRACT_SCHEMA,
@@ -217,6 +220,8 @@ def build_fast_handoff(
     }
     handoff: dict[str, Any] = {
         "schema": HANDOFF_SCHEMA,
+        "producer": {"name": "simplicio-mapper", "version": __version__},
+        "fidelity": fidelity,
         "generation": generation,
         "repository_id": snapshot.get("repository_id"),
         "revision": revision,

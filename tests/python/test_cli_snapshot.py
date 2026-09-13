@@ -149,6 +149,21 @@ class SnapshotCliTest(unittest.TestCase):
         self.assertIn("usage", out.getvalue())
         self.assertFalse((self.root / ".simplicio").exists())
 
+    def test_bare_snapshot_help_has_no_build_side_effect(self) -> None:
+        import os
+
+        cwd = os.getcwd()
+        try:
+            os.chdir(self.root)
+            out = StringIO()
+            with redirect_stdout(out):
+                code = main(["snapshot", "--help"])
+        finally:
+            os.chdir(cwd)
+        self.assertEqual(code, 0)
+        self.assertIn("usage", out.getvalue())
+        self.assertFalse((self.root / ".simplicio").exists())
+
     def test_unknown_option_is_rejected(self) -> None:
         err = StringIO()
         with redirect_stderr(err):

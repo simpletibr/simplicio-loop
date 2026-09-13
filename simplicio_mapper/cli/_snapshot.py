@@ -233,6 +233,9 @@ def run_snapshot_cli(argv: Sequence[str]) -> int:
     """Entry point for ``simplicio-mapper snapshot <subcommand> ...``."""
     if not argv:
         return _run_build({"root": os.getcwd(), "out": ".simplicio", "json": False})
+    if argv[0] in {"-h", "--help"}:
+        print("usage: simplicio-mapper snapshot [build|validate|summary|dag] [options] [paths]")
+        return 0
     sub = argv[0]
     rest = argv[1:]
     base = {
