@@ -16,6 +16,48 @@ from pathlib import Path
 from ._shared import force_local_if_requested
 
 
+def _emit_task_terminal_event(a: argparse.Namespace, result: dict) -> None:
+    from ..observability import emit_event
+
+    status = str(result.get("status") or "unknown")
+    payload = {
+        "target": result.get("task_id") or getattr(a, "target", None),
+        "status": status,
+        "applied": bool(result.get("applied", False)),
+    }
+    reason_code = result.get("reason_code")
+    if reason_code:
+        payload["reason_code"] = str(reason_code)
+    emit_event(
+        "task_terminal",
+        payload,
+        level="warning" if status in {"blocked", "failed"} else "info",
+        root=str(a.root),
+    )
+
+
+def _emit_verification_event(a: argparse.Namespace, payload: dict) -> None:
+    from ..observability import emit_event
+
+    status = str(payload.get("status") or "unknown")
+    verify = payload.get("verify")
+    event_payload = {
+        "target": getattr(a, "target", None),
+        "status": status,
+    }
+    if isinstance(verify, dict) and "exit_code" in verify:
+        event_payload["exit_code"] = verify["exit_code"]
+    reason_code = payload.get("reason_code")
+    if reason_code:
+        event_payload["reason_code"] = str(reason_code)
+    emit_event(
+        "validation_pass" if status == "verified" else "validation_fail",
+        event_payload,
+        level="info" if status == "verified" else "warning",
+        root=str(a.root),
+    )
+
+
 def _emit_blocked_diagnostics(result: dict) -> None:
     if result.get("status") != "blocked":
         return
@@ -55,6 +97,7 @@ def _run_verification_only(a: argparse.Namespace) -> int:
             print(json.dumps(payload, sort_keys=True))
         else:
             print(f"BLOCKED: {configuration_error}", file=sys.stderr)
+        _emit_verification_event(a, payload)
         return 1
 
     assert command is not None
@@ -100,6 +143,7 @@ def _run_verification_only(a: argparse.Namespace) -> int:
         print(json.dumps(payload, sort_keys=True))
     else:
         print("VERIFIED" if exit_code == 0 else f"FAILED: {reason_code}")
+    _emit_verification_event(a, payload)
     return 0 if exit_code == 0 else 1
 
 
@@ -197,6 +241,8 @@ def run(a: argparse.Namespace) -> int:
             print(f"{status}: {result['diff_summary']}")
             for warning in result["warnings"]:
                 print(f"warning: {warning}", file=sys.stderr)
+        if a.dry_run_task:
+            _emit_task_terminal_event(a, result)
         if a.dry_run_task:
             return 1 if result.get("status") == "blocked" else 0
         return 0 if result["applied"] else 1

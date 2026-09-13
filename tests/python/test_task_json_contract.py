@@ -1,5 +1,6 @@
 import json
 import os
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -30,6 +31,12 @@ def _diff(path):
 
 def _true_cmd():
     return f'"{sys.executable}" -c "raise SystemExit(0)"'
+
+
+def _event_records(root: Path) -> list[dict]:
+    path = root / ".simplicio" / "events.jsonl"
+    assert path.is_file(), f"expected durable Dev CLI event receipt at {path}"
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
 def test_task_dry_run_json_does_not_touch_worktree(tmp_path, monkeypatch, capsys):
@@ -239,6 +246,83 @@ def test_task_verify_only_blocks_before_process_when_command_missing(tmp_path, m
     assert payload["status"] == "blocked"
     assert payload["model_invoked"] is False
     assert payload["blocked_preconditions"][0]["retryable"] is True
+
+
+def test_task_dry_run_records_its_own_durable_receipt(tmp_path, monkeypatch, capsys):
+    _write(tmp_path / "app.py", "old\n")
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.setattr(
+        "simplicio.pipeline_task_result.artifact_status",
+        lambda _root: {"project_map": {"present": True}, "precedent_index": {"present": True}},
+    )
+    monkeypatch.setattr(
+        "simplicio.pipeline_task_result.map_handoff",
+        lambda _root: {"context_pack": {"files": [{"path": "app.py"}]}},
+    )
+    monkeypatch.setattr("simplicio.pipeline.generate", lambda *_args, **_kwargs: _diff("app.py"))
+
+    code = cli.main(
+        [
+            "task",
+            "preview app",
+            "--root",
+            str(tmp_path),
+            "--target",
+            "app.py",
+            "--dry-run-task",
+            "--json",
+        ]
+    )
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "dry_run"
+    events = _event_records(tmp_path)
+    receipt = events[-1]
+    assert receipt["schema"] == "simplicio.dev-cli-event/v1"
+    assert receipt["event"] == "task_terminal"
+    assert receipt["payload"] == {"target": "app.py", "status": "dry_run", "applied": False}
+
+
+def test_task_verify_only_uses_independent_file_validation_and_records_receipts(
+    tmp_path, monkeypatch, capsys
+):
+    command_source = "import os,sys; sys.exit(0 if os.path.isfile('target.txt') else 1)"
+    command = f"{shlex.quote(sys.executable)} -c {shlex.quote(command_source)}"
+
+    for present, expected_code, expected_event in (
+        (False, 1, "validation_fail"),
+        (True, 0, "validation_pass"),
+    ):
+        project = tmp_path / ("present" if present else "absent")
+        project.mkdir()
+        if present:
+            (project / "target.txt").write_text("independent fixture\n", encoding="utf-8")
+        monkeypatch.setenv("SIMPLICIO_TEST_CMD", command)
+        monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+
+        code = cli.main(
+            [
+                "task",
+                "--root",
+                str(project),
+                "--target",
+                "target.txt",
+                "--verify-only",
+                "--json",
+            ]
+        )
+
+        payload = json.loads(capsys.readouterr().out)
+        assert code == expected_code
+        assert payload["model_invoked"] is False
+        assert payload["applied"] is False
+        assert payload["verify"]["exit_code"] == expected_code
+        receipt = _event_records(project)[-1]
+        assert receipt["schema"] == "simplicio.dev-cli-event/v1"
+        assert receipt["event"] == expected_event
+        assert receipt["payload"]["target"] == "target.txt"
+        assert receipt["payload"]["exit_code"] == expected_code
 
 
 def test_task_dry_run_json_fails_closed_with_structured_blocked_preconditions(tmp_path, monkeypatch, capsys):
