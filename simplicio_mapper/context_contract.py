@@ -36,10 +36,29 @@ def _snapshot_id_of(payload: Mapping[str, Any]) -> str:
     return canonical_sha256({key: value for key, value in dict(payload).items() if key not in {"snapshot_id", "generated_at"}})
 
 
-def _load_context_schema(schema_id: str) -> dict[str, Any]:
+def _context_schema_path(schema_id: str) -> str:
     filename = {CONTEXT_SNAPSHOT_SCHEMA: "context-snapshot.schema.json", CONTEXT_GRAPH_SCHEMA: "context-graph.schema.json"}[schema_id]
-    package = os.path.join(os.path.dirname(os.path.abspath(__file__)), "contracts", "context-snapshot", "v1", "schemas", filename)
-    path = package if os.path.isfile(package) else os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "contracts", "context-snapshot", "v1", "schemas", filename)
+    package = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "contracts",
+        "context-snapshot",
+        "v1",
+        "schemas",
+        filename,
+    )
+    path = package if os.path.isfile(package) else os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "contracts",
+        "context-snapshot",
+        "v1",
+        "schemas",
+        filename,
+    )
+    return path
+
+
+def _load_context_schema(schema_id: str) -> dict[str, Any]:
+    path = _context_schema_path(schema_id)
     with open(path, encoding="utf-8") as handle:
         return json.load(handle)
 
@@ -118,16 +137,7 @@ def _preflight(value: Any, max_bytes: int, max_depth: int) -> tuple[list[dict[st
 def _schema_reasons(payload: Mapping[str, Any], schema_id: str, prefix: str) -> list[dict[str, str]]:
     """Return structured schema failures without exceptions."""
     schema = _load_context_schema(schema_id)
-    schema_base = os.path.dirname(
-        os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "contracts",
-            "context-snapshot",
-            "v1",
-            "schemas",
-            "context-graph.schema.json",
-        )
-    )
+    schema_base = os.path.dirname(_context_schema_path(CONTEXT_GRAPH_SCHEMA))
     return [
         _reason(prefix, "$", error)
         for error in validate_instance(dict(payload), schema, schema_base)

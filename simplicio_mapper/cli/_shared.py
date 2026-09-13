@@ -93,6 +93,10 @@ USAGE
   simplicio-mapper survey <path> [--target <file>] [--json]
   simplicio-mapper drift <path> [--scope all|product|template] [--check] [--threshold N] [--json]
   simplicio-mapper delta <path> [--json] [--out <dir>] [--changed-paths p1,p2] [--full-rescan]
+  simplicio-mapper snapshot build <path> [--json]
+  simplicio-mapper snapshot summary <path> [--json]
+  simplicio-mapper snapshot validate <path> [<path> ...]
+  simplicio-mapper snapshot dag <path> [--json]
   simplicio-mapper docs <path> [--json]
   simplicio-mapper export-docs <path> --target <dir> [--json]
   simplicio-mapper map [<path>] [--goal <text>] [--target <file>] [--json]
@@ -138,6 +142,10 @@ OPTIONS
   survey <path>         New-developer onboarding report (run/reading order/flows/rules).
   drift <path>          Spec-drift: placeholders, orphan specs/code, stale docs.
   delta <path>          Emit an initial graph snapshot or deterministic incremental delta.
+  snapshot build <path>  Build the canonical ContextSnapshot artifact used by fast-handoff.
+  snapshot summary <path> Read a previously built ContextSnapshot summary.
+  snapshot validate ... Validate ContextSnapshot files against the shipped contract.
+  snapshot dag <path>   Build the context DAG and journal.
   docs <path>           Render architecture inventory markdown under .simplicio/docs.
   export-docs <path>    Copy rendered markdown docs to a local target directory.
   contract validate <path>...

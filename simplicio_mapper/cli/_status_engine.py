@@ -10,8 +10,9 @@ import sys
 import time
 from collections.abc import Mapping
 
-from ..context_cache import ContextCache
-from ..context_pack import build_context_pack
+from ..context_cache import LAYER_RENDERED_PACK, ContextCache, ContextCacheKey
+from ..context_contract import canonical_sha256
+from ..context_pack import CONTEXT_PACK_SCHEMA, build_context_pack
 from ..context_snapshot import build_context_snapshot
 from ..execution_context import build_execution_context
 from ..mapper import build_macro_map
@@ -362,6 +363,60 @@ def _project_map_path(root: str, out: str) -> str:
 
 def _context_cache_path(root: str, out: str) -> str:
     return os.path.join(os.path.abspath(os.path.join(root, out)), "context-cache.json")
+
+
+def _handoff_context_cache_key(
+    root: str,
+    context_pack: Mapping[str, object],
+    *,
+    goal: str,
+    task_intent: Mapping[str, object] | None,
+    task_fingerprint: str,
+    target: str,
+    token_budget: int,
+    task_batch: Mapping[str, object] | None,
+) -> ContextCacheKey:
+    """Build the local Mapper identity for one rendered handoff pack.
+
+    The pack hash covers the selected artifacts and source content. Query and
+    task inputs are included separately so two consumers of the same source
+    tree cannot accidentally share context with different intent or budget.
+    """
+    files = [
+        str(entry.get("path"))
+        for entry in context_pack.get("files", [])
+        if isinstance(entry, Mapping) and str(entry.get("path") or "").strip()
+    ]
+    source_snapshot = context_pack.get("source_snapshot")
+    repository_id = ""
+    if isinstance(source_snapshot, Mapping):
+        repository_id = str(source_snapshot.get("snapshot_id") or "")
+    if not repository_id:
+        repository_id = (
+            str(context_pack.get("repo", {}).get("root_hash") or "")
+            if isinstance(context_pack.get("repo"), Mapping)
+            else ""
+        )
+    query_identity = {
+        "goal": goal,
+        "task_intent": dict(task_intent or {}),
+        "task_fingerprint": task_fingerprint,
+        "target": target,
+        "task_batch": dict(task_batch or {}),
+        "pack_hash": str(context_pack.get("pack_hash") or ""),
+    }
+    return ContextCacheKey.for_files(
+        root,
+        sorted(set(files)),
+        repo_identity=repository_id or os.path.basename(root.rstrip(os.sep)) or ".",
+        mapper_schema_version=str(context_pack.get("schema") or CONTEXT_PACK_SCHEMA),
+        parser_version="handoff-v1",
+        query_task_hash=json.dumps(query_identity, ensure_ascii=False, sort_keys=True),
+        retrieval_policy_version="mapper-handoff-context-v1",
+        token_budget=token_budget,
+        renderer="context-pack",
+        output_format=CONTEXT_PACK_SCHEMA,
+    )
 
 
 def _index_is_fresh(root: str, out: str) -> bool:
@@ -899,6 +954,54 @@ def _build_handoff_payload(opts: dict) -> dict:
         context_pack["needs_broader_context_reason"] = ""
     cache = ContextCache(_context_cache_path(root, out))
     pack_hash = context_pack.get("pack_hash")
+    pack_cache_key_hash = ""
+    pack_cache_receipt: dict[str, object] = {}
+    pack_cache_hit = False
+    try:
+        pack_cache_key = _handoff_context_cache_key(
+            root,
+            context_pack,
+            goal=goal,
+            task_intent=task_intent,
+            task_fingerprint=task_fingerprint,
+            target=requested_target,
+            token_budget=token_budget,
+            task_batch=task_batch,
+        )
+        pack_cache_key_hash = pack_cache_key.content_hash()
+        cached_pack, lookup_receipt = cache.get_entry(
+            LAYER_RENDERED_PACK,
+            pack_cache_key,
+            expected_generation=str(context_snapshot.get("snapshot_id") or ""),
+            expected_digest=str(pack_hash or ""),
+        )
+        if cached_pack is not None:
+            context_pack = dict(cached_pack)
+            context_pack["source_snapshot"] = {
+                "snapshot_id": context_snapshot["snapshot_id"],
+                "revision": context_snapshot["revision"],
+                "source_digest": canonical_sha256(context_snapshot),
+                "root_hash": context_snapshot["root_hash"],
+            }
+            pack_hash = context_pack.get("pack_hash")
+            pack_cache_hit = True
+            pack_cache_receipt = lookup_receipt.to_dict()
+        else:
+            cache.put(
+                LAYER_RENDERED_PACK,
+                pack_cache_key,
+                context_pack,
+                bytes_avoided=len(serialized_json_bytes(context_pack)),
+                generation=str(context_snapshot.get("snapshot_id") or ""),
+                digest=str(pack_hash or ""),
+            )
+            receipts = cache.receipts()
+            pack_cache_receipt = receipts[-1] if receipts else lookup_receipt.to_dict()
+    except (OSError, TypeError, ValueError):
+        # Context caching is best-effort. The handoff remains valid when the
+        # local cache cannot be read or written, but must not claim a hit.
+        pack_cache_key_hash = ""
+        pack_cache_receipt = {}
     reasons: list[str] = []
     if task_file_error:
         reasons.append(task_file_error)
@@ -928,9 +1031,11 @@ def _build_handoff_payload(opts: dict) -> dict:
         },
         "cache": {
             **status_payload["cache"],
-            "pack_cached": isinstance(pack_hash, str) and pack_hash in cache,
-            "pack_diagnostics": cache.explain(pack_hash)
-            if isinstance(pack_hash, str)
+            "pack_cached": pack_cache_hit,
+            "pack_cache_key_hash": pack_cache_key_hash,
+            "pack_cache_receipt": pack_cache_receipt,
+            "pack_diagnostics": cache.explain(pack_cache_key_hash)
+            if pack_cache_key_hash
             else {"present": False},
         },
     }

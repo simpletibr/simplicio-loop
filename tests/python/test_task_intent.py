@@ -128,6 +128,25 @@ RN10: Deve ordenar.
         self.assertEqual(scenario["given"], ["que h\u00e1 dados", "h\u00e1 permiss\u00e3o"])
         self.assertEqual(scenario["rule_ids"], ["RN09", "RN10"])
 
+    def test_issue_like_id_and_inline_dependency_are_preserved(self) -> None:
+        raw = """
+System: Simplicio
+Feature: TASK-CHECKERS-002 — edição
+Type: edição
+Depends on: TASK-CHECKERS-001
+
+1. Acceptance Criteria
+Scenario 1: Edit the game
+  Given the created game
+  When the edit is applied
+  Then the target changes
+"""
+        intent = parse_task_intent(raw)
+        self.assertEqual(intent["id"], "TASK-CHECKERS-002")
+        self.assertEqual(intent["dependencies"], ["TASK-CHECKERS-001"])
+        schema = json.loads((SCHEMAS / "task-intent.schema.json").read_text(encoding="utf-8"))
+        self.assertEqual(validate_instance(intent, schema), [])
+
     def test_plain_acceptance_criterion_keeps_explicit_id_and_rules(self) -> None:
         intent = parse_task_intent("Crit\u00e9rios de Aceite\nAC12 - Exportar resultado [RN04]")
         criterion = intent["acceptance_criteria"][0]

@@ -19,6 +19,9 @@
     "additional_information"
   ],
   "properties": {
+    "id": {
+      "type": "string"
+    },
     "schema": {
       "type": "string",
       "enum": [

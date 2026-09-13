@@ -8,7 +8,6 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 
-from simplicio_mapper import __version__
 from simplicio_mapper.cli import main
 from simplicio_mapper.context_graph_contract import canonical_digest
 from simplicio_mapper.fast_handoff import (
@@ -29,6 +28,16 @@ class FastHandoffTest(unittest.TestCase):
             "snapshot_id": "stable-generation",
             "repository_id": "repo-1",
             "revision": "abc123",
+            "producer": {
+                "name": "simplicio-mapper",
+                "version": "0.26.31",
+                "artifact_version": 1,
+            },
+            "fidelity": {
+                "gate": "ready",
+                "status": "complete",
+                "omissions": [],
+            },
             "graph": {
                 "nodes": [
                     {"id": "py-main", "language": "python", "source": {"file": "src/main.py"}},
@@ -39,6 +48,7 @@ class FastHandoffTest(unittest.TestCase):
                 ],
             },
         }
+        self.snapshot = snapshot
         self.capability_coverage = {
             "schema": "simplicio.mapper-capability-coverage/v1",
             "version": 1,
@@ -76,11 +86,15 @@ class FastHandoffTest(unittest.TestCase):
         payload = json.loads(stdout.getvalue())
         self.assertEqual(code, 0)
         self.assertEqual(payload["handoff"]["schema"], HANDOFF_SCHEMA)
-        self.assertEqual(payload["handoff"]["generation"], "stable-generation")
         self.assertEqual(
             payload["handoff"]["producer"],
-            {"name": "simplicio-mapper", "version": __version__},
+            self.snapshot["producer"],
         )
+        self.assertEqual(
+            payload["handoff"]["fidelity"],
+            self.snapshot["fidelity"],
+        )
+        self.assertEqual(payload["handoff"]["generation"], "stable-generation")
         self.assertEqual(payload["handoff"]["fidelity"]["gate"], "ready")
         canonical_map = payload["handoff"]["canonical_map"]
         self.assertEqual(canonical_map["schema"], "simplicio.context-graph-contract/v1")

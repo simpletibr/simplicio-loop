@@ -68,6 +68,13 @@ _BUDGET_HINTS = (
     re.compile(r"\btoken\s+budget\s*(?:[:=]|of|is|within|under|<=)?\s*(\d{2,6})\b", re.IGNORECASE),
     re.compile(r"\bwithin\s+(\d{2,6})\s+tokens\b", re.IGNORECASE),
 )
+_TASK_ID_RE = re.compile(
+    r"^\s*(?P<id>[A-Za-z][A-Za-z0-9]*(?:[-_][A-Za-z0-9]+)+)\b"
+)
+_INLINE_DEPENDENCY_RE = re.compile(
+    r"^\s*(?:Depends on|Depende de|Depend[êe]ncia|Dependencia)\s*:\s*(.+?)\s*$",
+    re.IGNORECASE,
+)
 
 
 def _text(value: Any) -> str:
@@ -94,6 +101,22 @@ def _list_value(line: str) -> str:
 def _as_list(value: Any) -> list[str]:
     values = value if isinstance(value, list) else ([] if value is None else [value])
     return [_text(item) for item in values if _text(item)]
+
+
+def _task_id(value: Any) -> str:
+    match = _TASK_ID_RE.match(_text(value))
+    return _text(match.group("id")) if match else ""
+
+
+def _dependency_items(value: Any) -> list[str]:
+    items = value if isinstance(value, list) else [value]
+    result: list[str] = []
+    for item in items:
+        for piece in re.split(r"[,;]", str(item or "")):
+            normalized = _text(piece.lstrip("-* "))
+            if normalized:
+                result.append(normalized)
+    return result
 
 
 def _without_refs(value: Any) -> str:
@@ -280,10 +303,13 @@ def _normalize_mapping(raw: dict[str, Any]) -> dict[str, Any]:
             if canonical_key:
                 impact[canonical_key] = _impact_signal(value)
 
+    functionality = _text(_first(raw, "functionality", "funcionalidade", "feature"))
+    declared_id = _text(_first(raw, "id", "task_id"))
+    task_id = declared_id or _task_id(functionality)
     intent = {
         "schema": TASK_INTENT_SCHEMA,
         "system": _text(_first(raw, "system", "sistema")),
-        "functionality": _text(_first(raw, "functionality", "funcionalidade", "feature")),
+        "functionality": functionality,
         "change_type": _text(_first(raw, "change_type", "type", "tipo")),
         "story": {
             "actor": _text(_first(story, "actor", "as_a", "como")).rstrip(","),
@@ -297,12 +323,14 @@ def _normalize_mapping(raw: dict[str, Any]) -> dict[str, Any]:
         ],
         "prototypes": [_prototype(item) for item in prototypes],
         "access": _as_list(raw.get("access") or raw.get("acesso")),
-        "dependencies": _as_list(raw.get("dependencies") or raw.get("dependencias")),
+        "dependencies": _dependency_items(raw.get("dependencies") or raw.get("dependencias")),
         "impact": dict(sorted(impact.items())),
         "additional_information": _as_list(
             raw.get("additional_information") or raw.get("informacoes_adicionais")
         ),
     }
+    if task_id:
+        intent["id"] = task_id
     semantic = deepcopy(intent)
     intent["fingerprint"] = hashlib.sha256(canonical_json(semantic).encode("utf-8")).hexdigest()
     return intent
@@ -339,6 +367,10 @@ def _parse_text(raw: str) -> dict[str, Any]:
         plain = _plain(source_line)
 
         metadata = re.match(r"^([^:]+):\s*(.+)$", plain)
+        dependency_match = _INLINE_DEPENDENCY_RE.match(plain)
+        if dependency_match:
+            data["dependencies"].extend(_dependency_items(dependency_match.group(1)))
+            continue
         if metadata and (key := _METADATA.get(_fold(metadata.group(1)))):
             data[key] = _text(metadata.group(2))
             continue

@@ -251,6 +251,7 @@ def run_snapshot_cli(argv: Sequence[str]) -> int:
         "backend": "auto",
         "fast_manifest": "",
     }
+    positionals: list[str] = []
     i = 0
     while i < len(rest):
         arg = rest[i]
@@ -292,11 +293,16 @@ def run_snapshot_cli(argv: Sequence[str]) -> int:
             print(f"unknown snapshot option: {arg}", file=sys.stderr)
             return 2
         else:
-            break
+            positionals.append(arg)
         i += 1
     if sub == "validate":
-        base["validate_paths"] = rest[i:]
+        base["validate_paths"] = positionals
         return _run_validate(base)
+    if len(positionals) > 1:
+        print("snapshot command accepts at most one root path", file=sys.stderr)
+        return 2
+    if positionals:
+        base["root"] = positionals[0]
     if sub == "summary":
         return _run_summary(base)
     if sub == "dag":

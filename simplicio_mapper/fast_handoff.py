@@ -155,6 +155,10 @@ def build_fast_handoff(
         snapshot = _read_json(artifact_dir / "context-snapshot.json")
         if snapshot.get("schema") != "simplicio.context-snapshot/v1":
             raise ValueError(f"unsupported snapshot schema: {snapshot.get('schema')!r}")
+        producer = snapshot.get("producer")
+        fidelity = snapshot.get("fidelity")
+        if not isinstance(producer, Mapping) or not isinstance(fidelity, Mapping):
+            raise ValueError("context snapshot is missing producer or fidelity metadata")
         project_map = _read_json(artifact_dir / "project-map.json")
         artifacts = []
         for name in ARTIFACT_NAMES:
@@ -220,8 +224,8 @@ def build_fast_handoff(
     }
     handoff: dict[str, Any] = {
         "schema": HANDOFF_SCHEMA,
-        "producer": {"name": "simplicio-mapper", "version": __version__},
-        "fidelity": fidelity,
+        "producer": dict(producer),
+        "fidelity": dict(fidelity),
         "generation": generation,
         "repository_id": snapshot.get("repository_id"),
         "revision": revision,

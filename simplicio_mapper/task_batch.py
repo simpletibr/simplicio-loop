@@ -19,14 +19,22 @@ def _stable_id(raw: Any, index: int, fingerprint: str) -> str:
     return f"task-{index:03d}-{fingerprint[:8]}"
 
 
-def _task_input(item: Any) -> tuple[str, Mapping[str, Any] | str, list[str]]:
+def _task_input(item: Any) -> tuple[str, Mapping[str, Any] | str, list[str], dict[str, Any]]:
     if isinstance(item, Mapping):
         raw = item.get("task", item.get("intent", item))
         depends = item.get("depends_on", [])
         if not isinstance(depends, list):
             depends = [depends]
-        return str(item.get("id") or ""), raw, [str(value) for value in depends if str(value).strip()]
-    return "", item, []
+        metadata = item.get("metadata", {})
+        if not isinstance(metadata, Mapping):
+            metadata = {}
+        return (
+            str(item.get("id") or ""),
+            raw,
+            [str(value) for value in depends if str(value).strip()],
+            dict(metadata),
+        )
+    return "", item, [], {}
 
 
 def _topological_order(tasks: list[dict[str, Any]]) -> list[str]:
@@ -68,7 +76,7 @@ def build_task_batch(
         raise ValueError("task batch must contain at least one task")
     tasks: list[dict[str, Any]] = []
     for index, item in enumerate(items, 1):
-        supplied_id, raw, depends_on = _task_input(item)
+        supplied_id, raw, depends_on, metadata = _task_input(item)
         intent = parse_task_intent(raw)
         task_id = _stable_id(supplied_id, index, intent["fingerprint"])
         selection = select_context_targets(
@@ -88,21 +96,24 @@ def build_task_batch(
             resolution = "ambiguous"
         else:
             resolution = "selected"
-        tasks.append({
-            "id": task_id,
-            "source_index": index,
-            "intent": intent,
-            "depends_on": sorted(set(depends_on)),
-            "candidates": candidates,
-            "selection": {
-                "status": resolution,
-                "top_score": round(top, 6),
-                "margin": round(margin, 6),
-                "confidence_threshold": confidence_threshold,
-                "minimum_margin": minimum_margin,
-                "query_fingerprint": selection["query_fingerprint"],
-            },
-        })
+        tasks.append(
+            {
+                "id": task_id,
+                "source_index": index,
+                "intent": intent,
+                "depends_on": sorted(set(depends_on)),
+                "metadata": metadata,
+                "candidates": candidates,
+                "selection": {
+                    "status": resolution,
+                    "top_score": round(top, 6),
+                    "margin": round(margin, 6),
+                    "confidence_threshold": confidence_threshold,
+                    "minimum_margin": minimum_margin,
+                    "query_fingerprint": selection["query_fingerprint"],
+                },
+            }
+        )
     order = _topological_order(tasks)
     paths: dict[str, list[str]] = {}
     for task in tasks:
