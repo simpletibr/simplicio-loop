@@ -157,12 +157,14 @@ def test_run_wraps_conduct_run_and_prints_json(monkeypatch, capsys):
         3,
         quality_provider="simplicio_loop_quality",
     )
-    assert rc == 0
+    assert rc == 2
     assert captured == {
         "quality_provider": "simplicio_loop_quality",
         "quality_policy": "strict-default",
     }
-    assert json.loads(capsys.readouterr().out)["ok"] is True
+    public = json.loads(capsys.readouterr().out)
+    assert public["schema"] == "simplicio.loop-execution/v1"
+    assert public["verified"] is False
 
 
 def test_verify_returns_zero_only_when_phase_done(monkeypatch):
@@ -261,7 +263,7 @@ def test_batch_dispatches_reconciled_prism_waves(monkeypatch):
 
     monkeypatch.setattr(cli, "execute_operator_batch", fake_batch)
     rc = cli.batch("/r", "run-1", "1,2,3", max_workers=5, retry_budget=0, batch_size=2)
-    assert rc == 0
+    assert rc == 2
     assert calls == [([1, 2, 3], 5)]
 
 

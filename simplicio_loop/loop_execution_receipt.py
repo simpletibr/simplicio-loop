@@ -39,6 +39,25 @@ class LoopExecutionReceiptError(RuntimeError):
     """Raised when a verified run cannot produce a complete receipt."""
 
 
+_TERMINAL_FLOW_STATUSES = frozenset({
+    "completed", "complete", "succeeded", "success", "verified", "passed", "done",
+})
+_ORACLE_SCHEMA = "simplicio.completion-oracle-matrix/v1"
+_REQUIRED_DURABLE_ARTIFACTS = {
+    "manifest": "manifest.json",
+    "stack_lock": "stack-lock.json",
+    "mapper_preflight": "mapper-preflight.json",
+    "operator_preflight": "operator-preflight.json",
+    "mapper_context": "mapper-context.json",
+    "operator_receipt": "operator-receipt.json",
+    "evidence": "evidence-receipt.json",
+    "delivery": "delivery-receipt.json",
+    "quality": "quality-matrix.json",
+    "oracle": "oracle-matrix.json",
+    "state": "state.json",
+}
+
+
 def _read_json(path: Path, label: str) -> dict[str, Any]:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -134,6 +153,160 @@ def _stack_component(stack_lock: Mapping[str, Any], name: str) -> dict[str, Any]
     raise LoopExecutionReceiptError(f"stack lock is missing {name}")
 
 
+def _required_file(run_dir: Path, relative: str, label: str) -> Path:
+    path = run_dir / relative
+    _contained_path(run_dir, path, label)
+    if path.is_symlink() or not path.is_file():
+        raise LoopExecutionReceiptError(f"required durable artifact {relative} is missing or not a regular file")
+    return path
+
+
+def _validate_durable_artifacts(
+    *, repo: Path, run_dir: Path, manifest: Mapping[str, Any]
+) -> dict[str, dict[str, Any]]:
+    """Validate every durable gate before a v1 receipt can claim VERIFIED.
+
+    The v1 envelope stays unchanged as a contract.  This validation only makes
+    the existing publisher honor the artifacts that the Loop already promises:
+    frozen stack, Mapper/Dev CLI preflights, watcher/evidence, delivery,
+    quality, and completion oracle.
+    """
+    from .delivery import validate_delivery_receipt
+    from .evidence import watcher_truth_from_receipt
+    from .quality_matrix import evaluate_quality_matrix
+    from .receipt_verifier import (
+        EVIDENCE_RECEIPT_SCHEMA,
+        OPERATOR_RECEIPT_SCHEMA,
+        verify_receipt,
+    )
+    from .stack_lock import StackLockError, load_stack_lock
+
+    json_payloads: dict[str, dict[str, Any]] = {}
+    observed: dict[str, dict[str, Any]] = {}
+    for key, relative in _REQUIRED_DURABLE_ARTIFACTS.items():
+        path = _required_file(run_dir, relative, f"durable artifact {relative}")
+        payload = _read_json(path, relative)
+        json_payloads[key] = payload
+        observed[key] = {
+            "path": relative,
+            "present": True,
+            "valid": True,
+            "sha256": _sha256(path),
+        }
+    for relative in _STATE_FILES.values():
+        _required_file(run_dir / "loop", relative, f"loop state artifact {relative}")
+
+    run_id = _validated_run_id(json_payloads["manifest"], run_dir)
+    if str(manifest.get("run_id") or "") != run_id:
+        raise LoopExecutionReceiptError("provided and persisted manifest run_id values differ")
+    if str(json_payloads["state"].get("run_id") or run_id) != run_id:
+        raise LoopExecutionReceiptError("state run_id does not match the persisted manifest")
+
+    try:
+        stack = load_stack_lock(run_dir / _REQUIRED_DURABLE_ARTIFACTS["stack_lock"])
+    except (OSError, ValueError, StackLockError) as exc:
+        raise LoopExecutionReceiptError(f"stack lock is invalid: {exc}") from exc
+    if stack.run_id != run_id:
+        raise LoopExecutionReceiptError("stack lock run_id does not match the persisted manifest")
+    components = {item.name: item for item in stack.components}
+    required_components = {"simplicio-mapper", "simplicio-fast", "simplicio-cli", "simplicio-runtime"}
+    missing_components = sorted(required_components - set(components))
+    if missing_components:
+        raise LoopExecutionReceiptError(
+            "stack lock is missing required component(s): " + ", ".join(missing_components)
+        )
+    for component_name in ("simplicio-mapper", "simplicio-cli", "simplicio-fast"):
+        component = components[component_name]
+        if not component.available or not component.version:
+            raise LoopExecutionReceiptError(
+                f"{component_name} is unavailable in the frozen stack lock"
+            )
+
+    mapper_preflight = json_payloads["mapper_preflight"]
+    operator_preflight = json_payloads["operator_preflight"]
+    for label, preflight in (("Mapper", mapper_preflight), ("Dev CLI", operator_preflight)):
+        if preflight.get("returncode") != 0 or preflight.get("identity_ok") is not True:
+            raise LoopExecutionReceiptError(f"{label} preflight is not verified")
+        if preflight.get("version_ok") is not True:
+            raise LoopExecutionReceiptError(f"{label} preflight version is not verified")
+        missing = preflight.get("missing_verbs") or preflight.get("missing_capabilities") or preflight.get("missing_tokens")
+        if missing:
+            raise LoopExecutionReceiptError(f"{label} preflight has missing capabilities")
+
+    mapper_context = json_payloads["mapper_context"]
+    if str(mapper_context.get("run_id") or "") != run_id:
+        raise LoopExecutionReceiptError("Mapper context run_id does not match the persisted manifest")
+    if mapper_context.get("degraded_local"):
+        raise LoopExecutionReceiptError("degraded Mapper context cannot publish a verified receipt")
+    for operation in ("scan", "inspect", "handoff"):
+        if not isinstance(mapper_context.get(operation), Mapping):
+            raise LoopExecutionReceiptError(f"Mapper context is missing durable {operation} evidence")
+        result = mapper_context[operation]
+        if "returncode" in result and result.get("returncode") != 0:
+            raise LoopExecutionReceiptError(f"Mapper {operation} evidence is not verified")
+
+    operator = json_payloads["operator_receipt"]
+    operator_verdict = verify_receipt(operator, schema=OPERATOR_RECEIPT_SCHEMA)
+    if not operator_verdict.verified:
+        raise LoopExecutionReceiptError(f"Dev CLI operator receipt is not valid: {operator_verdict.reason}")
+    if str(operator.get("run_id") or run_id) != run_id:
+        raise LoopExecutionReceiptError("Dev CLI operator receipt run_id does not match the persisted manifest")
+    if operator.get("execution_state") not in {"applied", "no_change"} or operator.get("returncode") != 0:
+        raise LoopExecutionReceiptError("Dev CLI operator receipt is not a successful execution")
+
+    evidence = json_payloads["evidence"]
+    evidence_verdict = verify_receipt(evidence, schema=EVIDENCE_RECEIPT_SCHEMA)
+    if not evidence_verdict.verified:
+        raise LoopExecutionReceiptError(f"evidence receipt is not valid: {evidence_verdict.reason}")
+    if evidence.get("run_id") != run_id or evidence.get("status") != "VERIFIED":
+        raise LoopExecutionReceiptError("evidence receipt is not VERIFIED for this run")
+    if not watcher_truth_from_receipt(evidence).get("ready"):
+        raise LoopExecutionReceiptError("evidence receipt does not prove all watcher criteria")
+
+    delivery = json_payloads["delivery"]
+    delivery_verdict = validate_delivery_receipt(
+        delivery, target=str(json_payloads["manifest"].get("delivery_target") or "")
+    )
+    if not delivery_verdict.get("ok") or delivery.get("current_state") != "verified" or not delivery.get("ready"):
+        raise LoopExecutionReceiptError("delivery receipt is not a verified durable artifact")
+
+    quality = evaluate_quality_matrix(str(run_dir))
+    if not quality.get("ready"):
+        raise LoopExecutionReceiptError(
+            "quality matrix is not verified: " + str(quality.get("reason") or quality.get("reason_code"))
+        )
+
+    oracle = json_payloads["oracle"]
+    adapters = oracle.get("adapters")
+    if oracle.get("schema") != _ORACLE_SCHEMA or oracle.get("parity") is not True:
+        raise LoopExecutionReceiptError("completion oracle artifact is not parity-verified")
+    if not isinstance(adapters, list) or not adapters or not all(
+        isinstance(adapter, Mapping) and adapter.get("ready") is True for adapter in adapters
+    ):
+        raise LoopExecutionReceiptError("completion oracle artifact is not ready for every adapter")
+
+    watcher_challenge = _read_json(run_dir / "loop" / "watcher_challenge.json", "watcher challenge")
+    watcher_state = _read_json(run_dir / "loop" / "watcher_state.json", "watcher state")
+    if watcher_state.get("status") != "MEASURED" or watcher_state.get("match") is not True:
+        raise LoopExecutionReceiptError("watcher state is not a measured match")
+    if watcher_state.get("challenge") != watcher_challenge.get("challenge"):
+        raise LoopExecutionReceiptError("watcher state challenge does not match the durable challenge")
+    if watcher_challenge.get("goal_fp") and watcher_state.get("goal_fp") != watcher_challenge.get("goal_fp"):
+        raise LoopExecutionReceiptError("watcher state goal fingerprint does not match the durable challenge")
+
+    anchor = _read_json(run_dir / "loop" / "anchor.json", "anchor")
+    criteria = anchor.get("criteria")
+    if not isinstance(criteria, list) or not criteria or not all(
+        isinstance(item, Mapping) and item.get("status") == "done" for item in criteria
+    ):
+        raise LoopExecutionReceiptError("anchor criteria are not durably complete")
+    journal = run_dir / "loop" / "journal.jsonl"
+    if not journal.read_text(encoding="utf-8").strip():
+        raise LoopExecutionReceiptError("loop journal is empty")
+
+    return observed
+
+
 def _copy_entry(source: Path, bundle: Path, name: str, run_dir: Path) -> dict[str, Any]:
     _contained_path(run_dir, source, f"source artifact {name}")
     if not source.is_file():
@@ -184,6 +357,8 @@ def build_receipt(
     operator_preflight: Mapping[str, Any],
     commit: str,
     artifacts: Mapping[str, Mapping[str, Any]],
+    flow: str = "run",
+    observed_artifacts: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Build the canonical envelope after all source files are copied."""
     from . import __version__
@@ -225,10 +400,14 @@ def build_receipt(
         else:
             raise LoopExecutionReceiptError("Runtime version is missing from the stack lock")
 
+    flow_name = str(flow or "run").strip()
+    if not flow_name:
+        raise LoopExecutionReceiptError("public flow name is missing")
     relative_run_dir = run_dir.relative_to(repo).as_posix()
     return {
         "schema": SCHEMA,
         "contract_version": CONTRACT_VERSION,
+        "flow": flow_name,
         "origin": {
             "component": "simplicio-loop",
             "version": str(__version__),
@@ -241,6 +420,7 @@ def build_receipt(
         "fallback_used": False,
         "fallback_declared": False,
         "artifacts": dict(artifacts),
+        "observed_artifacts": dict(observed_artifacts or {}),
         "mapper": _component(
             version=mapper_version,
             origin=str(mapper.get("executable") or "installed"),
@@ -281,7 +461,7 @@ def build_receipt(
 
 
 def publish_loop_execution_receipt(
-    *, repo: Path, run_dir: Path, manifest: Mapping[str, Any]
+    *, repo: Path, run_dir: Path, manifest: Mapping[str, Any], flow: str = "run"
 ) -> dict[str, Any]:
     """Publish the receipt and return its measured publication metadata.
 
@@ -320,16 +500,19 @@ def publish_loop_execution_receipt(
         "dev_cli": run_dir / "operator-receipt.json",
     }
     try:
+        manifest_payload = _read_json(run_dir / "manifest.json", "manifest")
+        file_run_id = _validated_run_id(manifest_payload, run_dir)
+        if file_run_id != supplied_run_id:
+            raise LoopExecutionReceiptError("provided and persisted manifest run_id values differ")
+        observed_artifacts = _validate_durable_artifacts(
+            repo=repo, run_dir=run_dir, manifest=manifest_payload
+        )
         artifacts: dict[str, dict[str, Any]] = {}
         for name, filename in _STATE_FILES.items():
             artifacts[name] = _copy_entry(source_paths[name], staging_bundle, filename, run_dir)
         _copy_entry(source_paths["mapper"], staging_bundle, "mapper.json", run_dir)
         _copy_entry(source_paths["dev_cli"], staging_bundle, "dev-cli.json", run_dir)
 
-        manifest_payload = _read_json(run_dir / "manifest.json", "manifest")
-        file_run_id = _validated_run_id(manifest_payload, run_dir)
-        if file_run_id != supplied_run_id:
-            raise LoopExecutionReceiptError("provided and persisted manifest run_id values differ")
         stack_lock = _read_json(run_dir / "stack-lock.json", "stack lock")
         mapper_preflight = _read_json(run_dir / "mapper-preflight.json", "Mapper preflight")
         operator_preflight = _read_json(run_dir / "operator-preflight.json", "Dev CLI preflight")
@@ -341,6 +524,8 @@ def publish_loop_execution_receipt(
             mapper_preflight=mapper_preflight,
             operator_preflight=operator_preflight,
             commit=commit,
+            flow=flow,
+            observed_artifacts=observed_artifacts,
             artifacts={
                 name: {**entry, "path": entry["path"]}
                 for name, entry in artifacts.items()
@@ -370,11 +555,108 @@ def publish_loop_execution_receipt(
     }
 
 
+def _flow_diagnostic(
+    *, flow: str, flow_result: Mapping[str, Any], reason_code: str, reason: str
+) -> dict[str, Any]:
+    raw_status = str(
+        flow_result.get("status")
+        or flow_result.get("phase")
+        or flow_result.get("execution_state")
+        or "blocked"
+    ).strip().lower()
+    if raw_status in {"partial", "held", "escalated"}:
+        status = "PARTIAL"
+    elif raw_status in {"error", "failed", "cancelled", "canceled"}:
+        status = "ERROR"
+    else:
+        status = "BLOCKED"
+    return {
+        "schema": SCHEMA,
+        "contract_version": CONTRACT_VERSION,
+        "flow": str(flow or "unknown"),
+        "run_id": str(flow_result.get("run_id") or ""),
+        "status": status,
+        "verified": False,
+        "reason_code": reason_code,
+        "reason": reason,
+    }
+
+
+def publish_loop_execution_for_flow(
+    *, repo: Path, run_dir: Path, flow: str, flow_result: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Guard one public flow with the existing v1 publisher.
+
+    Non-terminal observations are returned as v1 diagnostics and never reach the
+    publisher. A terminal observation reaches the publisher exactly once; the
+    publisher remains the sole authority for a VERIFIED v1 receipt.
+    """
+    raw_status = str(
+        flow_result.get("status")
+        or flow_result.get("phase")
+        or flow_result.get("execution_state")
+        or ""
+    ).strip().lower()
+    if raw_status not in _TERMINAL_FLOW_STATUSES:
+        return _flow_diagnostic(
+            flow=flow,
+            flow_result=flow_result,
+            reason_code="flow_not_terminal",
+            reason=f"public flow status {raw_status or 'missing'!r} cannot publish a VERIFIED v1 receipt",
+        )
+    run_dir = Path(run_dir)
+    if not run_dir.is_dir():
+        return _flow_diagnostic(
+            flow=flow,
+            flow_result=flow_result,
+            reason_code="v1_artifacts_unavailable",
+            reason="the durable run directory required by loop-execution/v1 is unavailable",
+        )
+    try:
+        manifest = _read_json(run_dir / "manifest.json", "manifest")
+        publication = publish_loop_execution_receipt(
+            repo=Path(repo), run_dir=run_dir, manifest=manifest, flow=flow
+        )
+    except (LoopExecutionReceiptError, OSError, TypeError, ValueError):
+        return _flow_diagnostic(
+            flow=flow,
+            flow_result=flow_result,
+            reason_code="v1_publication_failed",
+            reason="durable v1 artifacts did not verify; inspect the persisted artifact receipts",
+        )
+    if publication.get("status") != "VERIFIED":
+        return _flow_diagnostic(
+            flow=flow,
+            flow_result=flow_result,
+            reason_code="v1_publication_not_verified",
+            reason="the existing v1 publisher did not return VERIFIED",
+        )
+    receipt_path = publication.get("receipt")
+    if receipt_path:
+        try:
+            envelope = _read_json(Path(str(receipt_path)), "published loop-execution receipt")
+            envelope["status"] = "VERIFIED"
+            envelope["verified"] = True
+            return envelope
+        except (LoopExecutionReceiptError, OSError, TypeError, ValueError):
+            pass
+    return {
+        "schema": SCHEMA,
+        "contract_version": CONTRACT_VERSION,
+        "flow": str(flow or "run"),
+        "run_id": str(publication.get("run_id") or flow_result.get("run_id") or ""),
+        "status": "VERIFIED",
+        "verified": True,
+        "receipt": str(receipt_path or ""),
+    }
+
+
 __all__ = [
     "CONTRACT_VERSION",
     "CHAIN",
     "LoopExecutionReceiptError",
     "SCHEMA",
     "build_receipt",
+    "publish_loop_execution_for_flow",
     "publish_loop_execution_receipt",
 ]

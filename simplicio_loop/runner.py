@@ -5752,7 +5752,7 @@ def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
     return result
 
 
-def verify_run(repo: str, run_id: str) -> Dict[str, Any]:
+def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
     """Run the independent watcher and advance a run without a manual tick."""
     status = read_status(repo, run_id)
     run_dir = Path(status["run_dir"])
@@ -5828,6 +5828,7 @@ def verify_run(repo: str, run_id: str) -> Dict[str, Any]:
         return read_status(repo, run_id)
     _persist_external_completion_response(run_dir)
     _oracle_matrix = _oracle.evaluate_matrix(str(run_dir / "loop"), str(run_dir))
+    _write_json(run_dir / "oracle-matrix.json", _oracle_matrix)
     if not _oracle_matrix.get("parity") or not all(a["ready"] for a in _oracle_matrix.get("adapters", [])):
         state = read_status(repo, run_id)["state"]
         state["blockers"] = ["completion oracle incomplete: " + str(_oracle_matrix.get("signature"))]
@@ -5839,11 +5840,14 @@ def verify_run(repo: str, run_id: str) -> Dict[str, Any]:
         return read_status(repo, run_id)
     try:
         _ensure_verified_loop_journal(run_dir)
-        loop_execution = publish_loop_execution_receipt(
-            repo=repo_path,
-            run_dir=run_dir,
-            manifest=status["manifest"],
-        )
+        publication_args = {
+            "repo": repo_path,
+            "run_dir": run_dir,
+            "manifest": status["manifest"],
+        }
+        if flow != "run":
+            publication_args["flow"] = flow
+        loop_execution = publish_loop_execution_receipt(**publication_args)
         if loop_execution.get("status") != "VERIFIED":
             raise LoopExecutionReceiptError(
                 "runtime handoff receipt did not reach VERIFIED status"
