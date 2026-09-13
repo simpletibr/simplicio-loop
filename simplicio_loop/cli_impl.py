@@ -74,6 +74,8 @@ from .runner import (
     reconcile_delivery,
     sync_source_state,
 )
+from .execution_adapters import expected_governor_blocked, persist_execution_envelope
+from .intake_planner import dispatch_single_task_fast
 from .task_contract import compile_many, main as task_contract_main, preview_contract
 from .ops_ledger import (
     CONTEXT_SCHEMA,
@@ -304,19 +306,37 @@ def run(repo: str, task_path: str, delivery_arg: str, max_iterations: int,
         try:
             verify_runtime_fingerprint(required_handshake_fingerprint)
         except ExtensionHandshakeError as exc:
+            persist_execution_envelope(
+                flow="run", repo=repo,
+                observed={
+                    "status": "error",
+                    "result": {"status": "error", "reason_code": exc.reason_code},
+                    "error": redact_sensitive_text(str(exc)),
+                },
+            )
             print(f"error: {exc.reason_code}: {exc.detail}", file=sys.stderr)
             return 2
     try:
         delivery_target = delivery.normalize_delivery_target(delivery_arg)
     except delivery.DeliveryTargetError as exc:
+        persist_execution_envelope(
+            flow="run", repo=repo,
+            observed={
+                "status": "error",
+                "result": {"status": "error", "reason_code": "invalid_delivery_target"},
+                "error": redact_sensitive_text(str(exc)),
+            },
+        )
         print(f"error: {exc}", file=sys.stderr)
         return 2
     try:
-        payload = conduct_run(
-            repo, task_path, delivery_target, max_iterations,
-            quality_provider=quality_provider, quality_policy=quality_policy,
-            provider_worker=provider_worker,
-        )
+        conduct_kwargs = {
+            "quality_provider": quality_provider,
+            "quality_policy": quality_policy,
+        }
+        if provider_worker is not None:
+            conduct_kwargs["provider_worker"] = provider_worker
+        payload = conduct_run(repo, task_path, delivery_target, max_iterations, **conduct_kwargs)
     except (OSError, RuntimeError, TypeError, ValueError) as exc:
         outcome = {
             "schema": "simplicio.run-outcome/v1", "run_id": "", "phase": "infrastructure_failure",
@@ -325,12 +345,22 @@ def run(repo: str, task_path: str, delivery_arg: str, max_iterations: int,
             "oracle": {"verdict": "UNAVAILABLE", "authorized": False},
             "completion_receipt": {"path": "", "sha256": None, "validation": "infrastructure_failure"},
         }
+        persist_execution_envelope(
+            flow="run", repo=repo, observed={
+                "status": "error", "result": outcome, "error": redact_sensitive_text(str(exc)),
+            },
+        )
         if result_file:
             target = Path(result_file)
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(json.dumps(outcome, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(json.dumps({"outcome": outcome, "error": str(exc)}, ensure_ascii=False, indent=2))
         return 24
+    run_id = str((payload.get("manifest") or {}).get("run_id") or "")
+    persist_execution_envelope(
+        flow="run", repo=repo, run_id=run_id,
+        observed={**payload, "result": payload.get("outcome") or {}, "status": (payload.get("state") or {}).get("phase")},
+    )
     outcome = payload["outcome"]
     if result_file:
         target = Path(result_file)
@@ -858,22 +888,48 @@ def _persist_prism_wave_receipt(repo: str, run_id: str, payload: dict) -> str:
 
 def tick(repo: str, run_id: str, task_index: int, provider_worker: str | None = None) -> int:
     try:
-        payload = execute_operator(repo, run_id, task_index=task_index, provider_worker=provider_worker)
+        current = read_status(repo, run_id)
+    except Exception:
+        current = {}
+    governor = expected_governor_blocked(current)
+    if governor is not None:
+        payload = {
+            "schema": "simplicio.tick-receipt/v1", "status": "blocked",
+            "reason_code": governor["reason_code"], "governor": governor,
+            "run_id": run_id, "task_indices": [task_index],
+        }
+        persist_execution_envelope(flow="tick", repo=repo, run_id=run_id,
+                                   observed={**current, "result": payload, "governor": governor})
+        print(__import__("json").dumps(payload, ensure_ascii=False, indent=2))
+        return 2
+    try:
+        operator_kwargs = {"task_index": task_index}
+        if provider_worker is not None:
+            operator_kwargs["provider_worker"] = provider_worker
+        payload = execute_operator(repo, run_id, **operator_kwargs)
     except Exception as exc:
         payload = _dispatch_failure_payload("simplicio.tick-receipt/v1", repo, run_id, exc, [task_index])
+    persist_execution_envelope(flow="tick", repo=repo, run_id=run_id,
+                               observed={"run_id": run_id, "result": payload, **payload})
     print(__import__("json").dumps(payload, ensure_ascii=False, indent=2))
     return _dispatch_exit_code(payload)
 
 
 def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_budget: int,
           serial: bool = False, batch_size: Optional[int] = None,
-          provider_worker: str | None = None) -> int:
+          provider_worker: str | None = None, flow: str = "batch") -> int:
     """Route up to three tasks directly; dispatch larger work in Prism waves."""
     indices = None
     if task_indices.strip():
         try:
             indices = [int(value.strip()) for value in task_indices.split(",") if value.strip()]
         except ValueError as exc:
+            payload = _dispatch_failure_payload(
+                "simplicio.operator-batch-receipt/v1", repo, run_id, exc,
+            )
+            persist_execution_envelope(flow=flow, repo=repo, run_id=run_id,
+                                       observed={"run_id": run_id, "result": payload, "error": str(exc)})
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
             raise ValueError("--task-indices must be a comma-separated list of integers") from exc
 
     if indices is None:
@@ -885,21 +941,38 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
         except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError):
             indices = None
 
+    try:
+        current = read_status(repo, run_id)
+    except Exception:
+        current = {}
+    governor = expected_governor_blocked(current)
+    if governor is not None:
+        payload = {
+            "schema": "simplicio.operator-batch-receipt/v1", "status": "blocked",
+            "reason_code": governor["reason_code"], "run_id": run_id,
+            "task_indices": list(indices or []), "governor": governor,
+        }
+        persist_execution_envelope(flow=flow, repo=repo, run_id=run_id,
+                                   observed={**current, "result": payload, "governor": governor})
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 2
+
     eligibility = prism_is_eligible(len(indices or []), explicit_serial=serial)
     if not eligibility["eligible"]:
         try:
-            payload = execute_operator_batch(
-                repo,
-                run_id,
-                indices,
-                max_workers=max_workers or None,
-                retry_budget=retry_budget,
-                auto_fan_out=not serial,
-                provider_worker=provider_worker,
-            )
+            batch_kwargs = {
+                "max_workers": max_workers or None,
+                "retry_budget": retry_budget,
+                "auto_fan_out": not serial,
+            }
+            if provider_worker is not None:
+                batch_kwargs["provider_worker"] = provider_worker
+            payload = execute_operator_batch(repo, run_id, indices, **batch_kwargs)
         except Exception as exc:
             payload = _dispatch_failure_payload("simplicio.operator-batch-receipt/v1", repo, run_id, exc, indices)
         payload["prism"] = {**eligibility, "batch_size": None, "waves": 1}
+        persist_execution_envelope(flow=flow, repo=repo, run_id=run_id,
+                                   observed={"run_id": run_id, "result": payload, **payload})
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return _dispatch_exit_code(payload)
 
@@ -910,15 +983,14 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
     all_reconciled = True
     for wave_number, wave in enumerate(waves, start=1):
         try:
-            result = execute_operator_batch(
-                repo,
-                run_id,
-                wave,
-                max_workers=worker_limit,
-                retry_budget=retry_budget,
-                auto_fan_out=True,
-                provider_worker=provider_worker,
-            )
+            batch_kwargs = {
+                "max_workers": worker_limit,
+                "retry_budget": retry_budget,
+                "auto_fan_out": True,
+            }
+            if provider_worker is not None:
+                batch_kwargs["provider_worker"] = provider_worker
+            result = execute_operator_batch(repo, run_id, wave, **batch_kwargs)
         except Exception as exc:
             result = _dispatch_failure_payload("simplicio.operator-batch-receipt/v1", repo, run_id, exc, wave)
         reconciliation = _reconcile_prism_wave(wave, result)
@@ -943,6 +1015,8 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
         "workers": workers,
     }
     _persist_prism_wave_receipt(repo, run_id, payload)
+    persist_execution_envelope(flow=flow, repo=repo, run_id=run_id,
+                               observed={"run_id": run_id, "result": payload, **payload})
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return _dispatch_exit_code(payload)
 
@@ -1926,8 +2000,16 @@ def main(argv=None) -> int:
         return resume(args.repo, args.run_id)
     if command == "tick":
         return tick(args.repo, args.run_id, args.task_index, args.provider_worker)
-    if command in {"batch", "wave", "prism"}:
-        return batch(args.repo, args.run_id, args.task_indices, args.max_workers, args.retry_budget, args.serial, args.batch_size, args.provider_worker)
+    if command == "batch":
+        batch_args = (args.repo, args.run_id, args.task_indices, args.max_workers, args.retry_budget, args.serial, args.batch_size)
+        if args.provider_worker is None:
+            return batch(*batch_args)
+        return batch(*batch_args, args.provider_worker)
+    if command in {"wave", "prism"}:
+        batch_args = (args.repo, args.run_id, args.task_indices, args.max_workers, args.retry_budget, args.serial, args.batch_size)
+        if args.provider_worker is None:
+            return batch(*batch_args, flow=command)
+        return batch(*batch_args, args.provider_worker, flow=command)
     if command == "cancel":
         return cancel(args.repo, args.run_id)
     if command == "checkpoint":
@@ -1977,14 +2059,32 @@ def main(argv=None) -> int:
             forwarded.append(args.task_id)
         return local_queue_main(forwarded)
     if command == "single-task-fast":
-        from .intake_planner import dispatch_single_task_fast
+        task_file = Path(args.task_file)
         try:
-            payload = json.loads(Path(args.task_file).read_text(encoding="utf-8"))
+            payload = json.loads(task_file.read_text(encoding="utf-8"))
             tasks = payload if isinstance(payload, list) else [payload]
-            result = dispatch_single_task_fast(tasks)
+            repo = str(Path(str(tasks[0].get("repo") or task_file.parent)).resolve()) if tasks and isinstance(tasks[0], dict) else str(task_file.parent.resolve())
+            governor = expected_governor_blocked({"task": tasks[0] if tasks else {}})
+            if governor is not None:
+                result = {
+                    "schema": "simplicio.single-task-fast-receipt/v1",
+                    "status": "BLOCKED",
+                    "reason_code": governor["reason_code"],
+                    "governor": governor,
+                    "route": "single-task-fast",
+                }
+            else:
+                result = dispatch_single_task_fast(tasks)
         except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
-            print(json.dumps({"status": "BLOCKED", "reason_code": "invalid_task_file", "error": str(exc)}, sort_keys=True))
+            result = {"status": "BLOCKED", "reason_code": "invalid_task_file", "error": redact_sensitive_text(str(exc))}
+            repo = str(task_file.parent.resolve())
+            persist_execution_envelope(flow="single-task-fast", repo=repo, observed={"result": result, "status": "blocked"})
+            print(json.dumps(result, sort_keys=True))
             return 2
+        persist_execution_envelope(
+            flow="single-task-fast", repo=repo,
+            observed={"task": tasks[0] if tasks else {}, "tasks": tasks, "result": result, "governor": governor},
+        )
         print(json.dumps(result, sort_keys=True))
         return 0 if result["status"] == "COMPLETED" else 2
     if command == "ledger":
