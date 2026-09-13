@@ -79,6 +79,8 @@ from .loop_execution_receipt import (
     SCHEMA as LOOP_EXECUTION_SCHEMA,
     publish_loop_execution_for_flow,
 )
+from .execution_adapters import expected_governor_blocked, persist_execution_envelope
+from .intake_planner import dispatch_single_task_fast
 from .task_contract import compile_many, main as task_contract_main, preview_contract
 from .ops_ledger import (
     CONTEXT_SCHEMA,
@@ -309,11 +311,27 @@ def run(repo: str, task_path: str, delivery_arg: str, max_iterations: int,
         try:
             verify_runtime_fingerprint(required_handshake_fingerprint)
         except ExtensionHandshakeError as exc:
+            persist_execution_envelope(
+                flow="run", repo=repo,
+                observed={
+                    "status": "error",
+                    "result": {"status": "error", "reason_code": exc.reason_code},
+                    "error": redact_sensitive_text(str(exc)),
+                },
+            )
             print(f"error: {exc.reason_code}: {exc.detail}", file=sys.stderr)
             return 2
     try:
         delivery_target = delivery.normalize_delivery_target(delivery_arg)
     except delivery.DeliveryTargetError as exc:
+        persist_execution_envelope(
+            flow="run", repo=repo,
+            observed={
+                "status": "error",
+                "result": {"status": "error", "reason_code": "invalid_delivery_target"},
+                "error": redact_sensitive_text(str(exc)),
+            },
+        )
         print(f"error: {exc}", file=sys.stderr)
         return 2
     try:
@@ -335,6 +353,11 @@ def run(repo: str, task_path: str, delivery_arg: str, max_iterations: int,
             "oracle": {"verdict": "UNAVAILABLE", "authorized": False},
             "completion_receipt": {"path": "", "sha256": None, "validation": "infrastructure_failure"},
         }
+        persist_execution_envelope(
+            flow="run", repo=repo, observed={
+                "status": "error", "result": outcome, "error": redact_sensitive_text(str(exc)),
+            },
+        )
         if result_file:
             target = Path(result_file)
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -348,6 +371,11 @@ def run(repo: str, task_path: str, delivery_arg: str, max_iterations: int,
         diagnostic["error"] = redact_sensitive_text(str(exc))
         print(json.dumps(diagnostic, ensure_ascii=False, indent=2))
         return 24
+    run_id = str((payload.get("manifest") or {}).get("run_id") or "")
+    persist_execution_envelope(
+        flow="run", repo=repo, run_id=run_id,
+        observed={**payload, "result": payload.get("outcome") or {}, "status": (payload.get("state") or {}).get("phase")},
+    )
     outcome = payload["outcome"]
     if result_file:
         target = Path(result_file)
@@ -877,7 +905,17 @@ def _attach_dispatch(public_payload: Mapping[str, Any], dispatch: Mapping[str, A
 
 
 def _finalize_public_flow(repo: str, run_id: str, flow: str, dispatch: Mapping[str, Any]) -> dict[str, Any]:
-    """Return one v1 public result and let the runner own the sole publication."""
+    """Return one v1 public result and persist the v2 adapter envelope once."""
+
+    def _done(payload: Mapping[str, Any]) -> dict[str, Any]:
+        persist_execution_envelope(
+            flow=flow,
+            repo=repo,
+            run_id=run_id,
+            observed={"run_id": run_id, "result": dict(dispatch), **dict(dispatch)},
+        )
+        return dict(payload)
+
     raw_status = str(
         dispatch.get("status")
         or dispatch.get("phase")
@@ -898,7 +936,7 @@ def _finalize_public_flow(repo: str, run_id: str, flow: str, dispatch: Mapping[s
             flow=flow,
             flow_result=flow_result,
         )
-        return _attach_dispatch(diagnostic, dispatch)
+        return _done(_attach_dispatch(diagnostic, dispatch))
     try:
         verified_status = verify_run(repo, run_id, flow=flow)
         state = verified_status.get("state") if isinstance(verified_status, Mapping) else {}
@@ -920,7 +958,7 @@ def _finalize_public_flow(repo: str, run_id: str, flow: str, dispatch: Mapping[s
                 result = dict(envelope)
                 result["status"] = "VERIFIED"
                 result["verified"] = True
-                return _attach_dispatch(result, dispatch)
+                return _done(_attach_dispatch(result, dispatch))
         phase = str((state or {}).get("phase") or "blocked")
         flow_result = {"status": phase, "run_id": run_id}
         if isinstance(state, Mapping):
@@ -931,7 +969,7 @@ def _finalize_public_flow(repo: str, run_id: str, flow: str, dispatch: Mapping[s
             flow=flow,
             flow_result=flow_result,
         )
-        return _attach_dispatch(diagnostic, dispatch)
+        return _done(_attach_dispatch(diagnostic, dispatch))
     except Exception as exc:
         diagnostic = publish_loop_execution_for_flow(
             repo=Path(repo),
@@ -941,7 +979,7 @@ def _finalize_public_flow(repo: str, run_id: str, flow: str, dispatch: Mapping[s
         )
         diagnostic["reason_code"] = "v1_publication_failed"
         diagnostic["reason"] = f"public flow could not reach a verified v1 receipt: {redact_sensitive_text(str(exc))}"
-        return _attach_dispatch(diagnostic, dispatch)
+        return _done(_attach_dispatch(diagnostic, dispatch))
 
 
 def _public_flow_from_status(status: Mapping[str, Any], flow: str, dispatch: Mapping[str, Any]) -> dict[str, Any]:
@@ -1009,6 +1047,20 @@ def _persist_prism_wave_receipt(repo: str, run_id: str, payload: dict) -> str:
 
 def tick(repo: str, run_id: str, task_index: int, provider_worker: str | None = None) -> int:
     try:
+        current = read_status(repo, run_id)
+    except Exception:
+        current = {}
+    governor = expected_governor_blocked(current)
+    if governor is not None:
+        payload = {
+            "schema": "simplicio.tick-receipt/v1", "status": "blocked",
+            "reason_code": governor["reason_code"], "governor": governor,
+            "run_id": run_id, "task_indices": [task_index],
+        }
+        public_payload = _finalize_public_flow(repo, run_id, "tick", payload)
+        print(json.dumps(public_payload, ensure_ascii=False, indent=2))
+        return _dispatch_exit_code(public_payload)
+    try:
         operator_kwargs = {"task_index": task_index}
         if provider_worker is not None:
             operator_kwargs["provider_worker"] = provider_worker
@@ -1029,6 +1081,12 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
         try:
             indices = [int(value.strip()) for value in task_indices.split(",") if value.strip()]
         except ValueError as exc:
+            payload = _dispatch_failure_payload(
+                "simplicio.operator-batch-receipt/v1", repo, run_id, exc,
+            )
+            persist_execution_envelope(flow=flow, repo=repo, run_id=run_id,
+                                       observed={"run_id": run_id, "result": payload, "error": str(exc)})
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
             raise ValueError("--task-indices must be a comma-separated list of integers") from exc
 
     if indices is None:
@@ -1039,6 +1097,22 @@ def batch(repo: str, run_id: str, task_indices: str, max_workers: int, retry_bud
             indices = list(range(1, len(contract.get("tasks") or []) + 1))
         except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError):
             indices = None
+
+    try:
+        current = read_status(repo, run_id)
+    except Exception:
+        current = {}
+    governor = expected_governor_blocked(current)
+    if governor is not None:
+        payload = {
+            "schema": "simplicio.operator-batch-receipt/v1", "status": "blocked",
+            "reason_code": governor["reason_code"], "run_id": run_id,
+            "task_indices": list(indices or []), "governor": governor,
+        }
+        persist_execution_envelope(flow=flow, repo=repo, run_id=run_id,
+                                   observed={**current, "result": payload, "governor": governor})
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 2
 
     eligibility = prism_is_eligible(len(indices or []), explicit_serial=serial)
     if not eligibility["eligible"]:
@@ -2153,7 +2227,7 @@ def main(argv=None) -> int:
             forwarded.append(args.task_id)
         return local_queue_main(forwarded)
     if command == "single-task-fast":
-        from .intake_planner import dispatch_single_task_fast
+        task_file = Path(args.task_file)
         try:
             task_path = Path(args.task_file)
             raw = task_path.read_text(encoding="utf-8")
@@ -2189,6 +2263,7 @@ def main(argv=None) -> int:
                 flow_result={"status": "blocked"},
             )
             diagnostic.update({"reason_code": "invalid_task_file", "error": redact_sensitive_text(str(exc))})
+            persist_execution_envelope(flow="single-task-fast", repo=".", observed={"result": diagnostic, "status": "blocked"})
             print(json.dumps(diagnostic, sort_keys=True))
             return 2
         task = tasks[0] if tasks and isinstance(tasks[0], Mapping) else {}
@@ -2208,6 +2283,12 @@ def main(argv=None) -> int:
             flow_result={**dict(result), "run_id": run_id},
         )
         public_payload = _attach_dispatch(public_payload, result)
+        persist_execution_envelope(
+            flow="single-task-fast",
+            repo=repo,
+            run_id=run_id,
+            observed={"task": task, "tasks": tasks, "result": result, "run_id": run_id},
+        )
         print(json.dumps(public_payload, sort_keys=True))
         return 0 if public_payload.get("status") == "VERIFIED" and public_payload.get("verified") is True else 2
     if command == "ledger":

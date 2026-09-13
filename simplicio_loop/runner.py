@@ -62,6 +62,7 @@ from .loop_execution_receipt import (
     LoopExecutionReceiptError,
     publish_loop_execution_receipt,
 )
+from .execution_adapters import persist_execution_envelope
 from .runtime_adapter import LoopRuntimeAdapter, RuntimeAdapterError
 from .runtime_bridge import RuntimeBridge
 from .runtime_effect_adapter import EffectRequest, RuntimeEffectAdapter, RuntimeEffectError
@@ -6099,6 +6100,14 @@ def conduct_run(repo: str, task_path: str, delivery: str = "verified", max_itera
                           provider_worker=provider_worker)
     from .run_outcome import persist_run_outcome
     status["outcome"] = persist_run_outcome(status)
+    manifest = status.get("manifest") if isinstance(status.get("manifest"), Mapping) else {}
+    state = status.get("state") if isinstance(status.get("state"), Mapping) else {}
+    persist_execution_envelope(
+        flow="run",
+        repo=repo,
+        run_id=str(manifest.get("run_id") or status.get("run_id") or ""),
+        observed={**status, "result": status["outcome"], "status": state.get("phase")},
+    )
     return status
 
 
