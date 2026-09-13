@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "simplicio.loop-execution/v2",
+  "title": "Universal simplicio.loop-execution/v2 envelope",
+  "$comment": "Successor to the verified-success simplicio.loop-execution/v1 receipt. This is the one canonical envelope for run, tick, batch, single-task-fast, wave, and prism observations.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "contract_version",
+    "envelope_id",
+    "run_id",
+    "flow",
+    "status",
+    "tasks",
+    "task_order",
+    "phases",
+    "evidence",
+    "metrics",
+    "execution_report",
+    "completion"
+  ],
+  "properties": {
+    "schema": { "const": "simplicio.loop-execution/v2" },
+    "contract_version": { "const": "v2" },
+    "envelope_id": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "flow": {
+      "enum": ["run", "tick", "batch", "single-task-fast", "wave", "prism"]
+    },
+    "status": {
+      "enum": ["complete", "partial", "blocked", "error", "expected_governor_blocked"]
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/task" }
+    },
+    "task_order": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "phases": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mapper", "fast", "dev_cli", "loop"],
+      "properties": {
+        "mapper": { "$ref": "#/$defs/phase" },
+        "fast": { "$ref": "#/$defs/phase" },
+        "dev_cli": { "$ref": "#/$defs/phase" },
+        "loop": { "$ref": "#/$defs/phase" }
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/evidence" }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wall_ms",
+        "latency_ms",
+        "cpu_percent",
+        "ram_mb",
+        "tokens_in",
+        "tokens_out",
+        "tokens_total",
+        "items_per_hour"
+      ],
+      "properties": {
+        "wall_ms": { "$ref": "#/$defs/metric" },
+        "latency_ms": { "$ref": "#/$defs/metric" },
+        "cpu_percent": { "$ref": "#/$defs/metric" },
+        "ram_mb": { "$ref": "#/$defs/metric" },
+        "tokens_in": { "$ref": "#/$defs/metric" },
+        "tokens_out": { "$ref": "#/$defs/metric" },
+        "tokens_total": { "$ref": "#/$defs/metric" },
+        "items_per_hour": { "$ref": "#/$defs/metric" }
+      }
+    },
+    "execution_report": {
+      "type": "object",
+      "required": ["schema"],
+      "properties": {
+        "schema": { "const": "simplicio.execution-report/v1" },
+        "run_id": { "type": "string", "minLength": 1 },
+        "tasks": { "type": "array" },
+        "consolidated": { "type": "object" }
+      }
+    },
+    "completion": { "$ref": "#/$defs/completion" },
+    "reason_code": { "type": "string", "minLength": 1 },
+    "governor": {
+      "type": "object",
+      "required": ["decision", "expected", "reason_code"],
+      "properties": {
+        "decision": { "const": "blocked" },
+        "expected": { "const": true },
+        "reason_code": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "task": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["task_id", "order", "depends_on", "status", "evidence"],
+      "properties": {
+        "task_id": { "type": "string", "minLength": 1 },
+        "order": { "type": "integer", "minimum": 0 },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "status": {
+          "enum": ["queued", "running", "complete", "partial", "blocked", "error", "cancelled"]
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence" }
+        }
+      }
+    },
+    "phase": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["status", "provider_called", "receipt", "evidence"],
+      "properties": {
+        "status": {
+          "enum": ["not_run", "running", "complete", "partial", "blocked", "error"]
+        },
+        "provider_called": { "type": "boolean" },
+        "receipt": { "type": ["object", "null"] },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence" }
+        }
+      }
+    },
+    "evidence": {
+      "oneOf": [
+        { "type": "string", "minLength": 1 },
+        {
+          "type": "object",
+          "required": ["kind", "ref"],
+          "properties": {
+            "kind": { "type": "string", "minLength": 1 },
+            "ref": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": true
+        }
+      ]
+    },
+    "metric": {
+      "type": ["number", "null"],
+      "minimum": 0
+    },
+    "completion": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["verified", "oracle"],
+      "properties": {
+        "verified": { "type": "boolean" },
+        "oracle": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
