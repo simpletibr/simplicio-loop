@@ -31,9 +31,9 @@ classifiers = [
 # closure.
 dependencies = [
   # Loop is the aggregate distribution. Keep one tested component train.
-  "simplicio-cli>=0.18.13,<0.19",
+  "simplicio-cli>=0.18.12,<0.19",
   "simplicio-mapper>=0.26.31,<0.27",
-  "simplicio-fast>=2.0.33,<3",
+  "simplicio-fast>=2.0.32,<3",
   "simplicio-prompt>=1.14.4,<1.15",
   "tiktoken>=0.12.0,<1",
 ]
