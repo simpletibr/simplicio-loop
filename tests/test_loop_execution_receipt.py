@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from pathlib import Path
 
 import pytest
 
 from simplicio_loop import loop_execution_receipt as receipt_mod
+from simplicio_loop.delivery import build_delivery_receipt, write_delivery_receipt
+from simplicio_loop.quality_matrix import build_quality_matrix_template
+from simplicio_loop.stack_lock import StackComponent, StackLock
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -19,19 +23,66 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path]:
     run = repo / ".simplicio" / "loop-runs" / "run-1"
     loop = run / "loop"
     loop.mkdir(parents=True)
-    _write_json(run / "manifest.json", {"run_id": "run-1"})
-    _write_json(run / "stack-lock.json", {
-        "components": [
-            {"name": "simplicio-mapper", "version": "0.26.11", "executable": "mapper"},
-            {"name": "simplicio-cli", "version": "0.18.6", "executable": "dev-cli"},
-            {"name": "simplicio-fast", "version": "2.0.23", "executable": "fast", "available": True},
-            {"name": "simplicio-runtime", "version": "3.5.7", "executable": "runtime"},
-        ]
+    now = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    _write_json(run / "manifest.json", {
+        "run_id": "run-1", "repo": str(repo), "delivery_target": "verified",
     })
-    _write_json(run / "mapper-preflight.json", {"version": "0.26.11"})
-    _write_json(run / "operator-preflight.json", {"version": "0.18.6"})
-    _write_json(run / "mapper-context.json", {"run_id": "run-1", "status": "ok"})
-    _write_json(run / "operator-receipt.json", {"run_id": "run-1", "returncode": 0, "execution_state": "executed"})
+    lock = StackLock.create(
+        (
+            StackComponent("simplicio-mapper", "0.26.11", "mapper", "b" * 64, "a" * 64),
+            StackComponent("simplicio-cli", "0.18.6", "dev-cli", "b" * 64, "a" * 64),
+            StackComponent("simplicio-fast", "2.0.23", "fast", "b" * 64, "a" * 64),
+            StackComponent("simplicio-runtime", "3.5.7", "runtime", "b" * 64, "a" * 64),
+        ),
+        "runtime-backed",
+        run_id="run-1",
+    )
+    _write_json(run / "stack-lock.json", lock.to_dict())
+    _write_json(run / "mapper-preflight.json", {
+        "tool": "simplicio-mapper", "returncode": 0, "help_returncode": 0,
+        "identity_ok": True, "version_ok": True, "version": "0.26.11",
+        "missing_verbs": [],
+    })
+    _write_json(run / "operator-preflight.json", {
+        "tool": "simplicio-dev-cli", "returncode": 0, "task_help_returncode": 0,
+        "version_returncode": 0, "identity_ok": True, "version_ok": True,
+        "version": "0.18.6", "missing_tokens": [], "missing_capabilities": [],
+    })
+    _write_json(run / "mapper-context.json", {
+        "run_id": "run-1", "scan": {"returncode": 0},
+        "inspect": {"returncode": 0}, "handoff": {"returncode": 0},
+    })
+    _write_json(run / "operator-receipt.json", {
+        "schema": "simplicio.operator-receipt/v0", "mode": "execute",
+        "tool": "simplicio-dev-cli", "run_id": "run-1", "returncode": 0,
+        "execution_state": "applied", "target": "site/target", "measured_at": now,
+        "source": "fixture", "repo_state_before": {"tree_hash": "tree"},
+    })
+    _write_json(run / "evidence-receipt.json", {
+        "schema": "simplicio.evidence-receipt/v1", "run_id": "run-1",
+        "status": "VERIFIED", "measured_at": now,
+        "run": {"commit_sha": "a" * 40},
+        "operator": {"execution_state": "applied", "receipt_path": str(run / "operator-receipt.json")},
+        "criteria": [{"verification_state": "verified"}], "rules": [],
+        "summary": {"criteria_total": 1, "criteria_verified": 1, "scenario_total": 1,
+                     "scenario_verified": 1, "rule_total": 0, "rule_verified": 0},
+    })
+    delivery = build_delivery_receipt(
+        str(run), "verified", current_state="verified", source_kind="local",
+        source_payload={"evidence_receipt": str(run / "evidence-receipt.json"), "criteria_verified": 1},
+    )
+    write_delivery_receipt(str(run), delivery)
+    quality = build_quality_matrix_template(run_id="run-1")
+    for entry in quality["requirements"].values():
+        entry.update({"status": "pass", "proof_ref": "fixture-proof"})
+    quality["coverage"]["measured"] = 100.0
+    _write_json(run / "quality-matrix.json", quality)
+    _write_json(run / "oracle-matrix.json", {
+        "schema": "simplicio.completion-oracle-matrix/v1", "parity": True,
+        "adapters": [{"adapter": "fixture", "ready": True}],
+        "signature": [True, "COMPLETE", "completion_verified", "MEASURED"],
+    })
+    _write_json(run / "state.json", {"run_id": "run-1", "phase": "done"})
     (loop / "scratchpad.md").write_text(
         "---\niteration: 1\nmax_iterations: 2\ncompletion_promise: null\n"
         "evidence_required: true\nmode: converge\nstarted_at: 2026-08-03T00:00:00Z\n---\ngoal\n",
@@ -47,11 +98,11 @@ def _fixture(tmp_path: Path) -> tuple[Path, Path]:
         "criteria": [{"id": "AC1", "text": "works", "status": "done"}],
     })
     _write_json(loop / "watcher_challenge.json", {
-        "challenge": "nonce", "iteration": 1, "goal_fp": "abc", "written_at": "2026-08-03T00:00:01Z",
+        "challenge": "nonce", "iteration": 1, "goal_fp": "abc", "written_at": now,
     })
     _write_json(loop / "watcher_state.json", {
         "match": True, "status": "MEASURED", "challenge": "nonce", "goal_fp": "abc",
-        "checked_at": "2026-08-03T00:00:02Z",
+        "checked_at": now,
     })
     return repo, run
 
@@ -164,10 +215,16 @@ def test_publish_rejects_fallback_component(tmp_path, monkeypatch):
 
 def test_publish_allows_missing_optional_runtime_in_standalone_profile(tmp_path, monkeypatch):
     repo, run = _fixture(tmp_path)
-    stack_lock = json.loads((run / "stack-lock.json").read_text(encoding="utf-8"))
-    stack_lock["route"] = "standalone"
-    runtime = next(item for item in stack_lock["components"] if item["name"] == "simplicio-runtime")
-    runtime.update({"version": "", "available": False, "executable": ""})
+    stack_lock = StackLock.create(
+        (
+            StackComponent("simplicio-mapper", "0.26.11", "mapper", "b" * 64, "a" * 64),
+            StackComponent("simplicio-cli", "0.18.6", "dev-cli", "b" * 64, "a" * 64),
+            StackComponent("simplicio-fast", "2.0.23", "fast", "b" * 64, "a" * 64),
+            StackComponent("simplicio-runtime", "", "", "", "", available=False),
+        ),
+        "standalone",
+        run_id="run-1",
+    ).to_dict()
     _write_json(run / "stack-lock.json", stack_lock)
     monkeypatch.setattr(receipt_mod, "_git_commit", lambda _repo: "a" * 40)
 
@@ -224,3 +281,71 @@ def test_receipt_schema_declares_stable_runtime_chain():
     schema = json.loads(schema_path.read_text(encoding="utf-8"))
     assert schema["properties"]["schema"]["const"] == receipt_mod.SCHEMA
     assert schema["properties"]["chain"]["const"] == receipt_mod.CHAIN
+
+
+def test_publish_rejects_unverified_durable_evidence(tmp_path, monkeypatch):
+    repo, run = _fixture(tmp_path)
+    monkeypatch.setattr(receipt_mod, "_git_commit", lambda _repo: "a" * 40)
+    _write_json(run / "evidence-receipt.json", {
+        "schema": "simplicio.evidence-receipt/v1",
+        "run_id": "run-1",
+        "status": "UNVERIFIED",
+    })
+
+    with pytest.raises(receipt_mod.LoopExecutionReceiptError, match="evidence"):
+        receipt_mod.publish_loop_execution_receipt(
+            repo=repo, run_dir=run, manifest={"run_id": "run-1"}
+        )
+
+
+def test_publish_rejects_missing_oracle_artifact(tmp_path, monkeypatch):
+    repo, run = _fixture(tmp_path)
+    monkeypatch.setattr(receipt_mod, "_git_commit", lambda _repo: "a" * 40)
+    (run / "oracle-matrix.json").unlink()
+
+    with pytest.raises(receipt_mod.LoopExecutionReceiptError, match="oracle"):
+        receipt_mod.publish_loop_execution_receipt(
+            repo=repo, run_dir=run, manifest={"run_id": "run-1"}
+        )
+
+
+@pytest.mark.parametrize("status", ["blocked", "partial", "error"])
+def test_flow_publication_never_publishes_nonterminal_status(tmp_path, monkeypatch, status):
+    repo, run = _fixture(tmp_path)
+    published = []
+    monkeypatch.setattr(
+        receipt_mod,
+        "publish_loop_execution_receipt",
+        lambda **kwargs: published.append(kwargs),
+    )
+
+    result = receipt_mod.publish_loop_execution_for_flow(
+        repo=repo, run_dir=run, flow="batch", flow_result={"status": status}
+    )
+
+    assert result["schema"] == receipt_mod.SCHEMA
+    assert result["status"] in {"BLOCKED", "PARTIAL", "ERROR"}
+    assert result["status"] != "COMPLETE"
+    assert result["verified"] is False
+    assert published == []
+
+
+def test_flow_publication_calls_the_v1_publisher_once_for_terminal_status(tmp_path, monkeypatch):
+    repo, run = _fixture(tmp_path)
+    published = []
+
+    def fake_publish(**kwargs):
+        published.append(kwargs)
+        return {"status": "VERIFIED", "receipt": str(repo / ".simplicio" / "loop-execution.json")}
+
+    monkeypatch.setattr(receipt_mod, "publish_loop_execution_receipt", fake_publish)
+    result = receipt_mod.publish_loop_execution_for_flow(
+        repo=repo, run_dir=run, flow="tick", flow_result={"status": "completed"}
+    )
+
+    assert result["schema"] == receipt_mod.SCHEMA
+    assert result["status"] == "VERIFIED"
+    assert result["verified"] is True
+    assert len(published) == 1
+    assert published[0]["repo"] == repo
+    assert published[0]["run_dir"] == run

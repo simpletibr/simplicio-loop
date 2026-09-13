@@ -142,9 +142,14 @@ following parent-directory paths or reading files that are still changing.
 Runtime chain remains `simplicio-loop → simplicio-mapper → simplicio-dev-cli → simplicio-runtime`
 for v1 compatibility; Fast evidence is additive and does not alter that chain's field order.
 
+All public execution flows (`run`, `tick`, `batch`, `wave`, `prism`, and `single-task-fast`) use
+this same publisher boundary. A flow may report `BLOCKED`, `PARTIAL`, or `ERROR` as an additive
+diagnostic projection, but it cannot report a verified v1 receipt unless the durable Mapper,
+frozen stack/Fast, Dev CLI, watcher/evidence, delivery, quality, and completion-oracle artifacts
+are present and valid. A completed dispatch result without that v1 publication is blocked.
+
 ## Out of scope (see issue #115)
 
-- Changing the public behavior of `/simplicio-loop`.
 - Migrating the loop to Rust.
 - Changing the Runtime consumer's implementation — the Loop publishes the v1 handoff, while
   `simplicio-runtime` remains responsible for its independent read-only validation.

@@ -10,13 +10,16 @@ def test_cli_blocked_is_nonzero_and_writes_stream_safe_result(tmp_path, monkeypa
     code = cli.run(str(tmp_path), "task.md", "verified", 1, "provider", "strict", str(target))
     assert code == 20
     assert json.loads(target.read_text()) == outcome
-    assert json.loads(capsys.readouterr().out)["outcome"]["exit_code"] == 20
+    public = json.loads(capsys.readouterr().out)
+    assert public["schema"] == "simplicio.loop-execution/v1"
+    assert public["status"] == "BLOCKED"
+    assert public["dispatch"]["outcome"]["exit_code"] == 20
 
 
-def test_cli_complete_propagates_zero(tmp_path, monkeypatch):
+def test_cli_complete_without_v1_receipt_is_blocked(tmp_path, monkeypatch):
     outcome = {"schema": "simplicio.run-outcome/v1", "outcome": "COMPLETE", "exit_code": 0}
     monkeypatch.setattr(cli, "conduct_run", lambda *a, **k: {"state": {"phase": "done"}, "outcome": outcome})
-    assert cli.run(str(tmp_path), "task.md", "verified", 1, "provider") == 0
+    assert cli.run(str(tmp_path), "task.md", "verified", 1, "provider") == 2
 
 
 def test_wrapper_never_mistakes_blocked_for_success(tmp_path, monkeypatch):

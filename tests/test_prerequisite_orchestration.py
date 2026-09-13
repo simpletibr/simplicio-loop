@@ -191,7 +191,7 @@ def test_public_batch_wave_and_prism_forward_explicit_provider_worker(monkeypatc
     for mode in ("batch", "wave", "prism"):
         assert cli_impl.batch(
             "repo", "run-1", "1,2", 0, 3, False, None, provider_worker="openrouter"
-        ) == 0
+        ) == 2
 
     assert len(calls) == 3
     assert all(call[3]["provider_worker"] == "openrouter" for call in calls)
