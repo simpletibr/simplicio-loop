@@ -571,6 +571,11 @@ def artifact_status(root: str | os.PathLike[str]) -> dict[str, Any]:
         evidence = inspection.get("evidence")
         payload["inspection"] = {
             "schema": inspection.get("schema"),
+            "fresh": (
+                inspection.get("status", {}).get("fresh")
+                if isinstance(inspection.get("status"), dict)
+                else inspection.get("fresh")
+            ),
             "evidence": evidence.get("artifacts") if isinstance(evidence, dict) else None,
             "warnings": _as_list(inspection.get("warnings")),
         }
