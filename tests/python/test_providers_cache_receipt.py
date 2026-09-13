@@ -22,3 +22,4 @@ def test_provider_policy_receipt_is_separate_from_cache() -> None:
     assert receipt["requested_route"] == "remote"
     assert receipt["effective_route"] == "deterministic"
     assert receipt["side_effects"]["network"] is False
+    assert receipt["message"] == "LLM execution is disabled"

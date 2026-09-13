@@ -55,6 +55,7 @@ def execution_disabled_receipt(
         "schema": "simplicio.llm-policy-receipt/v1",
         "status": "blocked",
         "reason_code": LLM_EXECUTION_DISABLED,
+        "message": "LLM execution is disabled",
         "policy": "deterministic_only",
         "surface": surface,
         "requested_route": _requested_route(requested_model, requested_base_url),
