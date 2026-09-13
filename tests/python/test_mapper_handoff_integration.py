@@ -160,6 +160,7 @@ def test_artifact_status_embeds_inspection_evidence(monkeypatch, tmp_path):
         "map_inspection",
         lambda _root: {
             "schema": "simplicio.map-inspection/v1",
+            "status": {"fresh": False},
             "evidence": {"artifacts": {"project_map": {"exists": True, "size_bytes": 321}}},
             "warnings": ["deep pass stale"],
         },
@@ -169,6 +170,7 @@ def test_artifact_status_embeds_inspection_evidence(monkeypatch, tmp_path):
     assert payload["inspection"]["schema"] == "simplicio.map-inspection/v1"
     assert payload["inspection"]["evidence"]["project_map"]["exists"] is True
     assert payload["inspection"]["warnings"] == ["deep pass stale"]
+    assert payload["inspection"]["fresh"] is False
 
 
 def test_artifact_status_without_mapper_cli_keeps_legacy_shape(monkeypatch, tmp_path):

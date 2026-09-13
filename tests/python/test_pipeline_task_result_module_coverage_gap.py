@@ -374,6 +374,29 @@ def test_dry_run_preconditions_stale_warning(tmp_path, monkeypatch):
     assert "artifacts_stale" in reasons
 
 
+def test_dry_run_preconditions_stale_inspection_freshness_blocks(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        ptr,
+        "artifact_status",
+        lambda root: {
+            "project_map": {"present": True},
+            "precedent_index": {"present": True},
+            "inspection": {"fresh": False, "warnings": []},
+        },
+    )
+    monkeypatch.setattr(
+        ptr,
+        "map_handoff",
+        lambda root: {"context_pack": {"files": [{"path": "a.py"}]}},
+    )
+    target = tmp_path / "a.py"
+    target.write_text("x = 1\n", encoding="utf-8")
+
+    blockers = ptr._dry_run_preconditions(tmp_path, "a.py")
+
+    assert any(blocker["reason"] == "artifacts_stale" for blocker in blockers)
+
+
 def test_dry_run_preconditions_context_pack_malformed(tmp_path, monkeypatch):
     monkeypatch.setattr(
         ptr,

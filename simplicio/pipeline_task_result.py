@@ -176,13 +176,17 @@ def _dry_run_preconditions(
     inspection = artifacts.get("inspection") if isinstance(artifacts, dict) else None
     warnings = inspection.get("warnings", []) if isinstance(inspection, dict) else []
     stale_warnings = [str(item) for item in warnings if "stale" in str(item).lower()]
-    if stale_warnings and not degraded_allowed:
+    inspection_is_stale = isinstance(inspection, dict) and inspection.get("fresh") is False
+    if (stale_warnings or inspection_is_stale) and not degraded_allowed:
         blockers.append(
             {
                 "reason": "artifacts_stale",
                 "message": "mapper artifacts are present but marked stale by inspection",
                 "next_surface": "mapper_inspection",
-                "details": {"warnings": stale_warnings},
+                "details": {
+                    "warnings": stale_warnings,
+                    "fresh": inspection.get("fresh") if isinstance(inspection, dict) else None,
+                },
             }
         )
 
