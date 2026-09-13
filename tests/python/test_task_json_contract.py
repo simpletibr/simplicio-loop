@@ -495,6 +495,43 @@ def test_task_dry_run_json_serializes_provider_block_with_context_reason(tmp_pat
     assert "provider is disabled" in captured.err
 
 
+def test_task_dry_run_with_unavailable_skill_embeddings_keeps_json_receipt(tmp_path, monkeypatch, capsys):
+    _write(tmp_path / "app.py", "old\n")
+    skills_dir = tmp_path / ".mapper" / "skills"
+    skills_dir.mkdir(parents=True)
+    (skills_dir / "python.md").write_text("# python\nUse the Python pattern.\n", encoding="utf-8")
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+    monkeypatch.delenv("SIMPLICIO_ENABLE_EMBED_INDEX", raising=False)
+    monkeypatch.setattr(
+        "simplicio.pipeline_task_result.artifact_status",
+        lambda _root: {"project_map": {"present": True}, "precedent_index": {"present": True}},
+    )
+    monkeypatch.setattr(
+        "simplicio.pipeline_task_result.map_handoff",
+        lambda _root: {"context_pack": {"files": [{"path": "app.py"}]}},
+    )
+
+    code = cli.main(
+        [
+            "task",
+            "preview app",
+            "--root",
+            str(tmp_path),
+            "--target",
+            "app.py",
+            "--dry-run-task",
+            "--json",
+        ]
+    )
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert code == 1
+    assert payload["schema"] == "simplicio.dev-cli.task-result/v1"
+    assert payload["status"] == "blocked"
+    assert payload["provider_terminal"]["reason_code"] == "llm_execution_disabled"
+
+
 def test_task_dry_run_json_accepts_new_file_under_existing_parent(tmp_path, monkeypatch, capsys):
     _write(tmp_path / "src" / "existing.py", "old\n")
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")

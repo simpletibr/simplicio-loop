@@ -213,6 +213,21 @@ def test_smoke_cli_can_emit_stable_json(monkeypatch, capsys):
     assert payload["ok"] is True
 
 
+def test_smoke_cli_does_not_invoke_generation(monkeypatch, capsys):
+    monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("deterministic smoke must not invoke generation")
+
+    monkeypatch.setattr("simplicio.providers.generate", fail_if_called)
+
+    code = cli.main(["smoke", "--json"])
+
+    assert code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+
+
 # ── Issue #93: impact-test evidence in task_contract ─────────────────────
 
 

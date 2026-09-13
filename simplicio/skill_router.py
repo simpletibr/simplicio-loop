@@ -38,7 +38,12 @@ def build_skill_block(root: str, task: str, threshold: float = 0.15) -> str:
         return ""  # no skills -> layer disappears, no noise
     from .precedent import _embedder
 
-    embedder = _embedder()
+    try:
+        embedder = _embedder()
+    except SystemExit:
+        # Skill ranking is optional prompt enrichment. Keep task receipts
+        # structured when the ML extra is not installed.
+        return ""
     cache = EmbeddingCache(root)
     descs = [s["desc"] for s in skills]
     missing = cache.get_missing(descs)
