@@ -98,6 +98,20 @@ def _run_fixture(tmp_path: Path, *, phase: str = "done", governor: dict | None =
         "criteria": [{"id": "AC1", "verification_state": "verified", "proof_refs": [str(run / "operator-receipt.json")]}],
         "scenarios": [], "rules": [],
     }
+    evidence_receipt_task_1 = {
+        **evidence_receipt,
+        "task_id": "task-a",
+        "task_index": 1,
+        "operator": {**evidence_receipt["operator"], "receipt_path": str(run / "operator-receipt-task-1.json")},
+        "criteria": [{"id": "AC1", "verification_state": "verified", "proof_refs": [str(run / "operator-receipt-task-1.json")]}],
+    }
+    evidence_receipt_task_2 = {
+        **evidence_receipt,
+        "task_id": "task-b",
+        "task_index": 2,
+        "operator": {**evidence_receipt["operator"], "receipt_path": str(run / "operator-receipt-task-2.json")},
+        "criteria": [{"id": "AC1", "verification_state": "verified", "proof_refs": [str(run / "operator-receipt-task-2.json")]}],
+    }
     watcher_receipt = {
         "schema": "simplicio.watcher-receipt/v1", "match": phase == "done",
         "status": "MEASURED" if phase == "done" else "UNVERIFIED",
@@ -125,6 +139,8 @@ def _run_fixture(tmp_path: Path, *, phase: str = "done", governor: dict | None =
         run / "operator-receipt-task-1.json": operator_receipt_task_1,
         run / "operator-receipt-task-2.json": operator_receipt_task_2,
         run / "evidence-receipt.json": evidence_receipt,
+        run / "evidence-receipt-task-1.json": evidence_receipt_task_1,
+        run / "evidence-receipt-task-2.json": evidence_receipt_task_2,
         loop / "watcher_state.json": watcher_receipt,
         run / "completion-receipt.json": completion_receipt,
         run / "execution-report.json": {"schema": "simplicio.execution-report/v1", "run_id": "run-1", "status": "COMPLETE", "wall_ms": None, "tasks": [], "consolidated": {}},
@@ -140,8 +156,8 @@ def _successful_dispatch(run: Path) -> dict:
         "status": "completed",
         "requested_tasks": [1, 2],
         "workers": [
-            {"task_index": 1, "task_id": "task-a", "status": "succeeded", "operator_receipt": str(run / "operator-receipt-task-1.json"), "evidence_receipt": str(run / "evidence-receipt.json")},
-            {"task_index": 2, "task_id": "task-b", "status": "succeeded", "operator_receipt": str(run / "operator-receipt-task-2.json"), "evidence_receipt": str(run / "evidence-receipt.json")},
+            {"task_index": 1, "task_id": "task-a", "status": "succeeded", "operator_receipt": str(run / "operator-receipt-task-1.json"), "evidence_receipt": str(run / "evidence-receipt-task-1.json")},
+            {"task_index": 2, "task_id": "task-b", "status": "succeeded", "operator_receipt": str(run / "operator-receipt-task-2.json"), "evidence_receipt": str(run / "evidence-receipt-task-2.json")},
         ],
         "completed_task_indices": [1, 2],
     }
