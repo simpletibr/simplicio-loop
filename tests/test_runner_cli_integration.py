@@ -1534,6 +1534,7 @@ def test_run_blocks_when_mapper_preflight_version_too_old(tmp_path):
     payload = json.loads(started.stdout)
     assert payload["schema"] == "simplicio.loop-execution/v1"
     assert payload["status"] == "BLOCKED"
+    assert payload["state"]["phase"] == "blocked"
     assert payload["verified"] is False
 
 

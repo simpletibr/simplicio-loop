@@ -556,7 +556,8 @@ def publish_loop_execution_receipt(
 
 
 def _flow_diagnostic(
-    *, flow: str, flow_result: Mapping[str, Any], reason_code: str, reason: str
+    *, flow: str, flow_result: Mapping[str, Any], reason_code: str, reason: str,
+    state: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     raw_status = str(
         flow_result.get("status")
@@ -570,7 +571,7 @@ def _flow_diagnostic(
         status = "ERROR"
     else:
         status = "BLOCKED"
-    return {
+    diagnostic = {
         "schema": SCHEMA,
         "contract_version": CONTRACT_VERSION,
         "flow": str(flow or "unknown"),
@@ -580,6 +581,9 @@ def _flow_diagnostic(
         "reason_code": reason_code,
         "reason": reason,
     }
+    if isinstance(state, Mapping):
+        diagnostic["state"] = dict(state)
+    return diagnostic
 
 
 def publish_loop_execution_for_flow(
@@ -591,26 +595,34 @@ def publish_loop_execution_for_flow(
     publisher. A terminal observation reaches the publisher exactly once; the
     publisher remains the sole authority for a VERIFIED v1 receipt.
     """
+    run_dir = Path(run_dir)
     raw_status = str(
         flow_result.get("status")
         or flow_result.get("phase")
         or flow_result.get("execution_state")
         or ""
     ).strip().lower()
+    state = flow_result.get("state")
+    if not isinstance(state, Mapping) and run_dir.is_dir():
+        try:
+            state = _read_json(run_dir / "state.json", "state")
+        except (LoopExecutionReceiptError, OSError, TypeError, ValueError):
+            state = None
     if raw_status not in _TERMINAL_FLOW_STATUSES:
         return _flow_diagnostic(
             flow=flow,
             flow_result=flow_result,
             reason_code="flow_not_terminal",
             reason=f"public flow status {raw_status or 'missing'!r} cannot publish a VERIFIED v1 receipt",
+            state=state,
         )
-    run_dir = Path(run_dir)
     if not run_dir.is_dir():
         return _flow_diagnostic(
             flow=flow,
             flow_result=flow_result,
             reason_code="v1_artifacts_unavailable",
             reason="the durable run directory required by loop-execution/v1 is unavailable",
+            state=state,
         )
     try:
         manifest = _read_json(run_dir / "manifest.json", "manifest")
@@ -623,6 +635,7 @@ def publish_loop_execution_for_flow(
             flow_result=flow_result,
             reason_code="v1_publication_failed",
             reason="durable v1 artifacts did not verify; inspect the persisted artifact receipts",
+            state=state,
         )
     if publication.get("status") != "VERIFIED":
         return _flow_diagnostic(
@@ -630,6 +643,7 @@ def publish_loop_execution_for_flow(
             flow_result=flow_result,
             reason_code="v1_publication_not_verified",
             reason="the existing v1 publisher did not return VERIFIED",
+            state=state,
         )
     receipt_path = publication.get("receipt")
     if receipt_path:

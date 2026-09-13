@@ -889,11 +889,14 @@ def _finalize_public_flow(repo: str, run_id: str, flow: str, dispatch: Mapping[s
         "unverified", "infrastructure_failure",
     }
     if raw_status in nonterminal or _dispatch_exit_code(dispatch) != 0:
+        flow_result = {"status": raw_status or "blocked", "run_id": run_id}
+        if isinstance(dispatch.get("state"), Mapping):
+            flow_result["state"] = dict(dispatch["state"])
         diagnostic = publish_loop_execution_for_flow(
             repo=Path(repo),
             run_dir=_public_flow_run_dir(repo, run_id),
             flow=flow,
-            flow_result={"status": raw_status or "blocked", "run_id": run_id},
+            flow_result=flow_result,
         )
         return _attach_dispatch(diagnostic, dispatch)
     try:
@@ -919,11 +922,14 @@ def _finalize_public_flow(repo: str, run_id: str, flow: str, dispatch: Mapping[s
                 result["verified"] = True
                 return _attach_dispatch(result, dispatch)
         phase = str((state or {}).get("phase") or "blocked")
+        flow_result = {"status": phase, "run_id": run_id}
+        if isinstance(state, Mapping):
+            flow_result["state"] = dict(state)
         diagnostic = publish_loop_execution_for_flow(
             repo=Path(repo),
             run_dir=_public_flow_run_dir(repo, run_id),
             flow=flow,
-            flow_result={"status": phase, "run_id": run_id},
+            flow_result=flow_result,
         )
         return _attach_dispatch(diagnostic, dispatch)
     except Exception as exc:
@@ -970,11 +976,14 @@ def _public_flow_from_status(status: Mapping[str, Any], flow: str, dispatch: Map
             result["verified"] = True
             return _attach_dispatch(result, dispatch)
     phase = str((state or {}).get("phase") or "blocked")
+    flow_result = {"status": phase, "run_id": run_id}
+    if isinstance(state, Mapping):
+        flow_result["state"] = dict(state)
     diagnostic = publish_loop_execution_for_flow(
         repo=Path(str((status.get("manifest") or {}).get("repo") or dispatch.get("repo") or ".")),
         run_dir=Path(str(status.get("run_dir") or "")) if status.get("run_dir") else Path("."),
         flow=flow,
-        flow_result={"status": phase, "run_id": run_id},
+        flow_result=flow_result,
     )
     return _attach_dispatch(diagnostic, dispatch)
 
