@@ -62,7 +62,7 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 | `agent-slots` | Inspect and reclaim Loop-owned agent capacity. |
 | `generation-broker` | Inspect and reconcile persisted generation bindings. |
 | `queue` | Operate the durable queue (`status`, `top`, `drain`, `resume`, `doctor`, `reclaim`, `gc`, `migrate`, `inspect`, `cancel`). |
-| `single-task-fast` | Select the bounded single-task local-first route. |
+| `single-task-fast` | Execute one bounded JSON task locally, or exactly two dependent Markdown tasks through the provider-backed Loop route. |
 | `ledger` | Replay or validate the operational event ledger. |
 | `findings` | List, report, reconcile, diagnose, or import routed findings. |
 | `learn retrospective` | Derive durable lessons from completed runs. |
@@ -105,6 +105,15 @@ the index is still warming, and derive worker demand from the task set. Physical
 admission still controls safe CPU/RAM/disk concurrency; `--serial` is an explicit
 conflict/dependency choice, not the default. Receipts and validation gates remain
 mandatory.
+
+`single-task-fast --task-file TASK_FILE` keeps a one-task JSON input on the
+local-first Mapper/Fast/Dev CLI route. A file containing exactly two dependent
+tasks may be Markdown (or a compatible task-contract collection); that form
+selects the configured provider worker, defaults to `openrouter`, requires Fast
+preparation for each task, and executes the existing ordered Loop batch. The
+creation predecessor must complete with verified per-task receipts before the
+edit task is admitted. Missing Mapper, Fast, provider, Dev CLI, dependency, or
+evidence receipts remain blocked.
 
 ## Prism and wave
 
