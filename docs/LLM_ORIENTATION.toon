@@ -1,0 +1,148 @@
+meta:
+  schema: simplicio.llm-orientation/v1
+  format: TOON-like line-oriented JSON data
+  role: orientation-cache
+  execution_contract: none
+  source_of_truth_only: true
+  purpose: compact project orientation before a task; not a replacement for authoritative files or --help
+project:
+  name: simplicio-mapper
+  repository: "https://github.com/wesleysimplicio/simplicio-mapper"
+  pypi: simplicio-mapper
+  npm: @wesleysimplicio/llm-project-mapper
+  version: 0.26.31
+  python: >=3.10
+  node: >=16.7.0
+  commit: da4b806da8eebfce6cc3014ea5cf0c35d873c117
+  branch: docs/llm-orientation-mapper-20260913
+  default_branch: main
+  shape: Python canonical mapper; Node scaffold and compatibility surface; CLI/library
+  runtime: simplicio 3.8.47
+  reported_artifact_digest: "sha256:d49b9a1ad693b3e3887507ffca45053134a3954387bba78314fc3dd86bb4d168"
+source_of_truth[26]{path,authority,sha256,scope}:
+  AGENTS.md,normative,a4b523c03751eb6e365e816a4deebf138d5757ec4bfd37289c20bbf5061fa56c,agent policy and ecosystem ownership
+  CLAUDE.md,generated-mirror,55aee7b554bbd8a09a62c2d3654b42df0cd7d1ae583ec2d0bf54d996b6041cb2,generated mirror of AGENTS.md; do not edit
+  docs/LLM_OPERATING_INSTRUCTIONS.md,normative,808437b558efd53534a2e73de3586a07b651a1a20ef43884fe9d7d847a6e479f,active English instruction surface
+  package.json,canonical,efc0ce9733f964c34b0273d5595d3b8ec98dcbae2d94030f64ad9905de1aebf4,"npm identity, version, scripts, Node entrypoints"
+  pyproject.toml,canonical,b0945bf057e6fc6b207f8193ece6a0748e137838e6fbc04cf1939ff6c1c102ff,"Python identity, version, dependencies, entrypoints"
+  docs/CLI_COMMANDS.md,discovery,2452921ee6ebcf99ed83c87ae44b1b2a101cb36f8bd347f46e519a2434b3373c,public command inventory and safe sequence
+  docs/local-setup.md,operational,6b13828c4f27a27e5061310507f95f077010219a708467a7c70e6f097d311ecb,runtime and mapper environment knobs; contains template placeholders
+  docs/domain-map.md,operational,be4a0d8654613c895b1759df4d4506ff4cf6e9000e8dda2dba58858dbe6c2398,"Mapper vocabulary, boundaries, partial-context rules"
+  docs/architecture-map.md,reference-template,3812c82bfd6152eb2172ac1ed8bcbe7ebedc422839f34ea63a00a5f0f5c78d96,generic architecture template; not project-specific facts
+  docs/features/README.md,reference-template,90578ab5120b024f21728b28ae077690747dce315155364afe1ded965f3629c8,feature documentation template
+  docs/troubleshooting.md,operational,3c8f1afda0c338b25a6fb4dd913c07a26f13003c04ca8de4fd26156bff528355,repeatable mapper and pipeline diagnostics
+  scripts/README.md,operational,a9ec5479fe184e39b50eeb150007c4356d1feb059bd698a9f3c2f6ca9c45350f,reusable scripts and evidence commands
+  docs/evidence/README.md,operational,1a6353b6c73f75e7dca277eea87d88744cebeff574bc0a50a3e8e0a79a0a5116,proportional evidence policy
+  docs/contract-registry.md,canonical,80dc609d7d368be8a4e40b2b97af0d92d5487f4a43101678e60ef4610487f330,Mapper-owned cross-repository contract inventory
+  docs/WORKER_ARTIFACT_CONTRACT.md,normative,1aa0d645b7b27873eabcc7c601cda06c1bfed4d2c88345c375633dae788b3eaf,bootstrap and central artifact provenance
+  contracts/io/v1/README.md,canonical,daf346c87e8312300791dc3ae3e746935e2968d0121169a55b1c4e946d10ee4f,shared public outer envelope; operation payload owners
+  contracts/io/v1/schema.json,canonical,0249926b86ee59c6ca2ceebb7df755c1aa9c42dc86d3eb2f0ee24d974e93cd4a,shared public outer envelope schema
+  contracts/mapper-artifacts/v1/README.md,canonical,0eff89596bd798c468c737c13cc6ee3ce9feca943991c312301a08aecbbc589a,public JSON artifact set and validation
+  contracts/mapper-artifacts/v1/CANONICAL_CONTRACT.md,canonical,29b39b228a4c5e0f7665212ec6cb67a7028e5b39475b33d1480871718a82b9f6,"field semantics, ordering, compatibility"
+  contracts/context-snapshot/v1/CONTRACT.md,canonical,db9938cec2e2ebf2ddcd17f13dc4680232895d5f8aa731a5c852bf002dc2581d,ContextSnapshot/ContextGraph ownership and limits
+  contracts/task-orientation/v1/README.md,canonical,ed00f0d9530cc793ddba90ceed0b30904ee077a9d914df38052850d9f9399a4b,offline task-intent/context boundary
+  contracts/mapper-fast-handoff/v1/schema.json,canonical,3492d708a9bbca1570b511c204913c36e2272e720ce6db581e5ddbf0244cd741,Mapper-to-Fast handoff schema
+  contracts/plugin-orientation/v1/schema.json,canonical,4d973c3aa4c85f2ae572d5a37692d8db8668eb744a1bbd2f71bdd39ee86e6b3f,project capability projection schema
+  contracts/execution-context/v1/README.md,canonical,24ab8402b0add2bb1a0309b8e12154cb1a2149bb629fbe02eab8ad7e2db8bf55,extractive task execution-context boundary
+  contracts/mapper-store/v1/README.md,canonical,245c76acc9fd4ba323bd9b9a34d333ad0994fd24506fc455b0a569501df73c3f,MapperStore ownership and read-only consumers
+  YOOL_TUPLE_HAMT.md,canonical,32555cfc9e9fdce3545d01c4a1ac15f3a60e49ae4b4930d435d94089eb3e914a,capability addressing and receipt reference
+skills[12]{id,path,sha256,activation,summary}:
+  simplicio-mapper,.simplicio/skills/simplicio-mapper/SKILL.md,26c5e6bee9ea65956b60348ebcb3416981868f99d18269700fc2b75a21f9c36e,component,survey and bounded context selection; never mutation owner
+  simplicio-fast,.simplicio/skills/simplicio-fast/SKILL.md,85aa42f57353004dc8b11f7c4df4206e4303bbc3bde380d01a960f1e0a0cef42,component,compatible indexed retrieval; never source truth or edits
+  simplicio-dev-cli,.simplicio/skills/simplicio-dev-cli/SKILL.md,0b7a74700cfdd1fa80da918b9cdf1d59e2bbc9fb0cf213f723e6010eeed31755,component,"bounded edit, validate, diagnostics and evidence owner"
+  simplicio-runtime,.simplicio/skills/simplicio-runtime/SKILL.md,dbc26216d056b8b5f5662cea1f7518e0d0d612dfd7fd761a9a6ade7456b65dc0,component,"gates, checkpoints, receipts and reconciliation owner"
+  simplicio-loop,.simplicio/skills/simplicio-loop/SKILL.md,ecdcbb2a6b8f2f0a0fe3508e06f41869901c8988f8a93b25ab52075f3cb88a2b,component,"runtime-agnostic stages, retries and convergence"
+  simplicio-prism,.simplicio/skills/simplicio-prism/SKILL.md,504207c562b725f96069bd8a62db3272b3076f1b7b07e2133e69e2591840c1fb,component,route survey/retrieve/mutate/validate across components
+  test-driven-development,.skills/test-driven-development/SKILL.md,7dee67b4af6bdccc7a914ca34533184d64592d0f5b23aeae631538168db14994,local,"red, green, refactor; watch the failing test first"
+  verification-before-completion,.skills/verification-before-completion/SKILL.md,ea52d15aabaf72bc6b558efe2c126f161b53961090ddcd712000273bfe8c7b6c,local,"fresh evidence before completion, commit or PR claims"
+  conventional-commits,.skills/conventional-commits/SKILL.md,c2e13301791dfadd06b03fe9d0333b3ca0af5ee9a7e9a5b2f49f0769e315291d,local,English Conventional Commit subject and body
+  ralph-loop,.skills/ralph-loop/SKILL.md,a986532560388cdfe27e6a8ce4f14eb61b6b05fbb0640d6004d9e6f684683bd6,always-on,"read, plan, execute, lint, unit, e2e, fix loop"
+  everything-claude-code,.skills/everything-claude-code/SKILL.md,0702c5023aa143840ede7a32600c88cab53c526cbabe66bb9290fc7054252b9f,always-on,focused docs/review/TDD coordination; proportional to risk
+  caveman,.skills/caveman/SKILL.md,d05f7d2b79b3bda5cf8a51c1b512e5dda1644075437920bca3cb4b3f9cffe6c0,always-on,terse output mode; does not change code or identifiers
+commands[17]{id,status,usage,options,verified_by,effect}:
+  help,available,simplicio-mapper --help,-h|--help,simplicio-mapper --help,read-only
+  index,available,"simplicio-mapper index <path> [--json] [--for-llm toon] [--tagged] [--confidence <tag>] [--geometry] [--verbose] [--update]",as in usage,simplicio-mapper --help; simplicio-mapper index --help,writes .simplicio artifacts
+  map,available,"simplicio-mapper map [<path>] [--goal <text>] [--target <file>] [--json]",as in usage,simplicio-mapper --help; simplicio-mapper map --help,writes map artifacts
+  scan,available,"simplicio-mapper scan <path> [--json] [--sync] [--await] [--timeout <s>] [--goal <text>] [--target <file>]",as in usage,simplicio-mapper --help; simplicio-mapper scan --help,macro plus deep background scan
+  status,available,"simplicio-mapper status <path> [--json] [--await] [--timeout <s>]",as in usage,simplicio-mapper --help; simplicio-mapper status --help,read-only scan state
+  inspect,available,"simplicio-mapper inspect <path> [--json] [--for-llm toon] [--await] [--timeout <s>]",as in usage,simplicio-mapper --help; simplicio-mapper inspect --help,read-only map/cache inspection
+  handoff,available,"simplicio-mapper handoff <path> [--goal <text>|--task-file <file>] [--task-fingerprint <sha>] [--target <file>] [--minimum-query-coverage <0..1>] [--token-budget <n>] [--execution-context] [--limit <n>] [--json] [--for-llm toon] [--await] [--timeout <s>]",as in usage,simplicio-mapper --help; simplicio-mapper handoff --help,bounded task-aware context
+  orient,available,"simplicio-mapper orient <path> (--task-file <file>|--task-json <file>|--stdin) [--target <file>] [--limit <n>] [--json] [--for-llm toon]",as in usage,simplicio-mapper --help; simplicio-mapper orient --help,offline task orientation
+  contract-validate,available,"simplicio-mapper contract validate <path> [<path> ...]",paths are files or directories,simplicio-mapper --help; simplicio-mapper contract --help; simplicio-mapper contract validate --help,read-only schema validation
+  snapshot-build,available,"simplicio-mapper snapshot build <path> [--json]",--root <repo>|--out <dir>|--json|--for-llm <format>,simplicio-mapper snapshot --help; contracts/context-snapshot/v1/README.md,writes context-snapshot.json
+  mapper-store,available,"simplicio-mapper mapper-store <canonical-status|capabilities|conformance|absorb-legacy> [options]",--data-dir PATH|--database PATH|--operations PATH|--source PATH|--no-mark-read-only|--json,simplicio-mapper mapper-store --help; simplicio-mapper mapper-store canonical-status --help,inspect or explicit legacy absorb
+  contracts,available,"simplicio-mapper contracts <inventory|validate|diff|impact> [options]",--root NAME=PATH|--registry PATH|--old PATH|--new PATH|--json,simplicio-mapper contracts --help,read-only registry operations
+  doctor-contracts,available,"simplicio-mapper doctor --contracts [--cross-repo] [<path> ...]",--contracts|--cross-repo|--json,simplicio-mapper doctor --help,read-only fixture validation
+  fast-handoff,available,"simplicio-mapper fast-handoff [path] [--out <dir>] [--changed-path file] [--base-commit sha] [--expect-schema <schema>] [--verify]",--out <dir>|--changed-path file|--base-commit sha|--expect-schema <schema>|--verify,simplicio-mapper fast-handoff --help,writes handoff receipt
+  init,unavailable,unavailable,unavailable,simplicio-mapper --help; simplicio-mapper init --help had no init entry,unavailable
+  store,unavailable,unavailable,unavailable,simplicio-mapper --help; simplicio-mapper store --help had no store entry,unavailable
+  receipts,unavailable,unavailable,unavailable,simplicio-mapper --help; simplicio-mapper receipts --help had no receipts entry,unavailable
+contracts[19]{id,version,path,owner,writer,format,payload,policy}:
+  simplicio.project-map/v1,v1,contracts/mapper-artifacts/v1/schemas/project-map.schema.json,mapper,mapper,json,.simplicio/project-map.json,canonical artifact
+  simplicio.precedent-index/v1,v1,contracts/mapper-artifacts/v1/schemas/precedent-index.schema.json,mapper,mapper,json,.simplicio/precedent-index.json,bounded candidate snippets
+  simplicio.architecture-inventory/v1,v1,contracts/mapper-artifacts/v1/schemas/architecture-inventory.schema.json,mapper,mapper,json,.simplicio/architecture-inventory.json,canonical artifact
+  simplicio.symbol-index/v1,v1,contracts/mapper-artifacts/v1/schemas/symbol-index.schema.json,mapper,mapper,json,.simplicio/symbol-index.json,canonical artifact
+  simplicio.call-graph/v1,v1,contracts/mapper-artifacts/v1/schemas/call-graph.schema.json,mapper,mapper,json,.simplicio/call-graph.json,canonical artifact
+  simplicio.mapper-artifact-set/v1,v1,contracts/mapper-artifacts/v1/schemas/artifact-set.schema.json,mapper,mapper,json,.simplicio/artifact-manifest.json,commit marker for one generation
+  simplicio.mapper-index/v1,v1,contracts/mapper-artifacts/v1/schemas/mapper-index.schema.json,mapper,mapper,json,index --json stdout,index result
+  simplicio.context-snapshot/v1,v1,contracts/context-snapshot/v1/schemas/context-snapshot.schema.json,mapper,mapper,json,.simplicio/context-snapshot.json,content-addressed snapshot
+  simplicio.context-graph/v1,v1,contracts/context-snapshot/v1/schemas/context-graph.schema.json,mapper,mapper,json,graph embedded in snapshot,multi-scale graph
+  simplicio.task-intent/v1,v1,contracts/task-orientation/v1/schemas/task-intent.schema.json,mapper,mapper,json,orient task field,normalized intent
+  simplicio.task-context/v1,v1,contracts/task-orientation/v1/schemas/task-context.schema.json,mapper,mapper,json,orient result,evidence-backed candidates
+  simplicio.mapper-fast-handoff/v1,v1,contracts/mapper-fast-handoff/v1/schema.json,mapper,mapper,json,fast-handoff stdout,generation and artifact digests
+  simplicio.plugin.project-capability-projection/v1,v1,contracts/plugin-orientation/v1/schema.json,mapper,mapper,json,plugin orientation projection,ready or abstained
+  simplicio.execution-context/v1,v1,contracts/execution-context/v1/schemas/execution-context.schema.json,mapper,mapper,json,handoff --execution-context,closed extractive envelope
+  simplicio.mapper-store-status/v1,v1,contracts/mapper-store/v1/schemas/status.schema.json,mapper,mapper,json,mapper-store status,side-effect-free inspection
+  simplicio.mapper-store-inventory/v1,v1,contracts/mapper-store/v1/schemas/inventory.schema.json,mapper,mapper,json,inventory evidence,read-only evidence
+  simplicio.mapper-store.handoff/v1,v1,contracts/mapper-store/v1/schemas/memory-handoff.schema.json,mapper,mapper-store,json,MapperStore handoff packet,deterministic hash-addressed
+  simplicio.contract-registry/v1,v1,contracts/contract-registry/v1/registry.json,mapper,mapper,registry,contract registry,unknown identifiers fail
+  simplicio.io/v1,v1,contracts/io/v1/schema.json,shared,operation owner,json,"schema, operation, request_id, repository, payload, evidence, error",public outer envelope; payload remains operation-owned
+receipts[6]{id,owner,format,location,schema,meaning,status}:
+  mapper-artifact-set,mapper,json,.simplicio/artifact-manifest.json,simplicio.mapper-artifact-set/v1,generation and per-artifact digest commit marker,contracted
+  context-snapshot,mapper,json,.simplicio/context-snapshot.json,simplicio.context-snapshot/v1,content-addressed graph snapshot,contracted
+  fast-handoff,mapper,json,.simplicio/fast-handoff-receipt.json,simplicio.mapper-fast-handoff-receipt/v1,parsed/reused/degraded/fallback counters,contracted
+  fast-backend,mapper,json,.simplicio/fast-backend-receipt.json,simplicio.mapper-fast-backend-receipt/v1,backend selection and projection receipt,observed
+  mapper-store,mapper-store,json,docs/evidence/mapper-store-conformance-*.json,simplicio.mapper-store-conformance/v1,read-only conformance evidence; external receipts are hash-bound,contracted
+  yool,yool,json,.receipts/<content-hash>.json,YOOL_TUPLE_HAMT.md §1.8.4 minimum receipt,append-only content-addressed execution evidence,contract-only
+governors:
+  fail_closed: "Unknown major, missing/stale/incompatible digest, unknown effect, or missing provenance stops the path."
+  partial: "Partial coverage, omissions and fidelity are explicit; never promote them to complete evidence."
+  blocked: "Unavailable dependencies, missing central artifacts and ambiguous effects remain blocked; preserve locks for reconciliation."
+  cpu: YOOL agent_terms requires a CPU guardrail; the repository declaration example is 60 percent.
+  disk: YOOL agent_terms requires a disk guardrail; the repository declaration example is 100 MB.
+  timeout: YOOL declaration example timeout is 300 seconds; async mapper per-file default is 30.0 seconds.
+  concurrency: "Async mapper file read/parse default cap is min(64, os.cpu_count() * 4); invalid positive cap inputs fall back safely."
+  context_limits: "Context v1 bounds inputs at 16 MiB, depth 64, 100000 nodes, 200000 edges and 4096 source paths."
+  preview_limits: Preview defaults are 200 lines and 16384 bytes; paths stay inside the mapped root.
+  confidence: MEASURED requires a receipt; without one the fact is UNVERIFIED.
+tests[7]{id,command,scope,purpose,status}:
+  orientation-pack,python3 -m pytest tests/python/test_llm_orientation.py -q,new pack structure tests,"parse sections, required fields, source digests, commands, owners and secret rejection",focal
+  python-unit,python3 -m unittest discover -s tests/python,Python package,full Python unit convention,repository gate
+  node-unit,node --test tests/unit/*.test.js,Node mirror,Node unit convention,repository gate
+  lint,npm run lint,JS and shell,repository lint,repository gate
+  contracts-smoke,simplicio contracts smoke --json --repo .,Runtime contract smoke,contract gate,repository gate
+  mapper-contract,simplicio-mapper contract validate .simplicio,Mapper JSON artifacts,schema validation,repository gate
+  runtime-validate,simplicio validate "LLM orientation pack" --repo . --json,Runtime validation,deterministic repository validation,repository gate
+workflow[6]{id,owner,action}:
+  pin,agent,"pin repository, observed revision, branch, scope and completion oracle before action"
+  survey,mapper,"run --help, runtime map, memory and relevant skills; use fresh revision and bounded evidence"
+  prepare,agent,run focused tests RED before the smallest scoped change; gate and checkpoint before mutation
+  mutate,dev-cli,use bounded mechanical edit/validation; Mapper only observes and emits context
+  verify,runtime,"run tests, contracts and validate; persist raw evidence before verdict"
+  converge,loop,coordinate retries/review and stop only on a proven completion oracle
+handoff[5]{owner,input,output,rule}:
+  mapper,"repository, revision, scope, task","snapshot_id, artifacts, selected_context, unresolved_questions, verification",canonical survey; no edits
+  fast,fresh Mapper snapshot and compatible revision,"index_id, bounded ranked results, freshness, omissions, fallback_used",acceleration only; stale cache is untrusted
+  dev-cli,"Mapper snapshot, intent, bounded plan and scope","operation_id, diff, tests, evidence_file, verdict",source mutation and validation owner
+  runtime,"capability, policy, authorization, scope and preconditions","run_id, checkpoint, receipt, evidence, recomputed verdict",gates/effects/receipts; reconcile ambiguity
+  loop,"task id, snapshot id, capability and bounded inputs","plan, stages, events, attempts, receipts, completion_verdict",orchestration/convergence; remains usable without Runtime
+forbidden[7]: "Do not treat this cache as source truth, a universal execution schema, or permission to mutate.","Do not invent a command, option, contract owner, receipt, provider result, savings value, or missing evidence.","Do not use provider output, API keys, tokens, credentials, secret-shaped values, private source, or PII in this pack.","Do not bypass Mapper, Dev CLI, Fast, Runtime or Loop ownership boundaries.","Do not treat relevance, precedent confidence, static mapping, or a receipt word alone as proof.","Do not claim complete context when fidelity, coverage, freshness or provenance is partial.",Do not clear an unknown-effect lock or retry a mutation without Runtime reconciliation.
+known_limits[12]: No .starter-meta.json was present; AGENTS.md root-mode fallback applies.,"The installed simplicio-mapper --help was observed as the command discovery surface; init, store and receipts have no listed entry.",simplicio runtime map returned partial coverage; simplicio skills deferred the Fast index because the Fast snapshot was missing.,simplicio-mapper version --json reported commit_sha null and no local wheel or sdist digests; the observed source commit is recorded separately.,python is unavailable as a command in this environment; python3 is the observed executable.,docs/architecture-map.md and docs/features/README.md retain generic template placeholders; do not infer project facts from them.,Cross-repository consumers and central worker bundles require their own fresh provenance; local generated .simplicio artifacts are disposable evidence.,"Full Python unittest collection is not green in this environment: 445 tests ran with 7 failures, 126 errors and 3 skips; missing diskcache and orjson cause import errors.","npm test is not green in this environment: the mapping-artifacts test cannot import diskcache and overlay-docs expects README.md to embed assets/overlay-install.svg.",Runtime validate is blocked by the same broad pytest collection failure; it reported 111 collection errors and exit 2.,Mapper contract validation of the generated .simplicio directory fails on the legacy architecture-inventory artifact missing producer and relationship evidence fields.,ruff is unavailable as an executable; npm lint completed with four pre-existing trailing-whitespace warnings and skipped shellcheck/PSScriptAnalyzer.
+freshness:
+  generated_at: 2026-09-13
+  observed_revision: da4b806da8eebfce6cc3014ea5cf0c35d873c117
+  default_branch: main
+  pack: docs/LLM_ORIENTATION.toon
+  digest_method: sha256 of source bytes as observed
+  refresh_when: "HEAD, source digest, CLI help, contract major, skill digest or runtime capability changes; refresh before action"
+  cache_rule: "read this pack for orientation, then reread authoritative sources and exact --help before executing"
