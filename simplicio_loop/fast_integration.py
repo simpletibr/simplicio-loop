@@ -117,6 +117,11 @@ _CODE_SUFFIXES = (".py", ".ts", ".tsx", ".js", ".rs")
 INTENT_POLICY_SCHEMA = "simplicio.loop-fast-intent-policy/v1"
 _CREATION_TYPES = frozenset({"creation", "create", "new", "criação", "criacao"})
 _CREATION_TYPE_RE = re.compile(r"(?im)^\s*(?:type|tipo)\s*:\s*(?P<value>[^\r\n]+?)\s*$")
+_DOCUMENTED_COMMAND_EXECUTABLES = frozenset({
+    "bash", "cargo", "deno", "go", "java", "make", "node", "nodejs", "npm",
+    "npx", "pnpm", "pytest", "python", "python3", "ruby", "sh", "yarn", "zsh",
+})
+_INLINE_CODE_RE = re.compile(r"`(?P<code>[^`\r\n]+)`")
 
 
 def _read_only_intent(task: str) -> bool:
@@ -129,6 +134,57 @@ def _creation_intent(task: str) -> bool:
     return any(
         match.group("value").strip().casefold() in _CREATION_TYPES
         for match in _CREATION_TYPE_RE.finditer(str(task))
+    )
+
+
+def _mask_documented_command_code(task: str) -> str:
+    """Exclude command arguments from mutation-target harvesting."""
+    def replace(match: re.Match[str]) -> str:
+        tokens = match.group("code").strip().split()
+        if len(tokens) < 2:
+            return match.group(0)
+        executable = tokens[0].rsplit("/", 1)[-1].casefold()
+        if executable in _DOCUMENTED_COMMAND_EXECUTABLES:
+            return " "
+        return match.group(0)
+
+    return _INLINE_CODE_RE.sub(replace, str(task))
+
+
+def _creation_target_missing(
+    root: Path,
+    path: str,
+    targets: Sequence[tuple[str, bool]],
+    creation_intent: bool,
+    pending_creation_targets: Sequence[str] = (),
+) -> bool:
+    if not creation_intent and path not in pending_creation_targets:
+        return False
+    return any(
+        path == target
+        and not is_dir
+        and not (root / Path(target)).exists()
+        and not (root / Path(target)).is_symlink()
+        for target, is_dir in targets
+    )
+
+
+def _creation_support_exempt(
+    root: Path,
+    path: str,
+    targets: Sequence[tuple[str, bool]],
+    creation_intent: bool,
+    pending_creation_targets: Sequence[str] = (),
+) -> bool:
+    pending_creation = any(
+        target in pending_creation_targets
+        and not is_dir
+        and not (root / Path(target)).exists()
+        and not (root / Path(target)).is_symlink()
+        for target, is_dir in targets
+    )
+    return (creation_intent or pending_creation) and _existing_repo_file(root, path) and not any(
+        _corridor_contains(path, target) for target in targets
     )
 
 
@@ -303,7 +359,11 @@ def mapper_selected_targets(root: Path) -> list[str]:
 def _explicit_targets(task: str, root: Path | None = None) -> tuple[list[tuple[str, bool]], list[str]]:
     targets: dict[str, bool] = {}
     invalid: list[str] = []
-    without_urls = re.sub(r"\b[A-Za-z][A-Za-z0-9+.-]*://\S+", "", str(task))
+    without_urls = re.sub(
+        r"\b[A-Za-z][A-Za-z0-9+.-]*://\S+",
+        "",
+        _mask_documented_command_code(task),
+    )
     for match in _PATH_TOKEN.findall(without_urls):
         raw = match.strip("`'\".,;:()[]{}")
         is_dir = raw.endswith("/") or raw.endswith("\\")
@@ -393,10 +453,15 @@ def _blocker(reason: str, message: str, next_surface: str) -> dict[str, Any]:
 
 
 def _validate_plan_policy(
-    root: Path, task: str, understanding: Mapping[str, Any], plan: Mapping[str, Any],
+    root: Path,
+    task: str,
+    understanding: Mapping[str, Any],
+    plan: Mapping[str, Any],
     extra_targets: Sequence[str] = (),
+    pending_creation_targets: Sequence[str] = (),
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     read_only = _read_only_intent(task)
+    creation_intent = _creation_intent(task)
     extracted, invalid_targets = _explicit_targets(task, root)
     selected = mapper_selected_targets(root)
     merged = _merge_targets({path: is_dir for path, is_dir in extracted}, extra_targets)
@@ -500,18 +565,12 @@ def _validate_plan_policy(
                 )
             )
         unresolved = []
-        creation_intent = _creation_intent(task)
         for path, is_dir in targets:
             if path in escaped:
                 continue
             candidate = root / Path(path)
             if not (candidate.is_dir() if is_dir else candidate.is_file()):
-                if (
-                    creation_intent
-                    and not is_dir
-                    and not candidate.exists()
-                    and not candidate.is_symlink()
-                ):
+                if _creation_target_missing(root, path, targets, creation_intent, pending_creation_targets):
                     continue
                 unresolved.append(path + ("/" if is_dir else ""))
         if unresolved:
@@ -542,6 +601,7 @@ def _validate_plan_policy(
                 path
                 for path in allowed_files
                 if not any(_corridor_contains(path, target) for target in targets)
+                and not _creation_support_exempt(root, path, targets, creation_intent, pending_creation_targets)
             }
         )
         if off_target:
@@ -553,10 +613,17 @@ def _validate_plan_policy(
                     "target",
                 )
             )
-        if mutation_nodes and not any(
-            _corridor_contains(path, target)
-            for path in observed
-            for target in targets
+        if (
+            mutation_nodes
+            and not any(
+                _corridor_contains(path, target)
+                for path in observed
+                for target in targets
+            )
+            and not any(
+                _creation_target_missing(root, path, targets, creation_intent, pending_creation_targets)
+                for path, _ in targets
+            )
         ):
             blockers.append(
                 _blocker(
@@ -574,7 +641,13 @@ def _validate_plan_policy(
             )
         )
 
-    unobserved_allowed = sorted(path for path in allowed_files if path not in observed)
+    unobserved_allowed = sorted(
+        path
+        for path in allowed_files
+        if path not in observed
+        and not _creation_target_missing(root, path, targets, creation_intent, pending_creation_targets)
+        and not _creation_support_exempt(root, path, targets, creation_intent, pending_creation_targets)
+    )
     if mutation_nodes and unobserved_allowed:
         reason = (
             "TARGET_RELEVANCE_INSUFFICIENT"
@@ -748,7 +821,8 @@ class FastLoopIntegration:
                  runtime_apply: Callable[[Mapping[str, Any]], Mapping[str, Any]] | None = None,
                  fallback_apply: Callable[[Mapping[str, Any]], Mapping[str, Any]] | None = None,
                  runner: Callable[..., subprocess.CompletedProcess[str]] | None = None,
-                 extra_targets: Sequence[str] = ()) -> None:
+                 extra_targets: Sequence[str] = (),
+                 pending_creation_targets: Sequence[str] = ()) -> None:
         self.root = Path(root).resolve()
         if not self.root.is_dir():
             raise ValueError("Fast root must be a directory")
@@ -756,6 +830,11 @@ class FastLoopIntegration:
         self.runtime_apply = runtime_apply
         self.fallback_apply = fallback_apply
         self.extra_targets = tuple(str(item).strip() for item in extra_targets if str(item).strip())
+        self.pending_creation_targets = tuple(
+            normalized
+            for item in pending_creation_targets
+            if (normalized := _normalize_repo_path(str(item).replace("\\", "/")))
+        )
         self._runner = runner or subprocess.run
         self._probe_cache: FastProbe | None = None
         self._ingest_receipt: dict[str, Any] | None = None
@@ -965,7 +1044,8 @@ class FastLoopIntegration:
         if payload.get("schema") != FAST_PLAN_SCHEMA:
             raise FastIntegrationError("Fast plan schema is not v2")
         policy, blockers = _validate_plan_policy(
-            self.root, task, understanding, payload, extra_targets=self.extra_targets
+            self.root, task, understanding, payload, extra_targets=self.extra_targets,
+            pending_creation_targets=self.pending_creation_targets,
         )
         if blockers:
             payload = _redact_blocked_plan(payload, policy, blockers)

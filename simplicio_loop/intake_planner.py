@@ -1114,7 +1114,13 @@ def _run_existing_two_task_loop(
     try:
         # Fast is a required, read-only preparation stage for this provider route.
         # Mutation still belongs exclusively to conduct_run's existing Dev CLI path.
-        from .fast_integration import FastConfig, FastIntegrationError, FastLoopIntegration
+        from .fast_integration import (
+            FastConfig,
+            FastIntegrationError,
+            FastLoopIntegration,
+            _creation_intent,
+            _normalize_repo_path,
+        )
         fast_config = FastConfig.from_env()
         fast_config = FastConfig(
             mode="required", command=fast_config.command, snapshot=fast_config.snapshot,
@@ -1123,6 +1129,7 @@ def _run_existing_two_task_loop(
             require_binding=fast_config.require_binding, engine=fast_config.engine,
         )
         fast_receipts = []
+        pending_creation_targets: list[str] = []
         saved_provider_env = {
             key: os.environ[key] for key in _PROVIDER_SECRET_ENV if key in os.environ
         }
@@ -1135,6 +1142,7 @@ def _run_existing_two_task_loop(
                     prepared = FastLoopIntegration(
                         repo, config=fast_config,
                         extra_targets=[str(path) for path in (task.get("target_hints") or [])],
+                        pending_creation_targets=pending_creation_targets,
                     ).prepare(text)
                 except (FastIntegrationError, OSError, TypeError, ValueError) as exc:
                     return {
@@ -1145,6 +1153,16 @@ def _run_existing_two_task_loop(
                 if prepared.get("status") != "READY":
                     return {"status": "BLOCKED", "reason_code": "fast_operation_failed", "fast_receipts": fast_receipts}
                 fast_receipts.append((index, prepared))
+                if _creation_intent(text):
+                    candidates = [str(path) for path in (task.get("target_hints") or [])]
+                    for line in text.splitlines():
+                        label, separator, value = line.partition(":")
+                        if separator and label.strip().casefold() in {"target", "alvo"}:
+                            candidates.append(value.strip().strip("`'\""))
+                    for candidate in candidates:
+                        normalized = _normalize_repo_path(candidate.replace("\\", "/"))
+                        if normalized and normalized not in pending_creation_targets:
+                            pending_creation_targets.append(normalized)
         finally:
             for key in _PROVIDER_SECRET_ENV:
                 os.environ.pop(key, None)
