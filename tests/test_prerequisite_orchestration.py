@@ -212,3 +212,103 @@ def test_prepare_plan_converts_provider_proposal_to_dev_cli_mechanical_plan(tmp_
     assert plan["touched_files"] == ["site/checkers.html"]
     assert plan["operations"][0]["op"] == "replace_range"
     assert plan["operations"][0]["text"] == "new\n"
+
+
+def test_retry_after_independent_verification_forwards_detail_to_next_provider_dispatch(monkeypatch, tmp_path):
+    prompts = []
+    verifier_detail = "independent verifier: expected Turn: Black but observed Turn: Red"
+
+    def opener(request, *, timeout):
+        del timeout
+        payload = json.loads(request.data.decode("utf-8"))
+        prompts.append(payload["messages"][0]["content"])
+        return _Response(_provider_response())
+
+    class _FakeWorker:
+        def __init__(self):
+            self._worker = provider_worker.OpenRouterWorker(opener=opener)
+
+        def dispatch(self, **kwargs):
+            return self._worker.dispatch(**kwargs)
+
+    def fake_execute(repo, run_id, task_index, **kwargs):
+        del repo
+        assert kwargs["provider_worker"] == "openrouter"
+        feedback = kwargs.get("repair_feedback")
+        runner._provider_worker_plan(
+            task={"id": "TASK-CHECKERS-001", "goal": "repair the game"},
+            context={"mapper_generation": "generation-1"},
+            run_id=run_id,
+            task_index=task_index,
+            attempt=1,
+            root=tmp_path,
+            allowed_paths=("site/checkers.html",),
+            run_dir=tmp_path / "provider-run",
+            provider_worker=kwargs["provider_worker"],
+            repair_feedback=feedback,
+        )
+        return {
+            "run_dir": str(tmp_path),
+            "state": {
+                "phase": "validating",
+                "attempts": 1,
+                "operator": {"execution_state": "applied", "receipt": ""},
+            },
+        }
+
+    verification_results = iter([
+        {"verified": False, "reason": verifier_detail},
+        {"verified": True, "status": "VERIFIED"},
+    ])
+    (tmp_path / "provider-run").mkdir()
+    monkeypatch.setenv("OPENROUTER_API_KEY", "runtime-only-openrouter-secret")
+    monkeypatch.setenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+    monkeypatch.setattr(runner, "OpenRouterWorker", _FakeWorker)
+    monkeypatch.setattr(runner, "execute_operator", fake_execute)
+    monkeypatch.setattr(runner, "_verified_delivery_gate_enabled", lambda: True)
+    monkeypatch.setattr(
+        runner,
+        "_run_verified_delivery_gate",
+        lambda **_kwargs: next(verification_results),
+    )
+    attempts = runner._run_operator_item_process(
+        {
+            "repo": str(tmp_path),
+            "run_id": "run-1",
+            "task_index": 1,
+            "worker_id": "worker-1",
+            "task_id": "task-1",
+            "provider_worker": "openrouter",
+        },
+        retry_budget=1,
+    )
+
+    assert [attempt["status"] for attempt in attempts] == ["failed", "succeeded"]
+    assert len(prompts) == 2
+    assert verifier_detail not in prompts[0]
+    assert verifier_detail in prompts[1]
+
+
+def test_failed_independent_watcher_preserves_concrete_detail_for_repair_feedback(tmp_path):
+    detail = "FAIL - board exposes 4 cells; observed role=list"
+    watcher_receipt = tmp_path / "watcher-state.json"
+    watcher_receipt.write_text(json.dumps({
+        "status": "UNVERIFIED",
+        "match": False,
+        "reported": detail,
+    }), encoding="utf-8")
+
+    result = runner._run_verified_delivery_gate(
+        run_id="run-1",
+        task_id="task-1",
+        actor="loop",
+        attempt_id="attempt-1",
+        receipt_verdict={"status": "VERIFIED"},
+        evidence_receipt="",
+        watcher_receipt=str(watcher_receipt),
+        merge=None,
+        worktree_context={},
+    )
+
+    assert result["verified"] is False
+    assert detail in result["reason"]

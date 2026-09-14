@@ -41,14 +41,19 @@ def _env(**extra):
     return env
 
 
-def _dispatch(opener, *, env=None):
+def _dispatch(opener, *, env=None, repair_feedback=None):
+    kwargs = {
+        "task": {"id": "TASK-CHECKERS-001", "goal": "create the game"},
+        "context": {"mapper_generation": "generation-1"},
+        "run_id": "run-1",
+        "task_index": 1,
+        "allowed_paths": ("site/checkers.html",),
+        "env": _env(**(env or {})),
+    }
+    if repair_feedback is not None:
+        kwargs["repair_feedback"] = repair_feedback
     return provider_worker.OpenRouterWorker(opener=opener).dispatch(
-        task={"id": "TASK-CHECKERS-001", "goal": "create the game"},
-        context={"mapper_generation": "generation-1"},
-        run_id="run-1",
-        task_index=1,
-        allowed_paths=("site/checkers.html",),
-        env=_env(**(env or {})),
+        **kwargs,
     )
 
 
@@ -123,3 +128,67 @@ def test_max_tokens_override_is_honoured_when_positive_and_bounded():
 
     _dispatch(opener, env={"SIMPLICIO_OPENROUTER_MAX_TOKENS": "16"})
     assert captured["payload"]["max_tokens"] == provider_worker.OPENROUTER_MAX_TOKENS
+
+
+def test_no_feedback_prompt_is_byte_identical_to_the_existing_prompt():
+    task = {"id": "TASK-CHECKERS-001", "goal": "create the game"}
+    context = {"mapper_generation": "generation-1"}
+    expected = (
+        "You are an explicitly authorized external coding worker. You are not an execution authority. "
+        "Return only a JSON object with a non-empty top-level `files` object mapping authorized relative "
+        "paths to complete UTF-8 file contents. Do not claim that changes were applied or verified. "
+        "Do not return markdown fences or any path outside the authorized targets.\n\n"
+        "Task:\n"
+        '{"goal": "create the game", "id": "TASK-CHECKERS-001"}\n\n'
+        "Mapper context:\n"
+        '{"mapper_generation": "generation-1"}'
+    )
+
+    assert provider_worker._request_prompt(task, context) == expected
+    assert provider_worker._request_prompt(task, context, repair_feedback=None) == expected
+    assert provider_worker._request_prompt(task, context, repair_feedback="") == expected
+
+
+def test_repair_feedback_is_forwarded_bounded_and_secret_html_free():
+    captured = {}
+
+    def opener(request, *, timeout):
+        captured["payload"] = json.loads(request.data.decode("utf-8"))
+        return _Response(
+            {
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "message": {
+                            "content": json.dumps(
+                                {"files": {"site/checkers.html": "<html></html>"}}
+                            )
+                        },
+                    }
+                ]
+            }
+        )
+
+    detail = "independent verifier: expected Turn: Black but observed Turn: Red"
+    _dispatch(opener, repair_feedback=detail)
+    prompt = captured["payload"]["messages"][0]["content"]
+    assert detail in prompt
+
+    fixture_value = "repair-feedback-openrouter-secret-123456"
+    secret_field = "api" + "_key"
+    unsafe = f"{detail}; {secret_field}={fixture_value}\n<html><body>raw proposal</body></html>"
+    _dispatch(opener, repair_feedback=unsafe)
+    prompt = captured["payload"]["messages"][0]["content"]
+    assert fixture_value not in prompt
+    assert "<html><body>raw proposal</body></html>" not in prompt
+    assert len(prompt) <= (
+        len(provider_worker._request_prompt(
+            {"id": "TASK-CHECKERS-001", "goal": "create the game"},
+            {"mapper_generation": "generation-1"},
+        )) + provider_worker.MAX_REPAIR_FEEDBACK_CHARS + 128
+    )
+
+    long_detail = "verifier detail: " + ("x" * (provider_worker.MAX_REPAIR_FEEDBACK_CHARS + 100))
+    _dispatch(opener, repair_feedback=long_detail)
+    prompt = captured["payload"]["messages"][0]["content"]
+    assert prompt.endswith(long_detail[:provider_worker.MAX_REPAIR_FEEDBACK_CHARS])

@@ -1625,6 +1625,7 @@ def _provider_worker_plan(
     allowed_paths: Sequence[str],
     run_dir: Path,
     provider_worker: str | None = None,
+    repair_feedback: str | None = None,
 ) -> tuple[Dict[str, Any] | None, Dict[str, Any] | None]:
     """Obtain one external proposal and convert it through the Dev CLI plan contract.
 
@@ -1650,6 +1651,7 @@ def _provider_worker_plan(
             task_index=task_index,
             allowed_paths=allowed_paths,
             env=os.environ,
+            repair_feedback=repair_feedback,
         )
         forwarded = forwarded_environment(os.environ)
         plan = proposal_to_mechanical_plan(
@@ -2521,18 +2523,19 @@ def _run_verified_delivery_gate(
     """
     schema = "simplicio.verified-delivery-gate/v1"
     try:
-        if receipt_verdict.get("status") != ReceiptStatus.VERIFIED:
-            return {"schema": schema, "verified": False, "status": "UNVERIFIED",
-                    "reason": "operator/evidence receipt pair is not VERIFIED"}
         watcher_state: Dict[str, Any] = {}
         if watcher_receipt and Path(watcher_receipt).exists():
             try:
                 watcher_state = json.loads(Path(watcher_receipt).read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 watcher_state = {}
+        watcher_detail = str(watcher_state.get("reported") or "").strip()
+        if receipt_verdict.get("status") != ReceiptStatus.VERIFIED:
+            return {"schema": schema, "verified": False, "status": "UNVERIFIED",
+                    "reason": watcher_detail or "operator/evidence receipt pair is not VERIFIED"}
         if watcher_state.get("status") != "MEASURED" or not watcher_state.get("match"):
             return {"schema": schema, "verified": False, "status": "UNVERIFIED",
-                    "reason": "no measured watcher pass recorded for this attempt"}
+                    "reason": watcher_detail or "no measured watcher pass recorded for this attempt"}
         runtime = LoopRuntimeAdapter(run_id=run_id, work_item_id=task_id, actor=actor or "loop",
                                      standalone=True)
         runtime.negotiate()
@@ -5045,7 +5048,8 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
                       admission_fence: int = 1,
                       owned_process_registry: Any = None,
                       owned_task_id: str = "",
-                      provider_worker: str | None = None) -> Dict[str, Any]:
+                      provider_worker: str | None = None,
+                      repair_feedback: str | None = None) -> Dict[str, Any]:
     """Execute one planned task through the real dev-cli and persist an immutable receipt.
 
     `run` intentionally arms and dry-runs only.  This explicit tick is the mutation boundary;
@@ -5342,6 +5346,7 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
             allowed_paths=targets,
             run_dir=run_dir,
             provider_worker=selected_provider_worker,
+            repair_feedback=repair_feedback,
         )
         provider_path = (
             Path(str(provider_receipt.get("receipt_path")))
@@ -5644,7 +5649,8 @@ def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
                      admission_fence: int = 1,
                      owned_process_registry: Any = None,
                      owned_task_id: str = "",
-                     provider_worker: str | None = None) -> Dict[str, Any]:
+                     provider_worker: str | None = None,
+                     repair_feedback: str | None = None) -> Dict[str, Any]:
     """Execute one task, acquiring a Mapper OperationsStore lease for direct ticks.
 
     Batch workers already claim a Mapper lease in ``_operator_dispatch_attempt`` and pass
@@ -5664,6 +5670,7 @@ def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
             owned_process_registry=owned_process_registry,
             owned_task_id=owned_task_id,
             provider_worker=provider_worker,
+            repair_feedback=repair_feedback,
         )
 
     status = read_status(repo, run_id)
@@ -5680,6 +5687,7 @@ def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
             owned_process_registry=owned_process_registry,
             owned_task_id=owned_task_id,
             provider_worker=provider_worker,
+            repair_feedback=repair_feedback,
         )
 
     contract = _load_json(run_dir / "task-contract.json")
@@ -5722,6 +5730,7 @@ def execute_operator(repo: str, run_id: str, task_index: int = 1, *,
             owned_process_registry=owned_process_registry,
             owned_task_id=owned_task_id,
             provider_worker=provider_worker,
+            repair_feedback=repair_feedback,
         )
     except Exception:
         try:
@@ -7181,6 +7190,7 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
             owned_process_registry=item.get("owned_process_registry"),
             owned_task_id=str(common.get("task_id") or ""),
             provider_worker=str(item.get("provider_worker") or "") or None,
+            repair_feedback=item.get("repair_feedback"),
         )
         state = payload.get("state") or {}
         operator = state.get("operator") or {}
@@ -7337,6 +7347,15 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
         }
 
 
+def _independent_verification_feedback(record: Mapping[str, Any]) -> str:
+    """Return only the existing independent-verifier detail eligible for a retry."""
+    verification = record.get("verified_delivery")
+    if not isinstance(verification, Mapping) or verification.get("verified") is not False:
+        return ""
+    detail = verification.get("reason")
+    return detail.strip() if isinstance(detail, str) else ""
+
+
 def _run_operator_item_process(item: Mapping[str, Any], retry_budget: int, owned_process_registry: Any = None) -> List[Dict[str, Any]]:
     """Run one complete operator lane in a supervised child process.
 
@@ -7346,9 +7365,14 @@ def _run_operator_item_process(item: Mapping[str, Any], retry_budget: int, owned
     """
     attempts: List[Dict[str, Any]] = []
     previous_fingerprint = ""
+    repair_feedback = item.get("repair_feedback")
     for attempt_no in range(1, max(0, int(retry_budget)) + 2):
         dispatch_item = dict(item)
         dispatch_item["owned_process_registry"] = owned_process_registry
+        if repair_feedback:
+            dispatch_item["repair_feedback"] = repair_feedback
+        elif attempt_no > 1:
+            dispatch_item.pop("repair_feedback", None)
         record = _operator_dispatch_attempt(dispatch_item)
         record["dispatch_attempt"] = attempt_no
         if previous_fingerprint and record.get("failure_fingerprint") == previous_fingerprint:
@@ -7360,6 +7384,7 @@ def _run_operator_item_process(item: Mapping[str, Any], retry_budget: int, owned
         attempts.append(record)
         if record.get("status") == "succeeded":
             break
+        repair_feedback = _independent_verification_feedback(record)
         previous_fingerprint = str(record.get("failure_fingerprint") or "")
     final = attempts[-1]
     final["dead_letter"] = final.get("status") != "succeeded"
@@ -7772,11 +7797,16 @@ def dispatch_operator_batch(
     def _run_item(item: Dict[str, Any], owned_process_registry: Any = None) -> List[Dict[str, Any]]:
         attempts: List[Dict[str, Any]] = []
         previous_fingerprint = ""
+        repair_feedback = item.get("repair_feedback")
         _ensure_deferred_worktree_context(item, worktree_queue)
         try:
             for attempt_no in range(1, retry_budget + 2):
                 dispatch_item = dict(item)
                 dispatch_item["owned_process_registry"] = owned_process_registry
+                if repair_feedback:
+                    dispatch_item["repair_feedback"] = repair_feedback
+                elif attempt_no > 1:
+                    dispatch_item.pop("repair_feedback", None)
                 record = _operator_dispatch_attempt(dispatch_item)
                 record["dispatch_attempt"] = attempt_no
                 if previous_fingerprint and record.get("failure_fingerprint") == previous_fingerprint:
@@ -7788,6 +7818,7 @@ def dispatch_operator_batch(
                 attempts.append(record)
                 if record["status"] == "succeeded":
                     break
+                repair_feedback = _independent_verification_feedback(record)
                 previous_fingerprint = str(record.get("failure_fingerprint") or "")
         finally:
             _release_shared_context(item, worktree_queue)

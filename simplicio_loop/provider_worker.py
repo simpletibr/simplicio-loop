@@ -10,11 +10,14 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import urllib.error
 import urllib.request
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Mapping, Sequence
 from urllib.parse import urlparse
+
+from .evidence import redact_sensitive_text
 
 OPENROUTER_PROVIDER = "openrouter"
 OPENROUTER_MODEL = "deepseek/deepseek-v4.1-flash"
@@ -29,6 +32,12 @@ DEFAULT_TIMEOUT_SECONDS = 90.0
 OPENROUTER_MAX_TOKENS = 16384
 MINIMUM_OPENROUTER_MAX_TOKENS = 1024
 OPENROUTER_MAX_TOKENS_ENV = "SIMPLICIO_OPENROUTER_MAX_TOKENS"
+MAX_REPAIR_FEEDBACK_CHARS = 2048
+_RAW_HTML_BLOB = re.compile(
+    r"(?is)(?:<!doctype\s+html\b|<html\b|<body\b|<script\b|<style\b)"
+    r".*?(?:</html\s*>|</body\s*>|</script\s*>|</style\s*>|$)"
+)
+_HTML_TAG = re.compile(r"(?is)<[^>]{1,512}>")
 
 
 class ProviderWorkerError(RuntimeError):
@@ -86,8 +95,38 @@ def completion_max_tokens(env: Mapping[str, str] | None = None) -> int:
     return value if value >= MINIMUM_OPENROUTER_MAX_TOKENS else OPENROUTER_MAX_TOKENS
 
 
-def _request_prompt(task: Mapping[str, Any], context: Mapping[str, Any]) -> str:
-    return (
+def _repair_feedback_text(
+    repair_feedback: str | None,
+    *,
+    forbidden_literals: Sequence[str] = (),
+) -> str:
+    """Return bounded, secret-free verifier detail for a proposal retry."""
+    if repair_feedback is None:
+        return ""
+    if not isinstance(repair_feedback, str):
+        raise ProviderWorkerError(
+            "repair feedback must be text",
+            reason_code="provider_repair_feedback_invalid",
+        )
+    raw = repair_feedback.strip()[:MAX_REPAIR_FEEDBACK_CHARS]
+    if not raw:
+        return ""
+    if any(literal and literal in raw for literal in forbidden_literals):
+        return ""
+    safe = redact_sensitive_text(raw)
+    safe = _RAW_HTML_BLOB.sub("", safe)
+    safe = _HTML_TAG.sub("", safe)
+    return safe.strip()[:MAX_REPAIR_FEEDBACK_CHARS]
+
+
+def _request_prompt(
+    task: Mapping[str, Any],
+    context: Mapping[str, Any],
+    repair_feedback: str | None = None,
+    *,
+    forbidden_literals: Sequence[str] = (),
+) -> str:
+    prompt = (
         "You are an explicitly authorized external coding worker. You are not an execution authority. "
         "Return only a JSON object with a non-empty top-level `files` object mapping authorized relative "
         "paths to complete UTF-8 file contents. Do not claim that changes were applied or verified. "
@@ -97,6 +136,10 @@ def _request_prompt(task: Mapping[str, Any], context: Mapping[str, Any]) -> str:
         + "\n\nMapper context:\n"
         + json.dumps(dict(context), ensure_ascii=False, sort_keys=True)
     )
+    feedback = _repair_feedback_text(repair_feedback, forbidden_literals=forbidden_literals)
+    if not feedback:
+        return prompt
+    return prompt + "\n\nDeterministic verifier feedback for the previous proposal:\n" + feedback
 
 
 def _decode_proposal(response: Mapping[str, Any], *, max_tokens: int) -> dict[str, Any]:
@@ -279,6 +322,7 @@ class OpenRouterWorker:
         task_index: int,
         allowed_paths: Sequence[str],
         env: Mapping[str, str] | None = None,
+        repair_feedback: str | None = None,
     ) -> dict[str, Any]:
         forwarded = forwarded_environment(env)
         max_tokens = completion_max_tokens(env)
@@ -291,7 +335,15 @@ class OpenRouterWorker:
             # before any JSON content is emitted.
             "reasoning": {"enabled": False},
             "response_format": {"type": "json_object"},
-            "messages": [{"role": "user", "content": _request_prompt(task, context)}],
+            "messages": [{
+                "role": "user",
+                "content": _request_prompt(
+                    task,
+                    context,
+                    repair_feedback,
+                    forbidden_literals=(forwarded["OPENROUTER_API_KEY"],),
+                ),
+            }],
         }
         endpoint = forwarded["OPENROUTER_BASE_URL"] + "/chat/completions"
         request = urllib.request.Request(
