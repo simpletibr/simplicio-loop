@@ -115,11 +115,21 @@ _TECH_FILE_HINTS = frozenset({
 })
 _CODE_SUFFIXES = (".py", ".ts", ".tsx", ".js", ".rs")
 INTENT_POLICY_SCHEMA = "simplicio.loop-fast-intent-policy/v1"
+_CREATION_TYPES = frozenset({"creation", "create", "new", "criação", "criacao"})
+_CREATION_TYPE_RE = re.compile(r"(?im)^\s*(?:type|tipo)\s*:\s*(?P<value>[^\r\n]+?)\s*$")
 
 
 def _read_only_intent(task: str) -> bool:
     normalized = " ".join(str(task).lower().split())
     return any(marker in normalized for marker in _READ_ONLY_MARKERS)
+
+
+def _creation_intent(task: str) -> bool:
+    """Mirror Markdown contract task types without inferring from prose verbs."""
+    return any(
+        match.group("value").strip().casefold() in _CREATION_TYPES
+        for match in _CREATION_TYPE_RE.finditer(str(task))
+    )
 
 
 def _normalize_repo_path(value: Any) -> str | None:
@@ -490,11 +500,19 @@ def _validate_plan_policy(
                 )
             )
         unresolved = []
+        creation_intent = _creation_intent(task)
         for path, is_dir in targets:
             if path in escaped:
                 continue
             candidate = root / Path(path)
             if not (candidate.is_dir() if is_dir else candidate.is_file()):
+                if (
+                    creation_intent
+                    and not is_dir
+                    and not candidate.exists()
+                    and not candidate.is_symlink()
+                ):
+                    continue
                 unresolved.append(path + ("/" if is_dir else ""))
         if unresolved:
             suggested = next((path for path in (*extra_targets, *selected) if _existing_repo_file(root, path)), "")

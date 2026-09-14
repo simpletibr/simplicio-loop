@@ -830,12 +830,19 @@ def _cmd_compile(args: argparse.Namespace) -> int:
 
 
 def _cmd_validate(args: argparse.Namespace) -> int:
-    payload = json.loads(Path(args.contract).read_text(encoding="utf-8"))
+    try:
+        payload = _load_compiled_contract(args.contract)
+    except ValueError as exc:
+        return _print_contract_error(str(exc))
+    if not isinstance(payload, Mapping):
+        return _print_contract_error(
+            f"contract root must be a JSON object: {args.contract}"
+        )
     tasks = payload.get("tasks") or [payload]
     all_errors: List[str] = []
     all_warnings: List[str] = []
     for idx, task in enumerate(tasks, start=1):
-        result = validate_contract(task)
+        result = validate_contract(dict(task))
         for err in result["errors"]:
             all_errors.append(f"task[{idx}] {err}")
         for warning in result["warnings"]:
@@ -845,14 +852,48 @@ def _cmd_validate(args: argparse.Namespace) -> int:
     return 0 if not all_errors else 2
 
 
+def _load_compiled_contract(path: str) -> Any:
+    """Read a compiled contract document, failing closed on unusable input.
+
+    ``preview`` and ``validate`` consume compiled contracts.  A missing path, an
+    unreadable file or a non-JSON source (a raw markdown task file, for example)
+    must produce a clean, actionable error instead of an unhandled traceback.
+    """
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ValueError(
+            f"contract file is not readable: {path}: {exc.strerror or exc}"
+        ) from exc
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError(
+            f"contract file is not valid JSON: {path}: {exc}. "
+            "Run `simplicio-loop task compile --input <markdown> --out <contract.json>` first."
+        ) from exc
+
+
+def _print_contract_error(message: str) -> int:
+    print(json.dumps({"ok": False, "errors": [message]}, ensure_ascii=False, indent=2))
+    return 2
+
+
 def _cmd_preview(args: argparse.Namespace) -> int:
-    payload = json.loads(Path(args.contract).read_text(encoding="utf-8"))
+    try:
+        payload = _load_compiled_contract(args.contract)
+    except ValueError as exc:
+        return _print_contract_error(str(exc))
+    if not isinstance(payload, Mapping):
+        return _print_contract_error(
+            f"contract root must be a JSON object: {args.contract}"
+        )
     tasks = payload.get("tasks") or [payload]
     for idx, task in enumerate(tasks, start=1):
         if idx > 1:
             print("")
         print(f"[task {idx}]")
-        print(preview_contract(task))
+        print(preview_contract(dict(task)))
     return 0
 
 
