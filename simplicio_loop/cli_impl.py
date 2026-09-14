@@ -2252,6 +2252,24 @@ def main(argv=None) -> int:
                     tasks = payload if isinstance(payload, list) else [payload]
                 if len(tasks) == 2 and is_collection:
                     task_file_for_collection = str(task_path)
+            first_task = tasks[0] if tasks and isinstance(tasks[0], Mapping) else {}
+            governor = expected_governor_blocked({"task": first_task})
+            if governor is not None:
+                result = {
+                    "schema": "simplicio.single-task-fast-receipt/v1",
+                    "status": "BLOCKED",
+                    "reason_code": governor["reason_code"],
+                    "governor": governor,
+                    "route": "single-task-fast",
+                }
+                repo = str(first_task.get("repo") or task_path.parent)
+                persist_execution_envelope(
+                    flow="single-task-fast",
+                    repo=repo,
+                    observed={"task": first_task, "tasks": tasks, "result": result, "governor": governor},
+                )
+                print(json.dumps(result, sort_keys=True))
+                return 2
             result = dispatch_single_task_fast(
                 tasks, task_file=task_file_for_collection, repo=args.repo,
             )

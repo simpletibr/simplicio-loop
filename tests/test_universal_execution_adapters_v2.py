@@ -187,13 +187,13 @@ def test_run_backed_public_flows_persist_one_canonical_v2_envelope(tmp_path, mon
         task = tmp_path / "task.md"
         task.write_text("task\n", encoding="utf-8")
         monkeypatch.setattr(cli_impl, "conduct_run", lambda *args, **kwargs: {"run_dir": str(run), "manifest": manifest, "state": state, "outcome": {"outcome": "COMPLETE", "exit_code": 0}})
-        assert cli_impl.main(["run", "--task", str(task), "--repo", str(repo), "--delivery", "implemented"]) == 0
+        assert cli_impl.main(["run", "--task", str(task), "--repo", str(repo), "--delivery", "implemented"]) == 2
     elif flow == "tick":
         monkeypatch.setattr(cli_impl, "execute_operator", lambda *args, **kwargs: {"run_dir": str(run), "manifest": manifest, "state": state})
-        assert cli_impl.main(["tick", "--repo", str(repo), "run-1", "--task-index", "1"]) == 0
+        assert cli_impl.main(["tick", "--repo", str(repo), "run-1", "--task-index", "1"]) == 2
     else:
         monkeypatch.setattr(cli_impl, "execute_operator_batch", lambda *args, **kwargs: _successful_dispatch(run))
-        assert cli_impl.main([flow, "--repo", str(repo), "run-1", "--task-indices", "1,2"]) == 0
+        assert cli_impl.main([flow, "--repo", str(repo), "run-1", "--task-indices", "1,2"]) == 2
 
     envelope = _assert_v2(repo, run, flow)
     assert envelope["status"] == "complete"
@@ -216,8 +216,8 @@ def test_single_task_fast_persists_one_artifact_envelope(tmp_path, monkeypatch):
                "mapper": {"receipt": {"ok": True}}, "context": {"receipt": {"ok": True}},
                "plan": {"receipt": {"ok": True}}, "mutation": {"receipt": {"ok": True}},
                "watcher": {"ok": True}, "dod": {"ok": True}, "verification": {"focused_ok": True}}
-    monkeypatch.setattr(cli_impl, "dispatch_single_task_fast", lambda tasks: receipt)
-    assert cli_impl.main(["single-task-fast", "--task-file", str(task_file)]) == 0
+    monkeypatch.setattr(cli_impl, "dispatch_single_task_fast", lambda *args, **kwargs: receipt)
+    assert cli_impl.main(["single-task-fast", "--task-file", str(task_file)]) == 2
     candidates = list((repo / ".simplicio" / "loop-executions").glob("**/" + ENVELOPE_FILENAME))
     assert len(candidates) == 1
     envelope = json.loads(candidates[0].read_text(encoding="utf-8"))
@@ -593,7 +593,7 @@ def test_expected_governor_blocked_short_circuits_single_task_fast_without_provi
     _write_json(task_file, task)
     called = False
 
-    def provider_must_not_run(tasks):
+    def provider_must_not_run(*args, **kwargs):
         nonlocal called
         called = True
         raise AssertionError("provider/dispatch called for expected governor block")
@@ -649,7 +649,7 @@ def test_single_task_fast_failure_path_persists_noncomplete_v2(tmp_path, monkeyp
         "delivery_contract": {"watcher": True, "dod": True}, "stop": {"preserve": True}, "recovery": {"preserve": True},
     }
     _write_json(task_file, task)
-    monkeypatch.setattr(cli_impl, "dispatch_single_task_fast", lambda tasks: {
+    monkeypatch.setattr(cli_impl, "dispatch_single_task_fast", lambda *args, **kwargs: {
         "schema": "simplicio.single-task-fast-receipt/v1", "status": "BLOCKED",
         "route": "single-task-fast", "reason_code": "provider_receipt_missing",
     })
