@@ -104,10 +104,8 @@ from .execution_route import _stable_hash as _execution_route_hash
 from .execution_route import capability_fingerprint, normalize_capability_manifest, route_receipt_is_current
 from .execution_route import decide_route, verify_route_hash
 from .openrouter_operator import (
-    OpenRouterPlanError,
     enabled as _openrouter_operator_enabled,
     external_preflight_admissible as _external_preflight_admissible,
-    request_mechanical_plan as _request_openrouter_plan,
 )
 try:
     from scripts.agent_identity import ensure_identity
@@ -150,16 +148,12 @@ except ImportError:  # pragma: no cover - installed package without scripts name
 RUNNER_SCHEMA = "simplicio.run-manifest/v1"
 STATE_SCHEMA = "simplicio.run-state/v1"
 OPERATOR_RECEIPT_SCHEMA = "simplicio.operator-receipt/v0"
-MAX_OPENROUTER_PROPOSAL_ATTEMPTS = 3
 MAX_PROVIDER_CURRENT_TARGET_CHARS = 30000
-OPENROUTER_NOOP_REPAIR_FEEDBACK = (
-    "The previous proposal was rejected because it was byte-identical to the current target. "
-    "Return a complete replacement file that is observably different while preserving every "
-    "existing behavior and all requested controls. Make one small, concrete, meaningful edit "
-    "directly related to this task; for an HTML target, an accessible attribute on the existing "
-    "live status or edited control is appropriate. Do not merely describe the change; include "
-    "the full changed file in the JSON."
-)
+HOST_EDIT_PLAN_SCHEMAS = frozenset({
+    "simplicio.dev-cli.edit-plan/v1",
+    "simplicio.mechanical-edit/v1",
+})
+PLAN_REQUIRED = "plan_required"
 # Real content/schema/hash/freshness/provenance validation, gating `receipt_status` in
 # `_operator_dispatch_attempt()` below (issue #288: presence of a file must not imply
 # VERIFIED).
@@ -1613,6 +1607,81 @@ button { cursor: pointer; }
         "validation": [],
     }
 
+
+def _looks_like_host_edit_plan(payload: Mapping[str, Any]) -> bool:
+    schema = str(payload.get("schema") or "")
+    if schema not in HOST_EDIT_PLAN_SCHEMAS:
+        return False
+    operations = payload.get("operations") or payload.get("ops") or payload.get("edits")
+    return isinstance(operations, list) and bool(operations)
+
+
+def _resolve_host_edit_plan(
+    run_dir: Path,
+    *,
+    task_index: int,
+    env: Mapping[str, str] | None = None,
+) -> tuple[Dict[str, Any] | None, Path | None, str]:
+    """Load a host-written edit plan. Loop does not generate one."""
+    environ = env or os.environ
+    candidates: list[tuple[Path, str]] = []
+    for key in ("SIMPLICIO_EDIT_PLAN", "SIMPLICIO_MECHANICAL_PLAN"):
+        raw = str(environ.get(key) or "").strip()
+        if raw:
+            candidates.append((Path(raw), f"env:{key}"))
+    candidates.extend((
+        (run_dir / "edit-plan.json", "run_dir:edit-plan.json"),
+        (run_dir / f"edit-plan-{task_index}.json", f"run_dir:edit-plan-{task_index}.json"),
+        (run_dir / f"mechanical-plan-{task_index}.json", f"run_dir:mechanical-plan-{task_index}.json"),
+        (run_dir / "mechanical-plan.json", "run_dir:mechanical-plan.json"),
+    ))
+    seen: set[str] = set()
+    for path, source in candidates:
+        try:
+            resolved = str(path.resolve())
+        except OSError:
+            continue
+        if resolved in seen or not path.is_file():
+            continue
+        seen.add(resolved)
+        try:
+            payload = _load_json(path)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            continue
+        if isinstance(payload, Mapping) and _looks_like_host_edit_plan(payload):
+            return dict(payload), path, source
+    return None, None, ""
+
+
+def _finish_operator_blocked(
+    *,
+    repo: str,
+    run_id: str,
+    run_dir: Path,
+    status: Mapping[str, Any],
+    receipt: Mapping[str, Any],
+    operator_path: Path,
+    task_index: int,
+    reason: str,
+) -> Dict[str, Any]:
+    payload = dict(receipt)
+    payload["receipt_hash"] = _operator_receipt_hash(payload)
+    _write_json(operator_path, payload)
+    _write_json(run_dir / f"operator-receipt-{task_index}.json", payload)
+    state = status["state"]
+    state["operator"] = {
+        "ready": False,
+        "receipt": str(operator_path),
+        "target": payload.get("target", ""),
+        "execution_state": "blocked",
+        "reason_code": str(payload.get("reason_code") or ""),
+    }
+    state["current_action"] = "operator_failed"
+    state["next_action"] = "repair_operator_or_plan"
+    state["attempts"] = int(state.get("attempts", 0)) + 1
+    _write_json(run_dir / "state.json", state)
+    _transition(run_dir, state, "blocked", reason, receipt=str(operator_path))
+    return read_status(repo, run_id)
 
 
 def _provider_context_with_current_targets(
@@ -5369,7 +5438,9 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         if operator_mode == "standalone"
         else ["--task-spec", str(task_spec_path)]
     )
-    mechanical_path: Optional[Path] = None
+    mechanical_plan, mechanical_path, plan_source = _resolve_host_edit_plan(
+        run_dir, task_index=task_index,
+    )
     provider_path: Optional[Path] = None
     provider_receipt: Optional[Dict[str, Any]] = None
     provider_receipt_paths: List[str] = []
@@ -5377,109 +5448,81 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     selected_provider_worker = str(
         provider_worker or os.environ.get("SIMPLICIO_PROVIDER_WORKER") or ""
     ).strip().lower()
-    if selected_provider_worker:
-        # The explicit provider-worker surface introduced by main remains the
-        # authoritative route when selected.  The coordinator below is the
-        # automatic route for a complete OpenRouter environment and retains its
-        # deterministic no-op repair retry.
-        provider_plan, provider_receipt = _provider_worker_plan(
-            task=task,
-            context={
-                "mapper_context": _load_json(mapper_path),
-                "handoff": context_handoff,
-                "plan": plan,
-                "task_spec": task_spec,
-            },
-            run_id=run_id,
-            task_index=task_index,
-            attempt=attempt,
-            root=repo_path,
-            allowed_paths=targets,
-            run_dir=run_dir,
-            provider_worker=selected_provider_worker,
-            repair_feedback=repair_feedback,
-        )
-        provider_path = (
-            Path(str(provider_receipt.get("receipt_path")))
-            if provider_receipt and provider_receipt.get("receipt_path")
-            else None
-        )
-        provider_receipt_paths = [str(provider_path)] if provider_path else []
-        provider_proposal_attempts = 1 if provider_receipt else 0
-        mechanical_plan = provider_plan or _mechanical_fixture_plan(task, repo_path)
-    elif _openrouter_operator_enabled():
-        mapper_context = _load_json(mapper_path)
-        repair_feedback = str(repair_feedback or "")
-        last_provider_error: OpenRouterPlanError | None = None
-        for proposal_attempt in range(1, MAX_OPENROUTER_PROPOSAL_ATTEMPTS + 1):
-            provider_proposal_attempts = proposal_attempt
-            suffix = "" if proposal_attempt == 1 else f"-retry-{proposal_attempt - 1}"
-            provider_path = run_dir / f"openrouter-provider-{task_index}-attempt-{attempt}{suffix}.json"
-            provider_receipt_paths.append(str(provider_path))
-            try:
-                mechanical_plan, provider_receipt = _request_openrouter_plan(
-                    task=task,
-                    target=target,
-                    repo_path=repo_path,
-                    mapper_context=mapper_context,
-                    run_id=run_id,
-                    task_index=task_index,
-                    attempt=attempt,
-                    repair_feedback=repair_feedback,
-                )
-            except OpenRouterPlanError as exc:
-                last_provider_error = exc
-                failed_receipt = dict(exc.receipt)
-                failed_receipt["coordinator_proposal_attempt"] = proposal_attempt
-                _write_json(provider_path, failed_receipt)
-                if (
-                    proposal_attempt < MAX_OPENROUTER_PROPOSAL_ATTEMPTS
-                    and failed_receipt.get("status") == "proposal_rejected"
-                    and failed_receipt.get("error_detail") == "editing plan must change target content"
-                ):
-                    repair_feedback = OPENROUTER_NOOP_REPAIR_FEEDBACK
-                    continue
-                raise RuntimeError(
-                    "OpenRouter coordinator blocked before mutation: "
-                    + str(failed_receipt.get("error_detail")
-                          or failed_receipt.get("error_code")
-                          or failed_receipt.get("status")
-                          or "unknown")
-                ) from exc
-            provider_receipt = dict(provider_receipt or {})
-            provider_receipt["coordinator_proposal_attempt"] = proposal_attempt
-            provider_receipt["receipt_path"] = str(provider_path)
-            _write_json(provider_path, provider_receipt)
-            last_provider_error = None
-            break
-        if last_provider_error is not None:
-            raise RuntimeError(
-                "OpenRouter coordinator blocked before mutation: "
-                + str(last_provider_error.receipt.get("error_detail")
-                      or last_provider_error.receipt.get("error_code")
-                      or last_provider_error.receipt.get("status")
-                      or "unknown")
-            ) from last_provider_error
-        mechanical_path = run_dir / f"openrouter-mechanical-plan-{task_index}-attempt-{attempt}.json"
-        _write_json(mechanical_path, mechanical_plan)
-    else:
-        mechanical_plan = _mechanical_fixture_plan(task, repo_path)
-    if mechanical_plan is not None:
-        if mechanical_path is None:
-            mechanical_path = run_dir / f"mechanical-plan-{task_index}.json"
-        _write_json(mechanical_path, mechanical_plan)
-        argv = _devcli_cmd(
-            repo_path, "mechanical-edit", "--root", str(repo_path),
-            "--plan", str(mechanical_path), "--apply", "--json",
-        )
-    else:
-        argv = _devcli_cmd(
-            repo_path, "task", "--root", str(repo_path), *task_input,
-            "--mode", operator_mode, "--target", target, "--json",
-            *sum((["--bound-paths", path] for path in targets), []),
-        )
+    would_call_provider = bool(selected_provider_worker) or _openrouter_operator_enabled()
+    # Host LLM writes simplicio.dev-cli.edit-plan/v1. Loop never calls OpenRouter
+    # (or any provider) to generate a mechanical plan. Missing plan → plan_required.
     if mechanical_plan is None:
-        argv.extend(context_args)
+        blocked_receipt = {
+            "schema": OPERATOR_RECEIPT_SCHEMA,
+            "mode": "execute",
+            "tool": "simplicio-dev-cli",
+            "run_id": run_id,
+            "execution_state": "blocked",
+            "status": "blocked",
+            "reason_code": PLAN_REQUIRED,
+            "attempt": attempt,
+            "retry_budget": 3,
+            "target": target,
+            "authorized_targets": list(targets),
+            "target_within_repo": True,
+            "goal": _task_goal(task),
+            "argv": [],
+            "returncode": 2,
+            "stdout": {
+                "reason_code": PLAN_REQUIRED,
+                "required_schema": "simplicio.dev-cli.edit-plan/v1",
+            },
+            "stderr": "host must write simplicio.dev-cli.edit-plan/v1; loop does not call OpenRouter",
+            "timed_out": False,
+            "started_at": _now(),
+            "finished_at": _now(),
+            "measured_at": _now(),
+            "source": "loop-plan-gate",
+            "context_handoff": context_handoff,
+            "provider_config": {
+                "route": "openrouter-to-mechanical-edit" if would_call_provider else "host-edit-plan",
+                "reason_code": PLAN_REQUIRED,
+                "provider_receipt": "",
+                "provider_receipts": [],
+                "provider_proposal_attempts": 0,
+                "mechanical_plan": "",
+            },
+            "provider_receipt": "",
+            "mechanical_plan": "",
+            "execution_profile": profile,
+            "changed_paths": [],
+            "diff_hash": str(before.get("tree_hash") or ""),
+            "task_contract_hash": contract.get("collection_hash", ""),
+            "plan_hash": hashlib.sha256(plan_path.read_bytes()).hexdigest(),
+            "mapper_pack_hash": plan.get("mapper_pack_hash", ""),
+            "repo_state_before": before,
+            "repo_state_after": before,
+            "task_spec_path": str(task_spec_path),
+            "task_spec_hash": task_spec_hash,
+        }
+        return _finish_operator_blocked(
+            repo=repo,
+            run_id=run_id,
+            run_dir=run_dir,
+            status=status,
+            receipt=blocked_receipt,
+            operator_path=operator_path,
+            task_index=task_index,
+            reason="plan_required: host must supply simplicio.dev-cli.edit-plan/v1",
+        )
+    dest = run_dir / f"edit-plan-{task_index}.json"
+    try:
+        same_file = mechanical_path is not None and dest.resolve() == mechanical_path.resolve()
+    except OSError:
+        same_file = False
+    if not same_file:
+        _write_json(dest, mechanical_plan)
+        mechanical_path = dest
+    verb = "edit" if mechanical_plan.get("schema") == "simplicio.dev-cli.edit-plan/v1" else "mechanical-edit"
+    argv = _devcli_cmd(
+        repo_path, verb, "--root", str(repo_path),
+        "--plan", str(mechanical_path), "--apply", "--json",
+    )
     checkpoint = _capture_operator_checkpoint(run_dir, repo_path, targets or [target])
     # #285 remaining gap: this dispatch has a real guarded lease (when the caller wired
     # one) and a real repo checkout/branch on hand -- surface them on the event so
@@ -5508,9 +5551,10 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         op_env.setdefault("SIMPLICIO_RUNTIME_OFFLINE", "1")
     provider_config = {
         "model": op_env.get("SIMPLICIO_MODEL", ""),
-        "planner": op_env.get("SIMPLICIO_PLANNER", ""),
+        "planner": "host",
         "effort": op_env.get("SIMPLICIO_CODEX_EFFORT", ""),
-        "route": "openrouter-to-mechanical-edit" if provider_receipt else "dev-cli-task",
+        "route": "host-edit-plan",
+        "plan_source": plan_source,
         "provider_receipt": str(provider_path) if provider_path else "",
         "provider_receipts": provider_receipt_paths,
         "provider_proposal_attempts": provider_proposal_attempts,

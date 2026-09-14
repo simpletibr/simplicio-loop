@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "simplicio-loop"
 version = "3.43.11"
-description = "The Universal Looping AI Orchestrator — a runtime-agnostic super-plugin (7 skills) that drains any queue of work end-to-end on any LLM/runtime."
+description = "Standalone orchestrator for mapper, fast, and simplicio-dev-cli. No Runtime."
 readme = "PYPI.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -23,18 +23,14 @@ classifiers = [
   "Topic :: Utilities",
   "Operating System :: OS Independent",
 ]
-# The loop ships with its two bound operators and the Prompt contract runtime as
-# direct dependencies. `simplicio-cli` is the distribution that exports the
-# `simplicio-dev-cli` entrypoint. Do not rely on transitive installs: partial /
-# no-deps installations must be diagnosed explicitly and normal
-# `pip install simplicio-loop` must request the complete route -> enrichment
-# closure.
+# Loop is the aggregate of mapper + fast + simplicio-dev-cli. `simplicio-cli`
+# exports the `simplicio-dev-cli` entrypoint. There is no Runtime and no
+# simplicio-prompt on this train. Train target for simplicio-cli is 0.18.13;
+# the floor stays 0.18.12 while that is the locally installed wheel.
 dependencies = [
-  # Loop is the aggregate distribution. Keep one tested component train.
   "simplicio-cli>=0.18.12,<0.19",
   "simplicio-mapper>=0.26.31,<0.27",
   "simplicio-fast>=2.0.32,<3",
-  "simplicio-prompt>=1.14.4,<1.15",
   "tiktoken>=0.12.0,<1",
 ]
 
@@ -53,7 +49,6 @@ Repository = "https://github.com/wesleysimplicio/simplicio-loop"
 Issues = "https://github.com/wesleysimplicio/simplicio-loop/issues"
 
 [project.scripts]
-simplicio = "simplicio_loop.savings_cli:main"
 simplicio-loop = "simplicio_loop.cli:main"
 issue-factory = "simplicio_loop.issue_factory_cli:main"
 simplicio-ecosystem-doctor = "simplicio_loop.ecosystem_doctor:main"

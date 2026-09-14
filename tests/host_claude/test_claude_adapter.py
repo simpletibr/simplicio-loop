@@ -54,7 +54,9 @@ def test_capabilities_only_claim_shipped_native_hooks():
     matrix = capabilities()
     assert matrix["native_interception"] is True
     assert matrix["self_paced"] is False
-    assert matrix["prompt_enrichment"]["runtime_route"] == "simplicio loop decide --prompt-route"
+    assert matrix["prompt_enrichment"]["runtime_route"] == "passthrough"
+    assert matrix["prompt_enrichment"]["status"] == "skipped"
+    assert matrix["prompt_enrichment"]["reason_code"] == "prompt_enrichment_removed"
     for stage, info in matrix["stages"].items():
         assert info["supported"] is True
         assert info["enforcement"] == "native_hook"
@@ -83,14 +85,16 @@ def test_lifecycle_decisions():
         "prompt": "implement the roster fix",
         "env": {"SIMPLICIO_RUNTIME_AVAILABLE": "0"},
     })
-    assert routed["route"]["intent"] == "mutate"
+    assert routed["decision"] == "continue"
+    assert routed["reason"] == "prompt_passthrough"
+    assert routed["prompt"] == "implement the roster fix"
     assert routed["route_decision"] == routed["route"]
-    assert routed["prompt_enrichment"]["route_decision"] == routed["route_decision"]
-    assert "simplicio-dev-cli" in routed["route"]["selected_handles"]
     assert routed["prompt_enrichment"]["schema"] == "simplicio.prompt-enrichment-receipt/v1"
-    assert routed["prompt_enrichment"]["fallback"]["used"] is True
+    assert routed["prompt_enrichment"]["status"] == "skipped"
+    assert routed["prompt_enrichment"]["reason_code"] == "prompt_enrichment_removed"
     assert routed["hookSpecificOutput"]["hookEventName"] == "UserPromptSubmit"
     assert "simplicio.prompt-enrichment-receipt/v1" in routed["hookSpecificOutput"]["additionalContext"]
+    assert "## Simplicio skill:" not in routed["hookSpecificOutput"]["additionalContext"]
 
     read = decide({"hook_event_name": "PreToolUse", "tool_name": "Read", "tool_input": {"file_path": "a.py"}})
     assert read["decision"] == "allow"

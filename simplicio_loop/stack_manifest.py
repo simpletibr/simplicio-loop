@@ -20,6 +20,8 @@ from typing import Any
 STACK_SCHEMA = "simplicio.loop-stack/v1"
 
 # Role labels are fixed; expected floors come from pyproject (see _train_components).
+# Issue #1284: public stack is mapper + fast + cli + loop. simplicio-prompt is
+# not a required component and must not appear here.
 _COMPONENT_ROLES = (
     ("simplicio-mapper", "understand"),
     ("simplicio-fast", "search"),
@@ -28,6 +30,7 @@ _COMPONENT_ROLES = (
 )
 
 # Fallback floors when pyproject cannot be read (offline wheel / missing checkout).
+# simplicio-cli train target is 0.18.13; floor stays 0.18.12 for the local wheel.
 _FALLBACK_FLOORS = {
     "simplicio-mapper": "0.26.31",
     "simplicio-fast": "2.0.32",

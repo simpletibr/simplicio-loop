@@ -164,7 +164,9 @@ def capabilities() -> dict[str, Any]:
         "mcp_optional": True,
         "prompt_enrichment": {
             "schema": "simplicio.prompt-enrichment-receipt/v1",
-            "runtime_route": "simplicio loop decide --prompt-route",
+            "runtime_route": "passthrough",
+            "status": "skipped",
+            "reason_code": "prompt_enrichment_removed",
             "bounded": True,
         },
         "stages": {
@@ -276,13 +278,13 @@ def decide(event: Mapping[str, Any], *, timeout: bool = False) -> dict[str, Any]
             env=event_env,
         )
         prompt_receipt = enrichment["receipt"]
-        degraded = bool(prompt_receipt["fallback"]["used"])
         receipt.update({
             "decision": "continue",
-            "reason": "prompt_enrichment_degraded" if degraded else "prompt_enriched",
+            "reason": "prompt_passthrough",
             "route": enrichment["route"],
             "route_decision": enrichment["route_decision"],
             "portable_route": enrichment["portable_route"],
+            "prompt": prompt,
             "prompt_enrichment": prompt_receipt,
             "hookSpecificOutput": {
                 "hookEventName": "UserPromptSubmit",

@@ -279,11 +279,10 @@ def test_refeed_injects_canonical_startup_orientation_once(tmp_path):
     payload = json.loads(r.stdout)
     followup = payload["followup_message"]
     assert "[simplicio-loop startup orientation]" in followup
-    assert "Runtime first" in followup
-    assert "Economy-parallel" in followup
-    assert "Hot path" in followup
+    assert "No Runtime" in followup
+    assert "plan_required" in followup
     assert followup.count("[simplicio-loop startup orientation]") == 1
-    assert followup.count("Runtime first") == 1
+    assert followup.count("No Runtime") == 1
 
 
 def test_startup_orientation_has_one_canonical_marker_pair():

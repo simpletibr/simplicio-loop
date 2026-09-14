@@ -39,7 +39,10 @@ def test_marketplace_user_prompt_hook_runs_canonical_adapter():
     assert process.returncode == 0, process.stderr
     value = json.loads(process.stdout)
     assert value["decision"] == "continue"
-    assert value["route"]["intent"] == "mutate"
+    assert value["reason"] == "prompt_passthrough"
     assert value["route_decision"] == value["route"]
+    assert value["prompt_enrichment"]["status"] == "skipped"
+    assert value["prompt_enrichment"]["reason_code"] == "prompt_enrichment_removed"
     assert value["hookSpecificOutput"]["hookEventName"] == "UserPromptSubmit"
     assert "simplicio.prompt-enrichment-receipt/v1" in value["hookSpecificOutput"]["additionalContext"]
+    assert "## Simplicio skill:" not in value["hookSpecificOutput"]["additionalContext"]
