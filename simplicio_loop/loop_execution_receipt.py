@@ -674,3 +674,35 @@ __all__ = [
     "publish_loop_execution_for_flow",
     "publish_loop_execution_receipt",
 ]
+
+# The universal envelope is the explicit v2 successor in the same
+# loop-execution family.  Re-export its pure core here so existing receipt
+# consumers have one canonical import surface and do not invent a parallel
+# execution contract.
+from .execution_envelope import (  # noqa: E402  (kept after the v1 definitions)
+    EnvelopeValidationError,
+    UniversalExecutionEnvelopeError,
+    build_envelope,
+    build_execution_envelope,
+    build_universal_envelope,
+    build_universal_execution_envelope,
+    is_v1_receipt_compatible,
+    validate_envelope,
+    validate_execution_envelope,
+    validate_universal_envelope,
+    validate_universal_execution_envelope,
+)
+
+__all__ += [
+    "EnvelopeValidationError",
+    "UniversalExecutionEnvelopeError",
+    "build_envelope",
+    "build_execution_envelope",
+    "build_universal_envelope",
+    "build_universal_execution_envelope",
+    "is_v1_receipt_compatible",
+    "validate_envelope",
+    "validate_execution_envelope",
+    "validate_universal_envelope",
+    "validate_universal_execution_envelope",
+]

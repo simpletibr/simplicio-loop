@@ -155,3 +155,12 @@ are present and valid. A completed dispatch result without that v1 publication i
   `simplicio-runtime` remains responsible for its independent read-only validation.
 - A `drain` executor implementation — only its target shape/rule is published here (see status
   note above).
+
+## Universal execution successor
+
+The v1 receipt remains the verified-success projection described above. The
+transport-neutral envelope for `run`, `tick`, `batch`, `single-task-fast`, `wave`,
+and `prism` is the explicit successor
+[`simplicio.loop-execution/v2`](../v2/SCHEMA.md). v2 preserves v1 receipts as a
+verified-success subset and adds fail-closed partial, blocked, error, and expected
+governor-blocked observations without changing v1 field meaning.
