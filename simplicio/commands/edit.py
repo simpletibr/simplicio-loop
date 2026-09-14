@@ -33,6 +33,54 @@ CLI_PROG = "simplicio-py"
 RUNTIME_EDIT_TIMEOUT_S = 30.0
 
 
+def _verification_payload(root: str, *, applied: bool) -> dict[str, Any]:
+    """Run SIMPLICIO_TEST_CMD after apply, or mark verify skipped explicitly."""
+    from ..pipeline_stages import _configured_test_command, _verification_timeout_seconds
+    from ..runtime_env import prepare_project_command, project_subprocess_env
+
+    if not applied:
+        return {
+            "status": "skipped",
+            "reason_code": "verify_skipped_not_applied",
+            "commands": [],
+            "results": [],
+        }
+    command, configuration_error = _configured_test_command(root)
+    if configuration_error or not command:
+        return {
+            "status": "skipped",
+            "reason_code": "verify_skipped_no_test_cmd",
+            "commands": [],
+            "results": [],
+        }
+    cmd, use_shell = prepare_project_command(root, command)
+    completed = subprocess.run(
+        cmd,
+        shell=use_shell,
+        cwd=root,
+        stdin=subprocess.DEVNULL,
+        capture_output=True,
+        text=True,
+        timeout=_verification_timeout_seconds(),
+        check=False,
+        env=project_subprocess_env(root),
+    )
+    passed = completed.returncode == 0
+    return {
+        "status": "passed" if passed else "failed",
+        "reason_code": "verification_passed" if passed else "verification_failed",
+        "commands": [command],
+        "results": [
+            {
+                "command": command,
+                "exit_code": completed.returncode,
+                "stdout_tail": (completed.stdout or "")[-2000:],
+                "stderr_tail": (completed.stderr or "")[-2000:],
+            }
+        ],
+    }
+
+
 def _decode_native_json(stdout: Any) -> Any:
     """Decode Runtime's final JSON receipt after any human-readable output."""
     if not isinstance(stdout, str):
@@ -96,7 +144,21 @@ def run_mechanical_edit(a: argparse.Namespace) -> int:
         # use the explicit delegation path below; never let an installed
         # Runtime binary silently change standalone ownership.
         result = execute_plan_json(plan_text, root=a.root, apply=a.apply, allow_native=False)
-        result["mutation_receipt"] = mutation_receipt("standalone", entrypoint="edit", policy=policy)
+        verify = _verification_payload(a.root, applied=bool(result.get("applied")))
+        result["verify"] = verify
+        result["mutation_receipt"] = mutation_receipt(
+            "standalone",
+            entrypoint="edit",
+            policy=policy,
+            verification=verify,
+            final_status=(
+                "applied"
+                if result.get("applied") and verify.get("status") in {"passed", "skipped"}
+                else "failed"
+                if verify.get("status") == "failed"
+                else result.get("status")
+            ),
+        )
         if a.apply:
             emit_mutation_route(
                 root=a.root,

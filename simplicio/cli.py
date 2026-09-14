@@ -493,7 +493,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p_file_read.add_argument("--repo", default=".")
 
     p_test = sub.add_parser("test", help="run a test command and report results")
-    test_sub = p_test.add_subparsers(dest="test_cmd", required=True)
+    test_sub = p_test.add_subparsers(dest="test_cmd", required=False)
+    p_test.set_defaults(test_cmd="run", test_program="pytest", extra_args=[], json=False, repo=".", timeout=120.0)
+    p_test.add_argument("--json", action="store_true")
+    p_test.add_argument("--cmd", dest="test_program", default="pytest")
+    p_test.add_argument("--repo", default=".")
+    p_test.add_argument("--timeout", type=float, default=120.0)
     p_test_run = test_sub.add_parser("run", help="run a test command (default: pytest)")
     p_test_run.add_argument("--cmd", dest="test_program", default="pytest")
     p_test_run.add_argument("--json", action="store_true")
