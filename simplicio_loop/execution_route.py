@@ -244,18 +244,15 @@ def decide_mapper_requirement(
     elif targeted_hits:
         mode = "targeted"
         reason = "targeted code understanding or reference lookup"
-    elif explicit_target and mechanical_hint:
-        mode = "none"
-        reason = "explicit target and mechanical operation; preserve fast path"
     else:
-        mode = "none"
-        reason = "no deterministic signal that repository context is needed"
+        mode = "targeted"
+        reason = "Mapper is mandatory for every Loop flow"
 
-    required = mode != "none"
+    required = True
     return {
         "required": required,
         "mode": mode,
-        "action": "reuse" if required and context_available else ("invoke" if required else "skip"),
+        "action": "reuse" if context_available else "invoke",
         "reason": reason,
         "evidence": [*(f"matched:{hit}" for hit in full_hits),
                      *(f"matched:{hit}" for hit in targeted_hits),

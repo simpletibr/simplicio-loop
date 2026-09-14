@@ -198,9 +198,9 @@ def economy_parallel_env(
         "SIMPLICIO_REQUIRE_MUTATION_AUTHORITY": "1",
         "SIMPLICIO_LOOP_AUTO_PLANNING_RECEIPT": "1",
         "SIMPLICIO_LOOP_FORBID_HAND_EDIT": "1",
-        # Adaptive Runtime (Tokio control plane when present)
-        "SIMPLICIO_LOOP_REQUIRE_RUNTIME": "auto",
-        "SIMPLICIO_EXECUTION_PROFILE": "auto" if runtime_operational else "standalone",
+        # Runtime stays off unless the operator explicitly sets required.
+        "SIMPLICIO_LOOP_REQUIRE_RUNTIME": "off",
+        "SIMPLICIO_EXECUTION_PROFILE": "standalone",
         # Fast hot path (mmap / understand-plan-apply)
         "SIMPLICIO_FAST_MODE": "required",
         # Always latest packages on preflight
@@ -215,13 +215,9 @@ def economy_parallel_env(
         "SIMPLICIO_ECONOMY_PARALLEL": "1",
         "SIMPLICIO_ECONOMY_PROFILE": PROFILE_NAME,
     }
-    # Token economy MCP layer only when Runtime binary is the real one
-    if runtime_operational:
-        out["SIMPLICIO_REQUIRE_MCP"] = "1"
-        out["SIMPLICIO_MCP_FORCE"] = "1"
-    else:
-        out["SIMPLICIO_REQUIRE_MCP"] = "0"
-        out["SIMPLICIO_MCP_FORCE"] = "0"
+    # Token economy MCP layer is opt-in; Loop does not bind Runtime/MCP by default.
+    out["SIMPLICIO_REQUIRE_MCP"] = "0"
+    out["SIMPLICIO_MCP_FORCE"] = "0"
     return out
 
 
