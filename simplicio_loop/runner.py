@@ -3538,6 +3538,19 @@ def _mapper_generation(repo_path: Path) -> Dict[str, str]:
     return generation
 
 
+def _receipt_run_id(payload: Mapping[str, Any], expected_run_id: str) -> str:
+    """Bind a receipt to its run directory when it omitted run_id."""
+    raw = payload.get("run_id")
+    if raw in {None, ""}:
+        return expected_run_id
+    return str(raw)
+
+
+def _require_matching_run_id(payload: Mapping[str, Any], expected_run_id: str, label: str) -> None:
+    if _receipt_run_id(payload, expected_run_id) != expected_run_id:
+        raise RuntimeError(f"{label} receipt is not bound to the current run")
+
+
 def _require_json_receipt(path: Path, label: str) -> Dict[str, Any]:
     if not path.is_file():
         raise RuntimeError(f"missing required {label} receipt: {path.name}")
@@ -3580,8 +3593,7 @@ def _validate_run_receipts(
         raise RuntimeError("task contract is not bound to the current run")
     if mapper.get("run_id") != expected_run_id or plan.get("run_id") != expected_run_id:
         raise RuntimeError("mapper and plan receipts are not bound to the current run")
-    if operator.get("run_id") != expected_run_id:
-        raise RuntimeError("operator receipt is not bound to the current run")
+    _require_matching_run_id(operator, expected_run_id, "operator")
     if mapper.get("task_contract_hash") != contract_hash or plan.get("task_contract_hash") != contract_hash:
         raise RuntimeError("mapper and plan receipts do not match the task contract")
     mapper_context_hash = str(plan.get("mapper_context_hash") or "")
@@ -5568,6 +5580,7 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         "schema": OPERATOR_RECEIPT_SCHEMA,
         "mode": "execute",
         "tool": "simplicio-dev-cli",
+        "run_id": run_id,
         "execution_state": execution_state,
         "status": execution_state,
         "attempt": attempt,
