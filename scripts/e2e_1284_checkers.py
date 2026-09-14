@@ -81,12 +81,10 @@ def main() -> None:
     except json.JSONDecodeError:
         payload = {"ready": False}
     print("handoff_ready", payload.get("ready"), "reason", payload.get("reason"), "chars", len(hand.stdout))
-    _run([mapper, "fast-handoff", str(ROOT), "--json"], check=False)
-    fast_handoff = ROOT / ".simplicio" / "fast-handoff.json"
-    ingest_args = [fast, "ingest", str(ROOT), "--json"]
-    if fast_handoff.is_file():
-        ingest_args.extend(["--mapper-handoff", str(fast_handoff)])
-    ingest = _run(ingest_args, check=False)
+    ingest = _run(
+        [fast, "ingest", str(ROOT), "--mapper-handoff", str(handoff_path), "--json"],
+        check=False,
+    )
 
     html = (ROOT / "site" / "checkers.html").read_text(encoding="utf-8")
     if FIND not in html:
@@ -170,6 +168,12 @@ def main() -> None:
         raise SystemExit(3)
     if summary["runtime_bin"]:
         raise SystemExit(4)
+    if summary["ingest_exit"] != 0:
+        raise SystemExit(5)
+    if summary["test_exit"] != 0:
+        raise SystemExit(6)
+    if summary["browser_exit"] != 0:
+        raise SystemExit(7)
 
 
 if __name__ == "__main__":
