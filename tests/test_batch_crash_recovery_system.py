@@ -136,6 +136,10 @@ def _arm_fixture(tmp_path, monkeypatch, name):
     monkeypatch.setattr(runner_mod, "_run_mapper", fake_mapper)
     monkeypatch.setattr(runner_mod, "_preflight_operator", fake_operator_preflight)
     monkeypatch.setenv("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", "0")
+    # The fixture lives on pytest's small tmpfs; capacity admission is outside this
+    # queue/journal recovery proof, so make its test boundary explicit.
+    monkeypatch.setenv("SIMPLICIO_LOOP_DISK_RESERVE_BYTES", "0")
+    monkeypatch.setenv("SIMPLICIO_LOOP_DISK_SUSPEND_FLOOR_BYTES", "0")
     monkeypatch.setenv("SIMPLICIO_LOOP_FAKE_OPERATOR_JSON", json.dumps({
         "execution_state": "dry_run", "returncode": 0,
         "stdout": {"kind": "operator-proposal", "ok": True}, "stderr": "",
