@@ -924,6 +924,11 @@ def _build_handoff_payload(opts: dict) -> dict:
         task_query=goal,
         budget_tokens=token_budget if task_aware else 0,
     )
+    snapshot_dest = os.path.join(os.path.abspath(os.path.join(root, out)), "context-snapshot.json")
+    os.makedirs(os.path.dirname(snapshot_dest), exist_ok=True)
+    with open(snapshot_dest, "w", encoding="utf-8") as handle:
+        json.dump(context_snapshot, handle, sort_keys=True, indent=2)
+        handle.write("\n")
     context_pack = build_context_pack(
         root=root,
         targets=target_rows,
