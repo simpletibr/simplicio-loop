@@ -1419,7 +1419,7 @@ def _claim_mapper_operation_attempt(
 
     adapter = MapperOperationsAdapter(_mapper_operations_database(repo_path), auto_create=False)
     idempotency_key = f"{run_id}:mapper-operation:{task_index}"
-    adapter.import_task(
+    imported = adapter.import_task(
         task_id,
         {
             "run_id": run_id,
@@ -1430,6 +1430,10 @@ def _claim_mapper_operation_attempt(
         idempotency_key=idempotency_key,
         state="queued",
     )
+    if imported.get("status") == "unchanged" and imported.get("state") in {
+        "failed", "cancelled",
+    }:
+        adapter.requeue(task_id)
     lease = adapter.claim_task(
         task_id,
         f"loop:{run_id}:{worker_id}",
