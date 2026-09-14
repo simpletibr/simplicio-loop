@@ -123,9 +123,24 @@ try:
     )
 except ImportError:  # pragma: no cover - installed package without scripts namespace
     TrustPolicyError = RuntimeError  # type: ignore[assignment,misc]
+
+
     _trust_authorize = None
     _load_trust_policy = None
     _resolve_trust_environment = None
+
+
+_PROVIDER_SECRET_ENV = (
+    "OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENAI_API_KEY", "ANTHROPIC_API_KEY",
+)
+
+
+def _subprocess_env(base: Optional[Mapping[str, str]] = None) -> Dict[str, str]:
+    """Build a diagnostic/operator environment without provider credentials."""
+    env = dict(base or os.environ)
+    for key in _PROVIDER_SECRET_ENV:
+        env.pop(key, None)
+    return env
 
 try:
     from scripts.security_audit_log import append_event as _audit_append
@@ -580,6 +595,7 @@ def _run_cmd(
             encoding="utf-8",
             errors="replace",
             timeout=timeout_seconds,
+            env=_subprocess_env(),
         )
     except subprocess.TimeoutExpired as exc:
         def _text(value: Any) -> str:
@@ -653,7 +669,7 @@ def _dispatch_identity_fields(repo_path: Optional[Path]) -> Dict[str, str]:
 
 
 def _operator_env() -> Dict[str, str]:
-    env = dict(os.environ)
+    env = _subprocess_env()
     env.setdefault(
         "SIMPLICIO_MODEL",
         os.environ.get("SIMPLICIO_LOOP_OPERATOR_MODEL", "codex-cli/gpt-5.4"),
@@ -849,10 +865,11 @@ def _devcli_env(repo_path: Path, base_env: Dict[str, str] | None = None) -> Dict
     selected_devcli = _devcli_command_path()
     if selected_devcli != "simplicio-dev-cli":
         env["PATH"] = f"{Path(selected_devcli).resolve().parent}{os.pathsep}{env.get('PATH', '')}"
-    # The external provider worker receives its credential through its own
-    # allow-listed boundary. Deterministic Dev CLI must never receive the key,
-    # even when the parent shell has it set.
-    env.pop("OPENROUTER_API_KEY", None)
+    # The external provider worker receives credentials through its own
+    # allow-listed in-process boundary. Deterministic Dev CLI must never receive
+    # provider credentials, even when the parent shell has them set.
+    for key in _PROVIDER_SECRET_ENV:
+        env.pop(key, None)
     env["SIMPLICIO_LOCAL_LLM_DISABLED"] = "1"
     if _degraded_mapper_fallback_enabled():
         env["SIMPLICIO_ALLOW_DEGRADED_MAPPER"] = "1"
@@ -878,6 +895,7 @@ def _devcli_has_mapper_manifest(command: str) -> bool:
             [interpreter, "-c",
              "import importlib.resources; print(int(importlib.resources.files('simplicio_mapper').joinpath('contracts/context-snapshot/v1/contract-manifest.json').is_file()))"],
             capture_output=True, text=True, timeout=3, check=False,
+            env=_subprocess_env(),
         )
         return probe.returncode == 0 and probe.stdout.strip() == "1"
     except (OSError, IndexError, subprocess.SubprocessError):
@@ -5769,7 +5787,7 @@ def verify_run(repo: str, run_id: str, *, flow: str = "run") -> Dict[str, Any]:
         _transition(run_dir, state, "blocked", "independent watcher is unavailable", receipt=str(run_dir / "state.json"))
         return read_status(repo, run_id)
     _transition(run_dir, state, "watching", "automatic conduct reached independent verification", receipt=str(run_dir / "operator-receipt.json"))
-    env = dict(os.environ)
+    env = _subprocess_env()
     env["SIMPLICIO_RUN_DIR"] = str(run_dir)
     env["SIMPLICIO_LOOP_REPO"] = str(repo_path)
     env["SIMPLICIO_LOOP_DIR"] = str(run_dir / "loop")
@@ -8393,7 +8411,7 @@ def execute_operator_batch(
         if not source_commit:
             head = subprocess.run(
                 ["git", "rev-parse", "HEAD"], cwd=str(repo_root), capture_output=True,
-                text=True, timeout=15, check=False,
+                text=True, timeout=15, check=False, env=_subprocess_env(),
             )
             source_commit = (head.stdout or "").strip() or "unavailable"
         fast_state = status["state"].get("fast") or {}

@@ -1890,8 +1890,19 @@ def main(argv=None) -> int:
         queue_command = queue_sub.add_parser(queue_action, help=queue_help_text[queue_action])
         queue_command.add_argument("task_id")
     p_single_fast = sub.add_parser(
-        "single-task-fast", help="select the bounded single-task local-first route")
-    p_single_fast.add_argument("--task-file", required=True, help="JSON task or task array")
+        "single-task-fast",
+        help=("execute one bounded JSON task locally, or exactly two dependent "
+              "Markdown tasks through the provider-backed Loop route"),
+        description=("One JSON task uses the local-first Mapper/Fast/Dev CLI route. "
+                     "Exactly two dependent Markdown tasks use required Fast preparation "
+                     "and the ordered Loop provider route (configured provider worker; "
+                     "default: openrouter)."),
+    )
+    p_single_fast.add_argument(
+        "--task-file", required=True,
+        help="JSON task for local-first execution, or a two-task Markdown collection",
+    )
+    p_single_fast.add_argument("--repo", default=".", help="repository root for the two-task provider route")
     sub.add_parser(
         "hub-drain-plan",
         help="read-only PT-BR/EN GitHub drain intake; never executes the plan",
@@ -2144,9 +2155,32 @@ def main(argv=None) -> int:
     if command == "single-task-fast":
         from .intake_planner import dispatch_single_task_fast
         try:
-            payload = json.loads(Path(args.task_file).read_text(encoding="utf-8"))
-            tasks = payload if isinstance(payload, list) else [payload]
-            result = dispatch_single_task_fast(tasks)
+            task_path = Path(args.task_file)
+            raw = task_path.read_text(encoding="utf-8")
+            task_file_for_collection = ""
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError:
+                if task_path.suffix.lower() not in {".md", ".markdown"}:
+                    raise
+                compiled = compile_many(raw, source_path=str(task_path.resolve()))
+                tasks = list(compiled.get("tasks") or [])
+                task_file_for_collection = str(task_path)
+            else:
+                is_collection = (
+                    isinstance(payload, Mapping)
+                    and str(payload.get("schema") or "") == "simplicio.task-contract/v1.collection"
+                    and isinstance(payload.get("tasks"), list)
+                )
+                if is_collection:
+                    tasks = list(payload["tasks"])
+                else:
+                    tasks = payload if isinstance(payload, list) else [payload]
+                if len(tasks) == 2 and is_collection:
+                    task_file_for_collection = str(task_path)
+            result = dispatch_single_task_fast(
+                tasks, task_file=task_file_for_collection, repo=args.repo,
+            )
         except (OSError, ValueError, TypeError, json.JSONDecodeError) as exc:
             diagnostic = publish_loop_execution_for_flow(
                 repo=Path("."),

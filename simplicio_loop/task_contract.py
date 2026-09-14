@@ -711,6 +711,26 @@ def compile_task(text: str, source_path: str = "") -> Dict[str, Any]:
 
 
 def compile_many(text: str, source_path: str = "") -> Dict[str, Any]:
+    stripped = (text or "").lstrip()
+    if stripped.startswith("{") or stripped.startswith("["):
+        try:
+            payload = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"invalid JSON task collection: {exc}") from exc
+        if not isinstance(payload, Mapping) or payload.get("schema") != f"{SCHEMA}.collection":
+            raise ValueError("JSON task input must be a simplicio.task-contract/v1.collection")
+        tasks = payload.get("tasks")
+        if not isinstance(tasks, list) or not tasks or any(not isinstance(task, Mapping) for task in tasks):
+            raise ValueError("JSON task collection requires a non-empty tasks array")
+        expected_hash = _stable_hash([task.get("contract_hash") for task in tasks])
+        if payload.get("collection_hash") != expected_hash:
+            raise ValueError("JSON task collection hash mismatch")
+        return {
+            "schema": f"{SCHEMA}.collection",
+            "task_count": len(tasks),
+            "tasks": [dict(task) for task in tasks],
+            "collection_hash": expected_hash,
+        }
     tasks = split_tasks(text)
     compiled = [compile_task(task, source_path=source_path) for task in tasks]
     return {

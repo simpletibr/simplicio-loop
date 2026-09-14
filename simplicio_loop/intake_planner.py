@@ -476,8 +476,10 @@ __all__ = [
 SINGLE_TASK_FAST_SCHEMA = "simplicio.single-task-fast-receipt/v1"
 SINGLE_TASK_FAST_ROUTE = "single-task-fast"
 FULL_PIPELINE_ROUTE = "full-pipeline"
+ORDERED_TWO_TASK_ROUTE = "single-task-fast-ordered-provider"
 _SINGLE_TASK_REQUIRED_TOOLS = ("mapper", "fast", "dev_cli")
 _ESCALATION_ORDER = ("target_expansion", "sensitive_surface", "new_files", "diff_overshoot", "verification_failure", "source_drift")
+_PROVIDER_SECRET_ENV = ("OPENROUTER_API_KEY", "OPENROUTER_BASE_URL", "OPENAI_API_KEY", "ANTHROPIC_API_KEY")
 
 
 def freeze_single_task_contract(task: Mapping[str, Any]) -> Dict[str, Any]:
@@ -948,12 +950,295 @@ def build_local_single_task_operations(task: Mapping[str, Any], *, root: str = "
     }
 
 
-def dispatch_single_task_fast(tasks: Sequence[Mapping[str, Any]], operations: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+def _collection_task_id(task: Mapping[str, Any], index: int) -> str:
+    identity = task.get("identity") if isinstance(task.get("identity"), Mapping) else {}
+    return str(task.get("id") or identity.get("id") or task.get("issue") or f"task-{index}").strip()
+
+
+def _collection_dependencies(task: Mapping[str, Any]) -> list[str]:
+    raw: Any = task.get("depends_on")
+    if raw is None:
+        raw = task.get("dependencies")
+    if isinstance(raw, Mapping):
+        raw = raw.get("items") or raw.get("depends_on") or raw.get("dependencies") or []
+    if isinstance(raw, str):
+        raw = [item.strip() for item in raw.replace(",", " ").split() if item.strip()]
+    if not isinstance(raw, (list, tuple, set)):
+        return []
+    return [str(item).strip() for item in raw if str(item).strip()]
+
+
+def _ordered_two_task_collection(
+    tasks: Sequence[Mapping[str, Any]],
+) -> list[tuple[int, Mapping[str, Any]]]:
+    """Validate the narrow collection contract and reuse Loop's DAG ordering boundary."""
+    if len(tasks) != 2:
+        raise ValueError("single-task-fast ordered provider route requires exactly two tasks")
+    rows = []
+    aliases: dict[str, str] = {}
+    for index, task in enumerate(tasks, start=1):
+        if not isinstance(task, Mapping):
+            raise ValueError(f"task {index} must be an object")
+        task_id = _collection_task_id(task, index)
+        if not task_id or task_id in aliases:
+            raise ValueError("ordered collection task ids must be unique and non-empty")
+        aliases[task_id] = task_id
+        identity = task.get("identity") if isinstance(task.get("identity"), Mapping) else {}
+        for alias in (identity.get("id"), str(index), f"task-{index}"):
+            if str(alias or "").strip():
+                aliases[str(alias).strip()] = task_id
+        rows.append({
+            "task_id": task_id,
+            "task_index": index,
+            "task_spec": {"depends_on": _collection_dependencies(task)},
+        })
+    edges = sum(len(row["task_spec"]["depends_on"]) for row in rows)
+    if edges != 1:
+        raise ValueError("ordered collection requires one dependency from creation to edit")
+    for row in rows:
+        resolved = []
+        for dependency in row["task_spec"]["depends_on"]:
+            target = aliases.get(dependency)
+            if target is None:
+                raise ValueError(
+                    f"ordered collection dependency is not part of the collection: "
+                    f"{row['task_id']}->{dependency}"
+                )
+            resolved.append(target)
+        row["task_spec"]["depends_on"] = resolved
+    try:
+        # Keep the authoritative topological ordering in the Loop runner.  This
+        # preflight only narrows the public contract before that boundary runs.
+        from .runner import _ordered_dispatch_items
+        ordered_rows = _ordered_dispatch_items(rows)
+    except (TypeError, ValueError, RuntimeError) as exc:
+        raise ValueError(str(exc)) from exc
+    return [(int(row["task_index"]), tasks[int(row["task_index"]) - 1]) for row in ordered_rows]
+
+
+def _receipt_present(value: Any) -> bool:
+    if isinstance(value, Mapping):
+        status = str(value.get("status") or value.get("execution_state") or "").strip().lower()
+        return bool(value) and status in {
+            "measured", "ready", "verified", "applied", "completed", "success",
+            "succeeded", "no_change", "pass", "passed",
+        }
+    if isinstance(value, str):
+        return bool(value.strip()) and Path(value).is_file()
+    return False
+
+
+def _finalize_two_task_receipt(
+    tasks: Sequence[Mapping[str, Any]],
+    ordered: Sequence[tuple[int, Mapping[str, Any]]],
+    raw: Any,
+) -> Dict[str, Any]:
+    """Project a runner result only after both task evidence chains are complete."""
+    base = dict(raw) if isinstance(raw, Mapping) else {}
+    receipt = {
+        "schema": SINGLE_TASK_FAST_SCHEMA,
+        "route": ORDERED_TWO_TASK_ROUTE,
+        "task_count": 2,
+        "execution_order": [_collection_task_id(task, index) for index, task in ordered],
+        **base,
+    }
+    receipt["schema"] = SINGLE_TASK_FAST_SCHEMA
+    receipt["route"] = ORDERED_TWO_TASK_ROUTE
+    receipt["task_count"] = 2
+    receipt["execution_order"] = [_collection_task_id(task, index) for index, task in ordered]
+    task_receipts = receipt.get("tasks") or receipt.get("per_task_evidence") or []
+    if not isinstance(task_receipts, list) or len(task_receipts) != 2:
+        receipt.update({
+            "status": "BLOCKED",
+            "reason_code": (
+                str(base.get("reason_code") or "per_task_evidence_missing")
+                if str(base.get("status") or "").upper() != "COMPLETED"
+                else "per_task_evidence_missing"
+            ),
+        })
+        return receipt
+    by_id = {_collection_task_id(task, index): (index, task) for index, task in ordered}
+    normalized = []
+    for item in task_receipts:
+        if not isinstance(item, Mapping):
+            receipt.update({"status": "BLOCKED", "reason_code": "per_task_evidence_missing"})
+            return receipt
+        task_id = str(item.get("task_id") or "").strip()
+        if by_id.get(task_id) is None or str(item.get("status") or "").lower() not in {
+            "succeeded", "applied", "completed", "no_change",
+        }:
+            receipt.update({"status": "BLOCKED", "reason_code": "per_task_execution_failed"})
+            return receipt
+        required = ("mapper_receipt", "fast_receipt", "provider_receipt", "dev_cli_receipt", "evidence")
+        if any(not _receipt_present(item.get(field)) for field in required):
+            receipt.update({"status": "BLOCKED", "reason_code": "per_task_evidence_missing"})
+            return receipt
+        normalized.append(dict(item))
+    if [str(item.get("task_id")) for item in normalized] != receipt["execution_order"]:
+        receipt.update({"status": "BLOCKED", "reason_code": "dependency_order_not_preserved"})
+        return receipt
+    receipt["tasks"] = normalized
+    if str(receipt.get("status") or "").upper() != "COMPLETED":
+        receipt["status"] = "BLOCKED"
+        receipt.setdefault("reason_code", "provider_loop_not_completed")
+    return receipt
+
+
+def _read_receipt(path: Any) -> Any:
+    if isinstance(path, Mapping):
+        return dict(path)
+    if isinstance(path, Path):
+        path = str(path)
+    if not isinstance(path, str) or not path.strip():
+        return None
+    candidate = Path(path)
+    try:
+        return json.loads(candidate.read_text(encoding="utf-8")) if candidate.is_file() else None
+    except (OSError, TypeError, ValueError):
+        return None
+
+
+def _run_existing_two_task_loop(
+    *,
+    tasks: Sequence[Mapping[str, Any]],
+    ordered: Sequence[tuple[int, Mapping[str, Any]]],
+    task_file: str,
+    repo: str,
+    provider_worker: str,
+) -> Dict[str, Any]:
+    """Bind the new public collection contract to the existing Loop runner."""
+    if not task_file or not Path(task_file).is_file():
+        return {"status": "BLOCKED", "reason_code": "task_file_missing"}
+    if provider_worker != "openrouter":
+        return {"status": "BLOCKED", "reason_code": "provider_worker_unsupported"}
+    try:
+        # Fast is a required, read-only preparation stage for this provider route.
+        # Mutation still belongs exclusively to conduct_run's existing Dev CLI path.
+        from .fast_integration import FastConfig, FastIntegrationError, FastLoopIntegration
+        fast_config = FastConfig.from_env()
+        fast_config = FastConfig(
+            mode="required", command=fast_config.command, snapshot=fast_config.snapshot,
+            state=fast_config.state, max_bytes=fast_config.max_bytes,
+            timeout_seconds=fast_config.timeout_seconds,
+            require_binding=fast_config.require_binding, engine=fast_config.engine,
+        )
+        fast_receipts = []
+        saved_provider_env = {
+            key: os.environ[key] for key in _PROVIDER_SECRET_ENV if key in os.environ
+        }
+        try:
+            for key in _PROVIDER_SECRET_ENV:
+                os.environ.pop(key, None)
+            for index, task in ordered:
+                text = str(task.get("original_text") or task.get("goal") or "").strip()
+                try:
+                    prepared = FastLoopIntegration(
+                        repo, config=fast_config,
+                        extra_targets=[str(path) for path in (task.get("target_hints") or [])],
+                    ).prepare(text)
+                except (FastIntegrationError, OSError, TypeError, ValueError) as exc:
+                    return {
+                        "status": "BLOCKED", "reason_code": "fast_operation_failed",
+                        "error": f"{type(exc).__name__}: {exc}",
+                        "fast_receipts": fast_receipts,
+                    }
+                if prepared.get("status") != "READY":
+                    return {"status": "BLOCKED", "reason_code": "fast_operation_failed", "fast_receipts": fast_receipts}
+                fast_receipts.append((index, prepared))
+        finally:
+            for key in _PROVIDER_SECRET_ENV:
+                os.environ.pop(key, None)
+            os.environ.update(saved_provider_env)
+        from .runner import conduct_run
+        run_result = conduct_run(repo, task_file, "verified", 12, provider_worker=provider_worker)
+        run_dir = Path(str(run_result.get("run_dir") or ""))
+        batch = _read_receipt(run_dir / "operator-batch.json") or {}
+        workers = batch.get("workers") if isinstance(batch, Mapping) else []
+        workers = workers if isinstance(workers, list) else []
+        state = run_result.get("state") if isinstance(run_result.get("state"), Mapping) else {}
+        mapper_path = (state.get("mapper") or {}).get("receipt") or run_dir / "mapper-context.json"
+        fast_by_index = {index: receipt for index, receipt in fast_receipts}
+        task_receipts = []
+        for index, task in ordered:
+            worker = next((item for item in workers if int(item.get("task_index") or 0) == index), {})
+            operator_path = worker.get("operator_receipt") or run_dir / f"operator-receipt-{index}.json"
+            operator = _read_receipt(operator_path)
+            evidence_path = worker.get("evidence_receipt")
+            evidence = _read_receipt(evidence_path)
+            provider_path = operator.get("provider_worker_receipt") if isinstance(operator, Mapping) else ""
+            task_receipts.append({
+                "task_id": _collection_task_id(task, index),
+                "task_index": index,
+                "status": worker.get("status", "blocked"),
+                "mapper_receipt": str(mapper_path) if Path(mapper_path).is_file() else None,
+                "fast_receipt": fast_by_index.get(index),
+                "provider_receipt": _read_receipt(provider_path),
+                "dev_cli_receipt": operator,
+                "evidence": evidence,
+                "worker": worker,
+            })
+        outcome = run_result.get("outcome") if isinstance(run_result.get("outcome"), Mapping) else {}
+        completed = (
+            int(outcome.get("exit_code") if outcome.get("exit_code") is not None else 2) == 0
+            and str((run_result.get("state") or {}).get("phase") or "") == "done"
+            and all(str(item.get("status") or "") == "succeeded" for item in workers)
+            and bool((batch.get("receipt_contract") or {}).get("ready"))
+        )
+        return {
+            "status": "COMPLETED" if completed else "BLOCKED",
+            "reason_code": "verified_completion" if completed else "provider_loop_not_completed",
+            "run_id": run_result.get("manifest", {}).get("run_id", ""),
+            "run_dir": str(run_dir),
+            "fast_receipts": [receipt for _, receipt in fast_receipts],
+            "tasks": task_receipts,
+            "runner": run_result,
+        }
+    except (OSError, TypeError, ValueError, RuntimeError) as exc:
+        return {"status": "BLOCKED", "reason_code": "provider_loop_failed", "error": f"{type(exc).__name__}: {exc}"}
+
+
+def dispatch_single_task_fast(
+    tasks: Sequence[Mapping[str, Any]],
+    operations: Optional[Mapping[str, Any]] = None,
+    *,
+    task_file: str = "",
+    repo: str = ".",
+    provider_worker: Optional[str] = None,
+) -> Dict[str, Any]:
     """Production dispatch boundary used by the CLI and runner adapters.
 
     Route selection is always available. Execution fails closed until a local
     Mapper/Fast/Dev-CLI adapter supplies the operation set.
     """
+    if len(tasks) == 2:
+        try:
+            ordered = _ordered_two_task_collection(tasks)
+        except (TypeError, ValueError) as exc:
+            return {
+                "schema": SINGLE_TASK_FAST_SCHEMA, "route": ORDERED_TWO_TASK_ROUTE,
+                "status": "BLOCKED", "reason_code": "invalid_two_task_collection",
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+        selected_provider = str(
+            provider_worker or os.environ.get("SIMPLICIO_PROVIDER_WORKER") or "openrouter"
+        ).strip().lower()
+        collection_runner = operations.get("provider_backed_collection") if isinstance(operations, Mapping) else None
+        if callable(collection_runner):
+            try:
+                raw = collection_runner(
+                    tasks=ordered, task_file=task_file, repo=repo,
+                    provider_worker=selected_provider,
+                )
+            except Exception as exc:
+                raw = {"status": "BLOCKED", "reason_code": "provider_loop_failed",
+                       "error": f"{type(exc).__name__}: {exc}"}
+        else:
+            raw = _run_existing_two_task_loop(
+                tasks=tasks, ordered=ordered, task_file=task_file, repo=repo,
+                provider_worker=selected_provider,
+            )
+        return _finalize_two_task_receipt(tasks, ordered, raw)
+
     selection = select_single_task_route(tasks)
     if selection["route"] != SINGLE_TASK_FAST_ROUTE:
         return {"schema": SINGLE_TASK_FAST_SCHEMA, **selection, "status": "ESCALATED"}
@@ -980,4 +1265,4 @@ def dispatch_single_task_fast(tasks: Sequence[Mapping[str, Any]], operations: Op
     return run_single_task_fast(tasks[0], operations)
 
 
-__all__.extend(["SINGLE_TASK_FAST_SCHEMA", "SINGLE_TASK_FAST_ROUTE", "FULL_PIPELINE_ROUTE", "freeze_single_task_contract", "select_single_task_route", "run_single_task_fast", "benchmark_single_task_fast", "build_local_single_task_operations", "dispatch_single_task_fast"])
+__all__.extend(["SINGLE_TASK_FAST_SCHEMA", "SINGLE_TASK_FAST_ROUTE", "FULL_PIPELINE_ROUTE", "ORDERED_TWO_TASK_ROUTE", "freeze_single_task_contract", "select_single_task_route", "run_single_task_fast", "benchmark_single_task_fast", "build_local_single_task_operations", "dispatch_single_task_fast"])
