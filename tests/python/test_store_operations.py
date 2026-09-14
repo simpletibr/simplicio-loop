@@ -83,6 +83,40 @@ def test_import_task_preserves_terminal_history_and_is_idempotent(tmp_path: Path
     assert store.status("done")["terminal_verified"] is True
 
 
+def test_failed_imported_task_requires_explicit_requeue_before_retry(tmp_path: Path) -> None:
+    store = _store(tmp_path)
+    imported = store.import_task(
+        "retry-task",
+        {"kind": "work", "attempt": 1},
+        idempotency_key="legacy:retry-task",
+    )
+    first = store.claim("worker-a")
+    assert first is not None
+
+    failed = store.complete(first["attempt_id"], first["fence_token"], status="failed")
+
+    assert imported["state"] == "queued"
+    assert failed["terminal_verified"] is False
+    assert store.status("retry-task")["state"] == "failed"
+    retry_import = store.import_task(
+        "retry-task",
+        {"kind": "work", "attempt": 1},
+        idempotency_key="legacy:retry-task",
+    )
+    assert retry_import["status"] == "unchanged"
+    assert retry_import["state"] == "failed"
+    assert store.claim_task("retry-task", "worker-b") is None
+
+    requeued = store.requeue("retry-task")
+    second = store.claim_task("retry-task", "worker-b")
+
+    assert requeued["state"] == "queued"
+    assert second is not None
+    assert second["task_id"] == "retry-task"
+    assert second["attempt_id"] != first["attempt_id"]
+    assert second["fence_token"] != first["fence_token"]
+
+
 def test_enqueue_is_idempotent_and_conflict_is_fail_closed(tmp_path: Path) -> None:
     store = _store(tmp_path)
     first = store.enqueue("task", {"x": 1}, idempotency_key="same")
