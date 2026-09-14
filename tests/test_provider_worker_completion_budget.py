@@ -142,11 +142,16 @@ def test_no_feedback_prompt_is_byte_identical_to_the_existing_prompt():
         '{"goal": "create the game", "id": "TASK-CHECKERS-001"}\n\n'
         "Mapper context:\n"
         '{"mapper_generation": "generation-1"}'
+        "\n\nAccessible HTML game contract:\n"
+        + provider_worker.ACCESSIBLE_HTML_GAME_CONTRACT
     )
 
     assert provider_worker._request_prompt(task, context) == expected
     assert provider_worker._request_prompt(task, context, repair_feedback=None) == expected
     assert provider_worker._request_prompt(task, context, repair_feedback="") == expected
+    assert "Start game" in expected
+    assert "Turn: Black" in expected
+    assert "Checkers board" in expected
 
 
 def test_repair_feedback_is_forwarded_bounded_and_secret_html_free():
@@ -192,3 +197,22 @@ def test_repair_feedback_is_forwarded_bounded_and_secret_html_free():
     _dispatch(opener, repair_feedback=long_detail)
     prompt = captured["payload"]["messages"][0]["content"]
     assert prompt.endswith(long_detail[:provider_worker.MAX_REPAIR_FEEDBACK_CHARS])
+
+
+def test_request_prompt_includes_current_targets_and_accessible_game_contract():
+    current = "<!DOCTYPE html><html><body>existing game</body></html>"
+    prompt = provider_worker._request_prompt(
+        {"id": "TASK-CHECKERS-002", "goal": "edit the game"},
+        {
+            "mapper_generation": "generation-1",
+            "current_targets": {"site/checkers.html": current},
+        },
+    )
+
+    assert current in prompt
+    assert "Start game" in prompt
+    assert "Turn: Black" in prompt
+    assert "Simplicio" in prompt
+    assert "Checkers board" in prompt
+    assert "Reset game" in prompt
+    assert "Score:" in prompt

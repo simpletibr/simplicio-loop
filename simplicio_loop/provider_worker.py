@@ -119,6 +119,35 @@ def _repair_feedback_text(
     return safe.strip()[:MAX_REPAIR_FEEDBACK_CHARS]
 
 
+ACCESSIBLE_HTML_GAME_CONTRACT = """
+The target must be a self-contained accessible HTML5 checkers game. It must
+have a visible board with role=grid and accessible name "Checkers board", 64
+grid cells, at least 12 pieces for each side, visible Simplicio identity, a
+"gridcell" aria-label on EVERY cell that includes the cell's current word
+"black", "red", or "empty" (update those labels after every move), visible
+"Start game" button and a live status. Initialize and reset the game with the
+exact visible text "Turn: Black"; clicking "Start game" must keep Black as the
+current player. The DOM grid order is row-major from
+row 0 through row 7. Arrange the initial position so BLACK has at least one
+piece with an empty diagonal destination at row+1 (for example, black pieces
+on rows 0-2 and red pieces on rows 5-7); the verifier intentionally tests that
+downward black move. Starting the game must enable that valid black diagonal
+move and update the board/turn; an obviously invalid move must be rejected
+without changing the board or turn. For an editing task preserve
+the existing game and add visible text beginning exactly "Score:", a "Reset game"
+button, visible text beginning exactly "Turn:", and an accessible live
+state message. The editing operation must produce a different complete file
+from the current target; even when the requested features already exist, make
+a small meaningful change related to this edit and never return the exact
+current contents. Use EXACTLY ONE element with role="status" on the page, and
+give that element aria-live="polite" or aria-live="assertive"; do not create a
+second role="status" element. Reset must restore the initial board, score,
+turn, and status.
+Keep CSS and JavaScript inline, avoid external
+network resources, and keep the file compact enough to return completely.
+""".strip()
+
+
 def _request_prompt(
     task: Mapping[str, Any],
     context: Mapping[str, Any],
@@ -126,6 +155,8 @@ def _request_prompt(
     *,
     forbidden_literals: Sequence[str] = (),
 ) -> str:
+    context_payload = dict(context)
+    current_targets = context_payload.pop("current_targets", None)
     prompt = (
         "You are an explicitly authorized external coding worker. You are not an execution authority. "
         "Return only a JSON object with a non-empty top-level `files` object mapping authorized relative "
@@ -134,8 +165,15 @@ def _request_prompt(
         "Task:\n"
         + json.dumps(dict(task), ensure_ascii=False, sort_keys=True)
         + "\n\nMapper context:\n"
-        + json.dumps(dict(context), ensure_ascii=False, sort_keys=True)
+        + json.dumps(context_payload, ensure_ascii=False, sort_keys=True)
+        + "\n\nAccessible HTML game contract:\n"
+        + ACCESSIBLE_HTML_GAME_CONTRACT
     )
+    if isinstance(current_targets, Mapping) and current_targets:
+        prompt += (
+            "\n\nCurrent authorized target files:\n"
+            + json.dumps(current_targets, ensure_ascii=False, sort_keys=True)
+        )
     feedback = _repair_feedback_text(repair_feedback, forbidden_literals=forbidden_literals)
     if not feedback:
         return prompt

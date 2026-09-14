@@ -222,6 +222,8 @@ def test_retry_after_independent_verification_forwards_detail_to_next_provider_d
         del timeout
         payload = json.loads(request.data.decode("utf-8"))
         prompts.append(payload["messages"][0]["content"])
+        if len(prompts) == 2 and verifier_detail not in prompts[-1]:
+            return _Response({"choices": []})
         return _Response(_provider_response())
 
     class _FakeWorker:
@@ -312,3 +314,47 @@ def test_failed_independent_watcher_preserves_concrete_detail_for_repair_feedbac
 
     assert result["verified"] is False
     assert detail in result["reason"]
+
+
+def test_provider_worker_receives_current_authorized_target_for_editing_task(monkeypatch, tmp_path):
+    target = tmp_path / "site" / "checkers.html"
+    target.parent.mkdir()
+    current = "<html><body>existing game</body></html>\n"
+    target.write_text(current, encoding="utf-8")
+    captured = {}
+
+    class _FakeWorker:
+        def dispatch(self, **kwargs):
+            captured["context"] = kwargs["context"]
+            return {
+                "proposal": {"files": {"site/checkers.html": current + "<!-- changed -->\n"}},
+                "response_sha256": "response-hash",
+                "provider_call_count": 1,
+                "usage": None,
+                "usage_status": "unknown",
+                "input_tokens": None,
+                "output_tokens": None,
+                "cached_tokens": None,
+                "reasoning_tokens": None,
+                "cost": None,
+                "cost_status": "unknown",
+            }
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "runtime-only-openrouter-secret")
+    monkeypatch.setattr(runner, "OpenRouterWorker", _FakeWorker)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+
+    runner._provider_worker_plan(
+        task={"id": "TASK-CHECKERS-002", "type": "editing"},
+        context={"mapper_generation": "generation-1"},
+        run_id="run-1",
+        task_index=2,
+        attempt=1,
+        root=tmp_path,
+        allowed_paths=("site/checkers.html",),
+        run_dir=run_dir,
+        provider_worker="openrouter",
+    )
+
+    assert captured["context"]["current_targets"] == {"site/checkers.html": current}

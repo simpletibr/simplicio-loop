@@ -13,6 +13,7 @@ All tests are in-process (no subprocess/CLI layer) so they register with
 coverage.py, and all fakes are deterministic (no real time, no network, no real
 mapper/dev-cli/watcher binaries).
 """
+import io
 import json
 import subprocess
 import sys
@@ -20,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from simplicio_loop import local_capacity, runner as runner_mod
+from simplicio_loop import local_capacity, openrouter_operator, runner as runner_mod
 from scripts.distributed_trust_policy import TrustPolicyError
 
 
@@ -1511,6 +1512,62 @@ def test_operator_dispatch_attempt_wraps_unexpected_exception(tmp_path, monkeypa
     assert record["reason_code"] == "operator_exception"
     assert "execute_operator exploded" in record["error"]
     assert record["failure_fingerprint"]
+
+
+def test_legacy_openrouter_retry_keeps_feedback_from_the_previous_attempt(tmp_path, monkeypatch):
+    repo, run_id, _run_dir = _arm_fixture(tmp_path, monkeypatch)
+    detail = "independent verifier: expected Turn: Black but observed Turn: Red"
+    prompts = []
+
+    class _Response(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    def opener(request, *, timeout):
+        del timeout
+        payload = json.loads(request.data.decode("utf-8"))
+        prompts.append(payload["messages"][1]["content"])
+        response = {
+            "choices": [{
+                "finish_reason": "stop",
+                "message": {"content": json.dumps({"files": {"src/app.py": "def main():\\n    return 'fixed'\\n"}})},
+            }],
+        }
+        return _Response(json.dumps(response).encode("utf-8"))
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-secret")
+    monkeypatch.setenv("OPENROUTER_BASE_URL", "https://openrouter.example/api/v1")
+    monkeypatch.setenv("SIMPLICIO_MODEL", "test-model")
+    monkeypatch.setenv("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", "0")
+    monkeypatch.delenv("SIMPLICIO_PROVIDER_WORKER", raising=False)
+    monkeypatch.setattr(runner_mod, "_openrouter_operator_enabled", lambda: True)
+    monkeypatch.setattr(openrouter_operator.urllib.request, "urlopen", opener)
+    monkeypatch.setattr(runner_mod, "gate_completion", lambda _evidence: (True, ""))
+
+    def fake_effect(*, argv, repo_path, **_kwargs):
+        plan = json.loads(Path(argv[argv.index("--plan") + 1]).read_text(encoding="utf-8"))
+        operation = plan["operations"][0]
+        target = repo_path / operation["path"]
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(operation["text"], encoding="utf-8")
+        return {
+            "returncode": 0,
+            "stdout": {},
+            "stderr": "",
+            "source": "test",
+            "effect_receipt": {},
+            "uncertain": False,
+            "hookwall_evidence": {},
+        }
+
+    monkeypatch.setattr(runner_mod, "_execute_operator_effect", fake_effect)
+    runner_mod._execute_operator_unleased(str(repo), run_id, repair_feedback=detail)
+
+    assert len(prompts) == 1
+    assert detail in prompts[0]
 
 
 if __name__ == "__main__":
