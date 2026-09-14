@@ -24,3 +24,21 @@ def test_blocked_receipt_is_secret_free(monkeypatch) -> None:
     with pytest.raises(providers.ProviderExecutionError) as error:
         providers.generate("x")
     assert "super-secret" not in json.dumps(error.value.receipt)
+
+
+def test_provider_receipt_identity_redacts_credentials_and_url_details() -> None:
+    configured_base = "https://user:password@example.invalid/v1?api_key=should-not-appear"
+
+    provider_id = providers._provider_id("", configured_base)
+    planner_id = providers._planner_provider_id(
+        {
+            "model": "audit/model",
+            "base": configured_base,
+            "native_anthropic": False,
+        }
+    )
+
+    assert provider_id == "openai-compatible:https://example.invalid"
+    assert planner_id == "planner:openai-compatible:https://example.invalid"
+    assert "password" not in provider_id
+    assert "should-not-appear" not in planner_id

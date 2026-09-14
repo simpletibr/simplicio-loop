@@ -27,7 +27,7 @@ from .local_inference import (
     require_enabled as require_local_inference_enabled,
 )
 
-from .llm_policy import execution_disabled_receipt
+from .llm_policy import _safe_endpoint, execution_disabled_receipt
 
 
 _LAST_CACHE_RECEIPT: dict[str, Any] | None = None
@@ -605,7 +605,7 @@ def _provider_id(model, base):
     if model.startswith("codex-cli/"):
         return "codex-cli"
     if base:
-        return f"openai-compatible:{base.rstrip('/')}"
+        return f"openai-compatible:{_safe_endpoint(base)}"
     return "anthropic-native"
 
 
@@ -1335,7 +1335,7 @@ def _planner_provider_id(cfg):
     if cfg["native_anthropic"]:
         return "planner:anthropic-native"
     if cfg["base"]:
-        return f"planner:openai-compatible:{cfg['base'].rstrip('/')}"
+        return f"planner:openai-compatible:{_safe_endpoint(cfg['base'])}"
     return "planner:unknown"
 
 
