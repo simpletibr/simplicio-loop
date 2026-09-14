@@ -11,41 +11,12 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 
 CLI_PROG = "simplicio-py"
 
 
 def maybe_autoinstall(cmd: str | None) -> bool:
-    """Install skill + hook on first run when Claude Code is detected."""
-    import os
-
-    if os.environ.get("SIMPLICIO_SKIP_AUTO_INIT"):
-        return False
-    if cmd in ("init", "detect"):
-        return False
-    home = Path(os.environ["HOME"]) if os.environ.get("HOME") else Path.home()
-    claude_home = home / ".claude"
-    if not claude_home.is_dir():
-        return False
-    hook_path = claude_home / "hooks" / "simplicio-userpromptsubmit.sh"
-    if hook_path.exists():
-        return False
-    try:
-        from .init import install
-
-        report = install(claude_home=claude_home, dry_run=False)
-    except Exception as e:
-        print(f"{CLI_PROG}: auto-activation skipped ({e})", file=sys.stderr)
-        return False
-    if report.skill_installed or report.hook_script_installed or report.settings_updated:
-        print(
-            f"{CLI_PROG}: auto-activation installed in Claude Code "
-            "(skill + UserPromptSubmit hook). "
-            "Disable next time with SIMPLICIO_SKIP_AUTO_INIT=1.",
-            file=sys.stderr,
-        )
-        return True
+    """Never install Claude hooks. First-run auto-activation is not part of this stack."""
     return False
 
 
@@ -143,6 +114,12 @@ def _add_task_args(p: argparse.ArgumentParser, *, target_required: bool) -> None
         "--verify-only",
         action="store_true",
         help="run SIMPLICIO_TEST_CMD without model generation or repository mutation",
+    )
+    p.add_argument(
+        "--plan",
+        metavar="PATH",
+        default=None,
+        help="deprecated alias: use simplicio-dev-cli edit --plan PATH --apply",
     )
     p.add_argument("--json", action="store_true", help="emit stable structured task output")
     p.add_argument(
@@ -516,7 +493,12 @@ def _build_parser() -> argparse.ArgumentParser:
     p_file_read.add_argument("--repo", default=".")
 
     p_test = sub.add_parser("test", help="run a test command and report results")
-    test_sub = p_test.add_subparsers(dest="test_cmd", required=True)
+    test_sub = p_test.add_subparsers(dest="test_cmd", required=False)
+    p_test.set_defaults(test_cmd="run", test_program="pytest", extra_args=[], json=False, repo=".", timeout=120.0)
+    p_test.add_argument("--json", action="store_true")
+    p_test.add_argument("--cmd", dest="test_program", default="pytest")
+    p_test.add_argument("--repo", default=".")
+    p_test.add_argument("--timeout", type=float, default=120.0)
     p_test_run = test_sub.add_parser("run", help="run a test command (default: pytest)")
     p_test_run.add_argument("--cmd", dest="test_program", default="pytest")
     p_test_run.add_argument("--json", action="store_true")

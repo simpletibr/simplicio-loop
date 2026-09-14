@@ -274,17 +274,11 @@ def test_task_cli_forwards_integrated_coordinator_inputs(monkeypatch, capsys):
         ]
     )
 
-    assert result == 1
-    assert json.loads(capsys.readouterr().out)["status"] == "blocked"
-    assert captured["context_snapshot_path"] == "snapshot.json"
-    assert captured["context_pack_path"] == "pack.json"
-    assert captured["authorization_path"] == "authorization.json"
-    assert captured["attempt_id"] == "attempt-1"
-    assert captured["lease_id"] == "lease-1"
-    assert captured["fencing_token"] == "fence-1"
-    assert captured["context_handle"] == "snapshot-1"
-    assert captured["coordinator_kind"] == "simplicio-agent"
-    assert captured["coordinator_id"] == "agent-1"
+    assert result == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "blocked"
+    assert payload["reason_code"] == "plan_required"
+    assert captured == {}
 
 
 def test_task_cli_invalid_context_path_fails_as_clean_json(tmp_path, capsys):
@@ -305,12 +299,11 @@ def test_task_cli_invalid_context_path_fails_as_clean_json(tmp_path, capsys):
     )
 
     captured = capsys.readouterr()
-    assert result == 1
+    assert result == 2
     assert captured.err == ""
     payload = json.loads(captured.out)
-    assert payload["warnings"] == ["INCOMPATIBLE_CONTEXT"]
-    assert payload["execution_profile"]["effective_mode"] == "blocked"
-    assert payload["execution_profile"]["reason_code"] == "INCOMPATIBLE_CONTEXT"
+    assert payload["status"] == "blocked"
+    assert payload["reason_code"] == "plan_required"
 
 
 def test_task_feature_sprint_cli_parser_mode_parity():

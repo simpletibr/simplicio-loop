@@ -225,12 +225,13 @@ def test_real_cli_task_reports_llm_unavailable_without_crashing(tmp_path: Path) 
         check=False,
     )
 
-    assert task_process.returncode != 0, (
-        "expected a non-zero exit when LLM execution is unavailable\n"
+    assert task_process.returncode == 2, (
+        "expected plan_required (exit 2) for prose task without --plan\n"
         f"stdout:\n{task_process.stdout}\nstderr:\n{task_process.stderr}"
     )
-    _assert_no_traceback(task_process, "simplicio-dev-cli task (LLM unavailable)")
-    assert "LLM execution is disabled" in task_process.stderr
+    _assert_no_traceback(task_process, "simplicio-dev-cli task (plan_required)")
+    payload = json.loads(task_process.stdout)
+    assert payload["reason_code"] == "plan_required"
 
     # No diff was ever generated, so the fixture source file must be
     # byte-for-byte untouched.

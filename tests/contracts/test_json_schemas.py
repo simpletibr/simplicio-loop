@@ -110,17 +110,11 @@ def test_task_json_contract_over_real_mapper_fixture(
     finally:
         os.environ.pop("SIMPLICIO_TEST_CMD", None)
 
-    assert code == 0
+    assert code == 2
     payload = json.loads(capsys.readouterr().out)
-    assert_has_keys(
-        payload,
-        {"task_id", "applied", "files_changed", "diff_summary", "warnings"},
-        where="task --json",
-    )
-    assert payload["applied"] is True
-    assert payload["files_changed"] == ["src/app.py"]
-    assert payload["patch"]["parser_strategy"] == "unified_diff"
-    assert stub_local_provider, "the stubbed provider should have been called at least once"
+    assert payload["status"] == "blocked"
+    assert payload["reason_code"] == "plan_required"
+    assert payload["next_action"] == "use simplicio-dev-cli edit --plan <edit-plan.json> --apply"
 
     # Runtime-handoff envelope: what simplicio-runtime consumes when it
     # wraps this same task result (Python-level integration point; the

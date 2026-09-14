@@ -449,11 +449,14 @@ def test_task_run_dry_run_task(tmp_path, monkeypatch, capsys):
             json=True,
             bound_paths=[],
             local=False,
+            verify_only=False,
+            plan=None,
         )
     )
-    assert code == 0
+    assert code == 2
     payload = json.loads(capsys.readouterr().out)
-    assert "diff_summary" in payload
+    assert payload["status"] == "blocked"
+    assert payload["reason_code"] == "plan_required"
 
 
 def test_file_run_delegates_read(monkeypatch):

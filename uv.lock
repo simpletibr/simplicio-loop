@@ -2397,7 +2397,6 @@ dependencies = [
     { name = "numpy", version = "2.5.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "orjson" },
     { name = "simplicio-mapper" },
-    { name = "simplicio-prompt" },
     { name = "tiktoken" },
 ]
 
@@ -2454,7 +2453,6 @@ requires-dist = [
     { name = "simplicio-cli", extras = ["test"], marker = "extra == 'dev'" },
     { name = "simplicio-fast", marker = "python_full_version >= '3.11' and extra == 'fast'", specifier = ">=2.0.22,<3" },
     { name = "simplicio-mapper", specifier = ">=0.26.28,<0.27" },
-    { name = "simplicio-prompt", specifier = ">=1.14.1" },
     { name = "tiktoken", specifier = ">=0.12.0,<1" },
     { name = "tomli", marker = "python_full_version < '3.11' and extra == 'test'", specifier = ">=2.0.1" },
     { name = "uvloop", marker = "sys_platform != 'win32' and extra == 'performance'", specifier = ">=0.21.0" },
@@ -2481,14 +2479,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/bb/56/a51d6e4ee606bdaf289dbad0196abb446f4501eda110451dcfae52f764e7/simplicio_mapper-0.26.28.tar.gz", hash = "sha256:25acaf2bce08659b0d47dc6acbcb7f6c927359f3f6bf9f488c446758559c93c1", size = 2550572, upload-time = "2026-09-05T06:33:49.800974Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a8/9f/e81263d9c179f9e75896b2738af6f3ccb5ee33431d54a118d00d08a78804/simplicio_mapper-0.26.28-py3-none-any.whl", hash = "sha256:49b68b815710b986a72fff6ec0b541f6e5683f22787f93a76edcd98819328d75", size = 2689632, upload-time = "2026-09-05T06:33:48.149612Z" },
-]
-
-[[package]]
-name = "simplicio-prompt"
-version = "1.14.1"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f4/49/f028a38ba50a32b0186c98332ee2e1692ee3e9829fed63dd735a9919cba7/simplicio_prompt-1.14.1-py3-none-any.whl", hash = "sha256:3041cf1e057008b876415245be619a4064ef66dca340829f2d2f8a717b6a682a", size = 69389, upload-time = "2026-06-02T15:52:51.603Z" },
 ]
 
 [[package]]
