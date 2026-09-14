@@ -177,7 +177,7 @@ PHASES = [
 # authoritative context and plan generation. Older versions can report a stale
 # `fresh=true` inspect result and are therefore not safe as a planning source.
 MAPPER_MIN_VERSION = (0, 19, 0)
-MAPPER_REQUIRED_VERBS = ("inspect", "handoff", "ask", "sync", "drift")
+MAPPER_REQUIRED_VERBS = ("scan", "inspect", "handoff", "ask", "sync")
 DEVCLI_REQUIRED_TOKENS = (" task", "--dry-run-task", "--json")
 # Issue #135: the operator bridge validates identity + capability + MIN_VERSION, not
 # merely `which`. A dev-cli below this tuple is blocked before any mutation.
