@@ -21,7 +21,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: publish-pypi-${{ inputs.tag || github.ref }}
+  group: publish-pypi-${{ github.event.inputs.tag || github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
       - name: Check out immutable release ref
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ github.event.inputs.tag || github.ref }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -50,7 +50,7 @@ jobs:
         id: release
         shell: bash
         env:
-          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+          RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
           tag="$RELEASE_TAG"
