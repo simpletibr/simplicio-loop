@@ -285,7 +285,7 @@ def python_smoke() -> dict[str, Any]:
             _smoke_step(
                 launcher,
                 "auto",
-                ["build", ".", "--output", str(snapshot)],
+                ["build", ".", "--output", str(snapshot), "--mapper-mode", "bootstrap"],
                 root=root,
                 environment=environment,
             )
@@ -312,7 +312,16 @@ def python_smoke() -> dict[str, Any]:
             _smoke_step(
                 launcher,
                 "python",
-                ["plan", "review greeting", "--root", ".", "--snapshot", str(snapshot)],
+                [
+                    "plan",
+                    "review greeting",
+                    "--root",
+                    ".",
+                    "--snapshot",
+                    str(snapshot),
+                    "--mapper-mode",
+                    "bootstrap",
+                ],
                 root=root,
                 environment=environment,
             )
@@ -345,7 +354,14 @@ def python_smoke() -> dict[str, Any]:
             _smoke_step(
                 launcher,
                 "python",
-                ["refresh", ".", "--output", str(snapshot)],
+                [
+                    "refresh",
+                    ".",
+                    "--output",
+                    str(snapshot),
+                    "--mapper-mode",
+                    "bootstrap",
+                ],
                 root=root,
                 environment=environment,
             )

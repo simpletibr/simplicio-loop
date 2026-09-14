@@ -2,6 +2,7 @@ import argparse
 import atexit
 import hashlib
 import json
+import os
 import subprocess
 import sys
 from dataclasses import asdict
@@ -51,7 +52,26 @@ from .sdk import SDK_SCHEMA, SDK_SUPPORT_MATRIX
 
 DEFAULT_STATE_DIR = ".simplicio/fast"
 DEFAULT_SNAPSHOT = f"{DEFAULT_STATE_DIR}/project.sfast"
+DEFAULT_MAPPER_MODE = "integrated"
+WRITE_ALLOW_ENV = "SIMPLICIO_FAST_ALLOW_WRITE"
+INTEGRATED_HANDOFF_REQUIRED = (
+    "--mapper-handoff is required when --mapper-mode is integrated (the default). "
+    "Pass a Mapper handoff JSON, or set --mapper-mode bootstrap for the explicit "
+    "development fallback. Fast never silently bootstraps."
+)
+WRITE_DISABLED_MESSAGE = (
+    "--write is disabled. Mutation owner is simplicio-dev-cli; Fast does not "
+    "mutate source as the hot path. Dry-run is the default. Set "
+    f"{WRITE_ALLOW_ENV}=1 only for the explicit bootstrap write path."
+)
 _RUST_SESSIONS: dict[str, RustCoreSession] = {}
+
+
+class WriteDisabledError(ValueError):
+    reason_code = "write_disabled"
+
+    def __init__(self, message: str = WRITE_DISABLED_MESSAGE) -> None:
+        super().__init__(message)
 
 
 def _close_rust_sessions() -> None:
@@ -194,6 +214,41 @@ def json_option(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def add_mapper_mode_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--mapper-mode",
+        choices=("bootstrap", "integrated"),
+        default=DEFAULT_MAPPER_MODE,
+        help=(
+            "snapshot input mode (default: integrated). Integrated consumes only "
+            "the supplied canonical Mapper handoff; bootstrap is an explicit "
+            "development fallback and never the default"
+        ),
+    )
+    parser.add_argument(
+        "--mapper-handoff",
+        default=None,
+        help=(
+            "JSON file emitted by `simplicio-mapper fast-handoff` "
+            "(required when --mapper-mode is integrated)"
+        ),
+    )
+
+
+def _load_mapper_handoff(path: str | None) -> dict[str, object]:
+    if not path:
+        raise MapperIngestError("mapper_missing", INTEGRATED_HANDOFF_REQUIRED)
+    handoff = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(handoff, dict):
+        raise ValueError("--mapper-handoff must contain a JSON object")
+    return handoff
+
+
+def _require_write_authorization() -> None:
+    if os.environ.get(WRITE_ALLOW_ENV) != "1":
+        raise WriteDisabledError()
+
+
 def _compile_mapper_snapshot(
     root: Path, output: Path, mapper_handoff: dict[str, object]
 ) -> tuple[dict[str, object], dict[str, object]]:
@@ -225,15 +280,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="simplicio-fast",
         description=(
-            "Simplicio Fast is semantic project memory and guarded change coordination for AI coding tools.\n\n"
-            "It ingests a repository into an incremental binary/mmap snapshot, returns bounded\n"
-            "hash-verified context, compiles PlanDAGs, and validates changesets without replacing\n"
-            "the source files. Mapper owns canonical extraction; Dev CLI owns mechanical edits;\n"
-            "Loop owns convergence; Runtime owns policy and effects."
+            "Simplicio Fast is semantic project memory for AI coding tools.\n\n"
+            "It ingests a repository into an incremental binary/mmap snapshot and returns\n"
+            "bounded hash-verified context. Mapper owns canonical extraction; Fast owns\n"
+            "cache, query and context; simplicio-dev-cli owns mechanical source mutation;\n"
+            "Loop owns convergence. Fast does not mutate source as the hot path."
         ),
         epilog=(
-            "Typical flow: build/ingest -> context or understand -> plan -> apply (dry-run first)\n"
-            "-> refresh and validate. Use --help on a subcommand for its JSON contract.\n"
+            "Typical flow: ingest (Mapper handoff) -> context or query.\n"
+            "Default --mapper-mode is integrated and requires --mapper-handoff.\n"
+            "Mutation owner is simplicio-dev-cli. apply/delivery/--write remain for one\n"
+            "cycle as dry-run by default; writes require SIMPLICIO_FAST_ALLOW_WRITE=1.\n"
             "Never read .sfast offsets directly: use versioned Fast or Mapper handles."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -262,8 +319,10 @@ def build_parser() -> argparse.ArgumentParser:
                 )
             ),
             description=(
-                "Publish a bounded snapshot; integrated mode projects a validated "
-                "canonical Mapper handoff and bootstrap mode is development-only."
+                "Publish a bounded snapshot under .simplicio/fast/project.sfast. "
+                "Default --mapper-mode integrated projects a validated canonical "
+                "Mapper handoff and fails closed without --mapper-handoff. "
+                "Bootstrap mode is an explicit development-only choice."
             ),
         )
         command.add_argument(
@@ -290,20 +349,7 @@ def build_parser() -> argparse.ArgumentParser:
                 f"(default: {DEFAULT_MAX_SOURCE_FILE_BYTES})"
             ),
         )
-        command.add_argument(
-            "--mapper-mode",
-            choices=("bootstrap", "integrated"),
-            default="bootstrap",
-            help=(
-                "snapshot input mode; integrated consumes only the supplied canonical "
-                "Mapper handoff"
-            ),
-        )
-        command.add_argument(
-            "--mapper-handoff",
-            default=None,
-            help="JSON file emitted by `simplicio-mapper fast-handoff`",
-        )
+        add_mapper_mode_arguments(command)
         json_option(command)
     query = commands.add_parser(
         "query",
@@ -448,21 +494,18 @@ def build_parser() -> argparse.ArgumentParser:
             choices=("semantic", "legacy-regex"),
             default="semantic",
         )
-        command.add_argument(
-            "--mapper-mode",
-            choices=("bootstrap", "integrated"),
-            default="bootstrap",
-            help="context source mode; integrated requires a canonical Mapper handoff",
-        )
-        command.add_argument(
-            "--mapper-handoff",
-            default=None,
-            help="JSON file emitted by `simplicio-mapper fast-handoff`",
-        )
+        add_mapper_mode_arguments(command)
 
     delivery = commands.add_parser(
         "delivery",
-        help="prepare or execute guarded delivery and emit a cache/provenance receipt",
+        help=(
+            "prepare a guarded delivery receipt; mutation owner is simplicio-dev-cli"
+        ),
+        description=(
+            "Fast does not mutate source as the hot path. Mutation owner is "
+            "simplicio-dev-cli. Delivery remains for one cycle as a dry-run "
+            "receipt surface. --write requires SIMPLICIO_FAST_ALLOW_WRITE=1."
+        ),
     )
     delivery.add_argument("task", help="task or issue text")
     delivery.add_argument("--root", default=".", help="repository root (default: .)")
@@ -471,20 +514,7 @@ def build_parser() -> argparse.ArgumentParser:
     delivery.add_argument(
         "--profile", choices=("full", "loop-standalone"), default="loop-standalone"
     )
-    delivery.add_argument(
-        "--mapper-mode",
-        choices=("bootstrap", "integrated"),
-        default="integrated",
-        help=(
-            "context producer mode (default: integrated); "
-            "bootstrap is an explicit development fallback"
-        ),
-    )
-    delivery.add_argument(
-        "--mapper-handoff",
-        default=None,
-        help="JSON file emitted by `simplicio-mapper fast-handoff`",
-    )
+    add_mapper_mode_arguments(delivery)
     delivery.add_argument(
         "--selection-mode",
         choices=("semantic", "legacy-regex"),
@@ -506,7 +536,10 @@ def build_parser() -> argparse.ArgumentParser:
     delivery.add_argument(
         "--write",
         action="store_true",
-        help="apply a validated changeset; dry-run is the default",
+        help=(
+            "legacy bootstrap write; disabled unless SIMPLICIO_FAST_ALLOW_WRITE=1. "
+            "Mutation owner is simplicio-dev-cli"
+        ),
     )
     delivery.add_argument(
         "--idempotency-key", default=None, help="stable delivery replay key"
@@ -519,9 +552,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     apply_command = commands.add_parser(
         "apply",
-        help="validate or apply a hash-guarded structured changeset",
+        help=(
+            "legacy dry-run changeset validator; mutation owner is simplicio-dev-cli"
+        ),
         description=(
-            "Dry-run by default. Use --write only after inspecting the generated receipt."
+            "Fast does not mutate source as the hot path. Mutation owner is "
+            "simplicio-dev-cli. This command remains for one cycle as a dry-run "
+            "validator. --write requires SIMPLICIO_FAST_ALLOW_WRITE=1."
         ),
     )
     apply_command.add_argument(
@@ -531,7 +568,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--root", default=".", help="repository root (default: .)"
     )
     apply_command.add_argument(
-        "--write", action="store_true", help="atomically replace validated source files"
+        "--write",
+        action="store_true",
+        help=(
+            "legacy bootstrap write; disabled unless SIMPLICIO_FAST_ALLOW_WRITE=1. "
+            "Mutation owner is simplicio-dev-cli"
+        ),
     )
 
     changeset = commands.add_parser(
@@ -587,13 +629,25 @@ def build_parser() -> argparse.ArgumentParser:
 
     materialize_changeset = changeset_commands.add_parser(
         "materialize",
-        help="materialize through the installed Dev CLI adapter and refresh changed inputs",
+        help=(
+            "legacy materialize through Dev CLI; mutation owner is simplicio-dev-cli"
+        ),
+        description=(
+            "Fast does not mutate source as the hot path. Mutation owner is "
+            "simplicio-dev-cli. Dry-run is the default. --write requires "
+            "SIMPLICIO_FAST_ALLOW_WRITE=1."
+        ),
     )
     materialize_changeset.add_argument("binary")
     materialize_changeset.add_argument("--root", default=".")
     materialize_changeset.add_argument("--journal", required=True)
     materialize_changeset.add_argument(
-        "--write", action="store_true", help="authorize the source mutation"
+        "--write",
+        action="store_true",
+        help=(
+            "legacy bootstrap write; disabled unless SIMPLICIO_FAST_ALLOW_WRITE=1. "
+            "Mutation owner is simplicio-dev-cli"
+        ),
     )
 
     reconcile = changeset_commands.add_parser(
@@ -766,6 +820,8 @@ def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
     try:
+        if getattr(args, "write", False):
+            _require_write_authorization()
         selection = select_engine(args.fast_engine)
         bridged = _rust_bridge(selection, args)
         if bridged is not None:
@@ -775,15 +831,7 @@ def main() -> int:
             processor = ProjectProcessor(Path(args.root), Path(args.output))
             if args.command == "ingest":
                 if args.mapper_mode == "integrated":
-                    if not args.mapper_handoff:
-                        raise ValueError(
-                            "--mapper-handoff is required for integrated ingest"
-                        )
-                    handoff = json.loads(
-                        Path(args.mapper_handoff).read_text(encoding="utf-8")
-                    )
-                    if not isinstance(handoff, dict):
-                        raise ValueError("--mapper-handoff must contain a JSON object")
+                    handoff = _load_mapper_handoff(args.mapper_handoff)
                     compiled, provenance = _compile_mapper_snapshot(
                         Path(args.root).resolve(), Path(args.output), handoff
                     )
@@ -804,15 +852,7 @@ def main() -> int:
                 )
                 return 0
             if args.mapper_mode == "integrated":
-                if not args.mapper_handoff:
-                    raise ValueError(
-                        "--mapper-handoff is required for integrated snapshot build"
-                    )
-                handoff = json.loads(
-                    Path(args.mapper_handoff).read_text(encoding="utf-8")
-                )
-                if not isinstance(handoff, dict):
-                    raise ValueError("--mapper-handoff must contain a JSON object")
+                handoff = _load_mapper_handoff(args.mapper_handoff)
                 compiled, provenance = _compile_mapper_snapshot(
                     Path(args.root).resolve(), Path(args.output), handoff
                 )
@@ -881,15 +921,7 @@ def main() -> int:
         elif args.command in {"understand", "plan"}:
             processor = ProjectProcessor(Path(args.root), Path(args.snapshot))
             if args.mapper_mode == "integrated":
-                if not args.mapper_handoff:
-                    raise ValueError(
-                        "--mapper-handoff is required for integrated context selection"
-                    )
-                handoff = json.loads(
-                    Path(args.mapper_handoff).read_text(encoding="utf-8")
-                )
-                if not isinstance(handoff, dict):
-                    raise ValueError("--mapper-handoff must contain a JSON object")
+                handoff = _load_mapper_handoff(args.mapper_handoff)
                 _compile_mapper_snapshot(
                     Path(args.root).resolve(), Path(args.snapshot), handoff
                 )
@@ -940,19 +972,16 @@ def main() -> int:
                     )
                 )
             else:
+                mapper_handoff = None
+                if args.mapper_mode == "integrated" or args.mapper_handoff:
+                    mapper_handoff = _load_mapper_handoff(args.mapper_handoff)
                 emit(
                     delivery_engine.prepare(
                         args.task,
                         profile=args.profile,
                         engine_receipt=_cli_engine_receipt(selection),
                         mode=args.mapper_mode,
-                        mapper_handoff=(
-                            json.loads(
-                                Path(args.mapper_handoff).read_text(encoding="utf-8")
-                            )
-                            if args.mapper_handoff
-                            else None
-                        ),
+                        mapper_handoff=mapper_handoff,
                         selection_mode=args.selection_mode,
                         tokenizer_id=args.tokenizer_id,
                         tokenizer=resolve_tokenizer(args.tokenizer_id),
@@ -1473,8 +1502,9 @@ def main() -> int:
                     "detail": error.detail,
                 }
             )
-        if isinstance(error, MapperIngestError):
-            payload["reason_code"] = error.reason_code
+        reason_code = getattr(error, "reason_code", None)
+        if isinstance(reason_code, str) and reason_code:
+            payload["reason_code"] = reason_code
         if isinstance(error, SnapshotBuildTimeout):
             payload.update(
                 {

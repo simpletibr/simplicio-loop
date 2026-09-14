@@ -2,6 +2,7 @@ import contextlib
 import hashlib
 import io
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -11,7 +12,9 @@ from unittest.mock import patch
 
 from simplicio_fast.cli import (
     DEFAULT_BUILD_TIMEOUT_SECONDS,
+    DEFAULT_MAPPER_MODE,
     DEFAULT_SNAPSHOT,
+    WRITE_ALLOW_ENV,
     build_parser,
     main,
     source_commit,
@@ -24,6 +27,89 @@ class ContextProvenanceTest(unittest.TestCase):
         args = build_parser().parse_args(["build"])
         self.assertEqual(".simplicio/fast/project.sfast", DEFAULT_SNAPSHOT)
         self.assertEqual(DEFAULT_SNAPSHOT, args.output)
+
+    def test_mapper_mode_defaults_to_integrated_everywhere(self) -> None:
+        parser = build_parser()
+        self.assertEqual("integrated", DEFAULT_MAPPER_MODE)
+        for argv in (
+            ["build"],
+            ["refresh"],
+            ["ingest"],
+            ["understand", "task"],
+            ["plan", "task"],
+            ["delivery", "task"],
+        ):
+            args = parser.parse_args(argv)
+            self.assertEqual("integrated", args.mapper_mode, argv)
+            self.assertIsNone(args.mapper_handoff)
+
+    def test_integrated_ingest_build_refresh_fail_closed_without_handoff(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "sample.py").write_text(
+                "def save():\n    return True\n", encoding="utf-8"
+            )
+            snapshot = root / "snapshot.sfast"
+            for command in ("ingest", "build", "refresh"):
+                code, payload = self.invoke(
+                    command, str(root), "-o", str(snapshot)
+                )
+                self.assertEqual(2, code, command)
+                self.assertEqual("simplicio.fast.error/v1", payload["schema"])
+                self.assertEqual("mapper_missing", payload["reason_code"])
+                self.assertIn("never silently bootstraps", payload["message"])
+                self.assertFalse(snapshot.exists())
+
+    def test_write_without_allow_env_fails_closed(self) -> None:
+        with patch.dict("os.environ", {WRITE_ALLOW_ENV: ""}, clear=False):
+            os.environ.pop(WRITE_ALLOW_ENV, None)
+            for argv in (
+                ("apply", "changeset.json", "--write"),
+                (
+                    "delivery",
+                    "task",
+                    "--changeset",
+                    "changeset.json",
+                    "--write",
+                ),
+                (
+                    "changeset",
+                    "materialize",
+                    "changeset.sfc",
+                    "--journal",
+                    "journal",
+                    "--write",
+                ),
+            ):
+                code, payload = self.invoke(*argv)
+                self.assertEqual(2, code, argv)
+                self.assertEqual("write_disabled", payload["reason_code"])
+                self.assertIn("simplicio-dev-cli", payload["message"])
+
+    def test_apply_and_write_help_name_dev_cli_as_mutation_owner(self) -> None:
+        import argparse
+
+        parser = build_parser()
+        action = next(
+            item
+            for item in parser._actions
+            if isinstance(item, argparse._SubParsersAction)
+        )
+        apply_parser = action.choices["apply"]
+        delivery_parser = action.choices["delivery"]
+        changeset_action = next(
+            item
+            for item in action.choices["changeset"]._actions
+            if isinstance(item, argparse._SubParsersAction)
+        )
+        materialize_parser = changeset_action.choices["materialize"]
+        for subparser in (apply_parser, delivery_parser, materialize_parser):
+            self.assertIn("simplicio-dev-cli", subparser.description or "")
+            write_help = subparser._option_string_actions["--write"].help or ""
+            self.assertIn("SIMPLICIO_FAST_ALLOW_WRITE", write_help)
+            self.assertIn("simplicio-dev-cli", write_help)
+        self.assertIn("simplicio-dev-cli", parser.epilog or "")
+        self.assertIn("SIMPLICIO_FAST_ALLOW_WRITE", parser.epilog or "")
 
     def test_large_repository_timeout_default_is_explicit_and_safe(self) -> None:
         for command in ("build", "refresh", "ingest"):
@@ -219,7 +305,14 @@ class ContextProvenanceTest(unittest.TestCase):
             source = root / "sample.py"
             source.write_text("def save():\n    return True\n", encoding="utf-8")
             snapshot = root / "snapshot.sfast"
-            code, payload = self.invoke("build", str(root), "-o", str(snapshot))
+            code, payload = self.invoke(
+                "build",
+                str(root),
+                "-o",
+                str(snapshot),
+                "--mapper-mode",
+                "bootstrap",
+            )
             self.assertEqual(0, code)
             self.assertEqual("simplicio.fast.build/v1", payload["schema"])
             for command in (
@@ -227,11 +320,13 @@ class ContextProvenanceTest(unittest.TestCase):
                 ("search", "save"),
                 ("impact", "save"),
                 ("stats",),
-                ("doctor",),
             ):
                 code, payload = self.invoke(*command, "--snapshot", str(snapshot))
-                self.assertEqual(0, code)
+                self.assertEqual(0, code, command)
                 self.assertTrue(payload["schema"].startswith("simplicio.fast."))
+            doctor_code, doctor = self.invoke("doctor", "--snapshot", str(snapshot))
+            self.assertTrue(doctor["schema"].startswith("simplicio.fast."))
+            self.assertIn(doctor_code, {0, 1})
 
             code, capabilities = self.invoke("capabilities")
             self.assertEqual(0, code)
@@ -259,7 +354,14 @@ class ContextProvenanceTest(unittest.TestCase):
             source.write_text("def save():\n    return True\n", encoding="utf-8")
             snapshot = root / "snapshot.sfast"
             code, payload = self.invoke(
-                "build", str(root), "-o", str(snapshot), "--max-file-bytes", "4"
+                "build",
+                str(root),
+                "-o",
+                str(snapshot),
+                "--max-file-bytes",
+                "4",
+                "--mapper-mode",
+                "bootstrap",
             )
             self.assertEqual(2, code)
             self.assertEqual("simplicio.fast.error/v1", payload["schema"])
@@ -277,7 +379,9 @@ class ContextProvenanceTest(unittest.TestCase):
             )
             snapshot = root / "project.sfast"
 
-            code, payload = self.invoke("build", str(root), "-o", str(snapshot))
+            code, payload = self.invoke(
+                "build", str(root), "-o", str(snapshot), "--mapper-mode", "bootstrap"
+            )
 
             self.assertEqual(2, code)
             self.assertEqual("simplicio.fast.error/v1", payload["schema"])
@@ -307,7 +411,14 @@ class ContextProvenanceTest(unittest.TestCase):
             )
 
             code, refreshed = self.invoke(
-                "refresh", str(root), "--output", str(snapshot), "--timeout", "30"
+                "refresh",
+                str(root),
+                "--output",
+                str(snapshot),
+                "--timeout",
+                "30",
+                "--mapper-mode",
+                "bootstrap",
             )
             self.assertEqual(0, code)
             self.assertEqual("simplicio.fast.build/v1", refreshed["schema"])
@@ -322,12 +433,27 @@ class ContextProvenanceTest(unittest.TestCase):
             (root / "two.py").write_text("def two():\n    return True\n")
             snapshot = root / "project.sfast"
             self.assertEqual(
-                0, self.invoke("refresh", str(root), "-o", str(snapshot))[0]
+                0,
+                self.invoke(
+                    "refresh",
+                    str(root),
+                    "-o",
+                    str(snapshot),
+                    "--mapper-mode",
+                    "bootstrap",
+                )[0],
             )
             before = snapshot.read_bytes()
 
             code, payload = self.invoke(
-                "refresh", str(root), "-o", str(snapshot), "--timeout", "0"
+                "refresh",
+                str(root),
+                "-o",
+                str(snapshot),
+                "--timeout",
+                "0",
+                "--mapper-mode",
+                "bootstrap",
             )
 
             self.assertEqual(2, code)

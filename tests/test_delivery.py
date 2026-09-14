@@ -561,6 +561,7 @@ class DeliveryEngineTest(unittest.TestCase):
                 "simplicio_fast.processor.run_dev_cli_changeset", return_value=None
             ):
                 with (
+                    patch.dict(os.environ, {"SIMPLICIO_FAST_ALLOW_WRITE": "1"}),
                     patch.object(sys, "argv", argv),
                     contextlib.redirect_stdout(output),
                 ):
@@ -606,21 +607,24 @@ class DeliveryEngineTest(unittest.TestCase):
     def test_full_write_delegates_to_coordinator_authorized_runtime_transaction(
         self,
     ) -> None:
-        from simplicio.plan_compiler.authority import (
-            EffectAuthorization,
-            build_change_proposal,
-        )
-        from simplicio.plan_compiler.effect_sink import EffectDispatchContext
-        from simplicio.plan_compiler.models import (
-            EffectPlan,
-            PlanDAG,
-            PlanNode,
-            VerificationPlan,
-        )
-        from simplicio.plan_compiler.runtime_effect_sink import (
-            OfflineRuntimeTransport,
-            RuntimeEffectSink,
-        )
+        try:
+            from simplicio.plan_compiler.authority import (
+                EffectAuthorization,
+                build_change_proposal,
+            )
+            from simplicio.plan_compiler.effect_sink import EffectDispatchContext
+            from simplicio.plan_compiler.models import (
+                EffectPlan,
+                PlanDAG,
+                PlanNode,
+                VerificationPlan,
+            )
+            from simplicio.plan_compiler.runtime_effect_sink import (
+                OfflineRuntimeTransport,
+                RuntimeEffectSink,
+            )
+        except ModuleNotFoundError:
+            self.skipTest("simplicio-runtime is not installed")
 
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

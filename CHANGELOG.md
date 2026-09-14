@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Integrated ingest accepts public `simplicio.map-handoff/v1` from
+  `simplicio-mapper handoff` as well as `simplicio.mapper-fast-handoff/v1`.
+- Default `--mapper-mode` is `integrated` for ingest/build/refresh/understand/plan.
+  Missing `--mapper-handoff` fails closed; bootstrap remains an explicit choice.
+- CLI `--write` on apply/delivery/changeset materialize requires
+  `SIMPLICIO_FAST_ALLOW_WRITE=1`. Mutation owner is simplicio-dev-cli.
+
 ## 2.0.32 - 2026-09-10
 - Report the delivered source range and incomplete fidelity when bounded context cuts occur.
 - Preserve requested ranges, byte offsets, omitted ranges, and separate delivered-content identity.

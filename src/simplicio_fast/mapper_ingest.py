@@ -13,6 +13,14 @@ from typing import Any, Mapping
 
 SCHEMA = "simplicio.fast.mapper-ingest/v1"
 HANDOFF_SCHEMA = "simplicio.mapper-fast-handoff/v1"
+PUBLIC_HANDOFF_SCHEMA = "simplicio.map-handoff/v1"
+PUBLIC_ARTIFACTS = (
+    ("context_snapshot", ".simplicio/context-snapshot.json"),
+    ("project_map", ".simplicio/project-map.json"),
+    ("symbol_index", ".simplicio/symbol-index.json"),
+    ("call_graph", ".simplicio/call-graph.json"),
+    ("architecture_inventory", ".simplicio/architecture-inventory.json"),
+)
 
 
 class MapperIngestError(ValueError):
@@ -95,21 +103,77 @@ def _installed_mapper_version() -> str:
         return "unknown"
 
 
+def _adapt_public_map_handoff(root: Path, envelope: dict[str, Any]) -> dict[str, Any]:
+    """Translate public ``simplicio.map-handoff/v1`` into the ingest envelope."""
+    if envelope.get("ready") is not True:
+        raise MapperIngestError(
+            "mapper_incomplete",
+            str(envelope.get("reason") or "public mapper handoff is not ready"),
+        )
+    artifacts: list[dict[str, Any]] = []
+    for name, relative in PUBLIC_ARTIFACTS:
+        path = root / relative
+        if not path.is_file():
+            continue
+        digest, size = _sha256(path)
+        artifacts.append(
+            {"name": name, "path": relative, "bytes": size, "sha256": digest}
+        )
+    if not artifacts:
+        raise MapperIngestError("mapper_incomplete", "no mapper artifacts on disk")
+    pack = envelope.get("context_pack") if isinstance(envelope.get("context_pack"), dict) else {}
+    snapshot = pack.get("source_snapshot") if isinstance(pack.get("source_snapshot"), dict) else {}
+    generation = str(
+        snapshot.get("snapshot_id")
+        or (envelope.get("status") or {}).get("phase")
+        or "mapper-handoff"
+    ).strip()
+    if not generation:
+        generation = "mapper-handoff"
+    changed_paths: list[str] = []
+    for item in envelope.get("targets") or []:
+        if not isinstance(item, str) or not item or Path(item).is_absolute() or ".." in Path(item).parts:
+            continue
+        changed_paths.append(Path(item).as_posix())
+    inner = {
+        "schema": HANDOFF_SCHEMA,
+        "repository_id": root.name,
+        "revision": _head(root),
+        "generation": generation,
+        "producer": {"name": "simplicio-mapper", "version": _installed_mapper_version()},
+        "fidelity": {"gate": "ready", "source": PUBLIC_HANDOFF_SCHEMA},
+        "artifacts": artifacts,
+        "delta": {"changed_paths": sorted(set(changed_paths))},
+    }
+    body = json.dumps(inner, ensure_ascii=True, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return {
+        "handoff": inner,
+        "receipt": {
+            "schema": "simplicio.mapper-fast-handoff-receipt/v1",
+            "status": "parsed",
+            "handoff_sha256": hashlib.sha256(body).hexdigest(),
+            "generation": generation,
+            "counters": {"parsed": 1, "reused": 0, "degraded": 0, "fallback": 0},
+        },
+    }
+
+
 def validate_handoff(
     root: Path,
     envelope: dict[str, Any],
     *,
     expected_generation: str | None = None,
 ) -> dict[str, Any]:
-    """Validate a real ``simplicio-mapper fast-handoff`` JSON envelope.
+    """Validate a Mapper handoff envelope for integrated ingest.
 
-    The adapter only consumes documented metadata and artifact digests. It does
-    not reinterpret Mapper graph nodes or manufacture stable IDs. When a caller
-    pins a generation, the pin is part of the interface and stale handoffs are
-    rejected before Fast compiles or reads a snapshot.
+    Accepts the public ``simplicio.map-handoff/v1`` (``simplicio-mapper handoff``)
+    and the machine envelope ``simplicio.mapper-fast-handoff/v1``. The adapter
+    only consumes documented metadata and artifact digests.
     """
     if not isinstance(envelope, dict):
         raise MapperIngestError("mapper_schema_unsupported")
+    if envelope.get("schema") == PUBLIC_HANDOFF_SCHEMA:
+        envelope = _adapt_public_map_handoff(root, envelope)
     handoff = envelope.get("handoff")
     receipt = envelope.get("receipt")
     if not isinstance(handoff, dict) or not isinstance(receipt, dict):

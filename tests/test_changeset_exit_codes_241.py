@@ -37,6 +37,7 @@ def test_materialize_cli_fails_closed_on_locked_receipt(monkeypatch, tmp_path, c
             "reconcile_required": True,
         },
     )
+    monkeypatch.setenv("SIMPLICIO_FAST_ALLOW_WRITE", "1")
     monkeypatch.setattr(
         sys,
         "argv",

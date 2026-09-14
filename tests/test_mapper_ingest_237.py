@@ -90,6 +90,31 @@ def test_validates_mapper_owned_handoff_and_artifact_digest(tmp_path: Path) -> N
     assert provenance["generation"] == "g1"
 
 
+def test_accepts_public_map_handoff_v1(tmp_path: Path) -> None:
+    root = tmp_path / "checkers-1284"
+    artifact = root / ".simplicio" / "project-map.json"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text('{"schema":"simplicio.project-map/v1"}\n', encoding="utf-8")
+    envelope = {
+        "schema": "simplicio.map-handoff/v1",
+        "ready": True,
+        "reason": "",
+        "targets": ["site/checkers.html"],
+        "status": {"phase": "complete", "fresh": True},
+        "context_pack": {"source_snapshot": {"snapshot_id": "snap-1"}},
+    }
+    with patch("simplicio_fast.mapper_ingest._head", return_value="b" * 40):
+        provenance = validate_handoff(root, envelope)
+    assert provenance["mode"] == "integrated"
+    assert provenance["repository_id"] == "checkers-1284"
+    assert provenance["generation"] == "snap-1"
+    assert provenance["changed_paths"] == ["site/checkers.html"]
+    assert provenance["artifacts"][0]["name"] == "project_map"
+
+    with pytest.raises(MapperIngestError, match="mapper_incomplete"):
+        validate_handoff(root, {"schema": "simplicio.map-handoff/v1", "ready": False, "reason": "budget_exceeded"})
+
+
 def test_accepts_complete_reused_mapper_handoff(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     root.mkdir()

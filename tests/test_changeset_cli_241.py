@@ -33,6 +33,7 @@ class ChangesetCli241Test(unittest.TestCase):
 
         environment = dict(os.environ)
         environment["PYTHONPATH"] = str(ROOT / "src")
+        environment["SIMPLICIO_FAST_ALLOW_WRITE"] = "1"
         with tempfile.TemporaryDirectory() as directory:
             stdout_path = Path(directory) / "stdout.txt"
             stderr_path = Path(directory) / "stderr.txt"
@@ -68,6 +69,7 @@ class ChangesetCli241Test(unittest.TestCase):
             self.skipTest("simplicio-fast console entrypoint is not installed")
         environment = dict(os.environ)
         environment["PYTHONPATH"] = str(ROOT / "src")
+        environment["SIMPLICIO_FAST_ALLOW_WRITE"] = "1"
         with tempfile.TemporaryDirectory() as directory:
             stdout_path = Path(directory) / "stdout.txt"
             stderr_path = Path(directory) / "stderr.txt"
