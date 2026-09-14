@@ -60,6 +60,35 @@ def test_resolve_profile_runtime_backed_when_operational(monkeypatch):
     assert sm.resolve_execution_profile({"SIMPLICIO_EXECUTION_PROFILE": "standalone"}) == "standalone"
 
 
+def test_recommended_env_keeps_runtime_off(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_ECONOMY_PARALLEL", "0")
+    monkeypatch.setattr(
+        sm,
+        "runtime_status",
+        lambda env=None: {
+            "binary": "simplicio",
+            "present": True,
+            "operational": True,
+            "version": "3.5.5",
+            "error": "",
+        },
+    )
+    monkeypatch.setattr(
+        sm,
+        "fast_status",
+        lambda env=None: {
+            "binary": "simplicio-fast",
+            "present": False,
+            "operational": False,
+            "version": "",
+            "error": "",
+        },
+    )
+    rec = sm.recommended_env({})
+    assert rec["SIMPLICIO_LOOP_REQUIRE_RUNTIME"] == "off"
+    assert rec["SIMPLICIO_EXECUTION_PROFILE"] == "standalone"
+
+
 def test_hand_edit_forbidden_under_strict():
     assert sm.hand_edit_forbidden({"SIMPLICIO_LOOP_STRICT": "1"}) is True
     assert sm.hand_edit_forbidden({}) is False

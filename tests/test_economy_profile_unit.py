@@ -31,6 +31,14 @@ def test_prism_slots_machine_max_scales_with_cpu(monkeypatch):
     assert ep.recommend_prism_slots(16) == 2
 
 
+def test_economy_env_does_not_bind_runtime_even_when_operational():
+    env = ep.economy_parallel_env(runtime_operational=True, prism_slots=4, operator_workers=6)
+    assert env["SIMPLICIO_LOOP_REQUIRE_RUNTIME"] == "off"
+    assert env["SIMPLICIO_EXECUTION_PROFILE"] == "standalone"
+    assert env["SIMPLICIO_REQUIRE_MCP"] == "0"
+    assert env["SIMPLICIO_MCP_FORCE"] == "0"
+
+
 def test_economy_env_enables_fan_out_and_latest():
     env = ep.economy_parallel_env(runtime_operational=True, prism_slots=4, operator_workers=6)
     assert env["SIMPLICIO_LOOP_AUTO_FAN_OUT"] == "1"
@@ -39,9 +47,9 @@ def test_economy_env_enables_fan_out_and_latest():
     assert env["SIMPLICIO_PRISM_BATCH_SIZE"] == "10"
     assert env["SIMPLICIO_LOOP_OPERATOR_WORKERS"] == "6"
     assert env["SIMPLICIO_FAST_MODE"] == "required"
-    assert env["SIMPLICIO_REQUIRE_MCP"] == "1"
-    assert env["SIMPLICIO_MCP_FORCE"] == "1"
-    assert env["SIMPLICIO_EXECUTION_PROFILE"] == "auto"
+    assert env["SIMPLICIO_REQUIRE_MCP"] == "0"
+    assert env["SIMPLICIO_MCP_FORCE"] == "0"
+    assert env["SIMPLICIO_EXECUTION_PROFILE"] == "standalone"
 
 
 def test_profile_status_exposes_llm_max_speed_orientation():
