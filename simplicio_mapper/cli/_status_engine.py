@@ -1022,21 +1022,22 @@ def _build_handoff_payload(opts: dict) -> dict:
         "ready": not reasons,
         "reason": "; ".join(reasons),
         "targets": targets,
-        "status": status_payload,
+        "status": {
+            "schema": status_payload.get("schema"),
+            "phase": status_payload.get("phase"),
+            "fresh": status_payload.get("fresh"),
+            "artifacts_present": status_payload.get("artifacts_present"),
+            "completeness": status_payload.get("completeness"),
+            "counts": status_payload.get("counts") or {},
+        },
         "context_pack": context_pack,
         "evidence": {
-            **status_payload["evidence"],
             "pack_hash": pack_hash,
             "target_count": len(targets),
         },
         "cache": {
-            **status_payload["cache"],
             "pack_cached": pack_cache_hit,
             "pack_cache_key_hash": pack_cache_key_hash,
-            "pack_cache_receipt": pack_cache_receipt,
-            "pack_diagnostics": cache.explain(pack_cache_key_hash)
-            if pack_cache_key_hash
-            else {"present": False},
         },
     }
     if selection is not None:

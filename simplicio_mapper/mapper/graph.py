@@ -662,9 +662,7 @@ def _build_call_graph(
     seen: set[str] = set()
 
     def add_edge(edge: dict) -> None:
-        if edge.get("type") == "calls" and (
-            not edge.get("target_file") or edge.get("resolution_status") in {None, "unknown"}
-        ):
+        if not edge.get("target_file") or edge.get("resolution_status") in {None, "unknown"}:
             return
         edge["relation_id"] = relation_id(edge)
         key = edge["relation_id"]
@@ -679,21 +677,12 @@ def _build_call_graph(
             evidence_class = "import_resolved" if len(targets) == 1 else "lexical_ambiguous"
             candidates = sorted(targets)
             if not candidates:
-                add_edge({
-                    "type": "imports",
+                unresolved.append({
                     "source_file": file.path,
-                    "target_file": None,
-                    "import": imported,
-                    "evidence_class": "heuristic",
-                    "resolution_status": "unknown",
-                    "provenance": {
-                        "method": "import-resolution",
-                        "import": imported,
-                        "candidate_count": 0,
-                        "candidates": [],
-                    },
-                    "confidence": None,
+                    "queried_symbol": imported,
+                    "kind": "import",
                 })
+                continue
             for target in candidates:
                 if target == file.path:
                     continue
