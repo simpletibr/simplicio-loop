@@ -138,5 +138,8 @@ def test_public_help_names_both_accepted_contracts(capsys):
         main(["single-task-fast", "--help"])
     assert exc_info.value.code == 0
     output = capsys.readouterr().out
-    assert "JSON task for local-first execution" in output
-    assert "two-task Markdown collection" in output
+    # argparse wraps help text at the terminal width, so the accepted contract
+    # names must be asserted on the collapsed text rather than on raw lines.
+    collapsed = " ".join(output.split())
+    assert "JSON task for local-first execution" in collapsed
+    assert "two-task Markdown collection" in collapsed
