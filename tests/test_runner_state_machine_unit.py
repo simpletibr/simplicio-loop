@@ -13,7 +13,6 @@ All tests are in-process (no subprocess/CLI layer) so they register with
 coverage.py, and all fakes are deterministic (no real time, no network, no real
 mapper/dev-cli/watcher binaries).
 """
-import io
 import json
 import subprocess
 import sys
@@ -1514,29 +1513,11 @@ def test_operator_dispatch_attempt_wraps_unexpected_exception(tmp_path, monkeypa
     assert record["failure_fingerprint"]
 
 
-def test_legacy_openrouter_retry_keeps_feedback_from_the_previous_attempt(tmp_path, monkeypatch):
-    repo, run_id, _run_dir = _arm_fixture(tmp_path, monkeypatch)
-    detail = "independent verifier: expected Turn: Black but observed Turn: Red"
-    prompts = []
+def test_openrouter_to_mechanical_edit_fails_closed_without_host_plan(tmp_path, monkeypatch):
+    repo, run_id, run_dir = _arm_fixture(tmp_path, monkeypatch)
 
-    class _Response(io.BytesIO):
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return False
-
-    def opener(request, *, timeout):
-        del timeout
-        payload = json.loads(request.data.decode("utf-8"))
-        prompts.append(payload["messages"][1]["content"])
-        response = {
-            "choices": [{
-                "finish_reason": "stop",
-                "message": {"content": json.dumps({"files": {"src/app.py": "def main():\\n    return 'fixed'\\n"}})},
-            }],
-        }
-        return _Response(json.dumps(response).encode("utf-8"))
+    def opener(*_args, **_kwargs):
+        raise AssertionError("OpenRouter must not be called without a host plan")
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-secret")
     monkeypatch.setenv("OPENROUTER_BASE_URL", "https://openrouter.example/api/v1")
@@ -1545,11 +1526,48 @@ def test_legacy_openrouter_retry_keeps_feedback_from_the_previous_attempt(tmp_pa
     monkeypatch.delenv("SIMPLICIO_PROVIDER_WORKER", raising=False)
     monkeypatch.setattr(runner_mod, "_openrouter_operator_enabled", lambda: True)
     monkeypatch.setattr(openrouter_operator.urllib.request, "urlopen", opener)
+    monkeypatch.setattr(
+        runner_mod,
+        "_execute_operator_effect",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("apply must be skipped")),
+    )
+
+    result = runner_mod._execute_operator_unleased(str(repo), run_id)
+
+    receipt = json.loads((run_dir / "operator-receipt.json").read_text(encoding="utf-8"))
+    assert receipt["reason_code"] == "plan_required"
+    assert receipt["execution_state"] == "blocked"
+    assert receipt["provider_config"]["route"] == "openrouter-to-mechanical-edit"
+    assert result["state"]["phase"] == "blocked"
+
+
+def test_host_edit_plan_applies_without_calling_openrouter(tmp_path, monkeypatch):
+    repo, run_id, run_dir = _arm_fixture(tmp_path, monkeypatch)
+    plan = {
+        "schema": "simplicio.dev-cli.edit-plan/v1",
+        "operations": [
+            {"op": "replace_range", "path": "src/app.py", "start_line": 1, "end_line": 2, "text": "def main():\n    return 'fixed'\n"},
+        ],
+    }
+    (run_dir / "edit-plan.json").write_text(json.dumps(plan), encoding="utf-8")
+
+    def opener(*_args, **_kwargs):
+        raise AssertionError("OpenRouter must not generate a host plan")
+
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-secret")
+    monkeypatch.setenv("OPENROUTER_BASE_URL", "https://openrouter.example/api/v1")
+    monkeypatch.setenv("SIMPLICIO_MODEL", "test-model")
+    monkeypatch.setenv("SIMPLICIO_REQUIRE_MUTATION_AUTHORITY", "0")
+    monkeypatch.setattr(runner_mod, "_openrouter_operator_enabled", lambda: True)
+    monkeypatch.setattr(openrouter_operator.urllib.request, "urlopen", opener)
     monkeypatch.setattr(runner_mod, "gate_completion", lambda _evidence: (True, ""))
 
     def fake_effect(*, argv, repo_path, **_kwargs):
-        plan = json.loads(Path(argv[argv.index("--plan") + 1]).read_text(encoding="utf-8"))
-        operation = plan["operations"][0]
+        assert "edit" in argv
+        plan_path = Path(argv[argv.index("--plan") + 1])
+        loaded = json.loads(plan_path.read_text(encoding="utf-8"))
+        assert loaded["schema"] == "simplicio.dev-cli.edit-plan/v1"
+        operation = loaded["operations"][0]
         target = repo_path / operation["path"]
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(operation["text"], encoding="utf-8")
@@ -1564,10 +1582,11 @@ def test_legacy_openrouter_retry_keeps_feedback_from_the_previous_attempt(tmp_pa
         }
 
     monkeypatch.setattr(runner_mod, "_execute_operator_effect", fake_effect)
-    runner_mod._execute_operator_unleased(str(repo), run_id, repair_feedback=detail)
-
-    assert len(prompts) == 1
-    assert detail in prompts[0]
+    result = runner_mod._execute_operator_unleased(str(repo), run_id)
+    receipt = json.loads((run_dir / "operator-receipt.json").read_text(encoding="utf-8"))
+    assert receipt["provider_config"]["route"] == "host-edit-plan"
+    assert receipt["execution_state"] in {"applied", "no_change"}
+    assert result["state"]["operator"]["execution_state"] == receipt["execution_state"]
 
 
 if __name__ == "__main__":
