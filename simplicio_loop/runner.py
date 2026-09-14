@@ -16,7 +16,7 @@ from threading import RLock, Thread
 from collections import deque
 from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, ThreadPoolExecutor, wait
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Literal, Mapping, Optional, Sequence, Tuple, TypedDict
+from typing import Any, Callable, Collection, Dict, Iterable, List, Literal, Mapping, Optional, Sequence, Tuple, TypedDict
 
 from .delivery import (build_delivery_receipt, normalize_delivery_target,
                        reconcile_delivery_observation, write_delivery_receipt)
@@ -6646,6 +6646,45 @@ def _item_dependencies(item: Mapping[str, Any]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(_dependency_references(raw)))
 
 
+def _completed_task_aliases(
+    run_dir: Path,
+    tasks: Sequence[Mapping[str, Any]],
+    run_id: str,
+) -> set[str]:
+    """Aliases of tasks that already finished successfully in this run."""
+    aliases: set[str] = set()
+    for index, task in enumerate(tasks, start=1):
+        marker = run_dir / f"task-{index}-result.json"
+        if not marker.is_file():
+            continue
+        try:
+            result = _load_json(marker)
+        except (OSError, TypeError, ValueError):
+            continue
+        if result.get("status") not in {"applied", "no_change", "succeeded", "completed"}:
+            continue
+        aliases.update(_task_aliases(task, index, run_id))
+    return aliases
+
+
+def _omit_satisfied_dispatch_dependencies(
+    items: Iterable[Mapping[str, Any]],
+    *,
+    satisfied_aliases: Collection[str] = (),
+) -> list[Dict[str, Any]]:
+    """Drop DAG edges whose predecessor already completed outside this batch."""
+    satisfied = {str(alias).strip() for alias in satisfied_aliases if str(alias).strip()}
+    filtered: list[Dict[str, Any]] = []
+    for item in items:
+        row = dict(item)
+        spec = dict(row["task_spec"]) if isinstance(row.get("task_spec"), Mapping) else {}
+        remaining = [dependency for dependency in _item_dependencies({"task_spec": spec, **row}) if dependency not in satisfied]
+        spec["depends_on"] = remaining
+        row["task_spec"] = spec
+        filtered.append(row)
+    return filtered
+
+
 def _ordered_dispatch_items(items: Iterable[Mapping[str, Any]]) -> list[Dict[str, Any]]:
     """Return a stable topological order and fail closed on unknown/cyclic edges."""
     rows = [dict(item) for item in items]
@@ -8474,6 +8513,13 @@ def execute_operator_batch(
                 issue_ref=issue_ref, issue_url=issue_url,
             )
         items.append(item)
+    for index in indices:
+        step = contract_steps[index - 1] if index <= len(contract_steps) and isinstance(contract_steps[index - 1], Mapping) else None
+        _assert_task_dependencies_ready(run_dir, contract_tasks, index, run_id, step=step)
+    items = _omit_satisfied_dispatch_dependencies(
+        items,
+        satisfied_aliases=_completed_task_aliases(run_dir, contract_tasks, run_id),
+    )
     def _batch_stop_requested() -> bool:
         try:
             current = _load_json(Path(status["run_dir"]) / "state.json")
