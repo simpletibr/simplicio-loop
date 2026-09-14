@@ -1173,7 +1173,15 @@ def test_tick_executes_real_operator_boundary_and_binds_receipt(tmp_path, monkey
 
 
 def test_direct_tick_reuses_run_authority_attempt_after_prior_task(tmp_path, monkeypatch):
+    from tests.test_store_adapter import fake_mapper
+
+    fake_mapper(monkeypatch)
     monkeypatch.setenv("SIMPLICIO_STORAGE_ROUTE", "mapper")
+    monkeypatch.setattr(
+        runner_mod,
+        "_ensure_mapper_operations_store",
+        lambda *args, **kwargs: {"status": "ok", "route": "mapper"},
+    )
     repo, _, armed_payload, run_dir = _arm_deterministic_preflight_fixture(monkeypatch, tmp_path)
     run_id = armed_payload["manifest"]["run_id"]
     state = json.loads((run_dir / "state.json").read_text(encoding="utf-8"))
