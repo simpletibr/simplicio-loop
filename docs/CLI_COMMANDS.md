@@ -20,7 +20,7 @@ Every public command and nested action must explain its purpose through
 
 | Command | Function | Help |
 | --- | --- | --- |
-| `build`, `refresh`, `ingest` | Create or incrementally update the binary semantic snapshot | `simplicio-fast <command> --help` |
+| `build`, `refresh`, `ingest` | Create or incrementally update the binary semantic snapshot. Default `--mapper-mode integrated` requires `--mapper-handoff`; bootstrap is an explicit development fallback | `simplicio-fast <command> --help` |
 | `query`, `search` | Resolve symbols through snapshot indexes | `simplicio-fast <command> --help` |
 | `context` | Return bounded, hash-verified source spans for an LLM | `simplicio-fast context --help` |
 | `navigate` | Follow one bounded structural relation from a canonical handle | `simplicio-fast navigate --help` |
@@ -29,8 +29,8 @@ Every public command and nested action must explain its purpose through
 | `query-plan` | Explain the deterministic query/index budget plan | `simplicio-fast query-plan --help` |
 | `segments` | Publish, validate or map immutable snapshot sections | `simplicio-fast segments --help` |
 | `understand`, `plan` | Turn a natural-language task into bounded context or a PlanDAG | `simplicio-fast <command> --help` |
-| `delivery` | Prepare or execute guarded delivery with provenance/idempotency receipts | `simplicio-fast delivery --help` |
-| `apply` | Validate or apply a hash-guarded changeset; dry-run by default | `simplicio-fast apply --help` |
+| `delivery` | Prepare a guarded delivery receipt. Mutation owner is simplicio-dev-cli; `--write` requires `SIMPLICIO_FAST_ALLOW_WRITE=1` | `simplicio-fast delivery --help` |
+| `apply` | Legacy dry-run changeset validator. Mutation owner is simplicio-dev-cli; `--write` requires `SIMPLICIO_FAST_ALLOW_WRITE=1` | `simplicio-fast apply --help` |
 | `doctor` | Diagnose installation, integration and snapshot integrity | `simplicio-fast doctor --help` |
 | `rollout` | Record shadow/canary/integrated rollout transitions | `simplicio-fast rollout --help` |
 | `serve` | Run the small user CRUD HTTP proof-of-concept | `simplicio-fast serve --help` |
@@ -51,7 +51,7 @@ Every public command and nested action must explain its purpose through
 | `seal` | Copy and verify a binary changeset into sealed output |
 | `inspect` | Inspect binary metadata without exposing raw offsets |
 | `export-json` | Export a binary changeset as versioned JSON |
-| `materialize` | Materialize through the installed Dev CLI adapter and refresh inputs |
+| `materialize` | Legacy materialize through Dev CLI. Mutation owner is simplicio-dev-cli; `--write` requires `SIMPLICIO_FAST_ALLOW_WRITE=1` |
 | `reconcile` | Reconcile a locked unknown Dev CLI effect before retry |
 | `recover` | Recover an incomplete binary journal tail |
 
@@ -77,9 +77,10 @@ A ~10 MB generated bundle is accepted under the 80 MB default.
 ## Safe operating sequence
 
 ```text
---help -> build/ingest -> context/understand -> plan -> changeset validate
--> apply/delivery dry-run -> Dev CLI -> tests -> refresh -> rollout receipt
+--help -> ingest --mapper-handoff <file> -> context/query
+Mutation: simplicio-dev-cli edit --plan <json> --apply
 ```
 
-Fast does not replace Mapper extraction, Dev CLI source mutation, Runtime
-authorization or Loop convergence. Do not read `.sfast` offsets directly.
+Fast does not replace Mapper extraction or simplicio-dev-cli source mutation.
+Default snapshot output is `.simplicio/fast/project.sfast`. Do not read `.sfast`
+offsets directly.

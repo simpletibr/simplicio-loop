@@ -15,8 +15,13 @@ from simplicio_fast.parser_adapter import build_payload_from_mapper
 def test_delivery_cli_defaults_to_integrated_mode() -> None:
     from simplicio_fast.cli import build_parser
 
-    args = build_parser().parse_args(["delivery", "task"])
+    parser = build_parser()
+    args = parser.parse_args(["delivery", "task"])
     assert args.mapper_mode == "integrated"
+    for command in ("build", "refresh", "ingest"):
+        ingest_args = parser.parse_args([command])
+        assert ingest_args.mapper_mode == "integrated"
+        assert ingest_args.mapper_handoff is None
 
 
 def test_delivery_api_defaults_to_integrated_and_requires_mapper_handoff(tmp_path: Path) -> None:
