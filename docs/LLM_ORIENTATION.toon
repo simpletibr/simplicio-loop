@@ -20,12 +20,12 @@ project:
   runtime: simplicio 3.8.47
   reported_artifact_digest: "sha256:d49b9a1ad693b3e3887507ffca45053134a3954387bba78314fc3dd86bb4d168"
 source_of_truth[26]{path,authority,sha256,scope}:
-  AGENTS.md,normative,a4b523c03751eb6e365e816a4deebf138d5757ec4bfd37289c20bbf5061fa56c,agent policy and ecosystem ownership
-  CLAUDE.md,generated-mirror,55aee7b554bbd8a09a62c2d3654b42df0cd7d1ae583ec2d0bf54d996b6041cb2,generated mirror of AGENTS.md; do not edit
+  AGENTS.md,normative,73959b16ea1cacc88bf197fa54af99bda62f44d31493d68130f054dc6a206694,agent policy and ecosystem ownership
+  CLAUDE.md,generated-mirror,4252306eb9b486569fe8a8e4b68c7f6c09860fbc4756c0a697896cb61e3988a2,generated mirror of AGENTS.md; do not edit
   docs/LLM_OPERATING_INSTRUCTIONS.md,normative,808437b558efd53534a2e73de3586a07b651a1a20ef43884fe9d7d847a6e479f,active English instruction surface
   package.json,canonical,efc0ce9733f964c34b0273d5595d3b8ec98dcbae2d94030f64ad9905de1aebf4,"npm identity, version, scripts, Node entrypoints"
-  pyproject.toml,canonical,b0945bf057e6fc6b207f8193ece6a0748e137838e6fbc04cf1939ff6c1c102ff,"Python identity, version, dependencies, entrypoints"
-  docs/CLI_COMMANDS.md,discovery,2452921ee6ebcf99ed83c87ae44b1b2a101cb36f8bd347f46e519a2434b3373c,public command inventory and safe sequence
+  pyproject.toml,canonical,f6afbb9905efb172c5cee5a37f8516805f03a160dfae6e941197e99e56b760c9,"Python identity, version, dependencies, entrypoints"
+  docs/CLI_COMMANDS.md,discovery,f74d804ee3ed288fbe9872cae0737b662c1e4f9037d29bac43262a73ec349cdd,public command inventory and safe sequence
   docs/local-setup.md,operational,6b13828c4f27a27e5061310507f95f077010219a708467a7c70e6f097d311ecb,runtime and mapper environment knobs; contains template placeholders
   docs/domain-map.md,operational,be4a0d8654613c895b1759df4d4506ff4cf6e9000e8dda2dba58858dbe6c2398,"Mapper vocabulary, boundaries, partial-context rules"
   docs/architecture-map.md,reference-template,3812c82bfd6152eb2172ac1ed8bcbe7ebedc422839f34ea63a00a5f0f5c78d96,generic architecture template; not project-specific facts
@@ -34,11 +34,11 @@ source_of_truth[26]{path,authority,sha256,scope}:
   scripts/README.md,operational,a9ec5479fe184e39b50eeb150007c4356d1feb059bd698a9f3c2f6ca9c45350f,reusable scripts and evidence commands
   docs/evidence/README.md,operational,1a6353b6c73f75e7dca277eea87d88744cebeff574bc0a50a3e8e0a79a0a5116,proportional evidence policy
   docs/contract-registry.md,canonical,80dc609d7d368be8a4e40b2b97af0d92d5487f4a43101678e60ef4610487f330,Mapper-owned cross-repository contract inventory
-  docs/WORKER_ARTIFACT_CONTRACT.md,normative,1aa0d645b7b27873eabcc7c601cda06c1bfed4d2c88345c375633dae788b3eaf,bootstrap and central artifact provenance
+  docs/WORKER_ARTIFACT_CONTRACT.md,normative,a378b38afecbecb53fd7534f52411f567fa0693cae13511e116c3fc8f4828cd0,bootstrap and central artifact provenance
   contracts/io/v1/README.md,canonical,daf346c87e8312300791dc3ae3e746935e2968d0121169a55b1c4e946d10ee4f,shared public outer envelope; operation payload owners
   contracts/io/v1/schema.json,canonical,0249926b86ee59c6ca2ceebb7df755c1aa9c42dc86d3eb2f0ee24d974e93cd4a,shared public outer envelope schema
   contracts/mapper-artifacts/v1/README.md,canonical,0eff89596bd798c468c737c13cc6ee3ce9feca943991c312301a08aecbbc589a,public JSON artifact set and validation
-  contracts/mapper-artifacts/v1/CANONICAL_CONTRACT.md,canonical,29b39b228a4c5e0f7665212ec6cb67a7028e5b39475b33d1480871718a82b9f6,"field semantics, ordering, compatibility"
+  contracts/mapper-artifacts/v1/CANONICAL_CONTRACT.md,canonical,540dfe20af3ea4c95b6b0324b99b378d133349a607cf598480b42787db27261f,"field semantics, ordering, compatibility"
   contracts/context-snapshot/v1/CONTRACT.md,canonical,db9938cec2e2ebf2ddcd17f13dc4680232895d5f8aa731a5c852bf002dc2581d,ContextSnapshot/ContextGraph ownership and limits
   contracts/task-orientation/v1/README.md,canonical,ed00f0d9530cc793ddba90ceed0b30904ee077a9d914df38052850d9f9399a4b,offline task-intent/context boundary
   contracts/mapper-fast-handoff/v1/schema.json,canonical,3492d708a9bbca1570b511c204913c36e2272e720ce6db581e5ddbf0244cd741,Mapper-to-Fast handoff schema

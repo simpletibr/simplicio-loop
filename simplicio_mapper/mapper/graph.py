@@ -7,6 +7,7 @@ monolithic ``mapper.py`` (issue #159) -- pure move, no behavior change.
 
 from __future__ import annotations
 
+import keyword
 import os
 import posixpath
 import re
@@ -436,6 +437,14 @@ _CALL_SKIP_NAMES = {
     "if", "for", "while", "switch", "catch", "return", "function", "class", "def",
     "print", "len", "str", "int", "float", "bool", "list", "dict", "set", "tuple",
 }
+_PYTHON_KEYWORDS = frozenset(keyword.kwlist) | frozenset(getattr(keyword, "softkwlist", ()))
+
+
+def _is_skipped_call_name(name: str) -> bool:
+    """Control-flow keywords and lexical noise never become ``type=calls``."""
+    return name in _CALL_SKIP_NAMES or name in _PYTHON_KEYWORDS
+
+
 _CALL_GRAPH_LANGUAGES = {
     "python", "javascript", "typescript", "csharp", "razor", "go", "rust",
     "java", "kotlin", "php", "ruby",
@@ -447,7 +456,7 @@ def _call_expressions(text: str) -> list[tuple[str, int]]:
     calls = []
     for match in re.finditer(r"\b([A-Za-z_]\w*)\s*\(", text):
         name = match.group(1)
-        if name in _CALL_SKIP_NAMES:
+        if _is_skipped_call_name(name):
             continue
         calls.append((name, _line_number(text, match.start())))
     return calls
@@ -487,8 +496,10 @@ def _build_call_graph(
 
     The parser is intentionally conservative: name lookup can enumerate
     candidates, but it cannot claim language-semantic resolution.  Ambiguous
-    candidates stay as separate relations with the same call-site provenance;
-    unresolved call/import sites stay as explicit unknown relations.
+    candidates stay as separate relations with the same call-site provenance.
+    Unresolved *import* sites stay as explicit unknown relations.  Unresolved
+    *calls* never enter the graph (no ``resolution_status=unknown`` and no
+    null ``target_file``); they may appear on an optional ``unresolved`` list.
     """
     known_paths = {file.path for file in files}
     known_path_index = _known_path_suffix_index(known_paths)
@@ -516,6 +527,8 @@ def _build_call_graph(
         text = _content_for(cwd, file.path, contents)
         for name, line in _call_expressions(text):
             if (file.path, line, name) in definition_sites:
+                continue
+            if _is_skipped_call_name(name):
                 continue
             call_sites.append({"source_file": file.path, "name": name, "line": line})
 
@@ -645,9 +658,14 @@ def _build_call_graph(
         return None
 
     edges: list[dict] = []
+    unresolved: list[dict] = []
     seen: set[str] = set()
 
     def add_edge(edge: dict) -> None:
+        if edge.get("type") == "calls" and (
+            not edge.get("target_file") or edge.get("resolution_status") in {None, "unknown"}
+        ):
+            return
         edge["relation_id"] = relation_id(edge)
         key = edge["relation_id"]
         if key in seen:
@@ -700,9 +718,12 @@ def _build_call_graph(
         file = file_by_path[call_site["source_file"]]
         name = call_site["name"]
         line = call_site["line"]
+        if name in _PYTHON_KEYWORDS:
+            continue
         resolution = semantic_by_site.get((file.path, line, name))
         target = semantic_target(resolution) if resolution is not None else None
         targets = [target] if target is not None else list(symbols_by_name.get(name, []))
+        targets = [item for item in targets if item.get("defined_in")]
         target_candidates = sorted(
             str(item.get("symbol_id") or item.get("qualified_name") or item.get("name") or "")
             for item in targets
@@ -710,32 +731,12 @@ def _build_call_graph(
         is_semantic = target is not None and resolution is not None
         is_csharp = file.language in {"csharp", "razor"}
         if not targets:
-            caller = _nearest_symbol(
-                symbols,
-                file.path,
-                line,
-                symbols_by_file=symbols_by_file,
-                symbol_lines_by_file=symbol_lines_by_file,
-            )
-            add_edge({
-                "type": "calls",
+            unresolved.append({
                 "source_file": file.path,
-                "source_symbol": caller["qualified_name"] if caller else None,
-                "target_file": None,
-                "target_symbol": None,
                 "line": line,
-                "target_candidates": [],
-                "evidence_class": "heuristic",
-                "resolution_status": "unknown",
-                "provenance": {
-                    "method": "semantic-service-fallback" if is_csharp else "symbol-name-lookup",
-                    "queried_symbol": name,
-                    "candidate_count": 0,
-                    "candidates": [],
-                    "fallback_reason": semantic_resolution.get("reasons", []) if is_csharp else None,
-                },
-                "confidence": None,
+                "queried_symbol": name,
             })
+            continue
         for candidate in targets:
             if candidate["defined_in"] == file.path and candidate["line"] == line:
                 continue
@@ -794,7 +795,12 @@ def _build_call_graph(
         item.get("relation_id") or "",
     ))
     emitted_edges = ordered_edges[:limit]
-    return {
+    unresolved.sort(key=lambda item: (
+        str(item.get("source_file") or ""),
+        int(item.get("line") or 0),
+        str(item.get("queried_symbol") or ""),
+    ))
+    payload = {
         "schema": CALL_GRAPH_SCHEMA,
         "version": ARTIFACT_VERSION,
         "generated_at": generated_at,
@@ -812,6 +818,9 @@ def _build_call_graph(
         ),
         "semantic_resolution": semantic_resolution,
     }
+    if unresolved:
+        payload["unresolved"] = unresolved
+    return payload
 
 def _build_architecture_inventory(
     cwd: str,

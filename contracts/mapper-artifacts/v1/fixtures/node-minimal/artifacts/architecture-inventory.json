@@ -7,7 +7,7 @@
     "files": 3,
     "layers": 3,
     "modules": 3,
-    "relationships": 12,
+    "relationships": 6,
     "symbols": 2,
     "tests": 1
   },
@@ -197,7 +197,7 @@
   ],
   "producer": {
     "backend": "python",
-    "canonical_digest": "sha256:4214af5154622c17de3aa27109e05c8b550f4f0e0f5ba43ac47d6ac5dc307db5",
+    "canonical_digest": "sha256:13c0ffddddb9e27dbde657c6aa309052d898497471b1b0e55ac0e9689a2b356d",
     "capability_coverage": {
       "architecture": "full",
       "files": "full",
@@ -225,120 +225,20 @@
   "relationship_coverage": {
     "ambiguous_relations": 0,
     "edge_limit": 250,
-    "emitted_edges": 12,
+    "emitted_edges": 6,
     "evidence_classes": {
-      "heuristic": 8,
+      "heuristic": 2,
       "import_resolved": 1,
       "lexical_unique": 3
     },
     "invalid_edges": 0,
-    "observed_edges": 12,
+    "observed_edges": 6,
     "omitted_edges": 0,
     "status": "degraded",
     "truncated": false,
-    "unknown_relations": 8
+    "unknown_relations": 2
   },
   "relationships": [
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "line": 1,
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "fallback_reason": null,
-        "method": "symbol-name-lookup",
-        "queried_symbol": "require"
-      },
-      "relation_id": "4ff9bca86fef3d2a3350071aea372f28d957dae33aecb02cadbacb7603445cf3",
-      "resolution_status": "unknown",
-      "source_file": "spec/greet.spec.js",
-      "source_symbol": null,
-      "target_candidates": [],
-      "target_file": null,
-      "target_symbol": null,
-      "type": "calls"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "line": 2,
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "fallback_reason": null,
-        "method": "symbol-name-lookup",
-        "queried_symbol": "require"
-      },
-      "relation_id": "5ea3781541c15ff0cfdbad3f621537d2c8d6a8958ca082cd88a11b3b6afd7e52",
-      "resolution_status": "unknown",
-      "source_file": "spec/greet.spec.js",
-      "source_symbol": null,
-      "target_candidates": [],
-      "target_file": null,
-      "target_symbol": null,
-      "type": "calls"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "line": 3,
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "fallback_reason": null,
-        "method": "symbol-name-lookup",
-        "queried_symbol": "require"
-      },
-      "relation_id": "110a674f5e7859a9cf5c5ff7e7adf7c0af707054790a1abc63d8b2e331452d05",
-      "resolution_status": "unknown",
-      "source_file": "spec/greet.spec.js",
-      "source_symbol": null,
-      "target_candidates": [],
-      "target_file": null,
-      "target_symbol": null,
-      "type": "calls"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "line": 5,
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "fallback_reason": null,
-        "method": "symbol-name-lookup",
-        "queried_symbol": "test"
-      },
-      "relation_id": "a64e492f16528255aba9dfb881326465fadf816a31436a2ee3b25802d49d3d90",
-      "resolution_status": "unknown",
-      "source_file": "spec/greet.spec.js",
-      "source_symbol": null,
-      "target_candidates": [],
-      "target_file": null,
-      "target_symbol": null,
-      "type": "calls"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "line": 6,
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "fallback_reason": null,
-        "method": "symbol-name-lookup",
-        "queried_symbol": "strictEqual"
-      },
-      "relation_id": "b8f13404e9cd921b44b60fbddb287d2c5b87364bba978337ece7d890fce3cf86",
-      "resolution_status": "unknown",
-      "source_file": "spec/greet.spec.js",
-      "source_symbol": null,
-      "target_candidates": [],
-      "target_file": null,
-      "target_symbol": null,
-      "type": "calls"
-    },
     {
       "confidence": null,
       "evidence_class": "heuristic",
@@ -416,26 +316,6 @@
       ],
       "target_file": "src/index.js",
       "type": "imports"
-    },
-    {
-      "confidence": null,
-      "evidence_class": "heuristic",
-      "line": 8,
-      "provenance": {
-        "candidate_count": 0,
-        "candidates": [],
-        "fallback_reason": null,
-        "method": "symbol-name-lookup",
-        "queried_symbol": "log"
-      },
-      "relation_id": "26ac0a2e8066308b194b6351f81d62c7eda3f5c64b2ec81801a561afe316719e",
-      "resolution_status": "unknown",
-      "source_file": "src/index.js",
-      "source_symbol": "src/index.js::main",
-      "target_candidates": [],
-      "target_file": null,
-      "target_symbol": null,
-      "type": "calls"
     },
     {
       "confidence": null,

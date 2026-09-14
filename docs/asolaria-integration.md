@@ -53,14 +53,10 @@ Tests: `tests/python/test_cli_toon_asolaria.py` (`AsolariaTaggingTest`,
 
 ## Command surface note
 
-The issue's proposal text says `simplicio runtime map --tagged` — that
-command belongs to the separate `simplicio-runtime` (Rust) binary in a
-different repo, which itself shells out to this Python mapper as an
-adapter. This repo's own command surface is `simplicio-mapper index`
-(its "instant map refresh with JSON output" command), which is where these
-flags are implemented. Wiring an equivalent `--tagged`/`--geometry` pass-
-through on the `simplicio-runtime` side is out of scope here — that repo
-is not touched by this PR.
+Survey for this package is `simplicio-mapper scan` / `inspect` / `handoff`,
+not `simplicio runtime map`. Tagged/geometry flags live on
+`simplicio-mapper index`. Runtime is a separate product and is not this
+mapper's owner or survey path.
 
 ## P1 — not implemented, explicit follow-up
 

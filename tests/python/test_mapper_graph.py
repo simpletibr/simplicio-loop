@@ -19,6 +19,7 @@ sys.path.insert(0, str(ROOT))
 
 from simplicio_mapper import _native  # noqa: E402
 from simplicio_mapper.mapper.graph import (  # noqa: E402
+    _PYTHON_KEYWORDS,
     _build_call_graph,
     _build_symbol_index,
     _candidate_import_targets,
@@ -213,6 +214,75 @@ class SymbolLineNumberBlankLinesTest(unittest.TestCase):
             if e["type"] == "calls" and e["source_symbol"] == e["target_symbol"] == "src/app.py::greet"
         ]
         self.assertEqual(self_edges, [])
+
+
+class CallGraphFailClosedTest(unittest.TestCase):
+    def _file(self, path: str, text: str) -> ProjectFile:
+        return ProjectFile(
+            path=path,
+            language="python",
+            size_bytes=len(text),
+            last_modified="",
+            file_hash="",
+            git_status="",
+            roles=[],
+            imports=[],
+            exports=[],
+        )
+
+    def test_missing_name_is_unresolved_not_unknown_call(self) -> None:
+        text = "def run():\n    return missing_name()\n"
+        file = self._file("src/app.py", text)
+        symbols = _symbol_definitions_for_file(file, text)
+        graph = _build_call_graph(".", [file], {"symbols": symbols}, _now_iso(), contents={file.path: text})
+        calls = [edge for edge in graph["edges"] if edge["type"] == "calls"]
+        self.assertFalse(
+            any(
+                edge.get("target_file") is None or edge.get("resolution_status") == "unknown"
+                for edge in calls
+            )
+        )
+        self.assertIn("missing_name", {item["queried_symbol"] for item in graph.get("unresolved") or []})
+
+    def test_except_tuple_is_not_a_calls_edge(self) -> None:
+        text = (
+            "def run():\n"
+            "    try:\n"
+            "        return 1\n"
+            "    except (ValueError, TypeError):\n"
+            "        return 0\n"
+        )
+        file = self._file("src/app.py", text)
+        symbols = [
+            {
+                "name": "except",
+                "qualified_name": "src/app.py::except",
+                "defined_in": "src/app.py",
+                "line": 1,
+                "kind": "function",
+            },
+            *_symbol_definitions_for_file(file, text),
+        ]
+        graph = _build_call_graph(".", [file], {"symbols": symbols}, _now_iso(), contents={file.path: text})
+        queried = [
+            edge.get("provenance", {}).get("queried_symbol")
+            for edge in graph["edges"]
+            if edge["type"] == "calls"
+        ]
+        self.assertNotIn("except", queried)
+        self.assertIn("except", _PYTHON_KEYWORDS)
+
+    def test_isinstance_without_definition_is_not_a_calls_edge(self) -> None:
+        text = "def run(value):\n    return isinstance(value, int)\n"
+        file = self._file("src/app.py", text)
+        symbols = _symbol_definitions_for_file(file, text)
+        graph = _build_call_graph(".", [file], {"symbols": symbols}, _now_iso(), contents={file.path: text})
+        queried = [
+            edge.get("provenance", {}).get("queried_symbol")
+            for edge in graph["edges"]
+            if edge["type"] == "calls"
+        ]
+        self.assertNotIn("isinstance", queried)
 
 
 class NearestSymbolIndexTest(unittest.TestCase):

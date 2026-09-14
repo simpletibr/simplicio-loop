@@ -273,11 +273,20 @@ def _symbol_resolution(symbol_index: dict, name: str) -> dict[str, Any]:
     return {"requested": name, "status": "unknown", "candidates": []}
 
 
+def _askable_call(edge: dict) -> bool:
+    """Ask only reports calls that resolved to a real target."""
+    return (
+        edge.get("type") == "calls"
+        and bool(edge.get("target_file"))
+        and edge.get("resolution_status") not in {None, "unknown"}
+    )
+
+
 def _callers(call_graph: dict, name: str, limit: int) -> tuple[list[dict], int]:
     matches = [
         edge
         for edge in call_graph.get("edges", [])
-        if edge.get("type") == "calls" and edge.get("target_symbol") == name
+        if _askable_call(edge) and edge.get("target_symbol") == name
     ]
     matches.sort(key=lambda e: (e.get("source_file") or "", e.get("line") or 0))
     return matches[:limit], len(matches)
@@ -287,7 +296,7 @@ def _callees(call_graph: dict, name: str, limit: int) -> tuple[list[dict], int]:
     matches = [
         edge
         for edge in call_graph.get("edges", [])
-        if edge.get("type") == "calls" and edge.get("source_symbol") == name
+        if _askable_call(edge) and edge.get("source_symbol") == name
     ]
     matches.sort(key=lambda e: (e.get("target_file") or "", e.get("target_symbol") or ""))
     return matches[:limit], len(matches)

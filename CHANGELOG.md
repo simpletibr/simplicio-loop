@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Call-graph is fail-closed: `type=calls` edges never have a null target or
+  `resolution_status=unknown`. Python keywords are never call targets.
+  Unresolved names may appear on optional `unresolved[]` only.
+- Default `--help` lists the five public agent verbs (`scan`, `inspect`,
+  `handoff`, `ask`, `sync`). Extra families stay callable by name.
+- Mapper survey is owned in this package; Runtime map is not the survey path.
+
 ## [0.26.31] - 2026-09-12
 
 ### Fixed
@@ -10,8 +21,6 @@
 ## [0.26.30] - 2026-09-10
 ### Fixed
 - Add canonical symbol artifact interoperability regression coverage for Runtime consumers.
-
-## [Unreleased]
 
 ## [0.26.28] - 2026-09-05
 

@@ -72,16 +72,19 @@ class Mapper615RelationUnitTest(unittest.TestCase):
         self.assertEqual(len({edge["relation_id"] for edge in duplicate_candidates}), 2)
         self.assertNotIn("semantic_resolved", {edge["evidence_class"] for edge in duplicate_candidates})
 
-    def test_unknown_target_is_emitted_but_never_becomes_adjacency(self) -> None:
+    def test_unknown_calls_are_omitted_from_the_graph(self) -> None:
         graph = self._graph()
-        unknown = [edge for edge in graph["edges"] if edge.get("target_file") is None]
-        self.assertTrue(unknown)
-        self.assertTrue(all(edge["evidence_class"] == "heuristic" for edge in unknown))
-        self.assertTrue(all(edge["resolution_status"] == "unknown" for edge in unknown))
+        unknown_calls = [
+            edge
+            for edge in graph["edges"]
+            if edge.get("type") == "calls"
+            and (edge.get("target_file") is None or edge.get("resolution_status") == "unknown")
+        ]
+        self.assertEqual(unknown_calls, [])
+        self.assertIn("missing_name", {item["queried_symbol"] for item in graph.get("unresolved") or []})
         project_map = {"files": [{"path": path} for path in ("pkg/one.py", "pkg/two.py", "pkg/caller.py")]}
         index = build_retrieval_index(project_map, call_graph=graph)
         self.assertEqual(index["call_graph"]["callers"].get(""), None)
-        self.assertGreaterEqual(index["relation_coverage"]["unknown_relations"], 1)
         self.assertNotIn("", index["call_graph"]["callees"].get("pkg/caller.py", []))
         snapshot = build_context_snapshot(
             str(self.root),
@@ -90,18 +93,12 @@ class Mapper615RelationUnitTest(unittest.TestCase):
             call_graph=graph,
             architecture_inventory={},
         )
-        unknown_ids = {
-            edge["relation_id"]
-            for edge in unknown
-            if edge.get("relation_id")
-        }
-        snapshot_unknown = {
-            edge.get("relation_id")
+        snapshot_unknown_calls = [
+            edge
             for edge in snapshot["graph"]["edges"]
-            if edge.get("resolution_status") == "unknown"
-        }
-        self.assertTrue(unknown_ids <= snapshot_unknown)
-        self.assertEqual(snapshot["graph"]["relation_coverage"]["unknown_relations"], len(unknown))
+            if edge.get("kind") == "calls" and edge.get("resolution_status") == "unknown"
+        ]
+        self.assertEqual(snapshot_unknown_calls, [])
 
     def test_edge_limit_reports_observed_and_omitted_coverage(self) -> None:
         graph = self._graph(edge_limit=1)

@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import re
 import subprocess
+import sys
 import unittest
 from pathlib import Path
 
@@ -109,17 +110,20 @@ class LlmOrientationPackTest(unittest.TestCase):
             self.assertEqual(entry["usage"], "unavailable")
 
         help_result = subprocess.run(
-            ["simplicio-mapper", "--help"],
+            [sys.executable, "-m", "simplicio_mapper.cli", "--help"],
             cwd=ROOT,
             check=False,
             capture_output=True,
             text=True,
         )
         self.assertEqual(help_result.returncode, 0)
-        self.assertIn("index <path>", help_result.stdout)
         self.assertIn("scan <path>", help_result.stdout)
         self.assertIn("inspect <path>", help_result.stdout)
         self.assertIn("handoff <path>", help_result.stdout)
+        self.assertIn("ask <path>", help_result.stdout)
+        self.assertIn("sync <path>", help_result.stdout)
+        self.assertNotIn("release-governance", help_result.stdout)
+        self.assertNotIn("index <path>", help_result.stdout)
 
     def test_pack_records_contract_owners_and_formats(self) -> None:
         contracts = {entry["id"]: entry for entry in load_pack()["contracts"]}
