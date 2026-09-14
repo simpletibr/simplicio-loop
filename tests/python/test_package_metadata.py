@@ -18,7 +18,7 @@ def test_simplicio_ecosystem_dependency_floors_are_current() -> None:
     project = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))["project"]
 
     assert "simplicio-mapper>=0.26.28,<0.27" in project["dependencies"]
-    assert "simplicio-prompt>=1.14.1" in project["dependencies"]
+    assert all("simplicio-prompt" not in req for req in project["dependencies"])
 
 
 def test_dev_cli_entrypoint_is_available_for_runtime_adapter() -> None:

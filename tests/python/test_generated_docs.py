@@ -40,10 +40,10 @@ def test_doc_shows_the_real_current_version_and_no_stale_versions():
         assert req in generated
 
 
-def test_doc_documents_dev_cli_position_between_mapper_runtime_and_loop():
+def test_doc_documents_dev_cli_position_between_mapper_and_loop():
     project = _load_project()
     generated = render(project, _local_default_model())
 
     assert "simplicio-mapper" in generated
-    assert "simplicio-runtime" in generated
     assert "simplicio-loop" in generated
+    assert "forbidden on the hot path" in generated

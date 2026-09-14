@@ -25,7 +25,15 @@ from simplicio import cli
 from simplicio.commands import edit as edit_cmd
 from simplicio.commands import file_read as file_read_cmd
 from simplicio.commands import test_run as test_run_cmd
-from simplicio.runtime_bridge import DELEGATION_ROUTES, delegated_command, record_delegation
+from simplicio.runtime_bridge import (
+    DELEGATION_ROUTES,
+    call_simplicio,
+    delegated_command,
+    discover_simplicio,
+    record_delegation,
+    simplicio_available,
+    use_native_implementation,
+)
 
 
 def _events(root) -> list[dict]:
@@ -89,6 +97,17 @@ def test_delegation_routes_constant_covers_expected_set():
     assert set(DELEGATION_ROUTES) == {"native", "python-fallback", "python-forced"}
 
 
+def test_runtime_is_not_part_of_this_stack(monkeypatch):
+    monkeypatch.setenv("SIMPLICIO_BIN", "/tmp/simplicio")
+    monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/simplicio")
+    assert discover_simplicio() is None
+    assert simplicio_available() is False
+    assert use_native_implementation() is False
+    assert use_native_implementation(prefer_native=True) is False
+    with pytest.raises(RuntimeError, match="not part of this stack"):
+        call_simplicio(["edit", "--plan", "x.json"])
+
+
 # --------------------------------------------------------------------------- #
 # gate / nest (cli.py::_dispatch_nested)
 # --------------------------------------------------------------------------- #
@@ -98,8 +117,6 @@ def test_gate_check_records_python_fallback_when_binary_absent(tmp_path, monkeyp
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("SIMPLICIO_SKIP_AUTO_INIT", "1")
     monkeypatch.delenv("SIMPLICIO_BIN", raising=False)
-    monkeypatch.setattr("simplicio.runtime_bridge.shutil.which", lambda name: None)
-
     code = cli.main(["gate", "check", "abc", "abc"])
 
     assert code == 0

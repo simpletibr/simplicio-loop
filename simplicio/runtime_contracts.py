@@ -400,9 +400,7 @@ def doctor_contract(root: str | Path = ".") -> dict[str, Any]:
     root_path = Path(root)
     tools = {
         name: (
-            _tool_status_any("simplicio-prompt", "simplicio-subagents")
-            if name == "simplicio-prompt"
-            else _tool_status_any("simplicio-sprint", "sendsprint")
+            _tool_status_any("simplicio-sprint", "sendsprint")
             if name == "simplicio-sprint"
             else _tool_status(name)
         )
@@ -410,7 +408,6 @@ def doctor_contract(root: str | Path = ".") -> dict[str, Any]:
             "simplicio-mapper",
             PRIMARY_ADAPTER_COMMAND,
             PYTHON_ADAPTER_COMMAND,
-            "simplicio-prompt",
             "simplicio-sprint",
             "llama-server",
         )
@@ -420,7 +417,6 @@ def doctor_contract(root: str | Path = ".") -> dict[str, Any]:
         for name in (
             DEV_CLI_PACKAGE,
             "simplicio-mapper",
-            "simplicio-prompt",
             "simplicio-sprint",
         )
     }

@@ -34,7 +34,7 @@ Turn a one-line task into a verified code change: mapper context, six-layer cont
 
 > **Deterministic-only boundary:** `simplicio-py` never sends prompts or completions to a local model, OpenRouter, Anthropic, OpenAI-compatible endpoint, or CLI provider. It does not load or download model weights. Provider execution has been removed; the adapter only performs local contracts, edits, tests, and evidence.
 
-> **Operational boundary:** no local or remote LLM is required. The supported mutation inputs are an explicit mechanical-edit plan, a Fast changeset, or a Runtime EffectTransaction proposal. The CLI validates, applies, tests, and records evidence.
+> **Operational boundary:** operator is `edit --plan` + `test`; no LLM; no Runtime.
 >
 > The provider/model benchmark and setup material later in this file is historical evidence only; those routes are no longer supported by the package.
 

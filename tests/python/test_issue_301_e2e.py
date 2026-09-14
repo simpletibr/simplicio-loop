@@ -512,16 +512,22 @@ def test_issue_301_task_feature_sprint_entrypoints_fail_closed_without_runtime(
         for path in tmp_path.rglob("*")
         if path.is_file() and ".simplicio" not in path.relative_to(tmp_path).parts
     )
-    assert cli.main([*argv, "--root", str(tmp_path)]) == 1
+    code = cli.main([*argv, "--root", str(tmp_path)])
     captured = capsys.readouterr()
     payload = json.loads(captured.out)
-    assert payload["applied"] is False
-    assert payload["execution_profile"]["effective_mode"] == "blocked"
-    assert payload["warnings"] in (
-        ["RUNTIME_NOT_CONFIGURED"],
-        ["INCOMPATIBLE_RUNTIME"],
-        ["CONTEXT_REQUIRED"],
-    )
+    if argv[0] == "task":
+        assert code == 2
+        assert payload["status"] == "blocked"
+        assert payload["reason_code"] == "plan_required"
+    else:
+        assert code == 1
+        assert payload["applied"] is False
+        assert payload["execution_profile"]["effective_mode"] == "blocked"
+        assert payload["warnings"] in (
+            ["RUNTIME_NOT_CONFIGURED"],
+            ["INCOMPATIBLE_RUNTIME"],
+            ["CONTEXT_REQUIRED"],
+        )
     after = sorted(
         path.relative_to(tmp_path).as_posix()
         for path in tmp_path.rglob("*")

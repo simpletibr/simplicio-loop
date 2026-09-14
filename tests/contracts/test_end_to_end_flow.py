@@ -61,10 +61,10 @@ def test_minimal_flow_standalone(sample_project, stub_local_provider, monkeypatc
             "--json",
         ]
     )
-    assert code == 0
+    assert code == 2
     task_payload = json.loads(capsys.readouterr().out)
-    assert_has_keys(task_payload, {"applied", "files_changed"}, where="task --json")
-    assert task_payload["applied"] is True
+    assert task_payload["status"] == "blocked"
+    assert task_payload["reason_code"] == "plan_required"
 
     # 5. run a simple local verification, standalone Python path (no
     # SIMPLICIO_BIN / no `simplicio` on PATH -> subprocess fallback).
@@ -112,11 +112,10 @@ def test_auto_standalone_keeps_strict_mapper_identity_gate(
         ]
     )
 
-    assert code == 1
+    assert code == 2
     payload = json.loads(capsys.readouterr().out)
     assert payload["status"] == "blocked"
-    assert payload["warnings"] == ["MAPPER_CONTEXT_IDENTITY_REQUIRED"]
-    assert payload["blocked_preconditions"][0]["reason"] == "MAPPER_CONTEXT_IDENTITY_REQUIRED"
+    assert payload["reason_code"] == "plan_required"
 
 
 def test_minimal_flow_runtime_integrated_leg_is_stubbed(sample_project, stub_runtime_binary, capsys):

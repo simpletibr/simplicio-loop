@@ -11,12 +11,13 @@ from simplicio import cli, doctor, ecosystem
 def test_tracked_packages_includes_ecosystem_and_pyproject_deps() -> None:
     names = ecosystem.tracked_packages()
 
-    # simplicio ecosystem triplet comes first
-    assert names[:3] == ("simplicio-prompt", "simplicio-mapper", "simplicio-sprint")
+    # simplicio ecosystem pair comes first (prompt is not a base dependency)
+    assert names[:2] == ("simplicio-mapper", "simplicio-sprint")
     # declared pyproject dependencies are folded in
     for expected in ("numpy", "sentence-transformers"):
         assert expected in names
-    # no duplicates (simplicio-mapper / simplicio-prompt declared in both places)
+    assert "simplicio-prompt" not in names
+    # no duplicates (simplicio-mapper declared in both places)
     assert len(names) == len(set(names))
 
 

@@ -36,9 +36,6 @@ PYPROJECT = REPO_ROOT / "pyproject.toml"
 PROVIDERS_PY = REPO_ROOT / "simplicio" / "providers.py"
 DOC_PATH = REPO_ROOT / "docs" / "PYTHON_PACKAGE_INTERDEPENDENCE.md"
 
-ECOSYSTEM_PACKAGES = ("simplicio-mapper", "simplicio-prompt", "simplicio-sprint")
-
-
 def _req_name(req: str) -> str:
     return re.match(r"\s*([A-Za-z0-9._-]+)", req).group(1)  # type: ignore[union-attr]
 
@@ -68,7 +65,6 @@ def render(project: dict, local_default_model: str) -> str:
     extras = dict(project.get("optional-dependencies", {}))
 
     mapper_floor = _ecosystem_floor(dependencies, "simplicio-mapper")
-    prompt_floor = _ecosystem_floor(dependencies, "simplicio-prompt")
 
     lines: list[str] = []
     w = lines.append
@@ -87,9 +83,8 @@ def render(project: dict, local_default_model: str) -> str:
     w("")
     w("```text")
     w(f"simplicio-mapper {mapper_floor}")
-    w(f"simplicio-prompt {prompt_floor}")
-    w("  ^          ^")
-    w("  |          |")
+    w("  ^")
+    w("  |")
     w(f"{name} {version}")
     w("  ^")
     w("  |")
@@ -111,40 +106,27 @@ def render(project: dict, local_default_model: str) -> str:
     w("")
     w("## Rules")
     w("")
-    w("- `simplicio-prompt` stays dependency-free at runtime.")
+    w("- `simplicio-prompt` is forbidden on the hot path (not a base dependency).")
     w("- `simplicio-mapper` stays independent from the executor and sprint packages.")
-    w(f"- `{name}` may depend on `simplicio-mapper` and `simplicio-prompt` (base), plus")
-    w("  the optional extras above.")
-    w("- `simplicio-sprint` may depend on `simplicio-cli`, `simplicio-mapper`, and")
-    w("  `simplicio-prompt`.")
+    w(f"- `{name}` may depend on `simplicio-mapper` (base), plus the optional extras above.")
+    w("- `simplicio-sprint` may depend on `simplicio-cli` and `simplicio-mapper`.")
     w("- No package may depend on `simplicio-sprint`; this keeps the orchestration")
     w("  layer at the edge and prevents cycles.")
     w("")
-    w("## Where simplicio-cli fits (mapper / runtime / loop)")
+    w("## Where simplicio-cli fits (mapper / loop)")
     w("")
     w("```text")
     w("simplicio-mapper   -- repo context (project-map.json, precedent-index.json)")
     w("       |")
     w("       v")
-    w("simplicio-cli      -- THIS PACKAGE: focused task-to-code executor")
-    w("       |               (6-layer contract: mapper context, precedent,")
-    w("       |                skill router, generate, apply, verify)")
+    w("simplicio-cli      -- THIS PACKAGE: edit --plan + test")
+    w("       |               (no LLM; no Runtime; no simplicio-prompt)")
     w("       v")
-    w("simplicio-runtime  -- Rust orchestrator: planning, agents, evidence,")
-    w("       |               MCP surface; calls into this package as the")
-    w("       |               executor/contract layer via kernel_binding/MCP")
-    w("       v")
-    w("simplicio-loop     -- autonomous re-feed loop on top of the runtime")
-    w("                       (or standalone on Claude Code/Codex/etc.)")
+    w("simplicio-loop     -- coordinator: lease, journal, watcher")
     w("```")
     w("")
-    w("simplicio-cli is the executor: it does not orchestrate multi-step work or")
-    w("own the evidence ledger — that is simplicio-runtime's job, with")
-    w("simplicio-loop driving the re-feed loop on top of it. This doc intentionally")
-    w("does not import or call simplicio-runtime code (no cross-repo coupling); for")
-    w("the ecosystem-wide dependency contract and doctor surface, see")
-    w("simplicio-runtime's ecosystem doctor/contract work (tracked there as #2950) —")
-    w("referenced here conceptually only.")
+    w("simplicio-cli is the mutator/verifier. It does not orchestrate multi-step")
+    w("work. Runtime is not part of this stack.")
     w("")
     w("## Local LLM Standard")
     w("")

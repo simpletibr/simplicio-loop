@@ -4,8 +4,8 @@ usage: simplicio-py task [-h] [--root ROOT] [--repo-root REPO_ROOT]
                          [--context-pack-hash CONTEXT_PACK_HASH]
                          [--stack STACK] [--target TARGET]
                          [--criteria CRITERIA] [--constraints CONSTRAINTS]
-                         [--dry-run-task] [--verify-only] [--json]
-                         [--bound-paths BOUND_PATHS]
+                         [--dry-run-task] [--verify-only] [--plan PATH]
+                         [--json] [--bound-paths BOUND_PATHS]
                          [--mode {auto,integrated,standalone}]
                          [--task-spec PATH | --task-spec-stdin]
                          [--context-snapshot CONTEXT_SNAPSHOT]
@@ -41,6 +41,8 @@ options:
                         applying/testing
   --verify-only         run SIMPLICIO_TEST_CMD without model generation or
                         repository mutation
+  --plan PATH           deprecated alias: use simplicio-dev-cli edit --plan
+                        PATH --apply
   --json                emit stable structured task output
   --bound-paths BOUND_PATHS
                         glob limiting which paths the task may change;

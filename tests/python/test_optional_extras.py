@@ -72,6 +72,7 @@ def test_base_dependencies_exclude_heavy_and_provider_packages():
     # the sentence-transformers embedding model, so the core task/run
     # pipeline needs it in base. See the comment above [project.dependencies].
     assert "numpy" in base_names
+    assert "simplicio-prompt" not in base_names
 
 
 def test_optional_dependencies_groups_match_actual_imports():

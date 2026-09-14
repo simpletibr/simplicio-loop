@@ -1,11 +1,9 @@
-"""ecosystem.py — keep simplicio-prompt / simplicio-mapper / simplicio-sprint
-in sync with the floors declared in pyproject.toml.
+"""ecosystem.py — keep simplicio-mapper / simplicio-sprint in sync with the
+floors declared in pyproject.toml.
 
-The pyproject pin (`>=1.12.0`) only gates install-time. It does NOT detect
-when an already-installed package is older than the current floor — a gap
-that bit us in the v13 bench (container had simplicio-prompt 1.9.0 while
-the floor was already >=1.12.0). This module closes that gap with a runtime
-check + opt-in auto-upgrade.
+simplicio-prompt is forbidden on the hot path and is not a base dependency.
+The pyproject pin only gates install-time. This module closes the gap where
+an already-installed package is older than the current floor.
 
 API:
   check() -> list[DepStatus]   # compare installed vs floor vs pypi-latest
@@ -35,7 +33,7 @@ from pathlib import Path
 
 from .observability import info, warn
 
-ECOSYSTEM = ("simplicio-prompt", "simplicio-mapper", "simplicio-sprint")
+ECOSYSTEM = ("simplicio-mapper", "simplicio-sprint")
 PYPI_TTL_SECONDS = 86400  # 24h
 
 
@@ -78,7 +76,7 @@ def _read_floor(name: str) -> str | None:
         text = p.read_text(encoding="utf-8")
     except OSError:
         return None
-    # Match a line like '"simplicio-prompt>=1.12.0",'
+    # Match a line like '"simplicio-mapper>=0.26.28,<0.27",'
     m = re.search(rf'["\']?{re.escape(name)}\s*>=\s*([0-9][0-9.a-zA-Z-]*)["\']?', text)
     return m.group(1) if m else None
 

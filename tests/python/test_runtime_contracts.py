@@ -38,18 +38,15 @@ def _reset_logging_state():
     obs._logger.setLevel(logging.NOTSET)
 
 
-def test_doctor_contract_resolves_published_prompt_and_sprint_entrypoints(tmp_path, monkeypatch):
+def test_doctor_contract_resolves_published_sprint_entrypoint(tmp_path, monkeypatch):
     def fake_which(name: str):
-        return {"simplicio-subagents": "/bin/simplicio-subagents", "sendsprint": "/bin/sendsprint"}.get(name)
+        return {"sendsprint": "/bin/sendsprint"}.get(name)
 
     monkeypatch.setattr("simplicio.runtime_contracts.shutil.which", fake_which)
     result = doctor_contract(tmp_path)
 
-    assert result["tools"]["simplicio-prompt"] == {
-        "available": True,
-        "path": "/bin/simplicio-subagents",
-        "resolved_command": "simplicio-subagents",
-    }
+    assert "simplicio-prompt" not in result["tools"]
+    assert "simplicio-prompt" not in result["packages"]
     assert result["tools"]["simplicio-sprint"] == {
         "available": True,
         "path": "/bin/sendsprint",
