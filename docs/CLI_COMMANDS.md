@@ -19,7 +19,21 @@ compatibility surface. Source files remain authoritative and all generated
 Every public entry point must explain its operation through `--help`/`-h`.
 Read the help for the exact level being invoked before executing it.
 
-## Canonical Python commands
+## Public agent verbs
+
+These five commands are the required agent surface. Default `--help` lists only them.
+
+| Command | What it does | Help contract |
+| --- | --- | --- |
+| `scan <path>` | Start a macro plus deep background scan | `simplicio-mapper --help` |
+| `inspect <path>` | Return a rich machine-readable map/cache inspection | `simplicio-mapper --help` |
+| `handoff <path>` | Select bounded, task-aware context for a downstream agent | `simplicio-mapper --help` |
+| `ask <path> <verb> [arg]` | Query callers, callees, reachability, impact, flows, rules, tests or terms (resolved edges only) | `simplicio-mapper --help` |
+| `sync <path>` | Refresh only docs/flows affected by a Git diff | `simplicio-mapper --help` |
+
+## Internal commands (not required)
+
+These remain callable by name for packaging, contracts, and diagnostics. They are not agent verbs and must not appear on default `--help`.
 
 | Command | What it does | Help contract |
 | --- | --- | --- |
@@ -27,10 +41,7 @@ Read the help for the exact level being invoked before executing it.
 | `map [--root <dir>]` | Run the default mapping workflow | `simplicio-mapper map --help` |
 | `update [--root <dir>]` | Incrementally refresh the map | `simplicio-mapper update --help` |
 | `macro <path>` | Emit a shallow project skeleton without full content reads | `simplicio-mapper macro --help` |
-| `scan <path>` | Start a macro plus deep background scan | `simplicio-mapper scan --help` |
 | `status <path>` | Report scan phase, lock and map-job state | `simplicio-mapper status --help` |
-| `inspect <path>` | Return a rich machine-readable map/cache inspection | `simplicio-mapper inspect --help` |
-| `handoff <path>` | Select bounded, task-aware context for a downstream agent | `simplicio-mapper handoff --help` |
 | `orient <path>` | Build a task-oriented context pack from a task file/JSON/stdin | `simplicio-mapper orient --help` |
 | `endpoints <path>` | Inventory client calls and server routes | `simplicio-mapper endpoints --help` |
 | `screens <path>` | Inventory frontend routes and screens | `simplicio-mapper screens --help` |
@@ -40,11 +51,9 @@ Read the help for the exact level being invoked before executing it.
 | `preview <path>` | Read a bounded, read-only source preview | `simplicio-mapper preview --help` |
 | `docs <path>` | Render architecture and inventory Markdown | `simplicio-mapper docs --help` |
 | `export-docs <path>` | Copy rendered Markdown to a target directory | `simplicio-mapper export-docs --help` |
-| `sync <path>` | Refresh only docs/flows affected by a Git diff | `simplicio-mapper sync --help` |
 | `history <path>` | List versioned `.simplicio/history/` snapshots | `simplicio-mapper history --help` |
 | `diff <path>` | Compare two history snapshots semantically | `simplicio-mapper diff --help` |
 | `delta <path>` | Emit an initial graph or deterministic incremental delta | `simplicio-mapper delta --help` |
-| `ask <path> <verb> [arg]` | Query callers, callees, reachability, impact, flows, rules, tests or terms | `simplicio-mapper ask --help` |
 | `business <path>` | Extract business rules, state machines and glossary | `simplicio-mapper business --help` |
 | `survey <path>` | Build a new-developer onboarding report | `simplicio-mapper survey --help` |
 | `drift <path>` | Detect spec, placeholder, orphan-code and stale-doc drift | `simplicio-mapper drift --help` |
@@ -64,8 +73,7 @@ delete or rewrite the last-known-good descriptors.
 ## Routed command families
 
 These families are dispatched before the legacy mapper parser and therefore
-have their own help. They are still public commands and must be included in
-CLI audits.
+have their own help. They are internal, not required agent verbs.
 
 | Family | Operations | Help discovery |
 | --- | --- | --- |
@@ -90,11 +98,12 @@ CLI audits.
 ## Safe operating sequence
 
 ```text
---help -> index/map -> inspect/status -> handoff/orient -> ask/diff/preview
--> implementation by Dev CLI -> tests/evidence -> sync/delta -> release manifest
+--help -> scan -> inspect -> handoff -> ask
+-> implementation by Dev CLI -> tests/evidence -> sync
 ```
 
 Mapper observes and packages context. It does not authorize effects or replace
 tests, review or source control. Use `simplicio-dev-cli` for mechanical source
-edits, `simplicio-fast` for snapshots/PlanDAG, Runtime for policy/effects and
-Loop for retries/convergence.
+edits, `simplicio-fast` for snapshots/mmap, and Loop for retries/convergence.
+This package is not owned by Runtime and does not use `simplicio runtime map`
+as survey.

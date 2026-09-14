@@ -1,7 +1,7 @@
 {
   "$id": "simplicio.call-graph/v1",
   "title": "simplicio-mapper call-graph.json (v1)",
-  "description": "Canonical calls/imports relations derived from symbol-index.json. Endpoints are always `source_file`/`target_file`; `target_file` may be null only when the relation is explicitly unknown. Evidence classes describe resolution without presenting heuristic scores as calibrated probabilities.",
+  "description": "Canonical calls/imports relations derived from symbol-index.json. Endpoints are always `source_file`/`target_file`. `type=calls` edges never have a null target or resolution_status=unknown; unresolved names are omitted (optional unresolved[]). `target_file` may be null only for unknown import relations. Evidence classes describe resolution without presenting heuristic scores as calibrated probabilities.",
   "type": "object",
   "required": ["schema", "producer", "version", "generated_at", "source_symbol_index", "edges", "counts"],
   "properties": {

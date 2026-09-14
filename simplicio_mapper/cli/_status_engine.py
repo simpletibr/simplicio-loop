@@ -924,6 +924,11 @@ def _build_handoff_payload(opts: dict) -> dict:
         task_query=goal,
         budget_tokens=token_budget if task_aware else 0,
     )
+    snapshot_dest = os.path.join(os.path.abspath(os.path.join(root, out)), "context-snapshot.json")
+    os.makedirs(os.path.dirname(snapshot_dest), exist_ok=True)
+    with open(snapshot_dest, "w", encoding="utf-8") as handle:
+        json.dump(context_snapshot, handle, sort_keys=True, indent=2)
+        handle.write("\n")
     context_pack = build_context_pack(
         root=root,
         targets=target_rows,
@@ -1022,21 +1027,22 @@ def _build_handoff_payload(opts: dict) -> dict:
         "ready": not reasons,
         "reason": "; ".join(reasons),
         "targets": targets,
-        "status": status_payload,
+        "status": {
+            "schema": status_payload.get("schema"),
+            "phase": status_payload.get("phase"),
+            "fresh": status_payload.get("fresh"),
+            "artifacts_present": status_payload.get("artifacts_present"),
+            "completeness": status_payload.get("completeness"),
+            "counts": status_payload.get("counts") or {},
+        },
         "context_pack": context_pack,
         "evidence": {
-            **status_payload["evidence"],
             "pack_hash": pack_hash,
             "target_count": len(targets),
         },
         "cache": {
-            **status_payload["cache"],
             "pack_cached": pack_cache_hit,
             "pack_cache_key_hash": pack_cache_key_hash,
-            "pack_cache_receipt": pack_cache_receipt,
-            "pack_diagnostics": cache.explain(pack_cache_key_hash)
-            if pack_cache_key_hash
-            else {"present": False},
         },
     }
     if selection is not None:

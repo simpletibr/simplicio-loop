@@ -8,7 +8,7 @@ Before using **any** capability (including map, memory, search, build, test, edi
 
 1. Read this repository's `AGENTS.md` in full.
 2. Read this repository's `CLAUDE.md` in full.
-3. Identify and read the relevant local skills in `skills/*/SKILL.md` (and, where present, `.skills/*/SKILL.md`) in full before invoking the capability they describe. At minimum, use the repository's component skill and `simplicio-prism`; load `simplicio-runtime`, `simplicio-mapper`, `simplicio-dev-cli`, or `simplicio-loop` when that capability is involved.
+3. Identify and read the relevant local skills in `skills/*/SKILL.md` (and, where present, `.skills/*/SKILL.md`) in full before invoking the capability they describe. At minimum, use the repository's component skill and `simplicio-prism`; load `simplicio-mapper`, `simplicio-fast`, `simplicio-dev-cli`, or `simplicio-loop` when that capability is involved. Do not treat Runtime as this mapper's owner or survey path.
 4. Read the local operational docs named by those contracts for the requested scope.
 5. Record the bootstrap completion in the worker receipt before side effects.
 

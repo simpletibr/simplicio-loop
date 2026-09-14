@@ -306,9 +306,10 @@ class CanonicalCliDispatchTests(unittest.TestCase):
 
     def test_help_lists_canonical_subcommands(self) -> None:
         out = StringIO()
-        with redirect_stdout(out), self.assertRaises(SystemExit):
-            main(["--help"])
+        with redirect_stdout(out):
+            code = run_canonical_cli(["--help"])
         text = out.getvalue()
+        self.assertEqual(code, 0)
         self.assertIn("canonical build", text)
         self.assertIn("canonical status", text)
 
