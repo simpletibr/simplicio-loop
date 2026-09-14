@@ -22,6 +22,13 @@ OPENROUTER_DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 OPENROUTER_WORKER_SCHEMA = "simplicio.openrouter-worker/v1"
 MECHANICAL_EDIT_SCHEMA = "simplicio.mechanical-edit/v1"
 DEFAULT_TIMEOUT_SECONDS = 90.0
+# The pinned model is a reasoning model that spends hidden reasoning inside the
+# completion budget.  A small ceiling returns an empty `content` with
+# `finish_reason == "length"`, so the worker reserves a realistic artifact
+# window and disables hidden reasoning instead of truncating the deliverable.
+OPENROUTER_MAX_TOKENS = 16384
+MINIMUM_OPENROUTER_MAX_TOKENS = 1024
+OPENROUTER_MAX_TOKENS_ENV = "SIMPLICIO_OPENROUTER_MAX_TOKENS"
 
 
 class ProviderWorkerError(RuntimeError):
@@ -62,6 +69,23 @@ def _canonical_hash(value: Any) -> str:
     ).hexdigest()
 
 
+def completion_max_tokens(env: Mapping[str, str] | None = None) -> int:
+    """Return the completion budget reserved for one provider request.
+
+    An explicit positive override below the minimum is ignored: the worker must
+    never reserve a window too small to hold a complete artifact.
+    """
+    source = os.environ if env is None else env
+    raw = str(source.get(OPENROUTER_MAX_TOKENS_ENV) or "").strip()
+    if not raw:
+        return OPENROUTER_MAX_TOKENS
+    try:
+        value = int(raw)
+    except ValueError:
+        return OPENROUTER_MAX_TOKENS
+    return value if value >= MINIMUM_OPENROUTER_MAX_TOKENS else OPENROUTER_MAX_TOKENS
+
+
 def _request_prompt(task: Mapping[str, Any], context: Mapping[str, Any]) -> str:
     return (
         "You are an explicitly authorized external coding worker. You are not an execution authority. "
@@ -75,7 +99,7 @@ def _request_prompt(task: Mapping[str, Any], context: Mapping[str, Any]) -> str:
     )
 
 
-def _decode_proposal(response: Mapping[str, Any]) -> dict[str, Any]:
+def _decode_proposal(response: Mapping[str, Any], *, max_tokens: int) -> dict[str, Any]:
     choices = response.get("choices")
     if not isinstance(choices, list) or not choices:
         raise ProviderWorkerError("provider response has no choices", reason_code="provider_response_invalid")
@@ -87,6 +111,15 @@ def _decode_proposal(response: Mapping[str, Any]) -> dict[str, Any]:
         raise ProviderWorkerError("provider response has no message", reason_code="provider_response_invalid")
     content = message.get("content")
     if not isinstance(content, str) or not content.strip():
+        if str(first.get("finish_reason") or "") == "length":
+            usage = response.get("usage")
+            observed = usage.get("completion_tokens") if isinstance(usage, Mapping) else None
+            spent = observed if isinstance(observed, int) and not isinstance(observed, bool) else max_tokens
+            raise ProviderWorkerError(
+                "provider response was truncated at the "
+                f"{spent}-token completion budget (max_tokens={max_tokens}); no JSON content was returned",
+                reason_code="provider_response_truncated",
+            )
         raise ProviderWorkerError("provider response has no JSON content", reason_code="provider_response_invalid")
     try:
         proposal = json.loads(content)
@@ -248,10 +281,15 @@ class OpenRouterWorker:
         env: Mapping[str, str] | None = None,
     ) -> dict[str, Any]:
         forwarded = forwarded_environment(env)
+        max_tokens = completion_max_tokens(env)
         request_payload = {
             "model": OPENROUTER_MODEL,
             "temperature": 0,
-            "max_tokens": 2048,
+            "max_tokens": max_tokens,
+            # This model exposes hidden reasoning inside the completion budget.
+            # Disabling it keeps the requested artifact from being truncated
+            # before any JSON content is emitted.
+            "reasoning": {"enabled": False},
             "response_format": {"type": "json_object"},
             "messages": [{"role": "user", "content": _request_prompt(task, context)}],
         }
@@ -286,7 +324,7 @@ class OpenRouterWorker:
             ) from exc
         if not isinstance(provider_response, Mapping):
             raise ProviderWorkerError("provider response is not an object", reason_code="provider_response_invalid")
-        proposal = _decode_proposal(provider_response)
+        proposal = _decode_proposal(provider_response, max_tokens=max_tokens)
         usage = _usage_fields(provider_response)
         return {
             "schema": OPENROUTER_WORKER_SCHEMA,
