@@ -46,6 +46,9 @@ dev = [
 simplicio-mapper = "simplicio_mapper.cli:main"
 llm-project-mapper = "simplicio_mapper.cli:main"
 
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib"
+
 [project.urls]
 Homepage = "https://github.com/wesleysimplicio/simplicio-mapper"
 Repository = "https://github.com/wesleysimplicio/simplicio-mapper"
