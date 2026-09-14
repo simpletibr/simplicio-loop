@@ -151,6 +151,7 @@ RUNNER_SCHEMA = "simplicio.run-manifest/v1"
 STATE_SCHEMA = "simplicio.run-state/v1"
 OPERATOR_RECEIPT_SCHEMA = "simplicio.operator-receipt/v0"
 MAX_OPENROUTER_PROPOSAL_ATTEMPTS = 3
+MAX_PROVIDER_CURRENT_TARGET_CHARS = 30000
 OPENROUTER_NOOP_REPAIR_FEEDBACK = (
     "The previous proposal was rejected because it was byte-identical to the current target. "
     "Return a complete replacement file that is observably different while preserving every "
@@ -1614,6 +1615,40 @@ button { cursor: pointer; }
 
 
 
+def _provider_context_with_current_targets(
+    context: Mapping[str, Any],
+    *,
+    root: Path,
+    allowed_paths: Sequence[str],
+) -> Dict[str, Any]:
+    """Give an explicit provider worker the current files it must preserve while editing."""
+    enriched = dict(context)
+    current_targets: Dict[str, str] = {}
+    root_path = root.resolve()
+    for raw_path in allowed_paths:
+        relative = str(raw_path).replace("\\", "/")
+        target = (root_path / relative).resolve()
+        try:
+            target.relative_to(root_path)
+        except ValueError as exc:
+            raise ProviderWorkerError("provider target resolves outside the repository", reason_code="provider_target_invalid") from exc
+        if target.is_symlink():
+            raise ProviderWorkerError("provider target may not be a symlink", reason_code="provider_target_invalid")
+        if not target.is_file():
+            continue
+        content = target.read_text(encoding="utf-8")
+        if len(content) > MAX_PROVIDER_CURRENT_TARGET_CHARS:
+            raise ProviderWorkerError(
+                "current provider target is too large for the bounded prompt",
+                reason_code="provider_target_too_large",
+            )
+        current_targets[relative] = content
+    if current_targets:
+        enriched["current_targets"] = current_targets
+    return enriched
+
+
+
 def _provider_worker_plan(
     *,
     task: Mapping[str, Any],
@@ -1646,7 +1681,11 @@ def _provider_worker_plan(
     try:
         result = OpenRouterWorker().dispatch(
             task=task,
-            context=context,
+            context=_provider_context_with_current_targets(
+                context,
+                root=root,
+                allowed_paths=allowed_paths,
+            ),
             run_id=run_id,
             task_index=task_index,
             allowed_paths=allowed_paths,
@@ -5358,7 +5397,7 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         mechanical_plan = provider_plan or _mechanical_fixture_plan(task, repo_path)
     elif _openrouter_operator_enabled():
         mapper_context = _load_json(mapper_path)
-        repair_feedback = ""
+        repair_feedback = str(repair_feedback or "")
         last_provider_error: OpenRouterPlanError | None = None
         for proposal_attempt in range(1, MAX_OPENROUTER_PROPOSAL_ATTEMPTS + 1):
             provider_proposal_attempts = proposal_attempt
