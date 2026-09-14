@@ -132,8 +132,9 @@ jobs:
             --github-dispatch-payload
 
       - name: Dispatch verified release to downstream consumers
-        if: ${{ secrets.RELEASE_TRAIN_DISPATCH_TOKEN != '' }}
+        if: ${{ env.RELEASE_DISPATCH_ENABLED == 'true' }}
         env:
+          RELEASE_DISPATCH_ENABLED: ${{ secrets.RELEASE_TRAIN_DISPATCH_TOKEN != '' }}
           RELEASE_TRAIN_DISPATCH_TOKEN: ${{ secrets.RELEASE_TRAIN_DISPATCH_TOKEN }}
         run: |
           set -euo pipefail
@@ -150,5 +151,7 @@ jobs:
           done
 
       - name: Report deferred downstream dispatch
-        if: ${{ secrets.RELEASE_TRAIN_DISPATCH_TOKEN == '' }}
+        if: ${{ env.RELEASE_DISPATCH_ENABLED != 'true' }}
+        env:
+          RELEASE_DISPATCH_ENABLED: ${{ secrets.RELEASE_TRAIN_DISPATCH_TOKEN != '' }}
         run: echo "::warning::RELEASE_TRAIN_DISPATCH_TOKEN is not configured; release event was generated but not dispatched."
