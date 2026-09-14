@@ -179,6 +179,25 @@ def test_dispatch_orders_dependent_tasks_before_dependents_even_when_input_is_re
     assert [item["task_id"] for item in ordered] == ["TASK-CHECKERS-001", "TASK-CHECKERS-002"]
 
 
+def test_batch_omits_completed_predecessor_that_is_outside_the_current_indices():
+    items = [
+        {
+            "task_id": "run-1-task-2",
+            "task_index": 2,
+            "task_spec": {"depends_on": ["TASK-CHECKERS-001"]},
+        },
+    ]
+
+    filtered = runner._omit_satisfied_dispatch_dependencies(
+        items,
+        satisfied_aliases={"TASK-CHECKERS-001", "1", "task-1", "run-1-task-1"},
+    )
+    ordered = runner._ordered_dispatch_items(filtered)
+
+    assert [item["task_id"] for item in ordered] == ["run-1-task-2"]
+    assert filtered[0]["task_spec"]["depends_on"] == []
+
+
 def test_public_batch_wave_and_prism_forward_explicit_provider_worker(monkeypatch):
     calls = []
 
