@@ -180,7 +180,13 @@ def build_payload_from_mapper(
         language = item.get("language")
         if not isinstance(language, str) or not language:
             raise ParserAdapterError("mapper_language_missing", relative)
-        if language not in set(SUPPORTED_EXTENSIONS.values()):
+        if language not in set(SUPPORTED_EXTENSIONS.values()) | {
+            "html",
+            "css",
+            "javascript",
+            "markdown",
+            "shell",
+        }:
             continue
         path = root / relative
         if not path.is_file():
@@ -224,7 +230,8 @@ def build_payload_from_mapper(
     seen_ids: set[str] = set()
     for item in raw_symbols:
         if not isinstance(item, dict):
-            raise ParserAdapterError("mapper_symbols_invalid")
+            diagnostics.append({"path": "", "code": "mapper_symbols_invalid", "detail": "non-object"})
+            continue
         qualified = item.get("qualified_name")
         relative_value = item.get("defined_in")
         line = item.get("line")
@@ -236,10 +243,17 @@ def build_payload_from_mapper(
             or relative_value not in file_languages
             or not isinstance(item.get("name"), str)
             or not isinstance(item.get("kind"), str)
-            or not isinstance(item.get("language", file_languages[relative_value]), str)
-            or item.get("language", file_languages[relative_value]) not in set(SUPPORTED_EXTENSIONS.values())
+            or not isinstance(item.get("language", file_languages.get(relative_value)), str)
+            or item.get("language", file_languages.get(relative_value)) not in set(SUPPORTED_EXTENSIONS.values()) | {"html", "css", "javascript"}
         ):
-            raise ParserAdapterError("mapper_symbols_invalid")
+            diagnostics.append(
+                {
+                    "path": relative_value if isinstance(relative_value, str) else "",
+                    "code": "mapper_symbols_skipped",
+                    "detail": str(qualified or ""),
+                }
+            )
+            continue
         relative = relative_value
         symbol_id = f"symbol:{qualified}"
         node = mapper_nodes.get(symbol_id)

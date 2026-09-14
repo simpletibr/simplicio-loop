@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Integrated ingest accepts public `simplicio.map-handoff/v1` from
+  `simplicio-mapper handoff` as well as `simplicio.mapper-fast-handoff/v1`.
 - Default `--mapper-mode` is `integrated` for ingest/build/refresh/understand/plan.
   Missing `--mapper-handoff` fails closed; bootstrap remains an explicit choice.
 - CLI `--write` on apply/delivery/changeset materialize requires

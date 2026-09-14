@@ -20,7 +20,7 @@ Every public command and nested action must explain its purpose through
 
 | Command | Function | Help |
 | --- | --- | --- |
-| `build`, `refresh`, `ingest` | Create or incrementally update the binary semantic snapshot. Default `--mapper-mode integrated` requires `--mapper-handoff`; bootstrap is an explicit development fallback | `simplicio-fast <command> --help` |
+| `build`, `refresh`, `ingest` | Create or incrementally update the binary semantic snapshot. Default `--mapper-mode integrated` requires `--mapper-handoff` (`simplicio.map-handoff/v1` from `simplicio-mapper handoff`, or `simplicio.mapper-fast-handoff/v1`). Bootstrap is an explicit development fallback | `simplicio-fast <command> --help` |
 | `query`, `search` | Resolve symbols through snapshot indexes | `simplicio-fast <command> --help` |
 | `context` | Return bounded, hash-verified source spans for an LLM | `simplicio-fast context --help` |
 | `navigate` | Follow one bounded structural relation from a canonical handle | `simplicio-fast navigate --help` |
