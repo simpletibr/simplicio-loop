@@ -14,12 +14,10 @@ def test_preflight_continues_without_optional_runtime(monkeypatch, tmp_path):
         binary = command[0]
         if binary == "simplicio" or binary.endswith("simplicio.exe"):
             return SimpleNamespace(returncode=127, stdout="", stderr="runtime missing")
-        if "simplicio-fast" in binary:
-            return SimpleNamespace(returncode=127, stdout="", stderr="fast missing")
         return SimpleNamespace(returncode=0, stdout="ready\n", stderr="")
 
     monkeypatch.setattr("simplicio_loop.strict_mode.subprocess.run", fake_run)
-    monkeypatch.setattr("simplicio_loop.strict_mode.shutil.which", lambda b: None if b in {"simplicio", "simplicio-fast"} else "/bin/" + b)
+    monkeypatch.setattr("simplicio_loop.strict_mode.shutil.which", lambda b: None if b in {"simplicio"} else "/bin/" + b)
     monkeypatch.setattr("simplicio_loop.strict_mode._runtime_candidate_paths", lambda _env: [])
     findings = []
     monkeypatch.setattr(

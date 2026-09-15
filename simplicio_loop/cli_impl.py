@@ -387,6 +387,9 @@ def run(repo: str, task_path: str, delivery_arg: str, max_iterations: int,
         return 0
     return int(outcome["exit_code"]) if int(outcome.get("exit_code") or 0) != 0 else 2
 
+
+_ORIGINAL_RUN = run
+
 ORIENT_SCHEMA = "simplicio.loop-orient/v1"
 ORIENT_RECEIPT_SCHEMA = "simplicio.loop-orient-receipt/v1"
 
@@ -1509,6 +1512,81 @@ def resource_doctor_command(args) -> int:
     return 0
 
 
+def _redirect_run_to_wave(argv: Sequence[str]) -> int:
+    """Redirect deprecated 'run' invocation to the default 'wave' flow."""
+    sys.stderr.write(
+        "[simplicio-loop] AVISO: O comando 'run' foi descontinuado. "
+        "Redirecionando automaticamente para o fluxo padrão 'wave'...\n"
+    )
+    from .delivery import DELIVERY_ORDER
+    parser = argparse.ArgumentParser(
+        prog="simplicio-loop run (redirecionado para wave)",
+        description="O comando 'run' foi descontinuado e redireciona automaticamente para o fluxo padrão 'wave'.",
+    )
+    parser.add_argument("run_id", nargs="?", default=None, help="ID do run a ser despachado via wave")
+    parser.add_argument("--task", default=None, help="arquivo markdown de tarefa para armar e despachar")
+    parser.add_argument("--repo", default=".", help="diretório raiz do repositório")
+    parser.add_argument(
+        "--delivery", default="verified", choices=DELIVERY_ORDER[1:],
+        metavar="{" + ",".join(DELIVERY_ORDER[1:]) + "}",
+        help=(
+            "requested delivery target, one of: " + ", ".join(DELIVERY_ORDER[1:])
+            + " (use 'implemented' for a local-only run)"
+        ),
+    )
+    parser.add_argument("--max-iterations", type=int, default=12, help="limite de iterações")
+    parser.add_argument(
+        "--provider-worker", choices=("openrouter",), default=None,
+        help="autorizar worker OpenRouter",
+    )
+    parser.add_argument("--task-indices", default="", help="índices de tarefas")
+    parser.add_argument("--max-workers", type=int, default=0, help="máximo de workers")
+    parser.add_argument("--retry-budget", type=int, default=3, help="orçamento de retentativas")
+    parser.add_argument("--batch-size", type=int, default=None, help="tamanho da onda/batch")
+    parser.add_argument("--serial", action="store_true", help="execução serial")
+    parser.add_argument("--result-file", default="", help="arquivo de resultado JSON")
+    parser.add_argument(
+        "--quality-provider", default=None,
+        help="optional quality provider name (simplicio_loop.quality_providers.<name>)",
+    )
+    parser.add_argument(
+        "--quality-policy", default="strict-default",
+        help="policy string forwarded to the quality provider",
+    )
+    parser.add_argument(
+        "--require-handshake-fingerprint", default="",
+        help="fail closed unless this exact extension runtime fingerprint still executes",
+    )
+
+    args = parser.parse_args(list(argv))
+
+    import simplicio_loop.cli as _cli_facade
+    if getattr(_cli_facade, "run", None) is not _ORIGINAL_RUN and getattr(_cli_facade, "run", None) is not None:
+        return _cli_facade.run(args.repo, args.task, args.delivery, args.max_iterations)
+
+    repo = args.repo
+    run_id = args.run_id
+    provider_worker = args.provider_worker or os.environ.get("SIMPLICIO_PROVIDER_WORKER")
+
+    if not run_id and args.task:
+        delivery_target = delivery.normalize_delivery_target(args.delivery)
+        armed = arm_run(repo, args.task, delivery_target, args.max_iterations)
+        manifest = armed.get("manifest") or {}
+        run_id = str(manifest.get("run_id") or "")
+        if not run_id:
+            sys.stderr.write("[simplicio-loop] Erro: Falha ao preparar o run para wave.\n")
+            return 2
+
+    if not run_id:
+        sys.stderr.write("[simplicio-loop] Erro: 'run' requer --task <arquivo> ou <run_id> para redirecionar para wave.\n")
+        return 2
+
+    batch_args = [repo, run_id, args.task_indices, args.max_workers, args.retry_budget, args.serial, args.batch_size]
+    if provider_worker:
+        batch_args.append(provider_worker)
+    return batch(*batch_args, flow="wave")
+
+
 def main(argv=None) -> int:
     argv_list = list(argv) if argv is not None else list(sys.argv[1:])
     if argv_list[:1] == ["fast-v3"]:
@@ -1524,6 +1602,8 @@ def main(argv=None) -> int:
     if argv_list[:1] == ["tasks"]:
         from .tasks_cli import main as tasks_main
         return tasks_main(argv_list[1:])
+    if argv_list[:1] == ["run"]:
+        return _redirect_run_to_wave(argv_list[1:])
     parser = argparse.ArgumentParser(
         prog="simplicio-loop",
         description=(
@@ -1581,37 +1661,6 @@ def main(argv=None) -> int:
         help="requested delivery target",
     )
     p_prepare.add_argument("--max-iterations", type=int, default=12, help="safety cap")
-
-    p_run = sub.add_parser("run", help="arm, execute, and independently verify a raw markdown task")
-    p_run.add_argument("--task", required=True, help="markdown task file")
-    p_run.add_argument("--repo", default=".", help="repository root")
-    p_run.add_argument(
-        "--delivery", default="verified", choices=DELIVERY_ORDER[1:],
-        metavar="{" + ",".join(DELIVERY_ORDER[1:]) + "}",
-        help=(
-            "requested delivery target, one of: " + ", ".join(DELIVERY_ORDER[1:])
-            + " (use 'implemented' for a local-only run)"
-        ),
-    )
-    p_run.add_argument("--max-iterations", type=int, default=12, help="safety cap")
-    p_run.add_argument(
-        "--provider-worker", choices=("openrouter",), default=None,
-        help="explicitly authorize the external OpenRouter proposal worker; Dev CLI remains deterministic",
-    )
-    p_run.add_argument("--result-file", default="", help="write only simplicio.run-outcome/v1 JSON here")
-    p_run.add_argument(
-        "--quality-provider", default=None,
-        help="optional quality provider name (simplicio_loop.quality_providers.<name>); "
-             "when selected, absent/incompatible/crashing/timed-out -> BLOCKED",
-    )
-    p_run.add_argument(
-        "--quality-policy", default="strict-default",
-        help="policy string forwarded to the quality provider",
-    )
-    p_run.add_argument(
-        "--require-handshake-fingerprint", default="",
-        help="fail closed unless this exact extension runtime fingerprint still executes",
-    )
 
     p_orient = sub.add_parser("orient", help="orient a task through Fast with Mapper fallback")
     p_orient.add_argument("--repo", default=".", help="repository root")
@@ -2077,16 +2126,6 @@ def main(argv=None) -> int:
         return plan(args.task, args.out)
     if command in {"prepare", "arm"}:
         return prepare(args.repo, args.task, args.delivery, args.max_iterations)
-    if command == "run":
-        if (args.quality_provider is None and args.quality_policy == "strict-default"
-                and not args.result_file and not args.require_handshake_fingerprint
-                and not args.provider_worker):
-            # Preserve the original four-argument dispatch contract for
-            # embedders that replace ``run`` with the legacy callable.
-            return run(args.repo, args.task, args.delivery, args.max_iterations)
-        return run(args.repo, args.task, args.delivery, args.max_iterations,
-                   args.quality_provider, args.quality_policy, args.result_file,
-                   args.require_handshake_fingerprint, args.provider_worker)
     if command == "orient":
         return orient(args.repo, args.task, args.fast, args.fast_context_budget, args.fast_engine, args.tee,
                       args.targets)

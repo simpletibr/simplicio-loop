@@ -10,7 +10,7 @@ import sys
 ROOT_COMMANDS = {
     "install": "install bundled",
     "plan": "compile a raw task",
-    "run": "arm, execute",
+    "wave": "dispatch a governed wave",
     "orient": "orient a task",
     "preflight": "verify bound operators",
     "deploy": "plan a gated",

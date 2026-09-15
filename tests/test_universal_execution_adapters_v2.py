@@ -179,16 +179,11 @@ def _assert_v2(repo: Path, run: Path, flow: str) -> dict:
     return envelope
 
 
-@pytest.mark.parametrize("flow", ["run", "tick", "batch", "wave", "prism"])
+@pytest.mark.parametrize("flow", ["tick", "batch", "wave", "prism"])
 def test_run_backed_public_flows_persist_one_canonical_v2_envelope(tmp_path, monkeypatch, flow):
     repo, run, manifest, state, _contract = _run_fixture(tmp_path)
 
-    if flow == "run":
-        task = tmp_path / "task.md"
-        task.write_text("task\n", encoding="utf-8")
-        monkeypatch.setattr(cli_impl, "conduct_run", lambda *args, **kwargs: {"run_dir": str(run), "manifest": manifest, "state": state, "outcome": {"outcome": "COMPLETE", "exit_code": 0}})
-        assert cli_impl.main(["run", "--task", str(task), "--repo", str(repo), "--delivery", "implemented"]) == 2
-    elif flow == "tick":
+    if flow == "tick":
         monkeypatch.setattr(cli_impl, "execute_operator", lambda *args, **kwargs: {"run_dir": str(run), "manifest": manifest, "state": state})
         assert cli_impl.main(["tick", "--repo", str(repo), "run-1", "--task-index", "1"]) == 2
     else:
@@ -609,18 +604,10 @@ def test_expected_governor_blocked_short_circuits_single_task_fast_without_provi
     assert validate_execution_envelope(envelope) is True
 
 
-@pytest.mark.parametrize("flow", ["run", "tick", "batch", "wave", "prism"])
+@pytest.mark.parametrize("flow", ["tick", "batch", "wave", "prism"])
 def test_run_backed_failure_paths_persist_noncomplete_v2(tmp_path, monkeypatch, flow):
     repo, run, manifest, state, _contract = _run_fixture(tmp_path, phase="blocked")
-    if flow == "run":
-        task = tmp_path / "task.md"
-        task.write_text("task\n", encoding="utf-8")
-        monkeypatch.setattr(cli_impl, "conduct_run", lambda *args, **kwargs: {
-            "run_dir": str(run), "manifest": manifest, "state": state,
-            "outcome": {"outcome": "BLOCKED", "exit_code": 2},
-        })
-        assert cli_impl.main(["run", "--task", str(task), "--repo", str(repo), "--delivery", "implemented"]) == 2
-    elif flow == "tick":
+    if flow == "tick":
         monkeypatch.setattr(cli_impl, "execute_operator", lambda *args, **kwargs: {
             "run_id": "run-1", "status": "blocked", "reason_code": "operator_blocked",
         })

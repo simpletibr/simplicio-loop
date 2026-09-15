@@ -7,7 +7,7 @@ Previous diagnostic observations remain separate and must not be reused as arms.
 
 | Candidate | Real entry point | Comparison boundary |
 |---|---|---|
-| run | simplicio-loop run --task task.md --repo FIXTURE | implementation plus independent validation |
+| wave (default) | simplicio-loop wave --repo FIXTURE RUN_ID | governed wave with reconciliation barriers (substitui 'run') |
 | batch automatic | simplicio-loop batch --repo FIXTURE RUN_ID | ten admitted tasks and final validation |
 | serial | simplicio-loop batch --serial --repo FIXTURE RUN_ID | same tasks, one active lane |
 | tasks | simplicio-loop tasks run --agent-command COMMAND --action-gate SCOPE | current implementation requires GitHub PR and authenticated merge evidence |

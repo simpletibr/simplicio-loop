@@ -26,7 +26,7 @@ from typing import Any, Mapping, Optional, Sequence
 TRUE_VALUES = frozenset({"1", "true", "yes", "on", "strict", "full-stack", "required"})
 FALSE_VALUES = frozenset({"0", "false", "no", "off", "disabled", "standalone", "legacy"})
 
-CORE_OPERATORS: tuple[str, ...] = ("simplicio-mapper", "simplicio-dev-cli")
+CORE_OPERATORS: tuple[str, ...] = ("simplicio-mapper", "simplicio-dev-cli", "simplicio-fast")
 RUNTIME_BINARY = "simplicio"
 FAST_BINARY = "simplicio-fast"
 # Accept either action binary name for the operate role.

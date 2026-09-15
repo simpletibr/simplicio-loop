@@ -76,11 +76,21 @@ Use the most specific form, such as `simplicio-loop queue top --help` or
 ### Zero-config start
 
 ```bash
-simplicio-loop run --task task.md --repo .
+# Multi-tarefas / Governed waves (padrão recomendado):
+simplicio-loop wave RUN_ID
+
+# Preparar / Armar run a partir de markdown:
 simplicio-loop prepare --task task.md --repo .
+
+# Tarefa única ultrarrápida (local-first):
+simplicio-loop single-task-fast --task-file task.json
+
+# Tick unitário e batch contínuo:
 simplicio-loop tick RUN_ID --repo .
 simplicio-loop batch RUN_ID
 ```
+
+> **Nota de Descontinuação**: O comando `simplicio-loop run` foi descontinuado. Qualquer invocação a `simplicio-loop run --task task.md` ou `simplicio-loop run <run_id>` é interceptada e automaticamente redirecionada para o fluxo governado padrão `wave`.
 
 `prepare` (also exposed as `arm`) performs the same contract/Mapper/operator
 preflight as arming a run, but does not execute a task or call a provider. Its
@@ -91,6 +101,7 @@ external OpenRouter proposal worker is opt-in only:
 ```bash
 simplicio-loop tick RUN_ID --repo . --provider-worker openrouter
 simplicio-loop batch RUN_ID --provider-worker openrouter
+simplicio-loop wave RUN_ID --provider-worker openrouter
 ```
 
 The OpenRouter worker pins `deepseek/deepseek-v4.1-flash`, reads credentials
@@ -99,7 +110,7 @@ only from `OPENROUTER_API_KEY`/`OPENROUTER_BASE_URL`, converts its proposal to a
 provider failure is blocked; it never falls back to manual or deterministic
 artifact generation.
 
-`run` and `batch` initialize the Mapper-owned operations store when required,
+`wave` and `batch` initialize the Mapper-owned operations store when required,
 use the Mapper handoff, reconcile one normal cold-start inspection internally when
 the index is still warming, and derive worker demand from the task set. Physical
 admission still controls safe CPU/RAM/disk concurrency; `--serial` is an explicit

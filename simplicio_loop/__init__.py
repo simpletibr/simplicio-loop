@@ -13,6 +13,6 @@ try:
     try:
         __version__ = _v("simplicio-loop")
     except PackageNotFoundError:
-        __version__ = "3.43.11"
+        __version__ = "3.43.12"
 except Exception:  # pragma: no cover
-    __version__ = "3.43.11"
+    __version__ = "3.43.12"
