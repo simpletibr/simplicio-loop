@@ -202,6 +202,7 @@ def _build_crate(
         builder,
         "build",
         "--release",
+        "--locked",
         "--target",
         target.triple,
         "--manifest-path",
@@ -218,6 +219,7 @@ def _engine_manifest(
     command = [
         "cargo",
         "run",
+        "--locked",
         "--quiet",
         "--manifest-path",
         "rust/simplicio-fast-core/Cargo.toml",

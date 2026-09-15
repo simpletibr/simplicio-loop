@@ -30,6 +30,7 @@ def _fixture(tmp_path: Path) -> Path:
         "CHANGELOG.md",
         "src/simplicio_fast/__init__.py",
         "rust/simplicio-fast-core/Cargo.toml",
+        "rust/Cargo.lock",
         ".github/workflows/native-release.yml",
         "docs/native-backend-support.md",
     ):
@@ -69,6 +70,16 @@ def test_rust_core_version_drift_fails_closed(tmp_path):
     )
     receipt = evaluate(root)
     assert "rust_core_version" in receipt["failures"]
+
+
+def test_rust_cargo_lock_version_drift_fails_closed(tmp_path):
+    root = _fixture(tmp_path)
+    lock = root / "rust/Cargo.lock"
+    _replace_once(
+        lock, f'version = "{PROJECT_VERSION}"', f'version = "{DRIFT_VERSION}"'
+    )
+    receipt = evaluate(root)
+    assert "rust_cargo_lock_version" in receipt["failures"]
 
 
 def test_dependency_badge_drift_fails_closed(tmp_path):

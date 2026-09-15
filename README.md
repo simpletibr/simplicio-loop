@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-2.0.32-22c55e?style=for-the-badge" alt="Version 2.0.32"></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/version-2.0.34-22c55e?style=for-the-badge" alt="Version 2.0.34"></a>
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.11%2B-3776ab?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.11+"></a>
   <a href="https://github.com/wesleysimplicio/simplicio-fast/issues"><img src="https://img.shields.io/github/issues/wesleysimplicio/simplicio-fast?style=for-the-badge" alt="Open issues"></a>
   <img src="https://img.shields.io/badge/core_runtime_dependencies-0-111827?style=for-the-badge" alt="0 core runtime dependencies">
@@ -341,7 +341,7 @@ simplicio-fast parser-payload . --mapper-handoff mapper-handoff.json --output pa
 The command fails closed on missing Mapper IDs, unsupported schemas, stale artifact
 digests, missing sources or unknown relation targets.
 
-Version 2.0.20 provides `ingest`, `understand`, `plan`, `apply`, `context`, `doctor`, `refresh`,
+Version 2.0.34 provides `ingest`, `understand`, `plan`, `apply`, `context`, `doctor`, `refresh`,
 `query` and the CRUD proof. Internal mapping/editing remain bootstrap fallbacks when integrations
 are absent; `doctor` identifies whether the complete integrated path is ready.
 The `build`, `query`, direct-index `search`, bounded `context`, typed `impact`, `stats` and
@@ -495,7 +495,7 @@ precompiled-only policy without access to the source checkout. The root
 `release-policy.json` is a checked mirror, and the integrity gate rejects drift
 between the two.
 
-Version 2.0.20 covers:
+Version 2.0.34 covers:
 
 - complete user CRUD and later status change;
 - normalized-email conflict;
@@ -585,5 +585,5 @@ See the granular cross-repository plan:
 
 ## License and status
 
-Version 2.0.20 is governed by the local release-integrity gate. Review [CHANGELOG.md](CHANGELOG.md),
+Version 2.0.34 is governed by the local release-integrity gate. Review [CHANGELOG.md](CHANGELOG.md),
 `AGENTS.md` and open issues before making it mandatory across the entire Simplicio ecosystem.

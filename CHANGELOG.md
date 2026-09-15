@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## 2.0.34 - 2026-09-15
 
+- Fix #528: Synchronize `rust/Cargo.lock` with workspace core version (2.0.34) and enforce lockfile alignment in `scripts/check_release_integrity.py`.
+- Build native release binaries reproducibly with `--locked` to prevent silent lockfile mutations.
+- Fix #529: Reconcile version drift with PyPI (2.0.33) by advancing to 2.0.34 across all surfaces.
+- Add `scripts/version_sync.py` to provide a single-command mechanical bump (`apply --version X.Y.Z`) and validation gate (`check`).
 - Integrated ingest accepts public `simplicio.map-handoff/v1` from
   `simplicio-mapper handoff` as well as `simplicio.mapper-fast-handoff/v1`.
 - Default `--mapper-mode` is `integrated` for ingest/build/refresh/understand/plan.

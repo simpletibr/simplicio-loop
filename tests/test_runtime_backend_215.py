@@ -483,8 +483,8 @@ def test_missing_runtime_auto_falls_back_and_rust_fails_closed():
 
 def test_timeout_and_cancel_are_distinct_and_source_remains_immutable(tmp_path):
     artifact = _fake_runtime(tmp_path, sleep_operation="page")
-    # Windows .cmd→python spawn is slower than 50ms; keep timeout << sleep(5).
-    short_timeout = 0.05 if os.name != "nt" else 0.4
+    # Keep timeout << sleep(5) while allowing python process spawn.
+    short_timeout = 0.5
     backend = RuntimeFastBackend(
         artifact, required_capabilities=("page",), timeout_seconds=short_timeout
     )

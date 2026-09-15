@@ -127,6 +127,27 @@ def evaluate(root: Path) -> dict[str, Any]:
         expected=version,
         observed=rust_core,
     )
+    try:
+        cargo_lock = tomllib.loads(
+            (root / "rust" / "Cargo.lock").read_text(encoding="utf-8")
+        )
+        cargo_lock_version = next(
+            (
+                pkg["version"]
+                for pkg in cargo_lock.get("package", [])
+                if pkg.get("name") == "simplicio-fast-core"
+            ),
+            None,
+        )
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError, KeyError, TypeError):
+        cargo_lock_version = None
+    _check(
+        checks,
+        "rust_cargo_lock_version",
+        isinstance(version, str) and version == cargo_lock_version,
+        expected=version,
+        observed=cargo_lock_version,
+    )
 
     try:
         readme = (root / "README.md").read_text(encoding="utf-8")

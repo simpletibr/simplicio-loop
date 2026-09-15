@@ -1,6 +1,6 @@
 [project]
 name = "simplicio-fast"
-version = "2.0.32"
+version = "2.0.34"
 description = "Semantic project memory and guarded change coordination for AI coding tools"
 readme = "README.md"
 requires-python = ">=3.11"

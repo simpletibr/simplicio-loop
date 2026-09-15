@@ -230,8 +230,7 @@ def build_payload_from_mapper(
     seen_ids: set[str] = set()
     for item in raw_symbols:
         if not isinstance(item, dict):
-            diagnostics.append({"path": "", "code": "mapper_symbols_invalid", "detail": "non-object"})
-            continue
+            raise ParserAdapterError("mapper_symbols_invalid")
         qualified = item.get("qualified_name")
         relative_value = item.get("defined_in")
         line = item.get("line")
@@ -285,6 +284,8 @@ def build_payload_from_mapper(
     if len(symbols) > selected_limits["max_symbols"]:
         raise ParserAdapterError("symbol_limit_exceeded")
     if raw_symbols and not symbols:
+        if any(d.get("code") == "mapper_symbols_skipped" for d in diagnostics):
+            raise ParserAdapterError("mapper_symbols_invalid")
         raise ParserAdapterError("mapper_id_missing")
     symbol_ids = {item["qualified_name"]: item["id"] for item in symbols}
     raw_edges = calls_doc.get("edges")
