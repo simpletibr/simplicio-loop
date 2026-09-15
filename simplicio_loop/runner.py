@@ -5449,8 +5449,34 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
         provider_worker or os.environ.get("SIMPLICIO_PROVIDER_WORKER") or ""
     ).strip().lower()
     would_call_provider = bool(selected_provider_worker) or _openrouter_operator_enabled()
-    # Host LLM writes simplicio.dev-cli.edit-plan/v1. Loop never calls OpenRouter
-    # (or any provider) to generate a mechanical plan. Missing plan → plan_required.
+    if selected_provider_worker:
+        provider_plan, provider_receipt = _provider_worker_plan(
+            task=task,
+            context={
+                "mapper_context": _load_json(mapper_path),
+                "handoff": context_handoff,
+                "plan": plan,
+                "task_spec": task_spec,
+            },
+            run_id=run_id,
+            task_index=task_index,
+            attempt=attempt,
+            root=repo_path,
+            allowed_paths=targets,
+            run_dir=run_dir,
+            provider_worker=selected_provider_worker,
+            repair_feedback=repair_feedback,
+        )
+        provider_path = (
+            Path(str(provider_receipt.get("receipt_path")))
+            if provider_receipt and provider_receipt.get("receipt_path")
+            else None
+        )
+        provider_receipt_paths = [str(provider_path)] if provider_path else []
+        provider_proposal_attempts = 1 if provider_receipt else 0
+        if provider_plan is not None:
+            mechanical_plan = provider_plan
+            plan_source = "provider-worker"
     if mechanical_plan is None:
         blocked_receipt = {
             "schema": OPERATOR_RECEIPT_SCHEMA,
