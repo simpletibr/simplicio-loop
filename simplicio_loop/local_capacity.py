@@ -14,7 +14,7 @@ from typing import Any, Callable, Mapping
 
 SCHEMA = "simplicio.local-capacity/v1"
 MONITOR_SCHEMA = "simplicio.physical-admission-monitor/v1"
-DEFAULT_DISK_FLOOR_BYTES = 20 * (1 << 30)
+DEFAULT_DISK_FLOOR_BYTES = 2 * (1 << 30)
 DEFAULT_MEMORY_FLOOR_BYTES = 512 << 20
 DEFAULT_SAMPLE_INTERVAL_NS = 5_000_000_000
 DEFAULT_TARGET_PRESSURE_PERCENT = 75.0
@@ -218,8 +218,11 @@ def probe_local_capacity(
     else:
         measured.append("memory_available_bytes")
 
+    total_disk = 0
     try:
-        disk = int(shutil.disk_usage(Path(root).resolve()).free)
+        usage = shutil.disk_usage(Path(root).resolve())
+        disk = int(usage.free)
+        total_disk = int(getattr(usage, "total", 0) or 0)
     except (OSError, ValueError, TypeError):
         disk = None
     if disk is None:
@@ -228,7 +231,11 @@ def probe_local_capacity(
     else:
         measured.append("disk_free_bytes")
 
-    disk_floor = max(0, int(disk_floor_bytes))
+    configured_floor = max(0, int(disk_floor_bytes))
+    if total_disk > 0 and configured_floor > int(total_disk * 0.20):
+        disk_floor = max(512 << 20, int(total_disk * 0.10))
+    else:
+        disk_floor = configured_floor
     memory_floor = max(0, int(memory_floor_bytes))
     if unavailable:
         safe = 0

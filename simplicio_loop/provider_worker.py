@@ -148,6 +148,27 @@ network resources, and keep the file compact enough to return completely.
 """.strip()
 
 
+def _sanitize_context_for_prompt(context: Mapping[str, Any]) -> dict[str, Any]:
+    """Sanitize context to bound prompt projection and exclude unneeded CLI stdout blobs."""
+    payload = dict(context)
+    handoff = payload.get("handoff")
+    if isinstance(handoff, Mapping) and isinstance(handoff.get("stdout"), Mapping):
+        context_pack = handoff["stdout"].get("context_pack")
+        if isinstance(context_pack, Mapping):
+            cleaned = {k: v for k, v in payload.items() if k not in {"scan", "inspect", "snapshot", "handoff"}}
+            cleaned["context_pack"] = context_pack
+            return cleaned
+    cleaned: dict[str, Any] = {}
+    for k, v in payload.items():
+        if k in {"scan", "inspect", "snapshot", "handoff"} and isinstance(v, Mapping):
+            cleaned[k] = {ik: iv for ik, iv in v.items() if ik not in {"stdout", "stderr"}}
+        elif isinstance(v, Mapping) and ("stdout" in v or "stderr" in v):
+            cleaned[k] = {ik: iv for ik, iv in v.items() if ik not in {"stdout", "stderr"}}
+        else:
+            cleaned[k] = v
+    return cleaned
+
+
 def _request_prompt(
     task: Mapping[str, Any],
     context: Mapping[str, Any],
@@ -155,7 +176,7 @@ def _request_prompt(
     *,
     forbidden_literals: Sequence[str] = (),
 ) -> str:
-    context_payload = dict(context)
+    context_payload = _sanitize_context_for_prompt(context)
     current_targets = context_payload.pop("current_targets", None)
     prompt = (
         "You are an explicitly authorized external coding worker. You are not an execution authority. "
@@ -214,13 +235,16 @@ def _decode_proposal(response: Mapping[str, Any], *, max_tokens: int) -> dict[st
 def _usage_fields(response: Mapping[str, Any]) -> dict[str, Any]:
     raw = response.get("usage")
     usage = dict(raw) if isinstance(raw, Mapping) else None
+    upstream_provider = response.get("provider")
     if usage is None:
         return {
             "usage": None,
             "usage_status": "unknown",
+            "upstream_provider": upstream_provider,
             "input_tokens": None,
             "output_tokens": None,
             "cached_tokens": None,
+            "cache_write_tokens": None,
             "reasoning_tokens": None,
             "cost": None,
             "cost_status": "unknown",
@@ -229,21 +253,27 @@ def _usage_fields(response: Mapping[str, Any]) -> dict[str, Any]:
     output_tokens = usage.get("completion_tokens", usage.get("output_tokens"))
     cached_tokens = usage.get("cached_tokens")
     if cached_tokens is None:
-        details = usage.get("prompt_tokens_details")
-        if isinstance(details, Mapping):
-            cached_tokens = details.get("cached_tokens")
+        cached_tokens = usage.get("cache_read_tokens")
+    details = usage.get("prompt_tokens_details")
+    if cached_tokens is None and isinstance(details, Mapping):
+        cached_tokens = details.get("cached_tokens", details.get("cache_read_tokens"))
+    cache_write_tokens = usage.get("cache_write_tokens")
+    if cache_write_tokens is None and isinstance(details, Mapping):
+        cache_write_tokens = details.get("cache_write_tokens")
     reasoning_tokens = usage.get("reasoning_tokens")
     if reasoning_tokens is None:
-        details = usage.get("completion_tokens_details")
-        if isinstance(details, Mapping):
-            reasoning_tokens = details.get("reasoning_tokens")
+        comp_details = usage.get("completion_tokens_details")
+        if isinstance(comp_details, Mapping):
+            reasoning_tokens = comp_details.get("reasoning_tokens")
     cost = usage.get("cost", response.get("cost"))
     return {
         "usage": usage,
         "usage_status": "measured",
+        "upstream_provider": upstream_provider,
         "input_tokens": input_tokens,
         "output_tokens": output_tokens,
         "cached_tokens": cached_tokens,
+        "cache_write_tokens": cache_write_tokens,
         "reasoning_tokens": reasoning_tokens,
         "cost": cost,
         "cost_status": "measured" if cost is not None else "unknown",
@@ -364,6 +394,13 @@ class OpenRouterWorker:
     ) -> dict[str, Any]:
         forwarded = forwarded_environment(env)
         max_tokens = completion_max_tokens(env)
+        prompt_content = _request_prompt(
+            task,
+            context,
+            repair_feedback,
+            forbidden_literals=(forwarded["OPENROUTER_API_KEY"],),
+        )
+        prompt_sha256 = hashlib.sha256(prompt_content.encode("utf-8")).hexdigest()
         request_payload = {
             "model": OPENROUTER_MODEL,
             "temperature": 0,
@@ -375,12 +412,7 @@ class OpenRouterWorker:
             "response_format": {"type": "json_object"},
             "messages": [{
                 "role": "user",
-                "content": _request_prompt(
-                    task,
-                    context,
-                    repair_feedback,
-                    forbidden_literals=(forwarded["OPENROUTER_API_KEY"],),
-                ),
+                "content": prompt_content,
             }],
         }
         endpoint = forwarded["OPENROUTER_BASE_URL"] + "/chat/completions"
@@ -420,11 +452,13 @@ class OpenRouterWorker:
             "schema": OPENROUTER_WORKER_SCHEMA,
             "status": "succeeded",
             "provider": OPENROUTER_PROVIDER,
+            "upstream_provider": usage.get("upstream_provider") or provider_response.get("provider"),
             "model": OPENROUTER_MODEL,
             "run_id": str(run_id),
             "task_index": int(task_index),
             "task_sha256": _canonical_hash(dict(task)),
             "context_sha256": _canonical_hash(dict(context)),
+            "prompt_sha256": prompt_sha256,
             "allowed_paths": sorted(str(path) for path in allowed_paths),
             "proposal": proposal,
             "response_sha256": _canonical_hash(provider_response),

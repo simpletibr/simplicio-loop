@@ -309,10 +309,9 @@ def run_rehearsal(
             return receipt
         receipt["state"] = "provenance"
 
-        # Step: clean-room install-smoke against the scratch copy (rebuilds internally by design
-        # — install_smoke.py is the standalone, independently-runnable clean-room proof; reusing
-        # its own build step keeps this rehearsal from silently depending on step ordering above).
-        smoke = run_smoke(scratch, expected_version=rehearsal_version, keep=False)
+        # Step: clean-room install-smoke against the scratch copy using the exact pre-built,
+        # checksummed wheel artifact.
+        smoke = run_smoke(scratch, expected_version=rehearsal_version, keep=False, wheel_path=wheel_path)
         receipt["steps"]["install_smoke"] = smoke
         if not smoke.get("ok"):
             receipt["ok"] = False

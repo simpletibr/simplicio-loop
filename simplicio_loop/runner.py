@@ -1776,12 +1776,14 @@ def _provider_worker_plan(
             "schema": "simplicio.provider-worker-receipt/v1",
             "status": "READY",
             "provider": "openrouter",
+            "upstream_provider": result.get("upstream_provider"),
             "model": OPENROUTER_MODEL,
             "run_id": str(run_id),
             "task_index": int(task_index),
             "attempt": max(1, int(attempt)),
             "allowed_paths": sorted(str(path) for path in allowed_paths),
             "proposed_paths": sorted(str(path) for path in files) if isinstance(files, Mapping) else [],
+            "prompt_sha256": str(result.get("prompt_sha256") or ""),
             "proposal_sha256": str(result.get("response_sha256") or ""),
             "mechanical_plan_path": str(plan_path),
             "provider_call_count": int(result.get("provider_call_count") or 1),
@@ -1790,6 +1792,7 @@ def _provider_worker_plan(
             "input_tokens": result.get("input_tokens"),
             "output_tokens": result.get("output_tokens"),
             "cached_tokens": result.get("cached_tokens"),
+            "cache_write_tokens": result.get("cache_write_tokens"),
             "reasoning_tokens": result.get("reasoning_tokens"),
             "cost": result.get("cost"),
             "cost_status": result.get("cost_status", "unknown"),
@@ -8158,6 +8161,13 @@ def dispatch_operator_batch(
     # process supervision as the default even when isolated worktrees are enabled.
     executor_type = ProcessPoolExecutor if dispatch_mode == "process" else ThreadPoolExecutor
     executor_kwargs = {"max_workers": effective_workers}
+    if dispatch_mode == "process" and os.name == "posix":
+        try:
+            import multiprocessing as _mp
+            if "fork" in _mp.get_all_start_methods():
+                executor_kwargs["mp_context"] = _mp.get_context("fork")
+        except (AttributeError, ValueError):
+            pass
     if dispatch_mode == "thread":
         executor_kwargs["thread_name_prefix"] = "simplicio-operator"
     _set_capacity_stop(_refresh_physical_admission())

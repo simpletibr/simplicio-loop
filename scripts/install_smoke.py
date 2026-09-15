@@ -72,7 +72,13 @@ def build_wheel(repo: Path, dist_dir: Path) -> Dict[str, Any]:
     }
 
 
-def run_smoke(repo: Path, *, expected_version: Optional[str], keep: bool) -> Dict[str, Any]:
+def run_smoke(
+    repo: Path,
+    *,
+    expected_version: Optional[str],
+    keep: bool,
+    wheel_path: Optional[Path] = None,
+) -> Dict[str, Any]:
     repo = repo.resolve()
     workdir = Path(tempfile.mkdtemp(prefix="simplicio-install-smoke-"))
     receipt: Dict[str, Any] = {
@@ -82,19 +88,25 @@ def run_smoke(repo: Path, *, expected_version: Optional[str], keep: bool) -> Dic
         "workdir": str(workdir),
     }
     try:
-        dist_dir = workdir / "dist"
-        build = build_wheel(repo, dist_dir)
-        receipt["build"] = build
-        if not build["ok"]:
-            receipt["ok"] = False
-            receipt["reason_code"] = "build_failed"
-            return receipt
-        wheel_path = Path(build["wheel"])
+        if wheel_path is not None:
+            resolved_wheel = Path(wheel_path).resolve()
+            receipt["build"] = {"wheel": str(resolved_wheel), "ok": True, "reused_prebuilt_wheel": True}
+            wheel_path_to_install = resolved_wheel
+        else:
+            dist_dir = workdir / "dist"
+            build = build_wheel(repo, dist_dir)
+            receipt["build"] = build
+            if not build["ok"]:
+                receipt["ok"] = False
+                receipt["reason_code"] = "build_failed"
+                return receipt
+            wheel_path_to_install = Path(build["wheel"])
         receipt["artifact"] = {
-            "name": wheel_path.name,
-            "sha256": _sha256(wheel_path),
-            "size": wheel_path.stat().st_size,
+            "name": wheel_path_to_install.name,
+            "sha256": _sha256(wheel_path_to_install),
+            "size": wheel_path_to_install.stat().st_size,
         }
+        wheel_path = wheel_path_to_install
 
         venv_dir = workdir / "venv"
         # Deliberately shell out to `python -m venv` (with an explicit stdin=DEVNULL) rather than
@@ -102,9 +114,11 @@ def run_smoke(repo: Path, *, expected_version: Optional[str], keep: bool) -> Dic
         # subprocess for `ensurepip` and inherits this process's stdin handle, which can be
         # invalid/broken under some captured test-runner environments (observed under pytest on
         # Windows) and crashes with WinError 6 — a test-harness artifact unrelated to the smoke
-        # logic itself. Shelling out lets us control stdin explicitly.
+        env = dict(os.environ)
+        env.pop("PYTHONPATH", None)
+
         venv_cmd = [sys.executable, "-m", "venv", "--clear", str(venv_dir)]
-        venv_result = subprocess.run(venv_cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        venv_result = subprocess.run(venv_cmd, capture_output=True, text=True, cwd=str(workdir), env=env, stdin=subprocess.DEVNULL)
         receipt["venv_create"] = {"command": " ".join(venv_cmd), "returncode": venv_result.returncode,
                                    "stderr_tail": venv_result.stderr.strip().splitlines()[-10:] if venv_result.stderr else []}
         if venv_result.returncode != 0:
@@ -114,7 +128,7 @@ def run_smoke(repo: Path, *, expected_version: Optional[str], keep: bool) -> Dic
         venv_python = venv_dir / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
         install_cmd = [str(venv_python), "-m", "pip", "install", "--no-deps", "--no-index", str(wheel_path)]
-        install = subprocess.run(install_cmd, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        install = subprocess.run(install_cmd, capture_output=True, text=True, cwd=str(workdir), env=env, stdin=subprocess.DEVNULL)
         receipt["install"] = {
             "command": " ".join(install_cmd),
             "returncode": install.returncode,
@@ -136,8 +150,6 @@ def run_smoke(repo: Path, *, expected_version: Optional[str], keep: bool) -> Dic
             "'module_file': simplicio_loop.__file__"
             "}))"
         )
-        env = dict(os.environ)
-        env.pop("PYTHONPATH", None)
         probe = subprocess.run([str(venv_python), "-c", probe_script], capture_output=True, text=True,
                                 cwd=str(workdir), env=env, stdin=subprocess.DEVNULL)
         receipt["probe"] = {
