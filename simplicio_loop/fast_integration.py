@@ -731,7 +731,7 @@ class FastConfig:
 
     @classmethod
     def from_env(cls) -> "FastConfig":
-        mode = os.environ.get("SIMPLICIO_FAST_MODE", "auto").strip().lower()
+        mode = os.environ.get("SIMPLICIO_FAST_MODE", "required").strip().lower()
         if mode not in {"auto", "required", "standalone"}:
             raise ValueError("SIMPLICIO_FAST_MODE must be auto, required, or standalone")
         engine = os.environ.get("SIMPLICIO_FAST_ENGINE", "auto").strip().lower()

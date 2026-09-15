@@ -9,7 +9,7 @@ from typing import Any, Mapping
 
 SCHEMA = "simplicio.host-adapter/v1"
 HOST = "kiro"
-ADAPTER_VERSION = "3.43.11"
+ADAPTER_VERSION = "3.43.12"
 CLAIMED_NATIVE_HOOKS: dict[str, str] = {}
 
 

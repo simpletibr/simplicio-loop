@@ -129,7 +129,7 @@ PROFILES: dict[str, dict[str, dict[str, Any]]] = {
                               "capabilities": ("orient", "recall")},
         "simplicio-dev-cli": {"min_version": "0.18.6", "required": True,
                                "capabilities": ("execute", "validate")},
-        "simplicio-fast": {"min_version": "2.0.22", "required": False,
+        "simplicio-fast": {"min_version": "2.0.22", "required": True,
                             "capabilities": ("understand", "plan")},
         "simplicio-runtime": {"min_version": "3.5.0", "required": False,
                                "capabilities": ("contracts",)},

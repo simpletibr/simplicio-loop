@@ -8,7 +8,7 @@ fact cache_warning=verify authoritative sources and current --help before acting
 fact confidence=fact means observed; inference means derived; unavailable means not usable here
 section project
 fact name=simplicio-loop
-fact version=3.43.11
+fact version=3.43.12
 fact baseline_commit=f464ed8820de6e3864ab8aacc8f599957073ef71
 fact branch=docs/llm-orientation-loop-20260913
 fact default_branch=main
@@ -210,7 +210,7 @@ unavailable mcp_architecture_map=BLOCKED|MAP_OPERATION_DECLARED_ONLY
 unavailable runtime_provider=UNAVAILABLE|local LLM execution disabled by runtime policy
 fact mcp_map_overview=MEASURED|runtime overview available; architecture operation remains blocked
 fact runtime_embedded_fast=available through simplicio 3.8.47 runtime map; direct Fast CLI absence still matters
-fact installed_versions=simplicio-loop 3.43.11; Mapper 0.26.31; Dev CLI 0.18.13; Runtime 3.8.47
+fact installed_versions=simplicio-loop 3.43.12; Mapper 0.26.31; Dev CLI 0.18.13; Runtime 3.8.47
 inference train_drift=AGENTS/CLAUDE document an older train in places; current installed/package identity must be rechecked
 fact scope=pack does not execute Loop, activate Runtime, rebuild artifacts, or replace a contract
 section freshness

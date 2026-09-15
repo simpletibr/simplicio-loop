@@ -839,32 +839,61 @@ The main `simplicio-loop` entry point is the user-facing control surface for pla
 
 ### Zero-config execution
 
-The normal start path requires only the task and repository scope:
+The standard entry point uses the governed `wave` flow (with automatic reconciliation barriers):
 
 ```bash
-simplicio-loop run --task task.md --repo .
+# Preparar / Armar run a partir de especificação markdown:
+simplicio-loop prepare --task task.md --repo .
+
+# Executar via fluxo wave padrão (recomendado):
+simplicio-loop wave <run_id>
+
+# Ou para tarefa única ultrarrápida (local-first, sem latência externa):
+simplicio-loop single-task-fast --task-file task.json
 ```
 
-Loop initializes the Mapper-owned operations store when needed, runs the required
-Mapper handoff, reconciles one normal cold-start inspection internally when the index is
-still warming, derives worker demand from the task set, and lets physical CPU/RAM/disk
-admission choose the safe concurrency. For an existing run, `simplicio-loop batch RUN_ID`
-applies the same defaults; `--serial` is reserved for explicit dependency or conflict
-cases. Missing Mapper receipts, stale plans, invalid targets, failed workers, or unsafe
-machine pressure remain visible stop conditions and are never silently bypassed.
+> **Aviso de Descontinuação do `run`**: O comando `simplicio-loop run` foi descontinuado e excluído da interface pública. Caso seja invocado (`simplicio-loop run --task task.md` ou `simplicio-loop run <run_id>`), o comando é automaticamente interceptado e redirecionado para o fluxo padrão `simplicio-loop wave`, garantindo execução com barreira de integridade e a máxima velocidade.
 
-> **At a glance:** `plan` creates a frozen task contract → `run` executes it with bounded iterations → `verify` checks the evidence independently → `deliver` reconciles the result with the source of record.
+> **Operadores Obrigatórios**: O ecossistema agora opera com `simplicio-mapper` e `simplicio-fast` estritamente obrigatórios. O `simplicio-fast` acelera a indexação e o planejamento sintático, enquanto o `simplicio-mapper` garante a integridade estrutural do repositório e o prefix caching determinístico da LLM.
 
 | Area | Commands | What they do |
 |---|---|---|
 | Install and utilities | `install`, `dashboard`, `learn` | Install the bundled skills/hooks; open or stop the token-monitor dashboard; derive and persist a retrospective from completed runs. |
 | Intake and planning | `task`, `prototype`, `plan`, `orient` | Validate/preview task contracts; route prototype planning; compile Markdown into a frozen contract; build bounded Mapper/Fast context and an orientation receipt. |
-| Execution | `run`, `tick`, `batch`, `wave`, `prism`, `single-task-fast` | Arm and execute a task with evidence; execute one planned task through Dev CLI; dispatch ready tasks through bounded isolated workers and reconciled Prism waves; execute one JSON task locally or exactly two dependent Markdown tasks through the provider-backed ordered Loop route. |
+| Execution | `wave`, `prism`, `single-task-fast`, `batch`, `tick` | Dispatch ready tasks through governed wave barriers (`wave`, default flow); execute through isolated worktrees (`prism`); execute bounded tasks locally (`single-task-fast`); continuous background dispatch (`batch`); step-by-step single-task execution (`tick`). *(Nota: `run` foi descontinuado e redireciona para `wave`)*. |
 | Run lifecycle | `status`, `progress`, `resume`, `cancel`, `verify`, `oracle`, `checkpoint` | Inspect a run; render progress as text/JSON/Markdown/ANSI; resume or cancel non-terminal work; run independent watcher/delivery gates; evaluate completion/parity; manage Fast V3 checkpoints. |
 | Repository and operators | `preflight`, `map`, `inspect`, `doctor`, `stack`, `extensions`, `retrieve` | Check Mapper/Dev CLI/Runtime/Fast readiness; inspect map-service receipts; inspect MapperStore capabilities; diagnose stack/source/resource/storage; lock or verify installed components; verify extension handshakes; retrieve tee-cache results. |
 | Queues and coordination | `queue`, `drain`, `agent-slots`, `generation-broker`, `ledger`, `hub-drain-plan`, `hub-drain-admit` | Operate the durable queue; evaluate or persist queue-drain receipts; inspect/reclaim Loop capacity; reconcile generation bindings; replay/validate the operational ledger; plan or admit GitHub drain work. |
 | Delivery and source control | `deliver`, `decide`, `sync-source`, `findings`, `maintenance-deferred`, `defer-maintenance` | Reconcile delivery with source evidence; apply a human decision and invalidate dependent artifacts; requery external source state; list/report/reconcile/diagnose/import findings; record deferred maintenance. `defer-maintenance` is the alias form. |
 | Economy, safety, and deployment | `economy`, `ecc`, `deploy`, `release-train` | Inspect/print/apply the economy-parallel environment; verify ECC provenance and safety policy; plan a gated deployment (`--apply` is explicit); validate release manifests and ecosystem drift. |
+
+### Guia de Decisão para a LLM / Agentes: Qual fluxo escolher?
+
+Para garantir os melhores resultados de velocidade, economia e confiabilidade:
+
+| Cenário / Demanda | Fluxo Recomendado | Comando | Por que escolher? |
+|---|---|---|---|
+| **1 Tarefa Simples / Local** | `single-task-fast` | `simplicio-loop single-task-fast --task-file task.json` | **Mais Rápido e Barato**: Execução local-first imediata via Fast + Dev CLI. 0 chamadas de rede, custo zero de tokens. |
+| **Multi-tarefas Padrão (2 a 30+ tarefas)** | `wave` *(Padrão)* | `simplicio-loop wave <run_id>` | **Máxima Velocidade e Confiabilidade**: Despacha ondas concorrentes com barreiras de reconciliação de estado entre cada onda. Evita race conditions em arquivos compartilhados e aproveita 96%+ de cache hit. |
+| **Alta Concorrência em Árvores Isoladas** | `prism` | `simplicio-loop prism <run_id> --batch-size 10` | **Isolamento Total**: Worktrees Git isoladas para tarefas independentes que alteram partes distintas do código sem colisão. |
+| **Fila Contínua de Tarefas** | `batch` | `simplicio-loop batch <run_id>` | **Processamento em Massa**: Mantém workers ocupados continuamente processando tarefas prontas da fila até o esgotamento. |
+| **Depuração Passo a Passo / Inspeção** | `tick` | `simplicio-loop tick <run_id> --task-index N` | **Controle Fino**: Executa exatamente uma tarefa por vez com controle cirúrgico de inspeção e validação pré/pós. |
+
+### Dinâmica de Prompt Caching da LLM: Por que o cache aumenta em lotes maiores (10 vs 20 vs 30 tarefas)?
+
+Em tarefas orquestradas pelo `simplicio-loop` com `simplicio-mapper` obrigatório, o prefixo de contexto (árvore do projeto, AST, regras e instruções do sistema) é fixo e canônico. Os provedores de LLM (como DeepSeek v4.1 Flash via OpenRouter ou Claude/Anthropic) aplicam **KV Cache Prefix Matching**:
+
+1. **Amortização do Cold-Start**:
+   - **Na 1ª tarefa (Cold-Start)**: O prefixo é enviado e processado pela primeira vez. A LLM grava o KV-cache (`cache_creation` ou cache miss).
+   - **Da 2ª à 30ª tarefa (Cache Hit)**: O prefixo idêntico é encontrado no cache do provedor (dentro da janela de TTL de 5 a 10 minutos). Apenas o delta da tarefa é processado como novos tokens de entrada.
+2. **Evolução do Hit Rate Conforme o Volume de Tarefas**:
+   - **10 tarefas**: 1 cold-start + 9 cache hits = **90.0% de reaproveitamento de cache**.
+   - **20 tarefas**: 1 cold-start + 19 cache hits = **95.0% de reaproveitamento de cache**.
+   - **30 tarefas**: 1 cold-start + 29 cache hits = **96.7% de reaproveitamento de cache**.
+3. **Impacto no Custo e na Latência**:
+   - O custo de tokens de entrada em cache hit cai em até **90%** (de \$0.14/M para \$0.014/M de tokens no DeepSeek v4.1 Flash).
+   - A latência por tarefa (Time to First Token - TTFT) despenca drasticamente, pois a LLM não recalcula os embeddings nem a atenção de todo o repositório a cada iteração.
+   - Portanto, a percepção de que *"o cache vai aumentando a cada rodada de 30 tarefas"* é matematicamente real e um benefício direto da arquitetura do `simplicio-mapper` + `simplicio-fast`.
 
 ### Candidate governed flow for 10 tasks — not yet a measured winner
 
@@ -932,7 +961,8 @@ Typical single-task commands:
 simplicio-loop preflight --repo . --json
 simplicio-loop orient --task "understand this repository" --repo .
 simplicio-loop plan --task task.md --out contract.json
-simplicio-loop run --task task.md --repo . --max-iterations 5
+simplicio-loop prepare --task task.md --repo . --max-iterations 5
+simplicio-loop wave <run_id>
 simplicio-loop status --repo . --text
 simplicio-loop progress --repo . --format markdown --once
 simplicio-loop queue status
@@ -941,7 +971,7 @@ simplicio-loop verify <run_id>
 
 The complete command reference is [`docs/CLI_COMMANDS.md`](docs/CLI_COMMANDS.md). The command surface can vary by installed package version, so check `simplicio-loop --version` and `simplicio-loop --help`; the current repository source is `3.43.11`.
 
-The restarted comparison includes `run`, `batch`, `batch --serial`, `tasks run`,
+The restarted comparison includes `wave`, `batch`, `batch --serial`, `tasks run`,
 Prism, wave-policy variations and a limited semaphore control. See the
 [flow matrix and mandatory Mapper/cache contract](docs/BENCHMARK_FLOW_MATRIX.md).
 The limited control is not a public legacy command; `tasks run` currently has

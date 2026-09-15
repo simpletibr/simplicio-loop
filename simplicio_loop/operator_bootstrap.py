@@ -28,7 +28,7 @@ PACKAGE_SPECS = (
     "simplicio-fast",
     "simplicio-loop",
 )
-REQUIRED_BINARIES = ("simplicio-mapper", "simplicio-dev-cli")
+REQUIRED_BINARIES = ("simplicio-mapper", "simplicio-dev-cli", "simplicio-fast")
 RECEIPT_NAME = "operator-bootstrap.json"
 AUTO_BOOTSTRAP_ENV = "SIMPLICIO_LOOP_AUTO_BOOTSTRAP_OPERATORS"
 FALSE_VALUES = frozenset(("0", "false", "no", "off", "disabled"))

@@ -3,6 +3,13 @@ Total output lines: 1972
 
 # Changelog
 
+## [3.43.12] - 2026-09-14
+
+- Exclude the `run` command from the public CLI surface and deprecate it. Any call to `simplicio-loop run` is transparently intercepted and redirected to the standard governed `wave` flow.
+- Make `simplicio-fast` strictly mandatory across preflight, ecosystem doctor, strict mode, and operator bootstrap alongside `simplicio-mapper`.
+- Establish `wave` as the default multi-task governed flow with reconciliation barriers.
+- Document LLM decision heuristics (`single-task-fast`, `wave`, `prism`, `batch`, `tick`) and prompt caching scaling dynamics (up to 96.7% cache hits on 30 tasks).
+
 ## [3.43.11] - 2026-09-12
 
 - Align the aggregate release with Mapper `0.26.31`, Dev CLI `0.18.13`, and

@@ -52,6 +52,7 @@ class _CliShimTestCase(TestCase):
             "simplicio-mapper": "simplicio-mapper 0.23.1",
             "simplicio-dev-cli": "simplicio-dev-cli 0.16.1",
             "simplicio-py": "simplicio-py 0.16.1",
+            "simplicio-fast": "simplicio-fast 2.0.22",
             "simplicio": "simplicio-runtime 1.0.0",
         }
         for name, version in versions.items():

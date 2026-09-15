@@ -9,7 +9,7 @@ SOURCE_HEAD_FALLBACK_FLOORS = {
     "simplicio-mapper": "0.26.31",
     "simplicio-fast": "2.0.32",
     "simplicio-cli": "0.18.12",
-    "simplicio-loop": "3.43.11",
+    "simplicio-loop": "3.43.12",
 }
 
 

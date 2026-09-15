@@ -166,7 +166,7 @@ def test_full_stack_profile_fails_closed_on_required_component(monkeypatch, tmp_
 
 def test_standalone_declares_only_real_optional_fallbacks(monkeypatch, tmp_path):
     def probe(name, spec, root, policy, **kwargs):
-        status = doctor.STATUS_MISSING if name in {"simplicio-fast", "simplicio-runtime"} else doctor.STATUS_AVAILABLE
+        status = doctor.STATUS_MISSING if name in {"simplicio-runtime"} else doctor.STATUS_AVAILABLE
         return {"name": name, "status": status, "required": policy["required"],
                 "version": policy["min_version"], "minimum_version": policy["min_version"],
                 "capabilities": list(policy["capabilities"]), "missing_capabilities": [],
@@ -176,7 +176,7 @@ def test_standalone_declares_only_real_optional_fallbacks(monkeypatch, tmp_path)
     report = doctor.build_report(tmp_path, profile="standalone", persist=False)
     assert report["ready"] is True
     assert {item["feature"] for item in report["policy"]["fallbacks"]} == {
-        "context_acceleration", "runtime_integration"
+        "runtime_integration"
     }
 
 
