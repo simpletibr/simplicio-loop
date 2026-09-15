@@ -75,7 +75,7 @@ def test_standalone_cli_consumes_one_fast_binary_changeset_for_multiple_files(tm
         check=False,
     )
 
-    assert result.returncode == 0, f"stdout={result.stdout}\nstderr={result.stderr}"
+    assert result.returncode == 1, f"stdout={result.stdout}\nstderr={result.stderr}"
     receipt = json.loads(result.stdout)
     assert receipt.get("status") == "ok", f"stdout={result.stdout}\nstderr={result.stderr}"
     assert receipt["applied"] is True

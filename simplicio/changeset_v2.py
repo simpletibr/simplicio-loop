@@ -139,7 +139,7 @@ def adapt_changeset(changeset: dict[str, Any], *, current_generation: str | None
         operation = dict(raw)
         operation.pop("kind", None)
         operation["op"] = translated
-        if translated == "create_file":
+        if translated in {"create_file", "replace_range"}:
             operation["text"] = operation.pop("content", operation.get("text", ""))
         if translated == "move_file":
             operation["path"] = operation.pop("source", operation.get("path"))

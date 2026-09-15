@@ -116,7 +116,7 @@ def test_adapter_receipt_rejects_wrong_idempotency_and_release_identity() -> Non
 
 def test_real_lock_exposes_mapper_artifact_digests() -> None:
     version, artifacts, reason = read_tested_dependency_artifacts("simplicio-mapper")
-    assert version == "0.26.28"
+    assert version == "0.26.31"
     assert reason == "locked_in_uv.lock"
     assert artifacts["sdist"]["digest"].startswith("sha256:")
     assert artifacts["wheels"][0]["digest"].startswith("sha256:")

@@ -28,25 +28,25 @@
   },
   "current_release_status": "UNVERIFIED",
   "dependency": {
-    "declared_range": ">=0.26.28,<0.27",
+    "declared_range": ">=0.26.31,<0.27",
     "name": "simplicio-mapper",
     "release": {
       "artifact_digests": {
         "sdist": {
-          "digest": "sha256:25acaf2bce08659b0d47dc6acbcb7f6c927359f3f6bf9f488c446758559c93c1",
-          "filename": "simplicio_mapper-0.26.28.tar.gz"
+          "digest": "sha256:c349e7996393a1c4315bc2bafe2a5b2b870dae5f9b2fc00a9444177202c1cbaf",
+          "filename": "simplicio_mapper-0.26.31.tar.gz"
         },
         "whl": {
-          "digest": "sha256:49b68b815710b986a72fff6ec0b541f6e5683f22787f93a76edcd98819328d75",
-          "filename": "simplicio_mapper-0.26.28-py3-none-any.whl"
+          "digest": "sha256:7ceaba8a664dd2074d07a583cbe4937f42865663e6f3eff2b233687b30a41390",
+          "filename": "simplicio_mapper-0.26.31-py3-none-any.whl"
         }
       },
-      "commit_sha": "121e692104f751034a806e5d9e5fe7eabbd94d27",
+      "commit_sha": "c73fa72ec67688e0309aa2a10f73d9186b8a48e2",
       "source": "Mapper component-release event and immutable PyPI artifacts",
-      "tag": "v0.26.28",
-      "version": "0.26.28"
+      "tag": "v0.26.31",
+      "version": "0.26.31"
     },
-    "tested_against": "0.26.28",
+    "tested_against": "0.26.31",
     "tested_against_source": "uv.lock"
   },
   "purpose": "Fail-closed Mapper release consumption and evidence contract for issue #232.",

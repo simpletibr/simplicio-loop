@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+
 from scripts.issue_422_e2e import run, write_reports
 
 
@@ -18,7 +20,10 @@ def test_issue_422_runner_exercises_real_transactions_without_claiming_missing_c
         assert binary["input_format"] == "simplicio.fast.binary-changeset/v1"
         assert binary["repetitions"] == 10
     assert payload["claims"]["performance_improvement"] is None
-    assert scenarios["windows_locked_file"]["status"] == "PASS"
+    if sys.platform.startswith("win"):
+        assert scenarios["windows_locked_file"]["status"] == "PASS"
+    else:
+        assert scenarios["windows_locked_file"]["status"] == "UNAVAILABLE"
 
 
 def test_issue_422_reports_are_reproducible_artifacts(tmp_path):
