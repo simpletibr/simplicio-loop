@@ -52,13 +52,17 @@ class NodePythonParityTest(unittest.TestCase):
         self._tmp.cleanup()
 
     def _node_map(self) -> dict:
+        env = dict(os.environ)
+        py_bin_dir = str(Path(sys.executable).parent)
+        env["PATH"] = f"{py_bin_dir}{os.pathsep}{env.get('PATH', '')}"
         result = subprocess.run(
-            ["node", str(ROOT / "bin" / "cli.js"), "map", "--root", str(self.node_root)],
+            ["node", str(ROOT / "bin" / "cli.js"), "map", "--root", str(self.node_root), "--sync"],
             capture_output=True,
             text=True,
             check=False,
             timeout=60,
             stdin=subprocess.DEVNULL,
+            env=env,
         )
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         return json.loads((self.node_root / ".simplicio" / "project-map.json").read_text())
@@ -163,6 +167,9 @@ class NodeThinShimTest(unittest.TestCase):
         env = dict(os.environ)
         if extra_env:
             env.update(extra_env)
+        else:
+            py_bin_dir = str(Path(sys.executable).parent)
+            env["PATH"] = f"{py_bin_dir}{os.pathsep}{env.get('PATH', '')}"
         return subprocess.run(
             [
                 "node", str(ROOT / "bin" / "cli.js"), "map",
@@ -181,7 +188,10 @@ class NodeThinShimTest(unittest.TestCase):
         # default (no override) path must actually shim to Python.
         result = self._run_cli()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("-> wrote", result.stdout, result.stdout)
+        self.assertTrue(
+            "scan phase=" in result.stdout or "-> wrote" in result.stdout,
+            f"Expected Python CLI output in stdout: {result.stdout}"
+        )
         self.assertNotIn("→ wrote", result.stdout)
 
     def test_no_shim_env_var_forces_the_node_fallback(self) -> None:

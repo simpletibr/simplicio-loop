@@ -121,16 +121,16 @@ def resolve_store_location(
     if configured is not None and not project_scope:
         return location(configured, "env")
 
+    if repo_root is not None and env.get("SIMPLICIO_STORE_SCOPE") == "repo":
+        repo = _candidate(repo_root, "repo_root")
+        assert repo is not None
+        return location(repo / ".simplicio" / "data", "repo")
+
     if project_scope and repo_root is not None:
         from .project_scope import project_data_root
 
         root, slug, slug_source = project_data_root(repo_root, environ=env)
         return location(root, f"project:{slug}:{slug_source}")
-
-    if repo_root is not None and env.get("SIMPLICIO_STORE_SCOPE") == "repo":
-        repo = _candidate(repo_root, "repo_root")
-        assert repo is not None
-        return location(repo / ".simplicio" / "data", "repo")
 
     # Core / Runtime default: ~/.simplicio/data (never bare ~/data)
     from .project_scope import core_data_root

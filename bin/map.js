@@ -68,6 +68,7 @@ function parseArgs(argv) {
       case '--stack': opts.stack = argv[++i]; break;
       case '--product-name': opts.productName = argv[++i]; break;
       case '--incremental': opts.incremental = true; break;
+      case '--sync': opts.sync = true; break;
       case '--watch': opts.watch = true; break;
       case '--silent': opts.silent = true; break;
       case '-h':

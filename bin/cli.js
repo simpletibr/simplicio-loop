@@ -61,10 +61,20 @@ const PYTHON_SHIM_CANDIDATES = process.platform === 'win32'
  * must fall back to the Node reimplementation in that case, never fail.
  */
 function detectPythonShim() {
-  for (const candidate of PYTHON_SHIM_CANDIDATES) {
+  const candidates = [...PYTHON_SHIM_CANDIDATES];
+  if (process.env.VIRTUAL_ENV) {
+    const venvBin = process.platform === 'win32'
+      ? path.join(process.env.VIRTUAL_ENV, 'Scripts')
+      : path.join(process.env.VIRTUAL_ENV, 'bin');
+    candidates.unshift(
+      path.join(venvBin, 'python3'),
+      path.join(venvBin, 'python')
+    );
+  }
+  for (const candidate of candidates) {
     let probe;
     try {
-      probe = spawnSync(candidate, ['-c', 'import simplicio_mapper'], { stdio: 'ignore' });
+      probe = spawnSync(candidate, ['-c', 'import simplicio_mapper.cli'], { stdio: 'ignore' });
     } catch {
       continue;
     }

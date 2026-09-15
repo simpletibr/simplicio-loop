@@ -22,7 +22,8 @@ class ReleaseSurfaceTest(unittest.TestCase):
             check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("0.26.28", result.stdout)
+        package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+        self.assertIn(package["version"], result.stdout)
 
     def test_npm_lockfile_tracks_the_release_version(self) -> None:
         package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))

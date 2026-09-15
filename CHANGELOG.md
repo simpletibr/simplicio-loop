@@ -2,14 +2,13 @@
 
 ## [Unreleased]
 
-### Changed
+## [0.26.32] - 2026-09-15
 
-- Call-graph is fail-closed: `type=calls` edges never have a null target or
-  `resolution_status=unknown`. Python keywords are never call targets.
-  Unresolved names may appear on optional `unresolved[]` only.
-- Default `--help` lists the five public agent verbs (`scan`, `inspect`,
-  `handoff`, `ask`, `sync`). Extra families stay callable by name.
-- Mapper survey is owned in this package; Runtime map is not the survey path.
+### Fixed
+
+- Parity test suite and Node CLI shim: detect active virtual environment python, verify `simplicio_mapper.cli` import capability, and support synchronous index `--sync` flag (#641).
+- Release surfaces: align package-lock.json with package.json and assert version sync dynamically (#640).
+- Store paths: prioritize `SIMPLICIO_STORE_SCOPE=repo` when resolving repository store locations.
 
 ## [0.26.31] - 2026-09-12
 
