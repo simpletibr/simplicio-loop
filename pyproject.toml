@@ -44,9 +44,9 @@ ml = ["model2vec>=0.3", "numpy>=1.21"]
 uvloop = ["uvloop>=0.19; platform_system != 'Windows'"]
 
 [project.urls]
-Homepage = "https://github.com/wesleysimplicio/simplicio-loop"
-Repository = "https://github.com/wesleysimplicio/simplicio-loop"
-Issues = "https://github.com/wesleysimplicio/simplicio-loop/issues"
+Homepage = "https://github.com/simpletibr/simplicio-loop"
+Repository = "https://github.com/simpletibr/simplicio-loop"
+Issues = "https://github.com/simpletibr/simplicio-loop/issues"
 
 [project.scripts]
 simplicio-loop = "simplicio_loop.cli:main"
