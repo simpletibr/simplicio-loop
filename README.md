@@ -2,7 +2,7 @@
 
 > Turn a repository into bounded, queryable context that people and AI agents can trust.
 
-[![PyPI](https://img.shields.io/pypi/v/simplicio-mapper?color=0ea5e9&label=PyPI)](https://pypi.org/project/simplicio-mapper/) [![Python](https://img.shields.io/pypi/pyversions/simplicio-mapper?color=22c55e&label=Python)](https://pypi.org/project/simplicio-mapper/) [![Release](https://img.shields.io/github/v/release/wesleysimplicio/simplicio-mapper?display_name=tag&color=f59e0b)](https://github.com/wesleysimplicio/simplicio-mapper/releases/latest) [![License](https://img.shields.io/badge/license-MIT-a78bfa.svg)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/simplicio-mapper?color=0ea5e9&label=PyPI)](https://pypi.org/project/simplicio-mapper/) [![Python](https://img.shields.io/pypi/pyversions/simplicio-mapper?color=22c55e&label=Python)](https://pypi.org/project/simplicio-mapper/) [![Release](https://img.shields.io/github/v/release/simpletibr/simplicio-mapper?display_name=tag&color=f59e0b)](https://github.com/simpletibr/simplicio-mapper/releases/latest) [![License](https://img.shields.io/badge/license-MIT-a78bfa.svg)](LICENSE)
 
 [Docs site](https://wesleysimplicio.github.io/simplicio-mapper/)
 
@@ -174,9 +174,9 @@ simplicio-mapper → simplicio-runtime → simplicio-dev-cli → simplicio-loop
       facts            execution          delivery           sustained work
 ```
 
-- [`simplicio-runtime`](https://github.com/wesleysimplicio/simplicio-runtime) executes governed agent work.
-- [`simplicio-dev-cli`](https://github.com/wesleysimplicio/simplicio-dev-cli) turns plans and checks into a developer workflow.
-- [`simplicio-loop`](https://github.com/wesleysimplicio/simplicio-loop) keeps a bounded body of work moving with receipts and stop conditions.
+- [`simplicio-runtime`](https://github.com/simpletibr/simplicio-runtime) executes governed agent work.
+- [`simplicio-dev-cli`](https://github.com/simpletibr/simplicio-dev-cli) turns plans and checks into a developer workflow.
+- [`simplicio-loop`](https://github.com/simpletibr/simplicio-loop) keeps a bounded body of work moving with receipts and stop conditions.
 
 ## Documentation and release notes
 
@@ -186,7 +186,7 @@ simplicio-mapper → simplicio-runtime → simplicio-dev-cli → simplicio-loop
 - [Architecture and evidence docs](docs/)
 - [Changelog](CHANGELOG.md)
 - [PyPI publishing notes](PYPI.md)
-- [GitHub releases](https://github.com/wesleysimplicio/simplicio-mapper/releases)
+- [GitHub releases](https://github.com/simpletibr/simplicio-mapper/releases)
 - [Release verification guide](.specs/workflow/RELEASE.md)
 
 ## License
@@ -194,7 +194,7 @@ simplicio-mapper → simplicio-runtime → simplicio-dev-cli → simplicio-loop
 MIT. See [LICENSE](LICENSE).
 
 <p align="center">
-  <a href="https://star-history.com/#wesleysimplicio/simplicio-mapper&Date">
-    <img src="https://api.star-history.com/svg?repos=wesleysimplicio/simplicio-mapper&type=Date" alt="Star history chart for simplicio-mapper">
+  <a href="https://star-history.com/#simpletibr/simplicio-mapper&Date">
+    <img src="https://api.star-history.com/svg?repos=simpletibr/simplicio-mapper&type=Date" alt="Star history chart for simplicio-mapper">
   </a>
 </p>
