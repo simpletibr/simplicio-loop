@@ -88,10 +88,10 @@ test = [
 dev = ["simplicio-cli[test]", "ruff>=0.15.8", "mypy>=1.19.1"]
 
 [project.urls]
-Homepage = "https://github.com/wesleysimplicio/simplicio-dev-cli"
-Repository = "https://github.com/wesleysimplicio/simplicio-dev-cli"
-Issues = "https://github.com/wesleysimplicio/simplicio-dev-cli/issues"
-Changelog = "https://github.com/wesleysimplicio/simplicio-dev-cli/releases"
+Homepage = "https://github.com/simpletibr/simplicio-dev-cli"
+Repository = "https://github.com/simpletibr/simplicio-dev-cli"
+Issues = "https://github.com/simpletibr/simplicio-dev-cli/issues"
+Changelog = "https://github.com/simpletibr/simplicio-dev-cli/releases"
 
 [project.scripts]
 simplicio-cli = "simplicio.cli:main"
