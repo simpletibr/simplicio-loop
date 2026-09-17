@@ -6,7 +6,7 @@
 
 <p align="center">
   <a href="docs/REPOSITORY_GOVERNANCE.md"><img src="https://img.shields.io/badge/CI-local%20gate%20is%20authoritative-888888" alt="Validation status: the local scripts/check.py gate is authoritative; GitHub Actions is not required evidence"></a>
-  <a href="https://github.com/wesleysimplicio/simplicio-loop/stargazers"><img src="https://img.shields.io/github/stars/wesleysimplicio/simplicio-loop?style=social" alt="Stars"></a>
+  <a href="https://github.com/simpletibr/simplicio-loop/stargazers"><img src="https://img.shields.io/github/stars/simpletibr/simplicio-loop?style=social" alt="Stars"></a>
   <a href="#-the-7-skills--5-accelerators"><img src="https://img.shields.io/badge/skills-7-7C3AED" alt="7 skills"></a>
   <a href="#-source-adapters"><img src="https://img.shields.io/badge/source%20adapters-5-00E08A" alt="5 source adapters"></a>
   <a href="#-16-runtimes-one-protocol"><img src="https://img.shields.io/badge/runtimes-16%20(3%20guaranteed%2B13%20best--effort)-2563EB" alt="16 runtimes (3 guaranteed + 13 best-effort)"></a>
@@ -91,7 +91,7 @@ That architecture lets one goal become a governed delivery system: from a single
 <!-- stage-agents-roadmap:start -->
 ## 🤖 Shipped: a concrete agent behind every stage
 
-> **Implementation status:** [#422](https://github.com/wesleysimplicio/simplicio-loop/issues/422)–[#436](https://github.com/wesleysimplicio/simplicio-loop/issues/436) — the whole EPIC — is **closed and shipped** as of v3.37.0, including the full mandatory stage-reporting gate ([#433](https://github.com/wesleysimplicio/simplicio-loop/issues/433)) and the multi-tracker interface ([#436](https://github.com/wesleysimplicio/simplicio-loop/issues/436)). v3.38.0 adds the multi-agent coordination layer on top (`scripts/coordinator.py`, `scripts/pr_dod_review.py`) — see [§ What's new](#-whats-new-in-v3380--the-multi-agent-coordination-release).
+> **Implementation status:** [#422](https://github.com/simpletibr/simplicio-loop/issues/422)–[#436](https://github.com/simpletibr/simplicio-loop/issues/436) — the whole EPIC — is **closed and shipped** as of v3.37.0, including the full mandatory stage-reporting gate ([#433](https://github.com/simpletibr/simplicio-loop/issues/433)) and the multi-tracker interface ([#436](https://github.com/simpletibr/simplicio-loop/issues/436)). v3.38.0 adds the multi-agent coordination layer on top (`scripts/coordinator.py`, `scripts/pr_dod_review.py`) — see [§ What's new](#-whats-new-in-v3380--the-multi-agent-coordination-release).
 
 The portable driver assigns one accountable agent to intake/planning, implementation, safety,
 delivery, feedback/recovery, and final completion audit. Review fans out to four independent agents
@@ -146,7 +146,7 @@ flowchart LR
 
 The provider-neutral contract, capability probes, idempotent markers, durable outboxes, recovery
 rules, sandbox E2E matrix, and acceptance criteria are specified in
-[#436](https://github.com/wesleysimplicio/simplicio-loop/issues/436). An optional provider is never
+[#436](https://github.com/simpletibr/simplicio-loop/issues/436). An optional provider is never
 treated as connected merely because a CLI exists, and no remote acknowledgment is ever invented.
 <!-- stage-agents-roadmap:end -->
 
@@ -217,7 +217,7 @@ merged but left the real issue only partially solved. Neither used to be visible
 mechanically, every triage pass.
 
 See [`CHANGELOG.md`](CHANGELOG.md) for the full list and the
-[v3.38.0 release](https://github.com/wesleysimplicio/simplicio-loop/releases/tag/v3.38.0) for
+[v3.38.0 release](https://github.com/simpletibr/simplicio-loop/releases/tag/v3.38.0) for
 signed artifacts (wheel, sdist, SBOM, provenance).
 
 ## ⚡ TL;DR
@@ -578,7 +578,7 @@ below. See `references/token-economy.md` and `scripts/claims_manifest.py`.
 
 ### Measured benchmark (issue #17)
 
-**Task:** [simplicio-agent#17](https://github.com/wesleysimplicio/simplicio-agent/issues/17) — Asolaria
+**Task:** [simplicio-agent#17](https://github.com/simpletibr/simplicio-agent/issues/17) — Asolaria
 HRM + N-Nest-Prime, **P0 slice completed in both arms**: Brown-Hilbert `port.port.port` addressing +
 Agent/Watcher corrective gate (`agent/asolaria_nest_contract.py` + unit tests, both arms green).
 
@@ -633,7 +633,7 @@ Full interpretation of why multi-lane benches look the way they do — including
 |--|--|
 | **PDF (pizza + bars + barramento + narrative)** | [`docs/evidence/loop_stack_economy_benchmark_report.pdf`](docs/evidence/loop_stack_economy_benchmark_report.pdf) |
 | **Raw metrics JSON** | [`docs/evidence/multi_issue_lanes_metrics.json`](docs/evidence/multi_issue_lanes_metrics.json) |
-| **Harness charts** | [`docs/evidence/multi_issue_lanes_bench.pdf`](https://github.com/wesleysimplicio/simplicio-agent/blob/main/docs/evidence/multi_issue_lanes_bench.pdf) (agent harness) |
+| **Harness charts** | [`docs/evidence/multi_issue_lanes_bench.pdf`](https://github.com/simpletibr/simplicio-agent/blob/main/docs/evidence/multi_issue_lanes_bench.pdf) (agent harness) |
 
 **Mean token savings vs host baseline (issues #9, #96, #171, #322, #711):**
 
@@ -773,7 +773,7 @@ That installs the skills + hooks only. If your runtime can bind native helpers, 
 (operators, capture proxy, dashboards, services, runtime wiring):
 
 ```bash
-git clone https://github.com/wesleysimplicio/simplicio-loop
+git clone https://github.com/simpletibr/simplicio-loop
 cd simplicio-loop
 
 # install for your runtime (omit <runtime> to auto-detect)
@@ -998,7 +998,7 @@ long as every REQUIRED item is healthy.
 Or, on Claude Code / Cursor, install it straight from the latest GitHub release (no marketplace):
 
 ```bash
-gh release download --repo wesleysimplicio/simplicio-loop --archive tar.gz
+gh release download --repo simpletibr/simplicio-loop --archive tar.gz
 tar xzf simplicio-loop-*.tar.gz && cd simplicio-loop-*/
 bash scripts/install.sh claude    # or: bash scripts/install.sh cursor
 ```
@@ -1091,7 +1091,7 @@ Install the development extra (`pip install "simplicio-loop[dev]"`) before runni
 
 ## ⭐ Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=wesleysimplicio/simplicio-loop&type=Date)](https://star-history.com/#wesleysimplicio/simplicio-loop&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=simpletibr/simplicio-loop&type=Date)](https://star-history.com/#simpletibr/simplicio-loop&Date)
 
 ---
 
@@ -1112,7 +1112,7 @@ pwsh scripts/install.ps1 gemini -Global
 pwsh scripts/install.ps1 hermes -Global   # legacy alias for simplicio_agent
 ```
 
-Local queues, leases, worktrees, heartbeats, and evidence remain active on every machine; GitHub comments are the shipped shared coordination projection. Today, an unavailable or unauthenticated GitHub records a sync failure without inventing a remote acknowledgment. The stage-agent roadmap tightens this for GitHub-bound runs: [#433](https://github.com/wesleysimplicio/simplicio-loop/issues/433) makes the comment confirmation mandatory before `COMPLETE`. [#436](https://github.com/wesleysimplicio/simplicio-loop/issues/436) adds the same projection to Azure DevOps, Jira, Asana, and Trello only when each connector is proven connected; disconnected optional trackers are explicitly skipped.
+Local queues, leases, worktrees, heartbeats, and evidence remain active on every machine; GitHub comments are the shipped shared coordination projection. Today, an unavailable or unauthenticated GitHub records a sync failure without inventing a remote acknowledgment. The stage-agent roadmap tightens this for GitHub-bound runs: [#433](https://github.com/simpletibr/simplicio-loop/issues/433) makes the comment confirmation mandatory before `COMPLETE`. [#436](https://github.com/simpletibr/simplicio-loop/issues/436) adds the same projection to Azure DevOps, Jira, Asana, and Trello only when each connector is proven connected; disconnected optional trackers are explicitly skipped.
 
 GitHub Actions is not required or accepted as validation evidence for this repository; the local
 gate is authoritative. Lifecycle state is projected by the local runtime integration when
