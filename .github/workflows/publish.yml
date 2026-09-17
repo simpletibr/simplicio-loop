@@ -89,5 +89,5 @@ jobs:
           }
           print(json.dumps(payload, sort_keys=True))
           PY
-          gh api repos/wesleysimplicio/simplicio-loop/dispatches \
+          gh api repos/simpletibr/simplicio-loop/dispatches \
             --method POST --input /tmp/loop-dispatch.json

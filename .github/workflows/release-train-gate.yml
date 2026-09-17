@@ -39,14 +39,14 @@ jobs:
           commit_sha=$(python -c "import json; print(json.load(open('config/release-train-lock.json'))['release_event']['commit_sha'])")
           mkdir -p .simplicio/release-train-sources
           git clone --quiet --depth 1 --branch "v$candidate" \
-            https://github.com/wesleysimplicio/simplicio-mapper.git \
+            https://github.com/simpletibr/simplicio-mapper.git \
             .simplicio/release-train-sources/n
           test "$(git -C .simplicio/release-train-sources/n rev-parse HEAD)" = "$commit_sha"
           args=()
           args+=(--mapper-source .simplicio/release-train-sources/n)
           if [ -n "$previous" ]; then
             git clone --quiet --depth 1 --branch "v$previous" \
-              https://github.com/wesleysimplicio/simplicio-mapper.git \
+              https://github.com/simpletibr/simplicio-mapper.git \
               .simplicio/release-train-sources/n-minus-1
             args+=(--n-minus-1-version "$previous" --n-minus-1-source .simplicio/release-train-sources/n-minus-1)
           fi
