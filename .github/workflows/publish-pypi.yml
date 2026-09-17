@@ -139,8 +139,8 @@ jobs:
         run: |
           set -euo pipefail
           for repository in \
-            wesleysimplicio/simplicio-dev-cli \
-            wesleysimplicio/simplicio-loop; do
+            simpletibr/simplicio-dev-cli \
+            simpletibr/simplicio-loop; do
             curl --fail-with-body --silent --show-error \
               --request POST \
               --url "https://api.github.com/repos/$repository/dispatches" \
