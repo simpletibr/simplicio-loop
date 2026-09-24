@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.27,<1.32"]
+requires = ["hatchling>=1.27,<1.33"]
 build-backend = "hatchling.build"
 
 [project]
@@ -32,10 +32,10 @@ dependencies = [
 
 [project.optional-dependencies]
 release = [
-  "cryptography>=43,<48",
+  "cryptography>=43,<51",
 ]
 dev = [
-  "cryptography>=43,<48",
+  "cryptography>=43,<51",
   "ruff>=0.15,<0.17",
   "pytest>=8,<10",
   "pytest-cov>=6,<8",
