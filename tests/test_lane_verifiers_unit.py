@@ -11,6 +11,7 @@ from simplicio_loop.quality_matrix import evaluate_quality_matrix
 
 PY = sys.executable
 OK = f'`{PY} -c "print(1)"`'
+SLOW = f'`{PY} -c "import time; time.sleep(0.15)"`'
 
 
 def _task(**lanes):
@@ -125,3 +126,88 @@ def test_independent_reverify_catches_a_lane_that_now_fails(tmp_path):
     flag.unlink()
     verdict = qm.independent_reverify_quality_matrix(str(run_dir), repo=str(tmp_path))
     assert verdict["ready"] is False
+
+
+# --------------------------------------------------------------------------
+# Conditional lanes: a Docs/Chore/Config task, or an explicit `Tests: none`
+# line, only needs implementation (+ its Independent verifier if declared);
+# missing quality lanes are waived, not blocking.
+# --------------------------------------------------------------------------
+
+def _story(header_lines, **lanes):
+    lines = [f"{name.capitalize()} verifier: {cmd}" for name, cmd in lanes.items()]
+    return "\n".join(header_lines) + "\n\n8. Additional Information\n\n" + "\n".join(lines) + "\n"
+
+
+def test_lanes_required_true_for_feature_type():
+    text = _story(["Type: Feature"])
+    assert lv.lanes_required(text) is True
+
+
+def test_lanes_required_false_for_docs_type():
+    text = _story(["Type: Docs"])
+    assert lv.lanes_required(text) is False
+
+
+def test_lanes_required_false_for_chore_type():
+    text = _story(["Type: Chore"])
+    assert lv.lanes_required(text) is False
+
+
+def test_lanes_required_false_for_config_type():
+    text = _story(["Type: Config"])
+    assert lv.lanes_required(text) is False
+
+
+def test_lanes_required_false_for_explicit_tests_none():
+    text = _story(["Type: Feature", "Tests: none"])
+    assert lv.lanes_required(text) is False
+
+
+def test_lanes_required_defaults_true_with_no_type_header():
+    assert lv.lanes_required("8. Additional Information\n\nUnit verifier: `x`\n") is True
+
+
+def test_docs_task_with_no_lanes_declared_does_not_block_the_gate(tmp_path):
+    run_dir = _run_dir(tmp_path)
+    text = _story(["Type: Docs"])  # no lane verifiers declared at all
+    receipt = lv.build_quality_matrix(tmp_path, run_dir, [text])
+    verdict = evaluate_quality_matrix(str(run_dir))
+    assert verdict["ready"] is True, verdict
+    assert receipt["policy"]["unit_required"] is False
+    assert receipt["policy"]["benchmark_required"] is False
+
+
+def test_feature_task_with_no_lanes_declared_still_blocks_the_gate(tmp_path):
+    run_dir = _run_dir(tmp_path)
+    text = _story(["Type: Feature"])  # no lane verifiers declared
+    lv.build_quality_matrix(tmp_path, run_dir, [text])
+    verdict = evaluate_quality_matrix(str(run_dir))
+    assert verdict["ready"] is False
+
+
+def test_mixed_batch_requires_lanes_if_any_task_needs_them(tmp_path):
+    run_dir = _run_dir(tmp_path)
+    docs_text = _story(["Type: Docs"])
+    feature_text = _story(["Type: Feature"])
+    lv.build_quality_matrix(tmp_path, run_dir, [docs_text, feature_text])
+    verdict = evaluate_quality_matrix(str(run_dir))
+    assert verdict["ready"] is False
+
+
+# --------------------------------------------------------------------------
+# Concurrent lane execution: independent lane commands run via asyncio.gather,
+# not sequentially -- N slow commands should take much less than N * duration.
+# --------------------------------------------------------------------------
+
+def test_declared_lanes_run_concurrently_not_sequentially(tmp_path):
+    import time as _time
+
+    run_dir = _run_dir(tmp_path)
+    lanes = dict(unit=SLOW, integration=SLOW, system=SLOW, regression=SLOW, benchmark=SLOW)
+    started = _time.perf_counter()
+    lv.build_quality_matrix(tmp_path, run_dir, [_task(**lanes)])
+    elapsed = _time.perf_counter() - started
+    # Five 0.15s lanes run concurrently should finish well under the ~0.75s
+    # a sequential loop would take.
+    assert elapsed < 0.5, elapsed

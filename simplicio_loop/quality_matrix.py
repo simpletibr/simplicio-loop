@@ -342,6 +342,15 @@ def evaluate_quality_matrix(run_dir: str) -> Dict[str, Any]:
             return result
 
     coverage = receipt.get("coverage")
+    if policy.get("coverage_required") is False:
+        gates.append(_gate("coverage", True, "coverage_waived",
+                           "'coverage' lane waived by policy.coverage_required=false"))
+        result.update({
+            "ready": True,
+            "reason_code": "quality_matrix_verified",
+            "reason": "implementation and every required lane verified; coverage waived by policy",
+        })
+        return result
     measured = (coverage or {}).get("measured") if isinstance(coverage, dict) else None
     if isinstance(measured, bool) or not isinstance(measured, (int, float)):
         gate = _gate("coverage", False, "coverage_unmeasured", "coverage.measured is missing or not numeric")

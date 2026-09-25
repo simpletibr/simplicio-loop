@@ -73,6 +73,22 @@ def _pr_view_json(**fields):
     return json.dumps(fields)
 
 
+def _write_host_edit_plan(repo, run_id, task_index=1):
+    """Loop does not generate an edit plan -- the host must write one (see SKILL.md's
+    per-task ``edit-plan-<N>.json`` protocol). A tagged schema skips the real dev-cli
+    compile step (``_compile_minimal_host_plan`` passes a schema-tagged plan through
+    unchanged), so this fixture needs no real dev-cli binary; the actual mutation in
+    these tests comes from the faked ``run_guarded``/exec seam, not from this plan's
+    content."""
+    run_dir = repo / ".simplicio" / "loop-runs" / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    (run_dir / f"edit-plan-{task_index}.json").write_text(json.dumps({
+        "schema": "simplicio.mechanical-edit/v1",
+        "touched_files": ["src/app.py"],
+        "operations": [{"path": "src/app.py", "find": "return 'ok'", "replace": "return 'ok-merged'"}],
+    }), encoding="utf-8")
+
+
 def _built_context_pack(task_id, goal, acs):
     """A real, conforming context pack (schema, assigned_to, capabilities all consistent
     with IDENTITY) -- ``bind_receipt`` rejects a raw ad-hoc dict here, so the item's
@@ -204,6 +220,7 @@ def test_guarded_dispatch_and_auto_merge_are_wired_end_to_end(tmp_path, monkeypa
     bare queue.claim), the dev-cli mutation runs through run_guarded, the receipt pair comes
     back VERIFIED, and MergeExecutor actually creates+polls+merges+reconciles a PR."""
     repo, run_id = _arm_fixture(tmp_path, monkeypatch)
+    _write_host_edit_plan(repo, run_id)
     _simulate_runtime_work_via_run_guarded(monkeypatch, repo)
 
     monkeypatch.setenv("SIMPLICIO_GUARDED_DISPATCH", "1")
@@ -272,6 +289,7 @@ def test_lease_lost_during_guarded_execution_is_reported_distinctly(tmp_path, mo
     ``lease_lost_during_execution`` -- not left to finish unguarded, and not confused with a
     generic operator exception."""
     repo, run_id = _arm_fixture(tmp_path, monkeypatch)
+    _write_host_edit_plan(repo, run_id)
     monkeypatch.setenv("SIMPLICIO_GUARDED_DISPATCH", "1")
 
     queue = SQLiteRemoteQueue(str(tmp_path / "queue.db"))

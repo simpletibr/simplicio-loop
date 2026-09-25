@@ -276,6 +276,21 @@ def test_benchmark_not_applicable_passes_when_policy_and_justification_present(t
     assert verdict["ready"] is True
 
 
+def test_coverage_unmeasured_blocks_by_default(tmp_path):
+    receipt = _passing_receipt(coverage={"measured": None})
+    (tmp_path / "quality-matrix.json").write_text(json.dumps(receipt), encoding="utf-8")
+    verdict = evaluate_quality_matrix(str(tmp_path))
+    assert verdict["ready"] is False
+    assert verdict["reason_code"] == "coverage_unmeasured"
+
+
+def test_coverage_waived_by_policy_passes_without_a_measurement(tmp_path):
+    receipt = _passing_receipt(policy={"coverage_required": False}, coverage={"measured": None})
+    (tmp_path / "quality-matrix.json").write_text(json.dumps(receipt), encoding="utf-8")
+    verdict = evaluate_quality_matrix(str(tmp_path))
+    assert verdict["ready"] is True, verdict
+
+
 def test_not_applicable_ineligible_lane_still_blocks(tmp_path):
     # NA is only ever excusable for "benchmark" (issue text verbatim) -- unit must
     # never be excusable this way even with the policy flag on.

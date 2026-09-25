@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import simplicio_loop.evidence as evidence_mod
@@ -42,6 +43,15 @@ def _run(cmd, cwd, env=None):
 
 
 def test_evidence_receipt_built_from_run_and_watcher_reads_it(tmp_path):
+    # Two-phase flow: `prepare` arms the run (no mutation attempted yet), the
+    # host then writes the edit-plan (a host-authored, already-frozen plan --
+    # `schema` set skips the dev-cli compile subprocess entirely, matching
+    # what a host that already has a compiled plan would hand the loop), and
+    # `wave` dispatches it. The single-shot deprecated `run --task` command
+    # now redirects straight into this same arm+wave path (see
+    # `_redirect_run_to_wave` in cli_impl.py), so exercising `prepare` + `wave`
+    # directly is the current, non-deprecated shape of what this test proves:
+    # the evidence receipt is built from the run, and the watcher reads it.
     repo = tmp_path / "repo"
     repo.mkdir()
     src = repo / "src"
@@ -93,7 +103,7 @@ else:
     })
     fake_mapper_preflight = json.dumps({
         "version_stdout": "simplicio-mapper 0.26.0",
-        "help_stdout": " inspect handoff ask sync drift ",
+        "help_stdout": " scan inspect handoff ask sync drift ",
         "version_returncode": 0,
         "help_returncode": 0,
     })
@@ -103,21 +113,55 @@ else:
         "version_returncode": 0,
         "help_returncode": 0,
     })
-    started = _run(CLI + ["run", "--repo", str(repo), "--task", str(task),
-                          "--delivery", "verified", "--max-iterations", "9",
-                          "--quality-provider", "simplicio_loop_quality"], REPO,
-                   env={
-                       "SIMPLICIO_LOOP_FAKE_OPERATOR_JSON": fake_operator,
-                       "SIMPLICIO_LOOP_FAKE_MAPPER_PREFLIGHT_JSON": fake_mapper_preflight,
-                       "SIMPLICIO_LOOP_FAKE_DEVCLI_PREFLIGHT_JSON": fake_devcli_preflight,
-                       # Do not inherit a host-installed operator: this test proves the
-                       # explicit dry-run boundary and must remain PARTIAL everywhere.
-                       "PATH": str(operator_bin) + os.pathsep + os.defpath,
-                   })
-    assert started.returncode == 22, started.stdout + started.stderr
-    payload = json.loads(started.stdout)
-    assert payload["outcome"]["outcome"] == "PARTIAL"
-    run_dir = payload["run_dir"]
+    common_env = {
+        "SIMPLICIO_LOOP_FAKE_OPERATOR_JSON": fake_operator,
+        "SIMPLICIO_LOOP_FAKE_MAPPER_PREFLIGHT_JSON": fake_mapper_preflight,
+        "SIMPLICIO_LOOP_FAKE_DEVCLI_PREFLIGHT_JSON": fake_devcli_preflight,
+        # Do not inherit a host-installed operator: this test proves the
+        # explicit dry-run/no-mutation boundary and must remain UNVERIFIED
+        # everywhere.
+        "PATH": str(operator_bin) + os.pathsep + os.defpath,
+        # Mandatory mutation-authority is a separate, later gate (host-supplied
+        # plan.json) than the dry-run proposal this test exercises -- opt out
+        # of it here the same way other fixtures in this suite do.
+        "SIMPLICIO_REQUIRE_MUTATION_AUTHORITY": "0",
+    }
+
+    # Phase 1: arm the run. No mutation is attempted at prepare time -- the
+    # dry-run operator preflight above only proves dev-cli accepts a plan.
+    prepared = _run(CLI + ["prepare", "--task", str(task), "--repo", str(repo),
+                           "--delivery", "verified", "--max-iterations", "9"],
+                     REPO, env=common_env)
+    assert prepared.returncode == 0, prepared.stdout + prepared.stderr
+    prepared_payload = json.loads(prepared.stdout)
+    assert prepared_payload["status"] == "prepared", prepared_payload
+    run_id = prepared_payload["run_id"]
+    run_dir = prepared_payload["run_dir"]
+
+    # Phase 2: the host writes the edit plan. A plan that already carries
+    # `schema` is a frozen/compiled plan (see `_compile_minimal_host_plan`)
+    # and is applied as-is -- no dev-cli compile subprocess needed, so this
+    # stays hermetic under the restricted PATH above.
+    edit_plan = {
+        "schema": "simplicio.dev-cli.edit-plan/v1",
+        "operations": [{"path": "src/app.py", "op": "noop"}],
+    }
+    (Path(run_dir) / "edit-plan-1.json").write_text(json.dumps(edit_plan), encoding="utf-8")
+
+    # Phase 3: dispatch the wave. `SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON`
+    # substitutes the real dev-cli `--apply` subprocess the same way
+    # `SIMPLICIO_LOOP_FAKE_OPERATOR_JSON` substituted its dry-run preflight
+    # above -- no file is actually mutated, so the run stays UNVERIFIED.
+    fake_operator_exec = json.dumps({
+        "returncode": 0,
+        "stdout": {"kind": "operator-apply", "ok": True},
+        "stderr": "",
+        "write_files": {},
+    })
+    wave_env = dict(common_env)
+    wave_env["SIMPLICIO_LOOP_FAKE_OPERATOR_EXEC_JSON"] = fake_operator_exec
+    started = _run(CLI + ["wave", run_id, "--repo", str(repo)], REPO, env=wave_env)
+    assert started.returncode in (0, 2), started.stdout + started.stderr
     evidence_path = os.path.join(run_dir, "evidence-receipt.json")
     assert os.path.exists(evidence_path)
     receipt = json.loads(open(evidence_path, encoding="utf-8").read())

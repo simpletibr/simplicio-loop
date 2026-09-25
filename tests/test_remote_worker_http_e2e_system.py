@@ -131,6 +131,7 @@ def test_claim_heartbeat_crash_handoff_over_real_http_socket(http_server):
     try:
         status = _wait_for_state(status_a, {"running"}, timeout=10.0)
         assert status["claimed"] is True
+        crashed_fencing_token = status["fencing_token"]
 
         # A second real process, over the same real socket, is rejected while A's lease holds.
         proc_b_early = _spawn(
@@ -178,7 +179,10 @@ def test_claim_heartbeat_crash_handoff_over_real_http_socket(http_server):
     final_task = client.task("HTTP-286-E2E")
     assert final_task["status"] == "completed"
     assert final_task["lease"]["agent_id"] == "agent-b"
-    assert final_task["lease"]["fencing_token"] >= 2
+    # Fencing tokens are opaque, distinct identifiers (simplicio-mapper's operations
+    # store mints them as uuid4 hex, not a monotonic counter) -- the genuinely-new-lease
+    # proof is that the post-crash reclaim's token is not the crashed attempt's token.
+    assert final_task["lease"]["fencing_token"] != crashed_fencing_token
 
 
 def test_cooperative_cancellation_over_real_http_socket(http_server):

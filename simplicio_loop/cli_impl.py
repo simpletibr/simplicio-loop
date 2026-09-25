@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import importlib.util
+import io
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -436,6 +439,43 @@ def _orient_provider_provenance(payload: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+COMMAND_CARD_SCHEMA = "simplicio.loop-command-card/v1"
+COMMAND_CARD_MAX_BYTES = 1_500
+
+
+def _orient_command_card(root: Path) -> dict[str, Any]:
+    """Exact next commands for this repo (< 1.5 KB serialized).
+
+    An LLM host that just ran ``orient`` needs the literal next commands,
+    the edit-plan path pattern/minimal format, and the task-file lane +
+    waiver lines without re-reading ``SKILL.md`` -- so orient answers it
+    directly.
+    """
+    repo = str(root)
+    return {
+        "schema": COMMAND_CARD_SCHEMA,
+        "prepare": f"simplicio-loop prepare --task tasks.md --repo {repo}",
+        "wave": f"simplicio-loop wave <run_id> --repo {repo}",
+        "verify": f"simplicio-loop verify <run_id> --repo {repo}",
+        "tick": f"simplicio-loop tick <run_id> --repo {repo} --task-index <N>",
+        "edit_plan_path": ".simplicio/loop-runs/<run_id>/edit-plan-<N>.json",
+        "edit_plan_format": {
+            "operations": [{"path": "<repo-relative>", "find": "<exact text>", "replace": "<new text>"}]
+        },
+        "edit_plan_rule": "find must match exactly once in path",
+        "task_file_lanes": [
+            "Independent verifier:",
+            "Unit verifier:",
+            "Integration verifier:",
+            "System verifier:",
+            "Regression verifier:",
+            "Benchmark verifier:",
+            "Coverage verifier:",
+        ],
+        "waiver": {"type_line": "Type: Docs|Chore|Config", "tests_line": "Tests: none"},
+    }
+
+
 def _seal_orient_payload(
     payload: dict[str, Any], *, root: Path, task: str, fast_mode: str,
     fast_engine: str, fast_context_budget: int,
@@ -448,6 +488,7 @@ def _seal_orient_payload(
         "fallback_allowed": fast_mode != "on" and fast_engine != "rust",
     }
     payload["llm_orientation"] = contract
+    payload["commands"] = _orient_command_card(root)
     provenance = _orient_provider_provenance(payload)
     receipt = {
         "schema": ORIENT_RECEIPT_SCHEMA,
@@ -585,6 +626,207 @@ def _orient_trim_verbose_fields(payload: dict[str, Any]) -> dict[str, Any]:
     return trimmed
 
 
+ORIENT_TARGETS_SCHEMA = "simplicio.loop-orient-targets/v1"
+_ORIENT_IDENTIFIER_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+_ORIENT_WORD_SPLIT_RE = re.compile(r"[A-Z]+(?=[A-Z][a-z])|[A-Z]?[a-z]+|[A-Z]+|[0-9]+")
+_ORIENT_SKIP_DIRS = {
+    ".git", ".simplicio", "__pycache__", "node_modules", ".venv", "venv",
+    "dist", "build", ".mypy_cache", ".pytest_cache", ".tox", ".ruff_cache",
+    "egg-info", ".pytest-cache",
+}
+_ORIENT_SOURCE_EXT = {
+    ".py", ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".go", ".rs",
+    ".java", ".rb", ".php", ".cs", ".cpp", ".cc", ".c", ".h", ".hpp",
+}
+ORIENT_TARGET_MAX_FILES = 5
+ORIENT_TARGET_MAX_TOTAL_BYTES = 6 * 1024
+ORIENT_TARGET_FULL_FILE_MAX_BYTES = 2 * 1024
+ORIENT_TARGET_SPAN_CONTEXT_LINES = 15
+ORIENT_TINY_REPO_FILE_LIMIT = 30
+
+
+def _orient_split_identifier(token: str) -> list[str]:
+    return [part.lower() for part in _ORIENT_WORD_SPLIT_RE.findall(token) if part]
+
+
+def _orient_task_terms(task: str) -> set[str]:
+    terms: set[str] = set()
+    for ident in _ORIENT_IDENTIFIER_RE.findall(task):
+        terms.add(ident.lower())
+        terms.update(_orient_split_identifier(ident))
+    return {term for term in terms if len(term) > 1}
+
+
+def _orient_iter_source_files(root: Path, *, limit: int = 4000) -> list[Path]:
+    """Every tracked-looking source/test file under ``root``, bounded."""
+    found: list[Path] = []
+    for path in sorted(root.rglob("*")):
+        if len(found) >= limit:
+            break
+        if not path.is_file():
+            continue
+        if any(part in _ORIENT_SKIP_DIRS for part in path.parts):
+            continue
+        if path.suffix.lower() not in _ORIENT_SOURCE_EXT:
+            continue
+        found.append(path)
+    return found
+
+
+def _orient_file_score(path: Path, terms: set[str]) -> int:
+    path_terms: set[str] = set()
+    for part in path.parts:
+        path_terms.add(part.lower())
+        path_terms.update(_orient_split_identifier(part))
+    score = len(terms & path_terms) * 2
+    try:
+        if path.stat().st_size <= 200_000:
+            content = path.read_text(encoding="utf-8", errors="ignore")
+            symbol_terms: set[str] = set()
+            for ident in _ORIENT_IDENTIFIER_RE.findall(content):
+                symbol_terms.add(ident.lower())
+                symbol_terms.update(_orient_split_identifier(ident))
+            score += len(terms & symbol_terms)
+    except OSError:
+        pass
+    return score
+
+
+def _orient_lexical_rank_candidates(root: Path, task: str) -> list[Path]:
+    """Deterministic lexical-overlap ranking used when Mapper/Fast selection
+    is empty or FALLBACK, so the host is never left ungrounded (issue: 0
+    Mapper candidates must never mean 0 real file content).
+
+    Ranks repo source/test files by overlap of task terms with path parts
+    and in-file identifiers; tiny repos (<= ``ORIENT_TINY_REPO_FILE_LIMIT``
+    tracked source files) include every file as a candidate regardless of
+    score, since scanning all of them is cheap and safe.
+    """
+    terms = _orient_task_terms(task)
+    files = _orient_iter_source_files(root)
+    scored = [(_orient_file_score(path, terms), path) for path in files]
+    scored.sort(key=lambda item: (-item[0], str(item[1])))
+    if len(files) <= ORIENT_TINY_REPO_FILE_LIMIT:
+        return [path for _, path in scored]
+    return [path for score, path in scored if score > 0]
+
+
+def _orient_sibling_test_paths(root: Path, path: Path) -> list[str]:
+    stem = path.stem
+    if stem.startswith("test_") or stem.endswith("_test") or stem.endswith(".test") or stem.endswith(".spec"):
+        return []
+    names = {
+        f"test_{stem}{path.suffix}", f"{stem}_test{path.suffix}",
+        f"{stem}.test{path.suffix}", f"{stem}.spec{path.suffix}",
+    }
+    found: set[str] = set()
+    for base in (root / "tests", root / "test", path.parent):
+        if not base.is_dir():
+            continue
+        for name in names:
+            candidate = base / name
+            if candidate.is_file():
+                found.add(str(candidate.relative_to(root)))
+    return sorted(found)
+
+
+def _orient_line_numbered(lines: list[str], start: int, end: int) -> str:
+    return "\n".join(f"{i}: {lines[i - 1]}" for i in range(start, end + 1) if i <= len(lines))
+
+
+def _orient_symbol_span(content: str, terms: set[str]) -> tuple[int, int]:
+    lines = content.splitlines()
+    if not lines:
+        return (1, 0)
+    for idx, line in enumerate(lines, start=1):
+        line_terms = {ident.lower() for ident in _ORIENT_IDENTIFIER_RE.findall(line)}
+        if line_terms & terms:
+            start = max(1, idx - ORIENT_TARGET_SPAN_CONTEXT_LINES)
+            end = min(len(lines), idx + ORIENT_TARGET_SPAN_CONTEXT_LINES)
+            return (start, end)
+    return (1, min(len(lines), ORIENT_TARGET_SPAN_CONTEXT_LINES * 2))
+
+
+def _orient_build_target_entry(
+    root: Path, path: Path, terms: set[str], remaining_bytes: int,
+) -> tuple[dict[str, Any], int] | None:
+    try:
+        content = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    rel = str(path.relative_to(root))
+    encoded_len = len(content.encode("utf-8"))
+    if encoded_len <= min(ORIENT_TARGET_FULL_FILE_MAX_BYTES, remaining_bytes):
+        entry = {"path": rel, "content": content, "span": None}
+        return entry, encoded_len
+    lines = content.splitlines()
+    start, end = _orient_symbol_span(content, terms)
+    snippet = _orient_line_numbered(lines, start, end)
+    snippet_bytes = snippet.encode("utf-8")
+    if len(snippet_bytes) > remaining_bytes:
+        out_lines: list[str] = []
+        used = 0
+        for line in snippet.splitlines():
+            line_len = len(line.encode("utf-8")) + 1
+            if used + line_len > remaining_bytes:
+                break
+            out_lines.append(line)
+            used += line_len
+        snippet = "\n".join(out_lines)
+    entry = {
+        "path": rel, "content": None,
+        "span": {"start": start, "end": end, "text": snippet},
+    }
+    return entry, len(snippet.encode("utf-8"))
+
+
+def _orient_target_seed_candidates(
+    root: Path, task: str, context_summary: Mapping[str, Any],
+) -> list[Path]:
+    """Prefer Mapper/Fast's own selection when it named real files; fall back
+    to the deterministic lexical ranking only when that selection is empty."""
+    seeds: list[Path] = []
+    for rel in context_summary.get("paths") or []:
+        if not isinstance(rel, str):
+            continue
+        candidate = (root / rel)
+        if candidate.is_file():
+            seeds.append(candidate)
+    if seeds:
+        return seeds
+    return _orient_lexical_rank_candidates(root, task)
+
+
+def _orient_build_targets(root: Path, task: str, context_summary: Mapping[str, Any]) -> dict[str, Any]:
+    """Bounded, grounded file targets (issue: never leave the host to
+    hallucinate paths/APIs when Mapper/Fast selection came back empty).
+
+    Keeps the whole thing small: at most ``ORIENT_TARGET_MAX_FILES`` files
+    and ``ORIENT_TARGET_MAX_TOTAL_BYTES`` combined, exact content for small
+    files, a line-numbered symbol span for larger ones, plus sibling test
+    file paths per candidate.
+    """
+    terms = _orient_task_terms(task)
+    candidates = _orient_target_seed_candidates(root, task, context_summary)
+    files_entries: list[dict[str, Any]] = []
+    remaining = ORIENT_TARGET_MAX_TOTAL_BYTES
+    for path in candidates:
+        if len(files_entries) >= ORIENT_TARGET_MAX_FILES or remaining <= 0:
+            break
+        built = _orient_build_target_entry(root, path, terms, remaining)
+        if built is None:
+            continue
+        entry, used = built
+        entry["tests"] = _orient_sibling_test_paths(root, path)
+        files_entries.append(entry)
+        remaining -= used
+    return {
+        "schema": ORIENT_TARGETS_SCHEMA,
+        "candidate_count": len(candidates),
+        "files": files_entries,
+    }
+
+
 def orient(repo: str, task: str, fast_mode: str = "auto",
            fast_context_budget: int = 48000, fast_engine: str = "auto",
            tee: bool = False, targets: list[str] | None = None,
@@ -643,6 +885,7 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
                              fast_engine=fast_engine,
                              fast_context_budget=fast_context_budget)
         payload["context"] = _orient_context_summary(payload)
+        payload["targets"] = _orient_build_targets(root, str(task), payload["context"])
         if not verbose:
             payload = _orient_trim_verbose_fields(payload)
         if tee:
@@ -687,6 +930,7 @@ def orient(repo: str, task: str, fast_mode: str = "auto",
                          fast_engine=fast_engine,
                          fast_context_budget=fast_context_budget)
     payload["context"] = _orient_context_summary(payload)
+    payload["targets"] = _orient_build_targets(root, str(task), payload["context"])
     if not verbose:
         payload = _orient_trim_verbose_fields(payload)
     if tee:
@@ -1682,6 +1926,7 @@ def _redirect_run_to_wave(argv: Sequence[str]) -> int:
     run_id = args.run_id
     provider_worker = args.provider_worker or os.environ.get("SIMPLICIO_PROVIDER_WORKER")
 
+    armed = None
     if not run_id and args.task:
         delivery_target = delivery.normalize_delivery_target(args.delivery)
         armed = arm_run(repo, args.task, delivery_target, args.max_iterations)
@@ -1695,10 +1940,42 @@ def _redirect_run_to_wave(argv: Sequence[str]) -> int:
         sys.stderr.write("[simplicio-loop] Erro: 'run' requer --task <arquivo> ou <run_id> para redirecionar para wave.\n")
         return 2
 
-    batch_args = [repo, run_id, args.task_indices, args.max_workers, args.retry_budget, args.serial, args.batch_size]
-    if provider_worker:
-        batch_args.append(provider_worker)
-    return batch(*batch_args, flow="wave")
+    # A run blocked already at arm time (e.g. mapper/dev-cli preflight below the
+    # required version) has no plan/dispatch receipt for `batch` to consume -- skip
+    # straight to the same public run-outcome contract the pre-redirect `run` command
+    # gave for this case instead of falling through into a dispatch failure.
+    armed_blocked = armed is not None and str((armed.get("state") or {}).get("phase") or "") == "blocked"
+    if not armed_blocked:
+        batch_args = [repo, run_id, args.task_indices, args.max_workers, args.retry_budget, args.serial, args.batch_size]
+        if provider_worker:
+            batch_args.append(provider_worker)
+        # `batch()` prints its own dispatch-shaped diagnostic and returns a coarse
+        # 0/2 exit code; the pre-redirect `run` command's contract is the finer
+        # Completion-Oracle-derived `simplicio.run-outcome/v1` exit code (0/20-24)
+        # over the *current run state after dispatch*, printed as one single JSON
+        # document -- reconstruct that from the persisted run, not from batch()'s
+        # own stdout, which is suppressed here.
+        with contextlib.redirect_stdout(io.StringIO()):
+            batch(*batch_args, flow="wave")
+
+    if armed_blocked:
+        status = armed
+    else:
+        try:
+            status = read_status(repo, run_id)
+        except Exception:
+            status = armed or {"manifest": {"run_id": run_id}, "state": {}, "run_dir": ""}
+    from .run_outcome import persist_run_outcome
+    outcome = persist_run_outcome(status)
+    public_payload = _public_flow_from_status(status, "run", status)
+    if args.result_file:
+        target = Path(args.result_file)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(outcome, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(public_payload, ensure_ascii=False, indent=2))
+    if public_payload.get("status") == "VERIFIED" and public_payload.get("verified") is True:
+        return 0
+    return int(outcome["exit_code"]) if int(outcome.get("exit_code") or 0) != 0 else 2
 
 
 def main(argv=None) -> int:

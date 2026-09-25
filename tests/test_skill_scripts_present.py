@@ -34,9 +34,13 @@ def test_skill_md_exists():
 
 
 def test_every_referenced_script_is_shipped_in_plugin():
+    # SKILL.md's protocol is now expressed as `simplicio-loop` CLI subcommands
+    # (orient/prepare/wave/tick/verify) rather than inline scripts/*.py invocations --
+    # an empty reference set is a legitimate current state, not a broken fixture; this
+    # guard only needs to fire when SKILL.md *does* name a scripts/*.py path that the
+    # lean plugin mirror fails to ship.
     text = _skill_text()
     referenced = sorted(set(_SCRIPT_REF_RE.findall(text)))
-    assert referenced, "expected SKILL.md to reference at least one scripts/*.py worker"
     missing = [name for name in referenced
                if not os.path.isfile(os.path.join(PLUGIN_SCRIPTS, name))]
     assert not missing, (
@@ -47,9 +51,12 @@ def test_every_referenced_script_is_shipped_in_plugin():
 
 
 def test_every_referenced_hook_is_shipped_in_plugin():
+    # SKILL.md's protocol no longer names hook scripts inline (hook wiring is documented
+    # in hooks/README.md and wired by the installer instead) -- an empty reference set is
+    # a legitimate current state, not a broken fixture; this guard only needs to fire when
+    # SKILL.md *does* name a hooks/*.py path that the lean plugin mirror fails to ship.
     text = _skill_text()
     referenced = sorted(set(_HOOK_REF_RE.findall(text)))
-    assert referenced, "expected SKILL.md to reference at least one hooks/*.py file"
     missing = [name for name in referenced
                if not os.path.isfile(os.path.join(PLUGIN_HOOKS, name))]
     assert not missing, (

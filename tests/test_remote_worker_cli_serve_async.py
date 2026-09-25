@@ -37,12 +37,15 @@ CLI = [sys.executable, "-m", "simplicio_loop.remote_worker_cli"]
 
 
 def _task_status(db: Path, task_id: str) -> str:
-    conn = sqlite3.connect(str(db))
+    # The queue's backing store is now the Mapper operations SQLite schema
+    # (ops_tasks/ops_attempts/ops_leases), not a standalone `tasks` table --
+    # go through the same public API the production worker/coordinator use
+    # instead of coupling this test to that internal schema.
+    from simplicio_loop.remote_queue import SQLiteRemoteQueue
     try:
-        row = conn.execute("SELECT status FROM tasks WHERE task_id=?", (task_id,)).fetchone()
-    finally:
-        conn.close()
-    return row[0] if row else "missing"
+        return SQLiteRemoteQueue(str(db)).task(task_id)["status"]
+    except KeyError:
+        return "missing"
 
 
 def _wait_until(predicate, *, timeout: float = 15.0, interval: float = 0.05):

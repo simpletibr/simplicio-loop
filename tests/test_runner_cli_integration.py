@@ -1991,6 +1991,31 @@ def test_batch_rejects_cross_run_and_tampered_receipt_bindings(
     assert not list(run_dir.glob("*dead*letter*"))
 
 
+def test_batch_preflight_failure_is_typed_deterministic_no_wasted_retries(tmp_path, monkeypatch):
+    """#NOWASTE: a batch-wide receipt-chain rejection ("operator receipt does
+    not match the mapper receipt") is the exact same failure on every
+    immediate re-invocation -- it must raise a typed, deterministic
+    reason_code a retrying caller (e.g. an outer re-feed loop) can recognize,
+    not a bare RuntimeError indistinguishable from a transient one.
+    """
+    repo, _, armed, run_dir = _arm_deterministic_preflight_fixture(monkeypatch, tmp_path)
+    receipt_path = run_dir / "operator-receipt.json"
+    payload = json.loads(receipt_path.read_text(encoding="utf-8"))
+    payload["mapper_context_hash"] = "tampered"
+    receipt_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(runner_mod.BatchPreflightError) as excinfo:
+        runner_mod.execute_operator_batch(str(repo), armed["manifest"]["run_id"])
+
+    assert excinfo.value.reason_code == "operator_batch_preflight_failed"
+    assert "mapper receipt" in str(excinfo.value)
+    assert (
+        runner_mod._classify_operator_exception_reason_code(excinfo.value)
+        == "operator_batch_preflight_failed"
+    )
+    assert "operator_batch_preflight_failed" in runner_mod.DETERMINISTIC_OPERATOR_REASON_CODES
+
+
 def test_batch_rejects_mapper_context_byte_tamper(tmp_path, monkeypatch):
     repo, _, armed, run_dir = _arm_deterministic_preflight_fixture(monkeypatch, tmp_path)
     mapper_path = run_dir / "mapper-context.json"

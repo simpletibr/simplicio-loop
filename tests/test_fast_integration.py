@@ -617,3 +617,74 @@ def test_ingest_cache_sees_edits_to_untracked_files(tmp_path):
     before = integration._worktree_digest()
     (tmp_path / "new.py").write_text("x = 2\n")
     assert integration._worktree_digest() != before
+
+
+def _init_repo_with_commit(repo: Path) -> None:
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.email", "t@example.com"], check=True)
+    subprocess.run(["git", "-C", str(repo), "config", "user.name", "t"], check=True)
+    (repo / "app.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(repo), "add", "app.py"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "init"], check=True)
+
+
+def test_shared_survey_cache_lives_under_the_repo_common_dir(tmp_path: Path) -> None:
+    """The survey cache resolves via ``git rev-parse --git-common-dir``'s
+    parent, not ``root`` -- so every linked worktree of the repo lands in
+    the same cache directory (issue: shared survey cache)."""
+    repo = tmp_path / "repo"
+    _init_repo_with_commit(repo)
+    integration = FastLoopIntegration(repo, config=FastConfig(command=("fast",)))
+    assert integration._shared_cache_root() == (repo / ".simplicio" / "fast" / "survey-cache").resolve()
+
+    worktree = tmp_path / "wt"
+    subprocess.run(["git", "-C", str(repo), "worktree", "add", "-q", str(worktree), "-b", "feature"], check=True)
+    wt_integration = FastLoopIntegration(worktree, config=FastConfig(command=("fast",)))
+    assert wt_integration._shared_cache_root() == integration._shared_cache_root()
+
+
+def test_second_orient_reuses_the_shared_survey_and_spawns_no_mapper_or_fast_call(tmp_path: Path) -> None:
+    """A second orient/prepare over an unchanged tree -- even from a different
+    linked worktree of the same repo -- must not re-run ``simplicio-mapper
+    scan``/``handoff`` or ``simplicio-fast ingest`` (issue: shared survey
+    cache); it reuses the one build under the shared cache dir."""
+    repo = tmp_path / "repo"
+    _init_repo_with_commit(repo)
+    worktree = tmp_path / "wt"
+    subprocess.run(["git", "-C", str(repo), "worktree", "add", "-q", str(worktree), "-b", "feature"], check=True)
+
+    spy = FakeFast(repo)
+    config = FastConfig(command=("fast",), snapshot=".fast/project.sfast", state=".fast/state.json")
+
+    first = FastLoopIntegration(repo, config=config, runner=spy)
+    first.ingest()
+    second = FastLoopIntegration(worktree, config=config, runner=spy)
+    second.ingest()
+    third = FastLoopIntegration(repo, config=config, runner=spy)
+    third.ingest()
+
+    def spawn_count(argv0: str, verb: str) -> int:
+        return sum(1 for call in spy.calls if call[0] == argv0 and call[1] == verb)
+
+    assert spawn_count("fast", "ingest") == 1
+    assert spawn_count("simplicio-mapper", "scan") == 0
+    assert spawn_count("simplicio-mapper", "handoff") == 1
+
+
+def test_worktree_digest_ignores_the_shared_survey_cache_it_just_wrote(tmp_path: Path) -> None:
+    """When .simplicio/ is not gitignored, writing the shared survey cache
+    must not make the worktree digest -- and so the next cache key --
+    different from the one that just built it, or the cache would
+    permanently invalidate itself on every call."""
+    repo = tmp_path / "repo"
+    _init_repo_with_commit(repo)
+    integration = FastLoopIntegration(repo, config=FastConfig(command=("fast",)))
+    before = integration._worktree_digest()
+
+    cache_dir = repo / ".simplicio" / "fast" / "survey-cache" / "somekey"
+    cache_dir.mkdir(parents=True)
+    (cache_dir / "project.sfast").write_bytes(b"snapshot")
+    (cache_dir / "mapper-handoff.json").write_text("{}", encoding="utf-8")
+    (cache_dir / ".complete").write_text("1", encoding="utf-8")
+
+    assert integration._worktree_digest() == before

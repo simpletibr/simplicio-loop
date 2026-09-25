@@ -3,6 +3,39 @@ Total output lines: 1972
 
 # Changelog
 
+## [3.43.16] - 2026-09-25
+
+- Wave lane dispatch: worktree-parallel lane execution (disjoint edit-plan
+  paths run concurrently, each in its own git worktree, then integrate back
+  serially in task order), conditional lanes, and concurrent lane verifiers,
+  with mapper/dev-cli capability probes cached once per run instead of
+  re-probed per task. A deterministic operator failure (bad plan path/anchor)
+  no longer burns retry budget: `runner.py` stops retrying
+  `plan_required`/`plan_path_not_found`/`plan_path_not_authorized`/
+  `plan_find_not_found`/`plan_find_not_unique` and reports the precise reason
+  instead.
+- `orient --json` now shares its Mapper/Fast survey cache across worktrees,
+  adds a compact `commands` card (exact `prepare`/`wave`/`verify`/`tick`
+  invocations, edit-plan path/format, task-file lanes) to its response, and
+  grounds the host with real file `targets` on an empty selection instead of
+  leaving it to guess a path. The in-process strict-mode probe now checks
+  mapper/fast/dev-cli capabilities directly instead of shelling out to
+  `--version`/`--help`, and the cache-invalidation digest excludes
+  `.simplicio/` so the loop's own writes don't self-invalidate the cache.
+- Raise the operator train floors to `simplicio-mapper` 0.26.34 (paired with
+  the already-raised `simplicio-cli` 0.18.16 floor).
+- Fix `tests/test_evidence_receipt_unit.py`'s red test: it drove the now
+  fully-redirected `simplicio-loop run --task` path (a thin wrapper over
+  `prepare` + `wave`) as if it were still the old single-shot tick; rebuilt
+  it on the current two-phase `prepare` -> write `edit-plan-1.json` -> `wave`
+  shape it actually redirects to, preserving what it proves: the evidence
+  receipt is built from the run and the watcher reads it.
+- `tests/test_wave_worktree_unit.py`'s two-lane concurrency test now asserts
+  the lanes' sleep windows actually overlap (recorded start/end timestamps)
+  instead of comparing total wall-clock elapsed time against a fudged bound.
+- SKILL.md documents the `orient` command card/targets and the deterministic
+  no-retry plan reason codes.
+
 ## [3.43.15] - 2026-09-25
 
 - Fix `wave` applying only task 1 of a run: a dependent task's

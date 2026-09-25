@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import hashlib
 import os
@@ -53,6 +54,7 @@ from .planning_gate import build_planning_receipt as _build_planning_receipt
 from .planning_gate import publish_planning_receipt as _publish_planning_receipt
 from .work_item_claims import AttemptCoordinator, LeaseLostDuringExecution
 from .merge_executor import MergeExecutor, MergeExecutorError
+from . import wave_worktree
 from .model_registry import ModelCapabilityRegistry, ModelRegistryError
 from .model_router import ModelRouterError, route as _model_route
 from .runtime_drivers import CLI_PROBE_HOOKS, driver_for_runtime
@@ -154,6 +156,101 @@ HOST_EDIT_PLAN_SCHEMAS = frozenset({
     "simplicio.mechanical-edit/v1",
 })
 PLAN_REQUIRED = "plan_required"
+# #NOWASTE: reason_codes that identify a deterministic operator failure -- retrying
+# the exact same task/plan/repo-state cannot change the outcome, so the per-task
+# retry loop records it once (dead-letter) instead of burning the whole retry
+# budget on a guaranteed repeat. Everything else (subprocess timeout, OSError/lock
+# contention, lease lost) is transient and keeps retrying as before.
+DETERMINISTIC_OPERATOR_REASON_CODES = frozenset({
+    PLAN_REQUIRED,
+    "plan_compile_failed",
+    "plan_repo_state_stale",
+    "plan_validation_failed",
+    "plan_path_not_found",
+    "plan_path_not_authorized",
+    "plan_find_not_found",
+    "plan_find_not_unique",
+    "devcli_capabilities_unavailable",
+    "operator_capabilities_missing",
+    "operator_batch_preflight_failed",
+    "find_target_not_unique",
+    "find_target_not_found",
+})
+
+
+class BatchPreflightError(RuntimeError):
+    """A batch-wide preflight receipt-chain check failed (e.g. "operator receipt
+    does not match the mapper receipt"). This exact repeat will fail the exact
+    same way every time -- a caller that retries it on a fixed cadence is
+    wasting the retry budget on a guaranteed repeat (see #NOWASTE)."""
+
+    def __init__(self, message: str, *, reason_code: str = "operator_batch_preflight_failed") -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+# Text markers scanned in a failed dev-cli receipt's stdout/stderr when no discrete
+# reason_code was persisted (the apply subprocess itself rejected the edit plan's
+# find/replace, not the loop's own preflight gates above it).
+_DEVCLI_DETERMINISTIC_STDOUT_MARKERS: Tuple[Tuple[str, str], ...] = (
+    ("not unique", "find_target_not_unique"),
+    ("ambiguous", "find_target_not_unique"),
+    ("multiple matches", "find_target_not_unique"),
+    ("no match", "find_target_not_found"),
+    ("no such find", "find_target_not_found"),
+    ("not found", "find_target_not_found"),
+)
+
+
+def _classify_devcli_receipt_failure(payload: Mapping[str, Any]) -> str:
+    """Derive a deterministic reason_code from a failed operator receipt.
+
+    Prefers an explicit ``reason_code`` already on the receipt; falls back to
+    scanning stdout/stderr text for the dev-cli apply subprocess's own
+    find/replace rejection wording.
+    """
+    reason_code = str(payload.get("reason_code") or "")
+    if reason_code:
+        return reason_code
+    parts = [str(payload.get("stderr") or "")]
+    stdout = payload.get("stdout")
+    if isinstance(stdout, Mapping):
+        parts.append(json.dumps(stdout, ensure_ascii=False))
+    elif stdout:
+        parts.append(str(stdout))
+    blob = " ".join(parts).lower()
+    for marker, code in _DEVCLI_DETERMINISTIC_STDOUT_MARKERS:
+        if marker in blob:
+            return code
+    return ""
+
+
+def _classify_operator_exception_reason_code(exc: BaseException) -> str:
+    """Map a raised operator/preflight exception to a typed reason_code.
+
+    Keeps the deterministic-vs-transient split correct even when the failure
+    surfaces as a Python exception (plan validation, stale repo state, missing
+    capabilities) rather than a receipt the dev-cli subprocess wrote itself.
+    """
+    reason_code = getattr(exc, "reason_code", "")
+    if reason_code:
+        return str(reason_code)
+    message = str(exc).lower()
+    if "repository changed after planning" in message:
+        return "plan_repo_state_stale"
+    if "plan validation failed" in message:
+        return "plan_validation_failed"
+    if (
+        "missing required capabilities" in message
+        or "below minimum version" in message
+        or "identity mismatch" in message
+    ):
+        return "operator_capabilities_missing"
+    return "operator_exception"
+
+
+def _is_deterministic_operator_failure(record: Mapping[str, Any]) -> bool:
+    """True when retrying ``record`` cannot change the outcome (repo rule: no
+    wasted retries -- classify once, record once, move on)."""
+    return str(record.get("reason_code") or "") in DETERMINISTIC_OPERATOR_REASON_CODES
 # Real content/schema/hash/freshness/provenance validation, gating `receipt_status` in
 # `_operator_dispatch_attempt()` below (issue #288: presence of a file must not imply
 # VERIFIED).
@@ -1618,15 +1715,146 @@ def _looks_like_host_edit_plan(payload: Mapping[str, Any]) -> bool:
     return isinstance(operations, list) and bool(operations)
 
 
-def _compile_minimal_host_plan(repo_path: Path, plan_path: Path) -> tuple[Dict[str, Any] | None, str]:
+def _minimal_plan_operations(plan: Mapping[str, Any]) -> List[Mapping[str, Any]]:
+    operations = plan.get("operations") or plan.get("ops") or plan.get("edits") or []
+    return [op for op in operations if isinstance(op, Mapping)]
+
+
+def _validate_minimal_host_plan_paths(
+    plan: Mapping[str, Any], repo_path: Path, authorized_targets: Sequence[str],
+) -> Optional[Dict[str, str]]:
+    """Precise preflight for a minimal host plan's operation paths.
+
+    Host-authored edit plans naming a path outside ``authorized_targets`` or a
+    path that does not exist in the repository used to surface as the opaque
+    ``PLAN_REQUIRED``/``plan_compile_failed`` dev-cli subprocess failure. This
+    checks it directly and returns a typed, actionable reason -- the offending
+    path(s) and (when relevant) the authorized target list -- instead. Returns
+    ``None`` when every path is fine; a full/already-compiled plan (has a
+    ``schema``) is not checked here, since it already went through a real
+    compile step upstream.
+    """
+    if plan.get("schema"):
+        return None
+    operations = _minimal_plan_operations(plan)
+    if not operations:
+        return None
+    authorized = {str(item) for item in authorized_targets if str(item).strip()}
+    not_authorized: List[str] = []
+    not_found: List[str] = []
+    seen: set[str] = set()
+    resolved_repo = repo_path.resolve()
+    for op in operations:
+        raw_path = str(op.get("path") or "").strip()
+        if not raw_path or raw_path in seen:
+            continue
+        seen.add(raw_path)
+        if authorized and raw_path not in authorized:
+            not_authorized.append(raw_path)
+            continue
+        try:
+            resolved = (repo_path / raw_path).resolve()
+            resolved.relative_to(resolved_repo)
+        except (OSError, ValueError):
+            not_found.append(raw_path)
+            continue
+        if not resolved.is_file():
+            not_found.append(raw_path)
+    if not_authorized:
+        return {
+            "reason_code": "plan_path_not_authorized",
+            "message": (
+                "edit plan references path(s) outside the authorized targets: %s; "
+                "authorized_targets=%s" % (", ".join(sorted(not_authorized)), sorted(authorized))
+            ),
+        }
+    if not_found:
+        return {
+            "reason_code": "plan_path_not_found",
+            "message": (
+                "edit plan references path(s) that do not exist in the repository: %s"
+                % ", ".join(sorted(not_found))
+            ),
+        }
+    return None
+
+
+# simplicio-dev-cli's own `edit --compile --json` error codes (measured against
+# the installed binary) for a find/replace anchor that fails to bind.
+_DEVCLI_COMPILE_ERROR_CODES: Dict[str, str] = {
+    "missing_anchor": "plan_find_not_found",
+    "ambiguous_anchor": "plan_find_not_unique",
+}
+
+
+def _find_snippet_for_path(plan: Mapping[str, Any], path: str) -> str:
+    for op in _minimal_plan_operations(plan):
+        if str(op.get("path") or "") == path:
+            return str(op.get("find") or "")[:200]
+    return ""
+
+
+def _classify_plan_compile_failure(plan: Mapping[str, Any], raw_stdout: str, detail: str) -> Tuple[str, str]:
+    """Turn a raw dev-cli `edit --compile` failure into a precise reason_code
+    naming the offending path and a find snippet, instead of an opaque
+    ``plan_compile_failed`` blob with the whole subprocess transcript.
+
+    Prefers dev-cli's own structured ``errors[].code``/``path`` (its `--json`
+    output); falls back to text heuristics only for an older build without
+    that field.
+    """
+    try:
+        payload = json.loads(raw_stdout) if raw_stdout.strip() else None
+    except (ValueError, TypeError):
+        payload = None
+    errors = payload.get("errors") if isinstance(payload, Mapping) else None
+    if isinstance(errors, list) and errors and isinstance(errors[0], Mapping):
+        first = errors[0]
+        reason_code = _DEVCLI_COMPILE_ERROR_CODES.get(str(first.get("code") or ""))
+        if reason_code:
+            path = str(first.get("path") or "")
+            message = "%s: path=%s find=%r -- %s" % (
+                reason_code, path or "<unknown>", _find_snippet_for_path(plan, path),
+                str(first.get("message") or detail),
+            )
+            return reason_code, message
+    lowered = detail.lower()
+    if "not unique" in lowered or "ambiguous" in lowered or "multiple matches" in lowered:
+        marker = "not_unique"
+    elif "no match" in lowered or "not found" in lowered:
+        marker = "not_found"
+    else:
+        marker = ""
+    if not marker:
+        return "plan_compile_failed", f"plan_compile_failed: {detail}"
+    offending_path = ""
+    offending_find = ""
+    operations = _minimal_plan_operations(plan)
+    for op in operations:
+        path = str(op.get("path") or "")
+        if path and path in detail:
+            offending_path = path
+            offending_find = str(op.get("find") or "")[:200]
+            break
+    if not offending_path and operations:
+        offending_path = str(operations[0].get("path") or "")
+        offending_find = str(operations[0].get("find") or "")[:200]
+    reason_code = "plan_find_not_unique" if marker == "not_unique" else "plan_find_not_found"
+    message = "%s: path=%s find=%r -- %s" % (reason_code, offending_path or "<unknown>", offending_find, detail)
+    return reason_code, message
+
+
+def _compile_minimal_host_plan(repo_path: Path, plan_path: Path) -> tuple[Dict[str, Any] | None, str, str]:
     """Freeze a minimal ``{operations: [{path, find, replace}]}`` plan in place.
 
     Runs right before apply, so each task binds to the tree the previous task
     left (a serial wave of host plans never drifts). Full plans pass through.
+    Returns ``(compiled_plan, reason_code, message)``; ``reason_code`` is only
+    set (and ``compiled_plan`` is ``None``) on failure.
     """
     plan = _load_json(plan_path)
     if plan.get("schema"):
-        return plan, ""
+        return plan, "", ""
     compiled_path = plan_path.with_name(plan_path.stem + ".compiled.json")
     result = _run_cmd(
         _devcli_cmd(repo_path, "edit", "--root", str(repo_path), "--plan", str(plan_path),
@@ -1634,11 +1862,14 @@ def _compile_minimal_host_plan(repo_path: Path, plan_path: Path) -> tuple[Dict[s
         repo_path,
     )
     if result.returncode != 0 or not compiled_path.is_file():
-        return None, f"plan_compile_failed: {(result.stdout or result.stderr or '').strip()[:600]}"
+        raw_stdout = result.stdout or ""
+        detail = (raw_stdout or result.stderr or "").strip()[:600]
+        reason_code, message = _classify_plan_compile_failure(plan, raw_stdout, detail)
+        return None, reason_code, message
     compiled = _load_json(compiled_path)
     _write_json(plan_path, compiled)
     compiled_path.unlink()
-    return compiled, ""
+    return compiled, "", ""
 
 
 def _resolve_host_edit_plan(
@@ -3451,6 +3682,42 @@ def _run_with_operator_recovery(
         return result
 
 
+# Zero-probe cache: static capability info (identity/help/version banner) never
+# changes within a run, so it is probed at most ONCE per run_root and reused by
+# every subsequent task attempt. `repo_state` is NOT cached here -- it is
+# recomputed fresh on every call (cheap, no subprocess) so the receipt's
+# staleness check in `_validate_run_receipts` keeps working unchanged.
+_CAPABILITY_PROBE_CACHE: Dict[Tuple[str, str], Dict[str, Any]] = {}
+
+
+def _mapper_capability_probe(repo_path: Path) -> Dict[str, Any]:
+    """One subprocess pair for mapper identity/version/help -- callers cache the result."""
+    identity = _resolved_identity("simplicio-mapper", ("simplicio-mapper",))
+    version = _run_cmd(["simplicio-mapper", "--version"], repo_path)
+    help_result = _run_cmd(["simplicio-mapper", "--help"], repo_path)
+    return {
+        "identity": identity,
+        "version_stdout": (version.stdout or "").strip(),
+        "version_rc": version.returncode,
+        "help_stdout": (help_result.stdout or "").strip(),
+        "help_rc": help_result.returncode,
+    }
+
+
+def _cached_mapper_capability_probe(repo_path: Path, run_root: Path) -> Dict[str, Any]:
+    key = ("mapper", str(run_root))
+    cached = _CAPABILITY_PROBE_CACHE.get(key)
+    if cached is None:
+        cached = _mapper_capability_probe(repo_path)
+        _CAPABILITY_PROBE_CACHE[key] = cached
+    return cached
+
+
+def reset_capability_probe_cache() -> None:
+    """Test/utility hook: drop every cached capability probe (all run_roots)."""
+    _CAPABILITY_PROBE_CACHE.clear()
+
+
 def _preflight_mapper(repo_path: Path, run_root: Path) -> Dict[str, Any]:
     override = _preflight_override("SIMPLICIO_LOOP_FAKE_MAPPER_PREFLIGHT_JSON")
     if override is not None:
@@ -3460,13 +3727,12 @@ def _preflight_mapper(repo_path: Path, run_root: Path) -> Dict[str, Any]:
         version_rc = int(override.get("version_returncode", 0))
         help_rc = int(override.get("help_returncode", 0))
     else:
-        identity = _resolved_identity("simplicio-mapper", ("simplicio-mapper",))
-        version = _run_cmd(["simplicio-mapper", "--version"], repo_path)
-        help_result = _run_cmd(["simplicio-mapper", "--help"], repo_path)
-        version_stdout = (version.stdout or "").strip()
-        help_stdout = (help_result.stdout or "").strip()
-        version_rc = version.returncode
-        help_rc = help_result.returncode
+        cached = _cached_mapper_capability_probe(repo_path, run_root)
+        identity = cached["identity"]
+        version_stdout = cached["version_stdout"]
+        help_stdout = cached["help_stdout"]
+        version_rc = cached["version_rc"]
+        help_rc = cached["help_rc"]
     parsed_version = _parse_version_tuple(version_stdout)
     missing_verbs = [verb for verb in MAPPER_REQUIRED_VERBS if verb not in help_stdout]
     task_aware_flags = ("--goal", "--task-file", "--task-fingerprint")
@@ -3516,6 +3782,81 @@ def _operator_capability_gaps(help_stdout: str, task_help_stdout: str) -> Tuple[
     return missing_tokens, missing_capabilities
 
 
+class DevCliCapabilitiesUnavailableError(RuntimeError):
+    """Neither the in-process capabilities manifest nor `capabilities --json`
+    resolved. No backward-compat layer -- fail closed with a typed reason."""
+
+    def __init__(self, message: str, *, reason_code: str = "devcli_capabilities_unavailable") -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+
+
+def _devcli_capability_probe(repo_path: Path) -> Dict[str, Any]:
+    """One in-process manifest read when available, else one `capabilities --json`
+    subprocess. No legacy --help/--version fallback: an install that supports
+    neither path fails closed (`devcli_capabilities_unavailable`).
+    Callers cache the result -- this must run at most once per run_root."""
+    identity = _resolved_identity("simplicio-dev-cli", ("simplicio-dev-cli", "simplicio-py"))
+    manifest: Dict[str, Any] | None = None
+    try:
+        from simplicio.capabilities import load_capabilities_manifest  # type: ignore
+
+        manifest = load_capabilities_manifest()
+    except Exception:
+        manifest = None
+    env = _devcli_env(repo_path)
+    if manifest is None:
+        try:
+            probe = subprocess.run(
+                _devcli_cmd(repo_path, "capabilities", "--json"),
+                cwd=str(repo_path), capture_output=True, text=True, timeout=180, env=env,
+            )
+            if probe.returncode == 0 and probe.stdout:
+                manifest = json.loads(probe.stdout)
+        except (OSError, subprocess.SubprocessError, ValueError):
+            manifest = None
+    if manifest is None:
+        raise DevCliCapabilitiesUnavailableError(
+            "simplicio-dev-cli capabilities are unavailable: neither the in-process "
+            "simplicio.capabilities manifest nor `simplicio-dev-cli capabilities --json` "
+            "resolved. Install simplicio-cli>=0.18.16."
+        )
+    commands = manifest.get("commands") or {}
+    edit_spec = commands.get("edit") or {}
+    surface_parts = [manifest.get("schema", ""), " ".join(manifest.get("top_level_flags") or [])]
+    for name, spec in commands.items():
+        if not isinstance(spec, Mapping):
+            continue
+        surface_parts.append(name)
+        surface_parts.append(" ".join(spec.get("flags") or []))
+        surface_parts.append(str(spec.get("help", "")))
+    help_stdout = " ".join(part for part in surface_parts if part)
+    task_help_stdout = " ".join(
+        part for part in (
+            "edit", " ".join(edit_spec.get("flags") or []), str(edit_spec.get("help", "")),
+        ) if part
+    )
+    version = str((manifest.get("package") or {}).get("version") or "")
+    return {
+        "identity": identity,
+        "help_stdout": help_stdout,
+        "help_rc": 0,
+        "task_help_stdout": task_help_stdout,
+        "task_help_rc": 0,
+        "version_stdout": f"simplicio-dev-cli {version}".strip() if version else "",
+        "version_rc": 0 if version else 1,
+    }
+
+
+def _cached_devcli_capability_probe(repo_path: Path, run_root: Path) -> Dict[str, Any]:
+    key = ("devcli", str(run_root))
+    cached = _CAPABILITY_PROBE_CACHE.get(key)
+    if cached is None:
+        cached = _devcli_capability_probe(repo_path)
+        _CAPABILITY_PROBE_CACHE[key] = cached
+    return cached
+
+
 def _preflight_operator(repo_path: Path, run_root: Path) -> Dict[str, Any]:
     # Issue #135: the operator bridge validates identity + capability + MIN_VERSION,
     # not merely `which`. A wrong homonym (PATH resolves but the stem mismatches) or a
@@ -3530,38 +3871,14 @@ def _preflight_operator(repo_path: Path, run_root: Path) -> Dict[str, Any]:
         version_stdout = str(override.get("version_stdout", "simplicio-py 0.14.0"))
         version_rc = int(override.get("version_returncode", 0))
     else:
-        identity = _resolved_identity("simplicio-dev-cli", ("simplicio-dev-cli", "simplicio-py"))
-        env = _devcli_env(repo_path)
-        help_result = subprocess.run(
-            _devcli_cmd(repo_path, "--help"),
-            cwd=str(repo_path),
-            capture_output=True,
-            text=True,
-            timeout=180,
-            env=env,
-        )
-        task_help_result = subprocess.run(
-            _devcli_cmd(repo_path, "edit", "--help"),
-            cwd=str(repo_path),
-            capture_output=True,
-            text=True,
-            timeout=180,
-            env=env,
-        )
-        version_result = subprocess.run(
-            _devcli_cmd(repo_path, "--version"),
-            cwd=str(repo_path),
-            capture_output=True,
-            text=True,
-            timeout=180,
-            env=env,
-        )
-        help_stdout = (help_result.stdout or "").strip()
-        help_rc = help_result.returncode
-        task_help_stdout = (task_help_result.stdout or "").strip()
-        task_help_rc = task_help_result.returncode
-        version_stdout = (version_result.stdout or "").strip()
-        version_rc = version_result.returncode
+        cached = _cached_devcli_capability_probe(repo_path, run_root)
+        identity = cached["identity"]
+        help_stdout = cached["help_stdout"]
+        help_rc = cached["help_rc"]
+        task_help_stdout = cached["task_help_stdout"]
+        task_help_rc = cached["task_help_rc"]
+        version_stdout = cached["version_stdout"]
+        version_rc = cached["version_rc"]
     missing_tokens, missing_capabilities = _operator_capability_gaps(help_stdout, task_help_stdout)
     parsed_version = _parse_version_tuple(version_stdout)
     receipt = {
@@ -5588,14 +5905,36 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     if not same_file:
         _write_json(dest, mechanical_plan)
         mechanical_path = dest
-    compiled_plan, compile_error = _compile_minimal_host_plan(repo_path, mechanical_path)
+    # Precise preflight before ever shelling out to dev-cli's compile: a bad
+    # path (outside the plan's authorized_targets, or one that does not exist)
+    # gets a named, actionable reason instead of the generic
+    # PLAN_REQUIRED/plan_compile_failed the subprocess would otherwise report.
+    path_issue = _validate_minimal_host_plan_paths(mechanical_plan, repo_path, targets)
+    if path_issue is not None:
+        blocked_receipt = {
+            "schema": OPERATOR_RECEIPT_SCHEMA,
+            "mode": "apply",
+            "tool": "simplicio-dev-cli",
+            "execution_state": "blocked",
+            "reason_code": path_issue["reason_code"],
+            "target": target,
+            "stdout": {},
+            "stderr": path_issue["message"],
+            "measured_at": _now(),
+        }
+        return _finish_operator_blocked(
+            repo=repo, run_id=run_id, run_dir=run_dir, status=status,
+            receipt=blocked_receipt, operator_path=operator_path,
+            task_index=task_index, reason=path_issue["message"],
+        )
+    compiled_plan, compile_reason_code, compile_error = _compile_minimal_host_plan(repo_path, mechanical_path)
     if compiled_plan is None:
         blocked_receipt = {
             "schema": OPERATOR_RECEIPT_SCHEMA,
             "mode": "apply",
             "tool": "simplicio-dev-cli",
             "execution_state": "blocked",
-            "reason_code": "plan_compile_failed",
+            "reason_code": compile_reason_code or "plan_compile_failed",
             "target": target,
             "stdout": {},
             "stderr": compile_error,
@@ -7401,8 +7740,15 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
         }
     if _mapper_journal_enabled():
         try:
+            dispatch_repo_path = Path(str(item.get("repo") or ".")).resolve()
+            # An isolated worktree lane relocates ``item["repo"]`` to a freshly
+            # allocated, per-task path (see `_ensure_deferred_worktree_context`)
+            # that the earlier batch-level pre-pass could not have known about --
+            # ensure its Mapper operations store here too, not just the original
+            # pre-worktree repo path.
+            _ensure_mapper_operations_store(dispatch_repo_path)
             mapper_operations, mapper_attempt = _claim_mapper_operation_attempt(
-                Path(str(item.get("repo") or ".")).resolve(),
+                dispatch_repo_path,
                 run_id=common["run_id"],
                 task_index=int(common["task_index"]),
                 task_id=common["task_id"],
@@ -7463,9 +7809,18 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
         run_dir = str(payload.get("run_dir") or "")
         watcher_receipt = str(Path(run_dir) / "loop" / "watcher_state.json") if run_dir else ""
         failure_fingerprint = ""
+        # #NOWASTE: derive the deterministic-vs-transient reason_code from whatever the
+        # receipt actually carries (a discrete `_finish_operator_blocked` reason_code, or
+        # -- for a dev-cli apply subprocess's own find/replace rejection -- its stdout/
+        # stderr text) so the retry loop above can stop after one attempt instead of
+        # burning the whole retry budget on a guaranteed repeat.
+        reason_code = str(operator.get("reason_code") or "")
         if receipt:
             try:
-                failure_fingerprint = str(_load_json(Path(receipt)).get("failure_fingerprint") or "")
+                receipt_payload = _load_json(Path(receipt))
+                failure_fingerprint = str(receipt_payload.get("failure_fingerprint") or "")
+                if not success and not reason_code:
+                    reason_code = _classify_devcli_receipt_failure(receipt_payload)
             except (OSError, ValueError, TypeError):
                 # The worker result remains useful even when a crashed operator did not leave
                 # a readable receipt; the scheduler will use the bounded exception path.
@@ -7548,6 +7903,7 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
             "receipt_status": receipt_verdict["status"],
             "receipt_verdict_reason": receipt_verdict["reason"],
             "attempt": int(state.get("attempts") or 0),
+            "reason_code": reason_code,
             "failure_fingerprint": failure_fingerprint,
             "merge": merge,
             "verified_delivery": verified_delivery,
@@ -7599,7 +7955,7 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
             "receipt_status": "UNVERIFIED",
             "attempt": 0,
             "error": f"{type(exc).__name__}: {exc}",
-            "reason_code": "operator_exception",
+            "reason_code": _classify_operator_exception_reason_code(exc),
             "failure_fingerprint": hashlib.sha256(
                 f"{type(exc).__name__}: {exc}".encode("utf-8", "replace")
             ).hexdigest()[:16],
@@ -7644,6 +8000,12 @@ def _run_operator_item_process(item: Mapping[str, Any], retry_budget: int, owned
             record["retry_strategy"] = "initial"
         attempts.append(record)
         if record.get("status") == "succeeded":
+            break
+        if _is_deterministic_operator_failure(record):
+            # #NOWASTE: this exact task/plan/repo-state will fail the same way every
+            # time -- record it once and dead-letter instead of burning the retry
+            # budget on a guaranteed repeat.
+            record["retry_skipped_reason"] = "deterministic_failure_no_retry"
             break
         repair_feedback = _independent_verification_feedback(record)
         previous_fingerprint = str(record.get("failure_fingerprint") or "")
@@ -7779,6 +8141,19 @@ def dispatch_operator_batch(
         str(item["run_id"]): Path(item["repo"]).resolve()
         for item in normalized
     }
+    if _mapper_journal_enabled():
+        # Every repo a task will run its mutation attempt in needs an initialized
+        # Mapper operations store *before* any worker tries to claim a lease there --
+        # otherwise the first `_claim_mapper_operation_attempt` call in each fresh
+        # worktree/repo fails closed with STORE_NOT_INITIALIZED. `execute_operator_batch`
+        # already does this for its single, already-materialized run repo; this
+        # boundary fans out across possibly-multiple, possibly-not-yet-materialized
+        # repos, so it must ensure the store itself. Note this is *not* the same set
+        # as ``repo_root_by_run.values()`` -- several items can share one run_id
+        # while fanning out into distinct per-item repos/worktrees, and a dict keyed
+        # by run_id keeps only the last item's repo for that key.
+        for repo_path in {Path(item["repo"]).resolve() for item in normalized}:
+            _ensure_mapper_operations_store(repo_path)
     if journal_dir:
         journal_path = Path(journal_dir).resolve() / "operator-batch.jsonl"
         journal_path.parent.mkdir(parents=True, exist_ok=True)
@@ -7791,12 +8166,24 @@ def dispatch_operator_batch(
             durable_journal_path = journal_path.parent / "run-journal.sqlite"
     recovery_pending_by_run: Dict[str, set[int]] = {}
     if durable_journal_path is not None:
+        # A dispatch backed by a real distributed queue already has its own,
+        # independently-tested crash-recovery contract: the abandoned item's lease
+        # expires and a fresh claim carries a strictly higher fencing token (see
+        # `tests/test_work_item_claims_chaos_system.py` / `test_system_276_e2e_system.py`).
+        # The durable-journal "unknown effect" reconciliation below exists for the
+        # opposite case -- no queue/lease at all to tell "still in flight" apart from
+        # "crashed mid-effect" -- so it must not also swallow a queue-backed item and
+        # block it from ever being re-claimed.
+        queueless_indices_by_run: Dict[str, set[int]] = {}
+        for item in normalized:
+            if item.get("distributed_queue") is None:
+                queueless_indices_by_run.setdefault(str(item["run_id"]), set()).add(item["task_index"])
         for run_id in {item["run_id"] for item in normalized}:
             pending_indices = set(_dispatch_journal_recovery(
                 durable_journal_path,
                 run_id,
                 repo_root=repo_root_by_run.get(str(run_id)),
-            ))
+            )) & queueless_indices_by_run.get(str(run_id), set())
             if pending_indices:
                 recovery_pending_by_run[run_id] = pending_indices
     prior: Dict[Tuple[str, str, int], Dict[str, Any]] = {}
@@ -7958,7 +8345,15 @@ def dispatch_operator_batch(
         if prior.get((item["repo"], item["run_id"], item["task_index"]), {}).get("status") != "succeeded"
         and item["task_index"] not in recovery_pending_by_run.get(item["run_id"], set())
     )
-    skipped = len(normalized) - len(pending)
+    # ``skipped_completed`` is specifically the durably-succeeded items a resumed batch
+    # does not redo -- not every item this pass excludes from `pending`. An item held
+    # back instead as `recovery_pending` (a crashed dispatch with a durable start but no
+    # terminal event) is counted separately in `recovery_blocked_count` below; folding it
+    # into `skipped_completed` would misreport a not-yet-reconciled item as "already done".
+    skipped = sum(
+        1 for item in normalized
+        if prior.get((item["repo"], item["run_id"], item["task_index"]), {}).get("status") == "succeeded"
+    )
     pending_task_ids = {str(item.get("task_id") or "") for item in pending}
     prism_admitted: deque[str] = deque()
     # A resumed batch can have a completed item at the head of Prism's ready queue.
@@ -8078,6 +8473,11 @@ def dispatch_operator_batch(
                     record["retry_strategy"] = "initial"
                 attempts.append(record)
                 if record["status"] == "succeeded":
+                    break
+                if _is_deterministic_operator_failure(record):
+                    # #NOWASTE: same reasoning as `_run_operator_item_process` -- a
+                    # deterministic failure is recorded once, never retried.
+                    record["retry_skipped_reason"] = "deterministic_failure_no_retry"
                     break
                 repair_feedback = _independent_verification_feedback(record)
                 previous_fingerprint = str(record.get("failure_fingerprint") or "")
@@ -8285,6 +8685,7 @@ def dispatch_operator_batch(
                         {"task_id": item["task_id"], "task_index": item["task_index"],
                          "worker_id": item["worker_id"], "mode": dispatch_mode},
                         f"dispatch:{item['task_id']}:started",
+                        repo_root=Path(item["repo"]).resolve(),
                     )
                     active[_submit_process_item(pool, item)] = item
                     initial_admissions += 1
@@ -8294,6 +8695,7 @@ def dispatch_operator_batch(
                         {"task_id": item["task_id"], "task_index": item["task_index"],
                          "worker_id": item["worker_id"], "mode": dispatch_mode},
                         f"dispatch:{item['task_id']}:started",
+                        repo_root=Path(item["repo"]).resolve(),
                     )
                     active[pool.submit(_run_item, item, owned_process_registry)] = item
                     initial_admissions += 1
@@ -8345,6 +8747,7 @@ def dispatch_operator_batch(
                          "worker_id": item["worker_id"], "status": final.get("status"),
                          "receipt": final.get("receipt", "")},
                         f"dispatch:{item['task_id']}:terminal:{final.get('status', 'unknown')}",
+                        repo_root=Path(item["repo"]).resolve(),
                     )
                     try:
                         if prism_enabled:
@@ -8371,6 +8774,7 @@ def dispatch_operator_batch(
                                 {"task_id": next_item["task_id"], "task_index": next_item["task_index"],
                                  "worker_id": next_item["worker_id"], "mode": dispatch_mode},
                                 f"dispatch:{next_item['task_id']}:started",
+                                repo_root=Path(next_item["repo"]).resolve(),
                             )
                             active[_submit_process_item(pool, next_item)] = next_item
                         else:
@@ -8379,6 +8783,7 @@ def dispatch_operator_batch(
                                 {"task_id": next_item["task_id"], "task_index": next_item["task_index"],
                                  "worker_id": next_item["worker_id"], "mode": dispatch_mode},
                                 f"dispatch:{next_item['task_id']}:started",
+                                repo_root=Path(next_item["repo"]).resolve(),
                             )
                             active[pool.submit(_run_item, next_item, owned_process_registry)] = next_item
                         refill_count += 1
@@ -8449,7 +8854,9 @@ def dispatch_operator_batch(
         "recovery_pending_task_indices": sorted({
             task_index
             for run_id in {item["run_id"] for item in normalized}
-            for task_index in _dispatch_journal_recovery(durable_journal_path, run_id)
+            for task_index in _dispatch_journal_recovery(
+                durable_journal_path, run_id, repo_root=repo_root_by_run.get(str(run_id)),
+            )
         }),
         "leases": [],
         "blockers": [
@@ -8516,6 +8923,213 @@ def dispatch_operator_batch(
     return result
 
 
+def _seed_wave_lane_run_context(run_dir: Path, run_id: str, worktree_path: Path) -> None:
+    """Copy this run's persisted receipts into a lane worktree and repoint its
+    manifest at that worktree -- mirrors `_persist_isolated_run_context`'s
+    existing single-task isolation trick, so each lane's tasks write real
+    per-task operator receipts + evidence inside their own isolated checkout,
+    through the exact same `execute_operator` boundary every other dispatch
+    path uses.
+    """
+    target_run = worktree_path / ".simplicio" / "loop-runs" / run_id
+    if not target_run.exists():
+        target_run.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(run_dir, target_run)
+    manifest_path = target_run / "manifest.json"
+    if manifest_path.exists():
+        try:
+            manifest = _load_json(manifest_path)
+            manifest["repo"] = str(worktree_path)
+            manifest["run_id"] = run_id
+            _write_json(manifest_path, manifest)
+        except (OSError, TypeError, ValueError):
+            pass
+
+
+def _wave_worktree_dispatch(
+    *,
+    repo_path: Path,
+    run_id: str,
+    run_dir: Path,
+    items: Sequence[Mapping[str, Any]],
+    retry_budget: int,
+    max_workers: Optional[int],
+) -> Optional[Dict[str, Any]]:
+    """Lane-parallel wave dispatch.
+
+    Groups ``items`` into disjoint-edit-plan-path lanes (`wave_worktree.
+    group_disjoint_tasks`). With more than one lane, every lane runs
+    concurrently in its own git worktree seeded from this run's current
+    receipts (`run_worktree_wave`) -- a lane's own tasks apply ONE AT A TIME,
+    in order, through the same per-task retry/dead-letter path
+    (`_run_operator_item_process`), so chaining (#1295 ``repo_state_chain``)
+    keeps working inside the lane exactly as it does on the shared-run serial
+    path. Every lane's resulting patch is then integrated back into the main
+    repo serially, in lane order (`integrate_lane_results`); a patch that no
+    longer applies (the tree moved under it) re-runs that lane's tasks
+    directly on the now-integrated main tree instead of failing the wave.
+    Worktrees are removed afterward (`cleanup_worktrees`).
+
+    Returns ``None`` -- the caller keeps its existing serial path unchanged --
+    when there is only one lane (every task shares a file with another) or
+    this repo is not a git checkout; a genuine lane-parallel wave never
+    replaces that safe fallback silently.
+    """
+    ordered_items = list(items)
+    if len(ordered_items) < 2 or not (repo_path / ".git").exists():
+        return None
+    paths_in_order = [
+        [str(path) for path in ((item.get("task_spec") or {}).get("files_affected") or [])]
+        for item in ordered_items
+    ]
+    if any(not paths for paths in paths_in_order):
+        return None
+    position_lanes = wave_worktree.group_disjoint_tasks(paths_in_order)
+    if len(position_lanes) <= 1:
+        return None
+    lane_task_indices: List[List[int]] = [
+        [int(ordered_items[position - 1]["task_index"]) for position in positions]
+        for positions in position_lanes
+    ]
+    items_by_index = {int(item["task_index"]): dict(item) for item in ordered_items}
+
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=str(repo_path), capture_output=True,
+        text=True, timeout=15, check=False, env=_subprocess_env(),
+    )
+    base_commit = (head.stdout or "").strip()
+    if head.returncode != 0 or not base_commit:
+        return None
+
+    lane_records: Dict[Tuple[int, ...], List[Dict[str, Any]]] = {}
+
+    def _run_lane_sync(worktree_path: Path, task_indices: Sequence[int]) -> Dict[str, Any]:
+        _seed_wave_lane_run_context(run_dir, run_id, worktree_path)
+        records: List[Dict[str, Any]] = []
+        applied = True
+        for task_index in task_indices:
+            lane_item = dict(items_by_index[task_index])
+            lane_item["repo"] = str(worktree_path)
+            attempts = _run_operator_item_process(lane_item, retry_budget)
+            record = attempts[-1]
+            records.append(record)
+            if record.get("status") != "succeeded":
+                applied = False
+                break
+        lane_records[tuple(task_indices)] = records
+        return {"applied": applied}
+
+    async def apply_fn(worktree_path: Path, task_indices: Sequence[int]) -> Dict[str, Any]:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, _run_lane_sync, worktree_path, list(task_indices))
+
+    def reapply_fn(lane_id: int, task_indices: Sequence[int]) -> None:
+        # Conflict repair: this lane's patch no longer applies onto the main repo
+        # (an earlier lane's integration moved the tree under it) -- re-run its
+        # tasks directly on the now-integrated main tree, serially, through the
+        # same per-task operator path, exactly like the existing serial fallback.
+        records: List[Dict[str, Any]] = []
+        try:
+            for task_index in task_indices:
+                attempts = _run_operator_item_process(dict(items_by_index[task_index]), retry_budget)
+                record = attempts[-1]
+                records.append(record)
+                if record.get("status") != "succeeded":
+                    raise RuntimeError(
+                        "reapply failed for task %d: %s"
+                        % (task_index, record.get("error") or record.get("reason_code") or "unknown")
+                    )
+        finally:
+            lane_records[tuple(task_indices)] = records
+
+    # Worktrees live OUTSIDE the receipts run_dir -- seeding a lane's worktree
+    # copies the whole run_dir tree into it (`_seed_wave_lane_run_context`),
+    # which would recurse into itself if the worktree root were nested inside
+    # run_dir.
+    wave_scratch_dir = repo_path / ".simplicio" / "orchestrator" / "wave" / run_id
+    results = asyncio.run(wave_worktree.run_worktree_wave(
+        repo_path, wave_scratch_dir, lane_task_indices, base_commit, apply_fn, max_workers=max_workers,
+    ))
+    integration = wave_worktree.integrate_lane_results(repo_path, results, reapply_fn)
+    integrated_lane_ids = set(integration["integrated_lanes"])
+
+    final_records: List[Dict[str, Any]] = []
+    for lane_result in results:
+        key = tuple(lane_result.task_indices)
+        records = lane_records.get(key) or []
+        if lane_result.lane_id in integrated_lane_ids:
+            # This lane's patch applied cleanly onto the main repo (the repair
+            # path re-runs directly on the main repo already) -- the real
+            # per-task receipts it wrote live in the lane's isolated checkout;
+            # copy them back so #1295's receipt gate and the oracle see them
+            # exactly where every other dispatch path leaves them.
+            lane_run = Path(lane_result.worktree) / ".simplicio" / "loop-runs" / run_id
+            for task_index in lane_result.task_indices:
+                for name in (f"operator-receipt-{task_index}.json", f"task-{task_index}-result.json"):
+                    src = lane_run / name
+                    if src.is_file():
+                        shutil.copy2(src, run_dir / name)
+        final_records.extend(records)
+        covered = {int(r.get("task_index")) for r in records if isinstance(r, Mapping) and r.get("task_index") is not None}
+        for task_index in lane_result.task_indices:
+            if task_index not in covered:
+                # This lane failed before its worktree/apply step ever reached
+                # this task -- record it once (dead-letter), never fabricate a
+                # receipt or leave it silently unaccounted for.
+                final_records.append({
+                    "schema": "simplicio.operator-worker/v1", "task_index": task_index,
+                    "run_id": run_id, "repo": str(repo_path), "status": "failed",
+                    "execution_state": "blocked", "reason_code": "wave_lane_failed",
+                    "dead_letter": True, "error": lane_result.log[-2000:],
+                })
+
+    wave_worktree.cleanup_worktrees(repo_path, results)
+
+    # Rebind repo_state_chain to the just-integrated tree so `verify`'s
+    # staleness checks compare against what this run actually left, not a
+    # stale `prepare`-time snapshot -- the same intent as the shared-run
+    # serial path's own `state["repo_state_chain"] = after` write.
+    try:
+        state = _load_json(run_dir / "state.json")
+        state["repo_state_chain"] = _repo_fingerprint(repo_path)
+        _write_json(run_dir / "state.json", state)
+    except (OSError, TypeError, ValueError):
+        pass
+    # The evidence receipt is one aggregate file per run (not per task) --
+    # recompute it fresh against the just-integrated tree, same as every
+    # successful serial dispatch already does at the end of each task.
+    try:
+        evidence = build_evidence_receipt(str(run_dir))
+        _write_json(run_dir / "evidence-receipt.json", evidence)
+    except (OSError, TypeError, ValueError):
+        pass
+
+    return {
+        "schema": "simplicio.operator-batch-receipt/v1",
+        "workers": final_records,
+        "max_workers": max_workers or len(lane_task_indices),
+        "serial_fallback_reason": "",
+        "completed_task_indices": sorted(
+            int(r["task_index"]) for r in final_records if r.get("status") == "succeeded"
+        ),
+        "failed_task_indices": sorted(
+            int(r["task_index"]) for r in final_records if r.get("status") == "failed"
+        ),
+        "blocked_task_indices": sorted(
+            int(r["task_index"]) for r in final_records if r.get("status") == "blocked"
+        ),
+        "dead_letter_task_indices": sorted(
+            int(r["task_index"]) for r in final_records if r.get("dead_letter")
+        ),
+        "wave": {
+            "schema": wave_worktree.SCHEMA,
+            "lanes": lane_task_indices,
+            "base_commit": base_commit,
+            "integration": integration,
+        },
+    }
+
+
 def execute_operator_batch(
     repo: str,
     run_id: str,
@@ -8562,7 +9176,13 @@ def execute_operator_batch(
             str(exc),
             task_indices=task_indices or (),
         )
-        raise
+        # #NOWASTE: this exact receipt chain will fail the exact same validation
+        # the exact same way on any immediate re-invocation (nothing about the
+        # repo/receipts changes between retries) -- a typed reason_code lets any
+        # caller that retries a whole batch dispatch (e.g. an outer re-feed loop)
+        # recognize "deterministic, do not retry on a cadence" instead of
+        # treating this like a transient failure.
+        raise BatchPreflightError(str(exc)) from exc
     plan = receipts["plan"]
     # #284: mutation-authority gate, mandatory by default -- same as execute_operator()
     # (single-task tick), extended to the batch boundary. "execute_operator() e batch
@@ -8704,16 +9324,31 @@ def execute_operator_batch(
             return False
         return str(current.get("phase") or "") == "cancelled"
 
-    result = dispatch_operator_batch(
-        items,
-        max_workers=max_workers,
-        retry_budget=retry_budget,
-        journal_dir=str(Path(status["run_dir"])),
-        worktree_queue=worktree_queue,
-        stop_requested=_batch_stop_requested,
-        physical_monitor_kwargs=physical_monitor_kwargs,
-        provider_worker=provider_worker,
-    )
+    result = None
+    # Lane-parallel wave dispatch: only where the caller has not already asked for
+    # something more specific (explicit isolated contexts, an existing worktree
+    # queue, a distributed queue, or shared-run-forcing task dependencies) -- those
+    # keep their own, unchanged path below.
+    if (
+        not isolated_contexts and worktree_queue is None and distributed_queue is None
+        and not has_task_dependencies
+    ):
+        result = _wave_worktree_dispatch(
+            repo_path=Path(status["manifest"].get("repo") or repo).resolve(),
+            run_id=run_id, run_dir=run_dir, items=items,
+            retry_budget=retry_budget, max_workers=max_workers,
+        )
+    if result is None:
+        result = dispatch_operator_batch(
+            items,
+            max_workers=max_workers,
+            retry_budget=retry_budget,
+            journal_dir=str(Path(status["run_dir"])),
+            worktree_queue=worktree_queue,
+            stop_requested=_batch_stop_requested,
+            physical_monitor_kwargs=physical_monitor_kwargs,
+            provider_worker=provider_worker,
+        )
     lifecycle_result: Dict[str, Any]
     try:
         repo_root = Path(status["manifest"].get("repo") or repo).resolve()
