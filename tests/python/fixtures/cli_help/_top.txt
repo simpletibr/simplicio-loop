@@ -1,9 +1,9 @@
 usage: simplicio-py [-h]
-                    {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,release-train,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory}
+                    {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,release-train,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory,capabilities}
                     ...
 
 positional arguments:
-  {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,release-train,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory}
+  {index,task,proposal,run,bench,cache,smoke,init,detect,status,claims,inspect,intake,doctor,fast,versions,release-train,env-export,mechanical-edit,changeset,edit,reconcile,file,test,token,score-skill,runtime,prototype,memory,capabilities}
     index               index/cache the repo (once, or after changes)
     task                run a task
     proposal            compile a non-mutating Runtime ChangeProposal
@@ -44,6 +44,8 @@ positional arguments:
                         gate
     memory              cross-vendor memory handoff (markdown + git under
                         ~/.simplicio/memory)
+    capabilities        print the static command/flag/edit-plan-format
+                        manifest (no heavy imports)
 
 options:
   -h, --help            show this help message and exit
