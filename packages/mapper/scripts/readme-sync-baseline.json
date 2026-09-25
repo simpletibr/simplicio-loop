@@ -1,5 +1,0 @@
-{
-  "schema": "simplicio.readme-sync-baseline/v1",
-  "max_edit_distance": 2,
-  "note": "Structural (heading-level-sequence) edit distance between README.md and README.pt-BR.md, as of the last `node scripts/check-readme-sync.js baseline` run. CI fails if a future PR makes this number go UP; it is fine (encouraged) for it to go down as translations catch up structurally."
-}

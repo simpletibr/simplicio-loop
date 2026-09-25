@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib.util
-import json
 import sys
 from pathlib import Path
 
@@ -26,10 +25,6 @@ cvs = _load_module()
 
 
 def _write_aligned_tree(root: Path, version: str = "1.2.3") -> None:
-    (root / "package.json").write_text(
-        json.dumps({"name": "fixture", "version": version}, indent=2) + "\n",
-        encoding="utf-8",
-    )
     (root / "pyproject.toml").write_text(
         f'[project]\nname = "fixture"\nversion = "{version}"\n',
         encoding="utf-8",
@@ -57,7 +52,6 @@ def test_aligned_fixture_passes(tmp_path: Path) -> None:
     _write_aligned_tree(tmp_path, "9.9.9")
     ok, sources, messages = cvs.check_versions(tmp_path)
     assert ok
-    assert sources["package.json"] == "9.9.9"
     assert sources["pyproject.toml"] == "9.9.9"
     assert sources["simplicio_mapper/__init__.py"] == "9.9.9"
     assert cvs.main(["--root", str(tmp_path)]) == 0
@@ -65,18 +59,18 @@ def test_aligned_fixture_passes(tmp_path: Path) -> None:
 
 def test_deliberate_mismatch_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     _write_aligned_tree(tmp_path, "1.0.0")
-    (tmp_path / "package.json").write_text(
-        json.dumps({"name": "fixture", "version": "1.0.1"}, indent=2) + "\n",
+    (tmp_path / "simplicio_mapper" / "__init__.py").write_text(
+        '"""fixture package."""\n\n__version__ = "1.0.1"\n',
         encoding="utf-8",
     )
     ok, sources, messages = cvs.check_versions(tmp_path)
     assert not ok
-    assert sources["package.json"] == "1.0.1"
+    assert sources["simplicio_mapper/__init__.py"] == "1.0.1"
     assert sources["pyproject.toml"] == "1.0.0"
     assert cvs.main(["--root", str(tmp_path)]) == 1
     err = capsys.readouterr().err
     assert "version mismatch" in err
-    assert "package.json" in err
+    assert "pyproject.toml" in err
 
 
 def test_missing_init_version_fails(tmp_path: Path) -> None:
@@ -90,9 +84,6 @@ def test_missing_init_version_fails(tmp_path: Path) -> None:
 
 def test_init_reads_first_assignment_not_importlib_override(tmp_path: Path) -> None:
     """Static fallback string is the SoT for the guard even when runtime overrides."""
-    (tmp_path / "package.json").write_text(
-        json.dumps({"version": "3.0.0"}), encoding="utf-8"
-    )
     (tmp_path / "pyproject.toml").write_text(
         'version = "3.0.0"\n', encoding="utf-8"
     )

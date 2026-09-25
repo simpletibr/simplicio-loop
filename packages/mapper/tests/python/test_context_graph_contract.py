@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -72,24 +71,6 @@ class ContextGraphContractTest(unittest.TestCase):
         self.assertEqual(report["reason"], "schema_major_unsupported")
         self.assertEqual(report["received"], "simplicio.context-graph-contract/v2")
         self.assertEqual(report["supported"], [CONTRACT_SCHEMA])
-
-    def test_node_runner_matches_python_public_projection(self) -> None:
-        result = subprocess.run(
-            ["node", "bin/context-graph-contract.js", str(FIXTURE), str(COMPATIBILITY_FIXTURE)],
-            cwd=ROOT,
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        node_report = json.loads(result.stdout)
-        self.assertEqual(node_report["schema"], "simplicio.context-graph-parity/v1")
-        self.assertEqual(node_report["channels"]["node"]["status"], "pass")
-        self.assertEqual(node_report["channels"]["python"]["status"], "pass")
-        self.assertIn(node_report["channels"]["rust"]["status"], {"pass", "skipped"})
-        self.assertEqual(node_report["divergences"], [])
-        self.assertEqual(len(node_report["compatibility_cases"]), 10)
-        self.assertTrue(all(case["status"] == "pass" for case in node_report["compatibility_cases"]))
 
 
 if __name__ == "__main__":

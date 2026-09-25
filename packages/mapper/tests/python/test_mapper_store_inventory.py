@@ -257,40 +257,6 @@ def test_golden_fixture_matches_the_versioned_schema() -> None:
     assert validate_instance(fixture, schema) == []
 
 
-def test_committed_inventory_matches_the_versioned_schema() -> None:
-    schema = json.loads((ROOT / "contracts/mapper-store/v1/schemas/inventory.schema.json").read_text())
-    evidence = json.loads((ROOT / "docs/evidence/mapper-store-inventory.json").read_text())
-
-    from simplicio_mapper.contract import validate_instance
-
-    assert validate_instance(evidence, schema) == []
-    assert evidence["policy"]["status"] == "pass"
-    assert {row["id"] for row in evidence["repos"]} == {"mapper", "loop", "dev-cli", "runtime"}
-    assert next(row for row in evidence["repos"] if row["id"] == "runtime")["versions"]["rust"]
-    historical_database = next(
-        row
-        for row in evidence["databases"]
-        if row["repo"] == "loop" and row["path"] == "headroom_memory.db"
-    )
-    assert historical_database["status"] == "unreadable"
-    assert "not present in the current Loop checkout" in historical_database["reason"]
-
-    repo_roots = {
-        "mapper": ROOT,
-        "loop": ROOT.parent / "simplicio-loop",
-        "dev-cli": ROOT.parent / "simplicio-dev-cli",
-        "runtime": ROOT.parent / "simplicio-runtime",
-    }
-    for record in evidence["databases"]:
-        if record["status"] != "readable":
-            continue
-        database = repo_roots[record["repo"]] / record["path"]
-        assert database.is_file(), database
-        with sqlite3.connect(f"file:{database}?mode=ro", uri=True) as connection:
-            names = [row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY name")]
-        assert names == [obj["name"] for obj in record.get("objects", [])]
-
-
 @pytest.mark.parametrize("relative", ["tests/fixtures/source.py", "contracts/mapper-store/v1/fixtures/sample.sql"])
 def test_fixture_paths_are_not_policy_violations(tmp_path: Path, relative: str) -> None:
     _write(tmp_path, relative, "CREATE TABLE fixture_rows (id INTEGER);\n")

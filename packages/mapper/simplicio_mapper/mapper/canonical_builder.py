@@ -69,7 +69,6 @@ from typing import Any, NamedTuple
 
 import orjson
 
-from .. import _native
 from .canonical import (
     CANONICAL_MAP_SCHEMA,
     CANONICAL_MAP_SCHEMA_VERSION,
@@ -97,10 +96,15 @@ _MANIFEST_FILE_NAME = "manifest.json"
 _BUILD_LOCK_OPERATION = "canonical-build"
 
 
+#: Stable key component for the (now always Python-only) execution engine.
+#: Kept as a fixed literal rather than probing for an optional native
+#: extension -- this package has no native fast path any more.
+_NATIVE_CAPABILITIES_FINGERPRINT = "python-only"
+
+
 def _native_capabilities_fingerprint() -> str:
-    """Return a stable key component for Python-only vs native execution."""
-    payload = orjson.dumps(_native.CAPABILITIES, option=orjson.OPT_SORT_KEYS)
-    return "sha256:" + hashlib.sha256(payload).hexdigest()
+    """Return a stable key component identifying the execution engine."""
+    return _NATIVE_CAPABILITIES_FINGERPRINT
 
 #: Environment override for how long a losing builder blocks waiting for the
 #: winner to finish and promote, before giving up (``blocking=True`` mode,

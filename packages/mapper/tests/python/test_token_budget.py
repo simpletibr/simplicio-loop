@@ -42,15 +42,14 @@ class EstimatorTest(unittest.TestCase):
 class MeasureTest(unittest.TestCase):
     """Exercises the real, committed artifacts this guard tracks -- not a
     synthetic stand-in -- so a passing test here proves the guard actually
-    finds AGENTS.md/CLAUDE.md and the real mapper-artifacts contract fixture
-    output on disk in this repo."""
+    finds the tracked mapper modules and the real mapper-artifacts contract
+    fixture output on disk in this repo."""
 
     def test_measure_finds_tracked_docs_and_real_fixture_artifacts(self) -> None:
         module = _load_module()
         measurements = module.measure(module._heuristic_estimator)
-        self.assertIn("AGENTS.md", measurements)
-        self.assertIn("CLAUDE.md", measurements)
-        self.assertGreater(measurements["AGENTS.md"]["tokens"], 0)
+        self.assertIn("simplicio_mapper/mapper/parse.py", measurements)
+        self.assertGreater(measurements["simplicio_mapper/mapper/parse.py"]["tokens"], 0)
 
         fixture_rel = "contracts/mapper-artifacts/v1/fixtures/python-minimal/artifacts/project-map.json"
         normalized = {path.replace("\\", "/"): payload for path, payload in measurements.items()}
