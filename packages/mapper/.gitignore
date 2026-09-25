@@ -208,6 +208,10 @@ tests/**
 !tests/python/fixtures/*.py
 !tests/fixtures/
 !tests/fixtures/**
+# ...except .simplicio/ runtime caches a test run writes in place under a fixture
+# directory (e.g. tests/fixtures/impact-ground-truth/*/.simplicio/cache/*.db) — those
+# are regenerated output, not the fixture source, and must stay ignored.
+tests/fixtures/**/.simplicio/
 test-results/**
 coverage/**
 bootstrap.ps1

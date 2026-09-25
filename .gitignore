@@ -18,8 +18,9 @@ dist/
 output/
 build/
 
-# Rust build artifacts
-rust/target/
+# Rust build artifacts (any depth: root rust/, packages/*/rust/, template scaffolds)
+**/rust/target/
+**/target/
 
 # Generated media (#116): video/ SOURCE (build_*.py, storyboard.master.json, lang/*, hyperframes
 # HTML composition sources, render.sh, README) stays tracked; only the rendered/ephemeral OUTPUT
