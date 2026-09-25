@@ -7401,8 +7401,15 @@ def _operator_dispatch_attempt(item: Mapping[str, Any]) -> Dict[str, Any]:
         }
     if _mapper_journal_enabled():
         try:
+            dispatch_repo_path = Path(str(item.get("repo") or ".")).resolve()
+            # An isolated worktree lane relocates ``item["repo"]`` to a freshly
+            # allocated, per-task path (see `_ensure_deferred_worktree_context`)
+            # that the earlier batch-level pre-pass could not have known about --
+            # ensure its Mapper operations store here too, not just the original
+            # pre-worktree repo path.
+            _ensure_mapper_operations_store(dispatch_repo_path)
             mapper_operations, mapper_attempt = _claim_mapper_operation_attempt(
-                Path(str(item.get("repo") or ".")).resolve(),
+                dispatch_repo_path,
                 run_id=common["run_id"],
                 task_index=int(common["task_index"]),
                 task_id=common["task_id"],
@@ -7779,6 +7786,19 @@ def dispatch_operator_batch(
         str(item["run_id"]): Path(item["repo"]).resolve()
         for item in normalized
     }
+    if _mapper_journal_enabled():
+        # Every repo a task will run its mutation attempt in needs an initialized
+        # Mapper operations store *before* any worker tries to claim a lease there --
+        # otherwise the first `_claim_mapper_operation_attempt` call in each fresh
+        # worktree/repo fails closed with STORE_NOT_INITIALIZED. `execute_operator_batch`
+        # already does this for its single, already-materialized run repo; this
+        # boundary fans out across possibly-multiple, possibly-not-yet-materialized
+        # repos, so it must ensure the store itself. Note this is *not* the same set
+        # as ``repo_root_by_run.values()`` -- several items can share one run_id
+        # while fanning out into distinct per-item repos/worktrees, and a dict keyed
+        # by run_id keeps only the last item's repo for that key.
+        for repo_path in {Path(item["repo"]).resolve() for item in normalized}:
+            _ensure_mapper_operations_store(repo_path)
     if journal_dir:
         journal_path = Path(journal_dir).resolve() / "operator-batch.jsonl"
         journal_path.parent.mkdir(parents=True, exist_ok=True)
@@ -7791,12 +7811,24 @@ def dispatch_operator_batch(
             durable_journal_path = journal_path.parent / "run-journal.sqlite"
     recovery_pending_by_run: Dict[str, set[int]] = {}
     if durable_journal_path is not None:
+        # A dispatch backed by a real distributed queue already has its own,
+        # independently-tested crash-recovery contract: the abandoned item's lease
+        # expires and a fresh claim carries a strictly higher fencing token (see
+        # `tests/test_work_item_claims_chaos_system.py` / `test_system_276_e2e_system.py`).
+        # The durable-journal "unknown effect" reconciliation below exists for the
+        # opposite case -- no queue/lease at all to tell "still in flight" apart from
+        # "crashed mid-effect" -- so it must not also swallow a queue-backed item and
+        # block it from ever being re-claimed.
+        queueless_indices_by_run: Dict[str, set[int]] = {}
+        for item in normalized:
+            if item.get("distributed_queue") is None:
+                queueless_indices_by_run.setdefault(str(item["run_id"]), set()).add(item["task_index"])
         for run_id in {item["run_id"] for item in normalized}:
             pending_indices = set(_dispatch_journal_recovery(
                 durable_journal_path,
                 run_id,
                 repo_root=repo_root_by_run.get(str(run_id)),
-            ))
+            )) & queueless_indices_by_run.get(str(run_id), set())
             if pending_indices:
                 recovery_pending_by_run[run_id] = pending_indices
     prior: Dict[Tuple[str, str, int], Dict[str, Any]] = {}
@@ -7958,7 +7990,15 @@ def dispatch_operator_batch(
         if prior.get((item["repo"], item["run_id"], item["task_index"]), {}).get("status") != "succeeded"
         and item["task_index"] not in recovery_pending_by_run.get(item["run_id"], set())
     )
-    skipped = len(normalized) - len(pending)
+    # ``skipped_completed`` is specifically the durably-succeeded items a resumed batch
+    # does not redo -- not every item this pass excludes from `pending`. An item held
+    # back instead as `recovery_pending` (a crashed dispatch with a durable start but no
+    # terminal event) is counted separately in `recovery_blocked_count` below; folding it
+    # into `skipped_completed` would misreport a not-yet-reconciled item as "already done".
+    skipped = sum(
+        1 for item in normalized
+        if prior.get((item["repo"], item["run_id"], item["task_index"]), {}).get("status") == "succeeded"
+    )
     pending_task_ids = {str(item.get("task_id") or "") for item in pending}
     prism_admitted: deque[str] = deque()
     # A resumed batch can have a completed item at the head of Prism's ready queue.
@@ -8285,6 +8325,7 @@ def dispatch_operator_batch(
                         {"task_id": item["task_id"], "task_index": item["task_index"],
                          "worker_id": item["worker_id"], "mode": dispatch_mode},
                         f"dispatch:{item['task_id']}:started",
+                        repo_root=Path(item["repo"]).resolve(),
                     )
                     active[_submit_process_item(pool, item)] = item
                     initial_admissions += 1
@@ -8294,6 +8335,7 @@ def dispatch_operator_batch(
                         {"task_id": item["task_id"], "task_index": item["task_index"],
                          "worker_id": item["worker_id"], "mode": dispatch_mode},
                         f"dispatch:{item['task_id']}:started",
+                        repo_root=Path(item["repo"]).resolve(),
                     )
                     active[pool.submit(_run_item, item, owned_process_registry)] = item
                     initial_admissions += 1
@@ -8345,6 +8387,7 @@ def dispatch_operator_batch(
                          "worker_id": item["worker_id"], "status": final.get("status"),
                          "receipt": final.get("receipt", "")},
                         f"dispatch:{item['task_id']}:terminal:{final.get('status', 'unknown')}",
+                        repo_root=Path(item["repo"]).resolve(),
                     )
                     try:
                         if prism_enabled:
@@ -8371,6 +8414,7 @@ def dispatch_operator_batch(
                                 {"task_id": next_item["task_id"], "task_index": next_item["task_index"],
                                  "worker_id": next_item["worker_id"], "mode": dispatch_mode},
                                 f"dispatch:{next_item['task_id']}:started",
+                                repo_root=Path(next_item["repo"]).resolve(),
                             )
                             active[_submit_process_item(pool, next_item)] = next_item
                         else:
@@ -8379,6 +8423,7 @@ def dispatch_operator_batch(
                                 {"task_id": next_item["task_id"], "task_index": next_item["task_index"],
                                  "worker_id": next_item["worker_id"], "mode": dispatch_mode},
                                 f"dispatch:{next_item['task_id']}:started",
+                                repo_root=Path(next_item["repo"]).resolve(),
                             )
                             active[pool.submit(_run_item, next_item, owned_process_registry)] = next_item
                         refill_count += 1
@@ -8449,7 +8494,9 @@ def dispatch_operator_batch(
         "recovery_pending_task_indices": sorted({
             task_index
             for run_id in {item["run_id"] for item in normalized}
-            for task_index in _dispatch_journal_recovery(durable_journal_path, run_id)
+            for task_index in _dispatch_journal_recovery(
+                durable_journal_path, run_id, repo_root=repo_root_by_run.get(str(run_id)),
+            )
         }),
         "leases": [],
         "blockers": [
