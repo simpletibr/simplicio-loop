@@ -1,7 +1,7 @@
 {
   "schema": "simplicio.precedent-index/v1",
   "version": 1,
-  "generated_at": "2026-08-03T15:30:21.940Z",
+  "generated_at": "2026-09-25T16:48:58.045Z",
   "source_project_map": ".simplicio/project-map.json",
   "items": [
     {
@@ -21,6 +21,94 @@
       ],
       "summary": "test precedent in tests/fixtures/parity-host/src/index.js",
       "snippet": "const { greet } = require('./greet');\n\nfunction startServer() {\n  const app = express();\n  app.get('/', (req, res) => res.send(greet('parity')));"
+    },
+    {
+      "id": "61925fc2a5f3bd60",
+      "path": "contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/services/dotnet/Program.cs",
+      "line": 3,
+      "rank": 1,
+      "language": "csharp",
+      "change_type": "feature",
+      "tags": [
+        "domain",
+        "entrypoint",
+        "csharp",
+        "contracts",
+        "mapper",
+        "artifacts",
+        "fixtures",
+        "canonical",
+        "matrix",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/services/dotnet/Program.cs",
+      "snippet": "using System;\n\npublic class Program\n{\n    public static string Language() => \"csharp\";"
+    },
+    {
+      "id": "fa76a8534926ba1d",
+      "path": "contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/services/go/main.go",
+      "line": 3,
+      "rank": 1,
+      "language": "go",
+      "change_type": "feature",
+      "tags": [
+        "domain",
+        "entrypoint",
+        "go",
+        "contracts",
+        "mapper",
+        "artifacts",
+        "fixtures",
+        "canonical",
+        "matrix",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/services/go/main.go",
+      "snippet": "package main\n\nfunc main() {}\n"
+    },
+    {
+      "id": "025cae41cca7b46c",
+      "path": "contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/services/java/Main.java",
+      "line": 1,
+      "rank": 1,
+      "language": "java",
+      "change_type": "feature",
+      "tags": [
+        "domain",
+        "entrypoint",
+        "java",
+        "contracts",
+        "mapper",
+        "artifacts",
+        "fixtures",
+        "canonical",
+        "matrix",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/services/java/Main.java",
+      "snippet": "class Main {\n    static String language() { return \"java\"; }\n}"
+    },
+    {
+      "id": "d527dcb29035a6f1",
+      "path": "contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/services/kotlin/Main.kt",
+      "line": 1,
+      "rank": 1,
+      "language": "kotlin",
+      "change_type": "feature",
+      "tags": [
+        "domain",
+        "entrypoint",
+        "kotlin",
+        "contracts",
+        "mapper",
+        "artifacts",
+        "fixtures",
+        "canonical",
+        "matrix",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/services/kotlin/Main.kt",
+      "snippet": "class Main {\n    fun language(): String = \"kotlin\"\n}"
     },
     {
       "id": "186a0057663db1e5",
@@ -158,6 +246,26 @@
       "snippet": "import { formatName } from '../../../packages/shared/src/index';\nexport function render() { return formatName('web'); }\n"
     },
     {
+      "id": "3d8f3021e61c5174",
+      "path": "contracts/mapper-capability/v1/fixtures/csharp/source/Program.cs",
+      "line": 3,
+      "rank": 1,
+      "language": "csharp",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "csharp",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source",
+        "program"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/csharp/source/Program.cs",
+      "snippet": "using System;\n\npublic class Service\n{\n    public int Compute(int value) => value;"
+    },
+    {
       "id": "e777677cf72a6db3",
       "path": "bin/build-hamt-catalog",
       "line": 12,
@@ -174,6 +282,72 @@
       ],
       "summary": "feature precedent in bin/build-hamt-catalog",
       "snippet": "const argv = process.argv.slice(2);\n\nfunction printHelp() {\n  console.log(`build-hamt-catalog\n"
+    },
+    {
+      "id": "7c3a424cf739ce4d",
+      "path": "contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/apps/python/app.py",
+      "line": 1,
+      "rank": 1,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "python",
+        "contracts",
+        "mapper",
+        "artifacts",
+        "fixtures",
+        "canonical",
+        "matrix",
+        "source",
+        "apps"
+      ],
+      "summary": "feature precedent in contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/apps/python/app.py",
+      "snippet": "def serve():\n    return \"python\"\n"
+    },
+    {
+      "id": "fea7154e63ac426b",
+      "path": "contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/apps/web/src/index.js",
+      "line": 1,
+      "rank": 1,
+      "language": "javascript",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "javascript",
+        "contracts",
+        "mapper",
+        "artifacts",
+        "fixtures",
+        "canonical",
+        "matrix",
+        "source",
+        "apps"
+      ],
+      "summary": "feature precedent in contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/apps/web/src/index.js",
+      "snippet": "export function renderJavaScript() {\n  return \"javascript\";\n}"
+    },
+    {
+      "id": "baa64b8e4dcb2464",
+      "path": "contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/apps/web/src/index.ts",
+      "line": 1,
+      "rank": 1,
+      "language": "typescript",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "typescript",
+        "contracts",
+        "mapper",
+        "artifacts",
+        "fixtures",
+        "canonical",
+        "matrix",
+        "source",
+        "apps"
+      ],
+      "summary": "feature precedent in contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/apps/web/src/index.ts",
+      "snippet": "export function render(): string {\n  return \"typescript\";\n}"
     },
     {
       "id": "71a4c1a9dff0b7b5",
@@ -322,6 +496,293 @@
       ],
       "summary": "feature precedent in contracts/mapper-canvas/v1/fixtures/polyglot/source/python/app.py",
       "snippet": "def serve():\n    return 'python'\n"
+    },
+    {
+      "id": "205048fc05e48c8e",
+      "path": "contracts/mapper-capability/v1/fixtures/go/source/main.go",
+      "line": 2,
+      "rank": 1,
+      "language": "go",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "go",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/go/source/main.go",
+      "snippet": "package main\nfunc render(value string) string { return value }\n"
+    },
+    {
+      "id": "b7acca5d5bf947c5",
+      "path": "contracts/mapper-capability/v1/fixtures/java/source/Main.java",
+      "line": 1,
+      "rank": 1,
+      "language": "java",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "java",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/java/source/Main.java",
+      "snippet": "class Main { String render(String value) { return value; } }\n"
+    },
+    {
+      "id": "dd53d736310589d9",
+      "path": "contracts/mapper-capability/v1/fixtures/javascript/source/src/index.js",
+      "line": 1,
+      "rank": 1,
+      "language": "javascript",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "javascript",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/javascript/source/src/index.js",
+      "snippet": "export function render(value) { return value; }\n"
+    },
+    {
+      "id": "27d567250cc35dd6",
+      "path": "contracts/mapper-capability/v1/fixtures/julia/source/main.jl",
+      "line": 1,
+      "rank": 1,
+      "language": "julia",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "julia",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/julia/source/main.jl",
+      "snippet": "function render(value)\n  value\nend"
+    },
+    {
+      "id": "e5cba6d70f4121ab",
+      "path": "contracts/mapper-capability/v1/fixtures/kotlin/source/Main.kt",
+      "line": 1,
+      "rank": 1,
+      "language": "kotlin",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "kotlin",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/kotlin/source/Main.kt",
+      "snippet": "class Main { fun render(value: String): String = value }\n"
+    },
+    {
+      "id": "7f54dd110cbb3b55",
+      "path": "contracts/mapper-capability/v1/fixtures/lua/source/main.lua",
+      "line": 1,
+      "rank": 1,
+      "language": "lua",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "lua",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/lua/source/main.lua",
+      "snippet": "function render(value) return value end\n"
+    },
+    {
+      "id": "b185e2de0b3e7206",
+      "path": "contracts/mapper-capability/v1/fixtures/matlab/source/main.m",
+      "line": 1,
+      "rank": 1,
+      "language": "matlab",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "matlab",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/matlab/source/main.m",
+      "snippet": "function value = render(value)\nend\n"
+    },
+    {
+      "id": "02651783ba92893b",
+      "path": "contracts/mapper-capability/v1/fixtures/php/source/index.php",
+      "line": 1,
+      "rank": 1,
+      "language": "php",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "php",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/php/source/index.php",
+      "snippet": "<?php function render($value) { return $value; }\n"
+    },
+    {
+      "id": "49474b4d233de624",
+      "path": "contracts/mapper-capability/v1/fixtures/python/source/src/main.py",
+      "line": 1,
+      "rank": 1,
+      "language": "python",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "python",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/python/source/src/main.py",
+      "snippet": "def render(value):\n    return value\n"
+    },
+    {
+      "id": "2430852ce2b6e6e2",
+      "path": "contracts/mapper-capability/v1/fixtures/ruby/source/main.rb",
+      "line": 1,
+      "rank": 1,
+      "language": "ruby",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "ruby",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/ruby/source/main.rb",
+      "snippet": "def render(value)\n  value\nend"
+    },
+    {
+      "id": "b8ffd967601a505c",
+      "path": "contracts/mapper-capability/v1/fixtures/scala/source/Main.scala",
+      "line": 1,
+      "rank": 1,
+      "language": "scala",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "scala",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/scala/source/Main.scala",
+      "snippet": "object Main { def render(value: String): String = value }\n"
+    },
+    {
+      "id": "9fcebaa47863c958",
+      "path": "contracts/mapper-capability/v1/fixtures/svelte/source/App.svelte",
+      "line": 1,
+      "rank": 1,
+      "language": "svelte",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "svelte",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source",
+        "app"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/svelte/source/App.svelte",
+      "snippet": "<script>export function render(value) { return value; }</script>\n"
+    },
+    {
+      "id": "b1542bf6f98bab51",
+      "path": "contracts/mapper-capability/v1/fixtures/swift/source/main.swift",
+      "line": 1,
+      "rank": 1,
+      "language": "swift",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "swift",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/swift/source/main.swift",
+      "snippet": "func render(_ value: String) -> String { value }\n"
+    },
+    {
+      "id": "9c5e8cebec323546",
+      "path": "contracts/mapper-capability/v1/fixtures/typescript/source/src/index.ts",
+      "line": 1,
+      "rank": 1,
+      "language": "typescript",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "typescript",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/typescript/source/src/index.ts",
+      "snippet": "export function render(value: string): string { return value; }\n"
+    },
+    {
+      "id": "f44661b640b236c2",
+      "path": "contracts/mapper-capability/v1/fixtures/vue/source/App.vue",
+      "line": 1,
+      "rank": 1,
+      "language": "vue",
+      "change_type": "feature",
+      "tags": [
+        "entrypoint",
+        "vue",
+        "contracts",
+        "mapper",
+        "capability",
+        "fixtures",
+        "source",
+        "app"
+      ],
+      "summary": "feature precedent in contracts/mapper-capability/v1/fixtures/vue/source/App.vue",
+      "snippet": "<script>export function render(value) { return value; }</script>\n"
     },
     {
       "id": "f42d650148899edf",
@@ -1033,6 +1494,23 @@
       "snippet": "\n\ndef _run(args: list[str], cwd: Path) -> subprocess.CompletedProcess:\n    return subprocess.run([\"git\", *args], cwd=str(cwd), check=True, capture_output=True, text=True)\n"
     },
     {
+      "id": "8a0e3e15501a30c3",
+      "path": "tests/python/test_canonical_mapper_artifacts.py",
+      "line": 45,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "canonical",
+        "mapper",
+        "artifacts"
+      ],
+      "summary": "test precedent in tests/python/test_canonical_mapper_artifacts.py",
+      "snippet": "\n\nclass CanonicalMapperArtifactsTest(unittest.TestCase):\n    def test_python_artifacts_have_metadata_and_repeatable_digests(self) -> None:\n        source = FIXTURES / \"python-minimal\" / \"source\""
+    },
+    {
       "id": "304ae888b6e2a94e",
       "path": "tests/python/test_canonical_native_capability_key.py",
       "line": 8,
@@ -1067,9 +1545,9 @@
       "snippet": "state (working tree, including staged/unstaged/untracked changes) and a\ncanonical ``CanonicalMapKey``'s base commit -- against real temporary git\nrepositories (never mocked ``git`` output, except for explicit error-path\ntests using ``unittest.mock.patch``). No production pipeline wiring exists\nyet; these tests only exercise the new module in isolation, per the ADR's"
     },
     {
-      "id": "e1c7db613e06b8a6",
+      "id": "749a7919bfd958c2",
       "path": "tests/python/test_canonical_process_concurrency.py",
-      "line": 60,
+      "line": 61,
       "rank": 1,
       "language": "python",
       "change_type": "test",
@@ -1147,6 +1625,23 @@
       ],
       "summary": "test precedent in tests/python/test_changelog_parser.py",
       "snippet": "\n\nclass ParseChangelogUnitTest(unittest.TestCase):\n    \"\"\"Unit: parser correctness against real, existing CHANGELOG.md entries.\"\"\"\n"
+    },
+    {
+      "id": "4d1d73c7f2cd1897",
+      "path": "tests/python/test_check_version_sync.py",
+      "line": 16,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "check",
+        "version",
+        "sync"
+      ],
+      "summary": "test precedent in tests/python/test_check_version_sync.py",
+      "snippet": "\n\ndef _load_module():\n    spec = importlib.util.spec_from_file_location(\"check_version_sync\", SCRIPT_PATH)\n    assert spec is not None and spec.loader is not None"
     },
     {
       "id": "978565b822fcc88e",
@@ -1229,9 +1724,9 @@
       "snippet": "\n\ndef _run(args: list[str], cwd: Path) -> subprocess.CompletedProcess:\n    return subprocess.run([\"git\", *args], cwd=str(cwd), check=True, capture_output=True, text=True)\n"
     },
     {
-      "id": "6d9dda3720eeb2e3",
+      "id": "9825175d1fbab7fe",
       "path": "tests/python/test_cli_coverage.py",
-      "line": 42,
+      "line": 43,
       "rank": 1,
       "language": "python",
       "change_type": "test",
@@ -1276,6 +1771,23 @@
       ],
       "summary": "test precedent in tests/python/test_cli_packaging.py",
       "snippet": "\n\nclass DistributionContractsTest(unittest.TestCase):\n    def test_built_wheel_and_sdist_include_contracts_tree(self) -> None:\n        with tempfile.TemporaryDirectory() as tmp:"
+    },
+    {
+      "id": "9ff1e9d39634dca2",
+      "path": "tests/python/test_cli_public_help.py",
+      "line": 12,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "cli",
+        "public",
+        "help"
+      ],
+      "summary": "test precedent in tests/python/test_cli_public_help.py",
+      "snippet": "\n\ndef _invoke_help(argv: list[str]) -> tuple[int, str]:\n    output = StringIO()\n    with redirect_stdout(output), redirect_stderr(output):"
     },
     {
       "id": "615a8a1d1ead0555",
@@ -1427,9 +1939,9 @@
       "snippet": "\n\nclass ContextContractDistributionTests(unittest.TestCase):\n    timeout_seconds = 90\n"
     },
     {
-      "id": "3a15004147c91996",
+      "id": "2095025284d003ab",
       "path": "tests/python/test_context_contract_ownership.py",
-      "line": 22,
+      "line": 26,
       "rank": 1,
       "language": "python",
       "change_type": "test",
@@ -1460,6 +1972,23 @@
       "snippet": "\n\ndef _node(node_id: str, content_hash: str, scale: str = \"micro\") -> dict:\n    return {\"id\": node_id, \"scale\": scale, \"content_hash\": content_hash, \"source\": {\"file\": \"x.py\"}}\n"
     },
     {
+      "id": "c22c9e8b87fed50a",
+      "path": "tests/python/test_context_graph_contract.py",
+      "line": 23,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "context",
+        "graph",
+        "contract"
+      ],
+      "summary": "test precedent in tests/python/test_context_graph_contract.py",
+      "snippet": "\n\nclass ContextGraphContractTest(unittest.TestCase):\n    def test_contract_exposes_public_identity_and_stable_ids(self) -> None:\n        case = json.loads(FIXTURE.read_text(encoding=\"utf-8\"))[\"cases\"][1]"
+    },
+    {
       "id": "34bed1e54b381287",
       "path": "tests/python/test_context_pack.py",
       "line": 39,
@@ -1476,9 +2005,9 @@
       "snippet": "\n\ndef _pack(root, targets, **kwargs):\n    defaults = {\"project_map\": {}, \"symbol_index\": {}, \"call_graph\": {}}\n    defaults.update(kwargs)"
     },
     {
-      "id": "911f3ed9b0a9e39f",
+      "id": "223091f586dffd57",
       "path": "tests/python/test_context_snapshot.py",
-      "line": 44,
+      "line": 46,
       "rank": 1,
       "language": "python",
       "change_type": "test",
@@ -1538,6 +2067,22 @@
       ],
       "summary": "test precedent in tests/python/test_cross_repo_conformance.py",
       "snippet": "\n\nclass CrossRepoConformanceTest(unittest.TestCase):\n    def test_negative_schema_mutation_is_rejected(self) -> None:\n        self.assertEqual(_validate_handoff({\"schema\": \"simplicio.map-handoff/v999\"}), ["
+    },
+    {
+      "id": "0f9fc58bc9edfa1d",
+      "path": "tests/python/test_data_catalog.py",
+      "line": 17,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "data",
+        "catalog"
+      ],
+      "summary": "test precedent in tests/python/test_data_catalog.py",
+      "snippet": "\n\ndef test_layout_lists_core_banks() -> None:\n    layout = layout_tree()\n    ids = {b[\"id\"] for b in layout[\"banks\"]}"
     },
     {
       "id": "16667b6e43d8091e",
@@ -1814,9 +2359,26 @@
       "snippet": "\n\nclass FastCertificationTest(unittest.TestCase):\n    def test_golden_corpus_passes_precision_recall_gates_per_edge_and_language(self) -> None:\n        mapper = json.loads((FIXTURES / \"golden-corpus.json\").read_text(encoding=\"utf-8\"))"
     },
     {
-      "id": "246749026d4c7007",
+      "id": "3812eae91191a8cc",
+      "path": "tests/python/test_fast_default_route.py",
+      "line": 22,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "route",
+        "test",
+        "python",
+        "fast",
+        "default"
+      ],
+      "summary": "test precedent in tests/python/test_fast_default_route.py",
+      "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
+    },
+    {
+      "id": "708ebb06435fa158",
       "path": "tests/python/test_fast_handoff.py",
-      "line": 19,
+      "line": 20,
       "rank": 1,
       "language": "python",
       "change_type": "test",
@@ -1828,6 +2390,24 @@
       ],
       "summary": "test precedent in tests/python/test_fast_handoff.py",
       "snippet": "\n\nclass FastHandoffTest(unittest.TestCase):\n    def setUp(self) -> None:\n        self.temp = tempfile.TemporaryDirectory()"
+    },
+    {
+      "id": "7cc5591a0bed5068",
+      "path": "tests/python/test_fast_handoff_cli_contract.py",
+      "line": 21,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "fast",
+        "handoff",
+        "cli",
+        "contract"
+      ],
+      "summary": "test precedent in tests/python/test_fast_handoff_cli_contract.py",
+      "snippet": "\n\ndef _invoke(argv: list[str]) -> tuple[int, str, str]:\n    stdout = StringIO()\n    stderr = StringIO()"
     },
     {
       "id": "9b400a09c5ad7c49",
@@ -1896,6 +2476,41 @@
       "snippet": "\n\ndef _git(root: Path, *args: str) -> None:\n    result = subprocess.run(\n        [\"git\", \"-C\", str(root), *args],"
     },
     {
+      "id": "c62b351b56c489e0",
+      "path": "tests/python/test_handoff_cache_traceability_regression.py",
+      "line": 13,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "handoff",
+        "cache",
+        "traceability",
+        "regression"
+      ],
+      "summary": "test precedent in tests/python/test_handoff_cache_traceability_regression.py",
+      "snippet": "\n\ndef _write(root: Path, relative: str, content: str) -> Path:\n    path = root / relative\n    path.parent.mkdir(parents=True, exist_ok=True)"
+    },
+    {
+      "id": "9ad06f16ac28eaf4",
+      "path": "tests/python/test_handoff_utf8_stdout.py",
+      "line": 16,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "handoff",
+        "utf8",
+        "stdout"
+      ],
+      "summary": "test precedent in tests/python/test_handoff_utf8_stdout.py",
+      "snippet": "    encoding = \"cp1252\"\n\n    def __init__(self) -> None:\n        self.buffer = io.BytesIO()\n        self.writes: list[str] = []"
+    },
+    {
       "id": "1148f9d81fcc4571",
       "path": "tests/python/test_history.py",
       "line": 26,
@@ -1927,9 +2542,9 @@
       "snippet": "\n\nclass HypothesisReportTest(unittest.TestCase):\n    def test_hypothesis_report_emits_h1_h2_with_honest_statuses(self) -> None:\n        left = json.loads(json.dumps(hypothesis_report.build_report(), sort_keys=True))"
     },
     {
-      "id": "da54b953f8d798fd",
+      "id": "7ac163d34f877342",
       "path": "tests/python/test_incremental.py",
-      "line": 9,
+      "line": 10,
       "rank": 1,
       "language": "python",
       "change_type": "test",
@@ -2010,9 +2625,25 @@
       "snippet": "\n\ndef _load_schema(name: str) -> dict:\n    import json\n"
     },
     {
-      "id": "f108448e831c828e",
+      "id": "d1688ac2abe08f98",
+      "path": "tests/python/test_llm_orientation.py",
+      "line": 71,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "llm",
+        "orientation"
+      ],
+      "summary": "test precedent in tests/python/test_llm_orientation.py",
+      "snippet": "\n\ndef load_pack() -> dict:\n    return decode_toon(PACK.read_text(encoding=\"utf-8\"))\n"
+    },
+    {
+      "id": "d6c9293613ec8663",
       "path": "tests/python/test_lock_recovery.py",
-      "line": 32,
+      "line": 33,
       "rank": 1,
       "language": "python",
       "change_type": "test",
@@ -2024,6 +2655,42 @@
       ],
       "summary": "test precedent in tests/python/test_lock_recovery.py",
       "snippet": "\n\nclass IndexLockRecoveryTest(unittest.TestCase):\n    def setUp(self) -> None:\n        self._tmp = tempfile.TemporaryDirectory()"
+    },
+    {
+      "id": "4793006f26074f2d",
+      "path": "tests/python/test_mapper_615_relation_contract.py",
+      "line": 25,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "mapper",
+        "615",
+        "relation",
+        "contract"
+      ],
+      "summary": "test precedent in tests/python/test_mapper_615_relation_contract.py",
+      "snippet": "\n\ndef _write(root: Path, relative: str, text: str) -> None:\n    path = root / relative\n    path.parent.mkdir(parents=True, exist_ok=True)"
+    },
+    {
+      "id": "2de06cf97609cf0d",
+      "path": "tests/python/test_mapper_617_language_capabilities.py",
+      "line": 27,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "mapper",
+        "617",
+        "language",
+        "capabilities"
+      ],
+      "summary": "test precedent in tests/python/test_mapper_617_language_capabilities.py",
+      "snippet": "\n\ndef _write(root: Path, relative: str, content: str) -> None:\n    target = root / relative\n    target.parent.mkdir(parents=True, exist_ok=True)"
     },
     {
       "id": "f4883d1ccbfc3b9e",
@@ -2126,6 +2793,41 @@
       "snippet": "\n\nclass MapperCanvasCompatibilityTests(unittest.TestCase):\n    def test_offline_harness_consumes_all_committed_goldens(self) -> None:\n        self.assertEqual(check(), 0)"
     },
     {
+      "id": "c1789fb93552a037",
+      "path": "tests/python/test_mapper_core_differential.py",
+      "line": 17,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "mapper",
+        "core",
+        "differential"
+      ],
+      "summary": "test precedent in tests/python/test_mapper_core_differential.py",
+      "snippet": "\n\nclass NativeCapabilitySelectionTest(unittest.TestCase):\n    def test_native_defaults_are_selected_per_capability(self) -> None:\n        saved = (_native.HAS_NATIVE, copy.deepcopy(_native.CAPABILITIES))"
+    },
+    {
+      "id": "50c54e6162149869",
+      "path": "tests/python/test_mapper_core_runtime_adapter.py",
+      "line": 11,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "mapper",
+        "core",
+        "runtime",
+        "adapter"
+      ],
+      "summary": "test precedent in tests/python/test_mapper_core_runtime_adapter.py",
+      "snippet": "\n\nclass RuntimeAdapterBoundaryTest(unittest.TestCase):\n    def test_core_has_no_runtime_authority_or_effect_dependency(self) -> None:\n        core_source = (ROOT / \"rust/mapper-core/src/lib.rs\").read_text(encoding=\"utf-8\")"
+    },
+    {
       "id": "834c51468d0e88fa",
       "path": "tests/python/test_mapper_emit.py",
       "line": 29,
@@ -2142,9 +2844,26 @@
       "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
     },
     {
-      "id": "c20150da3fb99e2d",
+      "id": "68072c626025c984",
+      "path": "tests/python/test_mapper_fast_link.py",
+      "line": 10,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "mapper",
+        "fast",
+        "link"
+      ],
+      "summary": "test precedent in tests/python/test_mapper_fast_link.py",
+      "snippet": "\n\ndef test_mapper_fast_status_standalone_and_repo(tmp_path: Path) -> None:\n    data = tmp_path / \"data\"\n    # empty unify still creates schema"
+    },
+    {
+      "id": "ae6a255f79cde4f0",
       "path": "tests/python/test_mapper_graph.py",
-      "line": 36,
+      "line": 37,
       "rank": 1,
       "language": "python",
       "change_type": "test",
@@ -2259,6 +2978,23 @@
       "snippet": "\n\nclass ReleaseManifestTest(unittest.TestCase):\n    def test_manifest_binds_versions_and_artifact_checksum(self) -> None:\n        root = Path(__file__).parents[2]"
     },
     {
+      "id": "e92f7502b25fc3e0",
+      "path": "tests/python/test_mapper_store_canonical.py",
+      "line": 15,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "mapper",
+        "store",
+        "canonical"
+      ],
+      "summary": "test precedent in tests/python/test_mapper_store_canonical.py",
+      "snippet": "\n\ndef _schema(name: str) -> dict:\n    root = Path(__file__).parents[2] / \"contracts/mapper-store/v1/schemas\"\n    return json.loads((root / name).read_text(encoding=\"utf-8\"))"
+    },
+    {
       "id": "c5496581d56f49bb",
       "path": "tests/python/test_mapper_store_conformance.py",
       "line": 22,
@@ -2359,6 +3095,22 @@
       "snippet": "\n\nclass MemoryBudgetTest(unittest.TestCase):\n    def test_reserve_release_and_receipt_are_deterministic(self) -> None:\n        budget = MemoryBudget(soft_limit_bytes=10, hard_limit_bytes=20)"
     },
     {
+      "id": "bbfa4abb96010b18",
+      "path": "tests/python/test_memory_unify.py",
+      "line": 10,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "memory",
+        "unify"
+      ],
+      "summary": "test precedent in tests/python/test_memory_unify.py",
+      "snippet": "\n\ndef _make_neural(path: Path, n: int = 3) -> None:\n    path.parent.mkdir(parents=True, exist_ok=True)\n    with sqlite3.connect(path) as conn:"
+    },
+    {
       "id": "9df280cc77ccf6fa",
       "path": "tests/python/test_meta_issue_audit.py",
       "line": 18,
@@ -2408,6 +3160,22 @@
       "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
     },
     {
+      "id": "07e4328260dbb5cd",
+      "path": "tests/python/test_neural_bank.py",
+      "line": 14,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "neural",
+        "bank"
+      ],
+      "summary": "test precedent in tests/python/test_neural_bank.py",
+      "snippet": "\n\ndef test_bootstrap_neural_applies_packaged_migrations(tmp_path: Path) -> None:\n    result = bootstrap_neural(data_dir=tmp_path, apply_seeds=False)\n    assert result[\"status\"] == \"ready\""
+    },
+    {
       "id": "d21e66a3467434ff",
       "path": "tests/python/test_orient.py",
       "line": 18,
@@ -2423,9 +3191,9 @@
       "snippet": "\n\nclass OrientContractTest(unittest.TestCase):\n    def setUp(self) -> None:\n        self.tmp = tempfile.TemporaryDirectory()"
     },
     {
-      "id": "d490a2687dc9399d",
+      "id": "6e46eb464d2bf93e",
       "path": "tests/python/test_parity.py",
-      "line": 29,
+      "line": 27,
       "rank": 1,
       "language": "python",
       "change_type": "test",
@@ -2484,6 +3252,104 @@
       ],
       "summary": "test precedent in tests/python/test_pipeline_shadow.py",
       "snippet": "\n\ndef _materialize_tiny_tree(root: Path, count: int) -> None:\n    for i in range(count):\n        (root / f\"mod_{i}.py\").write_text(f\"def f_{i}():\\n    return {i}\\n\", encoding=\"utf-8\")"
+    },
+    {
+      "id": "5bce28170d1a8775",
+      "path": "tests/python/test_plugin_context_handle.py",
+      "line": 18,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "plugin",
+        "context",
+        "handle"
+      ],
+      "summary": "test precedent in tests/python/test_plugin_context_handle.py",
+      "snippet": "\n\nclass PluginContextHandleTest(unittest.TestCase):\n    def setUp(self) -> None:\n        invalidate_plugin_context_handles()"
+    },
+    {
+      "id": "ea341429a6056b93",
+      "path": "tests/python/test_plugin_context_handle_v2.py",
+      "line": 19,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "plugin",
+        "context",
+        "handle"
+      ],
+      "summary": "test precedent in tests/python/test_plugin_context_handle_v2.py",
+      "snippet": "\n\nclass PluginContextHandleV2Test(unittest.TestCase):\n    def setUp(self) -> None:\n        invalidate_plugin_context_handles()"
+    },
+    {
+      "id": "a9b5f18943b3bb09",
+      "path": "tests/python/test_plugin_orientation.py",
+      "line": 17,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "plugin",
+        "orientation"
+      ],
+      "summary": "test precedent in tests/python/test_plugin_orientation.py",
+      "snippet": "\n\ndef _write(path: Path, text: str) -> None:\n    path.parent.mkdir(parents=True, exist_ok=True)\n    path.write_text(text, encoding=\"utf-8\")"
+    },
+    {
+      "id": "6d4b8a2437f6e65a",
+      "path": "tests/python/test_process_liveness.py",
+      "line": 15,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "process",
+        "liveness"
+      ],
+      "summary": "test precedent in tests/python/test_process_liveness.py",
+      "snippet": "\n\nclass ProcessLivenessTest(unittest.TestCase):\n    @unittest.skipUnless(os.name == \"posix\" and Path(\"/proc\").is_dir(), \"requires Linux procfs\")\n    def test_zombie_child_is_not_alive(self) -> None:"
+    },
+    {
+      "id": "ba90b88902e0f3f3",
+      "path": "tests/python/test_project_capabilities.py",
+      "line": 32,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "project",
+        "capabilities"
+      ],
+      "summary": "test precedent in tests/python/test_project_capabilities.py",
+      "snippet": "\n\ndef _fixture_artifacts() -> dict[str, dict]:\n    artifacts = {}\n    for key, filename in {"
+    },
+    {
+      "id": "2e5f4412a8240578",
+      "path": "tests/python/test_project_scope.py",
+      "line": 16,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "project",
+        "scope"
+      ],
+      "summary": "test precedent in tests/python/test_project_scope.py",
+      "snippet": "\n\ndef test_sanitize_and_slug_from_git_style_remote() -> None:\n    assert sanitize_project_slug(\"https://github.com/wesleysimplicio/simplicio-mapper.git\") == \"simplicio-mapper\"\n    assert sanitize_project_slug(\"My Project!\") == \"my-project\""
     },
     {
       "id": "9213b0eb577a019b",
@@ -2573,6 +3439,22 @@
       "snippet": "\n\nclass PrototypeRemapCostBenchmarkTests(unittest.TestCase):\n    def test_small_run_reports_real_measurements(self) -> None:\n        report = bench.run_benchmark(files=5)"
     },
     {
+      "id": "f725ebc58bb2d422",
+      "path": "tests/python/test_pytest_collection.py",
+      "line": 17,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "pytest",
+        "collection"
+      ],
+      "summary": "test precedent in tests/python/test_pytest_collection.py",
+      "snippet": "\n\ndef test_pytest_collects_duplicate_basename_files_together() -> None:\n    env = {\n        name: value"
+    },
+    {
       "id": "a4cca24e96d3b7b9",
       "path": "tests/python/test_query.py",
       "line": 25,
@@ -2588,9 +3470,9 @@
       "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
     },
     {
-      "id": "ccc91248c4129234",
+      "id": "640f81794ee03329",
       "path": "tests/python/test_regen_contract_fixtures.py",
-      "line": 18,
+      "line": 19,
       "rank": 1,
       "language": "python",
       "change_type": "test",
@@ -2603,6 +3485,38 @@
       ],
       "summary": "test precedent in tests/python/test_regen_contract_fixtures.py",
       "snippet": "\n\ndef _load_module():\n    # scripts/regen_contract_fixtures.py itself inserts ROOT onto sys.path\n    # and imports simplicio_mapper.contract at module scope, so it must be"
+    },
+    {
+      "id": "ee8c370684de564d",
+      "path": "tests/python/test_release_event.py",
+      "line": 8,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "release",
+        "event"
+      ],
+      "summary": "test precedent in tests/python/test_release_event.py",
+      "snippet": "\n\ndef _manifest() -> dict:\n    return {\n        \"schema\": \"simplicio.component-release/v1\","
+    },
+    {
+      "id": "43ac285c5fa22259",
+      "path": "tests/python/test_release_governance.py",
+      "line": 33,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "release",
+        "governance"
+      ],
+      "summary": "test precedent in tests/python/test_release_governance.py",
+      "snippet": "\n\ndef _manifest(version: str = \"0.26.26\") -> dict:\n    return {\n        \"schema\": \"simplicio.component-release/v1\","
     },
     {
       "id": "e4c9a527559d16c2",
@@ -2621,9 +3535,58 @@
       "snippet": "\n\nclass CollectSchemaVersionsTest(unittest.TestCase):\n    \"\"\"Unit: schema-version registry collection (issue #280, task step 1/3).\"\"\"\n"
     },
     {
-      "id": "cdd4bfcd53dd4666",
+      "id": "df4208afa91ad406",
+      "path": "tests/python/test_release_reconciliation.py",
+      "line": 12,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "release",
+        "reconciliation"
+      ],
+      "summary": "test precedent in tests/python/test_release_reconciliation.py",
+      "snippet": "\n\nclass ReleaseReconciliationTest(unittest.TestCase):\n    def _root(self, version: str = \"0.26.26\") -> Path:\n        tmp = Path(tempfile.mkdtemp())"
+    },
+    {
+      "id": "7044d413a5405010",
+      "path": "tests/python/test_release_surfaces.py",
+      "line": 15,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "release",
+        "surfaces"
+      ],
+      "summary": "test precedent in tests/python/test_release_surfaces.py",
+      "snippet": "\n\nclass ReleaseSurfaceTest(unittest.TestCase):\n    def test_package_version_sources_are_aligned(self) -> None:\n        result = subprocess.run("
+    },
+    {
+      "id": "e80a287ddfc5de01",
+      "path": "tests/python/test_release_train_check.py",
+      "line": 11,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "release",
+        "train",
+        "check"
+      ],
+      "summary": "test precedent in tests/python/test_release_train_check.py",
+      "snippet": "\n\nclass ReleaseTrainCheckTest(unittest.TestCase):\n    def test_latest_loop_compatibility_entrypoint_passes_local_gates(self) -> None:\n        output = StringIO()"
+    },
+    {
+      "id": "c08ee6e1cfb9b1d8",
       "path": "tests/python/test_release_workflow.py",
-      "line": 10,
+      "line": 15,
       "rank": 1,
       "language": "python",
       "change_type": "test",
@@ -2634,7 +3597,7 @@
         "workflow"
       ],
       "summary": "test precedent in tests/python/test_release_workflow.py",
-      "snippet": "\n\ndef _run_blocks(text: str) -> list[str]:\n    blocks: list[str] = []\n    lines = text.splitlines()"
+      "snippet": "\n\ndef _workflow_text() -> str:\n    assert WORKFLOW.is_file(), f\"missing workflow: {WORKFLOW}\"\n    return WORKFLOW.read_text(encoding=\"utf-8\")"
     },
     {
       "id": "77ffcfd7460d4a23",
@@ -2714,6 +3677,24 @@
       ],
       "summary": "test precedent in tests/python/test_scoped_context.py",
       "snippet": "\n\nclass ScopedContextTests(unittest.TestCase):\n    def setUp(self):\n        self.tmp = tempfile.TemporaryDirectory()"
+    },
+    {
+      "id": "cca39784fc00bae7",
+      "path": "tests/python/test_snapshot_fast_handoff_integration.py",
+      "line": 16,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "snapshot",
+        "fast",
+        "handoff",
+        "integration"
+      ],
+      "summary": "test precedent in tests/python/test_snapshot_fast_handoff_integration.py",
+      "snippet": "\n\nclass SnapshotFastHandoffIntegrationTest(unittest.TestCase):\n    def _cli(self, repo: Path, cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:\n        env = os.environ.copy()"
     },
     {
       "id": "73941b888aec8513",
@@ -2843,9 +3824,9 @@
       "snippet": "\n\ndef _write(base: Path, rel: str, content: str) -> None:\n    target = base / rel\n    target.parent.mkdir(parents=True, exist_ok=True)"
     },
     {
-      "id": "b20324d64e913a51",
+      "id": "d6131e95ec42546a",
       "path": "tests/python/test_task_aware_handoff.py",
-      "line": 17,
+      "line": 22,
       "rank": 1,
       "language": "python",
       "change_type": "test",
@@ -2955,6 +3936,23 @@
       ],
       "summary": "test precedent in tests/python/test_toon_contract.py",
       "snippet": "\n\nclass StrictEqualTest(unittest.TestCase):\n    \"\"\"strict_equal must NOT treat bool and int as interchangeable, unlike\n    plain ``==`` (autoresearch pilot finding, issue #151 iteration 1).\"\"\""
+    },
+    {
+      "id": "df673ff94577ad79",
+      "path": "tests/python/test_verify_pypi_release.py",
+      "line": 21,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "verify",
+        "pypi",
+        "release"
+      ],
+      "summary": "test precedent in tests/python/test_verify_pypi_release.py",
+      "snippet": "\n\ndef _write_artifacts(root: Path) -> dict[str, str]:\n    files = {\n        \"simplicio_mapper-0.26.19-py3-none-any.whl\": b\"wheel-bytes\","
     },
     {
       "id": "c5a816bb23ba1f2c",
@@ -3093,6 +4091,22 @@
       "snippet": "\n\ndef fixture(clean=False):\n    requirement = node(\"requirement\", \"REQ-1\", source_hash=\"s\", owner=\"mapper\", valid_from=\"1\")\n    owner = node(\"repository\", \"loop\", source_hash=\"s\", owner=\"loop\", valid_from=\"1\")"
     },
     {
+      "id": "9a7a9ea442f85aee",
+      "path": "tests/test_creation_targets.py",
+      "line": 5,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "creation",
+        "targets"
+      ],
+      "summary": "test precedent in tests/test_creation_targets.py",
+      "snippet": "\n\ndef _retrieval_index():\n    return {\n        \"schema\": \"simplicio.retrieval-index/v1\","
+    },
+    {
       "id": "86a81517bef823e7",
       "path": "tests/test_evidence_381.py",
       "line": 6,
@@ -3107,6 +4121,38 @@
       ],
       "summary": "test precedent in tests/test_evidence_381.py",
       "snippet": "\n\ndef graph(count=2):\n    return build_graph(repo_id=\"repo\", generation=\"g3\", config_hash=\"c\", facts=[\n        fact(\"repo\", \"g3\", \"symbol\", f\"s{i}\", {\"name\": f\"s{i}\"},"
+    },
+    {
+      "id": "4b0daf160611e052",
+      "path": "tests/test_evidence_graph.py",
+      "line": 12,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "evidence",
+        "graph"
+      ],
+      "summary": "test precedent in tests/test_evidence_graph.py",
+      "snippet": "\n\nclass EvidenceGraphTests(unittest.TestCase):\n    def setUp(self) -> None:\n        self.graph, _ = build_structural_graph({\"app.py\": \"def main():\\n    pass\\n\"}.items(), repo_identity=\"repo\", generation_id=\"g1\")"
+    },
+    {
+      "id": "170078cc66c84772",
+      "path": "tests/test_fleet_intelligence.py",
+      "line": 9,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "fleet",
+        "intelligence"
+      ],
+      "summary": "test precedent in tests/test_fleet_intelligence.py",
+      "snippet": "\n\nclass FleetIntelligenceTests(unittest.TestCase):\n    def test_explicit_repositories_keep_identity_and_generation(self) -> None:\n        fleet = build_fleet("
     },
     {
       "id": "c4e9cd033f7375f1",
@@ -3126,6 +4172,22 @@
       "snippet": "\n\ndef _facts():\n    p = Provenance(\"src/app.py\", 1, 2, \"a\" * 64, \"parser\", \"1\")\n    facts = [fact(\"repo\", \"g1\", \"symbol\", \"Service\", {}, p)]"
     },
     {
+      "id": "e9b5ff4061cee3cb",
+      "path": "tests/test_hybrid_retrieval.py",
+      "line": 9,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "hybrid",
+        "retrieval"
+      ],
+      "summary": "test precedent in tests/test_hybrid_retrieval.py",
+      "snippet": "\n\nclass HybridRetrievalTests(unittest.TestCase):\n    @classmethod\n    def setUpClass(cls) -> None:"
+    },
+    {
       "id": "32fde0de1b39e930",
       "path": "tests/test_impact_graph_380.py",
       "line": 6,
@@ -3141,6 +4203,22 @@
       ],
       "summary": "test precedent in tests/test_impact_graph_380.py",
       "snippet": "\n\ndef graph():\n    p = Provenance(\"src/app.py\", 1, 2, \"a\" * 64, \"parser\", \"1\")\n    facts = ["
+    },
+    {
+      "id": "bd3041f5dc700e5e",
+      "path": "tests/test_incremental_graph.py",
+      "line": 10,
+      "rank": 1,
+      "language": "python",
+      "change_type": "test",
+      "tags": [
+        "test",
+        "python",
+        "incremental",
+        "graph"
+      ],
+      "summary": "test precedent in tests/test_incremental_graph.py",
+      "snippet": "\n\nclass IncrementalGraphTests(unittest.TestCase):\n    def test_only_changed_files_are_parsed_and_removed_files_disappear(self) -> None:\n        index = IncrementalGraphIndex(\"repo\", \"g1\")"
     },
     {
       "id": "b5b9a16ef2a02735",
@@ -3228,1178 +4306,68 @@
       "snippet": "\n\ndef test_deterministic_optional_index():\n    items = [\n        {\"id\": \"a\", \"text\": \"UserService authenticate token\"},"
     },
     {
-      "id": "3c63098f1d5f6333",
-      "path": "tests/unit/apply-edits.test.js",
+      "id": "739b5bbda5f0e5d4",
+      "path": "tests/test_structural_benchmark.py",
       "line": 11,
       "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "apply",
-        "edits"
-      ],
-      "summary": "test precedent in tests/unit/apply-edits.test.js",
-      "snippet": "const { applyEdits, EditError } = require('../../bin/apply-edits');\n\nfunction mkTmp() {\n  return fs.mkdtempSync(path.join(os.tmpdir(), 'lpm-apply-edits-'));\n}"
-    },
-    {
-      "id": "489a022a6c8d961a",
-      "path": "tests/unit/build-hamt-catalog.test.js",
-      "line": 14,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "build",
-        "hamt",
-        "catalog"
-      ],
-      "summary": "test precedent in tests/unit/build-hamt-catalog.test.js",
-      "snippet": "const CLI = path.resolve(__dirname, '..', '..', 'bin', 'cli.js');\n\nfunction mkTmp() {\n  return fs.mkdtempSync(path.join(os.tmpdir(), 'lpm-hamt-'));\n}"
-    },
-    {
-      "id": "877dea2b80665f74",
-      "path": "tests/unit/cli-args.test.js",
-      "line": 5,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "cli",
-        "args"
-      ],
-      "summary": "test precedent in tests/unit/cli-args.test.js",
-      "snippet": "/*\n * Unit tests for bin/cli.js argument parsing.\n * Uses node:test (no extra dependency) and subprocess invocation so the tests\n * exercise the real binary end-to-end, including --help / --version short-circuit\n * and unknown-flag handling."
-    },
-    {
-      "id": "5c06c99e78ae3bc8",
-      "path": "tests/unit/cli-install.test.js",
-      "line": 18,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "cli",
-        "install"
-      ],
-      "summary": "test precedent in tests/unit/cli-install.test.js",
-      "snippet": "const NODE = process.execPath;\n\nfunction mkTmp() {\n  return fs.mkdtempSync(path.join(os.tmpdir(), 'lpm-test-'));\n}"
-    },
-    {
-      "id": "ed57177ee9df663c",
-      "path": "tests/unit/cli-telemetry.test.js",
-      "line": 21,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "cli",
-        "telemetry"
-      ],
-      "summary": "test precedent in tests/unit/cli-telemetry.test.js",
-      "snippet": "const NODE = process.execPath;\n\nfunction mkTmp() {\n  return fs.mkdtempSync(path.join(os.tmpdir(), 'lpm-tel-'));\n}"
-    },
-    {
-      "id": "4664eea0a2d4975c",
-      "path": "tests/unit/docs-site.test.js",
-      "line": 10,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "docs",
-        "site"
-      ],
-      "summary": "test precedent in tests/unit/docs-site.test.js",
-      "snippet": "const ROOT = path.resolve(__dirname, '..', '..');\n\nfunction read(rel) {\n  return fs.readFileSync(path.join(ROOT, rel), 'utf8');\n}"
-    },
-    {
-      "id": "83e98ae9275885f5",
-      "path": "tests/unit/mapping-artifacts.test.js",
-      "line": 15,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "mapping",
-        "artifacts"
-      ],
-      "summary": "test precedent in tests/unit/mapping-artifacts.test.js",
-      "snippet": "const NODE = process.execPath;\n\nfunction mkTmp() {\n  return fs.mkdtempSync(path.join(os.tmpdir(), 'mapper-artifacts-'));\n}"
-    },
-    {
-      "id": "d5df471a61db2547",
-      "path": "tests/unit/skillopt.test.js",
-      "line": 16,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "skillopt"
-      ],
-      "summary": "test precedent in tests/unit/skillopt.test.js",
-      "snippet": "const CLI = path.resolve(__dirname, '..', '..', 'bin', 'cli.js');\n\nfunction mkTmp() {\n  return fs.mkdtempSync(path.join(os.tmpdir(), 'lpm-skillopt-'));\n}"
-    },
-    {
-      "id": "858827c58fc987ff",
-      "path": "tests/unit/toon-contract.test.js",
-      "line": 30,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "toon",
-        "contract"
-      ],
-      "summary": "test precedent in tests/unit/toon-contract.test.js",
-      "snippet": "const NODE_TOON_CODEC_PATH = path.join(ROOT, 'bin', 'toon.js');\n\nfunction loadManifest() {\n  return JSON.parse(fs.readFileSync(path.join(CORPUS, 'manifest.json'), 'utf8'));\n}"
-    },
-    {
-      "id": "926e39dda7f6ab67",
-      "path": "vscode-extension/test/scan.test.js",
-      "line": 20,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "error-handling",
-      "tags": [
-        "test",
-        "javascript",
-        "vscode",
-        "extension",
-        "scan"
-      ],
-      "summary": "error-handling precedent in vscode-extension/test/scan.test.js",
-      "snippet": "// Easier: require the compiled JS if `out/scan.js` exists, otherwise skip.\nlet scan;\ntry {\n  scan = require('../out/scan.js');\n} catch {"
-    },
-    {
-      "id": "71f37f128d88f6ba",
-      "path": "simplicio_mapper/models.py",
-      "line": 6,
-      "rank": 1,
       "language": "python",
-      "change_type": "feature",
+      "change_type": "test",
       "tags": [
-        "domain",
+        "test",
         "python",
-        "simplicio",
-        "mapper",
-        "models"
+        "structural",
+        "benchmark"
       ],
-      "summary": "feature precedent in simplicio_mapper/models.py",
-      "snippet": "\n\nclass ProjectFile:\n    \"\"\"Parsed project file metadata.\n"
+      "summary": "test precedent in tests/test_structural_benchmark.py",
+      "snippet": "\n\nclass StructuralBenchmarkTests(unittest.TestCase):\n    def test_measurement_keeps_provider_tokens_unavailable(self) -> None:\n        case = BenchmarkCase(\"q1\", \"who calls main\", \"sha1\", \"a\" * 400, \"main\", \"main is called\", \"main is called\", (\"main\",))"
     },
     {
-      "id": "ce051cdcb4112263",
-      "path": ".skills/test-driven-development/SKILL.md",
-      "line": 77,
-      "rank": 1,
-      "language": "markdown",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "markdown",
-        "skills",
-        "driven",
-        "development",
-        "skill"
-      ],
-      "summary": "test precedent in .skills/test-driven-development/SKILL.md",
-      "snippet": "<Good>\n```typescript\ntest('retries failed operations 3 times', async () => {\n  let attempts = 0;\n  const operation = () => {"
-    },
-    {
-      "id": "ca11e65ad577cdac",
-      "path": ".skills/test-driven-development/testing-anti-patterns.md",
-      "line": 26,
-      "rank": 1,
-      "language": "markdown",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "markdown",
-        "skills",
-        "driven",
-        "development",
-        "testing",
-        "anti",
-        "patterns"
-      ],
-      "summary": "test precedent in .skills/test-driven-development/testing-anti-patterns.md",
-      "snippet": "```typescript\n// ❌ BAD: Testing that the mock exists\ntest('renders sidebar', () => {\n  render(<Page />);\n  expect(screen.getByTestId('sidebar-mock')).toBeInTheDocument();"
-    },
-    {
-      "id": "534338235f049cd3",
-      "path": ".specs/architecture/ADR-008-canonical-map-overlays.md",
-      "line": 230,
-      "rank": 1,
-      "language": "markdown",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "markdown",
-        "specs",
-        "architecture",
-        "adr",
-        "008",
-        "canonical",
-        "map",
-        "overlays"
-      ],
-      "summary": "test precedent in .specs/architecture/ADR-008-canonical-map-overlays.md",
-      "snippet": "\n@dataclass(frozen=True)\nclass CanonicalMapKey:\n    repo_identity: str\n    default_branch: str"
-    },
-    {
-      "id": "6b78f44c300b0b83",
-      "path": ".specs/architecture/ADR-009-async-mapping-pipeline.md",
-      "line": 128,
-      "rank": 1,
-      "language": "markdown",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "markdown",
-        "specs",
-        "architecture",
-        "adr",
-        "009",
-        "async",
-        "mapping",
-        "pipeline"
-      ],
-      "summary": "test precedent in .specs/architecture/ADR-009-async-mapping-pipeline.md",
-      "snippet": "\n```\n102872131 function calls in 119.956s (unbounded/no-limit debug build, single run)\n  93.413s  cumulative  _build_call_graph                  (graph.py:341)\n  79.709s  cumulative  _candidate_import_targets           (graph.py:280)  -- 7,650 calls"
-    },
-    {
-      "id": "1cfd80d4d6b86f8d",
-      "path": ".specs/architecture/ADR-011-adaptive-pipeline-threshold-calibration.md",
-      "line": 422,
-      "rank": 1,
-      "language": "markdown",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "markdown",
-        "specs",
-        "architecture",
-        "adr",
-        "011",
-        "adaptive",
-        "pipeline",
-        "threshold",
-        "calibration"
-      ],
-      "summary": "test precedent in .specs/architecture/ADR-011-adaptive-pipeline-threshold-calibration.md",
-      "snippet": "  repo actually runs -- there is still no Hub to publish a receipt to\n  external governance.\n- Shadow rollout comparing a candidate profile without promoting it (plan\n  step 15).\n- Versioned, reproducible autotuning policy (plan step 16) -- there is no"
-    },
-    {
-      "id": "eb7be9b679ba709b",
-      "path": ".specs/architecture/PATTERNS.md",
-      "line": 110,
-      "rank": 1,
-      "language": "markdown",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "markdown",
-        "specs",
-        "architecture",
-        "patterns"
-      ],
-      "summary": "test precedent in .specs/architecture/PATTERNS.md",
-      "snippet": "```typescript\n// tests/unit/calculate-invoice-total.test.ts\ntest('aplica desconto quando cliente e VIP', () => {\n  const invoice = makeInvoice({ items: [{ price: 100 }], customer: { tier: 'vip' } });\n  expect(calculateInvoiceTotal(invoice)).toBe(90);"
-    },
-    {
-      "id": "2f27a6b94253806d",
-      "path": "contracts/behavioral/v1/fixtures/frontend-ordering-en/tests/line-order.test.ts",
-      "line": 5,
-      "rank": 1,
-      "language": "typescript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "typescript",
-        "contracts",
-        "behavioral",
-        "fixtures",
-        "frontend",
-        "ordering",
-        "line",
-        "order"
-      ],
-      "summary": "test precedent in contracts/behavioral/v1/fixtures/frontend-ordering-en/tests/line-order.test.ts",
-      "snippet": "import { orderLineCards } from '../src/components/line-order.js';\n\ntest('orders cards by start date', () => {\n  assert.deepEqual(orderLineCards([]), []);\n});"
-    },
-    {
-      "id": "c10c354e0aecb749",
-      "path": "contracts/mapper-artifacts/v1/fixtures/node-minimal/source/spec/greet.spec.js",
-      "line": 5,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "contracts",
-        "mapper",
-        "artifacts",
-        "fixtures",
-        "node",
-        "minimal",
-        "source",
-        "spec"
-      ],
-      "summary": "test precedent in contracts/mapper-artifacts/v1/fixtures/node-minimal/source/spec/greet.spec.js",
-      "snippet": "const { greet } = require(\"../src/index.js\");\n\ntest(\"greet returns a greeting\", () => {\n  assert.strictEqual(greet(\"x\"), \"Hello, x!\");\n});"
-    },
-    {
-      "id": "fcf8ff6a39e0558d",
-      "path": "tests/e2e/smoke.spec.ts",
-      "line": 13,
-      "rank": 1,
-      "language": "typescript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "typescript",
-        "e2e",
-        "smoke",
-        "spec"
-      ],
-      "summary": "test precedent in tests/e2e/smoke.spec.ts",
-      "snippet": "const baseUrl = process.env.BASE_URL;\n\ntest.describe('downstream smoke (skipped without BASE_URL)', () => {\n  test.skip(!baseUrl, 'BASE_URL not set — skipping browser smoke');\n"
-    },
-    {
-      "id": "bde8bdff48404818",
-      "path": "tests/fixtures/ctx-pack-host/sample.py",
-      "line": 4,
+      "id": "ead9a0a591ff83f2",
+      "path": "tests/test_structural_graph.py",
+      "line": 19,
       "rank": 1,
       "language": "python",
       "change_type": "test",
       "tags": [
         "test",
         "python",
-        "fixtures",
-        "ctx",
-        "pack",
-        "host",
-        "sample"
+        "structural",
+        "graph"
       ],
-      "summary": "test precedent in tests/fixtures/ctx-pack-host/sample.py",
-      "snippet": "\n\ndef load_user(user_id: int) -> dict:\n    return {\"id\": user_id, \"name\": f\"user-{user_id}\"}\n"
-    },
-    {
-      "id": "53e8b418113d1376",
-      "path": "tests/fixtures/ctx-pack-host/sample.ts",
-      "line": 6,
-      "rank": 1,
-      "language": "typescript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "typescript",
-        "fixtures",
-        "ctx",
-        "pack",
-        "host",
-        "sample"
-      ],
-      "summary": "test precedent in tests/fixtures/ctx-pack-host/sample.ts",
-      "snippet": "}\n\nexport function loadUser(id: number): User {\n  return { id, name: `user-${id}` };\n}"
-    },
-    {
-      "id": "baeb08307ed4ead7",
-      "path": "tests/fixtures/evaluation_corpus/advanced/dispatch-priority-en/source/scripts/dispatch_priority_report.py",
-      "line": 1,
-      "rank": 1,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "fixtures",
-        "evaluation",
-        "corpus",
-        "advanced",
-        "dispatch",
-        "priority",
-        "source",
-        "scripts"
-      ],
-      "summary": "test precedent in tests/fixtures/evaluation_corpus/advanced/dispatch-priority-en/source/scripts/dispatch_priority_report.py",
-      "snippet": "def render_dispatch_priority_report(rows):\n    return [\n        f\"{row['queued_at']}::{row['outage_risk']}::{row['service_class']}\""
-    },
-    {
-      "id": "3f47c19cd3bf6b8d",
-      "path": "tests/fixtures/evaluation_corpus/advanced/dispatch-priority-en/source/src/scheduling/dispatch_policy.py",
-      "line": 1,
-      "rank": 1,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "fixtures",
-        "evaluation",
-        "corpus",
-        "advanced",
-        "dispatch",
-        "priority",
-        "source",
-        "scheduling"
-      ],
-      "summary": "test precedent in tests/fixtures/evaluation_corpus/advanced/dispatch-priority-en/source/src/scheduling/dispatch_policy.py",
-      "snippet": "def rank_dispatch_jobs(jobs):\n    risk_order = {\"critical\": 0, \"high\": 1, \"normal\": 2}\n    class_order = {\"restoration\": 0, \"industrial\": 1, \"residential\": 2}"
-    },
-    {
-      "id": "69a6f746076b143e",
-      "path": "tests/fixtures/evaluation_corpus/advanced/dispatch-priority-en/source/src/telemetry/policy_metrics.py",
-      "line": 1,
-      "rank": 1,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "fixtures",
-        "evaluation",
-        "corpus",
-        "advanced",
-        "dispatch",
-        "priority",
-        "source",
-        "telemetry"
-      ],
-      "summary": "test precedent in tests/fixtures/evaluation_corpus/advanced/dispatch-priority-en/source/src/telemetry/policy_metrics.py",
-      "snippet": "def emit_dispatch_policy_metrics(job):\n    return {\n        \"dispatch_policy\": job[\"service_class\"],"
-    },
-    {
-      "id": "4fe2d4fd80631e2a",
-      "path": "tests/fixtures/evaluation_corpus/advanced/session-replay-ptbr/source/scripts/replay_tokens.py",
-      "line": 1,
-      "rank": 1,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "fixtures",
-        "evaluation",
-        "corpus",
-        "advanced",
-        "session",
-        "replay",
-        "ptbr",
-        "source"
-      ],
-      "summary": "test precedent in tests/fixtures/evaluation_corpus/advanced/session-replay-ptbr/source/scripts/replay_tokens.py",
-      "snippet": "def normalize_replay_tokens(tokens):\n    return [token.strip().lower() for token in tokens]\n"
-    },
-    {
-      "id": "4dc6b7b2aaba3f0d",
-      "path": "tests/fixtures/evaluation_corpus/advanced/session-replay-ptbr/source/src/audit/replay_dashboard.py",
-      "line": 1,
-      "rank": 1,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "fixtures",
-        "evaluation",
-        "corpus",
-        "advanced",
-        "session",
-        "replay",
-        "ptbr",
-        "source"
-      ],
-      "summary": "test precedent in tests/fixtures/evaluation_corpus/advanced/session-replay-ptbr/source/src/audit/replay_dashboard.py",
-      "snippet": "def replay_dashboard_row(event):\n    return {\n        \"session_id\": event[\"session_id\"],"
-    },
-    {
-      "id": "220b5c80fc1e7f4b",
-      "path": "tests/fixtures/evaluation_corpus/advanced/session-replay-ptbr/source/src/security/session_replay_guard.py",
-      "line": 1,
-      "rank": 1,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "fixtures",
-        "evaluation",
-        "corpus",
-        "advanced",
-        "session",
-        "replay",
-        "ptbr",
-        "source"
-      ],
-      "summary": "test precedent in tests/fixtures/evaluation_corpus/advanced/session-replay-ptbr/source/src/security/session_replay_guard.py",
-      "snippet": "def accept_session_nonce(state, nonce):\n    if nonce in state[\"used_nonces\"]:\n        return False"
-    },
-    {
-      "id": "0e8b36eb0bf0af34",
-      "path": "tests/fixtures/evaluation_corpus/frontend-ordering-en/source/src/components/line_order.ts",
-      "line": 3,
-      "rank": 1,
-      "language": "typescript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "ui",
-        "typescript",
-        "fixtures",
-        "evaluation",
-        "corpus",
-        "frontend",
-        "ordering",
-        "source",
-        "components"
-      ],
-      "summary": "test precedent in tests/fixtures/evaluation_corpus/frontend-ordering-en/source/src/components/line_order.ts",
-      "snippet": "export type Lane = { kind: \"structural\" | \"temporal\"; startDate: string; name: string };\n\nexport function orderLanes(lanes: Lane[]): Lane[] {\n  const priority = { structural: 0, temporal: 1 } as const;\n  return [...lanes].sort((left, right) => priority[left.kind] - priority[right.kind] || left.startDate.localeCompare(right.startDate));"
-    },
-    {
-      "id": "d98d78740ea473bd",
-      "path": "tests/fixtures/evaluation_corpus/frontend-ordering-en/source/tests/line_order.test.ts",
-      "line": 3,
-      "rank": 1,
-      "language": "typescript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "typescript",
-        "fixtures",
-        "evaluation",
-        "corpus",
-        "frontend",
-        "ordering",
-        "source",
-        "line",
-        "order"
-      ],
-      "summary": "test precedent in tests/fixtures/evaluation_corpus/frontend-ordering-en/source/tests/line_order.test.ts",
-      "snippet": "import {orderLanes} from \"../src/components/line_order\";\n\ntest(\"structural lanes come first\", () => {\n  const ordered = orderLanes([\n    {kind: \"temporal\", startDate: \"2024-03-01\", name: \"T1\"},"
-    },
-    {
-      "id": "e9d780704fab4ed9",
-      "path": "tests/fixtures/evaluation_corpus/polyglot-cross-layer-en/source/src/frontend/order_form.ts",
-      "line": 7,
-      "rank": 1,
-      "language": "typescript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "typescript",
-        "fixtures",
-        "evaluation",
-        "corpus",
-        "polyglot",
-        "cross",
-        "layer",
-        "source",
-        "frontend"
-      ],
-      "summary": "test precedent in tests/fixtures/evaluation_corpus/polyglot-cross-layer-en/source/src/frontend/order_form.ts",
-      "snippet": "};\n\nexport function buildCheckoutPayload(draft: OrderDraft): { total: number; discount: number } {\n  const discounted = draft.subtotal - draft.discount;\n  const total = Number((discounted * (1 + draft.taxRate)).toFixed(2));"
-    },
-    {
-      "id": "6c616f60591e0f53",
-      "path": "tests/fixtures/evaluation_corpus/polyglot-cross-layer-en/source/tests/order_form.test.ts",
-      "line": 6,
-      "rank": 1,
-      "language": "typescript",
-      "change_type": "error-handling",
-      "tags": [
-        "test",
-        "typescript",
-        "fixtures",
-        "evaluation",
-        "corpus",
-        "polyglot",
-        "cross",
-        "layer",
-        "source",
-        "order"
-      ],
-      "summary": "error-handling precedent in tests/fixtures/evaluation_corpus/polyglot-cross-layer-en/source/tests/order_form.test.ts",
-      "snippet": "\nif (payload.total !== 104.5) {\n  throw new Error(`expected 104.5, received ${payload.total}`);\n}\n"
-    },
-    {
-      "id": "047dc9166f3dfce3",
-      "path": "tests/fixtures/impact-ground-truth/python-rename-greet/src/greeter.py",
-      "line": 8,
-      "rank": 1,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "fixtures",
-        "impact",
-        "ground",
-        "truth",
-        "rename",
-        "greet",
-        "greeter"
-      ],
-      "summary": "test precedent in tests/fixtures/impact-ground-truth/python-rename-greet/src/greeter.py",
-      "snippet": "\n\ndef greet(name: str) -> str:\n    \"\"\"Return a greeting for ``name``.\"\"\"\n    return f\"Hello, {name}!\""
-    },
-    {
-      "id": "c7387dc2e328dcdb",
-      "path": "tests/fixtures/impact-ground-truth/python-rename-greet/src/unrelated.py",
-      "line": 8,
-      "rank": 1,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "fixtures",
-        "impact",
-        "ground",
-        "truth",
-        "rename",
-        "greet",
-        "unrelated"
-      ],
-      "summary": "test precedent in tests/fixtures/impact-ground-truth/python-rename-greet/src/unrelated.py",
-      "snippet": "\n\ndef noop() -> int:\n    return 1\n"
-    },
-    {
-      "id": "e83862c574ccf313",
-      "path": "tests/fixtures/mech-edit-host/sample.py",
-      "line": 4,
-      "rank": 1,
-      "language": "python",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "python",
-        "fixtures",
-        "mech",
-        "edit",
-        "host",
-        "sample"
-      ],
-      "summary": "test precedent in tests/fixtures/mech-edit-host/sample.py",
-      "snippet": "\n\ndef greet(audience: str) -> str:\n    return f\"hello, {audience}\"\n"
-    },
-    {
-      "id": "17b8bc7dfcc52f5d",
-      "path": "tests/fixtures/mech-edit-host/sample.ts",
-      "line": 6,
-      "rank": 1,
-      "language": "typescript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "typescript",
-        "fixtures",
-        "mech",
-        "edit",
-        "host",
-        "sample"
-      ],
-      "summary": "test precedent in tests/fixtures/mech-edit-host/sample.ts",
-      "snippet": "}\n\nexport function greet(audience: string): Greeting {\n  return { audience, message: `hello, ${audience}` };\n}"
-    },
-    {
-      "id": "79c6f680306cbdd3",
-      "path": "tests/fixtures/parity-host/src/greet.js",
-      "line": 1,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "fixtures",
-        "parity",
-        "host",
-        "greet"
-      ],
-      "summary": "test precedent in tests/fixtures/parity-host/src/greet.js",
-      "snippet": "function greet(name) {\n  return `hello, ${name}`;\n}"
-    },
-    {
-      "id": "8b2efdffdbbf8ea2",
-      "path": "tests/fixtures/parity-host/tests/server-fixture.js",
-      "line": 5,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "fixtures",
-        "parity",
-        "host",
-        "server",
-        "fixture"
-      ],
-      "summary": "test precedent in tests/fixtures/parity-host/tests/server-fixture.js",
-      "snippet": "const { startServer } = require('../src/index');\n\ntest('starts the server', () => {\n  const app = startServer();\n  assert.ok(app);"
-    },
-    {
-      "id": "d205f1a5c2dabbb3",
-      "path": "tests/fixtures/runtime-scale/manifest.json",
-      "line": 30,
-      "rank": 1,
-      "language": "json",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "json",
-        "fixtures",
-        "runtime",
-        "scale",
-        "manifest"
-      ],
-      "summary": "test precedent in tests/fixtures/runtime-scale/manifest.json",
-      "snippet": "        \"statistics\"\n      ],\n      \"body\": \"from dataclasses import dataclass\\n\\n@dataclass\\nclass IndexedDispatchPlanner:\\n    token_budget: int = 8000\\n\\n    def plan(self, opened_files: int, bytes_read: int) -> dict[str, int]:\\n        normalized = max(1, opened_files)\\n        return {\\n            \\\"opened_files\\\": opened_files,\\n            \\\"bytes_read\\\": bytes_read,\\n            \\\"budget_tokens\\\": max(1, self.token_budget - normalized),\\n        }\\n\\n\\ndef plan_runtime_scale_budget(opened_files: int, bytes_read: int) -> dict[str, int]:\\n    return IndexedDispatchPlanner().plan(opened_files, bytes_read)\\n\"\n    },\n    {"
-    },
-    {
-      "id": "8957e0651e269c11",
-      "path": "tests/unit/check-readme-sync.test.js",
-      "line": 12,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "check",
-        "readme",
-        "sync"
-      ],
-      "summary": "test precedent in tests/unit/check-readme-sync.test.js",
-      "snippet": "} = require('../../scripts/check-readme-sync.js');\n\ntest('extractHeadingLevels reads heading depth, ignoring code fences', () => {\n  const text = [\n    '# Title',"
-    },
-    {
-      "id": "c42b837d7df7d072",
-      "path": "tests/unit/codex-hook.test.js",
-      "line": 8,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "codex",
-        "hook"
-      ],
-      "summary": "test precedent in tests/unit/codex-hook.test.js",
-      "snippet": "const SCRIPT = path.resolve(__dirname, '..', '..', 'bin', 'codex-hook.js');\n\ntest('PostToolUse bridge accepts Codex JSON and exits cleanly', () => {\n  const result = spawnSync(process.execPath, [SCRIPT], {\n    input: JSON.stringify({ hook_event_name: 'PostToolUse', tool_name: 'Edit' }),"
-    },
-    {
-      "id": "b700c2e756d6bf7a",
-      "path": "tests/unit/overlay-docs.test.js",
-      "line": 17,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "overlay",
-        "docs"
-      ],
-      "summary": "test precedent in tests/unit/overlay-docs.test.js",
-      "snippet": "];\n\ntest('overlay screencast asset captures the required flow', () => {\n  const svg = fs.readFileSync(SVG_PATH, 'utf8');\n"
-    },
-    {
-      "id": "ca06a0397240549e",
-      "path": "tests/unit/package-scripts.test.js",
-      "line": 9,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "package",
-        "scripts"
-      ],
-      "summary": "test precedent in tests/unit/package-scripts.test.js",
-      "snippet": "const packageJson = require(path.resolve(__dirname, '..', '..', 'package.json'));\n\ntest('npm test scopes discovery to the unit suite', () => {\n  assert.equal(packageJson.scripts.test, 'node --test tests/unit/*.test.js');\n});"
-    },
-    {
-      "id": "ead6be2e8317dcea",
-      "path": "tests/unit/render-simplicio-comment.test.js",
-      "line": 10,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "render",
-        "simplicio",
-        "comment"
-      ],
-      "summary": "test precedent in tests/unit/render-simplicio-comment.test.js",
-      "snippet": "} = require('../../scripts/render-simplicio-comment.js');\n\ntest('renderComment includes the idempotency marker', () => {\n  const body = renderComment(null, null);\n  assert.ok(body.startsWith(MARKER));"
-    },
-    {
-      "id": "38f71380feda3f96",
-      "path": "tests/unit/why-video-narration.test.js",
-      "line": 11,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "javascript",
-        "unit",
-        "why",
-        "video",
-        "narration"
-      ],
-      "summary": "test precedent in tests/unit/why-video-narration.test.js",
-      "snippet": "const NARRATION_PATH = path.join(ROOT, 'video', 'src', 'why', 'narration.json');\n\ntest('why-video narration script defines a shared nine-scene timeline', () => {\n  const narration = JSON.parse(fs.readFileSync(NARRATION_PATH, 'utf8'));\n  assert.equal(narration.timeline.length, 9);"
-    },
-    {
-      "id": "fb618f70894d38a8",
-      "path": "contracts/behavioral/v1/fixtures/planes-ordering-ptbr/src/modeling/sort_lines.py",
-      "line": 1,
-      "rank": 1,
-      "language": "python",
-      "change_type": "feature",
-      "tags": [
-        "domain",
-        "python",
-        "contracts",
-        "behavioral",
-        "fixtures",
-        "planes",
-        "ordering",
-        "ptbr",
-        "modeling",
-        "sort"
-      ],
-      "summary": "feature precedent in contracts/behavioral/v1/fixtures/planes-ordering-ptbr/src/modeling/sort_lines.py",
-      "snippet": "def sort_lines(lines):\n    \"\"\"Ordenacao de linhas: estrutural, temporal e modelagem por data de inicio.\"\"\"\n    return sorted(lines, key=lambda line: (line.kind, line.start_date))"
-    },
-    {
-      "id": "53438e0b8d8d519f",
-      "path": "tests/fixtures/ecosystem-consumers-divergent.json",
-      "line": 2,
-      "rank": 1,
-      "language": "json",
-      "change_type": "error-handling",
-      "tags": [
-        "test",
-        "json",
-        "fixtures",
-        "ecosystem",
-        "consumers",
-        "divergent"
-      ],
-      "summary": "error-handling precedent in tests/fixtures/ecosystem-consumers-divergent.json",
-      "snippet": "{\n  \"$comment\": \"Test-only fixture for tests/python/test_generate_ecosystem_doc.py (issue #156). Simulates two kinds of drift the detector in scripts/generate-ecosystem-doc.py must catch: a consumer whose declared floor trails the current release ('behind', an old/stale constraint someone forgot to bump) and a consumer whose declared floor is newer than the current release ('ahead', a hard divergence — the consumer expects capabilities simplicio-mapper has not shipped yet).\",\n  \"schema\": \"simplicio.ecosystem-consumers/v1\",\n  \"consumers\": ["
-    },
-    {
-      "id": "2b7a1740bf768bce",
-      "path": "tests/fixtures/evaluation_corpus/advanced/dispatch-priority-en/source/docs/dispatch_policy_runbook.md",
-      "line": 3,
-      "rank": 1,
-      "language": "markdown",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "markdown",
-        "fixtures",
-        "evaluation",
-        "corpus",
-        "advanced",
-        "dispatch",
-        "priority",
-        "source",
-        "docs"
-      ],
-      "summary": "test precedent in tests/fixtures/evaluation_corpus/advanced/dispatch-priority-en/source/docs/dispatch_policy_runbook.md",
-      "snippet": "# Dispatch policy runbook\n\nThe dispatch policy runbook explains outage risk escalation, service class communication,\nqueued timestamp reconciliation, and operator playbooks. It documents dispatch policy\nterminology but does not implement the dispatch ordering algorithm."
-    },
-    {
-      "id": "ad43340c5678407e",
-      "path": "tests/fixtures/evaluation_corpus/advanced/dispatch-priority-en/task.json",
-      "line": 4,
-      "rank": 1,
-      "language": "json",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "json",
-        "fixtures",
-        "evaluation",
-        "corpus",
-        "advanced",
-        "dispatch",
-        "priority",
-        "task"
-      ],
-      "summary": "test precedent in tests/fixtures/evaluation_corpus/advanced/dispatch-priority-en/task.json",
-      "snippet": "  \"system\": \"Grid Dispatch\",\n  \"functionality\": \"Dispatch prioritization\",\n  \"goal\": \"Prioritize dispatch recommendations by outage risk before service class and keep ties deterministic by queued timestamp.\",\n  \"acceptance_criteria\": [\n    \"outage risk ranks before service class\","
-    },
-    {
-      "id": "17a2df24b43ab505",
-      "path": "tests/fixtures/impact-ground-truth/python-rename-greet/README.md",
-      "line": 8,
-      "rank": 1,
-      "language": "markdown",
-      "change_type": "test",
-      "tags": [
-        "test",
-        "markdown",
-        "fixtures",
-        "impact",
-        "ground",
-        "truth",
-        "python",
-        "rename",
-        "greet",
-        "readme"
-      ],
-      "summary": "test precedent in tests/fixtures/impact-ground-truth/python-rename-greet/README.md",
-      "snippet": "in `src/greeter.py`. `ground_truth.json` lists the real files that import or\ncall `greet` (`impacted_files`) and one deliberate noise file that never\nreferences it (`non_impacted_files`) -- both verified by reading the fixture\nsource in this directory, not guessed.\n"
-    },
-    {
-      "id": "1ab6ee9b782928f5",
-      "path": "tests/fixtures/impact-ground-truth/python-rename-greet/ground_truth.json",
-      "line": 3,
-      "rank": 1,
-      "language": "json",
-      "change_type": "error-handling",
-      "tags": [
-        "test",
-        "json",
-        "fixtures",
-        "impact",
-        "ground",
-        "truth",
-        "python",
-        "rename",
-        "greet"
-      ],
-      "summary": "error-handling precedent in tests/fixtures/impact-ground-truth/python-rename-greet/ground_truth.json",
-      "snippet": "{\n  \"schema\": \"simplicio.impact-ground-truth-fixture/v1\",\n  \"description\": \"Hand-authored ground truth for one concrete code change: renaming greet -> greet_person in src/greeter.py. Every file listed in impacted_files genuinely imports/calls greet (verified by reading the fixture source, not inferred). non_impacted_files never reference greet at all and exist to catch false positives (precision noise).\",\n  \"change\": {\n    \"target_file\": \"src/greeter.py\","
-    },
-    {
-      "id": "e5101ea0de80e66a",
-      "path": "docs-site/docusaurus.config.cjs",
-      "line": 9,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "error-handling",
-      "tags": [
-        "config",
-        "javascript",
-        "docs",
-        "site",
-        "docusaurus",
-        "cjs"
-      ],
-      "summary": "error-handling precedent in docs-site/docusaurus.config.cjs",
-      "snippet": "  projectName: 'simplicio-mapper',\n  trailingSlash: false,\n  onBrokenLinks: 'throw',\n  onBrokenAnchors: 'warn',\n  markdown: {"
-    },
-    {
-      "id": "726b6eae4ce31a60",
-      "path": "pyproject.toml",
-      "line": 83,
-      "rank": 1,
-      "language": "toml",
-      "change_type": "error-handling",
-      "tags": [
-        "config",
-        "toml",
-        "pyproject"
-      ],
-      "summary": "error-handling precedent in pyproject.toml",
-      "snippet": "  \"I\",   # import sorting\n  \"B\",   # flake8-bugbear\n  \"BLE\", # flake8-blind-except\n  \"S\",   # flake8-bandit\n  \"UP\",  # pyupgrade"
-    },
-    {
-      "id": "d43913f31dc7031f",
-      "path": "bin/auto-map.js",
-      "line": 23,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "feature",
-      "tags": [
-        "javascript",
-        "bin",
-        "auto",
-        "map"
-      ],
-      "summary": "feature precedent in bin/auto-map.js",
-      "snippet": "]);\n\nfunction readSafe(file) {\n  try {\n    return fs.readFileSync(file, 'utf8');"
-    },
-    {
-      "id": "83104108d462e030",
-      "path": "bin/hook-runner.js",
-      "line": 17,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "feature",
-      "tags": [
-        "javascript",
-        "bin",
-        "hook",
-        "runner"
-      ],
-      "summary": "feature precedent in bin/hook-runner.js",
-      "snippet": "const isWindows = process.platform === 'win32';\n\nfunction runHook(scriptBaseName, args = []) {\n  const hooksDir = path.join(repoRoot, `.${tool}`, 'hooks');\n  const ext = isWindows ? '.ps1' : '.sh';"
-    },
-    {
-      "id": "b9250ac8b70b4744",
-      "path": "bin/map.js",
-      "line": 22,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "feature",
-      "tags": [
-        "javascript",
-        "bin",
-        "map"
-      ],
-      "summary": "feature precedent in bin/map.js",
-      "snippet": "// through a Node counterpart of `scripts/toon_contract_runner.py`.\n\nfunction readJsonSafe(file) {\n  try {\n    return JSON.parse(fs.readFileSync(file, 'utf8'));"
-    },
-    {
-      "id": "8cd7921ca0f3dabf",
-      "path": "bin/mapper-artifacts.js",
-      "line": 57,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "feature",
-      "tags": [
-        "javascript",
-        "bin",
-        "mapper",
-        "artifacts"
-      ],
-      "summary": "feature precedent in bin/mapper-artifacts.js",
-      "snippet": "]);\n\nfunction normalizeRel(file) {\n  return file.split(path.sep).join('/');\n}"
-    },
-    {
-      "id": "49e9f6392d81cc12",
-      "path": "contracts/context-snapshot/v1/consumer-example/validate_snapshot.py",
-      "line": 14,
-      "rank": 1,
-      "language": "python",
-      "change_type": "feature",
-      "tags": [
-        "python",
-        "contracts",
-        "context",
-        "snapshot",
-        "consumer",
-        "example",
-        "validate"
-      ],
-      "summary": "feature precedent in contracts/context-snapshot/v1/consumer-example/validate_snapshot.py",
-      "snippet": "\n\ndef _error(code: str, message: str) -> dict[str, Any]:\n    return {\n        \"valid\": False,"
-    },
-    {
-      "id": "2f1643abda195030",
-      "path": "contracts/mapper-canvas/v1/fixtures/event-driven/source/src/producer.js",
-      "line": 2,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "feature",
-      "tags": [
-        "javascript",
-        "contracts",
-        "mapper",
-        "canvas",
-        "fixtures",
-        "event",
-        "driven",
-        "source",
-        "producer"
-      ],
-      "summary": "feature precedent in contracts/mapper-canvas/v1/fixtures/event-driven/source/src/producer.js",
-      "snippet": "const { handle } = require('./consumer');\nfunction publish(event) { return handle(event); }\nmodule.exports = { publish };\n"
-    },
-    {
-      "id": "00b579e8625d16fa",
-      "path": "examples/asolaria-mapping/asolaria_mapper_example.py",
-      "line": 27,
-      "rank": 1,
-      "language": "python",
-      "change_type": "feature",
-      "tags": [
-        "python",
-        "examples",
-        "asolaria",
-        "mapping",
-        "mapper",
-        "example"
-      ],
-      "summary": "feature precedent in examples/asolaria-mapping/asolaria_mapper_example.py",
-      "snippet": "# =============================================================================\n\nclass ProofLevel(Enum):\n    \"\"\"Asolaria tagging discipline — every mapped item gets exactly one.\"\"\"\n    MEASURED = \"MEASURED\"       # Executed/verified against real system"
-    },
-    {
-      "id": "a23cd376859e5ec0",
-      "path": "packaging/npm/lib/python-shim.js",
-      "line": 8,
-      "rank": 1,
-      "language": "javascript",
-      "change_type": "feature",
-      "tags": [
-        "javascript",
-        "packaging",
-        "npm",
-        "python",
-        "shim"
-      ],
-      "summary": "feature precedent in packaging/npm/lib/python-shim.js",
-      "snippet": "const { spawnSync } = require('node:child_process');\n\nfunction run(command, args, options = {}) {\n  const result = spawnSync(command, args, {\n    stdio: 'inherit',"
-    },
-    {
-      "id": "b781c6836f6ae086",
-      "path": "rust/src/lib.rs",
-      "line": 268,
-      "rank": 1,
-      "language": "rust",
-      "change_type": "feature",
-      "tags": [
-        "rust"
-      ],
-      "summary": "feature precedent in rust/src/lib.rs",
-      "snippet": "    #[test]\n    fn parse_symbols_matches_reference_order_and_limit_shape() {\n        let result = parse_symbols(\"def zebra(): pass\\nclass Alpha: pass\\nfunction beta() {}\");\n        assert_eq!(result, vec![\"Alpha\", \"beta\", \"zebra\"]);\n    }"
+      "summary": "test precedent in tests/test_structural_graph.py",
+      "snippet": "\n\nclass StructuralGraphTests(unittest.TestCase):\n    def make_graph(self) -> StructuralGraph:\n        graph = StructuralGraph(\"repo@example\", \"generation-1\")"
     }
-  ]
+  ],
+  "producer": {
+    "component": "simplicio-mapper",
+    "version": "0.26.33",
+    "backend": "python",
+    "schema_version": "v1",
+    "repository_id": "sha256:a2be0a09b525987d10166db5c5eb1b521a05e102cce9d9bcb2a8cf2c4def51b1",
+    "source_generation": {
+      "kind": "git-working-tree",
+      "revision": "817f80953f173eddea7c2de306c2f0d39abd9421",
+      "dirty": true
+    },
+    "capability_coverage": {
+      "files": "unsupported",
+      "symbols": "unsupported",
+      "relationships": "unsupported",
+      "precedent": "partial",
+      "architecture": "unsupported"
+    },
+    "degraded_paths": [],
+    "omitted_paths": [
+      "files:contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/large/ignored.txt",
+      "files:docs-site/package-lock.json",
+      "files:docs/evidence/issue-328-meta-audit.json",
+      "files:docs/evidence/mapper-store-inventory.json",
+      "files:examples/ecosystem-dogfood/architecture-inventory.json",
+      "files:examples/ecosystem-dogfood/project-map.json",
+      "files:simplicio_mapper/store/neural/assets/seeds.sql",
+      "generated:contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/dist",
+      "symlink:contracts/mapper-artifacts/v1/fixtures/canonical-matrix/source/links/app.py"
+    ],
+    "canonical_digest": "sha256:d793ad66f0319989c5360b232a0f269c652226c7436e68e663f81d5a5fc67456"
+  }
 }

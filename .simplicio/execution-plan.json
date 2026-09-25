@@ -5,7 +5,7 @@
   "file_count": 600,
   "threshold": 600,
   "async_disabled": false,
-  "platform": "Windows",
+  "platform": "Linux",
   "source": "auto",
   "candidates": {},
   "evidence": null,
