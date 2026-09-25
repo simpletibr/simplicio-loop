@@ -1616,6 +1616,29 @@ def _looks_like_host_edit_plan(payload: Mapping[str, Any]) -> bool:
     return isinstance(operations, list) and bool(operations)
 
 
+def _compile_minimal_host_plan(repo_path: Path, plan_path: Path) -> tuple[Dict[str, Any] | None, str]:
+    """Freeze a minimal ``{operations: [{path, find, replace}]}`` plan in place.
+
+    Runs right before apply, so each task binds to the tree the previous task
+    left (a serial wave of host plans never drifts). Full plans pass through.
+    """
+    plan = _load_json(plan_path)
+    if plan.get("schema"):
+        return plan, ""
+    compiled_path = plan_path.with_name(plan_path.stem + ".compiled.json")
+    result = _run_cmd(
+        _devcli_cmd(repo_path, "edit", "--root", str(repo_path), "--plan", str(plan_path),
+                    "--compile", str(compiled_path), "--json"),
+        repo_path,
+    )
+    if result.returncode != 0 or not compiled_path.is_file():
+        return None, f"plan_compile_failed: {(result.stdout or result.stderr or '').strip()[:600]}"
+    compiled = _load_json(compiled_path)
+    _write_json(plan_path, compiled)
+    compiled_path.unlink()
+    return compiled, ""
+
+
 def _resolve_host_edit_plan(
     run_dir: Path,
     *,
@@ -5577,6 +5600,25 @@ def _execute_operator_unleased(repo: str, run_id: str, task_index: int = 1, *,
     if not same_file:
         _write_json(dest, mechanical_plan)
         mechanical_path = dest
+    compiled_plan, compile_error = _compile_minimal_host_plan(repo_path, mechanical_path)
+    if compiled_plan is None:
+        blocked_receipt = {
+            "schema": OPERATOR_RECEIPT_SCHEMA,
+            "mode": "apply",
+            "tool": "simplicio-dev-cli",
+            "execution_state": "blocked",
+            "reason_code": "plan_compile_failed",
+            "target": target,
+            "stdout": {},
+            "stderr": compile_error,
+            "measured_at": _now(),
+        }
+        return _finish_operator_blocked(
+            repo=repo, run_id=run_id, run_dir=run_dir, status=status,
+            receipt=blocked_receipt, operator_path=operator_path,
+            task_index=task_index, reason=compile_error,
+        )
+    mechanical_plan = compiled_plan
     verb = "edit" if mechanical_plan.get("schema") == "simplicio.dev-cli.edit-plan/v1" else "mechanical-edit"
     argv = _devcli_cmd(
         repo_path, verb, "--root", str(repo_path),
