@@ -1,3 +1,0 @@
-iterations_per_sample=10000
-samples_seconds=[0.050165, 0.052648, 0.050742, 0.05096, 0.053726, 0.05007, 0.056429]
-best_us_per_verification=5.007
