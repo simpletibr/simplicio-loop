@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.35 - 2026-09-25
+
+- Merge pull request #532: Fast ranking fix (wave).
+- Fix `understand`: weight query terms by rarity and let file names count.
+- Feature `ingest`: ask the installed Mapper for the handoff when none is given.
+- Fix: stop recursion in stat patch, skip optional-runtime tests.
+
 ## 2.0.34 - 2026-09-15
 
 - Fix #528: Synchronize `rust/Cargo.lock` with workspace core version (2.0.34) and enforce lockfile alignment in `scripts/check_release_integrity.py`.
